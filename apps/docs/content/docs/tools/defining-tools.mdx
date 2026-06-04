@@ -177,7 +177,7 @@ The tool's **kind is inferred from its `execute`** and written back as a `type` 
 | --- | --- | --- | --- |
 | plain `async () => …` | **backend** | schema + `execute` (guarded `server-only`) | schema + `render` |
 | `async () => { "use client"; … }` | **frontend** | schema only | schema + `execute` + `render`/`renderText` |
-| `hitlTool()` | **human** | schema only | schema + `render` |
+| `humanTool()` | **human** | schema only | schema + `render` |
 | `stubTool()` | **frontend** (executor supplied at runtime) | schema only | schema + `render`/`renderText` |
 | `providerTool({ … })` | **provider** | schema + provider config | schema + provider config |
 | `externalTool()` | **backend** (defined elsewhere) | omitted | `type: "backend"` + `render`/`renderText` |
@@ -189,26 +189,6 @@ The compiler also enforces, at build time:
 - a **human** tool declares a `render`.
 
 ## Tool kinds
-
-### Frontend tools
-
-Run in the browser. Author a real `execute` with a leading `"use client"`:
-
-```tsx
-copy_to_clipboard: {
-  description: "Copy text to the user's clipboard.",
-  parameters: z.object({ text: z.string() }),
-  execute: async ({ text }) => {
-    "use client";
-    await navigator.clipboard.writeText(text);
-    return { copied: true };
-  },
-  renderText: {
-    running: "Copying text…",
-    complete: "Copied text to clipboard",
-  },
-},
-```
 
 ### Backend tools
 
@@ -230,15 +210,35 @@ geocode_location: {
   `externalTool()` or `defineMcpToolkit()`.
 </Callout>
 
+### Frontend tools
+
+Run in the browser. Author a real `execute` with a leading `"use client"`:
+
+```tsx
+copy_to_clipboard: {
+  description: "Copy text to the user's clipboard.",
+  parameters: z.object({ text: z.string() }),
+  execute: async ({ text }) => {
+    "use client";
+    await navigator.clipboard.writeText(text);
+    return { copied: true };
+  },
+  renderText: {
+    running: "Copying text…",
+    complete: "Copied text to clipboard",
+  },
+},
+```
+
 ### Human tools
 
-Pause the run until the user supplies a result through the rendered UI. Author `execute: hitlTool()` and a `render` that calls `addResult` exactly once:
+Pause the run until the user supplies a result through the rendered UI. Author `execute: humanTool()` and a `render` that calls `addResult` exactly once:
 
 ```tsx
 select_date: {
   description: "Ask the user to select a date.",
   parameters: z.object({ prompt: z.string() }),
-  execute: hitlTool(),
+  execute: humanTool(),
   render: ({ args, result, addResult }) => {
     if (result) return <p>Selected {result.date}</p>;
     return (
@@ -251,7 +251,7 @@ select_date: {
 },
 ```
 
-`hitlTool` is imported from `@assistant-ui/react`. See [Tool UI → Human-in-the-loop](/docs/tools/tool-ui#user-input-collection) for the full pattern.
+`humanTool` is imported from `@assistant-ui/react`. See [Tool UI → Human-in-the-loop](/docs/tools/tool-ui#user-input-collection) for the full pattern.
 
 ### Provider tools
 
@@ -308,15 +308,12 @@ If you don't provide a renderer, add the [`ToolFallback`](/docs/ui/tool-fallback
 ## Render-only tools (for externally-executed tools)
 
 Prefer `"use generative"` with `externalTool()` for non-MCP tools, or
-`defineMcpToolkit()` for MCP servers. Plain `satisfies Toolkit` render-only
-entries are only needed when a file cannot go through the generative compiler.
-In that case, declare a `"use client"` toolkit with an explicit
+`defineMcpToolkit()` for MCP servers. If a file cannot go through the generative
+compiler, declare a `"use client"` toolkit object with an explicit
 `type: "backend"` and only a `render`:
 
 ```tsx title="app/tool-ui.tsx"
 "use client";
-
-import type { Toolkit } from "@assistant-ui/react";
 
 export const toolkit = {
   web_search: {
@@ -325,7 +322,7 @@ export const toolkit = {
       <SearchResults query={args.query} results={result?.results ?? []} />
     ),
   },
-} satisfies Toolkit;
+};
 ```
 
 Register it exactly like a generative toolkit: `useAui({ tools: Tools({ toolkit }) })`. The key must match the tool name your backend or MCP server publishes. Render-only entries upload no schema and run no browser code — they only attach UI to matching tool-call message parts.

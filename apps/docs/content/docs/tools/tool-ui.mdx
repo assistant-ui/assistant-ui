@@ -103,7 +103,7 @@ const toolkit = {
       // UI rendering logic only
     },
   },
-} satisfies Toolkit;
+};
 ```
 
 ## Quick Start Example
@@ -185,7 +185,7 @@ const toolkit = {
     type: "backend",
     render: WeatherToolUI,
   },
-} satisfies Toolkit;
+};
 
 function App({ runtime }: { runtime: AssistantRuntime }) {
   const aui = useAui({ tools: Tools({ toolkit }) });
@@ -291,7 +291,7 @@ const toolkit = {
     type: "backend",
     render: WebSearchToolUI,
   },
-} satisfies Toolkit;
+};
 ```
 
 ### Dynamic Toolkit Pattern
@@ -301,7 +301,7 @@ Use a toolkit hook in its own file when the renderer needs component state:
 ```tsx title="analyze-data-toolkit.tsx"
 "use client";
 
-import { type Toolkit, useInlineRender } from "@assistant-ui/react";
+import { useInlineRender } from "@assistant-ui/react";
 import { useMemo } from "react";
 
 export function useAnalyzeDataToolkit(theme: "light" | "dark") {
@@ -322,7 +322,7 @@ export function useAnalyzeDataToolkit(theme: "light" | "dark") {
           type: "backend",
           render: renderAnalyzeData,
         },
-      }) satisfies Toolkit,
+      }),
     [renderAnalyzeData],
   );
 }
@@ -358,7 +358,7 @@ For tools that need access to parent component props:
 ```tsx title="inventory-toolkit.tsx"
 "use client";
 
-import { type Toolkit, useInlineRender } from "@assistant-ui/react";
+import { useInlineRender } from "@assistant-ui/react";
 import { useMemo } from "react";
 
 export function useInventoryToolkit(productId: string, productName: string) {
@@ -381,7 +381,7 @@ export function useInventoryToolkit(productId: string, productName: string) {
           type: "backend",
           render: renderInventory,
         },
-      }) satisfies Toolkit,
+      }),
     [renderInventory],
   );
 }
@@ -445,7 +445,7 @@ const toolkit = {
       );
     },
   },
-} satisfies Toolkit;
+};
 ```
 
 ### Multi-Step Interactions
@@ -570,7 +570,7 @@ const toolkit = {
       return <p>Deployed</p>;
     },
   },
-} satisfies Toolkit;
+};
 ```
 
 `approval.approved` is a three-state signal:
@@ -634,7 +634,7 @@ const toolkit = {
       return <Chart title={args.title} data={args.series} />;
     },
   },
-} satisfies Toolkit;
+};
 ```
 
 The chart mounts once, with the final args, after streaming finishes. No re-renders during the stream.
@@ -714,7 +714,7 @@ const toolkit = {
       );
     },
   },
-} satisfies Toolkit;
+};
 ```
 
 ### Partial Results & Streaming
@@ -757,7 +757,7 @@ const toolkit = {
       );
     },
   },
-} satisfies Toolkit;
+};
 ```
 
 ### Custom Tool Fallback
@@ -825,7 +825,7 @@ const toolkit = {
       return <div>Processing...</div>;
     },
   },
-} satisfies Toolkit;
+};
 ```
 
 Learn more about tool human input in the [Tools Guide](/docs/tools/defining-tools#human-tools).
@@ -882,7 +882,7 @@ Use `useInlineRender` to prevent unnecessary re-renders:
 ```tsx title="heavy-computation-toolkit.tsx"
 "use client";
 
-import { type Toolkit, useInlineRender } from "@assistant-ui/react";
+import { useInlineRender } from "@assistant-ui/react";
 import { useMemo } from "react";
 
 export function useHeavyComputationToolkit() {
@@ -897,7 +897,7 @@ export function useHeavyComputationToolkit() {
           type: "backend",
           render: renderHeavyComputation,
         },
-      }) satisfies Toolkit,
+      }),
     [renderHeavyComputation],
   );
 }

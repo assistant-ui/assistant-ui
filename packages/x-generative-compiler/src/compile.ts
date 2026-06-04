@@ -822,9 +822,13 @@ function executeIsSentinel(
 }
 
 /** Whether an `execute` is the human-in-the-loop sentinel. */
-function executeIsHitl(member: t.ObjectProperty | t.ObjectMethod): boolean {
+function executeIsHumanTool(
+  member: t.ObjectProperty | t.ObjectMethod,
+): boolean {
   return (
-    executeIsSentinel(member, "hitl") || executeIsSentinel(member, "hitlTool")
+    executeIsSentinel(member, "humanTool") ||
+    executeIsSentinel(member, "hitlTool") ||
+    executeIsSentinel(member, "hitl")
   );
 }
 
@@ -859,7 +863,7 @@ function stripUseClient(member: t.ObjectProperty | t.ObjectMethod): void {
 
 /**
  * The tool's nature, inferred from its (mandatory) `execute` rather than an
- * authored `type`: `hitlTool()` → `human`; `providerTool(...)` → `provider`;
+ * authored `type`: `humanTool()` → `human`; `providerTool(...)` → `provider`;
  * `stubTool()` → `frontend`; `externalTool()` → `backend`; `"use client"` →
  * `frontend`; otherwise `backend`.
  * The loader writes the result back as a `type` field (see {@link setToolType})
@@ -872,12 +876,12 @@ function inferToolType(
   const execute = findMember(object, "execute");
   if (!execute) {
     throw new GenerativeCompileError(
-      "every tool must declare an `execute`; use `hitlTool()` for a " +
+      "every tool must declare an `execute`; use `humanTool()` for a " +
         "human-in-the-loop tool",
       filename,
     );
   }
-  if (executeIsHitl(execute)) return "human";
+  if (executeIsHumanTool(execute)) return "human";
   if (executeIsProviderTool(execute)) return "provider";
   if (executeIsStubTool(execute)) return "frontend";
   if (executeIsExternalTool(execute)) return "backend";

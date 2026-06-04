@@ -242,7 +242,6 @@ export default defineToolkit({
 <Tab value="React Native">
 
 ```tsx title="components/GitHubIssueToolUI.tsx"
-import type { Toolkit } from "@assistant-ui/react-native";
 import { Linking, Pressable, Text, View } from "react-native";
 
 type Args = { repo: string; number: number };
@@ -266,14 +265,13 @@ export const toolkit = {
       </View>
     ),
   },
-} satisfies Toolkit;
+};
 ```
 
 </Tab>
 <Tab value="React Ink">
 
 ```tsx title="components/GitHubIssueToolUI.tsx"
-import type { Toolkit } from "@assistant-ui/react-ink";
 import { Box, Text } from "ink";
 
 type Args = { repo: string; number: number };
@@ -295,7 +293,7 @@ export const toolkit = {
       </Box>
     ),
   },
-} satisfies Toolkit;
+};
 ```
 
 </Tab>

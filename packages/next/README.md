@@ -23,7 +23,7 @@ writes a `type` field back into the output.
 | ----------------------------------------- | ---------- | ---------------------------- |
 | `execute` with a `"use client"` directive | `frontend` | client                       |
 | `execute` (plain)                         | `backend`  | server (`server-only` guard) |
-| `execute: hitl()`                         | `human`    | — (the UI supplies a result) |
+| `execute: humanTool()`                    | `human`    | — (the UI supplies a result) |
 
 A plain `execute` is server-only by default — you can only run one in the browser
 by opting in with `"use client"`, so secrets can't leak by omission.

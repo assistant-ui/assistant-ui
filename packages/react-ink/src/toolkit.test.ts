@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { defineToolkit, hitlTool, stubTool, providerTool } from "./toolkit";
+import {
+  defineToolkit,
+  hitl,
+  hitlTool,
+  humanTool,
+  stubTool,
+  providerTool,
+} from "./toolkit";
 
 const render = () => null;
 const execute = async () => ({ ok: true });
@@ -15,14 +22,19 @@ describe("defineToolkit (runtime)", () => {
     expect(tool["render"]).toBe(render);
   });
 
-  it("resolves hitlTool() to a human tool and drops the marker execute", () => {
+  it("resolves humanTool() to a human tool and drops the marker execute", () => {
     const toolkit = defineToolkit({
-      ask: { description: "a", parameters: {}, execute: hitlTool(), render },
+      ask: { description: "a", parameters: {}, execute: humanTool(), render },
     });
     const tool = toolkit["ask"] as Record<string, unknown>;
     expect(tool["type"]).toBe("human");
     expect(tool["execute"]).toBeUndefined();
     expect(tool["render"]).toBe(render);
+  });
+
+  it("keeps hitlTool and hitl as compatibility aliases", () => {
+    expect(hitlTool).toBe(humanTool);
+    expect(hitl).toBe(humanTool);
   });
 
   it("resolves stubTool() to a frontend tool with no executor", () => {
@@ -76,7 +88,11 @@ describe("defineToolkit (runtime)", () => {
   it("throws when a human tool has no render", () => {
     expect(() =>
       defineToolkit({
-        ask: { description: "a", parameters: {}, execute: hitlTool() } as never,
+        ask: {
+          description: "a",
+          parameters: {},
+          execute: humanTool(),
+        } as never,
       }),
     ).toThrow(/a human tool must declare a "render"/);
   });

@@ -220,11 +220,11 @@ describe("compileGenerative — client target", () => {
 
   it("marks generated human tools with backend parameter defaults", () => {
     const src = `"use generative";
-import { defineToolkit, hitlTool } from "@assistant-ui/react";
+import { defineToolkit, humanTool } from "@assistant-ui/react";
 export default defineToolkit({
   ask: {
     parameters: { type: "object", properties: {} },
-    execute: hitlTool(),
+    execute: humanTool(),
     render: () => null,
   },
 });
@@ -785,7 +785,7 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
   it("requires a render for human tools", () => {
     expect(() =>
       compileGenerative(
-        `"use generative";\nimport { defineToolkit, hitl } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { execute: hitl() } });`,
+        `"use generative";\nimport { defineToolkit, humanTool } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { execute: humanTool() } });`,
         { target: "client" },
       ),
     ).toThrow(/must declare a `render`/);
@@ -809,15 +809,24 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
     ).toThrow(/must declare an `execute`/);
   });
 
-  it("infers `human` from execute: hitl() and drops it on both builds", () => {
-    const src = `"use generative";\nimport { defineToolkit, hitl } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { execute: hitl(), render: () => null } });`;
+  it("infers `human` from execute: humanTool() and drops it on both builds", () => {
+    const src = `"use generative";\nimport { defineToolkit, humanTool } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { execute: humanTool(), render: () => null } });`;
     const server = compileGenerative(src, { target: "server" }).code;
     expect(server).toContain('type: "human"');
-    expect(server).not.toContain("hitl"); // sentinel + its import pruned
+    expect(server).not.toContain("humanTool"); // sentinel + its import pruned
     const client = compileGenerative(src, { target: "client" }).code;
     expect(client).toContain('type: "human"');
-    expect(client).not.toContain("hitl");
+    expect(client).not.toContain("humanTool");
     expect(client).toContain("render");
+  });
+
+  it("keeps deprecated human-tool sentinels working", () => {
+    for (const sentinel of ["hitl", "hitlTool"]) {
+      const src = `"use generative";\nimport { defineToolkit, ${sentinel} } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { execute: ${sentinel}(), render: () => null } });`;
+      const code = compileGenerative(src, { target: "client" }).code;
+      expect(code).toContain('type: "human"');
+      expect(code).not.toContain(sentinel);
+    }
   });
 
   it("rejects spread properties in providerTool config", () => {

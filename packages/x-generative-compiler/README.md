@@ -8,15 +8,16 @@ colocates a tool's schema, its server-only `execute`, and its client-only
 `render`, and rewrites it for a single build target:
 
 - **client** — keeps `render` and any `"use client"` `execute` (frontend tools),
-  drops backend `execute` and `hitl()` sentinels, and stamps each tool's inferred
-  `type`.
+  drops backend `execute` and `humanTool()` sentinels, and stamps each tool's
+  inferred `type`.
 - **server** — keeps the backend `execute` (importing `server-only`), drops
   `render`, and omits externally-defined backend tools marked with
   `externalTool()`.
 
 The marker functions a `"use generative"` file imports — `defineToolkit` and
-`hitl` — live in `@assistant-ui/core/react` (re-exported from `@assistant-ui/react`).
-This package only recognizes them by name and strips them at build time.
+`humanTool` — live in `@assistant-ui/core/react` (re-exported from
+`@assistant-ui/react`). This package only recognizes them by name and strips them
+at build time.
 
 ## API
 

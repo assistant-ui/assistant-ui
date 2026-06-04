@@ -249,7 +249,7 @@ const WeatherCardUI = makeAssistantDataUI({
 Wrap a render function component so that it always uses the latest version without re-creating a stable reference. Useful when passing a render prop inline and the function closes over changing state.
 
 ```tsx title="weather-toolkit.tsx"
-import { type Toolkit, useInlineRender } from "@assistant-ui/react-ink";
+import { useInlineRender } from "@assistant-ui/react-ink";
 import { Text } from "ink";
 import { useMemo } from "react";
 
@@ -265,7 +265,7 @@ export function useWeatherToolkit() {
           type: "backend",
           render,
         },
-      }) satisfies Toolkit,
+      }),
     [render],
   );
 }

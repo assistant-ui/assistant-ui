@@ -43,7 +43,7 @@ export { defineToolkit } from "./model-context/define-toolkit";
 export { stubTool } from "./model-context/stub-tool";
 export { externalTool } from "./model-context/external-tool";
 export { useAuiToolOverrides } from "./model-context/useAuiToolOverrides";
-export { hitl, hitlTool } from "./model-context/hitl";
+export { hitl, hitlTool, humanTool } from "./model-context/hitl";
 export {
   providerTool,
   type ProviderToolConfig,

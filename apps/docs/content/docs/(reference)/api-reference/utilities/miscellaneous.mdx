@@ -22,6 +22,12 @@ import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList
 
 <ParametersTable {...ChainOfThoughtClient} />
 
+### createMessageQueue
+
+```ts
+const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController;
+```
+
 ### defineMcpToolkit
 
 Defines MCP server tools as a spreadable toolkit fragment.
@@ -65,30 +71,40 @@ function externalTool(): never;
 ### hitl
 
 <Callout type="warn">
-<strong>Deprecated.</strong> Use [hitlTool](/docs/api-reference/utilities/miscellaneous#hitltool).
+<strong>Deprecated.</strong> Use [humanTool](/docs/api-reference/utilities/miscellaneous#humantool).
 </Callout>
 
 ```ts
-const hitl: typeof hitlTool;
+const hitl: typeof humanTool;
 ```
 
 ### hitlTool
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [humanTool](/docs/api-reference/utilities/miscellaneous#humantool).
+</Callout>
+
+```ts
+const hitlTool: typeof humanTool;
+```
+
+### humanTool
 
 Marks a tool as **human-in-the-loop**: the agent pauses and the UI (`render`)
 supplies the result instead of code. Use it as the tool's `execute`:
 
 ```tsx
-confirm: { execute: hitlTool(), render: (props) => <Confirm {...props} /> }
+confirm: { execute: humanTool(), render: (props) => <Confirm {...props} /> }
 ```
 
 Like [defineToolkit](/docs/api-reference/utilities/miscellaneous#definetoolkit), it has **no runtime implementation**: a
 `"use generative"` compiler (e.g. `@assistant-ui/next` or `@assistant-ui/vite`)
-detects `execute: hitlTool()`, drops it, and stamps the tool `type: "human"`.
+detects `execute: humanTool()`, drops it, and stamps the tool `type: "human"`.
 Reaching it at runtime means the module wasn't compiled (used outside a
 `"use generative"` file), so it throws.
 
 ```ts
-function hitlTool(): never;
+function humanTool(): never;
 ```
 
 ### InMemoryThreadList

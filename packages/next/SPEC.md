@@ -55,7 +55,7 @@ each emitted tool object (so the runtime keeps it):
 | ----------------------------------------- | ------------- | -------- | -------------------------------- |
 | `execute` with a `"use client"` directive | `frontend`    | client   | **client** (bundled with render) |
 | `execute` (plain)                         | `backend`     | client   | **server** (`server-only` leaf)  |
-| `execute: hitl()`                         | `human`       | client   | — (dropped; the UI resolves it)  |
+| `execute: humanTool()`                    | `human`       | client   | — (dropped; the UI resolves it)  |
 
 Consequences:
 
@@ -136,7 +136,7 @@ the client per request — the server owns it.
 1. A leading `"use generative"` directive.
 2. A single `export default defineToolkit({ ... })` (the wrapper is required;
    optionally inside `satisfies` / `as`). No other exports.
-3. Every tool must declare an `execute`. Its form determines the kind: `hitl()`
+3. Every tool must declare an `execute`. Its form determines the kind: `humanTool()`
    → human; a leading `"use client"` directive → frontend (needs a block body,
    not an expression body); otherwise backend. `type` is never authored.
 4. `render` / `execute` must be inline functions that close over **module

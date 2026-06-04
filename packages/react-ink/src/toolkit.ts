@@ -38,12 +38,15 @@ const readMarker = (value: unknown): ToolMarker | undefined => {
 };
 
 /** Marks a human-in-the-loop tool (the UI supplies the result). */
-export function hitlTool(): never {
+export function humanTool(): never {
   return marker("human");
 }
 
-/** @deprecated Use {@link hitlTool}. */
-export const hitl = hitlTool;
+/** @deprecated Use {@link humanTool}. */
+export const hitlTool = humanTool;
+
+/** @deprecated Use {@link humanTool}. */
+export const hitl = humanTool;
 
 /** Marks a tool whose executor is supplied at runtime by `useAuiToolOverrides`. */
 export function stubTool(): never {
@@ -87,7 +90,7 @@ function assertValid(name: string, tool: Record<string, unknown>): void {
 /**
  * Builds a runtime {@link Toolkit} from a `"use generative"`-style definition.
  *
- * A tool's `type` is resolved from its `execute`: `hitlTool()` -> `human`,
+ * A tool's `type` is resolved from its `execute`: `humanTool()` -> `human`,
  * `stubTool()` -> `frontend` (executor via `useAuiToolOverrides`),
  * `providerTool(...)` -> `provider`, and a plain `execute` function -> `frontend`
  * (it runs in the Ink process). A tool that already carries an explicit `type`

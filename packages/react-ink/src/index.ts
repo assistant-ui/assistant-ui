@@ -216,6 +216,7 @@ export {
   defineToolkit,
   hitl,
   hitlTool,
+  humanTool,
   stubTool,
   providerTool,
 } from "./toolkit";

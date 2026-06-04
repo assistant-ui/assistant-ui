@@ -46,7 +46,7 @@ Import the markers from `@assistant-ui/react`:
 
 ```tsx
 "use generative";
-import { defineToolkit, hitl } from "@assistant-ui/react";
+import { defineToolkit, humanTool } from "@assistant-ui/react";
 import { z } from "zod";
 
 export default defineToolkit({

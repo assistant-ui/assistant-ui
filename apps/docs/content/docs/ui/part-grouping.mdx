@@ -221,7 +221,7 @@ const toolkit = {
     render: CheckoutUI,
     display: "standalone", // opt in
   },
-} satisfies Toolkit;
+};
 ```
 
 The synthetic `"standalone-tool-call"` key on `groupPartByType` matches all of these. `MessagePrimitive.GroupedParts` passes the live tool-UI registry to `groupBy` as a second `context` argument, and the helper reads it to resolve the registry-driven cases — MCP-app calls are detected from the part alone, so nothing is threaded in:

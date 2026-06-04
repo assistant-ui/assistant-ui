@@ -1,7 +1,7 @@
 import { describe, it, expect, expectTypeOf } from "vitest";
 import type { AsyncIterableStream } from "assistant-stream/utils";
 import { defineToolkit } from "./define-toolkit";
-import { hitl, hitlTool } from "./hitl";
+import { hitl, hitlTool, humanTool } from "./hitl";
 import { providerTool } from "./provider-tool";
 import { stubTool } from "./stub-tool";
 import { externalTool } from "./external-tool";
@@ -79,12 +79,13 @@ describe("use-generative markers", () => {
     expect(() => defineToolkit({})).toThrow(/no runtime implementation/);
   });
 
-  it("hitlTool throws at runtime — it must be stripped by the compiler, never called", () => {
-    expect(() => hitlTool()).toThrow(/no runtime implementation/);
+  it("humanTool throws at runtime — it must be stripped by the compiler, never called", () => {
+    expect(() => humanTool()).toThrow(/no runtime implementation/);
   });
 
-  it("hitl remains a compatibility alias", () => {
-    expect(hitl).toBe(hitlTool);
+  it("hitlTool and hitl remain compatibility aliases", () => {
+    expect(hitlTool).toBe(humanTool);
+    expect(hitl).toBe(humanTool);
   });
 
   it("providerTool throws at runtime — it must be stripped by the compiler, never called", () => {

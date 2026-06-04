@@ -202,6 +202,7 @@ export {
   useAuiToolOverrides,
   hitl,
   hitlTool,
+  humanTool,
   providerTool,
   type ProviderToolConfig,
   defineMcpToolkit,

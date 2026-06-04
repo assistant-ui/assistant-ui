@@ -1,6 +1,6 @@
 "use generative";
 
-import { defineToolkit, externalTool, hitlTool } from "@assistant-ui/react";
+import { defineToolkit, externalTool, humanTool } from "@assistant-ui/react";
 import { ChartToolUI } from "@/components/chart-tool-ui";
 import { DatePickerToolUI } from "@/components/date-picker-tool-ui";
 import { ContactFormToolUI } from "@/components/contact-form-tool-ui";
@@ -16,7 +16,7 @@ export default defineToolkit({
       minDate: z.string().optional().describe("Minimum date (ISO string)"),
       maxDate: z.string().optional().describe("Maximum date (ISO string)"),
     }),
-    execute: hitlTool(),
+    execute: humanTool(),
     render: DatePickerToolUI,
   },
   collect_contact: {
@@ -28,7 +28,7 @@ export default defineToolkit({
         .array(z.enum(["name", "email", "phone"]))
         .describe("Which fields to collect"),
     }),
-    execute: hitlTool(),
+    execute: humanTool(),
     render: ContactFormToolUI,
   },
   generate_chart: {

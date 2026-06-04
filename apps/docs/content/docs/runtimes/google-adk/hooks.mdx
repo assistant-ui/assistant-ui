@@ -390,7 +390,6 @@ Register the renderer with a backend toolkit entry inside `AssistantRuntimeProvi
 import {
   AssistantRuntimeProvider,
   Tools,
-  type Toolkit,
   useAui,
 } from "@assistant-ui/react";
 import {
@@ -404,7 +403,7 @@ const toolkit = {
     type: "backend",
     render: RequestInputToolUI,
   },
-} satisfies Toolkit;
+};
 
 function App() {
   const runtime = useAdkRuntime({
@@ -427,7 +426,6 @@ function App() {
 import {
   AssistantRuntimeProvider,
   Tools,
-  type Toolkit,
   useAui,
 } from "@assistant-ui/react-native";
 import {
@@ -444,7 +442,7 @@ const toolkit = {
     type: "backend",
     render: RequestInputToolUI,
   },
-} satisfies Toolkit;
+};
 
 function App() {
   const runtime = useAdkRuntime({
@@ -469,7 +467,6 @@ function App() {
 import {
   AssistantRuntimeProvider,
   Tools,
-  type Toolkit,
   useAui,
 } from "@assistant-ui/react-ink";
 import {
@@ -484,7 +481,7 @@ const toolkit = {
     type: "backend",
     render: RequestInputToolUI,
   },
-} satisfies Toolkit;
+};
 
 function App() {
   const runtime = useAdkRuntime({

@@ -354,7 +354,6 @@ import { useChat } from "@ai-sdk/react";
 import {
   AssistantRuntimeProvider,
   Tools,
-  type Toolkit,
   useAui,
 } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
@@ -387,7 +386,7 @@ const toolkit = {
       return <p>Deployed {result.deployed}</p>;
     },
   },
-} satisfies Toolkit;
+};
 
 export default function Page() {
   const chat = useChat({
