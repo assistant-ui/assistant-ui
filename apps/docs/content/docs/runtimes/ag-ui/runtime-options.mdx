@@ -29,6 +29,38 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | History | `adapters.history` | Per-thread message persistence. |
 | Thread list | `adapters.threadList` | Multi-thread switching (experimental, see below). |
 
+## Loading conversation history
+
+If your backend exposes the persisted AG-UI messages of a conversation (for
+example a `GET /agents/state` endpoint), use `fromAgUiMessages` to convert them
+to assistant-ui messages and return them from the history adapter so the thread
+is restored on page load:
+
+```tsx
+import { fromAgUiMessages } from "@assistant-ui/react-ag-ui";
+import { ExportedMessageRepository } from "@assistant-ui/react";
+
+const runtime = useAgUiRuntime({
+  agent,
+  adapters: {
+    history: {
+      async load() {
+        const { messages } = await fetch("/agents/state").then((r) => r.json());
+        return ExportedMessageRepository.fromArray(fromAgUiMessages(messages));
+      },
+      async append() {
+        // persist new messages on your backend, or no-op if the agent already does
+      },
+    },
+  },
+});
+```
+
+`fromAgUiMessages` accepts an optional second argument: pass
+`{ showThinking: false }` to match a runtime configured with
+`showThinking: false`, so imported reasoning messages are dropped the same way
+they are hidden during a live run.
+
 ## Thread list (experimental)
 
 <Callout type="warn">
