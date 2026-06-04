@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type {
   LangChainMessage,
   LangChainToolCall,
@@ -18,6 +24,8 @@ import type {
 import {
   getExternalStoreMessages,
   pickExternalStoreSharedOptions,
+  createMessageQueue,
+  type MessageQueueController,
   type ThreadMessage,
   type AttachmentAdapter,
   type AppendMessage,
@@ -28,6 +36,7 @@ import {
   type SpeechSynthesisAdapter,
 } from "@assistant-ui/core";
 import type { ToolExecutionStatus } from "@assistant-ui/core";
+import type { QueueItemState } from "@assistant-ui/core/store";
 import {
   type DataMessagePartComponent,
   useCloudThreadListAdapter,
@@ -181,6 +190,9 @@ export const useLangGraphMessageMetadata = () => {
 
 const EMPTY_UI_MESSAGES: readonly UIMessage[] = Object.freeze([]);
 
+const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
+const subscribeNoop = () => () => {};
+
 export const useLangGraphUIMessages = () => {
   return useAuiState((s) => {
     const extras = s.thread.extras;
@@ -197,6 +209,11 @@ export type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
    * as `config.abortSignal`.
    */
   unstable_allowCancellation?: boolean | undefined;
+  /**
+   * Opt in to message queuing: a message sent during a run is held in
+   * `composer.queue` and sent once the run settles. Steering runs it next.
+   */
+  unstable_enableMessageQueue?: boolean | undefined;
   stream: LangGraphStreamCallback<LangChainMessage>;
   /**
    * State key under which LangGraph's `typed_ui` writes Generative UI
@@ -346,6 +363,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     autoCancelPendingToolCalls,
     adapters: { attachments, dictation, feedback, speech, voice } = {},
     unstable_allowCancellation,
+    unstable_enableMessageQueue,
     stream,
     load,
     getCheckpointId,
@@ -477,6 +495,60 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     return sendMessage(messages, config, () => setIsRunning(false));
   };
 
+  const runUserMessage = async (msg: AppendMessage) => {
+    const cancellations =
+      autoCancelPendingToolCalls !== false
+        ? getPendingToolCalls(messages).map(
+            (t) =>
+              ({
+                type: "tool",
+                name: t.name,
+                tool_call_id: t.id,
+                content: JSON.stringify({ cancelled: true }),
+                status: "error",
+              }) satisfies LangChainMessage & { type: "tool" },
+          )
+        : [];
+
+    return handleSendMessage(
+      [...cancellations, { type: "human", content: getMessageContent(msg) }],
+      { runConfig: msg.runConfig },
+    );
+  };
+
+  // The controller is created once; route through a ref so its driver runs the
+  // latest runUserMessage (which closes over the current `messages`).
+  const runUserMessageRef = useRef(runUserMessage);
+  runUserMessageRef.current = runUserMessage;
+
+  const queueRef = useRef<MessageQueueController | null>(null);
+  if (unstable_enableMessageQueue && !queueRef.current) {
+    queueRef.current = createMessageQueue({
+      run: (message) => {
+        void runUserMessageRef.current(message);
+      },
+    });
+  }
+  const queueController = unstable_enableMessageQueue ? queueRef.current : null;
+
+  // Re-render when queued items change so the store re-syncs composer.queue.
+  // The snapshot value itself is unused; the subscription is the point.
+  useSyncExternalStore(
+    queueController?.subscribe ?? subscribeNoop,
+    () => queueController?.adapter.items ?? EMPTY_QUEUE_ITEMS,
+    () => EMPTY_QUEUE_ITEMS,
+  );
+
+  // Gate on effectiveIsRunning, not isRunning, so a queued message does not
+  // start while a client tool from the just-finished run is still executing.
+  const wasRunningRef = useRef(effectiveIsRunning);
+  useEffect(() => {
+    if (wasRunningRef.current && !effectiveIsRunning) {
+      queueController?.notifyIdle();
+    }
+    wasRunningRef.current = effectiveIsRunning;
+  }, [effectiveIsRunning, queueController]);
+
   const threadMessages = useExternalMessageConverter({
     callback: convertLangChainMessages,
     messages,
@@ -511,34 +583,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       uiMessages,
       send: handleSendMessage,
     } satisfies LangGraphRuntimeExtras,
-    onNew: async (msg) => {
-      const cancellations =
-        autoCancelPendingToolCalls !== false
-          ? getPendingToolCalls(messages).map(
-              (t) =>
-                ({
-                  type: "tool",
-                  name: t.name,
-                  tool_call_id: t.id,
-                  content: JSON.stringify({ cancelled: true }),
-                  status: "error",
-                }) satisfies LangChainMessage & { type: "tool" },
-            )
-          : [];
-
-      return handleSendMessage(
-        [
-          ...cancellations,
-          {
-            type: "human",
-            content: getMessageContent(msg),
-          },
-        ],
-        {
-          runConfig: msg.runConfig,
-        },
-      );
-    },
+    onNew: runUserMessage,
+    ...(queueController && { queue: queueController.adapter }),
     onAddToolResult: async ({
       toolCallId,
       toolName,
