@@ -682,18 +682,33 @@ function matchAliasPattern(pattern: string, source: string): string | null {
 }
 
 /** Walks up from a directory to the nearest `tsconfig.json` that declares `paths`. */
+/**
+ * Memoizes resolved aliases per start directory. The compiler runs once per
+ * file across a build, so without this every aliased spread re-walks and
+ * re-parses the same `tsconfig.json`. Process-lifetime, like
+ * `checkedCorePackageJsonPaths`.
+ */
+const tsconfigAliasesByDir = new Map<string, TsconfigAliases | null>();
+
 function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
+  const cached = tsconfigAliasesByDir.get(fromDir);
+  if (cached !== undefined) return cached;
+
+  let aliases: TsconfigAliases | null = null;
   let dir = fromDir;
   for (;;) {
     const tsconfigPath = nodePath.join(dir, "tsconfig.json");
     if (existsSync(tsconfigPath)) {
-      const aliases = readTsconfigAliases(tsconfigPath, new Set());
-      if (aliases) return aliases;
+      aliases = readTsconfigAliases(tsconfigPath, new Set());
+      if (aliases) break;
     }
     const parent = nodePath.dirname(dir);
-    if (parent === dir) return null;
+    if (parent === dir) break;
     dir = parent;
   }
+
+  tsconfigAliasesByDir.set(fromDir, aliases);
+  return aliases;
 }
 
 /** Reads `baseUrl`/`paths` from a tsconfig, following a single `extends` chain. */
@@ -752,11 +767,9 @@ function resolveExtendedTsconfig(
 ): string | null {
   if (extendsValue.startsWith(".")) {
     const base = nodePath.resolve(configDir, extendsValue);
-    if (nodePath.extname(base) === ".json")
-      return existsSync(base) ? base : null;
-    const withJson = `${base}.json`;
-    if (existsSync(withJson)) return withJson;
-    return existsSync(base) ? base : null;
+    const candidates =
+      nodePath.extname(base) === ".json" ? [base] : [`${base}.json`, base];
+    return candidates.find((candidate) => existsSync(candidate)) ?? null;
   }
   try {
     return createRequire(nodePath.join(configDir, "package.json")).resolve(
