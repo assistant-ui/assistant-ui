@@ -47,8 +47,14 @@ export const UPSTREAM_TRANSFORMER_ENV = "AUI_METRO_UPSTREAM_TRANSFORMER";
  * export is `defineToolkit({ ... })`, registered with `Tools({ toolkit })`.
  */
 export function withAui<T extends MetroConfigLike>(config: T): T {
+  const self = require.resolve("@assistant-ui/metro/transformer");
   const upstream = config.transformer?.babelTransformerPath;
-  if (upstream) {
+
+  // Guard against a double-wrap (`withAui(withAui(config))`, or a shared config
+  // already wrapped): if it already points at our transformer, keep the real
+  // upstream captured earlier rather than overwriting it with our own path,
+  // which would make `resolveUpstream()` return this transformer and recurse.
+  if (upstream && upstream !== self) {
     process.env[UPSTREAM_TRANSFORMER_ENV] = upstream;
   }
 
@@ -56,7 +62,7 @@ export function withAui<T extends MetroConfigLike>(config: T): T {
     ...config,
     transformer: {
       ...config.transformer,
-      babelTransformerPath: require.resolve("@assistant-ui/metro/transformer"),
+      babelTransformerPath: self,
     },
   };
 }

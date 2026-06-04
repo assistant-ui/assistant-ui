@@ -39,6 +39,18 @@ describe("withAui", () => {
     // stashes the upstream so the worker can delegate to it
     expect(process.env[UPSTREAM_TRANSFORMER_ENV]).toBe("/up/stream.js");
   });
+
+  it("is idempotent: a double-wrap keeps the real upstream, not the wrapper", () => {
+    const once = withAui({
+      transformer: { babelTransformerPath: "/up/stream.js" },
+    });
+    const self = once.transformer?.babelTransformerPath;
+
+    const twice = withAui(once);
+    // still points at our transformer, and the env still names the real upstream
+    expect(twice.transformer?.babelTransformerPath).toBe(self);
+    expect(process.env[UPSTREAM_TRANSFORMER_ENV]).toBe("/up/stream.js");
+  });
 });
 
 describe("transformer", () => {
