@@ -576,6 +576,7 @@ export class AgUiThreadRuntimeCore {
     if (this.pendingError) {
       const err = this.pendingError;
       this.pendingError = null;
+      this.pendingResumeMessageId = null;
       throw err;
     }
 

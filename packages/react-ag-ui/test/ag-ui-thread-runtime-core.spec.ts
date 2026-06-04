@@ -834,6 +834,59 @@ describe("AGUIThreadRuntimeCore", () => {
     ).toEqual(["call-1", "call-2"]);
   });
 
+  it("does not leak a deferred resume into a later run when the run errors", async () => {
+    let runCount = 0;
+    let core!: AgUiThreadRuntimeCore;
+    const onError = vi.fn();
+
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-1",
+              toolCallName: "tool_a",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+          });
+          const assistantMsg = core
+            .getMessages()
+            .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+          core.addToolResult({
+            messageId: assistantMsg.id,
+            toolCallId: "call-1",
+            toolName: "tool_a",
+            result: "ok",
+            isError: false,
+          });
+          // RUN_FINISHED defers the resume (the run is still draining)...
+          subscriber.onRunFinishedEvent?.({
+            event: { type: "RUN_FINISHED", runId: input.runId },
+          });
+          // ...then the run errors before the deferred resume can fire.
+          throw new Error("boom");
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    core = createCore(agent, { onError });
+
+    await expect(core.append(createAppendMessage())).rejects.toThrow("boom");
+    await new Promise((r) => setTimeout(r, 0));
+    // The errored run must not have scheduled a resume.
+    expect(runCount).toBe(1);
+
+    // A later run must not pick up the stale deferred resume.
+    await core.reload(null);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(runCount).toBe(2);
+  });
+
   it("resumes runs when requested", async () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       subscriber.onRunFinalized?.();
