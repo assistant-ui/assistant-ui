@@ -62,16 +62,6 @@ const MARKER_TYPE = {
 } as const;
 
 /**
- * Builds a runtime {@link Toolkit} from a `"use generative"`-style definition.
- *
- * A tool's `type` is resolved from its `execute`: `hitlTool()` -> `human`,
- * `stubTool()` -> `frontend` (executor via `useAuiToolOverrides`),
- * `providerTool(...)` -> `provider`, and a plain `execute` function -> `frontend`
- * (it runs in the Ink process). A tool that already carries an explicit `type`
- * (for example a render-only entry or a factory output) is passed through
- * unchanged.
- */
-/**
  * Mirrors the authoring checks the `"use generative"` compiler runs at build
  * time, so a malformed tool fails loudly here instead of quietly producing a
  * broken entry that only misbehaves later.
@@ -94,6 +84,16 @@ function assertValid(name: string, tool: Record<string, unknown>): void {
   }
 }
 
+/**
+ * Builds a runtime {@link Toolkit} from a `"use generative"`-style definition.
+ *
+ * A tool's `type` is resolved from its `execute`: `hitlTool()` -> `human`,
+ * `stubTool()` -> `frontend` (executor via `useAuiToolOverrides`),
+ * `providerTool(...)` -> `provider`, and a plain `execute` function -> `frontend`
+ * (it runs in the Ink process). A tool that already carries an explicit `type`
+ * (for example a render-only entry or a factory output) is passed through
+ * unchanged.
+ */
 function defineToolkitRuntime(definition: ToolkitDefinition): Toolkit {
   const toolkit: Record<string, unknown> = {};
 
