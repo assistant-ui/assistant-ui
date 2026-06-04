@@ -681,7 +681,6 @@ function matchAliasPattern(pattern: string, source: string): string | null {
   return null;
 }
 
-/** Walks up from a directory to the nearest `tsconfig.json` that declares `paths`. */
 /**
  * Memoizes resolved aliases per start directory. The compiler runs once per
  * file across a build, so without this every aliased spread re-walks and
@@ -690,6 +689,7 @@ function matchAliasPattern(pattern: string, source: string): string | null {
  */
 const tsconfigAliasesByDir = new Map<string, TsconfigAliases | null>();
 
+/** Walks up from a directory to the nearest `tsconfig.json` that declares `paths`. */
 function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
   const cached = tsconfigAliasesByDir.get(fromDir);
   if (cached !== undefined) return cached;
