@@ -35,7 +35,6 @@ export function defineToolkit<
 export function defineToolkit<const TDefinition extends ToolkitDefinition>(
   _definition: TDefinition,
 ): Toolkit & TDefinition;
-export function defineToolkit(_definition: ToolkitDefinition): Toolkit;
 export function defineToolkit(_definition: ToolkitDefinition): Toolkit {
   return _definition as Toolkit;
 }
