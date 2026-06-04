@@ -26,9 +26,10 @@ import {
   createMessageQueue,
   type MessageQueueController,
 } from "../../runtime/queue/message-queue";
-import type { QueueItemState } from "../../store/scopes/queue-item";
-
-const EMPTY_QUEUE: readonly QueueItemState[] = Object.freeze([]);
+import {
+  EMPTY_QUEUE_ITEMS,
+  type QueueItemState,
+} from "../../store/scopes/queue-item";
 
 class AbortError extends Error {
   override name = "AbortError";
@@ -223,7 +224,7 @@ export class LocalThreadRuntimeCore
   public getQueueItems(): readonly QueueItemState[] {
     // Reads can arrive during base-thread construction, before the queue field
     // is assigned, so guard against the unset field.
-    return this._queue?.adapter.items ?? EMPTY_QUEUE;
+    return this._queue?.adapter.items ?? EMPTY_QUEUE_ITEMS;
   }
 
   public steerQueueItem(queueItemId: string): void {
@@ -286,10 +287,6 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     this.ensureInitialized();
 
-    // runs started outside the queue (regenerate, resume) must still mark it
-    // busy so a concurrent send buffers instead of interrupting this run
-    this._queue?.notifyBusy();
-
     // add assistant message
     const id = generateId();
     let message: ThreadAssistantMessage = {
@@ -310,6 +307,9 @@ export class LocalThreadRuntimeCore
     this._notifyEventSubscribers("runStart", {});
 
     try {
+      // runs started outside the queue (regenerate, resume) mark it busy so a
+      // concurrent send buffers; inside try so the finally's notifyIdle pairs
+      this._queue?.notifyBusy();
       this._suggestions = [];
       this._suggestionsController?.abort();
       this._suggestionsController = null;

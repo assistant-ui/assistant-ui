@@ -3,6 +3,8 @@ export type QueueItemState = {
   readonly prompt: string;
 };
 
+export const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
+
 export type QueueItemMethods = {
   getState(): QueueItemState;
   steer(): void;

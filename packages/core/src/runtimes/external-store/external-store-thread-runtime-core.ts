@@ -32,10 +32,9 @@ import {
 } from "../../runtime/utils/message-repository";
 import { generateId } from "../../utils/id";
 import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
-import type { QueueItemState } from "../../store/scopes/queue-item";
+import { EMPTY_QUEUE_ITEMS } from "../../store/scopes/queue-item";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
-const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 
 const shallowEqual = (a: object, b: object): boolean => {
   const aKeys = Object.keys(a);

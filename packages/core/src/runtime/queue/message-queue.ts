@@ -1,5 +1,8 @@
 import type { AppendMessage } from "../../types/message";
-import type { QueueItemState } from "../../store/scopes/queue-item";
+import {
+  EMPTY_QUEUE_ITEMS,
+  type QueueItemState,
+} from "../../store/scopes/queue-item";
 import { generateId } from "../../utils/id";
 import { getThreadMessageText } from "../../utils/text";
 import type { ExternalThreadQueueAdapter } from "./external-thread-queue-adapter";
@@ -23,12 +26,10 @@ export type MessageQueueController = {
   subscribe: (callback: () => void) => () => void;
 };
 
-const EMPTY_ITEMS: readonly QueueItemState[] = Object.freeze([]);
-
 export const createMessageQueue = (
   driver: MessageQueueDriver,
 ): MessageQueueController => {
-  let items: readonly QueueItemState[] = EMPTY_ITEMS;
+  let items: readonly QueueItemState[] = EMPTY_QUEUE_ITEMS;
   const messages = new Map<string, AppendMessage>();
   const subscribers = new Set<() => void>();
 
@@ -99,7 +100,7 @@ export const createMessageQueue = (
   const clear = () => {
     if (items.length === 0) return;
     messages.clear();
-    setItems(EMPTY_ITEMS);
+    setItems(EMPTY_QUEUE_ITEMS);
   };
 
   const adapter: ExternalThreadQueueAdapter = {

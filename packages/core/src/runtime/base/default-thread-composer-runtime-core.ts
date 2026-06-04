@@ -6,10 +6,11 @@ import type {
   ThreadComposerRuntimeCore,
 } from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
-import type { QueueItemState } from "../../store/scopes/queue-item";
+import {
+  EMPTY_QUEUE_ITEMS,
+  type QueueItemState,
+} from "../../store/scopes/queue-item";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
-
-const EMPTY_QUEUE: readonly QueueItemState[] = Object.freeze([]);
 
 export class DefaultThreadComposerRuntimeCore
   extends BaseComposerRuntimeCore
@@ -25,7 +26,7 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public override get queue(): readonly QueueItemState[] {
-    return this.runtime.getQueueItems?.() ?? EMPTY_QUEUE;
+    return this.runtime.getQueueItems?.() ?? EMPTY_QUEUE_ITEMS;
   }
 
   public override steerQueueItem(queueItemId: string): void {
