@@ -198,6 +198,7 @@ export {
   type ToolCallText,
   defineToolkit,
   stubTool,
+  externalTool,
   useAuiToolOverrides,
   hitl,
   hitlTool,

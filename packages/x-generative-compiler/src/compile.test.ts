@@ -498,6 +498,51 @@ export default defineToolkit({
     expect(client).not.toContain("stubTool");
     expect(client).not.toContain("execute");
   });
+
+  it("infers `backend` from execute: externalTool() and strips schema/execution metadata", () => {
+    const src = `"use generative";
+import { z } from "zod";
+import { SearchResults } from "@/ui/search-results";
+import { defineToolkit, externalTool } from "@assistant-ui/react";
+export default defineToolkit({
+  web_search: {
+    description: "Search the web.",
+    parameters: z.object({ query: z.string() }),
+    execute: externalTool(),
+    render: ({ args, result }) => <SearchResults query={args.query} results={result} />,
+  },
+});`;
+
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain('type: "backend"');
+    expect(server).not.toContain("server-only");
+    expect(server).not.toContain("description");
+    expect(server).not.toContain("parameters");
+    expect(server).not.toContain("execute");
+    expect(server).not.toContain("externalTool");
+    expect(server).not.toContain("SearchResults");
+    expect(server).not.toContain('from "zod"');
+
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client.trimStart().startsWith('"use client"')).toBe(true);
+    expect(client).toContain('type: "backend"');
+    expect(client).toContain("render");
+    expect(client).toContain("SearchResults");
+    expect(client).not.toContain("description");
+    expect(client).not.toContain("parameters");
+    expect(client).not.toContain("execute");
+    expect(client).not.toContain("externalTool");
+    expect(client).not.toContain('from "zod"');
+  });
+
+  it("requires a renderer for external tools", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit, externalTool } from "@assistant-ui/react";\nexport default defineToolkit({ search: { execute: externalTool() } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/external tool must declare a `render` or `renderText`/);
+  });
 });
 
 describe("compileGenerative — local dead-code elimination", () => {

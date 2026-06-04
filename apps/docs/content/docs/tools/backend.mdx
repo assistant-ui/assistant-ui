@@ -58,7 +58,9 @@ export async function POST(req: Request) {
 
 ## Client-defined tools: `frontendTools`
 
-If you don't use the generative compiler — for example a plain [`satisfies Toolkit`](/docs/tools/defining-tools#render-only-tools-for-externally-executed-tools) with browser-executed tools — the AI SDK adapter still serializes those tools into the request `tools`. Convert them to the AI SDK shape with `frontendTools` and spread your own server tools alongside:
+If a toolkit cannot go through the generative compiler, the AI SDK adapter still
+serializes browser-executed tools into the request `tools`. Convert them to the
+AI SDK shape with `frontendTools` and spread your own server tools alongside:
 
 ```ts title="app/api/chat/route.ts"
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
@@ -86,7 +88,8 @@ export async function POST(req: Request) {
 }
 ```
 
-`generativeTools` calls `frontendTools` for you under the hood; reach for `frontendTools` directly when you're not on the generative build.
+`generativeTools` calls `frontendTools` for you under the hood; reach for
+`frontendTools` directly when you're not on the generative build.
 
 <Callout type="tip">
   `toToolsJSONSchema` emits the uploaded tools in alphabetical order, so two

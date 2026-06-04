@@ -15,6 +15,12 @@ client  ──►  /api/chat  ──►  MCP client  ──►  MCP server (HTTP
 
 The MCP client lives on the server inside your AI SDK route handler. It connects to one or more MCP servers, calls `tools()` to get a tool map, and hands that map to `streamText`. assistant-ui's existing tool-call UI (`ToolFallback`, or toolkit entries with `render`) renders the results.
 
+<Callout type="info">
+  If you use a `"use generative"` toolkit, spread `defineMcpToolkit({ ... })`
+  in the toolkit and use `AISDKToolkit` in your route. It opens the MCP clients,
+  merges their tools with your toolkit, and closes them for you.
+</Callout>
+
 ## Setup
 
 <Steps>
@@ -71,9 +77,64 @@ const mcpClient = await createMCPClient({
 </Step>
 <Step>
 
+### Define MCP servers in your toolkit
+
+In a generative toolkit, spread `defineMcpToolkit({ ... })` with one entry per
+MCP server. The entry key names the server connection; the MCP server publishes
+the actual tool names.
+
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineMcpToolkit, defineToolkit } from "@assistant-ui/react";
+
+export default defineToolkit({
+  ...defineMcpToolkit({
+    github: {
+      type: "http",
+      url: "https://mcp.example.com/mcp",
+    },
+  }),
+});
+```
+
+Use `AISDKToolkit` in the route instead of `generativeTools` when the toolkit
+contains MCP entries:
+
+```ts title="app/api/chat/route.ts"
+import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+import type { UIMessage } from "ai";
+import toolkit from "../../toolkit";
+
+export async function POST(req: Request) {
+  const { messages, tools }: { messages: UIMessage[]; tools?: Record<string, any> } =
+    await req.json();
+
+  const aiToolkit = new AISDKToolkit({ toolkit });
+
+  const result = streamText({
+    model: openai("gpt-5.4-mini"),
+    messages: await convertToModelMessages(messages),
+    tools: await aiToolkit.tools({ frontend: tools }),
+    onFinish: async () => {
+      await aiToolkit.close();
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+</Step>
+<Step>
+
 ### Wire the tools into the route
 
-`mcpClient.tools()` returns an object shaped exactly like the `tools` argument of `streamText`. Spread it in alongside any of your own tools, and close the client when the response finishes:
+For manual MCP client control, `mcpClient.tools()` returns an object shaped
+exactly like the `tools` argument of `streamText`. Spread it in alongside any of
+your own tools, and close the client when the response finishes:
 
 ```ts title="app/api/chat/route.ts"
 import { createMCPClient } from "@ai-sdk/mcp";
@@ -141,22 +202,28 @@ If two servers expose tools with the same name, the later spread wins. Rename or
 
 ### Render results in the UI
 
-Tool calls flow through the existing assistant-ui tool-call rendering. With no setup, the bundled `<ToolFallback>` component renders the call name, arguments, and result. To customize the appearance for a specific tool, add a backend entry to your toolkit:
+Tool calls flow through the existing assistant-ui tool-call rendering. With no
+setup, the bundled `<ToolFallback>` component renders the call name, arguments,
+and result. To customize the appearance for a specific tool in a generative
+toolkit, add an `externalTool()` renderer whose key matches the MCP tool name:
 
 <PlatformTabs>
 <Tab value="React">
 
-```tsx title="app/components/GitHubIssueToolUI.tsx"
-"use client";
+```tsx title="app/toolkit.tsx"
+"use generative";
 
-import type { Toolkit } from "@assistant-ui/react";
+import { defineMcpToolkit, defineToolkit, externalTool } from "@assistant-ui/react";
 
 type Args = { repo: string; number: number };
 type Result = { title: string; state: string; url: string };
 
-export const toolkit = {
+export default defineToolkit({
+  ...defineMcpToolkit({
+    github: { type: "http", url: "https://mcp.example.com/mcp" },
+  }),
   github_get_issue: {
-    type: "backend",
+    execute: externalTool(),
     render: ({ args, result }: { args: Args; result?: Result }) => (
       <div className="rounded border p-3">
         <div className="font-mono text-sm">{args.repo}#{args.number}</div>
@@ -168,7 +235,7 @@ export const toolkit = {
       </div>
     ),
   },
-} satisfies Toolkit;
+});
 ```
 
 </Tab>
@@ -234,7 +301,8 @@ export const toolkit = {
 </Tab>
 </PlatformTabs>
 
-Register the toolkit once with `Tools({ toolkit })`. The toolkit key must match the name your MCP server publishes.
+Register the toolkit once with `Tools({ toolkit })`. Renderer keys such as
+`github_get_issue` must match the tool names your MCP server publishes.
 
 ```tsx title="app/components/RuntimeProvider.tsx"
 "use client";

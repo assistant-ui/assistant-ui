@@ -23,22 +23,17 @@ Tools are how the model takes action: fetch data, call an API, query a database,
   </Card>
 </Cards>
 
-## Two ways to define a toolkit
+## Define tools with `"use generative"`
 
 <Callout type="info">
-  **`"use generative"` + `defineToolkit`** — for tools you author yourself
-  (browser or your own backend). The compiler co-locates the schema, executor,
-  and renderer in one file and splits them across the client/server boundary.
-
-  **Plain `satisfies Toolkit`** — for tools that already execute elsewhere (an
-  MCP server, a separate backend route, a LangGraph node) where you only attach a
-  renderer.
+  Use `"use generative"` + `defineToolkit` for toolkits. For tools that execute
+  elsewhere, spread `defineMcpToolkit({ ... })` for MCP servers or use
+  `execute: externalTool()` to attach a renderer to a non-MCP external tool.
 </Callout>
 
 In a `"use generative"` file every tool declares an `execute` and the kind is
-**inferred** from it (you never write `type`). In a plain toolkit you author
-`type` and write render-only `{ type: "backend", render }` entries. See
-[Defining Tools](/docs/tools/defining-tools#two-ways-to-define-a-toolkit).
+**inferred** from it (you never write `type`). See
+[Defining Tools](/docs/tools/defining-tools#define-tools-with-use-generative).
 
 ## Rendering AI output as UI
 

@@ -8,23 +8,25 @@ Tools let the model take actions: fetch data, call an API, query a database, dri
 
 This page covers how to **author** tools. To render a tool call as a custom component, see [Tool UI](/docs/tools/tool-ui). To wire tools into your server, see [Backend tools](/docs/tools/backend).
 
-## Two ways to define a toolkit
+## Define tools with `"use generative"`
 
-There are two authoring models. Most apps use the first; the second is for attaching UI to tools that execute somewhere you don't control.
+Use `"use generative"` + `defineToolkit` for toolkits. The compiler co-locates
+the schema, executor, and renderer in one file and splits them across the
+client/server boundary for you.
 
 <Callout type="info">
-  **Use `"use generative"` + `defineToolkit`** when you author the tool's
-  behavior yourself (it runs in the browser or in your own backend code). The
-  compiler co-locates the schema, the executor, and the renderer in one file and
-  splits them across the client/server boundary for you.
+  You can still use the generative toolkit pattern when a tool executes
+  elsewhere:
 
-  **Use a plain `satisfies Toolkit` object** when the tool already executes
-  elsewhere — an MCP server, a separate backend route, a LangGraph node — and you
-  only want to attach a renderer. These are render-only entries with an explicit
-  `type`.
+  - for MCP servers, spread `defineMcpToolkit({ ... })`;
+  - for non-MCP tools defined by another backend or runtime, write
+    `execute: externalTool()` and provide a renderer.
 </Callout>
 
-The difference matters because of one rule: **in a `"use generative"` file every tool must declare an `execute`, and you never write `type` yourself** — the compiler infers it. A render-only `{ type: "backend", render }` entry (no `execute`) is a plain-toolkit construct and will **not** compile inside a `"use generative"` file.
+In a `"use generative"` file every tool declares an `execute`, and you never
+write `type` yourself — the compiler infers it. For render-only external tools,
+`externalTool()` is the escape hatch that satisfies the compiler without
+emitting schema or executable code.
 
 ## Quick start (`"use generative"`)
 
@@ -178,6 +180,7 @@ The tool's **kind is inferred from its `execute`** and written back as a `type` 
 | `hitlTool()` | **human** | schema only | schema + `render` |
 | `stubTool()` | **frontend** (executor supplied at runtime) | schema only | schema + `render`/`renderText` |
 | `providerTool({ … })` | **provider** | schema + provider config | schema + provider config |
+| `externalTool()` | **backend** (defined elsewhere) | `type: "backend"` only | `type: "backend"` + `render`/`renderText` |
 
 The compiler also enforces, at build time:
 
@@ -223,8 +226,8 @@ geocode_location: {
 <Callout type="tip">
   A backend tool authored this way **has** an `execute`. To attach a renderer to
   a tool whose execution lives entirely elsewhere (an MCP server, a different
-  backend route) — where there is no `execute` to write — use a [plain
-  toolkit](#render-only-tools-for-externally-executed-tools) instead.
+  backend route) — where there is no real executor to write — use
+  `externalTool()` or `defineMcpToolkit()`.
 </Callout>
 
 ### Human tools
@@ -263,6 +266,28 @@ web_search: {
 },
 ```
 
+### Externally defined tools
+
+Use `externalTool()` when a non-MCP tool is already defined and executed by
+another system (for example a separate backend route or LangGraph node), but you
+want assistant-ui to render its tool calls. Import `externalTool` from
+`@assistant-ui/react`:
+
+```tsx
+web_search: {
+  parameters: z.object({ query: z.string() }),
+  execute: externalTool(),
+  render: ({ args, result }) => (
+    <SearchResults query={args.query} results={result?.results ?? []} />
+  ),
+},
+```
+
+The compiler emits `type: "backend"` with no schema, parameters, or executor on
+the server, so the model still gets the tool definition from the external
+system. The client build keeps only `type: "backend"` and the renderer (or
+`renderText`) for matching tool-call message parts.
+
 ### Dynamic (stateful) tools
 
 When a tool's executor must close over React state, declare its contract with `execute: stubTool()` and supply the real executor at runtime with `useAuiToolOverrides`. See [Dynamic tools](/docs/tools/dynamic-tools).
@@ -282,7 +307,11 @@ If you don't provide a renderer, add the [`ToolFallback`](/docs/ui/tool-fallback
 
 ## Render-only tools (for externally-executed tools)
 
-When the tool already runs somewhere you don't control — an MCP server, a separate backend route, a LangGraph node — there is no `execute` to author. Declare a **plain** toolkit (a `"use client"` file, no `"use generative"`, no `defineToolkit`) with an explicit `type: "backend"` and only a `render`:
+Prefer `"use generative"` with `externalTool()` for non-MCP tools, or
+`defineMcpToolkit()` for MCP servers. Plain `satisfies Toolkit` render-only
+entries are only needed when a file cannot go through the generative compiler.
+In that case, declare a `"use client"` toolkit with an explicit
+`type: "backend"` and only a `render`:
 
 ```tsx title="app/tool-ui.tsx"
 "use client";
@@ -302,9 +331,9 @@ export const toolkit = {
 Register it exactly like a generative toolkit: `useAui({ tools: Tools({ toolkit }) })`. The key must match the tool name your backend or MCP server publishes. Render-only entries upload no schema and run no browser code — they only attach UI to matching tool-call message parts.
 
 <Callout type="warn">
-  This `{ type: "backend", render }` shape is **plain-toolkit only**. Putting it
-  inside a `"use generative"` file is a compile error — a generative tool must
-  declare an `execute`, and you never author `type` there.
+  This `{ type: "backend", render }` shape is **plain-toolkit only**. Inside a
+  `"use generative"` file, use `execute: externalTool()` instead; generative
+  tools must declare an `execute`, and you never author `type` there.
 </Callout>
 
 ## Organizing toolkits
