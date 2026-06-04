@@ -1,11 +1,15 @@
+// @vitest-environment jsdom
+
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
 } from "assistant-stream";
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   createReplayBoundaryStream,
   REPLAY_CONTENT_LENGTH_HEADER,
+  useReplayRenderWait,
 } from "./replayBoundaryStream";
 
 const encoder = new TextEncoder();
@@ -68,6 +72,33 @@ const readText = async (stream: ReadableStream<Uint8Array>) => {
 
   return chunks.join("");
 };
+
+describe("useReplayRenderWait", () => {
+  it("resolves after its own render ticket commits", async () => {
+    vi.useFakeTimers();
+
+    try {
+      const { result } = renderHook(() => useReplayRenderWait());
+
+      let resolved = false;
+      const wait = result.current().then(() => {
+        resolved = true;
+      });
+
+      await Promise.resolve();
+      expect(resolved).toBe(false);
+
+      await act(async () => {
+        vi.runOnlyPendingTimers();
+      });
+      await wait;
+
+      expect(resolved).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
 
 describe("createReplayBoundaryStream", () => {
   it("short-circuits responses without a valid replay content length", async () => {

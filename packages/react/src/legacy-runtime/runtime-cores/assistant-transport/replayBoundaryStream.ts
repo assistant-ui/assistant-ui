@@ -10,22 +10,29 @@ type ReplayBoundaryStreamOptions = {
 };
 
 export const useReplayRenderWait = () => {
-  const [, rerender] = useState(0);
+  const [renderTicket, setRenderTicket] = useState(0);
   const mountedRef = useRef(true);
-  const waitersRef = useRef<Array<() => void>>([]);
+  const nextTicketRef = useRef(0);
+  const waitersRef = useRef<Array<{ ticket: number; resolve: () => void }>>([]);
 
-  const resolveWaiters = useCallback(() => {
-    const waiters = waitersRef.current;
-    waitersRef.current = [];
-    for (const resolve of waiters) {
-      resolve();
+  const resolveWaiters = useCallback((committedTicket?: number) => {
+    const pendingWaiters = [];
+
+    for (const waiter of waitersRef.current) {
+      if (committedTicket === undefined || waiter.ticket <= committedTicket) {
+        waiter.resolve();
+      } else {
+        pendingWaiters.push(waiter);
+      }
     }
+
+    waitersRef.current = pendingWaiters;
   }, []);
 
   useEffect(() => {
     mountedRef.current = true;
-    resolveWaiters();
-  });
+    resolveWaiters(renderTicket);
+  }, [renderTicket, resolveWaiters]);
 
   useEffect(
     () => () => {
@@ -44,8 +51,10 @@ export const useReplayRenderWait = () => {
             return;
           }
 
-          waitersRef.current.push(resolve);
-          rerender((value) => value + 1);
+          const ticket = nextTicketRef.current + 1;
+          nextTicketRef.current = ticket;
+          waitersRef.current.push({ ticket, resolve });
+          setRenderTicket(ticket);
         }, 0);
       }),
     [],
