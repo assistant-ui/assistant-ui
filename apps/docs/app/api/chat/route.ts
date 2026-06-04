@@ -4,7 +4,7 @@ import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
-import { generativeTools } from "@assistant-ui/react-ai-sdk";
+import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
 import docsToolkit from "@/lib/docs-toolkit";
 import { prismAISDK } from "@aui-x/prism";
 import { withTracing } from "@posthog/ai";
@@ -16,6 +16,8 @@ import {
 } from "ai";
 
 export const maxDuration = 30;
+
+const aiToolkit = new AISDKToolkit({ toolkit: docsToolkit });
 
 const ALLOWED_ORIGINS = [
   "https://assistant-ui-expo.vercel.app",
@@ -93,7 +95,7 @@ export async function POST(req: Request) {
       messages: prunedMessages,
       maxOutputTokens: 4096,
       stopWhen: stepCountIs(10),
-      tools: generativeTools({ toolkit: docsToolkit, frontendTools: tools }),
+      tools: await aiToolkit.tools({ frontend: tools }),
       onFinish: async () => {
         await prism?.end();
       },

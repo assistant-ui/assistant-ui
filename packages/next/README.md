@@ -88,7 +88,7 @@ import toolkit from "@/lib/chat.generative";
 ```
 
 With the AI SDK, convert the server build to a `ToolSet` (see
-`generativeTools` in `@assistant-ui/react-ai-sdk`).
+`AISDKToolkit` in `@assistant-ui/react-ai-sdk`).
 
 > **Validated on Next 16.2.6 (Turbopack).** Turbopack honors the loader-emitted
 > `"use client"`, but compiles one output per resource path — so the server build

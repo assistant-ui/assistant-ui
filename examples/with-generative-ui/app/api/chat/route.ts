@@ -8,7 +8,10 @@ import {
 } from "ai";
 import type { UIMessage } from "ai";
 import { z } from "zod";
-import { generativeTools } from "@assistant-ui/react-ai-sdk";
+import {
+  AISDKToolkit,
+  type AISDKToolkitToolsOptions,
+} from "@assistant-ui/react-ai-sdk";
 import {
   renderGuiToolDescription,
   renderGuiToolInputSchema,
@@ -17,9 +20,9 @@ import toolkit from "../../toolkit";
 
 export const maxDuration = 30;
 
-type FrontendToolDefs = NonNullable<
-  Parameters<typeof generativeTools>[0]["frontendTools"]
->;
+const aiToolkit = new AISDKToolkit({ toolkit });
+
+type FrontendToolDefs = NonNullable<AISDKToolkitToolsOptions["frontend"]>;
 
 export async function POST(req: Request) {
   const {
@@ -32,16 +35,17 @@ export async function POST(req: Request) {
     tools?: FrontendToolDefs;
   } = await req.json();
 
+  const toolkitTools = await aiToolkit.tools({
+    ...(clientTools && { frontend: clientTools }),
+  });
+
   const result = streamText({
     model: openai("gpt-5.4-nano"),
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(10),
     ...(system ? { system } : {}),
     tools: {
-      ...generativeTools({
-        toolkit,
-        ...(clientTools && { frontendTools: clientTools }),
-      }),
+      ...toolkitTools,
 
       render_gui: tool({
         description: renderGuiToolDescription,

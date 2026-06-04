@@ -98,8 +98,8 @@ export default defineToolkit({
 });
 ```
 
-Use `AISDKToolkit` in the route instead of `generativeTools` when the toolkit
-contains MCP entries:
+Use `AISDKToolkit` in the route. It opens the MCP clients, merges their tools
+with the rest of your toolkit, and closes them when you call `close()`:
 
 ```ts title="app/api/chat/route.ts"
 import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";

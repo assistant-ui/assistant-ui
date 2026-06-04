@@ -9,11 +9,13 @@ import {
   JsonToSseTransformStream,
 } from "ai";
 import type { UIMessage, UIMessageStreamWriter } from "ai";
-import { generativeTools } from "@assistant-ui/react-ai-sdk";
+import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
 import { z } from "zod";
 import toolkit from "../../toolkit";
 
 export const maxDuration = 30;
+
+const aiToolkit = new AISDKToolkit({ toolkit });
 
 type SearchResult = { id: string; url: string; title: string };
 
@@ -108,13 +110,15 @@ async function streamModel(
     }),
   });
 
+  const toolkitTools = await aiToolkit.tools({ frontend: frontendToolDefs });
+
   const result = streamText({
     // Reasoning model so the chain-of-thought group has real content.
     model: openai("gpt-5.4-mini"),
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(10),
     tools: {
-      ...generativeTools({ toolkit, frontendTools: frontendToolDefs }),
+      ...toolkitTools,
       get_current_weather: tool({
         description: "Get the current weather for a city",
         inputSchema: zodSchema(z.object({ city: z.string() })),

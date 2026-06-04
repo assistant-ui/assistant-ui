@@ -1,6 +1,6 @@
 ---
 title: Backend Tools
-description: Wire assistant-ui toolkits into your server with the AI SDK — generativeTools, frontendTools, mixing client and server tools, and multi-modal results.
+description: Wire assistant-ui toolkits into your server with the AI SDK — AISDKToolkit, frontendTools, mixing client and server tools, and multi-modal results.
 platforms: ["react"]
 ---
 
@@ -24,15 +24,17 @@ const {
 } = await req.json();
 ```
 
-## Generative toolkits: `generativeTools`
+## Generative toolkits: `AISDKToolkit`
 
-When you author tools in a [`"use generative"` file](/docs/tools/defining-tools#quick-start-use-generative), the same import resolves to the **server build** inside a route handler — schema plus any backend `execute`, with renderers stripped. Pass it to `generativeTools` together with the uploaded `tools`:
+When you author tools in a [`"use generative"` file](/docs/tools/defining-tools#quick-start-use-generative), the same import resolves to the **server build** inside a route handler — schema plus any backend `execute`, with renderers stripped. Wrap it in an `AISDKToolkit` and call `.tools()` with the uploaded `tools`:
 
 ```ts title="app/api/chat/route.ts"
-import { generativeTools } from "@assistant-ui/react-ai-sdk";
+import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { openai } from "@ai-sdk/openai";
 import toolkit from "../../toolkit";
+
+const aiToolkit = new AISDKToolkit({ toolkit });
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
@@ -41,19 +43,22 @@ export async function POST(req: Request) {
     model: openai("gpt-5.4-nano"),
     system,
     messages: await convertToModelMessages(messages),
-    tools: generativeTools({ toolkit, frontendTools: tools }),
+    tools: await aiToolkit.tools({ frontend: tools }),
   });
 
   return result.toUIMessageStreamResponse();
 }
 ```
 
-`generativeTools` registers every toolkit tool with the model using its schema, wires the backend `execute` where the server build carries one, and merges in the uploaded `frontendTools`. A server `execute` wins over an uploaded entry of the same name. Frontend and human tools (no server `execute`) are exposed schema-only and left for the client and the user to fulfill.
+`AISDKToolkit.tools()` registers every toolkit tool with the model using its schema, wires the backend `execute` where the server build carries one, and merges in the uploaded frontend tools. A server `execute` wins over an uploaded entry of the same name. Frontend and human tools (no server `execute`) are exposed schema-only and left for the client and the user to fulfill.
 
 <Callout type="info">
-  If your toolkit spreads in MCP server tools (`defineMcpToolkit`), use
-  `new AISDKToolkit({ toolkit }).tools({ frontend })` instead of
-  `generativeTools` — it also opens the MCP connections. See [MCP](/docs/tools/mcp).
+  If your toolkit spreads in MCP server tools (`defineMcpToolkit`), `.tools()`
+  also opens those connections. A module-scope `aiToolkit` pools them across
+  requests; see [MCP](/docs/tools/mcp) for the connection lifecycle and when to
+  call `aiToolkit.close()`. The older
+  `generativeTools({ toolkit, frontendTools })` is deprecated, MCP-less, and
+  superseded by `AISDKToolkit`.
 </Callout>
 
 ## Client-defined tools: `frontendTools`
@@ -88,7 +93,7 @@ export async function POST(req: Request) {
 }
 ```
 
-`generativeTools` calls `frontendTools` for you under the hood; reach for
+`AISDKToolkit.tools()` calls `frontendTools` for you under the hood; reach for
 `frontendTools` directly when you're not on the generative build.
 
 <Callout type="tip">

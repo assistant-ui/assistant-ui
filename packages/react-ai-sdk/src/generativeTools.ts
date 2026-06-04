@@ -31,6 +31,11 @@ const neverAbort = new AbortController().signal;
 const parametersToInputSchema = (parameters: Tool["parameters"] | undefined) =>
   jsonSchema(parameters ? toJSONSchema(parameters) : EMPTY_SCHEMA);
 
+/**
+ * @deprecated Options for the deprecated {@link generativeTools}. Use
+ * {@link AISDKToolkit} with {@link AISDKToolkitOptions} /
+ * {@link AISDKToolkitToolsOptions} instead.
+ */
 export interface GenerativeToolsOptions {
   /**
    * The server build of a generative toolkit (schema + server `execute`). Typed
@@ -66,16 +71,25 @@ export type AISDKToolkitToolsOptions = {
  * resolves to the server build — schema + `execute`, with `render` stripped) and
  * pass it here. Tools without an `execute` are still exposed to the model but
  * left for the client to fulfill. `frontendTools` lets the client contribute
- * tools that aren't in the static toolkit. Use {@link AISDKToolkit} when the
- * toolkit contains MCP entries.
+ * tools that aren't in the static toolkit.
+ *
+ * @deprecated Use {@link AISDKToolkit} instead:
+ * `new AISDKToolkit({ toolkit }).tools({ frontend })`. It is a strict superset
+ * (it also opens MCP server connections), so it replaces `generativeTools`
+ * everywhere. The `frontendTools` option is named `frontend` on `.tools()`, and
+ * `.tools()` is async. `generativeTools` will be removed in a future version.
  *
  * @example
  * ```ts
+ * // Define once at module scope so any MCP connections pool across requests.
+ * const aiToolkit = new AISDKToolkit({ toolkit: docsToolkit });
+ *
+ * // In your route handler:
  * const { tools } = await req.json();
  * streamText({
  *   model,
  *   messages,
- *   tools: generativeTools({ toolkit: docsToolkit, frontendTools: tools }),
+ *   tools: await aiToolkit.tools({ frontend: tools }),
  * });
  * ```
  */
