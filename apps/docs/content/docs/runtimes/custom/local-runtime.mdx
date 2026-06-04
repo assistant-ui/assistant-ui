@@ -510,6 +510,18 @@ function useStreamReconnect(threadId: string) {
 }
 ```
 
+## Queueing messages during a run
+
+Set `unstable_enableMessageQueue` to keep the composer usable while a run is in progress. A message sent during a run is held in `composer.queue` and sent once the run settles; steering a queued message runs it next.
+
+```tsx
+const runtime = useLocalRuntime(MyModelAdapter, {
+  unstable_enableMessageQueue: true,
+});
+```
+
+Render the pending messages with [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer) and [`QueueItemPrimitive`](/docs/api-reference/primitives/queue-item).
+
 ## Adapters
 
 Attachments, speech, feedback, history, and suggestions are wired through the standard adapter contracts, see [adapters](/docs/runtimes/concepts/adapters):

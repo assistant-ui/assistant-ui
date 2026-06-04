@@ -178,6 +178,7 @@ Each handler enables a specific UI feature.
 | `onReload` | Regenerate button |
 | `onCancel` | Cancel button while generating |
 | `onAddToolResult` | Client-side tool result handoff |
+| `queue` | Queueing messages sent while a run is in progress |
 
 ## Streaming responses
 
@@ -310,6 +311,32 @@ const runtime = useExternalStoreRuntime({
   onNew,
   adapters: { attachments: myAttachmentAdapter },
 });
+```
+
+## Queueing messages during a run
+
+By default, sending while the thread is running is disabled. Provide a `queue` adapter to buffer a message sent during a run and process it once the run settles. The pending message is exposed on `composer.queue` and renders through [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer).
+
+The `createMessageQueue` helper owns the FIFO ordering and the in-flight guard. Supply a driver that runs a message, pass its `adapter` to the runtime, and call `notifyIdle()` on the run's falling edge.
+
+```tsx
+import { useEffect, useRef, useState } from "react";
+import { createMessageQueue, useExternalStoreRuntime } from "@assistant-ui/react";
+
+const [queue] = useState(() => createMessageQueue({ run: onNew }));
+
+const runtime = useExternalStoreRuntime({
+  messages,
+  isRunning,
+  onNew,
+  queue: queue.adapter,
+});
+
+const wasRunning = useRef(isRunning);
+useEffect(() => {
+  if (wasRunning.current && !isRunning) queue.notifyIdle();
+  wasRunning.current = isRunning;
+}, [isRunning, queue]);
 ```
 
 ## Multi-thread

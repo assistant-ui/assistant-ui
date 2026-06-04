@@ -106,6 +106,19 @@ LangGraph can emit structured UI components alongside assistant messages via `pu
 
 See [Generative UI](/docs/runtimes/langgraph/generative-ui) for full setup: enabling the `custom` stream channel, emitting UI messages, registering renderers, dynamic loading, and persisting UI state across thread switches.
 
+## Queueing messages during a run
+
+Set `unstable_enableMessageQueue` to keep the composer usable while a run is streaming. A message sent during a run is held in `composer.queue` and sent once the run settles; steering a queued message runs it next.
+
+```tsx
+const runtime = useLangGraphRuntime({
+  stream,
+  unstable_enableMessageQueue: true,
+});
+```
+
+Render the pending messages with [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer) and [`QueueItemPrimitive`](/docs/api-reference/primitives/queue-item).
+
 ## Next
 
 <Cards>
