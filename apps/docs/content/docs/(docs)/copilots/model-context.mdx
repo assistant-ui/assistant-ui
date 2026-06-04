@@ -38,35 +38,42 @@ const ReadableComponent = makeAssistantVisible(MyComponent);
 
 Tools are functions that the assistant can use to interact with your application. They can be provided through various mechanisms:
 
-```tsx
-import {
-  AuiProvider,
-  makeAssistantVisible,
-  Tools,
-  type Toolkit,
-  useAui,
-} from "@assistant-ui/react";
+```tsx title="app/form-toolkit.tsx"
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
 import { z } from "zod";
 
-// Via makeAssistantVisible's clickable option
-const ClickableButton = makeAssistantVisible(Button, {
-  clickable: true, // Provides a click tool
-});
-
-// Via toolkit
-const toolkit = {
+export default defineToolkit({
   submitForm: {
-    type: "frontend",
+    description: "Submit the form with the user's details.",
     parameters: z.object({
       email: z.string().email(),
       name: z.string(),
     }),
     execute: async ({ email, name }) => {
+      "use client";
       // Implementation
       return { success: true };
     },
+    renderText: { running: "Submitting…", complete: "Submitted" },
   },
-} satisfies Toolkit;
+});
+```
+
+```tsx title="app/Form.tsx"
+import {
+  AuiProvider,
+  makeAssistantVisible,
+  Tools,
+  useAui,
+} from "@assistant-ui/react";
+import toolkit from "./form-toolkit";
+
+// Via makeAssistantVisible's clickable option
+const ClickableButton = makeAssistantVisible(Button, {
+  clickable: true, // Provides a click tool
+});
 
 // Use in your component
 function Form() {

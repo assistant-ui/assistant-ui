@@ -32,27 +32,22 @@ Tool UI is registered on toolkit entries. The same entry can define a browser-ex
 
 If you're creating tools on the client side, register them in a toolkit with `Tools({ toolkit })`.
 
-```tsx
-import {
-  AssistantRuntimeProvider,
-  Tools,
-  type Toolkit,
-  useAui,
-} from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
 import { z } from "zod";
 
-const toolkit = {
+export default defineToolkit({
   getWeather: {
-    type: "frontend",
     description: "Get current weather for a location",
     parameters: z.object({
       location: z.string(),
       unit: z.enum(["celsius", "fahrenheit"]),
     }),
     execute: async ({ location, unit }) => {
-      const weather = await fetchWeatherAPI(location, unit);
-      return weather;
+      "use client";
+      return fetchWeatherAPI(location, unit);
     },
     render: ({ args, result, status }) => {
       if (status.type === "running") {
@@ -70,7 +65,13 @@ const toolkit = {
       );
     },
   },
-} satisfies Toolkit;
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import toolkit from "./toolkit";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime({ api: "/api/chat" });
@@ -451,16 +452,21 @@ const toolkit = {
 
 Build complex workflows with human-in-the-loop patterns for multi-step user interactions:
 
-```tsx
-const toolkit = {
+```tsx title="app/approval-toolkit.tsx"
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+
+export default defineToolkit({
   requestApproval: {
-    type: "frontend",
     description: "Request user approval for an action",
     parameters: z.object({
       action: z.string(),
       details: z.any(),
     }),
     execute: async ({ action, details }, { human }) => {
+      "use client";
       // Request approval from user
       const response = await human({ action, details });
 
@@ -519,7 +525,7 @@ const toolkit = {
       return <div>Processing...</div>;
     },
   },
-} satisfies Toolkit;
+});
 ```
 
 <Callout type="tip">

@@ -102,18 +102,21 @@ function SmartTransactionHistory() {
 
 Let's add transaction-specific tools for the assistant:
 
-```tsx
-import { AuiProvider, Tools, type Toolkit, useAui } from "@assistant-ui/react";
+```tsx title="app/transaction-toolkit.tsx"
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
 import { z } from "zod";
 
-const toolkit = {
+export default defineToolkit({
   analyzeTransaction: {
-    type: "frontend",
+    description: "Analyze a transaction's risk and refund eligibility.",
     parameters: z.object({
       transactionId: z.string(),
       merchantName: z.string(),
     }),
     execute: async ({ transactionId, merchantName }) => {
+      "use client";
       // Analyze transaction patterns, merchant reputation, etc.
       return {
         isSuspicious: false,
@@ -122,8 +125,14 @@ const toolkit = {
         refundEligible: true,
       };
     },
+    renderText: { running: "Analyzing transaction…", complete: "Analysis ready" },
   },
-} satisfies Toolkit;
+});
+```
+
+```tsx title="app/SmartTransactionHistory.tsx"
+import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
+import toolkit from "./transaction-toolkit";
 
 function SmartTransactionHistory() {
   const aui = useAui({ tools: Tools({ toolkit }) });

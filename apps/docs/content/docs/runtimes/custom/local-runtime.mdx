@@ -417,24 +417,35 @@ If you build the `content` array fresh from the current chunk each iteration, to
 
 `LocalRuntime` supports OpenAI-compatible function calling. Register tools through `useAui` so the runtime exposes them to your adapter via `context.tools`:
 
-```tsx
-import { useAui, Tools, type Toolkit } from "@assistant-ui/react";
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
 import { z } from "zod";
 
-const myToolkit: Toolkit = {
+export default defineToolkit({
   getWeather: {
     description: "Get the current weather in a location",
     parameters: z.object({
       location: z.string(),
       unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
     }),
-    execute: async ({ location, unit }) => fetchWeather(location, unit),
+    execute: async ({ location, unit }) => {
+      "use client";
+      return fetchWeather(location, unit);
+    },
+    renderText: { running: "Checking the weather…", complete: "Weather ready" },
   },
-};
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { useAui, Tools } from "@assistant-ui/react";
+import toolkit from "./toolkit";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useLocalRuntime(MyModelAdapter);
-  const aui = useAui({ tools: Tools({ toolkit: myToolkit }) });
+  const aui = useAui({ tools: Tools({ toolkit }) });
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
