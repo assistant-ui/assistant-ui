@@ -174,6 +174,19 @@ const warnForUnsupportedFilePartShape = (part: FileContentPart) => {
   console.warn(`Unsupported file content block shape: ${shape}`);
 };
 
+const warnedReasoningPartShapes = new Set<string>();
+const warnForUnsupportedReasoningPartShape = (part: object) => {
+  if (
+    typeof process === "undefined" ||
+    process?.env?.NODE_ENV !== "development"
+  )
+    return;
+  const shape = Object.keys(part).sort().join(",");
+  if (warnedReasoningPartShapes.has(shape)) return;
+  warnedReasoningPartShapes.add(shape);
+  console.warn(`Unsupported reasoning content block shape: ${shape}`);
+};
+
 type FileContentPart = Extract<
   Exclude<LangChainMessage["content"], string>[number],
   { type: "file" }
@@ -249,10 +262,17 @@ const contentToParts = (
             return { type: "reasoning", text: part.thinking };
 
           case "reasoning":
-            return {
-              type: "reasoning",
-              text: part.summary.map((s) => s.text).join("\n\n\n"),
-            };
+            if (Array.isArray(part.summary)) {
+              return {
+                type: "reasoning",
+                text: part.summary.map((s) => s.text).join("\n\n\n"),
+              };
+            }
+            if (typeof part.reasoning === "string") {
+              return { type: "reasoning", text: part.reasoning };
+            }
+            warnForUnsupportedReasoningPartShape(part);
+            return null;
 
           case "tool_use":
             return null;

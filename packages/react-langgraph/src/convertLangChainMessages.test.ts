@@ -389,6 +389,58 @@ describe("convertLangChainMessages file content", () => {
   });
 });
 
+describe("convertLangChainMessages reasoning content", () => {
+  it("converts reasoning blocks with a summary array", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-reasoning-summary",
+      content: [
+        {
+          type: "reasoning",
+          summary: [
+            { type: "summary_text", text: "first" },
+            { type: "summary_text", text: "second" },
+          ],
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [{ type: "reasoning", text: "first\n\n\nsecond" }],
+    });
+  });
+
+  it("converts standard content blocks with a reasoning string (regression #4257)", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-reasoning-string",
+      content: [{ type: "reasoning", reasoning: "thinking out loud" }],
+    });
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [{ type: "reasoning", text: "thinking out loud" }],
+    });
+  });
+
+  it("skips reasoning blocks with neither summary nor reasoning", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-reasoning-malformed",
+      content: [
+        { type: "reasoning" } as never,
+        { type: "text", text: "hello" },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [{ type: "text", text: "hello" }],
+    });
+  });
+});
+
 describe("convertLangChainMessages UI messages", () => {
   it("appends matching UI messages as data parts on the assistant message", () => {
     const uiMessage: UIMessage = {
