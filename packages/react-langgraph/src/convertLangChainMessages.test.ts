@@ -389,6 +389,31 @@ describe("convertLangChainMessages file content", () => {
   });
 });
 
+describe("convertLangChainMessages reasoning content", () => {
+  it("falls back to reasoning text when summary is absent", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-reasoning",
+      content: [
+        {
+          type: "reasoning",
+          reasoning: "I should compare both options first.",
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [
+        {
+          type: "reasoning",
+          text: "I should compare both options first.",
+        },
+      ],
+    });
+  });
+});
+
 describe("convertLangChainMessages UI messages", () => {
   it("appends matching UI messages as data parts on the assistant message", () => {
     const uiMessage: UIMessage = {

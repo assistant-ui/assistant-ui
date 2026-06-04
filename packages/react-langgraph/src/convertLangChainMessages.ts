@@ -251,7 +251,10 @@ const contentToParts = (
           case "reasoning":
             return {
               type: "reasoning",
-              text: part.summary.map((s) => s.text).join("\n\n\n"),
+              text:
+                part.summary?.map((s) => s.text).join("\n\n\n") ??
+                part.reasoning ??
+                "",
             };
 
           case "tool_use":

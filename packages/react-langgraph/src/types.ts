@@ -39,7 +39,8 @@ export type MessageContentReasoningSummaryText = {
 
 export type MessageContentReasoning = {
   type: "reasoning";
-  summary: MessageContentReasoningSummaryText[];
+  summary?: MessageContentReasoningSummaryText[];
+  reasoning?: string;
 };
 
 type MessageContentToolUse = {
