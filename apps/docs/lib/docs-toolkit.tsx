@@ -126,11 +126,9 @@ const generative = new JSONGenerativeUI({
   library: defineGenerativeComponents({
     Weather: {
       description:
-        "Show the user a rich weather card. Pass the `id` returned by " +
-        "`get_weather`; optionally pass `format` to display temperatures as " +
-        "fahrenheit or celsius.",
+        "Show the user a rich weather card for a `get_weather` result.",
       properties: z.object({
-        id: z.string(),
+        id: z.string().describe("The `id` returned by `get_weather`."),
         format: weatherFormatSchema
           .optional()
           .describe("Temperature format to display in the weather card."),
