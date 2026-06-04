@@ -603,6 +603,48 @@ export default defineToolkit({
     expect(client).toContain('from "@/tools/weather"');
   });
 
+  it("prefers the most specific tsconfig path alias", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-alias-spec-"),
+    );
+    mkdirSync(nodePath.join(appRoot, "src", "tools"), { recursive: true });
+    mkdirSync(nodePath.join(appRoot, "generated"), { recursive: true });
+    // The broader `@/*` alias would resolve here — a non-generative module.
+    writeFileSync(
+      nodePath.join(appRoot, "src", "tools", "weather.tsx"),
+      `export default { get_weather: { execute: async () => 1 } };\n`,
+    );
+    // The more specific `@/tools/*` alias resolves to the generative module.
+    writeFileSync(
+      nodePath.join(appRoot, "generated", "weather.tsx"),
+      generativeChild,
+    );
+    writeFileSync(
+      nodePath.join(appRoot, "tsconfig.json"),
+      `{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/tools/*": ["./generated/*"]
+    }
+  }
+}`,
+    );
+    const filename = nodePath.join(appRoot, "src", "toolkit.tsx");
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "@/tools/weather";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+    // `@/tools/*` is more specific than `@/*`, so it wins and the spread is the
+    // generative module (allowed) rather than the non-generative `@/*` target.
+    const client = compileGenerative(src, { target: "client", filename }).code;
+    expect(client).toContain("...weatherTools");
+  });
+
   it("resolves a .js specifier to its .tsx source when spreading", () => {
     const filename = createMergeFixture(generativeChild);
     const src = `"use generative";

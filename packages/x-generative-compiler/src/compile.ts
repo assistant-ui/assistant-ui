@@ -594,9 +594,9 @@ function resolveImportedModuleFile(
  * dropped before probing.
  */
 function resolveModuleFileAtPath(base: string): string | null {
-  if (nodePath.extname(base) && existsSync(base)) return base;
-
   const ext = nodePath.extname(base);
+  if (ext && existsSync(base)) return base;
+
   const stem = REWRITABLE_JS_EXTENSIONS.has(ext)
     ? base.slice(0, -ext.length)
     : base;
@@ -626,14 +626,18 @@ function resolveAliasImport(
   const tsconfig = loadTsconfigAliases(nodePath.dirname(fromFilename));
   if (!tsconfig) return null;
 
-  for (const [pattern, targets] of Object.entries(tsconfig.paths)) {
+  // TypeScript matches the most specific key first: an exact (wildcard-free) key
+  // beats a wildcard one, and a longer static prefix beats a shorter one.
+  const patterns = Object.entries(tsconfig.paths).sort(
+    ([a], [b]) => aliasSpecificity(b) - aliasSpecificity(a),
+  );
+
+  for (const [pattern, targets] of patterns) {
     const matched = matchAliasPattern(pattern, source);
     if (matched === null) continue;
 
     for (const target of targets) {
-      const specifier = target.includes("*")
-        ? target.replace("*", matched)
-        : target;
+      const specifier = substituteAliasWildcard(target, matched);
       const file = resolveModuleFileAtPath(
         nodePath.resolve(tsconfig.baseDir, specifier),
       );
@@ -641,6 +645,19 @@ function resolveAliasImport(
     }
   }
   return null;
+}
+
+/** Ranks a `paths` key: an exact key outranks any wildcard; longer prefixes win. */
+function aliasSpecificity(pattern: string): number {
+  const star = pattern.indexOf("*");
+  return star === -1 ? pattern.length + 1 : star;
+}
+
+/** Substitutes the single `*` in a `paths` target with the matched text. */
+function substituteAliasWildcard(target: string, matched: string): string {
+  const star = target.indexOf("*");
+  if (star === -1) return target;
+  return target.slice(0, star) + matched + target.slice(star + 1);
 }
 
 /**
@@ -688,7 +705,7 @@ function readTsconfigAliases(
   seen.add(tsconfigPath);
 
   let config: {
-    extends?: string;
+    extends?: string | string[];
     compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> };
   } | null;
   try {
@@ -708,9 +725,22 @@ function readTsconfigAliases(
     };
   }
 
-  if (config.extends) {
-    const extended = resolveExtendedTsconfig(config.extends, configDir);
-    if (extended) return readTsconfigAliases(extended, seen);
+  // `extends` may be a string or (TS 5.0+) a string array; later entries take
+  // precedence, so try them last-first. Parsed from untrusted JSONC, so the
+  // array case is a real runtime shape, not just a type.
+  const extendsList = Array.isArray(config.extends)
+    ? config.extends
+    : config.extends
+      ? [config.extends]
+      : [];
+  for (let i = extendsList.length - 1; i >= 0; i--) {
+    const entry = extendsList[i];
+    if (typeof entry !== "string") continue;
+    const extended = resolveExtendedTsconfig(entry, configDir);
+    if (extended) {
+      const aliases = readTsconfigAliases(extended, seen);
+      if (aliases) return aliases;
+    }
   }
   return null;
 }
