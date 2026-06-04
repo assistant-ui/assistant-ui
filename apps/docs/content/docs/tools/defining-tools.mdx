@@ -55,6 +55,15 @@ export default defineConfig({
 });
 ```
 
+For Expo / React Native, wrap your Metro config with `withAui`:
+
+```js title="metro.config.js"
+const { getDefaultConfig } = require("expo/metro-config");
+const { withAui } = require("@assistant-ui/metro");
+
+module.exports = withAui(getDefaultConfig(__dirname));
+```
+
 </Step>
 <Step>
 

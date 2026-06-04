@@ -1545,6 +1545,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/metro':
+        specifier: workspace:*
+        version: link:../../packages/metro
       '@types/react':
         specifier: ~19.2.15
         version: 19.2.15
@@ -3169,6 +3172,34 @@ importers:
       tsx:
         specifier: ^4.22.4
         version: 4.22.4
+      vitest:
+        specifier: ^4.1.7
+        version: 4.1.7(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.7)(jsdom@29.1.1)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+
+  packages/metro:
+    dependencies:
+      '@babel/generator':
+        specifier: ^7.29.7
+        version: 7.29.7
+      '@babel/parser':
+        specifier: ^7.29.7
+        version: 7.29.7
+      '@babel/traverse':
+        specifier: ^7.29.7
+        version: 7.29.7
+      '@babel/types':
+        specifier: ^7.29.7
+        version: 7.29.7
+    devDependencies:
+      '@assistant-ui/x-generative-compiler':
+        specifier: workspace:^
+        version: link:../x-generative-compiler
+      '@types/node':
+        specifier: ^25.9.1
+        version: 25.9.1
+      tsdown:
+        specifier: ^0.22.1
+        version: 0.22.1(tsx@4.22.4)(typescript@6.0.3)
       vitest:
         specifier: ^4.1.7
         version: 4.1.7(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.7)(jsdom@29.1.1)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))

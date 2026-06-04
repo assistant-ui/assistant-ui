@@ -1,7 +1,9 @@
+"use generative";
+
 import { View, Text, StyleSheet, useColorScheme } from "react-native";
-import type {
-  Toolkit,
-  ToolCallMessagePartProps,
+import {
+  defineToolkit,
+  type ToolCallMessagePartProps,
 } from "@assistant-ui/react-native";
 import { z } from "zod";
 
@@ -332,14 +334,16 @@ function WeatherToolUI(
 
 // Toolkit definition
 
-export const expoToolkit: Toolkit = {
+export default defineToolkit({
   geocode_location: {
     description: "Geocode a location using Open-Meteo's geocoding API",
     parameters: z.object({
       query: z.string(),
     }),
-    execute: async (args: { query: string }) =>
-      geocodeLocationWithOpenMeteo(args.query),
+    execute: async (args: { query: string }) => {
+      "use client";
+      return geocodeLocationWithOpenMeteo(args.query);
+    },
     render: GeocodeToolUI,
   },
   weather_search: {
@@ -354,10 +358,13 @@ export const expoToolkit: Toolkit = {
       query: string;
       longitude: number;
       latitude: number;
-    }) => fetchWeatherFromOpenMeteo(args),
+    }) => {
+      "use client";
+      return fetchWeatherFromOpenMeteo(args);
+    },
     render: WeatherToolUI,
   },
-};
+});
 
 const styles = StyleSheet.create({
   card: {

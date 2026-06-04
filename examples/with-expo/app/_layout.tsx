@@ -18,7 +18,7 @@ import {
 } from "@assistant-ui/react-native";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
 import { ThreadListDrawer } from "@/components/thread-list/ThreadListDrawer";
-import { expoToolkit } from "@/components/assistant-ui/tools";
+import toolkit from "@/components/assistant-ui/tools";
 
 function NewChatButton() {
   const aui = useAui();
@@ -66,7 +66,7 @@ export default function RootLayout() {
   const [fontsLoaded] = useFonts(Ionicons.font);
   const runtime = useAppRuntime();
   const aui = useAui({
-    tools: Tools({ toolkit: expoToolkit }),
+    tools: Tools({ toolkit }),
   });
 
   if (!fontsLoaded) return null;

@@ -1,0 +1,63 @@
+{
+  "name": "@assistant-ui/metro",
+  "version": "0.0.1",
+  "description": "Metro / Expo integration for assistant-ui: the \"use generative\" directive compiler that colocates a tool's schema, server execute, and client render in one file. Works with Expo and bare React Native.",
+  "keywords": [
+    "assistant-ui",
+    "metro",
+    "expo",
+    "react-native",
+    "generative",
+    "use generative",
+    "babel-transformer"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.cts",
+      "default": "./dist/index.cjs"
+    },
+    "./transformer": {
+      "types": "./dist/transformer.d.cts",
+      "default": "./dist/transformer.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@babel/generator": "^7.29.7",
+    "@babel/parser": "^7.29.7",
+    "@babel/traverse": "^7.29.7",
+    "@babel/types": "^7.29.7"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-generative-compiler": "workspace:^",
+    "@types/node": "^25.9.1",
+    "tsdown": "^0.22.1",
+    "vitest": "^4.1.7"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/metro"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
