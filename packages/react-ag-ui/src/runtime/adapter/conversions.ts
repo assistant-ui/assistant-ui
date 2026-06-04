@@ -1,6 +1,7 @@
 "use client";
 
 import type { InputContent } from "@ag-ui/client";
+import type { ThreadMessageLike } from "@assistant-ui/core";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 
 export type { InputContent };
@@ -11,8 +12,8 @@ type AttachmentLike = {
   content?: readonly unknown[] | undefined;
 };
 
-type ThreadMessageLike = {
-  id: string;
+type MessageLike = {
+  id?: string;
   role: string;
   content: unknown;
   name?: string;
@@ -202,7 +203,7 @@ function toInputContent(
   return null;
 }
 
-function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
+function buildUserContent(message: MessageLike): string | InputContent[] {
   // File parts in message.content are intentionally skipped: the canonical
   // binary payload for files always flows through message.attachments.
   const contentParts = Array.isArray(message.content)
@@ -330,7 +331,7 @@ function extractAssistantToolCalls(
 
 function toAssistantSnapshotMessage(
   rawMessage: Record<string, unknown>,
-): ThreadMessageLike {
+): MessageLike {
   const text = extractText(rawMessage.content);
   const toolCallParts = extractAssistantToolCalls(rawMessage);
   const assistantContent = [
@@ -349,7 +350,7 @@ function toAssistantSnapshotMessage(
 function toUserOrSystemSnapshotMessage(
   role: "user" | "system",
   rawMessage: Record<string, unknown>,
-): ThreadMessageLike {
+): MessageLike {
   const messageName = getString(rawMessage, "name");
   return {
     id: getString(rawMessage, "id") ?? generateId(),
@@ -364,7 +365,7 @@ export function fromAgUiMessages(
   options?: { showThinking?: boolean },
 ): ThreadMessageLike[] {
   const showThinking = options?.showThinking ?? true;
-  const converted: ThreadMessageLike[] = [];
+  const converted: MessageLike[] = [];
 
   for (const rawMessage of messages) {
     if (!isObject(rawMessage)) continue;
@@ -483,11 +484,11 @@ export function fromAgUiMessages(
     }
   }
 
-  return converted;
+  return converted as unknown as ThreadMessageLike[];
 }
 
 function convertAssistantMessage(
-  message: ThreadMessageLike,
+  message: MessageLike,
   converted: AgUiMessage[],
 ): void {
   const content = extractText(message.content);
@@ -509,7 +510,7 @@ function convertAssistantMessage(
   }
 
   const assistantMessage: AgUiMessage = {
-    id: message.id,
+    id: message.id ?? generateId(),
     role: "assistant",
     content,
   };
@@ -543,14 +544,14 @@ function convertAssistantMessage(
 }
 
 function convertToolMessage(
-  message: ThreadMessageLike,
+  message: MessageLike,
   converted: AgUiMessage[],
 ): void {
   const content = extractText(message.content);
   const toolCallId = message.toolCallId ?? generateId();
 
   const toolMessage: AgUiMessage = {
-    id: message.id,
+    id: message.id ?? generateId(),
     role: "tool",
     content,
     toolCallId,
@@ -565,8 +566,9 @@ export function toAgUiMessages(
   messages: readonly ThreadMessageLike[],
 ): AgUiMessage[] {
   const converted: AgUiMessage[] = [];
+  const messageLikes: readonly MessageLike[] = messages;
 
-  for (const message of messages) {
+  for (const message of messageLikes) {
     if (message.role === "assistant") {
       convertAssistantMessage(message, converted);
       continue;
@@ -578,7 +580,7 @@ export function toAgUiMessages(
     }
 
     const genericMessage: AgUiMessage = {
-      id: message.id,
+      id: message.id ?? generateId(),
       role: message.role,
       content:
         message.role === "user"

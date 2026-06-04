@@ -3,11 +3,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { UserMessageSchema } from "@ag-ui/client";
-import {
-  fromAgUiMessages,
-  toAgUiMessages,
-  toAgUiTools,
-} from "../src/runtime/adapter/conversions";
+import { fromAgUiMessages, toAgUiMessages, toAgUiTools } from "../src";
 
 describe("adapter conversions", () => {
   it("converts thread messages to AG-UI format", () => {

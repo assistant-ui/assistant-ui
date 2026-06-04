@@ -62,6 +62,39 @@ const runtime = useAgUiRuntime({
 });
 ```
 
+## Message conversion helpers
+
+The conversion functions the runtime uses internally are exported for standalone use:
+
+| Export | Description |
+| --- | --- |
+| `fromAgUiMessages(messages, options?)` | Converts AG-UI messages to assistant-ui `ThreadMessageLike[]`. `options.showThinking` (default `true`) controls whether `reasoning` messages are imported. |
+| `toAgUiMessages(messages)` | Converts assistant-ui messages to AG-UI messages. |
+| `toAgUiTools(tools)` | Converts an assistant-ui tool record to AG-UI tool definitions. |
+
+A common use case is loading an existing conversation on page load. If your backend exposes the AG-UI message list (for example via a state endpoint), convert it with `fromAgUiMessages` and return it from a [history adapter](/docs/runtimes/concepts/adapters#history-adapter):
+
+```tsx
+import { useAgUiRuntime, fromAgUiMessages } from "@assistant-ui/react-ag-ui";
+import { ExportedMessageRepository } from "@assistant-ui/react";
+
+const runtime = useAgUiRuntime({
+  agent,
+  adapters: {
+    history: {
+      async load() {
+        const response = await fetch(`/agents/state?threadId=${threadId}`);
+        const { messages } = await response.json();
+        return ExportedMessageRepository.fromArray(fromAgUiMessages(messages));
+      },
+      async append() {
+        // persist new messages on your backend if needed
+      },
+    },
+  },
+});
+```
+
 ## Interrupts (experimental)
 
 <Callout type="warn">
