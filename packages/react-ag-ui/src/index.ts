@@ -1,5 +1,7 @@
 export { useAgUiRuntime } from "./useAgUiRuntime";
 export type { AgUiAssistantRuntime } from "./useAgUiRuntime";
+export { fromAgUiMessages } from "./runtime/adapter/conversions";
+export type { FromAgUiMessagesOptions } from "./runtime/adapter/conversions";
 export type {
   AgUiInterrupt,
   AgUiInterruptReason,

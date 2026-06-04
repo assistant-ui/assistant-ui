@@ -1,7 +1,9 @@
 "use client";
 
 import type { InputContent } from "@ag-ui/client";
+import type { ThreadMessageLike as CoreThreadMessageLike } from "@assistant-ui/core";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 export type { InputContent };
 
@@ -46,9 +48,9 @@ export type AgUiMessage =
 type ToolCallPart = {
   type: "tool-call";
   toolCallId?: string;
-  toolName?: string;
+  toolName: string;
   argsText?: string;
-  args?: Record<string, unknown>;
+  args?: ReadonlyJSONObject;
   result?: unknown;
   isError?: boolean;
   unstable_toolMessageId?: string;
@@ -268,9 +270,9 @@ function toToolCallPart(value: unknown): ToolCallPart | null {
     typeof argsText === "string" ? parseJSONText(argsText) : undefined;
   const args =
     isObject(parsedArgs) && !Array.isArray(parsedArgs)
-      ? (parsedArgs as Record<string, unknown>)
+      ? (parsedArgs as ReadonlyJSONObject)
       : isObject(value.args) && !Array.isArray(value.args)
-        ? (value.args as Record<string, unknown>)
+        ? (value.args as ReadonlyJSONObject)
         : undefined;
 
   const part: ToolCallPart = {
@@ -330,7 +332,7 @@ function extractAssistantToolCalls(
 
 function toAssistantSnapshotMessage(
   rawMessage: Record<string, unknown>,
-): ThreadMessageLike {
+): CoreThreadMessageLike {
   const text = extractText(rawMessage.content);
   const toolCallParts = extractAssistantToolCalls(rawMessage);
   const assistantContent = [
@@ -349,7 +351,7 @@ function toAssistantSnapshotMessage(
 function toUserOrSystemSnapshotMessage(
   role: "user" | "system",
   rawMessage: Record<string, unknown>,
-): ThreadMessageLike {
+): CoreThreadMessageLike {
   const messageName = getString(rawMessage, "name");
   return {
     id: getString(rawMessage, "id") ?? generateId(),
@@ -359,12 +361,20 @@ function toUserOrSystemSnapshotMessage(
   };
 }
 
+export type FromAgUiMessagesOptions = {
+  /**
+   * Whether to convert `reasoning` messages into visible reasoning parts.
+   * Matches the `showThinking` option of `useAgUiRuntime`. Defaults to `true`.
+   */
+  showThinking?: boolean;
+};
+
 export function fromAgUiMessages(
   messages: readonly unknown[],
-  options?: { showThinking?: boolean },
-): ThreadMessageLike[] {
+  options?: FromAgUiMessagesOptions,
+): CoreThreadMessageLike[] {
   const showThinking = options?.showThinking ?? true;
-  const converted: ThreadMessageLike[] = [];
+  const converted: CoreThreadMessageLike[] = [];
 
   for (const rawMessage of messages) {
     if (!isObject(rawMessage)) continue;
