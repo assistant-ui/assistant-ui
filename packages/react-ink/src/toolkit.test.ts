@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  defineToolkit,
-  hitlTool,
-  stubTool,
-  providerTool,
-  externalTool,
-} from "./toolkit";
+import { defineToolkit, hitlTool, stubTool, providerTool } from "./toolkit";
 
 const render = () => null;
 const execute = async () => ({ ok: true });
@@ -59,16 +53,6 @@ describe("defineToolkit (runtime)", () => {
     expect(tool["providerId"]).toBe("openai.web_search_preview");
     expect(tool["args"]).toEqual({ searchContextSize: "low" });
     expect(tool["execute"]).toBeUndefined();
-  });
-
-  it("resolves externalTool() to a backend tool", () => {
-    const toolkit = defineToolkit({
-      deploy: { parameters: {}, execute: externalTool(), render },
-    });
-    const tool = toolkit["deploy"] as Record<string, unknown>;
-    expect(tool["type"]).toBe("backend");
-    expect(tool["execute"]).toBeUndefined();
-    expect(tool["render"]).toBe(render);
   });
 
   it("passes through an entry that already declares a type", () => {

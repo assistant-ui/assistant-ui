@@ -218,7 +218,6 @@ export {
   hitlTool,
   stubTool,
   providerTool,
-  externalTool,
 } from "./toolkit";
 
 export type {

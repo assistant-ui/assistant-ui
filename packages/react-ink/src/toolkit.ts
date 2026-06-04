@@ -2,6 +2,7 @@ import type {
   Toolkit,
   ToolkitDefinition,
   ProviderToolConfig,
+  defineToolkit as CoreDefineToolkit,
 } from "@assistant-ui/core/react";
 
 /**
@@ -14,12 +15,12 @@ import type {
  * and no bundler-level compiler to run. These versions therefore resolve the
  * toolkit at runtime: each marker returns a detectable sentinel, and
  * {@link defineToolkit} reads it to set each tool's `type`, exactly as the
- * compiler would. The authoring API is identical to the web.
+ * compiler would. The authoring API (and its typed args) is identical to the web.
  */
 
 const MARKER = Symbol.for("@assistant-ui/react-ink.tool-marker");
 
-type MarkerKind = "human" | "stub" | "provider" | "external";
+type MarkerKind = "human" | "stub" | "provider";
 
 type ToolMarker = {
   [MARKER]: MarkerKind;
@@ -54,16 +55,10 @@ export function providerTool(config: ProviderToolConfig): never {
   return marker("provider", config);
 }
 
-/** Marks a tool that executes outside assistant-ui; only its calls are rendered. */
-export function externalTool(): never {
-  return marker("external");
-}
-
 const MARKER_TYPE = {
   human: "human",
   stub: "frontend",
   provider: "provider",
-  external: "backend",
 } as const;
 
 /**
@@ -71,12 +66,12 @@ const MARKER_TYPE = {
  *
  * A tool's `type` is resolved from its `execute`: `hitlTool()` -> `human`,
  * `stubTool()` -> `frontend` (executor via `useAuiToolOverrides`),
- * `providerTool(...)` -> `provider`, `externalTool()` -> `backend`, and a plain
- * `execute` function -> `frontend` (it runs in the Ink process). A tool that
- * already carries an explicit `type` (for example a render-only entry or a
- * factory output) is passed through unchanged.
+ * `providerTool(...)` -> `provider`, and a plain `execute` function -> `frontend`
+ * (it runs in the Ink process). A tool that already carries an explicit `type`
+ * (for example a render-only entry or a factory output) is passed through
+ * unchanged.
  */
-export function defineToolkit(definition: ToolkitDefinition): Toolkit {
+function defineToolkitRuntime(definition: ToolkitDefinition): Toolkit {
   const toolkit: Record<string, unknown> = {};
 
   for (const [name, entry] of Object.entries(definition)) {
@@ -106,3 +101,11 @@ export function defineToolkit(definition: ToolkitDefinition): Toolkit {
 
   return toolkit as Toolkit;
 }
+
+/**
+ * Reuses core's `defineToolkit` type so callers get the same per-tool typed
+ * args (inferred from each `parameters` schema), backed by the Ink runtime
+ * implementation above.
+ */
+export const defineToolkit =
+  defineToolkitRuntime as unknown as typeof CoreDefineToolkit;
