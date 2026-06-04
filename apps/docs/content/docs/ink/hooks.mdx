@@ -155,37 +155,40 @@ const runtime = useRemoteThreadListRuntime({
 
 ### Tools
 
-Register tools with a toolkit. The tool definition is forwarded to the model, and when the model calls it, the `execute` function runs and the `render` component displays the result.
+Author tools with `defineToolkit`, the same API as on the web ([Defining Tools](/docs/tools/defining-tools)). The tool definition is forwarded to the model; when the model calls it, the `execute` function runs and the `render` component displays the result.
+
+<Callout type="info">
+  An Ink app runs in a single Node process, so there is no client/server
+  boundary to split and no build step. `defineToolkit` from
+  `@assistant-ui/react-ink` runs at runtime: import it as a value, with no
+  `"use generative"` directive and no `"use client"` inside `execute`.
+</Callout>
 
 ```tsx title="weather-toolkit.tsx"
-import type { Toolkit } from "@assistant-ui/react-ink";
+import { defineToolkit } from "@assistant-ui/react-ink";
 import { Text } from "ink";
+import { z } from "zod";
 
-export const toolkit = {
+export default defineToolkit({
   get_weather: {
-    type: "frontend",
     description: "Get the current weather for a city",
-    parameters: {
-      type: "object",
-      properties: {
-        city: { type: "string" },
-      },
-      required: ["city"],
-    },
+    parameters: z.object({ city: z.string() }),
     execute: async ({ city }) => {
       const res = await fetch(`https://api.weather.example/${city}`);
       return res.json();
     },
     render: ({ args, result }) => (
-      <Text>{args.city}: {result?.temperature}°F</Text>
+      <Text>
+        {args.city}: {result?.temperature}°F
+      </Text>
     ),
   },
-} satisfies Toolkit;
+});
 ```
 
 ```tsx title="ToolProvider.tsx"
 import { AuiProvider, Tools, useAui } from "@assistant-ui/react-ink";
-import { toolkit } from "./weather-toolkit";
+import toolkit from "./weather-toolkit";
 
 function ToolProvider({ children }: { children: React.ReactNode }) {
   const aui = useAui({ tools: Tools({ toolkit }) });
