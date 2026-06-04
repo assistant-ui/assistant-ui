@@ -1,9 +1,77 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import * as nodePath from "node:path";
 import { describe, it, expect } from "vitest";
 import {
   compileGenerative,
   isGenerativeModule,
   GenerativeCompileError,
 } from "./compile";
+
+const minimalSource = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  weather: {
+    execute: async () => 1,
+  },
+});
+`;
+
+function createPackage(
+  root: string,
+  name: string,
+  packageJson: Record<string, unknown> = {},
+): string {
+  const packageRoot = nodePath.join(root, "node_modules", ...name.split("/"));
+  const distRoot = nodePath.join(packageRoot, "dist");
+  mkdirSync(distRoot, { recursive: true });
+  writeFileSync(nodePath.join(distRoot, "index.js"), "export {};\n");
+  writeFileSync(
+    nodePath.join(packageRoot, "package.json"),
+    JSON.stringify(
+      {
+        name,
+        version: "0.0.0",
+        type: "module",
+        exports: {
+          ".": "./dist/index.js",
+        },
+        ...packageJson,
+      },
+      null,
+      2,
+    ),
+  );
+  return packageRoot;
+}
+
+function createCompatibilityFixture(range: string | null): string {
+  const appRoot = mkdtempSync(
+    nodePath.join(tmpdir(), "aui-generative-compiler-"),
+  );
+  const srcRoot = nodePath.join(appRoot, "src");
+  mkdirSync(srcRoot, { recursive: true });
+  const filename = nodePath.join(srcRoot, "toolkit.tsx");
+  writeFileSync(filename, minimalSource);
+
+  const reactRoot = createPackage(appRoot, "@assistant-ui/react", {
+    dependencies: {
+      "@assistant-ui/core": "0.0.0",
+    },
+  });
+  createPackage(reactRoot, "@assistant-ui/core", {
+    version: "0.2.10",
+    ...(range
+      ? {
+          optionalDevDependencies: {
+            "@assistant-ui/x-generative-compiler": range,
+          },
+        }
+      : {}),
+  });
+
+  return filename;
+}
 
 const source = `"use generative";
 import { z } from "zod";
@@ -33,6 +101,32 @@ export default defineToolkit({
 
 const server = () => compileGenerative(source, { target: "server" }).code;
 const client = () => compileGenerative(source, { target: "client" }).code;
+
+describe("compileGenerative — core/compiler compatibility", () => {
+  it("allows a compiler version that satisfies core's optionalDevDependencies range", () => {
+    const filename = createCompatibilityFixture("^0.0.3");
+
+    expect(() =>
+      compileGenerative(minimalSource, { target: "server", filename }),
+    ).not.toThrow();
+  });
+
+  it("throws when core requires a different compiler range", () => {
+    const filename = createCompatibilityFixture("<0.0.3");
+
+    expect(() =>
+      compileGenerative(minimalSource, { target: "server", filename }),
+    ).toThrow(/requires @assistant-ui\/x-generative-compiler <0\.0\.3/);
+  });
+
+  it("skips the check for older core packages without compatibility metadata", () => {
+    const filename = createCompatibilityFixture(null);
+
+    expect(() =>
+      compileGenerative(minimalSource, { target: "server", filename }),
+    ).not.toThrow();
+  });
+});
 
 describe("compileGenerative — server target", () => {
   const code = server();
@@ -499,7 +593,7 @@ export default defineToolkit({
     expect(client).not.toContain("execute");
   });
 
-  it("infers `backend` from execute: externalTool() and strips schema/execution metadata", () => {
+  it("infers `backend` from execute: externalTool(), renders on the client, and omits from the server", () => {
     const src = `"use generative";
 import { z } from "zod";
 import { SearchResults } from "@/ui/search-results";

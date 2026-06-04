@@ -67,6 +67,9 @@
     "assistant-stream": "^0.3.20",
     "nanoid": "^5.1.11"
   },
+  "optionalDevDependencies": {
+    "@assistant-ui/x-generative-compiler": "^0.0.3"
+  },
   "peerDependencies": {
     "@assistant-ui/store": "^0.2.13",
     "@assistant-ui/tap": "^0.5.14",

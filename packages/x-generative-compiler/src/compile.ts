@@ -1,7 +1,11 @@
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import * as nodePath from "node:path";
 import { parse } from "@babel/parser";
 import _traverse, { type NodePath } from "@babel/traverse";
 import _generate from "@babel/generator";
 import * as t from "@babel/types";
+import { satisfies } from "semver";
 import { DIRECTIVE, type Target } from "./constants";
 
 // @babel/traverse and @babel/generator are CJS; their default export is the
@@ -21,6 +25,17 @@ const TOOLKIT_WRAPPER = "defineToolkit";
 const MCP_TOOLKIT_WRAPPER = "defineMcpToolkit";
 /** The required wrapper around a generative-UI library (stripped at build time). */
 const COMPONENTS_WRAPPER = "defineGenerativeComponents";
+/** The core package whose metadata declares supported compiler versions. */
+const CORE_PACKAGE = "@assistant-ui/core";
+/** This package, checked against core's compatibility range. */
+const COMPILER_PACKAGE = "@assistant-ui/x-generative-compiler";
+/** Packages that re-export core's generative markers. */
+const DISTRIBUTION_PACKAGES = [
+  CORE_PACKAGE,
+  "@assistant-ui/react",
+  "@assistant-ui/react-native",
+  "@assistant-ui/react-ink",
+] as const;
 /**
  * The class whose instances expose split-by-condition tools (`present()`,
  * `promptUser()`). A toolkit entry that calls a method on one of these passes
@@ -114,6 +129,8 @@ export function compileGenerative(
     );
   }
 
+  ensureCompilerCompatibleWithCore(ast, filename);
+
   // A module may hold several `defineToolkit(...)` / `defineGenerativeComponents(...)`
   // calls anywhere (e.g. a library built inside `new JSONGenerativeUI(...)` plus
   // the toolkit that exposes it). Tools may reference a `JSONGenerativeUI`
@@ -203,6 +220,201 @@ export function compileGenerative(
   );
 
   return { code: result.code, map: result.map };
+}
+
+interface PackageJson {
+  name?: string;
+  version?: string;
+  optionalDevDependencies?: Record<string, string>;
+}
+
+const checkedCorePackageJsonPaths = new Set<string>();
+let compilerPackageVersion: string | undefined;
+
+function ensureCompilerCompatibleWithCore(
+  ast: t.File,
+  filename: string | undefined,
+): void {
+  const corePackageJsonPath = resolveCorePackageJson(ast, filename);
+  if (
+    !corePackageJsonPath ||
+    checkedCorePackageJsonPaths.has(corePackageJsonPath)
+  ) {
+    return;
+  }
+
+  const corePackageJson = readPackageJson(corePackageJsonPath);
+  const range = corePackageJson?.optionalDevDependencies?.[COMPILER_PACKAGE];
+  if (!range) {
+    checkedCorePackageJsonPaths.add(corePackageJsonPath);
+    return;
+  }
+
+  const compilerVersion = getCompilerPackageVersion();
+  let compatible = false;
+  try {
+    compatible = satisfies(compilerVersion, range, {
+      includePrerelease: true,
+    });
+  } catch {
+    throw new GenerativeCompileError(
+      `${CORE_PACKAGE}@${corePackageJson.version ?? "unknown"} declares an ` +
+        `invalid optionalDevDependencies range for ${COMPILER_PACKAGE}: ` +
+        JSON.stringify(range),
+      filename,
+    );
+  }
+
+  if (!compatible) {
+    throw new GenerativeCompileError(
+      `${CORE_PACKAGE}@${corePackageJson.version ?? "unknown"} requires ` +
+        `${COMPILER_PACKAGE} ${range}, but the current compiler is ` +
+        `${compilerVersion}. Update @assistant-ui/next or @assistant-ui/vite ` +
+        "so their compiler satisfies the core package's " +
+        "optionalDevDependencies range.",
+      filename,
+    );
+  }
+
+  checkedCorePackageJsonPaths.add(corePackageJsonPath);
+}
+
+function getCompilerPackageVersion(): string {
+  if (compilerPackageVersion) return compilerPackageVersion;
+
+  const packageJsonPath = findPackageJson(import.meta.url, COMPILER_PACKAGE);
+  const packageJson = packageJsonPath ? readPackageJson(packageJsonPath) : null;
+  if (!packageJson?.version) {
+    throw new GenerativeCompileError(
+      `could not determine ${COMPILER_PACKAGE}'s package version`,
+    );
+  }
+  compilerPackageVersion = packageJson.version;
+  return compilerPackageVersion;
+}
+
+function resolveCorePackageJson(
+  ast: t.File,
+  filename: string | undefined,
+): string | null {
+  for (const packageName of collectImportedDistributionPackages(ast)) {
+    const packageJsonPath = resolvePackageJson(packageName, filename);
+    if (!packageJsonPath) continue;
+    if (packageName === CORE_PACKAGE) return packageJsonPath;
+
+    const corePackageJsonPath = resolvePackageJson(
+      CORE_PACKAGE,
+      packageJsonPath,
+    );
+    if (corePackageJsonPath) return corePackageJsonPath;
+  }
+
+  return null;
+}
+
+function collectImportedDistributionPackages(ast: t.File): Set<string> {
+  const packages = new Set<string>();
+
+  for (const statement of ast.program.body) {
+    const source =
+      (t.isImportDeclaration(statement) ||
+        t.isExportNamedDeclaration(statement) ||
+        t.isExportAllDeclaration(statement)) &&
+      statement.source
+        ? statement.source.value
+        : null;
+    if (!source) continue;
+
+    const packageName = packageNameFromSpecifier(source);
+    if (packageName) packages.add(packageName);
+  }
+
+  return packages;
+}
+
+function packageNameFromSpecifier(specifier: string): string | null {
+  for (const packageName of DISTRIBUTION_PACKAGES) {
+    if (specifier === packageName || specifier.startsWith(`${packageName}/`)) {
+      return packageName;
+    }
+  }
+
+  return null;
+}
+
+function resolvePackageJson(
+  packageName: string,
+  filename: string | undefined,
+): string | null {
+  const requirePath = normalizeRequirePath(filename);
+  const require = createRequire(requirePath);
+
+  try {
+    return findPackageJson(require.resolve(packageName), packageName);
+  } catch {
+    return findPackageJsonFromNodeModules(packageName, requirePath);
+  }
+}
+
+function normalizeRequirePath(filename: string | undefined): string {
+  if (filename) {
+    const cleanFilename = filename.split(/[?#]/, 1)[0]!;
+    if (nodePath.isAbsolute(cleanFilename)) return cleanFilename;
+  }
+  return import.meta.url;
+}
+
+function findPackageJson(
+  fromPathOrUrl: string,
+  packageName: string,
+): string | null {
+  let current = nodePath.dirname(
+    fromPathOrUrl.startsWith("file:")
+      ? new URL(fromPathOrUrl).pathname
+      : nodePath.resolve(fromPathOrUrl),
+  );
+
+  for (;;) {
+    const packageJsonPath = nodePath.join(current, "package.json");
+    const packageJson = readPackageJson(packageJsonPath);
+    if (packageJson?.name === packageName) return packageJsonPath;
+
+    const parent = nodePath.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+function findPackageJsonFromNodeModules(
+  packageName: string,
+  fromPathOrUrl: string,
+): string | null {
+  const parts = packageName.split("/");
+  let current = nodePath.dirname(
+    fromPathOrUrl.startsWith("file:")
+      ? new URL(fromPathOrUrl).pathname
+      : nodePath.resolve(fromPathOrUrl),
+  );
+
+  for (;;) {
+    const packageJsonPath = nodePath.join(
+      current,
+      "node_modules",
+      ...parts,
+      "package.json",
+    );
+    const packageJson = readPackageJson(packageJsonPath);
+    if (packageJson?.name === packageName) return packageJsonPath;
+
+    const parent = nodePath.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+function readPackageJson(packageJsonPath: string): PackageJson | null {
+  if (!existsSync(packageJsonPath)) return null;
+  return JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageJson;
 }
 
 /**
