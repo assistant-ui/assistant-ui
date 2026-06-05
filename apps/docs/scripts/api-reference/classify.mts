@@ -335,7 +335,7 @@ function fallbackRule(input: ClassificationInput): Classification {
   // Suffix match routes *Tool/*Toolkit helpers the exact-name list misses.
   // Value helpers render as "related" so the page's core tool APIs (tool,
   // Toolkit, ToolDefinition) sort above them; types stay supporting.
-  if (/Tool$/.test(input.name) || /Toolkit$/.test(input.name)) {
+  if (/Tool(kit)?$/.test(input.name)) {
     return classification(
       "tools",
       pageForToolExport(input.name),

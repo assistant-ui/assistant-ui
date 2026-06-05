@@ -412,13 +412,13 @@ export function discoverIntegrationExports(
   const renderOptions: JsDocRenderOptions = {
     linkResolver: createApiReferenceLinkResolver([
       ...getReactApiLinkItems(),
-      ...inputs
-        .filter((item) => item.placement.role !== "supporting-type")
-        .map((item) => ({
-          name: item.name,
-          section: "integrations" as const,
-          page,
-        })),
+      // inputs already excludes interface/type kinds (the only ones that ever
+      // get a "supporting-type" role), so every entry here renders on the page.
+      ...inputs.map((item) => ({
+        name: item.name,
+        section: "integrations" as const,
+        page,
+      })),
     ]),
     isKnownExport: createKnownExportPredicate(getAllExportedNames()),
   };
