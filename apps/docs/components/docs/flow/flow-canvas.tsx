@@ -27,7 +27,7 @@ export type FlowCanvasEdge = {
 type RenderedEdge = {
   path: string;
   head: string;
-  label?: { x: number; y: number; text: string };
+  label?: { x: number; y: number; text: string } | undefined;
 };
 
 export function FlowCanvas({
@@ -46,16 +46,22 @@ export function FlowCanvas({
     const container = ref.current;
     if (!container) return;
     const box = container.getBoundingClientRect();
+    const scaleX = container.offsetWidth
+      ? box.width / container.offsetWidth
+      : 1;
+    const scaleY = container.offsetHeight
+      ? box.height / container.offsetHeight
+      : 1;
     const rect = (id: string) => {
       const el = container.querySelector(`[data-flow-id="${id}"]`);
       if (!el) return undefined;
       const r = el.getBoundingClientRect();
       return {
-        right: r.right - box.left,
-        top: r.top - box.top,
-        bottom: r.bottom - box.top,
-        cx: r.left - box.left + r.width / 2,
-        cy: r.top - box.top + r.height / 2,
+        right: (r.right - box.left) / scaleX,
+        top: (r.top - box.top) / scaleY,
+        bottom: (r.bottom - box.top) / scaleY,
+        cx: (r.left - box.left + r.width / 2) / scaleX,
+        cy: (r.top - box.top + r.height / 2) / scaleY,
       };
     };
 

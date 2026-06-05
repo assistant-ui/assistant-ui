@@ -1,17 +1,26 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { FlowExpand } from "./flow-expand";
 
 export function Flow({
   className,
   children,
+  llm: _llm,
 }: {
   className?: string;
   children: ReactNode;
+  llm?: string;
 }) {
   return (
-    <div className={cn("not-prose my-6 overflow-x-auto", className)}>
-      <div className="mx-auto w-fit">{children}</div>
+    <div
+      className={cn(
+        "not-prose my-6 overflow-x-auto overflow-y-hidden",
+        className,
+      )}
+    >
+      <FlowExpand>
+        <div className="mx-auto w-fit py-3">{children}</div>
+      </FlowExpand>
     </div>
   );
 }
@@ -79,7 +88,6 @@ const toneClasses = {
 };
 
 type FlowNodeProps = {
-  href?: string;
   id?: string;
   children: ReactNode;
 } & (
@@ -88,7 +96,6 @@ type FlowNodeProps = {
 );
 
 export function FlowNode({
-  href,
   id,
   tone,
   variant = "box",
@@ -100,11 +107,9 @@ export function FlowNode({
       "bg-card text-card-foreground border-border rounded-md border px-3.5 py-1.5",
     variant === "box" && tone && toneClasses[tone],
     variant === "decision" && "text-card-foreground px-8 py-4",
-    href &&
-      "hover:border-muted-foreground/70 hover:ring-muted-foreground/15 transition hover:ring-2",
   );
-  const content = (
-    <>
+  return (
+    <span data-flow-id={id} className={className}>
       {variant === "decision" && (
         <svg
           aria-hidden
@@ -121,19 +126,16 @@ export function FlowNode({
         </svg>
       )}
       <span className="relative">{children}</span>
-    </>
-  );
-  if (href) {
-    return (
-      <Link data-flow-id={id} href={href} className={className}>
-        {content}
-      </Link>
-    );
-  }
-  return (
-    <span data-flow-id={id} className={className}>
-      {content}
     </span>
+  );
+}
+
+export function FlowLLM({ llm }: { llm?: string; children?: ReactNode }) {
+  if (!llm) return null;
+  return (
+    <pre>
+      <code className="language-mermaid">{llm}</code>
+    </pre>
   );
 }
 
