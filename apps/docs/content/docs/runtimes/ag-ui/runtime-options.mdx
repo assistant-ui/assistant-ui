@@ -48,18 +48,27 @@ const runtime = useAgUiRuntime({
         const { messages } = await fetch("/agents/state").then((r) => r.json());
         return ExportedMessageRepository.fromArray(fromAgUiMessages(messages));
       },
-      async append() {
-        // persist new messages on your backend, or no-op if the agent already does
+      async append({ message }) {
+        // persist the newly sent message on your backend
       },
     },
   },
 });
 ```
 
+Messages sent during the session are always forwarded to the agent through the
+run input, independent of `append`. A no-op `append` is therefore only safe when
+your backend already persists the conversation on its own; otherwise those
+messages are gone on the next page load.
+
 `fromAgUiMessages` accepts an optional second argument: pass
 `{ showThinking: false }` to match a runtime configured with
-`showThinking: false`, so imported reasoning messages are dropped the same way
-they are hidden during a live run.
+`showThinking: false`, so imported reasoning messages are dropped at conversion
+time, the same way a live run never stores them.
+
+`fromAgUiMessages` reconstructs the text, reasoning, and tool calls of each
+message. Non-text message content such as images and files is not restored, so a
+backend that persists multimodal messages loads only their text on reload.
 
 ## Thread list (experimental)
 
