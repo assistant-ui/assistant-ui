@@ -22,6 +22,8 @@ import type {
 } from "../../types/message";
 import type { MessageTiming } from "../../types/message";
 
+export type JoinStrategy = "concat-content" | "none";
+
 type ThreadMessageLikeContentItem = Exclude<
   ThreadMessageLike["content"],
   string
@@ -42,7 +44,7 @@ export namespace useExternalMessageConverter {
   export type Message =
     | (ThreadMessageLike & {
         readonly convertConfig?: {
-          readonly joinStrategy?: "concat-content" | "none";
+          readonly joinStrategy?: JoinStrategy;
         };
       })
     | {
@@ -264,7 +266,7 @@ const joinExternalMessages = (
 
 const chunkExternalMessages = <T>(
   callbackResults: CallbackResult<T>[],
-  joinStrategy?: "concat-content" | "none",
+  joinStrategy?: JoinStrategy,
 ) => {
   const results: ChunkResult<T>[] = [];
   let isAssistant = false;
@@ -397,7 +399,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
-  joinStrategy?: "concat-content" | "none" | undefined;
+  joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
 }) => {
   const state = useMemo(
