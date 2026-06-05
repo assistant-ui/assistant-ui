@@ -20,6 +20,15 @@ import {
 } from "@/components/docs/platform/mdx";
 import { PrimitivesTypeTable } from "@/components/docs/primitives-type-table";
 import { SourceLink } from "@/components/docs/source-link";
+import {
+  Flow,
+  FlowArrow,
+  FlowColumn,
+  FlowGroup,
+  FlowNode,
+  FlowRow,
+} from "@/components/docs/flow/flow";
+import { FlowCanvas } from "@/components/docs/flow/flow-canvas";
 import { Code } from "@radix-ui/themes";
 
 function Kbd({ children, ...props }: ComponentProps<"kbd">) {
@@ -59,6 +68,13 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     ParametersTable,
     PrimitivesTypeTable,
     SourceLink,
+    Flow,
+    FlowArrow,
+    FlowCanvas,
+    FlowColumn,
+    FlowGroup,
+    FlowNode,
+    FlowRow,
     Code,
     blockquote: (props) => <Callout>{props.children}</Callout>,
     ...components,
