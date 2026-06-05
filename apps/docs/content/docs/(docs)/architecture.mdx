@@ -56,60 +56,71 @@ Thread and message history can be stored by Assistant Cloud or by your own datab
 
 #### **1. Direct Integration with External Providers**
 
-```mermaid
-graph TD
+<Flow
+  llm={`graph TD
     A[Frontend Components] --> B[Runtime]
-    B --> D[External Providers or LLM APIs]
-    
-    
-    classDef default color:#f8fafc,text-align:center
-    
-    style A fill:#e879f9,stroke:#2e1065,stroke-width:2px,color:#2e1065,font-weight:bold
-    style B fill:#93c5fd,stroke:#1e3a8a,stroke-width:2px,color:#1e3a8a,font-weight:bold
-    style D fill:#fca5a5,stroke:#7f1d1d,stroke-width:2px,color:#7f1d1d,font-weight:bold
-    
-    class A,B,C,D,E default
-```
+    B --> D[External Providers or LLM APIs]`}
+>
+  <FlowColumn>
+    <FlowNode tone="pink">Frontend Components</FlowNode>
+    <FlowArrow direction="down" length={36} />
+    <FlowNode tone="blue">Runtime</FlowNode>
+    <FlowArrow direction="down" length={36} />
+    <FlowNode tone="red">External Providers or LLM APIs</FlowNode>
+  </FlowColumn>
+</Flow>
 
 #### **2. Using your own API endpoint**
 
-```mermaid
-graph TD
+<Flow
+  llm={`graph TD
     A[Frontend Components] --> B[Runtime]
     B --> E[Your API Backend]
-    E --> D[External Providers or LLM APIs]
-    
-    
-    classDef default color:#f8fafc,text-align:center
-    
-    style A fill:#e879f9,stroke:#2e1065,stroke-width:2px,color:#2e1065,font-weight:bold
-    style B fill:#93c5fd,stroke:#1e3a8a,stroke-width:2px,color:#1e3a8a,font-weight:bold
-    style D fill:#fca5a5,stroke:#7f1d1d,stroke-width:2px,color:#7f1d1d,font-weight:bold
-    style E fill:#fca5a5,stroke:#7f1d1d,stroke-width:2px,color:#7f1d1d,font-weight:bold
-    
-    class A,B,C,D,E default
-```
+    E --> D[External Providers or LLM APIs]`}
+>
+  <FlowColumn>
+    <FlowNode tone="pink">Frontend Components</FlowNode>
+    <FlowArrow direction="down" length={36} />
+    <FlowNode tone="blue">Runtime</FlowNode>
+    <FlowArrow direction="down" length={36} />
+    <FlowNode tone="red">Your API Backend</FlowNode>
+    <FlowArrow direction="down" length={36} />
+    <FlowNode tone="red">External Providers or LLM APIs</FlowNode>
+  </FlowColumn>
+</Flow>
 
 #### **3. With Assistant Cloud**
 
-```mermaid
-graph TD
+<Flow
+  llm={`graph TD
     A[Frontend Components] --> B[Runtime]
     B --> C[Cloud]
     E --> C
     C --> D[External Providers or LLM APIs]
-    B --> E[Your API Backend]
-    
-    classDef default color:#f8fafc,text-align:center
-    
-    style A fill:#e879f9,stroke:#2e1065,stroke-width:2px,color:#2e1065,font-weight:bold
-    style B fill:#93c5fd,stroke:#1e3a8a,stroke-width:2px,color:#1e3a8a,font-weight:bold
-    style C fill:#86efac,stroke:#064e3b,stroke-width:2px,color:#064e3b,font-weight:bold
-    style D fill:#fca5a5,stroke:#7f1d1d,stroke-width:2px,color:#7f1d1d,font-weight:bold
-    style E fill:#fca5a5,stroke:#7f1d1d,stroke-width:2px,color:#7f1d1d,font-weight:bold
-    
-    class A,B,C,D,E default
-```
+    B --> E[Your API Backend]`}
+>
+  <FlowCanvas
+    edges={[
+      { from: "runtime", to: "backend", route: "down", fromOffset: -20 },
+      { from: "runtime", to: "cloud", route: "down", fromOffset: 20 },
+      { from: "cloud", to: "providers", route: "down" },
+    ]}
+  >
+    <FlowColumn>
+      <FlowNode tone="pink">Frontend Components</FlowNode>
+      <FlowArrow direction="down" length={36} />
+      <FlowNode id="runtime" tone="blue">Runtime</FlowNode>
+      <div className="h-10" aria-hidden />
+      <FlowRow>
+        <FlowNode id="backend" tone="red">Your API Backend</FlowNode>
+        <FlowArrow length={48} />
+        <FlowNode id="cloud" tone="green">Cloud</FlowNode>
+      </FlowRow>
+      <div className="h-10" aria-hidden />
+      <FlowNode id="providers" tone="red">External Providers or LLM APIs</FlowNode>
+    </FlowColumn>
+  </FlowCanvas>
+</Flow>
 
 ## Going deeper
 

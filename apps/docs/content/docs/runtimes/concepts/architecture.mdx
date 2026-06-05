@@ -7,8 +7,8 @@ assistant-ui exposes runtime integrations at three layers. Understanding which l
 
 ## The three layers
 
-```mermaid
-graph TD
+<Flow
+  llm={`graph TD
     subgraph Framework["Framework adapters"]
       A1[react-ai-sdk]
       A2[react-langgraph]
@@ -34,8 +34,43 @@ graph TD
     A6 --> C2
     A7 --> C2
     P1 --> C1
-    P2 --> C2
-```
+    P2 --> C2`}
+>
+  <FlowCanvas
+    edges={[
+      { from: "datastream", to: "local", route: "down", midFrac: 0.4 },
+      { from: "transport", to: "external", route: "down", midFrac: 0.65, toOffset: -14 },
+      { from: "adapters", to: "external", route: "down", midFrac: 0.4, toOffset: 14 },
+    ]}
+  >
+    <div className="grid max-w-2xl grid-cols-[1fr_1.6fr] gap-4">
+      <FlowGroup label="Protocol layers">
+        <FlowRow className="flex-wrap justify-start">
+          <FlowNode id="datastream">DataStream</FlowNode>
+          <FlowNode id="transport">AssistantTransport</FlowNode>
+        </FlowRow>
+      </FlowGroup>
+      <FlowGroup id="adapters" label="Framework adapters">
+        <FlowRow className="flex-wrap justify-start">
+          <FlowNode>react-ai-sdk</FlowNode>
+          <FlowNode>react-langgraph</FlowNode>
+          <FlowNode>react-langchain</FlowNode>
+          <FlowNode>react-google-adk</FlowNode>
+          <FlowNode>react-a2a</FlowNode>
+          <FlowNode>react-ag-ui</FlowNode>
+          <FlowNode>react-opencode</FlowNode>
+        </FlowRow>
+      </FlowGroup>
+    </div>
+    <div className="h-14" aria-hidden />
+    <FlowGroup label="Core runtimes" className="mx-auto w-fit">
+      <FlowRow className="gap-10">
+        <FlowNode id="local">LocalRuntime</FlowNode>
+        <FlowNode id="external">ExternalStoreRuntime</FlowNode>
+      </FlowRow>
+    </FlowGroup>
+  </FlowCanvas>
+</Flow>
 
 Each upper layer is implemented in terms of a lower one. You can drop down a layer whenever you need more control, but most users start at the framework layer and never touch the others.
 

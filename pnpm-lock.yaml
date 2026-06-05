@@ -181,9 +181,6 @@ importers:
       '@shikijs/transformers':
         specifier: ^4.1.0
         version: 4.1.0
-      '@theguild/remark-mermaid':
-        specifier: ^0.3.0
-        version: 0.3.0(react@19.2.6)
       '@upstash/ratelimit':
         specifier: ^2.0.8
         version: 2.0.8(@upstash/redis@1.38.0)
@@ -9526,11 +9523,6 @@ packages:
     engines: {node: '>=12', npm: '>=6'}
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
-
-  '@theguild/remark-mermaid@0.3.0':
-    resolution: {integrity: sha512-Fy1J4FSj8totuHsHFpaeWyWRaRSIvpzGTRoEfnNJc1JmLV9uV70sYE3zcT+Jj5Yw20Xq4iCsiT+3Ho49BBZcBQ==}
-    peerDependencies:
-      react: ^18.2.0 || ^19.0.0
 
   '@tokenizer/inflate@0.4.1':
     resolution: {integrity: sha512-2mAv+8pkG6GIZiF1kNg1jAjh27IDxEPKwdGul3snfztFerfPGI1LjDezZp3i7BElXompqEtPmoPx6c2wgtWsOA==}
@@ -22438,12 +22430,6 @@ snapshots:
   '@testing-library/user-event@14.6.1(@testing-library/dom@10.4.1)':
     dependencies:
       '@testing-library/dom': 10.4.1
-
-  '@theguild/remark-mermaid@0.3.0(react@19.2.6)':
-    dependencies:
-      mermaid: 11.15.0
-      react: 19.2.6
-      unist-util-visit: 5.1.0
 
   '@tokenizer/inflate@0.4.1':
     dependencies:

@@ -17,14 +17,44 @@ If you do not have an existing store, use [`LocalRuntime`](/docs/runtimes/custom
 
 ## Architecture
 
-```mermaid
-graph TD
+<Flow
+  llm={`graph TD
     A[Your state] -->|messages| B[ExternalStoreAdapter]
     B --> C[ExternalStoreRuntime]
     C --> D[assistant-ui components]
     D -->|user actions| B
-    B -->|state updates| A
-```
+    B -->|state updates| A`}
+>
+  <FlowCanvas
+    className="pr-44"
+    edges={[
+      {
+        from: "components",
+        to: "adapter",
+        route: "loop-right",
+        label: "user actions",
+        laneOffset: 40,
+      },
+      {
+        from: "adapter",
+        to: "state",
+        route: "loop-right",
+        label: "state updates",
+        laneOffset: 88,
+      },
+    ]}
+  >
+    <FlowColumn>
+      <FlowNode id="state">Your state</FlowNode>
+      <FlowArrow direction="down" label="messages" length={36} />
+      <FlowNode id="adapter">ExternalStoreAdapter</FlowNode>
+      <FlowArrow direction="down" length={36} />
+      <FlowNode>ExternalStoreRuntime</FlowNode>
+      <FlowArrow direction="down" length={36} />
+      <FlowNode id="components">assistant-ui components</FlowNode>
+    </FlowColumn>
+  </FlowCanvas>
+</Flow>
 
 Key idea: you own the state, the adapter translates between your format and assistant-ui's. UI features are capability-based; if you provide `setMessages`, branching turns on; if you provide `onEdit`, editing turns on; etc.
 
