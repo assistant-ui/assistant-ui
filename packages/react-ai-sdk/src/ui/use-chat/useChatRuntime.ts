@@ -29,6 +29,7 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
+      joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
     };
 
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -78,6 +79,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     unstable_capabilities: _unstable_capabilities,
     suggestions: _suggestions,
     onResume,
+    joinStrategy,
     ...chatOptions
   } = options ?? {};
   // peel guard: any shared key left in `chatOptions` collapses this to `never`
@@ -103,6 +105,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...pickExternalStoreSharedOptions(options ?? {}),
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
+    ...(joinStrategy && { joinStrategy }),
   });
 
   if (transport instanceof AssistantChatTransport) {

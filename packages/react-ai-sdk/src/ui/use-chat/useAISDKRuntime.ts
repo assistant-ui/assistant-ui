@@ -6,6 +6,7 @@ import { isToolUIPart, generateId } from "ai";
 import {
   useExternalStoreRuntime,
   useRuntimeAdapters,
+  type JoinStrategy,
 } from "@assistant-ui/core/react";
 import type { ToolExecutionStatus } from "@assistant-ui/core";
 import type {
@@ -82,6 +83,15 @@ export type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
    * (for example, an SSE reconnect endpoint keyed by turn id).
    */
   onResume?: ExternalStoreAdapter["onResume"];
+  /**
+   * How consecutive assistant messages are rendered.
+   *
+   * `"concat-content"` (the default) merges them into a single thread message.
+   * `"none"` keeps each assistant message as its own thread message, which is
+   * useful when a backend persists proactive or consecutive assistant messages
+   * as separate entries.
+   */
+  joinStrategy?: JoinStrategy | undefined;
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -93,6 +103,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     toCreateMessage: customToCreateMessage,
     cancelPendingToolCallsOnSend = true,
     onResume,
+    joinStrategy,
   } = adapter;
   const contextAdapters = useRuntimeAdapters();
   const [toolStatuses, setToolStatuses] = useState<
@@ -126,6 +137,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const messages = AISDKMessageConverter.useThreadMessages({
     isRunning,
     messages: chatHelpers.messages,
+    joinStrategy,
     metadata: useMemo(
       () => ({
         toolStatuses,
