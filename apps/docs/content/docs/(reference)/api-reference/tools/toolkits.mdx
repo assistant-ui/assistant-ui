@@ -97,17 +97,14 @@ Defines MCP server tools as a spreadable toolkit fragment.
 
 ### defineToolkit
 
-Authoring helper for a `"use generative"` toolkit. Accepts the permissive
-ToolkitDefinition (a `backend` tool may carry its server `execute`)
-and types the result as the canonical [Toolkit](/docs/api-reference/tools/toolkits#toolkit).
+Toolkit authoring helper. Accepts the permissive ToolkitDefinition
+(a generative `backend` tool may carry its server `execute`) and types the
+result as the canonical [Toolkit](/docs/api-reference/tools/toolkits#toolkit).
 
-It has **no runtime implementation**. A `"use generative"` compiler (e.g.
-`@assistant-ui/next` or `@assistant-ui/vite`) strips the `defineToolkit(...)`
-wrapper (and its import) per build, so a correctly compiled
-`export default defineToolkit({...})` never calls this. If it *does* run, the
-module was not compiled by a use-generative loader — e.g. `defineToolkit` used
-outside a `"use generative"` file — which would ship a backend `execute` to the
-client. So it throws instead of silently leaking.
+In a `"use generative"` file, the compiler strips the wrapper per build so it
+can split schemas, renderers, and executors across the client/server boundary.
+Outside generative compilation, it returns the toolkit unchanged and can be
+used for plain frontend/backend/human toolkit objects.
 
 <ParametersTable {...defineToolkit} />
 
@@ -128,30 +125,40 @@ function externalTool(): never;
 ### hitl
 
 <Callout type="warn">
-<strong>Deprecated.</strong> Use [hitlTool](/docs/api-reference/tools/toolkits#hitltool).
+<strong>Deprecated.</strong> Use [humanTool](/docs/api-reference/tools/toolkits#humantool).
 </Callout>
 
 ```ts
-const hitl: typeof hitlTool;
+const hitl: typeof humanTool;
 ```
 
 ### hitlTool
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [humanTool](/docs/api-reference/tools/toolkits#humantool).
+</Callout>
+
+```ts
+const hitlTool: typeof humanTool;
+```
+
+### humanTool
 
 Marks a tool as **human-in-the-loop**: the agent pauses and the UI (`render`)
 supplies the result instead of code. Use it as the tool's `execute`:
 
 ```tsx
-confirm: { execute: hitlTool(), render: (props) => <Confirm {...props} /> }
+confirm: { execute: humanTool(), render: (props) => <Confirm {...props} /> }
 ```
 
-Like [defineToolkit](/docs/api-reference/tools/toolkits#definetoolkit), it has **no runtime implementation**: a
+Unlike [defineToolkit](/docs/api-reference/tools/toolkits#definetoolkit), it has **no runtime implementation**: a
 `"use generative"` compiler (e.g. `@assistant-ui/next` or `@assistant-ui/vite`)
-detects `execute: hitlTool()`, drops it, and stamps the tool `type: "human"`.
+detects `execute: humanTool()`, drops it, and stamps the tool `type: "human"`.
 Reaching it at runtime means the module wasn't compiled (used outside a
 `"use generative"` file), so it throws.
 
 ```ts
-function hitlTool(): never;
+function humanTool(): never;
 ```
 
 ### providerTool
