@@ -26,7 +26,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",
-    "mermaid": "^11.15.0",
     "postcss": "^8.5.15",
     "react": "^19.2.6",
     "react-resizable-panels": "^4.11.2",
