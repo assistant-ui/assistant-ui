@@ -126,7 +126,10 @@ describe("createAgUiSubscriber", () => {
       type: "ACTIVITY_SNAPSHOT",
       messageId: "m1",
       activityType: "mcp-apps",
-      content: { toolCallId: "call-1", resourceUri: "ui://srv/mcp-app.html" },
+      content: {
+        resourceUri: "ui://srv/mcp-app.html",
+        toolInput: { city: "sf" },
+      },
     };
     subscriber.onActivitySnapshotEvent?.({ event });
     subscriber.onEvent?.({ event });
@@ -135,7 +138,10 @@ describe("createAgUiSubscriber", () => {
     expect(events[0]).toMatchObject({
       type: "ACTIVITY_SNAPSHOT",
       activityType: "mcp-apps",
-      content: { toolCallId: "call-1", resourceUri: "ui://srv/mcp-app.html" },
+      content: {
+        resourceUri: "ui://srv/mcp-app.html",
+        toolInput: { city: "sf" },
+      },
     });
   });
 

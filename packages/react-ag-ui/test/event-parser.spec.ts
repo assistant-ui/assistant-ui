@@ -49,14 +49,20 @@ describe("parseAgUiEvent", () => {
       type: "ACTIVITY_SNAPSHOT",
       messageId: "m1",
       activityType: "mcp-apps",
-      content: { toolCallId: "call-1", resourceUri: "ui://srv/mcp-app.html" },
+      content: {
+        resourceUri: "ui://srv/mcp-app.html",
+        toolInput: { city: "sf" },
+      },
       replace: true,
     });
     expect(event).toEqual({
       type: "ACTIVITY_SNAPSHOT",
       messageId: "m1",
       activityType: "mcp-apps",
-      content: { toolCallId: "call-1", resourceUri: "ui://srv/mcp-app.html" },
+      content: {
+        resourceUri: "ui://srv/mcp-app.html",
+        toolInput: { city: "sf" },
+      },
       replace: true,
     });
   });

@@ -143,7 +143,7 @@ describe("RunAggregator", () => {
     expect((toolPart as any).result).toBe("result");
   });
 
-  it("stamps mcp app metadata from mcp-apps activity snapshots", () => {
+  it("stamps mcp app metadata onto the last resolved tool call", () => {
     const aggregator = createAggregator(false);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -151,6 +151,11 @@ describe("RunAggregator", () => {
       type: "TOOL_CALL_START",
       toolCallId: "tool1",
       toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_ARGS",
+      toolCallId: "tool1",
+      delta: '{"city":"sf"}',
     } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_RESULT",
@@ -162,7 +167,13 @@ describe("RunAggregator", () => {
       type: "ACTIVITY_SNAPSHOT",
       messageId: "m1",
       activityType: "mcp-apps",
-      content: { toolCallId: "tool1", resourceUri: "ui://srv/mcp-app.html" },
+      content: {
+        result: { ok: true },
+        resourceUri: "ui://srv/mcp-app.html",
+        serverHash: "h",
+        serverId: "s",
+        toolInput: { city: "sf" },
+      },
     } as AgUiEvent);
 
     const last = results.at(-1);
@@ -171,9 +182,61 @@ describe("RunAggregator", () => {
     expect((toolPart as any).mcp).toEqual({
       app: { resourceUri: "ui://srv/mcp-app.html" },
     });
+    expect((toolPart as any).result).toEqual({ ok: true });
   });
 
-  it("ignores activity snapshots that do not match a tool call", () => {
+  it("maps each snapshot to its own tool when multiple ui tools resolve", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool2",
+      toolCallName: "show_chart",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "{}",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      messageId: "m1",
+      activityType: "mcp-apps",
+      content: { resourceUri: "ui://srv/map.html" },
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool2",
+      content: "{}",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      messageId: "m2",
+      activityType: "mcp-apps",
+      content: { resourceUri: "ui://srv/chart.html" },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    const parts = last?.content?.filter((part) => part.type === "tool-call");
+    const tool1 = parts?.find((p) => (p as any).toolCallId === "tool1");
+    const tool2 = parts?.find((p) => (p as any).toolCallId === "tool2");
+    expect((tool1 as any).mcp).toEqual({
+      app: { resourceUri: "ui://srv/map.html" },
+    });
+    expect((tool2 as any).mcp).toEqual({
+      app: { resourceUri: "ui://srv/chart.html" },
+    });
+  });
+
+  it("ignores mcp-apps snapshots with no resolved tool call", () => {
     const aggregator = createAggregator(false);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -186,7 +249,7 @@ describe("RunAggregator", () => {
       type: "ACTIVITY_SNAPSHOT",
       messageId: "m1",
       activityType: "mcp-apps",
-      content: { toolCallId: "other", resourceUri: "ui://srv/mcp-app.html" },
+      content: { resourceUri: "ui://srv/mcp-app.html" },
     } as AgUiEvent);
 
     const last = results.at(-1);
@@ -204,10 +267,16 @@ describe("RunAggregator", () => {
       toolCallName: "show_map",
     } as AgUiEvent);
     aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "{}",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
       type: "ACTIVITY_SNAPSHOT",
       messageId: "m1",
       activityType: "custom-activity",
-      content: { toolCallId: "tool1", resourceUri: "ui://srv/mcp-app.html" },
+      content: { resourceUri: "ui://srv/mcp-app.html" },
     } as AgUiEvent);
 
     const last = results.at(-1);

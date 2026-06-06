@@ -61,6 +61,7 @@ export class RunAggregator {
   private activeReasoningKey: string | undefined;
   private reasoningPartCounter = 0;
   private readonly toolCalls = new Map<string, ToolCallState>();
+  private lastResolvedToolCallId: string | undefined;
   private readonly partOrder: (
     | { kind: "text"; key: string }
     | { kind: "reasoning"; key: string }
@@ -88,6 +89,7 @@ export class RunAggregator {
         this.activeReasoningKey = undefined;
         this.reasoningPartCounter = 0;
         this.toolCalls.clear();
+        this.lastResolvedToolCallId = undefined;
         this.partOrder.length = 0;
         this.textPartCounter = 0;
         this.activeTextMessageId = undefined;
@@ -228,29 +230,14 @@ export class RunAggregator {
         break;
       }
       case "ACTIVITY_SNAPSHOT": {
-        if (event.activityType !== MCP_APPS_ACTIVITY_TYPE) {
-          this.logger.debug?.("[agui] aggregator ignored activity", event);
-          break;
-        }
-        const toolCallId = event.content.toolCallId;
+        if (event.activityType !== MCP_APPS_ACTIVITY_TYPE) break;
+        const id = this.lastResolvedToolCallId;
+        const entry = id ? this.toolCalls.get(id) : undefined;
         const resourceUri = event.content.resourceUri;
-        if (typeof toolCallId !== "string" || typeof resourceUri !== "string") {
-          this.logger.debug?.(
-            "[agui] mcp-apps activity missing toolCallId or resourceUri",
-            event,
-          );
-          break;
+        if (entry && typeof resourceUri === "string") {
+          entry.mcpAppResourceUri = resourceUri;
+          this.emit();
         }
-        const entry = this.toolCalls.get(toolCallId);
-        if (!entry) {
-          this.logger.debug?.(
-            "[agui] mcp-apps activity references unknown tool call",
-            event,
-          );
-          break;
-        }
-        entry.mcpAppResourceUri = resourceUri;
-        this.emit();
         break;
       }
 
@@ -401,6 +388,7 @@ export class RunAggregator {
     if (toolMessageId) {
       entry.toolMessageId = toolMessageId;
     }
+    this.lastResolvedToolCallId = id;
   }
 
   private tryParseJSON(value: string): unknown {
