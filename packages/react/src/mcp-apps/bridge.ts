@@ -58,6 +58,9 @@ const METHOD_ALIASES: Record<string, string> = {
 const normalizeMethod = (method: string): string =>
   METHOD_ALIASES[method] ?? method;
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
+
 const JSONRPC_ERROR = {
   parseError: -32700,
   invalidRequest: -32600,
@@ -137,11 +140,8 @@ export function createMcpAppBridge(
       switch (normalizeMethod(req.method)) {
         case "ui/initialize": {
           const requestedProtocolVersion =
-            params &&
-            typeof params === "object" &&
-            typeof (params as { protocolVersion?: unknown }).protocolVersion ===
-              "string"
-              ? (params as { protocolVersion: string }).protocolVersion
+            isRecord(params) && typeof params.protocolVersion === "string"
+              ? params.protocolVersion
               : MCP_APP_PROTOCOL_VERSION;
           respond(req.id, {
             result: {
@@ -455,10 +455,7 @@ export function createMcpAppBridge(
       post({
         jsonrpc: "2.0",
         method: "ui/notifications/tool-input",
-        params:
-          input && typeof input === "object" && !Array.isArray(input)
-            ? { arguments: input }
-            : {},
+        params: isRecord(input) ? { arguments: input } : {},
       });
     },
     notifyToolResult: (result: unknown) => {
@@ -470,10 +467,9 @@ export function createMcpAppBridge(
       post({
         jsonrpc: "2.0",
         method: "ui/notifications/tool-result",
-        params:
-          result && typeof result === "object" && !Array.isArray(result)
-            ? (result as Record<string, unknown>)
-            : { content: [{ type: "text", text: String(result) }] },
+        params: isRecord(result)
+          ? result
+          : { content: [{ type: "text", text: String(result) }] },
       });
     },
     notifyHostContextChanged: (ctx: McpAppHostContext) => {
