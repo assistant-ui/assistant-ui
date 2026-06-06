@@ -1,10 +1,11 @@
 "use client";
 
-import type {
-  ChatModelRunResult,
-  MessageTiming,
-  ThreadAssistantMessagePart,
-  ToolCallMessagePart,
+import {
+  isMcpAppUri,
+  type ChatModelRunResult,
+  type MessageTiming,
+  type ThreadAssistantMessagePart,
+  type ToolCallMessagePart,
 } from "@assistant-ui/core";
 import type { AgUiEvent, AgUiInterrupt } from "../types";
 import type { Logger } from "../logger";
@@ -234,7 +235,11 @@ export class RunAggregator {
         const id = this.lastResolvedToolCallId;
         const entry = id ? this.toolCalls.get(id) : undefined;
         const resourceUri = event.content.resourceUri;
-        if (entry && typeof resourceUri === "string") {
+        if (
+          entry &&
+          typeof resourceUri === "string" &&
+          isMcpAppUri(resourceUri)
+        ) {
           entry.mcpAppResourceUri = resourceUri;
           this.emit();
         }

@@ -279,6 +279,32 @@ describe("RunAggregator", () => {
     expect((toolPart as any).mcp).toBeUndefined();
   });
 
+  it("ignores mcp-apps snapshots whose resourceUri is not a ui:// uri", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "{}",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: { resourceUri: "https://example.com/app.html" },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    const toolPart = last?.content?.find((part) => part.type === "tool-call");
+    expect((toolPart as any).mcp).toBeUndefined();
+  });
+
   it("sets requires-action status when tool calls lack results at RUN_FINISHED", () => {
     const aggregator = createAggregator(false);
 
