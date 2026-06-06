@@ -69,6 +69,34 @@ describe("createMcpAppBridge", () => {
     expect(result["capabilities"]["ui"]["sendMessage"]).toBe(true);
     expect(result["capabilities"]["ui"]["openLink"]).toBe(false);
 
+    expect(result["hostInfo"]).toEqual({ name: "test-host", version: "9.9.9" });
+    expect(result["hostCapabilities"]).toEqual({
+      serverTools: {},
+      message: { text: {} },
+    });
+
+    bridge.dispose();
+  });
+
+  it("echoes the requested protocolVersion in the ui/initialize result", async () => {
+    const { frame, captured } = makeFrame();
+    const bridge = createMcpAppBridge({ frame });
+
+    dispatch(frame, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "ui/initialize",
+      params: { protocolVersion: "2026-01-26" },
+    });
+    await flush();
+
+    const result = (captured[0] as McpAppJsonRpcResponse).result as Record<
+      string,
+      any
+    >;
+    expect(result["protocolVersion"]).toBe("2026-01-26");
+    expect(result["hostCapabilities"]).toEqual({});
+
     bridge.dispose();
   });
 
@@ -217,7 +245,7 @@ describe("createMcpAppBridge", () => {
     bridge.dispose();
   });
 
-  it("notifyToolInput / notifyToolResult / notifyHostContextChanged post correct notifications", () => {
+  it("notifyToolInput / notifyToolResult / notifyHostContextChanged post both legacy and 2026-01-26 notifications", () => {
     const { frame, captured } = makeFrame();
     const bridge = createMcpAppBridge({ frame });
 
@@ -233,13 +261,59 @@ describe("createMcpAppBridge", () => {
       },
       {
         jsonrpc: "2.0",
+        method: "ui/notifications/tool-input",
+        params: { arguments: { a: 1 } },
+      },
+      {
+        jsonrpc: "2.0",
         method: "notifications/tools/call/result",
         params: { result: { ok: 1 } },
       },
       {
         jsonrpc: "2.0",
+        method: "ui/notifications/tool-result",
+        params: { ok: 1 },
+      },
+      {
+        jsonrpc: "2.0",
         method: "notifications/host_context/changed",
         params: { theme: "light" },
+      },
+      {
+        jsonrpc: "2.0",
+        method: "ui/notifications/host-context-changed",
+        params: { theme: "light" },
+      },
+    ]);
+    bridge.dispose();
+  });
+
+  it("wraps non-object and array tool results in a valid content block for the spec dialect", () => {
+    const { frame, captured } = makeFrame();
+    const bridge = createMcpAppBridge({ frame });
+
+    bridge.notifyToolResult("done");
+    bridge.notifyToolResult([1, 2]);
+    bridge.notifyToolInput(null);
+
+    const spec = captured.filter((c) =>
+      (c as { method?: string }).method?.startsWith("ui/notifications/"),
+    );
+    expect(spec).toEqual([
+      {
+        jsonrpc: "2.0",
+        method: "ui/notifications/tool-result",
+        params: { content: [{ type: "text", text: "done" }] },
+      },
+      {
+        jsonrpc: "2.0",
+        method: "ui/notifications/tool-result",
+        params: { content: [{ type: "text", text: "1,2" }] },
+      },
+      {
+        jsonrpc: "2.0",
+        method: "ui/notifications/tool-input",
+        params: {},
       },
     ]);
     bridge.dispose();

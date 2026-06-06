@@ -136,10 +136,18 @@ export function createMcpAppBridge(
 
       switch (normalizeMethod(req.method)) {
         case "ui/initialize": {
+          const requestedProtocolVersion =
+            params &&
+            typeof params === "object" &&
+            typeof (params as { protocolVersion?: unknown }).protocolVersion ===
+              "string"
+              ? (params as { protocolVersion: string }).protocolVersion
+              : MCP_APP_PROTOCOL_VERSION;
           respond(req.id, {
             result: {
-              protocolVersion: MCP_APP_PROTOCOL_VERSION,
+              protocolVersion: requestedProtocolVersion,
               host: hostInfo,
+              hostInfo,
               hostContext,
               capabilities: {
                 tools: handlers.callTool ? {} : undefined,
@@ -153,6 +161,18 @@ export function createMcpAppBridge(
                   requestDisplayMode: !!handlers.requestDisplayMode,
                   updateModelContext: !!handlers.updateModelContext,
                 },
+              },
+              hostCapabilities: {
+                ...(handlers.openLink ? { openLinks: {} } : {}),
+                ...(handlers.callTool ? { serverTools: {} } : {}),
+                ...(handlers.readResource || handlers.listResources
+                  ? { serverResources: {} }
+                  : {}),
+                ...(handlers.updateModelContext
+                  ? { updateModelContext: { text: {} } }
+                  : {}),
+                ...(handlers.sendMessage ? { message: { text: {} } } : {}),
+                ...(handlers.onLog ? { logging: {} } : {}),
               },
             },
           });
@@ -432,6 +452,14 @@ export function createMcpAppBridge(
         method: "notifications/tools/call/input",
         params: { input },
       });
+      post({
+        jsonrpc: "2.0",
+        method: "ui/notifications/tool-input",
+        params:
+          input && typeof input === "object" && !Array.isArray(input)
+            ? { arguments: input }
+            : {},
+      });
     },
     notifyToolResult: (result: unknown) => {
       post({
@@ -439,11 +467,24 @@ export function createMcpAppBridge(
         method: "notifications/tools/call/result",
         params: { result },
       });
+      post({
+        jsonrpc: "2.0",
+        method: "ui/notifications/tool-result",
+        params:
+          result && typeof result === "object" && !Array.isArray(result)
+            ? (result as Record<string, unknown>)
+            : { content: [{ type: "text", text: String(result) }] },
+      });
     },
     notifyHostContextChanged: (ctx: McpAppHostContext) => {
       post({
         jsonrpc: "2.0",
         method: "notifications/host_context/changed",
+        params: ctx,
+      });
+      post({
+        jsonrpc: "2.0",
+        method: "ui/notifications/host-context-changed",
         params: ctx,
       });
     },
