@@ -10,6 +10,7 @@ import {
   type McpAppJsonRpcRequest,
   type McpAppJsonRpcResponse,
 } from "./types";
+import { isRecord } from "../utils/json/is-json";
 
 const VALID_DISPLAY_MODES = [
   "inline",
@@ -57,9 +58,6 @@ const METHOD_ALIASES: Record<string, string> = {
 
 const normalizeMethod = (method: string): string =>
   METHOD_ALIASES[method] ?? method;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === "object" && !Array.isArray(value);
 
 const JSONRPC_ERROR = {
   parseError: -32700,
