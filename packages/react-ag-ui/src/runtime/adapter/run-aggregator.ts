@@ -26,7 +26,10 @@ type ToolCallState = {
   isError: boolean | undefined;
   parentMessageId?: string;
   toolMessageId?: string;
+  mcpAppResourceUri?: string;
 };
+
+const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
 
 export type RunAggregatorOptions = {
   showThinking: boolean;
@@ -224,6 +227,32 @@ export class RunAggregator {
         this.emit();
         break;
       }
+      case "ACTIVITY_SNAPSHOT": {
+        if (event.activityType !== MCP_APPS_ACTIVITY_TYPE) {
+          this.logger.debug?.("[agui] aggregator ignored activity", event);
+          break;
+        }
+        const toolCallId = event.content.toolCallId;
+        const resourceUri = event.content.resourceUri;
+        if (typeof toolCallId !== "string" || typeof resourceUri !== "string") {
+          this.logger.debug?.(
+            "[agui] mcp-apps activity missing toolCallId or resourceUri",
+            event,
+          );
+          break;
+        }
+        const entry = this.toolCalls.get(toolCallId);
+        if (!entry) {
+          this.logger.debug?.(
+            "[agui] mcp-apps activity references unknown tool call",
+            event,
+          );
+          break;
+        }
+        entry.mcpAppResourceUri = resourceUri;
+        this.emit();
+        break;
+      }
 
       default: {
         this.logger.debug?.("[agui] aggregator ignored event", event);
@@ -415,6 +444,9 @@ export class RunAggregator {
         argsText: entry.argsText,
         ...(entry.result !== undefined ? { result: entry.result } : {}),
         ...(entry.isError !== undefined ? { isError: entry.isError } : {}),
+        ...(entry.mcpAppResourceUri
+          ? { mcp: { app: { resourceUri: entry.mcpAppResourceUri } } }
+          : {}),
         ...(entry.parentMessageId ? { parentId: entry.parentMessageId } : {}),
         ...(entry.toolMessageId
           ? { unstable_toolMessageId: entry.toolMessageId }

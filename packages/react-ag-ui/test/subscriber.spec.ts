@@ -115,6 +115,30 @@ describe("createAgUiSubscriber", () => {
     expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
   });
 
+  it("dispatches activity snapshots without duplication", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+    });
+
+    const event = {
+      type: "ACTIVITY_SNAPSHOT",
+      messageId: "m1",
+      activityType: "mcp-apps",
+      content: { toolCallId: "call-1", resourceUri: "ui://srv/mcp-app.html" },
+    };
+    subscriber.onActivitySnapshotEvent?.({ event });
+    subscriber.onEvent?.({ event });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: { toolCallId: "call-1", resourceUri: "ui://srv/mcp-app.html" },
+    });
+  });
+
   it("dispatches reasoning handlers without duplication", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({

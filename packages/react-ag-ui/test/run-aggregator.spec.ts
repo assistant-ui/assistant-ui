@@ -143,6 +143,78 @@ describe("RunAggregator", () => {
     expect((toolPart as any).result).toBe("result");
   });
 
+  it("stamps mcp app metadata from mcp-apps activity snapshots", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: '{"ok":true}',
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      messageId: "m1",
+      activityType: "mcp-apps",
+      content: { toolCallId: "tool1", resourceUri: "ui://srv/mcp-app.html" },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    const toolPart = last?.content?.find((part) => part.type === "tool-call");
+    expect(toolPart).toBeTruthy();
+    expect((toolPart as any).mcp).toEqual({
+      app: { resourceUri: "ui://srv/mcp-app.html" },
+    });
+  });
+
+  it("ignores activity snapshots that do not match a tool call", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      messageId: "m1",
+      activityType: "mcp-apps",
+      content: { toolCallId: "other", resourceUri: "ui://srv/mcp-app.html" },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    const toolPart = last?.content?.find((part) => part.type === "tool-call");
+    expect((toolPart as any).mcp).toBeUndefined();
+  });
+
+  it("ignores activity snapshots with a different activityType", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      messageId: "m1",
+      activityType: "custom-activity",
+      content: { toolCallId: "tool1", resourceUri: "ui://srv/mcp-app.html" },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    const toolPart = last?.content?.find((part) => part.type === "tool-call");
+    expect((toolPart as any).mcp).toBeUndefined();
+  });
+
   it("sets requires-action status when tool calls lack results at RUN_FINISHED", () => {
     const aggregator = createAggregator(false);
 
