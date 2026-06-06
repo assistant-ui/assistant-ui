@@ -57,13 +57,11 @@ describe("parseAgUiEvent", () => {
     });
     expect(event).toEqual({
       type: "ACTIVITY_SNAPSHOT",
-      messageId: "m1",
       activityType: "mcp-apps",
       content: {
         resourceUri: "ui://srv/mcp-app.html",
         toolInput: { city: "sf" },
       },
-      replace: true,
     });
   });
 

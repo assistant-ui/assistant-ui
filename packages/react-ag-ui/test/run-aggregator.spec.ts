@@ -165,7 +165,6 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({
       type: "ACTIVITY_SNAPSHOT",
-      messageId: "m1",
       activityType: "mcp-apps",
       content: {
         result: { ok: true },
@@ -207,7 +206,6 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({
       type: "ACTIVITY_SNAPSHOT",
-      messageId: "m1",
       activityType: "mcp-apps",
       content: { resourceUri: "ui://srv/map.html" },
     } as AgUiEvent);
@@ -219,7 +217,6 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({
       type: "ACTIVITY_SNAPSHOT",
-      messageId: "m2",
       activityType: "mcp-apps",
       content: { resourceUri: "ui://srv/chart.html" },
     } as AgUiEvent);
@@ -247,7 +244,6 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({
       type: "ACTIVITY_SNAPSHOT",
-      messageId: "m1",
       activityType: "mcp-apps",
       content: { resourceUri: "ui://srv/mcp-app.html" },
     } as AgUiEvent);
@@ -274,7 +270,6 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({
       type: "ACTIVITY_SNAPSHOT",
-      messageId: "m1",
       activityType: "custom-activity",
       content: { resourceUri: "ui://srv/mcp-app.html" },
     } as AgUiEvent);

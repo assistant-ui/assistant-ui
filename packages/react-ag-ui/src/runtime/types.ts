@@ -123,10 +123,8 @@ export type AgUiEvent =
     }
   | {
       type: "ACTIVITY_SNAPSHOT";
-      messageId?: string;
       activityType: string;
       content: Record<string, unknown>;
-      replace?: boolean;
     }
   | { type: "RAW"; event: any; source?: string }
   | { type: "CUSTOM"; name: string; value: any }
