@@ -7,27 +7,8 @@ import {
 /** Source modules a `"use generative"` directive can appear in. */
 const SOURCE_RE = /\.[cm]?[jt]sx?($|\?)/;
 
-/**
- * Vite plugin that compiles assistant-ui `"use generative"` modules — files that
- * colocate a tool's schema, server-only `execute`, and client-only `render`.
- *
- * Unlike the Next.js integration, no facade/redirect is needed: Vite's
- * Environment API lets one `transform` emit a different build per environment.
- * The `client` environment gets the client build (`render`, frontend `execute`);
- * every server environment (TanStack Start's `ssr`, where the chat route and
- * server functions are bundled) gets the server build (backend `execute`).
- *
- * Add it to `vite.config`; `enforce: "pre"` makes it run ahead of
- * `@vitejs/plugin-react`'s JSX transform, so array placement doesn't matter:
- *
- * ```ts
- * import { aui } from "@assistant-ui/vite";
- * export default defineConfig({
- *   plugins: [aui(), tanstackStart(), viteReact()],
- * });
- * ```
- */
-export function aui(): Plugin {
+/** Compiles `"use generative"` modules per environment. */
+function generativePlugin(): Plugin {
   return {
     name: "assistant-ui:use-generative",
     enforce: "pre",
@@ -51,4 +32,22 @@ export function aui(): Plugin {
       return { code: out, map: map ?? null };
     },
   };
+}
+
+/**
+ * Vite plugin that compiles assistant-ui `"use generative"` modules: files that
+ * colocate a tool's schema, server-only `execute`, and client-only `render`.
+ *
+ * Add it to `vite.config`; `enforce: "pre"` makes it run ahead of
+ * `@vitejs/plugin-react`'s JSX transform, so array placement doesn't matter:
+ *
+ * ```ts
+ * import { aui } from "@assistant-ui/vite";
+ * export default defineConfig({
+ *   plugins: [aui(), tanstackStart(), viteReact()],
+ * });
+ * ```
+ */
+export function aui(): Plugin[] {
+  return [generativePlugin()];
 }

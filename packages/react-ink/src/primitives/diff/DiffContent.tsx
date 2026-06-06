@@ -1,6 +1,6 @@
-import { type ComponentProps, type ReactNode, Fragment } from "react";
+import { type ComponentProps, type ReactNode, Fragment, useMemo } from "react";
 import { Box, Text } from "ink";
-import { useMemo } from "react";
+
 import { useDiffContext } from "./DiffContext";
 import { DiffLine } from "./DiffLine";
 import { foldContext } from "./diff-utils";

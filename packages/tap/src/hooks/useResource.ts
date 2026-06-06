@@ -1,29 +1,29 @@
 import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
-import { tapEffect } from "./tap-effect";
+import { useEffect } from "./useEffect";
 import {
   createResourceFiber,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
-import { tapMemo } from "./tap-memo";
-import { tapRef } from "./tap-ref";
+import { useMemo } from "./useMemo";
+import { useRef } from "./useRef";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 
-export function tapResource<E extends ResourceElement<any, any>>(
+export function useResource<E extends ResourceElement<any, any>>(
   element: E,
 ): ExtractResourceReturnType<E>;
-export function tapResource<E extends ResourceElement<any, any>>(
+export function useResource<E extends ResourceElement<any, any>>(
   element: E,
   propsDeps: readonly unknown[],
 ): ExtractResourceReturnType<E>;
-export function tapResource<E extends ResourceElement<any, any>>(
+export function useResource<E extends ResourceElement<any, any>>(
   element: E,
   propsDeps?: readonly unknown[],
 ): ExtractResourceReturnType<E> {
   const parentFiber = getCurrentResourceFiber();
-  const versionRef = tapRef(0);
-  const fiber = tapMemo(() => {
+  const versionRef = useRef(0);
+  const fiber = useMemo(() => {
     void element.key;
     return createResourceFiber(element.type, parentFiber.root, () => {
       versionRef.current++;
@@ -32,15 +32,16 @@ export function tapResource<E extends ResourceElement<any, any>>(
   }, [element.type, element.key, parentFiber]);
 
   const result = propsDeps
-    ? tapMemo(
+    ? // oxlint-disable-next-line react-hooks/rules-of-hooks -- propsDeps presence is fixed per call site, so the conditional call order is stable
+      useMemo(
         () => renderResourceFiber(fiber, element.props),
         // oxlint-disable-next-line tap-hooks/exhaustive-deps -- props identity replaced by user-provided deps
         [fiber, ...propsDeps, versionRef.current],
       )
     : renderResourceFiber(fiber, element.props);
 
-  tapEffect(() => () => unmountResourceFiber(fiber), [fiber]);
-  tapEffect(() => {
+  useEffect(() => () => unmountResourceFiber(fiber), [fiber]);
+  useEffect(() => {
     commitResourceFiber(fiber, result);
   }, [fiber, result]);
 

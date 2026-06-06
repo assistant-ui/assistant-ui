@@ -4,17 +4,16 @@ import type {
   ResourceElement,
   ResourceFiber,
 } from "../core/types";
-import { tapEffect } from "./tap-effect";
-import { tapMemo } from "./tap-memo";
-import { tapCallback } from "./tap-callback";
+import { useEffect } from "./useEffect";
+import { useMemo } from "./useMemo";
+import { useCallback } from "./useCallback";
 import {
   createResourceFiber,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
-import { tapConst } from "./tap-const";
-import { tapRef } from "./tap-ref";
+import { useRef } from "./useRef";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 
 type FiberState = {
@@ -25,31 +24,31 @@ type FiberState = {
     | "delete";
 };
 
-export function tapResources<E extends ResourceElement<any, any>>(
+export function useResources<E extends ResourceElement<any, any>>(
   getElements: () => readonly E[],
   getElementsDeps?: readonly unknown[],
 ): ExtractResourceReturnType<E>[] {
-  const versionRef = tapRef(0);
+  const versionRef = useRef(0);
   const version = versionRef.current;
 
-  const parentFiber = tapConst(getCurrentResourceFiber, []);
-  const markDirty = tapConst(
+  const parentFiber = useMemo(() => getCurrentResourceFiber(), []);
+  const markDirty = useMemo(
     () => () => {
       versionRef.current++;
       parentFiber.markDirty?.();
     },
     [],
   );
-  const fibers = tapConst(() => new Map<string | number, FiberState>(), []);
+  const fibers = useMemo(() => new Map<string | number, FiberState>(), []);
 
   const getElementsMemo = getElementsDeps
-    ? // oxlint-disable-next-line tap-hooks/exhaustive-deps -- deps forwarded by caller
-      tapCallback(getElements, getElementsDeps)
+    ? // oxlint-disable-next-line tap-hooks/exhaustive-deps, react-hooks/rules-of-hooks -- deps forwarded by caller; getElementsDeps presence is fixed per call site
+      useCallback(getElements, getElementsDeps)
     : getElements;
 
   // Process each element
 
-  const res = tapMemo(() => {
+  const res = useMemo(() => {
     void version;
 
     const elementsArray = getElementsMemo();
@@ -64,12 +63,12 @@ export function tapResources<E extends ResourceElement<any, any>>(
       const elementKey = element.key;
       if (elementKey === undefined) {
         throw new Error(
-          `tapResources did not provide a key for array at index ${i}`,
+          `useResources did not provide a key for array at index ${i}`,
         );
       }
 
       if (seenKeys.has(elementKey))
-        throw new Error(`Duplicate key ${elementKey} in tapResources`);
+        throw new Error(`Duplicate key ${elementKey} in useResources`);
       seenKeys.add(elementKey);
 
       let state = fibers.get(elementKey);
@@ -115,7 +114,7 @@ export function tapResources<E extends ResourceElement<any, any>>(
   }, [getElementsMemo, version]);
 
   // Cleanup on unmount
-  tapEffect(() => {
+  useEffect(() => {
     return () => {
       for (const key of fibers.keys()) {
         const fiber = fibers.get(key)!.fiber;
@@ -124,7 +123,7 @@ export function tapResources<E extends ResourceElement<any, any>>(
     };
   }, []);
 
-  tapEffect(() => {
+  useEffect(() => {
     res; // as a performance optimization, we only run if the results have changed
 
     for (const [key, state] of fibers.entries()) {

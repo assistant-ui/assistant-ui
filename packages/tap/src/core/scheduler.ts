@@ -53,7 +53,7 @@ const flushScheduled = () => {
       if (flushDepth > MAX_FLUSH_LIMIT) {
         throw new Error(
           `Maximum update depth exceeded. This can happen when a resource ` +
-            `repeatedly calls setState inside tapEffect.`,
+            `repeatedly calls setState inside useEffect.`,
         );
       }
 

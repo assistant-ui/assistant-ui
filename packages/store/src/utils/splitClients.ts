@@ -6,7 +6,8 @@ import type {
 } from "../types/client";
 import { getTransformScopes } from "../attachTransformScopes";
 import type { useAui } from "../useAui";
-import { tapMemo, type ResourceElement } from "@assistant-ui/tap";
+import { useMemo } from "react";
+import { type ResourceElement } from "@assistant-ui/tap";
 
 export type RootClients = Partial<
   Record<ClientNames, ClientElement<ClientNames>>
@@ -64,19 +65,19 @@ function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
   return { rootClients, derivedClients };
 }
 
-const tapShallowMemoObject = <T extends object>(object: T) => {
+const useShallowMemoObject = <T extends object>(object: T) => {
   // oxlint-disable-next-line tap-hooks/exhaustive-deps -- shallow memo over the object's flattened entries
-  return tapMemo(() => object, [...Object.entries(object).flat()]);
+  return useMemo(() => object, [...Object.entries(object).flat()]);
 };
 
-export const tapSplitClients = (
+export const useSplitClients = (
   clients: useAui.Props,
   baseClient: AssistantClient,
 ) => {
   const { rootClients, derivedClients } = splitClients(clients, baseClient);
 
   return {
-    rootClients: tapShallowMemoObject(rootClients),
-    derivedClients: tapShallowMemoObject(derivedClients),
+    rootClients: useShallowMemoObject(rootClients),
+    derivedClients: useShallowMemoObject(derivedClients),
   };
 };

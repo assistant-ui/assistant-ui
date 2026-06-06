@@ -18,12 +18,12 @@ export type { ScopesConfig } from "./attachTransformScopes";
 
 // tap hooks
 export {
-  tapAssistantClientRef,
-  tapAssistantEmit,
+  useAssistantClientRef,
+  useAssistantEmit,
 } from "./utils/tap-assistant-context";
-export { tapClientResource } from "./tapClientResource";
-export { tapClientLookup } from "./tapClientLookup";
-export { tapClientList } from "./tapClientList";
+export { useClientResource } from "./useClientResource";
+export { useClientLookup } from "./useClientLookup";
+export { useClientList } from "./useClientList";
 
 // types
 export type {

@@ -1,7 +1,7 @@
 /* oxlint-disable tap-hooks/exhaustive-deps -- tests deliberately exercise invalid dep arrays */
 import { describe, it, expect, vi } from "vitest";
-import { tapEffect } from "../../hooks/tap-effect";
-import { tapState } from "../../hooks/tap-state";
+import { useEffect } from "../../hooks/useEffect";
+import { useState } from "../../hooks/useState";
 import { createTestResource, renderTest, unmountResource } from "../test-utils";
 import {
   renderResourceFiber,
@@ -13,7 +13,7 @@ describe("Errors - Effect Errors", () => {
     const error = new Error("Effect error");
 
     const resource = createTestResource(() => {
-      tapEffect(() => {
+      useEffect(() => {
         throw error;
       });
       return null;
@@ -27,7 +27,7 @@ describe("Errors - Effect Errors", () => {
     let dep = 0;
 
     const resource = createTestResource(() => {
-      tapEffect(() => {
+      useEffect(() => {
         return () => {
           if (dep > 0) {
             throw error;
@@ -52,7 +52,7 @@ describe("Errors - Effect Errors", () => {
 
   it("should throw on invalid effect return value", () => {
     const resource = createTestResource(() => {
-      tapEffect(() => {
+      useEffect(() => {
         return "not a function" as any; // Invalid return
       });
       return null;
@@ -69,13 +69,13 @@ describe("Errors - Effect Errors", () => {
     const goodEffect = vi.fn();
 
     const resource = createTestResource(() => {
-      tapEffect(() => {
+      useEffect(() => {
         throw error1;
       });
 
-      tapEffect(goodEffect); // This won't run
+      useEffect(goodEffect); // This won't run
 
-      tapEffect(() => {
+      useEffect(() => {
         throw error2;
       });
 
@@ -99,9 +99,9 @@ describe("Errors - Effect Errors", () => {
     const cleanup3 = vi.fn();
 
     const resource = createTestResource(() => {
-      tapEffect(() => cleanup1);
-      tapEffect(() => cleanup2);
-      tapEffect(() => cleanup3);
+      useEffect(() => cleanup1);
+      useEffect(() => cleanup2);
+      useEffect(() => cleanup3);
       return null;
     });
 
@@ -119,16 +119,16 @@ describe("Errors - Effect Errors", () => {
     let shouldThrow = false;
 
     const resource = createTestResource(() => {
-      const [dep, setDep] = tapState(0);
+      const [dep, setDep] = useState(0);
 
-      tapEffect(() => {
+      useEffect(() => {
         if (shouldThrow) {
           throw error;
         }
       }, [dep]);
 
       // Use effect to trigger state change
-      tapEffect(() => {
+      useEffect(() => {
         if (dep === 0) {
           shouldThrow = true;
           setDep(1); // Trigger effect re-run
@@ -148,7 +148,7 @@ describe("Errors - Effect Errors", () => {
     let asyncErrorPromise: Promise<void>;
 
     const resource = createTestResource(() => {
-      tapEffect(() => {
+      useEffect(() => {
         // Async errors are not caught by the framework
         asyncErrorPromise = new Promise((_, reject) => {
           setTimeout(() => {
@@ -176,9 +176,9 @@ describe("Errors - Effect Errors", () => {
     let effectRan = false;
 
     const resource = createTestResource(() => {
-      const [value] = tapState("initial");
+      const [value] = useState("initial");
 
-      tapEffect(() => {
+      useEffect(() => {
         effectRan = true;
         throw error;
       });
@@ -198,9 +198,9 @@ describe("Errors - Effect Errors", () => {
     let throwOnCleanup = false;
 
     const resource = createTestResource(() => {
-      const [count, setCount] = tapState(0);
+      const [count, setCount] = useState(0);
 
-      tapEffect(() => {
+      useEffect(() => {
         return () => {
           if (throwOnCleanup) {
             throw cleanupError;
@@ -209,7 +209,7 @@ describe("Errors - Effect Errors", () => {
       }, [count]);
 
       // Use effect to trigger state change
-      tapEffect(() => {
+      useEffect(() => {
         if (count === 0) {
           throwOnCleanup = true;
           setCount(1);

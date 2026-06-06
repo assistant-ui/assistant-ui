@@ -1,13 +1,12 @@
-import { resource, tapState, tapMemo } from "@assistant-ui/tap";
+import { useState, useMemo } from "react";
+import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import {
   type ClientOutput,
-  tapClientLookup,
+  useClientLookup,
   Derived,
   attachTransformScopes,
-  tapClientResource,
+  useClientResource,
 } from "@assistant-ui/store";
-import { withKey } from "@assistant-ui/tap";
-import type { ResourceElement } from "@assistant-ui/tap";
 
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
@@ -28,172 +27,164 @@ type ThreadData = {
 };
 
 // ThreadListItem Client
-const ThreadListItemClient = resource(
-  (props: {
-    data: ThreadData;
-    onSwitchTo: () => void;
-    onUpdateCustom: (custom: Record<string, unknown> | undefined) => void;
-    onArchive: () => void;
-    onUnarchive: () => void;
-    onDelete: () => void;
-  }): ClientOutput<"threadListItem"> => {
-    const {
-      data,
-      onSwitchTo,
-      onUpdateCustom,
-      onArchive,
-      onUnarchive,
-      onDelete,
-    } = props;
-    const state = tapMemo(
-      () => ({
-        id: data.id,
-        remoteId: undefined,
-        externalId: undefined,
-        title: data.title,
-        status: data.status,
-        custom: data.custom,
-      }),
-      [data.id, data.title, data.status, data.custom],
-    );
+const ThreadListItemClient = resource(function ThreadListItemClient(props: {
+  data: ThreadData;
+  onSwitchTo: () => void;
+  onUpdateCustom: (custom: Record<string, unknown> | undefined) => void;
+  onArchive: () => void;
+  onUnarchive: () => void;
+  onDelete: () => void;
+}): ClientOutput<"threadListItem"> {
+  const { data, onSwitchTo, onUpdateCustom, onArchive, onUnarchive, onDelete } =
+    props;
+  const state = useMemo(
+    () => ({
+      id: data.id,
+      remoteId: undefined,
+      externalId: undefined,
+      title: data.title,
+      status: data.status,
+      custom: data.custom,
+    }),
+    [data.id, data.title, data.status, data.custom],
+  );
 
-    return {
-      getState: () => state,
-      switchTo: onSwitchTo,
-      rename: () => {},
-      updateCustom: onUpdateCustom,
-      archive: onArchive,
-      unarchive: onUnarchive,
-      delete: onDelete,
-      generateTitle: () => {},
-      initialize: async () => ({ remoteId: data.id, externalId: undefined }),
-      detach: () => {},
-    };
-  },
-);
+  return {
+    getState: () => state,
+    switchTo: onSwitchTo,
+    rename: () => {},
+    updateCustom: onUpdateCustom,
+    archive: onArchive,
+    unarchive: onUnarchive,
+    delete: onDelete,
+    generateTitle: () => {},
+    initialize: async () => ({ remoteId: data.id, externalId: undefined }),
+    detach: () => {},
+  };
+});
 
 // InMemoryThreadList Client
-export const InMemoryThreadList = resource(
-  (props: InMemoryThreadListProps): ClientOutput<"threads"> => {
-    const {
-      thread: threadFactory,
-      onSwitchToThread,
-      onSwitchToNewThread,
-    } = props;
+export const InMemoryThreadList = resource(function InMemoryThreadList(
+  props: InMemoryThreadListProps,
+): ClientOutput<"threads"> {
+  const {
+    thread: threadFactory,
+    onSwitchToThread,
+    onSwitchToNewThread,
+  } = props;
 
-    const [mainThreadId, setMainThreadId] = tapState("main");
-    const [threads, setThreads] = tapState<readonly ThreadData[]>(() => [
-      { id: "main", title: "Main Thread", status: "regular" },
-    ]);
+  const [mainThreadId, setMainThreadId] = useState("main");
+  const [threads, setThreads] = useState<readonly ThreadData[]>(() => [
+    { id: "main", title: "Main Thread", status: "regular" },
+  ]);
 
-    const handleSwitchToThread = (threadId: string) => {
-      setMainThreadId(threadId);
-      onSwitchToThread?.(threadId);
-    };
+  const handleSwitchToThread = (threadId: string) => {
+    setMainThreadId(threadId);
+    onSwitchToThread?.(threadId);
+  };
 
-    const handleArchive = (threadId: string) => {
-      setThreads((prev) =>
-        prev.map((t) =>
-          t.id === threadId ? { ...t, status: "archived" as const } : t,
-        ),
-      );
-    };
-
-    const handleUnarchive = (threadId: string) => {
-      setThreads((prev) =>
-        prev.map((t) =>
-          t.id === threadId ? { ...t, status: "regular" as const } : t,
-        ),
-      );
-    };
-
-    const handleUpdateCustom = (
-      threadId: string,
-      custom: Record<string, unknown> | undefined,
-    ) => {
-      setThreads((prev) =>
-        prev.map((t) => (t.id === threadId ? { ...t, custom } : t)),
-      );
-    };
-
-    const handleDelete = (threadId: string) => {
-      setThreads((prev) => prev.filter((t) => t.id !== threadId));
-      if (mainThreadId === threadId) {
-        const remaining = threads.filter((t) => t.id !== threadId);
-        setMainThreadId(remaining[0]?.id || "main");
-      }
-    };
-
-    const handleSwitchToNewThread = () => {
-      const newId = `thread-${Date.now()}`;
-      setThreads((prev) => [
-        ...prev,
-        { id: newId, title: "New Thread", status: "regular" },
-      ]);
-      setMainThreadId(newId);
-      onSwitchToNewThread?.();
-    };
-
-    const threadListItems = tapClientLookup(
-      () =>
-        threads.map((t) =>
-          withKey(
-            t.id,
-            ThreadListItemClient({
-              data: t,
-              onSwitchTo: () => handleSwitchToThread(t.id),
-              onUpdateCustom: (custom) => handleUpdateCustom(t.id, custom),
-              onArchive: () => handleArchive(t.id),
-              onUnarchive: () => handleUnarchive(t.id),
-              onDelete: () => handleDelete(t.id),
-            }),
-          ),
-        ),
-      [threads],
+  const handleArchive = (threadId: string) => {
+    setThreads((prev) =>
+      prev.map((t) =>
+        t.id === threadId ? { ...t, status: "archived" as const } : t,
+      ),
     );
+  };
 
-    // Create the main thread
-    const mainThreadClient = tapClientResource(threadFactory(mainThreadId));
+  const handleUnarchive = (threadId: string) => {
+    setThreads((prev) =>
+      prev.map((t) =>
+        t.id === threadId ? { ...t, status: "regular" as const } : t,
+      ),
+    );
+  };
 
-    const state = tapMemo(() => {
-      const regularThreads = threads.filter((t) => t.status === "regular");
-      const archivedThreads = threads.filter((t) => t.status === "archived");
+  const handleUpdateCustom = (
+    threadId: string,
+    custom: Record<string, unknown> | undefined,
+  ) => {
+    setThreads((prev) =>
+      prev.map((t) => (t.id === threadId ? { ...t, custom } : t)),
+    );
+  };
 
-      return {
-        mainThreadId,
-        newThreadId: null,
-        isLoading: false,
-        isLoadingMore: false,
-        hasMore: false,
-        threadIds: regularThreads.map((t) => t.id),
-        archivedThreadIds: archivedThreads.map((t) => t.id),
-        threadItems: threadListItems.state,
-        main: mainThreadClient.state,
-      };
-    }, [mainThreadId, threads, threadListItems.state, mainThreadClient.state]);
+  const handleDelete = (threadId: string) => {
+    setThreads((prev) => prev.filter((t) => t.id !== threadId));
+    if (mainThreadId === threadId) {
+      const remaining = threads.filter((t) => t.id !== threadId);
+      setMainThreadId(remaining[0]?.id || "main");
+    }
+  };
+
+  const handleSwitchToNewThread = () => {
+    const newId = `thread-${Date.now()}`;
+    setThreads((prev) => [
+      ...prev,
+      { id: newId, title: "New Thread", status: "regular" },
+    ]);
+    setMainThreadId(newId);
+    onSwitchToNewThread?.();
+  };
+
+  const threadListItems = useClientLookup(
+    () =>
+      threads.map((t) =>
+        withKey(
+          t.id,
+          ThreadListItemClient({
+            data: t,
+            onSwitchTo: () => handleSwitchToThread(t.id),
+            onUpdateCustom: (custom) => handleUpdateCustom(t.id, custom),
+            onArchive: () => handleArchive(t.id),
+            onUnarchive: () => handleUnarchive(t.id),
+            onDelete: () => handleDelete(t.id),
+          }),
+        ),
+      ),
+    [threads],
+  );
+
+  // Create the main thread
+  const mainThreadClient = useClientResource(threadFactory(mainThreadId));
+
+  const state = useMemo(() => {
+    const regularThreads = threads.filter((t) => t.status === "regular");
+    const archivedThreads = threads.filter((t) => t.status === "archived");
 
     return {
-      getState: () => state,
-      switchToThread: handleSwitchToThread,
-      switchToNewThread: handleSwitchToNewThread,
-      getLoadThreadsPromise: () => RESOLVED_PROMISE,
-      reload: () => RESOLVED_PROMISE,
-      loadMore: () => RESOLVED_PROMISE,
-      item: (selector) => {
-        if (selector === "main") {
-          const index = threads.findIndex((t) => t.id === mainThreadId);
-          return threadListItems.get({ index: index === -1 ? 0 : index });
-        }
-        if ("id" in selector) {
-          const index = threads.findIndex((t) => t.id === selector.id);
-          return threadListItems.get({ index });
-        }
-        return threadListItems.get(selector);
-      },
-      thread: () => mainThreadClient.methods,
+      mainThreadId,
+      newThreadId: null,
+      isLoading: false,
+      isLoadingMore: false,
+      hasMore: false,
+      threadIds: regularThreads.map((t) => t.id),
+      archivedThreadIds: archivedThreads.map((t) => t.id),
+      threadItems: threadListItems.state,
+      main: mainThreadClient.state,
     };
-  },
-);
+  }, [mainThreadId, threads, threadListItems.state, mainThreadClient.state]);
+
+  return {
+    getState: () => state,
+    switchToThread: handleSwitchToThread,
+    switchToNewThread: handleSwitchToNewThread,
+    getLoadThreadsPromise: () => RESOLVED_PROMISE,
+    reload: () => RESOLVED_PROMISE,
+    loadMore: () => RESOLVED_PROMISE,
+    item: (selector) => {
+      if (selector === "main") {
+        const index = threads.findIndex((t) => t.id === mainThreadId);
+        return threadListItems.get({ index: index === -1 ? 0 : index });
+      }
+      if ("id" in selector) {
+        const index = threads.findIndex((t) => t.id === selector.id);
+        return threadListItems.get({ index });
+      }
+      return threadListItems.get(selector);
+    },
+    thread: () => mainThreadClient.methods,
+  };
+});
 
 attachTransformScopes(InMemoryThreadList, (scopes, parent) => {
   scopes.thread ??= Derived({

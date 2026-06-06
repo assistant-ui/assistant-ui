@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import type { ComponentProps } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
+
 import { Text } from "ink";
 import { useThreadIsRunning } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";

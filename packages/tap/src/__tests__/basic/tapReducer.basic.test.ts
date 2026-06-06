@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { tapReducer } from "../../hooks/tap-reducer";
-import { tapEffect } from "../../hooks/tap-effect";
+import { useReducer } from "../../hooks/useReducer";
+import { useEffect } from "../../hooks/useEffect";
 import {
   createTestResource,
   renderTest,
@@ -9,7 +9,7 @@ import {
   getCommittedOutput,
 } from "../test-utils";
 
-describe("tapReducer - Basic Functionality", () => {
+describe("useReducer - Basic Functionality", () => {
   afterEach(() => {
     cleanupAllResources();
   });
@@ -19,7 +19,7 @@ describe("tapReducer - Basic Functionality", () => {
       const reducer = (state: number, action: number) => state + action;
 
       const testFiber = createTestResource(() => {
-        const [count] = tapReducer(reducer, 0);
+        const [count] = useReducer(reducer, 0);
         return count;
       });
 
@@ -32,7 +32,7 @@ describe("tapReducer - Basic Functionality", () => {
       const reducer = (state: number, action: number) => state + action;
 
       const testFiber = createTestResource(() => {
-        const [count] = tapReducer(reducer, 10, (arg) => {
+        const [count] = useReducer(reducer, 10, (arg) => {
           initCalled++;
           return arg * 2;
         });
@@ -64,9 +64,9 @@ describe("tapReducer - Basic Functionality", () => {
       let dispatchFn: ((action: Action) => void) | null = null;
 
       const testFiber = createTestResource(() => {
-        const [count, dispatch] = tapReducer(reducer, 0);
+        const [count, dispatch] = useReducer(reducer, 0);
 
-        tapEffect(() => {
+        useEffect(() => {
           dispatchFn = dispatch;
         });
 
@@ -100,9 +100,9 @@ describe("tapReducer - Basic Functionality", () => {
 
       const testFiber = createTestResource(() => {
         renderCount++;
-        const [count, dispatch] = tapReducer(reducer, 42);
+        const [count, dispatch] = useReducer(reducer, 42);
 
-        tapEffect(() => {
+        useEffect(() => {
           dispatchFn = dispatch;
         });
 
@@ -127,9 +127,9 @@ describe("tapReducer - Basic Functionality", () => {
       const testFiber = createTestResource(() => {
         const reducer = (state: number, action: number) =>
           state + action * multiplier;
-        const [count, dispatch] = tapReducer(reducer, 0);
+        const [count, dispatch] = useReducer(reducer, 0);
 
-        tapEffect(() => {
+        useEffect(() => {
           dispatchFn = dispatch;
         });
 
@@ -159,9 +159,9 @@ describe("tapReducer - Basic Functionality", () => {
       let dispatchFn: ((action: number) => void) | null = null;
 
       const testFiber = createTestResource(() => {
-        const [count, dispatch] = tapReducer(reducer, 0);
+        const [count, dispatch] = useReducer(reducer, 0);
 
-        tapEffect(() => {
+        useEffect(() => {
           dispatchFn = dispatch;
         });
 
@@ -186,7 +186,7 @@ describe("tapReducer - Basic Functionality", () => {
       const dispatches: ((action: number) => void)[] = [];
 
       const testFiber = createTestResource(() => {
-        const [count, dispatch] = tapReducer(reducer, 0);
+        const [count, dispatch] = useReducer(reducer, 0);
         dispatches.push(dispatch);
         return count;
       });

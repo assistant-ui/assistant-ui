@@ -1,4 +1,5 @@
-import { resource, tapConst, tapRef } from "@assistant-ui/tap";
+import { useMemo, useRef } from "react";
+import { resource } from "@assistant-ui/tap";
 import type {
   McpAppResource,
   McpAppsHost,
@@ -33,27 +34,27 @@ async function postToHost(
  * params }`, using the method names expected by the assistant-ui MCP Apps
  * guide.
  */
-export const McpAppsRemoteHost = resource(
-  (options: McpAppsRemoteHostOptions): McpAppsHost => {
-    const optionsRef = tapRef(options);
-    optionsRef.current = options;
+export const McpAppsRemoteHost = resource(function McpAppsRemoteHost(
+  options: McpAppsRemoteHostOptions,
+): McpAppsHost {
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
-    return tapConst(
-      (): McpAppsHost => ({
-        loadResource: (params) =>
-          postToHost(
-            optionsRef.current,
-            "mcp-apps/read-resource",
-            params,
-          ) as Promise<McpAppResource>,
-        callTool: (params) =>
-          postToHost(optionsRef.current, "tools/call", params),
-        readResource: (params) =>
-          postToHost(optionsRef.current, "resources/read", params),
-        listResources: (params) =>
-          postToHost(optionsRef.current, "resources/list", params),
-      }),
-      [],
-    );
-  },
-);
+  return useMemo(
+    (): McpAppsHost => ({
+      loadResource: (params) =>
+        postToHost(
+          optionsRef.current,
+          "mcp-apps/read-resource",
+          params,
+        ) as Promise<McpAppResource>,
+      callTool: (params) =>
+        postToHost(optionsRef.current, "tools/call", params),
+      readResource: (params) =>
+        postToHost(optionsRef.current, "resources/read", params),
+      listResources: (params) =>
+        postToHost(optionsRef.current, "resources/list", params),
+    }),
+    [],
+  );
+});

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { tapState } from "../../hooks/tap-state";
-import { tapEffect } from "../../hooks/tap-effect";
+import { useState } from "../../hooks/useState";
+import { useEffect } from "../../hooks/useEffect";
 import {
   createTestResource,
   renderTest,
@@ -9,7 +9,7 @@ import {
   getCommittedOutput,
 } from "../test-utils";
 
-describe("tapState - Basic Functionality", () => {
+describe("useState - Basic Functionality", () => {
   afterEach(() => {
     cleanupAllResources();
   });
@@ -17,7 +17,7 @@ describe("tapState - Basic Functionality", () => {
   describe("Initialization", () => {
     it("should initialize with direct value", () => {
       const testFiber = createTestResource(() => {
-        const [count] = tapState(42);
+        const [count] = useState(42);
         return count;
       });
 
@@ -29,7 +29,7 @@ describe("tapState - Basic Functionality", () => {
       let initCalled = 0;
 
       const testFiber = createTestResource(() => {
-        const [count] = tapState(() => {
+        const [count] = useState(() => {
           initCalled++;
           return 100;
         });
@@ -48,7 +48,7 @@ describe("tapState - Basic Functionality", () => {
 
     it("should handle undefined initial state", () => {
       const testFiber = createTestResource(() => {
-        const [value] = tapState<string>();
+        const [value] = useState<string>();
         return value;
       });
 
@@ -64,7 +64,7 @@ describe("tapState - Basic Functionality", () => {
 
       const testFiber = createTestResource(() => {
         renderCount++;
-        const [count, setCount] = tapState(0);
+        const [count, setCount] = useState(0);
 
         // Capture setter on first render
         if (!setCountFn) {
@@ -97,9 +97,9 @@ describe("tapState - Basic Functionality", () => {
 
       const testFiber = createTestResource(() => {
         renderCount++;
-        const [count, setCount] = tapState(42);
+        const [count, setCount] = useState(42);
 
-        tapEffect(() => {
+        useEffect(() => {
           setCountFn = setCount;
         });
 
@@ -125,9 +125,9 @@ describe("tapState - Basic Functionality", () => {
         null;
 
       const testFiber = createTestResource(() => {
-        const [count, setCount] = tapState(10);
+        const [count, setCount] = useState(10);
 
-        tapEffect(() => {
+        useEffect(() => {
           setCountFn = setCount;
         });
 
@@ -155,9 +155,9 @@ describe("tapState - Basic Functionality", () => {
   describe("Multiple States", () => {
     it("should handle multiple state hooks independently", () => {
       const testFiber = createTestResource(() => {
-        const [count1, setCount1] = tapState(1);
-        const [count2, setCount2] = tapState(2);
-        const [text, setText] = tapState("hello");
+        const [count1, setCount1] = useState(1);
+        const [count2, setCount2] = useState(2);
+        const [text, setText] = useState("hello");
 
         return {
           count1,
@@ -179,11 +179,11 @@ describe("tapState - Basic Functionality", () => {
       let setters: any = null;
 
       const testFiber = createTestResource(() => {
-        const [a, setA] = tapState("a");
-        const [b, setB] = tapState("b");
-        const [c, setC] = tapState("c");
+        const [a, setA] = useState("a");
+        const [b, setB] = useState("b");
+        const [c, setC] = useState("c");
 
-        tapEffect(() => {
+        useEffect(() => {
           setters = { setA, setB, setC };
         });
 
@@ -212,9 +212,9 @@ describe("tapState - Basic Functionality", () => {
       let setCountFn: ((value: number) => void) | null = null;
 
       const testFiber = createTestResource((props: { multiplier: number }) => {
-        const [count, setCount] = tapState(10);
+        const [count, setCount] = useState(10);
 
-        tapEffect(() => {
+        useEffect(() => {
           setCountFn = setCount;
         });
 

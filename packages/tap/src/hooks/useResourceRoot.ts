@@ -3,22 +3,21 @@ import {
   createResourceFiber,
   renderResourceFiber,
   unmountResourceFiber,
-} from "./core/ResourceFiber";
-import { UpdateScheduler } from "./core/scheduler";
-import { tapConst } from "./hooks/tap-const";
-import { tapMemo } from "./hooks/tap-memo";
-import { tapEffect } from "./hooks/tap-effect";
-import { tapEffectEvent } from "./hooks/tap-effect-event";
-import { tapRef } from "./hooks/tap-ref";
-import type { RenderResult, ResourceElement } from "./core/types";
-import { isDevelopment } from "./core/helpers/env";
+} from "../core/ResourceFiber";
+import { UpdateScheduler } from "../core/scheduler";
+import { useMemo } from "./useMemo";
+import { useEffect } from "./useEffect";
+import { useEffectEvent } from "./useEffectEvent";
+import { useRef } from "./useRef";
+import type { RenderResult, ResourceElement } from "../core/types";
+import { isDevelopment } from "../core/helpers/env";
 import {
   commitRoot,
   createResourceFiberRoot,
   setRootVersion,
-} from "./core/helpers/root";
+} from "../core/helpers/root";
 
-export namespace tapResourceRoot {
+export namespace useResourceRoot {
   export type Unsubscribe = () => void;
 
   export interface SubscribableResource<TState> {
@@ -34,18 +33,18 @@ export namespace tapResourceRoot {
   }
 }
 
-// currently we never reset the root, because rollbakcs are not supported in tapResourceRoot
+// The root is never reset, because rollbacks are not supported in useResourceRoot.
 
-export const tapResourceRoot = <TState>(
+export const useResourceRoot = <TState>(
   element: ResourceElement<TState>,
-): tapResourceRoot.SubscribableResource<TState> => {
-  const scheduler = tapConst(
+): useResourceRoot.SubscribableResource<TState> => {
+  const scheduler = useMemo(
     () => new UpdateScheduler(() => handleUpdate(null)),
     [],
   );
-  const queue = tapConst(() => [] as (() => void)[], []);
+  const queue = useMemo(() => [] as (() => void)[], []);
 
-  const fiber = tapMemo(() => {
+  const fiber = useMemo(() => {
     void element.key;
 
     return createResourceFiber(
@@ -61,11 +60,11 @@ export const tapResourceRoot = <TState>(
   setRootVersion(fiber.root, fiber.root.committedVersion);
   const render = renderResourceFiber(fiber, element.props);
 
-  const isMountedRef = tapRef(false);
-  const committedPropsRef = tapRef(element.props);
-  const valueRef = tapRef<TState>(render.output);
-  const subscribers = tapConst(() => new Set<() => void>(), []);
-  const handleUpdate = tapEffectEvent((render: RenderResult | null) => {
+  const isMountedRef = useRef(false);
+  const committedPropsRef = useRef(element.props);
+  const valueRef = useRef<TState>(render.output);
+  const subscribers = useMemo(() => new Set<() => void>(), []);
+  const handleUpdate = useEffectEvent((render: RenderResult | null) => {
     if (render === null) {
       setRootVersion(fiber.root, 2);
       setRootVersion(fiber.root, 1);
@@ -100,7 +99,7 @@ export const tapResourceRoot = <TState>(
     subscribers.forEach((callback) => callback());
   });
 
-  tapEffect(() => {
+  useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
@@ -108,7 +107,7 @@ export const tapResourceRoot = <TState>(
     };
   }, [fiber]);
 
-  tapEffect(() => {
+  useEffect(() => {
     committedPropsRef.current = render.props;
     commitRoot(fiber.root);
     commitResourceFiber(fiber, render);
@@ -118,7 +117,7 @@ export const tapResourceRoot = <TState>(
     subscribers.forEach((callback) => callback());
   });
 
-  return tapMemo(
+  return useMemo(
     () => ({
       getValue: () => valueRef.current,
       subscribe: (listener: () => void) => {

@@ -1,8 +1,9 @@
-import { resource, tapEffect, tapResource } from "@assistant-ui/tap";
+import { useEffect } from "react";
+import { useResource, resource } from "@assistant-ui/tap";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { ThreadListClient } from "../runtime-clients/thread-list-runtime-client";
 import {
-  tapAssistantClientRef,
+  useAssistantClientRef,
   Derived,
   type ScopesConfig,
   type AssistantClient,
@@ -10,16 +11,18 @@ import {
 import { ModelContext } from "./model-context-client";
 import { Suggestions } from "./suggestions";
 
-export const RuntimeAdapterResource = resource((runtime: AssistantRuntime) => {
-  const clientRef = tapAssistantClientRef();
+export const RuntimeAdapterResource = resource(function RuntimeAdapterResource(
+  runtime: AssistantRuntime,
+) {
+  const clientRef = useAssistantClientRef();
 
-  tapEffect(() => {
+  useEffect(() => {
     return runtime.registerModelContextProvider(
       clientRef.current!.modelContext(),
     );
   }, [runtime, clientRef]);
 
-  return tapResource(
+  return useResource(
     ThreadListClient({
       runtime: runtime.threads,
       __internal_assistantRuntime: runtime,

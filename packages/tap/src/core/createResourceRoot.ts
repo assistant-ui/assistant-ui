@@ -5,17 +5,17 @@ import {
   renderResourceFiber,
   commitResourceFiber,
 } from "./ResourceFiber";
-import { tapResourceRoot } from "../tapResourceRoot";
+import { useResourceRoot } from "../hooks/useResourceRoot";
 import { resource } from "./resource";
 import { isDevelopment } from "./helpers/env";
 import { flushResourcesSync, UpdateScheduler } from "./scheduler";
 import { createResourceFiberRoot } from "./helpers/root";
 
-const SubscribableResource = resource(tapResourceRoot);
+const SubscribableResource = resource(useResourceRoot);
 
 export const createResourceRoot = () => {
   const fiber = createResourceFiber<
-    tapResourceRoot.SubscribableResource<any>,
+    useResourceRoot.SubscribableResource<any>,
     ResourceElement<any>
   >(
     SubscribableResource,
@@ -44,7 +44,7 @@ export const createResourceRoot = () => {
 
       flushResourcesSync(() => commitResourceFiber(fiber, render));
 
-      return render.output;
+      return render.output as useResourceRoot.SubscribableResource<R>;
     },
     unmount: () => {
       unmountResourceFiber(fiber);

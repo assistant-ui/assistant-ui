@@ -1,6 +1,6 @@
 import { isDevelopment } from "../core/helpers/env";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
-import { tapReducerWithDerivedState } from "./tap-reducer";
+import { useReducerWithDerivedState } from "./useReducer";
 import { depsShallowEqual } from "./utils/depsShallowEqual";
 
 const memoReducer = () => {
@@ -9,9 +9,9 @@ const memoReducer = () => {
 
 type MemoState<T> = { value: T; deps: readonly unknown[] };
 
-export const tapMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
+export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
   const fiber = getCurrentResourceFiber();
-  const [state] = tapReducerWithDerivedState(
+  const [state] = useReducerWithDerivedState(
     memoReducer,
     (state: MemoState<T> | null): MemoState<T> => {
       if (state && depsShallowEqual(state.deps, deps)) return state;

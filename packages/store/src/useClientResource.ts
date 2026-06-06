@@ -1,14 +1,9 @@
-import {
-  tapEffect,
-  tapMemo,
-  tapRef,
-  type ResourceElement,
-  tapResource,
-} from "@assistant-ui/tap";
+import { useEffect, useMemo, useRef } from "react";
+import { useResource, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientMethods } from "./types/client";
 import {
-  tapClientStack,
-  tapWithClientStack,
+  useClientStack,
+  useWithClientStack,
   SYMBOL_CLIENT_INDEX,
 } from "./utils/tap-client-stack-context";
 import {
@@ -32,7 +27,7 @@ export const getClientState = (client: ClientMethods) => {
   if (!output) {
     throw new Error(
       "Client scope contains a non-client resource. " +
-        "Ensure your Derived get() returns a client created with tapClientResource(), not a plain resource.",
+        "Ensure your Derived get() returns a client created with useClientResource(), not a plain resource.",
     );
   }
   return (output as any).getState?.();
@@ -142,10 +137,10 @@ export const ClientResource = wrapperResource(
     state: unknown;
     key: string | number | undefined;
   } => {
-    const valueRef = tapRef(null as unknown as TMethods);
+    const valueRef = useRef(null as unknown as TMethods);
 
-    const index = tapClientStack().length;
-    const methods = tapMemo(
+    const index = useClientStack().length;
+    const methods = useMemo(
       () =>
         new Proxy<TMethods>(
           {} as TMethods,
@@ -154,12 +149,12 @@ export const ClientResource = wrapperResource(
       [index],
     );
 
-    const value = tapWithClientStack(methods, () => tapResource(element));
+    const value = useWithClientStack(methods, () => useResource(element));
     if (!valueRef.current) {
       valueRef.current = value;
     }
 
-    tapEffect(() => {
+    useEffect(() => {
       valueRef.current = value;
     });
 
@@ -174,14 +169,14 @@ type InferClientState<TMethods> = TMethods extends {
   ? S
   : undefined;
 
-export const tapClientResource = <TMethods extends ClientMethods>(
+export const useClientResource = <TMethods extends ClientMethods>(
   element: ResourceElement<TMethods>,
 ): {
   state: InferClientState<TMethods>;
   methods: TMethods;
   key: string | number | undefined;
 } => {
-  return tapResource(ClientResource(element)) as {
+  return useResource(ClientResource(element)) as {
     state: InferClientState<TMethods>;
     methods: TMethods;
     key: string | number | undefined;

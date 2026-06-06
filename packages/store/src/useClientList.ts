@@ -1,6 +1,7 @@
-import { tapConst, tapState, withKey } from "@assistant-ui/tap";
-import type { ContravariantResource } from "@assistant-ui/tap";
-import { tapClientLookup } from "./tapClientLookup";
+import { useMemo, useState } from "react";
+import { withKey, type ContravariantResource } from "@assistant-ui/tap";
+
+import { useClientLookup } from "./useClientLookup";
 import type { ClientMethods } from "./types/client";
 
 type InferClientState<TMethods> = TMethods extends {
@@ -15,7 +16,7 @@ const createProps = <TData>(
   key: string,
   data: DataHandle<TData>,
   remove: () => void,
-): tapClientList.ResourceProps<TData> => {
+): useClientList.ResourceProps<TData> => {
   return {
     key,
     getInitialData: () => {
@@ -30,8 +31,8 @@ const createProps = <TData>(
   };
 };
 
-export const tapClientList = <TData, TMethods extends ClientMethods>(
-  props: tapClientList.Props<TData, TMethods>,
+export const useClientList = <TData, TMethods extends ClientMethods>(
+  props: useClientList.Props<TData, TMethods>,
 ): {
   state: InferClientState<TMethods>[];
   get: (lookup: { index: number } | { key: string }) => TMethods;
@@ -39,11 +40,11 @@ export const tapClientList = <TData, TMethods extends ClientMethods>(
 } => {
   const { initialValues, getKey, resource: Resource } = props;
 
-  type Props = tapClientList.ResourceProps<TData>;
+  type Props = useClientList.ResourceProps<TData>;
 
-  const initialDataHandles: DataHandle<TData>[] = tapConst(() => [], []);
+  const initialDataHandles: DataHandle<TData>[] = useMemo(() => [], []);
 
-  const [items, setItems] = tapState<Record<string, Props>>(() => {
+  const [items, setItems] = useState<Record<string, Props>>(() => {
     const entries: [string, Props][] = [];
     for (const data of initialValues) {
       const key = getKey(data);
@@ -63,7 +64,7 @@ export const tapClientList = <TData, TMethods extends ClientMethods>(
     return Object.fromEntries(entries);
   });
 
-  const lookup = tapClientLookup<TMethods>(
+  const lookup = useClientLookup<TMethods>(
     () =>
       Object.values(items).map((props) => withKey(props.key, Resource(props))),
     [items, Resource],
@@ -106,7 +107,7 @@ export const tapClientList = <TData, TMethods extends ClientMethods>(
   };
 };
 
-export namespace tapClientList {
+export namespace useClientList {
   export type ResourceProps<TData> = {
     key: string;
     getInitialData: () => TData;

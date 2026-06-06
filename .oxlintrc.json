@@ -29,9 +29,10 @@
     "tap-hooks/exhaustive-deps": [
       "warn",
       {
-        "additionalHooks": "^(tapEffect|tapMemo|tapCallback|tapResources)$"
+        "additionalHooks": "^(useTapResources|useResources)$"
       }
     ],
+    "tap-hooks/named-resource": "error",
     "no-unused-vars": "off",
     "typescript/no-unused-vars": [
       "warn",
@@ -93,6 +94,13 @@
         "packages/react/src/context/react/utils/createStateHookForRuntime.ts"
       ],
       "rules": {
+        "react/rules-of-hooks": "off"
+      }
+    },
+    {
+      "files": ["packages/tap/src/__tests__/**"],
+      "rules": {
+        "tap-hooks/exhaustive-deps": "off",
         "react/rules-of-hooks": "off"
       }
     }

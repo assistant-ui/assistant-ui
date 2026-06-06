@@ -1,16 +1,14 @@
 "use client";
 
-import { useResource } from "@assistant-ui/tap/react";
 import {
+  useResource,
+  useResources,
+  useResourceRoot,
   resource,
-  tapMemo,
-  tapResources,
-  tapEffect,
-  tapRef,
-  tapResource,
   withKey,
-  tapResourceRoot,
 } from "@assistant-ui/tap";
+import { useMemo, useEffect, useRef } from "react";
+
 import type {
   AssistantClient,
   AssistantClientAccessor,
@@ -27,7 +25,7 @@ import {
 import {
   type DerivedClients,
   type RootClients,
-  tapSplitClients,
+  useSplitClients,
 } from "./utils/splitClients";
 import {
   normalizeEventSelector,
@@ -37,105 +35,108 @@ import {
 } from "./types/events";
 import { NotificationManager } from "./utils/NotificationManager";
 import { withAssistantTapContextProvider } from "./utils/tap-assistant-context";
-import { tapClientResource } from "./tapClientResource";
+import { useClientResource } from "./useClientResource";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import {
   PROXIED_ASSISTANT_STATE_SYMBOL,
   createProxiedAssistantState,
 } from "./utils/proxied-assistant-state";
 
-const tapShallowMemoArray = <T>(array: readonly T[]) => {
+const useShallowMemoArray = <T>(array: readonly T[]) => {
   // oxlint-disable-next-line tap-hooks/exhaustive-deps -- shallow memo over the array itself
-  return tapMemo(() => array, array);
+  return useMemo(() => array, array);
 };
 
-const RootClientResource = resource(
-  <K extends ClientNames>({
-    element,
-    emit,
-    clientRef,
-  }: {
-    element: ClientElement<K>;
-    emit: NotificationManager["emit"];
-    clientRef: { parent: AssistantClient; current: AssistantClient | null };
-  }) => {
-    const { methods, state } = withAssistantTapContextProvider(
-      { clientRef, emit },
-      () => tapClientResource(element),
-    );
-    return tapMemo(() => ({ state, methods }), [methods, state]);
-  },
-);
-
-const RootClientAccessorResource = resource(
-  <K extends ClientNames>({
-    element,
-    notifications,
-    clientRef,
-    name,
-  }: {
-    element: ClientElement<K>;
-    notifications: NotificationManager;
-    clientRef: { parent: AssistantClient; current: AssistantClient | null };
-    name: K;
-  }): AssistantClientAccessor<K> => {
-    const store = tapResourceRoot(
-      RootClientResource({ element, emit: notifications.emit, clientRef }),
-    );
-
-    tapEffect(() => {
-      return store.subscribe(notifications.notifySubscribers);
-    }, [store, notifications]);
-
-    return tapMemo(() => {
-      const clientFunction = () => store.getValue().methods;
-      Object.defineProperties(clientFunction, {
-        source: {
-          value: "root" as const,
-          writable: false,
-        },
-        query: {
-          value: {} as Record<string, never>,
-          writable: false,
-        },
-        name: {
-          value: name,
-          configurable: true,
-        },
-      });
-      return clientFunction as AssistantClientAccessor<K>;
-    }, [store, name]);
-  },
-);
-
-const NoOpRootClientsAccessorsResource = resource(() => {
-  return tapMemo(
-    () => ({
-      clients: [] as AssistantClientAccessor<ClientNames>[],
-      subscribe: undefined,
-      on: undefined,
-    }),
-    [],
+const RootClientResource = resource(function RootClientResource<
+  K extends ClientNames,
+>({
+  element,
+  emit,
+  clientRef,
+}: {
+  element: ClientElement<K>;
+  emit: NotificationManager["emit"];
+  clientRef: { parent: AssistantClient; current: AssistantClient | null };
+}) {
+  const { methods, state } = withAssistantTapContextProvider(
+    { clientRef, emit },
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- withAssistantTapContextProvider runs this callback synchronously during render, so hook order is preserved
+    () => useClientResource(element),
   );
+  return useMemo(() => ({ state, methods }), [methods, state]);
 });
 
+const RootClientAccessorResource = resource(function RootClientAccessorResource<
+  K extends ClientNames,
+>({
+  element,
+  notifications,
+  clientRef,
+  name,
+}: {
+  element: ClientElement<K>;
+  notifications: NotificationManager;
+  clientRef: { parent: AssistantClient; current: AssistantClient | null };
+  name: K;
+}): AssistantClientAccessor<K> {
+  const store = useResourceRoot(
+    RootClientResource({ element, emit: notifications.emit, clientRef }),
+  );
+
+  useEffect(() => {
+    return store.subscribe(notifications.notifySubscribers);
+  }, [store, notifications]);
+
+  return useMemo(() => {
+    const clientFunction = () => store.getValue().methods;
+    Object.defineProperties(clientFunction, {
+      source: {
+        value: "root" as const,
+        writable: false,
+      },
+      query: {
+        value: {} as Record<string, never>,
+        writable: false,
+      },
+      name: {
+        value: name,
+        configurable: true,
+      },
+    });
+    return clientFunction as AssistantClientAccessor<K>;
+  }, [store, name]);
+});
+
+const NoOpRootClientsAccessorsResource = resource(
+  function NoOpRootClientsAccessorsResource() {
+    return useMemo(
+      () => ({
+        clients: [] as AssistantClientAccessor<ClientNames>[],
+        subscribe: undefined,
+        on: undefined,
+      }),
+      [],
+    );
+  },
+);
+
 const RootClientsAccessorsResource = resource(
-  ({
+  function RootClientsAccessorsResource({
     clients: inputClients,
     clientRef,
   }: {
     clients: RootClients;
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
-  }) => {
-    const notifications = tapResource(NotificationManager());
+  }) {
+    const notifications = useResource(NotificationManager());
 
-    tapEffect(
+    useEffect(
       () => clientRef.parent.subscribe(notifications.notifySubscribers),
       [clientRef, notifications],
     );
 
-    const results = tapShallowMemoArray(
-      tapResources(
+    const results = useShallowMemoArray(
+      useResources(
         () =>
           Object.keys(inputClients).map((key) =>
             withKey(
@@ -152,7 +153,7 @@ const RootClientsAccessorsResource = resource(
       ),
     );
 
-    return tapMemo(() => {
+    return useMemo(() => {
       return {
         clients: results,
         subscribe: notifications.subscribe,
@@ -209,7 +210,7 @@ const RootClientsAccessorsResource = resource(
 );
 
 const DerivedClientAccessorResource = resource(
-  <K extends ClientNames>({
+  function DerivedClientAccessorResource<K extends ClientNames>({
     element,
     clientRef,
     name,
@@ -217,18 +218,17 @@ const DerivedClientAccessorResource = resource(
     element: DerivedElement<K>;
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
     name: K;
-  }) => {
+  }) {
     // Track the latest props on a ref updated in render. The fiber is
     // keyed on the scope's meta by DerivedClientsAccessorsResource, so
     // source/query are stable for this fiber's lifetime and the only
     // value that can change between renders for the same fiber is the
-    // identity of the `get` closure. Routing reads through the ref
-    // avoids the one-commit lag that the previous `tapEffectEvent`
-    // path imposed.
-    const propsRef = tapRef(element.props);
+    // identity of the `get` closure. Routing reads through the ref so
+    // they take effect without a one-commit lag.
+    const propsRef = useRef(element.props);
     propsRef.current = element.props;
 
-    return tapMemo(() => {
+    return useMemo(() => {
       const clientFunction = () => propsRef.current.get(clientRef.current!);
       Object.defineProperties(clientFunction, {
         source: {
@@ -268,15 +268,15 @@ const serializeMeta = <K extends ClientNames>(
 };
 
 const DerivedClientsAccessorsResource = resource(
-  ({
+  function DerivedClientsAccessorsResource({
     clients,
     clientRef,
   }: {
     clients: DerivedClients;
     clientRef: { parent: AssistantClient; current: AssistantClient | null };
-  }) => {
-    return tapShallowMemoArray(
-      tapResources(
+  }) {
+    return useShallowMemoArray(
+      useResources(
         () =>
           Object.keys(clients).map((key) => {
             const name = key as keyof typeof clients;
@@ -300,38 +300,35 @@ const DerivedClientsAccessorsResource = resource(
  * Resource that creates an extended AssistantClient.
  */
 export const AssistantClientResource = resource(
-  ({
+  function AssistantClientResource({
     parent,
     clients,
   }: {
     parent: AssistantClient;
     clients: useAui.Props;
-  }): AssistantClient => {
-    const { rootClients, derivedClients } = tapSplitClients(clients, parent);
+  }): AssistantClient {
+    const { rootClients, derivedClients } = useSplitClients(clients, parent);
 
-    const clientRef = tapRef({
+    const clientRef = useRef({
       parent: parent,
       current: null as AssistantClient | null,
     }).current;
 
-    tapEffect(() => {
-      // if (clientRef.current && clientRef.current !== client)
-      //   throw new Error("clientRef.current !== client");
-
+    useEffect(() => {
       clientRef.current = client;
     });
 
-    const rootFields = tapResource(
+    const rootFields = useResource(
       Object.keys(rootClients).length > 0
         ? RootClientsAccessorsResource({ clients: rootClients, clientRef })
         : NoOpRootClientsAccessorsResource(),
     );
 
-    const derivedFields = tapResource(
+    const derivedFields = useResource(
       DerivedClientsAccessorsResource({ clients: derivedClients, clientRef }),
     );
 
-    const client = tapMemo(() => {
+    const client = useMemo(() => {
       // Swap DefaultAssistantClient -> createRootAssistantClient at root to change error message
       const proto =
         parent === DefaultAssistantClient

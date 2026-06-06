@@ -88,6 +88,7 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/vite": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@types/json-schema": "^7.0.15",

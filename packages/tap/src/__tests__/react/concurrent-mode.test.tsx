@@ -2,17 +2,17 @@ import { describe, it, expect } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import { Suspense, startTransition, use, useState } from "react";
 import { resource } from "../../core/resource";
-import { useResource } from "../../react/use-resource";
-import { tapState } from "../../hooks/tap-state";
+import { useResource } from "../../react/hooks";
+import { useState as useResourceState } from "../../hooks/useState";
 
 const ShouldNeverFallback = () => {
   throw new Error("should never fallback");
 };
 
 describe("Concurrent Mode with useResource", () => {
-  it("should not commit tapState updates when render is discarded", async () => {
-    const TestResource = resource(() => {
-      return tapState(false);
+  it("should not commit useResourceState updates when render is discarded", async () => {
+    const TestResource = resource(function TestResource() {
+      return useResourceState(false);
     });
 
     let resolve: (value: number) => void;
@@ -76,7 +76,7 @@ describe("Concurrent Mode with useResource", () => {
     expect(screen.getByTestId("message").textContent).toBe("hello");
   });
 
-  it("react should not commit tapState updates when render is discarded", async () => {
+  it("react should not commit useResourceState updates when render is discarded", async () => {
     let resolve: (value: number) => void;
 
     const suspendPromise = new Promise<number>((r) => {
@@ -142,7 +142,7 @@ describe("Concurrent Mode with useResource", () => {
     let resolve: () => void;
     let shouldSuspend = false;
 
-    const TestResource = resource((props: { id: number }) => {
+    const TestResource = resource(function TestResource(props: { id: number }) {
       if (shouldSuspend) {
         throw new Promise<void>((r) => {
           resolve = r;

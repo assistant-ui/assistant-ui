@@ -1,7 +1,8 @@
 import "../o11y-scope";
 
-import { resource, tapMemo, tapState, withKey } from "@assistant-ui/tap";
-import { tapClientLookup, type ClientOutput } from "@assistant-ui/store";
+import { useMemo, useState } from "react";
+import { resource, withKey } from "@assistant-ui/tap";
+import { useClientLookup, type ClientOutput } from "@assistant-ui/store";
 import type { SpanItemState, SpanState } from "../o11y-scope";
 
 export type SpanData = {
@@ -109,95 +110,95 @@ function buildFlatList(
   return result;
 }
 
-const SpanChildResource = resource(
-  ({
-    span,
+const SpanChildResource = resource(function SpanChildResource({
+  span,
+  timeRange,
+  onToggleCollapse,
+}: {
+  span: SpanItemState;
+  timeRange: { min: number; max: number };
+  onToggleCollapse: (spanId: string) => void;
+}): ClientOutput<"span"> {
+  const state: SpanState = {
+    ...span,
+    children: [],
     timeRange,
-    onToggleCollapse,
-  }: {
-    span: SpanItemState;
-    timeRange: { min: number; max: number };
-    onToggleCollapse: (spanId: string) => void;
-  }): ClientOutput<"span"> => {
-    const state: SpanState = {
-      ...span,
-      children: [],
-      timeRange,
-    };
-    return {
-      getState: () => state,
-      child: () => {
-        throw new Error("child spans do not have children in flat mode");
-      },
-      toggleCollapse: () => {
-        onToggleCollapse(span.id);
-      },
-    };
-  },
-);
+  };
+  return {
+    getState: () => state,
+    child: () => {
+      throw new Error("child spans do not have children in flat mode");
+    },
+    toggleCollapse: () => {
+      onToggleCollapse(span.id);
+    },
+  };
+});
 
-export const SpanResource = resource(
-  ({ spans }: { spans: SpanData[] }): ClientOutput<"span"> => {
-    const { allSpans, timeRange } = tapMemo(() => enrichSpans(spans), [spans]);
+export const SpanResource = resource(function SpanResource({
+  spans,
+}: {
+  spans: SpanData[];
+}): ClientOutput<"span"> {
+  const { allSpans, timeRange } = useMemo(() => enrichSpans(spans), [spans]);
 
-    const [collapsedIds, setCollapsedIds] = tapState<Set<string>>(
-      () => new Set(),
-    );
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
-    const visibleSpans = tapMemo(
-      () => buildFlatList(allSpans, collapsedIds),
-      [allSpans, collapsedIds],
-    );
+  const visibleSpans = useMemo(
+    () => buildFlatList(allSpans, collapsedIds),
+    [allSpans, collapsedIds],
+  );
 
-    const toggleCollapse = (spanId: string) => {
-      setCollapsedIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(spanId)) {
-          next.delete(spanId);
-        } else {
-          next.add(spanId);
-        }
-        return next;
-      });
-    };
+  const toggleCollapse = (spanId: string) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(spanId)) {
+        next.delete(spanId);
+      } else {
+        next.add(spanId);
+      }
+      return next;
+    });
+  };
 
-    const lookup = tapClientLookup(
-      () =>
-        visibleSpans.map((span) =>
-          withKey(
-            span.id,
-            SpanChildResource({
-              span,
-              timeRange,
-              onToggleCollapse: toggleCollapse,
-            }),
-          ),
+  const lookup = useClientLookup(
+    () =>
+      visibleSpans.map((span) =>
+        withKey(
+          span.id,
+          SpanChildResource({
+            span,
+            timeRange,
+            onToggleCollapse: toggleCollapse,
+          }),
         ),
-      [visibleSpans, timeRange, toggleCollapse],
-    );
+      ),
+    [visibleSpans, timeRange, toggleCollapse],
+  );
 
-    const rootState: SpanState = {
-      id: "__root__",
-      parentSpanId: null,
-      name: "",
-      type: "root",
-      status: "completed",
-      startedAt: timeRange.min,
-      endedAt: timeRange.max,
-      latencyMs: timeRange.max - timeRange.min,
-      depth: -1,
-      hasChildren: lookup.state.length > 0,
-      isCollapsed: false,
-      children: lookup.state,
-      timeRange,
-    };
+  const rootState: SpanState = {
+    id: "__root__",
+    parentSpanId: null,
+    name: "",
+    type: "root",
+    status: "completed",
+    startedAt: timeRange.min,
+    endedAt: timeRange.max,
+    latencyMs: timeRange.max - timeRange.min,
+    depth: -1,
+    hasChildren: lookup.state.length > 0,
+    isCollapsed: false,
+    children: lookup.state,
+    timeRange,
+  };
 
-    return {
-      getState: () => rootState,
-      child: lookup.get,
-      toggleCollapse: () => {
-        // Root span collapse is a no-op
-      },
-    };
-  },
-);
+  return {
+    getState: () => rootState,
+    child: lookup.get,
+    toggleCollapse: () => {
+      // Root span collapse is a no-op
+    },
+  };
+});

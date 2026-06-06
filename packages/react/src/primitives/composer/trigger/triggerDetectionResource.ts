@@ -1,4 +1,5 @@
-import { resource, tapMemo, tapState } from "@assistant-ui/tap";
+import { useMemo, useState } from "react";
+import { resource } from "@assistant-ui/tap";
 import { detectTrigger } from "./detectTrigger";
 
 /** Detected trigger position within the composer text. */
@@ -18,16 +19,16 @@ export type TriggerDetectionResourceOutput = {
 
 /** Tracks cursor position and derives the active trigger + query from composer text. */
 export const TriggerDetectionResource = resource(
-  ({
+  function TriggerDetectionResource({
     text,
     triggerChar,
   }: {
     text: string;
     triggerChar: string;
-  }): TriggerDetectionResourceOutput => {
-    const [cursorPosition, setCursorPosition] = tapState(text.length);
+  }): TriggerDetectionResourceOutput {
+    const [cursorPosition, setCursorPosition] = useState(text.length);
 
-    const trigger = tapMemo(() => {
+    const trigger = useMemo(() => {
       const pos = Math.min(cursorPosition, text.length);
       return detectTrigger(text, triggerChar, pos);
     }, [cursorPosition, text, triggerChar]);

@@ -1,268 +1,140 @@
 ---
 title: API Reference
-description: All exports from @assistant-ui/tap.
+description: Every export from @assistant-ui/tap.
 ---
+
+<Callout type="info">
+The state and effect hooks you use inside a resource (`useState`, `useReducer`,
+`useEffect`, `useMemo`, `useCallback`, `useRef`, `useEffectEvent`,
+`useLayoutEffect`) are imported from `"react"`, not from tap. A build alias routes
+them to tap inside a resource render. See [Quickstart](/tap/docs/quickstart#wire-the-alias).
+</Callout>
 
 ## resource
 
-Creates a resource factory function.
+Creates a resource factory. Wrap a **named** function.
 
 ```ts
 import { resource } from "@assistant-ui/tap";
 
-const Counter = resource((props: { initialValue: number }) => {
-  const [count, setCount] = tapState(props.initialValue);
+const Counter = resource(function Counter(props: { initialValue: number }) {
+  const [count, setCount] = useState(props.initialValue);
   return { count, increment: () => setCount((c) => c + 1) };
 });
 ```
 
-Returns a factory function — calling it produces a [`ResourceElement`](#resourceelement).
+Calling the factory produces a [`ResourceElement`](#resourceelement).
 
 ## withKey
 
-Attaches a key to a `ResourceElement` for identity preservation in lists.
+Attaches a key to a `ResourceElement` for identity preservation in
+[lists](/tap/docs/resources#rendering-lists).
 
 ```ts
-import { withKey } from "@assistant-ui/tap";
-
-withKey("my-key", Counter({ initialValue: 0 }))
+withKey("my-key", Counter({ initialValue: 0 }));
 ```
 
----
+## useResource
 
-## Hooks
-
-All hooks follow the [rules of hooks](/tap/docs/hooks#rules-of-hooks).
-
-### tapState
+Hosts a single resource element. Isomorphic: works both inside a React component
+and inside another resource. Returns the resource's value.
 
 ```ts
-const [value, setValue] = tapState(initialValue);
-const [value, setValue] = tapState(() => expensiveDefault());
+const value = useResource(Counter({ initialValue: 0 }));
+const value = useResource(Counter({ incrementBy }), [incrementBy]); // optional deps (experimental)
 ```
 
-Local state. `setValue` accepts a value or an updater function `(prev) => next`.
+## useResources
 
-### tapReducer
-
-```ts
-const [state, dispatch] = tapReducer(reducer, initialState);
-const [state, dispatch] = tapReducer(reducer, initialArg, init);
-```
-
-State management with a reducer function. `dispatch` has a stable identity. Bails out (no re-render) when the reducer returns the same state via `Object.is`.
-
-### tapReducerWithDerivedState
-
-<Callout type="warn">
-This API is experimental, intended for advanced use cases, and may change.
-</Callout>
+Hosts a dynamic, keyed list of resources. Every element must have a key via
+[`withKey`](#withkey). Isomorphic.
 
 ```ts
-const [state, dispatch] = tapReducerWithDerivedState(reducer, getDerivedState, initialState);
-const [state, dispatch] = tapReducerWithDerivedState(reducer, getDerivedState, initialArg, init);
-```
-
-Like `tapReducer`, but accepts a `getDerivedState` function as the second argument. During each render pass, `getDerivedState(state)` is called once after processing any queued actions. If it returns a new value (by `Object.is`), the derived value becomes the current state and triggers a re-render. The return type is inferred from `getDerivedState`, allowing you to narrow or extend the state type.
-
-### tapEffect
-
-```ts
-tapEffect(() => {
-  // side effect
-  return () => { /* cleanup */ };
-}, [deps]);
-```
-
-Runs after commit. Without a dependency array, runs after every render.
-
-### tapMemo
-
-```ts
-const value = tapMemo(() => compute(a, b), [a, b]);
-```
-
-Memoizes a value. Recomputes when dependencies change.
-
-### tapCallback
-
-```ts
-const fn = tapCallback(() => { /* ... */ }, [deps]);
-```
-
-Memoizes a function. Shorthand for `tapMemo(() => fn, deps)`.
-
-### tapRef
-
-```ts
-const ref = tapRef(initialValue);
-ref.current; // read/write
-```
-
-A mutable ref that persists across renders.
-
-### tapConst
-
-```ts
-const value = tapConst(() => new EventEmitter(), []);
-```
-
-Computed once on mount, never recomputed. The second argument must always be `[]`.
-
-### tapEffectEvent
-
-```ts
-const handler = tapEffectEvent((msg: string) => {
-  // always has access to latest closure
-});
-```
-
-Returns a stable function reference that always calls the latest version of the callback. Useful for event handlers passed to effects.
-
----
-
-## Composition hooks
-
-### tapResource
-
-```ts
-const value = tapResource(Counter({ initialValue: 0 }));
-const value = tapResource(Counter({ initialValue }), [initialValue]);
-```
-
-Renders a single child resource. Returns the child's return value.
-
-The optional dependency array controls when new props are applied.
-
-<Callout type="warn">
-The dependency array API is experimental and may change.
-</Callout>
-
-### tapResources
-
-<Callout type="warn">
-This API is experimental and may change.
-</Callout>
-
-```ts
-const values = tapResources(
-  () => items.map((item) => withKey(item.id, TodoItem({ text: item.text }))),
+const values = useResources(
+  () => items.map((item) => withKey(item.id, Item({ text: item.text }))),
   [items],
 );
 ```
 
-Renders a dynamic list of child resources. Every element must have a key via `withKey`.
+## useResourceRoot
 
-### tapResourceRoot
-
-```ts
-const handle = tapResourceRoot(Counter({ initialValue: 0 }));
-
-handle.getValue();  // current value
-handle.subscribe(() => { /* on change */ });
-```
-
-Renders a child as a subscribable store. The parent doesn't re-render when the child updates.
-
----
-
-## Imperative API
-
-### createResourceRoot
-
-Creates a resource instance outside of React.
+Hosts an element as a subscribable boundary, returning a stable
+`{ getValue, subscribe }` handle instead of the value directly. Isomorphic. See
+[Subscribable boundary](/tap/docs/resources#subscribable-boundary).
 
 ```ts
-import { createResourceRoot } from "@assistant-ui/tap";
-
-const root = createResourceRoot();
-const handle = root.render(Counter({ initialValue: 0 }));
+const handle = useResourceRoot(Counter({ initialValue: 0 }));
+handle.getValue();
+handle.subscribe(() => {});
 ```
 
-**Root methods:**
-
-| Method | Description |
-| --- | --- |
-| `root.render(element)` | Render (or re-render) with a resource element. Returns a subscribable handle. |
-| `root.unmount()` | Unmount and clean up |
-
-**Subscribable handle methods** (returned by `root.render()`):
-
-| Method | Description |
-| --- | --- |
-| `handle.getValue()` | Read the current return value |
-| `handle.subscribe(callback)` | Subscribe to changes |
-
-### flushResourcesSync
-
-Synchronously flushes pending tap scheduler updates.
-
-```ts
-import { flushResourcesSync } from "@assistant-ui/tap";
-
-flushResourcesSync(() => {
-  handle.getValue().increment();
-});
-// state is already updated here
-```
-
-Only applies to tap-scheduled trees (`createResourceRoot` / `tapResourceRoot`). For `useResource` trees, use `flushSync` from `react-dom`.
-
----
-
-## Context
+## useReducerWithDerivedState
 
 <Callout type="warn">
-The context API is experimental and may change significantly.
+Experimental, and tap-only (call it inside a resource render, not a React
+component). May change.
 </Callout>
 
-### createResourceContext
+A `getDerivedStateFromProps` replacement: adjust state in response to props
+without setting during render. `getDerivedState(state)` runs once per render after
+queued actions; if it returns a new value (by `Object.is`), that becomes the
+current state.
 
 ```ts
-import { createResourceContext } from "@assistant-ui/tap";
+import { useReducerWithDerivedState } from "@assistant-ui/tap";
 
+const [state, dispatch] = useReducerWithDerivedState(reducer, getDerivedState, initialState);
+const [state, dispatch] = useReducerWithDerivedState(reducer, getDerivedState, initialArg, init);
+```
+
+## createResourceRoot
+
+Hosts a resource tree [outside React](/tap/docs/outside-react). Returns
+`{ render, unmount }`; `render(element)` returns a `{ getValue, subscribe }`
+handle.
+
+```ts
+const root = createResourceRoot();
+const handle = root.render(Counter({ initialValue: 0 }));
+handle.getValue();
+handle.subscribe(() => {});
+root.unmount();
+```
+
+## flushResourcesSync
+
+Flushes pending tap-scheduled updates synchronously. Applies to tap-scheduled
+trees (`createResourceRoot` / `useResourceRoot`); for `useResource` trees use
+`flushSync` from `react-dom`.
+
+```ts
+flushResourcesSync(() => handle.getValue().increment());
+```
+
+## createResourceContext
+
+<Callout type="warn">
+The context API is experimental and may change.
+</Callout>
+
+Creates a [context](/tap/docs/resources#context) with a default value. Read it
+with `use` / `useContext` from `"react"`.
+
+```ts
 const ThemeContext = createResourceContext("light");
 ```
 
-Creates a context with a default value.
+## withContextProvider
 
-### tap
+<Callout type="warn">
+The context API is experimental and may change.
+</Callout>
 
-```ts
-import { tap } from "@assistant-ui/tap";
-
-const theme = tap(ThemeContext);
-```
-
-Reads the current value of a context inside a resource.
-
-### withContextProvider
+Provides a context value to every resource rendered inside the callback.
 
 ```ts
-import { withContextProvider } from "@assistant-ui/tap";
-
-const child = withContextProvider(ThemeContext, "dark", () => {
-  return tapResource(Button());
-});
+withContextProvider(ThemeContext, "dark", () => useResource(Button()));
 ```
-
-Provides a context value to all resources rendered within the callback.
-
----
-
-## React
-
-### useResource
-
-```ts
-import { useResource } from "@assistant-ui/tap/react";
-
-const { count, increment } = useResource(Counter({ initialValue: 0 }));
-```
-
-Binds a resource to a React component's lifecycle. The component re-renders when the resource's state changes.
-
----
 
 ## Types
 
@@ -272,7 +144,7 @@ Binds a resource to a React component's lifecycle. The component re-renders when
 type Resource<R, P> = (props: P) => ResourceElement<R, P>;
 ```
 
-The factory function returned by `resource()`.
+The factory returned by `resource()`.
 
 ### ResourceElement
 
@@ -280,7 +152,7 @@ The factory function returned by `resource()`.
 type ResourceElement<R, P> = { type: Resource<R, P>; props: P; key?: string | number };
 ```
 
-A lightweight `{ type, props }` description of a resource to render.
+An inert `{ type, props }` description of a resource to host.
 
 ### ContravariantResource
 
@@ -288,4 +160,5 @@ A lightweight `{ type, props }` description of a resource to render.
 type ContravariantResource<R, P> = (props: P) => ResourceElement<R>;
 ```
 
-A contravariant version of `Resource` for type-level flexibility when accepting resources as parameters. The difference from `Resource` is that the returned `ResourceElement` omits the `P` type parameter, allowing broader assignability.
+A contravariant `Resource` for accepting resources as parameters with broader
+assignability (the returned element omits the `P` parameter).

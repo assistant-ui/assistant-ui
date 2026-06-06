@@ -34,6 +34,10 @@ export function getCurrentResourceFiber(): ResourceFiber<unknown, unknown> {
   return currentResourceFiber;
 }
 
+export function peekResourceFiber(): ResourceFiber<unknown, unknown> | null {
+  return currentResourceFiber;
+}
+
 export function getDevStrictMode(enable: boolean) {
   if (!isDevelopment) return null;
   if (currentResourceFiber?.devStrictMode)

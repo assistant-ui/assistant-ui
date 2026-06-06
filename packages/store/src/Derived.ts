@@ -11,7 +11,7 @@ import type {
  * The get callback always calls the most recent version (useEffectEvent pattern).
  *
  * IMPORTANT: The `get` callback must return a client that was created via
- * `tapClientResource` (or `tapClientLookup`/`tapClientList` which use it internally).
+ * `useClientResource` (or `useClientLookup`/`useClientList` which use it internally).
  * This is required for event scoping to work correctly.
  *
  * @example
@@ -25,11 +25,11 @@ import type {
  * });
  * ```
  */
-export const Derived = resource(
-  <K extends ClientNames>(_config: Derived.Props<K>): null => {
-    return null;
-  },
-);
+export const Derived = resource(function Derived<K extends ClientNames>(
+  _config: Derived.Props<K>,
+): null {
+  return null;
+});
 
 export type DerivedElement<K extends ClientNames> = ResourceElement<
   null,

@@ -2,7 +2,7 @@ import { isDevelopment } from "../core/helpers/env";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 import type { ReducerQueueEntry, ResourceFiber } from "../core/types";
 import { markCellDirty } from "../core/helpers/root";
-import { tapHook } from "./utils/tapHook";
+import { useCell } from "./utils/useCell";
 
 type Dispatch<A> = (action: A) => void;
 
@@ -28,13 +28,13 @@ const dispatchOnFiber = (
   });
 };
 
-function tapReducerImpl<S, A, I, R extends S>(
+function useReducerImpl<S, A, I, R extends S>(
   reducer: (state: S, action: A) => S,
   getDerivedState: ((state: S) => R) | undefined,
   initialArg: S | I,
   initFn: ((arg: I) => S) | undefined,
 ): [R, Dispatch<A>] {
-  const cell = tapHook("reducer", () => {
+  const cell = useCell("reducer", () => {
     const fiber = getCurrentResourceFiber();
 
     // First render: compute initial state
@@ -105,21 +105,21 @@ function tapReducerImpl<S, A, I, R extends S>(
   return [cell.workInProgress, cell.dispatch];
 }
 
-export function tapReducer<S, A>(
+export function useReducer<S, A>(
   reducer: (state: S, action: A) => S,
   initialState: S,
 ): [S, Dispatch<A>];
-export function tapReducer<S, A, I>(
+export function useReducer<S, A, I>(
   reducer: (state: S, action: A) => S,
   initialArg: I,
   init: (arg: I) => S,
 ): [S, Dispatch<A>];
-export function tapReducer<S, A, I>(
+export function useReducer<S, A, I>(
   reducer: (state: S, action: A) => S,
   initialArg: S | I,
   init?: (arg: I) => S,
 ): [S, Dispatch<A>] {
-  return tapReducerImpl(
+  return useReducerImpl(
     reducer,
     undefined,
     initialArg as S,
@@ -127,22 +127,34 @@ export function tapReducer<S, A, I>(
   );
 }
 
-export function tapReducerWithDerivedState<S, A, R extends S>(
+/**
+ * @deprecated experimental — a `getDerivedStateFromProps` replacement for
+ * resources: adjust state in response to props without setting during render.
+ * Tap-only for now (call it inside a resource render, not a React component) and
+ * may change before stabilizing.
+ */
+export function useReducerWithDerivedState<S, A, R extends S>(
   reducer: (state: S, action: A) => S,
   getDerivedState: (state: S) => R,
   initialState: S,
 ): [R, Dispatch<A>];
-export function tapReducerWithDerivedState<S, A, I, R extends S>(
+/**
+ * @deprecated experimental — a `getDerivedStateFromProps` replacement for
+ * resources: adjust state in response to props without setting during render.
+ * Tap-only for now (call it inside a resource render, not a React component) and
+ * may change before stabilizing.
+ */
+export function useReducerWithDerivedState<S, A, I, R extends S>(
   reducer: (state: S, action: A) => S,
   getDerivedState: (state: S) => R,
   initialArg: I,
   init: (arg: I) => S,
 ): [R, Dispatch<A>];
-export function tapReducerWithDerivedState<S, A, I, R extends S>(
+export function useReducerWithDerivedState<S, A, I, R extends S>(
   reducer: (state: S, action: A) => S,
   getDerivedState: (state: S) => R,
   initialArg: I,
   init?: (arg: I) => S,
 ): [R, Dispatch<A>] {
-  return tapReducerImpl(reducer, getDerivedState, initialArg, init);
+  return useReducerImpl(reducer, getDerivedState, initialArg, init);
 }

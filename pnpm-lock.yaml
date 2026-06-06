@@ -157,6 +157,9 @@ importers:
       '@assistant-ui/react-syntax-highlighter':
         specifier: workspace:*
         version: link:../../packages/react-syntax-highlighter
+      '@assistant-ui/tap':
+        specifier: workspace:*
+        version: link:../../packages/tap
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -3085,6 +3088,9 @@ importers:
       '@assistant-ui/tap':
         specifier: workspace:*
         version: link:../tap
+      '@assistant-ui/vite':
+        specifier: workspace:*
+        version: link:../vite
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -3277,6 +3283,9 @@ importers:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.15)(immer@11.1.8)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
     devDependencies:
+      '@assistant-ui/vite':
+        specifier: workspace:*
+        version: link:../vite
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils

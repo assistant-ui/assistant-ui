@@ -1,7 +1,7 @@
-import { tapRef } from "./tap-ref";
-import { tapEffect } from "./tap-effect";
+import { useRef } from "./useRef";
+import { useEffect } from "./useEffect";
 import { isDevelopment } from "../core/helpers/env";
-import { tapCallback } from "./tap-callback";
+import { useCallback } from "./useCallback";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 
 /**
@@ -13,27 +13,27 @@ import { getCurrentResourceFiber } from "../core/helpers/execution-context";
  *
  * @example
  * ```typescript
- * const handleClick = tapEffectEvent((value: string) => {
+ * const handleClick = useEffectEvent((value: string) => {
  *   console.log(value);
  * });
  * // handleClick reference is stable, but always calls the latest version
  * ```
  */
-export function tapEffectEvent<T extends (...args: any[]) => any>(
+export function useEffectEvent<T extends (...args: any[]) => any>(
   callback: T,
 ): T {
-  const callbackRef = tapRef(callback);
+  const callbackRef = useRef(callback);
 
   // TODO this effect needs to run before all userland effects
-  tapEffect(() => {
+  useEffect(() => {
     callbackRef.current = callback;
   });
 
   const fiber = getCurrentResourceFiber();
-  return tapCallback(
+  return useCallback(
     ((...args: Parameters<T>) => {
       if (isDevelopment && fiber.renderContext)
-        throw new Error("tapEffectEvent cannot be called during render");
+        throw new Error("useEffectEvent cannot be called during render");
       return callbackRef.current(...args);
     }) as T,
     [fiber],

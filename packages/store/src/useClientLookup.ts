@@ -1,11 +1,11 @@
+import { useMemo } from "react";
 import {
-  tapMemo,
-  tapResource,
-  tapResources,
+  useResource,
+  useResources,
   type ResourceElement,
 } from "@assistant-ui/tap";
 import type { ClientMethods } from "./types/client";
-import { ClientResource } from "./tapClientResource";
+import { ClientResource } from "./useClientResource";
 import { wrapperResource } from "./wrapperResource";
 
 type InferClientState<TMethods> = TMethods extends {
@@ -17,9 +17,9 @@ type InferClientState<TMethods> = TMethods extends {
 const ClientResourceWithKey = wrapperResource(
   <TMethods extends ClientMethods>(el: ResourceElement<TMethods>) => {
     if (el.key === undefined) {
-      throw new Error("tapClientResource: Element has no key");
+      throw new Error("useClientResource: Element has no key");
     }
-    return tapResource(ClientResource(el)) as {
+    return useResource(ClientResource(el)) as {
       methods: TMethods;
       state: InferClientState<TMethods>;
       key: string | number;
@@ -27,23 +27,23 @@ const ClientResourceWithKey = wrapperResource(
   },
 );
 
-export function tapClientLookup<TMethods extends ClientMethods>(
+export function useClientLookup<TMethods extends ClientMethods>(
   getElements: () => readonly ResourceElement<TMethods>[],
   getElementsDeps: readonly unknown[],
 ): {
   state: InferClientState<TMethods>[];
   get: (lookup: { index: number } | { key: string }) => TMethods;
 } {
-  const resources = tapResources(
+  const resources = useResources(
     () => getElements().map((el) => ClientResourceWithKey(el)),
     // oxlint-disable-next-line tap-hooks/exhaustive-deps -- caller-supplied deps array
     getElementsDeps,
   );
 
-  const keys = tapMemo(() => Object.keys(resources), [resources]);
+  const keys = useMemo(() => Object.keys(resources), [resources]);
 
   // For arrays, track element key -> index mapping
-  const keyToIndex = tapMemo(() => {
+  const keyToIndex = useMemo(() => {
     return resources.reduce(
       (acc, resource, index) => {
         acc[resource.key] = index;
@@ -53,7 +53,7 @@ export function tapClientLookup<TMethods extends ClientMethods>(
     );
   }, [resources]);
 
-  const state = tapMemo(() => {
+  const state = useMemo(() => {
     return resources.map((r) => r.state);
   }, [resources]);
 
@@ -63,7 +63,7 @@ export function tapClientLookup<TMethods extends ClientMethods>(
       if ("index" in lookup) {
         if (lookup.index < 0 || lookup.index >= keys.length) {
           throw new Error(
-            `tapClientLookup: Index ${lookup.index} out of bounds (length: ${keys.length})`,
+            `useClientLookup: Index ${lookup.index} out of bounds (length: ${keys.length})`,
           );
         }
         return resources[lookup.index]!.methods;
@@ -71,7 +71,7 @@ export function tapClientLookup<TMethods extends ClientMethods>(
 
       const index = keyToIndex[lookup.key];
       if (index === undefined) {
-        throw new Error(`tapClientLookup: Key "${lookup.key}" not found`);
+        throw new Error(`useClientLookup: Key "${lookup.key}" not found`);
       }
       return resources[index]!.methods;
     },

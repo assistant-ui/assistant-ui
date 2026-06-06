@@ -1,15 +1,12 @@
-import {
-  createResourceContext,
-  tap,
-  withContextProvider,
-  tapEffectEvent,
-} from "@assistant-ui/tap";
+import { useEffectEvent, use } from "react";
+
+import { createResourceContext, withContextProvider } from "@assistant-ui/tap";
 import type {
   AssistantEventName,
   AssistantEventPayload,
 } from "../types/events";
 import type { AssistantClient } from "../types/client";
-import { tapClientStack, type ClientStack } from "./tap-client-stack-context";
+import { useClientStack, type ClientStack } from "./tap-client-stack-context";
 
 type EmitFn = <TEvent extends Exclude<AssistantEventName, "*">>(
   event: TEvent,
@@ -32,22 +29,22 @@ export const withAssistantTapContextProvider = <TResult>(
   return withContextProvider(AssistantTapContext, value, fn);
 };
 
-const tapAssistantTapContext = () => {
-  const ctx = tap(AssistantTapContext);
+const useAssistantTapContext = () => {
+  const ctx = use(AssistantTapContext);
   if (!ctx) throw new Error("AssistantTapContext is not available");
 
   return ctx;
 };
 
-export const tapAssistantClientRef = () => {
-  return tapAssistantTapContext().clientRef;
+export const useAssistantClientRef = () => {
+  return useAssistantTapContext().clientRef;
 };
 
-export const tapAssistantEmit = () => {
-  const { emit } = tapAssistantTapContext();
-  const clientStack = tapClientStack();
+export const useAssistantEmit = () => {
+  const { emit } = useAssistantTapContext();
+  const clientStack = useClientStack();
 
-  return tapEffectEvent(
+  return useEffectEvent(
     <TEvent extends Exclude<AssistantEventName, "*">>(
       event: TEvent,
       payload: AssistantEventPayload[TEvent],

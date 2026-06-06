@@ -10,6 +10,7 @@ import {
   withResourceFiber,
 } from "./helpers/execution-context";
 import { callResourceFn } from "./helpers/callResourceFn";
+import { withReactDispatcher } from "./react-dispatcher";
 import { isDevelopment } from "./helpers/env";
 
 export function createResourceFiber<R, P>(
@@ -53,7 +54,9 @@ export function renderResourceFiber<R, P>(
   withResourceFiber(fiber, () => {
     fiber.renderContext = result;
     try {
-      result.output = callResourceFn(fiber.type, props);
+      result.output = withReactDispatcher(() =>
+        callResourceFn(fiber.type, props),
+      );
     } finally {
       fiber.renderContext = undefined;
     }

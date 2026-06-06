@@ -6,8 +6,8 @@
 
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { resource } from "../../core/resource";
-import { tapState } from "../../hooks/tap-state";
-import { tapEffect } from "../../hooks/tap-effect";
+import { useState } from "../../hooks/useState";
+import { useEffect } from "../../hooks/useEffect";
 import { createResourceRoot } from "../../core/createResourceRoot";
 import { flushResourcesSync } from "../../core/scheduler";
 
@@ -17,11 +17,11 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const events: string[] = [];
       let updaterCallCount = 0;
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
-        tapEffect(() => {
+        useEffect(() => {
           events.push("effect mount");
           setCount((prev) => {
             updaterCallCount++;
@@ -70,8 +70,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should double-render on initial mount", () => {
       const events: string[] = [];
 
-      const TestResource = resource(() => {
-        const [count] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count] = useState(0);
         events.push(`render count=${count}`);
         return { count };
       });
@@ -83,15 +83,15 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     });
   });
 
-  describe("Source 2: setState in tapEffect", () => {
-    it("should double-render after setState in tapEffect", () => {
+  describe("Source 2: setState in useEffect", () => {
+    it("should double-render after setState in useEffect", () => {
       const events: string[] = [];
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
-        tapEffect(() => {
+        useEffect(() => {
           events.push(`effect count=${count}`);
           if (count === 0) {
             setCount(1);
@@ -125,8 +125,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should ALSO double-render after setState in flushResourcesSync", () => {
       const events: string[] = [];
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
         return {
@@ -158,8 +158,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should double-render on ALL flushResourcesSync calls", () => {
       const events: string[] = [];
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
         return {
@@ -212,11 +212,11 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       const events: string[] = [];
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
-        tapEffect(() => {
+        useEffect(() => {
           if (count === 0) {
             setTimeout(() => {
               events.push("setTimeout");
@@ -253,11 +253,11 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should double-render AND double-call Promise callback", async () => {
       const events: string[] = [];
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
-        tapEffect(() => {
+        useEffect(() => {
           if (count === 0) {
             Promise.resolve().then(() => {
               events.push("promise");
@@ -291,9 +291,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should batch multiple setState calls in flushResourcesSync (single double-render)", () => {
       const events: string[] = [];
 
-      const TestResource = resource(() => {
-        const [count1, setCount1] = tapState(0);
-        const [count2, setCount2] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count1, setCount1] = useState(0);
+        const [count2, setCount2] = useState(0);
         events.push(`render count1=${count1} count2=${count2}`);
 
         return {
@@ -322,15 +322,15 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       ]);
     });
 
-    it("should batch multiple setState calls in tapEffect (single double-render)", () => {
+    it("should batch multiple setState calls in useEffect (single double-render)", () => {
       const events: string[] = [];
 
-      const TestResource = resource(() => {
-        const [count1, setCount1] = tapState(0);
-        const [count2, setCount2] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count1, setCount1] = useState(0);
+        const [count2, setCount2] = useState(0);
         events.push(`render count1=${count1} count2=${count2}`);
 
-        tapEffect(() => {
+        useEffect(() => {
           if (count1 === 0 && count2 === 0) {
             setCount1(1);
             setCount2(2);
@@ -357,8 +357,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should double-render simple resources", () => {
       const events: string[] = [];
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
         return {
@@ -379,8 +379,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should double-render with function updater in flushResourcesSync", () => {
       const events: string[] = [];
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
         return {
@@ -419,12 +419,12 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should handle effect with dependencies and setState", () => {
       const events: string[] = [];
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
-        const [doubled, setDoubled] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
+        const [doubled, setDoubled] = useState(0);
         events.push(`render count=${count} doubled=${doubled}`);
 
-        tapEffect(() => {
+        useEffect(() => {
           events.push(`effect count=${count}`);
           setDoubled(count * 2);
           return () => {
@@ -469,13 +469,13 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     });
   });
 
-  describe("Source 10: tapState initializer function", () => {
-    it("should call tapState initializer twice", () => {
+  describe("Source 10: useState initializer function", () => {
+    it("should call useState initializer twice", () => {
       const events: string[] = [];
       let initCount = 0;
 
-      const TestResource = resource(() => {
-        const [value] = tapState(() => {
+      const TestResource = resource(function TestResource() {
+        const [value] = useState(() => {
           initCount++;
           events.push(`init call #${initCount}`);
           return initCount;
@@ -489,7 +489,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const root = createResourceRoot();
       root.render(TestResource());
 
-      // tapState initializer should be called twice, first value kept
+      // useState initializer should be called twice, first value kept
       expect(events).toEqual([
         "init call #1",
         "init call #2",
@@ -503,8 +503,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should maintain double-render behavior after disposal and recreation", () => {
       const events: string[] = [];
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
         return {
@@ -547,11 +547,11 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const events: string[] = [];
       let effectRunCount = 0;
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
-        tapEffect(() => {
+        useEffect(() => {
           effectRunCount++;
           events.push(`effect mount #${effectRunCount} count=${count}`);
 
@@ -593,11 +593,11 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const events: string[] = [];
       let effectRunCount = 0;
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
-        tapEffect(() => {
+        useEffect(() => {
           effectRunCount++;
           events.push(`effect mount #${effectRunCount} count=${count}`);
 
@@ -638,11 +638,11 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const events: string[] = [];
       let effectRunCount = 0;
 
-      const TestResource = resource(() => {
-        const [count, setCount] = tapState(0);
+      const TestResource = resource(function TestResource() {
+        const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
-        tapEffect(() => {
+        useEffect(() => {
           effectRunCount++;
           events.push(`effect mount #${effectRunCount} count=${count}`);
 

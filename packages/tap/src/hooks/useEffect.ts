@@ -1,6 +1,6 @@
 import type { Cell } from "../core/types";
 import { depsShallowEqual } from "./utils/depsShallowEqual";
-import { tapHook, registerRenderMountTask } from "./utils/tapHook";
+import { useCell, registerRenderMountTask } from "./utils/useCell";
 
 const newEffect = (): Cell & { type: "effect" } => ({
   type: "effect",
@@ -8,26 +8,26 @@ const newEffect = (): Cell & { type: "effect" } => ({
   deps: null, // null means the effect has never been run
 });
 
-export namespace tapEffect {
+export namespace useEffect {
   export type Destructor = () => void;
   export type EffectCallback = () => Destructor | undefined;
 }
 
-export function tapEffect(effect: tapEffect.EffectCallback): void;
-export function tapEffect(
-  effect: tapEffect.EffectCallback,
+export function useEffect(effect: useEffect.EffectCallback): void;
+export function useEffect(
+  effect: useEffect.EffectCallback,
   deps: readonly unknown[],
 ): void;
-export function tapEffect(
-  effect: tapEffect.EffectCallback,
+export function useEffect(
+  effect: useEffect.EffectCallback,
   deps?: readonly unknown[],
 ): void {
-  const cell = tapHook("effect", newEffect);
+  const cell = useCell("effect", newEffect);
 
   if (deps && cell.deps && depsShallowEqual(cell.deps, deps)) return;
   if (cell.deps !== null && !!deps !== !!cell.deps)
     throw new Error(
-      "tapEffect called with and without dependencies across re-renders",
+      "useEffect called with and without dependencies across re-renders",
     );
 
   registerRenderMountTask(() => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { tapEffect } from "../../hooks/tap-effect";
-import { tapState } from "../../hooks/tap-state";
+import { useEffect } from "../../hooks/useEffect";
+import { useState } from "../../hooks/useState";
 import {
   createTestResource,
   renderTest,
@@ -8,7 +8,7 @@ import {
   TestResourceManager,
 } from "../test-utils";
 
-describe("tapEffect - Basic Functionality", () => {
+describe("useEffect - Basic Functionality", () => {
   afterEach(() => {
     cleanupAllResources();
   });
@@ -20,7 +20,7 @@ describe("tapEffect - Basic Functionality", () => {
       const testFiber = createTestResource(() => {
         executionOrder.push("render");
 
-        tapEffect(() => {
+        useEffect(() => {
           executionOrder.push("effect");
         });
 
@@ -44,7 +44,7 @@ describe("tapEffect - Basic Functionality", () => {
       const effect = vi.fn(() => cleanup);
 
       const testFiber = createTestResource(() => {
-        tapEffect(effect);
+        useEffect(effect);
         return null;
       });
 
@@ -64,15 +64,15 @@ describe("tapEffect - Basic Functionality", () => {
       const cleanupOrder: string[] = [];
 
       const testFiber = createTestResource(() => {
-        tapEffect(() => {
+        useEffect(() => {
           return () => cleanupOrder.push("first");
         });
 
-        tapEffect(() => {
+        useEffect(() => {
           return () => cleanupOrder.push("second");
         });
 
-        tapEffect(() => {
+        useEffect(() => {
           return () => cleanupOrder.push("third");
         });
 
@@ -91,7 +91,7 @@ describe("tapEffect - Basic Functionality", () => {
   describe("Multiple Effects", () => {
     it("should execute multiple effects in registration order", () => {
       const executionOrder: string[] = [];
-      const effects: tapEffect.EffectCallback[] = [
+      const effects: useEffect.EffectCallback[] = [
         () => {
           executionOrder.push("effect1");
           return undefined;
@@ -107,7 +107,7 @@ describe("tapEffect - Basic Functionality", () => {
       ];
 
       const testFiber = createTestResource(() => {
-        effects.forEach((fn) => tapEffect(fn));
+        effects.forEach((fn) => useEffect(fn));
         return null;
       });
 
@@ -124,17 +124,17 @@ describe("tapEffect - Basic Functionality", () => {
 
       const testFiber = createTestResource((props: { value: number }) => {
         // Effect without deps - runs on every render
-        tapEffect(() => {
+        useEffect(() => {
           effectCalls.always++;
         });
 
         // Effect with empty deps - runs only once
-        tapEffect(() => {
+        useEffect(() => {
           effectCalls.once++;
         }, []);
 
         // Effect with deps - runs when deps change
-        tapEffect(() => {
+        useEffect(() => {
           effectCalls.conditional++;
         }, [props.value]);
 
@@ -161,13 +161,13 @@ describe("tapEffect - Basic Functionality", () => {
       let triggerRerender: (() => void) | null = null;
 
       const testFiber = createTestResource(() => {
-        const [, setState] = tapState(0);
+        const [, setState] = useState(0);
 
-        tapEffect(() => {
+        useEffect(() => {
           triggerRerender = () => setState((prev) => prev + 1);
         });
 
-        tapEffect(effect, []);
+        useEffect(effect, []);
 
         return null;
       });
@@ -187,7 +187,7 @@ describe("tapEffect - Basic Functionality", () => {
       const effect = vi.fn();
 
       const testFiber = createTestResource((props: { dep: string }) => {
-        tapEffect(() => {
+        useEffect(() => {
           effect(props.dep);
         }, [props.dep]);
 
@@ -215,11 +215,11 @@ describe("tapEffect - Basic Functionality", () => {
       const events: string[] = [];
 
       const testFiber = createTestResource(() => {
-        const [count, setCount] = tapState(0);
+        const [count, setCount] = useState(0);
 
         events.push(`render: ${count}`);
 
-        tapEffect(() => {
+        useEffect(() => {
           events.push(`effect: ${count}`);
 
           // Only update on first effect to avoid infinite loop

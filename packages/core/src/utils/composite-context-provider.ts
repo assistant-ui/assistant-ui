@@ -31,6 +31,8 @@ export class CompositeContextProvider implements ModelContextProvider {
 
   subscribe(callback: () => void) {
     this._subscribers.add(callback);
-    return () => this._subscribers.delete(callback);
+    return () => {
+      this._subscribers.delete(callback);
+    };
   }
 }

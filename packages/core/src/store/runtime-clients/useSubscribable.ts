@@ -1,11 +1,11 @@
-import { tapState, tapEffect } from "@assistant-ui/tap";
+import { useState, useEffect } from "react";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
 
-export const tapSubscribable = <T>(
+export const useSubscribable = <T>(
   subscribable: Omit<SubscribableWithState<T, any>, "path">,
 ) => {
-  const [, setState] = tapState(subscribable.getState);
-  tapEffect(() => {
+  const [, setState] = useState(subscribable.getState);
+  useEffect(() => {
     setState(subscribable.getState());
     return subscribable.subscribe(() => {
       setState(subscribable.getState());

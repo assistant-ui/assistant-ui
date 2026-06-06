@@ -1,17 +1,18 @@
+/* oxlint-disable react-hooks/rules-of-hooks -- tests deliberately exercise conditional/nested hook patterns */
 import { describe, it, expect } from "vitest";
-import { tapEffect } from "../../hooks/tap-effect";
-import { tapState } from "../../hooks/tap-state";
+import { useEffect } from "../../hooks/useEffect";
+import { useState } from "../../hooks/useState";
 import { createTestResource, renderTest } from "../test-utils";
 import { renderResourceFiber } from "../../core/ResourceFiber";
 
 describe("Rules of Hooks - Hook Count", () => {
   it("should establish hook count on first render", () => {
     const resource = createTestResource(() => {
-      const [a] = tapState(1);
-      const [b] = tapState(2);
-      const [c] = tapState(3);
-      tapEffect(() => {});
-      tapEffect(() => {});
+      const [a] = useState(1);
+      const [b] = useState(2);
+      const [c] = useState(3);
+      useEffect(() => {});
+      useEffect(() => {});
 
       return { a, b, c };
     });
@@ -29,11 +30,11 @@ describe("Rules of Hooks - Hook Count", () => {
     let addExtraHook = false;
 
     const resource = createTestResource(() => {
-      tapState(1);
-      tapState(2);
+      useState(1);
+      useState(2);
 
       if (addExtraHook) {
-        tapState(3); // Extra hook
+        useState(3); // Extra hook
       }
 
       return null;
@@ -54,13 +55,13 @@ describe("Rules of Hooks - Hook Count", () => {
     let skipHook = false;
 
     const resource = createTestResource(() => {
-      tapState(1);
+      useState(1);
 
       if (!skipHook) {
-        tapState(2);
+        useState(2);
       }
 
-      tapState(3);
+      useState(3);
       return null;
     });
 
@@ -79,11 +80,11 @@ describe("Rules of Hooks - Hook Count", () => {
     let includeEffect = true;
 
     const resource = createTestResource(() => {
-      tapState(1);
-      tapState(2);
+      useState(1);
+      useState(2);
 
       if (includeEffect) {
-        tapEffect(() => {});
+        useEffect(() => {});
       }
       return null;
     });
@@ -114,7 +115,7 @@ describe("Rules of Hooks - Hook Count", () => {
 
     const resource = createTestResource(() => {
       for (let i = 0; i < hookCount; i++) {
-        tapState(i);
+        useState(i);
       }
       return null;
     });
@@ -134,9 +135,9 @@ describe("Rules of Hooks - Hook Count", () => {
 
     const resource = createTestResource(() => {
       renderCount++;
-      const [a] = tapState(1);
-      const [b] = tapState(2);
-      tapEffect(() => {});
+      const [a] = useState(1);
+      const [b] = useState(2);
+      useEffect(() => {});
 
       return { a, b, renderCount };
     });
@@ -151,16 +152,16 @@ describe("Rules of Hooks - Hook Count", () => {
 
   it("should track count separately for different resource instances", () => {
     const resource1 = createTestResource(() => {
-      tapState(1);
-      tapState(2);
+      useState(1);
+      useState(2);
       return "two hooks";
     });
 
     const resource2 = createTestResource(() => {
-      tapState(1);
-      tapState(2);
-      tapState(3);
-      tapEffect(() => {});
+      useState(1);
+      useState(2);
+      useState(3);
+      useEffect(() => {});
       return "four hooks";
     });
 
@@ -177,14 +178,14 @@ describe("Rules of Hooks - Hook Count", () => {
     let useExtraHooks = false;
 
     const useFeature = () => {
-      tapState("feature");
+      useState("feature");
       if (useExtraHooks) {
-        tapState("extra");
+        useState("extra");
       }
     };
 
     const resource = createTestResource(() => {
-      tapState("main");
+      useState("main");
       useFeature();
       return null;
     });
