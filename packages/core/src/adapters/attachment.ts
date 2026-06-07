@@ -49,24 +49,14 @@ export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   }
 }
 
-const bytesToBase64 = (bytes: Uint8Array): string => {
-  const nodeBuffer = (
+const bytesToBase64 = (bytes: Uint8Array): string =>
+  (
     globalThis as {
-      Buffer?: {
+      Buffer: {
         from(bytes: Uint8Array): { toString(encoding: string): string };
       };
     }
-  ).Buffer;
-  if (nodeBuffer) {
-    return nodeBuffer.from(bytes).toString("base64");
-  }
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-};
+  ).Buffer.from(bytes).toString("base64");
 
 // React Native's Blob polyfill has FileReader but not file.text()/arrayBuffer(); Node has
 // the reverse. Prefer FileReader when present, falling back to the Blob methods otherwise.
