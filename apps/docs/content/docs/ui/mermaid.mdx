@@ -56,17 +56,20 @@ Configure rendering options in `mermaid-diagram.tsx`:
 renderMermaidSVG(code, {
   bg: "var(--background)",
   fg: "var(--foreground)",
+  muted: "var(--muted-foreground)",
+  border: "var(--border)",
+  accent: "var(--foreground)",
   transparent: true,
 });
 ```
 
-The full palette is derived from your theme's background and foreground tokens, so diagrams follow light and dark mode automatically.
+The palette follows your theme's background, foreground, and shadcn color tokens, so diagrams match light and dark mode automatically.
 
 ## Streaming Performance
 
 The `MermaidDiagram` component is optimized for streaming scenarios:
 
-- **Skeleton while streaming**: Shows a placeholder skeleton until the code block finishes streaming
+- **Skeleton while streaming**: Shows a placeholder skeleton until the response finishes streaming, then renders the diagram synchronously
 - **Raw source fallback**: Invalid or unsupported diagrams fall back to displaying the raw source
 
 

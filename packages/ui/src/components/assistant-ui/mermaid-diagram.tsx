@@ -7,6 +7,7 @@ import { Maximize2, Minus, Plus, RotateCcw, X } from "lucide-react";
 import {
   type FC,
   type ReactNode,
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -16,19 +17,12 @@ import {
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
-/**
- * Props for the MermaidDiagram component
- */
 export type MermaidDiagramProps = SyntaxHighlighterProps & {
   className?: string;
 };
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 4;
-
-function clamp(n: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, n));
-}
 
 type MermaidZoomProps = {
   svg: string;
@@ -91,7 +85,7 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
 
   const zoomBy = useCallback((factor: number, cx?: number, cy?: number) => {
     setTransform((t) => {
-      const scale = clamp(t.scale * factor, MIN_SCALE, MAX_SCALE);
+      const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, t.scale * factor));
       const ratio = scale / t.scale;
       if (cx === undefined || cy === undefined) {
         const viewport = viewportRef.current;
@@ -238,13 +232,7 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
 }
 
 /**
- * MermaidDiagram component for rendering Mermaid diagrams
- * Use it by passing to `componentsByLanguage` for mermaid in `markdown-text.tsx`
- *
- * While the code block is still streaming it shows a skeleton; when complete
- * it renders via beautiful-mermaid, themed from your `--background` /
- * `--foreground` tokens. Invalid or unsupported diagrams fall back to the
- * raw source. Hovering the diagram reveals an expand button with zoom + pan.
+ * Use it by passing to `componentsByLanguage` for mermaid in `markdown-text.tsx`.
  *
  * @example
  * const MarkdownTextImpl = () => {
@@ -262,28 +250,14 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
  *   );
  * };
  */
-export const MermaidDiagram: FC<MermaidDiagramProps> = ({
+const MermaidDiagramImpl: FC<MermaidDiagramProps> = ({
   code,
   className,
   node: _node,
   components: _components,
   language: _language,
 }) => {
-  // Detect when this code block is complete
-  const isComplete = useAuiState((s) => {
-    if (s.part.type !== "text") return false;
-
-    // Find the position of this code block
-    const codeIndex = s.part.text.indexOf(code);
-    if (codeIndex === -1) return false;
-
-    // Check if there are closing backticks immediately after this code block
-    const afterCode = s.part.text.substring(codeIndex + code.length);
-
-    // Look for the closing backticks - should be at the start or after a newline
-    const closingBackticksMatch = afterCode.match(/^```|^\n```/);
-    return closingBackticksMatch !== null;
-  });
+  const isComplete = useAuiState((s) => s.part.status.type !== "running");
 
   const result = useMemo(() => {
     if (!isComplete) return null;
@@ -292,6 +266,9 @@ export const MermaidDiagram: FC<MermaidDiagramProps> = ({
         svg: renderMermaidSVG(code, {
           bg: "var(--background)",
           fg: "var(--foreground)",
+          muted: "var(--muted-foreground)",
+          border: "var(--border)",
+          accent: "var(--foreground)",
           transparent: true,
         }),
         error: null,
@@ -354,4 +331,13 @@ export const MermaidDiagram: FC<MermaidDiagramProps> = ({
   );
 };
 
+const MermaidDiagram = memo(
+  MermaidDiagramImpl,
+) as unknown as FC<MermaidDiagramProps> & {
+  Zoom: typeof MermaidZoom;
+};
+
 MermaidDiagram.displayName = "MermaidDiagram";
+MermaidDiagram.Zoom = MermaidZoom;
+
+export { MermaidDiagram, MermaidZoom };

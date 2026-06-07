@@ -11,6 +11,9 @@ export function MermaidSample() {
   const svg = renderMermaidSVG(MERMAID_CODE, {
     bg: "var(--background)",
     fg: "var(--foreground)",
+    muted: "var(--muted-foreground)",
+    border: "var(--border)",
+    accent: "var(--foreground)",
     transparent: true,
   });
   return (
