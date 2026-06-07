@@ -35,6 +35,7 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{
     startX: number;
@@ -42,12 +43,15 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
     originX: number;
     originY: number;
   } | null>(null);
+  const transformRef = useRef(transform);
+  transformRef.current = transform;
 
   const zoomSvg = useMemo(
     () =>
       svg
         .replace(/id="([^"]+)"/g, 'id="$1-zoom"')
-        .replace(/url\(#([^)]+)\)/g, "url(#$1-zoom)"),
+        .replace(/url\(#([^)]+)\)/g, "url(#$1-zoom)")
+        .replace(/(href|xlink:href)="#([^"]+)"/g, '$1="#$2-zoom"'),
     [svg],
   );
 
@@ -64,7 +68,24 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
+      if (e.key === "Escape") {
+        handleClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const focusables = overlayRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusables?.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
@@ -116,15 +137,13 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);
-    setTransform((t) => {
-      drag.current = {
-        startX: e.clientX,
-        startY: e.clientY,
-        originX: t.x,
-        originY: t.y,
-      };
-      return t;
-    });
+    const t = transformRef.current;
+    drag.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: t.x,
+      originY: t.y,
+    };
   }, []);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
@@ -161,6 +180,7 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
         isOpen &&
         createPortal(
           <div
+            ref={overlayRef}
             data-slot="mermaid-zoom-overlay"
             role="dialog"
             aria-modal="true"
