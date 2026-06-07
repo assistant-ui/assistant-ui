@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { PendingAttachment } from "@assistant-ui/core";
+import type { PendingAttachment } from "../types/attachment";
 import {
+  type AttachmentAdapter,
   SimpleImageAttachmentAdapter,
   SimpleTextAttachmentAdapter,
 } from "../adapters/attachment";
@@ -10,8 +11,7 @@ describe("SimpleTextAttachmentAdapter", () => {
     new File([contents], name, { type: "text/markdown" });
 
   it("adds a file as a pending document attachment", async () => {
-    const adapter = new SimpleTextAttachmentAdapter();
-    const pending = (await adapter.add({
+    const pending = (await new SimpleTextAttachmentAdapter().add({
       file: makeFile("hello"),
     })) as PendingAttachment;
 
@@ -25,11 +25,12 @@ describe("SimpleTextAttachmentAdapter", () => {
   });
 
   it("sends the file contents as a text part without FileReader", async () => {
+    expect(typeof FileReader).toBe("undefined");
+
     const adapter = new SimpleTextAttachmentAdapter();
     const pending = (await adapter.add({
       file: makeFile("- retry with backoff\n- cap attempts at 3"),
     })) as PendingAttachment;
-
     const complete = await adapter.send(pending);
 
     expect(complete.status).toEqual({ type: "complete" });
@@ -42,7 +43,7 @@ describe("SimpleTextAttachmentAdapter", () => {
   });
 
   it("remove resolves without error", async () => {
-    const adapter = new SimpleTextAttachmentAdapter();
+    const adapter: AttachmentAdapter = new SimpleTextAttachmentAdapter();
     const pending = (await adapter.add({
       file: makeFile("hello"),
     })) as PendingAttachment;
@@ -55,8 +56,7 @@ describe("SimpleImageAttachmentAdapter", () => {
     new File([new Uint8Array(bytes)], name, { type: "image/png" });
 
   it("adds a file as a pending image attachment", async () => {
-    const adapter = new SimpleImageAttachmentAdapter();
-    const pending = (await adapter.add({
+    const pending = (await new SimpleImageAttachmentAdapter().add({
       file: makeImage([1, 2, 3]),
     })) as PendingAttachment;
 
@@ -70,20 +70,17 @@ describe("SimpleImageAttachmentAdapter", () => {
   });
 
   it("sends the file as a base64 data URL without FileReader", async () => {
-    const adapter = new SimpleImageAttachmentAdapter();
-    const bytes = [137, 80, 78, 71];
-    const pending = (await adapter.add({
-      file: makeImage(bytes),
-    })) as PendingAttachment;
+    expect(typeof FileReader).toBe("undefined");
 
+    const adapter = new SimpleImageAttachmentAdapter();
+    const pending = (await adapter.add({
+      file: makeImage([137, 80, 78, 71]),
+    })) as PendingAttachment;
     const complete = await adapter.send(pending);
 
     expect(complete.status).toEqual({ type: "complete" });
     expect(complete.content).toEqual([
-      {
-        type: "image",
-        image: `data:image/png;base64,${Buffer.from(bytes).toString("base64")}`,
-      },
+      { type: "image", image: "data:image/png;base64,iVBORw==" },
     ]);
   });
 });

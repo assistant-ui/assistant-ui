@@ -65,13 +65,11 @@ export { InMemoryThreadListAdapter } from "@assistant-ui/core";
 export { createVoiceSession } from "@assistant-ui/core";
 
 // Attachment adapter implementations
-// Terminal-safe implementations of core's Simple adapters: same API, but core's
-// read files via the browser-only FileReader, which does not exist in Node.
-export { CompositeAttachmentAdapter } from "@assistant-ui/core";
 export {
   SimpleImageAttachmentAdapter,
   SimpleTextAttachmentAdapter,
-} from "./adapters/attachment";
+  CompositeAttachmentAdapter,
+} from "@assistant-ui/core";
 
 // Re-export store scope state types
 export type {

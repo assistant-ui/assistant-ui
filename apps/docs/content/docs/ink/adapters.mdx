@@ -19,7 +19,7 @@ const adapter = createFileStorageAdapter({
 
 ## Attachment adapters
 
-`SimpleTextAttachmentAdapter` and `SimpleImageAttachmentAdapter` have the same API and behavior as their web and React Native counterparts, but are implemented terminal-safe: they read files with `file.text()` / `file.arrayBuffer()` instead of the browser-only `FileReader`, which does not exist in Node. Text contents are sent to the model wrapped in `<attachment name=...>` tags; images are sent as base64 data URLs.
+`SimpleTextAttachmentAdapter` and `SimpleImageAttachmentAdapter` work the same in the terminal as on web and React Native. Text contents are sent to the model wrapped in `<attachment name=...>` tags, and images are sent as base64 data URLs.
 
 ```ts
 import {
