@@ -282,13 +282,13 @@ function ToolFallbackApproval({
   approval,
   respondToApproval,
   ...props
-}: React.ComponentProps<"div"> & {
-  addResult?: (result: unknown) => void;
-  resume?: (payload: unknown) => void;
-  interrupt?: ToolCallMessagePart["interrupt"];
-  approval?: ToolCallMessagePart["approval"];
-  respondToApproval?: ToolCallMessagePartProps["respondToApproval"];
-}) {
+}: React.ComponentProps<"div"> &
+  Partial<
+    Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">
+  > & {
+    interrupt?: ToolCallMessagePart["interrupt"];
+    approval?: ToolCallMessagePart["approval"];
+  }) {
   const [submitted, setSubmitted] = useState(false);
 
   const respond = (approved: boolean) => {
@@ -347,10 +347,11 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   const isRequiresAction = status?.type === "requires-action";
 
   const [open, setOpen] = useState(isRequiresAction);
-  const [wasRequiresAction, setWasRequiresAction] = useState(isRequiresAction);
-  if (isRequiresAction && !wasRequiresAction) {
-    setWasRequiresAction(true);
-    setOpen(true);
+  const [prevRequiresAction, setPrevRequiresAction] =
+    useState(isRequiresAction);
+  if (isRequiresAction !== prevRequiresAction) {
+    setPrevRequiresAction(isRequiresAction);
+    if (isRequiresAction) setOpen(true);
   }
 
   return (
