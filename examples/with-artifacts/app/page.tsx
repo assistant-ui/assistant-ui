@@ -5,100 +5,26 @@ import {
   AssistantRuntimeProvider,
   Tools,
   useAui,
-  useAuiState,
   AuiProvider,
   Suggestions,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import type { ToolCallMessagePart } from "@assistant-ui/react";
-import { CodeIcon, EyeIcon } from "lucide-react";
-import { useState } from "react";
 import toolkit from "./toolkit";
-
-function ArtifactsView() {
-  const [tab, setTab] = useState<"source" | "preview">("source");
-
-  const lastToolCall = useAuiState((s) => {
-    const messages = s.thread.messages;
-    return messages
-      .flatMap((m) =>
-        m.content.filter(
-          (c): c is ToolCallMessagePart =>
-            c.type === "tool-call" && c.toolName === "render_html",
-        ),
-      )
-      .at(-1);
-  });
-
-  const code = lastToolCall?.args.code as string | undefined;
-  const isComplete = lastToolCall?.result !== undefined;
-
-  if (!code) return null;
-
-  return (
-    <div className="flex flex-grow basis-full justify-stretch p-3">
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-lg border">
-        <div className="flex border-b">
-          <button
-            type="button"
-            onClick={() => setTab("source")}
-            className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-              tab === "source"
-                ? "bg-background text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <CodeIcon className="size-4" />
-            Source Code
-          </button>
-          <button
-            type="button"
-            onClick={() => isComplete && setTab("preview")}
-            disabled={!isComplete}
-            className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-              !isComplete
-                ? "cursor-not-allowed opacity-50"
-                : tab === "preview"
-                  ? "bg-background text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <EyeIcon className="size-4" />
-            Preview
-          </button>
-        </div>
-        {tab === "source" || !isComplete ? (
-          <div className="h-full overflow-y-auto px-4 py-2 font-mono text-sm break-words whitespace-pre-line">
-            {code}
-          </div>
-        ) : (
-          <div className="flex h-full flex-grow px-4 py-2">
-            <iframe
-              className="h-full w-full"
-              title="Artifact Preview"
-              srcDoc={code}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function ThreadWithSuggestions() {
   const aui = useAui({
     suggestions: Suggestions([
       {
         title: "Build a landing page",
-        label: "with modern styling",
+        label: "as an HTML artifact",
         prompt:
-          "Build a beautiful landing page for a coffee shop with modern CSS.",
+          "Build a beautiful landing page for a coffee shop as an HTML artifact.",
       },
       {
-        title: "Create a calculator",
-        label: "with HTML and JavaScript",
+        title: "Create an interactive counter",
+        label: "as a React artifact",
         prompt:
-          "Create a calculator app with HTML, CSS, and JavaScript that supports basic arithmetic.",
+          "Create an interactive counter with a styled button as a React artifact.",
       },
     ]),
   });
@@ -117,11 +43,8 @@ export default function Home() {
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
-      <main className="flex h-full justify-stretch">
-        <div className="flex-grow basis-full">
-          <ThreadWithSuggestions />
-        </div>
-        <ArtifactsView />
+      <main className="mx-auto h-full w-full max-w-3xl">
+        <ThreadWithSuggestions />
       </main>
     </AssistantRuntimeProvider>
   );

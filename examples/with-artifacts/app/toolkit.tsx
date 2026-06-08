@@ -1,22 +1,12 @@
-"use generative";
+"use client";
 
-import { defineToolkit, externalTool } from "@assistant-ui/react";
-import { TerminalIcon } from "lucide-react";
-import { z } from "zod";
+import {
+  defineToolkit,
+  htmlArtifact,
+  reactArtifact,
+} from "@assistant-ui/react";
 
 export default defineToolkit({
-  render_html: {
-    parameters: z.object({
-      code: z.string(),
-    }),
-    execute: externalTool(),
-    render: () => {
-      return (
-        <div className="bg-primary text-primary-foreground my-2 inline-flex items-center gap-2 rounded-full border px-4 py-2">
-          <TerminalIcon className="size-4" />
-          render_html(&#123; code: &quot;...&quot; &#125;)
-        </div>
-      );
-    },
-  },
+  create_html_artifact: htmlArtifact(),
+  create_react_artifact: reactArtifact(),
 });
