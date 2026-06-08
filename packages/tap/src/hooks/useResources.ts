@@ -37,12 +37,12 @@ export function useResources<E extends ResourceElement<any, any>>(
       versionRef.current++;
       parentFiber.markDirty?.();
     },
-    [],
+    [parentFiber],
   );
   const fibers = useMemo(() => new Map<string | number, FiberState>(), []);
 
   const getElementsMemo = getElementsDeps
-    ? // oxlint-disable-next-line tap-hooks/exhaustive-deps, react-hooks/rules-of-hooks -- deps forwarded by caller; getElementsDeps presence is fixed per call site
+    ? // oxlint-disable-next-line react-hooks/exhaustive-deps,react-hooks/rules-of-hooks -- deps forwarded by caller; getElementsDeps presence is fixed per call site
       useCallback(getElements, getElementsDeps)
     : getElements;
 
@@ -111,7 +111,7 @@ export function useResources<E extends ResourceElement<any, any>>(
     }
 
     return results;
-  }, [getElementsMemo, version]);
+  }, [getElementsMemo, version, parentFiber, markDirty, fibers]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -121,10 +121,10 @@ export function useResources<E extends ResourceElement<any, any>>(
         unmountResourceFiber(fiber);
       }
     };
-  }, []);
+  }, [fibers]);
 
   useEffect(() => {
-    res; // as a performance optimization, we only run if the results have changed
+    void res; // as a performance optimization, we only run if the results have changed
 
     for (const [key, state] of fibers.entries()) {
       if (state.next === "delete") {
@@ -141,7 +141,7 @@ export function useResources<E extends ResourceElement<any, any>>(
         commitResourceFiber(state.fiber, state.next);
       }
     }
-  }, [res]);
+  }, [res, fibers]);
 
   return res;
 }

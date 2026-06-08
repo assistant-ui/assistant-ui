@@ -7,7 +7,7 @@ description: Pass values through resource boundaries without prop drilling.
 The context API is experimental and not yet stable. It may change significantly in a future version.
 </Callout>
 
-Context lets you pass values through the resource tree without threading props through every level — the same idea as React's `createContext` / `useContext`.
+Context lets you pass values through the resource tree without threading props through every level, the same idea as React's `createContext` / `useContext`.
 
 ## createResourceContext
 
@@ -21,13 +21,13 @@ const ThemeContext = createResourceContext("light");
 
 ## Reading context
 
-Read the current value of a context inside a resource with `tap`.
+Read the current value of a context inside a resource with `use` imported from `"react"`.
 
 ```ts
-import { tap } from "@assistant-ui/tap";
+import { use } from "react";
 
 const Button = resource(() => {
-  const theme = tap(ThemeContext);
+  const theme = use(ThemeContext);
   // ...
 });
 ```
@@ -37,19 +37,19 @@ const Button = resource(() => {
 Provide a context value to all resources rendered within the callback.
 
 ```ts
-import { withContextProvider } from "@assistant-ui/tap";
+import { useResource, withContextProvider } from "@assistant-ui/tap";
 
 const App = resource(() => {
   const child = withContextProvider(ThemeContext, "dark", () => {
-    return tapResource(Button());
+    return useResource(Button());
   });
 
   return child;
 });
 ```
 
-Any resource rendered inside the callback — including deeply nested children — will read `"dark"` from `ThemeContext`.
+Any resource rendered inside the callback (including deeply nested children) reads `"dark"` from `ThemeContext`.
 
 <Callout type="warn">
-Context is not properly persisted across `tapResourceRoot` boundaries. If a child resource is wrapped with `tapResourceRoot`, it may not see context values provided by its ancestors. This is a known bug.
+Context is not properly persisted across `useResourceRoot` boundaries. If a child resource is wrapped with `useResourceRoot`, it may not see context values provided by its ancestors. This is a known bug.
 </Callout>

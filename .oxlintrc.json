@@ -24,14 +24,8 @@
     "react/forward-ref-uses-ref": "off",
     "react/no-array-index-key": "off",
     "react/react-in-jsx-scope": "off",
-    "react/exhaustive-deps": "off",
+    "react/exhaustive-deps": "warn",
     "react/rules-of-hooks": "warn",
-    "tap-hooks/exhaustive-deps": [
-      "warn",
-      {
-        "additionalHooks": "^(useTapResources|useResources)$"
-      }
-    ],
     "tap-hooks/named-resource": "error",
     "no-unused-vars": "off",
     "typescript/no-unused-vars": [
@@ -100,7 +94,7 @@
     {
       "files": ["packages/tap/src/__tests__/**"],
       "rules": {
-        "tap-hooks/exhaustive-deps": "off",
+        "react/exhaustive-deps": "off",
         "react/rules-of-hooks": "off"
       }
     }

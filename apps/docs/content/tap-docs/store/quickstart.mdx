@@ -35,14 +35,15 @@ declare module "@assistant-ui/store" {
 Define a Tap resource that returns `ClientOutput<"counter">`. This connects the resource's methods to the scope type you just registered.
 
 ```ts title="lib/store/counter-store.ts"
-import { resource, tapState, tapMemo } from "@assistant-ui/tap";
+import { resource } from "@assistant-ui/tap";
+import { useState, useMemo } from "react";
 import type { ClientOutput } from "@assistant-ui/store";
 
 export const CounterResource = resource(
   ({ initialCount = 0 }: { initialCount?: number }): ClientOutput<"counter"> => {
-    const [count, setCount] = tapState(initialCount);
+    const [count, setCount] = useState(initialCount);
 
-    const state = tapMemo(() => ({ count }), [count]);
+    const state = useMemo(() => ({ count }), [count]);
 
     return {
       getState: () => state,
@@ -94,7 +95,7 @@ export const CounterDisplay = () => {
 };
 ```
 
-`useAuiState((s) => s.counter.count)` subscribes to just the `count` value — the component only re-renders when it changes.
+`useAuiState((s) => s.counter.count)` subscribes to just the `count` value, so the component only re-renders when it changes.
 
 `aui.counter()` returns the methods object, so `aui.counter().increment()` calls the `increment` method you defined in the resource.
 

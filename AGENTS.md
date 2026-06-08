@@ -1,7 +1,7 @@
 ## Architecture
 
 ```
-@assistant-ui/tap          → Zero-dep reactive primitives (tapState, tapEffect, etc.)
+@assistant-ui/tap          → Reactive primitives inspired by React hooks (resource, useResource)
 @assistant-ui/store        → Bridges tap with React (useAui, useAuiState, AuiProvider)
 @assistant-ui/core         → Shared primitives and types for React + React Native
 @assistant-ui/react        → Web distribution (re-exports core + adds Radix primitives)

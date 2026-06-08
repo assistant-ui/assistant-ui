@@ -25,19 +25,20 @@ declare module "@assistant-ui/store" {
 }
 ```
 
-The return type of `getState` defines the shape of `s.counter` in `useAuiState((s) => s.counter.count)`. A scope doesn't have to define `getState()` — if it only has methods and no readable state, that's fine.
+The return type of `getState` defines the shape of `s.counter` in `useAuiState((s) => s.counter.count)`. A scope doesn't have to define `getState()`: if it only has methods and no readable state, that's fine.
 
 Then implement `getState()` in the resource. It should return a memoized object built from the resource's internal state:
 
 ```ts title="lib/store/counter-resource.ts"
-import { resource, tapState, tapMemo } from "@assistant-ui/tap";
+import { resource } from "@assistant-ui/tap";
+import { useState, useMemo } from "react";
 import type { ClientOutput } from "@assistant-ui/store";
 
 const CounterResource = resource((): ClientOutput<"counter"> => {
-  const [count, setCount] = tapState(0);
-  const [step, setStep] = tapState(1);
+  const [count, setCount] = useState(0);
+  const [step, setStep] = useState(1);
 
-  const state = tapMemo(() => ({ count, step }), [count, step]);
+  const state = useMemo(() => ({ count, step }), [count, step]);
 
   return {
     getState: () => state,
@@ -47,7 +48,7 @@ const CounterResource = resource((): ClientOutput<"counter"> => {
 });
 ```
 
-Use `tapMemo` to create the state object. This ensures a stable reference when nothing changed — Store uses reference equality to detect updates. The `tapState` values in the dependency array trigger a resource re-render when they change, which is when Store checks for new state.
+Use `useMemo` to create the state object. This ensures a stable reference when nothing changed, since Store uses reference equality to detect updates. The `useState` values in the dependency array trigger a resource re-render when they change, which is when Store checks for new state.
 
 ## useAuiState
 
@@ -60,13 +61,13 @@ const count = useAuiState((s) => s.counter.count);
 The selector function receives a state object where each key corresponds to a scope. `s.counter` is the return value of the counter's `getState()`.
 
 <Callout type="warn">
-Avoid selecting more state than you need. Selecting a wide object (like an entire scope's state) means your component re-renders whenever *any* field in that object changes — even fields you don't use.
+Avoid selecting more state than you need. Selecting a wide object (like an entire scope's state) means your component re-renders whenever *any* field in that object changes, even fields you don't use.
 
 ```tsx
-// ❌ Avoid — re-renders on any counter state change
+// ❌ Avoid: re-renders on any counter state change
 const { count } = useAuiState((s) => s.counter);
 
-// ✅ Prefer — re-renders only when count changes
+// ✅ Prefer: re-renders only when count changes
 const count = useAuiState((s) => s.counter.count);
 ```
 </Callout>
@@ -76,14 +77,14 @@ const count = useAuiState((s) => s.counter.count);
 The most common pitfall with `useAuiState` is returning a new object from the selector:
 
 ```tsx
-// ❌ Infinite re-render — creates a new object every time
+// ❌ Infinite re-render: creates a new object every time
 const summary = useAuiState((s) => ({
   count: s.counter.count,
   name: s.user.name,
 }));
 ```
 
-`useAuiState` compares the selector's return value by reference (`Object.is`). An object literal like `{ count, name }` creates a new reference every time the selector runs, so Store thinks the value changed, re-renders the component, which runs the selector again — infinite loop.
+`useAuiState` compares the selector's return value by reference (`Object.is`). An object literal like `{ count, name }` creates a new reference every time the selector runs, so Store thinks the value changed, re-renders the component, which runs the selector again (infinite loop).
 
 The fix is simple: use a separate `useAuiState` call for each value.
 
@@ -92,7 +93,7 @@ const count = useAuiState((s) => s.counter.count);
 const name = useAuiState((s) => s.user.name);
 ```
 
-This is also more precise — the component only re-renders when the specific value it uses changes, not when any of the selected scopes change.
+This is also more precise: the component only re-renders when the specific value it uses changes, not when any of the selected scopes change.
 
 ## Checking if a scope exists
 
@@ -123,8 +124,8 @@ It uses `useAuiState` internally, so it re-evaluates only when the selected valu
 
 Both `useAuiState` and `AuiIf` are built on two primitives available on the store:
 
-- `aui.subscribe(callback)` — calls `callback` whenever any scope's state changes
-- `aui.counter().getState()` — returns the current state snapshot
+- `aui.subscribe(callback)`: calls `callback` whenever any scope's state changes
+- `aui.counter().getState()`: returns the current state snapshot
 
 Together, they form the standard `useSyncExternalStore` pattern. You can use them directly for non-React integrations or when you need imperative access:
 

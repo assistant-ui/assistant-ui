@@ -24,7 +24,6 @@
   "devDependencies": {
     "@assistant-ui/x-changelog": "workspace:*",
     "@changesets/cli": "^2.31.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.7",
     "oxfmt": "^0.52.0",

@@ -55,7 +55,7 @@ export const useResourceRoot = <TState>(
         scheduler.markDirty();
       }),
     );
-  }, [element.type, element.key]);
+  }, [element.type, element.key, queue, scheduler]);
 
   setRootVersion(fiber.root, fiber.root.committedVersion);
   const render = renderResourceFiber(fiber, element.props);
@@ -125,6 +125,6 @@ export const useResourceRoot = <TState>(
         return () => subscribers.delete(listener);
       },
     }),
-    [],
+    [subscribers],
   );
 };

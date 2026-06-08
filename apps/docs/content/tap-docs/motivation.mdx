@@ -1,6 +1,6 @@
 ---
 title: Motivation
-description: Why we built tap.
+description: Why tap exists and when to reach for it.
 ---
 
 ## React hooks are great, until your data doesn't match your UI
@@ -24,48 +24,20 @@ This is why state management libraries are so popular. Zustand, Jotai, Redux, an
 MobX all facilitate this migration into global stores and let you efficiently
 access that state from anywhere in your app.
 
-## Our journey
+## Hooks, without the UI
 
-This is exactly what happened to us while building
-[assistant-ui](https://github.com/assistant-ui/assistant-ui).
-
-assistant-ui manages a lot of rapidly updating state: threads, messages,
-runtimes, composers, and tool executions. We went through **seven rewrites** of
-our store implementation before arriving at tap.
-
-Early on, state lived in React hooks. But as the project grew, the shape of our
-data diverged from the shape of our UI, and state migrated upward into what we
-called the **Assistant Store**. Our first implementations used observables,
-subscriptions, and classes. They worked, but they were painful: hard to read,
-hard to onboard new developers onto, and nothing like the React code surrounding
-them.
-
-We kept thinking: there has to be a way to write our runtime code the way we write
-React components.
-
-## From classes to functions
-
-Remember when Dan Abramov
-[refactored a class component into a functional component](https://youtu.be/V-QO-KO90iQ)
-at React Conf 2018 and the code just collapsed? Fewer lines, easier to read, the
-same behavior expressed more directly.
-
-We wanted the same transformation for our runtime code. tap is the result: it
-brings `useState`, `useEffect`, `useMemo`, and the rest outside of React
+tap brings `useState`, `useEffect`, `useMemo`, and the rest outside of React
 components and into standalone **resources**. Same rules of hooks, same mental
-model, just not tied to the UI tree.
+model, just not tied to the UI tree. A resource owns state the way a component
+does, but returns a plain value instead of JSX, so you can use it for the global
+state hooks normally can't reach.
 
-## We needed lifecycle
+## Lifecycle
 
-Zustand, Jotai, and RxJS are good at what they do, but none of them have a concept
-of **lifecycle**. There is no `useEffect`, no mount and unmount, no render and
-commit phases.
-
-In assistant-ui, we need all of these. We care about server-side rendering,
-Suspense, and knowing when things mount and unmount. By modeling our own render
-and commit phases (inspired by React's), we can write runtime code that naturally
-handles SSR, hydration, mounting, and cleanup, the same way you would write it
-inside a React component.
+Unlike Zustand, Jotai, and RxJS, tap has a concept of **lifecycle**: render and
+commit phases, mount and unmount, and `useEffect`. That lets resources handle
+server-side rendering, Suspense, hydration, mounting, and cleanup the same way a
+React component does.
 
 ## Composable configuration
 

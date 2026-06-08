@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Install tap, wire the alias, and build your first resource.
+description: Install tap and build your first resource.
 ---
 
 ## Install
@@ -8,46 +8,6 @@ description: Install tap, wire the alias, and build your first resource.
 ```sh
 npm install @assistant-ui/tap
 ```
-
-## Wire the alias
-
-Inside a resource you import hooks from `"react"`, but they need to run as tap's
-hooks instead of React's. A build alias rewrites the bare `react` specifier to
-tap's drop-in (`@assistant-ui/tap/react-shim`) for code that runs inside a
-resource, while leaving real React components untouched.
-
-Use the integration for your bundler:
-
-```ts title="vite.config.ts"
-import { aui } from "@assistant-ui/vite";
-
-export default defineConfig({
-  plugins: [aui()],
-});
-```
-
-```ts title="next.config.ts"
-import { withAui } from "@assistant-ui/next";
-
-export default withAui({
-  // your Next.js config
-});
-```
-
-```ts title="metro.config.js"
-const { withAui } = require("@assistant-ui/metro");
-
-module.exports = withAui(getDefaultConfig(__dirname));
-```
-
-<Callout type="info">
-If you already use `@assistant-ui/store` (or any assistant-ui distribution) with
-one of these integrations, the alias is wired for you. Skip this step.
-
-Not using a supported bundler? Alias the bare `react` specifier to
-`@assistant-ui/tap/react-shim` yourself, making sure the rewrite does not apply to
-tap's own files.
-</Callout>
 
 ## Define a resource
 
