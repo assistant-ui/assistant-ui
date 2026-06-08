@@ -2,6 +2,8 @@ import { isRecord, isStringArray } from "../common";
 import { parseMessage } from "../message";
 import type { MessagePreview } from "../message";
 import type {
+  AttachmentPreview,
+  AttachmentStatusPreview,
   ComposerPreview,
   ComposerQueueItem,
   SuggestionPreview,
@@ -10,12 +12,41 @@ import type {
   ThreadPreview,
 } from "./types";
 
-export const parseSuggestionPreview = (
-  value: unknown,
-): SuggestionPreview | null => {
+const parseSuggestionPreview = (value: unknown): SuggestionPreview | null => {
   if (!isRecord(value)) return null;
   if (typeof value.prompt !== "string") return null;
   return { prompt: value.prompt };
+};
+
+const parseAttachmentStatus = (
+  value: unknown,
+): AttachmentStatusPreview | undefined => {
+  if (!isRecord(value) || typeof value.type !== "string") return undefined;
+  return {
+    type: value.type,
+    ...(typeof value.reason === "string" ? { reason: value.reason } : {}),
+    ...(typeof value.progress === "number" ? { progress: value.progress } : {}),
+  };
+};
+
+const parseAttachment = (value: unknown): AttachmentPreview | null => {
+  if (!isRecord(value)) return null;
+  const name =
+    typeof value.name === "string" && value.name
+      ? value.name
+      : typeof value.id === "string"
+        ? value.id
+        : "(attachment)";
+  const status = parseAttachmentStatus(value.status);
+  return {
+    name,
+    ...(typeof value.id === "string" ? { id: value.id } : {}),
+    ...(typeof value.type === "string" ? { kind: value.type } : {}),
+    ...(typeof value.contentType === "string"
+      ? { contentType: value.contentType }
+      : {}),
+    ...(status ? { status } : {}),
+  };
 };
 
 export const parseComposerPreview = (
@@ -25,8 +56,10 @@ export const parseComposerPreview = (
 
   const text = typeof value.text === "string" ? value.text : "";
   const attachments = Array.isArray(value.attachments)
-    ? value.attachments.length
-    : 0;
+    ? value.attachments
+        .map((item) => parseAttachment(item))
+        .filter((item): item is AttachmentPreview => Boolean(item))
+    : [];
   const queue = Array.isArray(value.queue)
     ? value.queue
         .map((item) => {
@@ -101,7 +134,6 @@ export const parseThreadPreview = (value: unknown): ThreadPreview | null => {
   const composer = parseComposerPreview(value.composer);
 
   return {
-    messageCount: messages.length,
     messages,
     suggestions,
     capabilities,

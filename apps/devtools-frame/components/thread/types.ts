@@ -17,10 +17,24 @@ export interface ComposerQueueItem {
   prompt: string;
 }
 
+export interface AttachmentStatusPreview {
+  type: string;
+  reason?: string;
+  progress?: number;
+}
+
+export interface AttachmentPreview {
+  id?: string;
+  name: string;
+  kind?: string;
+  contentType?: string;
+  status?: AttachmentStatusPreview;
+}
+
 export interface ComposerPreview {
   textLength: number;
   role?: string;
-  attachments: number;
+  attachments: AttachmentPreview[];
   isEditing?: boolean;
   canCancel?: boolean;
   canSend?: boolean;
@@ -33,7 +47,6 @@ export interface ThreadPreview {
   isDisabled?: boolean;
   isLoading?: boolean;
   isRunning?: boolean;
-  messageCount: number;
   messages: MessagePreview[];
   suggestions: SuggestionPreview[];
   capabilities: string[];

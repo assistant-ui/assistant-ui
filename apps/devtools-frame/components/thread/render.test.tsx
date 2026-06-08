@@ -6,13 +6,12 @@ import type { ThreadPreview } from "./types";
 describe("ThreadDetails composer queue", () => {
   it("renders the pending message queue and canSend", () => {
     const thread: ThreadPreview = {
-      messageCount: 0,
       messages: [],
       suggestions: [],
       capabilities: [],
       composer: {
         textLength: 0,
-        attachments: 0,
+        attachments: [],
         canSend: false,
         queue: [
           { id: "q1", prompt: "queued one" },
@@ -30,11 +29,10 @@ describe("ThreadDetails composer queue", () => {
 
   it("omits the queue section when empty", () => {
     const thread: ThreadPreview = {
-      messageCount: 0,
       messages: [],
       suggestions: [],
       capabilities: [],
-      composer: { textLength: 0, attachments: 0, queue: [] },
+      composer: { textLength: 0, attachments: [], queue: [] },
     };
 
     const html = renderToStaticMarkup(<ThreadDetails thread={thread} />);

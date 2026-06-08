@@ -20,6 +20,7 @@ import { ModelContextView } from "./model-context";
 import { RunTimeline } from "./runs";
 import { ScopesView } from "./scopes";
 import {
+  ComposerAttachments,
   ComposerFlags,
   ComposerQueue,
   ThreadDetails,
@@ -28,7 +29,13 @@ import {
   parseThreadListPreview,
   parseThreadPreview,
 } from "./thread";
-import { CenteredMessage, ControlButton, JSONPreview, SummaryItem } from "./ui";
+import {
+  CenteredMessage,
+  ControlButton,
+  EmptyState,
+  JSONPreview,
+  SummaryItem,
+} from "./ui";
 
 interface AssistantState {
   [key: string]: unknown;
@@ -254,10 +261,14 @@ const renderComposerStatePreview = (value: unknown) => {
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryItem label="Role" value={composer.role ?? "—"} />
         <SummaryItem label="Text Length" value={String(composer.textLength)} />
-        <SummaryItem label="Attachments" value={String(composer.attachments)} />
+        <SummaryItem
+          label="Attachments"
+          value={String(composer.attachments.length)}
+        />
         <SummaryItem label="Mode" value={composer.type ?? "—"} />
       </div>
       <ComposerFlags composer={composer} />
+      <ComposerAttachments attachments={composer.attachments} />
       {text ? (
         <div className="rounded-md border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
           <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
@@ -621,9 +632,7 @@ export function DevToolsUI() {
 
     if (Object.keys(selectedApi.state).length === 0) {
       return (
-        <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-          No state detected for this assistant instance.
-        </div>
+        <EmptyState>No state detected for this assistant instance.</EmptyState>
       );
     }
 
@@ -719,13 +728,11 @@ export function DevToolsUI() {
           </div>
         )}
         {filteredLogs.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-              {eventTypes.length === 0
-                ? "No events logged for this assistant instance."
-                : "No events match the current filters."}
-            </div>
-          </div>
+          <EmptyState>
+            {eventTypes.length === 0
+              ? "No events logged for this assistant instance."
+              : "No events match the current filters."}
+          </EmptyState>
         ) : (
           <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-colors dark:border-zinc-800 dark:bg-zinc-900">
             <table className="w-full table-auto border-collapse text-left">

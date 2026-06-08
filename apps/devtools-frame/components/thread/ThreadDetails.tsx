@@ -1,6 +1,7 @@
 import { formatBoolean } from "../common";
 import { MessageList } from "../message";
 import { SummaryItem } from "../ui";
+import { ComposerAttachments } from "./ComposerAttachments";
 import { ComposerFlags } from "./ComposerFlags";
 import { ComposerQueue } from "./ComposerQueue";
 import type { ThreadPreview } from "./types";
@@ -19,7 +20,7 @@ export const ThreadDetails = ({
       </div>
     ) : null}
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-      <SummaryItem label="Messages" value={String(thread.messageCount)} />
+      <SummaryItem label="Messages" value={String(thread.messages.length)} />
       {typeof thread.isLoading === "boolean" ? (
         <SummaryItem
           label="Loading"
@@ -86,13 +87,14 @@ export const ThreadDetails = ({
           />
           <SummaryItem
             label="Attachments"
-            value={String(thread.composer.attachments)}
+            value={String(thread.composer.attachments.length)}
           />
           {typeof thread.composer.type === "string" ? (
             <SummaryItem label="Mode" value={thread.composer.type} />
           ) : null}
         </div>
         <ComposerFlags composer={thread.composer} />
+        <ComposerAttachments attachments={thread.composer.attachments} />
         <ComposerQueue queue={thread.composer.queue} />
       </div>
     ) : null}

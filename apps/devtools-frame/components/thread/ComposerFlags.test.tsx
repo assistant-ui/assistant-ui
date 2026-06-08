@@ -8,7 +8,7 @@ describe("ComposerFlags", () => {
       <ComposerFlags
         composer={{
           textLength: 0,
-          attachments: 0,
+          attachments: [],
           queue: [],
           isEditing: true,
           canSend: false,

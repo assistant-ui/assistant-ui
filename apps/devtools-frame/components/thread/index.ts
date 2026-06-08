@@ -1,4 +1,5 @@
 export { ThreadDetails } from "./ThreadDetails";
+export { ComposerAttachments } from "./ComposerAttachments";
 export { ComposerFlags } from "./ComposerFlags";
 export { ComposerQueue } from "./ComposerQueue";
 export {
@@ -9,7 +10,6 @@ export {
 } from "./utils";
 export type {
   ComposerPreview,
-  SuggestionPreview,
   ThreadListItemPreview,
   ThreadListPreview,
   ThreadPreview,

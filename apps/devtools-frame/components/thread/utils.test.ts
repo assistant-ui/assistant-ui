@@ -32,4 +32,41 @@ describe("parseComposerPreview", () => {
     const composer = parseComposerPreview({ text: "", attachments: [] });
     expect(composer?.queue).toEqual([]);
   });
+
+  it("parses attachments with kind, contentType, and upload status", () => {
+    const composer = parseComposerPreview({
+      text: "",
+      attachments: [
+        {
+          id: "a1",
+          type: "image",
+          name: "photo.png",
+          contentType: "image/png",
+          status: { type: "running", reason: "uploading", progress: 0.5 },
+        },
+        {
+          id: "a2",
+          type: "file",
+          name: "doc.pdf",
+          status: { type: "complete" },
+        },
+      ],
+    });
+    expect(composer?.attachments).toHaveLength(2);
+    expect(composer?.attachments[0]).toMatchObject({
+      name: "photo.png",
+      kind: "image",
+      contentType: "image/png",
+      status: { type: "running", reason: "uploading", progress: 0.5 },
+    });
+    expect(composer?.attachments[1]?.status).toEqual({ type: "complete" });
+  });
+
+  it("falls back to the id for a nameless attachment", () => {
+    const composer = parseComposerPreview({
+      text: "",
+      attachments: [{ id: "x" }],
+    });
+    expect(composer?.attachments).toEqual([{ name: "x", id: "x" }]);
+  });
 });
