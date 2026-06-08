@@ -21,7 +21,7 @@ Calling the factory produces a [`ResourceElement`](#resourceelement).
 ## withKey
 
 Attaches a key to a `ResourceElement` for identity preservation in
-[lists](/tap/docs/resources#rendering-lists).
+[lists](/tap/docs/composition#useresources).
 
 ```ts
 withKey("my-key", Counter({ initialValue: 0 }));
@@ -53,7 +53,7 @@ const values = useResources(
 
 Hosts an element as a subscribable boundary, returning a stable
 `{ getValue, subscribe }` handle instead of the value directly. Isomorphic. See
-[Subscribable boundary](/tap/docs/resources#subscribable-boundary).
+[Subscribable boundary](/tap/docs/composition#useresourceroot).
 
 ```ts
 const handle = useResourceRoot(Counter({ initialValue: 0 }));
@@ -110,7 +110,7 @@ flushResourcesSync(() => handle.getValue().increment());
 The context API is experimental and may change.
 </Callout>
 
-Creates a [context](/tap/docs/resources#context) with a default value. Read it
+Creates a [context](/tap/docs/context) with a default value. Read it
 with `use` / `useContext` from `"react"`.
 
 ```ts

@@ -1,6 +1,6 @@
 ---
 title: Resources
-description: Define resources, pass props, render lists, and share context.
+description: Define resources, pass props, and host them.
 ---
 
 A **resource** is a self-contained unit of reactive state and logic: like a React
@@ -81,93 +81,7 @@ const Dashboard = resource(function Dashboard() {
 });
 ```
 
-## Rendering lists
+## Next
 
-`useResources` hosts a dynamic, keyed list of resources. Every element **must**
-carry a key via `withKey`; resources are preserved across renders when their key
-stays the same.
-
-```ts
-import { resource, useResources, withKey } from "@assistant-ui/tap";
-import { useState } from "react";
-
-const TodoList = resource(function TodoList() {
-  const [items, setItems] = useState([{ id: "1", text: "Learn tap" }]);
-
-  const todos = useResources(
-    () => items.map((item) => withKey(item.id, TodoItem({ text: item.text }))),
-    [items],
-  );
-
-  return {
-    todos,
-    add: (text: string) =>
-      setItems((prev) => [...prev, { id: crypto.randomUUID(), text }]),
-  };
-});
-```
-
-Keys behave like React's `key` prop:
-
-- **Same key, same type**: the fiber is reused and re-rendered with new props.
-- **Same key, different type**: the old fiber is unmounted and a new one created.
-- **Removed key**: the fiber is unmounted and cleaned up.
-
-## Subscribable boundary
-
-`useResourceRoot` hosts an element and returns a stable `{ getValue, subscribe }`
-handle instead of the value directly. Callers subscribe to changes rather than
-re-rendering with the parent, which makes it the building block for store
-libraries on top of tap.
-
-```ts
-import { useResourceRoot } from "@assistant-ui/tap";
-
-const store = useResourceRoot(Counter({ initialValue: 0 }));
-store.getValue(); // { count: 0, increment: ... }
-const unsubscribe = store.subscribe(() => console.log(store.getValue().count));
-```
-
-See [How tap differs from React](/tap/docs/differences-from-react#the-tree-re-renders-from-the-root) for
-why this boundary matters, and [Outside React](/tap/docs/outside-react) for using
-it as a standalone store.
-
-## Context
-
-<Callout type="warn">
-The context API is experimental and may change.
-</Callout>
-
-Context passes values through the resource tree without threading props through
-every level, the same idea as React's `createContext` / `useContext`.
-
-```ts
-import { createResourceContext } from "@assistant-ui/tap";
-
-const ThemeContext = createResourceContext("light");
-```
-
-Read it inside a resource with `use` (or `useContext`) imported from `"react"`:
-
-```ts
-import { resource } from "@assistant-ui/tap";
-import { use } from "react";
-
-const Button = resource(function Button() {
-  const theme = use(ThemeContext);
-  return { theme };
-});
-```
-
-Provide a value to everything rendered inside a callback with
-`withContextProvider`:
-
-```ts
-import { resource, useResource, withContextProvider } from "@assistant-ui/tap";
-
-const App = resource(function App() {
-  return withContextProvider(ThemeContext, "dark", () => {
-    return useResource(Button()); // reads "dark"
-  });
-});
-```
+- [Composition](/tap/docs/composition): render keyed lists with `useResources` and expose subscribable boundaries with `useResourceRoot`.
+- [Context](/tap/docs/context): pass values through the resource tree without prop drilling.

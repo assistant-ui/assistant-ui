@@ -4,8 +4,8 @@ description: The handful of behaviors that aren't quite React.
 ---
 
 Resources are React hooks, so almost everything carries over: the rules of hooks,
-dependency arrays, refs, and effect cleanup all work as you expect. This page
-covers the few places tap deliberately differs.
+dependency arrays, memoization, refs, and effect cleanup all work as you expect.
+This page covers the few places tap deliberately differs.
 
 ## No setting state during render
 
@@ -71,7 +71,7 @@ re-renders from the root**: because a parent reads its child's return value
 directly, the parent must re-run to receive the new value, and so must its parent,
 all the way up.
 
-[`useResourceRoot`](/tap/docs/resources#subscribable-boundary) breaks this chain.
+[`useResourceRoot`](/tap/docs/composition#useresourceroot) breaks this chain.
 It creates a subtree boundary: everything below it re-renders independently, and
 the parent does not re-render when the subtree updates. This is how you keep a
 large tree efficient and how store libraries are built on tap.
@@ -80,12 +80,6 @@ large tree efficient and how store libraries are built on tap.
 
 tap has a single effect primitive. `useLayoutEffect` is accepted (so React code
 ports cleanly) but behaves like `useEffect` inside a resource.
-
-## `useMemo` never evicts its cache
-
-React may discard a `useMemo` result and recompute it. tap never does, so
-`useMemo(() => new EventEmitter(), [])` is a reliable compute-once: the value is
-created on first render and kept for the resource's lifetime.
 
 ## Strict mode
 
