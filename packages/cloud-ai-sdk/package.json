@@ -47,17 +47,17 @@
     }
   },
   "devDependencies": {
-    "@ai-sdk/react": "^3.0.195",
+    "@ai-sdk/react": "^3.0.199",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^25.9.1",
-    "@types/react": "^19.2.15",
-    "ai": "^6.0.193",
+    "@types/node": "^25.9.2",
+    "@types/react": "^19.2.17",
+    "ai": "^6.0.197",
     "assistant-stream": "^0.3.20",
     "jsdom": "^29.1.1",
-    "react": "^19.2.6",
-    "vitest": "^4.1.7"
+    "react": "^19.2.7",
+    "vitest": "^4.1.8"
   },
   "publishConfig": {
     "access": "public",

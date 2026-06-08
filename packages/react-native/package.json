@@ -54,10 +54,10 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.15",
-    "react": "^19.2.6",
+    "@types/react": "^19.2.17",
+    "react": "^19.2.7",
     "react-native": "^0.85.3",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.8"
   },
   "publishConfig": {
     "access": "public",

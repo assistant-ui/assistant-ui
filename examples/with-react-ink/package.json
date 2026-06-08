@@ -12,10 +12,10 @@
     "@assistant-ui/react-ink": "workspace:*",
     "@assistant-ui/react-ink-markdown": "workspace:*",
     "ink": "^7.0.5",
-    "react": "^19.2.6"
+    "react": "^19.2.7"
   },
   "devDependencies": {
-    "@types/react": "^19.2.15",
+    "@types/react": "^19.2.17",
     "esbuild": "^0.28.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"

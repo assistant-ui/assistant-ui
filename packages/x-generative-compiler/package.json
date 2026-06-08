@@ -38,15 +38,15 @@
     "@babel/parser": "^7.29.7",
     "@babel/traverse": "^7.29.7",
     "@babel/types": "^7.29.7",
-    "semver": "^7.8.1"
+    "semver": "^7.8.2"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/babel__generator": "^7.27.0",
     "@types/babel__traverse": "^7.28.0",
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.2",
     "@types/semver": "^7.7.1",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.8"
   },
   "publishConfig": {
     "access": "public",

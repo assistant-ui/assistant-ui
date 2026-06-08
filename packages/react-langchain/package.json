@@ -52,13 +52,13 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@langchain/core": "^1.1.48",
-    "@langchain/langgraph-sdk": "^1.9.10",
-    "@langchain/react": "^1.0.10",
+    "@langchain/langgraph-sdk": "^1.9.18",
+    "@langchain/react": "^1.0.18",
     "@testing-library/react": "^16.3.2",
-    "@types/react": "^19.2.15",
+    "@types/react": "^19.2.17",
     "jsdom": "^29.1.1",
-    "react": "^19.2.6",
-    "vitest": "^4.1.7"
+    "react": "^19.2.7",
+    "vitest": "^4.1.8"
   },
   "publishConfig": {
     "access": "public",

@@ -71,11 +71,11 @@
     "@streamdown/code": "^1.1.1",
     "@testing-library/react": "^16.3.2",
     "@types/hast": "^3.0.4",
-    "@types/react": "^19.2.15",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
+    "@types/react": "^19.2.17",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "remark-rehype": "^11.1.2",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.8"
   },
   "publishConfig": {
     "access": "public",

@@ -26,12 +26,12 @@
     "@changesets/cli": "^2.31.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.7",
-    "oxfmt": "^0.52.0",
-    "oxlint": "^1.67.0",
+    "oxfmt": "^0.53.0",
+    "oxlint": "^1.68.0",
     "turbo": "^2.9.16",
     "typescript": "^6.0.3"
   },
-  "packageManager": "pnpm@11.5.0",
+  "packageManager": "pnpm@11.5.2",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,cjs,mjs,cts,mts,json,jsonc}": [
       "oxlint --fix --no-error-on-unmatched-pattern",

@@ -97,10 +97,10 @@
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vite": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.15",
+    "@types/react": "^19.2.17",
     "assistant-cloud": "workspace:*",
-    "react": "^19.2.6",
-    "vitest": "^4.1.7",
+    "react": "^19.2.7",
+    "vitest": "^4.1.8",
     "zustand": "^5.0.14"
   },
   "publishConfig": {

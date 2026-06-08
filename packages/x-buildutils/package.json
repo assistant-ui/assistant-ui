@@ -27,11 +27,11 @@
     "@tsconfig/strictest": "^2.0.8",
     "jiti": "^2.7.0",
     "rolldown": "1.0.2",
-    "tsdown": "^0.22.1",
+    "tsdown": "^0.22.2",
     "typescript": "^6.0.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1"
+    "@types/node": "^25.9.2"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
