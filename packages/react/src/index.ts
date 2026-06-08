@@ -451,4 +451,12 @@ export {
   htmlArtifact,
   type HtmlArtifactArgs,
   type HtmlArtifactOptions,
+  reactArtifact,
+  type ReactArtifactArgs,
+  type ReactArtifactOptions,
+  type ReactArtifactResult,
+  buildReactArtifactHtml,
+  type BuildReactArtifactHtmlOptions,
+  minimalImportMap,
+  claudeParityImportMap,
 } from "./artifacts";
