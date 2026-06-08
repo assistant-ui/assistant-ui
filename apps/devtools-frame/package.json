@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev --port 3010",
     "build": "next build",
-    "start": "next start --port 3010"
+    "start": "next start --port 3010",
+    "test": "vitest run"
   },
   "dependencies": {
     "@assistant-ui/react-devtools": "workspace:*",
@@ -23,6 +24,7 @@
     "@types/react-dom": "^19.2.3",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
   }
 }
