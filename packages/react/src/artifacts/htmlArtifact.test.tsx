@@ -91,7 +91,7 @@ describe("htmlArtifact", () => {
         root.render(
           <Render
             {...partProps({
-              args: { html: "<h1>hi</h1>" },
+              args: { title: "My Page", html: "<h1>hi</h1>" },
               status: { type: "complete" },
             })}
           />,
@@ -100,7 +100,47 @@ describe("htmlArtifact", () => {
       await flush();
 
       expect(renderHtmlMock).toHaveBeenCalledTimes(1);
-      expect(renderHtmlMock.mock.calls[0]![0]).toBe("<h1>hi</h1>");
+      const html = renderHtmlMock.mock.calls[0]![0] as string;
+      expect(html).toContain("<h1>hi</h1>");
+      expect(html).toContain("aui-artifact:size");
+      expect(
+        container.firstElementChild?.getAttribute("data-artifact-title"),
+      ).toBe("My Page");
+    });
+
+    it("auto-resizes the frame from the iframe's reported height, clamped to maxHeight", async () => {
+      const rendered = fakeRendered();
+      renderHtmlMock.mockResolvedValue(rendered);
+      const Render = htmlArtifact({ maxHeight: 800 }).render!;
+      await act(async () => {
+        root.render(
+          <Render {...partProps({ args: { html: "<h1>hi</h1>" } })} />,
+        );
+      });
+      await flush();
+
+      const div = container.firstElementChild as HTMLDivElement;
+      await act(async () => {
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            data: { type: "aui-artifact:size", height: 333 },
+            origin: rendered.origin,
+            source: rendered.iframe.contentWindow,
+          }),
+        );
+      });
+      expect(div.style.height).toBe("333px");
+
+      await act(async () => {
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            data: { type: "aui-artifact:size", height: 5000 },
+            origin: rendered.origin,
+            source: rendered.iframe.contentWindow,
+          }),
+        );
+      });
+      expect(div.style.height).toBe("800px");
     });
 
     it("renders nothing while the args are still streaming", async () => {
