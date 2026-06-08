@@ -445,10 +445,3 @@ export type {
   ToolCallMessagePartMcpMetadata,
 } from "./mcp-apps";
 export type { McpAppResourceOutput } from "@assistant-ui/core/react";
-
-// --- artifacts ---
-export {
-  htmlArtifact,
-  type HtmlArtifactArgs,
-  type HtmlArtifactOptions,
-} from "./artifacts";
