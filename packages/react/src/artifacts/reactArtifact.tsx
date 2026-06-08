@@ -52,9 +52,15 @@ function createReactArtifactRender(options: ReactArtifactOptions) {
   }: ToolCallMessagePartProps<ReactArtifactArgs, ReactArtifactResult>) => {
     const settledRef = useRef(false);
 
-    // Compile once the source has fully arrived; partial source would fail to
-    // compile and report a spurious error.
-    if (status.type !== "complete" || typeof args.code !== "string")
+    // Compile once the source has fully arrived. A human tool sits at
+    // "requires-action" (input complete, awaiting the render's result) before
+    // it ever reaches "complete", so gating on "complete" alone would deadlock:
+    // the iframe would never mount, never report status, and never call
+    // addResult. Render at both, but not while the args are still streaming.
+    if (
+      (status.type !== "requires-action" && status.type !== "complete") ||
+      typeof args.code !== "string"
+    )
       return null;
 
     const settle = (r: ReactArtifactResult) => {

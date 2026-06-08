@@ -125,6 +125,23 @@ describe("reactArtifact", () => {
       expect(addResult).toHaveBeenCalledWith({ ok: true });
     });
 
+    it("mounts and settles at requires-action, before the tool reaches complete", async () => {
+      // Regression: a human tool sits at "requires-action" (input done, awaiting
+      // the render's result) and never reaches "complete" until addResult, so
+      // gating render on "complete" deadlocks. It must mount at requires-action.
+      const addResult = vi.fn();
+      await mount(
+        partProps({
+          args: { code: "export default () => null" },
+          status: { type: "requires-action", reason: "interrupt" },
+          addResult,
+        }),
+      );
+      expect(renderHtmlMock).toHaveBeenCalledTimes(1);
+      await dispatch({ type: "aui-artifact:status", ok: true });
+      expect(addResult).toHaveBeenCalledWith({ ok: true });
+    });
+
     it("reports the error message when the iframe signals a failed mount", async () => {
       const addResult = vi.fn();
       await mount(
