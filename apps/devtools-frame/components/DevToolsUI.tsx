@@ -77,6 +77,7 @@ const TAB_LABELS: Record<TabType, string> = {
 
 const THREAD_STATE_KEYS = new Set([
   "threads",
+  "threadListItems",
   "thread",
   "threadListItem",
   "threadlistitem",
