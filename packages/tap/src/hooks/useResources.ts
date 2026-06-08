@@ -42,7 +42,7 @@ export function useResources<E extends ResourceElement<any, any>>(
   const fibers = useMemo(() => new Map<string | number, FiberState>(), []);
 
   const getElementsMemo = getElementsDeps
-    ? // oxlint-disable-next-line react-hooks/exhaustive-deps,react-hooks/rules-of-hooks -- deps forwarded by caller; getElementsDeps presence is fixed per call site
+    ? // oxlint-disable-next-line react/exhaustive-deps,react/rules-of-hooks -- deps forwarded by caller; getElementsDeps presence is fixed per call site
       useCallback(getElements, getElementsDeps)
     : getElements;
 

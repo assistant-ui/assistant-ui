@@ -19,10 +19,10 @@ import { resource } from "../core/resource";
 const useDevStrictMode = () => {
   if (!isDevelopment) return null;
 
-  // oxlint-disable-next-line react-hooks/rules-of-hooks -- isDevelopment is a build-time constant, so this branch is stable per build
+  // oxlint-disable-next-line react/rules-of-hooks -- isDevelopment is a build-time constant, so this branch is stable per build
   const count = useRef(0);
   const isFirstRender = count.current === 0;
-  // oxlint-disable-next-line react-hooks/rules-of-hooks -- isDevelopment is a build-time constant, so this branch is stable per build
+  // oxlint-disable-next-line react/rules-of-hooks -- isDevelopment is a build-time constant, so this branch is stable per build
   useState(() => count.current++);
   if (count.current !== 2) return null;
   return isFirstRender ? ("child" as const) : ("root" as const);
@@ -79,7 +79,7 @@ const useResourceHost = <T>(callback: () => T): T => {
 // it.
 const makeHook = <F extends (...args: any[]) => any>(hook: F): F =>
   ((...args: any[]) => {
-    /* oxlint-disable react-hooks/rules-of-hooks */
+    /* oxlint-disable react/rules-of-hooks */
     if (peekResourceFiber()) return hook(...args);
     return useResourceHost(() => hook(...args));
     /* oxlint-enable react-hooks/rules-of-hooks */

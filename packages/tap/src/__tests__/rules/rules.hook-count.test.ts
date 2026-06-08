@@ -1,4 +1,4 @@
-/* oxlint-disable react-hooks/rules-of-hooks -- tests deliberately exercise conditional/nested hook patterns */
+/* oxlint-disable react/rules-of-hooks -- tests deliberately exercise conditional/nested hook patterns */
 import { describe, it, expect } from "vitest";
 import { useEffect } from "../../hooks/useEffect";
 import { useState } from "../../hooks/useState";

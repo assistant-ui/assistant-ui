@@ -60,7 +60,7 @@ const RootClientResource = resource(function RootClientResource<
 }) {
   const { methods, state } = withAssistantTapContextProvider(
     { clientRef, emit },
-    // oxlint-disable-next-line react-hooks/rules-of-hooks -- withAssistantTapContextProvider runs this callback synchronously during render, so hook order is preserved
+    // oxlint-disable-next-line react/rules-of-hooks -- withAssistantTapContextProvider runs this callback synchronously during render, so hook order is preserved
     () => useClientResource(element),
   );
   return useMemo(() => ({ state, methods }), [methods, state]);

@@ -1,4 +1,4 @@
-/* oxlint-disable react-hooks/rules-of-hooks -- this module deliberately routes hook calls between tap and React at runtime */
+/* oxlint-disable react/rules-of-hooks -- this module deliberately routes hook calls between tap and React at runtime */
 /* oxlint-disable react/exhaustive-deps -- dependency arrays are forwarded verbatim from the caller */
 // Runtime drop-in for "react": forward everything from react, then override the
 // hooks that have a tap equivalent so they route to tap inside a resource render

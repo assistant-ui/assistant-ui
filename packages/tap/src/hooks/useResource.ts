@@ -32,7 +32,7 @@ export function useResource<E extends ResourceElement<any, any>>(
   }, [element.type, element.key, parentFiber]);
 
   const result = propsDeps
-    ? // oxlint-disable-next-line react-hooks/rules-of-hooks -- propsDeps presence is fixed per call site, so the conditional call order is stable
+    ? // oxlint-disable-next-line react/rules-of-hooks -- propsDeps presence is fixed per call site, so the conditional call order is stable
       useMemo(
         () => renderResourceFiber(fiber, element.props),
         // oxlint-disable-next-line react/exhaustive-deps -- props identity replaced by user-provided deps
