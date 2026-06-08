@@ -12,6 +12,7 @@
   "dependencies": {
     "@assistant-ui/react-devtools": "workspace:*",
     "clsx": "^2.1.1",
+    "geist": "^1.7.1",
     "next": "^16.2.6",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
