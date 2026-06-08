@@ -1,57 +1,44 @@
 import { isRecord } from "../common";
-import { EmptyState, SummaryItem } from "../ui";
+import { Chip, EmptyState, SectionLabel, SummaryItem, ToneBadge } from "../ui";
 import { parseScopes } from "./parse";
 import type { ScopePreview } from "./types";
 
 const SourceBadge = ({ source }: { source: string | null }) => {
   if (!source) return null;
   if (source === "root") {
-    return (
-      <span className="rounded border border-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700 uppercase dark:border-emerald-500/40 dark:text-emerald-300">
-        root
-      </span>
-    );
+    return <ToneBadge tone="emerald">root</ToneBadge>;
   }
-  return (
-    <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-      ← {source}
-    </span>
-  );
+  return <Chip>← {source}</Chip>;
 };
 
 const ScopeCard = ({ scope }: { scope: ScopePreview }) => {
   const hasQuery = isRecord(scope.query) && Object.keys(scope.query).length > 0;
 
   return (
-    <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] dark:border-zinc-800 dark:bg-zinc-900/40">
+    <div className="bg-card rounded-lg border p-3 text-[11px]">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold text-zinc-800 dark:text-zinc-100">
-          {scope.name}
-        </span>
+        <span className="text-foreground font-semibold">{scope.name}</span>
         <SourceBadge source={scope.source} />
         {hasQuery ? (
-          <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400">
+          <span className="text-muted-foreground font-mono text-[10px]">
             {JSON.stringify(scope.query)}
           </span>
         ) : null}
       </div>
 
-      <div className="mt-2 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-        Methods ({scope.methods.length})
+      <div className="mt-2">
+        <SectionLabel>Methods ({scope.methods.length})</SectionLabel>
       </div>
       {scope.methods.length ? (
         <div className="mt-1 flex flex-wrap gap-1">
           {scope.methods.map((method) => (
-            <span
-              key={method}
-              className="rounded bg-zinc-200 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
-            >
+            <Chip key={method} className="font-mono">
               {method}
-            </span>
+            </Chip>
           ))}
         </div>
       ) : (
-        <div className="mt-1 text-zinc-400">No methods.</div>
+        <div className="text-muted-foreground mt-1">No methods.</div>
       )}
     </div>
   );

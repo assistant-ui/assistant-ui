@@ -1,6 +1,5 @@
-import clsx from "clsx";
 import { formatDateTime } from "../common";
-import { JSONPreview, SummaryItem } from "../ui";
+import { Chip, JSONPreview, SummaryItem, ToneBadge } from "../ui";
 import { ChainOfThought } from "./ChainOfThought";
 import { partKey } from "./parse";
 import { PartView } from "./PartView";
@@ -57,15 +56,14 @@ const groupParts = (parts: readonly PartPreview[]): RenderGroup[] => {
   return groups;
 };
 
-const RoleLabel = ({ role }: { role: string }) => {
-  const tone =
-    role === "user"
-      ? "text-blue-600 dark:text-blue-300"
-      : role === "assistant"
-        ? "text-emerald-600 dark:text-emerald-300"
-        : "text-zinc-600 dark:text-zinc-300";
-  return <span className={clsx("font-semibold capitalize", tone)}>{role}</span>;
-};
+const RoleLabel = ({ role }: { role: string }) =>
+  role === "user" ? (
+    <span className="bg-accent text-foreground rounded px-1.5 py-0.5 text-[11px] font-semibold capitalize">
+      {role}
+    </span>
+  ) : (
+    <span className="text-foreground font-semibold capitalize">{role}</span>
+  );
 
 const MetaStrip = ({ message }: { message: MessagePreview }) => {
   const { timing, usage } = message;
@@ -78,11 +76,14 @@ const MetaStrip = ({ message }: { message: MessagePreview }) => {
   const items: { label: string; value: string }[] = [];
   if (ttft !== undefined) items.push({ label: "TTFT", value: formatMs(ttft) });
   if (timing?.totalStreamTime !== undefined) {
-    items.push({ label: "Stream", value: formatMs(timing.totalStreamTime) });
+    items.push({
+      label: "Stream time",
+      value: formatMs(timing.totalStreamTime),
+    });
   }
   if (timing?.tokensPerSecond !== undefined) {
     items.push({
-      label: "Tokens/s",
+      label: "Tokens / s",
       value: timing.tokensPerSecond.toFixed(1),
     });
   }
@@ -97,7 +98,7 @@ const MetaStrip = ({ message }: { message: MessagePreview }) => {
   }
   if (usage) {
     items.push({
-      label: "Usage",
+      label: "Input / output",
       value: `${usage.inputTokens} in / ${usage.outputTokens} out`,
     });
     items.push({ label: "Steps", value: String(usage.stepCount) });
@@ -131,7 +132,7 @@ export const MessageItem = ({ message }: { message: MessagePreview }) => {
         <div className="flex flex-wrap items-center gap-2">
           <RoleLabel role={message.role} />
           {message.index !== undefined ? (
-            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+            <span className="text-muted-foreground text-[10px]">
               #{message.index}
             </span>
           ) : null}
@@ -142,22 +143,20 @@ export const MessageItem = ({ message }: { message: MessagePreview }) => {
             />
           ) : null}
           {hasBranches ? (
-            <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            <Chip>
               branch {message.branchNumber}/{message.branchCount}
-            </span>
+            </Chip>
           ) : null}
           {message.isOptimistic ? (
-            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-700 uppercase dark:text-amber-300">
-              optimistic
-            </span>
+            <ToneBadge tone="amber">optimistic</ToneBadge>
           ) : null}
           {message.submittedFeedback ? (
-            <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+            <span className="text-muted-foreground text-[10px]">
               feedback: {message.submittedFeedback}
             </span>
           ) : null}
         </div>
-        <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+        <span className="text-muted-foreground text-[10px]">
           {formatDateTime(message.createdAt) ?? "—"}
         </span>
       </div>
@@ -165,23 +164,18 @@ export const MessageItem = ({ message }: { message: MessagePreview }) => {
       <MetaStrip message={message} />
 
       {errorValue !== undefined ? (
-        <div className="rounded border border-red-300 bg-red-500/5 p-2 text-[11px] dark:border-red-500/40 dark:bg-red-500/10">
-          <div className="text-[10px] font-semibold tracking-wide text-red-600 uppercase dark:text-red-300">
-            Error
+        <div className="bg-muted/40 rounded-md border p-2 text-[11px]">
+          <ToneBadge tone="red">error</ToneBadge>
+          <div className="mt-1">
+            <JSONPreview value={errorValue} />
           </div>
-          <JSONPreview value={errorValue} />
         </div>
       ) : null}
 
       {message.attachments.length ? (
         <div className="flex flex-wrap gap-1">
           {message.attachments.map((attachment, index) => (
-            <span
-              key={`${message.id}-attachment-${index}`}
-              className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
-            >
-              {attachment}
-            </span>
+            <Chip key={`${message.id}-attachment-${index}`}>{attachment}</Chip>
           ))}
         </div>
       ) : null}
@@ -197,7 +191,7 @@ export const MessageItem = ({ message }: { message: MessagePreview }) => {
           )}
         </div>
       ) : (
-        <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+        <div className="text-muted-foreground text-[11px]">
           No content parts
         </div>
       )}

@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { useMemo } from "react";
 import { formatClockTime } from "../common";
 import type { EventLogEntry } from "../common";
-import { EmptyState, SummaryItem } from "../ui";
+import { Chip, EmptyState, SectionLabel, SummaryItem, ToneBadge } from "../ui";
 import { groupRuns } from "./parse";
 import type { RunEventEntry, RunPreview } from "./types";
 
@@ -23,8 +23,8 @@ const SCOPE_TONE: Record<string, { dot: string; text: string }> = {
 
 const toneFor = (scope: string) =>
   SCOPE_TONE[scope] ?? {
-    dot: "bg-zinc-400",
-    text: "text-zinc-500 dark:text-zinc-400",
+    dot: "bg-muted-foreground",
+    text: "text-muted-foreground",
   };
 
 const formatMs = (value: number) =>
@@ -37,13 +37,13 @@ const EventRow = ({ entry }: { entry: RunEventEntry }) => {
   const tone = toneFor(entry.scope);
   return (
     <div className="flex items-center gap-2 px-3 py-1">
-      <span className="w-14 shrink-0 text-right font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+      <span className="text-muted-foreground w-14 shrink-0 text-right font-mono text-[10px]">
         +{formatMs(entry.offsetMs)}
       </span>
       <span className={clsx("shrink-0 text-[10px] font-semibold", tone.text)}>
         {entry.scope}
       </span>
-      <span className="truncate text-[11px] text-zinc-700 dark:text-zinc-200">
+      <span className="text-foreground truncate text-[11px]">
         {entry.event.slice(entry.scope.length + 1) || entry.event}
       </span>
     </div>
@@ -51,35 +51,31 @@ const EventRow = ({ entry }: { entry: RunEventEntry }) => {
 };
 
 const RunCard = ({ run }: { run: RunPreview }) => (
-  <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950/40">
-    <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-      <span className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-100">
+  <div className="bg-card overflow-hidden rounded-lg border">
+    <div className="bg-muted flex flex-wrap items-center gap-2 border-b px-3 py-2">
+      <span className="text-foreground text-[11px] font-semibold">
         Run #{run.index}
       </span>
-      <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400">
+      <span className="text-muted-foreground font-mono text-[10px]">
         {formatClockTime(run.startTime)}
       </span>
       {run.endTime === undefined ? (
-        <span className="rounded border border-blue-300 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-blue-700 uppercase dark:border-blue-500/40 dark:text-blue-300">
-          running
-        </span>
+        <ToneBadge tone="blue">running</ToneBadge>
       ) : (
-        <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-          {formatMs(run.durationMs ?? 0)}
-        </span>
+        <Chip>{formatMs(run.durationMs ?? 0)}</Chip>
       )}
-      <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+      <span className="text-muted-foreground text-[10px]">
         {run.events.length} event{run.events.length === 1 ? "" : "s"}
       </span>
       {run.threadId ? (
-        <span className="ml-auto truncate font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+        <span className="text-muted-foreground ml-auto truncate font-mono text-[10px]">
           {run.threadId}
         </span>
       ) : null}
     </div>
 
     <div className="px-3 pt-3">
-      <div className="relative h-5 rounded bg-zinc-100 dark:bg-zinc-900">
+      <div className="bg-muted relative h-5 rounded">
         {run.events.map((entry, index) => {
           const tone = toneFor(entry.scope);
           return (
@@ -94,7 +90,7 @@ const RunCard = ({ run }: { run: RunPreview }) => (
       </div>
     </div>
 
-    <div className="mt-1 divide-y divide-zinc-100 dark:divide-zinc-900">
+    <div className="divide-border mt-1 divide-y">
       {run.events.map((entry, index) => (
         <EventRow key={index} entry={entry} />
       ))}
@@ -130,17 +126,17 @@ export const RunTimeline = ({ logs }: { logs: readonly EventLogEntry[] }) => {
       </div>
 
       {orphans.length ? (
-        <div className="overflow-hidden rounded-md border border-dashed border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900/30">
-          <div className="border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-            Outside runs ({orphans.length})
+        <div className="bg-card overflow-hidden rounded-lg border border-dashed">
+          <div className="bg-muted border-b px-3 py-2">
+            <SectionLabel>Outside runs ({orphans.length})</SectionLabel>
           </div>
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-900">
+          <div className="divide-border divide-y">
             {orphans.map((entry, index) => (
               <div
                 key={index}
                 className="flex items-center gap-2 px-3 py-1 text-[11px]"
               >
-                <span className="w-20 shrink-0 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+                <span className="text-muted-foreground w-20 shrink-0 font-mono text-[10px]">
                   {formatClockTime(entry.time)}
                 </span>
                 <span
@@ -151,9 +147,7 @@ export const RunTimeline = ({ logs }: { logs: readonly EventLogEntry[] }) => {
                 >
                   {entry.scope}
                 </span>
-                <span className="truncate text-zinc-700 dark:text-zinc-200">
-                  {entry.event}
-                </span>
+                <span className="text-foreground truncate">{entry.event}</span>
               </div>
             ))}
           </div>

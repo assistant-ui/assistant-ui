@@ -2,53 +2,40 @@ import type {
   NormalizedTool,
   SerializedModelContext,
 } from "@assistant-ui/react-devtools";
-import type { ReactNode } from "react";
-import { EmptyState, InfoCard, JSONPreview, SectionTitle } from "../ui";
-
-const Badge = ({
-  children,
-  tone = "neutral",
-}: {
-  children: ReactNode;
-  tone?: "neutral" | "warn" | "accent";
-}) => {
-  const cls =
-    tone === "warn"
-      ? "text-amber-600 dark:text-amber-400"
-      : tone === "accent"
-        ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"
-        : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
-  return (
-    <span
-      className={`rounded px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase ${cls}`}
-    >
-      {children}
-    </span>
-  );
-};
+import {
+  Chip,
+  EmptyState,
+  InfoCard,
+  JSONPreview,
+  SectionLabel,
+  SectionTitle,
+  ToneBadge,
+} from "../ui";
 
 const Field = ({ label, value }: { label: string; value: unknown }) => (
   <div className="mt-2">
-    <div className="mb-1 text-[10px] font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-      {label}
+    <div className="mb-1">
+      <SectionLabel>{label}</SectionLabel>
     </div>
     <JSONPreview value={value} />
   </div>
 );
 
 const ToolCard = ({ tool }: { tool: NormalizedTool }) => (
-  <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 transition-colors dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-200">
-    <div className="flex flex-wrap items-center gap-2 font-semibold text-zinc-800 dark:text-zinc-100">
+  <div className="bg-card text-foreground rounded-lg border p-3 text-[11px] transition-colors">
+    <div className="text-foreground flex flex-wrap items-center gap-2 font-semibold">
       <span>{tool.name}</span>
-      {tool.type ? <Badge>{tool.type}</Badge> : null}
-      {tool.providerId ? <Badge tone="accent">{tool.providerId}</Badge> : null}
-      {tool.display ? <Badge>{tool.display}</Badge> : null}
-      {tool.supportsDeferredResults ? <Badge>deferred</Badge> : null}
-      {tool.disabled ? <Badge tone="warn">disabled</Badge> : null}
+      {tool.type ? <Chip>{tool.type}</Chip> : null}
+      {tool.providerId ? (
+        <ToneBadge tone="violet">{tool.providerId}</ToneBadge>
+      ) : null}
+      {tool.display ? <Chip>{tool.display}</Chip> : null}
+      {tool.supportsDeferredResults ? <Chip>deferred</Chip> : null}
+      {tool.disabled ? <ToneBadge tone="amber">disabled</ToneBadge> : null}
     </div>
 
     {tool.description ? (
-      <p className="mt-1 text-[11px] text-zinc-600 dark:text-zinc-300">
+      <p className="text-muted-foreground mt-1 text-[11px]">
         {tool.description}
       </p>
     ) : null}
@@ -95,10 +82,10 @@ export const ModelContextView = ({
     <div className="grid gap-3">
       {system ? (
         <InfoCard>
-          <SectionTitle>System Prompt</SectionTitle>
-          <pre className="rounded-lg bg-zinc-100 p-3 text-[11px] whitespace-pre-wrap text-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
+          <SectionTitle>System prompt</SectionTitle>
+          <div className="bg-muted text-foreground rounded-lg p-3 text-[11px] whitespace-pre-wrap">
             {system}
-          </pre>
+          </div>
         </InfoCard>
       ) : null}
       {toolList.length > 0 ? (
@@ -113,7 +100,7 @@ export const ModelContextView = ({
       ) : null}
       {hasCallSettings ? (
         <InfoCard>
-          <SectionTitle>Call Settings</SectionTitle>
+          <SectionTitle>Call settings</SectionTitle>
           <JSONPreview value={callSettings} />
         </InfoCard>
       ) : null}

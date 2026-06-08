@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { JSONPreview } from "../ui";
+import { Chip, JSONPreview, ToneBadge } from "../ui";
 import { StatusBadge } from "./StatusBadge";
 import { ToolCallView } from "./ToolCallView";
 import type { PartPreview, PartStatusPreview } from "./types";
@@ -17,15 +17,11 @@ const PartShell = ({
 }) => (
   <div className="flex flex-col gap-1">
     <div className="flex items-center gap-2">
-      <span
-        className={
-          tone === "reasoning"
-            ? "rounded bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-violet-700 uppercase dark:text-violet-300"
-            : "rounded bg-zinc-200 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
-        }
-      >
-        {type}
-      </span>
+      {tone === "reasoning" ? (
+        <ToneBadge tone="violet">{type}</ToneBadge>
+      ) : (
+        <Chip>{type}</Chip>
+      )}
       {status ? (
         <StatusBadge type={status.type} reason={status.reason} />
       ) : null}
@@ -38,8 +34,8 @@ const Text = ({ value, muted }: { value: string; muted?: boolean }) => (
   <div
     className={
       muted
-        ? "wrap-break-word whitespace-pre-wrap text-zinc-500 italic dark:text-zinc-400"
-        : "wrap-break-word whitespace-pre-wrap text-zinc-700 dark:text-zinc-200"
+        ? "text-muted-foreground wrap-break-word whitespace-pre-wrap italic"
+        : "text-foreground wrap-break-word whitespace-pre-wrap"
     }
   >
     {value || "(empty)"}
@@ -65,10 +61,10 @@ export const PartView = ({ part }: { part: PartPreview }) => {
     case "source":
       return (
         <PartShell type="source" status={part.status}>
-          <div className="text-zinc-600 dark:text-zinc-300">
+          <div className="text-foreground">
             {part.title ?? part.url ?? part.sourceType ?? "(source)"}
             {part.title && part.url ? (
-              <span className="ml-1 text-zinc-400">({part.url})</span>
+              <span className="text-muted-foreground ml-1">({part.url})</span>
             ) : null}
           </div>
         </PartShell>
@@ -76,18 +72,18 @@ export const PartView = ({ part }: { part: PartPreview }) => {
     case "image":
       return (
         <PartShell type="image" status={part.status}>
-          <div className="text-zinc-600 dark:text-zinc-300">
-            {part.filename ?? "(image)"}
-          </div>
+          <div className="text-foreground">{part.filename ?? "(image)"}</div>
         </PartShell>
       );
     case "file":
       return (
         <PartShell type="file" status={part.status}>
-          <div className="text-zinc-600 dark:text-zinc-300">
+          <div className="text-foreground">
             {part.filename ?? "(file)"}
             {part.mimeType ? (
-              <span className="ml-1 text-zinc-400">{part.mimeType}</span>
+              <span className="text-muted-foreground ml-1">
+                {part.mimeType}
+              </span>
             ) : null}
           </div>
         </PartShell>
@@ -95,9 +91,7 @@ export const PartView = ({ part }: { part: PartPreview }) => {
     case "audio":
       return (
         <PartShell type="audio" status={part.status}>
-          <div className="text-zinc-600 dark:text-zinc-300">
-            {part.format ?? "(audio)"}
-          </div>
+          <div className="text-foreground">{part.format ?? "(audio)"}</div>
         </PartShell>
       );
     case "data":

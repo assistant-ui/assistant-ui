@@ -1,4 +1,4 @@
-import { ToneBadge } from "../ui";
+import { Chip, SectionLabel, ToneBadge } from "../ui";
 import type { BadgeTone } from "../ui";
 import type { AttachmentPreview, AttachmentStatusPreview } from "./types";
 
@@ -29,26 +29,22 @@ export const ComposerAttachments = ({
   if (!attachments.length) return null;
 
   return (
-    <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950/40">
-      <div className="border-b border-zinc-200 bg-zinc-100 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-        Attachments ({attachments.length})
+    <div className="bg-card overflow-hidden rounded-md border">
+      <div className="bg-muted border-b px-3 py-2">
+        <SectionLabel>Attachments ({attachments.length})</SectionLabel>
       </div>
-      <div className="divide-y divide-zinc-100 dark:divide-zinc-900">
+      <div className="divide-border divide-y">
         {attachments.map((attachment, index) => (
           <div
             key={attachment.id ?? index}
             className="flex flex-wrap items-center gap-2 px-3 py-1.5 text-[11px]"
           >
-            <span className="font-medium text-zinc-800 dark:text-zinc-100">
+            <span className="text-foreground font-medium">
               {attachment.name}
             </span>
-            {attachment.kind ? (
-              <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300">
-                {attachment.kind}
-              </span>
-            ) : null}
+            {attachment.kind ? <Chip>{attachment.kind}</Chip> : null}
             {attachment.contentType ? (
-              <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+              <span className="text-muted-foreground text-[10px]">
                 {attachment.contentType}
               </span>
             ) : null}

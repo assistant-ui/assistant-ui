@@ -16,8 +16,8 @@ describe("ComposerFlags", () => {
       />,
     );
     expect(html).toContain("Edit: true");
-    expect(html).toContain("Can Send: false");
-    expect(html).not.toContain("Can Cancel");
+    expect(html).toContain("Can send: false");
+    expect(html).not.toContain("Can cancel");
     expect(html).not.toContain("Empty");
   });
 });

@@ -9,7 +9,7 @@ describe("ComposerQueue", () => {
         queue={[{ id: "q1", prompt: "first" }, { prompt: "second" }]}
       />,
     );
-    expect(html).toContain("Message Queue (2)");
+    expect(html).toContain("Message queue (2)");
     expect(html).toContain("first");
     expect(html).toContain("second");
   });

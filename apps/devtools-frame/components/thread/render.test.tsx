@@ -21,10 +21,10 @@ describe("ThreadDetails composer queue", () => {
     };
 
     const html = renderToStaticMarkup(<ThreadDetails thread={thread} />);
-    expect(html).toContain("Message Queue (2)");
+    expect(html).toContain("Message queue (2)");
     expect(html).toContain("queued one");
     expect(html).toContain("queued two");
-    expect(html).toContain("Can Send");
+    expect(html).toContain("Can send");
   });
 
   it("omits the queue section when empty", () => {
@@ -36,6 +36,6 @@ describe("ThreadDetails composer queue", () => {
     };
 
     const html = renderToStaticMarkup(<ThreadDetails thread={thread} />);
-    expect(html).not.toContain("Message Queue");
+    expect(html).not.toContain("Message queue");
   });
 });
