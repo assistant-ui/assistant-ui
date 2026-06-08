@@ -1,3 +1,9 @@
+export interface EventLogEntry {
+  readonly time: Date;
+  readonly event: string;
+  readonly data: unknown;
+}
+
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 

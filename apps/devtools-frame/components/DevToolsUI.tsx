@@ -8,7 +8,13 @@ import {
   type NormalizedTool,
   FrameClient,
 } from "@assistant-ui/react-devtools";
-import { eventScope, formatClockTime, isRecord, truncate } from "./common";
+import {
+  type EventLogEntry,
+  eventScope,
+  formatClockTime,
+  isRecord,
+  truncate,
+} from "./common";
 import { McpView } from "./mcp";
 import { ModelContextView } from "./model-context";
 import { RunTimeline } from "./runs";
@@ -25,12 +31,6 @@ interface AssistantState {
   [key: string]: unknown;
 }
 
-interface EventLog {
-  time: Date;
-  event: string;
-  data: unknown;
-}
-
 interface ModelContext {
   system?: string;
   tools?: NormalizedTool[];
@@ -41,7 +41,7 @@ interface ModelContext {
 interface ApiInfo {
   id: number;
   state: AssistantState;
-  logs: EventLog[];
+  logs: EventLogEntry[];
   modelContext?: ModelContext;
 }
 

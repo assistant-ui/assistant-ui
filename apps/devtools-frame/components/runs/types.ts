@@ -1,8 +1,6 @@
-export interface RunLogEntry {
-  readonly time: Date;
-  readonly event: string;
-  readonly data: unknown;
-}
+import type { EventLogEntry } from "../common";
+
+export type RunLogEntry = EventLogEntry;
 
 export interface RunEventEntry {
   readonly time: Date;

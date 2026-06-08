@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { useMemo } from "react";
 import { formatClockTime } from "../common";
 import { SummaryItem } from "../ui";
 import { groupRuns } from "./parse";
@@ -101,7 +102,7 @@ const RunCard = ({ run }: { run: RunPreview }) => (
 );
 
 export const RunTimeline = ({ logs }: { logs: readonly RunLogEntry[] }) => {
-  const { runs, orphans } = groupRuns(logs);
+  const { runs, orphans } = useMemo(() => groupRuns(logs), [logs]);
 
   if (runs.length === 0 && orphans.length === 0) {
     return (
@@ -118,7 +119,7 @@ export const RunTimeline = ({ logs }: { logs: readonly RunLogEntry[] }) => {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2">
         <SummaryItem label="Runs" value={String(runs.length)} />
         <SummaryItem label="Events" value={String(eventCount)} />
       </div>

@@ -6,6 +6,8 @@ import type {
   RunPreview,
 } from "./types";
 
+// thread.runStart/runEnd are @deprecated in core but kept for backward
+// compatibility; they are the only run-boundary signal in the event log.
 const RUN_START = "thread.runStart";
 const RUN_END = "thread.runEnd";
 
@@ -34,13 +36,11 @@ const entryFor = (log: RunLogEntry, offsetMs: number): RunEventEntry => ({
 export const groupRuns = (logs: readonly RunLogEntry[]): RunGrouping => {
   const sorted = [...logs].sort((a, b) => a.time.getTime() - b.time.getTime());
   const builders: RunBuilder[] = [];
-  const openByThread = new Map<string, RunBuilder>();
+  const openByThread = new Map<string | undefined, RunBuilder>();
   const orphans: RunEventEntry[] = [];
 
-  const keyFor = (tid: string | undefined) => tid ?? "";
-
   const targetRun = (tid: string | undefined): RunBuilder | undefined => {
-    const exact = openByThread.get(keyFor(tid));
+    const exact = openByThread.get(tid);
     if (exact) return exact;
     if (tid === undefined && openByThread.size === 1) {
       return [...openByThread.values()][0];
@@ -52,11 +52,10 @@ export const groupRuns = (logs: readonly RunLogEntry[]): RunGrouping => {
     const tid = threadIdOf(log.data);
 
     if (log.event === RUN_START) {
-      const key = keyFor(tid);
-      const stale = openByThread.get(key);
+      const stale = openByThread.get(tid);
       if (stale) {
         stale.endTime = log.time;
-        openByThread.delete(key);
+        openByThread.delete(tid);
       }
       const builder: RunBuilder = {
         id: `run-${builders.length}`,
@@ -66,7 +65,7 @@ export const groupRuns = (logs: readonly RunLogEntry[]): RunGrouping => {
         events: [entryFor(log, 0)],
       };
       builders.push(builder);
-      openByThread.set(key, builder);
+      openByThread.set(tid, builder);
       continue;
     }
 
@@ -77,7 +76,7 @@ export const groupRuns = (logs: readonly RunLogEntry[]): RunGrouping => {
         run.events.push(
           entryFor(log, log.time.getTime() - run.startTime.getTime()),
         );
-        openByThread.delete(keyFor(run.threadId));
+        openByThread.delete(run.threadId);
         continue;
       }
       orphans.push(entryFor(log, 0));

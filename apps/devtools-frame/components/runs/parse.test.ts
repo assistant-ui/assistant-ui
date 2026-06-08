@@ -131,6 +131,21 @@ describe("groupRuns", () => {
     expect(runs[0]!.events.map((e) => e.event)).toContain("custom.event");
   });
 
+  it("keeps an empty-string threadId distinct from a thread-less run", () => {
+    const logs: RunLogEntry[] = [
+      { time: t(0), event: "thread.runStart", data: { threadId: "" } },
+      { time: t(50), event: "thread.runStart", data: {} },
+      { time: t(100), event: "thread.runEnd", data: { threadId: "" } },
+    ];
+    const { runs } = groupRuns(logs);
+    expect(runs).toHaveLength(2);
+    expect(runs[0]!.threadId).toBe("");
+    expect(runs[0]!.running).toBe(false);
+    expect(runs[0]!.durationMs).toBe(100);
+    expect(runs[1]!.threadId).toBeUndefined();
+    expect(runs[1]!.running).toBe(true);
+  });
+
   it("returns nothing for an empty log", () => {
     expect(groupRuns([])).toEqual({ runs: [], orphans: [] });
   });
