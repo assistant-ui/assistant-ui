@@ -8,9 +8,10 @@ import {
   type NormalizedTool,
   FrameClient,
 } from "@assistant-ui/react-devtools";
-import { isRecord, truncate } from "./common";
+import { eventScope, formatClockTime, isRecord, truncate } from "./common";
 import { McpView } from "./mcp";
 import { ModelContextView } from "./model-context";
+import { RunTimeline } from "./runs";
 import {
   ThreadDetails,
   parseComposerPreview,
@@ -51,18 +52,15 @@ interface ApiData {
   modelContext?: any;
 }
 
-type TabType = "state" | "events" | "modelContext";
+type TabType = "state" | "events" | "modelContext" | "runs";
 
-const formatTime = (value: Date) =>
-  `${value.getHours().toString().padStart(2, "0")}:${value
-    .getMinutes()
-    .toString()
-    .padStart(2, "0")}:${value.getSeconds().toString().padStart(2, "0")}.${value
-    .getMilliseconds()
-    .toString()
-    .padStart(3, "0")}`;
-
-const eventScope = (event: string) => event.split(".")[0] ?? event;
+const parseEventTime = (value: unknown): Date => {
+  if (typeof value === "string") {
+    const date = new Date(value);
+    if (Number.isFinite(date.getTime())) return date;
+  }
+  return new Date();
+};
 
 const extractModelContext = (state: any): ModelContext | undefined => {
   if (!isRecord(state)) return undefined;
@@ -377,10 +375,7 @@ export function DevToolsUI() {
             id: api.apiId,
             state: api.state || {},
             logs: events.map((event: any) => ({
-              time:
-                typeof event.time === "string"
-                  ? new Date(event.time)
-                  : new Date(),
+              time: parseEventTime(event.time),
               event: typeof event.event === "string" ? event.event : "unknown",
               data: event.data,
             })),
@@ -588,6 +583,12 @@ export function DevToolsUI() {
             </ControlButton>
           </div>
         );
+      case "runs":
+        return (
+          <div className="flex h-full items-center px-4 text-xs text-zinc-500 dark:text-zinc-400">
+            Run timeline
+          </div>
+        );
       default:
         return (
           <div className="flex h-full items-center px-4 text-xs text-zinc-500 dark:text-zinc-400">
@@ -729,7 +730,7 @@ export function DevToolsUI() {
                     className="border-t border-zinc-200 bg-white text-[11px] transition-colors dark:border-zinc-800 dark:bg-zinc-900"
                   >
                     <td className="px-4 py-2 align-top font-mono whitespace-nowrap text-zinc-600 dark:text-zinc-300">
-                      {formatTime(log.time)}
+                      {formatClockTime(log.time)}
                     </td>
                     <td className="px-4 py-2 align-top text-zinc-500 dark:text-zinc-400">
                       {eventScope(log.event)}
@@ -760,12 +761,24 @@ export function DevToolsUI() {
     return <ModelContextView modelContext={selectedApi.modelContext} />;
   };
 
+  const renderRunsContent = () => {
+    if (!selectedApi) {
+      return (
+        <CenteredMessage>Waiting for assistant-ui instance...</CenteredMessage>
+      );
+    }
+
+    return <RunTimeline logs={selectedApi.logs} />;
+  };
+
   const renderTabContent = (): ReactNode => {
     switch (activeTab) {
       case "state":
         return renderStateContent();
       case "events":
         return renderEventsContent();
+      case "runs":
+        return renderRunsContent();
       default:
         return renderContextContent();
     }
@@ -778,7 +791,7 @@ export function DevToolsUI() {
 
         <nav className="flex h-10 items-center justify-between border-b border-zinc-200 bg-zinc-50 px-2 dark:border-zinc-900 dark:bg-zinc-950">
           <div className="flex h-full items-center gap-1">
-            {["state", "modelContext", "events"].map((tab) => (
+            {["state", "modelContext", "events", "runs"].map((tab) => (
               <button
                 type="button"
                 key={tab}
