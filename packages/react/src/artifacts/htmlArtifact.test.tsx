@@ -59,7 +59,9 @@ describe("htmlArtifact", () => {
     expect(tool.display).toBe("standalone");
     expect(tool.parameters).toBeDefined();
     expect(typeof tool.render).toBe("function");
-    await expect(tool.execute?.({}, {} as never)).resolves.toEqual({});
+    await expect(tool.execute?.({ html: "" }, {} as never)).resolves.toEqual(
+      {},
+    );
   });
 
   describe("render", () => {

@@ -101,7 +101,6 @@ export function htmlArtifact(
       "Render an HTML artifact: a complete, self-contained HTML document shown on its own surface in a sandboxed iframe.",
     parameters: htmlArtifactParameters,
     display: "standalone",
-    unstable_backendDefault: { parameters: true },
     execute: async () => ({}),
     render: createHtmlArtifactRender(options),
   };
