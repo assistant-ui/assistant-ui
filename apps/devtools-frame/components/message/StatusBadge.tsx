@@ -1,5 +1,4 @@
-import clsx from "clsx";
-import { BADGE_TONE } from "../ui";
+import { ToneBadge } from "../ui";
 import type { BadgeTone } from "../ui";
 
 const TONE: Record<string, BadgeTone> = {
@@ -16,13 +15,8 @@ export const StatusBadge = ({
   type: string;
   reason?: string | undefined;
 }) => (
-  <span
-    className={clsx(
-      "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
-      BADGE_TONE[TONE[type] ?? "zinc"],
-    )}
-  >
+  <ToneBadge tone={TONE[type]} className="inline-flex items-center gap-1">
     <span>{type}</span>
     {reason ? <span className="opacity-70">· {reason}</span> : null}
-  </span>
+  </ToneBadge>
 );

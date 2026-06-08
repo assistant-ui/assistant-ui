@@ -1,5 +1,4 @@
-import clsx from "clsx";
-import { BADGE_TONE, JSONPreview, SummaryItem } from "../ui";
+import { JSONPreview, SummaryItem, ToneBadge } from "../ui";
 import type { BadgeTone } from "../ui";
 import { parseMcpManager } from "./parse";
 import type { McpServerPreview } from "./types";
@@ -24,14 +23,9 @@ const ServerCard = ({ server }: { server: McpServerPreview }) => (
           {server.kind}
         </span>
       ) : null}
-      <span
-        className={clsx(
-          "rounded border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
-          BADGE_TONE[STATE_TONE[server.connectionState] ?? "zinc"],
-        )}
-      >
+      <ToneBadge tone={STATE_TONE[server.connectionState]}>
         {server.connectionState}
-      </span>
+      </ToneBadge>
     </div>
 
     {server.url ? (

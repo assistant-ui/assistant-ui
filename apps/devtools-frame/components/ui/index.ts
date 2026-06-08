@@ -7,3 +7,4 @@ export { InfoCard } from "./InfoCard";
 export { JSONPreview } from "./JSONPreview";
 export { SectionTitle } from "./SectionTitle";
 export { SummaryItem } from "./SummaryItem";
+export { ToneBadge } from "./ToneBadge";

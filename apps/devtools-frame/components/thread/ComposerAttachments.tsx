@@ -1,5 +1,4 @@
-import clsx from "clsx";
-import { BADGE_TONE } from "../ui";
+import { ToneBadge } from "../ui";
 import type { BadgeTone } from "../ui";
 import type { AttachmentPreview, AttachmentStatusPreview } from "./types";
 
@@ -19,14 +18,7 @@ const statusLabel = (status: AttachmentStatusPreview) => {
 };
 
 const StatusBadge = ({ status }: { status: AttachmentStatusPreview }) => (
-  <span
-    className={clsx(
-      "rounded border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
-      BADGE_TONE[STATUS_TONE[status.type] ?? "zinc"],
-    )}
-  >
-    {statusLabel(status)}
-  </span>
+  <ToneBadge tone={STATUS_TONE[status.type]}>{statusLabel(status)}</ToneBadge>
 );
 
 export const ComposerAttachments = ({
