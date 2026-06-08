@@ -78,27 +78,38 @@ const SENSITIVE_KEYS = new Set([
 const normalizeKey = (key: string) => key.toLowerCase().replace(/[-_]/g, "");
 
 /**
- * Mask values whose key names a known credential. Operates on already
- * sanitized plain data (primitives, arrays, plain objects). Applied only to
- * config-bearing subtrees, never to a tool's parameters schema, so a schema
- * property literally named `token` is not corrupted.
+ * Subtrees that are credential maps with arbitrary, user-defined key names
+ * (MCP stdio `env`, HTTP `headers`). Per-key name matching cannot catch
+ * `OPENAI_API_KEY` or a custom auth header, so every leaf inside one of these
+ * is masked wholesale.
  */
-export const redactSensitive = (value: unknown): unknown => {
+const MASK_ALL_KEYS = new Set(["env", "headers"]);
+
+/**
+ * Mask values whose key names a known credential, and mask every value inside
+ * an `env`/`headers` subtree wholesale. Operates on already sanitized plain
+ * data (primitives, arrays, plain objects). Applied only to config-bearing
+ * subtrees, never to a tool's parameters schema, so a schema property literally
+ * named `token` is not corrupted.
+ */
+export const redactSensitive = (value: unknown, maskAll = false): unknown => {
   if (Array.isArray(value)) {
-    return value.map((entry) => redactSensitive(entry));
+    return value.map((entry) => redactSensitive(entry, maskAll));
   }
   if (value && typeof value === "object") {
     const result: Record<string, unknown> = {};
     for (const [key, entry] of Object.entries(
       value as Record<string, unknown>,
     )) {
-      result[key] = SENSITIVE_KEYS.has(normalizeKey(key))
-        ? REDACTED
-        : redactSensitive(entry);
+      const normalized = normalizeKey(key);
+      result[key] =
+        maskAll || SENSITIVE_KEYS.has(normalized)
+          ? REDACTED
+          : redactSensitive(entry, MASK_ALL_KEYS.has(normalized));
     }
     return result;
   }
-  return value;
+  return maskAll ? REDACTED : value;
 };
 
 const sanitizeAndRedact = (value: unknown): unknown =>

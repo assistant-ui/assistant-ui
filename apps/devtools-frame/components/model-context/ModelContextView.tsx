@@ -1,16 +1,9 @@
-import {
-  normalizeToolList,
-  type NormalizedTool,
+import type {
+  NormalizedTool,
+  SerializedModelContext,
 } from "@assistant-ui/react-devtools";
 import type { ReactNode } from "react";
 import { InfoCard, JSONPreview, SectionTitle } from "../ui";
-
-interface ModelContextValue {
-  system?: string;
-  tools?: NormalizedTool[];
-  callSettings?: Record<string, unknown>;
-  config?: Record<string, unknown>;
-}
 
 const Badge = ({
   children,
@@ -81,9 +74,9 @@ const ToolCard = ({ tool }: { tool: NormalizedTool }) => (
 export const ModelContextView = ({
   modelContext,
 }: {
-  modelContext?: ModelContextValue | undefined;
+  modelContext?: SerializedModelContext | undefined;
 }) => {
-  const toolList = normalizeToolList(modelContext?.tools);
+  const toolList = Array.isArray(modelContext?.tools) ? modelContext.tools : [];
   const system = modelContext?.system;
   const callSettings = modelContext?.callSettings;
   const config = modelContext?.config;

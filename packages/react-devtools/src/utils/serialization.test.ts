@@ -26,6 +26,25 @@ describe("redactSensitive", () => {
     const out = redactSensitive([{ token: "a" }, { ok: 1 }]) as unknown[];
     expect(out).toEqual([{ token: REDACTED }, { ok: 1 }]);
   });
+
+  it("masks every value inside env/headers, including arbitrary names", () => {
+    const out = redactSensitive({
+      env: { OPENAI_API_KEY: "sk-1", GITHUB_TOKEN: "ghp", PATH: "/bin" },
+      headers: { "X-Custom-Auth": "abc", "Content-Type": "application/json" },
+      url: "https://mcp.example.com",
+    }) as Record<string, Record<string, unknown>>;
+
+    expect(out.env).toEqual({
+      OPENAI_API_KEY: REDACTED,
+      GITHUB_TOKEN: REDACTED,
+      PATH: REDACTED,
+    });
+    expect(out.headers).toEqual({
+      "X-Custom-Auth": REDACTED,
+      "Content-Type": REDACTED,
+    });
+    expect(out.url).toBe("https://mcp.example.com");
+  });
 });
 
 describe("serializeModelContext", () => {
@@ -78,6 +97,28 @@ describe("serializeModelContext", () => {
       type: "http",
       url: "https://x",
       headers: { token: REDACTED },
+    });
+  });
+
+  it("masks arbitrary env names on an MCP stdio server tool", () => {
+    const result = serializeModelContext({
+      tools: {
+        gh: {
+          type: "mcp",
+          server: {
+            type: "stdio",
+            command: "mcp-github",
+            env: { GITHUB_TOKEN: "ghp_secret", OPENAI_API_KEY: "sk" },
+          },
+        },
+      },
+    } as never);
+
+    const gh = result?.tools?.find((t) => t.name === "gh");
+    expect(gh?.server).toEqual({
+      type: "stdio",
+      command: "mcp-github",
+      env: { GITHUB_TOKEN: REDACTED, OPENAI_API_KEY: REDACTED },
     });
   });
 
