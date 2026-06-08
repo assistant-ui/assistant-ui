@@ -2,7 +2,7 @@
  * Tests to verify when tap strict mode causes double-rendering
  * These tests should mirror the React strict mode behavior
  */
-/* oxlint-disable tap-hooks/exhaustive-deps -- empty dep arrays are part of the test scenarios */
+/* oxlint-disable react/exhaustive-deps -- empty dep arrays are part of the test scenarios */
 
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { resource } from "../../core/resource";

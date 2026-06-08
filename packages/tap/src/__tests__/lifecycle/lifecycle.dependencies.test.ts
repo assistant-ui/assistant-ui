@@ -1,4 +1,4 @@
-/* oxlint-disable tap-hooks/exhaustive-deps -- tests deliberately exercise invalid dep arrays */
+/* oxlint-disable react/exhaustive-deps -- tests deliberately exercise invalid dep arrays */
 import { describe, it, expect, vi } from "vitest";
 import { useEffect } from "../../hooks/useEffect";
 import { useState } from "../../hooks/useState";

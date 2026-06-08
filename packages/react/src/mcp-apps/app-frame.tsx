@@ -31,7 +31,7 @@ function useBridgeNotify<T>(
     }
     notify(bridgeRef.current, value);
     lastSentRef.current = value;
-    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- refs are stable; notify is assumed stable; re-run only when value changes
+    // oxlint-disable-next-line react/exhaustive-deps -- refs are stable; notify is assumed stable; re-run only when value changes
   }, [value]);
 }
 
@@ -254,7 +254,7 @@ export function McpAppFrame({
       pendingHostContextRef.current = undefined;
       setContentHeight(undefined);
     };
-    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- re-mount only on resource URI change; live values flow through liveRef
+    // oxlint-disable-next-line react/exhaustive-deps -- re-mount only on resource URI change; live values flow through liveRef
   }, [resourceUri]);
 
   useBridgeNotify(

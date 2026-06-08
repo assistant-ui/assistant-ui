@@ -43,7 +43,7 @@ import {
 } from "./utils/proxied-assistant-state";
 
 const useShallowMemoArray = <T>(array: readonly T[]) => {
-  // oxlint-disable-next-line tap-hooks/exhaustive-deps -- shallow memo over the array itself
+  // oxlint-disable-next-line react/exhaustive-deps -- shallow memo over the array itself
   return useMemo(() => array, array);
 };
 

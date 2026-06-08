@@ -36,7 +36,7 @@ export function useClientLookup<TMethods extends ClientMethods>(
 } {
   const resources = useResources(
     () => getElements().map((el) => ClientResourceWithKey(el)),
-    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- caller-supplied deps array
+    // oxlint-disable-next-line react/exhaustive-deps -- caller-supplied deps array
     getElementsDeps,
   );
 

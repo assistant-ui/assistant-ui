@@ -131,7 +131,7 @@ function InlineRenderer({
     return () => {
       cancelled = true;
     };
-    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- re-fetch only when URI changes; appForRender identity is unstable and internalsRef is a stable ref
+    // oxlint-disable-next-line react/exhaustive-deps -- re-fetch only when URI changes; appForRender identity is unstable and internalsRef is a stable ref
   }, [resourceUri]);
 
   const bridgeHandlers = useMemo<McpAppBridgeHandlers>(

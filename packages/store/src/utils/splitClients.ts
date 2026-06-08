@@ -66,7 +66,7 @@ function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
 }
 
 const useShallowMemoObject = <T extends object>(object: T) => {
-  // oxlint-disable-next-line tap-hooks/exhaustive-deps -- shallow memo over the object's flattened entries
+  // oxlint-disable-next-line react/exhaustive-deps -- shallow memo over the object's flattened entries
   return useMemo(() => object, [...Object.entries(object).flat()]);
 };
 

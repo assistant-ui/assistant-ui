@@ -20,6 +20,8 @@ const tapDispatcher = {
   useMemo,
   useCallback,
   useEffect,
+  useLayoutEffect: useEffect,
+  useInsertionEffect: useEffect,
   useEffectEvent,
   useContext: use,
   use,
@@ -34,25 +36,27 @@ const internals =
   (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 const slot: { current: unknown } | null =
-  "H" in internals
-    ? {
-        get current() {
-          return internals.H;
-        },
-        set current(d) {
-          internals.H = d;
-        },
-      }
-    : "ReactCurrentDispatcher" in internals
+  internals == null
+    ? null
+    : "H" in internals
       ? {
           get current() {
-            return internals.ReactCurrentDispatcher.current;
+            return internals.H;
           },
           set current(d) {
-            internals.ReactCurrentDispatcher.current = d;
+            internals.H = d;
           },
         }
-      : null;
+      : "ReactCurrentDispatcher" in internals
+        ? {
+            get current() {
+              return internals.ReactCurrentDispatcher.current;
+            },
+            set current(d) {
+              internals.ReactCurrentDispatcher.current = d;
+            },
+          }
+        : null;
 
 /**
  * Runs a resource body with tap's React dispatcher installed, so real React

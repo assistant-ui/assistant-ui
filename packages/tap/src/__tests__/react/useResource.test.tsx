@@ -148,7 +148,7 @@ describe("@assistant-ui/tap/react resource API", () => {
     it("remounts the hosted resource when the element key changes", () => {
       const mounts: number[] = [];
       const Keyed = resource(function Keyed(p: { id: number }) {
-        // oxlint-disable-next-line tap-hooks/exhaustive-deps -- capture the mount id once per fiber to assert remount on key change
+        // oxlint-disable-next-line react/exhaustive-deps -- capture the mount id once per fiber to assert remount on key change
         useResourceEffect(() => void mounts.push(p.id), []);
         return p.id;
       });
