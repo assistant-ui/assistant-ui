@@ -14,174 +14,109 @@ This will install the required dependencies including `langchain-core`.
 
 ## Usage
 
-The main function provided by this integration is `append_langgraph_event`, which allows you to append LangGraph events to the state managed by a RunController.
+The integration exposes `append_langgraph_event`, which folds the events produced by LangGraph's native streaming into the state managed by a `RunController`. It is meant to consume `graph.astream(..., stream_mode=["messages", "updates"])` output directly: the event type is the LangGraph stream mode name, and the payload is the raw chunk LangGraph yields for that mode.
 
 ### Function Signature
 
 ```python
 def append_langgraph_event(
-    controller: Any,
-    namespace: str,
+    state: Any,
+    _namespace: Any,
     type: str,
-    payload: Any
+    payload: Any,
 ) -> None
 ```
 
 ### Parameters
 
-- **controller**: A RunController instance from LangGraph that contains a `state` attribute
-- **namespace**: The namespace for the event (currently not used but required for future compatibility)
-- **type**: The type of event, either `"message"` or `"updates"`
-- **payload**: The payload for the event, format depends on the event type
+- **state**: The state to mutate, normally `controller.state`. It is read and written with dictionary-style access.
+- **_namespace**: The LangGraph namespace for the event. It is accepted for forward compatibility and is currently unused.
+- **type**: The LangGraph stream mode that produced the event, either `"messages"` or `"updates"`.
+- **payload**: The raw chunk LangGraph yields for that stream mode, described below.
 
 ### Event Types
 
-#### Message Events (`type="message"`)
+#### Message events (`type="messages"`)
 
-For message events, the payload must be a tuple of `(messages, metadata)`:
-
-- **messages**: Can be either a single message or a list of messages (BaseMessage instances from LangChain)
-- **metadata**: A dictionary of metadata (currently not used but required)
+The payload is the `(message, metadata)` tuple that LangGraph yields in `"messages"` mode, where `message` is a single `BaseMessage` (often an `AIMessageChunk`) and `metadata` is currently unused.
 
 The function will:
 
-- Create a `messages` array in the state if it doesn't exist
-- Convert messages to plain JSON using LangChain's `message_to_dict`
-- Merge messages with the same ID:
-  - For AIMessageChunk messages, content is appended
-  - For other message types, the entire message is replaced
-- Append new messages that don't have matching IDs
-
-Example:
+- Create a `messages` list in the state if it does not exist.
+- Convert the message to a plain dict with `model_dump()`.
+- Merge into an existing message when the `id` (or `tool_call_id`) matches: for an `AIMessageChunk` the content is concatenated with `add_ai_message_chunks`, otherwise the stored message is replaced.
+- Append the message when no existing id matches.
 
 ```python
-from langchain_core.messages import HumanMessage, AIMessage
-from assistant_stream import append_langgraph_event
+from langchain_core.messages import AIMessageChunk
 
-# Single message
-message = HumanMessage(content="Hello", id="msg1")
-append_langgraph_event(controller, "default", "message", ([message], {}))
-
-# Multiple messages
-messages = [
-    HumanMessage(content="Hello", id="msg1"),
-    AIMessage(content="Hi there!", id="msg2")
-]
-append_langgraph_event(controller, "default", "message", (messages, {}))
+# one chunk yielded by stream_mode="messages"
+chunk = (AIMessageChunk(content="Hello", id="msg1"), {})
+append_langgraph_event(controller.state, namespace, "messages", chunk)
 ```
 
-#### Updates Events (`type="updates"`)
+#### Updates events (`type="updates"`)
 
-For updates events, the payload must be a dictionary with the structure:
-
-```python
-{
-    "node_name": {
-        "channel": new_value,
-        ...
-    },
-    ...
-}
-```
+The payload is the `{node_name: {channel: value}}` dict that LangGraph yields in `"updates"` mode.
 
 The function will:
 
-- Update channel values for each node
-- Create nodes if they don't exist
-- Skip updates to the "messages" channel (as these are handled by message events)
-
-Example:
+- Write each channel value directly onto the state (`state[channel] = value`), so the node name is not retained.
+- Skip the `messages` channel, since messages are handled by message events.
+- Skip a node whose value is not a dict.
 
 ```python
-updates = {
-    "agent": {
-        "status": "thinking",
-        "confidence": 0.95
-    },
-    "retriever": {
-        "documents_found": 5
-    }
-}
-append_langgraph_event(controller, "default", "updates", updates)
+updates = {"weather_agent": {"status": "completed", "temperature": 72}}
+append_langgraph_event(controller.state, namespace, "updates", updates)
+# state now contains {"status": "completed", "temperature": 72}
 ```
 
-### Important Notes
+### Notes
 
-1. **State Format**: The state must only contain plain JSON objects (lists, dicts, str, int, bool, None). All LangChain messages are automatically converted to JSON format.
-
-2. **Message Merging**: When a message with an existing ID is appended:
-   - If both messages are AI messages (type="ai"), the content is concatenated
-   - For all other cases, the entire message is replaced
-
-3. **Error Handling**:
-   - Raises `ValueError` if the controller doesn't have a `state` attribute
-   - Raises `TypeError` if the payload format is invalid
-   - Skips `None` messages silently
-   - Ignores unknown event types
-
-4. **Thread Safety**: This function modifies the state directly and is not thread-safe. Ensure proper synchronization if using from multiple threads.
+- The state holds plain JSON values (lists, dicts, str, int, bool, None); LangChain messages are converted with `model_dump()` before they are stored.
+- Event types other than `"messages"` and `"updates"` are ignored.
 
 ## Example Integration
 
-Here's a complete example of using `append_langgraph_event` with a LangGraph RunController:
+The events come straight from `graph.astream`, so a run callback forwards each one to `append_langgraph_event`:
 
 ```python
-from assistant_stream import append_langgraph_event
-from langchain_core.messages import HumanMessage, AIMessageChunk
+from assistant_stream import RunController, create_run
+from assistant_stream.modules.langgraph import append_langgraph_event
+from assistant_stream.serialization import DataStreamResponse
 
-class MyRunController:
-    def __init__(self):
-        self.state = {}
 
-# Initialize controller
-controller = MyRunController()
+async def run_callback(controller: RunController):
+    async for namespace, event_type, chunk in graph.astream(
+        {"messages": input_messages},
+        stream_mode=["messages", "updates"],
+        subgraphs=True,
+    ):
+        append_langgraph_event(controller.state, namespace, event_type, chunk)
 
-# Add initial message
-user_message = HumanMessage(content="What is the weather?", id="user1")
-append_langgraph_event(controller, "main", "message", ([user_message], {}))
 
-# Add AI response chunks
-ai_chunk1 = AIMessageChunk(content="The weather", id="ai1")
-append_langgraph_event(controller, "main", "message", ([ai_chunk1], {}))
+stream = create_run(run_callback, state={})
+response = DataStreamResponse(stream)
+```
 
-ai_chunk2 = AIMessageChunk(content=" is sunny today.", id="ai1")
-append_langgraph_event(controller, "main", "message", ([ai_chunk2], {}))
+As the assistant message streams in, its chunks merge by id, so `controller.state["messages"]` ends with a single assistant message:
 
-# Update node states
-updates = {
-    "weather_agent": {
-        "status": "completed",
-        "temperature": 72
-    }
-}
-append_langgraph_event(controller, "main", "updates", updates)
-
-# Final state
-print(controller.state)
+```python
+# controller.state
 # {
 #     "messages": [
 #         {"type": "human", "content": "What is the weather?", "id": "user1"},
-#         {"type": "ai", "content": "The weather is sunny today.", "id": "ai1"}
+#         {"type": "ai", "content": "The weather is sunny today.", "id": "ai1"},
 #     ],
-#     "weather_agent": {
-#         "status": "completed",
-#         "temperature": 72
-#     }
 # }
 ```
 
+See `python/assistant-transport-backend-langgraph` for a complete server built on this pattern, including subgraph state via `get_tool_call_subgraph_state`.
+
 ## Testing
 
-The integration includes comprehensive unit tests. To run them:
+The integration is covered by unit tests that exercise `append_langgraph_event` against a real state proxy:
 
 ```bash
-python -m pytest tests/test_langgraph.py
+uv run pytest tests/test_langgraph.py
 ```
-
-The tests cover:
-
-- Message appending and merging
-- Updates handling
-- Error cases and edge conditions
-- Payload validation
-- Message normalization
