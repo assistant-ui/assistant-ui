@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { createMcpAppBridge, type McpAppBridgeFrame } from "./bridge";
+import {
+  createMcpAppBridge,
+  type McpAppBridge,
+  type McpAppBridgeFrame,
+} from "./bridge";
 import type {
   McpAppJsonRpcMessage,
   McpAppJsonRpcRequest,
@@ -24,13 +28,8 @@ function makeFrame() {
   return { frame, captured };
 }
 
-function dispatch(frame: McpAppBridgeFrame, message: McpAppJsonRpcMessage) {
-  const event = new MessageEvent("message", {
-    data: message,
-    origin: frame.origin,
-    source: frame.iframe.contentWindow,
-  });
-  window.dispatchEvent(event);
+function deliver(bridge: McpAppBridge, message: McpAppJsonRpcMessage) {
+  bridge.onMessage(new MessageEvent("message", { data: message }));
 }
 
 async function flush() {
@@ -55,7 +54,7 @@ describe("createMcpAppBridge", () => {
       id: 1,
       method: "ui/initialize",
     };
-    dispatch(frame, req);
+    deliver(bridge, req);
     await flush();
 
     expect(captured).toHaveLength(1);
@@ -82,7 +81,7 @@ describe("createMcpAppBridge", () => {
     const { frame, captured } = makeFrame();
     const bridge = createMcpAppBridge({ frame });
 
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       id: 1,
       method: "ui/initialize",
@@ -105,7 +104,7 @@ describe("createMcpAppBridge", () => {
     const callTool = vi.fn().mockResolvedValue({ ok: true });
     const bridge = createMcpAppBridge({ frame, handlers: { callTool } });
 
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       id: 7,
       method: "tools/call",
@@ -133,7 +132,7 @@ describe("createMcpAppBridge", () => {
       handlers: { callTool, allowedTools: ["search"] },
     });
 
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       id: 2,
       method: "tools/call",
@@ -151,7 +150,7 @@ describe("createMcpAppBridge", () => {
     const { frame, captured } = makeFrame();
     const bridge = createMcpAppBridge({ frame });
 
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       id: 3,
       method: "tools/call",
@@ -169,7 +168,7 @@ describe("createMcpAppBridge", () => {
     const callTool = vi.fn();
     const bridge = createMcpAppBridge({ frame, handlers: { callTool } });
 
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       id: 11,
       method: "tools/call",
@@ -190,7 +189,7 @@ describe("createMcpAppBridge", () => {
       handlers: { requestDisplayMode },
     });
 
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       id: 13,
       method: "requestDisplayMode",
@@ -208,7 +207,7 @@ describe("createMcpAppBridge", () => {
     const openLink = vi.fn();
     const bridge = createMcpAppBridge({ frame, handlers: { openLink } });
 
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       id: 12,
       method: "openLink",
@@ -230,12 +229,12 @@ describe("createMcpAppBridge", () => {
       handlers: { onSizeChange, onInitialized },
     });
 
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       method: "notifications/size_changed",
       params: { width: 320, height: 240 },
     });
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       method: "notifications/initialized",
     });
@@ -328,13 +327,13 @@ describe("createMcpAppBridge", () => {
       handlers: { readResource, listResources },
     });
 
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       id: 20,
       method: "resources/read",
       params: { uri: "ui://app/x" },
     });
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       id: 21,
       method: "resources/list",
@@ -353,13 +352,13 @@ describe("createMcpAppBridge", () => {
     const { frame, captured } = makeFrame();
     const bridge = createMcpAppBridge({ frame });
 
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       id: 22,
       method: "resources/read",
       params: { uri: "ui://x" },
     });
-    dispatch(frame, { jsonrpc: "2.0", id: 23, method: "resources/list" });
+    deliver(bridge, { jsonrpc: "2.0", id: 23, method: "resources/list" });
     await flush();
 
     expect((captured[0] as McpAppJsonRpcResponse).error?.code).toBe(-32601);
@@ -376,13 +375,13 @@ describe("createMcpAppBridge", () => {
       handlers: { sendMessage, updateModelContext },
     });
 
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       id: 30,
       method: "sendMessage",
       params: { text: "hi" },
     });
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       id: 31,
       method: "updateModelContext",
@@ -408,17 +407,17 @@ describe("createMcpAppBridge", () => {
       handlers: { onLog, onError, onRequestTeardown },
     });
 
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       method: "notifications/log",
       params: { level: "info", message: "hello" },
     });
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       method: "notifications/error",
       params: { message: "kaboom" },
     });
-    dispatch(frame, {
+    deliver(bridge, {
       jsonrpc: "2.0",
       method: "notifications/request_teardown",
       params: { reason: "done" },
@@ -427,39 +426,6 @@ describe("createMcpAppBridge", () => {
     expect(onLog).toHaveBeenCalledWith({ level: "info", message: "hello" });
     expect(onError).toHaveBeenCalled();
     expect(onRequestTeardown).toHaveBeenCalledWith({ reason: "done" });
-    bridge.dispose();
-  });
-
-  it("ignores messages from wrong origin or wrong source", async () => {
-    const { frame, captured } = makeFrame();
-    const callTool = vi.fn();
-    const bridge = createMcpAppBridge({ frame, handlers: { callTool } });
-
-    const msg: McpAppJsonRpcMessage = {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: { name: "search" },
-    };
-
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        data: msg,
-        origin: "https://attacker.example",
-        source: frame.iframe.contentWindow,
-      }),
-    );
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        data: msg,
-        origin: frame.origin,
-        source: window,
-      }),
-    );
-    await flush();
-
-    expect(callTool).not.toHaveBeenCalled();
-    expect(captured).toHaveLength(0);
     bridge.dispose();
   });
 });

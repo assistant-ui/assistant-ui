@@ -28,10 +28,10 @@ export type CreateMcpAppBridgeOptions = {
   handlers?: McpAppBridgeHandlers | undefined;
   hostInfo?: McpAppHostInfo | undefined;
   hostContext?: McpAppHostContext | undefined;
-  targetWindow?: Window | undefined;
 };
 
 export type McpAppBridge = {
+  onMessage: (event: MessageEvent) => void;
   dispose: () => void;
   notifyToolInput: (input: unknown) => void;
   notifyToolResult: (result: unknown) => void;
@@ -91,12 +91,7 @@ export function createMcpAppBridge(
     handlers = {},
     hostInfo = DEFAULT_HOST_INFO,
     hostContext = {},
-    targetWindow = typeof window !== "undefined" ? window : undefined,
   } = opts;
-
-  if (!targetWindow) {
-    throw new Error("createMcpAppBridge requires a window context");
-  }
 
   const post = (msg: McpAppJsonRpcMessage) => {
     frame.sendMessage(msg);
@@ -423,11 +418,9 @@ export function createMcpAppBridge(
     }
   };
 
-  // Cross-origin guard: ignore any postMessage not originating from this
-  // app's iframe contentWindow at the SafeContentFrame-issued origin.
+  // The host applies the cross-origin guard before delegating; this only
+  // validates the JSON-RPC envelope.
   const onMessage = (event: MessageEvent) => {
-    if (event.source !== frame.iframe.contentWindow) return;
-    if (event.origin !== frame.origin) return;
     if (!isJsonRpcMessage(event.data)) return;
 
     const msg = event.data;
@@ -438,12 +431,9 @@ export function createMcpAppBridge(
     }
   };
 
-  targetWindow.addEventListener("message", onMessage);
-
   return {
-    dispose: () => {
-      targetWindow.removeEventListener("message", onMessage);
-    },
+    onMessage,
+    dispose: () => {},
     notifyToolInput: (input: unknown) => {
       post({
         jsonrpc: "2.0",
