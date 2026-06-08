@@ -18,6 +18,7 @@ import {
 import { McpView } from "./mcp";
 import { ModelContextView } from "./model-context";
 import { RunTimeline } from "./runs";
+import { ScopesView } from "./scopes";
 import {
   ThreadDetails,
   parseComposerPreview,
@@ -43,6 +44,7 @@ interface ApiInfo {
   state: AssistantState;
   logs: EventLogEntry[];
   modelContext?: ModelContext;
+  scopes?: unknown;
 }
 
 interface ApiData {
@@ -50,9 +52,10 @@ interface ApiData {
   state: any;
   events: any[];
   modelContext?: any;
+  scopes?: any;
 }
 
-type TabType = "state" | "events" | "modelContext" | "runs";
+type TabType = "state" | "events" | "modelContext" | "runs" | "scopes";
 
 const parseEventTime = (value: unknown): Date => {
   if (typeof value === "string") {
@@ -380,6 +383,7 @@ export function DevToolsUI() {
               data: event.data,
             })),
             modelContext: api.modelContext || extractModelContext(api.state),
+            scopes: api.scopes,
           };
         }) ?? [];
       setApis(convertedApis);
@@ -589,6 +593,12 @@ export function DevToolsUI() {
             Run timeline
           </div>
         );
+      case "scopes":
+        return (
+          <div className="flex h-full items-center px-4 text-xs text-zinc-500 dark:text-zinc-400">
+            Scope graph
+          </div>
+        );
       default:
         return (
           <div className="flex h-full items-center px-4 text-xs text-zinc-500 dark:text-zinc-400">
@@ -771,6 +781,16 @@ export function DevToolsUI() {
     return <RunTimeline logs={selectedApi.logs} />;
   };
 
+  const renderScopesContent = () => {
+    if (!selectedApi) {
+      return (
+        <CenteredMessage>Waiting for assistant-ui instance...</CenteredMessage>
+      );
+    }
+
+    return <ScopesView scopes={selectedApi.scopes} />;
+  };
+
   const renderTabContent = (): ReactNode => {
     switch (activeTab) {
       case "state":
@@ -779,6 +799,8 @@ export function DevToolsUI() {
         return renderEventsContent();
       case "runs":
         return renderRunsContent();
+      case "scopes":
+        return renderScopesContent();
       default:
         return renderContextContent();
     }
@@ -791,21 +813,23 @@ export function DevToolsUI() {
 
         <nav className="flex h-10 items-center justify-between border-b border-zinc-200 bg-zinc-50 px-2 dark:border-zinc-900 dark:bg-zinc-950">
           <div className="flex h-full items-center gap-1">
-            {["state", "modelContext", "events", "runs"].map((tab) => (
-              <button
-                type="button"
-                key={tab}
-                onClick={() => setActiveTab(tab as TabType)}
-                className={clsx(
-                  "flex h-full items-center px-2.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase transition-colors",
-                  activeTab === tab
-                    ? "border-b-2 border-blue-500 text-zinc-900 dark:border-blue-400 dark:text-zinc-100"
-                    : "border-b-2 border-transparent hover:text-zinc-700 dark:hover:text-zinc-200",
-                )}
-              >
-                {tab === "modelContext" ? "Model Context" : tab}
-              </button>
-            ))}
+            {["state", "modelContext", "events", "runs", "scopes"].map(
+              (tab) => (
+                <button
+                  type="button"
+                  key={tab}
+                  onClick={() => setActiveTab(tab as TabType)}
+                  className={clsx(
+                    "flex h-full items-center px-2.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase transition-colors",
+                    activeTab === tab
+                      ? "border-b-2 border-blue-500 text-zinc-900 dark:border-blue-400 dark:text-zinc-100"
+                      : "border-b-2 border-transparent hover:text-zinc-700 dark:hover:text-zinc-200",
+                  )}
+                >
+                  {tab === "modelContext" ? "Model Context" : tab}
+                </button>
+              ),
+            )}
           </div>
           {renderTabControls()}
         </nav>
