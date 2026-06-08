@@ -16,27 +16,16 @@ named function, and use the hooks you already know, imported from `"react"`.
 
 ```ts
 import { resource } from "@assistant-ui/tap";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 const Counter = resource(function Counter() {
   const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    console.log(`Count: ${count}`);
-  }, [count]);
-
   return { count, increment: () => setCount((c) => c + 1) };
 });
 ```
 
-Instead of JSX, a resource returns a plain value. That return value is its public
-API: the state and methods you want callers to use.
-
-<Callout type="warn">
-One rule that differs from React: you cannot call a setter during render. To
-adjust state in response to props, derive it during render instead. See
-[How tap differs from React](/tap/docs/differences-from-react).
-</Callout>
+Instead of JSX, a resource returns a plain value: the state and methods you want
+callers to use.
 
 ## Use it in React
 
@@ -55,28 +44,6 @@ function CounterButton() {
 
 Calling the factory (`Counter()`) creates an inert element; `useResource` brings
 it to life.
-
-## Compose resources
-
-Resources host other resources with the same `useResource` hook. Unlike React, a
-parent reads its child's return value directly, so composition builds up state and
-logic, not just trees.
-
-```ts
-import { resource, useResource } from "@assistant-ui/tap";
-import { useEffect } from "react";
-
-const AutoCounter = resource(function AutoCounter() {
-  const counter = useResource(Counter());
-
-  useEffect(() => {
-    const id = setInterval(counter.increment, 1000);
-    return () => clearInterval(id);
-  }, [counter]);
-
-  return { count: counter.count };
-});
-```
 
 ## Next steps
 
