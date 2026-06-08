@@ -86,15 +86,11 @@ The `@assistant-ui/store` layer currently relies on `useSyncExternalStore` to br
 
 ## Offscreen / Activity
 
-Tap supports React's `<Activity>` (formerly "Offscreen") API. When a resource rendered via `useResource` is hidden by `<Activity mode="hidden">`, tap correctly handles the version gap that occurs when React commits without running effects. State updates that arrive while the resource is hidden are tracked in a changelog and replayed when the component becomes visible again, ensuring the resource stays consistent.
-
-No special configuration is needed, `useResource` handles this automatically.
+When a resource is hidden by `<Activity mode="hidden">`, state updates that arrive while it's hidden are tracked and replayed once it becomes visible again. No configuration needed.
 
 ## Strict mode
 
-In development, tap supports React-style strict mode. When enabled, resources render twice on mount to help detect side effects in the render phase.
+In development, resources render twice on mount to surface side effects in render, the same as React's `<StrictMode>`.
 
-- **`useResource`** inherits React's strict mode setting automatically, if your component is inside `<StrictMode>`, the resource runs in strict mode too.
-- **`createResourceRoot`** automatically enables strict mode in development.
-
-This is the same behavior as React's `<StrictMode>`, double-rendering helps surface unintentional side effects during the render phase.
+- **`useResource`** inherits the surrounding `<StrictMode>`.
+- **`createResourceRoot`** enables it automatically in development.
