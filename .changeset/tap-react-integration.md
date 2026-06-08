@@ -1,5 +1,5 @@
 ---
-"@assistant-ui/tap": patch
+"@assistant-ui/tap": minor
 ---
 
 feat: React integration
