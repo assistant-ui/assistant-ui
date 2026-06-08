@@ -12,7 +12,7 @@ import { StepLLM, StepsLLM } from "@/components/docs/fumadocs/steps";
 import { InstallCommandLLM } from "@/components/docs/fumadocs/install/install-command";
 import { ParametersTableLLM } from "@/components/docs/parameters-table";
 import { PrimitivesTypeTableLLM } from "@/components/docs/primitives-type-table";
-import { FlowLLM } from "@/components/docs/flow/flow";
+import { FlowLLM } from "@/components/assistant-ui/flow";
 
 /**
  * The single substitution point mapping MDX components to their text variants

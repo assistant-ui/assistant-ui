@@ -56,42 +56,42 @@ Thread and message history can be stored by Assistant Cloud or by your own datab
 
 #### **1. Direct Integration with External Providers**
 
-<Flow
+<Flow.Root
   llm={`graph TD
     A[Frontend Components] --> B[Runtime]
     B --> D[External Providers or LLM APIs]`}
 >
-  <FlowColumn>
-    <FlowNode tone="pink">Frontend Components</FlowNode>
-    <FlowArrow direction="down" length={36} />
-    <FlowNode tone="blue">Runtime</FlowNode>
-    <FlowArrow direction="down" length={36} />
-    <FlowNode tone="red">External Providers or LLM APIs</FlowNode>
-  </FlowColumn>
-</Flow>
+  <Flow.Column>
+    <Flow.Node tone="pink">Frontend Components</Flow.Node>
+    <Flow.Arrow direction="down" length={36} />
+    <Flow.Node tone="blue">Runtime</Flow.Node>
+    <Flow.Arrow direction="down" length={36} />
+    <Flow.Node tone="red">External Providers or LLM APIs</Flow.Node>
+  </Flow.Column>
+</Flow.Root>
 
 #### **2. Using your own API endpoint**
 
-<Flow
+<Flow.Root
   llm={`graph TD
     A[Frontend Components] --> B[Runtime]
     B --> E[Your API Backend]
     E --> D[External Providers or LLM APIs]`}
 >
-  <FlowColumn>
-    <FlowNode tone="pink">Frontend Components</FlowNode>
-    <FlowArrow direction="down" length={36} />
-    <FlowNode tone="blue">Runtime</FlowNode>
-    <FlowArrow direction="down" length={36} />
-    <FlowNode tone="red">Your API Backend</FlowNode>
-    <FlowArrow direction="down" length={36} />
-    <FlowNode tone="red">External Providers or LLM APIs</FlowNode>
-  </FlowColumn>
-</Flow>
+  <Flow.Column>
+    <Flow.Node tone="pink">Frontend Components</Flow.Node>
+    <Flow.Arrow direction="down" length={36} />
+    <Flow.Node tone="blue">Runtime</Flow.Node>
+    <Flow.Arrow direction="down" length={36} />
+    <Flow.Node tone="red">Your API Backend</Flow.Node>
+    <Flow.Arrow direction="down" length={36} />
+    <Flow.Node tone="red">External Providers or LLM APIs</Flow.Node>
+  </Flow.Column>
+</Flow.Root>
 
 #### **3. With Assistant Cloud**
 
-<Flow
+<Flow.Root
   llm={`graph TD
     A[Frontend Components] --> B[Runtime]
     B --> C[Cloud]
@@ -99,28 +99,28 @@ Thread and message history can be stored by Assistant Cloud or by your own datab
     C --> D[External Providers or LLM APIs]
     B --> E[Your API Backend]`}
 >
-  <FlowCanvas
+  <Flow.Canvas
     edges={[
       { from: "runtime", to: "backend", route: "down", fromOffset: -20 },
       { from: "runtime", to: "cloud", route: "down", fromOffset: 20 },
       { from: "cloud", to: "providers", route: "down" },
     ]}
   >
-    <FlowColumn>
-      <FlowNode tone="pink">Frontend Components</FlowNode>
-      <FlowArrow direction="down" length={36} />
-      <FlowNode id="runtime" tone="blue">Runtime</FlowNode>
+    <Flow.Column>
+      <Flow.Node tone="pink">Frontend Components</Flow.Node>
+      <Flow.Arrow direction="down" length={36} />
+      <Flow.Node flowId="runtime" tone="blue">Runtime</Flow.Node>
       <div className="h-10" aria-hidden />
-      <FlowRow>
-        <FlowNode id="backend" tone="red">Your API Backend</FlowNode>
-        <FlowArrow length={48} />
-        <FlowNode id="cloud" tone="green">Cloud</FlowNode>
-      </FlowRow>
+      <Flow.Row>
+        <Flow.Node flowId="backend" tone="red">Your API Backend</Flow.Node>
+        <Flow.Arrow length={48} />
+        <Flow.Node flowId="cloud" tone="green">Cloud</Flow.Node>
+      </Flow.Row>
       <div className="h-10" aria-hidden />
-      <FlowNode id="providers" tone="red">External Providers or LLM APIs</FlowNode>
-    </FlowColumn>
-  </FlowCanvas>
-</Flow>
+      <Flow.Node flowId="providers" tone="red">External Providers or LLM APIs</Flow.Node>
+    </Flow.Column>
+  </Flow.Canvas>
+</Flow.Root>
 
 ## Going deeper
 

@@ -17,7 +17,7 @@ If you do not have an existing store, use [`LocalRuntime`](/docs/runtimes/custom
 
 ## Architecture
 
-<Flow
+<Flow.Root
   llm={`graph TD
     A[Your state] -->|messages| B[ExternalStoreAdapter]
     B --> C[ExternalStoreRuntime]
@@ -25,7 +25,7 @@ If you do not have an existing store, use [`LocalRuntime`](/docs/runtimes/custom
     D -->|user actions| B
     B -->|state updates| A`}
 >
-  <FlowCanvas
+  <Flow.Canvas
     className="pr-44"
     edges={[
       {
@@ -44,17 +44,17 @@ If you do not have an existing store, use [`LocalRuntime`](/docs/runtimes/custom
       },
     ]}
   >
-    <FlowColumn>
-      <FlowNode id="state">Your state</FlowNode>
-      <FlowArrow direction="down" label="messages" length={36} />
-      <FlowNode id="adapter">ExternalStoreAdapter</FlowNode>
-      <FlowArrow direction="down" length={36} />
-      <FlowNode>ExternalStoreRuntime</FlowNode>
-      <FlowArrow direction="down" length={36} />
-      <FlowNode id="components">assistant-ui components</FlowNode>
-    </FlowColumn>
-  </FlowCanvas>
-</Flow>
+    <Flow.Column>
+      <Flow.Node flowId="state">Your state</Flow.Node>
+      <Flow.Arrow direction="down" label="messages" length={36} />
+      <Flow.Node flowId="adapter">ExternalStoreAdapter</Flow.Node>
+      <Flow.Arrow direction="down" length={36} />
+      <Flow.Node>ExternalStoreRuntime</Flow.Node>
+      <Flow.Arrow direction="down" length={36} />
+      <Flow.Node flowId="components">assistant-ui components</Flow.Node>
+    </Flow.Column>
+  </Flow.Canvas>
+</Flow.Root>
 
 Key idea: you own the state, the adapter translates between your format and assistant-ui's. UI features are capability-based; if you provide `setMessages`, branching turns on; if you provide `onEdit`, editing turns on; etc.
 
