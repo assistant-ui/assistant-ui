@@ -5,7 +5,7 @@ import pytest
 from assistant_stream import RunController, create_run
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_controller_exposes_cancel_signal():
     observed: dict[str, object] = {}
 
@@ -25,7 +25,7 @@ async def test_controller_exposes_cancel_signal():
     assert observed["initial_is_cancelled"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_early_stream_close_sets_cancel_signal():
     callback_done = asyncio.Event()
     observed: dict[str, object] = {}
@@ -50,7 +50,7 @@ async def test_early_stream_close_sets_cancel_signal():
     assert observed["is_cancelled_after_close"] is True
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_early_stream_close_stops_background_task():
     callback_done = asyncio.Event()
 
@@ -72,7 +72,7 @@ async def test_early_stream_close_stops_background_task():
     await asyncio.wait_for(callback_done.wait(), timeout=0.2)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_normal_completion_does_not_set_cancel_signal():
     observed: dict[str, object] = {}
 
@@ -87,7 +87,7 @@ async def test_normal_completion_does_not_set_cancel_signal():
     assert observed["is_cancelled_on_complete"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_normal_completion_surfaces_callback_exception():
     chunk_types: list[str] = []
 
@@ -102,7 +102,7 @@ async def test_normal_completion_surfaces_callback_exception():
     assert chunk_types == ["text-delta", "error"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_early_stream_close_forces_background_task_cancellation():
     callback_cancelled = asyncio.Event()
     callback_finished = asyncio.Event()
@@ -128,7 +128,7 @@ async def test_early_stream_close_forces_background_task_cancellation():
     await asyncio.wait_for(callback_finished.wait(), timeout=2)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_early_stream_close_does_not_raise_callback_exception():
     async def run_callback(controller: RunController):
         controller.append_text("start")
@@ -142,7 +142,7 @@ async def test_early_stream_close_does_not_raise_callback_exception():
     await stream.aclose()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_early_stream_close_does_not_swallow_close_task_cancellation():
     callback_finished = asyncio.Event()
     loop = asyncio.get_running_loop()

@@ -33,7 +33,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]
-exclude = ["test_client.py"]
+exclude = ["client_demo.py", "subgraph_demo.py"]
 
 [tool.ruff]
 target-version = "py39"
