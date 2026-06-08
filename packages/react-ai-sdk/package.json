@@ -15,6 +15,17 @@
   "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
+  "imports": {
+    "#mcp-stdio": {
+      "types": "./src/mcp-stdio.node.ts",
+      "react-native": "./dist/mcp-stdio.unsupported.js",
+      "edge-light": "./dist/mcp-stdio.unsupported.js",
+      "workerd": "./dist/mcp-stdio.unsupported.js",
+      "browser": "./dist/mcp-stdio.unsupported.js",
+      "node": "./dist/mcp-stdio.node.js",
+      "default": "./dist/mcp-stdio.unsupported.js"
+    }
+  },
   "exports": {
     ".": {
       "react-native": {
