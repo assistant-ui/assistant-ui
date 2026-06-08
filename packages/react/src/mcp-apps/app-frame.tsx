@@ -172,13 +172,7 @@ export function McpAppFrame({
         liveOnInitialized?.();
       },
       onSizeChange: (p) => {
-        if (
-          typeof p.height === "number" &&
-          Number.isFinite(p.height) &&
-          p.height > 0
-        ) {
-          host.setHeight(p.height);
-        }
+        if (p.height != null) host.setHeight(p.height);
         liveHandlers.onSizeChange?.(p);
       },
     };

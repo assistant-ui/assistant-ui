@@ -1,9 +1,8 @@
-import type { CSSProperties } from "react";
 import type {
   McpAppMetadata,
   ToolCallMessagePartMcpMetadata,
 } from "@assistant-ui/core";
-import type { SandboxOption } from "safe-content-frame";
+import type { SandboxHostConfig } from "../sandbox-host/SandboxHost";
 
 export type { McpAppMetadata, ToolCallMessagePartMcpMetadata };
 
@@ -97,16 +96,7 @@ export type McpAppBridgeHandlers = {
   onError?: (error: Error) => void;
 };
 
-export type McpAppSandboxConfig = {
-  sandbox?: SandboxOption[];
-  useShadowDom?: boolean;
-  enableBrowserCaching?: boolean;
-  salt?: string;
-  product?: string;
-  className?: string;
-  style?: CSSProperties;
-  unsafeDocumentWrite?: boolean;
-};
+export type McpAppSandboxConfig = SandboxHostConfig;
 
 export type McpAppFrameProps = {
   app: McpAppMetadata;

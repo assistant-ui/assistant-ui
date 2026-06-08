@@ -1,4 +1,4 @@
-import type { RenderedFrame } from "safe-content-frame";
+import type { SandboxHostFrame } from "../sandbox-host/SandboxHost";
 import {
   MCP_APP_PROTOCOL_VERSION,
   type McpAppBridgeHandlers,
@@ -18,10 +18,7 @@ const VALID_DISPLAY_MODES = [
   "pip",
 ] as const satisfies readonly McpAppDisplayMode[];
 
-export type McpAppBridgeFrame = Pick<
-  RenderedFrame,
-  "iframe" | "origin" | "sendMessage"
->;
+export type McpAppBridgeFrame = SandboxHostFrame;
 
 export type CreateMcpAppBridgeOptions = {
   frame: McpAppBridgeFrame;
