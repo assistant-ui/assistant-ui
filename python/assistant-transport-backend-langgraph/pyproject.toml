@@ -3,7 +3,7 @@ name = "assistant-transport-backend-langgraph"
 version = "0.1.0"
 description = "Assistant Transport Backend with LangGraph integration"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.20.0",
@@ -36,13 +36,13 @@ packages = ["."]
 exclude = ["test_client.py"]
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 100
 select = ["E", "F", "I", "N", "W", "UP"]
 
 [tool.black]
 line-length = 100
-target-version = ["py39"]
+target-version = ["py310"]
 
 [tool.isort]
 profile = "black"
