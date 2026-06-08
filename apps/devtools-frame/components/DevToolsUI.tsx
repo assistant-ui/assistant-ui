@@ -10,6 +10,7 @@ import {
 } from "@assistant-ui/react-devtools";
 import { isRecord, truncate } from "./common";
 import { McpView } from "./mcp";
+import { ModelContextView } from "./model-context";
 import {
   ThreadDetails,
   parseComposerPreview,
@@ -17,14 +18,7 @@ import {
   parseThreadListPreview,
   parseThreadPreview,
 } from "./thread";
-import {
-  CenteredMessage,
-  ControlButton,
-  InfoCard,
-  JSONPreview,
-  SectionTitle,
-  SummaryItem,
-} from "./ui";
+import { CenteredMessage, ControlButton, JSONPreview, SummaryItem } from "./ui";
 
 interface AssistantState {
   [key: string]: unknown;
@@ -763,81 +757,7 @@ export function DevToolsUI() {
       );
     }
 
-    const toolList = normalizeToolList(selectedApi.modelContext?.tools);
-    const hasSystem = selectedApi.modelContext?.system;
-    const hasTools = toolList.length > 0;
-    const hasCallSettings =
-      selectedApi.modelContext?.callSettings &&
-      Object.keys(selectedApi.modelContext.callSettings).length > 0;
-
-    if (!hasSystem && !hasTools && !hasCallSettings) {
-      return (
-        <div className="flex h-full items-center justify-center">
-          <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-            No model context configured for this assistant instance.
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="grid gap-3">
-        {hasSystem && (
-          <InfoCard>
-            <SectionTitle>System Prompt</SectionTitle>
-            <pre className="rounded-lg bg-zinc-100 p-3 text-[11px] whitespace-pre-wrap text-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
-              {selectedApi.modelContext!.system}
-            </pre>
-          </InfoCard>
-        )}
-        {hasTools && (
-          <InfoCard>
-            <SectionTitle>Tools</SectionTitle>
-            <div className="flex flex-col gap-3">
-              {toolList.map((tool) => (
-                <div
-                  key={tool.name}
-                  className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 transition-colors dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-200"
-                >
-                  <div className="flex flex-wrap items-center gap-2 font-semibold text-zinc-800 dark:text-zinc-100">
-                    <span>{tool.name}</span>
-                    {tool.type ? (
-                      <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300">
-                        {tool.type}
-                      </span>
-                    ) : null}
-                    {tool.disabled ? (
-                      <span className="text-[10px] font-semibold tracking-wide text-amber-600 uppercase dark:text-amber-400">
-                        Disabled
-                      </span>
-                    ) : null}
-                  </div>
-                  {tool.description ? (
-                    <p className="mt-1 text-[11px] text-zinc-600 dark:text-zinc-300">
-                      {tool.description}
-                    </p>
-                  ) : null}
-                  {tool.parameters ? (
-                    <div className="mt-2">
-                      <div className="mb-1 text-[10px] font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-                        Parameters
-                      </div>
-                      <JSONPreview value={tool.parameters} />
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </InfoCard>
-        )}
-        {hasCallSettings && (
-          <InfoCard>
-            <SectionTitle>Call Settings</SectionTitle>
-            <JSONPreview value={selectedApi.modelContext!.callSettings} />
-          </InfoCard>
-        )}
-      </div>
-    );
+    return <ModelContextView modelContext={selectedApi.modelContext} />;
   };
 
   const renderTabContent = (): ReactNode => {
