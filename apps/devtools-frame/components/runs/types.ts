@@ -1,7 +1,3 @@
-import type { EventLogEntry } from "../common";
-
-export type RunLogEntry = EventLogEntry;
-
 export interface RunEventEntry {
   readonly time: Date;
   readonly event: string;
@@ -17,7 +13,6 @@ export interface RunPreview {
   readonly startTime: Date;
   readonly endTime?: Date;
   readonly durationMs?: number;
-  readonly running: boolean;
   readonly spanMs: number;
   readonly events: readonly RunEventEntry[];
 }

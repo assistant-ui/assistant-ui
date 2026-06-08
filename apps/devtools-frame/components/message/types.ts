@@ -70,7 +70,6 @@ export interface ToolCallPartPreview extends BasePartPreview {
   readonly toolName: string;
   readonly args: unknown;
   readonly argsText?: string;
-  readonly hasResult: boolean;
   readonly result?: unknown;
   readonly isError?: boolean;
   readonly artifact?: unknown;
@@ -99,8 +98,6 @@ export type PartPreview =
   | ToolCallPartPreview
   | UnknownPartPreview;
 
-export type MessageStatusPreview = PartStatusPreview;
-
 export interface MessageTimingPreview {
   readonly streamStartTime?: number;
   readonly firstTokenTime?: number;
@@ -121,7 +118,7 @@ export interface MessagePreview {
   readonly id: string;
   readonly role: string;
   readonly createdAt?: string;
-  readonly status?: MessageStatusPreview;
+  readonly status?: PartStatusPreview;
   readonly parts: readonly PartPreview[];
   readonly attachments: readonly string[];
   readonly timing?: MessageTimingPreview;

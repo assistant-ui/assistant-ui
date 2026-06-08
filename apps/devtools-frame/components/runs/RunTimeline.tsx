@@ -1,9 +1,10 @@
 import clsx from "clsx";
 import { useMemo } from "react";
 import { formatClockTime } from "../common";
-import { SummaryItem } from "../ui";
+import type { EventLogEntry } from "../common";
+import { EmptyState, SummaryItem } from "../ui";
 import { groupRuns } from "./parse";
-import type { RunEventEntry, RunLogEntry, RunPreview } from "./types";
+import type { RunEventEntry, RunPreview } from "./types";
 
 const SCOPE_TONE: Record<string, { dot: string; text: string }> = {
   thread: {
@@ -58,7 +59,7 @@ const RunCard = ({ run }: { run: RunPreview }) => (
       <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400">
         {formatClockTime(run.startTime)}
       </span>
-      {run.running ? (
+      {run.endTime === undefined ? (
         <span className="rounded border border-blue-300 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-blue-700 uppercase dark:border-blue-500/40 dark:text-blue-300">
           running
         </span>
@@ -101,16 +102,14 @@ const RunCard = ({ run }: { run: RunPreview }) => (
   </div>
 );
 
-export const RunTimeline = ({ logs }: { logs: readonly RunLogEntry[] }) => {
+export const RunTimeline = ({ logs }: { logs: readonly EventLogEntry[] }) => {
   const { runs, orphans } = useMemo(() => groupRuns(logs), [logs]);
 
   if (runs.length === 0 && orphans.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-          No runs recorded yet. Send a message to start one.
-        </div>
-      </div>
+      <EmptyState>
+        No runs recorded yet. Send a message to start one.
+      </EmptyState>
     );
   }
 

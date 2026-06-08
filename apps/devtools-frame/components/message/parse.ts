@@ -81,7 +81,6 @@ const parseToolCall = (
     toolCallId: asString(value.toolCallId) ?? "",
     toolName: asString(value.toolName) ?? "(unknown)",
     args: value.args,
-    hasResult: "result" in value && value.result !== undefined,
     subMessageCount,
     ...(argsText !== undefined ? { argsText } : {}),
     ...("result" in value && value.result !== undefined

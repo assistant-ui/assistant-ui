@@ -43,7 +43,6 @@ describe("parsePart", () => {
       type: "tool-call",
       toolName: "search",
       toolCallId: "call_1",
-      hasResult: true,
       result: { temperature: 20 },
       argsText: '{"query":"weather"}',
       subMessageCount: 0,
@@ -81,7 +80,7 @@ describe("parsePart", () => {
     });
     if (part.type !== "tool-call") throw new Error("expected tool-call");
     expect(part.isError).toBe(true);
-    expect(part.hasResult).toBe(true);
+    expect(part.result).toBe("boom");
     expect(part.interrupt).toEqual({
       type: "human",
       payload: { question: "name?" },
@@ -146,7 +145,6 @@ describe("partKey", () => {
           toolCallId: "abc",
           toolName: "x",
           args: {},
-          hasResult: false,
           subMessageCount: 0,
         },
         3,

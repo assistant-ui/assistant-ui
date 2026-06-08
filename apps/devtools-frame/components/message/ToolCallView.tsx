@@ -109,7 +109,7 @@ export const ToolCallView = ({ part }: { part: ToolCallPartPreview }) => {
           </Disclosure>
         ) : null}
 
-        {part.hasResult ? (
+        {part.result !== undefined ? (
           <Disclosure label={part.isError ? "Result (error)" : "Result"}>
             <JSONPreview value={part.result} />
           </Disclosure>

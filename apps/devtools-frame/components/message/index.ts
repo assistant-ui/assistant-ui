@@ -9,7 +9,6 @@ export type {
   MessagePreview,
   PartPreview,
   PartStatusPreview,
-  MessageStatusPreview,
   MessageTimingPreview,
   MessageUsagePreview,
   ToolCallPartPreview,

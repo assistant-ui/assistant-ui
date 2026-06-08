@@ -1,5 +1,5 @@
 import { isRecord } from "../common";
-import { SummaryItem } from "../ui";
+import { EmptyState, SummaryItem } from "../ui";
 import { parseScopes } from "./parse";
 import type { ScopePreview } from "./types";
 
@@ -62,12 +62,10 @@ export const ScopesView = ({ scopes }: { scopes?: unknown }) => {
 
   if (list.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-          No scopes reported. Update `@assistant-ui/react-devtools` to forward
-          the scope graph.
-        </div>
-      </div>
+      <EmptyState>
+        No scopes reported. Update `@assistant-ui/react-devtools` to forward the
+        scope graph.
+      </EmptyState>
     );
   }
 

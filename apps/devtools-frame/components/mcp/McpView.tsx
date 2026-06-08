@@ -1,21 +1,16 @@
 import clsx from "clsx";
-import { JSONPreview, SummaryItem } from "../ui";
+import { BADGE_TONE, JSONPreview, SummaryItem } from "../ui";
+import type { BadgeTone } from "../ui";
 import { parseMcpManager } from "./parse";
 import type { McpServerPreview } from "./types";
 
-const STATE_TONE: Record<string, string> = {
-  connected:
-    "border-emerald-300 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/40 dark:text-emerald-300",
-  connecting:
-    "border-blue-300 bg-blue-500/10 text-blue-700 dark:border-blue-500/40 dark:text-blue-300",
-  authPending:
-    "border-blue-300 bg-blue-500/10 text-blue-700 dark:border-blue-500/40 dark:text-blue-300",
-  authRequired:
-    "border-amber-300 bg-amber-500/10 text-amber-700 dark:border-amber-500/40 dark:text-amber-300",
-  disconnected:
-    "border-zinc-300 bg-zinc-500/10 text-zinc-600 dark:border-zinc-600 dark:text-zinc-300",
-  error:
-    "border-red-300 bg-red-500/10 text-red-700 dark:border-red-500/40 dark:text-red-300",
+const STATE_TONE: Record<string, BadgeTone> = {
+  connected: "emerald",
+  connecting: "blue",
+  authPending: "blue",
+  authRequired: "amber",
+  disconnected: "zinc",
+  error: "red",
 };
 
 const ServerCard = ({ server }: { server: McpServerPreview }) => (
@@ -32,7 +27,7 @@ const ServerCard = ({ server }: { server: McpServerPreview }) => (
       <span
         className={clsx(
           "rounded border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
-          STATE_TONE[server.connectionState] ?? STATE_TONE.disconnected,
+          BADGE_TONE[STATE_TONE[server.connectionState] ?? "zinc"],
         )}
       >
         {server.connectionState}

@@ -1,10 +1,6 @@
 import { eventScope, isRecord } from "../common";
-import type {
-  RunEventEntry,
-  RunGrouping,
-  RunLogEntry,
-  RunPreview,
-} from "./types";
+import type { EventLogEntry } from "../common";
+import type { RunEventEntry, RunGrouping, RunPreview } from "./types";
 
 // thread.runStart/runEnd are @deprecated in core but kept for backward
 // compatibility; they are the only run-boundary signal in the event log.
@@ -25,7 +21,7 @@ interface RunBuilder {
   events: RunEventEntry[];
 }
 
-const entryFor = (log: RunLogEntry, offsetMs: number): RunEventEntry => ({
+const entryFor = (log: EventLogEntry, offsetMs: number): RunEventEntry => ({
   time: log.time,
   event: log.event,
   scope: eventScope(log.event),
@@ -33,7 +29,7 @@ const entryFor = (log: RunLogEntry, offsetMs: number): RunEventEntry => ({
   data: log.data,
 });
 
-export const groupRuns = (logs: readonly RunLogEntry[]): RunGrouping => {
+export const groupRuns = (logs: readonly EventLogEntry[]): RunGrouping => {
   const sorted = [...logs].sort((a, b) => a.time.getTime() - b.time.getTime());
   const builders: RunBuilder[] = [];
   const openByThread = new Map<string | undefined, RunBuilder>();
@@ -105,7 +101,6 @@ export const groupRuns = (logs: readonly RunLogEntry[]): RunGrouping => {
       startTime: b.startTime,
       ...(b.endTime !== undefined ? { endTime: b.endTime } : {}),
       ...(durationMs !== undefined ? { durationMs } : {}),
-      running: b.endTime === undefined,
       spanMs: Math.max(durationMs ?? 0, maxOffset),
       events: b.events,
     };

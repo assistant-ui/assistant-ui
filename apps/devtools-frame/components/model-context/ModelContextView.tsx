@@ -3,7 +3,7 @@ import type {
   SerializedModelContext,
 } from "@assistant-ui/react-devtools";
 import type { ReactNode } from "react";
-import { InfoCard, JSONPreview, SectionTitle } from "../ui";
+import { EmptyState, InfoCard, JSONPreview, SectionTitle } from "../ui";
 
 const Badge = ({
   children,
@@ -85,11 +85,9 @@ export const ModelContextView = ({
 
   if (!system && toolList.length === 0 && !hasCallSettings && !hasConfig) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-          No model context configured for this assistant instance.
-        </div>
-      </div>
+      <EmptyState>
+        No model context configured for this assistant instance.
+      </EmptyState>
     );
   }
 

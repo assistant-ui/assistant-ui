@@ -1,14 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import type { EventLogEntry } from "../common";
 import { RunTimeline } from "./RunTimeline";
-import type { RunLogEntry } from "./types";
 
 const base = 2_000_000_000_000;
 const t = (ms: number) => new Date(base + ms);
 
 describe("RunTimeline", () => {
   it("renders a completed run with its duration and events", () => {
-    const logs: RunLogEntry[] = [
+    const logs: EventLogEntry[] = [
       { time: t(0), event: "thread.runStart", data: { threadId: "T1" } },
       { time: t(150), event: "composer.send", data: { threadId: "T1" } },
       { time: t(900), event: "thread.runEnd", data: { threadId: "T1" } },
@@ -22,7 +22,7 @@ describe("RunTimeline", () => {
   });
 
   it("marks an unfinished run as running", () => {
-    const logs: RunLogEntry[] = [
+    const logs: EventLogEntry[] = [
       { time: t(0), event: "thread.runStart", data: { threadId: "T1" } },
     ];
     const html = renderToStaticMarkup(<RunTimeline logs={logs} />);
