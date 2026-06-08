@@ -5,6 +5,13 @@ export type NormalizedTool = {
   type?: string;
   description?: string;
   disabled?: boolean;
+  display?: string;
+  providerId?: string;
+  supportsDeferredResults?: boolean;
+  backendDefault?: unknown;
+  providerOptions?: unknown;
+  providerArgs?: unknown;
+  server?: unknown;
   parameters?: unknown;
 };
 
@@ -39,6 +46,34 @@ const mapToNormalizedTool = (
 
   if (typeof raw.disabled === "boolean") {
     tool.disabled = raw.disabled as boolean;
+  }
+
+  if (typeof raw.display === "string") {
+    tool.display = raw.display as string;
+  }
+
+  if (typeof raw.providerId === "string") {
+    tool.providerId = raw.providerId as string;
+  }
+
+  if (typeof raw.supportsDeferredResults === "boolean") {
+    tool.supportsDeferredResults = raw.supportsDeferredResults as boolean;
+  }
+
+  if (raw.unstable_backendDefault !== undefined) {
+    tool.backendDefault = raw.unstable_backendDefault;
+  }
+
+  if (raw.providerOptions !== undefined) {
+    tool.providerOptions = raw.providerOptions;
+  }
+
+  if (raw.args !== undefined) {
+    tool.providerArgs = raw.args;
+  }
+
+  if (raw.server !== undefined) {
+    tool.server = raw.server;
   }
 
   if (Object.hasOwn(raw, "parameters")) {
