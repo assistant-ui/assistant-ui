@@ -1,6 +1,6 @@
 import { DevToolsHooks } from "@assistant-ui/react";
 import {
-  redactSensitive,
+  sanitizeAndRedact,
   sanitizeForMessage,
   serializeModelContext,
 } from "./utils/serialization";
@@ -157,7 +157,7 @@ export class DevToolsHost {
             state: sanitizeForMessage(state),
             events: sanitizeForMessage(apiEntry.logs) as unknown[],
             modelContext: modelContext,
-            scopes: redactSensitive(sanitizeForMessage(scopes)),
+            scopes: sanitizeAndRedact(scopes),
           });
         }
       }

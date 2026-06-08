@@ -112,7 +112,7 @@ export const redactSensitive = (value: unknown, maskAll = false): unknown => {
   return maskAll ? REDACTED : value;
 };
 
-const sanitizeAndRedact = (value: unknown): unknown =>
+export const sanitizeAndRedact = (value: unknown): unknown =>
   redactSensitive(sanitizeForMessage(value));
 
 export const serializeModelContext = (

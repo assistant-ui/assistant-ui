@@ -82,10 +82,7 @@ export const ScopesView = ({ scopes }: { scopes?: unknown }) => {
       </div>
       <div className="flex flex-col gap-2">
         {list.map((scope) => (
-          <ScopeCard
-            key={`${scope.source ?? "null"}-${scope.name}`}
-            scope={scope}
-          />
+          <ScopeCard key={scope.name} scope={scope} />
         ))}
       </div>
     </div>

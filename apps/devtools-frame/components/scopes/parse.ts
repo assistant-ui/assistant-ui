@@ -1,14 +1,10 @@
-import { isRecord } from "../common";
+import { isRecord, isStringArray } from "../common";
 import type { ScopePreview } from "./types";
 
 const parseScope = (value: unknown): ScopePreview | null => {
   if (!isRecord(value) || typeof value.name !== "string") return null;
 
-  const methods = Array.isArray(value.methods)
-    ? value.methods.filter(
-        (method): method is string => typeof method === "string",
-      )
-    : [];
+  const methods = isStringArray(value.methods);
 
   return {
     name: value.name,
@@ -25,7 +21,8 @@ export const parseScopes = (value: unknown): ScopePreview[] => {
     .map((scope) => parseScope(scope))
     .filter((scope): scope is ScopePreview => Boolean(scope));
 
-  // Root scopes first, then by name, so the graph reads parent-before-child.
+  // Root scopes first, then alphabetically by name. This is not a full
+  // hierarchy sort: a derived scope can sort before its parent.
   return scopes.sort((a, b) => {
     const rootDelta = Number(b.source === "root") - Number(a.source === "root");
     return rootDelta !== 0 ? rootDelta : a.name.localeCompare(b.name);
