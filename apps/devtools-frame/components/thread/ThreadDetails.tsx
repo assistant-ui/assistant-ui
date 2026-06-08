@@ -1,6 +1,7 @@
 import { formatBoolean } from "../common";
 import { MessageList } from "../message";
 import { SummaryItem } from "../ui";
+import { ComposerFlags } from "./ComposerFlags";
 import { ComposerQueue } from "./ComposerQueue";
 import type { ThreadPreview } from "./types";
 
@@ -73,11 +74,11 @@ export const ThreadDetails = ({
     ) : null}
 
     {thread.composer ? (
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
+      <div className="flex flex-col gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
         <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
           Composer
         </div>
-        <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryItem label="Role" value={thread.composer.role ?? "—"} />
           <SummaryItem
             label="Text Length"
@@ -91,26 +92,8 @@ export const ThreadDetails = ({
             <SummaryItem label="Mode" value={thread.composer.type} />
           ) : null}
         </div>
-        <div className="mt-2 flex flex-wrap gap-2 text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-          {typeof thread.composer.isEditing === "boolean" ? (
-            <span>Edit: {formatBoolean(thread.composer.isEditing)}</span>
-          ) : null}
-          {typeof thread.composer.canCancel === "boolean" ? (
-            <span>Can Cancel: {formatBoolean(thread.composer.canCancel)}</span>
-          ) : null}
-          {typeof thread.composer.canSend === "boolean" ? (
-            <span>Can Send: {formatBoolean(thread.composer.canSend)}</span>
-          ) : null}
-          {typeof thread.composer.isEmpty === "boolean" ? (
-            <span>Empty: {formatBoolean(thread.composer.isEmpty)}</span>
-          ) : null}
-        </div>
-
-        {thread.composer.queue.length ? (
-          <div className="mt-2">
-            <ComposerQueue queue={thread.composer.queue} />
-          </div>
-        ) : null}
+        <ComposerFlags composer={thread.composer} />
+        <ComposerQueue queue={thread.composer.queue} />
       </div>
     ) : null}
   </div>

@@ -11,7 +11,6 @@ import {
 import {
   type EventLogEntry,
   eventScope,
-  formatBoolean,
   formatClockTime,
   isRecord,
   truncate,
@@ -21,6 +20,7 @@ import { ModelContextView } from "./model-context";
 import { RunTimeline } from "./runs";
 import { ScopesView } from "./scopes";
 import {
+  ComposerFlags,
   ComposerQueue,
   ThreadDetails,
   parseComposerPreview,
@@ -257,20 +257,7 @@ const renderComposerStatePreview = (value: unknown) => {
         <SummaryItem label="Attachments" value={String(composer.attachments)} />
         <SummaryItem label="Mode" value={composer.type ?? "—"} />
       </div>
-      <div className="flex flex-wrap gap-2 text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-        {typeof composer.isEditing === "boolean" ? (
-          <span>Edit: {formatBoolean(composer.isEditing)}</span>
-        ) : null}
-        {typeof composer.canCancel === "boolean" ? (
-          <span>Can Cancel: {formatBoolean(composer.canCancel)}</span>
-        ) : null}
-        {typeof composer.canSend === "boolean" ? (
-          <span>Can Send: {formatBoolean(composer.canSend)}</span>
-        ) : null}
-        {typeof composer.isEmpty === "boolean" ? (
-          <span>Empty: {formatBoolean(composer.isEmpty)}</span>
-        ) : null}
-      </div>
+      <ComposerFlags composer={composer} />
       {text ? (
         <div className="rounded-md border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
           <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">

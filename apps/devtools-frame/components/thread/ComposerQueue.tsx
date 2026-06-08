@@ -14,7 +14,12 @@ export const ComposerQueue = ({
       </div>
       <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-[11px] text-zinc-700 dark:text-zinc-200">
         {queue.map((item, index) => (
-          <li key={item.id ?? index}>{item.prompt || "(empty)"}</li>
+          <li
+            key={item.id ?? index}
+            className="wrap-break-word whitespace-pre-wrap"
+          >
+            {item.prompt || "(empty)"}
+          </li>
         ))}
       </ol>
     </div>

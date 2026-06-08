@@ -1,4 +1,5 @@
 export { ThreadDetails } from "./ThreadDetails";
+export { ComposerFlags } from "./ComposerFlags";
 export { ComposerQueue } from "./ComposerQueue";
 export {
   parseComposerPreview,
