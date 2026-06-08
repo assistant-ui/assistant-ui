@@ -2,7 +2,8 @@ interface ApiData {
   apiId: number;
   state: any;
   events: any[];
-  context?: any;
+  modelContext?: any;
+  scopes?: any;
 }
 
 interface UpdateMessage {

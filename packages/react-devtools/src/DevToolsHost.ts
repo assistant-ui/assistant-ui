@@ -1,5 +1,6 @@
 import { DevToolsHooks } from "@assistant-ui/react";
 import {
+  redactSensitive,
   sanitizeForMessage,
   serializeModelContext,
 } from "./utils/serialization";
@@ -22,6 +23,7 @@ interface HostToFrameMessage {
       state: any;
       events: any[];
       modelContext?: any;
+      scopes?: any;
     }>;
   };
 }
@@ -106,16 +108,41 @@ export class DevToolsHost {
       for (const apiId of this.subscription.apis) {
         const apiEntry = allApis.get(apiId);
         if (apiEntry) {
-          // Collect state from api scopes (only root source)
+          // Collect root-scope state plus the identity and method catalog of
+          // every accessor (root and derived) for the scope graph.
           const state: Record<string, unknown> = {};
+          const scopes: Array<{
+            name: string;
+            source: string | null;
+            query: Record<string, unknown> | null;
+            methods: string[];
+          }> = [];
           if (apiEntry.api) {
             for (const [name, scope] of Object.entries(apiEntry.api)) {
               if (typeof scope === "function" && "source" in scope) {
-                // Only forward scopes with source === "root"
-                if (scope.source === "root") {
+                let methods: string[] = [];
+                try {
                   const scopeValue = scope();
-                  state[name] = scopeValue?.getState?.() ?? scopeValue;
+                  if (scopeValue && typeof scopeValue === "object") {
+                    methods = Object.keys(scopeValue).filter(
+                      (key) =>
+                        typeof (scopeValue as Record<string, unknown>)[key] ===
+                        "function",
+                    );
+                  }
+                  if (scope.source === "root") {
+                    state[name] = scopeValue?.getState?.() ?? scopeValue;
+                  }
+                } catch {
+                  // scope() may throw (derived scopes before the client is
+                  // mounted, or a broken root scope implementation).
                 }
+                scopes.push({
+                  name,
+                  source: scope.source,
+                  query: scope.query,
+                  methods,
+                });
               }
             }
           }
@@ -130,6 +157,7 @@ export class DevToolsHost {
             state: sanitizeForMessage(state),
             events: sanitizeForMessage(apiEntry.logs) as unknown[],
             modelContext: modelContext,
+            scopes: redactSensitive(sanitizeForMessage(scopes)),
           });
         }
       }
