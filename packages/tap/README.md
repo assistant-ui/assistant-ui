@@ -5,7 +5,7 @@
 [![bundle size](https://img.shields.io/bundlephobia/minzip/@assistant-ui/tap)](https://bundlephobia.com/package/@assistant-ui/tap)
 [![GitHub stars](https://img.shields.io/github/stars/assistant-ui/assistant-ui)](https://github.com/assistant-ui/assistant-ui)
 
-Reactive primitives that bring React's hook mental model outside of components. The core has zero runtime dependencies and works in vanilla JS, on a server, or in React via the optional `/react` sub-path. Define self-contained units of state and effects (Resources) using `tapState`, `tapEffect`, `tapMemo`, and friends, and consume them via `useResource`.
+React's hooks, headless. Write a **resource** the same way you write a component, with the same hooks (`useState`, `useEffect`, `useMemo`, ...) imported from `"react"` and the same rules, except a resource returns a plain value instead of JSX. It runs inside a React component, inside another resource, or standalone with no React tree at all.
 
 `tap` powers the runtime layer of assistant-ui. Most users do not install it directly; reach for `@assistant-ui/react` instead.
 
@@ -18,12 +18,13 @@ npm install @assistant-ui/tap
 ## Usage
 
 ```typescript
-import { resource, tapState, tapEffect, createResourceRoot } from "@assistant-ui/tap";
+import { resource, createResourceRoot } from "@assistant-ui/tap";
+import { useState, useEffect } from "react";
 
-const Counter = resource(({ incrementBy = 1 }: { incrementBy?: number }) => {
-  const [count, setCount] = tapState(0);
+const Counter = resource(function Counter({ incrementBy = 1 }: { incrementBy?: number }) {
+  const [count, setCount] = useState(0);
 
-  tapEffect(() => {
+  useEffect(() => {
     console.log("count:", count);
   }, [count]);
 
@@ -43,10 +44,10 @@ const unsubscribe = counter.subscribe(() => {
 counter.getValue().increment();
 ```
 
-In React, use the `useResource` hook from the `/react` sub-path:
+In React, host a resource with `useResource`:
 
 ```tsx
-import { useResource } from "@assistant-ui/tap/react";
+import { useResource } from "@assistant-ui/tap";
 
 function CounterButton() {
   const { count, increment } = useResource(Counter({ incrementBy: 1 }));
@@ -56,7 +57,7 @@ function CounterButton() {
 
 ## Hooks
 
-`tapState`, `tapEffect`, `tapMemo`, `tapCallback`, `tapRef` mirror their React counterparts. Additional primitives include `tapResource` and `tapResources` for composition, plus `createResourceContext` / `tap` / `withContextProvider` for context.
+Inside a resource you use React's hooks (`useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `use`, ...) imported from `"react"`. tap adds `useResource` / `useResources` / `useResourceRoot` for composition, `useReducerWithDerivedState` for deriving state from props, and `createResourceContext` / `withContextProvider` for context.
 
 Full API reference at [assistant-ui.com/tap/docs](https://www.assistant-ui.com/tap/docs).
 

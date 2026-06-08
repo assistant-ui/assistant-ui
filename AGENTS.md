@@ -25,7 +25,7 @@ feat: description of the change
 
 Lint with `pnpm lint`, autofix with `pnpm lint:fix`. Backed by `.oxlintrc.json` (oxlint) and `.oxfmtrc.json` (oxfmt).
 
-Tap hook dep tracking (`tapEffect` / `tapMemo` / `tapCallback` / `tapResources`) is enforced via a small custom JS plugin at `scripts/oxlint-plugins/tap-hooks.mjs`. It wraps `eslint-plugin-react-hooks`'s `exhaustive-deps` rule and post-filters warnings whose missing dep originates from a tap stable-result hook (`tapRef`, `tapConst`, `tapEffectEvent`, or the setter half of `tapState`'s tuple), matching what Biome's `useExhaustiveDependencies` `stableResult` config used to do.
+Resources use React's hooks, so dependency arrays and hook rules are checked by oxlint's native `react/exhaustive-deps` and `react/rules-of-hooks`. A small custom JS plugin at `scripts/oxlint-plugins/tap-hooks.mjs` adds one rule, `tap-hooks/named-resource`, which requires `resource()` to wrap a named function (PascalCase or `use`-prefixed) so each resource has a stable identity for keys and devtools.
 
 ## Code comments
 

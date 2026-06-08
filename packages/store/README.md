@@ -16,7 +16,8 @@ npm install @assistant-ui/store @assistant-ui/tap
 ## Usage
 
 ```typescript
-import { resource, tapState } from "@assistant-ui/tap";
+import { resource } from "@assistant-ui/tap";
+import { useState } from "react";
 import {
   useAui,
   useAuiState,
@@ -35,8 +36,8 @@ declare module "@assistant-ui/store" {
   }
 }
 
-const CounterClient = resource((): ClientOutput<"counter"> => {
-  const [state, setState] = tapState({ count: 0 });
+const CounterClient = resource(function CounterClient(): ClientOutput<"counter"> {
+  const [state, setState] = useState({ count: 0 });
   return {
     getState: () => state,
     increment: () => setState({ count: state.count + 1 }),
@@ -59,4 +60,4 @@ function Counter() {
 }
 ```
 
-Full API reference (clients, derived clients, events, `tapClientLookup`, `tapClientList`) at [assistant-ui.com/tap/docs/store/quickstart](https://www.assistant-ui.com/tap/docs/store/quickstart).
+Full API reference (clients, derived clients, events, `useClientLookup`, `useClientList`) at [assistant-ui.com/tap/docs/store/quickstart](https://www.assistant-ui.com/tap/docs/store/quickstart).

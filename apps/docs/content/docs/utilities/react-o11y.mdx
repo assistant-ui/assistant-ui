@@ -13,7 +13,7 @@ platforms: ["react"]
 - **Headless** — Zero styling opinions, bring your own CSS / Tailwind.
 - **Composable** — Radix-style primitive parts you fully control.
 - **Tree-aware** — Automatic depth, parent / child collapse, time range computation.
-- **Tap-powered** — Built on the same `@assistant-ui/tap` reactive primitives as the runtimes.
+- **Reactive** — Built on the same reactive core as the runtimes, so spans stream into your UI as they change.
 
 ## Installation
 
@@ -98,7 +98,7 @@ function SpanRow() {
 
 ### SpanResource
 
-Tap resource that ingests raw span data and exposes a tree-aware reactive state to primitives.
+Resource that ingests raw span data and exposes a tree-aware reactive state to primitives.
 
 ```ts
 SpanResource({ spans }: { spans: SpanData[] }): ClientOutput<"span">;
