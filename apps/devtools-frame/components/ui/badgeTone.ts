@@ -11,3 +11,6 @@ export const BADGE_TONE = {
 } as const;
 
 export type BadgeTone = keyof typeof BADGE_TONE;
+
+export const BADGE_BASE =
+  "inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium";

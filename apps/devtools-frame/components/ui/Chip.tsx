@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import type { ReactNode } from "react";
+import { BADGE_BASE } from "./badgeTone";
 
 export const Chip = ({
   className,
@@ -9,10 +10,7 @@ export const Chip = ({
   children: ReactNode;
 }) => (
   <span
-    className={clsx(
-      "bg-muted text-muted-foreground inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium",
-      className,
-    )}
+    className={clsx(BADGE_BASE, "bg-muted text-muted-foreground", className)}
   >
     {children}
   </span>
