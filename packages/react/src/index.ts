@@ -166,6 +166,7 @@ export { useRemoteThreadListRuntime } from "./legacy-runtime/runtime-cores/remot
 export { useCloudThreadListAdapter } from "./legacy-runtime/runtime-cores/remote-thread-list/adapter/cloud";
 export type { RemoteThreadListAdapter } from "@assistant-ui/core";
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
+export { createLocalStorageAdapter } from "@assistant-ui/core/react";
 
 // Re-export from @assistant-ui/core (runtime-cores root)
 export type { ExportedMessageRepositoryItem } from "@assistant-ui/core";

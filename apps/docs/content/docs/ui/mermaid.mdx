@@ -50,34 +50,41 @@ export const MarkdownText = memo(MarkdownTextImpl);
 
 ## Configuration
 
-Configure mermaid options in `mermaid-diagram.tsx`:
+Configure rendering options in `mermaid-diagram.tsx`:
 
 ```tsx title="/components/assistant-ui/mermaid-diagram.tsx"
-mermaid.initialize({ theme: "default" });
+renderMermaidSVG(code, {
+  bg: "var(--background)",
+  fg: "var(--foreground)",
+  muted: "var(--muted-foreground)",
+  border: "var(--border)",
+  accent: "var(--foreground)",
+  transparent: true,
+});
 ```
+
+The palette follows your theme's background, foreground, and shadcn color tokens, so diagrams match light and dark mode automatically.
 
 ## Streaming Performance
 
 The `MermaidDiagram` component is optimized for streaming scenarios:
 
-- **Smart completion detection**: Only renders when the specific code block is complete
-- **Zero failed renders**: Avoids parsing incomplete diagram code during streaming  
+- **Skeleton while streaming**: Shows a placeholder skeleton until the response finishes streaming, then renders the diagram synchronously
+- **Raw source fallback**: Invalid or unsupported diagrams fall back to displaying the raw source
 
 
 ## Supported Diagram Types
 
-Mermaid supports various diagram types including:
+The component renders these diagram types:
 
 - Flowcharts and decision trees
 - Sequence diagrams
-- Gantt charts
 - Class diagrams
 - State diagrams
-- Git graphs
-- User journey maps
 - Entity relationship diagrams
+- XY charts (bar, line, combined)
 
-See the [Mermaid documentation](https://mermaid.js.org/) for complete syntax reference.
+Other mermaid diagram types fall back to displaying the raw source. See the [Mermaid documentation](https://mermaid.js.org/) for syntax reference.
 
 ## Related Components
 

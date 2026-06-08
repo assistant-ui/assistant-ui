@@ -2,6 +2,11 @@ import { type AssistantStream, createAssistantStream } from "assistant-stream";
 import { type FC, type PropsWithChildren, useMemo } from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
+  GenericThreadHistoryAdapter,
+  MessageFormatAdapter,
+  MessageFormatItem,
+  MessageFormatRepository,
+  MessageStorageEntry,
   RemoteThreadInitializeResponse,
   RemoteThreadListAdapter,
   RemoteThreadListResponse,
@@ -47,6 +52,10 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     return `${this.prefix}messages:${remoteId}`;
   }
 
+  private _formatKey(remoteId: string) {
+    return `${this.prefix}format:${remoteId}`;
+  }
+
   async load(): Promise<ExportedMessageRepository> {
     const remoteId = this.aui.threadListItem().getState().remoteId;
     if (!remoteId) return { messages: [] };
@@ -76,6 +85,81 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     repo.headId = item.message.id;
 
     await this.storage.setItem(key, JSON.stringify(repo));
+  }
+
+  withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
+    formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
+  ): GenericThreadHistoryAdapter<TMessage> {
+    const storage = this.storage;
+    const aui = this.aui;
+    const formatKey = (remoteId: string) => `${this.prefix}format:${remoteId}`;
+
+    return {
+      load: async (): Promise<MessageFormatRepository<TMessage>> => {
+        const remoteId = aui.threadListItem().getState().remoteId;
+        if (!remoteId) return { messages: [] };
+
+        const raw = await storage.getItem(formatKey(remoteId));
+        if (!raw) return { messages: [] };
+
+        const entries = JSON.parse(
+          raw,
+        ) as MessageStorageEntry<TStorageFormat>[];
+        return {
+          headId: entries.length > 0 ? entries[entries.length - 1]!.id : null,
+          messages: entries.map((entry) => formatAdapter.decode(entry)),
+        };
+      },
+
+      append: async (item: MessageFormatItem<TMessage>): Promise<void> => {
+        const { remoteId } = await aui.threadListItem().initialize();
+
+        const raw = await storage.getItem(formatKey(remoteId));
+        const entries: MessageStorageEntry<TStorageFormat>[] = raw
+          ? (JSON.parse(raw) as MessageStorageEntry<TStorageFormat>[])
+          : [];
+
+        const entry: MessageStorageEntry<TStorageFormat> = {
+          id: formatAdapter.getId(item.message),
+          parent_id: item.parentId,
+          format: formatAdapter.format,
+          content: formatAdapter.encode(item),
+        };
+
+        const idx = entries.findIndex((e) => e.id === entry.id);
+        if (idx >= 0) {
+          entries[idx] = entry;
+        } else {
+          entries.push(entry);
+        }
+
+        await storage.setItem(formatKey(remoteId), JSON.stringify(entries));
+      },
+
+      update: async (
+        item: MessageFormatItem<TMessage>,
+        localMessageId: string,
+      ): Promise<void> => {
+        const { remoteId } = await aui.threadListItem().initialize();
+
+        const raw = await storage.getItem(formatKey(remoteId));
+        if (!raw) return;
+        const entries: MessageStorageEntry<TStorageFormat>[] = JSON.parse(
+          raw,
+        ) as MessageStorageEntry<TStorageFormat>[];
+
+        const idx = entries.findIndex((e) => e.id === localMessageId);
+        if (idx >= 0) {
+          entries[idx] = {
+            id: localMessageId,
+            parent_id: item.parentId,
+            format: formatAdapter.format,
+            content: formatAdapter.encode(item),
+          };
+          await storage.setItem(formatKey(remoteId), JSON.stringify(entries));
+        }
+      },
+    };
   }
 }
 
@@ -197,6 +281,7 @@ export const createLocalStorageAdapter = (
       const filtered = threads.filter((t) => t.remoteId !== remoteId);
       await saveThreadMetadata(filtered);
       await storage.removeItem(messagesKey(remoteId));
+      await storage.removeItem(`${prefix}format:${remoteId}`);
     },
 
     async fetch(threadId: string): Promise<RemoteThreadMetadata> {

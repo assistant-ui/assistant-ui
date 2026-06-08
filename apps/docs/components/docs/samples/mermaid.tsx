@@ -1,6 +1,4 @@
-"use client";
-
-import { useEffect, useRef } from "react";
+import { renderMermaidSVG } from "beautiful-mermaid";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 const MERMAID_CODE = `graph TD
@@ -9,45 +7,21 @@ const MERMAID_CODE = `graph TD
     B -->|No| D[Debug]
     D --> B`;
 
-function MermaidDiagramStatic() {
-  const ref = useRef<HTMLPreElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function renderDiagram() {
-      const mermaid = await import("mermaid");
-      if (cancelled || !ref.current) return;
-
-      mermaid.default.initialize({ theme: "default", startOnLoad: false });
-      const id = `mermaid-${Math.random().toString(36).slice(2)}`;
-      const result = await mermaid.default.render(id, MERMAID_CODE);
-
-      if (!cancelled && ref.current) {
-        ref.current.innerHTML = result.svg;
-      }
-    }
-
-    renderDiagram();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return (
-    <pre
-      ref={ref}
-      className="flex h-full items-center justify-center [&_svg]:mx-auto"
-    >
-      Loading diagram...
-    </pre>
-  );
-}
-
 export function MermaidSample() {
+  const svg = renderMermaidSVG(MERMAID_CODE, {
+    bg: "var(--background)",
+    fg: "var(--foreground)",
+    muted: "var(--muted-foreground)",
+    border: "var(--border)",
+    accent: "var(--foreground)",
+    transparent: true,
+  });
   return (
     <SampleFrame className="bg-muted/40 h-100 overflow-hidden">
-      <MermaidDiagramStatic />
+      <div
+        className="flex h-full items-center justify-center [&_svg]:mx-auto [&_svg]:max-h-full"
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
     </SampleFrame>
   );
 }

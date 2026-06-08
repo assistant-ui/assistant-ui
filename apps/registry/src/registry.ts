@@ -365,7 +365,8 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: [
-      "mermaid",
+      "beautiful-mermaid",
+      "lucide-react",
       "@assistant-ui/react",
       "@assistant-ui/react-markdown",
     ],

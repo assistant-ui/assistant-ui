@@ -6,6 +6,7 @@ import {
   pickExternalStoreSharedOptions,
   type AssistantRuntime,
   type ExternalStoreSharedOptions,
+  type RemoteThreadListAdapter,
 } from "@assistant-ui/core";
 import {
   useCloudThreadListAdapter,
@@ -26,7 +27,11 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
     ExternalStoreSharedOptions & {
       cloud?: AssistantCloud | undefined;
-      adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
+      adapters?:
+        | (AISDKRuntimeAdapter["adapters"] & {
+            threadList?: RemoteThreadListAdapter | undefined;
+          })
+        | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
       joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
@@ -82,7 +87,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     joinStrategy,
     ...chatOptions
   } = options ?? {};
-  // peel guard: any shared key left in `chatOptions` collapses this to `never`
+  // peel guard: any shared key left in chatOptions collapses this to never
   true satisfies keyof typeof chatOptions &
     keyof ExternalStoreSharedOptions extends never
     ? true
@@ -101,7 +106,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   });
 
   const runtime = useAISDKRuntime(chat, {
-    adapters,
+    ...(adapters && { adapters }),
     ...pickExternalStoreSharedOptions(options ?? {}),
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
@@ -140,11 +145,12 @@ export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
   ...options
 }: UseChatRuntimeOptions<UI_MESSAGE> = {}): AssistantRuntime => {
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
+  const threadListAdapter = options.adapters?.threadList ?? cloudAdapter;
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useChatThreadRuntime(options);
     },
-    adapter: cloudAdapter,
+    adapter: threadListAdapter,
     allowNesting: true,
   });
 };
