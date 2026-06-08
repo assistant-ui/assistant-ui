@@ -1,12 +1,9 @@
-import { isRecord } from "../common";
+import { asString, isRecord } from "../common";
 import type {
   McpManagerPreview,
   McpServerPreview,
   McpToolPreview,
 } from "./types";
-
-const asString = (value: unknown): string | undefined =>
-  typeof value === "string" ? value : undefined;
 
 const parseTool = (value: unknown): McpToolPreview | null => {
   if (!isRecord(value)) return null;
@@ -35,8 +32,8 @@ const parseServer = (value: unknown): McpServerPreview | null => {
 
   return {
     id,
-    name: asString(value.name) ?? id,
-    connectionState: asString(value.connectionState) ?? "unknown",
+    name: asString(value.name) || id,
+    connectionState: asString(value.connectionState) || "unknown",
     tools,
     ...(kind ? { kind } : {}),
     ...(url ? { url } : {}),

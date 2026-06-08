@@ -1,6 +1,15 @@
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
+export const asString = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+export const asNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+export const asBool = (value: unknown): boolean | undefined =>
+  typeof value === "boolean" ? value : undefined;
+
 export const isStringArray = (value: unknown): string[] =>
   Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")

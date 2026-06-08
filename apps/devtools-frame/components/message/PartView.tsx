@@ -67,7 +67,7 @@ export const PartView = ({ part }: { part: PartPreview }) => {
         <PartShell type="source" status={part.status}>
           <div className="text-zinc-600 dark:text-zinc-300">
             {part.title ?? part.url ?? part.sourceType ?? "(source)"}
-            {part.url ? (
+            {part.title && part.url ? (
               <span className="ml-1 text-zinc-400">({part.url})</span>
             ) : null}
           </div>

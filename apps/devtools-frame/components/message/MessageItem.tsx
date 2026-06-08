@@ -117,7 +117,9 @@ const MetaStrip = ({ message }: { message: MessagePreview }) => {
 export const MessageItem = ({ message }: { message: MessagePreview }) => {
   const groups = groupParts(message.parts);
   const hasBranches =
-    message.branchCount !== undefined && message.branchCount > 1;
+    message.branchNumber !== undefined &&
+    message.branchCount !== undefined &&
+    message.branchCount > 1;
   const errorValue =
     message.status && message.status.type === "incomplete"
       ? message.status.error
@@ -128,6 +130,11 @@ export const MessageItem = ({ message }: { message: MessagePreview }) => {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <RoleLabel role={message.role} />
+          {message.index !== undefined ? (
+            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+              #{message.index}
+            </span>
+          ) : null}
           {message.status ? (
             <StatusBadge
               type={message.status.type}

@@ -214,7 +214,7 @@ describe("parseMessage", () => {
     expect(message.status).toEqual({ type: "complete", reason: "stop" });
     expect(message.branchNumber).toBe(2);
     expect(message.branchCount).toBe(3);
-    expect(message.isLast).toBe(true);
+    expect(message.index).toBe(1);
     expect(message.timing?.firstTokenTime).toBe(1200);
     expect(message.usage).toEqual({
       inputTokens: 130,

@@ -101,7 +101,7 @@ export const ToolCallView = ({ part }: { part: ToolCallPartPreview }) => {
           <JSONPreview value={part.args} />
         </Disclosure>
 
-        {part.argsText ? (
+        {part.argsText !== undefined ? (
           <Disclosure label="Raw args text">
             <pre className="rounded bg-zinc-100 p-2 text-[10px] break-words whitespace-pre-wrap text-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">
               {part.argsText}

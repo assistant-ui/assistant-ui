@@ -99,11 +99,7 @@ export type PartPreview =
   | ToolCallPartPreview
   | UnknownPartPreview;
 
-export interface MessageStatusPreview {
-  readonly type: string;
-  readonly reason?: string;
-  readonly error?: unknown;
-}
+export type MessageStatusPreview = PartStatusPreview;
 
 export interface MessageTimingPreview {
   readonly streamStartTime?: number;
@@ -133,7 +129,6 @@ export interface MessagePreview {
   readonly branchNumber?: number;
   readonly branchCount?: number;
   readonly index?: number;
-  readonly isLast?: boolean;
   readonly isOptimistic?: boolean;
   readonly submittedFeedback?: string;
 }

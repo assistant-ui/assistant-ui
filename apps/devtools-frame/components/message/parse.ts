@@ -1,7 +1,12 @@
-import { extractAttachmentNames, isRecord } from "../common";
+import {
+  asBool,
+  asNumber,
+  asString,
+  extractAttachmentNames,
+  isRecord,
+} from "../common";
 import type {
   MessagePreview,
-  MessageStatusPreview,
   MessageTimingPreview,
   MessageUsagePreview,
   PartPreview,
@@ -10,15 +15,6 @@ import type {
   ToolCallInterruptPreview,
   ToolCallPartPreview,
 } from "./types";
-
-const asString = (value: unknown): string | undefined =>
-  typeof value === "string" ? value : undefined;
-
-const asNumber = (value: unknown): number | undefined =>
-  typeof value === "number" && Number.isFinite(value) ? value : undefined;
-
-const asBool = (value: unknown): boolean | undefined =>
-  typeof value === "boolean" ? value : undefined;
 
 export const partKey = (part: PartPreview, index: number) =>
   part.type === "tool-call" && part.toolCallId
@@ -171,22 +167,6 @@ export const parsePart = (value: unknown): PartPreview => {
   }
 };
 
-const parseMessageStatus = (
-  value: unknown,
-): MessageStatusPreview | undefined => {
-  if (!isRecord(value)) return undefined;
-  const type = asString(value.type);
-  if (!type) return undefined;
-  const reason = asString(value.reason);
-  return {
-    type,
-    ...(reason ? { reason } : {}),
-    ...("error" in value && value.error !== undefined
-      ? { error: value.error }
-      : {}),
-  };
-};
-
 const parseTiming = (value: unknown): MessageTimingPreview | undefined => {
   if (!isRecord(value)) return undefined;
 
@@ -251,7 +231,7 @@ export const parseMessage = (
       : [];
   const parts = rawParts.map((part) => parsePart(part));
 
-  const status = parseMessageStatus(value.status);
+  const status = parsePartStatus(value.status);
   const metadata = isRecord(value.metadata) ? value.metadata : undefined;
   const timing = parseTiming(metadata?.timing);
   const usage = parseUsage(metadata?.steps);
@@ -263,7 +243,6 @@ export const parseMessage = (
   const branchNumber = asNumber(value.branchNumber);
   const branchCount = asNumber(value.branchCount);
   const messageIndex = asNumber(value.index);
-  const isLast = asBool(value.isLast);
 
   return {
     id,
@@ -277,7 +256,6 @@ export const parseMessage = (
     ...(branchNumber !== undefined ? { branchNumber } : {}),
     ...(branchCount !== undefined ? { branchCount } : {}),
     ...(messageIndex !== undefined ? { index: messageIndex } : {}),
-    ...(isLast !== undefined ? { isLast } : {}),
     ...(isOptimistic !== undefined ? { isOptimistic } : {}),
     ...(submittedFeedback ? { submittedFeedback } : {}),
   };
