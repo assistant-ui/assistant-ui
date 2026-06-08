@@ -14,7 +14,7 @@ export const ToneBadge = ({
 }) => (
   <span
     className={clsx(
-      "rounded border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
+      "inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium",
       BADGE_TONE[tone ?? "zinc"],
       className,
     )}

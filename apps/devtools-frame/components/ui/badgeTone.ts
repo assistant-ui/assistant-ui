@@ -5,6 +5,8 @@ export const BADGE_TONE = {
   amber:
     "border-amber-300 bg-amber-500/10 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-300",
   red: "border-red-300 bg-red-500/10 text-red-700 dark:border-red-500/40 dark:bg-red-500/15 dark:text-red-300",
+  violet:
+    "border-violet-300 bg-violet-500/10 text-violet-700 dark:border-violet-500/40 dark:bg-violet-500/15 dark:text-violet-300",
   zinc: "border-zinc-300 bg-zinc-500/10 text-zinc-600 dark:border-zinc-600 dark:bg-zinc-500/15 dark:text-zinc-300",
 } as const;
 
