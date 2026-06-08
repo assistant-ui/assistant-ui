@@ -2,12 +2,29 @@
 
 import clsx from "clsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   normalizeToolList,
   type NormalizedTool,
   FrameClient,
 } from "@assistant-ui/react-devtools";
+import { isRecord, truncate } from "./common";
+import { McpView } from "./mcp";
+import {
+  ThreadDetails,
+  parseComposerPreview,
+  parseThreadListItemPreview,
+  parseThreadListPreview,
+  parseThreadPreview,
+} from "./thread";
+import {
+  CenteredMessage,
+  ControlButton,
+  InfoCard,
+  JSONPreview,
+  SectionTitle,
+  SummaryItem,
+} from "./ui";
 
 interface AssistantState {
   [key: string]: unknown;
@@ -46,9 +63,13 @@ const formatTime = (value: Date) =>
   `${value.getHours().toString().padStart(2, "0")}:${value
     .getMinutes()
     .toString()
-    .padStart(2, "0")}:${value.getSeconds().toString().padStart(2, "0")}`;
+    .padStart(2, "0")}:${value.getSeconds().toString().padStart(2, "0")}.${value
+    .getMilliseconds()
+    .toString()
+    .padStart(3, "0")}`;
 
-// Extract model context from state for backward compatibility
+const eventScope = (event: string) => event.split(".")[0] ?? event;
+
 const extractModelContext = (state: any): ModelContext | undefined => {
   if (!isRecord(state)) return undefined;
 
@@ -74,472 +95,6 @@ const extractModelContext = (state: any): ModelContext | undefined => {
     ...(isRecord(modelContext.config) ? { config: modelContext.config } : {}),
   };
 };
-
-const ControlButton = ({
-  className,
-  ...props
-}: ButtonHTMLAttributes<HTMLButtonElement>) => (
-  <button
-    className={clsx(
-      "inline-flex h-8 items-center rounded-md border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800 dark:focus-visible:ring-offset-zinc-900",
-      className,
-    )}
-    {...props}
-  />
-);
-
-const JSONPreview = ({ value }: { value: unknown }) => (
-  <pre className="rounded-lg bg-zinc-100 p-3 text-[11px] leading-relaxed wrap-break-word whitespace-pre-wrap text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
-    {JSON.stringify(value, null, 2)}
-  </pre>
-);
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === "object" && !Array.isArray(value);
-
-const isStringArray = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-
-const formatBoolean = (value: boolean | undefined) =>
-  typeof value === "boolean" ? String(value) : undefined;
-
-const formatDateTime = (value: string | undefined) => {
-  if (!value) return undefined;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-};
-
-const truncate = (value: string, max = 120) =>
-  value.length > max ? `${value.slice(0, max)}...` : value;
-
-interface ThreadListItemPreview {
-  id: string;
-  title?: string;
-  status?: string;
-  externalId?: string;
-  remoteId?: string;
-}
-
-interface MessagePreview {
-  id: string;
-  role: string;
-  createdAt?: string;
-  summary: string;
-  status?: string;
-  attachments: string[];
-}
-
-interface SuggestionPreview {
-  prompt?: string;
-}
-
-interface ComposerPreview {
-  textLength: number;
-  role?: string;
-  attachments: number;
-  isEditing?: boolean;
-  canCancel?: boolean;
-  isEmpty?: boolean;
-  type?: string;
-}
-
-interface ThreadPreview {
-  isDisabled?: boolean;
-  isLoading?: boolean;
-  isRunning?: boolean;
-  messageCount: number;
-  messages: MessagePreview[];
-  suggestions: SuggestionPreview[];
-  capabilities: string[];
-  composer?: ComposerPreview;
-}
-
-interface ThreadListPreview {
-  mainThreadId?: string;
-  newThreadId?: string | null;
-  isLoading?: boolean;
-  threadIds: string[];
-  archivedThreadIds: string[];
-  threadItems: ThreadListItemPreview[];
-  main?: ThreadPreview;
-}
-
-const ThreadDetails = ({
-  thread,
-  title,
-}: {
-  thread: ThreadPreview;
-  title?: string;
-}) => (
-  <div className="flex flex-col gap-3">
-    {title ? (
-      <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-        {title}
-      </div>
-    ) : null}
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-      <SummaryItem label="Messages" value={String(thread.messageCount)} />
-      {typeof thread.isLoading === "boolean" ? (
-        <SummaryItem
-          label="Loading"
-          value={formatBoolean(thread.isLoading) ?? "—"}
-        />
-      ) : null}
-      {typeof thread.isRunning === "boolean" ? (
-        <SummaryItem
-          label="Running"
-          value={formatBoolean(thread.isRunning) ?? "—"}
-        />
-      ) : null}
-      {thread.isDisabled !== undefined ? (
-        <SummaryItem
-          label="Disabled"
-          value={formatBoolean(thread.isDisabled) ?? "—"}
-        />
-      ) : null}
-    </div>
-
-    {thread.capabilities.length ? (
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-        <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-          Capabilities
-        </div>
-        <div className="mt-1 flex flex-wrap gap-1">
-          {thread.capabilities.map((capability) => (
-            <span
-              key={capability}
-              className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
-            >
-              {capability}
-            </span>
-          ))}
-        </div>
-      </div>
-    ) : null}
-
-    {thread.messages.length ? (
-      <div className="rounded-md border border-zinc-200 bg-white text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
-        <div className="border-b border-zinc-200 bg-zinc-100 px-3 py-2 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-          Recent Messages
-        </div>
-        <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-          {thread.messages
-            .slice(-5)
-            .reverse()
-            .map((message) => (
-              <div key={message.id} className="flex flex-col gap-1 px-3 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-zinc-800 capitalize dark:text-zinc-100">
-                    {message.role}
-                  </span>
-                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    {formatDateTime(message.createdAt) ?? "—"}
-                  </span>
-                </div>
-                {message.summary ? (
-                  <div className="text-zinc-600 dark:text-zinc-300">
-                    {message.summary}
-                  </div>
-                ) : (
-                  <div className="text-zinc-500 dark:text-zinc-400">
-                    No textual content
-                  </div>
-                )}
-                {message.attachments.length ? (
-                  <div className="flex flex-wrap gap-1 text-[10px] text-zinc-500 dark:text-zinc-400">
-                    {message.attachments.map((attachment, index) => (
-                      <span
-                        key={`${message.id}-attachment-${index}`}
-                        className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
-                      >
-                        {attachment}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-                {message.status ? (
-                  <div className="text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-                    Status: {message.status}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-        </div>
-      </div>
-    ) : null}
-
-    {thread.suggestions.length ? (
-      <div className="rounded-md border border-dashed border-zinc-300 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-200">
-        <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-          Suggestions
-        </div>
-        <ul className="mt-2 list-disc space-y-1 pl-5">
-          {thread.suggestions.map((suggestion, index) => (
-            <li key={index}>{suggestion.prompt || "(empty)"}</li>
-          ))}
-        </ul>
-      </div>
-    ) : null}
-
-    {thread.composer ? (
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-        <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-          Composer
-        </div>
-        <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryItem label="Role" value={thread.composer.role ?? "—"} />
-          <SummaryItem
-            label="Text Length"
-            value={String(thread.composer.textLength)}
-          />
-          <SummaryItem
-            label="Attachments"
-            value={String(thread.composer.attachments)}
-          />
-          {typeof thread.composer.type === "string" ? (
-            <SummaryItem label="Mode" value={thread.composer.type} />
-          ) : null}
-        </div>
-        <div className="mt-2 flex flex-wrap gap-2 text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-          {typeof thread.composer.isEditing === "boolean" ? (
-            <span>Edit: {formatBoolean(thread.composer.isEditing)}</span>
-          ) : null}
-          {typeof thread.composer.canCancel === "boolean" ? (
-            <span>Can Cancel: {formatBoolean(thread.composer.canCancel)}</span>
-          ) : null}
-          {typeof thread.composer.isEmpty === "boolean" ? (
-            <span>Empty: {formatBoolean(thread.composer.isEmpty)}</span>
-          ) : null}
-        </div>
-      </div>
-    ) : null}
-  </div>
-);
-
-const extractMessageSummary = (content: unknown): string => {
-  if (!Array.isArray(content)) return "";
-
-  for (const part of content) {
-    if (!isRecord(part)) continue;
-    const type = typeof part.type === "string" ? part.type : undefined;
-
-    if (
-      (type === "text" || type === "reasoning") &&
-      typeof part.text === "string"
-    ) {
-      const text = part.text.trim();
-      if (text.length > 0) {
-        return truncate(text, 160);
-      }
-    }
-
-    if (type === "tool-call" && typeof part.toolName === "string") {
-      return `Tool call: ${part.toolName}`;
-    }
-
-    if (type === "image" && typeof part.filename === "string") {
-      return `Image: ${part.filename}`;
-    }
-
-    if (type === "file" && typeof part.filename === "string") {
-      return `File: ${part.filename}`;
-    }
-  }
-
-  const fallback = content.find((item) => typeof item === "string") as
-    | string
-    | undefined;
-  if (fallback) {
-    return truncate(fallback, 160);
-  }
-
-  return "";
-};
-
-const extractAttachmentNames = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-
-  return value
-    .map((attachment) => {
-      if (!isRecord(attachment)) return null;
-
-      if (typeof attachment.name === "string" && attachment.name.length > 0) {
-        return attachment.name;
-      }
-
-      if (
-        typeof attachment.filename === "string" &&
-        attachment.filename.length > 0
-      ) {
-        return attachment.filename;
-      }
-
-      if (typeof attachment.type === "string" && attachment.type.length > 0) {
-        return attachment.type;
-      }
-
-      if (typeof attachment.id === "string" && attachment.id.length > 0) {
-        return attachment.id;
-      }
-
-      return null;
-    })
-    .filter((name): name is string => Boolean(name));
-};
-
-const parseSuggestionPreview = (value: unknown): SuggestionPreview | null => {
-  if (!isRecord(value)) return null;
-  if (typeof value.prompt !== "string") return null;
-  return { prompt: value.prompt };
-};
-
-const parseComposerPreview = (value: unknown): ComposerPreview | undefined => {
-  if (!isRecord(value)) return undefined;
-
-  const text = typeof value.text === "string" ? value.text : "";
-  const attachments = Array.isArray(value.attachments)
-    ? value.attachments.length
-    : 0;
-
-  return {
-    textLength: text.length,
-    attachments,
-    ...(typeof value.role === "string" ? { role: value.role } : {}),
-    ...(typeof value.isEditing === "boolean"
-      ? { isEditing: value.isEditing }
-      : {}),
-    ...(typeof value.canCancel === "boolean"
-      ? { canCancel: value.canCancel }
-      : {}),
-    ...(typeof value.isEmpty === "boolean" ? { isEmpty: value.isEmpty } : {}),
-    ...(typeof value.type === "string" ? { type: value.type } : {}),
-  };
-};
-
-const parseMessagePreview = (
-  value: unknown,
-  index: number,
-): MessagePreview | null => {
-  if (!isRecord(value)) return null;
-
-  const id = typeof value.id === "string" ? value.id : `message-${index}`;
-  const role = typeof value.role === "string" ? value.role : "unknown";
-  const summary = extractMessageSummary(value.content);
-
-  return {
-    id,
-    role,
-    summary,
-    attachments: extractAttachmentNames(value.attachments),
-    ...(typeof value.createdAt === "string"
-      ? { createdAt: value.createdAt }
-      : {}),
-    ...(typeof value.status === "string" ? { status: value.status } : {}),
-  };
-};
-
-const parseThreadListItemPreview = (
-  value: unknown,
-): ThreadListItemPreview | null => {
-  if (!isRecord(value) || typeof value.id !== "string") return null;
-
-  return {
-    id: value.id,
-    ...(typeof value.title === "string" ? { title: value.title } : {}),
-    ...(typeof value.status === "string" ? { status: value.status } : {}),
-    ...(typeof value.externalId === "string"
-      ? { externalId: value.externalId }
-      : {}),
-    ...(typeof value.remoteId === "string" ? { remoteId: value.remoteId } : {}),
-  };
-};
-
-const parseThreadPreview = (value: unknown): ThreadPreview | null => {
-  if (!isRecord(value)) return null;
-
-  const messages = Array.isArray(value.messages)
-    ? value.messages
-        .map((message, index) => parseMessagePreview(message, index))
-        .filter((message): message is MessagePreview => Boolean(message))
-    : [];
-
-  const suggestions = Array.isArray(value.suggestions)
-    ? value.suggestions
-        .map((suggestion) => parseSuggestionPreview(suggestion))
-        .filter((suggestion): suggestion is SuggestionPreview =>
-          Boolean(suggestion),
-        )
-    : [];
-
-  const capabilities = isRecord(value.capabilities)
-    ? Object.entries(value.capabilities)
-        .filter(([, flag]) => flag === true)
-        .map(([name]) => name)
-    : [];
-
-  const composer = parseComposerPreview(value.composer);
-
-  return {
-    messageCount: messages.length,
-    messages,
-    suggestions,
-    capabilities,
-    ...(typeof value.isDisabled === "boolean"
-      ? { isDisabled: value.isDisabled }
-      : {}),
-    ...(typeof value.isLoading === "boolean"
-      ? { isLoading: value.isLoading }
-      : {}),
-    ...(typeof value.isRunning === "boolean"
-      ? { isRunning: value.isRunning }
-      : {}),
-    ...(composer ? { composer } : {}),
-  };
-};
-
-const parseThreadListPreview = (value: unknown): ThreadListPreview | null => {
-  if (!isRecord(value)) return null;
-
-  const threadItems = Array.isArray(value.threadItems)
-    ? value.threadItems
-        .map((item) => parseThreadListItemPreview(item))
-        .filter((item): item is ThreadListItemPreview => Boolean(item))
-    : [];
-
-  const main = parseThreadPreview(value.main);
-
-  return {
-    threadIds: isStringArray(value.threadIds),
-    archivedThreadIds: isStringArray(value.archivedThreadIds),
-    threadItems,
-    ...(typeof value.mainThreadId === "string"
-      ? { mainThreadId: value.mainThreadId }
-      : {}),
-    ...(typeof value.newThreadId === "string"
-      ? { newThreadId: value.newThreadId }
-      : value.newThreadId === null
-        ? { newThreadId: null }
-        : {}),
-    ...(typeof value.isLoading === "boolean"
-      ? { isLoading: value.isLoading }
-      : {}),
-    ...(main ? { main } : {}),
-  };
-};
-
-const SummaryItem = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-    <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-      {label}
-    </div>
-    <div className="mt-1 font-semibold text-zinc-800 dark:text-zinc-100">
-      {value}
-    </div>
-  </div>
-);
 
 const renderToolUIsStatePreview = (value: unknown) => {
   if (!isRecord(value)) {
@@ -604,18 +159,6 @@ const renderThreadsStatePreview = (value: unknown) => {
         <SummaryItem label="New Thread" value={state.newThreadId ?? "—"} />
         <SummaryItem label="Active Threads" value={String(activeCount)} />
         <SummaryItem label="Archived Threads" value={String(archivedCount)} />
-        {typeof state.isLoading === "boolean" ? (
-          <SummaryItem
-            label="Loading"
-            value={formatBoolean(state.isLoading) ?? "—"}
-          />
-        ) : null}
-        {main && typeof main.isRunning === "boolean" ? (
-          <SummaryItem
-            label="Main Running"
-            value={formatBoolean(main.isRunning) ?? "—"}
-          />
-        ) : null}
       </div>
 
       {threadItems.length ? (
@@ -680,7 +223,6 @@ const renderThreadStatePreview = (value: unknown) => {
   if (!thread) {
     return <JSONPreview value={value} />;
   }
-
   return <ThreadDetails thread={thread} title="Thread Overview" />;
 };
 
@@ -691,57 +233,23 @@ const renderThreadListItemStatePreview = (value: unknown) => {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryItem label="ID" value={item.id} />
-        <SummaryItem label="Title" value={item.title ?? "(untitled)"} />
-        <SummaryItem label="Status" value={item.status ?? "—"} />
-        <SummaryItem label="Remote ID" value={item.remoteId ?? "—"} />
-        <SummaryItem label="External ID" value={item.externalId ?? "—"} />
-      </div>
-      {item.title ? (
-        <div className="rounded-md border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
-          <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-            Title
-          </div>
-          <div className="mt-1 font-semibold text-zinc-800 dark:text-zinc-100">
-            {item.title}
-          </div>
-        </div>
-      ) : null}
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <SummaryItem label="ID" value={item.id} />
+      <SummaryItem label="Title" value={item.title ?? "(untitled)"} />
+      <SummaryItem label="Status" value={item.status ?? "—"} />
+      <SummaryItem label="Remote ID" value={item.remoteId ?? "—"} />
+      <SummaryItem label="External ID" value={item.externalId ?? "—"} />
     </div>
   );
 };
 
 const renderComposerStatePreview = (value: unknown) => {
-  if (!isRecord(value)) {
-    return <JSONPreview value={value} />;
-  }
-
   const composer = parseComposerPreview(value);
-  if (!composer) {
+  if (!composer || !isRecord(value)) {
     return <JSONPreview value={value} />;
   }
 
   const text = typeof value.text === "string" ? value.text : "";
-  const attachmentsDetail = Array.isArray(value.attachments)
-    ? value.attachments
-        .map((attachment) => {
-          if (!isRecord(attachment)) return null;
-          if (typeof attachment.name === "string" && attachment.name) {
-            return attachment.name;
-          }
-          if (typeof attachment.filename === "string" && attachment.filename) {
-            return attachment.filename;
-          }
-          if (typeof attachment.type === "string" && attachment.type) {
-            return attachment.type;
-          }
-          return null;
-        })
-        .filter((name): name is string => Boolean(name))
-    : [];
-
   const runConfig = value.runConfig;
 
   return (
@@ -751,20 +259,7 @@ const renderComposerStatePreview = (value: unknown) => {
         <SummaryItem label="Text Length" value={String(composer.textLength)} />
         <SummaryItem label="Attachments" value={String(composer.attachments)} />
         <SummaryItem label="Mode" value={composer.type ?? "—"} />
-        <SummaryItem
-          label="Editing"
-          value={formatBoolean(composer.isEditing) ?? "—"}
-        />
-        <SummaryItem
-          label="Can Cancel"
-          value={formatBoolean(composer.canCancel) ?? "—"}
-        />
-        <SummaryItem
-          label="Empty"
-          value={formatBoolean(composer.isEmpty) ?? "—"}
-        />
       </div>
-
       {text ? (
         <div className="rounded-md border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
           <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
@@ -775,25 +270,6 @@ const renderComposerStatePreview = (value: unknown) => {
           </div>
         </div>
       ) : null}
-
-      {attachmentsDetail.length ? (
-        <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-          <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-            Attachments
-          </div>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {attachmentsDetail.map((attachment, index) => (
-              <span
-                key={`composer-attachment-${index}`}
-                className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
-              >
-                {attachment}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
       {runConfig !== undefined ? (
         <div className="rounded-md border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
           <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
@@ -825,28 +301,12 @@ const renderStatePreview = (key: string, value: unknown) => {
       return renderToolUIsStatePreview(value);
     case "composer":
       return renderComposerStatePreview(value);
+    case "mcp":
+      return <McpView value={value} />;
     default:
       return <JSONPreview value={value} />;
   }
 };
-
-const CenteredMessage = ({ children }: { children: ReactNode }) => (
-  <div className="flex h-full items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
-    {children}
-  </div>
-);
-
-const SectionTitle = ({ children }: { children: ReactNode }) => (
-  <h3 className="mb-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-    {children}
-  </h3>
-);
-
-const InfoCard = ({ children }: { children: ReactNode }) => (
-  <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition-colors dark:border-zinc-800 dark:bg-zinc-900">
-    {children}
-  </div>
-);
 
 export function DevToolsUI() {
   const [apis, setApis] = useState<ApiInfo[]>([]);
@@ -884,11 +344,9 @@ export function DevToolsUI() {
     const handleFocus = () => {
       setIsWindowFocused(true);
     };
-
     const handleBlur = () => {
       setIsWindowFocused(false);
     };
-
     const handleVisibilityChange = () => {
       setIsWindowFocused(!document.hidden && document.hasFocus());
     };
@@ -906,12 +364,10 @@ export function DevToolsUI() {
     };
   }, []);
 
-  // Initialize FrameClient and convert data to match old format
   useEffect(() => {
     const client = new FrameClient();
     frameClientRef.current = client;
 
-    // Subscribe to updates
     const unsubscribe = client.subscribe((data) => {
       setSelectedApiId((id) => {
         const existingId = data.apis?.some((api) => api.apiId === id)
@@ -920,7 +376,6 @@ export function DevToolsUI() {
         return existingId ?? data.apis?.[0]?.apiId ?? null;
       });
 
-      // Convert to old ApiInfo format for compatibility
       const convertedApis: ApiInfo[] =
         data.apis?.map((api: ApiData) => {
           const events = Array.isArray(api.events) ? api.events : [];
@@ -941,9 +396,7 @@ export function DevToolsUI() {
       setApis(convertedApis);
     });
 
-    // Handle host reconnection (page refresh)
     const unsubscribeHostConnection = client.onHostConnected(() => {
-      console.log("[DevToolsUI] Host reconnected, re-subscribing...");
       if (isWindowFocusedRef.current) {
         const currentSelectedApiId = selectedApiIdRef.current;
         client.setSubscription({
@@ -965,7 +418,6 @@ export function DevToolsUI() {
     };
   }, []);
 
-  // Manage subscription based on focus state and selected API
   useEffect(() => {
     const client = frameClientRef.current;
     if (!client) {
@@ -1003,13 +455,26 @@ export function DevToolsUI() {
     return Array.from(types).sort();
   }, [apis]);
 
+  const eventTypesByScope = useMemo(() => {
+    const grouped = new Map<string, string[]>();
+    for (const type of eventTypes) {
+      const scope = eventScope(type);
+      const existing = grouped.get(scope);
+      if (existing) {
+        existing.push(type);
+      } else {
+        grouped.set(scope, [type]);
+      }
+    }
+    return Array.from(grouped.entries());
+  }, [eventTypes]);
+
   useEffect(() => {
     setUnselectedEventTypes((prev) => {
       const eventTypeSet = new Set(eventTypes);
       const next = new Set(prev);
       let changed = false;
 
-      // Remove unselected event types that no longer exist
       Array.from(next).forEach((value) => {
         if (!eventTypeSet.has(value)) {
           next.delete(value);
@@ -1018,11 +483,9 @@ export function DevToolsUI() {
         }
       });
 
-      // Track known event types
       eventTypes.forEach((type) => {
         if (!knownEventTypesRef.current.has(type)) {
           knownEventTypesRef.current.add(type);
-          // New event types are selected by default (not added to unselected)
           changed = true;
         }
       });
@@ -1033,7 +496,6 @@ export function DevToolsUI() {
 
   const filteredLogs = useMemo(() => {
     if (!selectedApi) return [];
-
     return selectedApi.logs.filter(
       (log) => !unselectedEventTypes.has(log.event),
     );
@@ -1063,10 +525,24 @@ export function DevToolsUI() {
     });
   }, []);
 
+  const toggleScope = useCallback((types: string[]) => {
+    setUnselectedEventTypes((prev) => {
+      const allSelected = types.every((type) => !prev.has(type));
+      const next = new Set(prev);
+      for (const type of types) {
+        if (allSelected) {
+          next.add(type);
+        } else {
+          next.delete(type);
+        }
+      }
+      return next;
+    });
+  }, []);
+
   const clearEvents = useCallback(() => {
     if (frameClientRef.current && selectedApiId !== null) {
       frameClientRef.current.clearEvents(selectedApiId);
-      // The update from FrameHost will handle clearing the UI
     }
   }, [selectedApiId]);
 
@@ -1184,31 +660,53 @@ export function DevToolsUI() {
       );
     }
 
-    const eventFilterChips = eventTypes.map((eventType) => (
-      <label
-        key={eventType}
-        className={clsx(
-          "flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors",
-          !unselectedEventTypes.has(eventType)
-            ? "border-blue-500 bg-blue-500/10 text-blue-600 dark:border-blue-400 dark:bg-blue-500/20 dark:text-blue-200"
-            : "border-zinc-200 bg-white text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
-        )}
-      >
-        <input
-          type="checkbox"
-          checked={!unselectedEventTypes.has(eventType)}
-          onChange={() => toggleEventType(eventType)}
-          className="size-3 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
-        />
-        <span>{eventType}</span>
-      </label>
-    ));
-
     return (
       <div className="flex flex-col gap-3">
-        {eventTypes.length > 0 && (
-          <div className="flex flex-wrap gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 transition-colors dark:border-zinc-800 dark:bg-zinc-900">
-            {eventFilterChips}
+        {eventTypesByScope.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 transition-colors dark:border-zinc-800 dark:bg-zinc-900">
+            {eventTypesByScope.map(([scope, types]) => {
+              const allSelected = types.every(
+                (type) => !unselectedEventTypes.has(type),
+              );
+              return (
+                <div key={scope} className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleScope(types)}
+                    className={clsx(
+                      "rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase transition-colors",
+                      allSelected
+                        ? "bg-blue-500/15 text-blue-600 dark:text-blue-300"
+                        : "bg-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
+                    )}
+                  >
+                    {scope}
+                  </button>
+                  {types.map((eventType) => (
+                    <label
+                      key={eventType}
+                      title={eventType}
+                      className={clsx(
+                        "flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors",
+                        !unselectedEventTypes.has(eventType)
+                          ? "border-blue-500 bg-blue-500/10 text-blue-600 dark:border-blue-400 dark:bg-blue-500/20 dark:text-blue-200"
+                          : "border-zinc-200 bg-white text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!unselectedEventTypes.has(eventType)}
+                        onChange={() => toggleEventType(eventType)}
+                        className="size-3 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+                      />
+                      <span>
+                        {eventType.slice(scope.length + 1) || eventType}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
         {filteredLogs.length === 0 ? (
@@ -1225,6 +723,7 @@ export function DevToolsUI() {
               <thead className="bg-zinc-100 text-[11px] tracking-wide text-zinc-500 uppercase dark:bg-zinc-800 dark:text-zinc-300">
                 <tr>
                   <th className="px-4 py-2 font-semibold">Time</th>
+                  <th className="px-4 py-2 font-semibold">Scope</th>
                   <th className="px-4 py-2 font-semibold">Event</th>
                   <th className="px-4 py-2 font-semibold">Data</th>
                 </tr>
@@ -1235,8 +734,11 @@ export function DevToolsUI() {
                     key={`${log.event}-${index}`}
                     className="border-t border-zinc-200 bg-white text-[11px] transition-colors dark:border-zinc-800 dark:bg-zinc-900"
                   >
-                    <td className="px-4 py-2 align-top whitespace-nowrap text-zinc-600 dark:text-zinc-300">
+                    <td className="px-4 py-2 align-top font-mono whitespace-nowrap text-zinc-600 dark:text-zinc-300">
                       {formatTime(log.time)}
+                    </td>
+                    <td className="px-4 py-2 align-top text-zinc-500 dark:text-zinc-400">
+                      {eventScope(log.event)}
                     </td>
                     <td className="px-4 py-2 align-top font-semibold text-zinc-800 dark:text-zinc-100">
                       {log.event}
@@ -1268,7 +770,6 @@ export function DevToolsUI() {
       selectedApi.modelContext?.callSettings &&
       Object.keys(selectedApi.modelContext.callSettings).length > 0;
 
-    // Check if there's any context at all
     if (!hasSystem && !hasTools && !hasCallSettings) {
       return (
         <div className="flex h-full items-center justify-center">
@@ -1339,7 +840,7 @@ export function DevToolsUI() {
     );
   };
 
-  const renderTabContent = () => {
+  const renderTabContent = (): ReactNode => {
     switch (activeTab) {
       case "state":
         return renderStateContent();

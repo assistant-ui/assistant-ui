@@ -1,6 +1,7 @@
+import { formatBoolean } from "../common";
+import { MessageList } from "../message";
 import { SummaryItem } from "../ui";
 import type { ThreadPreview } from "./types";
-import { formatBoolean, formatDateTime } from "./utils";
 
 export const ThreadDetails = ({
   thread,
@@ -55,56 +56,7 @@ export const ThreadDetails = ({
       </div>
     ) : null}
 
-    {thread.messages.length ? (
-      <div className="rounded-md border border-zinc-200 bg-white text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
-        <div className="border-b border-zinc-200 bg-zinc-100 px-3 py-2 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-          Recent Messages
-        </div>
-        <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-          {thread.messages
-            .slice(-5)
-            .reverse()
-            .map((message) => (
-              <div key={message.id} className="flex flex-col gap-1 px-3 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-zinc-800 capitalize dark:text-zinc-100">
-                    {message.role}
-                  </span>
-                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    {formatDateTime(message.createdAt) ?? "—"}
-                  </span>
-                </div>
-                {message.summary ? (
-                  <div className="text-zinc-600 dark:text-zinc-300">
-                    {message.summary}
-                  </div>
-                ) : (
-                  <div className="text-zinc-500 dark:text-zinc-400">
-                    No textual content
-                  </div>
-                )}
-                {message.attachments.length ? (
-                  <div className="flex flex-wrap gap-1 text-[10px] text-zinc-500 dark:text-zinc-400">
-                    {message.attachments.map((attachment, index) => (
-                      <span
-                        key={`${message.id}-attachment-${index}`}
-                        className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
-                      >
-                        {attachment}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-                {message.status ? (
-                  <div className="text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-                    Status: {message.status}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-        </div>
-      </div>
-    ) : null}
+    <MessageList messages={thread.messages} />
 
     {thread.suggestions.length ? (
       <div className="rounded-md border border-dashed border-zinc-300 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-200">

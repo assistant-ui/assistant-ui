@@ -1,18 +1,11 @@
+import type { MessagePreview } from "../message";
+
 export interface ThreadListItemPreview {
   id: string;
   title?: string;
   status?: string;
   externalId?: string;
   remoteId?: string;
-}
-
-export interface MessagePreview {
-  id: string;
-  role: string;
-  createdAt?: string;
-  summary: string;
-  status?: string;
-  attachments: string[];
 }
 
 export interface SuggestionPreview {
