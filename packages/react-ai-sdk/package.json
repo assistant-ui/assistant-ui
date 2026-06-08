@@ -17,11 +17,16 @@
   "type": "module",
   "exports": {
     ".": {
+      "react-native": {
+        "types": "./dist/index.native.d.ts",
+        "default": "./dist/index.native.js"
+      },
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
   "main": "./dist/index.js",
+  "react-native": "./dist/index.native.js",
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
