@@ -235,6 +235,15 @@ export const parseAgUiEvent = (
           ? (payload.messages as any[])
           : [],
       };
+    case "ACTIVITY_SNAPSHOT": {
+      const activityType = getString("activityType");
+      if (!activityType || !isPlainObject(payload.content)) return null;
+      return {
+        type: "ACTIVITY_SNAPSHOT" as const,
+        activityType,
+        content: payload.content,
+      };
+    }
     case "RAW":
       return withOptional(
         { type: "RAW" as const, event: payload.event },

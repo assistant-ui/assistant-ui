@@ -1,18 +1,15 @@
 {
-  "title": "Docs",
+  "title": "Getting Started",
   "description": "Core assistant-ui docs for getting started, installation, CLI usage, architecture, DevTools, and foundational app-building concepts.",
   "icon": "BookOpen",
   "root": true,
   "pages": [
-    "---Getting Started---",
     "index",
     "installation",
     "llm",
     "cli",
     "architecture",
     "rtl",
-    "devtools",
-    "---Copilots---",
-    "...copilots"
+    "devtools"
   ]
 }

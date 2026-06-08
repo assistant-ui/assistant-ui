@@ -1,7 +1,7 @@
-import { use } from "react";
+import { use, type ReactElement } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import type { ReactElement } from "react";
+
 import type { Metadata } from "next";
 import { createOgMetadata } from "@/lib/og";
 import { careers, type CareerPage } from "@/lib/source";

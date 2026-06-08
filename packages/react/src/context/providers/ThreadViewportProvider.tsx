@@ -1,7 +1,7 @@
 "use client";
 
-import type { FC, PropsWithChildren } from "react";
-import { useEffect, useState } from "react";
+import { type FC, type PropsWithChildren, useEffect, useState } from "react";
+
 import {
   makeThreadViewportStore,
   type ThreadViewportStoreOptions,

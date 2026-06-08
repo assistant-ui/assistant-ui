@@ -29,6 +29,47 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | History | `adapters.history` | Per-thread message persistence. |
 | Thread list | `adapters.threadList` | Multi-thread switching (experimental, see below). |
 
+## Loading conversation history
+
+If your backend exposes the persisted AG-UI messages of a conversation (for
+example a `GET /agents/state` endpoint), use `fromAgUiMessages` to convert them
+to assistant-ui messages and return them from the history adapter so the thread
+is restored on page load:
+
+```tsx
+import { fromAgUiMessages } from "@assistant-ui/react-ag-ui";
+import { ExportedMessageRepository } from "@assistant-ui/react";
+
+const runtime = useAgUiRuntime({
+  agent,
+  adapters: {
+    history: {
+      async load() {
+        const { messages } = await fetch("/agents/state").then((r) => r.json());
+        return ExportedMessageRepository.fromArray(fromAgUiMessages(messages));
+      },
+      async append({ message }) {
+        // persist the newly sent message on your backend
+      },
+    },
+  },
+});
+```
+
+Messages sent during the session are always forwarded to the agent through the
+run input, independent of `append`. A no-op `append` is therefore only safe when
+your backend already persists the conversation on its own; otherwise those
+messages are gone on the next page load.
+
+`fromAgUiMessages` accepts an optional second argument: pass
+`{ showThinking: false }` to match a runtime configured with
+`showThinking: false`, so imported reasoning messages are dropped at conversion
+time, the same way a live run never stores them.
+
+`fromAgUiMessages` reconstructs the text, reasoning, and tool calls of each
+message. Non-text message content such as images and files is not restored, so a
+backend that persists multimodal messages loads only their text on reload.
+
 ## Thread list (experimental)
 
 <Callout type="warn">

@@ -1,8 +1,13 @@
 "use client";
 
-import { type MutableRefObject, useEffect, useRef, useState } from "react";
-import { type RenderedFrame, SafeContentFrame } from "safe-content-frame";
+import { type MutableRefObject, useEffect, useRef } from "react";
 import { type McpAppBridge, createMcpAppBridge } from "./bridge";
+import {
+  SandboxHost,
+  type SandboxBridge,
+  type SandboxHostApi,
+  type SandboxHostFrame,
+} from "../sandbox-host/SandboxHost";
 import type {
   McpAppBridgeHandlers,
   McpAppFrameProps,
@@ -31,7 +36,7 @@ function useBridgeNotify<T>(
     }
     notify(bridgeRef.current, value);
     lastSentRef.current = value;
-    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- refs are stable; notify is assumed stable; re-run only when value changes
+    // oxlint-disable-next-line react/exhaustive-deps -- refs are stable; notify is assumed stable; re-run only when value changes
   }, [value]);
 }
 
@@ -100,10 +105,6 @@ export function McpAppFrame({
   hostContext,
   maxHeight = DEFAULT_MAX_HEIGHT,
 }: McpAppFrameProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [contentHeight, setContentHeight] = useState<number | undefined>(
-    undefined,
-  );
   const bridgeRef = useRef<McpAppBridge | null>(null);
   const lastSentInputRef = useRef<unknown>(undefined);
   const lastSentOutputRef = useRef<unknown>(undefined);
@@ -129,133 +130,93 @@ export function McpAppFrame({
     output,
   };
 
-  const resourceUri = resource.uri;
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let cancelled = false;
+  const createBridge = (
+    frame: SandboxHostFrame,
+    host: SandboxHostApi,
+  ): SandboxBridge => {
+    const current = liveRef.current;
     let initTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    let frame: RenderedFrame | null = null;
-    const sb = sandbox;
-    const html = resource.html;
 
-    const scf = new SafeContentFrame(sb?.product ?? DEFAULT_PRODUCT, {
-      ...(sb?.sandbox !== undefined && { sandbox: sb.sandbox }),
-      ...(sb?.useShadowDom !== undefined && { useShadowDom: sb.useShadowDom }),
-      ...(sb?.enableBrowserCaching !== undefined && {
-        enableBrowserCaching: sb.enableBrowserCaching,
-      }),
-      ...(sb?.salt !== undefined && { salt: sb.salt }),
-    });
-
-    const renderOpts =
-      sb?.unsafeDocumentWrite !== undefined
-        ? { unsafeDocumentWrite: sb.unsafeDocumentWrite }
-        : undefined;
-
-    scf
-      .renderHtml(html, container, renderOpts)
-      .then((rendered) => {
-        if (cancelled) {
-          rendered.dispose();
-          return;
-        }
-        frame = rendered;
-        const current = liveRef.current;
-        const liveHandlers = buildLiveHandlers(current.handlers, liveRef);
-        const liveOnInitialized = liveHandlers.onInitialized;
-        const flushPending = () => {
-          if (widgetReadyRef.current) return;
-          widgetReadyRef.current = true;
-          const b = bridgeRef.current;
-          if (!b) return;
-          if (pendingInputRef.current !== undefined) {
-            b.notifyToolInput(pendingInputRef.current);
-            lastSentInputRef.current = pendingInputRef.current;
-            pendingInputRef.current = undefined;
-          }
-          if (pendingOutputRef.current !== undefined) {
-            b.notifyToolResult(pendingOutputRef.current);
-            lastSentOutputRef.current = pendingOutputRef.current;
-            pendingOutputRef.current = undefined;
-          }
-          if (pendingHostContextRef.current !== undefined) {
-            b.notifyHostContextChanged(pendingHostContextRef.current);
-            lastSentHostContextRef.current = pendingHostContextRef.current;
-            pendingHostContextRef.current = undefined;
-          }
-        };
-        const wrappedHandlers: McpAppBridgeHandlers = {
-          ...liveHandlers,
-          onInitialized: () => {
-            if (initTimeoutId !== null) {
-              clearTimeout(initTimeoutId);
-              initTimeoutId = null;
-            }
-            flushPending();
-            liveOnInitialized?.();
-          },
-          onSizeChange: (p) => {
-            if (
-              typeof p.height === "number" &&
-              Number.isFinite(p.height) &&
-              p.height > 0
-            ) {
-              setContentHeight(p.height);
-            }
-            liveHandlers.onSizeChange?.(p);
-          },
-        };
-        // Safety net: if the widget never sends notifications/initialized
-        // (broken or non-spec-compliant), flush the queue anyway so the host
-        // doesn't appear hung.
-        initTimeoutId = setTimeout(() => {
-          initTimeoutId = null;
-          flushPending();
-        }, INIT_TIMEOUT_MS);
-        bridgeRef.current = createMcpAppBridge({
-          frame: rendered,
-          handlers: wrappedHandlers,
-          hostInfo: current.hostInfo,
-          hostContext: current.hostContext,
-        });
-
-        if (current.input !== undefined)
-          pendingInputRef.current = current.input;
-        if (current.output !== undefined)
-          pendingOutputRef.current = current.output;
-        // hostContext is delivered inside the ui/initialize response; subsequent
-        // changes flow through useBridgeNotify's pending path.
-      })
-      .catch((err) => {
-        liveRef.current.handlers?.onError?.(
-          err instanceof Error ? err : new Error(String(err)),
-        );
-      });
-
-    return () => {
-      cancelled = true;
-      if (initTimeoutId !== null) {
-        clearTimeout(initTimeoutId);
-        initTimeoutId = null;
+    const flushPending = () => {
+      if (widgetReadyRef.current) return;
+      widgetReadyRef.current = true;
+      const b = bridgeRef.current;
+      if (!b) return;
+      if (pendingInputRef.current !== undefined) {
+        b.notifyToolInput(pendingInputRef.current);
+        lastSentInputRef.current = pendingInputRef.current;
+        pendingInputRef.current = undefined;
       }
-      bridgeRef.current?.dispose();
-      bridgeRef.current = null;
-      frame?.dispose();
-      frame = null;
-      lastSentInputRef.current = undefined;
-      lastSentOutputRef.current = undefined;
-      lastSentHostContextRef.current = undefined;
-      widgetReadyRef.current = false;
-      pendingInputRef.current = undefined;
-      pendingOutputRef.current = undefined;
-      pendingHostContextRef.current = undefined;
-      setContentHeight(undefined);
+      if (pendingOutputRef.current !== undefined) {
+        b.notifyToolResult(pendingOutputRef.current);
+        lastSentOutputRef.current = pendingOutputRef.current;
+        pendingOutputRef.current = undefined;
+      }
+      if (pendingHostContextRef.current !== undefined) {
+        b.notifyHostContextChanged(pendingHostContextRef.current);
+        lastSentHostContextRef.current = pendingHostContextRef.current;
+        pendingHostContextRef.current = undefined;
+      }
     };
-    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- re-mount only on resource URI change; live values flow through liveRef
-  }, [resourceUri]);
+
+    const liveHandlers = buildLiveHandlers(current.handlers, liveRef);
+    const liveOnInitialized = liveHandlers.onInitialized;
+    const wrappedHandlers: McpAppBridgeHandlers = {
+      ...liveHandlers,
+      onInitialized: () => {
+        if (initTimeoutId !== null) {
+          clearTimeout(initTimeoutId);
+          initTimeoutId = null;
+        }
+        flushPending();
+        liveOnInitialized?.();
+      },
+      onSizeChange: (p) => {
+        if (p.height != null) host.setHeight(p.height);
+        liveHandlers.onSizeChange?.(p);
+      },
+    };
+
+    // Safety net: if the widget never sends notifications/initialized (broken
+    // or non-spec-compliant), flush the queue anyway so the host doesn't
+    // appear hung.
+    initTimeoutId = setTimeout(() => {
+      initTimeoutId = null;
+      flushPending();
+    }, INIT_TIMEOUT_MS);
+
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: wrappedHandlers,
+      hostInfo: current.hostInfo,
+      hostContext: current.hostContext,
+    });
+    bridgeRef.current = bridge;
+
+    if (current.input !== undefined) pendingInputRef.current = current.input;
+    if (current.output !== undefined) pendingOutputRef.current = current.output;
+    // hostContext is delivered inside the ui/initialize response; subsequent
+    // changes flow through useBridgeNotify's pending path.
+
+    return {
+      onMessage: bridge.onMessage,
+      dispose: () => {
+        if (initTimeoutId !== null) {
+          clearTimeout(initTimeoutId);
+          initTimeoutId = null;
+        }
+        bridge.dispose();
+        bridgeRef.current = null;
+        lastSentInputRef.current = undefined;
+        lastSentOutputRef.current = undefined;
+        lastSentHostContextRef.current = undefined;
+        widgetReadyRef.current = false;
+        pendingInputRef.current = undefined;
+        pendingOutputRef.current = undefined;
+        pendingHostContextRef.current = undefined;
+      },
+    };
+  };
 
   useBridgeNotify(
     input,
@@ -282,22 +243,20 @@ export function McpAppFrame({
     (b, v) => b.notifyHostContextChanged(v),
   );
 
-  const resolvedHeight =
-    contentHeight != null ? Math.min(contentHeight, maxHeight) : undefined;
-  const mergedStyle =
-    resolvedHeight != null
-      ? { ...sandbox?.style, height: resolvedHeight }
-      : sandbox?.style;
-
   return (
-    <div
-      ref={containerRef}
-      className={sandbox?.className}
-      style={mergedStyle}
-      data-mcp-app-resource={app.resourceUri}
-      data-mcp-app-prefers-border={
-        resource.meta?.prefersBorder ? "" : undefined
-      }
+    <SandboxHost
+      content={{ html: resource.html }}
+      contentKey={resource.uri}
+      sandbox={{ ...sandbox, product: sandbox?.product ?? DEFAULT_PRODUCT }}
+      maxHeight={maxHeight}
+      createBridge={createBridge}
+      onError={(err) => liveRef.current.handlers?.onError?.(err)}
+      containerProps={{
+        "data-mcp-app-resource": app.resourceUri,
+        "data-mcp-app-prefers-border": resource.meta?.prefersBorder
+          ? ""
+          : undefined,
+      }}
     />
   );
 }

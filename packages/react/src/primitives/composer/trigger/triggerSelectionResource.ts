@@ -1,4 +1,5 @@
-import { resource, tapEffectEvent, tapRef } from "@assistant-ui/tap";
+import { useEffectEvent, useRef } from "react";
+import { resource } from "@assistant-ui/tap";
 import type {
   Unstable_DirectiveFormatter,
   Unstable_TriggerItem,
@@ -33,7 +34,7 @@ export type TriggerSelectionResourceOutput = {
 
 /** Owns composer text mutation + behavior dispatch on item selection. */
 export const TriggerSelectionResource = resource(
-  ({
+  function TriggerSelectionResource({
     behavior,
     trigger,
     aui,
@@ -48,12 +49,12 @@ export const TriggerSelectionResource = resource(
     setCursorPosition: (pos: number) => void;
     /** Called after a successful selection so the parent can reset nav state. */
     onSelected: () => void;
-  }): TriggerSelectionResourceOutput => {
+  }): TriggerSelectionResourceOutput {
     // Select-item override: lets Lexical's DirectivePlugin intercept selection
     // and drive its own node insertion.
-    const selectItemOverrideRef = tapRef<SelectItemOverride | null>(null);
+    const selectItemOverrideRef = useRef<SelectItemOverride | null>(null);
 
-    const registerSelectItemOverride = tapEffectEvent(
+    const registerSelectItemOverride = useEffectEvent(
       (fn: SelectItemOverride) => {
         selectItemOverrideRef.current = fn;
         return () => {
@@ -64,7 +65,7 @@ export const TriggerSelectionResource = resource(
       },
     );
 
-    const selectItem = tapEffectEvent((item: Unstable_TriggerItem) => {
+    const selectItem = useEffectEvent((item: Unstable_TriggerItem) => {
       if (!trigger || !behavior) return;
 
       if (selectItemOverrideRef.current?.(item)) {
@@ -105,7 +106,7 @@ export const TriggerSelectionResource = resource(
       onSelected();
     });
 
-    const close = tapEffectEvent(() => {
+    const close = useEffectEvent(() => {
       onSelected();
       // Move cursor before the trigger so trigger detection deactivates
       if (trigger) {

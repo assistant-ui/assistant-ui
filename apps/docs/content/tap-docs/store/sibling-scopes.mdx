@@ -21,19 +21,20 @@ const aui = useAui({
 
 But what if `ToolsResource` needs to call methods on the `modelContext` scope? At definition time, the `tools` resource doesn't have access to its siblings.
 
-## tapAssistantClientRef
+## useAssistantClientRef
 
-`tapAssistantClientRef()` gives a resource access to the store being built. It returns a ref whose `.current` property points to the `AssistantClient` once all scopes are mounted:
+`useAssistantClientRef()` gives a resource access to the store being built. It returns a ref whose `.current` property points to the `AssistantClient` once all scopes are mounted:
 
 ```ts
-import { resource, tapEffect } from "@assistant-ui/tap";
-import { tapAssistantClientRef } from "@assistant-ui/store";
+import { resource } from "@assistant-ui/tap";
+import { useAssistantClientRef } from "@assistant-ui/store";
 import type { ClientOutput } from "@assistant-ui/store";
+import { useEffect } from "react";
 
 const ToolsResource = resource((): ClientOutput<"tools"> => {
-  const clientRef = tapAssistantClientRef();
+  const clientRef = useAssistantClientRef();
 
-  tapEffect(() => {
+  useEffect(() => {
     // access a sibling scope
     const unsub = clientRef.current!.modelContext().register({
       getModelContext: () => ({ tools: myTools }),
@@ -47,11 +48,11 @@ const ToolsResource = resource((): ClientOutput<"tools"> => {
 });
 ```
 
-Use `tapAssistantClientRef` in effects, not during the resource body. The ref is populated after all sibling scopes are mounted, so it's only safe to access in `tapEffect` or in methods called later.
+Use `useAssistantClientRef` in effects, not during the resource body. The ref is populated after all sibling scopes are mounted, so it's only safe to access in `useEffect` or in methods called later.
 
 ## attachTransformScopes
 
-`tapAssistantClientRef` lets a scope talk to siblings at runtime. But what if the sibling scope doesn't exist yet? If a user only provides `thread: ThreadResource()`, there's no `modelContext` to talk to.
+`useAssistantClientRef` lets a scope talk to siblings at runtime. But what if the sibling scope doesn't exist yet? If a user only provides `thread: ThreadResource()`, there's no `modelContext` to talk to.
 
 `attachTransformScopes` solves this by letting a resource declare: "when I'm mounted, make sure these sibling scopes also exist."
 
@@ -121,7 +122,7 @@ Each resource can only have one transform attached. Calling `attachTransformScop
 
 | Pattern | Use when |
 | --- | --- |
-| `tapAssistantClientRef` | A scope needs to call methods on a sibling at runtime (effects, event handlers) |
+| `useAssistantClientRef` | A scope needs to call methods on a sibling at runtime (effects, event handlers) |
 | `attachTransformScopes` | A scope needs to guarantee a sibling exists before mounting |
 
-In practice, they're often used together: `attachTransformScopes` ensures the sibling scope is created, then `tapAssistantClientRef` accesses it at runtime.
+In practice, they're often used together: `attachTransformScopes` ensures the sibling scope is created, then `useAssistantClientRef` accesses it at runtime.

@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { resource } from "../../core/resource";
 import { isDevelopment } from "../../core/helpers/env";
-import { tapRef } from "../../hooks/tap-ref";
-import { tapState } from "../../hooks/tap-state";
-import { tapEffect } from "../../hooks/tap-effect";
-import { tapMemo } from "../../hooks/tap-memo";
-import { tapResource } from "../../hooks/tap-resource";
+import { useRef } from "../../hooks/useRef";
+import { useState } from "../../hooks/useState";
+import { useEffect } from "../../hooks/useEffect";
+import { useMemo } from "../../hooks/useMemo";
+import { useResource } from "../../hooks/useResource";
 import { createResourceRoot } from "../../core/createResourceRoot";
 import { withKey } from "../../core/withKey";
 
@@ -14,16 +14,16 @@ describe("Strict Mode", () => {
     expect(isDevelopment).toBe(true);
   });
 
-  it("should persist tapMemo cache across strict mode double render", () => {
+  it("should persist useMemo cache across strict mode double render", () => {
     const events: string[] = [];
     let outerCount = 0;
     let memoCount = 0;
 
-    const TestResource = resource(() => {
+    const TestResource = resource(function TestResource() {
       const idx = outerCount++;
       events.push(`outer-${idx}`);
 
-      tapMemo(() => {
+      useMemo(() => {
         events.push(`memo-${memoCount++}`);
         return {};
       }, []);
@@ -36,7 +36,7 @@ describe("Strict Mode", () => {
 
     console.log("Events:", events);
 
-    // tapMemo factory runs twice during first render (strict mode double-call)
+    // useMemo factory runs twice during first render (strict mode double-call)
     // but should NOT run during second render (cache should persist)
     expect(events).toEqual([
       "outer-0",
@@ -49,12 +49,12 @@ describe("Strict Mode", () => {
     ]);
   });
 
-  it("should double-invoke tapMemo factory and use the first result", () => {
+  it("should double-invoke useMemo factory and use the first result", () => {
     const events: string[] = [];
     let memoCallCount = 0;
 
-    const TestResource = resource(() => {
-      const memoValue = tapMemo(() => {
+    const TestResource = resource(function TestResource() {
+      const memoValue = useMemo(() => {
         memoCallCount++;
         events.push(`memo-${memoCallCount}`);
         return memoCallCount;
@@ -79,7 +79,7 @@ describe("Strict Mode", () => {
   it("should double-render on first render", () => {
     let renderCount = 0;
 
-    const TestResource = resource(() => {
+    const TestResource = resource(function TestResource() {
       renderCount++;
       return { renderCount };
     });
@@ -95,13 +95,13 @@ describe("Strict Mode", () => {
   it("should double-call hook fns", () => {
     let renderCount = 0;
 
-    const TestResource = resource(() => {
-      const ref = tapRef(0);
-      const [count] = tapState(() => {
+    const TestResource = resource(function TestResource() {
+      const ref = useRef(0);
+      const [count] = useState(() => {
         renderCount++;
         return ++ref.current;
       });
-      const [count2] = tapState(() => {
+      const [count2] = useState(() => {
         renderCount++;
         return ++ref.current;
       });
@@ -119,12 +119,12 @@ describe("Strict Mode", () => {
 
   it("should double-commit effects", () => {
     const events: string[] = [];
-    const TestResource = resource(() => {
-      const ref = tapRef(0);
+    const TestResource = resource(function TestResource() {
+      const ref = useRef(0);
       ref.current++;
       const count = ref.current;
 
-      tapEffect(() => {
+      useEffect(() => {
         events.push("mount-1");
 
         return () => {
@@ -132,7 +132,7 @@ describe("Strict Mode", () => {
         };
       });
 
-      tapEffect(() => {
+      useEffect(() => {
         events.push("mount-2");
 
         return () => {
@@ -140,7 +140,7 @@ describe("Strict Mode", () => {
         };
       }, []);
 
-      tapEffect(() => {
+      useEffect(() => {
         expect(count).toBe(2);
 
         events.push("mount-3");
@@ -170,13 +170,13 @@ describe("Strict Mode", () => {
   it("should double-render on child render", () => {
     let renderCount = 0;
 
-    const TestChildResource = resource(() => {
+    const TestChildResource = resource(function TestChildResource() {
       renderCount++;
       return { renderCount };
     });
 
-    const TestResource = resource(() => {
-      return tapResource(TestChildResource());
+    const TestResource = resource(function TestResource() {
+      return useResource(TestChildResource());
     });
 
     const root = createResourceRoot();
@@ -189,10 +189,10 @@ describe("Strict Mode", () => {
 
   it("should double-mount before handling state updates", () => {
     const events: string[] = [];
-    const TestResource = resource(() => {
-      const [id, setId] = tapState(0);
+    const TestResource = resource(function TestResource() {
+      const [id, setId] = useState(0);
       events.push(`render-${id}`);
-      tapEffect(() => {
+      useEffect(() => {
         events.push(`mount-${id}`);
         setId(1);
         return () => {
@@ -228,13 +228,13 @@ describe("Strict Mode", () => {
       return renderCount;
     };
 
-    const TestChildResource = resource(() => {
-      const [fnState] = tapState(() => {
+    const TestChildResource = resource(function TestChildResource() {
+      const [fnState] = useState(() => {
         fnCount++;
         return fnCount;
       });
       const count = incrementRenderCount();
-      tapEffect(() => {
+      useEffect(() => {
         expect(fnState % 2).toBe(1);
         expect(count).toBe(fnState + 1);
 
@@ -246,12 +246,12 @@ describe("Strict Mode", () => {
       return { renderCount, fnCount, fnState };
     });
 
-    const TestResource = resource(() => {
-      const [id, setId] = tapState(0);
-      tapEffect(() => {
+    const TestResource = resource(function TestResource() {
+      const [id, setId] = useState(0);
+      useEffect(() => {
         setId(1);
       });
-      return tapResource(withKey(id, TestChildResource()));
+      return useResource(withKey(id, TestChildResource()));
     });
 
     const root = createResourceRoot();
@@ -270,16 +270,16 @@ describe("Strict Mode", () => {
   it("should double-render on child render change", () => {
     let renderCount = 0;
     const events: string[] = [];
-    const TestChildResource = resource(() => {
+    const TestChildResource = resource(function TestChildResource() {
       renderCount++;
       events.push(`render-${renderCount}`);
 
-      tapState(() => {
+      useState(() => {
         return events.push(`fn-${renderCount}`);
       });
 
       const count = renderCount;
-      tapEffect(() => {
+      useEffect(() => {
         events.push(`mount-${count}`);
         return () => {
           events.push(`unmount-${count}`);
@@ -287,10 +287,10 @@ describe("Strict Mode", () => {
       });
     });
 
-    const TestResource = resource(() => {
-      const [id, setId] = tapState(0);
+    const TestResource = resource(function TestResource() {
+      const [id, setId] = useState(0);
       events.push(`outer-render-${id}`);
-      tapEffect(() => {
+      useEffect(() => {
         events.push(`outer-mount-${id}`);
         setId(1);
 
@@ -298,7 +298,7 @@ describe("Strict Mode", () => {
           events.push(`outer-unmount-${id}`);
         };
       });
-      return tapResource(withKey(id, TestChildResource()));
+      return useResource(withKey(id, TestChildResource()));
     });
 
     const root = createResourceRoot();

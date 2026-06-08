@@ -1,6 +1,6 @@
 ---
 title: Child Scopes
-description: Derive scopes from parent data with Derived, tapClientResource, and tapClientLookup.
+description: Derive scopes from parent data with Derived, useClientResource, and useClientLookup.
 ---
 
 So far, every scope has been an independent unit of state — you create it, provide it, and consume it. But what happens when you have a list of items that each need their own scope?
@@ -11,7 +11,7 @@ A chat app doesn't have one message — it has dozens. A todo app doesn't have o
 
 A parent scope exposes a list of items. A child scope points to one item from that list. The wiring looks like this:
 
-1. The parent resource uses `tapClientLookup` to manage a collection of child clients
+1. The parent resource uses `useClientLookup` to manage a collection of child clients
 2. The parent returns a method to access a child by index or key
 3. A `Derived` scope calls that method to resolve a specific child
 
@@ -54,18 +54,19 @@ declare module "@assistant-ui/store" {
 
 The `todo` scope declares `meta: { source: "todoList"; query: { index: number } }` — this tells TypeScript that `todo` is derived from `todoList` and is looked up by index.
 
-### 2. Build the parent resource with tapClientLookup
+### 2. Build the parent resource with useClientLookup
 
-`tapClientLookup` wraps a list of resource elements into clients that can be accessed by index or key:
+`useClientLookup` wraps a list of resource elements into clients that can be accessed by index or key:
 
 ```ts title="lib/store/todo-list-resource.ts"
-import { resource, tapState, tapMemo, withKey } from "@assistant-ui/tap";
-import { tapClientLookup } from "@assistant-ui/store";
+import { resource, withKey } from "@assistant-ui/tap";
+import { useClientLookup } from "@assistant-ui/store";
 import type { ClientOutput } from "@assistant-ui/store";
+import { useState, useMemo } from "react";
 
 const TodoResource = resource(
   ({ id, text, done }: { id: string; text: string; done: boolean }): ClientOutput<"todo"> => {
-    const [state, setState] = tapState({ id, text, done });
+    const [state, setState] = useState({ id, text, done });
 
     return {
       getState: () => state,
@@ -76,16 +77,16 @@ const TodoResource = resource(
 );
 
 const TodoListResource = resource((): ClientOutput<"todoList"> => {
-  const [items, setItems] = tapState([
+  const [items, setItems] = useState([
     { id: "1", text: "Learn Store", done: false },
   ]);
 
-  const todos = tapClientLookup(
+  const todos = useClientLookup(
     () => items.map((item) => withKey(item.id, TodoResource(item))),
     [items],
   );
 
-  const state = tapMemo(
+  const state = useMemo(
     () => ({ todos: todos.state }),
     [todos.state],
   );
@@ -102,7 +103,7 @@ const TodoListResource = resource((): ClientOutput<"todoList"> => {
 });
 ```
 
-`tapClientLookup` returns `{ state, get }`:
+`useClientLookup` returns `{ state, get }`:
 - `state` — an array of each child's `getState()` result
 - `get({ index })` or `get({ key })` — resolves a specific child's methods
 
@@ -181,15 +182,15 @@ const TodoDisplay = () => {
 
 `TodoDisplay` doesn't know or care that `todo` is derived — it uses `useAuiState` and `useAui` the same way it would for any scope.
 
-## tapClientResource
+## useClientResource
 
-If your parent only needs to expose a single child (not a list), use `tapClientResource` directly:
+If your parent only needs to expose a single child (not a list), use `useClientResource` directly:
 
 ```ts
-import { tapClientResource } from "@assistant-ui/store";
+import { useClientResource } from "@assistant-ui/store";
 
 const ThreadResource = resource((): ClientOutput<"thread"> => {
-  const composer = tapClientResource(ComposerResource());
+  const composer = useClientResource(ComposerResource());
 
   return {
     getState: () => ({ ... }),
@@ -198,21 +199,22 @@ const ThreadResource = resource((): ClientOutput<"thread"> => {
 });
 ```
 
-`tapClientResource` wraps a single resource element and returns `{ state, methods, key }`. It's what `tapClientLookup` uses internally for each element.
+`useClientResource` wraps a single resource element and returns `{ state, methods, key }`. It's what `useClientLookup` uses internally for each element.
 
-## tapClientList
+## useClientList
 
-For dynamic lists where users can add and remove items, use `tapClientList`:
+For dynamic lists where users can add and remove items, use `useClientList`:
 
 ```ts
-import { tapClientList } from "@assistant-ui/store";
+import { useClientList } from "@assistant-ui/store";
+import { useState } from "react";
 
 const TodoListResource = resource((): ClientOutput<"todoList"> => {
-  const todos = tapClientList({
+  const todos = useClientList({
     initialValues: [{ id: "1", text: "Learn Store", done: false }],
     getKey: (item) => item.id,
     resource: resource(({ getInitialData, remove }): ClientOutput<"todo"> => {
-      const [state, setState] = tapState(getInitialData());
+      const [state, setState] = useState(getInitialData());
 
       return {
         getState: () => state,
@@ -230,7 +232,7 @@ const TodoListResource = resource((): ClientOutput<"todoList"> => {
 });
 ```
 
-`tapClientList` extends `tapClientLookup` with mutation:
+`useClientList` extends `useClientLookup` with mutation:
 - `add(data)` — adds a new item to the list
 - Each child resource receives `{ key, getInitialData, remove }` as props
 - `getInitialData()` returns the item data (called once on mount)

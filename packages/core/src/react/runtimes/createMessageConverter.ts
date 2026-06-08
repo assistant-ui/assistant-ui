@@ -5,6 +5,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import {
   useExternalMessageConverter,
   convertExternalMessages,
+  type JoinStrategy,
 } from "./external-message-converter";
 import { getExternalStoreMessages } from "../../runtime/utils/external-store-message";
 
@@ -20,7 +21,7 @@ export const createMessageConverter = <T extends object>(
     }: {
       messages: T[];
       isRunning: boolean;
-      joinStrategy?: "concat-content" | "none" | undefined;
+      joinStrategy?: JoinStrategy | undefined;
       metadata?: useExternalMessageConverter.Metadata;
     }) => {
       return useExternalMessageConverter<T>({

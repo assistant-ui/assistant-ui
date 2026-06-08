@@ -3,7 +3,7 @@ title: Events
 description: Emit and subscribe to typed events.
 ---
 
-State tells you what things look like right now. Events tell you what just happened. Use events for side effects that respond to discrete actions — showing a toast, scrolling to a new message, firing analytics.
+State tells you what things look like right now. Events tell you what just happened. Use events for side effects that respond to discrete actions: showing a toast, scrolling to a new message, firing analytics.
 
 ## Declaring events
 
@@ -32,18 +32,19 @@ Each event has a typed payload. Use `undefined` for events that carry no data.
 
 ## Emitting events
 
-Call `tapAssistantEmit()` inside a resource to get an emit function:
+Call `useAssistantEmit()` inside a resource to get an emit function:
 
 ```ts title="lib/store/counter-resource.ts"
-import { resource, tapState, tapMemo } from "@assistant-ui/tap";
-import { tapAssistantEmit } from "@assistant-ui/store";
+import { resource } from "@assistant-ui/tap";
+import { useState, useMemo } from "react";
+import { useAssistantEmit } from "@assistant-ui/store";
 import type { ClientOutput } from "@assistant-ui/store";
 
 const CounterResource = resource((): ClientOutput<"counter"> => {
-  const [count, setCount] = tapState(0);
-  const emit = tapAssistantEmit();
+  const [count, setCount] = useState(0);
+  const emit = useAssistantEmit();
 
-  const state = tapMemo(() => ({ count }), [count]);
+  const state = useMemo(() => ({ count }), [count]);
 
   return {
     getState: () => state,
@@ -56,7 +57,7 @@ const CounterResource = resource((): ClientOutput<"counter"> => {
 });
 ```
 
-Events are delivered via microtask — they fire after the current state update settles, not mid-update. This means listeners always see consistent state.
+Events are delivered via microtask: they fire after the current state update settles, not mid-update. This means listeners always see consistent state.
 
 ## Subscribing to events
 
@@ -78,7 +79,7 @@ The callback receives the typed payload. It's stable internally (via `useEffectE
 
 ## Event scoping
 
-When you pass a string like `"counter.incremented"` to `useAuiEvent`, it listens for events from the `counter` scope **in your current context**. This is scope filtering — the listener only fires when the event comes from the specific scope instance you're inside.
+When you pass a string like `"counter.incremented"` to `useAuiEvent`, it listens for events from the `counter` scope **in your current context**. This is scope filtering: the listener only fires when the event comes from the specific scope instance you're inside.
 
 This matters when there are multiple instances of the same scope. Consider a list of counters, each with its own `counter` scope:
 
@@ -89,7 +90,7 @@ App
   └ CounterItem (counter scope, id: "c")
 ```
 
-A `useAuiEvent("counter.incremented", ...)` inside `CounterItem "a"` only fires for that counter — not for "b" or "c". Each listener is scoped to its own instance.
+A `useAuiEvent("counter.incremented", ...)` inside `CounterItem "a"` only fires for that counter, not for "b" or "c". Each listener is scoped to its own instance.
 
 ### Listening to child events
 
@@ -107,7 +108,7 @@ useAuiEvent(
 );
 ```
 
-This fires for `counter.incremented` events from any counter instance below the `counterList` scope. The `scope` field tells Store which level to filter at — any event emitted by a descendant of that scope instance will match.
+This fires for `counter.incremented` events from any counter instance below the `counterList` scope. The `scope` field tells Store which level to filter at: any event emitted by a descendant of that scope instance will match.
 
 ### Listening to sibling events
 
@@ -125,7 +126,7 @@ useAuiEvent(
 );
 ```
 
-Include whatever metadata you need for filtering in the event payload — Store doesn't provide sibling identity automatically.
+Include whatever metadata you need for filtering in the event payload; Store doesn't provide sibling identity automatically.
 
 ### Wildcard scope
 

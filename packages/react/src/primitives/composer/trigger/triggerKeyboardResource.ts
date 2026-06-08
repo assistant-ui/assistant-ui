@@ -1,9 +1,5 @@
-import {
-  resource,
-  tapEffect,
-  tapEffectEvent,
-  tapState,
-} from "@assistant-ui/tap";
+import { useEffect, useEffectEvent, useState } from "react";
+import { resource } from "@assistant-ui/tap";
 import type {
   Unstable_TriggerCategory,
   Unstable_TriggerItem,
@@ -39,7 +35,7 @@ export type TriggerKeyboardResourceOutput = {
  * category drill-in, back, and close to the callbacks supplied by the parent.
  */
 export const TriggerKeyboardResource = resource(
-  ({
+  function TriggerKeyboardResource({
     navigableList,
     isSearchMode,
     activeCategoryId,
@@ -61,24 +57,24 @@ export const TriggerKeyboardResource = resource(
     selectCategory: (categoryId: string) => void;
     goBack: () => void;
     close: () => void;
-  }): TriggerKeyboardResourceOutput => {
-    const [highlightedIndex, setHighlightedIndex] = tapState(0);
+  }): TriggerKeyboardResourceOutput {
+    const [highlightedIndex, setHighlightedIndex] = useState(0);
 
-    tapEffect(() => {
+    useEffect(() => {
       setHighlightedIndex(0);
     }, [navigableList]);
 
-    tapEffect(() => {
+    useEffect(() => {
       setHighlightedIndex(0);
     }, [isSearchMode, activeCategoryId]);
 
-    const highlightIndex = tapEffectEvent((index: number) => {
+    const highlightIndex = useEffectEvent((index: number) => {
       if (index < 0 || index >= navigableList.length) return;
       if (index === highlightedIndex) return;
       setHighlightedIndex(index);
     });
 
-    const handleKeyDown = tapEffectEvent(
+    const handleKeyDown = useEffectEvent(
       (e: TriggerPopoverKeyEvent): boolean => {
         if (!open) return false;
 

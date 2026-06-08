@@ -1,10 +1,11 @@
 "use client";
 
-import type {
-  ChatModelRunResult,
-  MessageTiming,
-  ThreadAssistantMessagePart,
-  ToolCallMessagePart,
+import {
+  isMcpAppUri,
+  type ChatModelRunResult,
+  type MessageTiming,
+  type ThreadAssistantMessagePart,
+  type ToolCallMessagePart,
 } from "@assistant-ui/core";
 import type { AgUiEvent, AgUiInterrupt } from "../types";
 import type { Logger } from "../logger";
@@ -26,7 +27,10 @@ type ToolCallState = {
   isError: boolean | undefined;
   parentMessageId?: string;
   toolMessageId?: string;
+  mcpAppResourceUri?: string;
 };
+
+const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
 
 export type RunAggregatorOptions = {
   showThinking: boolean;
@@ -58,6 +62,7 @@ export class RunAggregator {
   private activeReasoningKey: string | undefined;
   private reasoningPartCounter = 0;
   private readonly toolCalls = new Map<string, ToolCallState>();
+  private lastResolvedToolCallId: string | undefined;
   private readonly partOrder: (
     | { kind: "text"; key: string }
     | { kind: "reasoning"; key: string }
@@ -85,6 +90,7 @@ export class RunAggregator {
         this.activeReasoningKey = undefined;
         this.reasoningPartCounter = 0;
         this.toolCalls.clear();
+        this.lastResolvedToolCallId = undefined;
         this.partOrder.length = 0;
         this.textPartCounter = 0;
         this.activeTextMessageId = undefined;
@@ -222,6 +228,21 @@ export class RunAggregator {
           event.messageId,
         );
         this.emit();
+        break;
+      }
+      case "ACTIVITY_SNAPSHOT": {
+        if (event.activityType !== MCP_APPS_ACTIVITY_TYPE) break;
+        const id = this.lastResolvedToolCallId;
+        const entry = id ? this.toolCalls.get(id) : undefined;
+        const resourceUri = event.content.resourceUri;
+        if (
+          entry &&
+          typeof resourceUri === "string" &&
+          isMcpAppUri(resourceUri)
+        ) {
+          entry.mcpAppResourceUri = resourceUri;
+          this.emit();
+        }
         break;
       }
 
@@ -372,6 +393,7 @@ export class RunAggregator {
     if (toolMessageId) {
       entry.toolMessageId = toolMessageId;
     }
+    this.lastResolvedToolCallId = id;
   }
 
   private tryParseJSON(value: string): unknown {
@@ -415,6 +437,9 @@ export class RunAggregator {
         argsText: entry.argsText,
         ...(entry.result !== undefined ? { result: entry.result } : {}),
         ...(entry.isError !== undefined ? { isError: entry.isError } : {}),
+        ...(entry.mcpAppResourceUri
+          ? { mcp: { app: { resourceUri: entry.mcpAppResourceUri } } }
+          : {}),
         ...(entry.parentMessageId ? { parentId: entry.parentMessageId } : {}),
         ...(entry.toolMessageId
           ? { unstable_toolMessageId: entry.toolMessageId }

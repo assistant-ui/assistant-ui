@@ -1,7 +1,7 @@
-import { Fragment } from "react";
+import { Fragment, type FC, type ReactNode } from "react";
 import { highlight } from "fumadocs-core/highlight";
 import Link from "next/link";
-import type { FC, ReactNode } from "react";
+
 import {
   TypeTableClient,
   type TypeTableRow,

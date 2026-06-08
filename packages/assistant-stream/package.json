@@ -70,9 +70,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "ioredis": "^5.11.0",
+    "ioredis": "^5.11.1",
     "redis": "^6.0.0",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.8"
   },
   "publishConfig": {
     "access": "public",

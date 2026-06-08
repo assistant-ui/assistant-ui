@@ -97,7 +97,7 @@ export function transform(
 // The bundled compiler lives in this file, so its own mtime moves whenever the
 // transform output could change (a newly published version, or an in-place
 // monorepo rebuild). Deriving the token from it busts Metro's cache
-// automatically, rather than relying on a hand-bumped constant.
+// automatically.
 let cachedSelfToken: string | undefined;
 function selfCacheToken(): string {
   if (cachedSelfToken !== undefined) return cachedSelfToken;

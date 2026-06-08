@@ -155,6 +155,7 @@ export {
   useExternalMessageConverter,
   convertExternalMessages,
 } from "./runtimes/external-message-converter";
+export type { JoinStrategy } from "./runtimes/external-message-converter";
 export { createMessageConverter } from "./runtimes/createMessageConverter";
 export { RemoteThreadListHookInstanceManager } from "./runtimes/RemoteThreadListHookInstanceManager";
 export { RemoteThreadListThreadListRuntimeCore } from "./runtimes/RemoteThreadListThreadListRuntimeCore";

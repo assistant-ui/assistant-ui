@@ -1,145 +1,147 @@
-import {
-  withKey,
-  resource,
-  tapResource,
-  tapMemo,
-  tapState,
-  type tapRef,
-} from "@assistant-ui/tap";
+import { useMemo, useState } from "react";
+import { useResource, withKey, resource } from "@assistant-ui/tap";
 import {
   type ClientOutput,
-  tapClientLookup,
-  tapClientResource,
+  useClientLookup,
+  useClientResource,
 } from "@assistant-ui/store";
 import type { MessageRuntime } from "../../runtime/api/message-runtime";
-import { tapSubscribable } from "./tap-subscribable";
+import { useSubscribable } from "./useSubscribable";
 import { ComposerClient } from "./composer-runtime-client";
 import { MessagePartClient } from "./message-part-runtime-client";
 import type { MessageState } from "../scopes/message";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 
 const MessageAttachmentClientByIndex = resource(
-  ({ runtime, index }: { runtime: MessageRuntime; index: number }) => {
-    const attachmentRuntime = tapMemo(
+  function MessageAttachmentClientByIndex({
+    runtime,
+    index,
+  }: {
+    runtime: MessageRuntime;
+    index: number;
+  }) {
+    const attachmentRuntime = useMemo(
       () => runtime.getAttachmentByIndex(index),
       [runtime, index],
     );
-    return tapResource(AttachmentRuntimeClient({ runtime: attachmentRuntime }));
+    return useResource(AttachmentRuntimeClient({ runtime: attachmentRuntime }));
   },
 );
 
-const MessagePartByIndex = resource(
-  ({ runtime, index }: { runtime: MessageRuntime; index: number }) => {
-    const partRuntime = tapMemo(
-      () => runtime.getMessagePartByIndex(index),
-      [runtime, index],
-    );
-    return tapResource(MessagePartClient({ runtime: partRuntime }));
-  },
-);
+const MessagePartByIndex = resource(function MessagePartByIndex({
+  runtime,
+  index,
+}: {
+  runtime: MessageRuntime;
+  index: number;
+}) {
+  const partRuntime = useMemo(
+    () => runtime.getMessagePartByIndex(index),
+    [runtime, index],
+  );
+  return useResource(MessagePartClient({ runtime: partRuntime }));
+});
 
-export const MessageClient = resource(
-  ({
-    runtime,
-    threadIdRef,
-  }: {
-    runtime: MessageRuntime;
-    threadIdRef: tapRef.RefObject<string>;
-  }): ClientOutput<"message"> => {
-    const runtimeState = tapSubscribable(runtime);
+export const MessageClient = resource(function MessageClient({
+  runtime,
+  threadIdRef,
+}: {
+  runtime: MessageRuntime;
+  threadIdRef: { current: string };
+}): ClientOutput<"message"> {
+  const runtimeState = useSubscribable(runtime);
 
-    const [isCopiedState, setIsCopied] = tapState(false);
-    const [isHoveringState, setIsHovering] = tapState(false);
+  const [isCopiedState, setIsCopied] = useState(false);
+  const [isHoveringState, setIsHovering] = useState(false);
 
-    const messageIdRef = tapMemo(
-      () => ({
-        get current() {
-          return runtime.getState().id;
-        },
-      }),
-      [runtime],
-    );
+  const messageIdRef = useMemo(
+    () => ({
+      get current() {
+        return runtime.getState().id;
+      },
+    }),
+    [runtime],
+  );
 
-    const composer = tapClientResource(
-      ComposerClient({
-        runtime: runtime.composer,
-        threadIdRef,
-        messageIdRef,
-      }),
-    );
-    const parts = tapClientLookup(
-      () =>
-        runtimeState.content.map((part, idx) =>
-          withKey(
-            "toolCallId" in part && part.toolCallId != null
-              ? `toolCallId-${part.toolCallId}`
-              : `index-${idx}`,
-            MessagePartByIndex({ runtime, index: idx }),
-          ),
+  const composer = useClientResource(
+    ComposerClient({
+      runtime: runtime.composer,
+      threadIdRef,
+      messageIdRef,
+    }),
+  );
+  const parts = useClientLookup(
+    () =>
+      runtimeState.content.map((part, idx) =>
+        withKey(
+          "toolCallId" in part && part.toolCallId != null
+            ? `toolCallId-${part.toolCallId}`
+            : `index-${idx}`,
+          MessagePartByIndex({ runtime, index: idx }),
         ),
-      [runtimeState.content, runtime],
-    );
+      ),
+    [runtimeState.content, runtime],
+  );
 
-    const attachments = tapClientLookup(
-      () =>
-        (runtimeState.attachments ?? []).map((attachment, idx) =>
-          withKey(
-            attachment.id,
-            MessageAttachmentClientByIndex({ runtime, index: idx }),
-          ),
+  const attachments = useClientLookup(
+    () =>
+      (runtimeState.attachments ?? []).map((attachment, idx) =>
+        withKey(
+          attachment.id,
+          MessageAttachmentClientByIndex({ runtime, index: idx }),
         ),
-      [runtimeState.attachments, runtime],
-    );
+      ),
+    [runtimeState.attachments, runtime],
+  );
 
-    const state = tapMemo<MessageState>(() => {
-      return {
-        ...(runtimeState as MessageState),
-
-        parts: parts.state,
-        composer: composer.state,
-
-        isCopied: isCopiedState,
-        isHovering: isHoveringState,
-      };
-    }, [
-      runtimeState,
-      parts.state,
-      composer.state,
-      isCopiedState,
-      isHoveringState,
-    ]);
-
+  const state = useMemo<MessageState>(() => {
     return {
-      getState: () => state,
+      ...(runtimeState as MessageState),
 
-      composer: () => composer.methods,
+      parts: parts.state,
+      composer: composer.state,
 
-      reload: (config) => runtime.reload(config),
-      speak: () => runtime.speak(),
-      stopSpeaking: () => runtime.stopSpeaking(),
-      submitFeedback: (feedback) => runtime.submitFeedback(feedback),
-      switchToBranch: (options) => runtime.switchToBranch(options),
-      getCopyText: () => runtime.unstable_getCopyText(),
-      part: (selector) => {
-        if ("index" in selector) {
-          return parts.get({ index: selector.index });
-        } else {
-          return parts.get({ key: `toolCallId-${selector.toolCallId}` });
-        }
-      },
-
-      attachment: (selector) => {
-        if ("id" in selector) {
-          return attachments.get({ key: selector.id });
-        } else {
-          return attachments.get(selector);
-        }
-      },
-
-      setIsCopied,
-      setIsHovering,
-
-      __internal_getRuntime: () => runtime,
+      isCopied: isCopiedState,
+      isHovering: isHoveringState,
     };
-  },
-);
+  }, [
+    runtimeState,
+    parts.state,
+    composer.state,
+    isCopiedState,
+    isHoveringState,
+  ]);
+
+  return {
+    getState: () => state,
+
+    composer: () => composer.methods,
+
+    reload: (config) => runtime.reload(config),
+    speak: () => runtime.speak(),
+    stopSpeaking: () => runtime.stopSpeaking(),
+    submitFeedback: (feedback) => runtime.submitFeedback(feedback),
+    switchToBranch: (options) => runtime.switchToBranch(options),
+    getCopyText: () => runtime.unstable_getCopyText(),
+    part: (selector) => {
+      if ("index" in selector) {
+        return parts.get({ index: selector.index });
+      } else {
+        return parts.get({ key: `toolCallId-${selector.toolCallId}` });
+      }
+    },
+
+    attachment: (selector) => {
+      if ("id" in selector) {
+        return attachments.get({ key: selector.id });
+      } else {
+        return attachments.get(selector);
+      }
+    },
+
+    setIsCopied,
+    setIsHovering,
+
+    __internal_getRuntime: () => runtime,
+  };
+});

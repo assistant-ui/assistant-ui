@@ -7,7 +7,7 @@ import {
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import type { ResourceFiber } from "../core/types";
-import { tapState } from "../hooks/tap-state";
+import { useState } from "../hooks/useState";
 
 /**
  * Creates a test resource fiber for unit testing.
@@ -195,7 +195,7 @@ export function createCounterResource(initialValue = 0) {
  */
 export function createStatefulCounterResource() {
   return (props: { initial: number }) => {
-    const [count, setCount] = tapState(props.initial);
+    const [count, setCount] = useState(props.initial);
     return {
       count,
       increment: () => setCount((c: number) => c + 1),

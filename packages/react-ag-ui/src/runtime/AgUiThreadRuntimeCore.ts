@@ -918,11 +918,7 @@ export class AgUiThreadRuntimeCore {
       for (const message of normalized) {
         try {
           converted.push(
-            fromThreadMessageLike(
-              message as any,
-              generateId(),
-              FALLBACK_USER_STATUS,
-            ),
+            fromThreadMessageLike(message, generateId(), FALLBACK_USER_STATUS),
           );
         } catch (error) {
           this.logger.error?.(

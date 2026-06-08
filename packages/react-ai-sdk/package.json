@@ -15,13 +15,29 @@
   "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
+  "imports": {
+    "#mcp-stdio": {
+      "types": "./src/mcp-stdio.node.ts",
+      "react-native": "./dist/mcp-stdio.unsupported.js",
+      "edge-light": "./dist/mcp-stdio.unsupported.js",
+      "workerd": "./dist/mcp-stdio.unsupported.js",
+      "browser": "./dist/mcp-stdio.unsupported.js",
+      "node": "./dist/mcp-stdio.node.js",
+      "default": "./dist/mcp-stdio.unsupported.js"
+    }
+  },
   "exports": {
     ".": {
+      "react-native": {
+        "types": "./dist/index.native.d.ts",
+        "default": "./dist/index.native.js"
+      },
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
   "main": "./dist/index.js",
+  "react-native": "./dist/index.native.js",
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
@@ -35,11 +51,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/mcp": "^1.0.45",
-    "@ai-sdk/react": "^3.0.195",
+    "@ai-sdk/mcp": "^1.0.46",
+    "@ai-sdk/react": "^3.0.199",
     "@assistant-ui/core": "^0.2.10",
     "@assistant-ui/store": "^0.2.13",
-    "ai": "^6.0.193",
+    "ai": "^6.0.197",
     "assistant-cloud": "*"
   },
   "peerDependencies": {
@@ -55,12 +71,12 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@types/json-schema": "^7.0.15",
-    "@types/react": "^19.2.15",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "assistant-stream": "workspace:*",
     "jsdom": "^29.1.1",
-    "react": "^19.2.6",
-    "vitest": "^4.1.7"
+    "react": "^19.2.7",
+    "vitest": "^4.1.8"
   },
   "publishConfig": {
     "access": "public",

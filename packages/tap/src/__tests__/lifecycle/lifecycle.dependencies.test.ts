@@ -1,7 +1,7 @@
-/* oxlint-disable tap-hooks/exhaustive-deps -- tests deliberately exercise invalid dep arrays */
+/* oxlint-disable react/exhaustive-deps -- tests deliberately exercise invalid dep arrays */
 import { describe, it, expect, vi } from "vitest";
-import { tapEffect } from "../../hooks/tap-effect";
-import { tapState } from "../../hooks/tap-state";
+import { useEffect } from "../../hooks/useEffect";
+import { useState } from "../../hooks/useState";
 import { createTestResource, renderTest, waitForNextTick } from "../test-utils";
 import {
   renderResourceFiber,
@@ -15,10 +15,10 @@ describe("Lifecycle - Dependencies", () => {
     let setDep: any;
 
     const resource = createTestResource(() => {
-      const [dep, _setDep] = tapState(1);
+      const [dep, _setDep] = useState(1);
       setDep = _setDep;
 
-      tapEffect(effect, [dep]);
+      useEffect(effect, [dep]);
       return dep;
     });
 
@@ -38,11 +38,11 @@ describe("Lifecycle - Dependencies", () => {
     let triggerRerender: any;
 
     const resource = createTestResource(() => {
-      const [count, setCount] = tapState(0);
-      const [dep] = tapState("constant");
+      const [count, setCount] = useState(0);
+      const [dep] = useState("constant");
       triggerRerender = setCount;
 
-      tapEffect(effect, [dep]);
+      useEffect(effect, [dep]);
       return { count, dep };
     });
 
@@ -62,10 +62,10 @@ describe("Lifecycle - Dependencies", () => {
     let setDep: any;
 
     const resource = createTestResource(() => {
-      const [dep, _setDep] = tapState(1);
+      const [dep, _setDep] = useState(1);
       setDep = _setDep;
 
-      tapEffect(() => {
+      useEffect(() => {
         log.push(`effect-${dep}`);
         return () => log.push(`cleanup-${dep}`);
       }, [dep]);
@@ -89,10 +89,10 @@ describe("Lifecycle - Dependencies", () => {
     let triggerRerender: any;
 
     const resource = createTestResource(() => {
-      const [count, setCount] = tapState(0);
+      const [count, setCount] = useState(0);
       triggerRerender = setCount;
 
-      tapEffect(effect); // No deps = always re-run
+      useEffect(effect); // No deps = always re-run
       return count;
     });
 
@@ -112,10 +112,10 @@ describe("Lifecycle - Dependencies", () => {
     let triggerRerender: any;
 
     const resource = createTestResource(() => {
-      const [count, setCount] = tapState(0);
+      const [count, setCount] = useState(0);
       triggerRerender = setCount;
 
-      tapEffect(effect, []); // Empty deps = run once
+      useEffect(effect, []); // Empty deps = run once
       return count;
     });
 
@@ -135,12 +135,12 @@ describe("Lifecycle - Dependencies", () => {
     let setDep1: any, setDep2: any;
 
     const resource = createTestResource(() => {
-      const [dep1, _setDep1] = tapState("a");
-      const [dep2, _setDep2] = tapState(1);
+      const [dep1, _setDep1] = useState("a");
+      const [dep2, _setDep2] = useState(1);
       setDep1 = _setDep1;
       setDep2 = _setDep2;
 
-      tapEffect(effect, [dep1, dep2]);
+      useEffect(effect, [dep1, dep2]);
       return { dep1, dep2 };
     });
 
@@ -176,10 +176,10 @@ describe("Lifecycle - Dependencies", () => {
     let setObj: any;
 
     const resource = createTestResource(() => {
-      const [obj, _setObj] = tapState({ value: 1 });
+      const [obj, _setObj] = useState({ value: 1 });
       setObj = _setObj;
 
-      tapEffect(effect, [obj]);
+      useEffect(effect, [obj]);
       return obj;
     });
 
@@ -199,10 +199,10 @@ describe("Lifecycle - Dependencies", () => {
     let setValue: any;
 
     const resource = createTestResource(() => {
-      const [value, _setValue] = tapState(NaN);
+      const [value, _setValue] = useState(NaN);
       setValue = _setValue;
 
-      tapEffect(effect, [value]);
+      useEffect(effect, [value]);
       return value;
     });
 
@@ -222,9 +222,9 @@ describe("Lifecycle - Dependencies", () => {
 
     const resource = createTestResource(() => {
       if (useDeps) {
-        tapEffect(() => {}, [1]);
+        useEffect(() => {}, [1]);
       } else {
-        tapEffect(() => {}); // No deps
+        useEffect(() => {}); // No deps
       }
       return null;
     });
@@ -234,9 +234,9 @@ describe("Lifecycle - Dependencies", () => {
     // Change to no deps
     useDeps = false;
 
-    // Error now throws during render (fail-fast validation)
+    // Error throws during render (fail-fast validation)
     expect(() => renderResourceFiber(resource, undefined)).toThrow(
-      "tapEffect called with and without dependencies across re-renders",
+      "useEffect called with and without dependencies across re-renders",
     );
   });
 });

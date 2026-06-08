@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { ComponentProps } from "react";
+import { useEffect, useState, type ComponentProps } from "react";
+
 import { Text } from "ink";
 import InkSpinner from "ink-spinner";
 

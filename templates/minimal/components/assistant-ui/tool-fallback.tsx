@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import {
   useScrollLock,
+  type ToolCallMessagePart,
+  type ToolCallMessagePartProps,
   type ToolCallMessagePartStatus,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
@@ -19,6 +21,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const ANIMATION_DURATION = 200;
 
@@ -268,17 +271,93 @@ function ToolFallbackError({
   );
 }
 
+const APPROVED_RESULT = "Approved by user";
+const DENIED_RESULT = "User denied tool execution";
+
+function ToolFallbackApproval({
+  className,
+  addResult,
+  resume,
+  interrupt,
+  approval,
+  respondToApproval,
+  ...props
+}: React.ComponentProps<"div"> &
+  Partial<
+    Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">
+  > & {
+    interrupt?: ToolCallMessagePart["interrupt"];
+    approval?: ToolCallMessagePart["approval"];
+  }) {
+  const [submitted, setSubmitted] = useState(false);
+
+  const respond = (approved: boolean) => {
+    if (submitted) return;
+    setSubmitted(true);
+    if (
+      approval != null &&
+      approval.approved === undefined &&
+      respondToApproval
+    ) {
+      respondToApproval({ approved });
+    } else if (interrupt) {
+      resume?.({ approved });
+    } else {
+      addResult?.(approved ? APPROVED_RESULT : DENIED_RESULT);
+    }
+  };
+
+  return (
+    <div
+      data-slot="tool-fallback-approval"
+      className={cn(
+        "aui-tool-fallback-approval flex items-center gap-2 border-t border-dashed px-4 pt-2",
+        className,
+      )}
+      {...props}
+    >
+      <Button size="sm" onClick={() => respond(true)} disabled={submitted}>
+        Allow
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => respond(false)}
+        disabled={submitted}
+      >
+        Deny
+      </Button>
+    </div>
+  );
+}
+
 const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   toolName,
   argsText,
   result,
   status,
+  addResult,
+  resume,
+  interrupt,
+  approval,
+  respondToApproval,
 }) => {
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
+  const isRequiresAction = status?.type === "requires-action";
+
+  const [open, setOpen] = useState(isRequiresAction);
+  const [prevRequiresAction, setPrevRequiresAction] =
+    useState(isRequiresAction);
+  if (isRequiresAction !== prevRequiresAction) {
+    setPrevRequiresAction(isRequiresAction);
+    if (isRequiresAction) setOpen(true);
+  }
 
   return (
     <ToolFallbackRoot
+      open={open}
+      onOpenChange={setOpen}
       className={cn(isCancelled && "border-muted-foreground/30 bg-muted/30")}
     >
       <ToolFallbackTrigger toolName={toolName} status={status} />
@@ -288,6 +367,15 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
           argsText={argsText}
           className={cn(isCancelled && "opacity-60")}
         />
+        {isRequiresAction && (
+          <ToolFallbackApproval
+            addResult={addResult}
+            resume={resume}
+            interrupt={interrupt}
+            approval={approval}
+            respondToApproval={respondToApproval}
+          />
+        )}
         {!isCancelled && <ToolFallbackResult result={result} />}
       </ToolFallbackContent>
     </ToolFallbackRoot>
@@ -303,6 +391,7 @@ const ToolFallback = memo(
   Args: typeof ToolFallbackArgs;
   Result: typeof ToolFallbackResult;
   Error: typeof ToolFallbackError;
+  Approval: typeof ToolFallbackApproval;
 };
 
 ToolFallback.displayName = "ToolFallback";
@@ -312,6 +401,7 @@ ToolFallback.Content = ToolFallbackContent;
 ToolFallback.Args = ToolFallbackArgs;
 ToolFallback.Result = ToolFallbackResult;
 ToolFallback.Error = ToolFallbackError;
+ToolFallback.Approval = ToolFallbackApproval;
 
 export {
   ToolFallback,
@@ -321,4 +411,5 @@ export {
   ToolFallbackArgs,
   ToolFallbackResult,
   ToolFallbackError,
+  ToolFallbackApproval,
 };

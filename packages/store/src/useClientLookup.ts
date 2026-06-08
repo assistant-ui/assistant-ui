@@ -1,0 +1,79 @@
+import { useMemo } from "react";
+import {
+  useResource,
+  useResources,
+  type ResourceElement,
+} from "@assistant-ui/tap";
+import type { ClientMethods } from "./types/client";
+import { ClientResource } from "./useClientResource";
+import { wrapperResource } from "./wrapperResource";
+
+type InferClientState<TMethods> = TMethods extends {
+  getState: () => infer S;
+}
+  ? S
+  : unknown;
+
+const ClientResourceWithKey = wrapperResource(
+  <TMethods extends ClientMethods>(el: ResourceElement<TMethods>) => {
+    if (el.key === undefined) {
+      throw new Error("useClientResource: Element has no key");
+    }
+    return useResource(ClientResource(el)) as {
+      methods: TMethods;
+      state: InferClientState<TMethods>;
+      key: string | number;
+    };
+  },
+);
+
+export function useClientLookup<TMethods extends ClientMethods>(
+  getElements: () => readonly ResourceElement<TMethods>[],
+  getElementsDeps: readonly unknown[],
+): {
+  state: InferClientState<TMethods>[];
+  get: (lookup: { index: number } | { key: string }) => TMethods;
+} {
+  const resources = useResources(
+    () => getElements().map((el) => ClientResourceWithKey(el)),
+    // oxlint-disable-next-line react/exhaustive-deps -- caller-supplied deps array
+    getElementsDeps,
+  );
+
+  const keys = useMemo(() => Object.keys(resources), [resources]);
+
+  // For arrays, track element key -> index mapping
+  const keyToIndex = useMemo(() => {
+    return resources.reduce(
+      (acc, resource, index) => {
+        acc[resource.key] = index;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+  }, [resources]);
+
+  const state = useMemo(() => {
+    return resources.map((r) => r.state);
+  }, [resources]);
+
+  return {
+    state,
+    get: (lookup: { index: number } | { key: string }) => {
+      if ("index" in lookup) {
+        if (lookup.index < 0 || lookup.index >= keys.length) {
+          throw new Error(
+            `useClientLookup: Index ${lookup.index} out of bounds (length: ${keys.length})`,
+          );
+        }
+        return resources[lookup.index]!.methods;
+      }
+
+      const index = keyToIndex[lookup.key];
+      if (index === undefined) {
+        throw new Error(`useClientLookup: Key "${lookup.key}" not found`);
+      }
+      return resources[index]!.methods;
+    },
+  };
+}

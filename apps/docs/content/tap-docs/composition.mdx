@@ -1,23 +1,26 @@
 ---
 title: Composition
-description: Nest and compose resources with tapResource, tapResources, and tapResourceRoot.
+description: Nest and compose resources with useResource, useResources, and useResourceRoot.
 ---
 
-Resources can render other resources. Child resources get their own fiber, lifecycle, and state — just like React components rendering other components.
+Resources can render other resources. Child resources get their own fiber, lifecycle, and state, just like React components rendering other components.
 
 <Callout type="info">
-**Key difference from React:** parent resources can directly access the return values of their children. In React, a parent component never sees what its children render. In tap, `tapResource` returns the child's value directly, making composition a tool for building up state and logic, not just trees.
+**Key difference from React:** parent resources can directly access the return values of their children. In React, a parent component never sees what its children render. In tap, `useResource` returns the child's value directly, making composition a tool for building up state and logic, not just trees.
 </Callout>
 
-## tapResource
+## useResource
 
 Render a single child resource. The child has its own state and effects, and is automatically cleaned up when the parent unmounts.
 
 ```ts
-const Timer = resource(() => {
-  const counter = tapResource(Counter());
+import { resource, useResource } from "@assistant-ui/tap";
+import { useEffect } from "react";
 
-  tapEffect(() => {
+const Timer = resource(function Timer() {
+  const counter = useResource(Counter());
+
+  useEffect(() => {
     const interval = setInterval(() => {
       counter.increment();
     }, 1000);
@@ -37,10 +40,10 @@ This API is experimental and may change.
 By default, the child re-renders whenever the parent re-renders. You can pass a dependency array to control when the child receives new props.
 
 ```ts
-const result = tapResource(Counter({ incrementBy }), [incrementBy]);
+const result = useResource(Counter({ incrementBy }), [incrementBy]);
 ```
 
-## tapResources
+## useResources
 
 <Callout type="warn">
 This API is experimental and may change.
@@ -49,15 +52,16 @@ This API is experimental and may change.
 Render a dynamic list of child resources. Each element **must** have a key via `withKey`. Resources are preserved across renders when their key stays the same.
 
 ```ts
-import { withKey } from "@assistant-ui/tap";
+import { resource, withKey, useResources } from "@assistant-ui/tap";
+import { useState } from "react";
 
-const TodoList = resource(() => {
-  const [items, setItems] = tapState([
+const TodoList = resource(function TodoList() {
+  const [items, setItems] = useState([
     { id: "1", text: "Learn tap" },
     { id: "2", text: "Build something" },
   ]);
 
-  const todos = tapResources(
+  const todos = useResources(
     () => items.map((item) => withKey(item.id, TodoItem({ text: item.text }))),
     [items],
   );
@@ -70,24 +74,22 @@ const TodoList = resource(() => {
 });
 ```
 
-<Callout type="warn">
-Every element passed to `tapResources` must have a key. Keys must be unique within the list. Missing or duplicate keys will throw an error.
-</Callout>
+Keys must be unique; a missing or duplicate key throws.
 
 ### Key behavior
 
-- **Same key, same type** — the existing fiber is reused and re-rendered with new props
-- **Same key, different type** — the old fiber is unmounted and a new one is created
-- **Removed key** — the fiber is unmounted and cleaned up
+- **Same key, same type**: the existing fiber is reused and re-rendered with new props
+- **Same key, different type**: the old fiber is unmounted and a new one is created
+- **Removed key**: the fiber is unmounted and cleaned up
 
 This is the same model as React's `key` prop on list elements.
 
-## tapResourceRoot
+## useResourceRoot
 
-`tapResourceRoot` returns a stable `{ getValue, subscribe }` handle instead of the child's value directly. The parent doesn't re-render when the child updates — consumers subscribe to changes instead. See [Trees & Re-renders](/tap/docs/trees-and-rerenders) for why this matters.
+`useResourceRoot` returns a stable `{ getValue, subscribe }` handle instead of the child's value directly. The parent doesn't re-render when the child updates, consumers subscribe to changes instead. See [Trees & Re-renders](/tap/docs/trees-and-rerenders) for why this matters.
 
 ```ts
-const counter = tapResourceRoot(Counter());
+const counter = useResourceRoot(Counter());
 
 // read current value
 counter.getValue(); // { count: 0, increment: ... }
@@ -104,6 +106,6 @@ The returned object has a stable identity and won't change across renders. This 
 
 | Hook | Use when |
 | --- | --- |
-| `tapResource` | You need an independent child with its own state and lifecycle |
-| `tapResources` | You have a dynamic list of children |
-| `tapResourceRoot` | You need to expose a child as a subscribable store |
+| `useResource` | You need an independent child with its own state and lifecycle |
+| `useResources` | You have a dynamic list of children |
+| `useResourceRoot` | You need to expose a child as a subscribable store |

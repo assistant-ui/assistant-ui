@@ -1,4 +1,5 @@
-import { resource, tapState, tapCallback } from "@assistant-ui/tap";
+import { useState, useCallback } from "react";
+import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import type { DataRenderersState } from "../types/scopes/dataRenderers";
 import type { DataMessagePartComponent } from "../types/MessagePartComponentTypes";
@@ -10,56 +11,61 @@ import type { DataMessagePartComponent } from "../types/MessagePartComponentType
  * directly for a renderer scope, or prefer {@link useAssistantDataUI} /
  * {@link makeAssistantDataUI} when registering from React components.
  */
-export const DataRenderers = resource((): ClientOutput<"dataRenderers"> => {
-  const [state, setState] = tapState<DataRenderersState>(() => ({
-    renderers: {},
-    fallbacks: [],
-  }));
+export const DataRenderers = resource(
+  function DataRenderers(): ClientOutput<"dataRenderers"> {
+    const [state, setState] = useState<DataRenderersState>(() => ({
+      renderers: {},
+      fallbacks: [],
+    }));
 
-  const setDataUI = tapCallback(
-    (name: string, render: DataMessagePartComponent) => {
-      setState((prev) => {
-        return {
-          ...prev,
-          renderers: {
-            ...prev.renderers,
-            [name]: [...(prev.renderers[name] ?? []), render],
-          },
-        };
-      });
-
-      return () => {
+    const setDataUI = useCallback(
+      (name: string, render: DataMessagePartComponent) => {
         setState((prev) => {
           return {
             ...prev,
             renderers: {
               ...prev.renderers,
-              [name]: prev.renderers[name]?.filter((r) => r !== render) ?? [],
+              [name]: [...(prev.renderers[name] ?? []), render],
             },
           };
         });
-      };
-    },
-    [],
-  );
 
-  const setFallbackDataUI = tapCallback((render: DataMessagePartComponent) => {
-    setState((prev) => ({
-      ...prev,
-      fallbacks: [...prev.fallbacks, render],
-    }));
+        return () => {
+          setState((prev) => {
+            return {
+              ...prev,
+              renderers: {
+                ...prev.renderers,
+                [name]: prev.renderers[name]?.filter((r) => r !== render) ?? [],
+              },
+            };
+          });
+        };
+      },
+      [],
+    );
 
-    return () => {
-      setState((prev) => ({
-        ...prev,
-        fallbacks: prev.fallbacks.filter((r) => r !== render),
-      }));
+    const setFallbackDataUI = useCallback(
+      (render: DataMessagePartComponent) => {
+        setState((prev) => ({
+          ...prev,
+          fallbacks: [...prev.fallbacks, render],
+        }));
+
+        return () => {
+          setState((prev) => ({
+            ...prev,
+            fallbacks: prev.fallbacks.filter((r) => r !== render),
+          }));
+        };
+      },
+      [],
+    );
+
+    return {
+      getState: () => state,
+      setDataUI,
+      setFallbackDataUI,
     };
-  }, []);
-
-  return {
-    getState: () => state,
-    setDataUI,
-    setFallbackDataUI,
-  };
-});
+  },
+);

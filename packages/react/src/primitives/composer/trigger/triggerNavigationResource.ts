@@ -1,10 +1,5 @@
-import {
-  resource,
-  tapEffect,
-  tapEffectEvent,
-  tapMemo,
-  tapState,
-} from "@assistant-ui/tap";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { resource } from "@assistant-ui/tap";
 import type {
   Unstable_TriggerAdapter,
   Unstable_TriggerCategory,
@@ -44,7 +39,7 @@ export type TriggerNavigationResourceOutput = {
  * adapter + current query. Pure derivation — no side effects on the composer.
  */
 export const TriggerNavigationResource = resource(
-  ({
+  function TriggerNavigationResource({
     adapter,
     query,
     open,
@@ -52,28 +47,28 @@ export const TriggerNavigationResource = resource(
     adapter: Unstable_TriggerAdapter | undefined;
     query: string;
     open: boolean;
-  }): TriggerNavigationResourceOutput => {
-    const [activeCategoryId, setActiveCategoryId] = tapState<string | null>(
+  }): TriggerNavigationResourceOutput {
+    const [activeCategoryId, setActiveCategoryId] = useState<string | null>(
       null,
     );
 
-    tapEffect(() => {
+    useEffect(() => {
       if (!open) setActiveCategoryId(null);
     }, [open]);
 
-    const categories = tapMemo<readonly Unstable_TriggerCategory[]>(() => {
+    const categories = useMemo<readonly Unstable_TriggerCategory[]>(() => {
       if (!open || !adapter) return [];
       return adapter.categories();
     }, [open, adapter]);
 
     const effectiveActiveCategoryId = open ? activeCategoryId : null;
 
-    const allItems = tapMemo<readonly Unstable_TriggerItem[]>(() => {
+    const allItems = useMemo<readonly Unstable_TriggerItem[]>(() => {
       if (!effectiveActiveCategoryId || !adapter) return [];
       return adapter.categoryItems(effectiveActiveCategoryId);
     }, [effectiveActiveCategoryId, adapter]);
 
-    const searchResults = tapMemo<
+    const searchResults = useMemo<
       readonly Unstable_TriggerItem[] | null
     >(() => {
       if (!open || !adapter || effectiveActiveCategoryId) return null;
@@ -96,7 +91,7 @@ export const TriggerNavigationResource = resource(
 
     const isSearchMode = searchResults !== null;
 
-    const filteredCategories = tapMemo(() => {
+    const filteredCategories = useMemo(() => {
       if (isSearchMode) return [];
       if (!query) return categories;
       const lower = query.toLowerCase();
@@ -105,14 +100,14 @@ export const TriggerNavigationResource = resource(
       );
     }, [categories, query, isSearchMode]);
 
-    const filteredItems = tapMemo(() => {
+    const filteredItems = useMemo(() => {
       if (isSearchMode) return searchResults ?? [];
       if (!query) return allItems;
       const lower = query.toLowerCase();
       return allItems.filter((item) => matchesQuery(item, lower));
     }, [allItems, query, isSearchMode, searchResults]);
 
-    const navigableList = tapMemo(() => {
+    const navigableList = useMemo(() => {
       if (isSearchMode) return searchResults ?? [];
       if (effectiveActiveCategoryId) return filteredItems;
       return filteredCategories;
@@ -124,11 +119,11 @@ export const TriggerNavigationResource = resource(
       filteredCategories,
     ]);
 
-    const selectCategory = tapEffectEvent((categoryId: string) => {
+    const selectCategory = useEffectEvent((categoryId: string) => {
       setActiveCategoryId(categoryId);
     });
 
-    const goBack = tapEffectEvent(() => {
+    const goBack = useEffectEvent(() => {
       setActiveCategoryId(null);
     });
 

@@ -1,119 +1,87 @@
 ---
 title: Resources
-description: Define resources, pass props, add keys, and render them.
+description: Define resources, pass props, and host them.
 ---
 
-A **resource** is a self-contained unit of reactive state and logic — like a React component, but without UI.
+A **resource** is a self-contained unit of reactive state and logic: like a React
+component, but without UI.
 
 ## Defining a resource
 
-You define a resource with the `resource` function.
+Define a resource with `resource` and a **named function**. Inside it, use the
+hooks you know, imported from `"react"`.
 
 ```ts
-import { resource, tapState } from "@assistant-ui/tap";
+import { resource } from "@assistant-ui/tap";
+import { useState } from "react";
 
-const Counter = resource(({ initialValue = 0 }: { initialValue?: number }) => {
-  const [count, setCount] = tapState(initialValue);
+const Counter = resource(function Counter(props: { initialValue?: number }) {
+  const [count, setCount] = useState(props.initialValue ?? 0);
 
-  return {
-    count,
-    increment: () => setCount((c) => c + 1),
-  };
+  return { count, increment: () => setCount((c) => c + 1) };
 });
 ```
 
-`resource()` returns a **factory function**. Calling the factory creates a `ResourceElement` — a lightweight description of what to render, not an active instance yet.
+The name matters: it gives the resource a stable identity for keys and devtools,
+and it is what makes React's rules-of-hooks lint the body.
 
-## ResourceElements
+`resource()` returns a **factory function**. Calling the factory creates a
+`ResourceElement`, a lightweight description of what to render, not a live
+instance yet.
 
-A `ResourceElement` is a simple `{ type, props }` object — the same idea as a React JSX element (`{ type, props }` under the hood), but without JSX syntax.
+### Resource elements
+
+A `ResourceElement` is a plain `{ type, props }` object, the same idea as a React
+JSX element, but written as a function call instead of JSX.
 
 ```ts
 const element = Counter({ initialValue: 10 });
 // { type: Counter, props: { initialValue: 10 } }
 ```
 
-We deliberately avoided JSX for resource elements. In our testing, JSX confused users because it looked like UI code but wasn't rendering anything visible. Instead, we use a calling convention inspired by Flutter — `ResourceName({ props })` — so that it reads like normal function calls.
+Calling the factory (`Counter({ ... })`) reads like the plain function call it
+is. Like a JSX element, the result is inert until you host it.
 
-Just like in React, a `ResourceElement` is inert. It doesn't do anything on its own — it's a description of *what* to render, not an active instance. See [Instances](#instances) for how to bring them to life.
+### Props
 
-## Props
+Resources accept props like components do. When a resource re-renders with new
+props, hooks react to the change through their dependency arrays, exactly as in
+React.
 
-Resources can accept props, just like React components. In the example above, `Counter` takes an `initialValue` prop.
+### Return value
 
-Props are passed to a resource instance by its owner — which can be another resource (via `tapResource`), a React component (via `useResource`), or imperative code (via `createResourceRoot`).
+Instead of JSX, a resource returns any JavaScript value: an object, array, or
+primitive. That return value is the resource's public API, and it is what callers
+read when they host it.
 
-When a resource re-renders with new props, hooks like `tapEffect` and `tapMemo` can react to the changes through their dependency arrays.
+## Hosting a resource
 
-## Return value
-
-Resources can return a value. This is how you expose state and methods to the outside world. Unlike React components which return JSX nodes, resources can return any JavaScript value — objects, arrays, numbers, strings, or anything else.
-
-The return value is what you get when you read from an instance — directly from `useResource` in React, or via `handle.getValue()` with `createResourceRoot`.
-
-## Keys
-
-You can attach a stable key to a `ResourceElement` with `withKey`. Keys are used to preserve identity when rendering lists with `tapResources`.
-
-```ts
-import { withKey } from "@assistant-ui/tap";
-
-const element = withKey("my-counter", Counter({ initialValue: 10 }));
-// { type: Counter, props: { initialValue: 10 }, key: "my-counter" }
-```
-
-Keys work the same way as React's `key` prop — when the key stays the same, the resource keeps its state. When the key changes, the resource is unmounted and a fresh one is created.
-
-## Instances
-
-A `ResourceElement` is just a description — it doesn't do anything on its own. To bring it to life, you create an instance. There are two ways to do this:
-
-### useResource
-
-Use `useResource` inside React components. The resource's lifecycle is tied to the component — it mounts when the component mounts and unmounts when the component unmounts.
+`useResource` hosts a single element. It works the same way in both worlds: inside
+a React component it ties the resource to the component's lifecycle, and inside
+another resource it nests the resource as a child.
 
 ```tsx
-import { useResource } from "@assistant-ui/tap/react";
+import { useResource } from "@assistant-ui/tap";
 
-function CounterComponent() {
+function CounterButton() {
   const { count, increment } = useResource(Counter({ initialValue: 10 }));
-
-  return (
-    <div>
-      <p>Count: {count}</p>
-      <button onClick={increment}>Increment</button>
-    </div>
-  );
+  return <button onClick={increment}>Count: {count}</button>;
 }
 ```
 
-The component re-renders whenever the resource's state changes.
-
-### createResourceRoot
-
-Use `createResourceRoot` for imperative, framework-agnostic usage.
+Unlike React, a parent reads its child's return value directly, which makes
+composition a tool for building up state and logic, not just trees.
 
 ```ts
-import { createResourceRoot } from "@assistant-ui/tap";
+import { resource, useResource } from "@assistant-ui/tap";
 
-const root = createResourceRoot();
-const handle = root.render(Counter({ initialValue: 10 }));
-
-// read state
-handle.getValue().count; // 10
-
-// subscribe to changes
-handle.subscribe(() => {
-  console.log(handle.getValue().count);
+const Dashboard = resource(function Dashboard() {
+  const counter = useResource(Counter({ initialValue: 0 }));
+  return { total: counter.count };
 });
-
-// call methods
-handle.getValue().increment();
-
-// update props
-root.render(Counter({ initialValue: 20 }));
-
-// cleanup
-root.unmount();
 ```
 
+## Next
+
+- [Composition](/tap/docs/composition): render keyed lists with `useResources` and expose subscribable boundaries with `useResourceRoot`.
+- [Context](/tap/docs/context): pass values through the resource tree without prop drilling.

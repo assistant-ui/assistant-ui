@@ -14,13 +14,8 @@ import type {
   ToolCallMessagePartProps,
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
-import {
-  resource,
-  tapConst,
-  tapRef,
-  tapResource,
-  type ResourceElement,
-} from "@assistant-ui/tap";
+
+import { useResource, resource, type ResourceElement } from "@assistant-ui/tap";
 import { McpAppFrame } from "./app-frame";
 import type {
   McpAppBridgeHandlers,
@@ -136,7 +131,7 @@ function InlineRenderer({
     return () => {
       cancelled = true;
     };
-    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- re-fetch only when URI changes; appForRender identity is unstable and internalsRef is a stable ref
+    // oxlint-disable-next-line react/exhaustive-deps -- re-fetch only when URI changes; appForRender identity is unstable and internalsRef is a stable ref
   }, [resourceUri]);
 
   const bridgeHandlers = useMemo<McpAppBridgeHandlers>(
@@ -200,30 +195,28 @@ function InlineRenderer({
  * renderer loads that resource from the configured host and displays it in a
  * sandboxed frame.
  */
-export const McpAppRenderer = resource(
-  (
-    options: McpAppRendererOptions,
-  ): { readonly render: ToolCallMessagePartComponent } => {
-    const host = tapResource(options.host);
+export const McpAppRenderer = resource(function McpAppRenderer(
+  options: McpAppRendererOptions,
+): { readonly render: ToolCallMessagePartComponent } {
+  const host = useResource(options.host);
 
-    const optionsRef = tapRef<McpAppRendererOptions>(options);
-    optionsRef.current = options;
+  const optionsRef = useRef<McpAppRendererOptions>(options);
+  optionsRef.current = options;
 
-    const internalsRef = tapRef<{ host: McpAppsHost }>({ host });
-    internalsRef.current = { host };
+  const internalsRef = useRef<{ host: McpAppsHost }>({ host });
+  internalsRef.current = { host };
 
-    const render = tapConst((): ToolCallMessagePartComponent => {
-      const Render: ToolCallMessagePartComponent = (props) => (
-        <InlineRenderer
-          part={props}
-          internalsRef={internalsRef}
-          optionsRef={optionsRef}
-        />
-      );
-      Render.displayName = "McpAppRenderer";
-      return Render;
-    }, []);
+  const render = useMemo((): ToolCallMessagePartComponent => {
+    const Render: ToolCallMessagePartComponent = (props) => (
+      <InlineRenderer
+        part={props}
+        internalsRef={internalsRef}
+        optionsRef={optionsRef}
+      />
+    );
+    Render.displayName = "McpAppRenderer";
+    return Render;
+  }, []);
 
-    return { render };
-  },
-);
+  return { render };
+});

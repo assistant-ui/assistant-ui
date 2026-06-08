@@ -1,4 +1,4 @@
-import type { RenderedFrame } from "safe-content-frame";
+import type { SandboxHostFrame } from "../sandbox-host/SandboxHost";
 import {
   MCP_APP_PROTOCOL_VERSION,
   type McpAppBridgeHandlers,
@@ -10,6 +10,7 @@ import {
   type McpAppJsonRpcRequest,
   type McpAppJsonRpcResponse,
 } from "./types";
+import { isRecord } from "../utils/json/is-json";
 
 const VALID_DISPLAY_MODES = [
   "inline",
@@ -17,20 +18,17 @@ const VALID_DISPLAY_MODES = [
   "pip",
 ] as const satisfies readonly McpAppDisplayMode[];
 
-export type McpAppBridgeFrame = Pick<
-  RenderedFrame,
-  "iframe" | "origin" | "sendMessage"
->;
+export type McpAppBridgeFrame = SandboxHostFrame;
 
 export type CreateMcpAppBridgeOptions = {
   frame: McpAppBridgeFrame;
   handlers?: McpAppBridgeHandlers | undefined;
   hostInfo?: McpAppHostInfo | undefined;
   hostContext?: McpAppHostContext | undefined;
-  targetWindow?: Window | undefined;
 };
 
 export type McpAppBridge = {
+  onMessage: (event: MessageEvent) => void;
   dispose: () => void;
   notifyToolInput: (input: unknown) => void;
   notifyToolResult: (result: unknown) => void;
@@ -90,12 +88,7 @@ export function createMcpAppBridge(
     handlers = {},
     hostInfo = DEFAULT_HOST_INFO,
     hostContext = {},
-    targetWindow = typeof window !== "undefined" ? window : undefined,
   } = opts;
-
-  if (!targetWindow) {
-    throw new Error("createMcpAppBridge requires a window context");
-  }
 
   const post = (msg: McpAppJsonRpcMessage) => {
     frame.sendMessage(msg);
@@ -136,10 +129,15 @@ export function createMcpAppBridge(
 
       switch (normalizeMethod(req.method)) {
         case "ui/initialize": {
+          const requestedProtocolVersion =
+            isRecord(params) && typeof params.protocolVersion === "string"
+              ? params.protocolVersion
+              : MCP_APP_PROTOCOL_VERSION;
           respond(req.id, {
             result: {
-              protocolVersion: MCP_APP_PROTOCOL_VERSION,
+              protocolVersion: requestedProtocolVersion,
               host: hostInfo,
+              hostInfo,
               hostContext,
               capabilities: {
                 tools: handlers.callTool ? {} : undefined,
@@ -153,6 +151,18 @@ export function createMcpAppBridge(
                   requestDisplayMode: !!handlers.requestDisplayMode,
                   updateModelContext: !!handlers.updateModelContext,
                 },
+              },
+              hostCapabilities: {
+                ...(handlers.openLink ? { openLinks: {} } : {}),
+                ...(handlers.callTool ? { serverTools: {} } : {}),
+                ...(handlers.readResource || handlers.listResources
+                  ? { serverResources: {} }
+                  : {}),
+                ...(handlers.updateModelContext
+                  ? { updateModelContext: { text: {} } }
+                  : {}),
+                ...(handlers.sendMessage ? { message: { text: {} } } : {}),
+                ...(handlers.onLog ? { logging: {} } : {}),
               },
             },
           });
@@ -405,11 +415,9 @@ export function createMcpAppBridge(
     }
   };
 
-  // Cross-origin guard: ignore any postMessage not originating from this
-  // app's iframe contentWindow at the SafeContentFrame-issued origin.
+  // The host applies the cross-origin guard before delegating; this only
+  // validates the JSON-RPC envelope.
   const onMessage = (event: MessageEvent) => {
-    if (event.source !== frame.iframe.contentWindow) return;
-    if (event.origin !== frame.origin) return;
     if (!isJsonRpcMessage(event.data)) return;
 
     const msg = event.data;
@@ -420,17 +428,19 @@ export function createMcpAppBridge(
     }
   };
 
-  targetWindow.addEventListener("message", onMessage);
-
   return {
-    dispose: () => {
-      targetWindow.removeEventListener("message", onMessage);
-    },
+    onMessage,
+    dispose: () => {},
     notifyToolInput: (input: unknown) => {
       post({
         jsonrpc: "2.0",
         method: "notifications/tools/call/input",
         params: { input },
+      });
+      post({
+        jsonrpc: "2.0",
+        method: "ui/notifications/tool-input",
+        params: isRecord(input) ? { arguments: input } : {},
       });
     },
     notifyToolResult: (result: unknown) => {
@@ -439,11 +449,23 @@ export function createMcpAppBridge(
         method: "notifications/tools/call/result",
         params: { result },
       });
+      post({
+        jsonrpc: "2.0",
+        method: "ui/notifications/tool-result",
+        params: isRecord(result)
+          ? result
+          : { content: [{ type: "text", text: String(result) }] },
+      });
     },
     notifyHostContextChanged: (ctx: McpAppHostContext) => {
       post({
         jsonrpc: "2.0",
         method: "notifications/host_context/changed",
+        params: ctx,
+      });
+      post({
+        jsonrpc: "2.0",
+        method: "ui/notifications/host-context-changed",
         params: ctx,
       });
     },

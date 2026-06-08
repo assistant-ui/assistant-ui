@@ -115,7 +115,7 @@ export function useShikiHighlighter(
       shikiRef.current?.dispose();
       shikiRef.current = null;
     };
-    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- langsKey stabilizes langs by value
+    // oxlint-disable-next-line react/exhaustive-deps -- langsKey stabilizes langs by value
   }, [theme, langsKey]);
 
   return highlighter;

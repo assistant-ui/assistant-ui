@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { tapResources } from "../../hooks/tap-resources";
-import { tapState } from "../../hooks/tap-state";
+import { useResources } from "../../hooks/useResources";
+import { useState } from "../../hooks/useState";
 import { resource } from "../../core/resource";
 import { withKey } from "../../core/withKey";
 import {
@@ -13,20 +13,25 @@ import {
 const SimpleCounter = resource(createCounterResource());
 
 // Stateful counter that tracks its own count
-const StatefulCounter = resource((props: { initial: number }) => {
-  const [count] = tapState(props.initial);
+const StatefulCounter = resource(function StatefulCounter(props: {
+  initial: number;
+}) {
+  const [count] = useState(props.initial);
   return { count };
 });
 
 // Display component for testing type changes
-const Display = resource((props: { text: string }) => {
+const Display = resource(function Display(props: { text: string }) {
   return { type: "display", text: props.text };
 });
 
 // Counter with render tracking for testing instance preservation
 const renderCounts = new Map<string, number>();
 const instances = new Map<string, object>();
-const TrackingCounter = resource((props: { value: number; id: string }) => {
+const TrackingCounter = resource(function TrackingCounter(props: {
+  value: number;
+  id: string;
+}) {
   const currentCount = (renderCounts.get(props.id) || 0) + 1;
   renderCounts.set(props.id, currentCount);
 
@@ -42,7 +47,7 @@ const TrackingCounter = resource((props: { value: number; id: string }) => {
   };
 });
 
-describe("tapResources - Basic Functionality", () => {
+describe("useResources - Basic Functionality", () => {
   afterEach(() => {
     cleanupAllResources();
   });
@@ -50,7 +55,7 @@ describe("tapResources - Basic Functionality", () => {
   describe("Basic Rendering", () => {
     it("should render multiple resources with keys", () => {
       const testFiber = createTestResource(() => {
-        const results = tapResources(
+        const results = useResources(
           () => [
             withKey("a", SimpleCounter({ value: 10 })),
             withKey("b", SimpleCounter({ value: 20 })),
@@ -67,8 +72,8 @@ describe("tapResources - Basic Functionality", () => {
     });
 
     it("should work with resource constructor syntax", () => {
-      const Counter = resource((props: { value: number }) => {
-        const [count] = tapState(props.value);
+      const Counter = resource(function Counter(props: { value: number }) {
+        const [count] = useState(props.value);
         return { count, double: count * 2 };
       });
 
@@ -79,7 +84,7 @@ describe("tapResources - Basic Functionality", () => {
       ];
 
       const testFiber = createTestResource(() => {
-        const results = tapResources(
+        const results = useResources(
           () =>
             items.map((item) =>
               withKey(item.key, Counter({ value: item.value })),
@@ -105,7 +110,7 @@ describe("tapResources - Basic Functionality", () => {
         (props: {
           items: Array<{ key: string; value: number; id: string }>;
         }) => {
-          return tapResources(() => {
+          return useResources(() => {
             return props.items.map((item) =>
               withKey(
                 item.key,
@@ -162,7 +167,7 @@ describe("tapResources - Basic Functionality", () => {
     it("should handle adding and removing resources", () => {
       const testFiber = createTestResource(
         (props: { items: Array<{ key: string; value: number }> }) => {
-          const results = tapResources(() => {
+          const results = useResources(() => {
             return props.items.map((item) =>
               withKey(item.key, SimpleCounter({ value: item.value })),
             );
@@ -203,7 +208,7 @@ describe("tapResources - Basic Functionality", () => {
 
     it("should handle changing resource types for the same key", () => {
       const testFiber = createTestResource((props: { useCounter: boolean }) => {
-        const results = tapResources(
+        const results = useResources(
           () => [
             withKey(
               "item",

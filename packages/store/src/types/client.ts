@@ -1,4 +1,4 @@
-import type { ResourceElement } from "@assistant-ui/tap";
+import { type ResourceElement } from "@assistant-ui/tap";
 import type {
   AssistantEventName,
   AssistantEventCallback,
@@ -102,8 +102,8 @@ type ClientSchemas = keyof ScopeRegistry extends never
  *
  * @example
  * ```typescript
- * const FooResource = resource((): ClientResourceOutput<"foo"> => {
- *   const [state, setState] = tapState({ bar: "hello" });
+ * const FooResource = resource(function FooResource(): ClientResourceOutput<"foo"> {
+ *   const [state, setState] = useState({ bar: "hello" });
  *   return {
  *     getState: () => state,
  *     updateBar: (b) => setState({ bar: b }),

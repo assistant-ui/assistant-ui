@@ -44,9 +44,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-generative-compiler": "workspace:^",
-    "@types/node": "^25.9.1",
-    "tsdown": "^0.22.1",
-    "vitest": "^4.1.7"
+    "@types/node": "^25.9.2",
+    "tsdown": "^0.22.2",
+    "vitest": "^4.1.8"
   },
   "publishConfig": {
     "access": "public",

@@ -1,11 +1,11 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import { type ComponentProps, useMemo } from "react";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 import { cva, type VariantProps } from "class-variance-authority";
 import { diffLines } from "diff";
 import parseDiff from "parse-diff";
-import { useMemo } from "react";
+
 import { cn } from "@/lib/utils";
 
 type DiffLineType = "add" | "del" | "normal";

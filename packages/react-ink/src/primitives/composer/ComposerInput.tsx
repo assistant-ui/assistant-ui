@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import type { ComponentProps } from "react";
+import { useEffect, useRef, type ComponentProps } from "react";
+
 import { Box, Text, useFocus, useInput } from "ink";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import {

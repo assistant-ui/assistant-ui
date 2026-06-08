@@ -193,7 +193,7 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({
       AssistantMessage,
       SystemMessage,
     } as MessageComponents;
-    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- per-field deps cover real changes; including `components` would bust the memo on inline literal props
+    // oxlint-disable-next-line react/exhaustive-deps -- per-field deps cover real changes; including `components` would bust the memo on inline literal props
   }, [
     Message,
     EditComposer,

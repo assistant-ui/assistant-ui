@@ -17,12 +17,12 @@ Both flow through one connection lifecycle, one persisted state surface, and one
 ```
 useAui({ mcp: McpManagerResource({ connectors }) })
         │
-        ├─ Tap resource — connection lifecycle, server lookup, OAuth/bearer auth
+        ├─ Resource — connection lifecycle, server lookup, OAuth/bearer auth
         ├─ Auto-mounts the modelContext scope when no chat runtime provides one
         └─ Registers connected tools as frontend tools — your chat sees them automatically
 ```
 
-The manager is a single tap resource. Mount it with `useAui` like any other scope. OAuth (PKCE + RFC 7591 dynamic client registration), bearer, and "no auth" are first-class. Token refresh runs inside the MCP SDK on 401; this package mediates persistence and the redirect step.
+The manager is a single resource. Mount it with `useAui` like any other scope. OAuth (PKCE + RFC 7591 dynamic client registration), bearer, and "no auth" are first-class. Token refresh runs inside the MCP SDK on 401; this package mediates persistence and the redirect step.
 
 ## Setup
 
@@ -221,7 +221,7 @@ Tool names are prefixed `serverId__toolName` to avoid collisions across connecte
 If no chat runtime is mounted, `McpManagerResource` brings its own minimal `modelContext` along. Tools are still callable directly:
 
 ```ts
-// In an event handler — never in render. See the tap conventions.
+// In an event handler, never in render.
 const aui = useAui();
 const out = await aui.mcp().server({ id: "linear" }).callTool("search", { q });
 ```
@@ -293,7 +293,7 @@ const connectionState = useAuiState((s) => s.mcpServer.connectionState);
 //                                          ^ requires McpServerByIdProvider
 ```
 
-Imperative methods — `useAui` + resolve in a callback (never during render — see the [tap skill](https://github.com/assistant-ui/assistant-ui/blob/main/.claude/skills/tap/SKILL.md) for why):
+Imperative methods: `useAui` + resolve in a callback (never during render):
 
 ```ts
 const aui = useAui();

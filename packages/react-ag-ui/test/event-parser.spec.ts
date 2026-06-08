@@ -44,6 +44,36 @@ describe("parseAgUiEvent", () => {
     });
   });
 
+  it("parses ACTIVITY_SNAPSHOT events", () => {
+    const event = parseAgUiEvent({
+      type: "ACTIVITY_SNAPSHOT",
+      messageId: "m1",
+      activityType: "mcp-apps",
+      content: {
+        resourceUri: "ui://srv/mcp-app.html",
+        toolInput: { city: "sf" },
+      },
+      replace: true,
+    });
+    expect(event).toEqual({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: {
+        resourceUri: "ui://srv/mcp-app.html",
+        toolInput: { city: "sf" },
+      },
+    });
+  });
+
+  it("guards against ACTIVITY_SNAPSHOT missing activityType or content", () => {
+    expect(
+      parseAgUiEvent({ type: "ACTIVITY_SNAPSHOT", content: {} }),
+    ).toBeNull();
+    expect(
+      parseAgUiEvent({ type: "ACTIVITY_SNAPSHOT", activityType: "mcp-apps" }),
+    ).toBeNull();
+  });
+
   it("passes RUN_FINISHED through with no outcome (legacy)", () => {
     const event = parseAgUiEvent({ type: "RUN_FINISHED", runId: "r1" });
     expect(event).toEqual({ type: "RUN_FINISHED", runId: "r1" });

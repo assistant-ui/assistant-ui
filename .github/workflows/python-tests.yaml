@@ -1,0 +1,51 @@
+name: Python Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "python/**"
+      - ".github/workflows/python-tests.yaml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "python/**"
+      - ".github/workflows/python-tests.yaml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (${{ matrix.package }}, ${{ matrix.python-version }})
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - assistant-stream
+          - assistant-ui-sync-server-api
+        python-version: ["3.10", "3.12"]
+    defaults:
+      run:
+        working-directory: python/${{ matrix.package }}
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run tests
+        run: uv run pytest

@@ -3,6 +3,8 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { UserMessageSchema } from "@ag-ui/client";
+import { ExportedMessageRepository } from "@assistant-ui/core";
+import { fromAgUiMessages as publicFromAgUiMessages } from "../src";
 import {
   fromAgUiMessages,
   toAgUiMessages,
@@ -801,5 +803,27 @@ describe("adapter conversions", () => {
     });
     expect((result[0] as any).content[0].source).not.toHaveProperty("data");
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+});
+
+describe("package exports", () => {
+  it("exposes fromAgUiMessages from the package root", () => {
+    expect(publicFromAgUiMessages).toBe(fromAgUiMessages);
+  });
+
+  it("composes with ExportedMessageRepository.fromArray for history loading", () => {
+    const repo = ExportedMessageRepository.fromArray(
+      publicFromAgUiMessages([
+        { id: "u-1", role: "user", content: "Hi" },
+        { id: "a-1", role: "assistant", content: "Hello!" },
+      ]),
+    );
+
+    expect(repo.messages).toHaveLength(2);
+    expect(repo.messages[0]).toMatchObject({
+      parentId: null,
+      message: { role: "user" },
+    });
+    expect(repo.messages[1]!.parentId).toBe(repo.messages[0]!.message.id);
   });
 });

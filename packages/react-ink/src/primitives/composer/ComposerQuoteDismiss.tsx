@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { useCallback } from "react";
+import { type ReactNode, useCallback } from "react";
+
 import { useAui } from "@assistant-ui/store";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 

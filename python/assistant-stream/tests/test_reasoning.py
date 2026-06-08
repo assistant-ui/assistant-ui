@@ -3,7 +3,7 @@ import pytest
 from assistant_stream import create_run, RunController
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_append_reasoning():
     """Test that append_reasoning works correctly."""
     reasoning_chunks = []
@@ -27,7 +27,7 @@ async def test_append_reasoning():
     assert reasoning_chunks[1].reasoning_delta == "reasoning content"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_mixed_text_and_reasoning():
     """Test that append_text and append_reasoning can be used together."""
     collected_chunks = []

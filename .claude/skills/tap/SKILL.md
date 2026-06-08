@@ -1,6 +1,6 @@
 ---
 name: tap
-description: Use this skill whenever you write or review code that uses `@assistant-ui/tap` or `@assistant-ui/store` in the assistant-ui monorepo — tap hooks, resource factories, `tapClientResource`/`tapClientLookup`/`tapClientList`, `useAui`/`useAuiState`/`useAuiEvent`, `ScopeRegistry`, `Derived` child scopes, `attachTransformScopes`, `tapAssistantClientRef`/`tapAssistantEmit`, or any new package exposing a store scope. Read first to avoid the recurring mistakes catalogued below.
+description: Use this skill whenever you write or review code that uses `@assistant-ui/tap` or `@assistant-ui/store` in the assistant-ui monorepo: resources, React hooks inside resource bodies, `useResource`/`useResources`/`useResourceRoot`, `useClientResource`/`useClientLookup`/`useClientList`, `useAui`/`useAuiState`/`useAuiEvent`, `ScopeRegistry`, `Derived` child scopes, `attachTransformScopes`, `useAssistantClientRef`/`useAssistantEmit`, or any new package exposing a store scope. Read first to avoid the recurring mistakes catalogued below.
 ---
 
 # tap & store cheat sheet
@@ -9,34 +9,36 @@ Authoritative docs: `apps/docs/content/tap-docs/` (and `.../store/`). This is a 
 
 ## Naming
 
-- **`tap*`** = a hook called inside a resource body, follows rules of hooks. Examples: `tapState`, `tapEffect`, `tapMemo`, `tapCallback`, `tapRef`, `tapConst`, `tapEffectEvent`, `tapReducer`, `tapReducerWithDerivedState`, `tapResource`, `tapResources`, `tapResourceRoot`, `tapClientResource`, `tapClientLookup`, `tapClientList`, `tapAssistantClientRef`, `tapAssistantEmit`, `tap` (context reader).
-- **`*Resource` / `Foo`** = resource factory produced by `resource(fn)`, called *outside* resource bodies (`SpanResource`, `CounterResource`, `MCPManagerResource`). Never name a factory `tapFoo` — that signals "hook".
+- Inside a resource body you call **React's hooks** (`useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useReducer`, `useEffectEvent`, `use`) imported from `"react"`, following the rules of hooks. Read context with `use(Context)`.
+- tap adds `useResource` / `useResources` / `useResourceRoot` (from `@assistant-ui/tap`). store adds `useClientResource` / `useClientLookup` / `useClientList` / `useAssistantClientRef` / `useAssistantEmit` (from `@assistant-ui/store`).
+- **`*Resource` / `Foo`** = resource factory produced by `resource(fn)`, called *outside* resource bodies (`SpanResource`, `CounterResource`, `MCPManagerResource`). Never name a factory `useFoo`, that signals a hook.
 - Plain utilities have no prefix (`defineConnector`, `createOAuthProvider`).
 
 ## Resources
 
 ```ts
-import { resource, tapState } from "@assistant-ui/tap";
+import { resource } from "@assistant-ui/tap";
+import { useState } from "react";
 
-const Counter = resource(({ initial = 0 }) => {
-  const [count, setCount] = tapState(initial);
+const Counter = resource(function Counter({ initial = 0 }) {
+  const [count, setCount] = useState(initial);
   return { count, increment: () => setCount((c) => c + 1) };
 });
 
 const element = Counter({ initial: 10 });   // ResourceElement = { type, props, key? }, inert
 ```
 
-Instantiate via: `useResource(element)` in React, `tapResource(element)` inside another resource body, `createResourceRoot().render(element)` imperatively, or `useAui({ scope: element })` as a store scope.
+Instantiate via: `useResource(element)` (isomorphic, works in a React component and inside another resource body), `createResourceRoot().render(element)` imperatively, or `useAui({ scope: element })` as a store scope.
 
 ## Hook rules
 
-- Top level of resource body or a custom `tap*` helper only.
-- Not in conditions, loops, nested functions, event handlers, `try/catch`, or callbacks passed to `tapState`/`tapMemo`/`tapEffect`.
-- **`setState` during render throws** (unlike React). For derive-from-props use `tapReducerWithDerivedState`.
+- Top level of resource body or a custom `use*` hook only.
+- Not in conditions, loops, nested functions, event handlers, `try/catch`, or callbacks passed to `useState`/`useMemo`/`useEffect`.
+- **`setState` during render throws** (unlike React). Derive from props during render instead.
 
 ## Trees & re-renders
 
-`tapResource` returns child values to the parent, so **the entire tree re-renders from the root** when any resource updates. `tapResourceRoot` breaks the chain (subtree boundary, used inside Store). Tap batches updates via microtasks; >50 update flushes throws.
+`useResource` returns child values to the parent, so **the entire tree re-renders from the root** when any resource updates. `useResourceRoot` breaks the chain (subtree boundary, used inside Store). Tap batches updates via microtasks; >50 update flushes throws.
 
 Effects run in **call order** (not children-first like React). Cleanups run FIFO on unmount.
 
@@ -63,13 +65,13 @@ declare module "@assistant-ui/store" {
 import type { ClientOutput } from "@assistant-ui/store";
 
 export const CounterResource = resource((): ClientOutput<"counter"> => {
-  const [count, setCount] = tapState(0);
-  const state = tapMemo(() => ({ count }), [count]);    // ✅ stabilize identity
+  const [count, setCount] = useState(0);
+  const state = useMemo(() => ({ count }), [count]);    // ✅ stabilize identity
   return { getState: () => state, increment: () => setCount((c) => c + 1) };
 });
 ```
 
-Always `tapMemo` the `getState` object — Store detects changes via `Object.is`, an inline literal looks new every render.
+Always `useMemo` the `getState` object — Store detects changes via `Object.is`, an inline literal looks new every render.
 
 ## `useAui()` — the resolution rule
 
@@ -119,21 +121,21 @@ Each level can extend with another `useAui({ ... })`; children see the merged st
 
 ```ts
 // Recomputed from an array — no add/remove
-const lookup = tapClientLookup(
+const lookup = useClientLookup(
   () => items.map((it) => withKey(it.id, ItemResource({ data: it }))),
   [items],
 );
 // lookup.state: ItemState[]; lookup.get({key} | {index}) -> methods (throws on miss)
 
 // Dynamic, owns mutation
-const list = tapClientList({
+const list = useClientList({
   initialValues: initialItems,
   getKey: (it) => it.id,
   resource: ({ key, getInitialData, remove }) => ItemResource({ ... }),
 });  // list.state, list.get, list.add — duplicate key throws
 ```
 
-`tapClientResource(element)` is the single-child variant: `{ state, methods, key }`, adds to event-scoping stack.
+`useClientResource(element)` is the single-child variant: `{ state, methods, key }`, adds to event-scoping stack.
 
 ## Derived child scopes
 
@@ -149,7 +151,7 @@ useAui({
 });
 ```
 
-The scope's `meta: { source, query }` must match. `get` is wrapped in `tapEffectEvent` internally — always sees the latest parent.
+The scope's `meta: { source, query }` must match. `get` is wrapped in `useEffectEvent` internally — always sees the latest parent.
 
 ## Rendering lists in React
 
@@ -179,7 +181,7 @@ Length-only subscription = re-render on add/remove only. Lazy `getItem` = no sub
 events: { "counter.incremented": { newCount: number }; "counter.reset": undefined };
 
 // emit (in a resource)
-const emit = tapAssistantEmit();
+const emit = useAssistantEmit();
 emit("counter.incremented", { newCount });   // delivered via microtask
 
 // subscribe (in a component)
@@ -204,8 +206,8 @@ Two patterns, often paired:
 
 ```ts
 // Runtime access to a sibling (in effects/methods — NOT in render body)
-const clientRef = tapAssistantClientRef();
-tapEffect(() => {
+const clientRef = useAssistantClientRef();
+useEffect(() => {
   const unsub = clientRef.current!.modelContext().register({ ... });
   return () => unsub();
 }, [clientRef]);
@@ -224,18 +226,18 @@ Transforms apply iteratively; new root scopes trigger their own transforms. One 
 
 - **Resolving scope during render** (`aui.x().getState()` in body, caching `const x = aui.x()`). The pattern is `const aui = useAui();` + `aui.x()` *inside* the callback. Bug shows up when a derived scope retargets.
 - **`useAuiState` selector returns fresh object/array** → infinite re-render. One call per leaf value.
-- **Naming a resource factory `tapFoo`** — signals "hook", is wrong.
-- **`setState` in `tapState` initializer or during render** — throws.
-- **Forgetting `withKey`** in `tapResources` / `tapClientLookup` / `tapClientList` — throws.
-- **Function calls in dep arrays** (`[a.getState()]`). Extract first. Linted by the `tap-hooks/exhaustive-deps` rule (custom plugin at `scripts/oxlint-plugins/tap-hooks.mjs`, wrapping `eslint-plugin-react-hooks`).
+- **Naming a resource factory `useFoo`** — signals "hook", is wrong.
+- **`setState` in `useState` initializer or during render** — throws.
+- **Forgetting `withKey`** in `useResources` / `useClientLookup` / `useClientList` — throws.
+- **Function calls in dep arrays** (`[a.getState()]`). Extract first. Linted by oxlint's native `react/exhaustive-deps`.
 - **Wide `useAuiState` selectors** (`(s) => s.foo`) — re-renders on every field change.
-- **Reading `tapAssistantClientRef().current` during render** — null until siblings mount. Use in effects only.
-- **Forgetting `tapMemo` on the `getState` object** — every consumer re-renders every emit.
-- **Treating stateless adapter resources as needing tap hooks** — `resource()` body can be pure; that's fine.
+- **Reading `useAssistantClientRef().current` during render** — null until siblings mount. Use in effects only.
+- **Forgetting `useMemo` on the `getState` object** — every consumer re-renders every emit.
+- **Treating stateless adapter resources as needing hooks** — `resource()` body can be pure; that's fine.
 
 ## Pointers
 
-- Tap hooks: `packages/tap/src/`
+- Tap: `packages/tap/src/`
 - Store: `packages/store/src/`, spec at `packages/store/SPEC.md`
 - Docs: `apps/docs/content/tap-docs/` (+ `/store/`)
 - Real example: `packages/react-o11y/src/resources/SpanResource.tsx`

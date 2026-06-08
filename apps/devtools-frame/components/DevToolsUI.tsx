@@ -2,21 +2,45 @@
 
 import clsx from "clsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   normalizeToolList,
   type NormalizedTool,
   FrameClient,
 } from "@assistant-ui/react-devtools";
+import {
+  type EventLogEntry,
+  eventScope,
+  formatClockTime,
+  isRecord,
+  truncate,
+} from "./common";
+import { McpView } from "./mcp";
+import { ModelContextView } from "./model-context";
+import { RunTimeline } from "./runs";
+import { ScopesView } from "./scopes";
+import {
+  ComposerAttachments,
+  ComposerFlags,
+  ComposerQueue,
+  ThreadDetails,
+  parseComposerPreview,
+  parseThreadListItemPreview,
+  parseThreadListPreview,
+  parseThreadPreview,
+} from "./thread";
+import {
+  CenteredMessage,
+  Chip,
+  ControlButton,
+  EmptyState,
+  JSONPreview,
+  SectionLabel,
+  SummaryItem,
+} from "./ui";
 
 interface AssistantState {
   [key: string]: unknown;
-}
-
-interface EventLog {
-  time: Date;
-  event: string;
-  data: unknown;
 }
 
 interface ModelContext {
@@ -29,8 +53,9 @@ interface ModelContext {
 interface ApiInfo {
   id: number;
   state: AssistantState;
-  logs: EventLog[];
+  logs: EventLogEntry[];
   modelContext?: ModelContext;
+  scopes?: unknown;
 }
 
 interface ApiData {
@@ -38,17 +63,35 @@ interface ApiData {
   state: any;
   events: any[];
   modelContext?: any;
+  scopes?: any;
 }
 
-type TabType = "state" | "events" | "modelContext";
+type TabType = "thread" | "context" | "activity" | "raw";
 
-const formatTime = (value: Date) =>
-  `${value.getHours().toString().padStart(2, "0")}:${value
-    .getMinutes()
-    .toString()
-    .padStart(2, "0")}:${value.getSeconds().toString().padStart(2, "0")}`;
+const TAB_LABELS: Record<TabType, string> = {
+  thread: "Thread",
+  context: "Context",
+  activity: "Activity",
+  raw: "Raw",
+};
 
-// Extract model context from state for backward compatibility
+const THREAD_STATE_KEYS = new Set([
+  "threads",
+  "threadListItems",
+  "thread",
+  "threadListItem",
+  "threadlistitem",
+  "composer",
+]);
+
+const parseEventTime = (value: unknown): Date => {
+  if (typeof value === "string") {
+    const date = new Date(value);
+    if (Number.isFinite(date.getTime())) return date;
+  }
+  return new Date();
+};
+
 const extractModelContext = (state: any): ModelContext | undefined => {
   if (!isRecord(state)) return undefined;
 
@@ -75,472 +118,6 @@ const extractModelContext = (state: any): ModelContext | undefined => {
   };
 };
 
-const ControlButton = ({
-  className,
-  ...props
-}: ButtonHTMLAttributes<HTMLButtonElement>) => (
-  <button
-    className={clsx(
-      "inline-flex h-8 items-center rounded-md border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800 dark:focus-visible:ring-offset-zinc-900",
-      className,
-    )}
-    {...props}
-  />
-);
-
-const JSONPreview = ({ value }: { value: unknown }) => (
-  <pre className="rounded-lg bg-zinc-100 p-3 text-[11px] leading-relaxed wrap-break-word whitespace-pre-wrap text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
-    {JSON.stringify(value, null, 2)}
-  </pre>
-);
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === "object" && !Array.isArray(value);
-
-const isStringArray = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-
-const formatBoolean = (value: boolean | undefined) =>
-  typeof value === "boolean" ? String(value) : undefined;
-
-const formatDateTime = (value: string | undefined) => {
-  if (!value) return undefined;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-};
-
-const truncate = (value: string, max = 120) =>
-  value.length > max ? `${value.slice(0, max)}...` : value;
-
-interface ThreadListItemPreview {
-  id: string;
-  title?: string;
-  status?: string;
-  externalId?: string;
-  remoteId?: string;
-}
-
-interface MessagePreview {
-  id: string;
-  role: string;
-  createdAt?: string;
-  summary: string;
-  status?: string;
-  attachments: string[];
-}
-
-interface SuggestionPreview {
-  prompt?: string;
-}
-
-interface ComposerPreview {
-  textLength: number;
-  role?: string;
-  attachments: number;
-  isEditing?: boolean;
-  canCancel?: boolean;
-  isEmpty?: boolean;
-  type?: string;
-}
-
-interface ThreadPreview {
-  isDisabled?: boolean;
-  isLoading?: boolean;
-  isRunning?: boolean;
-  messageCount: number;
-  messages: MessagePreview[];
-  suggestions: SuggestionPreview[];
-  capabilities: string[];
-  composer?: ComposerPreview;
-}
-
-interface ThreadListPreview {
-  mainThreadId?: string;
-  newThreadId?: string | null;
-  isLoading?: boolean;
-  threadIds: string[];
-  archivedThreadIds: string[];
-  threadItems: ThreadListItemPreview[];
-  main?: ThreadPreview;
-}
-
-const ThreadDetails = ({
-  thread,
-  title,
-}: {
-  thread: ThreadPreview;
-  title?: string;
-}) => (
-  <div className="flex flex-col gap-3">
-    {title ? (
-      <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-        {title}
-      </div>
-    ) : null}
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-      <SummaryItem label="Messages" value={String(thread.messageCount)} />
-      {typeof thread.isLoading === "boolean" ? (
-        <SummaryItem
-          label="Loading"
-          value={formatBoolean(thread.isLoading) ?? "—"}
-        />
-      ) : null}
-      {typeof thread.isRunning === "boolean" ? (
-        <SummaryItem
-          label="Running"
-          value={formatBoolean(thread.isRunning) ?? "—"}
-        />
-      ) : null}
-      {thread.isDisabled !== undefined ? (
-        <SummaryItem
-          label="Disabled"
-          value={formatBoolean(thread.isDisabled) ?? "—"}
-        />
-      ) : null}
-    </div>
-
-    {thread.capabilities.length ? (
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-        <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-          Capabilities
-        </div>
-        <div className="mt-1 flex flex-wrap gap-1">
-          {thread.capabilities.map((capability) => (
-            <span
-              key={capability}
-              className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
-            >
-              {capability}
-            </span>
-          ))}
-        </div>
-      </div>
-    ) : null}
-
-    {thread.messages.length ? (
-      <div className="rounded-md border border-zinc-200 bg-white text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
-        <div className="border-b border-zinc-200 bg-zinc-100 px-3 py-2 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-          Recent Messages
-        </div>
-        <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-          {thread.messages
-            .slice(-5)
-            .reverse()
-            .map((message) => (
-              <div key={message.id} className="flex flex-col gap-1 px-3 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-zinc-800 capitalize dark:text-zinc-100">
-                    {message.role}
-                  </span>
-                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                    {formatDateTime(message.createdAt) ?? "—"}
-                  </span>
-                </div>
-                {message.summary ? (
-                  <div className="text-zinc-600 dark:text-zinc-300">
-                    {message.summary}
-                  </div>
-                ) : (
-                  <div className="text-zinc-500 dark:text-zinc-400">
-                    No textual content
-                  </div>
-                )}
-                {message.attachments.length ? (
-                  <div className="flex flex-wrap gap-1 text-[10px] text-zinc-500 dark:text-zinc-400">
-                    {message.attachments.map((attachment, index) => (
-                      <span
-                        key={`${message.id}-attachment-${index}`}
-                        className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
-                      >
-                        {attachment}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-                {message.status ? (
-                  <div className="text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-                    Status: {message.status}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-        </div>
-      </div>
-    ) : null}
-
-    {thread.suggestions.length ? (
-      <div className="rounded-md border border-dashed border-zinc-300 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-200">
-        <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-          Suggestions
-        </div>
-        <ul className="mt-2 list-disc space-y-1 pl-5">
-          {thread.suggestions.map((suggestion, index) => (
-            <li key={index}>{suggestion.prompt || "(empty)"}</li>
-          ))}
-        </ul>
-      </div>
-    ) : null}
-
-    {thread.composer ? (
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-        <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-          Composer
-        </div>
-        <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryItem label="Role" value={thread.composer.role ?? "—"} />
-          <SummaryItem
-            label="Text Length"
-            value={String(thread.composer.textLength)}
-          />
-          <SummaryItem
-            label="Attachments"
-            value={String(thread.composer.attachments)}
-          />
-          {typeof thread.composer.type === "string" ? (
-            <SummaryItem label="Mode" value={thread.composer.type} />
-          ) : null}
-        </div>
-        <div className="mt-2 flex flex-wrap gap-2 text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-          {typeof thread.composer.isEditing === "boolean" ? (
-            <span>Edit: {formatBoolean(thread.composer.isEditing)}</span>
-          ) : null}
-          {typeof thread.composer.canCancel === "boolean" ? (
-            <span>Can Cancel: {formatBoolean(thread.composer.canCancel)}</span>
-          ) : null}
-          {typeof thread.composer.isEmpty === "boolean" ? (
-            <span>Empty: {formatBoolean(thread.composer.isEmpty)}</span>
-          ) : null}
-        </div>
-      </div>
-    ) : null}
-  </div>
-);
-
-const extractMessageSummary = (content: unknown): string => {
-  if (!Array.isArray(content)) return "";
-
-  for (const part of content) {
-    if (!isRecord(part)) continue;
-    const type = typeof part.type === "string" ? part.type : undefined;
-
-    if (
-      (type === "text" || type === "reasoning") &&
-      typeof part.text === "string"
-    ) {
-      const text = part.text.trim();
-      if (text.length > 0) {
-        return truncate(text, 160);
-      }
-    }
-
-    if (type === "tool-call" && typeof part.toolName === "string") {
-      return `Tool call: ${part.toolName}`;
-    }
-
-    if (type === "image" && typeof part.filename === "string") {
-      return `Image: ${part.filename}`;
-    }
-
-    if (type === "file" && typeof part.filename === "string") {
-      return `File: ${part.filename}`;
-    }
-  }
-
-  const fallback = content.find((item) => typeof item === "string") as
-    | string
-    | undefined;
-  if (fallback) {
-    return truncate(fallback, 160);
-  }
-
-  return "";
-};
-
-const extractAttachmentNames = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-
-  return value
-    .map((attachment) => {
-      if (!isRecord(attachment)) return null;
-
-      if (typeof attachment.name === "string" && attachment.name.length > 0) {
-        return attachment.name;
-      }
-
-      if (
-        typeof attachment.filename === "string" &&
-        attachment.filename.length > 0
-      ) {
-        return attachment.filename;
-      }
-
-      if (typeof attachment.type === "string" && attachment.type.length > 0) {
-        return attachment.type;
-      }
-
-      if (typeof attachment.id === "string" && attachment.id.length > 0) {
-        return attachment.id;
-      }
-
-      return null;
-    })
-    .filter((name): name is string => Boolean(name));
-};
-
-const parseSuggestionPreview = (value: unknown): SuggestionPreview | null => {
-  if (!isRecord(value)) return null;
-  if (typeof value.prompt !== "string") return null;
-  return { prompt: value.prompt };
-};
-
-const parseComposerPreview = (value: unknown): ComposerPreview | undefined => {
-  if (!isRecord(value)) return undefined;
-
-  const text = typeof value.text === "string" ? value.text : "";
-  const attachments = Array.isArray(value.attachments)
-    ? value.attachments.length
-    : 0;
-
-  return {
-    textLength: text.length,
-    attachments,
-    ...(typeof value.role === "string" ? { role: value.role } : {}),
-    ...(typeof value.isEditing === "boolean"
-      ? { isEditing: value.isEditing }
-      : {}),
-    ...(typeof value.canCancel === "boolean"
-      ? { canCancel: value.canCancel }
-      : {}),
-    ...(typeof value.isEmpty === "boolean" ? { isEmpty: value.isEmpty } : {}),
-    ...(typeof value.type === "string" ? { type: value.type } : {}),
-  };
-};
-
-const parseMessagePreview = (
-  value: unknown,
-  index: number,
-): MessagePreview | null => {
-  if (!isRecord(value)) return null;
-
-  const id = typeof value.id === "string" ? value.id : `message-${index}`;
-  const role = typeof value.role === "string" ? value.role : "unknown";
-  const summary = extractMessageSummary(value.content);
-
-  return {
-    id,
-    role,
-    summary,
-    attachments: extractAttachmentNames(value.attachments),
-    ...(typeof value.createdAt === "string"
-      ? { createdAt: value.createdAt }
-      : {}),
-    ...(typeof value.status === "string" ? { status: value.status } : {}),
-  };
-};
-
-const parseThreadListItemPreview = (
-  value: unknown,
-): ThreadListItemPreview | null => {
-  if (!isRecord(value) || typeof value.id !== "string") return null;
-
-  return {
-    id: value.id,
-    ...(typeof value.title === "string" ? { title: value.title } : {}),
-    ...(typeof value.status === "string" ? { status: value.status } : {}),
-    ...(typeof value.externalId === "string"
-      ? { externalId: value.externalId }
-      : {}),
-    ...(typeof value.remoteId === "string" ? { remoteId: value.remoteId } : {}),
-  };
-};
-
-const parseThreadPreview = (value: unknown): ThreadPreview | null => {
-  if (!isRecord(value)) return null;
-
-  const messages = Array.isArray(value.messages)
-    ? value.messages
-        .map((message, index) => parseMessagePreview(message, index))
-        .filter((message): message is MessagePreview => Boolean(message))
-    : [];
-
-  const suggestions = Array.isArray(value.suggestions)
-    ? value.suggestions
-        .map((suggestion) => parseSuggestionPreview(suggestion))
-        .filter((suggestion): suggestion is SuggestionPreview =>
-          Boolean(suggestion),
-        )
-    : [];
-
-  const capabilities = isRecord(value.capabilities)
-    ? Object.entries(value.capabilities)
-        .filter(([, flag]) => flag === true)
-        .map(([name]) => name)
-    : [];
-
-  const composer = parseComposerPreview(value.composer);
-
-  return {
-    messageCount: messages.length,
-    messages,
-    suggestions,
-    capabilities,
-    ...(typeof value.isDisabled === "boolean"
-      ? { isDisabled: value.isDisabled }
-      : {}),
-    ...(typeof value.isLoading === "boolean"
-      ? { isLoading: value.isLoading }
-      : {}),
-    ...(typeof value.isRunning === "boolean"
-      ? { isRunning: value.isRunning }
-      : {}),
-    ...(composer ? { composer } : {}),
-  };
-};
-
-const parseThreadListPreview = (value: unknown): ThreadListPreview | null => {
-  if (!isRecord(value)) return null;
-
-  const threadItems = Array.isArray(value.threadItems)
-    ? value.threadItems
-        .map((item) => parseThreadListItemPreview(item))
-        .filter((item): item is ThreadListItemPreview => Boolean(item))
-    : [];
-
-  const main = parseThreadPreview(value.main);
-
-  return {
-    threadIds: isStringArray(value.threadIds),
-    archivedThreadIds: isStringArray(value.archivedThreadIds),
-    threadItems,
-    ...(typeof value.mainThreadId === "string"
-      ? { mainThreadId: value.mainThreadId }
-      : {}),
-    ...(typeof value.newThreadId === "string"
-      ? { newThreadId: value.newThreadId }
-      : value.newThreadId === null
-        ? { newThreadId: null }
-        : {}),
-    ...(typeof value.isLoading === "boolean"
-      ? { isLoading: value.isLoading }
-      : {}),
-    ...(main ? { main } : {}),
-  };
-};
-
-const SummaryItem = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-    <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-      {label}
-    </div>
-    <div className="mt-1 font-semibold text-zinc-800 dark:text-zinc-100">
-      {value}
-    </div>
-  </div>
-);
-
 const renderToolUIsStatePreview = (value: unknown) => {
   if (!isRecord(value)) {
     return <JSONPreview value={value} />;
@@ -549,8 +126,8 @@ const renderToolUIsStatePreview = (value: unknown) => {
   const entries = Object.entries(value);
   if (entries.length === 0) {
     return (
-      <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
-        &lt;no tool UI mappings&gt;
+      <div className="text-muted-foreground text-[11px]">
+        no tool UI mappings
       </div>
     );
   }
@@ -564,18 +141,16 @@ const renderToolUIsStatePreview = (value: unknown) => {
         return (
           <div
             key={toolName}
-            className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 transition-colors dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200"
+            className="bg-muted/40 text-foreground rounded-md border p-3 text-[11px] transition-colors"
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="font-semibold text-zinc-800 dark:text-zinc-100">
-                {toolName}
-              </span>
-              <span className="text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+              <span className="text-foreground font-medium">{toolName}</span>
+              <Chip>
                 {list.length} component{list.length === 1 ? "" : "s"}
-              </span>
+              </Chip>
             </div>
             {firstEntry ? (
-              <div className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+              <div className="text-muted-foreground mt-1 text-[10px]">
                 First entry: {truncate(firstEntry, 80)}
               </div>
             ) : null}
@@ -600,56 +175,39 @@ const renderThreadsStatePreview = (value: unknown) => {
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryItem label="Main Thread" value={state.mainThreadId ?? "—"} />
-        <SummaryItem label="New Thread" value={state.newThreadId ?? "—"} />
-        <SummaryItem label="Active Threads" value={String(activeCount)} />
-        <SummaryItem label="Archived Threads" value={String(archivedCount)} />
-        {typeof state.isLoading === "boolean" ? (
-          <SummaryItem
-            label="Loading"
-            value={formatBoolean(state.isLoading) ?? "—"}
-          />
-        ) : null}
-        {main && typeof main.isRunning === "boolean" ? (
-          <SummaryItem
-            label="Main Running"
-            value={formatBoolean(main.isRunning) ?? "—"}
-          />
-        ) : null}
+        <SummaryItem label="Main thread" value={state.mainThreadId ?? "—"} />
+        <SummaryItem label="New thread" value={state.newThreadId ?? "—"} />
+        <SummaryItem label="Active threads" value={String(activeCount)} />
+        <SummaryItem label="Archived threads" value={String(archivedCount)} />
       </div>
 
       {threadItems.length ? (
         <div className="flex flex-col gap-2">
-          <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-            Thread Items ({state.threadItems.length})
-          </div>
-          <div className="overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
+          <SectionLabel>Thread items ({state.threadItems.length})</SectionLabel>
+          <div className="bg-card overflow-hidden rounded-lg border">
             <table className="w-full table-fixed border-collapse text-left">
-              <thead className="bg-zinc-100 text-[10px] tracking-wide text-zinc-500 uppercase dark:bg-zinc-900 dark:text-zinc-400">
+              <thead className="bg-muted text-muted-foreground text-[10px]">
                 <tr>
-                  <th className="px-3 py-2">Title</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Identifiers</th>
+                  <th className="px-3 py-2 font-medium">Title</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium">Identifiers</th>
                 </tr>
               </thead>
-              <tbody className="text-[11px] text-zinc-700 dark:text-zinc-200">
+              <tbody className="text-foreground text-[11px]">
                 {threadItems.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950/40"
-                  >
+                  <tr key={item.id} className="bg-card border-t">
                     <td className="px-3 py-2 align-top">
-                      <div className="font-medium text-zinc-800 dark:text-zinc-100">
+                      <div className="text-foreground font-medium">
                         {item.title || "(untitled)"}
                       </div>
-                      <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                        ID: {item.id}
+                      <div className="text-muted-foreground font-mono text-[10px]">
+                        {item.id}
                       </div>
                     </td>
                     <td className="px-3 py-2 align-top">
                       {item.status ?? "—"}
                     </td>
-                    <td className="px-3 py-2 align-top text-[10px] text-zinc-500 dark:text-zinc-400">
+                    <td className="text-muted-foreground px-3 py-2 align-top font-mono text-[10px]">
                       {item.remoteId ? `Remote: ${item.remoteId}` : null}
                       {item.remoteId && item.externalId ? <br /> : null}
                       {item.externalId ? `External: ${item.externalId}` : null}
@@ -661,7 +219,7 @@ const renderThreadsStatePreview = (value: unknown) => {
             </table>
           </div>
           {state.threadItems.length > threadItems.length ? (
-            <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
+            <div className="text-muted-foreground text-[10px]">
               Showing first {threadItems.length} items
             </div>
           ) : null}
@@ -669,7 +227,7 @@ const renderThreadsStatePreview = (value: unknown) => {
       ) : null}
 
       {main ? (
-        <ThreadDetails thread={main} title="Main Thread Overview" />
+        <ThreadDetails thread={main} title="Main thread overview" />
       ) : null}
     </div>
   );
@@ -680,8 +238,7 @@ const renderThreadStatePreview = (value: unknown) => {
   if (!thread) {
     return <JSONPreview value={value} />;
   }
-
-  return <ThreadDetails thread={thread} title="Thread Overview" />;
+  return <ThreadDetails thread={thread} title="Thread overview" />;
 };
 
 const renderThreadListItemStatePreview = (value: unknown) => {
@@ -691,117 +248,53 @@ const renderThreadListItemStatePreview = (value: unknown) => {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryItem label="ID" value={item.id} />
-        <SummaryItem label="Title" value={item.title ?? "(untitled)"} />
-        <SummaryItem label="Status" value={item.status ?? "—"} />
-        <SummaryItem label="Remote ID" value={item.remoteId ?? "—"} />
-        <SummaryItem label="External ID" value={item.externalId ?? "—"} />
-      </div>
-      {item.title ? (
-        <div className="rounded-md border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
-          <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-            Title
-          </div>
-          <div className="mt-1 font-semibold text-zinc-800 dark:text-zinc-100">
-            {item.title}
-          </div>
-        </div>
-      ) : null}
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <SummaryItem label="ID" value={item.id} />
+      <SummaryItem label="Title" value={item.title ?? "(untitled)"} />
+      <SummaryItem label="Status" value={item.status ?? "—"} />
+      <SummaryItem label="Remote ID" value={item.remoteId ?? "—"} />
+      <SummaryItem label="External ID" value={item.externalId ?? "—"} />
     </div>
   );
 };
 
 const renderComposerStatePreview = (value: unknown) => {
-  if (!isRecord(value)) {
-    return <JSONPreview value={value} />;
-  }
-
   const composer = parseComposerPreview(value);
-  if (!composer) {
+  if (!composer || !isRecord(value)) {
     return <JSONPreview value={value} />;
   }
 
   const text = typeof value.text === "string" ? value.text : "";
-  const attachmentsDetail = Array.isArray(value.attachments)
-    ? value.attachments
-        .map((attachment) => {
-          if (!isRecord(attachment)) return null;
-          if (typeof attachment.name === "string" && attachment.name) {
-            return attachment.name;
-          }
-          if (typeof attachment.filename === "string" && attachment.filename) {
-            return attachment.filename;
-          }
-          if (typeof attachment.type === "string" && attachment.type) {
-            return attachment.type;
-          }
-          return null;
-        })
-        .filter((name): name is string => Boolean(name))
-    : [];
-
   const runConfig = value.runConfig;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryItem label="Role" value={composer.role ?? "—"} />
-        <SummaryItem label="Text Length" value={String(composer.textLength)} />
-        <SummaryItem label="Attachments" value={String(composer.attachments)} />
+        <SummaryItem label="Text length" value={String(composer.textLength)} />
+        <SummaryItem
+          label="Attachments"
+          value={String(composer.attachments.length)}
+        />
         <SummaryItem label="Mode" value={composer.type ?? "—"} />
-        <SummaryItem
-          label="Editing"
-          value={formatBoolean(composer.isEditing) ?? "—"}
-        />
-        <SummaryItem
-          label="Can Cancel"
-          value={formatBoolean(composer.canCancel) ?? "—"}
-        />
-        <SummaryItem
-          label="Empty"
-          value={formatBoolean(composer.isEmpty) ?? "—"}
-        />
       </div>
-
+      <ComposerFlags composer={composer} />
+      <ComposerAttachments attachments={composer.attachments} />
       {text ? (
-        <div className="rounded-md border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
-          <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-            Text Preview
-          </div>
-          <div className="mt-1 wrap-break-word whitespace-pre-wrap text-zinc-700 dark:text-zinc-200">
+        <div className="bg-card text-foreground flex flex-col gap-1 rounded-md border p-3 text-[11px]">
+          <SectionLabel>Text preview</SectionLabel>
+          <div className="text-foreground wrap-break-word whitespace-pre-wrap">
             {truncate(text, 240)}
           </div>
         </div>
       ) : null}
-
-      {attachmentsDetail.length ? (
-        <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-          <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-            Attachments
-          </div>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {attachmentsDetail.map((attachment, index) => (
-              <span
-                key={`composer-attachment-${index}`}
-                className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
-              >
-                {attachment}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
       {runConfig !== undefined ? (
-        <div className="rounded-md border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
-          <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-            Run Config
-          </div>
+        <div className="bg-card text-foreground flex flex-col gap-1 rounded-md border p-3 text-[11px]">
+          <SectionLabel>Run config</SectionLabel>
           <JSONPreview value={runConfig} />
         </div>
       ) : null}
+      <ComposerQueue queue={composer.queue} />
     </div>
   );
 };
@@ -825,34 +318,17 @@ const renderStatePreview = (key: string, value: unknown) => {
       return renderToolUIsStatePreview(value);
     case "composer":
       return renderComposerStatePreview(value);
+    case "mcp":
+      return <McpView value={value} />;
     default:
       return <JSONPreview value={value} />;
   }
 };
 
-const CenteredMessage = ({ children }: { children: ReactNode }) => (
-  <div className="flex h-full items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
-    {children}
-  </div>
-);
-
-const SectionTitle = ({ children }: { children: ReactNode }) => (
-  <h3 className="mb-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-    {children}
-  </h3>
-);
-
-const InfoCard = ({ children }: { children: ReactNode }) => (
-  <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition-colors dark:border-zinc-800 dark:bg-zinc-900">
-    {children}
-  </div>
-);
-
 export function DevToolsUI() {
   const [apis, setApis] = useState<ApiInfo[]>([]);
   const [selectedApiId, setSelectedApiId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>("state");
-  const [viewMode, setViewMode] = useState<"raw" | "preview">("preview");
+  const [activeTab, setActiveTab] = useState<TabType>("thread");
   const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set());
   const [unselectedEventTypes, setUnselectedEventTypes] = useState<Set<string>>(
     new Set(),
@@ -884,11 +360,9 @@ export function DevToolsUI() {
     const handleFocus = () => {
       setIsWindowFocused(true);
     };
-
     const handleBlur = () => {
       setIsWindowFocused(false);
     };
-
     const handleVisibilityChange = () => {
       setIsWindowFocused(!document.hidden && document.hasFocus());
     };
@@ -906,12 +380,10 @@ export function DevToolsUI() {
     };
   }, []);
 
-  // Initialize FrameClient and convert data to match old format
   useEffect(() => {
     const client = new FrameClient();
     frameClientRef.current = client;
 
-    // Subscribe to updates
     const unsubscribe = client.subscribe((data) => {
       setSelectedApiId((id) => {
         const existingId = data.apis?.some((api) => api.apiId === id)
@@ -920,7 +392,6 @@ export function DevToolsUI() {
         return existingId ?? data.apis?.[0]?.apiId ?? null;
       });
 
-      // Convert to old ApiInfo format for compatibility
       const convertedApis: ApiInfo[] =
         data.apis?.map((api: ApiData) => {
           const events = Array.isArray(api.events) ? api.events : [];
@@ -928,22 +399,18 @@ export function DevToolsUI() {
             id: api.apiId,
             state: api.state || {},
             logs: events.map((event: any) => ({
-              time:
-                typeof event.time === "string"
-                  ? new Date(event.time)
-                  : new Date(),
+              time: parseEventTime(event.time),
               event: typeof event.event === "string" ? event.event : "unknown",
               data: event.data,
             })),
             modelContext: api.modelContext || extractModelContext(api.state),
+            scopes: api.scopes,
           };
         }) ?? [];
       setApis(convertedApis);
     });
 
-    // Handle host reconnection (page refresh)
     const unsubscribeHostConnection = client.onHostConnected(() => {
-      console.log("[DevToolsUI] Host reconnected, re-subscribing...");
       if (isWindowFocusedRef.current) {
         const currentSelectedApiId = selectedApiIdRef.current;
         client.setSubscription({
@@ -965,7 +432,6 @@ export function DevToolsUI() {
     };
   }, []);
 
-  // Manage subscription based on focus state and selected API
   useEffect(() => {
     const client = frameClientRef.current;
     if (!client) {
@@ -1003,13 +469,26 @@ export function DevToolsUI() {
     return Array.from(types).sort();
   }, [apis]);
 
+  const eventTypesByScope = useMemo(() => {
+    const grouped = new Map<string, string[]>();
+    for (const type of eventTypes) {
+      const scope = eventScope(type);
+      const existing = grouped.get(scope);
+      if (existing) {
+        existing.push(type);
+      } else {
+        grouped.set(scope, [type]);
+      }
+    }
+    return Array.from(grouped.entries());
+  }, [eventTypes]);
+
   useEffect(() => {
     setUnselectedEventTypes((prev) => {
       const eventTypeSet = new Set(eventTypes);
       const next = new Set(prev);
       let changed = false;
 
-      // Remove unselected event types that no longer exist
       Array.from(next).forEach((value) => {
         if (!eventTypeSet.has(value)) {
           next.delete(value);
@@ -1018,11 +497,9 @@ export function DevToolsUI() {
         }
       });
 
-      // Track known event types
       eventTypes.forEach((type) => {
         if (!knownEventTypesRef.current.has(type)) {
           knownEventTypesRef.current.add(type);
-          // New event types are selected by default (not added to unselected)
           changed = true;
         }
       });
@@ -1033,7 +510,6 @@ export function DevToolsUI() {
 
   const filteredLogs = useMemo(() => {
     if (!selectedApi) return [];
-
     return selectedApi.logs.filter(
       (log) => !unselectedEventTypes.has(log.event),
     );
@@ -1063,10 +539,24 @@ export function DevToolsUI() {
     });
   }, []);
 
+  const toggleScope = useCallback((types: string[]) => {
+    setUnselectedEventTypes((prev) => {
+      const allSelected = types.every((type) => !prev.has(type));
+      const next = new Set(prev);
+      for (const type of types) {
+        if (allSelected) {
+          next.add(type);
+        } else {
+          next.delete(type);
+        }
+      }
+      return next;
+    });
+  }, []);
+
   const clearEvents = useCallback(() => {
     if (frameClientRef.current && selectedApiId !== null) {
       frameClientRef.current.clearEvents(selectedApiId);
-      // The update from FrameHost will handle clearing the UI
     }
   }, [selectedApiId]);
 
@@ -1078,7 +568,7 @@ export function DevToolsUI() {
     }
 
     return (
-      <div className="flex items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-4 py-2 text-xs text-zinc-500 dark:border-zinc-900 dark:bg-zinc-950">
+      <div className="bg-muted text-muted-foreground flex items-center gap-2 border-b px-4 py-2 text-xs">
         <span className="font-medium">API</span>
         <select
           value={selectedApiId ?? ""}
@@ -1086,7 +576,7 @@ export function DevToolsUI() {
             const value = Number(event.target.value);
             setSelectedApiId(Number.isNaN(value) ? null : value);
           }}
-          className="rounded-md border border-zinc-300 bg-zinc-50 px-2 py-1 text-xs text-zinc-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+          className="bg-card text-foreground rounded-md border px-2 py-1 text-xs"
         >
           {apis.map((api) => (
             <option key={api.id} value={api.id}>
@@ -1099,157 +589,37 @@ export function DevToolsUI() {
   };
 
   const renderTabControls = () => {
-    switch (activeTab) {
-      case "events":
-        return (
-          <div className="flex h-full items-center gap-2 px-2">
-            <ControlButton onClick={clearEvents}>Clear Events</ControlButton>
-          </div>
-        );
-      case "state":
-        return (
-          <div className="flex h-full items-center gap-2 px-2">
-            <ControlButton
-              onClick={() =>
-                setViewMode((prev) => (prev === "preview" ? "raw" : "preview"))
-              }
-            >
-              View: {viewMode === "preview" ? "Preview" : "Raw"}
-            </ControlButton>
-          </div>
-        );
-      default:
-        return (
-          <div className="flex h-full items-center px-4 text-xs text-zinc-500 dark:text-zinc-400">
-            Model context overview
-          </div>
-        );
-    }
-  };
-
-  const renderStateContent = () => {
-    if (!selectedApi) {
+    if (activeTab === "activity") {
       return (
-        <CenteredMessage>Waiting for assistant-ui instance...</CenteredMessage>
-      );
-    }
-
-    if (Object.keys(selectedApi.state).length === 0) {
-      return (
-        <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-          No state detected for this assistant instance.
+        <div className="flex h-full items-center gap-2 px-2">
+          <ControlButton onClick={clearEvents}>Clear events</ControlButton>
         </div>
       );
     }
-
-    return (
-      <div className="flex flex-col gap-3">
-        {Object.entries(selectedApi.state).map(([key, value]) => {
-          const expanded = expandedStates.has(key);
-          return (
-            <div
-              key={key}
-              className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-colors dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              <button
-                type="button"
-                onClick={() => toggleStateSection(key)}
-                className="flex w-full items-center justify-between bg-zinc-50 px-4 py-3 text-left text-sm font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-              >
-                <span>{key}</span>
-                <span className="text-lg">{expanded ? "−" : "+"}</span>
-              </button>
-              {expanded && (
-                <div className="border-t border-zinc-200 p-4 text-[11px] transition-colors dark:border-zinc-800">
-                  {viewMode === "preview" ? (
-                    renderStatePreview(key, value)
-                  ) : (
-                    <pre className="overflow-auto rounded-lg bg-zinc-100 p-3 text-[11px] whitespace-pre text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
-                      {JSON.stringify(value, null, 2)}
-                    </pre>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
+    return null;
   };
 
-  const renderEventsContent = () => {
+  const renderThreadContent = () => {
     if (!selectedApi) {
       return (
         <CenteredMessage>Waiting for assistant-ui instance...</CenteredMessage>
       );
     }
 
-    const eventFilterChips = eventTypes.map((eventType) => (
-      <label
-        key={eventType}
-        className={clsx(
-          "flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors",
-          !unselectedEventTypes.has(eventType)
-            ? "border-blue-500 bg-blue-500/10 text-blue-600 dark:border-blue-400 dark:bg-blue-500/20 dark:text-blue-200"
-            : "border-zinc-200 bg-white text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
-        )}
-      >
-        <input
-          type="checkbox"
-          checked={!unselectedEventTypes.has(eventType)}
-          onChange={() => toggleEventType(eventType)}
-          className="size-3 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
-        />
-        <span>{eventType}</span>
-      </label>
-    ));
+    const entries = Object.entries(selectedApi.state).filter(([key]) =>
+      THREAD_STATE_KEYS.has(key),
+    );
+    if (entries.length === 0) {
+      return (
+        <EmptyState>No thread state for this assistant instance.</EmptyState>
+      );
+    }
 
     return (
-      <div className="flex flex-col gap-3">
-        {eventTypes.length > 0 && (
-          <div className="flex flex-wrap gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 transition-colors dark:border-zinc-800 dark:bg-zinc-900">
-            {eventFilterChips}
-          </div>
-        )}
-        {filteredLogs.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-              {eventTypes.length === 0
-                ? "No events logged for this assistant instance."
-                : "No events match the current filters."}
-            </div>
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-colors dark:border-zinc-800 dark:bg-zinc-900">
-            <table className="w-full table-auto border-collapse text-left">
-              <thead className="bg-zinc-100 text-[11px] tracking-wide text-zinc-500 uppercase dark:bg-zinc-800 dark:text-zinc-300">
-                <tr>
-                  <th className="px-4 py-2 font-semibold">Time</th>
-                  <th className="px-4 py-2 font-semibold">Event</th>
-                  <th className="px-4 py-2 font-semibold">Data</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLogs.map((log, index) => (
-                  <tr
-                    key={`${log.event}-${index}`}
-                    className="border-t border-zinc-200 bg-white text-[11px] transition-colors dark:border-zinc-800 dark:bg-zinc-900"
-                  >
-                    <td className="px-4 py-2 align-top whitespace-nowrap text-zinc-600 dark:text-zinc-300">
-                      {formatTime(log.time)}
-                    </td>
-                    <td className="px-4 py-2 align-top font-semibold text-zinc-800 dark:text-zinc-100">
-                      {log.event}
-                    </td>
-                    <td className="px-4 py-2 align-top">
-                      <JSONPreview value={log.data} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="flex flex-col gap-4">
+        {entries.map(([key, value]) => (
+          <div key={key}>{renderStatePreview(key, value)}</div>
+        ))}
       </div>
     );
   };
@@ -1261,133 +631,228 @@ export function DevToolsUI() {
       );
     }
 
-    const toolList = normalizeToolList(selectedApi.modelContext?.tools);
-    const hasSystem = selectedApi.modelContext?.system;
-    const hasTools = toolList.length > 0;
-    const hasCallSettings =
-      selectedApi.modelContext?.callSettings &&
-      Object.keys(selectedApi.modelContext.callSettings).length > 0;
-
-    // Check if there's any context at all
-    if (!hasSystem && !hasTools && !hasCallSettings) {
-      return (
-        <div className="flex h-full items-center justify-center">
-          <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-            No model context configured for this assistant instance.
-          </div>
-        </div>
-      );
-    }
+    const mcp = selectedApi.state.mcp;
+    const toolUIs = selectedApi.state.tools;
 
     return (
-      <div className="grid gap-3">
-        {hasSystem && (
-          <InfoCard>
-            <SectionTitle>System Prompt</SectionTitle>
-            <pre className="rounded-lg bg-zinc-100 p-3 text-[11px] whitespace-pre-wrap text-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
-              {selectedApi.modelContext!.system}
-            </pre>
-          </InfoCard>
-        )}
-        {hasTools && (
-          <InfoCard>
-            <SectionTitle>Tools</SectionTitle>
-            <div className="flex flex-col gap-3">
-              {toolList.map((tool) => (
-                <div
-                  key={tool.name}
-                  className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 transition-colors dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-200"
-                >
-                  <div className="flex flex-wrap items-center gap-2 font-semibold text-zinc-800 dark:text-zinc-100">
-                    <span>{tool.name}</span>
-                    {tool.type ? (
-                      <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300">
-                        {tool.type}
-                      </span>
-                    ) : null}
-                    {tool.disabled ? (
-                      <span className="text-[10px] font-semibold tracking-wide text-amber-600 uppercase dark:text-amber-400">
-                        Disabled
-                      </span>
-                    ) : null}
-                  </div>
-                  {tool.description ? (
-                    <p className="mt-1 text-[11px] text-zinc-600 dark:text-zinc-300">
-                      {tool.description}
-                    </p>
-                  ) : null}
-                  {tool.parameters ? (
-                    <div className="mt-2">
-                      <div className="mb-1 text-[10px] font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-                        Parameters
-                      </div>
-                      <JSONPreview value={tool.parameters} />
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </InfoCard>
-        )}
-        {hasCallSettings && (
-          <InfoCard>
-            <SectionTitle>Call Settings</SectionTitle>
-            <JSONPreview value={selectedApi.modelContext!.callSettings} />
-          </InfoCard>
-        )}
+      <div className="flex flex-col gap-4">
+        <ModelContextView modelContext={selectedApi.modelContext} />
+        {mcp !== undefined ? <McpView value={mcp} /> : null}
+        {toolUIs !== undefined ? renderToolUIsStatePreview(toolUIs) : null}
       </div>
     );
   };
 
-  const renderTabContent = () => {
+  const renderActivityContent = () => {
+    if (!selectedApi) {
+      return (
+        <CenteredMessage>Waiting for assistant-ui instance...</CenteredMessage>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-4">
+        <RunTimeline logs={selectedApi.logs} />
+
+        <div className="flex flex-col gap-3">
+          <SectionLabel>Event log</SectionLabel>
+          {eventTypesByScope.length > 0 && (
+            <div className="bg-muted/40 flex flex-col gap-2 rounded-lg border p-3">
+              {eventTypesByScope.map(([scope, types]) => {
+                const allSelected = types.every(
+                  (type) => !unselectedEventTypes.has(type),
+                );
+                return (
+                  <div
+                    key={scope}
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleScope(types)}
+                      className={clsx(
+                        "rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                        allSelected
+                          ? "bg-accent text-foreground"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {scope}
+                    </button>
+                    {types.map((eventType) => (
+                      <label
+                        key={eventType}
+                        title={eventType}
+                        className={clsx(
+                          "flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors",
+                          !unselectedEventTypes.has(eventType)
+                            ? "border-foreground/40 bg-accent text-foreground"
+                            : "bg-card text-muted-foreground",
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!unselectedEventTypes.has(eventType)}
+                          onChange={() => toggleEventType(eventType)}
+                          className="accent-foreground size-3 rounded"
+                        />
+                        <span>
+                          {eventType.slice(scope.length + 1) || eventType}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {filteredLogs.length === 0 ? (
+            <EmptyState>
+              {eventTypes.length === 0
+                ? "No events logged for this assistant instance."
+                : "No events match the current filters."}
+            </EmptyState>
+          ) : (
+            <div className="bg-card overflow-hidden rounded-lg border">
+              <table className="w-full table-auto border-collapse text-left">
+                <thead className="bg-muted text-muted-foreground text-[11px]">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Time</th>
+                    <th className="px-4 py-2 font-medium">Scope</th>
+                    <th className="px-4 py-2 font-medium">Event</th>
+                    <th className="px-4 py-2 font-medium">Data</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLogs.map((log, index) => (
+                    <tr
+                      key={`${log.event}-${index}`}
+                      className="border-t text-[11px]"
+                    >
+                      <td className="text-muted-foreground px-4 py-2 align-top font-mono whitespace-nowrap">
+                        {formatClockTime(log.time)}
+                      </td>
+                      <td className="text-muted-foreground px-4 py-2 align-top">
+                        {eventScope(log.event)}
+                      </td>
+                      <td className="text-foreground px-4 py-2 align-top font-medium">
+                        {log.event}
+                      </td>
+                      <td className="px-4 py-2 align-top">
+                        <JSONPreview value={log.data} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderRawContent = () => {
+    if (!selectedApi) {
+      return (
+        <CenteredMessage>Waiting for assistant-ui instance...</CenteredMessage>
+      );
+    }
+
+    const stateEntries = Object.entries(selectedApi.state);
+
+    return (
+      <div className="flex flex-col gap-3">
+        {stateEntries.map(([key, value]) => {
+          const expanded = expandedStates.has(key);
+          return (
+            <div
+              key={key}
+              className="bg-card overflow-hidden rounded-lg border transition-colors"
+            >
+              <button
+                type="button"
+                onClick={() => toggleStateSection(key)}
+                className="bg-muted text-foreground hover:bg-accent flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium transition-colors"
+              >
+                <span>{key}</span>
+                <span
+                  className={clsx(
+                    "text-muted-foreground transition-transform",
+                    expanded && "rotate-90",
+                  )}
+                >
+                  ›
+                </span>
+              </button>
+              {expanded && (
+                <div className="border-t p-4">
+                  <pre className="bg-muted text-foreground overflow-auto rounded-lg p-3 font-mono text-[11px] whitespace-pre">
+                    {JSON.stringify(value, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <ScopesView scopes={selectedApi.scopes} />
+      </div>
+    );
+  };
+
+  const renderTabContent = (): ReactNode => {
     switch (activeTab) {
-      case "state":
-        return renderStateContent();
-      case "events":
-        return renderEventsContent();
-      default:
+      case "thread":
+        return renderThreadContent();
+      case "context":
         return renderContextContent();
+      case "activity":
+        return renderActivityContent();
+      default:
+        return renderRawContent();
     }
   };
 
   return (
-    <div className="dark h-full w-full" data-theme="dark">
-      <div className="flex h-full flex-col bg-white font-mono text-xs text-zinc-900 transition-colors dark:bg-zinc-950 dark:text-zinc-100">
+    <div className="h-full w-full">
+      <div className="bg-background text-foreground flex h-full flex-col text-xs">
         {renderToolbar()}
 
-        <nav className="flex h-10 items-center justify-between border-b border-zinc-200 bg-zinc-50 px-2 dark:border-zinc-900 dark:bg-zinc-950">
+        <nav className="bg-muted flex h-10 items-center justify-between border-b px-2">
           <div className="flex h-full items-center gap-1">
-            {["state", "modelContext", "events"].map((tab) => (
-              <button
-                type="button"
-                key={tab}
-                onClick={() => setActiveTab(tab as TabType)}
-                className={clsx(
-                  "flex h-full items-center px-2.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase transition-colors",
-                  activeTab === tab
-                    ? "border-b-2 border-blue-500 text-zinc-900 dark:border-blue-400 dark:text-zinc-100"
-                    : "border-b-2 border-transparent hover:text-zinc-700 dark:hover:text-zinc-200",
-                )}
-              >
-                {tab === "modelContext" ? "Model Context" : tab}
-              </button>
-            ))}
+            {(["thread", "context", "activity", "raw"] as TabType[]).map(
+              (tab) => (
+                <button
+                  type="button"
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={clsx(
+                    "flex h-full items-center px-2.5 text-xs font-medium transition-colors",
+                    activeTab === tab
+                      ? "border-foreground text-foreground border-b-2"
+                      : "text-muted-foreground hover:text-foreground border-b-2 border-transparent",
+                  )}
+                >
+                  {TAB_LABELS[tab]}
+                </button>
+              ),
+            )}
           </div>
           {renderTabControls()}
         </nav>
 
-        <section className="flex-1 overflow-auto bg-white p-4 transition-colors dark:bg-zinc-950">
+        <section className="bg-background flex-1 overflow-auto p-4">
           {renderTabContent()}
         </section>
 
-        <footer className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50 px-4 py-2 text-[11px] text-zinc-500 transition-colors dark:border-zinc-900 dark:bg-zinc-950 dark:text-zinc-500">
+        <footer className="bg-muted text-muted-foreground flex items-center justify-between border-t px-4 py-2 text-[11px]">
           <span>
-            Status:{" "}
             {apis.length > 0
               ? `${apis.length} assistant instance${apis.length > 1 ? "s" : ""} detected`
               : "Waiting for instances"}
           </span>
-          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+          <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+            <span className="size-1.5 rounded-full bg-emerald-500" />
             Connected
           </span>
         </footer>

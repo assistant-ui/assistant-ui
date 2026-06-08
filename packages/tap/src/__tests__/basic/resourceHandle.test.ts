@@ -4,7 +4,7 @@ import { resource } from "../../core/resource";
 
 describe("ResourceHandle - Basic Usage", () => {
   it("should create a resource handle with const API", () => {
-    const TestResource = resource((props: number) => {
+    const TestResource = resource(function TestResource(props: number) {
       return {
         value: props * 2,
         propsUsed: props,
@@ -24,7 +24,9 @@ describe("ResourceHandle - Basic Usage", () => {
   });
 
   it("should allow updating props", () => {
-    const TestResource = resource((props: { multiplier: number }) => {
+    const TestResource = resource(function TestResource(props: {
+      multiplier: number;
+    }) {
       return { result: 10 * props.multiplier };
     });
     const root = createResourceRoot();
@@ -38,7 +40,9 @@ describe("ResourceHandle - Basic Usage", () => {
   });
 
   it("should support subscribing and unsubscribing", () => {
-    const TestResource = resource(() => ({ timestamp: Date.now() }));
+    const TestResource = resource(function TestResource() {
+      return { timestamp: Date.now() };
+    });
     const root = createResourceRoot();
     const sub = root.render(TestResource());
 

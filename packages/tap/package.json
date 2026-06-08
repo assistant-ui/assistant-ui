@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/tap",
   "version": "0.5.14",
-  "description": "Zero-dependency reactive state management inspired by React hooks",
+  "description": "Reactive state management inspired by React hooks",
   "keywords": [
     "state-management",
     "reactive",
@@ -17,9 +17,9 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./react": {
-      "types": "./dist/react/index.d.ts",
-      "default": "./dist/react/index.js"
+    "./react-shim": {
+      "types": null,
+      "default": "./dist/react-shim/index.js"
     }
   },
   "main": "./dist/index.js",
@@ -27,7 +27,7 @@
   "files": [
     "dist",
     "src",
-    "react",
+    "react-shim",
     "README.md"
   ],
   "sideEffects": false,
@@ -44,23 +44,20 @@
   "peerDependenciesMeta": {
     "@types/react": {
       "optional": true
-    },
-    "react": {
-      "optional": true
     }
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^25.9.1",
-    "@types/react": "^19.2.15",
+    "@types/node": "^25.9.2",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitest/ui": "^4.1.7",
+    "@vitest/ui": "^4.1.8",
     "jsdom": "^29.1.1",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "vitest": "^4.1.7"
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "vitest": "^4.1.8"
   },
   "publishConfig": {
     "access": "public",

@@ -9,6 +9,7 @@ import {
   ToolFallbackRunningSample,
   ToolFallbackCancelledSample,
   ToolFallbackStreamingSample,
+  ToolFallbackRequiresActionSample,
 } from "@/components/docs/samples/tool-fallback";
 
 <ToolFallbackSample />
@@ -71,6 +72,12 @@ Shows a muted appearance when a tool call was cancelled.
 
 <ToolFallbackCancelledSample />
 
+### Approval State
+
+Shows the default Allow / Deny buttons rendered when a tool call enters `requires-action`. The block auto-expands so the decision is visible without a click. Edit your project's copy of `tool-fallback.tsx` to add trust escalation, edit-args, custom labels, or analytics hooks — the shadcn philosophy is you own the file.
+
+<ToolFallbackRequiresActionSample />
+
 ## Composable API
 
 All sub-components are exported for custom layouts:
@@ -83,6 +90,7 @@ All sub-components are exported for custom layouts:
 | `ToolFallback.Args` | Displays tool arguments |
 | `ToolFallback.Result` | Displays tool execution result |
 | `ToolFallback.Error` | Displays error or cancellation messages |
+| `ToolFallback.Approval` | Renders Allow / Deny buttons for `requires-action` tools; wires `resume` / `addResult` / `respondToApproval` |
 
 ```tsx
 import {
@@ -93,6 +101,7 @@ import {
   ToolFallbackArgs,
   ToolFallbackResult,
   ToolFallbackError,
+  ToolFallbackApproval,
 } from "@/components/assistant-ui/tool-fallback";
 
 // Compound component syntax
@@ -101,6 +110,13 @@ import {
   <ToolFallback.Content>
     <ToolFallback.Error status={status} />
     <ToolFallback.Args argsText={argsText} />
+    <ToolFallback.Approval
+      addResult={addResult}
+      resume={resume}
+      interrupt={interrupt}
+      approval={approval}
+      respondToApproval={respondToApproval}
+    />
     <ToolFallback.Result result={result} />
   </ToolFallback.Content>
 </ToolFallback.Root>

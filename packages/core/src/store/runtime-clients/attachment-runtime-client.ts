@@ -1,11 +1,15 @@
 import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import type { AttachmentRuntime } from "../../runtime/api/attachment-runtime";
-import { tapSubscribable } from "./tap-subscribable";
+import { useSubscribable } from "./useSubscribable";
 
 export const AttachmentRuntimeClient = resource(
-  ({ runtime }: { runtime: AttachmentRuntime }): ClientOutput<"attachment"> => {
-    const state = tapSubscribable(runtime);
+  function AttachmentRuntimeClient({
+    runtime,
+  }: {
+    runtime: AttachmentRuntime;
+  }): ClientOutput<"attachment"> {
+    const state = useSubscribable(runtime);
 
     return {
       getState: () => state,

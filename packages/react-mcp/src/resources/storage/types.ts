@@ -1,4 +1,4 @@
-import type { ResourceElement } from "@assistant-ui/tap";
+import { type ResourceElement } from "@assistant-ui/tap";
 import type { MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
 

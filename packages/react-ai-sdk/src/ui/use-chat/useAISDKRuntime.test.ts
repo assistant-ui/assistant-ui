@@ -37,6 +37,12 @@ const createChatHelpers = (messages: any[] = []) => {
   return chatHelpers;
 };
 
+const textOf = (message: any): string =>
+  message.content
+    .filter((part: any) => part.type === "text")
+    .map((part: any) => part.text)
+    .join("|");
+
 describe("useAISDKRuntime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -438,5 +444,55 @@ describe("useAISDKRuntime", () => {
     const suggestions = [{ prompt: "tell me a joke" }];
     const { result } = renderHook(() => useAISDKRuntime(chat, { suggestions }));
     expect(result.current.thread.getState().suggestions).toEqual(suggestions);
+  });
+
+  it("merges consecutive assistant messages into one turn by default", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      { id: "a1", role: "assistant", parts: [{ type: "text", text: "first" }] },
+      {
+        id: "a2",
+        role: "assistant",
+        parts: [{ type: "text", text: "second" }],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(2);
+    });
+
+    const messages = result.current.thread.getState().messages;
+    expect(messages.map((m: any) => m.role)).toEqual(["user", "assistant"]);
+    expect(textOf(messages[1])).toBe("first|second");
+  });
+
+  it('keeps consecutive assistant messages separate when joinStrategy is "none"', async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      { id: "a1", role: "assistant", parts: [{ type: "text", text: "first" }] },
+      {
+        id: "a2",
+        role: "assistant",
+        parts: [{ type: "text", text: "second" }],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useAISDKRuntime(chat, { joinStrategy: "none" }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(3);
+    });
+
+    const messages = result.current.thread.getState().messages;
+    expect(messages.map((m: any) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "assistant",
+    ]);
+    expect(messages.slice(1).map(textOf)).toEqual(["first", "second"]);
   });
 });

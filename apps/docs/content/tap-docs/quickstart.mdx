@@ -1,9 +1,9 @@
 ---
 title: Quickstart
-description: Install tap and create your first resource.
+description: Install tap and build your first resource.
 ---
 
-## Installation
+## Install
 
 ```sh
 npm install @assistant-ui/tap
@@ -11,74 +11,50 @@ npm install @assistant-ui/tap
 
 ## Define a resource
 
-Resources are the building blocks of tap. They use hooks you already know from React — but run outside of React components.
+A resource is a React component without the UI. Author it with `resource` and a
+named function, and use the hooks you already know, imported from `"react"`.
 
 ```ts
-import { resource, tapState, tapEffect } from "@assistant-ui/tap";
+import { resource } from "@assistant-ui/tap";
+import { useState } from "react";
 
-const Counter = resource(() => {
-  const [count, setCount] = tapState(0);
-
-  tapEffect(() => {
-    console.log(`Count: ${count}`);
-  }, [count]);
-
-  return {
-    count,
-    increment: () => setCount((c) => c + 1),
-  };
+const Counter = resource(function Counter() {
+  const [count, setCount] = useState(0);
+  return { count, increment: () => setCount((c) => c + 1) };
 });
 ```
 
-## Use it
-
-Create an instance with `createResourceRoot`, then read state and call methods on it.
-
-```ts
-import { createResourceRoot } from "@assistant-ui/tap";
-
-const root = createResourceRoot();
-const handle = root.render(Counter());
-
-// subscribe to changes
-handle.subscribe(() => {
-  console.log(handle.getValue().count);
-});
-
-// call methods
-handle.getValue().increment(); // logs: "Count: 1"
-handle.getValue().increment(); // logs: "Count: 2"
-
-// cleanup
-root.unmount();
-```
+Instead of JSX, a resource returns a plain value: the state and methods you want
+callers to use.
 
 ## Use it in React
 
-Use `useResource` to bind a resource to a React component's lifecycle.
+`useResource` hosts a resource inside a React component. The component re-renders
+whenever the resource's state changes, and unmounts the resource when it unmounts.
 
 ```tsx
-import { useResource } from "@assistant-ui/tap/react";
+import { useResource } from "@assistant-ui/tap";
 
-function CounterComponent() {
+function CounterButton() {
   const { count, increment } = useResource(Counter());
 
-  return (
-    <div>
-      <p>Count: {count}</p>
-      <button onClick={increment}>Increment</button>
-    </div>
-  );
+  return <button onClick={increment}>Count: {count}</button>;
 }
 ```
+
+Calling the factory (`Counter()`) creates an inert element; `useResource` brings
+it to life.
 
 ## Next steps
 
 <Cards>
-  <Card title="Hooks" href="/tap/docs/hooks">
-    tapState, tapEffect, tapMemo, and more.
+  <Card title="Resources" href="/tap/docs/resources">
+    Props, keys, lists, and context.
   </Card>
-  <Card title="Composition" href="/tap/docs/composition">
-    Nest resources with tapResource and tapResources.
+  <Card title="How tap differs from React" href="/tap/docs/differences-from-react">
+    Render rules, effect order, and re-renders.
+  </Card>
+  <Card title="Outside React" href="/tap/docs/outside-react">
+    Run resources standalone, with no React tree.
   </Card>
 </Cards>

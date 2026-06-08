@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { tapEffect } from "../../hooks/tap-effect";
-import { tapState } from "../../hooks/tap-state";
+import { useEffect } from "../../hooks/useEffect";
+import { useState } from "../../hooks/useState";
 import { createTestResource, renderTest, unmountResource } from "../test-utils";
 import {
   renderResourceFiber,
@@ -13,7 +13,7 @@ describe("Lifecycle - Mount/Unmount", () => {
     const effects = [vi.fn(), vi.fn(), vi.fn()];
 
     const resource = createTestResource(() => {
-      effects.forEach((fn) => tapEffect(fn));
+      effects.forEach((fn) => useEffect(fn));
       return null;
     });
 
@@ -29,7 +29,7 @@ describe("Lifecycle - Mount/Unmount", () => {
 
     const resource = createTestResource(() => {
       cleanups.forEach((cleanup) => {
-        tapEffect(() => cleanup);
+        useEffect(() => cleanup);
       });
       return null;
     });
@@ -45,9 +45,9 @@ describe("Lifecycle - Mount/Unmount", () => {
     const order: number[] = [];
 
     const resource = createTestResource(() => {
-      tapEffect(() => () => order.push(1));
-      tapEffect(() => () => order.push(2));
-      tapEffect(() => () => order.push(3));
+      useEffect(() => () => order.push(1));
+      useEffect(() => () => order.push(2));
+      useEffect(() => () => order.push(3));
       return null;
     });
 
@@ -64,11 +64,11 @@ describe("Lifecycle - Mount/Unmount", () => {
 
     const resource = createTestResource((props: number) => {
       renderCount++;
-      const [state, _setState] = tapState({ count: 0 });
+      const [state, _setState] = useState({ count: 0 });
       setState = _setState;
 
       // Simple effect that tracks runs
-      tapEffect(() => {
+      useEffect(() => {
         effectRunCount++;
       });
 
@@ -100,18 +100,18 @@ describe("Lifecycle - Mount/Unmount", () => {
     const log: string[] = [];
 
     const resource = createTestResource(() => {
-      const [mounted, setMounted] = tapState(false);
+      const [mounted, setMounted] = useState(false);
 
       log.push("render");
 
-      tapEffect(() => {
+      useEffect(() => {
         log.push("effect-1");
         setMounted(true);
 
         return () => log.push("cleanup-1");
       });
 
-      tapEffect(() => {
+      useEffect(() => {
         log.push("effect-2");
         return () => log.push("cleanup-2");
       });
@@ -128,8 +128,7 @@ describe("Lifecycle - Mount/Unmount", () => {
     // After commit: initial render + effects
     expect(log).toEqual(["render", "effect-1", "effect-2"]);
 
-    // The setState in effect schedules a re-render
-    // With the new architecture, we need to manually trigger it
+    // The setState in effect schedules a re-render; trigger it manually
     const ctx2 = renderResourceFiber(resource, undefined);
     commitResourceFiber(resource, ctx2);
 
@@ -158,10 +157,10 @@ describe("Lifecycle - Mount/Unmount", () => {
     const goodCleanup = vi.fn();
 
     const resource = createTestResource(() => {
-      tapEffect(() => () => {
+      useEffect(() => () => {
         throw error;
       });
-      tapEffect(() => goodCleanup);
+      useEffect(() => goodCleanup);
       return null;
     });
 
@@ -178,7 +177,7 @@ describe("Lifecycle - Mount/Unmount", () => {
 
     const resource = createTestResource(() => {
       if (!skipEffect) {
-        tapEffect(() => cleanup);
+        useEffect(() => cleanup);
       }
       return null;
     });
@@ -194,7 +193,7 @@ describe("Lifecycle - Mount/Unmount", () => {
     const cleanup = vi.fn();
 
     const resource = createTestResource(() => {
-      tapEffect(() => {
+      useEffect(() => {
         effect();
         return cleanup;
       });

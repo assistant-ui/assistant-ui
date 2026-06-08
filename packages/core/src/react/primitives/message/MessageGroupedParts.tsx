@@ -265,7 +265,7 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
   const tree = useMemo(() => {
     const context: GroupByContext = { toolUIs };
     return buildGroupTree(parts.map((part) => groupBy(part, context) ?? []));
-    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- groupBy is captured via memoDep (either its identity or the helper's memoKey fingerprint); listing it directly would defeat the helper-tagged memo path
+    // oxlint-disable-next-line react/exhaustive-deps -- groupBy is captured via memoDep (either its identity or the helper's memoKey fingerprint); listing it directly would defeat the helper-tagged memo path
   }, [parts, memoDep, toolUIs]);
 
   return (

@@ -1,7 +1,7 @@
 import { jsonSchema, type ToolSet } from "ai";
 import type { MCPClient, MCPClientConfig } from "@ai-sdk/mcp";
 import { createMCPClient } from "@ai-sdk/mcp";
-import { Experimental_StdioMCPTransport } from "@ai-sdk/mcp/mcp-stdio";
+import { Experimental_StdioMCPTransport } from "#mcp-stdio";
 import {
   toJSONSchema,
   type Tool,

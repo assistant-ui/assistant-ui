@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback } from "react";
 import { Pressable, type PressableProps } from "react-native";
-import { useCallback } from "react";
+
 import { useAui } from "@assistant-ui/store";
 
 export type AttachmentRemoveProps = Omit<PressableProps, "onPress"> & {

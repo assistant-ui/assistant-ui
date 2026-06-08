@@ -121,6 +121,11 @@ export type AgUiEvent =
       content: string;
       role?: "tool";
     }
+  | {
+      type: "ACTIVITY_SNAPSHOT";
+      activityType: string;
+      content: Record<string, unknown>;
+    }
   | { type: "RAW"; event: any; source?: string }
   | { type: "CUSTOM"; name: string; value: any }
   | { type: "STATE_SNAPSHOT"; snapshot: any }

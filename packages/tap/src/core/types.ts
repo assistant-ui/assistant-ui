@@ -1,4 +1,4 @@
-import type { tapEffect } from "../hooks/tap-effect";
+import type { useEffect } from "../hooks/useEffect";
 
 export type ResourceElement<R, P = any> = {
   readonly type: Resource<R, P>;
@@ -35,12 +35,12 @@ export type Cell =
     }
   | {
       readonly type: "effect";
-      cleanup: tapEffect.Destructor | undefined;
+      cleanup: useEffect.Destructor | undefined;
       deps: readonly unknown[] | null | undefined;
     };
 
 export interface EffectTask {
-  readonly effect: tapEffect.EffectCallback;
+  readonly effect: useEffect.EffectCallback;
   readonly deps: readonly unknown[] | undefined;
   readonly cell: Cell & { type: "effect" };
 }

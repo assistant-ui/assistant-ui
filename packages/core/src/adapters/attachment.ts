@@ -49,13 +49,29 @@ export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   }
 }
 
-const getFileDataURL = (file: File) =>
-  new Promise<string>((resolve, reject) => {
+const bytesToBase64 = (bytes: Uint8Array): string =>
+  (
+    globalThis as {
+      Buffer: {
+        from(bytes: Uint8Array): { toString(encoding: string): string };
+      };
+    }
+  ).Buffer.from(bytes).toString("base64");
+
+// React Native's Blob polyfill has FileReader but not file.text()/arrayBuffer(); Node has
+// the reverse. Prefer FileReader when present, falling back to the Blob methods otherwise.
+const getFileDataURL = async (file: File): Promise<string> => {
+  if (typeof FileReader === "undefined") {
+    const buffer = await file.arrayBuffer();
+    return `data:${file.type};base64,${bytesToBase64(new Uint8Array(buffer))}`;
+  }
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = (error) => reject(error);
     reader.readAsDataURL(file);
   });
+};
 
 export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   public accept =
@@ -92,13 +108,17 @@ export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   }
 }
 
-const getFileText = (file: File) =>
-  new Promise<string>((resolve, reject) => {
+const getFileText = async (file: File): Promise<string> => {
+  if (typeof FileReader === "undefined") {
+    return file.text();
+  }
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = (error) => reject(error);
     reader.readAsText(file);
   });
+};
 
 export function fileMatchesAccept(
   file: { name: string; type: string },

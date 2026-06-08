@@ -57,8 +57,8 @@ export function withAui<T extends NextConfigLike>(
   options: WithAuiOptions = {},
 ): T {
   const globs = options.rules ?? ["*.ts", "*.tsx"];
-  // Merge into the user's rules: if a glob already has a `{ loaders }` rule,
-  // append ours rather than clobbering it (see DESIGN.md).
+  // Merge the `"use generative"` loader into the user's rules: if a glob already
+  // has a `{ loaders }` rule, append ours rather than clobbering it (see DESIGN.md).
   const rules: Record<string, unknown> = { ...nextConfig.turbopack?.rules };
   for (const glob of globs) {
     const existing = rules[glob];
@@ -90,6 +90,7 @@ export function withAui<T extends NextConfigLike>(
         exclude: /node_modules/,
         use: [LOADER_USE],
       });
+
       return userWebpack ? userWebpack(config, context) : config;
     },
   } as T;

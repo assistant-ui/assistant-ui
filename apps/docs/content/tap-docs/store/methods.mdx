@@ -3,7 +3,7 @@ title: Methods
 description: Access scope methods with useAui.
 ---
 
-Methods are the imperative API of a scope. They're the functions your resource returns — `increment`, `send`, `delete`, or anything else. You access them through `useAui()`.
+Methods are the imperative API of a scope. They're the functions your resource returns: `increment`, `send`, `delete`, or anything else. You access them through `useAui()`.
 
 ## Defining methods
 
@@ -25,14 +25,15 @@ declare module "@assistant-ui/store" {
 }
 ```
 
-Then create a resource that implements them. The return type `ClientOutput<"counter">` ties the resource to the scope — TypeScript will error if the returned methods don't match the registry:
+Then create a resource that implements them. The return type `ClientOutput<"counter">` ties the resource to the scope: TypeScript will error if the returned methods don't match the registry:
 
 ```ts title="lib/store/counter-resource.ts"
-import { resource, tapState } from "@assistant-ui/tap";
+import { resource } from "@assistant-ui/tap";
+import { useState } from "react";
 import type { ClientOutput } from "@assistant-ui/store";
 
 const CounterResource = resource((): ClientOutput<"counter"> => {
-  const [count, setCount] = tapState(0);
+  const [count, setCount] = useState(0);
 
   return {
     increment: () => setCount((c) => c + 1),
@@ -42,7 +43,7 @@ const CounterResource = resource((): ClientOutput<"counter"> => {
 });
 ```
 
-Every function you return becomes a method on the scope. There's nothing special about them — they're plain functions that can call `tapState` setters, trigger side effects, or do anything else.
+Every function you return becomes a method on the scope. There's nothing special about them: they're plain functions that can call `useState` setters, trigger side effects, or do anything else.
 
 ## useAui
 
@@ -52,18 +53,18 @@ Call `useAui()` with no arguments inside any `AuiProvider` to get the current st
 const aui = useAui();
 ```
 
-The returned object has a property for every scope available in the current context. Crucially, `useAui()` does **not** re-render your component when scopes change — it returns a stable reference. The actual scope is only resolved when you call `aui.counter()`.
+The returned object has a property for every scope available in the current context. Crucially, `useAui()` does **not** re-render your component when scopes change: it returns a stable reference. The actual scope is only resolved when you call `aui.counter()`.
 
 ## Scope resolution
 
-`aui.counter` is not the scope itself — it's an accessor. The scope resolves when you call it:
+`aui.counter` is not the scope itself, it's an accessor. The scope resolves when you call it:
 
 ```tsx
 // resolves the counter scope, returns its methods
 aui.counter().increment();
 ```
 
-This distinction matters. The `aui` object is stable across re-renders and scope changes. When a derived scope switches which item it points to, `aui` stays the same — but `aui.counter()` returns the new scope's methods. This is why you should always resolve at the point of use:
+This distinction matters. The `aui` object is stable across re-renders and scope changes. When a derived scope switches which item it points to, `aui` stays the same, but `aui.counter()` returns the new scope's methods. This is why you should always resolve at the point of use:
 
 ```tsx
 const MessageActions = () => {
@@ -72,7 +73,7 @@ const MessageActions = () => {
   return (
     <button
       onClick={() => {
-        // resolves at click time — always gets the current scope
+        // resolves at click time, always gets the current scope
         aui.message().reload();
         aui.thread().cancelRun();
       }}
@@ -103,11 +104,11 @@ const Counter = () => {
 For the same reason, avoid storing a resolved scope in a variable during render:
 
 ```tsx
-// ❌ Resolves during render — can go stale
+// ❌ Resolves during render, can go stale
 const counter = aui.counter();
 const handleClick = () => counter.increment();
 
-// ✅ Resolves at call time — always current
+// ✅ Resolves at call time, always current
 const handleClick = () => aui.counter().increment();
 ```
 
@@ -132,7 +133,7 @@ if (aui.counter.source !== null) {
 This is an advanced pattern. In the entire assistant-ui codebase, there are only two use cases for this.
 </Callout>
 
-Sometimes you need to know when the scope itself changes — for example, to register/unregister with an external system when a derived scope switches to a different item.
+Sometimes you need to know when the scope itself changes, for example to register/unregister with an external system when a derived scope switches to a different item.
 
 Since `useAui()` doesn't re-render on scope changes, you need to opt in explicitly. Use `useAuiState` to subscribe to the scope identity:
 

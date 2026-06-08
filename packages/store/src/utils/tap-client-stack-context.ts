@@ -1,9 +1,6 @@
-import {
-  createResourceContext,
-  tap,
-  withContextProvider,
-  tapMemo,
-} from "@assistant-ui/tap";
+import { useMemo, use } from "react";
+
+import { createResourceContext, withContextProvider } from "@assistant-ui/tap";
 import type { ClientMethods } from "../types/client";
 
 /**
@@ -30,20 +27,20 @@ const ClientStackContext = createResourceContext<ClientStack>([]);
 /**
  * Get the current client stack inside a tap resource.
  */
-export const tapClientStack = (): ClientStack => {
-  return tap(ClientStackContext);
+export const useClientStack = (): ClientStack => {
+  return use(ClientStackContext);
 };
 
 /**
  * Execute a callback with a client pushed onto the stack.
  * The stack is duplicated, not mutated.
  */
-export const tapWithClientStack = <T>(
+export const useWithClientStack = <T>(
   client: ClientMethods,
   callback: () => T,
 ): T => {
-  const currentStack = tapClientStack();
-  const newStack = tapMemo(
+  const currentStack = useClientStack();
+  const newStack = useMemo(
     () => [...currentStack, client],
     [currentStack, client],
   );
