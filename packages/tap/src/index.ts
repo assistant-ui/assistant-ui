@@ -10,7 +10,6 @@ export { createResourceContext, withContextProvider } from "./core/context";
 
 // hooks
 export { useResource, useResources, useResourceRoot } from "./react/hooks";
-export { useReducerWithDerivedState } from "./hooks/useReducer";
 
 // types
 export type {

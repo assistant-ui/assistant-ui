@@ -10,7 +10,7 @@ Authoritative docs: `apps/docs/content/tap-docs/` (and `.../store/`). This is a 
 ## Naming
 
 - Inside a resource body you call **React's hooks** (`useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useReducer`, `useEffectEvent`, `use`) imported from `"react"`, following the rules of hooks. Read context with `use(Context)`.
-- tap adds `useResource` / `useResources` / `useResourceRoot` and `useReducerWithDerivedState` (from `@assistant-ui/tap`). store adds `useClientResource` / `useClientLookup` / `useClientList` / `useAssistantClientRef` / `useAssistantEmit` (from `@assistant-ui/store`).
+- tap adds `useResource` / `useResources` / `useResourceRoot` (from `@assistant-ui/tap`). store adds `useClientResource` / `useClientLookup` / `useClientList` / `useAssistantClientRef` / `useAssistantEmit` (from `@assistant-ui/store`).
 - **`*Resource` / `Foo`** = resource factory produced by `resource(fn)`, called *outside* resource bodies (`SpanResource`, `CounterResource`, `MCPManagerResource`). Never name a factory `useFoo`, that signals a hook.
 - Plain utilities have no prefix (`defineConnector`, `createOAuthProvider`).
 
@@ -34,7 +34,7 @@ Instantiate via: `useResource(element)` (isomorphic, works in a React component 
 
 - Top level of resource body or a custom `use*` hook only.
 - Not in conditions, loops, nested functions, event handlers, `try/catch`, or callbacks passed to `useState`/`useMemo`/`useEffect`.
-- **`setState` during render throws** (unlike React). For derive-from-props use `useReducerWithDerivedState`.
+- **`setState` during render throws** (unlike React). Derive from props during render instead.
 
 ## Trees & re-renders
 

@@ -61,25 +61,6 @@ handle.getValue();
 handle.subscribe(() => {});
 ```
 
-## useReducerWithDerivedState
-
-<Callout type="warn">
-Experimental, and tap-only (call it inside a resource render, not a React
-component). May change.
-</Callout>
-
-A `getDerivedStateFromProps` replacement: adjust state in response to props
-without setting during render. `getDerivedState(state)` runs once per render after
-queued actions; if it returns a new value (by `Object.is`), that becomes the
-current state.
-
-```ts
-import { useReducerWithDerivedState } from "@assistant-ui/tap";
-
-const [state, dispatch] = useReducerWithDerivedState(reducer, getDerivedState, initialState);
-const [state, dispatch] = useReducerWithDerivedState(reducer, getDerivedState, initialArg, init);
-```
-
 ## createResourceRoot
 
 Hosts a resource tree [outside React](/tap/docs/outside-react). Returns

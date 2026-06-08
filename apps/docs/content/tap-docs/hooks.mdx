@@ -8,35 +8,6 @@ Inside a resource you use React's hooks, imported from `"react"`: `useState`,
 and `use`. They behave as they do in a component and follow the same rules of
 hooks, with a few [differences](/tap/docs/differences-from-react).
 
-This page covers what tap adds on top.
-
-## useReducerWithDerivedState
-
-<Callout type="warn">
-Experimental, and tap-only. May change.
-</Callout>
-
-Like `useReducer`, but with a `getDerivedState` function that runs during render
-after queued actions. It replaces React's
-[`getDerivedStateFromProps`](https://react.dev/reference/react/Component#static-getderivedstatefromprops):
-adjust state in response to props without calling `set`/`dispatch` during render.
-If `getDerivedState` returns a new value (by `Object.is`), it becomes the current
-state and triggers a re-render.
-
-```ts
-import { useReducerWithDerivedState } from "@assistant-ui/tap";
-
-const [state, dispatch] = useReducerWithDerivedState(
-  reducer,
-  // reset selection when items change
-  (state) =>
-    state.prevItems === items
-      ? state
-      : { ...state, items, prevItems: items, selectedId: null },
-  { items, selectedId: null, prevItems: items },
-);
-```
-
 ## Composition hooks
 
 Resources can host other resources. These hooks (from `@assistant-ui/tap`) manage

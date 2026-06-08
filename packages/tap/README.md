@@ -57,7 +57,7 @@ function CounterButton() {
 
 ## Hooks
 
-Inside a resource you use React's hooks (`useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `use`, ...) imported from `"react"`. tap adds `useResource` / `useResources` / `useResourceRoot` for composition, `useReducerWithDerivedState` for deriving state from props, and `createResourceContext` / `withContextProvider` for context.
+Inside a resource you use React's hooks (`useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `use`, ...) imported from `"react"`. tap adds `useResource` / `useResources` / `useResourceRoot` for composition and `createResourceContext` / `withContextProvider` for context.
 
 Full API reference at [assistant-ui.com/tap/docs](https://www.assistant-ui.com/tap/docs).
 

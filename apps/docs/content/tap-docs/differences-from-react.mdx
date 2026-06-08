@@ -31,10 +31,6 @@ const Filtered = resource(function Filtered(props: { items: string[]; query: str
 });
 ```
 
-When you genuinely need stored state that resets on prop changes (React's
-`getDerivedStateFromProps` pattern), use the experimental
-[`useReducerWithDerivedState`](/tap/docs/api-reference#usereducerwithderivedstate).
-
 ## Effects run in call order
 
 In React, effects run children-first (inside-out), because a component can only
