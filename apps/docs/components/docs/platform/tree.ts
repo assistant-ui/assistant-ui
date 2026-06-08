@@ -9,7 +9,7 @@ export interface PlatformTreeConfig {
 }
 
 export const PLATFORM_TREE_CONFIG: PlatformTreeConfig = {
-  mainDocsFolder: "Docs",
+  mainDocsFolder: "Getting Started",
   platformFolders: { rn: "React Native", ink: "React Ink" },
   sharedPageUrls: new Set(["/docs/llm", "/docs/architecture"]),
 };

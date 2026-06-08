@@ -12,6 +12,7 @@
     "cloud",
     "utilities",
     "migrations",
+    "copilots",
     "(reference)"
   ]
 }

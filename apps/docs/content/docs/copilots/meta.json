@@ -1,6 +1,9 @@
 {
-  "title": "Copilots",
+  "title": "Copilots (experimental)",
   "description": "APIs for making React components visible to assistants and registering instructions, tools, tool UIs, and model context.",
+  "icon": "Bot",
+  "root": true,
+  "platforms": ["react"],
   "pages": [
     "motivation",
     "make-assistant-visible",
