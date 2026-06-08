@@ -12,14 +12,21 @@ export interface SuggestionPreview {
   prompt?: string;
 }
 
+export interface ComposerQueueItem {
+  id?: string;
+  prompt: string;
+}
+
 export interface ComposerPreview {
   textLength: number;
   role?: string;
   attachments: number;
   isEditing?: boolean;
   canCancel?: boolean;
+  canSend?: boolean;
   isEmpty?: boolean;
   type?: string;
+  queue: ComposerQueueItem[];
 }
 
 export interface ThreadPreview {

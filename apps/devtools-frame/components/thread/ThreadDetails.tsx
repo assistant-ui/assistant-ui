@@ -1,6 +1,7 @@
 import { formatBoolean } from "../common";
 import { MessageList } from "../message";
 import { SummaryItem } from "../ui";
+import { ComposerQueue } from "./ComposerQueue";
 import type { ThreadPreview } from "./types";
 
 export const ThreadDetails = ({
@@ -97,10 +98,19 @@ export const ThreadDetails = ({
           {typeof thread.composer.canCancel === "boolean" ? (
             <span>Can Cancel: {formatBoolean(thread.composer.canCancel)}</span>
           ) : null}
+          {typeof thread.composer.canSend === "boolean" ? (
+            <span>Can Send: {formatBoolean(thread.composer.canSend)}</span>
+          ) : null}
           {typeof thread.composer.isEmpty === "boolean" ? (
             <span>Empty: {formatBoolean(thread.composer.isEmpty)}</span>
           ) : null}
         </div>
+
+        {thread.composer.queue.length ? (
+          <div className="mt-2">
+            <ComposerQueue queue={thread.composer.queue} />
+          </div>
+        ) : null}
       </div>
     ) : null}
   </div>

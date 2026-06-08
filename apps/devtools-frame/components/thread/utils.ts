@@ -3,6 +3,7 @@ import { parseMessage } from "../message";
 import type { MessagePreview } from "../message";
 import type {
   ComposerPreview,
+  ComposerQueueItem,
   SuggestionPreview,
   ThreadListItemPreview,
   ThreadListPreview,
@@ -26,10 +27,22 @@ export const parseComposerPreview = (
   const attachments = Array.isArray(value.attachments)
     ? value.attachments.length
     : 0;
+  const queue = Array.isArray(value.queue)
+    ? value.queue
+        .map((item) => {
+          if (!isRecord(item) || typeof item.prompt !== "string") return null;
+          return {
+            prompt: item.prompt,
+            ...(typeof item.id === "string" ? { id: item.id } : {}),
+          };
+        })
+        .filter((item): item is ComposerQueueItem => Boolean(item))
+    : [];
 
   return {
     textLength: text.length,
     attachments,
+    queue,
     ...(typeof value.role === "string" ? { role: value.role } : {}),
     ...(typeof value.isEditing === "boolean"
       ? { isEditing: value.isEditing }
@@ -37,6 +50,7 @@ export const parseComposerPreview = (
     ...(typeof value.canCancel === "boolean"
       ? { canCancel: value.canCancel }
       : {}),
+    ...(typeof value.canSend === "boolean" ? { canSend: value.canSend } : {}),
     ...(typeof value.isEmpty === "boolean" ? { isEmpty: value.isEmpty } : {}),
     ...(typeof value.type === "string" ? { type: value.type } : {}),
   };
