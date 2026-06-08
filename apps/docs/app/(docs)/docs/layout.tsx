@@ -4,7 +4,12 @@ import { DocsRootLayout } from "@/components/docs/layout/docs-root-layout";
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <DocsRootLayout tree={source.pageTree} section="Docs" sectionHref="/docs">
+    <DocsRootLayout
+      tree={source.pageTree}
+      section="Docs"
+      sectionHref="/docs"
+      showMobileSectionBreadcrumb
+    >
       {children}
     </DocsRootLayout>
   );

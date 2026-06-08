@@ -23,6 +23,7 @@ type DocsRootLayoutProps = {
   tree: PageTree.Root;
   section: string;
   sectionHref: string;
+  showMobileSectionBreadcrumb?: boolean;
   children: ReactNode;
 };
 
@@ -30,6 +31,7 @@ export function DocsRootLayout({
   tree,
   section,
   sectionHref,
+  showMobileSectionBreadcrumb = false,
   children,
 }: DocsRootLayoutProps) {
   return (
@@ -38,7 +40,13 @@ export function DocsRootLayout({
         <DocsRuntimeProvider>
           <PlatformProvider>
             <DocsSidebarProvider>
-              <DocsHeader section={section} sectionHref={sectionHref} />
+              <DocsHeader
+                section={section}
+                sectionHref={sectionHref}
+                mobileSectionTree={
+                  showMobileSectionBreadcrumb ? tree : undefined
+                }
+              />
               <DocsContent>
                 <DocsLayout
                   {...sharedDocsOptions}

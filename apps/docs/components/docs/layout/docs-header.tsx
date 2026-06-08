@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type * as PageTree from "fumadocs-core/page-tree";
 import {
   ArrowUpRight,
   LayoutGrid,
@@ -20,10 +22,16 @@ import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
+import { usePlatform } from "@/components/docs/platform/context";
+import {
+  buildPlatformSections,
+  findPathToNode,
+} from "@/components/docs/platform/tree";
 
 interface DocsHeaderProps {
   section: string;
   sectionHref: string;
+  mobileSectionTree?: PageTree.Root | undefined;
 }
 
 function AskAIButton() {
@@ -71,7 +79,59 @@ function HeaderSearch() {
 
 const CONDENSED_HIDDEN = new Set(["Showcase", "Playground", "Pricing"]);
 
-export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
+function MobileSectionBreadcrumb({
+  tree,
+  section,
+}: {
+  tree: PageTree.Root;
+  section: string;
+}) {
+  const pathname = usePathname();
+  const { platform } = usePlatform();
+
+  const activeSection = useMemo(() => {
+    const folders = tree.children.filter(
+      (node): node is PageTree.Folder => node.type === "folder",
+    );
+
+    const sections = buildPlatformSections(folders, platform);
+    const active = sections.find((folder) => findPathToNode(folder, pathname));
+    if (!active || typeof active.name !== "string" || active.name === section) {
+      return null;
+    }
+
+    return {
+      label: active.name,
+      href: active.index?.url,
+    };
+  }, [tree, pathname, platform, section]);
+
+  if (!activeSection) return null;
+
+  return (
+    <span className="flex min-w-0 items-center md:hidden">
+      <span className="text-muted-foreground/40 mx-3 shrink-0">/</span>
+      {activeSection.href ? (
+        <Link
+          href={activeSection.href}
+          className="text-foreground hover:text-foreground/80 min-w-0 truncate text-sm font-medium transition-colors"
+        >
+          {activeSection.label}
+        </Link>
+      ) : (
+        <span className="text-foreground min-w-0 truncate text-sm font-medium">
+          {activeSection.label}
+        </span>
+      )}
+    </span>
+  );
+}
+
+export function DocsHeader({
+  section,
+  sectionHref,
+  mobileSectionTree,
+}: DocsHeaderProps) {
   const { setOpenSearch } = useSearchContext();
   const {
     open: sidebarOpen,
@@ -105,7 +165,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
     <header className="sticky top-0 z-50 w-full">
       <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl" />
       <div className="relative flex h-12 w-full items-center px-4">
-        <div className="flex shrink-0 items-center">
+        <div className="flex min-w-0 flex-1 items-center">
           <Link href="/" className="flex shrink-0 items-center gap-2">
             <Image
               src="/favicon/icon.svg"
@@ -125,10 +185,16 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
           >
             {section}
           </Link>
+          {mobileSectionTree && (
+            <MobileSectionBreadcrumb
+              tree={mobileSectionTree}
+              section={section}
+            />
+          )}
         </div>
 
         {/* Mobile controls */}
-        <div className="ml-auto flex items-center gap-1 md:hidden">
+        <div className="ml-auto flex shrink-0 items-center gap-1 md:hidden">
           <button
             type="button"
             onClick={() => {
