@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/next",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Next.js integration for assistant-ui: the withAui() config wrapper and the \"use generative\" directive compiler that colocates a tool's schema, server-only execute, and client-only render in one file.",
   "keywords": [
     "assistant-ui",

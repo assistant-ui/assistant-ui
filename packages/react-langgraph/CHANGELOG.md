@@ -1,5 +1,25 @@
 # @assistant-ui/react-langgraph
 
+## 0.14.7
+
+### Patch Changes
+
+- [#4246](https://github.com/assistant-ui/assistant-ui/pull/4246) [`dbdfb15`](https://github.com/assistant-ui/assistant-ui/commit/dbdfb15e8b609d3886c71fedb25a9d8345e5fc3c) - feat: message queuing for external-store, langgraph, and local runtimes ([@okisdev](https://github.com/okisdev))
+
+  the composer can now stay usable while a run is in progress: a message sent during a run is held in `composer.queue` (rendered via `ComposerPrimitive.Queue` / `QueueItemPrimitive.*`) and processed once the run settles. external-store adapters opt in by providing a `queue` adapter (typically built with the new `createMessageQueue` helper); `useLangGraphRuntime` and `useLocalRuntime` opt in via `unstable_enableMessageQueue`. `ExternalThreadQueueAdapter` now lives in `@assistant-ui/core` (still re-exported from `@assistant-ui/react`).
+
+- [#4306](https://github.com/assistant-ui/assistant-ui/pull/4306) [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4250](https://github.com/assistant-ui/assistant-ui/pull/4250) [`307a5fe`](https://github.com/assistant-ui/assistant-ui/commit/307a5fe8186cd84f44ee3b907c8ddc07fcb456aa) - fix: batch parallel tool results so a turn with multiple tool calls resumes in a single run ([@Yonom](https://github.com/Yonom))
+
+- [#4259](https://github.com/assistant-ui/assistant-ui/pull/4259) [`a3f6df8`](https://github.com/assistant-ui/assistant-ui/commit/a3f6df817c1b0112692ecedd4970859518aee088) - fix: preserve LangChain reasoning content when `summary` is absent ([@puneetdixit200](https://github.com/puneetdixit200))
+
+- Updated dependencies [[`2a84174`](https://github.com/assistant-ui/assistant-ui/commit/2a8417422996920c4a58be80eddc1c1740158518), [`a0a0769`](https://github.com/assistant-ui/assistant-ui/commit/a0a076915dafdb7152c9fde75b40cfddebcb2676), [`19c5b5f`](https://github.com/assistant-ui/assistant-ui/commit/19c5b5f3b1616a82ddfa928325c5e02c5786e867), [`dbdfb15`](https://github.com/assistant-ui/assistant-ui/commit/dbdfb15e8b609d3886c71fedb25a9d8345e5fc3c), [`ca191dc`](https://github.com/assistant-ui/assistant-ui/commit/ca191dc63f4a63c7d3f98566e9febd7d7f857aec), [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc), [`44ff4bf`](https://github.com/assistant-ui/assistant-ui/commit/44ff4bf5765ec2675454362a00214cd9de5cfb60), [`01cf957`](https://github.com/assistant-ui/assistant-ui/commit/01cf957c209b1a58c69f5621565397de6d1eb794), [`26a365b`](https://github.com/assistant-ui/assistant-ui/commit/26a365bb2b5bf840e21cd0caf1870627fb57c045)]:
+  - @assistant-ui/core@0.2.11
+  - assistant-stream@0.3.21
+  - assistant-cloud@0.1.32
+  - @assistant-ui/store@0.2.14
+
 ## 0.14.6
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @assistant-ui/store
 
+## 0.2.14
+
+### Patch Changes
+
+- [#4306](https://github.com/assistant-ui/assistant-ui/pull/4306) [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4282](https://github.com/assistant-ui/assistant-ui/pull/4282) [`01cf957`](https://github.com/assistant-ui/assistant-ui/commit/01cf957c209b1a58c69f5621565397de6d1eb794) - refactor: rename the client composition and event hooks to the `use*` convention to match the tap resource API: `tapClientResource` -> `useClientResource`, `tapClientLookup` -> `useClientLookup`, `tapClientList` -> `useClientList`, `tapAssistantClientRef` -> `useAssistantClientRef`, `tapAssistantEmit` -> `useAssistantEmit`. ([@Yonom](https://github.com/Yonom))
+
 ## 0.2.13
 
 ### Patch Changes

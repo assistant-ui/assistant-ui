@@ -1,5 +1,27 @@
 # @assistant-ui/react-ink
 
+## 0.0.24
+
+### Patch Changes
+
+- [#4260](https://github.com/assistant-ui/assistant-ui/pull/4260) [`19c5b5f`](https://github.com/assistant-ui/assistant-ui/commit/19c5b5f3b1616a82ddfa928325c5e02c5786e867) - fix: make defineToolkit usable for plain runtime toolkits ([@Yonom](https://github.com/Yonom))
+
+- [#4249](https://github.com/assistant-ui/assistant-ui/pull/4249) [`ca191dc`](https://github.com/assistant-ui/assistant-ui/commit/ca191dc63f4a63c7d3f98566e9febd7d7f857aec) - feat: add externalTool for render-only generative toolkit entries ([@Yonom](https://github.com/Yonom))
+
+- [#4243](https://github.com/assistant-ui/assistant-ui/pull/4243) [`b79794d`](https://github.com/assistant-ui/assistant-ui/commit/b79794da4fed63d424376cae7cc4be720c7cf605) - fix(react-ink): block Enter submission while the thread is running unless the runtime supports queueing. `ComposerInput` called `composer().send()` unconditionally, so pressing Enter mid-run interrupted the active stream even on runtimes with `capabilities.queue: false`. It now applies the same gate as the web `ComposerInput` (`isRunning && !capabilities.queue` no-ops, keeping the typed text). The `onSubmit` override path is unaffected; apps using it own their submit behavior. ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4306](https://github.com/assistant-ui/assistant-ui/pull/4306) [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4253](https://github.com/assistant-ui/assistant-ui/pull/4253) [`4c8f894`](https://github.com/assistant-ui/assistant-ui/commit/4c8f89413693e184d46e5f0f1bec1982457a2fe5) - feat: `defineToolkit` and the tool markers (`hitlTool` / `stubTool` / `providerTool`) now have runtime implementations in `@assistant-ui/react-ink`, so Ink apps author tools with the same `defineToolkit` API (and typed args) as the web. An Ink app runs in a single Node process with no client/server boundary, so there is nothing for the `"use generative"` compiler to split: `defineToolkit` resolves each tool's `type` at runtime and no build step is required. ([@Yonom](https://github.com/Yonom))
+
+- [#4256](https://github.com/assistant-ui/assistant-ui/pull/4256) [`44ff4bf`](https://github.com/assistant-ui/assistant-ui/commit/44ff4bf5765ec2675454362a00214cd9de5cfb60) - feat: rename hitlTool to humanTool while keeping deprecated compatibility aliases ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`2a84174`](https://github.com/assistant-ui/assistant-ui/commit/2a8417422996920c4a58be80eddc1c1740158518), [`a0a0769`](https://github.com/assistant-ui/assistant-ui/commit/a0a076915dafdb7152c9fde75b40cfddebcb2676), [`19c5b5f`](https://github.com/assistant-ui/assistant-ui/commit/19c5b5f3b1616a82ddfa928325c5e02c5786e867), [`dbdfb15`](https://github.com/assistant-ui/assistant-ui/commit/dbdfb15e8b609d3886c71fedb25a9d8345e5fc3c), [`ca191dc`](https://github.com/assistant-ui/assistant-ui/commit/ca191dc63f4a63c7d3f98566e9febd7d7f857aec), [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc), [`44ff4bf`](https://github.com/assistant-ui/assistant-ui/commit/44ff4bf5765ec2675454362a00214cd9de5cfb60), [`01cf957`](https://github.com/assistant-ui/assistant-ui/commit/01cf957c209b1a58c69f5621565397de6d1eb794), [`01cf957`](https://github.com/assistant-ui/assistant-ui/commit/01cf957c209b1a58c69f5621565397de6d1eb794), [`26a365b`](https://github.com/assistant-ui/assistant-ui/commit/26a365bb2b5bf840e21cd0caf1870627fb57c045)]:
+  - @assistant-ui/core@0.2.11
+  - assistant-stream@0.3.21
+  - @assistant-ui/store@0.2.14
+  - @assistant-ui/tap@0.6.0
+
 ## 0.0.23
 
 ### Patch Changes

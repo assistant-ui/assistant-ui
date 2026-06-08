@@ -1,5 +1,36 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.36
+
+### Patch Changes
+
+- [#4278](https://github.com/assistant-ui/assistant-ui/pull/4278) [`a4d9836`](https://github.com/assistant-ui/assistant-ui/commit/a4d9836d0ef6839b5ebe3255cd91a762ce8492d2) - feat: consume ACTIVITY_SNAPSHOT events to support MCP Apps on the AG-UI runtime ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4264](https://github.com/assistant-ui/assistant-ui/pull/4264) [`11f2321`](https://github.com/assistant-ui/assistant-ui/commit/11f23214b00541fa0ff15434f19c4130b0e94df1) - feat: export `fromAgUiMessages` from the package root ([@serhiizghama](https://github.com/serhiizghama))
+
+  Converting persisted AG-UI messages to assistant-ui messages (e.g. when
+  restoring a conversation from a `GET /agents/state` endpoint on page load)
+  previously required reaching into package internals. `fromAgUiMessages` is now
+  a public export, typed to return `ThreadMessageLike[]` so its output plugs
+  directly into `ExportedMessageRepository.fromArray` inside a history adapter.
+
+- [#4233](https://github.com/assistant-ui/assistant-ui/pull/4233) [`465f264`](https://github.com/assistant-ui/assistant-ui/commit/465f264322acedb61e5a5ea386383eb68accd097) - fix: import AG-UI `reasoning` messages from `MESSAGES_SNAPSHOT` ([@dkachur1](https://github.com/dkachur1))
+
+  `fromAgUiMessages` only branched on `tool`/`assistant`/`user`/`system`, so
+  `reasoning` messages in a `MESSAGES_SNAPSHOT` were silently dropped on cold
+  reload even though the live `REASONING_*` (and deprecated `THINKING_*`) path
+  already surfaces them. They are now converted faithfully to a `reasoning`
+  assistant part. `activity` messages carry a structured payload with no
+  assistant-ui message-part equivalent and remain intentionally unmapped.
+
+- [#4232](https://github.com/assistant-ui/assistant-ui/pull/4232) [`a16baa8`](https://github.com/assistant-ui/assistant-ui/commit/a16baa8020930b149159d6c7f24ed3f5426195a5) - feat: emit AG-UI multimodal input parts (image/audio/video/document with typed data/url sources) for file attachments instead of the legacy `binary` input content ([@dkachur1](https://github.com/dkachur1))
+
+- [#4306](https://github.com/assistant-ui/assistant-ui/pull/4306) [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`2a84174`](https://github.com/assistant-ui/assistant-ui/commit/2a8417422996920c4a58be80eddc1c1740158518), [`a0a0769`](https://github.com/assistant-ui/assistant-ui/commit/a0a076915dafdb7152c9fde75b40cfddebcb2676), [`19c5b5f`](https://github.com/assistant-ui/assistant-ui/commit/19c5b5f3b1616a82ddfa928325c5e02c5786e867), [`dbdfb15`](https://github.com/assistant-ui/assistant-ui/commit/dbdfb15e8b609d3886c71fedb25a9d8345e5fc3c), [`ca191dc`](https://github.com/assistant-ui/assistant-ui/commit/ca191dc63f4a63c7d3f98566e9febd7d7f857aec), [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc), [`44ff4bf`](https://github.com/assistant-ui/assistant-ui/commit/44ff4bf5765ec2675454362a00214cd9de5cfb60), [`26a365b`](https://github.com/assistant-ui/assistant-ui/commit/26a365bb2b5bf840e21cd0caf1870627fb57c045)]:
+  - @assistant-ui/core@0.2.11
+  - assistant-stream@0.3.21
+
 ## 0.0.35
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.34
+
+### Patch Changes
+
+- [#4306](https://github.com/assistant-ui/assistant-ui/pull/4306) [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.1.33
 
 ### Patch Changes

@@ -1,5 +1,35 @@
 # @assistant-ui/react
 
+## 0.14.15
+
+### Patch Changes
+
+- [#4260](https://github.com/assistant-ui/assistant-ui/pull/4260) [`19c5b5f`](https://github.com/assistant-ui/assistant-ui/commit/19c5b5f3b1616a82ddfa928325c5e02c5786e867) - fix: make defineToolkit usable for plain runtime toolkits ([@Yonom](https://github.com/Yonom))
+
+- [#4246](https://github.com/assistant-ui/assistant-ui/pull/4246) [`dbdfb15`](https://github.com/assistant-ui/assistant-ui/commit/dbdfb15e8b609d3886c71fedb25a9d8345e5fc3c) - feat: message queuing for external-store, langgraph, and local runtimes ([@okisdev](https://github.com/okisdev))
+
+  the composer can now stay usable while a run is in progress: a message sent during a run is held in `composer.queue` (rendered via `ComposerPrimitive.Queue` / `QueueItemPrimitive.*`) and processed once the run settles. external-store adapters opt in by providing a `queue` adapter (typically built with the new `createMessageQueue` helper); `useLangGraphRuntime` and `useLocalRuntime` opt in via `unstable_enableMessageQueue`. `ExternalThreadQueueAdapter` now lives in `@assistant-ui/core` (still re-exported from `@assistant-ui/react`).
+
+- [#4249](https://github.com/assistant-ui/assistant-ui/pull/4249) [`ca191dc`](https://github.com/assistant-ui/assistant-ui/commit/ca191dc63f4a63c7d3f98566e9febd7d7f857aec) - feat: add externalTool for render-only generative toolkit entries ([@Yonom](https://github.com/Yonom))
+
+- [#4306](https://github.com/assistant-ui/assistant-ui/pull/4306) [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4280](https://github.com/assistant-ui/assistant-ui/pull/4280) [`e7f1aa0`](https://github.com/assistant-ui/assistant-ui/commit/e7f1aa0958202125352e3653d64ef586a5880298) - fix(mcp-apps): send the 2026-01-26 dialect on host→app messages so widgets built with `@modelcontextprotocol/ext-apps` initialize and receive tool results ([@okisdev](https://github.com/okisdev))
+
+  the bridge already normalized inbound `ui/*` method names, but every outbound message (the `ui/initialize` result and the tool input/result/host context notifications) stayed in the pre-spec dialect. spec widgets zod-validate the initialize result and require `hostInfo` + `hostCapabilities`, so they failed init; tool results were posted as `notifications/tools/call/result`, a method the official SDK never listens for, so a patched widget still rendered empty. the bridge now additively dual-sends both dialects (the initialize result carries `host`/`capabilities` and `hostInfo`/`hostCapabilities`, echoes the app's requested `protocolVersion`, and each notification posts its `ui/notifications/*` counterpart with the spec param shapes). unknown methods and fields are ignored by either SDK, so legacy widgets are unaffected.
+
+- [#4256](https://github.com/assistant-ui/assistant-ui/pull/4256) [`44ff4bf`](https://github.com/assistant-ui/assistant-ui/commit/44ff4bf5765ec2675454362a00214cd9de5cfb60) - feat: rename hitlTool to humanTool while keeping deprecated compatibility aliases ([@Yonom](https://github.com/Yonom))
+
+- [#4298](https://github.com/assistant-ui/assistant-ui/pull/4298) [`72494e7`](https://github.com/assistant-ui/assistant-ui/commit/72494e75f2a535141a2bb26c539cf1b02b514377) - refactor: extract a shared sandbox host (SafeContentFrame lifecycle, the single cross-origin guarded message listener, auto-resize) and reuse it for the MCP app frame, with no behavior change ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`2a84174`](https://github.com/assistant-ui/assistant-ui/commit/2a8417422996920c4a58be80eddc1c1740158518), [`a0a0769`](https://github.com/assistant-ui/assistant-ui/commit/a0a076915dafdb7152c9fde75b40cfddebcb2676), [`19c5b5f`](https://github.com/assistant-ui/assistant-ui/commit/19c5b5f3b1616a82ddfa928325c5e02c5786e867), [`dbdfb15`](https://github.com/assistant-ui/assistant-ui/commit/dbdfb15e8b609d3886c71fedb25a9d8345e5fc3c), [`ca191dc`](https://github.com/assistant-ui/assistant-ui/commit/ca191dc63f4a63c7d3f98566e9febd7d7f857aec), [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc), [`44ff4bf`](https://github.com/assistant-ui/assistant-ui/commit/44ff4bf5765ec2675454362a00214cd9de5cfb60), [`01cf957`](https://github.com/assistant-ui/assistant-ui/commit/01cf957c209b1a58c69f5621565397de6d1eb794), [`01cf957`](https://github.com/assistant-ui/assistant-ui/commit/01cf957c209b1a58c69f5621565397de6d1eb794), [`26a365b`](https://github.com/assistant-ui/assistant-ui/commit/26a365bb2b5bf840e21cd0caf1870627fb57c045)]:
+  - @assistant-ui/core@0.2.11
+  - assistant-stream@0.3.21
+  - assistant-cloud@0.1.32
+  - safe-content-frame@0.0.21
+  - @assistant-ui/store@0.2.14
+  - @assistant-ui/tap@0.6.0
+
 ## 0.14.14
 
 ### Patch Changes

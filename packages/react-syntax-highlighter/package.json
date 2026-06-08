@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-syntax-highlighter",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "description": "Syntax highlighting for assistant-ui",
   "keywords": [
     "syntax-highlighter",

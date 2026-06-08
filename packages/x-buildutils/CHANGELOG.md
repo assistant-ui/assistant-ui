@@ -1,5 +1,13 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.12
+
+### Patch Changes
+
+- [#4274](https://github.com/assistant-ui/assistant-ui/pull/4274) [`a78e4f0`](https://github.com/assistant-ui/assistant-ui/commit/a78e4f0593d6bcbd12fa8edcd19c2aa383591415) - fix: omit `onSuccess` instead of passing `undefined` so the tsdown config type-checks under `exactOptionalPropertyTypes` ([@Yonom](https://github.com/Yonom))
+
+- [#4306](https://github.com/assistant-ui/assistant-ui/pull/4306) [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.11
 
 ### Patch Changes

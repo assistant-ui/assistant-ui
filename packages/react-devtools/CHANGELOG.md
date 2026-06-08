@@ -1,5 +1,17 @@
 # @assistant-ui/react-devtools
 
+## 1.2.3
+
+### Patch Changes
+
+- [#4291](https://github.com/assistant-ui/assistant-ui/pull/4291) [`f22ac47`](https://github.com/assistant-ui/assistant-ui/commit/f22ac47f965b0829e763c8aa0f935fa94488b986) - feat: surface full tool metadata (type, provider id, MCP server, providerOptions, deferred-results, backend defaults) in the devtools model context, and redact credentials (apiKey, authorization headers, tokens, MCP server headers/env) at the serializer boundary before they cross the postMessage bridge ([@okisdev](https://github.com/okisdev))
+
+- [#4296](https://github.com/assistant-ui/assistant-ui/pull/4296) [`8cf94ab`](https://github.com/assistant-ui/assistant-ui/commit/8cf94abc0b1639dccda9e546c0e65658a972bf23) - feat: forward the scope graph from the host (each accessor's name, source, query, and available method names) so the devtools frame can show a Scopes tab with the scope hierarchy and a per-scope read-only method catalog ([@okisdev](https://github.com/okisdev))
+
+- [#4306](https://github.com/assistant-ui/assistant-ui/pull/4306) [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- chore: allow `@assistant-ui/tap` 0.6 in the peer dependency range
+
 ## 1.2.2
 
 ### Patch Changes

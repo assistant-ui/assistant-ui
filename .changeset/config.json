@@ -2,10 +2,15 @@
   "$schema": "https://unpkg.com/@changesets/config@3.0.1/schema.json",
   "changelog": [
     "@assistant-ui/x-changelog",
-    { "repo": "assistant-ui/assistant-ui" }
+    {
+      "repo": "assistant-ui/assistant-ui"
+    }
   ],
   "access": "public",
   "privatePackages": {
     "version": false
+  },
+  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+    "onlyUpdatePeerDependentsWhenOutOfRange": true
   }
 }

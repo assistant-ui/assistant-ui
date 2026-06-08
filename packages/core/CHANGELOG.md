@@ -1,5 +1,34 @@
 # @assistant-ui/core
 
+## 0.2.11
+
+### Patch Changes
+
+- [#4271](https://github.com/assistant-ui/assistant-ui/pull/4271) [`2a84174`](https://github.com/assistant-ui/assistant-ui/commit/2a8417422996920c4a58be80eddc1c1740158518) - feat: expose `joinStrategy` on `useAISDKRuntime` / `useChatRuntime` ([@okisdev](https://github.com/okisdev))
+
+  the new AI SDK runtime always merged consecutive `role: "assistant"` UIMessages into a single rendered turn, with no supported way to opt out (the converter accepts `joinStrategy` but the runtime never forwarded it, and `AISDKMessageConverter` is not exported). this follows up on [#1633](https://github.com/assistant-ui/assistant-ui/issues/1633), where the same knob shipped on the legacy `useVercelUseChatRuntime` as `unstable_joinStrategy`. pass `joinStrategy: "none"` to keep proactive or history loaded consecutive assistant messages as separate turns.
+
+  core now exports a shared `JoinStrategy` type so the `"concat-content" | "none"` union has a single source of truth across the converter and the runtimes.
+
+- [#4255](https://github.com/assistant-ui/assistant-ui/pull/4255) [`a0a0769`](https://github.com/assistant-ui/assistant-ui/commit/a0a076915dafdb7152c9fde75b40cfddebcb2676) - feat: check the generative compiler version against the core package compatibility range ([@Yonom](https://github.com/Yonom))
+
+- [#4260](https://github.com/assistant-ui/assistant-ui/pull/4260) [`19c5b5f`](https://github.com/assistant-ui/assistant-ui/commit/19c5b5f3b1616a82ddfa928325c5e02c5786e867) - fix: make defineToolkit usable for plain runtime toolkits ([@Yonom](https://github.com/Yonom))
+
+- [#4246](https://github.com/assistant-ui/assistant-ui/pull/4246) [`dbdfb15`](https://github.com/assistant-ui/assistant-ui/commit/dbdfb15e8b609d3886c71fedb25a9d8345e5fc3c) - feat: message queuing for external-store, langgraph, and local runtimes ([@okisdev](https://github.com/okisdev))
+
+  the composer can now stay usable while a run is in progress: a message sent during a run is held in `composer.queue` (rendered via `ComposerPrimitive.Queue` / `QueueItemPrimitive.*`) and processed once the run settles. external-store adapters opt in by providing a `queue` adapter (typically built with the new `createMessageQueue` helper); `useLangGraphRuntime` and `useLocalRuntime` opt in via `unstable_enableMessageQueue`. `ExternalThreadQueueAdapter` now lives in `@assistant-ui/core` (still re-exported from `@assistant-ui/react`).
+
+- [#4249](https://github.com/assistant-ui/assistant-ui/pull/4249) [`ca191dc`](https://github.com/assistant-ui/assistant-ui/commit/ca191dc63f4a63c7d3f98566e9febd7d7f857aec) - feat: add externalTool for render-only generative toolkit entries ([@Yonom](https://github.com/Yonom))
+
+- [#4306](https://github.com/assistant-ui/assistant-ui/pull/4306) [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4256](https://github.com/assistant-ui/assistant-ui/pull/4256) [`44ff4bf`](https://github.com/assistant-ui/assistant-ui/commit/44ff4bf5765ec2675454362a00214cd9de5cfb60) - feat: rename hitlTool to humanTool while keeping deprecated compatibility aliases ([@Yonom](https://github.com/Yonom))
+
+- [#4245](https://github.com/assistant-ui/assistant-ui/pull/4245) [`26a365b`](https://github.com/assistant-ui/assistant-ui/commit/26a365bb2b5bf840e21cd0caf1870627fb57c045) - fix: make `SimpleTextAttachmentAdapter` and `SimpleImageAttachmentAdapter` work without `FileReader`. they read files via the browser only `FileReader`, so sending an attachment in a non browser runtime (e.g. `@assistant-ui/react-ink` in a terminal) threw `ReferenceError: FileReader is not defined`. the adapters now feature detect: they keep using `FileReader` when it exists (browser, and React Native whose Blob polyfill provides it) and fall back to `file.text()` / `file.arrayBuffer()` in Node. output is byte identical across all three environments, so `@assistant-ui/react`, `@assistant-ui/react-native`, and `@assistant-ui/react-ink` all keep re-exporting the same core implementation. ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- Updated dependencies [[`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc)]:
+  - assistant-stream@0.3.21
+
 ## 0.2.10
 
 ### Patch Changes

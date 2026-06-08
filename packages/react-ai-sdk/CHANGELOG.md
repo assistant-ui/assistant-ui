@@ -1,5 +1,32 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.33
+
+### Patch Changes
+
+- [#4271](https://github.com/assistant-ui/assistant-ui/pull/4271) [`2a84174`](https://github.com/assistant-ui/assistant-ui/commit/2a8417422996920c4a58be80eddc1c1740158518) - feat: expose `joinStrategy` on `useAISDKRuntime` / `useChatRuntime` ([@okisdev](https://github.com/okisdev))
+
+  the new AI SDK runtime always merged consecutive `role: "assistant"` UIMessages into a single rendered turn, with no supported way to opt out (the converter accepts `joinStrategy` but the runtime never forwarded it, and `AISDKMessageConverter` is not exported). this follows up on [#1633](https://github.com/assistant-ui/assistant-ui/issues/1633), where the same knob shipped on the legacy `useVercelUseChatRuntime` as `unstable_joinStrategy`. pass `joinStrategy: "none"` to keep proactive or history loaded consecutive assistant messages as separate turns.
+
+  core now exports a shared `JoinStrategy` type so the `"concat-content" | "none"` union has a single source of truth across the converter and the runtimes.
+
+- [#4266](https://github.com/assistant-ui/assistant-ui/pull/4266) [`906fae9`](https://github.com/assistant-ui/assistant-ui/commit/906fae9f7fa6a8b022119c893e4f906f1b74dc60) - chore: deprecate `generativeTools` in favor of `AISDKToolkit` ([@Yonom](https://github.com/Yonom))
+
+  `generativeTools({ toolkit, frontendTools })` is deprecated. Use `new AISDKToolkit({ toolkit }).tools({ frontend })` instead: it is a strict superset that also opens MCP server connections, so it replaces `generativeTools` for every toolkit. The `frontendTools` option is named `frontend` on `.tools()`, and `.tools()` is async. `generativeTools` keeps working and will be removed in a future version.
+
+- [#4306](https://github.com/assistant-ui/assistant-ui/pull/4306) [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4285](https://github.com/assistant-ui/assistant-ui/pull/4285) [`d4629c4`](https://github.com/assistant-ui/assistant-ui/commit/d4629c432c1930aa78810ff843db5969a040ab6b) - fix(react-ai-sdk): make the package metro-bundleable in react native / expo by serving a client-only entry under the react-native export condition ([@okisdev](https://github.com/okisdev))
+
+  importing @assistant-ui/react-ai-sdk in an expo / react native app failed metro bundling because the root entry re-exports the server-only generativeTools / AISDKToolkit, which pull in @ai-sdk/mcp/mcp-stdio and node's child_process. react native now resolves a client-only entry that omits the server toolkit, so metro never reaches the node-only code. the node / server entry is unchanged and still exports the full api.
+
+- [#4304](https://github.com/assistant-ui/assistant-ui/pull/4304) [`a18bdad`](https://github.com/assistant-ui/assistant-ui/commit/a18bdadf07f789fa0e6aaf847f9df9de73a7ce54) - fix(react-ai-sdk): make the package root bundle on edge, cloudflare workers, deno, and browsers, not just react native. the node-only stdio MCP transport is now resolved through a package.json "imports" condition (`#mcp-stdio`), so importing `@assistant-ui/react-ai-sdk` at root carries the full server toolkit on every target with http/sse MCP working on edge, while stdio MCP throws a clear runtime error only where a subprocess cannot be spawned (browser, react native, edge, workers) instead of breaking the build via `@ai-sdk/mcp/mcp-stdio` -> `node:child_process`. node, bun, and deno keep the real stdio transport. ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`2a84174`](https://github.com/assistant-ui/assistant-ui/commit/2a8417422996920c4a58be80eddc1c1740158518), [`a0a0769`](https://github.com/assistant-ui/assistant-ui/commit/a0a076915dafdb7152c9fde75b40cfddebcb2676), [`19c5b5f`](https://github.com/assistant-ui/assistant-ui/commit/19c5b5f3b1616a82ddfa928325c5e02c5786e867), [`dbdfb15`](https://github.com/assistant-ui/assistant-ui/commit/dbdfb15e8b609d3886c71fedb25a9d8345e5fc3c), [`ca191dc`](https://github.com/assistant-ui/assistant-ui/commit/ca191dc63f4a63c7d3f98566e9febd7d7f857aec), [`15878d8`](https://github.com/assistant-ui/assistant-ui/commit/15878d8114edbbb82c2a467cf811478e5f4e08bc), [`44ff4bf`](https://github.com/assistant-ui/assistant-ui/commit/44ff4bf5765ec2675454362a00214cd9de5cfb60), [`01cf957`](https://github.com/assistant-ui/assistant-ui/commit/01cf957c209b1a58c69f5621565397de6d1eb794), [`26a365b`](https://github.com/assistant-ui/assistant-ui/commit/26a365bb2b5bf840e21cd0caf1870627fb57c045)]:
+  - @assistant-ui/core@0.2.11
+  - assistant-cloud@0.1.32
+  - @assistant-ui/store@0.2.14
+
 ## 1.3.32
 
 ### Patch Changes
