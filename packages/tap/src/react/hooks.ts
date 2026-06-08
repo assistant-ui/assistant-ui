@@ -82,7 +82,7 @@ const makeHook = <F extends (...args: any[]) => any>(hook: F): F =>
     /* oxlint-disable react/rules-of-hooks */
     if (peekResourceFiber()) return hook(...args);
     return useResourceHost(() => hook(...args));
-    /* oxlint-enable react-hooks/rules-of-hooks */
+    /* oxlint-enable react/rules-of-hooks */
   }) as F;
 
 /**

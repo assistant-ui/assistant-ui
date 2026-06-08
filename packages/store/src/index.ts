@@ -16,7 +16,7 @@ export {
 } from "./attachTransformScopes";
 export type { ScopesConfig } from "./attachTransformScopes";
 
-// tap hooks
+// client hooks
 export {
   useAssistantClientRef,
   useAssistantEmit,
