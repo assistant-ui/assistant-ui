@@ -11,7 +11,6 @@ import {
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
-  AuiProvider,
   Interactables,
   Suggestions,
   Tools,
@@ -53,12 +52,10 @@ function TaskBoard() {
     taskBoardInitialState,
   );
 
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
   const doneCount = state.tasks.filter((t) => t.done).length;
 
   return (
-    <AuiProvider value={aui}>
+    <>
       <TaskBoardToolOverrides setState={setState} />
       <div className="flex flex-col">
         <div className="flex items-center gap-2 border-b px-4 py-3">
@@ -124,7 +121,7 @@ function TaskBoard() {
           )}
         </div>
       </div>
-    </AuiProvider>
+    </>
   );
 }
 
@@ -200,18 +197,22 @@ function NoteCard({
       "A sticky note. The AI can partially update any field (title, content, color) without resending the others.",
     stateSchema: noteSchema,
     initialState: noteInitialState,
-    selected: selectedId === noteId,
   });
-  const [state, { setSelected }] = useInteractableState<NoteState>(
+  const [state, { setState }] = useInteractableState<NoteState>(
     noteId,
     noteInitialState,
   );
 
   const isSelected = selectedId === noteId;
 
+  useEffect(() => {
+    if (state.selected !== isSelected) {
+      setState((prev) => ({ ...prev, selected: isSelected }));
+    }
+  }, [isSelected, state.selected, setState]);
+
   const handleClick = () => {
     onSelect(noteId);
-    setSelected(true);
   };
 
   return (
@@ -259,6 +260,7 @@ function loadNoteIds(): string[] {
 }
 
 function NotesPanel() {
+  const aui = useAui();
   const [noteIds, setNoteIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const hydratedRef = useRef(false);
@@ -273,11 +275,22 @@ function NotesPanel() {
     localStorage.setItem(NOTE_IDS_KEY, JSON.stringify(noteIds));
   }, [noteIds]);
 
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
-  const handleSelect = useCallback((id: string) => {
-    setSelectedId(id);
-  }, []);
+  const handleSelect = useCallback(
+    (id: string) => {
+      if (selectedId && selectedId !== id) {
+        aui.interactables().setState(selectedId, (prev) => ({
+          ...(prev as NoteState),
+          selected: false,
+        }));
+      }
+      aui.interactables().setState(id, (prev) => ({
+        ...(prev as NoteState),
+        selected: true,
+      }));
+      setSelectedId(id);
+    },
+    [aui, selectedId],
+  );
 
   const handleRemove = useCallback((id: string) => {
     setNoteIds((prev) => prev.filter((n) => n !== id));
@@ -285,7 +298,7 @@ function NotesPanel() {
   }, []);
 
   return (
-    <AuiProvider value={aui}>
+    <>
       <NotesToolOverrides
         setNoteIds={setNoteIds}
         setSelectedId={setSelectedId}
@@ -328,7 +341,7 @@ function NotesPanel() {
           )}
         </div>
       </div>
-    </AuiProvider>
+    </>
   );
 }
 
@@ -396,6 +409,7 @@ export default function Home() {
 
   const aui = useAui({
     interactables: Interactables(),
+    tools: Tools({ toolkit }),
     suggestions: Suggestions([
       {
         title: "Add 3 tasks",

@@ -23,7 +23,12 @@ export const manageTasksParameters = z.object({
 
 export type ManageTasksArgs = z.infer<typeof manageTasksParameters>;
 
-export type NoteState = { title: string; content: string; color: string };
+export type NoteState = {
+  title: string;
+  content: string;
+  color: string;
+  selected: boolean;
+};
 
 export const noteSchema = z.object({
   title: z.string(),
@@ -35,6 +40,7 @@ export const noteInitialState: NoteState = {
   title: "New Note",
   content: "",
   color: "yellow",
+  selected: false,
 };
 
 export const manageNotesParameters = z.object({
