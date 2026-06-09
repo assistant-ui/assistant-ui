@@ -1,4 +1,4 @@
-import * as React from "react";
+import React from "react";
 import { useState } from "../hooks/useState";
 import { useReducer } from "../hooks/useReducer";
 import { useRef } from "../hooks/useRef";
@@ -30,10 +30,10 @@ const tapDispatcher = {
 
 // React's live dispatcher slot differs by version: React 19 exposes it as `H` on
 // the client internals object; React 18 as `ReactCurrentDispatcher.current`.
+const ReactRuntime = React as any;
 const internals =
-  (React as any)
-    .__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ??
-  (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+  ReactRuntime.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ??
+  ReactRuntime.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 const slot: { current: unknown } | null =
   internals == null
