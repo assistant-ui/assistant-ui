@@ -186,9 +186,16 @@ When only one instance of a name exists, the tool is named `update_{name}` (e.g.
 
 ## Selection
 
-When multiple interactables are present, you can mark one as "selected" to tell the AI which one the user is focused on:
+Selection is not a special concept — it's just state. If you want the AI to know which interactable the user is focused on, add a field to your state and set it like any other:
 
 ```tsx
+const noteInitialState = {
+  title: "New Note",
+  content: "",
+  color: "yellow" as const,
+  selected: false,
+};
+
 function NoteCard({ noteId }: { noteId: string }) {
   useAssistantInteractable("note", {
     id: noteId,
@@ -196,17 +203,17 @@ function NoteCard({ noteId }: { noteId: string }) {
     stateSchema: noteSchema,
     initialState: noteInitialState,
   });
-  const [state, { setSelected }] = useInteractableState(noteId, noteInitialState);
+  const [state, { setState }] = useInteractableState(noteId, noteInitialState);
 
   return (
-    <div onClick={() => setSelected(true)}>
+    <div onClick={() => setState((prev) => ({ ...prev, selected: true }))}>
       {state.title}
     </div>
   );
 }
 ```
 
-The AI sees `(SELECTED)` in the system prompt for the focused interactable, allowing it to prioritize that one in responses. For example, the user can say _"Change the color to blue"_ and the AI knows which note to update.
+The `selected` field rides the same state snapshot as every other edit, so the AI sees it in the focused note's state. For example, the user can say _"Change the color to blue"_ and the AI knows which note to update. Keep `selected` out of your `stateSchema` if you don't want the AI's `update_*` tool to be able to toggle it — the snapshot still carries it either way.
 
 ## API Reference
 
@@ -227,16 +234,21 @@ const id = useAssistantInteractable(name, config);
 | `config.stateSchema` | `StandardSchemaV1 \| JSONSchema7` | Schema for the state (e.g., a Zod schema) |
 | `config.initialState` | `unknown` | Initial state value |
 | `config.id` | `string?` | Optional unique instance ID (auto-generated if omitted) |
-| `config.selected` | `boolean?` | Whether this interactable is selected |
+| `config.scope` | `"app" \| "thread"?` | Persistence + reload-seed source (default `"app"`) |
 
 **Returns:** `string` — the instance id (auto-generated or provided).
+
+<Callout type="info">
+  Selection is not a built-in field. To tell the AI which interactable is
+  focused, add a `selected` field to your own state — see [Selection](#selection).
+</Callout>
 
 ### `useInteractableState`
 
 Reads and writes the state of a registered interactable.
 
 ```tsx
-const [state, { setState, setSelected, isPending, error, flush }] = useInteractableState<TState>(id, fallback?);
+const [state, { setState, isPending, error, flush }] = useInteractableState<TState>(id, fallback?);
 ```
 
 **Parameters:**
@@ -252,7 +264,6 @@ const [state, { setState, setSelected, isPending, error, flush }] = useInteracta
 | --- | --- | --- |
 | `state` | `TState` | Current state |
 | `setState` | `(updater: TState \| (prev: TState) => TState) => void` | State setter (like `useState`) |
-| `setSelected` | `(selected: boolean) => void` | Mark this interactable as selected |
 | `isPending` | `boolean` | Whether a persistence save is in-flight |
 | `error` | `unknown` | Error from the last failed save |
 | `flush` | `() => Promise<void>` | Force an immediate persistence save |
@@ -273,7 +284,7 @@ When you call `useAssistantInteractable("taskBoard", config)`:
 
 1. **Registration** — the interactable is registered in the `interactables` scope with its name, description, schema, and initial state.
 2. **Tool generation** — an `update_taskBoard` frontend tool is automatically created with a partial schema (all fields optional). For multiple instances, tools are named `update_{name}_{id}`.
-3. **System prompt** — the AI receives a system message describing the interactable, its current state, and whether it is selected.
+3. **State snapshot** — the interactable's current state is stamped onto the message you send and surfaced to the AI at request time (no system-prompt mutation). It is sent once per change.
 4. **Streaming updates** — as the AI generates the tool arguments, the interactable's state updates progressively rather than waiting for complete arguments. This gives users immediate visual feedback.
 5. **Partial merge** — only the fields the AI sends are updated; the rest are preserved.
 6. **Bidirectional updates** — when the AI calls the tool, the state updates and React re-renders. When the user updates state via `setState`, the model context is notified so the AI sees the latest state on the next turn.
