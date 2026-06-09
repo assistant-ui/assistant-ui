@@ -15,7 +15,10 @@ import {
   type ThreadMessageLike,
   type McpAppMetadata,
 } from "@assistant-ui/core";
-import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import {
+  parsePartialJsonObject,
+  type ReadonlyJSONObject,
+} from "assistant-stream/utils";
 import { unwrapModelContentEnvelope } from "../../modelContentEnvelope";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
@@ -259,6 +262,11 @@ function convertParts(
         if (part.state === "input-streaming") {
           // strip closing delimiters added by the AI SDK's fix-json
           argsText = stripClosingDelimiters(argsText);
+          // Re-parse so args carries the partial-JSON meta that marks which
+          // field is still mid-arrival, like every argsText-based runtime.
+          // The key-order cache appends new keys last, so the trailing field
+          // of the stripped text is the streaming frontier.
+          args = parsePartialJsonObject(argsText) ?? args;
         } else {
           metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
           if (

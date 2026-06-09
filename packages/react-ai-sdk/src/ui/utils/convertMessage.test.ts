@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import {
+  getPartialJsonObjectFieldState,
+  type ReadonlyJSONObject,
+} from "assistant-stream/utils";
 import {
   AISDKMessageConverter,
   type AISDKMessageConverterMetadata,
@@ -365,6 +368,34 @@ describe("AISDKMessageConverter", () => {
     expect(toolCall?.argsText).toBe('{"city":"NYC');
   });
 
+  it("attaches partial-JSON meta marking the trailing streaming field", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-streaming",
+            input: { city: "NYC", units: "F" },
+          },
+        ],
+      } as any,
+    ]);
+
+    const toolCall = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(toolCall?.args).toMatchObject({ city: "NYC", units: "F" });
+    expect(getPartialJsonObjectFieldState(toolCall!.args, ["city"])).toBe(
+      "complete",
+    );
+    expect(getPartialJsonObjectFieldState(toolCall!.args, ["units"])).toBe(
+      "partial",
+    );
+  });
+
   it("keeps observed key order from streaming snapshots for final tool args", () => {
     const metadata: AISDKMessageConverterMetadata = {
       toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
@@ -518,19 +549,19 @@ describe("AISDKMessageConverter", () => {
 
     const first = convertWithInput({ city: "NYC" });
     expect(first?.argsText).toBe('{"city":"NYC');
-    expect(first?.args).toEqual({ city: "NYC" });
+    expect(first?.args).toMatchObject({ city: "NYC" });
 
     const dropped = convertWithInput(null);
     expect(dropped?.argsText).toBe('{"city":"NYC');
-    expect(dropped?.args).toEqual({ city: "NYC" });
+    expect(dropped?.args).toMatchObject({ city: "NYC" });
 
     const undef = convertWithInput(undefined);
     expect(undef?.argsText).toBe('{"city":"NYC');
-    expect(undef?.args).toEqual({ city: "NYC" });
+    expect(undef?.args).toMatchObject({ city: "NYC" });
 
     const grown = convertWithInput({ city: "NYC", units: "F" });
     expect(grown?.argsText).toBe('{"city":"NYC","units":"F');
-    expect(grown?.args).toEqual({ city: "NYC", units: "F" });
+    expect(grown?.args).toMatchObject({ city: "NYC", units: "F" });
   });
 
   it("preserves last good input across terminal state transitions", () => {

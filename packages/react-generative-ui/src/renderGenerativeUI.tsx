@@ -1,3 +1,4 @@
+import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import { Fragment, type ReactNode } from "react";
 import { TYPE_KEY } from "./constants";
 import type {
@@ -23,7 +24,12 @@ export function renderGenerativeUI(
   library: GenerativeUILibrary,
   context: GenerativeUIRenderContext = DEFAULT_CONTEXT,
 ): ReactNode {
-  return renderNode(normalizeNode(node), library, context);
+  // Tool args are parsed incrementally, and the parse meta records which path
+  // is still mid-arrival, so normalization can hold back a node whose `$type`
+  // string has not finished streaming.
+  const meta = getPartialJsonObjectMeta(node as Record<symbol, unknown>);
+  const partialPath = meta?.state === "partial" ? meta.partialPath : undefined;
+  return renderNode(normalizeNode(node, partialPath), library, context);
 }
 
 /**
@@ -34,24 +40,50 @@ export function renderGenerativeUI(
  */
 const MAX_DEPTH = 64;
 
-/** Converts the flat wire form into a normalized {@link GenerativeUINode}. */
-function normalizeNode(node: unknown, depth = 0): GenerativeUINode {
+/**
+ * Converts the flat wire form into a normalized {@link GenerativeUINode}.
+ *
+ * `partialPath` is the remaining segment of the parse meta's partial path
+ * relative to `node` (`undefined` once the walk leaves the partial frontier,
+ * i.e. everything below is complete).
+ */
+function normalizeNode(
+  node: unknown,
+  partialPath: readonly string[] | undefined,
+  depth = 0,
+): GenerativeUINode {
   if (depth > MAX_DEPTH) return null;
   if (node == null || typeof node === "boolean") return null;
   if (typeof node === "string" || typeof node === "number") return node;
   if (Array.isArray(node))
-    return node.map((child) => normalizeNode(child, depth + 1));
+    return node.map((child, index) =>
+      normalizeNode(child, descend(partialPath, String(index)), depth + 1),
+    );
   if (typeof node !== "object") return null;
 
   const { [TYPE_KEY]: type, ...props } = node as Record<string, unknown>;
-  // Args stream in incrementally; a node whose `$type` has not arrived yet is
-  // not an error, it just isn't renderable.
+  // Args stream in incrementally; a node whose `$type` has not arrived yet
+  // (or whose `$type` string is still mid-arrival) is not an error, it just
+  // isn't renderable.
   if (typeof type !== "string") return null;
+  if (partialPath?.length === 1 && partialPath[0] === TYPE_KEY) return null;
 
   if ("children" in props) {
-    props["children"] = normalizeNode(props["children"], depth + 1);
+    props["children"] = normalizeNode(
+      props["children"],
+      descend(partialPath, "children"),
+      depth + 1,
+    );
   }
   return { type, props } as GenerativeUIElement;
+}
+
+/** Steps the partial path down into `key`; siblings of the path are complete. */
+function descend(
+  partialPath: readonly string[] | undefined,
+  key: string,
+): readonly string[] | undefined {
+  return partialPath?.[0] === key ? partialPath.slice(1) : undefined;
 }
 
 function renderNode(

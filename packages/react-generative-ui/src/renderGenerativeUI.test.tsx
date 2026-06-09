@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { parsePartialJsonObject } from "assistant-stream/utils";
 import { z } from "zod";
 import { renderGenerativeUI } from "./renderGenerativeUI";
 import { buildPresentParameters } from "./buildPresentParameters";
@@ -88,6 +89,41 @@ describe("renderGenerativeUI", () => {
       <>{renderGenerativeUI({ $type: "Missing" }, library)}</>,
     );
     expect(html).toBe("");
+  });
+
+  it("holds back a node whose `$type` is still streaming", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      for (const argsText of ['{"$type": "', '{"$type": "Tex']) {
+        const html = renderToStaticMarkup(
+          <>
+            {renderGenerativeUI(parsePartialJsonObject(argsText), library, {
+              status: "streaming",
+            })}
+          </>,
+        );
+        expect(html).toBe("");
+      }
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("renders completed siblings while a nested `$type` streams", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const args = parsePartialJsonObject(
+        '{"$type": "Live", "label": "hi", "children": [{"$type": "Liv',
+      );
+      const html = renderToStaticMarkup(
+        <>{renderGenerativeUI(args, library, { status: "streaming" })}</>,
+      );
+      expect(html).toBe('<span data-status="streaming">hi</span>');
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
   });
 
   it("renders nothing for a node without a resolved type", () => {
