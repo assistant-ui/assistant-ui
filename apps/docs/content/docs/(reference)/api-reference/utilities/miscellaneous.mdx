@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, SingleThreadList } from "@/generated/typeDocs";
+import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, Interactables, SingleThreadList, Suggestions } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -38,9 +38,7 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 
 ### Interactables
 
-```ts
-const Interactables: () => ResourceElement<ClientOutput<"interactables">, undefined>;
-```
+<ParametersTable {...Interactables} />
 
 ### SingleThreadList
 
@@ -52,20 +50,7 @@ Mounts the provided thread resource element.
 
 ### Suggestions
 
-```ts
-const Suggestions: {
-  (): ResourceElement<
-    ClientOutput<"suggestions">,
-    undefined
-  >;
-  (
-    suggestions: SuggestionConfig[],
-  ): ResourceElement<
-    ClientOutput<"suggestions">,
-    SuggestionConfig[]
-  >;
-};
-```
+<ParametersTable {...Suggestions} />
 
 ### unstable_defaultDirectiveFormatter
 

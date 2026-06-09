@@ -15,11 +15,11 @@ export function useResource<E extends ResourceElement<any, any>>(
 ): ExtractResourceReturnType<E>;
 export function useResource<E extends ResourceElement<any, any>>(
   element: E,
-  propsDeps: readonly unknown[],
+  argsDeps: readonly unknown[],
 ): ExtractResourceReturnType<E>;
 export function useResource<E extends ResourceElement<any, any>>(
   element: E,
-  propsDeps?: readonly unknown[],
+  argsDeps?: readonly unknown[],
 ): ExtractResourceReturnType<E> {
   const parentFiber = getCurrentResourceFiber();
   const versionRef = useRef(0);
@@ -31,14 +31,14 @@ export function useResource<E extends ResourceElement<any, any>>(
     });
   }, [element.type, element.key, parentFiber]);
 
-  const result = propsDeps
-    ? // oxlint-disable-next-line react/rules-of-hooks -- propsDeps presence is fixed per call site, so the conditional call order is stable
+  const result = argsDeps
+    ? // oxlint-disable-next-line react/rules-of-hooks -- argsDeps presence is fixed per call site, so the conditional call order is stable
       useMemo(
-        () => renderResourceFiber(fiber, element.props),
-        // oxlint-disable-next-line react/exhaustive-deps -- props identity replaced by user-provided deps
-        [fiber, ...propsDeps, versionRef.current],
+        () => renderResourceFiber(fiber, element.args),
+        // oxlint-disable-next-line react/exhaustive-deps -- args identity replaced by user-provided deps
+        [fiber, ...argsDeps, versionRef.current],
       )
-    : renderResourceFiber(fiber, element.props);
+    : renderResourceFiber(fiber, element.args);
 
   useEffect(() => () => unmountResourceFiber(fiber), [fiber]);
   useEffect(() => {

@@ -18,11 +18,11 @@ describe("Rules of Hooks - Hook Count", () => {
     });
 
     // First render establishes 5 hooks
-    renderTest(resource, undefined);
+    renderTest(resource);
 
     // Second render should work with same count
     expect(() => {
-      renderTest(resource, undefined);
+      renderTest(resource);
     }).not.toThrow();
   });
 
@@ -41,12 +41,12 @@ describe("Rules of Hooks - Hook Count", () => {
     });
 
     // First render with 2 hooks
-    renderResourceFiber(resource, undefined);
+    renderResourceFiber(resource, []);
 
     // Try to render with 3 hooks
     addExtraHook = true;
 
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, [])).toThrow(
       "Rendered more hooks than during the previous render",
     );
   });
@@ -66,12 +66,12 @@ describe("Rules of Hooks - Hook Count", () => {
     });
 
     // First render with 3 hooks
-    renderResourceFiber(resource, undefined);
+    renderResourceFiber(resource, []);
 
     // Try to render with 2 hooks
     skipHook = true;
 
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, [])).toThrow(
       "Rendered 2 hooks but expected 3",
     );
   });
@@ -89,11 +89,11 @@ describe("Rules of Hooks - Hook Count", () => {
       return null;
     });
 
-    renderResourceFiber(resource, undefined);
+    renderResourceFiber(resource, []);
 
     includeEffect = false;
 
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, [])).toThrow(
       "Rendered 2 hooks but expected 3",
     );
   });
@@ -104,10 +104,10 @@ describe("Rules of Hooks - Hook Count", () => {
       return "no hooks";
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
 
     // Should allow multiple renders with zero hooks
-    expect(() => renderTest(resource, undefined)).not.toThrow();
+    expect(() => renderTest(resource)).not.toThrow();
   });
 
   it("should detect dynamic hook creation", () => {
@@ -120,12 +120,12 @@ describe("Rules of Hooks - Hook Count", () => {
       return null;
     });
 
-    renderResourceFiber(resource, undefined);
+    renderResourceFiber(resource, []);
 
     // Change hook count
     hookCount = 3;
 
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, [])).toThrow(
       "Rendered more hooks than during the previous render",
     );
   });
@@ -144,7 +144,7 @@ describe("Rules of Hooks - Hook Count", () => {
 
     // Multiple renders should all maintain same hook count
     for (let i = 0; i < 5; i++) {
-      expect(() => renderTest(resource, undefined)).not.toThrow();
+      expect(() => renderTest(resource)).not.toThrow();
     }
 
     expect(renderCount).toBe(5);
@@ -166,12 +166,12 @@ describe("Rules of Hooks - Hook Count", () => {
     });
 
     // Render both
-    renderTest(resource1, undefined);
-    renderTest(resource2, undefined);
+    renderTest(resource1);
+    renderTest(resource2);
 
     // Each should maintain its own count
-    expect(() => renderTest(resource1, undefined)).not.toThrow();
-    expect(() => renderTest(resource2, undefined)).not.toThrow();
+    expect(() => renderTest(resource1)).not.toThrow();
+    expect(() => renderTest(resource2)).not.toThrow();
   });
 
   it("should detect hook count changes in nested function calls", () => {
@@ -190,11 +190,11 @@ describe("Rules of Hooks - Hook Count", () => {
       return null;
     });
 
-    renderResourceFiber(resource, undefined);
+    renderResourceFiber(resource, []);
 
     useExtraHooks = true;
 
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, [])).toThrow(
       "Rendered more hooks than during the previous render",
     );
   });

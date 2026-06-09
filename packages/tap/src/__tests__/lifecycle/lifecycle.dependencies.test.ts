@@ -22,7 +22,7 @@ describe("Lifecycle - Dependencies", () => {
       return dep;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
     expect(effect).toHaveBeenCalledTimes(1);
 
     // Change dependency - this triggers automatic re-render
@@ -46,7 +46,7 @@ describe("Lifecycle - Dependencies", () => {
       return { count, dep };
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
     expect(effect).toHaveBeenCalledTimes(1);
 
     // Trigger re-render without changing dep
@@ -73,12 +73,12 @@ describe("Lifecycle - Dependencies", () => {
       return dep;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
     expect(log).toEqual(["effect-1"]);
 
     // Change dep
     setDep(2);
-    const ctx = renderResourceFiber(resource, undefined);
+    const ctx = renderResourceFiber(resource, []);
     commitResourceFiber(resource, ctx);
 
     expect(log).toEqual(["effect-1", "cleanup-1", "effect-2"]);
@@ -96,7 +96,7 @@ describe("Lifecycle - Dependencies", () => {
       return count;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
     expect(effect).toHaveBeenCalledTimes(1);
 
     // Re-render
@@ -119,12 +119,12 @@ describe("Lifecycle - Dependencies", () => {
       return count;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
     expect(effect).toHaveBeenCalledTimes(1);
 
     // Re-render
     triggerRerender(1);
-    const ctx = renderResourceFiber(resource, undefined);
+    const ctx = renderResourceFiber(resource, []);
     commitResourceFiber(resource, ctx);
 
     expect(effect).toHaveBeenCalledTimes(1); // Should not re-run
@@ -145,26 +145,26 @@ describe("Lifecycle - Dependencies", () => {
     });
 
     // Initial render
-    let ctx = renderResourceFiber(resource, undefined);
+    let ctx = renderResourceFiber(resource, []);
     commitResourceFiber(resource, ctx);
     expect(effect).toHaveBeenCalledTimes(1);
 
     // Change first dep
     setDep1("b");
-    ctx = renderResourceFiber(resource, undefined);
+    ctx = renderResourceFiber(resource, []);
     commitResourceFiber(resource, ctx);
     expect(effect).toHaveBeenCalledTimes(2);
 
     // Change second dep
     setDep2(2);
-    ctx = renderResourceFiber(resource, undefined);
+    ctx = renderResourceFiber(resource, []);
     commitResourceFiber(resource, ctx);
     expect(effect).toHaveBeenCalledTimes(3);
 
     // Change both deps
     setDep1("c");
     setDep2(3);
-    ctx = renderResourceFiber(resource, undefined);
+    ctx = renderResourceFiber(resource, []);
     commitResourceFiber(resource, ctx);
     expect(effect).toHaveBeenCalledTimes(4);
 
@@ -183,12 +183,12 @@ describe("Lifecycle - Dependencies", () => {
       return obj;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
     expect(effect).toHaveBeenCalledTimes(1);
 
     // Set to new object with same shape
     setObj({ value: 1 });
-    const ctx = renderResourceFiber(resource, undefined);
+    const ctx = renderResourceFiber(resource, []);
     commitResourceFiber(resource, ctx);
 
     expect(effect).toHaveBeenCalledTimes(2); // Should re-run (different object)
@@ -206,11 +206,11 @@ describe("Lifecycle - Dependencies", () => {
       return value;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
     expect(effect).toHaveBeenCalledTimes(1);
 
     // Set to NaN again
-    const ctx = renderResourceFiber(resource, undefined);
+    const ctx = renderResourceFiber(resource, []);
     setValue(NaN);
     commitResourceFiber(resource, ctx);
 
@@ -229,13 +229,13 @@ describe("Lifecycle - Dependencies", () => {
       return null;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
 
     // Change to no deps
     useDeps = false;
 
     // Error throws during render (fail-fast validation)
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, [])).toThrow(
       "useEffect called with and without dependencies across re-renders",
     );
   });

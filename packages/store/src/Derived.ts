@@ -25,7 +25,7 @@ import type {
  * });
  * ```
  */
-const useDerived = (_config: Derived.Props<K>): null => {
+const useDerived = <K extends ClientNames>(_config: Derived.Props<K>): null => {
   return null;
 };
 
@@ -33,7 +33,7 @@ export const Derived = resource(useDerived);
 
 export type DerivedElement<K extends ClientNames> = ResourceElement<
   null,
-  Derived.Props<K>
+  [Derived.Props<K>]
 >;
 
 export namespace Derived {

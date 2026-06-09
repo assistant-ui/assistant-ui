@@ -31,7 +31,7 @@ describe("useEffect - Basic Functionality", () => {
       const manager = new TestResourceManager(testFiber);
 
       // Mount and render
-      manager.renderAndMount(undefined);
+      manager.renderAndMount();
 
       // Effect should run after commit
       expect(executionOrder).toEqual(["render", "effect"]);
@@ -49,7 +49,7 @@ describe("useEffect - Basic Functionality", () => {
       });
 
       const manager = new TestResourceManager(testFiber);
-      manager.renderAndMount(undefined);
+      manager.renderAndMount();
 
       // Effect should be called, but not cleanup
       expect(effect).toHaveBeenCalledTimes(1);
@@ -80,7 +80,7 @@ describe("useEffect - Basic Functionality", () => {
       });
 
       const manager = new TestResourceManager(testFiber);
-      manager.renderAndMount(undefined);
+      manager.renderAndMount();
       manager.cleanup();
 
       // Cleanup should run in reverse order (LIFO)
@@ -111,7 +111,7 @@ describe("useEffect - Basic Functionality", () => {
         return null;
       });
 
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
       expect(executionOrder).toEqual(["effect1", "effect2", "effect3"]);
     });
 
@@ -173,7 +173,7 @@ describe("useEffect - Basic Functionality", () => {
       });
 
       // Initial render
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
       expect(effect).toHaveBeenCalledTimes(1);
 
       // Trigger re-render
@@ -234,7 +234,7 @@ describe("useEffect - Basic Functionality", () => {
       const manager = new TestResourceManager(testFiber);
 
       // Initial render
-      manager.renderAndMount(undefined);
+      manager.renderAndMount();
       // Without mount tracking, the effect runs immediately during commit
       // This triggers setState which causes a synchronous re-render
       expect(events).toEqual([

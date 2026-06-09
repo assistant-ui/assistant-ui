@@ -31,7 +31,7 @@ describe("@assistant-ui/tap/react resource API", () => {
 
       const Child = resource(useChild);
       const parent = createTestResource(() => useResource(Child({ n: 21 })));
-      expect(renderTest(parent, undefined)).toBe(42);
+      expect(renderTest(parent)).toBe(42);
     });
 
     it("routes to the React bridge inside a component", () => {
@@ -68,7 +68,7 @@ describe("@assistant-ui/tap/react resource API", () => {
           withKey("b", Item({ n: 2 })),
         ]),
       );
-      expect(renderTest(parent, undefined)).toEqual([10, 20]);
+      expect(renderTest(parent)).toEqual([10, 20]);
     });
 
     it("hosts a keyed list inside a React component and tracks deps", () => {
@@ -112,7 +112,7 @@ describe("@assistant-ui/tap/react resource API", () => {
           return useRoot();
         }).getValue(),
       );
-      expect(renderTest(parent, undefined)).toBe(7);
+      expect(renderTest(parent)).toBe(7);
     });
 
     // A root is push-based: host it in one place and observe it via getValue/

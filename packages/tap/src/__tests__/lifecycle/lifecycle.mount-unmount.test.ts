@@ -17,7 +17,7 @@ describe("Lifecycle - Mount/Unmount", () => {
       return null;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
 
     effects.forEach((fn) => {
       expect(fn).toHaveBeenCalledTimes(1);
@@ -34,7 +34,7 @@ describe("Lifecycle - Mount/Unmount", () => {
       return null;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
     cleanups.forEach((fn) => expect(fn).not.toHaveBeenCalled());
 
     unmountResource(resource);
@@ -51,7 +51,7 @@ describe("Lifecycle - Mount/Unmount", () => {
       return null;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
     unmountResource(resource);
 
     expect(order).toEqual([1, 2, 3]);
@@ -120,7 +120,7 @@ describe("Lifecycle - Mount/Unmount", () => {
     });
 
     // Initial render
-    const ctx = renderResourceFiber(resource, undefined);
+    const ctx = renderResourceFiber(resource, []);
     expect(log).toEqual(["render"]);
 
     // Commit - effects will run
@@ -129,7 +129,7 @@ describe("Lifecycle - Mount/Unmount", () => {
     expect(log).toEqual(["render", "effect-1", "effect-2"]);
 
     // The setState in effect schedules a re-render; trigger it manually
-    const ctx2 = renderResourceFiber(resource, undefined);
+    const ctx2 = renderResourceFiber(resource, []);
     commitResourceFiber(resource, ctx2);
 
     // Now we should see the re-render and cleanup/re-run of effects
@@ -164,7 +164,7 @@ describe("Lifecycle - Mount/Unmount", () => {
       return null;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
 
     // Unmount should throw the error
     expect(() => unmountResource(resource)).toThrow(error);
@@ -182,7 +182,7 @@ describe("Lifecycle - Mount/Unmount", () => {
       return null;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
     unmountResource(resource);
 
     expect(cleanup).not.toHaveBeenCalled();
@@ -200,7 +200,7 @@ describe("Lifecycle - Mount/Unmount", () => {
       return null;
     });
 
-    const ctx = renderResourceFiber(resource, undefined);
+    const ctx = renderResourceFiber(resource, []);
     commitResourceFiber(resource, ctx);
     unmountResourceFiber(resource);
 

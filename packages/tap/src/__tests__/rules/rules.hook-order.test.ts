@@ -23,13 +23,13 @@ describe("Rules of Hooks - Hook Order", () => {
     });
 
     // First render establishes order
-    renderTest(resource, undefined);
+    renderTest(resource);
 
     // Change condition
     condition = false;
 
     // Second render with different order should throw
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, [])).toThrow(
       "Hook order changed between renders",
     );
   });
@@ -46,12 +46,12 @@ describe("Rules of Hooks - Hook Order", () => {
       return null;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
 
     // Change to use different hook type
     addEffect = true;
 
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, [])).toThrow(
       "Hook order changed between renders",
     );
   });
@@ -70,13 +70,13 @@ describe("Rules of Hooks - Hook Order", () => {
       return null;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
 
     // Change condition
     condition = false;
 
     // Should throw because hook count changed
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, [])).toThrow(
       "Rendered 2 hooks but expected 3",
     );
   });
@@ -93,11 +93,11 @@ describe("Rules of Hooks - Hook Order", () => {
       return states;
     });
 
-    const result = renderTest(resource, undefined);
+    const result = renderTest(resource);
     expect(result).toEqual([1, 2, 3]);
 
     // Re-render should work fine
-    expect(() => renderResourceFiber(resource, undefined)).not.toThrow();
+    expect(() => renderResourceFiber(resource, [])).not.toThrow();
   });
 
   it("should throw when hooks in loops have inconsistent count", () => {
@@ -110,12 +110,12 @@ describe("Rules of Hooks - Hook Order", () => {
       return null;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
 
     // Change array length
     items = [1, 2];
 
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, [])).toThrow(
       "Rendered 2 hooks but expected 3",
     );
   });
@@ -131,11 +131,11 @@ describe("Rules of Hooks - Hook Order", () => {
       return { a, b, c };
     });
 
-    const result = renderTest(resource, undefined);
+    const result = renderTest(resource);
     expect(result).toEqual({ a: 1, b: 2, c: 3 });
 
     // Re-render should maintain same order
-    const ctx = renderResourceFiber(resource, undefined);
+    const ctx = renderResourceFiber(resource, []);
     expect(() => commitResourceFiber(resource, ctx)).not.toThrow();
   });
 
@@ -153,13 +153,13 @@ describe("Rules of Hooks - Hook Order", () => {
       return a + b;
     });
 
-    const result1 = renderTest(resource, undefined);
+    const result1 = renderTest(resource);
     expect(result1).toBe(3);
 
     // Enable early return
     shouldReturn = true;
 
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, [])).toThrow(
       "Rendered 1 hooks but expected 2",
     );
   });
@@ -187,6 +187,6 @@ describe("Rules of Hooks - Hook Order", () => {
       return count;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
   });
 });

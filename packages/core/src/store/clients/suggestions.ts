@@ -59,17 +59,4 @@ const useSuggestionsResource = (
   };
 };
 
-const SuggestionsResource = resource(useSuggestionsResource);
-
-export const Suggestions: {
-  (): import("@assistant-ui/tap").ResourceElement<
-    ClientOutput<"suggestions">,
-    undefined
-  >;
-  (
-    suggestions: SuggestionConfig[],
-  ): import("@assistant-ui/tap").ResourceElement<
-    ClientOutput<"suggestions">,
-    SuggestionConfig[]
-  >;
-} = SuggestionsResource as any;
+export const Suggestions = resource(useSuggestionsResource);

@@ -13,12 +13,12 @@ import { callResourceFn } from "./helpers/callResourceFn";
 import { withReactDispatcher } from "./react-dispatcher";
 import { isDevelopment } from "./helpers/env";
 
-export function createResourceFiber<R, P>(
-  type: Resource<R, P>,
+export function createResourceFiber<R, A extends readonly unknown[]>(
+  type: Resource<R, A>,
   root: ResourceFiberRoot,
   markDirty: (() => void) | undefined = undefined,
   strictMode: "root" | "child" | null = getDevStrictMode(false),
-): ResourceFiber<R, P> {
+): ResourceFiber<R, A> {
   return {
     type,
     root,
@@ -33,7 +33,9 @@ export function createResourceFiber<R, P>(
   };
 }
 
-export function unmountResourceFiber<R, P>(fiber: ResourceFiber<R, P>): void {
+export function unmountResourceFiber<R, A extends readonly unknown[]>(
+  fiber: ResourceFiber<R, A>,
+): void {
   if (!fiber.isMounted)
     throw new Error("Tried to unmount a fiber that is already unmounted");
 
@@ -41,13 +43,13 @@ export function unmountResourceFiber<R, P>(fiber: ResourceFiber<R, P>): void {
   cleanupAllEffects(fiber);
 }
 
-export function renderResourceFiber<R, P>(
-  fiber: ResourceFiber<R, P>,
-  props: P,
+export function renderResourceFiber<R, A extends readonly unknown[]>(
+  fiber: ResourceFiber<R, A>,
+  args: Readonly<A>,
 ): RenderResult {
   const result = {
     effectTasks: [],
-    props,
+    args,
     output: undefined as R | undefined,
   };
 
@@ -55,7 +57,7 @@ export function renderResourceFiber<R, P>(
     fiber.renderContext = result;
     try {
       result.output = withReactDispatcher(() =>
-        callResourceFn(fiber.type, props),
+        callResourceFn(fiber.type, args),
       );
     } finally {
       fiber.renderContext = undefined;
@@ -65,8 +67,8 @@ export function renderResourceFiber<R, P>(
   return result;
 }
 
-export function commitResourceFiber<R, P>(
-  fiber: ResourceFiber<R, P>,
+export function commitResourceFiber<R, A extends readonly unknown[]>(
+  fiber: ResourceFiber<R, A>,
   result: RenderResult,
 ): void {
   fiber.isMounted = true;

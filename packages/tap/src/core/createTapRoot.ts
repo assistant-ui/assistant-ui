@@ -15,7 +15,7 @@ const SubscribableRoot = resource(useTapRoot);
 export const createTapRoot = <R>(
   render: () => R,
 ): useTapRoot.Root<R> & { unmount: () => void } => {
-  const fiber = createResourceFiber<useTapRoot.Root<any>, () => any>(
+  const fiber = createResourceFiber(
     SubscribableRoot,
     createResourceFiberRoot((callback) => {
       new UpdateScheduler(() => {
@@ -31,10 +31,10 @@ export const createTapRoot = <R>(
 
   // In strict mode, render twice to detect side effects
   if (isDevelopment && fiber.devStrictMode === "root") {
-    void renderResourceFiber(fiber, render);
+    void renderResourceFiber(fiber, [render]);
   }
 
-  const rendered = renderResourceFiber(fiber, render);
+  const rendered = renderResourceFiber(fiber, [render]);
   flushTapSync(() => commitResourceFiber(fiber, rendered));
 
   const root = rendered.output as useTapRoot.Root<R>;

@@ -29,7 +29,7 @@ describe("@assistant-ui/tap/react-shim", () => {
         return count;
       });
 
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
       expect(getCommittedOutput(testFiber)).toBe(0);
       expect(effectLog).toEqual([0]);
 

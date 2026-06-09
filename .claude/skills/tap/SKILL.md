@@ -28,7 +28,7 @@ const useCounter = ({ initial = 0 }) => {
 
 const Counter = resource(useCounter);   // resource(hook) → Resource
 
-const element = Counter({ initial: 10 });   // ResourceElement = { type, props, key? }, inert
+const element = Counter({ initial: 10 });   // ResourceElement = { type, args, key? }, inert (args: [{ initial: 10 }])
 ```
 
 `resource(useCounter)` turns the hook into a Resource; `useResource(Counter(props))` turns it back into a hook call. **Always extract to a named `use`-prefixed hook** rather than inlining `resource(() => …)` / `resource(function … )`; the `use` prefix is what lets rules-of-hooks lint the body.

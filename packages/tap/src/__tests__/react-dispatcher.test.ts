@@ -28,7 +28,7 @@ describe("react dispatcher", () => {
       return n;
     });
 
-    expect(renderTest(fiber, undefined)).toBe(10);
+    expect(renderTest(fiber)).toBe(10);
     set(42);
     await waitForNextTick();
     expect(getCommittedOutput(fiber)).toBe(42);
@@ -60,15 +60,15 @@ describe("react dispatcher", () => {
       return $[0];
     });
 
-    expect(renderTest(fiber, undefined)).toBe("computed-once");
+    expect(renderTest(fiber)).toBe("computed-once");
     // re-render: the cache persists across renders, slot already filled
-    expect(renderTest(fiber, undefined)).toBe("computed-once");
+    expect(renderTest(fiber)).toBe("computed-once");
   });
 
   it("throws for a hook tap does not implement", () => {
     const fiber = createTestResource(() => React.useId());
     // render directly: a mid-render throw must not leave a tracked, unmounted
     // fiber for `cleanupAllResources` to choke on.
-    expect(() => renderResourceFiber(fiber, undefined)).toThrow();
+    expect(() => renderResourceFiber(fiber, [])).toThrow();
   });
 });

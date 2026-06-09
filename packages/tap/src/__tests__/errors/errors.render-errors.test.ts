@@ -16,7 +16,7 @@ describe("Errors - Render Errors", () => {
       throw error;
     });
 
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(error);
+    expect(() => renderResourceFiber(resource, [])).toThrow(error);
   });
 
   it("should throw when hooks are called outside render context", () => {
@@ -40,7 +40,7 @@ describe("Errors - Render Errors", () => {
       return value;
     });
 
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(error);
+    expect(() => renderResourceFiber(resource, [])).toThrow(error);
   });
 
   it("should detect render during render", () => {
@@ -57,7 +57,7 @@ describe("Errors - Render Errors", () => {
       return count;
     });
 
-    renderResourceFiber(resource, undefined);
+    renderResourceFiber(resource, []);
   });
 
   it("should allow setState during commit (effects)", () => {
@@ -74,7 +74,7 @@ describe("Errors - Render Errors", () => {
       return count;
     });
 
-    const ctx = renderResourceFiber(resource, undefined);
+    const ctx = renderResourceFiber(resource, []);
     // This should not throw - setState in effects is allowed
     expect(() => commitResourceFiber(resource, ctx)).not.toThrow();
     unmountResourceFiber(resource);
@@ -94,11 +94,11 @@ describe("Errors - Render Errors", () => {
       return null;
     });
 
-    renderResourceFiber(resource, undefined);
+    renderResourceFiber(resource, []);
 
     useStateFirst = false;
 
-    expect(() => renderResourceFiber(resource, undefined)).toThrow(
+    expect(() => renderResourceFiber(resource, [])).toThrow(
       "Hook order changed between renders",
     );
   });
@@ -117,12 +117,12 @@ describe("Errors - Render Errors", () => {
     });
 
     // First successful render
-    const result = renderTest(resource, undefined);
+    const result = renderTest(resource);
     expect(result).toBe(42);
 
     // Failed render
     shouldThrow = true;
-    expect(() => renderTest(resource, undefined)).toThrow("Render failed");
+    expect(() => renderTest(resource)).toThrow("Render failed");
 
     // State should be unchanged after failed render
     // The resource state is preserved
@@ -153,19 +153,19 @@ describe("Errors - Render Errors", () => {
     });
 
     // Successful render
-    renderTest(resource, undefined);
+    renderTest(resource);
 
     // Render error
     phase = "render-error";
-    expect(() => renderTest(resource, undefined)).toThrow("Render error");
+    expect(() => renderTest(resource)).toThrow("Render error");
 
     // Hook order error
     phase = "hook-order";
-    expect(() => renderTest(resource, undefined)).toThrow("Hook order changed");
+    expect(() => renderTest(resource)).toThrow("Hook order changed");
 
     // Effect error
     phase = "effect-error";
-    expect(() => renderTest(resource, undefined)).toThrow("Effect error");
+    expect(() => renderTest(resource)).toThrow("Effect error");
   });
 
   it("should handle errors in nested hook calls", () => {
@@ -184,7 +184,7 @@ describe("Errors - Render Errors", () => {
       return feature;
     });
 
-    const result = renderTest(resource, undefined);
+    const result = renderTest(resource);
     expect(result).toBe("feature");
   });
 });

@@ -210,24 +210,34 @@ withContextProvider(ThemeContext, "dark", () => useResource(Button()));
 ### Resource
 
 ```ts
-type Resource<R, P> = (props: P) => ResourceElement<R, P>;
+type Resource<R, A extends readonly unknown[]> = (
+  ...args: A
+) => ResourceElement<R, A>;
 ```
 
-The factory returned by `resource()`.
+The factory returned by `resource()`. `A` is the tuple of arguments the hook
+takes (a single-object hook is just `A = [Props]`).
 
 ### ResourceElement
 
 ```ts
-type ResourceElement<R, P> = { type: Resource<R, P>; props: P; key?: string | number };
+type ResourceElement<R, A extends readonly unknown[]> = {
+  type: Resource<R, A>;
+  args: Readonly<A>;
+  key?: string | number;
+};
 ```
 
-An inert `{ type, props }` description of a resource to host.
+An inert `{ type, args }` description of a resource to host. `args` is the full
+tuple of arguments passed to the factory.
 
 ### ContravariantResource
 
 ```ts
-type ContravariantResource<R, P> = (props: P) => ResourceElement<R>;
+type ContravariantResource<R, A extends readonly unknown[]> = (
+  ...args: A
+) => ResourceElement<R>;
 ```
 
 A contravariant `Resource` for accepting resources as parameters with broader
-assignability (the returned element omits the `P` parameter).
+assignability (the returned element omits the `A` parameter).

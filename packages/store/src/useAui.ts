@@ -228,8 +228,8 @@ const useDerivedClientAccessorResource = <K extends ClientNames>({
   // value that can change between renders for the same fiber is the
   // identity of the `get` closure. Routing reads through the ref so
   // they take effect without a one-commit lag.
-  const propsRef = useRef(element.props);
-  propsRef.current = element.props;
+  const propsRef = useRef(element.args[0]);
+  propsRef.current = element.args[0];
 
   return useMemo(() => {
     const clientFunction = () => propsRef.current.get(clientRef.current!);
@@ -287,7 +287,7 @@ const useDerivedClientsAccessorsResource = ({
           const name = key as keyof typeof clients;
           const element = clients[name]!;
           return withKey(
-            serializeMeta(name, element.props),
+            serializeMeta(name, element.args[0]),
             DerivedClientAccessorResource({
               element,
               clientRef,

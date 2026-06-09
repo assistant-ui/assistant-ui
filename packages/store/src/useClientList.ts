@@ -117,6 +117,6 @@ export namespace useClientList {
   export type Props<TData, TMethods extends ClientMethods> = {
     initialValues: TData[];
     getKey: (data: TData) => string;
-    resource: ContravariantResource<TMethods, ResourceProps<TData>>;
+    resource: ContravariantResource<TMethods, [ResourceProps<TData>]>;
   };
 }

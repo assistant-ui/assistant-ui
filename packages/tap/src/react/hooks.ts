@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { ResourceFiberRoot, Resource } from "../core/types";
+import type { ResourceFiberRoot } from "../core/types";
 import {
   createResourceFiber,
   unmountResourceFiber,
@@ -53,15 +53,10 @@ const useResourceHost = <T>(callback: () => T): T => {
 
   const devStrictMode = useDevStrictMode();
   const fiber = useMemo(() => {
-    return createResourceFiber(
-      HostResource as unknown as Resource<T, () => T>,
-      root,
-      undefined,
-      devStrictMode,
-    );
+    return createResourceFiber(HostResource<T>, root, undefined, devStrictMode);
   }, [root, devStrictMode]);
 
-  const result = renderResourceFiber(fiber, callback);
+  const result = renderResourceFiber(fiber, [callback]);
   useLayoutEffect(() => {
     return () => unmountResourceFiber(fiber);
   }, [fiber]);

@@ -68,7 +68,7 @@ describe("useResources - Basic Functionality", () => {
         return results;
       });
 
-      const result = renderTest(testFiber, undefined);
+      const result = renderTest(testFiber);
       expect(result).toEqual([{ count: 10 }, { count: 20 }, { count: 30 }]);
     });
 
@@ -98,7 +98,7 @@ describe("useResources - Basic Functionality", () => {
         return results;
       });
 
-      const result = renderTest(testFiber, undefined);
+      const result = renderTest(testFiber);
       expect(result).toEqual([
         { count: 5, double: 10 },
         { count: 10, double: 20 },

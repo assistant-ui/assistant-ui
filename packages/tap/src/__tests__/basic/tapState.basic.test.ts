@@ -21,7 +21,7 @@ describe("useState - Basic Functionality", () => {
         return count;
       });
 
-      const result = renderTest(testFiber, undefined);
+      const result = renderTest(testFiber);
       expect(result).toBe(42);
     });
 
@@ -37,12 +37,12 @@ describe("useState - Basic Functionality", () => {
       });
 
       // First render
-      const result = renderTest(testFiber, undefined);
+      const result = renderTest(testFiber);
       expect(result).toBe(100);
       expect(initCalled).toBe(1);
 
       // Re-render should not call initializer again
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
       expect(initCalled).toBe(1);
     });
 
@@ -52,7 +52,7 @@ describe("useState - Basic Functionality", () => {
         return value;
       });
 
-      const result = renderTest(testFiber, undefined);
+      const result = renderTest(testFiber);
       expect(result).toBeUndefined();
     });
   });
@@ -75,7 +75,7 @@ describe("useState - Basic Functionality", () => {
       });
 
       // Initial render
-      const result1 = renderTest(testFiber, undefined);
+      const result1 = renderTest(testFiber);
       expect(result1).toEqual({ count: 0, renderCount: 1 });
 
       // Update state
@@ -107,7 +107,7 @@ describe("useState - Basic Functionality", () => {
       });
 
       // Initial render
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
       expect(renderCount).toBe(1);
 
       // Set same value
@@ -135,7 +135,7 @@ describe("useState - Basic Functionality", () => {
       });
 
       // Initial render
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
       expect(getCommittedOutput(testFiber)).toBe(10);
 
       // Functional update
@@ -167,7 +167,7 @@ describe("useState - Basic Functionality", () => {
         };
       });
 
-      const result = renderTest(testFiber, undefined);
+      const result = renderTest(testFiber);
       expect(result).toMatchObject({
         count1: 1,
         count2: 2,
@@ -191,7 +191,7 @@ describe("useState - Basic Functionality", () => {
       });
 
       // Initial render
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
       expect(getCommittedOutput(testFiber)).toEqual({ a: "a", b: "b", c: "c" });
 
       // Update only B

@@ -23,7 +23,9 @@ export function commitAllEffects(renderResult: RenderResult): void {
   }
 }
 
-export function cleanupAllEffects<R, P>(executionContext: ResourceFiber<R, P>) {
+export function cleanupAllEffects<R, A extends readonly unknown[]>(
+  executionContext: ResourceFiber<R, A>,
+) {
   const errors: unknown[] = [];
   for (const cell of executionContext.cells) {
     if (cell?.type === "effect") {

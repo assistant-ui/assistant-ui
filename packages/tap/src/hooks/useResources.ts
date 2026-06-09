@@ -17,11 +17,8 @@ import { useRef } from "./useRef";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 
 type FiberState = {
-  fiber: ResourceFiber<unknown, unknown>;
-  next:
-    | RenderResult
-    | [ResourceFiber<unknown, unknown>, RenderResult]
-    | "delete";
+  fiber: ResourceFiber<unknown>;
+  next: RenderResult | [ResourceFiber<unknown>, RenderResult] | "delete";
 };
 
 export function useResources<E extends ResourceElement<any, any>>(
@@ -78,7 +75,7 @@ export function useResources<E extends ResourceElement<any, any>>(
           parentFiber.root,
           markDirty,
         );
-        const result = renderResourceFiber(fiber, element.props);
+        const result = renderResourceFiber(fiber, element.args);
         state = {
           fiber,
           next: result,
@@ -92,11 +89,11 @@ export function useResources<E extends ResourceElement<any, any>>(
           parentFiber.root,
           markDirty,
         );
-        const result = renderResourceFiber(fiber, element.props);
+        const result = renderResourceFiber(fiber, element.args);
         state.next = [fiber, result];
         results.push(result.output);
       } else {
-        state.next = renderResourceFiber(state.fiber, element.props);
+        state.next = renderResourceFiber(state.fiber, element.args);
         results.push(state.next.output);
       }
     }

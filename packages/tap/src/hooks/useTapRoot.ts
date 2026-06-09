@@ -9,7 +9,7 @@ import { useMemo } from "./useMemo";
 import { useEffect } from "./useEffect";
 import { useEffectEvent } from "./useEffectEvent";
 import { useRef } from "./useRef";
-import type { RenderResult, Resource } from "../core/types";
+import type { RenderResult } from "../core/types";
 import { resource } from "../core/resource";
 import { isDevelopment } from "../core/helpers/env";
 import {
@@ -51,7 +51,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   const fiber = useMemo(() => {
     return createResourceFiber(
-      HostRoot as unknown as Resource<R, () => R>,
+      HostRoot,
       createResourceFiberRoot((callback) => {
         if (!scheduler.isDirty && !callback()) return;
         queue.push(callback);
@@ -61,10 +61,10 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   }, [queue, scheduler]);
 
   setRootVersion(fiber.root, fiber.root.committedVersion);
-  const render2 = renderResourceFiber(fiber, render);
+  const render2 = renderResourceFiber(fiber, [render]);
 
   const isMountedRef = useRef(false);
-  const committedPropsRef = useRef(render);
+  const committedArgsRef = useRef([render] as const);
   const valueRef = useRef<R>(render2.output);
   const subscribers = useMemo(() => new Set<() => void>(), []);
   const handleUpdate = useEffectEvent((render: RenderResult | null) => {
@@ -81,10 +81,10 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
       });
 
       if (isDevelopment && fiber.devStrictMode) {
-        void renderResourceFiber(fiber, committedPropsRef.current);
+        void renderResourceFiber(fiber, committedArgsRef.current);
       }
 
-      render = renderResourceFiber(fiber, committedPropsRef.current);
+      render = renderResourceFiber(fiber, committedArgsRef.current);
     }
 
     if (scheduler.isDirty)
@@ -111,7 +111,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   }, [fiber]);
 
   useEffect(() => {
-    committedPropsRef.current = render2.props;
+    committedArgsRef.current = [render];
     commitRoot(fiber.root);
     commitResourceFiber(fiber, render2);
 

@@ -19,7 +19,7 @@ describe("Errors - Effect Errors", () => {
       return null;
     });
 
-    expect(() => renderTest(resource, undefined)).toThrow(error);
+    expect(() => renderTest(resource)).toThrow(error);
   });
 
   it("should propagate errors from cleanup functions", () => {
@@ -39,14 +39,14 @@ describe("Errors - Effect Errors", () => {
     });
 
     // First render and commit - establishes the effect
-    const ctx1 = renderResourceFiber(resource, undefined);
+    const ctx1 = renderResourceFiber(resource, []);
     commitResourceFiber(resource, ctx1);
 
     // Change dep to trigger cleanup on next render
     dep = 1;
 
     // Second render with different dep should trigger cleanup that throws
-    const ctx2 = renderResourceFiber(resource, undefined);
+    const ctx2 = renderResourceFiber(resource, []);
     expect(() => commitResourceFiber(resource, ctx2)).toThrow(error);
   });
 
@@ -58,7 +58,7 @@ describe("Errors - Effect Errors", () => {
       return null;
     });
 
-    expect(() => renderTest(resource, undefined)).toThrow(
+    expect(() => renderTest(resource)).toThrow(
       "An effect function must either return a cleanup function or nothing",
     );
   });
@@ -83,8 +83,7 @@ describe("Errors - Effect Errors", () => {
     });
 
     // Should throw aggregate error
-    expect(() => renderTest(resource, undefined))
-      .toThrowErrorMatchingInlineSnapshot(`
+    expect(() => renderTest(resource)).toThrowErrorMatchingInlineSnapshot(`
       [AggregateError: Errors during commit]
     `);
     expect(goodEffect).toHaveBeenCalledTimes(1);
@@ -105,7 +104,7 @@ describe("Errors - Effect Errors", () => {
       return null;
     });
 
-    renderTest(resource, undefined);
+    renderTest(resource);
 
     // Unmount should throw the error but should still run all cleanups
     expect(() => unmountResource(resource)).toThrow(cleanupError);
@@ -140,7 +139,7 @@ describe("Errors - Effect Errors", () => {
 
     // The initial render will trigger setState which causes flushSync
     // The flushed re-render will throw the error
-    expect(() => renderTest(resource, undefined)).toThrow(error);
+    expect(() => renderTest(resource)).toThrow(error);
   });
 
   it("should handle async errors in effects", async () => {
@@ -165,7 +164,7 @@ describe("Errors - Effect Errors", () => {
     });
 
     // This won't throw synchronously
-    expect(() => renderTest(resource, undefined)).not.toThrow();
+    expect(() => renderTest(resource)).not.toThrow();
 
     // Wait for the async error to be handled
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -186,7 +185,7 @@ describe("Errors - Effect Errors", () => {
       return value;
     });
 
-    expect(() => renderTest(resource, undefined)).toThrow(error);
+    expect(() => renderTest(resource)).toThrow(error);
     expect(effectRan).toBe(true);
 
     // Resource should not have committed state since commit failed
@@ -221,6 +220,6 @@ describe("Errors - Effect Errors", () => {
 
     // The initial render will trigger setState which causes flushSync
     // During the flush, the cleanup will run and throw
-    expect(() => renderTest(resource, undefined)).toThrow(cleanupError);
+    expect(() => renderTest(resource)).toThrow(cleanupError);
   });
 });

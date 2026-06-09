@@ -1,17 +1,20 @@
 import type { Resource } from "../types";
 
 /**
- * Renders a resource with the given props.
+ * Renders a resource with the given args.
  * @internal This is for internal use only.
  */
-export function callResourceFn<R, P>(resource: Resource<R, P>, props: P): R {
-  const fn = (resource as unknown as { [fnSymbol]?: (props: P) => R })[
-    fnSymbol
-  ];
+export function callResourceFn<R, A extends readonly unknown[]>(
+  resource: Resource<R, A>,
+  args: Readonly<A>,
+): R {
+  const fn = (
+    resource as unknown as { [fnSymbol]?: (...args: Readonly<A>) => R }
+  )[fnSymbol];
   if (!fn) {
     throw new Error("ResourceElement.type is not a valid Resource");
   }
-  return fn(props);
+  return fn(...args);
 }
 
 /**

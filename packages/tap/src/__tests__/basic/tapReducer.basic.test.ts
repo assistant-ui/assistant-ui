@@ -23,7 +23,7 @@ describe("useReducer - Basic Functionality", () => {
         return count;
       });
 
-      const result = renderTest(testFiber, undefined);
+      const result = renderTest(testFiber);
       expect(result).toBe(0);
     });
 
@@ -39,12 +39,12 @@ describe("useReducer - Basic Functionality", () => {
         return count;
       });
 
-      const result = renderTest(testFiber, undefined);
+      const result = renderTest(testFiber);
       expect(result).toBe(20);
       expect(initCalled).toBe(1);
 
       // Re-render should not call init again
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
       expect(initCalled).toBe(1);
     });
   });
@@ -73,7 +73,7 @@ describe("useReducer - Basic Functionality", () => {
         return count;
       });
 
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
       expect(getCommittedOutput(testFiber)).toBe(0);
 
       dispatchFn!({ type: "increment" });
@@ -109,7 +109,7 @@ describe("useReducer - Basic Functionality", () => {
         return count;
       });
 
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
       expect(renderCount).toBe(1);
 
       // Dispatch action that returns same state
@@ -136,7 +136,7 @@ describe("useReducer - Basic Functionality", () => {
         return count;
       });
 
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
       expect(getCommittedOutput(testFiber)).toBe(0);
 
       // Dispatch with multiplier=1
@@ -146,7 +146,7 @@ describe("useReducer - Basic Functionality", () => {
 
       // Change multiplier and dispatch
       multiplier = 10;
-      renderTest(testFiber, undefined); // re-render to update reducer
+      renderTest(testFiber); // re-render to update reducer
       dispatchFn!(5);
       await waitForNextTick();
       expect(getCommittedOutput(testFiber)).toBe(55); // 5 + 5*10
@@ -168,7 +168,7 @@ describe("useReducer - Basic Functionality", () => {
         return count;
       });
 
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
       expect(getCommittedOutput(testFiber)).toBe(0);
 
       // Multiple dispatches
@@ -191,8 +191,8 @@ describe("useReducer - Basic Functionality", () => {
         return count;
       });
 
-      renderTest(testFiber, undefined);
-      renderTest(testFiber, undefined);
+      renderTest(testFiber);
+      renderTest(testFiber);
 
       expect(dispatches[0]).toBe(dispatches[1]);
     });
