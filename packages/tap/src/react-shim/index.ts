@@ -52,6 +52,7 @@ export const useLayoutEffect = (effect: any, deps?: any) =>
     ? hooks.useEffect(effect, deps)
     : ReactRuntime.useLayoutEffect(effect, deps);
 
+// The non-tap fallback requires a React version that provides useEffectEvent.
 export const useEffectEvent = (callback: any) =>
   inTap()
     ? hooks.useEffectEvent(callback)
