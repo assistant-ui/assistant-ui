@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.6.1
+
+### Patch Changes
+
+- [#4313](https://github.com/assistant-ui/assistant-ui/pull/4313) [`5e1151e`](https://github.com/assistant-ui/assistant-ui/commit/5e1151e83ea3700edee9b1552f2e410b860b0afe) - fix: keep the tap React shim compatible with React 18 builds ([@Yonom](https://github.com/Yonom))
+
 ## 0.6.0
 
 ### Minor Changes
