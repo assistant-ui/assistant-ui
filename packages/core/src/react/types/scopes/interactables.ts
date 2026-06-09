@@ -9,13 +9,16 @@ export type InteractableStateSchema = NonNullable<
   Extract<Tool, { parameters: unknown }>["parameters"]
 >;
 
+export type InteractableScope = "app" | "thread";
+
 export type InteractableDefinition = {
   id: string;
   name: string;
   description: string;
   stateSchema: InteractableStateSchema;
   state: unknown;
-  selected?: boolean | undefined;
+  initialState: unknown;
+  scope?: InteractableScope | undefined;
 };
 
 export type InteractableRegistration = {
@@ -24,7 +27,7 @@ export type InteractableRegistration = {
   description: string;
   stateSchema: InteractableStateSchema;
   initialState: unknown;
-  selected?: boolean | undefined;
+  scope?: InteractableScope | undefined;
 };
 
 export type InteractablePersistenceStatus = {
@@ -52,7 +55,6 @@ export type InteractablesMethods = {
   getState(): InteractablesState;
   register(def: InteractableRegistration): Unsubscribe;
   setState(id: string, updater: (prev: unknown) => unknown): void;
-  setSelected(id: string, selected: boolean): void;
   exportState(): InteractablePersistedState;
   importState(saved: InteractablePersistedState): void;
   setPersistenceAdapter(

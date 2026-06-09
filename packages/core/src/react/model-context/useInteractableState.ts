@@ -15,7 +15,6 @@ export const useInteractableState = <TState>(
   TState,
   {
     setState: (updater: StateUpdater<TState>) => void;
-    setSelected: (selected: boolean) => void;
     isPending: boolean;
     error: unknown;
     flush: () => Promise<void>;
@@ -41,20 +40,12 @@ export const useInteractableState = <TState>(
     [aui, id],
   );
 
-  const setSelected = useCallback(
-    (selected: boolean) => {
-      aui.interactables().setSelected(id, selected);
-    },
-    [aui, id],
-  );
-
   const flush = useCallback(() => aui.interactables().flush(), [aui]);
 
   return [
     state,
     {
       setState,
-      setSelected,
       isPending: persistenceStatus?.isPending ?? false,
       error: persistenceStatus?.error,
       flush,

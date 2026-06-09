@@ -15,6 +15,7 @@ const makeRuntimeStub = (
   const stub = {
     append: vi.fn(),
     cancelRun: vi.fn(),
+    getModelContext: () => ({}),
     subscribe: (cb: () => void) => {
       subscribers.add(cb);
       return () => subscribers.delete(cb);

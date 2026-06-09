@@ -11,6 +11,7 @@ import {
   type QueueItemState,
 } from "../../store/scopes/queue-item";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
+import { gateInteractableComposerMetadata } from "../../react/client/interactable-model-context";
 
 export class DefaultThreadComposerRuntimeCore
   extends BaseComposerRuntimeCore
@@ -84,8 +85,25 @@ export class DefaultThreadComposerRuntimeCore
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
   ) {
+    // Merge provider-contributed metadata onto the outgoing user message
+    // (same metadata.custom append path quotes ride). The interactables gate
+    // runs here because it needs thread history, unavailable to the provider.
+    const composerMetadata = gateInteractableComposerMetadata(
+      this.runtime.getModelContext().unstable_composerMetadata,
+      this.runtime.messages,
+    );
+    const enriched = composerMetadata
+      ? {
+          ...message,
+          metadata: {
+            ...message.metadata,
+            custom: { ...message.metadata?.custom, ...composerMetadata },
+          },
+        }
+      : message;
+
     this.runtime.append({
-      ...(message as AppendMessage),
+      ...(enriched as AppendMessage),
       parentId: this.runtime.messages.at(-1)?.id ?? null,
       sourceId: null,
       startRun: options?.startRun,

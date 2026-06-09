@@ -14,7 +14,10 @@ import type {
 } from "../types/scopes/interactables";
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store";
-import { buildInteractableModelContext } from "./interactable-model-context";
+import {
+  buildInteractableModelContext,
+  findLatestSnapshotEntry,
+} from "./interactable-model-context";
 
 const PERSISTENCE_DEBOUNCE_MS = 500;
 
@@ -65,6 +68,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     const exported = stateRef.current.definitions;
     const payload: InteractablePersistedState = {};
     for (const [id, def] of Object.entries(exported)) {
+      if (def.scope === "thread") continue; // thread items persist via snapshot, not the adapter
       payload[id] = { name: def.name, state: def.state };
     }
 
@@ -139,6 +143,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const exportState = useCallback((): InteractablePersistedState => {
     const result: InteractablePersistedState = {};
     for (const [id, def] of Object.entries(stateRef.current.definitions)) {
+      if (def.scope === "thread") continue; // thread items persist via snapshot, not the adapter
       result[id] = { name: def.name, state: def.state };
     }
     return result;
@@ -195,35 +200,25 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
   const setDefState = useCallback(
     (id: string, updater: (prev: unknown) => unknown) => {
-      setState((prev) => {
-        const existing = prev.definitions[id];
-        if (!existing) return prev;
-        return {
-          ...prev,
-          definitions: {
-            ...prev.definitions,
-            [id]: { ...existing, state: updater(existing.state) },
-          },
-        };
-      });
-      if (stateRef.current.definitions[id]) schedulePersistence(id);
+      const current = stateRef.current;
+      const existing = current.definitions[id];
+      if (!existing) return;
+
+      const nextState = updater(existing.state);
+      const next = {
+        ...current,
+        definitions: {
+          ...current.definitions,
+          [id]: { ...existing, state: nextState },
+        },
+      };
+
+      stateRef.current = next;
+      setState(next);
+      schedulePersistence(id);
     },
     [schedulePersistence],
   );
-
-  const setDefSelected = useCallback((id: string, selected: boolean) => {
-    setState((prev) => {
-      const existing = prev.definitions[id];
-      if (!existing) return prev;
-      return {
-        ...prev,
-        definitions: {
-          ...prev.definitions,
-          [id]: { ...existing, selected },
-        },
-      };
-    });
-  }, []);
 
   const provider = useMemo(
     () => ({
@@ -244,7 +239,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         };
       },
     }),
-    [setDefState],
+    [setDefState, clientRef],
   );
 
   useEffect(() => {
@@ -273,6 +268,20 @@ const useInteractables = (): ClientOutput<"interactables"> => {
       const detached = detachedStateRef.current.get(def.id);
       detachedStateRef.current.delete(def.id);
 
+      // Thread-scoped items restore from their latest history snapshot on a
+      // fresh reload (no adapter blob); detached (in-session remount) still
+      // wins so an unsent edit survives a scroll/virtualization cycle.
+      // Thread-scoped seeding reads history, only reachable when a thread
+      // scope is in context; the accessor throws otherwise, so guard it.
+      const threadAccessor = clientRef.current?.thread;
+      const snapshot =
+        def.scope === "thread" && threadAccessor && threadAccessor.source != null
+          ? findLatestSnapshotEntry(
+              threadAccessor().getState().messages ?? [],
+              def.id,
+            )?.state
+          : undefined;
+
       setState((prev) => ({
         ...prev,
         definitions: {
@@ -282,9 +291,13 @@ const useInteractables = (): ClientOutput<"interactables"> => {
             name: def.name,
             description: def.description,
             stateSchema: def.stateSchema,
+            initialState: def.initialState,
+            scope: def.scope,
             state:
-              prev.definitions[def.id]?.state ?? detached ?? def.initialState,
-            selected: def.selected,
+              prev.definitions[def.id]?.state ??
+              detached ??
+              snapshot ??
+              def.initialState,
           },
         },
       }));
@@ -303,14 +316,13 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         });
       };
     },
-    [flushIfPending],
+    [flushIfPending, clientRef],
   );
 
   return {
     getState: () => state,
     register,
     setState: setDefState,
-    setSelected: setDefSelected,
     exportState,
     importState,
     setPersistenceAdapter,

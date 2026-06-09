@@ -61,6 +61,11 @@ export class ModelContextRegistry implements ModelContextProvider {
       context.config = providerContexts.config;
     }
 
+    if (providerContexts.unstable_composerMetadata) {
+      context.unstable_composerMetadata =
+        providerContexts.unstable_composerMetadata;
+    }
+
     return context;
   }
 

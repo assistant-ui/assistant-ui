@@ -1,13 +1,20 @@
 import { useEffect, useId, useRef } from "react";
 import { useAui } from "@assistant-ui/store";
-import type { InteractableStateSchema } from "../types/scopes/interactables";
+import type {
+  InteractableScope,
+  InteractableStateSchema,
+} from "../types/scopes/interactables";
 
 export type AssistantInteractableProps = {
   description: string;
   stateSchema: InteractableStateSchema;
   initialState: unknown;
   id?: string;
-  selected?: boolean;
+  /**
+   * Persistence + reload-seed source. `"app"` (default) participates in the BYO
+   * adapter; `"thread"` persists via the per-send snapshot in thread history.
+   */
+  scope?: InteractableScope;
 };
 
 /**
@@ -39,9 +46,9 @@ export const useAssistantInteractable = (
       description: config.description,
       stateSchema: stateSchemaRef.current,
       initialState: initialStateRef.current,
-      selected: config.selected,
+      scope: config.scope,
     });
-  }, [aui, id, name, config.description, config.selected]);
+  }, [aui, id, name, config.description, config.scope]);
 
   return id;
 };

@@ -24,6 +24,12 @@ export type ModelContext = {
   tools?: Record<string, Tool<any, any>> | undefined;
   callSettings?: LanguageModelV1CallSettings | undefined;
   config?: LanguageModelConfig | undefined;
+  /**
+   * Persisted message metadata pulled at send time and merged into the outgoing
+   * user message's `metadata.custom` (not forwarded to the model directly).
+   * Ignored by the transport, which only reads system/tools/callSettings/config.
+   */
+  unstable_composerMetadata?: Record<string, unknown> | undefined;
 };
 
 export type ModelContextProvider = {
@@ -47,6 +53,20 @@ export type AssistantInstructionsConfig = {
 export type AssistantContextConfig = {
   getContext: () => string;
   disabled?: boolean | undefined;
+};
+
+const toolsAreShallowEqual = (
+  a: Tool<any, any>,
+  b: Tool<any, any>,
+): boolean => {
+  if (a === b) return true;
+
+  const aKeys = Object.keys(a) as (keyof Tool<any, any>)[];
+  const bKeys = Object.keys(b) as (keyof Tool<any, any>)[];
+  return (
+    aKeys.length === bKeys.length &&
+    aKeys.every((key) => Object.is(a[key], b[key]))
+  );
 };
 
 export const mergeModelContexts = (
@@ -73,6 +93,8 @@ export const mergeModelContexts = (
         if (existing && existing !== tool) {
           const existingPriority = toolPriorities[name]!;
           if (existingPriority === priority) {
+            if (toolsAreShallowEqual(existing, tool)) continue;
+
             throw new Error(
               `You tried to define a tool with the name ${name}, but it already exists.`,
             );
@@ -105,6 +127,12 @@ export const mergeModelContexts = (
       acc.callSettings = {
         ...acc.callSettings,
         ...config.callSettings,
+      };
+    }
+    if (config.unstable_composerMetadata) {
+      acc.unstable_composerMetadata = {
+        ...acc.unstable_composerMetadata,
+        ...config.unstable_composerMetadata,
       };
     }
     return acc;
