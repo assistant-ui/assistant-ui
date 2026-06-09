@@ -53,7 +53,17 @@ export const createPiNodeClient = (
     getThread: (threadId) => supervisor.getThread(threadId),
     sendMessage: (threadId, input) => supervisor.sendMessage(threadId, input),
     cancelRun: (threadId) => supervisor.cancelRun(threadId),
+    getAvailableModels: (input) => {
+      void input;
+      return supervisor.getAvailableModels();
+    },
+    setModel: (threadId, input) => supervisor.setModel(threadId, input),
+    setThinkingLevel: (threadId, level) =>
+      supervisor.setThinkingLevel(threadId, level),
     renameThread: (threadId, title) => supervisor.renameThread(threadId, title),
+    archiveThread: (threadId) => supervisor.archiveThread(threadId),
+    unarchiveThread: (threadId) => supervisor.unarchiveThread(threadId),
+    deleteThread: (threadId) => supervisor.deleteThread(threadId),
     respondToHostUiRequest: (threadId, response) =>
       supervisor.respondToHostUiRequest(threadId, response),
     subscribe: (threadId, listener) => supervisor.subscribe(threadId, listener),

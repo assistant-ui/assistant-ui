@@ -8,7 +8,7 @@ It demonstrates the MVP surface: a thread list, new sessions, a composer with
 steer / follow-up / stop, streaming assistant responses (text + reasoning), tool
 cards with streaming output, the blocking host-UI dialogs (confirm / input /
 select / editor), a model + credential readiness banner, and a context-usage
-indicator. It proves the adapter — not full pi-gui parity.
+indicator. It proves the adapter surface, not a full desktop app shell.
 
 ## How it fits together
 

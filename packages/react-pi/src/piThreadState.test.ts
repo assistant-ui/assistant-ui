@@ -228,6 +228,14 @@ describe("piThreadState", () => {
     expect(s.metadata.status).toBe("failed");
   });
 
+  it("updates metadata config from thinking_level_changed", () => {
+    const s = apply(
+      createPiThreadState("t1"),
+      ev({ type: "thinking_level_changed", level: "high" }),
+    );
+    expect(s.metadata.config?.thinkingLevel).toBe("high");
+  });
+
   it("adds and resolves host-ui requests", () => {
     let s = apply(
       createPiThreadState("t1"),

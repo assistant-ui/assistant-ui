@@ -22,11 +22,14 @@
  * here is unchanged by that swap.
  */
 import {
+  AuthStorage,
   type AgentSession,
   type AgentSessionEvent,
   createAgentSession,
+  ModelRegistry,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
+import { unlink } from "node:fs/promises";
 import {
   deriveReadiness,
   mapSessionEvent,
@@ -41,7 +44,9 @@ import type {
   PiClientEvent,
   PiClientEventBody,
   PiContextUsage,
+  PiModelInfo,
   PiQueuedMessage,
+  PiThinkingLevel,
   PiThreadMetadata,
   PiThreadSnapshot,
   PiThreadStatus,
@@ -57,6 +62,22 @@ import type {
 type PiSessionModel = NonNullable<
   Parameters<typeof createAgentSession>[0]
 >["model"];
+type PiRegistryModel = ReturnType<ModelRegistry["getAll"]>[number];
+type PiSessionInfo = Awaited<ReturnType<typeof SessionManager.list>>[number];
+
+type CatalogCacheEntry = {
+  infos: readonly PiSessionInfo[] | undefined;
+  promise: Promise<readonly PiSessionInfo[]> | undefined;
+};
+
+const THINKING_LEVELS: readonly PiThinkingLevel[] = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+];
 
 export interface PiThreadSupervisorOptions {
   /** Default workspace for `listThreads`/`createThread` when a call omits one.
@@ -94,11 +115,19 @@ export class PiThreadSupervisor {
   private readonly workspacePath: string;
   private readonly agentDir: string | undefined;
   private readonly model: PiSessionModel | undefined;
+  private readonly modelRegistry: ModelRegistry;
+  private readonly archivedSessionFiles = new Set<string>();
+  private readonly catalogCache = new Map<string, CatalogCacheEntry>();
 
   constructor(options: PiThreadSupervisorOptions = {}) {
     this.workspacePath = options.workspacePath ?? process.cwd();
     this.agentDir = options.agentDir;
     this.model = options.model;
+    this.modelRegistry = ModelRegistry.create(
+      AuthStorage.create(
+        options.agentDir ? `${options.agentDir}/auth.json` : undefined,
+      ),
+    );
   }
 
   // --- Catalog ---------------------------------------------------------------
@@ -108,11 +137,21 @@ export class PiThreadSupervisor {
     includeArchived?: boolean;
   }): Promise<PiThreadMetadata[]> {
     const cwd = input?.workspacePath ?? this.workspacePath;
-    const infos = await SessionManager.list(cwd);
-    return infos.map((info) => {
-      const liveStatus = this.liveStatusFor(info.id);
-      return mapSessionInfo(info, liveStatus ? { liveStatus } : undefined);
-    });
+    const infos = await this.listSessionInfos(cwd);
+    return infos
+      .filter(
+        (info) =>
+          input?.includeArchived || !this.archivedSessionFiles.has(info.path),
+      )
+      .map((info) => {
+        const liveStatus = this.liveStatusFor(info.id);
+        return {
+          ...mapSessionInfo(info, liveStatus ? { liveStatus } : undefined),
+          ...(this.archivedSessionFiles.has(info.path)
+            ? { archived: true }
+            : {}),
+        };
+      });
   }
 
   async createThread(input?: {
@@ -123,6 +162,7 @@ export class PiThreadSupervisor {
     const cwd = input?.workspacePath ?? this.workspacePath;
     const sessionManager = SessionManager.create(cwd);
     const record = await this.openSession(sessionManager, cwd);
+    this.invalidateCatalog(cwd);
     if (input?.title) record.session.setSessionName(input.title);
     if (input?.initialMessage) await this.send(record, input.initialMessage);
     return this.snapshotOf(record);
@@ -145,8 +185,80 @@ export class PiThreadSupervisor {
     await this.records.get(threadId)?.session.abort();
   }
 
+  async getAvailableModels(): Promise<PiModelInfo[]> {
+    this.modelRegistry.refresh();
+    const available = this.modelRegistry.getAvailable();
+    const catalog =
+      available.length > 0 ? available : this.modelRegistry.getAll();
+    return catalog.map((model) => this.modelInfoOf(model));
+  }
+
+  async setModel(
+    threadId: string,
+    input: { provider: string; modelId: string },
+  ): Promise<void> {
+    const record = await this.ensureOpen(threadId);
+    const model = this.modelRegistry.find(input.provider, input.modelId);
+    if (!model) {
+      throw new Error(
+        `${input.provider}/${input.modelId} is not in Pi's model registry`,
+      );
+    }
+    await record.session.setModel(model);
+    record.lastError = undefined;
+    this.emit(record, { type: "snapshot", snapshot: this.snapshotOf(record) });
+  }
+
+  async setThinkingLevel(
+    threadId: string,
+    level: PiThinkingLevel,
+  ): Promise<void> {
+    const record = await this.ensureOpen(threadId);
+    record.session.setThinkingLevel(level as never);
+    this.emit(record, { type: "thinking_level_changed", level });
+    this.emit(record, { type: "snapshot", snapshot: this.snapshotOf(record) });
+  }
+
   async renameThread(threadId: string, title: string): Promise<void> {
-    (await this.ensureOpen(threadId)).session.setSessionName(title);
+    const record = await this.ensureOpen(threadId);
+    record.session.setSessionName(title);
+    this.invalidateCatalog(record.workspacePath);
+  }
+
+  async archiveThread(threadId: string): Promise<void> {
+    const record = await this.ensureOpen(threadId);
+    const sessionFile = record.session.sessionFile;
+    if (sessionFile) this.archivedSessionFiles.add(sessionFile);
+    this.emit(record, { type: "snapshot", snapshot: this.snapshotOf(record) });
+  }
+
+  async unarchiveThread(threadId: string): Promise<void> {
+    const info = await this.findSessionInfo(threadId);
+    if (info) this.archivedSessionFiles.delete(info.path);
+    const record = this.records.get(threadId);
+    if (record) {
+      this.emit(record, {
+        type: "snapshot",
+        snapshot: this.snapshotOf(record),
+      });
+    }
+  }
+
+  async deleteThread(threadId: string): Promise<void> {
+    const record = this.records.get(threadId);
+    const info = record ? undefined : await this.findSessionInfo(threadId);
+    const sessionFile = record?.session.sessionFile ?? info?.path;
+    const workspacePath = record?.workspacePath ?? info?.cwd;
+    if (!sessionFile) throw new Error(`Unknown Pi thread: ${threadId}`);
+    if (record) {
+      record.unsubscribe();
+      record.uiBridge.dismissAll();
+      record.session.dispose();
+      this.records.delete(threadId);
+    }
+    this.archivedSessionFiles.delete(sessionFile);
+    await unlink(sessionFile);
+    if (workspacePath) this.invalidateCatalog(workspacePath);
   }
 
   async respondToHostUiRequest(
@@ -269,8 +381,33 @@ export class PiThreadSupervisor {
     return this.openSession(sessionManager, info.cwd || this.workspacePath);
   }
 
+  private async listSessionInfos(
+    workspacePath: string,
+  ): Promise<readonly PiSessionInfo[]> {
+    const existing = this.catalogCache.get(workspacePath);
+    if (existing?.infos) return existing.infos;
+    if (existing?.promise) return existing.promise;
+
+    const entry: CatalogCacheEntry = { infos: undefined, promise: undefined };
+    const promise = SessionManager.list(workspacePath)
+      .then((infos) => {
+        entry.infos = infos;
+        return infos;
+      })
+      .finally(() => {
+        entry.promise = undefined;
+      });
+    entry.promise = promise;
+    this.catalogCache.set(workspacePath, entry);
+    return promise;
+  }
+
+  private invalidateCatalog(workspacePath = this.workspacePath) {
+    this.catalogCache.delete(workspacePath);
+  }
+
   private async findSessionInfo(threadId: string) {
-    const local = await SessionManager.list(this.workspacePath);
+    const local = await this.listSessionInfos(this.workspacePath);
     const hit = local.find((info) => info.id === threadId);
     if (hit) return hit;
     const all = await SessionManager.listAll();
@@ -369,6 +506,22 @@ export class PiThreadSupervisor {
     });
   }
 
+  private modelInfoOf(model: PiRegistryModel): PiModelInfo {
+    const map = model.thinkingLevelMap as
+      | Partial<Record<PiThinkingLevel, unknown>>
+      | undefined;
+    const availableThinkingLevels = map
+      ? THINKING_LEVELS.filter((level) => map[level] !== null)
+      : undefined;
+    return {
+      provider: String(model.provider),
+      modelId: model.id,
+      ...(model.name ? { name: model.name } : {}),
+      supportsThinking: Boolean(model.reasoning),
+      ...(availableThinkingLevels ? { availableThinkingLevels } : {}),
+    };
+  }
+
   private queuedMessagesOf(record: ThreadRecord): PiQueuedMessage[] {
     const session = record.session;
     return [
@@ -398,9 +551,19 @@ export class PiThreadSupervisor {
       ...(session.sessionName ? { title: session.sessionName } : {}),
       ...(session.sessionFile ? { sessionFile: session.sessionFile } : {}),
       ...(model
-        ? { config: { provider: model.provider, modelId: model.id } }
-        : {}),
+        ? {
+            config: {
+              provider: model.provider,
+              modelId: model.id,
+              thinkingLevel: session.thinkingLevel,
+            },
+          }
+        : { config: { thinkingLevel: session.thinkingLevel } }),
       ...(usage ? { contextUsage: usage satisfies PiContextUsage } : {}),
+      ...(session.sessionFile &&
+      this.archivedSessionFiles.has(session.sessionFile)
+        ? { archived: true }
+        : {}),
       ...(queued.length ? { queuedMessages: queued } : {}),
     };
   }

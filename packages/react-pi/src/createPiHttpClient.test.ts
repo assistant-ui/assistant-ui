@@ -113,6 +113,51 @@ describe("createPiHttpClient", () => {
     });
   });
 
+  it("gets models and sets model/thinking through routes", async () => {
+    const { fn, calls } = fakeFetch((url) =>
+      url.startsWith("/api/pi/models")
+        ? json([{ provider: "anthropic", modelId: "claude" }])
+        : new Response(null, { status: 204 }),
+    );
+    const client = createPiHttpClient({ fetchImpl: fn });
+
+    await expect(
+      client.getAvailableModels({ workspacePath: "/ws" }),
+    ).resolves.toEqual([{ provider: "anthropic", modelId: "claude" }]);
+    await client.setModel("t1", { provider: "anthropic", modelId: "claude" });
+    await client.setThinkingLevel("t1", "high");
+
+    expect(calls[0]).toMatchObject({
+      url: "/api/pi/models?workspacePath=%2Fws",
+      method: "GET",
+    });
+    expect(calls[1]).toMatchObject({
+      url: "/api/pi/threads/t1/model",
+      method: "POST",
+      body: { provider: "anthropic", modelId: "claude" },
+    });
+    expect(calls[2]).toMatchObject({
+      url: "/api/pi/threads/t1/thinking",
+      method: "POST",
+      body: { level: "high" },
+    });
+  });
+
+  it("archives, unarchives, and deletes threads", async () => {
+    const { fn, calls } = fakeFetch(() => new Response(null, { status: 204 }));
+    const client = createPiHttpClient({ fetchImpl: fn });
+
+    await client.archiveThread("t1");
+    await client.unarchiveThread("t1");
+    await client.deleteThread("t1");
+
+    expect(calls.map((c) => [c.method, c.url])).toEqual([
+      ["POST", "/api/pi/threads/t1/archive"],
+      ["POST", "/api/pi/threads/t1/unarchive"],
+      ["DELETE", "/api/pi/threads/t1"],
+    ]);
+  });
+
   it("posts a host-ui response wrapped as { response }", async () => {
     const { fn, calls } = fakeFetch(() => new Response(null, { status: 204 }));
     await createPiHttpClient({ fetchImpl: fn }).respondToHostUiRequest("t1", {

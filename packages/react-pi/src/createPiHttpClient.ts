@@ -16,6 +16,12 @@
  *   PATCH  /threads/:id             → 204                   (body: { title })
  *   POST   /threads/:id/messages    → 204                   (body: { input })
  *   POST   /threads/:id/cancel      → 204
+ *   GET    /models                  → PiModelInfo[]
+ *   POST   /threads/:id/model       → 204                   (body: { provider, modelId })
+ *   POST   /threads/:id/thinking    → 204                   (body: { level })
+ *   POST   /threads/:id/archive     → 204
+ *   POST   /threads/:id/unarchive   → 204
+ *   DELETE /threads/:id             → 204
  *   POST   /threads/:id/host-ui     → 204                   (body: { response })
  *   GET    /threads/:id/events      → SSE of PiClientEvent
  */
@@ -24,7 +30,9 @@ import type {
   PiClient,
   PiClientEvent,
   PiHostUiResponse,
+  PiModelInfo,
   PiSendMessageInput,
+  PiThinkingLevel,
   PiThreadMetadata,
   PiThreadSnapshot,
 } from "./piTypes";
@@ -122,8 +130,45 @@ export const createPiHttpClient = (
       await assertOk(await send(`${threadUrl(threadId)}/cancel`, "POST"));
     },
 
+    getAvailableModels: async (input) => {
+      const params = new URLSearchParams();
+      if (input?.workspacePath)
+        params.set("workspacePath", input.workspacePath);
+      const query = params.toString();
+      const response = await fetchImpl(
+        `${base}/models${query ? `?${query}` : ""}`,
+        {
+          method: "GET",
+          ...(headers ? { headers } : {}),
+        },
+      );
+      return readJson<PiModelInfo[]>(response);
+    },
+
+    setModel: async (threadId, input) => {
+      await assertOk(await send(`${threadUrl(threadId)}/model`, "POST", input));
+    },
+
+    setThinkingLevel: async (threadId, level: PiThinkingLevel) => {
+      await assertOk(
+        await send(`${threadUrl(threadId)}/thinking`, "POST", { level }),
+      );
+    },
+
     renameThread: async (threadId, title) => {
       await assertOk(await send(threadUrl(threadId), "PATCH", { title }));
+    },
+
+    archiveThread: async (threadId) => {
+      await assertOk(await send(`${threadUrl(threadId)}/archive`, "POST"));
+    },
+
+    unarchiveThread: async (threadId) => {
+      await assertOk(await send(`${threadUrl(threadId)}/unarchive`, "POST"));
+    },
+
+    deleteThread: async (threadId) => {
+      await assertOk(await send(threadUrl(threadId), "DELETE"));
     },
 
     respondToHostUiRequest: async (threadId, response: PiHostUiResponse) => {

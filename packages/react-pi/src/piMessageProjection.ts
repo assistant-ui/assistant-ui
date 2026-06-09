@@ -413,6 +413,78 @@ const standaloneData = (
   content: [dataPart(name, data)],
 });
 
+const isDateEqual = (a: unknown, b: unknown) =>
+  a instanceof Date && b instanceof Date
+    ? a.getTime() === b.getTime()
+    : undefined;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" &&
+  value !== null &&
+  Object.getPrototypeOf(value) === Object.prototype;
+
+const deepEqual = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true;
+
+  const dateEqual = isDateEqual(a, b);
+  if (dateEqual !== undefined) return dateEqual;
+
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!deepEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  if (isPlainObject(a) || isPlainObject(b)) {
+    if (!isPlainObject(a) || !isPlainObject(b)) return false;
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length) return false;
+    for (const key of aKeys) {
+      if (!Object.prototype.hasOwnProperty.call(b, key)) return false;
+      if (!deepEqual(a[key], b[key])) return false;
+    }
+    return true;
+  }
+
+  return false;
+};
+
+const sameThreadMessageLike = (
+  a: ThreadMessageLike,
+  b: ThreadMessageLike,
+): boolean =>
+  a.id === b.id &&
+  a.role === b.role &&
+  deepEqual(a.createdAt, b.createdAt) &&
+  deepEqual(a.content, b.content) &&
+  deepEqual(a.status, b.status) &&
+  deepEqual(a.metadata, b.metadata);
+
+export const shareProjectedThreadMessages = (
+  next: readonly ThreadMessageLike[],
+  previous: readonly ThreadMessageLike[],
+): readonly ThreadMessageLike[] => {
+  let changed = next.length !== previous.length;
+  const shared = next.map((message, index) => {
+    const prev = previous[index];
+    if (prev && sameThreadMessageLike(message, prev)) return prev;
+    changed = true;
+    return message;
+  });
+
+  return changed ? shared : previous;
+};
+
+export const projectPiThreadMessagesShared = (
+  input: PiProjectionInput,
+  previous: readonly ThreadMessageLike[],
+): readonly ThreadMessageLike[] =>
+  shareProjectedThreadMessages(projectPiThreadMessages(input), previous);
+
 export const projectPiThreadRepository = (input: PiProjectionInput) =>
   ExportedMessageRepository.fromArray(projectPiThreadMessages(input));
 

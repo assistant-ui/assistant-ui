@@ -5,6 +5,7 @@ import type {
   PiClient,
   PiClientEvent,
   PiClientEventBody,
+  PiAssistantMessage,
   PiHostUiRequest,
   PiSendMessageInput,
   PiThreadSnapshot,
@@ -24,6 +25,8 @@ type FakeClient = PiClient & {
   unsubscribed: number;
   sent: Array<{ threadId: string; input: PiSendMessageInput }>;
   cancelled: string[];
+  modelChanges: Array<{ threadId: string; provider: string; modelId: string }>;
+  thinkingChanges: Array<{ threadId: string; level: string }>;
   hostUiResponses: Array<{ threadId: string; response: unknown }>;
   getThreadSnapshot: PiThreadSnapshot;
 };
@@ -37,6 +40,8 @@ const createFakeClient = (
     unsubscribed: 0,
     sent: [],
     cancelled: [],
+    modelChanges: [],
+    thinkingChanges: [],
     hostUiResponses: [],
     getThreadSnapshot: initial,
     emit(event) {
@@ -57,7 +62,19 @@ const createFakeClient = (
     async cancelRun(threadId) {
       client.cancelled.push(threadId);
     },
+    async getAvailableModels() {
+      return [];
+    },
+    async setModel(threadId, input) {
+      client.modelChanges.push({ threadId, ...input });
+    },
+    async setThinkingLevel(threadId, level) {
+      client.thinkingChanges.push({ threadId, level });
+    },
     async renameThread() {},
+    async archiveThread() {},
+    async unarchiveThread() {},
+    async deleteThread() {},
     async respondToHostUiRequest(threadId, response) {
       client.hostUiResponses.push({ threadId, response });
     },
@@ -71,6 +88,24 @@ const createFakeClient = (
   };
   return client;
 };
+
+const assistantMessage = (text: string, timestamp = 1): PiAssistantMessage => ({
+  role: "assistant",
+  content: [{ type: "text", text }],
+  api: "anthropic-messages",
+  provider: "anthropic",
+  model: "claude",
+  usage: {
+    input: 0,
+    output: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+    totalTokens: 0,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+  },
+  stopReason: "stop",
+  timestamp,
+});
 
 const userMessage = (
   text: string,
@@ -199,6 +234,21 @@ describe("PiThreadController", () => {
     expect(client.cancelled).toEqual([THREAD]);
   });
 
+  it("sets model and thinking level via the client", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    await controller.setModel({ provider: "anthropic", modelId: "claude" });
+    await controller.setThinkingLevel("high");
+
+    expect(client.modelChanges).toEqual([
+      { threadId: THREAD, provider: "anthropic", modelId: "claude" },
+    ]);
+    expect(client.thinkingChanges).toEqual([
+      { threadId: THREAD, level: "high" },
+    ]);
+  });
+
   it("answers a tool approval and optimistically clears the request", async () => {
     const request: PiHostUiRequest = {
       id: "r1",
@@ -277,5 +327,138 @@ describe("PiThreadController", () => {
     await Promise.resolve();
     expect(getThread).toHaveBeenCalled();
     expect(controller.getState().messages).toHaveLength(1);
+  });
+
+  it("shows an optimistic user message before send resolves", async () => {
+    const client = createFakeClient();
+    let resolveSend!: () => void;
+    client.sendMessage = async (threadId, input) => {
+      client.sent.push({ threadId, input });
+      await new Promise<void>((resolve) => {
+        resolveSend = resolve;
+      });
+    };
+    const controller = new PiThreadController(client, THREAD);
+    const notify = vi.fn();
+    controller.subscribe(notify);
+
+    const send = controller.sendMessage(userMessage("instant"));
+
+    expect(controller.getProjectedMessages()).toHaveLength(1);
+    expect(controller.getProjectedMessages()[0]).toMatchObject({
+      role: "user",
+      content: [{ type: "text", text: "instant" }],
+    });
+    expect(controller.getVersion()).toBeGreaterThan(0);
+    expect(notify).toHaveBeenCalled();
+
+    resolveSend();
+    await send;
+  });
+
+  it("coalesces high-frequency stream notifications", () => {
+    const client = createFakeClient();
+    const scheduled: Array<() => void> = [];
+    const controller = new PiThreadController(client, THREAD, {
+      scheduleNotify: (flush) => scheduled.push(flush),
+    });
+    const notify = vi.fn();
+    controller.subscribe(notify);
+
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("", 1),
+        },
+        1,
+      ),
+    );
+    notify.mockClear();
+
+    for (let i = 0; i < 1000; i++) {
+      client.emit(
+        ev(
+          {
+            type: "message_update",
+            message: assistantMessage(`token-${i}`, 1),
+            assistantMessageEvent: {
+              type: "text_delta",
+              contentIndex: 0,
+              delta: `token-${i}`,
+              partial: assistantMessage(`token-${i}`, 1),
+            },
+          },
+          i + 2,
+        ),
+      );
+    }
+
+    expect(scheduled).toHaveLength(1);
+    expect(notify).not.toHaveBeenCalled();
+
+    scheduled[0]!();
+
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(controller.getProjectedMessages()[0]!.content).toMatchObject([
+      { type: "text", text: "token-999" },
+    ]);
+  });
+
+  it("preserves unchanged projected message identities across a stream delta", () => {
+    const client = createFakeClient(
+      snapshot({
+        messages: [{ role: "user", content: "stable", timestamp: 1 }],
+      }),
+    );
+    const scheduled: Array<() => void> = [];
+    const controller = new PiThreadController(client, THREAD, {
+      scheduleNotify: (flush) => scheduled.push(flush),
+    });
+    controller.subscribe(() => {});
+
+    client.emit(
+      ev(
+        {
+          type: "snapshot",
+          snapshot: client.getThreadSnapshot,
+        },
+        1,
+      ),
+    );
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("a", 2),
+        },
+        2,
+      ),
+    );
+
+    const before = controller.getProjectedMessages();
+    const stableUser = before[0]!;
+
+    client.emit(
+      ev(
+        {
+          type: "message_update",
+          message: assistantMessage("ab", 2),
+          assistantMessageEvent: {
+            type: "text_delta",
+            contentIndex: 0,
+            delta: "b",
+            partial: assistantMessage("ab", 2),
+          },
+        },
+        3,
+      ),
+    );
+    scheduled[0]!();
+
+    const after = controller.getProjectedMessages();
+    expect(after[0]).toBe(stableUser);
+    expect(after[1]).not.toBe(before[1]);
+    expect(after[1]!.content).toMatchObject([{ type: "text", text: "ab" }]);
   });
 });

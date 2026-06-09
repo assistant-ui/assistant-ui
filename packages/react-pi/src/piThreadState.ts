@@ -332,6 +332,15 @@ export const reducePiThreadState = (
       return stamped({ ...state, metadata });
     }
 
+    case "thinking_level_changed":
+      return stamped({
+        ...state,
+        metadata: {
+          ...state.metadata,
+          config: { ...state.metadata.config, thinkingLevel: event.level },
+        },
+      });
+
     case "extension_ui_request": {
       const exists = state.hostUiRequests.some(
         (r) => r.id === event.request.id,

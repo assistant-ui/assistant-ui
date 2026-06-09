@@ -195,7 +195,11 @@ export type PiAssistantMessageDelta =
       content: string;
       partial: PiAssistantMessage;
     }
-  | { type: "thinking_start"; contentIndex: number; partial: PiAssistantMessage }
+  | {
+      type: "thinking_start";
+      contentIndex: number;
+      partial: PiAssistantMessage;
+    }
   | {
       type: "thinking_delta";
       contentIndex: number;
@@ -208,7 +212,11 @@ export type PiAssistantMessageDelta =
       content: string;
       partial: PiAssistantMessage;
     }
-  | { type: "toolcall_start"; contentIndex: number; partial: PiAssistantMessage }
+  | {
+      type: "toolcall_start";
+      contentIndex: number;
+      partial: PiAssistantMessage;
+    }
   | {
       type: "toolcall_delta";
       contentIndex: number;
@@ -242,6 +250,22 @@ export interface PiContextUsage {
 // ---------------------------------------------------------------------------
 // Model / credential readiness (PI_MVP_PLAN §5).
 // ---------------------------------------------------------------------------
+
+export type PiThinkingLevel =
+  | "off"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh";
+
+export type PiModelInfo = {
+  provider: string;
+  modelId: string;
+  name?: string;
+  supportsThinking?: boolean;
+  availableThinkingLevels?: readonly PiThinkingLevel[];
+};
 
 export type PiRuntimeReadiness =
   | {
@@ -277,7 +301,11 @@ export type PiThreadMetadata = {
   status: PiThreadStatus;
   runningRunId?: string;
   queuedMessages?: readonly PiQueuedMessage[];
-  config?: { provider?: string; modelId?: string; thinkingLevel?: string };
+  config?: {
+    provider?: string;
+    modelId?: string;
+    thinkingLevel?: PiThinkingLevel | string;
+  };
   contextUsage?: PiContextUsage;
   /** Session .jsonl path — the durable handle (`SessionInfo.path`). */
   sessionFile?: string;
@@ -466,10 +494,19 @@ export interface PiClient {
   sendMessage(threadId: string, input: PiSendMessageInput): Promise<void>;
   cancelRun(threadId: string): Promise<void>;
 
+  getAvailableModels(input?: {
+    workspacePath?: string;
+  }): Promise<PiModelInfo[]>;
+  setModel(
+    threadId: string,
+    input: { provider: string; modelId: string },
+  ): Promise<void>;
+  setThinkingLevel(threadId: string, level: PiThinkingLevel): Promise<void>;
+
   renameThread(threadId: string, title: string): Promise<void>;
-  archiveThread?(threadId: string): Promise<void>;
-  unarchiveThread?(threadId: string): Promise<void>;
-  deleteThread?(threadId: string): Promise<void>;
+  archiveThread(threadId: string): Promise<void>;
+  unarchiveThread(threadId: string): Promise<void>;
+  deleteThread(threadId: string): Promise<void>;
 
   /** Answer a blocking extension UI request (the approval/permission surface). */
   respondToHostUiRequest(

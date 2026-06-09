@@ -4,8 +4,9 @@ Pi coding-agent runtime adapter for [assistant-ui](https://www.assistant-ui.com/
 
 This package lets assistant-ui render and drive [Pi](https://www.npmjs.com/package/@earendil-works/pi-coding-agent)-backed
 threads: streaming assistant/reasoning output, tool calls with live streaming
-results, mid-run steering and follow-up, the blocking extension UI (Pi's entire
-human-in-the-loop/approval surface), and a multi-thread thread list.
+results, mid-run steering and follow-up, per-thread model/thinking controls,
+the blocking extension UI (Pi's entire human-in-the-loop/approval surface), and
+a multi-thread thread list.
 
 ## Package boundary
 

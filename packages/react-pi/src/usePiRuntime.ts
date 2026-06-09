@@ -2,7 +2,7 @@
 
 import {
   ExportedMessageRepository,
-  pickExternalStoreSharedOptions,
+  useAui,
   useAuiState,
   useExternalStoreRuntime,
   useRemoteThreadListRuntime,
@@ -12,18 +12,21 @@ import type {
   ExternalStoreAdapter,
   ExternalStoreSharedOptions,
   ThreadMessage,
+  ThreadMessageLike,
 } from "@assistant-ui/react";
 import {
   useEffect,
   useEffectEvent,
   useMemo,
+  useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
 import {
+  buildPiSendInput,
   PiThreadController,
   type PiThreadControllerLike,
 } from "./PiThreadController";
-import { projectPiThreadRepository } from "./piMessageProjection";
 import { splitHostUiRequests, type PiInterruptAnswer } from "./piHostUi";
 import { createPiThreadState, type PiThreadState } from "./piThreadState";
 import type {
@@ -32,6 +35,7 @@ import type {
   PiHostUiRequest,
   PiHostUiResponse,
   PiRuntimeReadiness,
+  PiThinkingLevel,
   PiThreadMetadata,
   PiThreadStatus,
 } from "./piTypes";
@@ -49,7 +53,7 @@ export type PiRuntimeOptions = ExternalStoreSharedOptions & {
   initialThreadId?: string;
   threadId?: string;
   onError?: (error: unknown) => void;
-  adapters?: ExternalStoreAdapter<ThreadMessage>["adapters"];
+  adapters?: ExternalStoreAdapter<ThreadMessageLike>["adapters"];
 };
 
 export interface PiRuntimeExtras {
@@ -70,6 +74,8 @@ export interface PiRuntimeExtras {
   lastError: string | undefined;
   cancel: () => Promise<void>;
   refresh: () => Promise<void>;
+  setModel: (input: { provider: string; modelId: string }) => Promise<void>;
+  setThinkingLevel: (level: PiThinkingLevel) => Promise<void>;
   respondToHostUiRequest: (response: PiHostUiResponse) => Promise<void>;
   respondToToolApproval: (id: string, approved: boolean) => Promise<void>;
   resumeToolCall: (
@@ -89,6 +95,7 @@ const symbolPiRuntimeExtras = Symbol("pi-runtime-extras");
 
 type PiRuntimeExtrasInternal = PiRuntimeExtras & {
   [symbolPiRuntimeExtras]: true;
+  controller: PiThreadControllerLike;
 };
 
 const isPiRuntimeExtras = (
@@ -101,15 +108,12 @@ const isPiRuntimeExtras = (
 const tryGetPiRuntimeExtras = (extras: unknown) =>
   isPiRuntimeExtras(extras) ? extras : undefined;
 
-const asPiRuntimeExtras = (extras: unknown) => {
-  const found = tryGetPiRuntimeExtras(extras);
-  if (!found) {
-    throw new Error("This hook can only be used inside a Pi runtime context");
-  }
-  return found;
-};
+const asPiRuntimeExtras = (extras: unknown) =>
+  tryGetPiRuntimeExtras(extras) ?? EMPTY_RUNTIME_EXTRAS;
 
 const EMPTY_THREAD_STATE = createPiThreadState("__pending__");
+const EMPTY_PROJECTED_MESSAGES: readonly ThreadMessageLike[] = [];
+const EMPTY_MESSAGE_REPOSITORY = ExportedMessageRepository.fromArray([]);
 
 // ---------------------------------------------------------------------------
 // Controller registry (cached across StrictMode remounts).
@@ -149,11 +153,18 @@ const getController = (
 
 const NOOP_CONTROLLER: PiThreadControllerLike = {
   getState: () => EMPTY_THREAD_STATE,
+  getProjectedMessages: () => EMPTY_PROJECTED_MESSAGES,
+  getMessageRepository: () => EMPTY_MESSAGE_REPOSITORY,
+  getVersion: () => 0,
   subscribe: () => () => {},
+  subscribeMetadata: () => () => {},
+  subscribeMessages: () => () => {},
   load: async () => {},
   refresh: async () => {},
   sendMessage: async () => {},
   cancel: async () => {},
+  setModel: async () => {},
+  setThinkingLevel: async () => {},
   respondToToolApproval: async () => {},
   resumeToolCall: async () => {},
   respondToHostUiRequest: async () => {},
@@ -163,18 +174,49 @@ const NOOP_CONTROLLER: PiThreadControllerLike = {
 const NOOP_ON_NEW = () =>
   Promise.reject(new Error("Pi thread is still initializing"));
 
+const EMPTY_RUNTIME_EXTRAS: PiRuntimeExtrasInternal = {
+  [symbolPiRuntimeExtras]: true,
+  controller: NOOP_CONTROLLER,
+  state: EMPTY_THREAD_STATE,
+  metadata: EMPTY_THREAD_STATE.metadata,
+  status: "idle",
+  readiness: undefined,
+  contextUsage: undefined,
+  hostUiRequests: [],
+  allHostUiRequests: [],
+  queue: EMPTY_THREAD_STATE.queue,
+  compaction: EMPTY_THREAD_STATE.compaction,
+  retry: EMPTY_THREAD_STATE.retry,
+  lastError: undefined,
+  cancel: () => NOOP_CONTROLLER.cancel(),
+  refresh: () => NOOP_CONTROLLER.refresh(),
+  setModel: (input) => NOOP_CONTROLLER.setModel(input),
+  setThinkingLevel: (level) => NOOP_CONTROLLER.setThinkingLevel(level),
+  respondToHostUiRequest: (response) =>
+    NOOP_CONTROLLER.respondToHostUiRequest(response),
+  respondToToolApproval: (id, approved) =>
+    NOOP_CONTROLLER.respondToToolApproval(id, approved),
+  resumeToolCall: (toolCallId, payload) =>
+    NOOP_CONTROLLER.resumeToolCall(toolCallId, payload),
+};
+
 // ---------------------------------------------------------------------------
 // Per-thread runtime.
 // ---------------------------------------------------------------------------
 
-const usePiControllerState = (
-  controller: PiThreadControllerLike,
-): PiThreadState =>
+const usePiControllerVersion = (controller: PiThreadControllerLike): number =>
   useSyncExternalStore(
     (listener) => controller.subscribe(listener),
-    () => controller.getState(),
-    () => controller.getState(),
+    () => controller.getVersion(),
+    () => 0,
   );
+
+const usePiControllerState = (
+  controller: PiThreadControllerLike,
+): PiThreadState => {
+  usePiControllerVersion(controller);
+  return controller.getState();
+};
 
 const isPiStateRunning = (state: PiThreadState): boolean =>
   state.runStatus === "running" ||
@@ -186,9 +228,21 @@ const usePiThreadRuntime = (
   options: PiRuntimeOptions,
 ): AssistantRuntime => {
   const state = usePiControllerState(controller);
+  const messageRepository = controller.getMessageRepository();
+
+  const {
+    adapters,
+    isDisabled,
+    isSendDisabled,
+    onError,
+    suggestions,
+    unstable_capabilities,
+  } = options;
+  const isLoading = state.loadState === "loading";
+  const isRunning = isPiStateRunning(state);
 
   const onLoadError = useEffectEvent((error: unknown) => {
-    options.onError?.(error);
+    onError?.(error);
   });
 
   useEffect(() => {
@@ -196,21 +250,11 @@ const usePiThreadRuntime = (
     void controller.load().catch(onLoadError);
   }, [controller]);
 
-  const messageRepository = useMemo(
-    () =>
-      projectPiThreadRepository({
-        messages: state.messages,
-        toolExecutions: state.toolExecutions,
-        runStatus: state.runStatus,
-        hostUiRequests: state.hostUiRequests,
-      }),
-    [state],
-  );
-
   const extras = useMemo<PiRuntimeExtrasInternal>(() => {
     const { freeStanding } = splitHostUiRequests(state.hostUiRequests);
     return {
       [symbolPiRuntimeExtras]: true,
+      controller,
       state,
       metadata: state.metadata,
       status: state.runStatus === "failed" ? "failed" : state.runStatus,
@@ -224,6 +268,8 @@ const usePiThreadRuntime = (
       lastError: state.lastError,
       cancel: () => controller.cancel(),
       refresh: () => controller.refresh(),
+      setModel: (input) => controller.setModel(input),
+      setThinkingLevel: (level) => controller.setThinkingLevel(level),
       respondToHostUiRequest: (response) =>
         controller.respondToHostUiRequest(response),
       respondToToolApproval: (id, approved) =>
@@ -233,43 +279,157 @@ const usePiThreadRuntime = (
     };
   }, [controller, state]);
 
-  return useExternalStoreRuntime<ThreadMessage>({
-    ...pickExternalStoreSharedOptions(options),
-    isLoading: state.loadState === "loading",
-    isRunning: isPiStateRunning(state),
-    messageRepository,
-    extras,
-    ...(options.adapters ? { adapters: options.adapters } : {}),
-    onNew: async (message) => {
-      try {
-        await controller.sendMessage(message);
-      } catch (error) {
-        options.onError?.(error);
-        throw error;
-      }
-    },
-    onCancel: async () => {
-      try {
-        await controller.cancel();
-      } catch (error) {
-        options.onError?.(error);
-        throw error;
-      }
-    },
-    onRespondToToolApproval: async ({ approvalId, approved }) => {
-      try {
-        await controller.respondToToolApproval(approvalId, approved);
-      } catch (error) {
-        options.onError?.(error);
-        throw error;
-      }
-    },
-    onResumeToolCall: ({ toolCallId, payload }) => {
-      void controller
-        .resumeToolCall(toolCallId, payload as PiInterruptAnswer)
-        .catch((error) => options.onError?.(error));
-    },
-  });
+  const store = useMemo<ExternalStoreAdapter<ThreadMessage>>(
+    () => ({
+      isDisabled,
+      isSendDisabled,
+      unstable_capabilities,
+      suggestions,
+      isLoading,
+      isRunning,
+      messageRepository,
+      extras,
+      ...(adapters ? { adapters } : {}),
+      onNew: async (message) => {
+        try {
+          await controller.sendMessage(message);
+        } catch (error) {
+          onError?.(error);
+          throw error;
+        }
+      },
+      onCancel: async () => {
+        try {
+          await controller.cancel();
+        } catch (error) {
+          onError?.(error);
+          throw error;
+        }
+      },
+      onRespondToToolApproval: async ({ approvalId, approved }) => {
+        try {
+          await controller.respondToToolApproval(approvalId, approved);
+        } catch (error) {
+          onError?.(error);
+          throw error;
+        }
+      },
+      onResumeToolCall: ({ toolCallId, payload }) => {
+        void controller
+          .resumeToolCall(toolCallId, payload as PiInterruptAnswer)
+          .catch((error) => onError?.(error));
+      },
+    }),
+    [
+      controller,
+      extras,
+      messageRepository,
+      adapters,
+      isDisabled,
+      isLoading,
+      isRunning,
+      isSendDisabled,
+      onError,
+      suggestions,
+      unstable_capabilities,
+    ],
+  );
+
+  return useExternalStoreRuntime<ThreadMessage>(store);
+};
+
+const toOptimisticThreadMessage = (
+  message: Parameters<ExternalStoreAdapter<ThreadMessageLike>["onNew"]>[0],
+  index: number,
+): ThreadMessageLike => ({
+  id: `pi-new-user:${index}`,
+  role: "user",
+  createdAt: new Date(),
+  content: [
+    ...message.content,
+    ...(message.attachments?.flatMap((a) => a.content ?? []) ?? []),
+  ],
+});
+
+const useNewPiThreadRuntime = (
+  client: PiClient,
+  options: PiRuntimeOptions,
+  enabled: boolean,
+): AssistantRuntime => {
+  const aui = useAui();
+  const {
+    adapters,
+    isDisabled,
+    isSendDisabled,
+    onError,
+    suggestions,
+    unstable_capabilities,
+  } = options;
+  const [optimisticMessages, setOptimisticMessages] = useState<
+    readonly ThreadMessageLike[]
+  >([]);
+  const optimisticRepository = useMemo(
+    () =>
+      ExportedMessageRepository.fromBranchableArray(
+        optimisticMessages.map((message, index) => ({
+          message,
+          parentId:
+            index > 0 ? (optimisticMessages[index - 1]!.id ?? null) : null,
+        })),
+      ),
+    [optimisticMessages],
+  );
+
+  const store = useMemo<ExternalStoreAdapter<ThreadMessage>>(
+    () => ({
+      isDisabled: isDisabled || !enabled,
+      isSendDisabled,
+      unstable_capabilities,
+      suggestions,
+      isLoading: !enabled,
+      isRunning: false,
+      messageRepository: optimisticRepository,
+      extras: EMPTY_RUNTIME_EXTRAS,
+      ...(adapters ? { adapters } : {}),
+      onNew: async (message) => {
+        if (!enabled) return NOOP_ON_NEW();
+        const optimistic = toOptimisticThreadMessage(
+          message,
+          optimisticMessages.length,
+        );
+        setOptimisticMessages((messages) => [...messages, optimistic]);
+        try {
+          const { remoteId } = await aui.threadListItem().initialize();
+          await client.sendMessage(
+            remoteId,
+            buildPiSendInput(message, undefined),
+          );
+          setOptimisticMessages([]);
+        } catch (error) {
+          setOptimisticMessages((messages) =>
+            messages.filter((message) => message !== optimistic),
+          );
+          onError?.(error);
+          throw error;
+        }
+      },
+    }),
+    [
+      aui,
+      client,
+      enabled,
+      optimisticMessages.length,
+      optimisticRepository,
+      adapters,
+      isDisabled,
+      isSendDisabled,
+      onError,
+      suggestions,
+      unstable_capabilities,
+    ],
+  );
+
+  return useExternalStoreRuntime<ThreadMessage>(store);
 };
 
 const useRuntimeHook = (
@@ -277,25 +437,34 @@ const useRuntimeHook = (
   registry: PiControllerRegistry,
   options: PiRuntimeOptions,
 ) => {
-  const threadId = useAuiState(
-    (state: any) =>
-      state.threadListItem.externalId ?? state.threadListItem.remoteId,
-  );
+  const threadListItem = useAuiState((state: any) => state.threadListItem);
+  const threadId = threadListItem.externalId ?? threadListItem.remoteId;
 
-  const controller = threadId
-    ? getController(registry, client, threadId)
-    : NOOP_CONTROLLER;
+  const controllerRef = useRef<{
+    client: PiClient;
+    threadId: string;
+    controller: PiThreadController;
+  } | null>(null);
+  const controller = (() => {
+    if (!threadId) return NOOP_CONTROLLER;
+    const cached = controllerRef.current;
+    if (cached?.client === client && cached.threadId === threadId) {
+      return cached.controller;
+    }
+    const next = getController(registry, client, threadId);
+    controllerRef.current = { client, threadId, controller: next };
+    return next;
+  })();
 
   const threadRuntime = usePiThreadRuntime(controller, options);
+  const newThreadRuntime = useNewPiThreadRuntime(
+    client,
+    options,
+    threadListItem.status === "new",
+  );
 
-  const fallbackRuntime = useExternalStoreRuntime<ThreadMessage>({
-    isDisabled: true,
-    isLoading: true,
-    messageRepository: ExportedMessageRepository.fromArray([]),
-    onNew: NOOP_ON_NEW,
-  });
-
-  return threadId ? threadRuntime : fallbackRuntime;
+  if (threadId) return threadRuntime;
+  return newThreadRuntime;
 };
 
 // ---------------------------------------------------------------------------
@@ -412,11 +581,13 @@ export const usePiSession = (): PiThreadMetadata | null =>
 export function usePiThreadState(): PiThreadState;
 export function usePiThreadState<T>(selector: (state: PiThreadState) => T): T;
 export function usePiThreadState<T>(selector?: (state: PiThreadState) => T) {
-  return useAuiState((state: any) => {
-    const extras = tryGetPiRuntimeExtras(state.thread.extras);
-    const threadState = extras?.state ?? EMPTY_THREAD_STATE;
-    return selector ? selector(threadState) : threadState;
-  });
+  const extras = useAuiState((state: any) =>
+    tryGetPiRuntimeExtras(state.thread.extras),
+  );
+  const controller = extras?.controller ?? NOOP_CONTROLLER;
+  const threadState = usePiControllerState(controller);
+
+  return selector ? selector(threadState) : threadState;
 }
 
 export const usePiHostUiRequests = () => {
