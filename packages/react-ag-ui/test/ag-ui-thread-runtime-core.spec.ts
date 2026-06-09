@@ -1917,4 +1917,51 @@ describe("AGUIThreadRuntimeCore", () => {
       .filter((m) => m.id.startsWith("__optimistic__"));
     expect(optimisticLingerers).toHaveLength(0);
   });
+
+  it("marks the placeholder as optimistic and clears the flag once the server id arrives", async () => {
+    const serverId = "srv-optimistic-flag";
+    let midRunAssistant: ThreadAssistantMessage | undefined;
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "partial" },
+        });
+        midRunAssistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: serverId },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(midRunAssistant?.id.startsWith("__optimistic__")).toBe(true);
+    expect(midRunAssistant?.metadata.isOptimistic).toBe(true);
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.id === serverId) as ThreadAssistantMessage;
+    expect(assistant).toBeDefined();
+    expect(assistant.metadata.isOptimistic).toBeUndefined();
+  });
+
+  it("clears the optimistic flag when the id stabilizes without a server id", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "ok" },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.id.startsWith("__optimistic__")).toBe(false);
+    expect(assistant.metadata.isOptimistic).toBeUndefined();
+  });
 });
