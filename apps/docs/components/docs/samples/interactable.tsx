@@ -87,8 +87,8 @@ const TaskBoard: FC = () => {
             </div>
           ) : (
             <ul className="space-y-1.5">
-              {state.tasks.map((task) => (
-                <li key={task.id}>
+              {state.tasks.map((task, index) => (
+                <li key={task.id ? `${task.id}-${index}` : `task-${index}`}>
                   <button
                     type="button"
                     onClick={() => toggleTask(task.id)}

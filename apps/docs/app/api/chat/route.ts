@@ -1,6 +1,9 @@
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
 import { createPrismTracer } from "@/lib/prism-server";
-import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
+import {
+  injectQuoteContext,
+  injectInteractableContext,
+} from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
@@ -86,7 +89,9 @@ export async function POST(req: Request) {
       : null;
 
     const prunedMessages = pruneMessages({
-      messages: await convertToModelMessages(injectQuoteContext(messages)),
+      messages: await convertToModelMessages(
+        injectInteractableContext(injectQuoteContext(messages)),
+      ),
       reasoning: "none",
     });
 
