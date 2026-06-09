@@ -17,7 +17,7 @@ function recordSubscriber() {
 }
 
 describe("GorpRelay — forwarding", () => {
-  it("forwards each received command via sendUpstream", () => {
+  it("forwards each received command via send", () => {
     const sent: Command[] = [];
     const relay = new GorpRelay<State, Command>({
       initialState: initial(),

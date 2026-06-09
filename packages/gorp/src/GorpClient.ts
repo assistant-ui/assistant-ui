@@ -185,21 +185,24 @@ export class GorpClient<T extends Record<string, unknown>, C> {
 
   apply({ ops, ack }: GorpMessage): void {
     this.beginFrame();
+    const hadOps = ops.length > 0;
 
     for (const op of ops) {
       this.changes = markChanged(this.changes, op.path);
     }
 
     this.committed.apply(ops);
+    let spliced = false;
     if (ack !== undefined) {
-      const firstPendingSeq = this._nextSeq - this._pending.length;
-      const spliceCount = ack - firstPendingSeq + 1;
+      const spliceCount = ack - this.firstPendingSeq + 1;
       if (spliceCount > 0) {
-        this._pending.splice(0, Math.min(spliceCount, this._pending.length));
+        spliced =
+          this._pending.splice(0, Math.min(spliceCount, this._pending.length))
+            .length > 0;
       }
     }
 
-    this.rebuildOptimistic();
+    if (hadOps || spliced) this.rebuildOptimistic();
     for (const listener of this.changeListeners) listener();
   }
 
@@ -278,7 +281,7 @@ export class GorpClient<T extends Record<string, unknown>, C> {
     this.optimisticDirty = {};
 
     this.optimistic = new Gorp<T>(this.committed.state);
-    const firstPending = this._nextSeq - this._pending.length;
+    const firstPending = this.firstPendingSeq;
     for (let i = 0; i < this._pending.length; i++) {
       this.replayMutator(this._pending[i]!, firstPending + i);
     }

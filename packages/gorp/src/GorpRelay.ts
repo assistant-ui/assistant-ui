@@ -10,8 +10,8 @@ export type RelaySerializedState<T> = {
 /**
  * State mirror + upstream pipe. Acts as a pass-through between an upstream
  * `GorpServer` connection and a downstream `GorpSessions` wrapper: forwards
- * commands via `sendUpstream` and republishes inbound `GorpMessage`
- * envelopes to subscribers verbatim.
+ * commands via `send` and republishes inbound `GorpMessage` envelopes to
+ * subscribers verbatim.
  *
  * Assumes the upstream connection is stable across hibernation (CF Durable
  * Objects with hibernation-aware sockets buffer messages while idle, so on
@@ -44,8 +44,8 @@ export class GorpRelay<T extends Record<string, unknown>, C> {
    * subscribers verbatim. Emits synchronously (no microtask delay).
    */
   applyUpstream(msg: GorpMessage): void {
-    if (msg.ops.length > 0) this.gorp.apply(msg.ops);
     if (msg.ops.length === 0 && msg.ack === undefined) return;
+    if (msg.ops.length > 0) this.gorp.apply(msg.ops);
     for (const sub of this.subscribers) sub(msg);
   }
 
