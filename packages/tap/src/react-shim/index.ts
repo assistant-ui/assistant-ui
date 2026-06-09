@@ -20,23 +20,6 @@ export { default } from "react";
 const inTap = () => peekResourceFiber() !== null;
 const ReactRuntime = React as any;
 
-const useReactEffectEvent = <T extends (...args: any[]) => any>(
-  callback: T,
-): T => {
-  if (typeof ReactRuntime.useEffectEvent === "function")
-    return ReactRuntime.useEffectEvent(callback);
-
-  const callbackRef = ReactRuntime.useRef(callback);
-  ReactRuntime.useLayoutEffect(() => {
-    callbackRef.current = callback;
-  });
-
-  return ReactRuntime.useCallback(
-    ((...args: Parameters<T>) => callbackRef.current(...args)) as T,
-    [],
-  );
-};
-
 // --- hooks with a tap equivalent: override the star-exported react hooks ---
 
 export const useState = (initialState?: any) =>
@@ -70,7 +53,9 @@ export const useLayoutEffect = (effect: any, deps?: any) =>
     : ReactRuntime.useLayoutEffect(effect, deps);
 
 export const useEffectEvent = (callback: any) =>
-  inTap() ? hooks.useEffectEvent(callback) : useReactEffectEvent(callback);
+  inTap()
+    ? hooks.useEffectEvent(callback)
+    : ReactRuntime.useEffectEvent(callback);
 
 // `use(usable)` reads tap resource context when handed a tap context (routed by
 // its brand, not by ambient render state), and falls back to React's `use`
