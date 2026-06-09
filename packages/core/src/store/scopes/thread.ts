@@ -88,6 +88,7 @@ export type ThreadMethods = {
    * ```
    */
   append(message: CreateAppendMessage): void;
+  deleteMessage(messageId: string): void | Promise<void>;
   /**
    * Start a new run with the given configuration.
    * @param config The configuration for starting the run

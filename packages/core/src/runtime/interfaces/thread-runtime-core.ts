@@ -147,7 +147,7 @@ export type ThreadRuntimeCore = Readonly<{
   switchToBranch: (branchId: string) => void;
 
   append: (message: AppendMessage) => void;
-  deleteMessage: (messageId: string) => void;
+  deleteMessage: (messageId: string) => void | Promise<void>;
   startRun: (config: StartRunConfig) => void;
   resumeRun: (config: ResumeRunConfig) => void;
   cancelRun: () => void;

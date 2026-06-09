@@ -42,7 +42,7 @@ export type MessageMethods = {
    */
   getState(): MessageState;
   composer(): ComposerMethods;
-  delete(): void;
+  delete(): void | Promise<void>;
   reload(config?: { runConfig?: RunConfig }): void;
   /** @deprecated This API is still under active development and might change without notice. */
   speak(): void;

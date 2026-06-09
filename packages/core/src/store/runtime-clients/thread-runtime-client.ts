@@ -109,6 +109,7 @@ export const ThreadClient = resource(function ThreadClient({
     getState: () => state,
     composer: () => composer.methods,
     append: runtime.append,
+    deleteMessage: runtime.deleteMessage,
     startRun: runtime.startRun,
     resumeRun: runtime.resumeRun,
     cancelRun: runtime.cancelRun,

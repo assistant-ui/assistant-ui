@@ -572,6 +572,7 @@ export const ExternalThread = resource(function ExternalThread({
         onNew?.(appendMessage);
       }
     },
+    deleteMessage: () => {},
     startRun: () => {
       onStartRun?.();
     },

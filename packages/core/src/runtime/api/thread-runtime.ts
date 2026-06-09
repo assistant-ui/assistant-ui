@@ -252,7 +252,7 @@ export type ThreadRuntime = {
    */
   append(message: CreateAppendMessage): void;
 
-  deleteMessage(messageId: string): void;
+  deleteMessage(messageId: string): void | Promise<void>;
 
   /**
    * Start a new run with the given configuration.
@@ -415,7 +415,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   public deleteMessage(messageId: string) {
-    this._threadBinding.getState().deleteMessage(messageId);
+    return this._threadBinding.getState().deleteMessage(messageId);
   }
 
   public subscribe(callback: () => void) {

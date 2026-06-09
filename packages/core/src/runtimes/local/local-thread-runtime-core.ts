@@ -291,13 +291,12 @@ export class LocalThreadRuntimeCore
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) throw new Error("Message not found.");
 
-    const items = messages.slice(messageIndex).map((message, idx) => ({
-      parentId:
-        idx === 0
-          ? (messages[messageIndex - 1]?.id ?? null)
-          : messages[messageIndex + idx - 1]!.id,
-      message,
-    }));
+    let parentId = messages[messageIndex - 1]?.id ?? null;
+    const items = messages.slice(messageIndex).map((message) => {
+      const item = { parentId, message };
+      parentId = message.id;
+      return item;
+    });
 
     await adapter.delete(items);
 

@@ -101,7 +101,7 @@ export type MessageRuntime = {
   readonly composer: EditComposerRuntime;
 
   getState(): MessageState;
-  delete(): void;
+  delete(): void | Promise<void>;
   reload(config?: ReloadConfig): void;
   /**
    * @deprecated This API is still under active development and might change without notice.
@@ -184,7 +184,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
 
   public delete() {
     const state = this._core.getState();
-    this._threadBinding.getState().deleteMessage(state.id);
+    return this._threadBinding.getState().deleteMessage(state.id);
   }
 
   public reload(reloadConfig: ReloadConfig = {}) {
