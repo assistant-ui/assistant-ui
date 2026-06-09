@@ -19,3 +19,5 @@ root.getValue();
 ```
 
 `createTapRoot` returns `{ getValue, subscribe, unmount }` directly (no separate `.render` step).
+
+`flushResourcesSync` is also renamed to `flushTapSync`, to match the `tap` naming of the root APIs (and to stay distinct from react-dom's `flushSync`).

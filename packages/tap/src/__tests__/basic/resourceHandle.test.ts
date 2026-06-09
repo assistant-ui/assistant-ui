@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { createTapRoot } from "../../core/createTapRoot";
-import { flushResourcesSync } from "../../core/scheduler";
+import { flushTapSync } from "../../core/scheduler";
 import { useState } from "../../hooks/useState";
 
 describe("ResourceHandle - Basic Usage", () => {
@@ -37,7 +37,7 @@ describe("ResourceHandle - Basic Usage", () => {
     const listener = vi.fn();
     sub.subscribe(listener);
 
-    flushResourcesSync(() => sub.getValue().increment());
+    flushTapSync(() => sub.getValue().increment());
 
     expect(sub.getValue().count).toBe(1);
     expect(listener).toHaveBeenCalled();

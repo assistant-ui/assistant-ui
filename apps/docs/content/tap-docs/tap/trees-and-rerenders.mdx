@@ -48,14 +48,14 @@ setName("hello");
 
 If updates keep triggering more updates (e.g. a `useEffect` that calls `setState`), tap will flush up to 50 times before throwing a maximum update depth error.
 
-### flushResourcesSync
+### flushTapSync
 
-`flushResourcesSync` lets you flush pending tap scheduler updates synchronously.
+`flushTapSync` lets you flush pending tap scheduler updates synchronously.
 
 ```ts
-import { flushResourcesSync } from "@assistant-ui/tap";
+import { flushTapSync } from "@assistant-ui/tap";
 
-flushResourcesSync(() => {
+flushTapSync(() => {
   handle.getValue().increment();
 });
 

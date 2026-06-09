@@ -8,7 +8,7 @@ import { afterEach, describe, it, expect, vi } from "vitest";
 import { useState } from "../../hooks/useState";
 import { useEffect } from "../../hooks/useEffect";
 import { createTapRoot } from "../../core/createTapRoot";
-import { flushResourcesSync } from "../../core/scheduler";
+import { flushTapSync } from "../../core/scheduler";
 
 describe("Tap Strict Mode - Rerender Sources", () => {
   describe("Callback invocation count", () => {
@@ -117,8 +117,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     });
   });
 
-  describe("Source 3: setState in flushResourcesSync (event handler analogue)", () => {
-    it("should ALSO double-render after setState in flushResourcesSync", () => {
+  describe("Source 3: setState in flushTapSync (event handler analogue)", () => {
+    it("should ALSO double-render after setState in flushTapSync", () => {
       const events: string[] = [];
 
       const useTestResource = () => {
@@ -141,16 +141,16 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       events.length = 0; // Clear events
 
-      // Call the method inside flushResourcesSync (like clicking a button)
-      flushResourcesSync(() => {
+      // Call the method inside flushTapSync (like clicking a button)
+      flushTapSync(() => {
         sub.getValue().increment();
       });
 
-      // flushResourcesSync setState should ALSO double-render (matching React 19)
+      // flushTapSync setState should ALSO double-render (matching React 19)
       expect(events).toEqual(["increment", "render count=1", "render count=1"]);
     });
 
-    it("should double-render on ALL flushResourcesSync calls", () => {
+    it("should double-render on ALL flushTapSync calls", () => {
       const events: string[] = [];
 
       const useTestResource = () => {
@@ -170,14 +170,14 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       events.length = 0; // Clear initial renders
 
-      // Multiple flushResourcesSync calls (like multiple button clicks)
-      flushResourcesSync(() => {
+      // Multiple flushTapSync calls (like multiple button clicks)
+      flushTapSync(() => {
         sub.getValue().increment();
       });
-      flushResourcesSync(() => {
+      flushTapSync(() => {
         sub.getValue().increment();
       });
-      flushResourcesSync(() => {
+      flushTapSync(() => {
         sub.getValue().increment();
       });
 
@@ -280,7 +280,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
   });
 
   describe("Source 6: Multiple setState calls", () => {
-    it("should batch multiple setState calls in flushResourcesSync (single double-render)", () => {
+    it("should batch multiple setState calls in flushTapSync (single double-render)", () => {
       const events: string[] = [];
 
       const useTestResource = () => {
@@ -301,7 +301,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       events.length = 0; // Clear initial renders
 
-      flushResourcesSync(() => {
+      flushTapSync(() => {
         sub.getValue().updateBoth();
       });
 
@@ -365,7 +365,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
   });
 
   describe("Source 8: setState with function updater", () => {
-    it("should double-render with function updater in flushResourcesSync", () => {
+    it("should double-render with function updater in flushTapSync", () => {
       const events: string[] = [];
 
       const useTestResource = () => {
@@ -388,7 +388,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       events.length = 0; // Clear initial renders
 
-      flushResourcesSync(() => {
+      flushTapSync(() => {
         sub.getValue().increment();
       });
 
@@ -439,8 +439,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       events.length = 0;
 
-      // Trigger increment via flushResourcesSync
-      flushResourcesSync(() => {
+      // Trigger increment via flushTapSync
+      flushTapSync(() => {
         sub.getValue().increment();
       });
 
@@ -517,8 +517,8 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       events.length = 0;
 
-      // Method calls via flushResourcesSync should still double-render
-      flushResourcesSync(() => {
+      // Method calls via flushTapSync should still double-render
+      flushTapSync(() => {
         sub2.getValue().increment();
       });
 

@@ -61,7 +61,7 @@ vi.mock("@assistant-ui/store", () => {
 });
 
 vi.mock("@assistant-ui/tap", () => ({
-  flushResourcesSync: (fn: () => void) => fn(),
+  flushTapSync: (fn: () => void) => fn(),
 }));
 
 vi.mock("./ComposerInputPluginContext", () => ({

@@ -14,7 +14,7 @@ import {
   useResource,
   useResources,
   useTapRoot,
-  flushResourcesSync,
+  flushTapSync,
 } from "../../index";
 
 describe("@assistant-ui/tap/react resource API", () => {
@@ -147,7 +147,7 @@ describe("@assistant-ui/tap/react resource API", () => {
 
       // The root drives updates through tap's own (macrotask) scheduler, so flush
       // synchronously to observe.
-      flushResourcesSync(() => store!.getValue().setCount(5));
+      flushTapSync(() => store!.getValue().setCount(5));
       expect(store!.getValue().count).toBe(5);
       expect(notified).toBeGreaterThan(0);
 

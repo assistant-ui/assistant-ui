@@ -7,7 +7,7 @@ import {
 import { useTapRoot } from "../hooks/useTapRoot";
 import { resource } from "./resource";
 import { isDevelopment } from "./helpers/env";
-import { flushResourcesSync, UpdateScheduler } from "./scheduler";
+import { flushTapSync, UpdateScheduler } from "./scheduler";
 import { createResourceFiberRoot } from "./helpers/root";
 
 const SubscribableRoot = resource(useTapRoot);
@@ -35,7 +35,7 @@ export const createTapRoot = <R>(
   }
 
   const rendered = renderResourceFiber(fiber, render);
-  flushResourcesSync(() => commitResourceFiber(fiber, rendered));
+  flushTapSync(() => commitResourceFiber(fiber, rendered));
 
   const root = rendered.output as useTapRoot.Root<R>;
 

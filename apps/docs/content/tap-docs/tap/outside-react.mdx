@@ -50,15 +50,15 @@ block produce a single re-render. If updates keep triggering more updates (for
 example, an effect that sets state), tap flushes up to 50 times before throwing a
 maximum-update-depth error.
 
-### flushResourcesSync
+### flushTapSync
 
-`flushResourcesSync` flushes pending tap-scheduled updates synchronously, so the
+`flushTapSync` flushes pending tap-scheduled updates synchronously, so the
 new state is readable immediately after.
 
 ```ts
-import { flushResourcesSync } from "@assistant-ui/tap";
+import { flushTapSync } from "@assistant-ui/tap";
 
-flushResourcesSync(() => root.getValue().increment());
+flushTapSync(() => root.getValue().increment());
 console.log(root.getValue().count); // already updated
 ```
 

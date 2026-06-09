@@ -166,14 +166,14 @@ root.subscribe(() => {});
 root.unmount();
 ```
 
-## flushResourcesSync
+## flushTapSync
 
 Flushes pending tap-scheduled updates synchronously. Applies to tap-scheduled
 trees (`createTapRoot` / `useTapRoot`); for `useResource` trees use
 `flushSync` from `react-dom`.
 
 ```ts
-flushResourcesSync(() => handle.getValue().increment());
+flushTapSync(() => handle.getValue().increment());
 ```
 
 ## createResourceContext

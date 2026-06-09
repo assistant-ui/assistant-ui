@@ -92,7 +92,7 @@ const scheduleMacrotask = (() => {
   return () => setTimeout(flushScheduled, 0);
 })();
 
-export const flushResourcesSync = <T>(callback: () => T): T => {
+export const flushTapSync = <T>(callback: () => T): T => {
   const prev = flushState;
   flushState = {
     schedulers: new Set([]),

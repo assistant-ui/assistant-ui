@@ -22,7 +22,7 @@ import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
 import { useAuiState, useAui } from "@assistant-ui/store";
-import { flushResourcesSync } from "@assistant-ui/tap";
+import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useTriggerPopoverActiveAriaOptional } from "./trigger/TriggerPopoverRootContext";
 
@@ -350,7 +350,7 @@ export const ComposerPrimitiveInput = forwardRef<
           }
           const isComposing = nativeIsComposing || compositionRef.current;
           // keep controlled value in sync mid-IME so react does not reset the textarea to a stale value
-          flushResourcesSync(() => {
+          flushTapSync(() => {
             aui.composer().setText(e.target.value);
           });
           if (isComposing) return;
@@ -377,7 +377,7 @@ export const ComposerPrimitiveInput = forwardRef<
           compositionRef.current = false;
           if (!aui.composer().getState().isEditing) return;
           const target = e.target as HTMLTextAreaElement;
-          flushResourcesSync(() => {
+          flushTapSync(() => {
             aui.composer().setText(target.value);
           });
           const pos = target.selectionStart ?? target.value.length;
