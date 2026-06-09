@@ -54,9 +54,22 @@ export function mergeChanged(
     assertSafePathSegment(key);
     const sChild = source[key]!;
     const tChild = target[key];
-    target[key] = tChild === undefined ? sChild : mergeChanged(tChild, sChild);
+    target[key] =
+      tChild === undefined
+        ? cloneChangeNode(sChild)
+        : mergeChanged(tChild, sChild);
   }
   return target;
+}
+
+function cloneChangeNode(source: ChangeNode): ChangeNode {
+  if (source === true) return true;
+  const clone: { [key: string]: ChangeNode } = {};
+  for (const key of Object.keys(source)) {
+    assertSafePathSegment(key);
+    clone[key] = cloneChangeNode(source[key]!);
+  }
+  return clone;
 }
 
 /** @internal */

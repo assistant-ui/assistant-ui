@@ -62,6 +62,14 @@ describe("mergeChanged", () => {
     expect(target).toEqual({ a: true, b: true });
   });
 
+  it("clones source subtrees before assigning them", () => {
+    const target: ChangeNode = {};
+    const source: ChangeNode = { a: { b: true } };
+    mergeChanged(target, source);
+    (source as { a: { c?: true } }).a.c = true;
+    expect(target).toEqual({ a: { b: true } });
+  });
+
   it("deep-merges overlapping subtrees", () => {
     const target: ChangeNode = { a: { x: true } };
     const source: ChangeNode = { a: { y: true } };
@@ -83,6 +91,14 @@ describe("mergeChanged", () => {
       /Unsafe gorp path segment/,
     );
     expect({}.polluted).toBeUndefined();
+  });
+
+  it("rejects nested unsafe source keys before assigning a subtree", () => {
+    const target: ChangeNode = {};
+    const source = JSON.parse('{"a":{"constructor":true}}') as ChangeNode;
+    expect(() => mergeChanged(target, source)).toThrow(
+      /Unsafe gorp path segment/,
+    );
   });
 });
 
