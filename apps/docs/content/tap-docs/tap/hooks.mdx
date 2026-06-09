@@ -1,0 +1,30 @@
+---
+title: Hooks
+description: Use React's hooks inside a resource, plus tap's additions.
+---
+
+Inside a resource you use React's hooks, imported from `"react"`: `useState`,
+`useReducer`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useEffectEvent`,
+and `use`. They behave as they do in a component and follow the same rules of
+hooks, with a few [differences](/tap/docs/tap/differences-from-react).
+
+## Composition hooks
+
+Resources can host other resources. These hooks (from `@assistant-ui/tap`) manage
+child lifecycles automatically:
+
+- [`useResource`](/tap/docs/tap/composition#useresource) hosts a single child
+- [`useResources`](/tap/docs/tap/composition#useresources) hosts a keyed list
+- [`useResourceRoot`](/tap/docs/tap/composition#useresourceroot) exposes a child as a `{ getValue, subscribe }` boundary
+
+<Cards>
+  <Card title="Resource Composition" href="/tap/docs/tap/composition">
+    Learn how to compose resources together.
+  </Card>
+</Cards>
+
+## Comparison with React
+
+- [`useResource`](/tap/docs/tap/composition#useresource) hosts a single child
+- [`useResources`](/tap/docs/tap/composition#useresources) hosts a keyed list
+- [`useResourceRoot`](/tap/docs/tap/composition#useresourceroot) exposes a child as a `{ getValue, subscribe }` boundary

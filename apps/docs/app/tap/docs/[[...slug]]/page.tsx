@@ -100,7 +100,7 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata(
-  props: PageProps<"/tap/docs/[[...slug]]">,
+  props: PageProps<"/docs/[[...slug]]">,
 ): Promise<Metadata> {
   const { slug = [] } = await props.params;
   const page = tapDocs.getPage(slug);

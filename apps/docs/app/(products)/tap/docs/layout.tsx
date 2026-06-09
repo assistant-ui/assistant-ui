@@ -8,6 +8,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       tree={tapDocs.pageTree}
       section="Tap Docs"
       sectionHref="/tap/docs"
+      platformAware={false}
     >
       {children}
     </DocsRootLayout>

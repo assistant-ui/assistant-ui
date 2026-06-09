@@ -1,0 +1,52 @@
+---
+title: Introduction
+description: "gorp: A small state-sync primitive for client/server replicas with optimistic updates."
+---
+
+<div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-center rounded-xl bg-fd-secondary overflow-hidden">
+<div className="not-prose flex flex-col gap-1 pl-6 lg:pl-8 pt-4 lg:pt-0">
+  <p className="text-lg font-semibold">Quickstart</p>
+  <p className="text-fd-muted-foreground">Sync state between a client and server in under fifty lines.</p>
+  <a href="/tap/docs/gorp/quickstart" className="text-fd-primary font-medium mt-1 group inline-flex items-center gap-1">Get started <span className="inline-block transition-transform group-hover:translate-x-1">&rarr;</span></a>
+</div>
+<div className="mr-2 lg:mr-5 -my-5 lg:-my-2 lg:[&_pre]:pr-6">
+
+```ts
+const client = new GorpClient<{ count: number }, "inc">({
+  initialState: { count: 0 },
+  mutator: (state) => {
+    state.count += 1;
+  },
+  send: (cmd) => transport.send(cmd),
+});
+
+client.send("inc");
+client.state.count; // 1 (optimistic)
+```
+
+</div>
+</div>
+
+## What gorp is
+
+Gorp keeps a client-side replica of server state in sync over a caller-provided
+duplex transport. Commands flow up, deep-patch ops flow down, and the client
+renders an *optimistic* view that layers pending commands on top of the last
+server-confirmed state.
+
+The primitives are small and orthogonal:
+
+- **`GorpClient`** — leaf replica + optimistic mutator + pending queue.
+- **`GorpServer`** — authoritative state + command handler + op fan-out.
+- **`GorpRelay`** — state mirror that pipes commands upstream and applies
+  ops downstream. Useful when an edge node sits between client and origin.
+- **`GorpSessions`** — wraps a server or relay with a sessioned wire
+  protocol: per-session dedup, ack flushing, and resume-after-reconnect.
+
+## When to reach for it
+
+<Cards>
+  <Card title="Quickstart" href="/tap/docs/gorp/quickstart">
+    Wire up a client and server in a single file.
+  </Card>
+</Cards>

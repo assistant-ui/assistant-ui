@@ -1,31 +1,4 @@
 {
   "title": "Tap Documentation",
-  "root": true,
-  "pages": [
-    "introduction",
-    "---Tap---",
-    "quickstart",
-    "resources",
-    "hooks",
-    "composition",
-    "lifecycle",
-    "trees-and-rerenders",
-    "context",
-    "differences-from-react",
-    "outside-react",
-    "api-reference",
-    "motivation",
-    "---Store---",
-    "store/why-store",
-    "store/quickstart",
-    "store/scopes",
-    "store/methods",
-    "store/state",
-    "store/events",
-    "store/meta",
-    "store/child-scopes",
-    "store/rendering-lists",
-    "store/sibling-scopes",
-    "store/api-reference"
-  ]
+  "pages": ["overview", "tap", "store", "gorp"]
 }

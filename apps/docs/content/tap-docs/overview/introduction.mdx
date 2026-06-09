@@ -6,8 +6,8 @@ description: "tap: React hooks, headless"
 <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-center rounded-xl bg-fd-secondary overflow-hidden">
 <div className="not-prose flex flex-col gap-1 pl-6 lg:pl-8 pt-4 lg:pt-0">
   <p className="text-lg font-semibold">Quickstart</p>
-  <p className="text-fd-muted-foreground">Build your first resource in a few minutes.</p>
-  <a href="/tap/docs/quickstart" className="text-fd-primary font-medium mt-1 group inline-flex items-center gap-1">Get started <span className="inline-block transition-transform group-hover:translate-x-1">&rarr;</span></a>
+  <p className="text-fd-muted-foreground">Learn how to build your first resource with tap.</p>
+  <a href="/tap/docs/tap/quickstart" className="text-fd-primary font-medium mt-1 group inline-flex items-center gap-1">Get started <span className="inline-block transition-transform group-hover:translate-x-1">&rarr;</span></a>
 </div>
 <div className="mr-2 lg:mr-5 -my-5 lg:-my-2 lg:[&_pre]:pr-6">
 
@@ -37,22 +37,19 @@ If you know React hooks, you already know tap. There are only three new things:
 1. You define a unit with `resource(function Name() { ... })` and it returns a
    value instead of JSX.
 2. You instantiate it by calling the factory (`Name(props)`) to get an element,
-   then host it with [`useResource`](/tap/docs/resources#hosting-a-resource).
-3. A resource tree can run [outside React](/tap/docs/outside-react) entirely.
+   then host it with [`useResource`](/tap/docs/tap/resources#hosting-a-resource).
+3. A resource tree can run [outside React](/tap/docs/tap/outside-react) entirely.
 
 ## Next steps
 
 <Cards>
-  <Card title="Quickstart" href="/tap/docs/quickstart">
+  <Card title="Quickstart" href="/tap/docs/tap/quickstart">
     Install tap and build your first resource.
   </Card>
-  <Card title="Resources" href="/tap/docs/resources">
+  <Card title="Resources" href="/tap/docs/tap/resources">
     Author, compose, and host resources.
   </Card>
-  <Card title="How tap differs from React" href="/tap/docs/differences-from-react">
-    The handful of things that aren't quite React.
-  </Card>
-  <Card title="API Reference" href="/tap/docs/api-reference">
+  <Card title="API Reference" href="/tap/docs/tap/api-reference">
     Every export, in one place.
   </Card>
 </Cards>

@@ -21,10 +21,101 @@ Calling the factory produces a [`ResourceElement`](#resourceelement).
 ## withKey
 
 Attaches a key to a `ResourceElement` for identity preservation in
-[lists](/tap/docs/composition#useresources).
+[lists](/tap/docs/tap/composition#useresources).
 
 ```ts
-withKey("my-key", Counter({ initialValue: 0 }));
+import { withKey } from "@assistant-ui/tap";
+
+withKey("my-key", Counter({ initialValue: 0 }))
+```
+
+---
+
+## Hooks
+
+All hooks follow the [rules of hooks](/tap/docs/tap/hooks#rules-of-hooks).
+
+### tapState
+
+```ts
+const [value, setValue] = tapState(initialValue);
+const [value, setValue] = tapState(() => expensiveDefault());
+```
+
+Local state. `setValue` accepts a value or an updater function `(prev) => next`.
+
+### tapReducer
+
+```ts
+const [state, dispatch] = tapReducer(reducer, initialState);
+const [state, dispatch] = tapReducer(reducer, initialArg, init);
+```
+
+State management with a reducer function. `dispatch` has a stable identity. Bails out (no re-render) when the reducer returns the same state via `Object.is`.
+
+### tapReducerWithDerivedState
+
+<Callout type="warn">
+This API is experimental, intended for advanced use cases, and may change.
+</Callout>
+
+```ts
+const [state, dispatch] = tapReducerWithDerivedState(reducer, getDerivedState, initialState);
+const [state, dispatch] = tapReducerWithDerivedState(reducer, getDerivedState, initialArg, init);
+```
+
+Like `tapReducer`, but accepts a `getDerivedState` function as the second argument. During each render pass, `getDerivedState(state)` is called once after processing any queued actions. If it returns a new value (by `Object.is`), the derived value becomes the current state and triggers a re-render. The return type is inferred from `getDerivedState`, allowing you to narrow or extend the state type.
+
+### tapEffect
+
+```ts
+tapEffect(() => {
+  // side effect
+  return () => { /* cleanup */ };
+}, [deps]);
+```
+
+Runs after commit. Without a dependency array, runs after every render.
+
+### tapMemo
+
+```ts
+const value = tapMemo(() => compute(a, b), [a, b]);
+```
+
+Memoizes a value. Recomputes when dependencies change.
+
+### tapCallback
+
+```ts
+const fn = tapCallback(() => { /* ... */ }, [deps]);
+```
+
+Memoizes a function. Shorthand for `tapMemo(() => fn, deps)`.
+
+### tapRef
+
+```ts
+const ref = tapRef(initialValue);
+ref.current; // read/write
+```
+
+A mutable ref that persists across renders.
+
+### tapConst
+
+```ts
+const value = tapConst(() => new EventEmitter(), []);
+```
+
+Computed once on mount, never recomputed. The second argument must always be `[]`.
+
+### tapEffectEvent
+
+```ts
+ const handler = tapEffectEvent((msg: string) => {
+   // always has access to latest closure
+ });
 ```
 
 ## useResource
@@ -53,7 +144,7 @@ const values = useResources(
 
 Hosts an element as a subscribable boundary, returning a stable
 `{ getValue, subscribe }` handle instead of the value directly. Isomorphic. See
-[Subscribable boundary](/tap/docs/composition#useresourceroot).
+[Subscribable boundary](/tap/docs/tap/composition#useresourceroot).
 
 ```ts
 const handle = useResourceRoot(Counter({ initialValue: 0 }));
@@ -63,7 +154,7 @@ handle.subscribe(() => {});
 
 ## createResourceRoot
 
-Hosts a resource tree [outside React](/tap/docs/outside-react). Returns
+Hosts a resource tree [outside React](/tap/docs/tap/outside-react). Returns
 `{ render, unmount }`; `render(element)` returns a `{ getValue, subscribe }`
 handle.
 
@@ -91,7 +182,7 @@ flushResourcesSync(() => handle.getValue().increment());
 The context API is experimental and may change.
 </Callout>
 
-Creates a [context](/tap/docs/context) with a default value. Read it
+Creates a [context](/tap/docs/tap/context) with a default value. Read it
 with `use` / `useContext` from `"react"`.
 
 ```ts
