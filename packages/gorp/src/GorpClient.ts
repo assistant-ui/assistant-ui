@@ -29,14 +29,18 @@ export function markChanged(
   let cursor = node;
   for (let i = 0; i < path.length - 1; i++) {
     const key = path[i]!;
-    assertSafePathSegment(key);
+    if (key === "__proto__" || key === "constructor" || key === "prototype") {
+      throw new Error(`Unsafe gorp path segment: ${key}`);
+    }
     const next = cursor[key];
     if (next === true) return node;
     if (next === undefined) cursor[key] = {};
     cursor = cursor[key] as { [k: string]: ChangeNode };
   }
   const leaf = path[path.length - 1]!;
-  assertSafePathSegment(leaf);
+  if (leaf === "__proto__" || leaf === "constructor" || leaf === "prototype") {
+    throw new Error(`Unsafe gorp path segment: ${leaf}`);
+  }
   cursor[leaf] = true;
   return node;
 }
