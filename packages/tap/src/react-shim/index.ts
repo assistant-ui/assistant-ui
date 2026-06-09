@@ -59,7 +59,8 @@ export const useEffectEvent = (callback: any) =>
 
 // `use(usable)` reads tap resource context when handed a tap context (routed by
 // its brand, not by ambient render state), and falls back to React's `use`
-// (promises / React context) for everything else.
+// (promises / React context) for everything else. The non-tap fallback requires
+// React 19.
 export const use = (usable: any) =>
   isResourceContext(usable)
     ? useResourceContext(usable)
