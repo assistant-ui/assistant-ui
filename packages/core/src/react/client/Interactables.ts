@@ -216,22 +216,18 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
   const setDefState = useCallback(
     (id: string, updater: (prev: unknown) => unknown) => {
-      const current = stateRef.current;
-      const existing = current.definitions[id];
-      if (!existing) return;
-
-      const nextState = updater(existing.state);
-      const next = {
-        ...current,
-        definitions: {
-          ...current.definitions,
-          [id]: { ...existing, state: nextState },
-        },
-      };
-
-      stateRef.current = next;
-      setState(next);
-      schedulePersistence(id);
+      setState((prev) => {
+        const existing = prev.definitions[id];
+        if (!existing) return prev;
+        return {
+          ...prev,
+          definitions: {
+            ...prev.definitions,
+            [id]: { ...existing, state: updater(existing.state) },
+          },
+        };
+      });
+      if (stateRef.current.definitions[id]) schedulePersistence(id);
     },
     [schedulePersistence],
   );
