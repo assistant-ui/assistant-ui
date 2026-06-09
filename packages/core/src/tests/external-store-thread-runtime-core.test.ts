@@ -163,7 +163,7 @@ describe("ExternalStoreThreadRuntimeCore - state reference stability", () => {
   });
 
   describe("deleteMessage", () => {
-    it("removes the selected message and later messages from the active branch", async () => {
+    it("removes only the selected message", async () => {
       const setMessages = vi.fn();
       const runtime = new ExternalStoreThreadRuntimeCore(
         mockContextProvider,
@@ -193,6 +193,7 @@ describe("ExternalStoreThreadRuntimeCore - state reference stability", () => {
 
       expect(setMessages).toHaveBeenCalledWith([
         expect.objectContaining({ id: "u1" }),
+        expect.objectContaining({ id: "u2" }),
       ]);
     });
 

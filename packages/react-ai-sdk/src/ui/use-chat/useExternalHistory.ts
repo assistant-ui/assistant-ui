@@ -306,20 +306,17 @@ export const useExternalHistory = <TMessage>(
       let parentId = previousInnerMessages.at(-1)
         ? storageFormatAdapter.getId(previousInnerMessages.at(-1)!)
         : null;
-      const itemsToDelete = messages
-        .slice(messageIndex)
-        .flatMap(getExternalStoreMessages<TMessage>)
-        .map((message) => {
-          const item = { parentId, message };
-          parentId = storageFormatAdapter.getId(message);
-          return item;
-        });
+      const itemsToDelete = getExternalStoreMessages<TMessage>(
+        messages[messageIndex]!,
+      ).map((message) => {
+        const item = { parentId, message };
+        parentId = storageFormatAdapter.getId(message);
+        return item;
+      });
 
       await formatAdapter.delete(itemsToDelete);
 
-      for (const message of messages.slice(messageIndex)) {
-        historyIds.current.delete(message.id);
-      }
+      historyIds.current.delete(messageId);
     },
     [formatAdapter, runtimeRef, storageFormatAdapter],
   );

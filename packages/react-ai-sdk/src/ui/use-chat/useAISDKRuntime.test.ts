@@ -285,7 +285,7 @@ describe("useAISDKRuntime", () => {
     );
   });
 
-  it("deletes a message and later messages from AI SDK state", async () => {
+  it("deletes only the selected message from AI SDK state", async () => {
     const deleteMessage = vi.fn().mockResolvedValue(undefined);
     vi.mocked(useExternalHistory).mockReturnValue({
       isLoading: false,
@@ -320,6 +320,7 @@ describe("useAISDKRuntime", () => {
     expect(chat.messages.map((message: any) => message.id)).toEqual([
       "u1",
       "a1",
+      "a2",
     ]);
   });
 

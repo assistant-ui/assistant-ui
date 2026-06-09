@@ -440,7 +440,7 @@ export class ExternalStoreThreadRuntimeCore
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) throw new Error("Message not found.");
 
-    this.updateMessages(messages.slice(0, messageIndex));
+    this.updateMessages(messages.filter((message) => message.id !== messageId));
   }
 
   public getQueueItems() {

@@ -325,10 +325,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       await deleteHistoryMessage(messageId);
 
       const deleteIds = new Set(
-        threadMessages
-          .slice(messageIndex)
-          .flatMap((message) => getExternalStoreMessages<UI_MESSAGE>(message))
-          .map((message) => message.id),
+        getExternalStoreMessages<UI_MESSAGE>(threadMessages[messageIndex]!).map(
+          (message) => message.id,
+        ),
       );
       chatHelpers.setMessages((current) =>
         current.filter((message) => !deleteIds.has(message.id)),

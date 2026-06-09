@@ -291,17 +291,13 @@ export class LocalThreadRuntimeCore
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) throw new Error("Message not found.");
 
-    let parentId = messages[messageIndex - 1]?.id ?? null;
-    const items = messages.slice(messageIndex).map((message) => {
-      const item = { parentId, message };
-      parentId = message.id;
-      return item;
-    });
+    const message = messages[messageIndex]!;
+    const parentId = messages[messageIndex - 1]?.id ?? null;
+    const items = [{ parentId, message }];
 
     await adapter.delete(items);
 
-    const previousMessage = messages[messageIndex - 1];
-    this.repository.resetHead(previousMessage?.id ?? null);
+    this.repository.deleteMessage(messageId);
     this._notifySubscribers();
   }
 
