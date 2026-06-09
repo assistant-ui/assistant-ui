@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.14.16
+
+### Patch Changes
+
+- Updated dependencies:
+  - @assistant-ui/core@0.2.12
+  - @assistant-ui/tap@0.6.1
+
 ## 0.14.15
 
 ### Patch Changes

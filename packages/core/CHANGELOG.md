@@ -1,5 +1,12 @@
 # @assistant-ui/core
 
+## 0.2.12
+
+### Patch Changes
+
+- Updated dependencies:
+  - @assistant-ui/tap@0.6.1
+
 ## 0.2.11
 
 ### Patch Changes
