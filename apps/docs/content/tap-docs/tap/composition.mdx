@@ -92,10 +92,14 @@ This is the same model as React's `key` prop on list elements.
 
 `useTapRoot` takes a render callback and returns a stable `{ getValue, subscribe }` handle instead of the child's value directly. The parent doesn't re-render when the child updates, consumers subscribe to changes instead. See [Trees & Re-renders](/tap/docs/tap/trees-and-rerenders) for why this matters.
 
+Pass a **named function** (`function CounterRoot() { ... }`), not an arrow. The body calls hooks, so the name is what lets React's rules-of-hooks lint it.
+
 ```ts
 import { useResource, useTapRoot } from "@assistant-ui/tap";
 
-const counter = useTapRoot(() => useResource(Counter()));
+const counter = useTapRoot(function CounterRoot() {
+  return useResource(Counter());
+});
 
 // read current value
 counter.getValue(); // { count: 0, increment: ... }

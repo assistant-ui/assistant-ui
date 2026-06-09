@@ -40,7 +40,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       };
 
-      createTapRoot(() => useTestResource());
+      createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       // Tap behavior: updater called 4 times, uses FIRST return value per dispatch
       // Effect #1 dispatch: updater(0) → 100 (kept)
@@ -74,7 +76,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       };
 
-      createTapRoot(() => useTestResource());
+      createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       expect(events).toEqual(["render count=0", "render count=0"]);
     });
@@ -101,7 +105,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       };
 
-      createTapRoot(() => useTestResource());
+      createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       expect(events).toEqual([
         "render count=0",
@@ -134,7 +140,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         };
       };
 
-      const sub = createTapRoot(() => useTestResource());
+      const sub = createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       // Initial render is double
       expect(events).toEqual(["render count=0", "render count=0"]);
@@ -166,7 +174,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         };
       };
 
-      const sub = createTapRoot(() => useTestResource());
+      const sub = createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       events.length = 0; // Clear initial renders
 
@@ -222,7 +232,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       };
 
-      createTapRoot(() => useTestResource());
+      createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       // Fire both setTimeout callbacks synchronously via fake timers
       vi.advanceTimersByTime(10);
@@ -262,7 +274,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       };
 
-      createTapRoot(() => useTestResource());
+      createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       // Wait for promise
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -297,7 +311,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         };
       };
 
-      const sub = createTapRoot(() => useTestResource());
+      const sub = createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       events.length = 0; // Clear initial renders
 
@@ -331,7 +347,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return {};
       };
 
-      createTapRoot(() => useTestResource());
+      createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       // Initial double-render, then batched setState causes another double-render
       expect(events).toEqual([
@@ -357,7 +375,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         };
       };
 
-      createTapRoot(() => useTestResource());
+      createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       // Resource renders should be doubled
       expect(events).toEqual(["render count=0", "render count=0"]);
@@ -384,7 +404,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         };
       };
 
-      const sub = createTapRoot(() => useTestResource());
+      const sub = createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       events.length = 0; // Clear initial renders
 
@@ -426,7 +448,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         };
       };
 
-      const sub = createTapRoot(() => useTestResource());
+      const sub = createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       // setDoubled(0*2) = setDoubled(0) is a no-op, so no extra render
       expect(events).toEqual([
@@ -473,7 +497,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { value };
       };
 
-      createTapRoot(() => useTestResource());
+      createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       // useState initializer should be called twice, first value kept
       expect(events).toEqual([
@@ -500,7 +526,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       };
 
       // Create first instance
-      const root1 = createTapRoot(() => useTestResource());
+      const root1 = createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       expect(events).toEqual(["render count=0", "render count=0"]);
 
@@ -510,7 +538,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       root1.unmount();
 
       // Create second instance
-      const sub2 = createTapRoot(() => useTestResource());
+      const sub2 = createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       // Should still double-render
       expect(events).toEqual(["render count=0", "render count=0"]);
@@ -555,7 +585,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       };
 
-      createTapRoot(() => useTestResource());
+      createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       // Expected: setState(1) from effect #1 should be applied
       // even though effect #1 was cleaned up
@@ -600,7 +632,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       };
 
-      createTapRoot(() => useTestResource());
+      createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       // Expected: Only setState(2) should be applied (last one wins)
       expect(events).toEqual([
@@ -643,7 +677,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         return { count };
       };
 
-      createTapRoot(() => useTestResource());
+      createTapRoot(function Root() {
+        return useTestResource();
+      });
 
       // Tap behavior: Both updaters are queued and executed, first value kept per dispatch
       // Updater double-invoke happens per-dispatch (matching React ordering)

@@ -12,7 +12,9 @@ imperatively, which is how libraries and tests drive resources, and how
 ```ts
 import { createTapRoot, useResource } from "@assistant-ui/tap";
 
-const root = createTapRoot(() => useResource(Counter({ initialValue: 0 })));
+const root = createTapRoot(function CounterRoot() {
+  return useResource(Counter({ initialValue: 0 }));
+});
 
 // read the current value
 root.getValue().count; // 0

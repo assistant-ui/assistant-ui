@@ -12,7 +12,9 @@ describe("ResourceHandle - Basic Usage", () => {
       };
     };
 
-    const sub = createTapRoot(() => useTestResource(5));
+    const sub = createTapRoot(function Root() {
+      return useTestResource(5);
+    });
 
     // The root provides getValue, subscribe, and unmount
     expect(typeof sub.getValue).toBe("function");
@@ -30,7 +32,9 @@ describe("ResourceHandle - Basic Usage", () => {
       return { count, increment: () => setCount((c) => c + 1) };
     };
 
-    const sub = createTapRoot(() => useTestResource());
+    const sub = createTapRoot(function Root() {
+      return useTestResource();
+    });
 
     expect(sub.getValue().count).toBe(0);
 
@@ -48,7 +52,9 @@ describe("ResourceHandle - Basic Usage", () => {
       return { timestamp: 0 };
     };
 
-    const sub = createTapRoot(() => useTestResource());
+    const sub = createTapRoot(function Root() {
+      return useTestResource();
+    });
 
     const subscriber1 = vi.fn();
     const subscriber2 = vi.fn();

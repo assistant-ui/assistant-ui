@@ -108,8 +108,9 @@ describe("@assistant-ui/tap/react resource API", () => {
       };
 
       const parent = createTestResource(() =>
-        // oxlint-disable-next-line react/rules-of-hooks
-        useTapRoot(() => useRoot()).getValue(),
+        useTapRoot(function Root() {
+          return useRoot();
+        }).getValue(),
       );
       expect(renderTest(parent, undefined)).toBe(7);
     });
@@ -132,8 +133,9 @@ describe("@assistant-ui/tap/react resource API", () => {
         }>
       > | null = null;
       function App() {
-        // oxlint-disable-next-line react/rules-of-hooks
-        store = useTapRoot(() => useCounterRoot());
+        store = useTapRoot(function Root() {
+          return useCounterRoot();
+        });
         return null;
       }
 

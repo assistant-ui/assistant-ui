@@ -149,7 +149,9 @@ Takes a render callback and hosts it as a subscribable boundary, returning a sta
 [Subscribable boundary](/tap/docs/tap/composition#usetaproot).
 
 ```ts
-const handle = useTapRoot(() => useResource(Counter({ initialValue: 0 })));
+const handle = useTapRoot(function CounterRoot() {
+  return useResource(Counter({ initialValue: 0 }));
+});
 handle.getValue();
 handle.subscribe(() => {});
 ```
@@ -160,7 +162,9 @@ Hosts a resource tree [outside React](/tap/docs/tap/outside-react). Takes a rend
 callback and returns `{ getValue, subscribe, unmount }` directly.
 
 ```ts
-const root = createTapRoot(() => useResource(Counter({ initialValue: 0 })));
+const root = createTapRoot(function CounterRoot() {
+  return useResource(Counter({ initialValue: 0 }));
+});
 root.getValue();
 root.subscribe(() => {});
 root.unmount();

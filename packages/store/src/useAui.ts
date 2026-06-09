@@ -75,10 +75,13 @@ const useRootClientAccessorResource = <K extends ClientNames>({
   clientRef: { parent: AssistantClient; current: AssistantClient | null };
   name: K;
 }): AssistantClientAccessor<K> => {
-  const store = useTapRoot(() =>
-    // oxlint-disable-next-line react/rules-of-hooks -- useTapRoot renders this callback as its root body
-    useRootClientResource({ element, emit: notifications.emit, clientRef }),
-  );
+  const store = useTapRoot(function RootClient() {
+    return useRootClientResource({
+      element,
+      emit: notifications.emit,
+      clientRef,
+    });
+  });
 
   useEffect(() => {
     return store.subscribe(notifications.notifySubscribers);

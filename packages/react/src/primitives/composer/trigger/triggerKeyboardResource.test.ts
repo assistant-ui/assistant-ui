@@ -41,10 +41,9 @@ const render = (
     close: vi.fn(),
     ...overrides,
   };
-  const root = createTapRoot(
-    // oxlint-disable-next-line react/rules-of-hooks -- createTapRoot renders this callback as its root body
-    () => useResource(TriggerKeyboardResource(props)),
-  );
+  const root = createTapRoot(function Root() {
+    return useResource(TriggerKeyboardResource(props));
+  });
   return { sub: root, props };
 };
 

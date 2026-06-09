@@ -18,7 +18,6 @@ const Counter = resource(useCounter);
 ```
 
 `resource()` turns a hook into a Resource; `useResource(Counter(props))` turns it
-back into a hook call. The `tap-hooks/named-resource` lint rule now enforces this
-(inline `resource(() => ...)` / `resource(function ...)` is rejected), so React's
+back into a hook call. Extracting the body to a `use`-prefixed hook lets React's
 stock rules-of-hooks and exhaustive-deps lint resource bodies directly. No
 public API or runtime behavior changes.

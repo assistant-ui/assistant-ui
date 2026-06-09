@@ -36,7 +36,9 @@ const useCounter = ({ incrementBy = 1 }: { incrementBy?: number }) => {
 
 const Counter = resource(useCounter);
 
-const counter = createTapRoot(() => useResource(Counter({ incrementBy: 2 })));
+const counter = createTapRoot(function CounterRoot() {
+  return useResource(Counter({ incrementBy: 2 }));
+});
 
 const unsubscribe = counter.subscribe(() => {
   console.log("counter updated:", counter.getValue().count);

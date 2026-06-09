@@ -18,10 +18,9 @@ const toolFixture = (): Tool<any, any> =>
   ({ description: "", parameters: {} as any }) as unknown as Tool<any, any>;
 
 const render = () => {
-  const root = createTapRoot(
-    // oxlint-disable-next-line react/rules-of-hooks -- createTapRoot renders this callback as its root body
-    () => useResource(ModelContext()),
-  );
+  const root = createTapRoot(function Root() {
+    return useResource(ModelContext());
+  });
   return { sub: root, unmount: () => root.unmount() };
 };
 

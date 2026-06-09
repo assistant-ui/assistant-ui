@@ -31,9 +31,9 @@ const Counter = resource(useCounter);   // resource(hook) → Resource
 const element = Counter({ initial: 10 });   // ResourceElement = { type, props, key? }, inert
 ```
 
-`resource(useCounter)` turns the hook into a Resource; `useResource(Counter(props))` turns it back into a hook call. **Always extract to a named `use`-prefixed hook** — inline `resource(() => …)` / `resource(function … )` is forbidden (lint rule `tap-hooks/named-resource`); the `use` prefix is what lets rules-of-hooks lint the body.
+`resource(useCounter)` turns the hook into a Resource; `useResource(Counter(props))` turns it back into a hook call. **Always extract to a named `use`-prefixed hook** rather than inlining `resource(() => …)` / `resource(function … )`; the `use` prefix is what lets rules-of-hooks lint the body.
 
-Instantiate via: `useResource(element)` (isomorphic, works in a React component and inside another resource body), `createTapRoot(() => useResource(element))` imperatively (returns `{ getValue, subscribe, unmount }`), or `useAui({ scope: element })` as a store scope.
+Instantiate via: `useResource(element)` (isomorphic, works in a React component and inside another resource body), `createTapRoot(function Root() { return useResource(element); })` imperatively (returns `{ getValue, subscribe, unmount }`), or `useAui({ scope: element })` as a store scope. `useTapRoot`/`createTapRoot` must wrap a **named** function expression (not an arrow) so rules-of-hooks lints the body.
 
 ## Hook rules
 
@@ -43,7 +43,7 @@ Instantiate via: `useResource(element)` (isomorphic, works in a React component 
 
 ## Trees & re-renders
 
-`useResource` returns child values to the parent, so **the entire tree re-renders from the root** when any resource updates. `useTapRoot(() => R)` breaks the chain (subtree boundary returning `{ getValue, subscribe }`, used inside Store). Tap batches updates via microtasks; >50 update flushes throws.
+`useResource` returns child values to the parent, so **the entire tree re-renders from the root** when any resource updates. `useTapRoot(function Root() { ... })` breaks the chain (subtree boundary returning `{ getValue, subscribe }`, used inside Store). Tap batches updates via microtasks; >50 update flushes throws.
 
 Effects run in **call order** (not children-first like React). Cleanups run FIFO on unmount.
 
@@ -233,7 +233,7 @@ Transforms apply iteratively; new root scopes trigger their own transforms. One 
 
 - **Resolving scope during render** (`aui.x().getState()` in body, caching `const x = aui.x()`). The pattern is `const aui = useAui();` + `aui.x()` *inside* the callback. Bug shows up when a derived scope retargets.
 - **`useAuiState` selector returns fresh object/array** → infinite re-render. One call per leaf value.
-- **Inline `resource(() => …)` / `resource(function …)`** — forbidden by `tap-hooks/named-resource`. Extract a `use`-prefixed hook: `const useFoo = () => {…}; const Foo = resource(useFoo);`. The factory stays PascalCase (`Foo`); never name a factory `useFoo`.
+- **Inline `resource(() => …)` / `resource(function …)`** — don't; extract a `use`-prefixed hook: `const useFoo = () => {…}; const Foo = resource(useFoo);`. The factory stays PascalCase (`Foo`); never name a factory `useFoo`.
 - **`setState` in `useState` initializer or during render** — throws.
 - **Forgetting `withKey`** in `useResources` / `useClientLookup` / `useClientList` — throws.
 - **Function calls in dep arrays** (`[a.getState()]`). Extract first. Linted by oxlint's native `react/exhaustive-deps`.

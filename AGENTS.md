@@ -25,7 +25,7 @@ feat: description of the change
 
 Lint with `pnpm lint`, autofix with `pnpm lint:fix`. Backed by `.oxlintrc.json` (oxlint) and `.oxfmtrc.json` (oxfmt).
 
-Resources use React's hooks, so dependency arrays and hook rules are checked by oxlint's native `react/exhaustive-deps` and `react/rules-of-hooks`. A small custom JS plugin at `scripts/oxlint-plugins/tap-hooks.mjs` adds one rule, `tap-hooks/named-resource`, which requires `resource()` to wrap a named function (PascalCase or `use`-prefixed) so each resource has a stable identity for keys and devtools.
+Resources use React's hooks, so dependency arrays and hook rules are checked by oxlint's native `react/exhaustive-deps` and `react/rules-of-hooks`. For these to lint a body, the hook must be named so React recognizes it: extract resources as a `use`-prefixed hook (`const useFoo = () => {…}; const Foo = resource(useFoo)`), and pass `useTapRoot`/`createTapRoot` a named function expression (`createTapRoot(function FooRoot() {…})`) rather than an arrow.
 
 ## Code comments
 

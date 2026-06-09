@@ -31,7 +31,9 @@ describe("Strict Mode", () => {
       events.push(`outerend-${idx}`);
     };
 
-    createTapRoot(() => useTestResource());
+    createTapRoot(function Root() {
+      return useTestResource();
+    });
 
     console.log("Events:", events);
 
@@ -62,7 +64,9 @@ describe("Strict Mode", () => {
       events.push(`render memoValue=${memoValue}`);
     };
 
-    createTapRoot(() => useTestResource());
+    createTapRoot(function Root() {
+      return useTestResource();
+    });
 
     // Matches React useMemo behavior: factory is double-invoked,
     // first result is kept
@@ -82,7 +86,9 @@ describe("Strict Mode", () => {
       return { renderCount };
     };
 
-    const sub = createTapRoot(() => useTestResource());
+    const sub = createTapRoot(function Root() {
+      return useTestResource();
+    });
     const output = sub.getValue();
 
     expect(renderCount).toBe(2);
@@ -108,7 +114,9 @@ describe("Strict Mode", () => {
       expect(ref.current).toBe(4);
     };
 
-    createTapRoot(() => useTestResource());
+    createTapRoot(function Root() {
+      return useTestResource();
+    });
 
     expect(renderCount).toBe(4);
   });
@@ -147,7 +155,9 @@ describe("Strict Mode", () => {
       }, [count]);
     };
 
-    createTapRoot(() => useTestResource());
+    createTapRoot(function Root() {
+      return useTestResource();
+    });
 
     expect(events).toEqual([
       "mount-1",
@@ -176,7 +186,9 @@ describe("Strict Mode", () => {
       return useResource(TestChildResource());
     };
 
-    const sub = createTapRoot(() => useTestResource());
+    const sub = createTapRoot(function Root() {
+      return useTestResource();
+    });
     const output = sub.getValue();
 
     expect(renderCount).toBe(2);
@@ -197,7 +209,9 @@ describe("Strict Mode", () => {
       });
     };
 
-    createTapRoot(() => useTestResource());
+    createTapRoot(function Root() {
+      return useTestResource();
+    });
 
     expect(events).toEqual([
       "render-0",
@@ -251,7 +265,9 @@ describe("Strict Mode", () => {
       return useResource(withKey(id, TestChildResource()));
     };
 
-    const sub = createTapRoot(() => useTestResource());
+    const sub = createTapRoot(function Root() {
+      return useTestResource();
+    });
     const output = sub.getValue();
 
     expect(renderCount).toBe(4);
@@ -299,7 +315,9 @@ describe("Strict Mode", () => {
       return useResource(withKey(id, TestChildResource()));
     };
 
-    createTapRoot(() => useTestResource());
+    createTapRoot(function Root() {
+      return useTestResource();
+    });
 
     expect(events).toEqual([
       "outer-render-0",
