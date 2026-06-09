@@ -1,15 +1,32 @@
+import { useEffect } from "react";
 import { useResource, resource } from "@assistant-ui/tap";
 import type { AssistantRuntime } from "..";
 import {
-  RuntimeAdapterResource,
   baseRuntimeAdapterTransformScopes,
+  ThreadListClient,
 } from "../store/internal";
-import { attachTransformScopes } from "@assistant-ui/store";
+import {
+  attachTransformScopes,
+  useAssistantClientRef,
+} from "@assistant-ui/store";
 import { DataRenderers } from "./client/DataRenderers";
 import { Tools } from "./client/Tools";
 
 const useRuntimeAdapter = (runtime: AssistantRuntime) => {
-  return useResource(RuntimeAdapterResource(runtime));
+  const clientRef = useAssistantClientRef();
+
+  useEffect(() => {
+    return runtime.registerModelContextProvider(
+      clientRef.current!.modelContext(),
+    );
+  }, [runtime, clientRef]);
+
+  return useResource(
+    ThreadListClient({
+      runtime: runtime.threads,
+      __internal_assistantRuntime: runtime,
+    }),
+  );
 };
 
 export const RuntimeAdapter = resource(useRuntimeAdapter);

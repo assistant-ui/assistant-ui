@@ -5,7 +5,4 @@ export { MessageClient } from "./runtime-clients/message-runtime-client";
 export { ThreadClient } from "./runtime-clients/thread-runtime-client";
 export { ThreadListItemClient } from "./runtime-clients/thread-list-item-runtime-client";
 export { ThreadListClient } from "./runtime-clients/thread-list-runtime-client";
-export {
-  RuntimeAdapterResource,
-  baseRuntimeAdapterTransformScopes,
-} from "./clients/runtime-adapter";
+export { baseRuntimeAdapterTransformScopes } from "./clients/runtime-adapter";

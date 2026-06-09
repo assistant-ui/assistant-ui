@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { useResource, type ResourceElement } from "@assistant-ui/tap";
+import { resource, useResource, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientMethods } from "./types/client";
 import {
   useClientStack,
@@ -10,7 +10,6 @@ import {
   BaseProxyHandler,
   handleIntrospectionProp,
 } from "./utils/BaseProxyHandler";
-import { wrapperResource } from "./wrapperResource";
 
 /**
  * Symbol used internally to get state from ClientProxy.
@@ -120,49 +119,6 @@ class ClientProxyHandler
   }
 }
 
-/**
- * Resource that wraps a plain resource element to create a stable client proxy.
- *
- * Takes a ResourceElement that returns methods (with optional getState()) and
- * wraps it to produce a stable client proxy. This adds the client to the
- * client stack, enabling event scoping.
- *
- * @internal
- */
-export const ClientResource = wrapperResource(
-  <TMethods extends ClientMethods>(
-    element: ResourceElement<TMethods>,
-  ): {
-    methods: TMethods;
-    state: unknown;
-    key: string | number | undefined;
-  } => {
-    const valueRef = useRef(null as unknown as TMethods);
-
-    const index = useClientStack().length;
-    const methods = useMemo(
-      () =>
-        new Proxy<TMethods>(
-          {} as TMethods,
-          new ClientProxyHandler(valueRef, index),
-        ),
-      [index],
-    );
-
-    const value = useWithClientStack(methods, () => useResource(element));
-    if (!valueRef.current) {
-      valueRef.current = value;
-    }
-
-    useEffect(() => {
-      valueRef.current = value;
-    });
-
-    const state = (value as any).getState?.();
-    return { methods, state, key: element.key };
-  },
-);
-
 type InferClientState<TMethods> = TMethods extends {
   getState: () => infer S;
 }
@@ -176,9 +132,32 @@ export const useClientResource = <TMethods extends ClientMethods>(
   methods: TMethods;
   key: string | number | undefined;
 } => {
-  return useResource(ClientResource(element)) as {
-    state: InferClientState<TMethods>;
-    methods: TMethods;
-    key: string | number | undefined;
-  };
+  const valueRef = useRef(null as unknown as TMethods);
+
+  const index = useClientStack().length;
+  const methods = useMemo(
+    () =>
+      new Proxy<TMethods>(
+        {} as TMethods,
+        new ClientProxyHandler(valueRef, index),
+      ),
+    [index],
+  );
+
+  const value = useWithClientStack(methods, function WithClientStack() {
+    return useResource(element);
+  });
+
+  if (!valueRef.current) {
+    valueRef.current = value;
+  }
+
+  useEffect(() => {
+    valueRef.current = value;
+  });
+
+  const state = (value as any).getState?.();
+  return { methods, state, key: element.key };
 };
+
+export const ClientResource = resource(useClientResource);

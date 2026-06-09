@@ -58,8 +58,9 @@ const useRootClientResource = <K extends ClientNames>({
 }) => {
   const { methods, state } = withAssistantTapContextProvider(
     { clientRef, emit },
-    // oxlint-disable-next-line react/rules-of-hooks -- withAssistantTapContextProvider runs this callback synchronously during render, so hook order is preserved
-    () => useClientResource(element),
+    function WithTapContext() {
+      return useClientResource(element);
+    },
   );
   return useMemo(() => ({ state, methods }), [methods, state]);
 };
@@ -300,14 +301,10 @@ const useDerivedClientsAccessorsResource = ({
   );
 };
 
-const DerivedClientsAccessorsResource = resource(
-  useDerivedClientsAccessorsResource,
-);
-
 /**
  * Resource that creates an extended AssistantClient.
  */
-const useAssistantClientResource = ({
+const useAssistantClient = ({
   parent,
   clients,
 }: {
@@ -331,9 +328,10 @@ const useAssistantClientResource = ({
       : NoOpRootClientsAccessorsResource(),
   );
 
-  const derivedFields = useResource(
-    DerivedClientsAccessorsResource({ clients: derivedClients, clientRef }),
-  );
+  const derivedFields = useDerivedClientsAccessorsResource({
+    clients: derivedClients,
+    clientRef,
+  });
 
   const client = useMemo(() => {
     // Swap DefaultAssistantClient -> createRootAssistantClient at root to change error message
@@ -363,8 +361,6 @@ const useAssistantClientResource = ({
 
   return client;
 };
-
-export const AssistantClientResource = resource(useAssistantClientResource);
 
 export namespace useAui {
   export type Props = {
@@ -445,12 +441,10 @@ export function useAui(
   },
 ): AssistantClient {
   if (clients) {
-    return useResource(
-      AssistantClientResource({
-        parent: parent ?? DefaultAssistantClient,
-        clients,
-      }),
-    );
+    return useAssistantClient({
+      parent: parent ?? DefaultAssistantClient,
+      clients,
+    });
   }
   if (parent === null)
     throw new Error("received null parent, this usage is not allowed");

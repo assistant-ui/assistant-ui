@@ -1,12 +1,7 @@
 import { useMemo } from "react";
-import {
-  useResource,
-  useResources,
-  type ResourceElement,
-} from "@assistant-ui/tap";
+import { useResources, withKey, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientMethods } from "./types/client";
 import { ClientResource } from "./useClientResource";
-import { wrapperResource } from "./wrapperResource";
 
 type InferClientState<TMethods> = TMethods extends {
   getState: () => infer S;
@@ -14,18 +9,12 @@ type InferClientState<TMethods> = TMethods extends {
   ? S
   : unknown;
 
-const ClientResourceWithKey = wrapperResource(
-  <TMethods extends ClientMethods>(el: ResourceElement<TMethods>) => {
-    if (el.key === undefined) {
-      throw new Error("useClientResource: Element has no key");
-    }
-    return useResource(ClientResource(el)) as {
-      methods: TMethods;
-      state: InferClientState<TMethods>;
-      key: string | number;
-    };
-  },
-);
+const getElementKey = (el: ResourceElement<unknown>) => {
+  if (el.key === undefined) {
+    throw new Error("useClientLookup: Element has no key");
+  }
+  return el.key;
+};
 
 export function useClientLookup<TMethods extends ClientMethods>(
   getElements: () => readonly ResourceElement<TMethods>[],
@@ -35,7 +24,8 @@ export function useClientLookup<TMethods extends ClientMethods>(
   get: (lookup: { index: number } | { key: string }) => TMethods;
 } {
   const resources = useResources(
-    () => getElements().map((el) => ClientResourceWithKey(el)),
+    () =>
+      getElements().map((el) => withKey(getElementKey(el), ClientResource(el))),
     // oxlint-disable-next-line react/exhaustive-deps -- caller-supplied deps array
     getElementsDeps,
   );
@@ -46,7 +36,7 @@ export function useClientLookup<TMethods extends ClientMethods>(
   const keyToIndex = useMemo(() => {
     return resources.reduce(
       (acc, resource, index) => {
-        acc[resource.key] = index;
+        acc[resource.key!] = index;
         return acc;
       },
       {} as Record<string, number>,
