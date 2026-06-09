@@ -9,4 +9,4 @@ export { use } from "./use";
 export { useMemoCache } from "./useMemoCache";
 export { useResource } from "./useResource";
 export { useResources } from "./useResources";
-export { useResourceRoot } from "./useResourceRoot";
+export { useTapRoot } from "./useTapRoot";

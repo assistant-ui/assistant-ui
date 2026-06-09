@@ -18,7 +18,7 @@ npm install @assistant-ui/tap
 ## Usage
 
 ```typescript
-import { resource, createResourceRoot } from "@assistant-ui/tap";
+import { resource, createTapRoot, useResource } from "@assistant-ui/tap";
 import { useState, useEffect } from "react";
 
 const useCounter = ({ incrementBy = 1 }: { incrementBy?: number }) => {
@@ -36,8 +36,7 @@ const useCounter = ({ incrementBy = 1 }: { incrementBy?: number }) => {
 
 const Counter = resource(useCounter);
 
-const root = createResourceRoot();
-const counter = root.render(Counter({ incrementBy: 2 }));
+const counter = createTapRoot(() => useResource(Counter({ incrementBy: 2 })));
 
 const unsubscribe = counter.subscribe(() => {
   console.log("counter updated:", counter.getValue().count);
@@ -59,7 +58,7 @@ function CounterButton() {
 
 ## Hooks
 
-Inside a resource you use React's hooks (`useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `use`, ...) imported from `"react"`. tap adds `useResource` / `useResources` / `useResourceRoot` for composition and `createResourceContext` / `withContextProvider` for context.
+Inside a resource you use React's hooks (`useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `use`, ...) imported from `"react"`. tap adds `useResource` / `useResources` / `useTapRoot` for composition and `createResourceContext` / `withContextProvider` for context.
 
 Full API reference at [assistant-ui.com/tap/docs](https://www.assistant-ui.com/tap/docs).
 

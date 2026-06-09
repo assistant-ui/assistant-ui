@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { createResourceRoot } from "../../core/createResourceRoot";
-import { resource } from "../../core/resource";
+import { createTapRoot } from "../../core/createTapRoot";
+import { flushResourcesSync } from "../../core/scheduler";
+import { useState } from "../../hooks/useState";
 
 describe("ResourceHandle - Basic Usage", () => {
   it("should create a resource handle with const API", () => {
@@ -11,44 +12,43 @@ describe("ResourceHandle - Basic Usage", () => {
       };
     };
 
-    const TestResource = resource(useTestResource);
-    const root = createResourceRoot();
-    const sub = root.render(TestResource(5));
+    const sub = createTapRoot(() => useTestResource(5));
 
-    // The subscribable provides getValue and subscribe
+    // The root provides getValue, subscribe, and unmount
     expect(typeof sub.getValue).toBe("function");
     expect(typeof sub.subscribe).toBe("function");
-    expect(typeof root.render).toBe("function");
+    expect(typeof sub.unmount).toBe("function");
 
     // Initial state
     expect(sub.getValue().value).toBe(10);
     expect(sub.getValue().propsUsed).toBe(5);
   });
 
-  it("should allow updating props", () => {
-    const useTestResource = (props: { multiplier: number }) => {
-      return { result: 10 * props.multiplier };
+  it("should re-render and notify on internal state change", () => {
+    const useTestResource = () => {
+      const [count, setCount] = useState(0);
+      return { count, increment: () => setCount((c) => c + 1) };
     };
 
-    const TestResource = resource(useTestResource);
-    const root = createResourceRoot();
-    const sub = root.render(TestResource({ multiplier: 2 }));
+    const sub = createTapRoot(() => useTestResource());
 
-    // Initial state
-    expect(sub.getValue().result).toBe(20);
+    expect(sub.getValue().count).toBe(0);
 
-    // Can call render to update props
-    expect(() => root.render(TestResource({ multiplier: 3 }))).not.toThrow();
+    const listener = vi.fn();
+    sub.subscribe(listener);
+
+    flushResourcesSync(() => sub.getValue().increment());
+
+    expect(sub.getValue().count).toBe(1);
+    expect(listener).toHaveBeenCalled();
   });
 
   it("should support subscribing and unsubscribing", () => {
     const useTestResource = () => {
-      return { timestamp: Date.now() };
+      return { timestamp: 0 };
     };
 
-    const TestResource = resource(useTestResource);
-    const root = createResourceRoot();
-    const sub = root.render(TestResource());
+    const sub = createTapRoot(() => useTestResource());
 
     const subscriber1 = vi.fn();
     const subscriber2 = vi.fn();

@@ -35,7 +35,7 @@ const useHostResource = <T>(callback: () => T) => {
 const HostResource = resource(useHostResource);
 
 // Runs `callback` inside a resource render hosted by a React component, so the
-// resource composition hooks (useResource/useResources/useResourceRoot) work from
+// resource composition hooks (useResource/useResources/useTapRoot) work from
 // React. `callback` executes inside the resource fiber below, so it may only call
 // resource hooks, not React's own hooks (which would have no fiber to attach to).
 // This is the single React->resource bridge; the React branch of every public
@@ -105,10 +105,8 @@ export const useResources: typeof hooks.useResources = makeHook(
 );
 
 /**
- * Hosts a resource element as a subscribable root. Inside a resource render it
- * uses the root hook directly; inside a React component it hosts that root via
- * the React bridge (host it in one place; observe it via getValue/subscribe).
+ * Hosts a callback as a subscribable root. Inside a resource render it uses the
+ * root hook directly; inside a React component it hosts that root via the React
+ * bridge (host it in one place; observe it via getState/subscribe).
  */
-export const useResourceRoot: typeof hooks.useResourceRoot = makeHook(
-  hooks.useResourceRoot,
-);
+export const useTapRoot: typeof hooks.useTapRoot = makeHook(hooks.useTapRoot);

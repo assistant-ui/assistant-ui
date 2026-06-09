@@ -80,7 +80,7 @@ A resource is **unmounted** when its owner removes it, all effect cleanups run a
 
 - A parent resource stops rendering the child via `useResource`
 - A React component using `useResource` unmounts
-- `root.unmount()` is called on a `createResourceRoot` root
+- `root.unmount()` is called on a `createTapRoot` root
 
 ## Concurrent mode
 
@@ -99,4 +99,4 @@ When a resource is hidden by `<Activity mode="hidden">`, state updates that arri
 In development, resources render twice on mount to surface side effects in render, the same as React's `<StrictMode>`.
 
 - **`useResource`** inherits the surrounding `<StrictMode>`.
-- **`createResourceRoot`** enables it automatically in development.
+- **`createTapRoot`** enables it automatically in development.

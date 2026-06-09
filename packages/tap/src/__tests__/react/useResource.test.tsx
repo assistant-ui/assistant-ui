@@ -13,7 +13,7 @@ import { useEffect as useResourceEffect } from "../../hooks/useEffect";
 import {
   useResource,
   useResources,
-  useResourceRoot,
+  useTapRoot,
   flushResourcesSync,
 } from "../../index";
 
@@ -100,16 +100,16 @@ describe("@assistant-ui/tap/react resource API", () => {
     });
   });
 
-  describe("useResourceRoot", () => {
+  describe("useTapRoot", () => {
     it("exposes a subscribable inside a tap resource", () => {
       const useRoot = () => {
         const [n] = useResourceState(7);
         return n;
       };
 
-      const Root = resource(useRoot);
       const parent = createTestResource(() =>
-        useResourceRoot(Root()).getValue(),
+        // oxlint-disable-next-line react/rules-of-hooks
+        useTapRoot(() => useRoot()).getValue(),
       );
       expect(renderTest(parent, undefined)).toBe(7);
     });
@@ -125,16 +125,15 @@ describe("@assistant-ui/tap/react resource API", () => {
         return { count, setCount };
       };
 
-      const CounterRoot = resource(useCounterRoot);
-
       let store: ReturnType<
-        typeof useResourceRoot<{
+        typeof useTapRoot<{
           count: number;
           setCount: (n: number) => void;
         }>
       > | null = null;
       function App() {
-        store = useResourceRoot(CounterRoot());
+        // oxlint-disable-next-line react/rules-of-hooks
+        store = useTapRoot(() => useCounterRoot());
         return null;
       }
 

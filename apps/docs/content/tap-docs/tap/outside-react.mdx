@@ -3,40 +3,37 @@ title: Outside React
 description: Run resources standalone, with no React tree.
 ---
 
-Resources don't need React. `createResourceRoot` hosts a resource tree
+Resources don't need React. `createTapRoot` hosts a resource tree
 imperatively, which is how libraries and tests drive resources, and how
 `@assistant-ui/store` bridges them into React.
 
-## createResourceRoot
+## createTapRoot
 
 ```ts
-import { createResourceRoot } from "@assistant-ui/tap";
+import { createTapRoot, useResource } from "@assistant-ui/tap";
 
-const root = createResourceRoot();
-const handle = root.render(Counter({ initialValue: 0 }));
+const root = createTapRoot(() => useResource(Counter({ initialValue: 0 })));
 
 // read the current value
-handle.getValue().count; // 0
+root.getValue().count; // 0
 
 // subscribe to changes
-const unsubscribe = handle.subscribe(() => {
-  console.log(handle.getValue().count);
+const unsubscribe = root.subscribe(() => {
+  console.log(root.getValue().count);
 });
 
 // call methods
-handle.getValue().increment();
-
-// re-render with new props
-root.render(Counter({ initialValue: 10 }));
+root.getValue().increment();
 
 // clean up
 root.unmount();
 ```
 
-`createResourceRoot()` returns `{ render, unmount }`. `render(element)` hosts (or
-re-hosts) the element and returns a stable `{ getValue, subscribe }` handle:
-`getValue()` reads the resource's current return value, and `subscribe(callback)`
-fires whenever it changes.
+`createTapRoot(callback)` runs the callback as the root's render body, in which you
+call `useResource` to host a resource. It returns a stable
+`{ getValue, subscribe, unmount }` object: `getValue()` reads the resource's
+current return value, `subscribe(callback)` fires whenever it changes, and
+`unmount()` tears the tree down.
 
 ## Scheduling and flushing
 
@@ -45,8 +42,8 @@ How updates are delivered depends on what hosts the tree:
 | Host | Scheduler | Updates delivered via |
 | --- | --- | --- |
 | `useResource` | React | React re-render |
-| `useResourceRoot` | tap | `.subscribe()` |
-| `createResourceRoot` | tap | `handle.subscribe()` |
+| `useTapRoot` | tap | `.subscribe()` |
+| `createTapRoot` | tap | `root.subscribe()` |
 
 The tap scheduler batches state changes: multiple setters in the same synchronous
 block produce a single re-render. If updates keep triggering more updates (for
@@ -61,11 +58,11 @@ new state is readable immediately after.
 ```ts
 import { flushResourcesSync } from "@assistant-ui/tap";
 
-flushResourcesSync(() => handle.getValue().increment());
-console.log(handle.getValue().count); // already updated
+flushResourcesSync(() => root.getValue().increment());
+console.log(root.getValue().count); // already updated
 ```
 
-This applies to tap-scheduled trees (`createResourceRoot` / `useResourceRoot`). For
+This applies to tap-scheduled trees (`createTapRoot` / `useTapRoot`). For
 `useResource` trees, use `flushSync` from `react-dom` instead. It is useful when a
 library expects a synchronous result, such as a controlled input that needs its
 store updated inside the `onChange` handler.

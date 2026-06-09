@@ -1,6 +1,6 @@
 ---
 name: tap
-description: Use this skill whenever you write or review code that uses `@assistant-ui/tap` or `@assistant-ui/store` in the assistant-ui monorepo: resources, React hooks inside resource bodies, `useResource`/`useResources`/`useResourceRoot`, `useClientResource`/`useClientLookup`/`useClientList`, `useAui`/`useAuiState`/`useAuiEvent`, `ScopeRegistry`, `Derived` child scopes, `attachTransformScopes`, `useAssistantClientRef`/`useAssistantEmit`, or any new package exposing a store scope. Read first to avoid the recurring mistakes catalogued below.
+description: Use this skill whenever you write or review code that uses `@assistant-ui/tap` or `@assistant-ui/store` in the assistant-ui monorepo: resources, React hooks inside resource bodies, `useResource`/`useResources`/`useTapRoot`, `useClientResource`/`useClientLookup`/`useClientList`, `useAui`/`useAuiState`/`useAuiEvent`, `ScopeRegistry`, `Derived` child scopes, `attachTransformScopes`, `useAssistantClientRef`/`useAssistantEmit`, or any new package exposing a store scope. Read first to avoid the recurring mistakes catalogued below.
 ---
 
 # tap & store cheat sheet
@@ -10,7 +10,7 @@ Authoritative docs: `apps/docs/content/tap-docs/` (and `.../store/`). This is a 
 ## Naming
 
 - Inside a resource body you call **React's hooks** (`useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useReducer`, `useEffectEvent`, `use`) imported from `"react"`, following the rules of hooks. Read context with `use(Context)`.
-- tap adds `useResource` / `useResources` / `useResourceRoot` (from `@assistant-ui/tap`). store adds `useClientResource` / `useClientLookup` / `useClientList` / `useAssistantClientRef` / `useAssistantEmit` (from `@assistant-ui/store`).
+- tap adds `useResource` / `useResources` / `useTapRoot` (from `@assistant-ui/tap`). store adds `useClientResource` / `useClientLookup` / `useClientList` / `useAssistantClientRef` / `useAssistantEmit` (from `@assistant-ui/store`).
 - **`*Resource` / `Foo`** = resource factory produced by `resource(fn)`, called *outside* resource bodies (`SpanResource`, `CounterResource`, `MCPManagerResource`). Never name a factory `useFoo`, that signals a hook.
 - Plain utilities have no prefix (`defineConnector`, `createOAuthProvider`).
 
@@ -33,7 +33,7 @@ const element = Counter({ initial: 10 });   // ResourceElement = { type, props, 
 
 `resource(useCounter)` turns the hook into a Resource; `useResource(Counter(props))` turns it back into a hook call. **Always extract to a named `use`-prefixed hook** — inline `resource(() => …)` / `resource(function … )` is forbidden (lint rule `tap-hooks/named-resource`); the `use` prefix is what lets rules-of-hooks lint the body.
 
-Instantiate via: `useResource(element)` (isomorphic, works in a React component and inside another resource body), `createResourceRoot().render(element)` imperatively, or `useAui({ scope: element })` as a store scope.
+Instantiate via: `useResource(element)` (isomorphic, works in a React component and inside another resource body), `createTapRoot(() => useResource(element))` imperatively (returns `{ getValue, subscribe, unmount }`), or `useAui({ scope: element })` as a store scope.
 
 ## Hook rules
 
@@ -43,7 +43,7 @@ Instantiate via: `useResource(element)` (isomorphic, works in a React component 
 
 ## Trees & re-renders
 
-`useResource` returns child values to the parent, so **the entire tree re-renders from the root** when any resource updates. `useResourceRoot` breaks the chain (subtree boundary, used inside Store). Tap batches updates via microtasks; >50 update flushes throws.
+`useResource` returns child values to the parent, so **the entire tree re-renders from the root** when any resource updates. `useTapRoot(() => R)` breaks the chain (subtree boundary returning `{ getValue, subscribe }`, used inside Store). Tap batches updates via microtasks; >50 update flushes throws.
 
 Effects run in **call order** (not children-first like React). Cleanups run FIFO on unmount.
 

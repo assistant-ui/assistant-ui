@@ -55,5 +55,5 @@ const App = resource(useApp);
 Any resource rendered inside the callback (including deeply nested children) reads `"dark"` from `ThemeContext`.
 
 <Callout type="warn">
-Context is not properly persisted across `useResourceRoot` boundaries. If a child resource is wrapped with `useResourceRoot`, it may not see context values provided by its ancestors. This is a known bug.
+Context is not properly persisted across `useTapRoot` boundaries. If a child resource is wrapped with `useTapRoot`, it may not see context values provided by its ancestors. This is a known bug.
 </Callout>

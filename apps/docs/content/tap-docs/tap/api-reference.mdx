@@ -142,36 +142,34 @@ const values = useResources(
 );
 ```
 
-## useResourceRoot
+## useTapRoot
 
-Hosts an element as a subscribable boundary, returning a stable
+Takes a render callback and hosts it as a subscribable boundary, returning a stable
 `{ getValue, subscribe }` handle instead of the value directly. Isomorphic. See
-[Subscribable boundary](/tap/docs/tap/composition#useresourceroot).
+[Subscribable boundary](/tap/docs/tap/composition#usetaproot).
 
 ```ts
-const handle = useResourceRoot(Counter({ initialValue: 0 }));
+const handle = useTapRoot(() => useResource(Counter({ initialValue: 0 })));
 handle.getValue();
 handle.subscribe(() => {});
 ```
 
-## createResourceRoot
+## createTapRoot
 
-Hosts a resource tree [outside React](/tap/docs/tap/outside-react). Returns
-`{ render, unmount }`; `render(element)` returns a `{ getValue, subscribe }`
-handle.
+Hosts a resource tree [outside React](/tap/docs/tap/outside-react). Takes a render
+callback and returns `{ getValue, subscribe, unmount }` directly.
 
 ```ts
-const root = createResourceRoot();
-const handle = root.render(Counter({ initialValue: 0 }));
-handle.getValue();
-handle.subscribe(() => {});
+const root = createTapRoot(() => useResource(Counter({ initialValue: 0 })));
+root.getValue();
+root.subscribe(() => {});
 root.unmount();
 ```
 
 ## flushResourcesSync
 
 Flushes pending tap-scheduled updates synchronously. Applies to tap-scheduled
-trees (`createResourceRoot` / `useResourceRoot`); for `useResource` trees use
+trees (`createTapRoot` / `useTapRoot`); for `useResource` trees use
 `flushSync` from `react-dom`.
 
 ```ts

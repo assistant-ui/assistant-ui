@@ -6,7 +6,7 @@ import { useState } from "../../hooks/useState";
 import { useEffect } from "../../hooks/useEffect";
 import { useMemo } from "../../hooks/useMemo";
 import { useResource } from "../../hooks/useResource";
-import { createResourceRoot } from "../../core/createResourceRoot";
+import { createTapRoot } from "../../core/createTapRoot";
 import { withKey } from "../../core/withKey";
 
 describe("Strict Mode", () => {
@@ -31,10 +31,7 @@ describe("Strict Mode", () => {
       events.push(`outerend-${idx}`);
     };
 
-    const TestResource = resource(useTestResource);
-
-    const root = createResourceRoot();
-    root.render(TestResource());
+    createTapRoot(() => useTestResource());
 
     console.log("Events:", events);
 
@@ -65,10 +62,7 @@ describe("Strict Mode", () => {
       events.push(`render memoValue=${memoValue}`);
     };
 
-    const TestResource = resource(useTestResource);
-
-    const root = createResourceRoot();
-    root.render(TestResource());
+    createTapRoot(() => useTestResource());
 
     // Matches React useMemo behavior: factory is double-invoked,
     // first result is kept
@@ -88,10 +82,7 @@ describe("Strict Mode", () => {
       return { renderCount };
     };
 
-    const TestResource = resource(useTestResource);
-
-    const root = createResourceRoot();
-    const sub = root.render(TestResource());
+    const sub = createTapRoot(() => useTestResource());
     const output = sub.getValue();
 
     expect(renderCount).toBe(2);
@@ -117,10 +108,7 @@ describe("Strict Mode", () => {
       expect(ref.current).toBe(4);
     };
 
-    const TestResource = resource(useTestResource);
-
-    const root = createResourceRoot();
-    root.render(TestResource());
+    createTapRoot(() => useTestResource());
 
     expect(renderCount).toBe(4);
   });
@@ -159,10 +147,7 @@ describe("Strict Mode", () => {
       }, [count]);
     };
 
-    const TestResource = resource(useTestResource);
-
-    const root = createResourceRoot();
-    root.render(TestResource());
+    createTapRoot(() => useTestResource());
 
     expect(events).toEqual([
       "mount-1",
@@ -191,10 +176,7 @@ describe("Strict Mode", () => {
       return useResource(TestChildResource());
     };
 
-    const TestResource = resource(useTestResource);
-
-    const root = createResourceRoot();
-    const sub = root.render(TestResource());
+    const sub = createTapRoot(() => useTestResource());
     const output = sub.getValue();
 
     expect(renderCount).toBe(2);
@@ -215,10 +197,7 @@ describe("Strict Mode", () => {
       });
     };
 
-    const TestResource = resource(useTestResource);
-
-    const root = createResourceRoot();
-    root.render(TestResource());
+    createTapRoot(() => useTestResource());
 
     expect(events).toEqual([
       "render-0",
@@ -272,10 +251,7 @@ describe("Strict Mode", () => {
       return useResource(withKey(id, TestChildResource()));
     };
 
-    const TestResource = resource(useTestResource);
-
-    const root = createResourceRoot();
-    const sub = root.render(TestResource());
+    const sub = createTapRoot(() => useTestResource());
     const output = sub.getValue();
 
     expect(renderCount).toBe(4);
@@ -323,10 +299,7 @@ describe("Strict Mode", () => {
       return useResource(withKey(id, TestChildResource()));
     };
 
-    const TestResource = resource(useTestResource);
-
-    const root = createResourceRoot();
-    root.render(TestResource());
+    createTapRoot(() => useTestResource());
 
     expect(events).toEqual([
       "outer-render-0",

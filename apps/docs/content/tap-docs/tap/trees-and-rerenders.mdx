@@ -8,7 +8,7 @@ description: How resource trees form, re-render, and get scheduled.
 When resources render other resources via `useResource` or `useResources`, they form a **tree**:
 
 ```
-root.render(App())                <- tree root
+createTapRoot(() => useResource(App()))  <- tree root
   ├─ useResource(Sidebar)
   │    └─ useResource(NavItem)
   └─ useResource(Main)
@@ -24,7 +24,7 @@ In React, a state change re-renders only the component that changed and its chil
 
 In tap, **the entire resource tree re-renders from the root**. Because `useResource` returns the child's value directly to the parent, the parent must re-run to receive the updated value, which means its parent must re-run too, all the way up to the tree root.
 
-`useResourceRoot` breaks this chain: it creates a **subtree boundary**. Everything below it becomes a separate tree that re-renders independently. The parent doesn't re-render when the subtree updates.
+`useTapRoot` breaks this chain: it creates a **subtree boundary**. Everything below it becomes a separate tree that re-renders independently. The parent doesn't re-render when the subtree updates.
 
 ## Tree roots and scheduling
 
@@ -33,8 +33,8 @@ Every tree has a **root** that determines how updates are scheduled and delivere
 | Root | Scheduler | Updates delivered via |
 | --- | --- | --- |
 | `useResource` | React | React re-render |
-| `createResourceRoot` | Tap | `handle.subscribe()` |
-| `useResourceRoot` | Tap | `.subscribe()` |
+| `createTapRoot` | Tap | `root.subscribe()` |
+| `useTapRoot` | Tap | `.subscribe()` |
 
 **React scheduler**: batching, priority, and timing are all controlled by React.
 
@@ -63,6 +63,6 @@ flushResourcesSync(() => {
 console.log(handle.getValue().count);
 ```
 
-This only applies to tap-scheduled trees (`createResourceRoot` / `useResourceRoot`). For `useResource` trees, use `flushSync` from `react-dom` instead.
+This only applies to tap-scheduled trees (`createTapRoot` / `useTapRoot`). For `useResource` trees, use `flushSync` from `react-dom` instead.
 
 This is useful when a library expects a result synchronously, for example, React's controlled inputs need the store to update within the `onChange` handler, otherwise React reverts the input.

@@ -9,7 +9,8 @@ import { useMemo } from "./useMemo";
 import { useEffect } from "./useEffect";
 import { useEffectEvent } from "./useEffectEvent";
 import { useRef } from "./useRef";
-import type { RenderResult, ResourceElement } from "../core/types";
+import type { RenderResult, Resource } from "../core/types";
+import { resource } from "../core/resource";
 import { isDevelopment } from "../core/helpers/env";
 import {
   commitRoot,
@@ -17,27 +18,31 @@ import {
   setRootVersion,
 } from "../core/helpers/root";
 
-export namespace useResourceRoot {
+export namespace useTapRoot {
   export type Unsubscribe = () => void;
 
-  export interface SubscribableResource<TState> {
+  export interface Root<R> {
     /**
-     * Get the current state of the store.
+     * Get the current value of the root.
      */
-    getValue(): TState;
+    getValue(): R;
 
     /**
-     * Subscribe to the store.
+     * Subscribe to the root.
      */
     subscribe(listener: () => void): Unsubscribe;
   }
 }
 
-// The root is never reset, because rollbacks are not supported in useResourceRoot.
+// Stable content type: renders by invoking the latest callback inline, so the
+// callback's hooks run directly in this fiber (no extra child fiber). The
+// callback is passed as props, so it can change every render.
+const useHostRoot = <R>(render: () => R): R => render();
+const HostRoot = resource(useHostRoot);
 
-export const useResourceRoot = <TState>(
-  element: ResourceElement<TState>,
-): useResourceRoot.SubscribableResource<TState> => {
+// The root is never reset, because rollbacks are not supported in useTapRoot.
+
+export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   const scheduler = useMemo(
     () => new UpdateScheduler(() => handleUpdate(null)),
     [],
@@ -45,24 +50,22 @@ export const useResourceRoot = <TState>(
   const queue = useMemo(() => [] as (() => void)[], []);
 
   const fiber = useMemo(() => {
-    void element.key;
-
     return createResourceFiber(
-      element.type,
+      HostRoot as unknown as Resource<R, () => R>,
       createResourceFiberRoot((callback) => {
         if (!scheduler.isDirty && !callback()) return;
         queue.push(callback);
         scheduler.markDirty();
       }),
     );
-  }, [element.type, element.key, queue, scheduler]);
+  }, [queue, scheduler]);
 
   setRootVersion(fiber.root, fiber.root.committedVersion);
-  const render = renderResourceFiber(fiber, element.props);
+  const render2 = renderResourceFiber(fiber, render);
 
   const isMountedRef = useRef(false);
-  const committedPropsRef = useRef(element.props);
-  const valueRef = useRef<TState>(render.output);
+  const committedPropsRef = useRef(render);
+  const valueRef = useRef<R>(render2.output);
   const subscribers = useMemo(() => new Set<() => void>(), []);
   const handleUpdate = useEffectEvent((render: RenderResult | null) => {
     if (render === null) {
@@ -108,12 +111,12 @@ export const useResourceRoot = <TState>(
   }, [fiber]);
 
   useEffect(() => {
-    committedPropsRef.current = render.props;
+    committedPropsRef.current = render2.props;
     commitRoot(fiber.root);
-    commitResourceFiber(fiber, render);
+    commitResourceFiber(fiber, render2);
 
-    if (scheduler.isDirty || valueRef.current === render.output) return;
-    valueRef.current = render.output;
+    if (scheduler.isDirty || valueRef.current === render2.output) return;
+    valueRef.current = render2.output;
     subscribers.forEach((callback) => callback());
   });
 

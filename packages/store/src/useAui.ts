@@ -3,7 +3,7 @@
 import {
   useResource,
   useResources,
-  useResourceRoot,
+  useTapRoot,
   resource,
   withKey,
 } from "@assistant-ui/tap";
@@ -64,8 +64,6 @@ const useRootClientResource = <K extends ClientNames>({
   return useMemo(() => ({ state, methods }), [methods, state]);
 };
 
-const RootClientResource = resource(useRootClientResource);
-
 const useRootClientAccessorResource = <K extends ClientNames>({
   element,
   notifications,
@@ -77,8 +75,9 @@ const useRootClientAccessorResource = <K extends ClientNames>({
   clientRef: { parent: AssistantClient; current: AssistantClient | null };
   name: K;
 }): AssistantClientAccessor<K> => {
-  const store = useResourceRoot(
-    RootClientResource({ element, emit: notifications.emit, clientRef }),
+  const store = useTapRoot(() =>
+    // oxlint-disable-next-line react/rules-of-hooks -- useTapRoot renders this callback as its root body
+    useRootClientResource({ element, emit: notifications.emit, clientRef }),
   );
 
   useEffect(() => {
