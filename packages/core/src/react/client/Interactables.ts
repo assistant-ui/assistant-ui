@@ -17,6 +17,7 @@ import { ModelContext } from "../../store";
 import {
   buildInteractableModelContext,
   findLatestSnapshotEntry,
+  type InteractableToolCacheEntry,
 } from "./interactable-model-context";
 
 const PERSISTENCE_DEBOUNCE_MS = 500;
@@ -38,6 +39,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const partialSchemaCacheRef = useRef(
     new Map<string, InteractableStateSchema>(),
   );
+  const toolCacheRef = useRef(new Map<string, InteractableToolCacheEntry>());
   const detachedStateRef = useRef(new Map<string, unknown>());
 
   const adapterRef = useRef<InteractablePersistenceAdapter | undefined>(
@@ -50,6 +52,15 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const hasPendingLocalChangeRef = useRef(false);
   const flushResolversRef = useRef<Array<() => void>>([]);
   const dirtyIdsRef = useRef(new Set<string>());
+
+  const setStateAndRef = useCallback(
+    (updater: (prev: InteractablesState) => InteractablesState) => {
+      const next = updater(stateRef.current);
+      stateRef.current = next;
+      setState(next);
+    },
+    [],
+  );
 
   const runPersistence = useCallback(async () => {
     const adapter = adapterRef.current;
@@ -72,7 +83,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
       payload[id] = { name: def.name, state: def.state };
     }
 
-    setState((prev) => ({
+    setStateAndRef((prev) => ({
       ...prev,
       persistence: {
         ...prev.persistence,
@@ -89,7 +100,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
       await adapter.save(payload);
       if (syncSeqRef.current === seq) {
         hasPendingLocalChangeRef.current = false;
-        setState((prev) => {
+        setStateAndRef((prev) => {
           const persistence = { ...prev.persistence };
           for (const id of dirtyIds) delete persistence[id];
           return { ...prev, persistence };
@@ -98,7 +109,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     } catch (e) {
       if (syncSeqRef.current === seq) {
         hasPendingLocalChangeRef.current = false;
-        setState((prev) => ({
+        setStateAndRef((prev) => ({
           ...prev,
           persistence: {
             ...prev.persistence,
@@ -116,7 +127,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         flushResolversRef.current = [];
       }
     }
-  }, []);
+  }, [setStateAndRef]);
 
   const schedulePersistence = useCallback(
     (id: string) => {
@@ -149,22 +160,27 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     return result;
   }, []);
 
-  const importState = useCallback((saved: InteractablePersistedState) => {
-    for (const [id, entry] of Object.entries(saved)) {
-      detachedStateRef.current.set(id, entry.state);
-    }
-    setState((prev) => {
-      let changed = false;
-      const definitions = { ...prev.definitions };
+  const importState = useCallback(
+    (saved: InteractablePersistedState) => {
       for (const [id, entry] of Object.entries(saved)) {
-        if (definitions[id]) {
-          definitions[id] = { ...definitions[id], state: entry.state };
-          changed = true;
-        }
+        detachedStateRef.current.set(id, entry.state);
       }
-      return changed ? { ...prev, definitions } : prev;
-    });
-  }, []);
+      setStateAndRef((prev) => {
+        let changed = false;
+        const definitions = { ...prev.definitions };
+        for (const [id, entry] of Object.entries(saved)) {
+          if (definitions[id]) {
+            definitions[id] = { ...definitions[id], state: entry.state };
+            changed = true;
+          }
+        }
+        if (!changed) return prev;
+        const next = { ...prev, definitions };
+        return next;
+      });
+    },
+    [setStateAndRef],
+  );
 
   const setPersistenceAdapter = useCallback(
     (adapter: InteractablePersistenceAdapter | undefined) => {
@@ -229,6 +245,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
             defs,
             partialSchemaCacheRef.current,
             setDefState,
+            toolCacheRef.current,
           ) ?? {}
         );
       },
@@ -239,7 +256,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         };
       },
     }),
-    [setDefState, clientRef],
+    [setDefState],
   );
 
   useEffect(() => {
@@ -282,29 +299,32 @@ const useInteractables = (): ClientOutput<"interactables"> => {
             )?.state
           : undefined;
 
-      setState((prev) => ({
-        ...prev,
-        definitions: {
-          ...prev.definitions,
-          [def.id]: {
-            id: def.id,
-            name: def.name,
-            description: def.description,
-            stateSchema: def.stateSchema,
-            initialState: def.initialState,
-            scope: def.scope,
-            state:
-              prev.definitions[def.id]?.state ??
-              detached ??
-              snapshot ??
-              def.initialState,
+      setStateAndRef((prev) => {
+        const next = {
+          ...prev,
+          definitions: {
+            ...prev.definitions,
+            [def.id]: {
+              id: def.id,
+              name: def.name,
+              description: def.description,
+              stateSchema: def.stateSchema,
+              initialState: def.initialState,
+              scope: def.scope,
+              state:
+                prev.definitions[def.id]?.state ??
+                detached ??
+                snapshot ??
+                def.initialState,
+            },
           },
-        },
-      }));
+        };
+        return next;
+      });
 
       return () => {
         flushIfPending();
-        setState((prev) => {
+        setStateAndRef((prev) => {
           const existing = prev.definitions[def.id];
           if (existing) {
             detachedStateRef.current.set(def.id, existing.state);
@@ -316,11 +336,11 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         });
       };
     },
-    [flushIfPending, clientRef],
+    [flushIfPending, clientRef, setStateAndRef],
   );
 
   return {
-    getState: () => state,
+    getState: () => stateRef.current,
     register,
     setState: setDefState,
     exportState,

@@ -31,7 +31,9 @@ export function findLatestSnapshotEntry(
 }
 
 /** Ungated entry with the `initialState` reference the send-time gate needs. */
-type RawInteractableEntry = InteractableSnapshotEntry & { initialState: unknown };
+type RawInteractableEntry = InteractableSnapshotEntry & {
+  initialState: unknown;
+};
 
 /** Every interactable's current state, ungated (gated later in `handleSend`). */
 function buildRawComposerMetadata(
@@ -94,10 +96,23 @@ export function shallowMerge(prev: unknown, partial: unknown): unknown {
   };
 }
 
+/**
+ * Cached `update_*` tool keyed by tool name. A tool depends only on these
+ * inputs (never on `state`), so it is reused until one of them changes.
+ */
+export type InteractableToolCacheEntry = {
+  id: string;
+  description: string;
+  parameters: InteractableStateSchema;
+  setDefState: (id: string, updater: (prev: unknown) => unknown) => void;
+  tool: Tool<any, any>;
+};
+
 export function buildInteractableModelContext(
   definitions: Record<string, InteractableDefinition>,
   partialSchemaCache: Map<string, InteractableStateSchema>,
   setDefState: (id: string, updater: (prev: unknown) => unknown) => void,
+  toolCache: Map<string, InteractableToolCacheEntry>,
 ):
   | {
       tools: Record<string, Tool<any, any>>;
@@ -127,10 +142,23 @@ export function buildInteractableModelContext(
         : `update_${safeName}`;
 
       const partialSchema = partialSchemaCache.get(def.id) ?? def.stateSchema;
+      const description = `Update the state of interactable component "${name}"${isMulti ? ` (id: ${def.id})` : ""}. Only include the fields you want to change; omitted fields keep their current values. ${def.description}`;
 
-      tools[toolName] = {
+      const cached = toolCache.get(toolName);
+      if (
+        cached &&
+        cached.id === def.id &&
+        cached.description === description &&
+        cached.parameters === partialSchema &&
+        cached.setDefState === setDefState
+      ) {
+        tools[toolName] = cached.tool;
+        continue;
+      }
+
+      const tool: Tool<any, any> = {
         type: "frontend" as const,
-        description: `Update the state of interactable component "${name}"${isMulti ? ` (id: ${def.id})` : ""}. Only include the fields you want to change; omitted fields keep their current values. ${def.description}`,
+        description,
         parameters: partialSchema,
         streamCall: async (reader) => {
           try {
@@ -146,7 +174,20 @@ export function buildInteractableModelContext(
           return { success: true };
         },
       };
+      toolCache.set(toolName, {
+        id: def.id,
+        description,
+        parameters: partialSchema,
+        setDefState,
+        tool,
+      });
+      tools[toolName] = tool;
     }
+  }
+
+  // Drop cache entries for tools no longer present (unregistered or renamed).
+  for (const key of toolCache.keys()) {
+    if (!(key in tools)) toolCache.delete(key);
   }
 
   const composerMetadata = buildRawComposerMetadata(definitions);
