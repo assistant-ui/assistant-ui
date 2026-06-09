@@ -8,11 +8,11 @@ import type {
 } from "../../runtime/api/thread-list-item-runtime";
 import { useSubscribable } from "./useSubscribable";
 
-export const ThreadListItemClient = resource(function ThreadListItemClient({
+const useThreadListItemClient = ({
   runtime,
 }: {
   runtime: ThreadListItemRuntime;
-}): ClientOutput<"threadListItem"> {
+}): ClientOutput<"threadListItem"> => {
   const state = useSubscribable(runtime);
   const emit = useAssistantEmit();
 
@@ -53,4 +53,6 @@ export const ThreadListItemClient = resource(function ThreadListItemClient({
     detach: runtime.detach,
     __internal_getRuntime: () => runtime,
   };
-});
+};
+
+export const ThreadListItemClient = resource(useThreadListItemClient);

@@ -15,28 +15,30 @@ import type { QueueItemState } from "../scopes/queue-item";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { useSubscribable } from "./useSubscribable";
 
-const ComposerAttachmentClientByIndex = resource(
-  function ComposerAttachmentClientByIndex({
-    runtime,
-    index,
-  }: {
-    runtime: ComposerRuntime;
-    index: number;
-  }) {
-    const attachmentRuntime = useMemo(
-      () => runtime.getAttachmentByIndex(index),
-      [runtime, index],
-    );
+const useComposerAttachmentClientByIndex = ({
+  runtime,
+  index,
+}: {
+  runtime: ComposerRuntime;
+  index: number;
+}) => {
+  const attachmentRuntime = useMemo(
+    () => runtime.getAttachmentByIndex(index),
+    [runtime, index],
+  );
 
-    return useResource(
-      AttachmentRuntimeClient({
-        runtime: attachmentRuntime,
-      }),
-    );
-  },
+  return useResource(
+    AttachmentRuntimeClient({
+      runtime: attachmentRuntime,
+    }),
+  );
+};
+
+const ComposerAttachmentClientByIndex = resource(
+  useComposerAttachmentClientByIndex,
 );
 
-const QueueItemClient = resource(function QueueItemClient({
+const useQueueItemClient = ({
   item,
   onSteer,
   onRemove,
@@ -44,15 +46,17 @@ const QueueItemClient = resource(function QueueItemClient({
   item: QueueItemState;
   onSteer: () => void;
   onRemove: () => void;
-}): ClientOutput<"queueItem"> {
+}): ClientOutput<"queueItem"> => {
   return {
     getState: () => item,
     steer: onSteer,
     remove: onRemove,
   };
-});
+};
 
-export const ComposerClient = resource(function ComposerClient({
+const QueueItemClient = resource(useQueueItemClient);
+
+const useComposerClient = ({
   threadIdRef,
   messageIdRef,
   runtime,
@@ -60,7 +64,7 @@ export const ComposerClient = resource(function ComposerClient({
   threadIdRef: { current: string };
   messageIdRef?: { current: string };
   runtime: ComposerRuntime;
-}): ClientOutput<"composer"> {
+}): ClientOutput<"composer"> => {
   const runtimeState = useSubscribable(runtime);
   const emit = useAssistantEmit();
 
@@ -173,4 +177,6 @@ export const ComposerClient = resource(function ComposerClient({
     queueItem: (selector) => queueItems.get(selector),
     __internal_getRuntime: () => runtime,
   };
-});
+};
+
+export const ComposerClient = resource(useComposerClient);

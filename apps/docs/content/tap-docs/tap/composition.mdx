@@ -17,7 +17,7 @@ Render a single child resource. The child has its own state and effects, and is 
 import { resource, useResource } from "@assistant-ui/tap";
 import { useEffect } from "react";
 
-const Timer = resource(function Timer() {
+const useTimer = () => {
   const counter = useResource(Counter());
 
   useEffect(() => {
@@ -28,7 +28,9 @@ const Timer = resource(function Timer() {
   }, []);
 
   return { count: counter.count };
-});
+};
+
+const Timer = resource(useTimer);
 ```
 
 ### Props dependencies
@@ -55,7 +57,7 @@ Render a dynamic list of child resources. Each element **must** have a key via `
 import { resource, withKey, useResources } from "@assistant-ui/tap";
 import { useState } from "react";
 
-const TodoList = resource(function TodoList() {
+const useTodoList = () => {
   const [items, setItems] = useState([
     { id: "1", text: "Learn tap" },
     { id: "2", text: "Build something" },
@@ -71,7 +73,9 @@ const TodoList = resource(function TodoList() {
     add: (text: string) =>
       setItems((prev) => [...prev, { id: crypto.randomUUID(), text }]),
   };
-});
+};
+
+const TodoList = resource(useTodoList);
 ```
 
 Keys must be unique; a missing or duplicate key throws.

@@ -21,7 +21,7 @@ npm install @assistant-ui/tap
 import { resource, createResourceRoot } from "@assistant-ui/tap";
 import { useState, useEffect } from "react";
 
-const Counter = resource(function Counter({ incrementBy = 1 }: { incrementBy?: number }) {
+const useCounter = ({ incrementBy = 1 }: { incrementBy?: number }) => {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -32,7 +32,9 @@ const Counter = resource(function Counter({ incrementBy = 1 }: { incrementBy?: n
     count,
     increment: () => setCount((c) => c + incrementBy),
   };
-});
+};
+
+const Counter = resource(useCounter);
 
 const root = createResourceRoot();
 const counter = root.render(Counter({ incrementBy: 2 }));

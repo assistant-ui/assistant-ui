@@ -11,17 +11,19 @@ npm install @assistant-ui/tap
 
 ## Define a resource
 
-A resource is a React component without the UI. Author it with `resource` and a
-named function, and use the hooks you already know, imported from `"react"`.
+A resource is a React component without the UI. Write a `use`-prefixed hook with
+the hooks you already know, imported from `"react"`, then wrap it with `resource`.
 
 ```ts
 import { resource } from "@assistant-ui/tap";
 import { useState } from "react";
 
-const Counter = resource(function Counter() {
+const useCounter = () => {
   const [count, setCount] = useState(0);
   return { count, increment: () => setCount((c) => c + 1) };
-});
+};
+
+const Counter = resource(useCounter);
 ```
 
 Instead of JSX, a resource returns a plain value: the state and methods you want
@@ -42,8 +44,9 @@ function CounterButton() {
 }
 ```
 
-Calling the factory (`Counter()`) creates an inert element; `useResource` brings
-it to life.
+`resource()` turns a hook into a Resource; `useResource(Counter())` turns it back
+into a hook call. Calling the factory (`Counter()`) creates an inert element;
+`useResource` brings it to life.
 
 ## Next steps
 

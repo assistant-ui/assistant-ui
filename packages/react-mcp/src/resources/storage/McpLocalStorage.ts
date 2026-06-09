@@ -22,9 +22,7 @@ function resolveStorage(opts: McpLocalStorageOptions): Storage | null {
   return null;
 }
 
-export const McpLocalStorage = resource(function McpLocalStorage(
-  opts: McpLocalStorageOptions = {},
-): MCPStorage {
+const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
   const prefix = opts.keyPrefix ?? "aui-mcp";
   const customServersKey = `${prefix}:custom-servers`;
   const authKey = (id: string) => `${prefix}:auth:${id}`;
@@ -74,4 +72,6 @@ export const McpLocalStorage = resource(function McpLocalStorage(
       remove(authKey(id));
     },
   };
-});
+};
+
+export const McpLocalStorage = resource(useMcpLocalStorage);

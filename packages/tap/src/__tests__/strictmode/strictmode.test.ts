@@ -19,7 +19,7 @@ describe("Strict Mode", () => {
     let outerCount = 0;
     let memoCount = 0;
 
-    const TestResource = resource(function TestResource() {
+    const useTestResource = () => {
       const idx = outerCount++;
       events.push(`outer-${idx}`);
 
@@ -29,7 +29,9 @@ describe("Strict Mode", () => {
       }, []);
 
       events.push(`outerend-${idx}`);
-    });
+    };
+
+    const TestResource = resource(useTestResource);
 
     const root = createResourceRoot();
     root.render(TestResource());
@@ -53,7 +55,7 @@ describe("Strict Mode", () => {
     const events: string[] = [];
     let memoCallCount = 0;
 
-    const TestResource = resource(function TestResource() {
+    const useTestResource = () => {
       const memoValue = useMemo(() => {
         memoCallCount++;
         events.push(`memo-${memoCallCount}`);
@@ -61,7 +63,9 @@ describe("Strict Mode", () => {
       }, []);
 
       events.push(`render memoValue=${memoValue}`);
-    });
+    };
+
+    const TestResource = resource(useTestResource);
 
     const root = createResourceRoot();
     root.render(TestResource());
@@ -79,10 +83,12 @@ describe("Strict Mode", () => {
   it("should double-render on first render", () => {
     let renderCount = 0;
 
-    const TestResource = resource(function TestResource() {
+    const useTestResource = () => {
       renderCount++;
       return { renderCount };
-    });
+    };
+
+    const TestResource = resource(useTestResource);
 
     const root = createResourceRoot();
     const sub = root.render(TestResource());
@@ -95,7 +101,7 @@ describe("Strict Mode", () => {
   it("should double-call hook fns", () => {
     let renderCount = 0;
 
-    const TestResource = resource(function TestResource() {
+    const useTestResource = () => {
       const ref = useRef(0);
       const [count] = useState(() => {
         renderCount++;
@@ -109,7 +115,9 @@ describe("Strict Mode", () => {
       expect(count).toBe(1);
       expect(count2).toBe(3);
       expect(ref.current).toBe(4);
-    });
+    };
+
+    const TestResource = resource(useTestResource);
 
     const root = createResourceRoot();
     root.render(TestResource());
@@ -119,7 +127,7 @@ describe("Strict Mode", () => {
 
   it("should double-commit effects", () => {
     const events: string[] = [];
-    const TestResource = resource(function TestResource() {
+    const useTestResource = () => {
       const ref = useRef(0);
       ref.current++;
       const count = ref.current;
@@ -149,7 +157,9 @@ describe("Strict Mode", () => {
           events.push("unmount-3");
         };
       }, [count]);
-    });
+    };
+
+    const TestResource = resource(useTestResource);
 
     const root = createResourceRoot();
     root.render(TestResource());
@@ -170,14 +180,18 @@ describe("Strict Mode", () => {
   it("should double-render on child render", () => {
     let renderCount = 0;
 
-    const TestChildResource = resource(function TestChildResource() {
+    const useTestChildResource = () => {
       renderCount++;
       return { renderCount };
-    });
+    };
 
-    const TestResource = resource(function TestResource() {
+    const TestChildResource = resource(useTestChildResource);
+
+    const useTestResource = () => {
       return useResource(TestChildResource());
-    });
+    };
+
+    const TestResource = resource(useTestResource);
 
     const root = createResourceRoot();
     const sub = root.render(TestResource());
@@ -189,7 +203,7 @@ describe("Strict Mode", () => {
 
   it("should double-mount before handling state updates", () => {
     const events: string[] = [];
-    const TestResource = resource(function TestResource() {
+    const useTestResource = () => {
       const [id, setId] = useState(0);
       events.push(`render-${id}`);
       useEffect(() => {
@@ -199,7 +213,9 @@ describe("Strict Mode", () => {
           events.push(`unmount-${id}`);
         };
       });
-    });
+    };
+
+    const TestResource = resource(useTestResource);
 
     const root = createResourceRoot();
     root.render(TestResource());
@@ -228,7 +244,7 @@ describe("Strict Mode", () => {
       return renderCount;
     };
 
-    const TestChildResource = resource(function TestChildResource() {
+    const useTestChildResource = () => {
       const [fnState] = useState(() => {
         fnCount++;
         return fnCount;
@@ -244,15 +260,19 @@ describe("Strict Mode", () => {
         };
       }, [fnState, count]);
       return { renderCount, fnCount, fnState };
-    });
+    };
 
-    const TestResource = resource(function TestResource() {
+    const TestChildResource = resource(useTestChildResource);
+
+    const useTestResource = () => {
       const [id, setId] = useState(0);
       useEffect(() => {
         setId(1);
       });
       return useResource(withKey(id, TestChildResource()));
-    });
+    };
+
+    const TestResource = resource(useTestResource);
 
     const root = createResourceRoot();
     const sub = root.render(TestResource());
@@ -270,7 +290,7 @@ describe("Strict Mode", () => {
   it("should double-render on child render change", () => {
     let renderCount = 0;
     const events: string[] = [];
-    const TestChildResource = resource(function TestChildResource() {
+    const useTestChildResource = () => {
       renderCount++;
       events.push(`render-${renderCount}`);
 
@@ -285,9 +305,11 @@ describe("Strict Mode", () => {
           events.push(`unmount-${count}`);
         };
       });
-    });
+    };
 
-    const TestResource = resource(function TestResource() {
+    const TestChildResource = resource(useTestChildResource);
+
+    const useTestResource = () => {
       const [id, setId] = useState(0);
       events.push(`outer-render-${id}`);
       useEffect(() => {
@@ -299,7 +321,9 @@ describe("Strict Mode", () => {
         };
       });
       return useResource(withKey(id, TestChildResource()));
-    });
+    };
+
+    const TestResource = resource(useTestResource);
 
     const root = createResourceRoot();
     root.render(TestResource());

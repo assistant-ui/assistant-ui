@@ -8,11 +8,11 @@ import { attachTransformScopes } from "@assistant-ui/store";
 import { DataRenderers } from "./client/DataRenderers";
 import { Tools } from "./client/Tools";
 
-export const RuntimeAdapter = resource(function RuntimeAdapter(
-  runtime: AssistantRuntime,
-) {
+const useRuntimeAdapter = (runtime: AssistantRuntime) => {
   return useResource(RuntimeAdapterResource(runtime));
-});
+};
+
+export const RuntimeAdapter = resource(useRuntimeAdapter);
 
 attachTransformScopes(RuntimeAdapter, (scopes, parent) => {
   baseRuntimeAdapterTransformScopes(scopes, parent);

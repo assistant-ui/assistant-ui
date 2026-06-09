@@ -3,11 +3,11 @@ import type { ClientOutput } from "@assistant-ui/store";
 import type { MessagePartRuntime } from "../../runtime/api/message-part-runtime";
 import { useSubscribable } from "./useSubscribable";
 
-export const MessagePartClient = resource(function MessagePartClient({
+const useMessagePartClient = ({
   runtime,
 }: {
   runtime: MessagePartRuntime;
-}): ClientOutput<"part"> {
+}): ClientOutput<"part"> => {
   const state = useSubscribable(runtime);
 
   return {
@@ -18,4 +18,6 @@ export const MessagePartClient = resource(function MessagePartClient({
       runtime.respondToToolApproval(response),
     __internal_getRuntime: () => runtime,
   };
-});
+};
+
+export const MessagePartClient = resource(useMessagePartClient);

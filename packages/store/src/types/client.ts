@@ -102,13 +102,15 @@ type ClientSchemas = keyof ScopeRegistry extends never
  *
  * @example
  * ```typescript
- * const FooResource = resource(function FooResource(): ClientResourceOutput<"foo"> {
+ * const useFoo = (): ClientResourceOutput<"foo"> => {
  *   const [state, setState] = useState({ bar: "hello" });
  *   return {
  *     getState: () => state,
  *     updateBar: (b) => setState({ bar: b }),
  *   };
- * });
+ * };
+ *
+ * const FooResource = resource(useFoo);
  * ```
  */
 export type ClientOutput<K extends ClientNames> = ClientSchemas[K]["methods"] &

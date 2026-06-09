@@ -11,9 +11,11 @@ const ShouldNeverFallback = () => {
 
 describe("Concurrent Mode with useResource", () => {
   it("should not commit useResourceState updates when render is discarded", async () => {
-    const TestResource = resource(function TestResource() {
+    const useTestResource = () => {
       return useResourceState(false);
-    });
+    };
+
+    const TestResource = resource(useTestResource);
 
     let resolve: (value: number) => void;
 
@@ -142,14 +144,16 @@ describe("Concurrent Mode with useResource", () => {
     let resolve: () => void;
     let shouldSuspend = false;
 
-    const TestResource = resource(function TestResource(props: { id: number }) {
+    const useTestResource = (props: { id: number }) => {
       if (shouldSuspend) {
         throw new Promise<void>((r) => {
           resolve = r;
         });
       }
       return { value: `content-${props.id}` };
-    });
+    };
+
+    const TestResource = resource(useTestResource);
 
     function Inner({ id }: { id: number }) {
       const result = useResource(TestResource({ id }));

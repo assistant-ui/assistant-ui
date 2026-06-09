@@ -40,7 +40,7 @@ import { useState, useMemo } from "react";
 import { useAssistantEmit } from "@assistant-ui/store";
 import type { ClientOutput } from "@assistant-ui/store";
 
-const CounterResource = resource((): ClientOutput<"counter"> => {
+const useCounterResource = (): ClientOutput<"counter"> => {
   const [count, setCount] = useState(0);
   const emit = useAssistantEmit();
 
@@ -54,7 +54,9 @@ const CounterResource = resource((): ClientOutput<"counter"> => {
       emit("counter.incremented", { newCount });
     },
   };
-});
+};
+
+const CounterResource = resource(useCounterResource);
 ```
 
 Events are delivered via microtask: they fire after the current state update settles, not mid-update. This means listeners always see consistent state.

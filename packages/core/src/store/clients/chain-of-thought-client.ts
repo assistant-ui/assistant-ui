@@ -12,13 +12,13 @@ const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
 });
 
-export const ChainOfThoughtClient = resource(function ChainOfThoughtClient({
+const useChainOfThoughtClient = ({
   parts,
   getMessagePart,
 }: {
   parts: readonly ChainOfThoughtPart[];
   getMessagePart: (selector: { index: number }) => PartMethods;
-}): ClientOutput<"chainOfThought"> {
+}): ClientOutput<"chainOfThought"> => {
   const [collapsed, setCollapsed] = useState(true);
 
   const status = useMemo(() => {
@@ -36,4 +36,6 @@ export const ChainOfThoughtClient = resource(function ChainOfThoughtClient({
     setCollapsed,
     part: getMessagePart,
   };
-});
+};
+
+export const ChainOfThoughtClient = resource(useChainOfThoughtClient);

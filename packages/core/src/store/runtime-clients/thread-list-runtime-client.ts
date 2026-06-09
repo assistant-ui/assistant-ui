@@ -12,13 +12,13 @@ import { ThreadListItemClient } from "./thread-list-item-runtime-client";
 import { ThreadClient } from "./thread-runtime-client";
 import type { ThreadsState } from "../scopes/threads";
 
-const ThreadListItemClientById = resource(function ThreadListItemClientById({
+const useThreadListItemClientById = ({
   runtime,
   id,
 }: {
   runtime: ThreadListRuntime;
   id: string;
-}) {
+}) => {
   const threadListItemRuntime = useMemo(
     () => runtime.getItemById(id),
     [runtime, id],
@@ -28,15 +28,17 @@ const ThreadListItemClientById = resource(function ThreadListItemClientById({
       runtime: threadListItemRuntime,
     }),
   );
-});
+};
 
-export const ThreadListClient = resource(function ThreadListClient({
+const ThreadListItemClientById = resource(useThreadListItemClientById);
+
+const useThreadListClient = ({
   runtime,
   __internal_assistantRuntime,
 }: {
   runtime: ThreadListRuntime;
   __internal_assistantRuntime: AssistantRuntime;
-}): ClientOutput<"threads"> {
+}): ClientOutput<"threads"> => {
   const runtimeState = useSubscribable(runtime);
 
   const main = useClientResource(
@@ -96,4 +98,6 @@ export const ThreadListClient = resource(function ThreadListClient({
     loadMore: () => runtime.loadMore(),
     __internal_getAssistantRuntime: () => __internal_assistantRuntime,
   };
-});
+};
+
+export const ThreadListClient = resource(useThreadListClient);

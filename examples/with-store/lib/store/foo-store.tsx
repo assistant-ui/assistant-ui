@@ -17,10 +17,10 @@ import {
 
 type FooData = { id: string; bar: string };
 
-export const FooItemResource = resource(function FooItemResource({
+const useFooItemResource = ({
   getInitialData,
   remove,
-}: useClientList.ResourceProps<FooData>): ClientOutput<"foo"> {
+}: useClientList.ResourceProps<FooData>): ClientOutput<"foo"> => {
   const emit = useAssistantEmit();
 
   const [state, setState] = useState<FooData>(getInitialData);
@@ -40,14 +40,16 @@ export const FooItemResource = resource(function FooItemResource({
     updateBar,
     remove: handleRemove,
   };
-});
+};
+
+export const FooItemResource = resource(useFooItemResource);
 
 let counter = 3;
-export const FooListResource = resource(function FooListResource({
+const useFooListResource = ({
   initialValues,
 }: {
   initialValues: boolean;
-}): ClientOutput<"fooList"> {
+}): ClientOutput<"fooList"> => {
   const emit = useAssistantEmit();
 
   const foos = useClientList({
@@ -75,7 +77,9 @@ export const FooListResource = resource(function FooListResource({
     foo: foos.get,
     addFoo,
   };
-});
+};
+
+export const FooListResource = resource(useFooListResource);
 
 const FooProvider = ({
   index,

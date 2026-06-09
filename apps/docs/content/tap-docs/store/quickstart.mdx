@@ -39,18 +39,22 @@ import { resource } from "@assistant-ui/tap";
 import { useState, useMemo } from "react";
 import type { ClientOutput } from "@assistant-ui/store";
 
-export const CounterResource = resource(
-  ({ initialCount = 0 }: { initialCount?: number }): ClientOutput<"counter"> => {
-    const [count, setCount] = useState(initialCount);
+const useCounterResource = ({
+  initialCount = 0,
+}: {
+  initialCount?: number;
+}): ClientOutput<"counter"> => {
+  const [count, setCount] = useState(initialCount);
 
-    const state = useMemo(() => ({ count }), [count]);
+  const state = useMemo(() => ({ count }), [count]);
 
-    return {
-      getState: () => state,
-      increment: () => setCount((c) => c + 1),
-    };
-  },
-);
+  return {
+    getState: () => state,
+    increment: () => setCount((c) => c + 1),
+  };
+};
+
+export const CounterResource = resource(useCounterResource);
 ```
 
 ## Use it in React

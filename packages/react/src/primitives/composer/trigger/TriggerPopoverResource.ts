@@ -51,7 +51,7 @@ export type TriggerPopoverResourceOutput = {
 };
 
 /** Composes detection, navigation, keyboard, and selection sub-resources. */
-export const TriggerPopoverResource = resource(function TriggerPopoverResource({
+const useTriggerPopoverResource = ({
   adapter,
   text,
   triggerChar,
@@ -66,7 +66,7 @@ export const TriggerPopoverResource = resource(function TriggerPopoverResource({
   aui: AssistantClient;
   /** Stable ID for accessible element IDs (pass React's useId() from component layer). */
   popoverId: string;
-}): TriggerPopoverResourceOutput {
+}): TriggerPopoverResourceOutput => {
   const detection = useResource(
     TriggerDetectionResource({ text, triggerChar }),
   );
@@ -133,4 +133,6 @@ export const TriggerPopoverResource = resource(function TriggerPopoverResource({
     setCursorPosition: detection.setCursorPosition,
     registerSelectItemOverride: selection.registerSelectItemOverride,
   };
-});
+};
+
+export const TriggerPopoverResource = resource(useTriggerPopoverResource);

@@ -12,43 +12,47 @@ import { MessagePartClient } from "./message-part-runtime-client";
 import type { MessageState } from "../scopes/message";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 
-const MessageAttachmentClientByIndex = resource(
-  function MessageAttachmentClientByIndex({
-    runtime,
-    index,
-  }: {
-    runtime: MessageRuntime;
-    index: number;
-  }) {
-    const attachmentRuntime = useMemo(
-      () => runtime.getAttachmentByIndex(index),
-      [runtime, index],
-    );
-    return useResource(AttachmentRuntimeClient({ runtime: attachmentRuntime }));
-  },
-);
-
-const MessagePartByIndex = resource(function MessagePartByIndex({
+const useMessageAttachmentClientByIndex = ({
   runtime,
   index,
 }: {
   runtime: MessageRuntime;
   index: number;
-}) {
+}) => {
+  const attachmentRuntime = useMemo(
+    () => runtime.getAttachmentByIndex(index),
+    [runtime, index],
+  );
+  return useResource(AttachmentRuntimeClient({ runtime: attachmentRuntime }));
+};
+
+const MessageAttachmentClientByIndex = resource(
+  useMessageAttachmentClientByIndex,
+);
+
+const useMessagePartByIndex = ({
+  runtime,
+  index,
+}: {
+  runtime: MessageRuntime;
+  index: number;
+}) => {
   const partRuntime = useMemo(
     () => runtime.getMessagePartByIndex(index),
     [runtime, index],
   );
   return useResource(MessagePartClient({ runtime: partRuntime }));
-});
+};
 
-export const MessageClient = resource(function MessageClient({
+const MessagePartByIndex = resource(useMessagePartByIndex);
+
+const useMessageClient = ({
   runtime,
   threadIdRef,
 }: {
   runtime: MessageRuntime;
   threadIdRef: { current: string };
-}): ClientOutput<"message"> {
+}): ClientOutput<"message"> => {
   const runtimeState = useSubscribable(runtime);
 
   const [isCopiedState, setIsCopied] = useState(false);
@@ -145,4 +149,6 @@ export const MessageClient = resource(function MessageClient({
 
     __internal_getRuntime: () => runtime,
   };
-});
+};
+
+export const MessageClient = resource(useMessageClient);

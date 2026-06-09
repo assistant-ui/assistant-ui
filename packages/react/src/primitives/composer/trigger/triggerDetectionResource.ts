@@ -18,27 +18,27 @@ export type TriggerDetectionResourceOutput = {
 };
 
 /** Tracks cursor position and derives the active trigger + query from composer text. */
-export const TriggerDetectionResource = resource(
-  function TriggerDetectionResource({
-    text,
-    triggerChar,
-  }: {
-    text: string;
-    triggerChar: string;
-  }): TriggerDetectionResourceOutput {
-    const [cursorPosition, setCursorPosition] = useState(text.length);
+const useTriggerDetectionResource = ({
+  text,
+  triggerChar,
+}: {
+  text: string;
+  triggerChar: string;
+}): TriggerDetectionResourceOutput => {
+  const [cursorPosition, setCursorPosition] = useState(text.length);
 
-    const trigger = useMemo(() => {
-      const pos = Math.min(cursorPosition, text.length);
-      return detectTrigger(text, triggerChar, pos);
-    }, [cursorPosition, text, triggerChar]);
+  const trigger = useMemo(() => {
+    const pos = Math.min(cursorPosition, text.length);
+    return detectTrigger(text, triggerChar, pos);
+  }, [cursorPosition, text, triggerChar]);
 
-    const query = trigger?.query ?? "";
+  const query = trigger?.query ?? "";
 
-    return {
-      trigger,
-      query,
-      setCursorPosition,
-    };
-  },
-);
+  return {
+    trigger,
+    query,
+    setCursorPosition,
+  };
+};
+
+export const TriggerDetectionResource = resource(useTriggerDetectionResource);

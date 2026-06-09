@@ -26,10 +26,12 @@ Read the current value of a context inside a resource with `use` imported from `
 ```ts
 import { use } from "react";
 
-const Button = resource(function Button() {
+const useButton = () => {
   const theme = use(ThemeContext);
   // ...
-});
+};
+
+const Button = resource(useButton);
 ```
 
 ## withContextProvider
@@ -39,13 +41,15 @@ Provide a context value to all resources rendered within the callback.
 ```ts
 import { useResource, withContextProvider } from "@assistant-ui/tap";
 
-const App = resource(function App() {
+const useApp = () => {
   const child = withContextProvider(ThemeContext, "dark", () => {
     return useResource(Button());
   });
 
   return child;
-});
+};
+
+const App = resource(useApp);
 ```
 
 Any resource rendered inside the callback (including deeply nested children) reads `"dark"` from `ThemeContext`.

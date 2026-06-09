@@ -29,25 +29,25 @@ const deriveState = (
   return { modelName, toolNames };
 };
 
-export const ModelContext = resource(
-  function ModelContext(): ClientOutput<"modelContext"> {
-    const composite = useMemo(() => new CompositeContextProvider(), []);
-    const [state, setState] = useState<ModelContextState>(() =>
-      deriveState(composite, INITIAL_STATE),
-    );
+const useModelContext = (): ClientOutput<"modelContext"> => {
+  const composite = useMemo(() => new CompositeContextProvider(), []);
+  const [state, setState] = useState<ModelContextState>(() =>
+    deriveState(composite, INITIAL_STATE),
+  );
 
-    useEffect(() => {
+  useEffect(() => {
+    setState((prev) => deriveState(composite, prev));
+    return composite.subscribe(() => {
       setState((prev) => deriveState(composite, prev));
-      return composite.subscribe(() => {
-        setState((prev) => deriveState(composite, prev));
-      });
-    }, [composite]);
+    });
+  }, [composite]);
 
-    return {
-      getState: () => deriveState(composite, state),
-      getModelContext: () => composite.getModelContext(),
-      subscribe: (callback) => composite.subscribe(callback),
-      register: (provider) => composite.registerModelContextProvider(provider),
-    };
-  },
-);
+  return {
+    getState: () => deriveState(composite, state),
+    getModelContext: () => composite.getModelContext(),
+    subscribe: (callback) => composite.subscribe(callback),
+    register: (provider) => composite.registerModelContextProvider(provider),
+  };
+};
+
+export const ModelContext = resource(useModelContext);

@@ -30,7 +30,7 @@ export type { McpAppResourceOutput };
  * context, while each tool renderer is registered with the tools scope for
  * message rendering.
  */
-export const Tools = resource(function Tools({
+const useTools = ({
   toolkit,
   mcpApp,
 }: {
@@ -38,7 +38,7 @@ export const Tools = resource(function Tools({
   toolkit?: Toolkit;
   /** Optional MCP app resource whose tools should be merged into context. */
   mcpApp?: ResourceElement<McpAppResourceOutput> | undefined;
-}): ClientOutput<"tools"> {
+}): ClientOutput<"tools"> => {
   const mcpAppOutputs = useResources(
     () => (mcpApp ? [withKey("mcpApp", mcpApp)] : []),
     [mcpApp],
@@ -155,7 +155,9 @@ export const Tools = resource(function Tools({
     getState: () => state,
     setToolUI,
   };
-});
+};
+
+export const Tools = resource(useTools);
 
 attachTransformScopes(Tools, (scopes, parent) => {
   if (!scopes.modelContext && parent.modelContext.source === null) {

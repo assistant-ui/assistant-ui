@@ -36,13 +36,15 @@ declare module "@assistant-ui/store" {
   }
 }
 
-const CounterClient = resource(function CounterClient(): ClientOutput<"counter"> {
+const useCounterClient = (): ClientOutput<"counter"> => {
   const [state, setState] = useState({ count: 0 });
   return {
     getState: () => state,
     increment: () => setState({ count: state.count + 1 }),
   };
-});
+};
+
+const CounterClient = resource(useCounterClient);
 
 function App() {
   const aui = useAui({ counter: CounterClient() });

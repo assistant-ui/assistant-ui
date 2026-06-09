@@ -110,7 +110,7 @@ function buildFlatList(
   return result;
 }
 
-const SpanChildResource = resource(function SpanChildResource({
+const useSpanChildResource = ({
   span,
   timeRange,
   onToggleCollapse,
@@ -118,7 +118,7 @@ const SpanChildResource = resource(function SpanChildResource({
   span: SpanItemState;
   timeRange: { min: number; max: number };
   onToggleCollapse: (spanId: string) => void;
-}): ClientOutput<"span"> {
+}): ClientOutput<"span"> => {
   const state: SpanState = {
     ...span,
     children: [],
@@ -133,13 +133,15 @@ const SpanChildResource = resource(function SpanChildResource({
       onToggleCollapse(span.id);
     },
   };
-});
+};
 
-export const SpanResource = resource(function SpanResource({
+const SpanChildResource = resource(useSpanChildResource);
+
+const useSpanResource = ({
   spans,
 }: {
   spans: SpanData[];
-}): ClientOutput<"span"> {
+}): ClientOutput<"span"> => {
   const { allSpans, timeRange } = useMemo(() => enrichSpans(spans), [spans]);
 
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(
@@ -201,4 +203,6 @@ export const SpanResource = resource(function SpanResource({
       // Root span collapse is a no-op
     },
   };
-});
+};
+
+export const SpanResource = resource(useSpanResource);

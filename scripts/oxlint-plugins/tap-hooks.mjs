@@ -1,26 +1,25 @@
 // Custom oxlint JS plugin: tap-hooks.
 //
-// Provides the `named-resource` rule: requires `resource()` to wrap a *named*
-// function so React's rules-of-hooks (which keys on the function name) lints hook
-// usage inside resource bodies. Dependency linting uses the built-in
-// `react/exhaustive-deps` rule, since the engine hooks use their React names.
-
-// `react/rules-of-hooks` only lints hook calls inside a function it recognizes
-// as a component or hook, and it recognizes them *by name*: a PascalCase or
-// `use`-prefixed `FunctionDeclaration`/named `FunctionExpression`. A resource
-// authored as `resource(() => {...})` or `resource(function () {...})` is an
-// anonymous callback to a call expression, so rules-of-hooks skips its body
-// entirely. Requiring a named function expression (`resource(function Name()
-// {...})`) makes rules-of-hooks kick in (and gives the resource a real
-// `fn.name` for keys/devtools).
-const PASCAL_OR_USE = /^([A-Z]|use[A-Z0-9])/;
+// Provides the `named-resource` rule: requires `resource()` to wrap a named,
+// `use`-prefixed hook rather than an inline function. A resource body *is* a
+// hook (it calls React's hooks under the rules of hooks), so the convention is:
+//
+//   const useFoo = () => { ... };
+//   const Foo = resource(useFoo);
+//
+// Extracting to a `use`-prefixed binding means React's stock `rules-of-hooks`
+// and `exhaustive-deps` lint the body directly (they recognize hooks by name),
+// and the resource gets a stable `fn.name` for keys/devtools. An inline
+// `resource(() => {...})` / `resource(function () {...})` is an anonymous
+// callback whose body rules-of-hooks skips entirely.
+const USE_PREFIX = /^use[A-Z0-9]/;
 
 const namedResourceRule = {
   meta: {
     type: "problem",
     docs: {
       description:
-        "require resource() to wrap a named function so React's rules-of-hooks lints its body",
+        "require resource() to wrap a named, use-prefixed hook so React's rules-of-hooks lints its body",
     },
   },
   create(context) {
@@ -31,25 +30,22 @@ const namedResourceRule = {
         const fn = node.arguments[0];
         if (!fn) return;
 
-        const isArrow = fn.type === "ArrowFunctionExpression";
-        const isAnonFnExpr = fn.type === "FunctionExpression" && !fn.id;
-        if (isArrow || isAnonFnExpr) {
+        if (
+          fn.type === "ArrowFunctionExpression" ||
+          fn.type === "FunctionExpression"
+        ) {
           context.report({
             node: fn,
             message:
-              "resource() must wrap a named function expression (e.g. `resource(function MyResource() { ... })`) so React's rules-of-hooks lints hook usage inside it.",
+              "resource() must wrap a named `use`-prefixed hook, not an inline function. Extract the body: `const useFoo = () => { ... }; const Foo = resource(useFoo);`",
           });
           return;
         }
 
-        if (
-          fn.type === "FunctionExpression" &&
-          fn.id &&
-          !PASCAL_OR_USE.test(fn.id.name)
-        ) {
+        if (fn.type === "Identifier" && !USE_PREFIX.test(fn.name)) {
           context.report({
-            node: fn.id,
-            message: `resource() function name "${fn.id.name}" must be PascalCase or use-prefixed so React's rules-of-hooks recognizes it as a component/hook.`,
+            node: fn,
+            message: `resource() must wrap a \`use\`-prefixed hook so React's rules-of-hooks lints it; "${fn.name}" is not use-prefixed.`,
           });
         }
       },

@@ -62,13 +62,13 @@ type MessageClientProps = {
 };
 
 // Message Client - minimal implementation
-const MessageClient = resource(function MessageClient({
+const useMessageClient = ({
   message,
   index,
   onEdit,
   onReload,
   queue,
-}: MessageClientProps): ClientOutput<"message"> {
+}: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -179,16 +179,16 @@ const MessageClient = resource(function MessageClient({
     setIsCopied,
     setIsHovering,
   };
-});
+};
+
+const MessageClient = resource(useMessageClient);
 
 type PartResourceProps = {
   part: ThreadAssistantMessagePart | ThreadUserMessagePart;
 };
 
 // Part Client - minimal implementation
-const PartResource = resource(function PartResource({
-  part,
-}: PartResourceProps): ClientOutput<"part"> {
+const usePartResource = ({ part }: PartResourceProps): ClientOutput<"part"> => {
   const state = useMemo(
     () => ({
       ...part,
@@ -203,7 +203,9 @@ const PartResource = resource(function PartResource({
     resumeToolCall: () => {},
     respondToToolApproval: () => {},
   };
-});
+};
+
+const PartResource = resource(usePartResource);
 
 type AttachmentResourceProps = {
   attachment: Attachment;
@@ -211,17 +213,19 @@ type AttachmentResourceProps = {
 };
 
 // Attachment Client - minimal implementation
-const AttachmentResource = resource(function AttachmentResource({
+const useAttachmentResource = ({
   attachment,
   onRemove,
-}: AttachmentResourceProps): ClientOutput<"attachment"> {
+}: AttachmentResourceProps): ClientOutput<"attachment"> => {
   return {
     getState: () => attachment,
     remove: async () => {
       onRemove?.();
     },
   };
-});
+};
+
+const AttachmentResource = resource(useAttachmentResource);
 
 type ComposerClientResourceProps = {
   type: "thread" | "edit";
@@ -235,7 +239,7 @@ type ComposerClientResourceProps = {
   queue?: ExternalThreadQueueAdapter | undefined;
 };
 
-const QueueItemClient = resource(function QueueItemClient({
+const useQueueItemClient = ({
   item,
   onSteer,
   onRemove,
@@ -243,16 +247,18 @@ const QueueItemClient = resource(function QueueItemClient({
   item: QueueItemState;
   onSteer: () => void;
   onRemove: () => void;
-}): ClientOutput<"queueItem"> {
+}): ClientOutput<"queueItem"> => {
   return {
     getState: () => item,
     steer: onSteer,
     remove: onRemove,
   };
-});
+};
+
+const QueueItemClient = resource(useQueueItemClient);
 
 // Composer Client - minimal implementation
-const ComposerClientResource = resource(function ComposerClientResource({
+const useComposerClientResource = ({
   type,
   isEditing,
   canCancel,
@@ -262,7 +268,7 @@ const ComposerClientResource = resource(function ComposerClientResource({
   onSend,
   message,
   queue,
-}: ComposerClientResourceProps): ClientOutput<"composer"> {
+}: ComposerClientResourceProps): ClientOutput<"composer"> => {
   const [text, setText] = useState("");
   const [role, setRole] = useState<"user" | "assistant" | "system">("user");
   const [runConfig, setRunConfig] = useState<Record<string, unknown>>({});
@@ -437,10 +443,12 @@ const ComposerClientResource = resource(function ComposerClientResource({
       return queueItemClients.get(selector);
     },
   };
-});
+};
+
+const ComposerClientResource = resource(useComposerClientResource);
 
 // External Thread Client
-export const ExternalThread = resource(function ExternalThread({
+const useExternalThread = ({
   messages,
   isRunning = false,
   isSendDisabled = false,
@@ -450,7 +458,7 @@ export const ExternalThread = resource(function ExternalThread({
   onStartRun,
   onCancel,
   queue,
-}: ExternalThreadProps): ClientOutput<"thread"> {
+}: ExternalThreadProps): ClientOutput<"thread"> => {
   const handleReload = (messageId: string) => {
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) return;
@@ -596,7 +604,9 @@ export const ExternalThread = resource(function ExternalThread({
     muteVoice: () => {},
     unmuteVoice: () => {},
   };
-});
+};
+
+export const ExternalThread = resource(useExternalThread);
 
 attachTransformScopes(ExternalThread, (scopes, parent) => {
   if (!scopes.threads && parent.threads.source === null) {

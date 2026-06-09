@@ -15,11 +15,13 @@ description: "tap: React hooks, headless"
 import { resource } from "@assistant-ui/tap";
 import { useState } from "react";
 
-const Counter = resource(function Counter() {
+const useCounter = () => {
   const [count, setCount] = useState(0);
 
   return { count, increment: () => setCount((c) => c + 1) };
-});
+};
+
+const Counter = resource(useCounter);
 ```
 
 </div>
@@ -34,8 +36,8 @@ standalone with no React at all.
 
 If you know React hooks, you already know tap. There are only three new things:
 
-1. You define a unit with `resource(function Name() { ... })` and it returns a
-   value instead of JSX.
+1. You write a `use`-prefixed hook and wrap it with `resource(useName)`; the unit
+   returns a value instead of JSX.
 2. You instantiate it by calling the factory (`Name(props)`) to get an element,
    then host it with [`useResource`](/tap/docs/tap/resources#hosting-a-resource).
 3. A resource tree can run [outside React](/tap/docs/tap/outside-react) entirely.

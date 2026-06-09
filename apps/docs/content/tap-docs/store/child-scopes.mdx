@@ -64,19 +64,27 @@ import { useClientLookup } from "@assistant-ui/store";
 import type { ClientOutput } from "@assistant-ui/store";
 import { useState, useMemo } from "react";
 
-const TodoResource = resource(
-  ({ id, text, done }: { id: string; text: string; done: boolean }): ClientOutput<"todo"> => {
-    const [state, setState] = useState({ id, text, done });
+const useTodoResource = ({
+  id,
+  text,
+  done,
+}: {
+  id: string;
+  text: string;
+  done: boolean;
+}): ClientOutput<"todo"> => {
+  const [state, setState] = useState({ id, text, done });
 
-    return {
-      getState: () => state,
-      toggle: () => setState((s) => ({ ...s, done: !s.done })),
-      remove: () => {}, // filled in by parent
-    };
-  },
-);
+  return {
+    getState: () => state,
+    toggle: () => setState((s) => ({ ...s, done: !s.done })),
+    remove: () => {}, // filled in by parent
+  };
+};
 
-const TodoListResource = resource((): ClientOutput<"todoList"> => {
+const TodoResource = resource(useTodoResource);
+
+const useTodoListResource = (): ClientOutput<"todoList"> => {
   const [items, setItems] = useState([
     { id: "1", text: "Learn Store", done: false },
   ]);
@@ -100,7 +108,9 @@ const TodoListResource = resource((): ClientOutput<"todoList"> => {
         { id: crypto.randomUUID(), text, done: false },
       ]),
   };
-});
+};
+
+const TodoListResource = resource(useTodoListResource);
 ```
 
 `useClientLookup` returns `{ state, get }`:
@@ -189,14 +199,16 @@ If your parent only needs to expose a single child (not a list), use `useClientR
 ```ts
 import { useClientResource } from "@assistant-ui/store";
 
-const ThreadResource = resource((): ClientOutput<"thread"> => {
+const useThreadResource = (): ClientOutput<"thread"> => {
   const composer = useClientResource(ComposerResource());
 
   return {
     getState: () => ({ ... }),
     composer: () => composer.methods,
   };
-});
+};
+
+const ThreadResource = resource(useThreadResource);
 ```
 
 `useClientResource` wraps a single resource element and returns `{ state, methods, key }`. It's what `useClientLookup` uses internally for each element.
@@ -209,19 +221,29 @@ For dynamic lists where users can add and remove items, use `useClientList`:
 import { useClientList } from "@assistant-ui/store";
 import { useState } from "react";
 
-const TodoListResource = resource((): ClientOutput<"todoList"> => {
+const useTodoItem = ({
+  getInitialData,
+  remove,
+}: {
+  getInitialData: () => { id: string; text: string; done: boolean };
+  remove: () => void;
+}): ClientOutput<"todo"> => {
+  const [state, setState] = useState(getInitialData());
+
+  return {
+    getState: () => state,
+    toggle: () => setState((s) => ({ ...s, done: !s.done })),
+    remove,
+  };
+};
+
+const TodoItemResource = resource(useTodoItem);
+
+const useTodoListResource = (): ClientOutput<"todoList"> => {
   const todos = useClientList({
     initialValues: [{ id: "1", text: "Learn Store", done: false }],
     getKey: (item) => item.id,
-    resource: resource(({ getInitialData, remove }): ClientOutput<"todo"> => {
-      const [state, setState] = useState(getInitialData());
-
-      return {
-        getState: () => state,
-        toggle: () => setState((s) => ({ ...s, done: !s.done })),
-        remove,
-      };
-    }),
+    resource: TodoItemResource,
   });
 
   return {
@@ -229,7 +251,9 @@ const TodoListResource = resource((): ClientOutput<"todoList"> => {
     todo: (lookup) => todos.get(lookup),
     add: (text) => todos.add({ id: crypto.randomUUID(), text, done: false }),
   };
-});
+};
+
+const TodoListResource = resource(useTodoListResource);
 ```
 
 `useClientList` extends `useClientLookup` with mutation:

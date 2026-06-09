@@ -14,7 +14,7 @@ import { MessageClient } from "./message-runtime-client";
 import { useSubscribable } from "./useSubscribable";
 import type { ThreadState } from "../scopes/thread";
 
-const MessageClientById = resource(function MessageClientById({
+const useMessageClientById = ({
   runtime,
   id,
   threadIdRef,
@@ -22,20 +22,22 @@ const MessageClientById = resource(function MessageClientById({
   runtime: ThreadRuntime;
   id: string;
   threadIdRef: RefObject<string>;
-}) {
+}) => {
   const messageRuntime = useMemo(
     () => runtime.getMessageById(id),
     [runtime, id],
   );
 
   return useResource(MessageClient({ runtime: messageRuntime, threadIdRef }));
-});
+};
 
-export const ThreadClient = resource(function ThreadClient({
+const MessageClientById = resource(useMessageClientById);
+
+const useThreadClient = ({
   runtime,
 }: {
   runtime: ThreadRuntime;
-}): ClientOutput<"thread"> {
+}): ClientOutput<"thread"> => {
   const runtimeState = useSubscribable(runtime);
   const emit = useAssistantEmit();
 
@@ -133,4 +135,6 @@ export const ThreadClient = resource(function ThreadClient({
     },
     __internal_getRuntime: () => runtime,
   };
-});
+};
+
+export const ThreadClient = resource(useThreadClient);

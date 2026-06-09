@@ -3,11 +3,11 @@ import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import type { ComposerState } from "../scopes/composer";
 
-export const NoOpComposerClient = resource(function NoOpComposerClient({
+const useNoOpComposerClient = ({
   type,
 }: {
   type: "edit" | "thread";
-}): ClientOutput<"composer"> {
+}): ClientOutput<"composer"> => {
   const state = useMemo<ComposerState>(() => {
     return {
       isEditing: false,
@@ -71,4 +71,6 @@ export const NoOpComposerClient = resource(function NoOpComposerClient({
       throw new Error("Not supported");
     },
   };
-});
+};
+
+export const NoOpComposerClient = resource(useNoOpComposerClient);

@@ -17,7 +17,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const events: string[] = [];
       let updaterCallCount = 0;
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
@@ -39,7 +39,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         }, []);
 
         return { count };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       root.render(TestResource());
@@ -70,11 +72,13 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should double-render on initial mount", () => {
       const events: string[] = [];
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count] = useState(0);
         events.push(`render count=${count}`);
         return { count };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       root.render(TestResource());
@@ -87,7 +91,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should double-render after setState in useEffect", () => {
       const events: string[] = [];
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
@@ -102,7 +106,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         }, [count]);
 
         return { count };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       root.render(TestResource());
@@ -125,7 +131,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should ALSO double-render after setState in flushResourcesSync", () => {
       const events: string[] = [];
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
@@ -136,7 +142,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
             setCount(count + 1);
           },
         };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       const sub = root.render(TestResource());
@@ -158,7 +166,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should double-render on ALL flushResourcesSync calls", () => {
       const events: string[] = [];
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
@@ -169,7 +177,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
             setCount((c) => c + 1);
           },
         };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       const sub = root.render(TestResource());
@@ -212,7 +222,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
 
       const events: string[] = [];
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
@@ -226,7 +236,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         }, [count]);
 
         return { count };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       root.render(TestResource());
@@ -253,7 +265,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should double-render AND double-call Promise callback", async () => {
       const events: string[] = [];
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
@@ -267,7 +279,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         }, [count]);
 
         return { count };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       root.render(TestResource());
@@ -291,7 +305,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should batch multiple setState calls in flushResourcesSync (single double-render)", () => {
       const events: string[] = [];
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count1, setCount1] = useState(0);
         const [count2, setCount2] = useState(0);
         events.push(`render count1=${count1} count2=${count2}`);
@@ -303,7 +317,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
             setCount2(2);
           },
         };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       const sub = root.render(TestResource());
@@ -325,7 +341,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should batch multiple setState calls in useEffect (single double-render)", () => {
       const events: string[] = [];
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count1, setCount1] = useState(0);
         const [count2, setCount2] = useState(0);
         events.push(`render count1=${count1} count2=${count2}`);
@@ -338,7 +354,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         }, [count1, count2]);
 
         return {};
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       root.render(TestResource());
@@ -357,7 +375,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should double-render simple resources", () => {
       const events: string[] = [];
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
@@ -365,7 +383,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
           count,
           increment: () => setCount((c) => c + 1),
         };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       root.render(TestResource());
@@ -379,7 +399,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should double-render with function updater in flushResourcesSync", () => {
       const events: string[] = [];
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
@@ -393,7 +413,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
             });
           },
         };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       const sub = root.render(TestResource());
@@ -419,7 +441,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should handle effect with dependencies and setState", () => {
       const events: string[] = [];
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         const [doubled, setDoubled] = useState(0);
         events.push(`render count=${count} doubled=${doubled}`);
@@ -436,7 +458,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
           count,
           increment: () => setCount((c) => c + 1),
         };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       const sub = root.render(TestResource());
@@ -474,7 +498,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const events: string[] = [];
       let initCount = 0;
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [value] = useState(() => {
           initCount++;
           events.push(`init call #${initCount}`);
@@ -484,7 +508,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         events.push(`render value=${value}`);
 
         return { value };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       root.render(TestResource());
@@ -503,7 +529,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
     it("should maintain double-render behavior after disposal and recreation", () => {
       const events: string[] = [];
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
@@ -511,7 +537,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
           count,
           increment: () => setCount((c) => c + 1),
         };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       // Create first instance
       const root1 = createResourceRoot();
@@ -547,7 +575,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const events: string[] = [];
       let effectRunCount = 0;
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
@@ -569,7 +597,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         }, []);
 
         return { count };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       root.render(TestResource());
@@ -593,7 +623,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const events: string[] = [];
       let effectRunCount = 0;
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
@@ -615,7 +645,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         }, []);
 
         return { count };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       root.render(TestResource());
@@ -638,7 +670,7 @@ describe("Tap Strict Mode - Rerender Sources", () => {
       const events: string[] = [];
       let effectRunCount = 0;
 
-      const TestResource = resource(function TestResource() {
+      const useTestResource = () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
@@ -659,7 +691,9 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         }, []);
 
         return { count };
-      });
+      };
+
+      const TestResource = resource(useTestResource);
 
       const root = createResourceRoot();
       root.render(TestResource());

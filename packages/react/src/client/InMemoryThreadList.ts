@@ -27,14 +27,14 @@ type ThreadData = {
 };
 
 // ThreadListItem Client
-const ThreadListItemClient = resource(function ThreadListItemClient(props: {
+const useThreadListItemClient = (props: {
   data: ThreadData;
   onSwitchTo: () => void;
   onUpdateCustom: (custom: Record<string, unknown> | undefined) => void;
   onArchive: () => void;
   onUnarchive: () => void;
   onDelete: () => void;
-}): ClientOutput<"threadListItem"> {
+}): ClientOutput<"threadListItem"> => {
   const { data, onSwitchTo, onUpdateCustom, onArchive, onUnarchive, onDelete } =
     props;
   const state = useMemo(
@@ -61,12 +61,14 @@ const ThreadListItemClient = resource(function ThreadListItemClient(props: {
     initialize: async () => ({ remoteId: data.id, externalId: undefined }),
     detach: () => {},
   };
-});
+};
+
+const ThreadListItemClient = resource(useThreadListItemClient);
 
 // InMemoryThreadList Client
-export const InMemoryThreadList = resource(function InMemoryThreadList(
+const useInMemoryThreadList = (
   props: InMemoryThreadListProps,
-): ClientOutput<"threads"> {
+): ClientOutput<"threads"> => {
   const {
     thread: threadFactory,
     onSwitchToThread,
@@ -184,7 +186,9 @@ export const InMemoryThreadList = resource(function InMemoryThreadList(
     },
     thread: () => mainThreadClient.methods,
   };
-});
+};
+
+export const InMemoryThreadList = resource(useInMemoryThreadList);
 
 attachTransformScopes(InMemoryThreadList, (scopes, parent) => {
   scopes.thread ??= Derived({

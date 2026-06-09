@@ -31,7 +31,7 @@ import { useAssistantClientRef } from "@assistant-ui/store";
 import type { ClientOutput } from "@assistant-ui/store";
 import { useEffect } from "react";
 
-const ToolsResource = resource((): ClientOutput<"tools"> => {
+const useToolsResource = (): ClientOutput<"tools"> => {
   const clientRef = useAssistantClientRef();
 
   useEffect(() => {
@@ -45,7 +45,9 @@ const ToolsResource = resource((): ClientOutput<"tools"> => {
   return {
     getState: () => ({ ... }),
   };
-});
+};
+
+const ToolsResource = resource(useToolsResource);
 ```
 
 Use `useAssistantClientRef` in effects, not during the resource body. The ref is populated after all sibling scopes are mounted, so it's only safe to access in `useEffect` or in methods called later.

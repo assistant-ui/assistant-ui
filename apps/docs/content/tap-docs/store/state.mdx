@@ -34,7 +34,7 @@ import { resource } from "@assistant-ui/tap";
 import { useState, useMemo } from "react";
 import type { ClientOutput } from "@assistant-ui/store";
 
-const CounterResource = resource((): ClientOutput<"counter"> => {
+const useCounterResource = (): ClientOutput<"counter"> => {
   const [count, setCount] = useState(0);
   const [step, setStep] = useState(1);
 
@@ -45,7 +45,9 @@ const CounterResource = resource((): ClientOutput<"counter"> => {
     increment: () => setCount((c) => c + step),
     setStep: (n: number) => setStep(n),
   };
-});
+};
+
+const CounterResource = resource(useCounterResource);
 ```
 
 Use `useMemo` to create the state object. This ensures a stable reference when nothing changed, since Store uses reference equality to detect updates. The `useState` values in the dependency array trigger a resource re-render when they change, which is when Store checks for new state.

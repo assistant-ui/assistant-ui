@@ -36,9 +36,9 @@ function defaultRedirectUri(): string {
 // array each render (which would invalidate the serverElements memo below).
 const NO_CONNECTORS: MCPConnector[] = [];
 
-export const McpManagerResource = resource(function McpManagerResource(
+const useMcpManagerResource = (
   props: McpManagerResourceProps,
-): ClientOutput<"mcp"> {
+): ClientOutput<"mcp"> => {
   const connectors = props.connectors ?? NO_CONNECTORS;
   const autoConnect = props.autoConnect ?? true;
   const redirectUri = props.oauthRedirectUri ?? defaultRedirectUri();
@@ -234,7 +234,9 @@ export const McpManagerResource = resource(function McpManagerResource(
       }
     },
   };
-});
+};
+
+export const McpManagerResource = resource(useMcpManagerResource);
 
 // Ensure modelContext exists as a sibling when the manager mounts. If an
 // ancestor (e.g. a chat runtime) already provides modelContext, this is a

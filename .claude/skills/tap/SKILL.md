@@ -20,13 +20,18 @@ Authoritative docs: `apps/docs/content/tap-docs/` (and `.../store/`). This is a 
 import { resource } from "@assistant-ui/tap";
 import { useState } from "react";
 
-const Counter = resource(function Counter({ initial = 0 }) {
+// A resource body IS a hook. Write a `use`-prefixed hook, then `resource()` it.
+const useCounter = ({ initial = 0 }) => {
   const [count, setCount] = useState(initial);
   return { count, increment: () => setCount((c) => c + 1) };
-});
+};
+
+const Counter = resource(useCounter);   // resource(hook) → Resource
 
 const element = Counter({ initial: 10 });   // ResourceElement = { type, props, key? }, inert
 ```
+
+`resource(useCounter)` turns the hook into a Resource; `useResource(Counter(props))` turns it back into a hook call. **Always extract to a named `use`-prefixed hook** — inline `resource(() => …)` / `resource(function … )` is forbidden (lint rule `tap-hooks/named-resource`); the `use` prefix is what lets rules-of-hooks lint the body.
 
 Instantiate via: `useResource(element)` (isomorphic, works in a React component and inside another resource body), `createResourceRoot().render(element)` imperatively, or `useAui({ scope: element })` as a store scope.
 
@@ -64,11 +69,13 @@ declare module "@assistant-ui/store" {
 ```ts
 import type { ClientOutput } from "@assistant-ui/store";
 
-export const CounterResource = resource((): ClientOutput<"counter"> => {
+const useCounterClient = (): ClientOutput<"counter"> => {
   const [count, setCount] = useState(0);
   const state = useMemo(() => ({ count }), [count]);    // ✅ stabilize identity
   return { getState: () => state, increment: () => setCount((c) => c + 1) };
-});
+};
+
+export const CounterResource = resource(useCounterClient);
 ```
 
 Always `useMemo` the `getState` object — Store detects changes via `Object.is`, an inline literal looks new every render.
@@ -226,7 +233,7 @@ Transforms apply iteratively; new root scopes trigger their own transforms. One 
 
 - **Resolving scope during render** (`aui.x().getState()` in body, caching `const x = aui.x()`). The pattern is `const aui = useAui();` + `aui.x()` *inside* the callback. Bug shows up when a derived scope retargets.
 - **`useAuiState` selector returns fresh object/array** → infinite re-render. One call per leaf value.
-- **Naming a resource factory `useFoo`** — signals "hook", is wrong.
+- **Inline `resource(() => …)` / `resource(function …)`** — forbidden by `tap-hooks/named-resource`. Extract a `use`-prefixed hook: `const useFoo = () => {…}; const Foo = resource(useFoo);`. The factory stays PascalCase (`Foo`); never name a factory `useFoo`.
 - **`setState` in `useState` initializer or during render** — throws.
 - **Forgetting `withKey`** in `useResources` / `useClientLookup` / `useClientList` — throws.
 - **Function calls in dep arrays** (`[a.getState()]`). Extract first. Linted by oxlint's native `react/exhaustive-deps`.

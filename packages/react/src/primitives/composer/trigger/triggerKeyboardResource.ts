@@ -34,113 +34,111 @@ export type TriggerKeyboardResourceOutput = {
  * Owns keyboard-driven highlight state for the popover. Delegates selection,
  * category drill-in, back, and close to the callbacks supplied by the parent.
  */
-export const TriggerKeyboardResource = resource(
-  function TriggerKeyboardResource({
-    navigableList,
-    isSearchMode,
-    activeCategoryId,
-    query,
-    popoverId,
-    open,
-    selectItem,
-    selectCategory,
-    goBack,
-    close,
-  }: {
-    navigableList: readonly (Unstable_TriggerCategory | Unstable_TriggerItem)[];
-    isSearchMode: boolean;
-    activeCategoryId: string | null;
-    query: string;
-    popoverId: string;
-    open: boolean;
-    selectItem: (item: Unstable_TriggerItem) => void;
-    selectCategory: (categoryId: string) => void;
-    goBack: () => void;
-    close: () => void;
-  }): TriggerKeyboardResourceOutput {
-    const [highlightedIndex, setHighlightedIndex] = useState(0);
+const useTriggerKeyboardResource = ({
+  navigableList,
+  isSearchMode,
+  activeCategoryId,
+  query,
+  popoverId,
+  open,
+  selectItem,
+  selectCategory,
+  goBack,
+  close,
+}: {
+  navigableList: readonly (Unstable_TriggerCategory | Unstable_TriggerItem)[];
+  isSearchMode: boolean;
+  activeCategoryId: string | null;
+  query: string;
+  popoverId: string;
+  open: boolean;
+  selectItem: (item: Unstable_TriggerItem) => void;
+  selectCategory: (categoryId: string) => void;
+  goBack: () => void;
+  close: () => void;
+}): TriggerKeyboardResourceOutput => {
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
 
-    useEffect(() => {
-      setHighlightedIndex(0);
-    }, [navigableList]);
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [navigableList]);
 
-    useEffect(() => {
-      setHighlightedIndex(0);
-    }, [isSearchMode, activeCategoryId]);
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [isSearchMode, activeCategoryId]);
 
-    const highlightIndex = useEffectEvent((index: number) => {
-      if (index < 0 || index >= navigableList.length) return;
-      if (index === highlightedIndex) return;
-      setHighlightedIndex(index);
-    });
+  const highlightIndex = useEffectEvent((index: number) => {
+    if (index < 0 || index >= navigableList.length) return;
+    if (index === highlightedIndex) return;
+    setHighlightedIndex(index);
+  });
 
-    const handleKeyDown = useEffectEvent(
-      (e: TriggerPopoverKeyEvent): boolean => {
-        if (!open) return false;
+  const handleKeyDown = useEffectEvent((e: TriggerPopoverKeyEvent): boolean => {
+    if (!open) return false;
 
-        switch (e.key) {
-          case "ArrowDown": {
-            e.preventDefault();
-            setHighlightedIndex((prev) => {
-              const len = navigableList.length;
-              if (len === 0) return 0;
-              return prev < len - 1 ? prev + 1 : 0;
-            });
-            return true;
-          }
-          case "ArrowUp": {
-            e.preventDefault();
-            setHighlightedIndex((prev) => {
-              const len = navigableList.length;
-              if (len === 0) return 0;
-              return prev > 0 ? prev - 1 : len - 1;
-            });
-            return true;
-          }
-          case "Enter":
-          case "Tab": {
-            if (e.shiftKey) return false;
-            e.preventDefault();
-            const item = navigableList[highlightedIndex];
-            if (!item) return true;
+    switch (e.key) {
+      case "ArrowDown": {
+        e.preventDefault();
+        setHighlightedIndex((prev) => {
+          const len = navigableList.length;
+          if (len === 0) return 0;
+          return prev < len - 1 ? prev + 1 : 0;
+        });
+        return true;
+      }
+      case "ArrowUp": {
+        e.preventDefault();
+        setHighlightedIndex((prev) => {
+          const len = navigableList.length;
+          if (len === 0) return 0;
+          return prev > 0 ? prev - 1 : len - 1;
+        });
+        return true;
+      }
+      case "Enter":
+      case "Tab": {
+        if (e.shiftKey) return false;
+        e.preventDefault();
+        const item = navigableList[highlightedIndex];
+        if (!item) return true;
 
-            if (isTriggerItem(item)) {
-              selectItem(item);
-            } else {
-              selectCategory(item.id);
-            }
-            return true;
-          }
-          case "Escape": {
-            e.preventDefault();
-            close();
-            return true;
-          }
-          case "Backspace": {
-            if (activeCategoryId && query === "") {
-              e.preventDefault();
-              goBack();
-              return true;
-            }
-            return false;
-          }
-          default:
-            return false;
+        if (isTriggerItem(item)) {
+          selectItem(item);
+        } else {
+          selectCategory(item.id);
         }
-      },
-    );
+        return true;
+      }
+      case "Escape": {
+        e.preventDefault();
+        close();
+        return true;
+      }
+      case "Backspace": {
+        if (activeCategoryId && query === "") {
+          e.preventDefault();
+          goBack();
+          return true;
+        }
+        return false;
+      }
+      default:
+        return false;
+    }
+  });
 
-    const highlightedEntry = navigableList[highlightedIndex];
-    const highlightedItemId =
-      open && highlightedEntry
-        ? `${popoverId}-option-${highlightedEntry.id}`
-        : undefined;
+  const highlightedEntry = navigableList[highlightedIndex];
+  const highlightedItemId =
+    open && highlightedEntry
+      ? `${popoverId}-option-${highlightedEntry.id}`
+      : undefined;
 
-    return {
-      highlightedIndex,
-      highlightedItemId,
-      highlightIndex,
-      handleKeyDown,
-    };
-  },
-);
+  return {
+    highlightedIndex,
+    highlightedItemId,
+    highlightIndex,
+    handleKeyDown,
+  };
+};
+
+export const TriggerKeyboardResource = resource(useTriggerKeyboardResource);

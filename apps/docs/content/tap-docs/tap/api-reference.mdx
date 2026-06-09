@@ -5,15 +5,17 @@ description: Every export from @assistant-ui/tap.
 
 ## resource
 
-Creates a resource factory. Wrap a **named** function.
+Turns a hook into a resource factory. Wrap a **`use`-prefixed** hook.
 
 ```ts
 import { resource } from "@assistant-ui/tap";
 
-const Counter = resource(function Counter(props: { initialValue: number }) {
+const useCounter = (props: { initialValue: number }) => {
   const [count, setCount] = useState(props.initialValue);
   return { count, increment: () => setCount((c) => c + 1) };
-});
+};
+
+const Counter = resource(useCounter);
 ```
 
 Calling the factory produces a [`ResourceElement`](#resourceelement).

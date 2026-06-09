@@ -33,91 +33,91 @@ export type TriggerSelectionResourceOutput = {
 };
 
 /** Owns composer text mutation + behavior dispatch on item selection. */
-export const TriggerSelectionResource = resource(
-  function TriggerSelectionResource({
-    behavior,
-    trigger,
-    aui,
-    triggerChar,
-    setCursorPosition,
-    onSelected,
-  }: {
-    behavior: TriggerBehavior | undefined;
-    trigger: DetectedTrigger | null;
-    aui: AssistantClient;
-    triggerChar: string;
-    setCursorPosition: (pos: number) => void;
-    /** Called after a successful selection so the parent can reset nav state. */
-    onSelected: () => void;
-  }): TriggerSelectionResourceOutput {
-    // Select-item override: lets Lexical's DirectivePlugin intercept selection
-    // and drive its own node insertion.
-    const selectItemOverrideRef = useRef<SelectItemOverride | null>(null);
+const useTriggerSelectionResource = ({
+  behavior,
+  trigger,
+  aui,
+  triggerChar,
+  setCursorPosition,
+  onSelected,
+}: {
+  behavior: TriggerBehavior | undefined;
+  trigger: DetectedTrigger | null;
+  aui: AssistantClient;
+  triggerChar: string;
+  setCursorPosition: (pos: number) => void;
+  /** Called after a successful selection so the parent can reset nav state. */
+  onSelected: () => void;
+}): TriggerSelectionResourceOutput => {
+  // Select-item override: lets Lexical's DirectivePlugin intercept selection
+  // and drive its own node insertion.
+  const selectItemOverrideRef = useRef<SelectItemOverride | null>(null);
 
-    const registerSelectItemOverride = useEffectEvent(
-      (fn: SelectItemOverride) => {
-        selectItemOverrideRef.current = fn;
-        return () => {
-          if (selectItemOverrideRef.current === fn) {
-            selectItemOverrideRef.current = null;
-          }
-        };
-      },
+  const registerSelectItemOverride = useEffectEvent(
+    (fn: SelectItemOverride) => {
+      selectItemOverrideRef.current = fn;
+      return () => {
+        if (selectItemOverrideRef.current === fn) {
+          selectItemOverrideRef.current = null;
+        }
+      };
+    },
+  );
+
+  const selectItem = useEffectEvent((item: Unstable_TriggerItem) => {
+    if (!trigger || !behavior) return;
+
+    if (selectItemOverrideRef.current?.(item)) {
+      onSelected();
+      return;
+    }
+
+    const currentText = aui.composer().getState().text;
+    const before = currentText.slice(0, trigger.offset);
+    const after = currentText.slice(
+      trigger.offset + triggerChar.length + trigger.query.length,
     );
 
-    const selectItem = useEffectEvent((item: Unstable_TriggerItem) => {
-      if (!trigger || !behavior) return;
+    const insertDirective = () => {
+      const directive = behavior.formatter.serialize(item);
+      aui
+        .composer()
+        .setText(
+          before + directive + (after.startsWith(" ") ? after : ` ${after}`),
+        );
+    };
 
-      if (selectItemOverrideRef.current?.(item)) {
-        onSelected();
-        return;
-      }
-
-      const currentText = aui.composer().getState().text;
-      const before = currentText.slice(0, trigger.offset);
-      const after = currentText.slice(
-        trigger.offset + triggerChar.length + trigger.query.length,
-      );
-
-      const insertDirective = () => {
-        const directive = behavior.formatter.serialize(item);
+    if (behavior.kind === "directive") {
+      insertDirective();
+      behavior.onInserted?.(item);
+    } else {
+      if (behavior.removeOnExecute) {
         aui
           .composer()
-          .setText(
-            before + directive + (after.startsWith(" ") ? after : ` ${after}`),
-          );
-      };
-
-      if (behavior.kind === "directive") {
-        insertDirective();
-        behavior.onInserted?.(item);
+          .setText(before + (after.startsWith(" ") ? after.slice(1) : after));
       } else {
-        if (behavior.removeOnExecute) {
-          aui
-            .composer()
-            .setText(before + (after.startsWith(" ") ? after.slice(1) : after));
-        } else {
-          // Leave directive chip in the composer as an audit trail
-          insertDirective();
-        }
-        behavior.onExecute(item);
+        // Leave directive chip in the composer as an audit trail
+        insertDirective();
       }
+      behavior.onExecute(item);
+    }
 
-      onSelected();
-    });
+    onSelected();
+  });
 
-    const close = useEffectEvent(() => {
-      onSelected();
-      // Move cursor before the trigger so trigger detection deactivates
-      if (trigger) {
-        setCursorPosition(trigger.offset);
-      }
-    });
+  const close = useEffectEvent(() => {
+    onSelected();
+    // Move cursor before the trigger so trigger detection deactivates
+    if (trigger) {
+      setCursorPosition(trigger.offset);
+    }
+  });
 
-    return {
-      selectItem,
-      close,
-      registerSelectItemOverride,
-    };
-  },
-);
+  return {
+    selectItem,
+    close,
+    registerSelectItemOverride,
+  };
+};
+
+export const TriggerSelectionResource = resource(useTriggerSelectionResource);

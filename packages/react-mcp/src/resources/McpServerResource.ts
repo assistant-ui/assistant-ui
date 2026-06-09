@@ -33,9 +33,9 @@ export type McpServerResourceProps = {
   onRemove: () => Promise<void>;
 };
 
-export const McpServerResource = resource(function McpServerResource(
+const useMcpServerResource = (
   props: McpServerResourceProps,
-): ClientOutput<"mcpServer"> {
+): ClientOutput<"mcpServer"> => {
   assertValidServerId(props.id);
   const [connectionState, setConnectionState] =
     useState<MCPConnectionState>("disconnected");
@@ -278,4 +278,6 @@ export const McpServerResource = resource(function McpServerResource(
     },
     completeAuth: doCompleteAuth,
   };
-});
+};
+
+export const McpServerResource = resource(useMcpServerResource);

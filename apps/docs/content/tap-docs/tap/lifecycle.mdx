@@ -16,7 +16,7 @@ Unlike React, calling `set` or `dispatch` during the render phase throws. To adj
 import { resource } from "@assistant-ui/tap";
 import { useState, useEffect } from "react";
 
-const App = resource(function App() {
+const useApp = () => {
   // --- render phase ---
   const [count, setCount] = useState(0);
 
@@ -27,7 +27,9 @@ const App = resource(function App() {
   }, [count]);
 
   return { count };
-});
+};
+
+const App = resource(useApp);
 ```
 
 ### Effect ordering
@@ -40,7 +42,7 @@ In tap, **effects run in the exact order they are called during the render pass*
 import { resource, useResource } from "@assistant-ui/tap";
 import { useEffect } from "react";
 
-const Parent = resource(function Parent() {
+const useParent = () => {
   useEffect(() => {
     console.log("1: before child");
   });
@@ -52,13 +54,17 @@ const Parent = resource(function Parent() {
   });
 
   return child;
-});
+};
 
-const Child = resource(function Child() {
+const Parent = resource(useParent);
+
+const useChild = () => {
   useEffect(() => {
     console.log("2: child");
   });
-});
+};
+
+const Child = resource(useChild);
 // Mount order: 1, 2, 3
 ```
 

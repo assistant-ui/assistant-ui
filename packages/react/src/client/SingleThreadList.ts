@@ -9,31 +9,31 @@ import {
 const RESOLVED_PROMISE = Promise.resolve();
 const THREAD_ID = "default";
 
-const SingleThreadListItem = resource(
-  function SingleThreadListItem(): ClientOutput<"threadListItem"> {
-    const [custom, setCustom] = useState<Record<string, unknown> | undefined>();
+const useSingleThreadListItem = (): ClientOutput<"threadListItem"> => {
+  const [custom, setCustom] = useState<Record<string, unknown> | undefined>();
 
-    return {
-      getState: () => ({
-        id: THREAD_ID,
-        remoteId: undefined,
-        externalId: undefined,
-        title: undefined,
-        status: "regular",
-        custom,
-      }),
-      switchTo: () => {},
-      rename: () => {},
-      updateCustom: setCustom,
-      archive: () => {},
-      unarchive: () => {},
-      delete: () => {},
-      generateTitle: () => {},
-      initialize: async () => ({ remoteId: THREAD_ID, externalId: undefined }),
-      detach: () => {},
-    };
-  },
-);
+  return {
+    getState: () => ({
+      id: THREAD_ID,
+      remoteId: undefined,
+      externalId: undefined,
+      title: undefined,
+      status: "regular",
+      custom,
+    }),
+    switchTo: () => {},
+    rename: () => {},
+    updateCustom: setCustom,
+    archive: () => {},
+    unarchive: () => {},
+    delete: () => {},
+    generateTitle: () => {},
+    initialize: async () => ({ remoteId: THREAD_ID, externalId: undefined }),
+    detach: () => {},
+  };
+};
+
+const SingleThreadListItem = resource(useSingleThreadListItem);
 
 type SingleThreadListProps = {
   thread: ClientElement<"thread">;
@@ -44,9 +44,9 @@ type SingleThreadListProps = {
  * Automatically provided by ExternalThread when no threads scope exists.
  * Mounts the provided thread resource element.
  */
-export const SingleThreadList = resource(function SingleThreadList({
+const useSingleThreadList = ({
   thread,
-}: SingleThreadListProps): ClientOutput<"threads"> {
+}: SingleThreadListProps): ClientOutput<"threads"> => {
   const itemClient = useClientResource(SingleThreadListItem());
   const threadClient = useClientResource(thread);
 
@@ -105,4 +105,6 @@ export const SingleThreadList = resource(function SingleThreadList({
       return threadClient.methods;
     },
   };
-});
+};
+
+export const SingleThreadList = resource(useSingleThreadList);

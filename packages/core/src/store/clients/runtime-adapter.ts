@@ -11,9 +11,7 @@ import {
 import { ModelContext } from "./model-context-client";
 import { Suggestions } from "./suggestions";
 
-export const RuntimeAdapterResource = resource(function RuntimeAdapterResource(
-  runtime: AssistantRuntime,
-) {
+const useRuntimeAdapterResource = (runtime: AssistantRuntime) => {
   const clientRef = useAssistantClientRef();
 
   useEffect(() => {
@@ -28,7 +26,9 @@ export const RuntimeAdapterResource = resource(function RuntimeAdapterResource(
       __internal_assistantRuntime: runtime,
     }),
   );
-});
+};
+
+export const RuntimeAdapterResource = resource(useRuntimeAdapterResource);
 
 export const baseRuntimeAdapterTransformScopes = (
   scopes: ScopesConfig,

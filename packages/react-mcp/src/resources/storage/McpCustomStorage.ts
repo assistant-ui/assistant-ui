@@ -1,8 +1,8 @@
 import { resource } from "@assistant-ui/tap";
 import type { MCPStorage } from "./types";
 
-export const McpCustomStorage = resource(function McpCustomStorage(
-  impl: MCPStorage,
-): MCPStorage {
+const useMcpCustomStorage = (impl: MCPStorage): MCPStorage => {
   return impl;
-});
+};
+
+export const McpCustomStorage = resource(useMcpCustomStorage);

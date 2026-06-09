@@ -34,9 +34,9 @@ async function postToHost(
  * params }`, using the method names expected by the assistant-ui MCP Apps
  * guide.
  */
-export const McpAppsRemoteHost = resource(function McpAppsRemoteHost(
+const useMcpAppsRemoteHost = (
   options: McpAppsRemoteHostOptions,
-): McpAppsHost {
+): McpAppsHost => {
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
@@ -57,4 +57,6 @@ export const McpAppsRemoteHost = resource(function McpAppsRemoteHost(
     }),
     [],
   );
-});
+};
+
+export const McpAppsRemoteHost = resource(useMcpAppsRemoteHost);

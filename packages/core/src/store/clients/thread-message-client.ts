@@ -12,11 +12,11 @@ import type { MessageState } from "../scopes/message";
 import type { PartState } from "../scopes/part";
 import { NoOpComposerClient } from "./no-op-composer-client";
 
-const ThreadMessagePartClient = resource(function ThreadMessagePartClient({
+const useThreadMessagePartClient = ({
   part,
 }: {
   part: ThreadAssistantMessagePart | ThreadUserMessagePart;
-}): ClientOutput<"part"> {
+}): ClientOutput<"part"> => {
   const state = useMemo<PartState>(() => {
     return {
       ...part,
@@ -36,21 +36,25 @@ const ThreadMessagePartClient = resource(function ThreadMessagePartClient({
       throw new Error("Not supported");
     },
   };
-});
+};
+
+const ThreadMessagePartClient = resource(useThreadMessagePartClient);
+
+const useThreadMessageAttachmentClient = ({
+  attachment,
+}: {
+  attachment: Attachment;
+}): ClientOutput<"attachment"> => {
+  return {
+    getState: () => attachment,
+    remove: () => {
+      throw new Error("Not supported");
+    },
+  };
+};
 
 const ThreadMessageAttachmentClient = resource(
-  function ThreadMessageAttachmentClient({
-    attachment,
-  }: {
-    attachment: Attachment;
-  }): ClientOutput<"attachment"> {
-    return {
-      getState: () => attachment,
-      remove: () => {
-        throw new Error("Not supported");
-      },
-    };
-  },
+  useThreadMessageAttachmentClient,
 );
 export type ThreadMessageClientProps = {
   message: ThreadMessage;
@@ -60,13 +64,13 @@ export type ThreadMessageClientProps = {
   branchCount?: number;
 };
 
-export const ThreadMessageClient = resource(function ThreadMessageClient({
+const useThreadMessageClient = ({
   message,
   index,
   isLast = true,
   branchNumber = 1,
   branchCount = 1,
-}: ThreadMessageClientProps): ClientOutput<"message"> {
+}: ThreadMessageClientProps): ClientOutput<"message"> => {
   const [isCopiedState, setIsCopied] = useState(false);
   const [isHoveringState, setIsHovering] = useState(false);
 
@@ -168,4 +172,6 @@ export const ThreadMessageClient = resource(function ThreadMessageClient({
     setIsCopied,
     setIsHovering,
   };
-});
+};
+
+export const ThreadMessageClient = resource(useThreadMessageClient);

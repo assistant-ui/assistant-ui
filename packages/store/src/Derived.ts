@@ -25,11 +25,11 @@ import type {
  * });
  * ```
  */
-export const Derived = resource(function Derived<K extends ClientNames>(
-  _config: Derived.Props<K>,
-): null {
+const useDerived = (_config: Derived.Props<K>): null => {
   return null;
-});
+};
+
+export const Derived = resource(useDerived);
 
 export type DerivedElement<K extends ClientNames> = ResourceElement<
   null,

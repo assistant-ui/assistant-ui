@@ -28,6 +28,7 @@ export function createTestResource<R, P>(fn: (props: P) => R) {
   };
 
   const fiber = createResourceFiber(
+    // oxlint-disable-next-line tap-hooks/named-resource -- test helper, forwards the caller's hook
     resource(fn),
     createResourceFiberRoot(rerenderCallback),
   );

@@ -4,13 +4,13 @@ import type { PartState } from "../../store/scopes/part";
 
 import { resource } from "@assistant-ui/tap";
 
-const TextMessagePartClient = resource(function TextMessagePartClient({
+const useTextMessagePartClient = ({
   text,
   isRunning,
 }: {
   text: string;
   isRunning: boolean;
-}): ClientOutput<"part"> {
+}): ClientOutput<"part"> => {
   const state = useMemo<PartState>(
     () => ({
       type: "text",
@@ -32,7 +32,9 @@ const TextMessagePartClient = resource(function TextMessagePartClient({
       throw new Error("Not supported");
     },
   };
-});
+};
+
+const TextMessagePartClient = resource(useTextMessagePartClient);
 
 export const TextMessagePartProvider: FC<
   PropsWithChildren<{

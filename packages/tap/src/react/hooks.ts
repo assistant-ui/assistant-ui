@@ -28,9 +28,11 @@ const useDevStrictMode = () => {
   return isFirstRender ? ("child" as const) : ("root" as const);
 };
 
-const HostResource = resource(function HostResource<T>(callback: () => T) {
+const useHostResource = <T>(callback: () => T) => {
   return callback();
-});
+};
+
+const HostResource = resource(useHostResource);
 
 // Runs `callback` inside a resource render hosted by a React component, so the
 // resource composition hooks (useResource/useResources/useResourceRoot) work from

@@ -195,9 +195,9 @@ function InlineRenderer({
  * renderer loads that resource from the configured host and displays it in a
  * sandboxed frame.
  */
-export const McpAppRenderer = resource(function McpAppRenderer(
+const useMcpAppRenderer = (
   options: McpAppRendererOptions,
-): { readonly render: ToolCallMessagePartComponent } {
+): { readonly render: ToolCallMessagePartComponent } => {
   const host = useResource(options.host);
 
   const optionsRef = useRef<McpAppRendererOptions>(options);
@@ -219,4 +219,6 @@ export const McpAppRenderer = resource(function McpAppRenderer(
   }, []);
 
   return { render };
-});
+};
+
+export const McpAppRenderer = resource(useMcpAppRenderer);

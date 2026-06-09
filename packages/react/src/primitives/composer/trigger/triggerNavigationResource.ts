@@ -38,103 +38,97 @@ export type TriggerNavigationResourceOutput = {
  * Computes categories, items, search results, and navigation state from the
  * adapter + current query. Pure derivation — no side effects on the composer.
  */
-export const TriggerNavigationResource = resource(
-  function TriggerNavigationResource({
-    adapter,
-    query,
-    open,
-  }: {
-    adapter: Unstable_TriggerAdapter | undefined;
-    query: string;
-    open: boolean;
-  }): TriggerNavigationResourceOutput {
-    const [activeCategoryId, setActiveCategoryId] = useState<string | null>(
-      null,
-    );
+const useTriggerNavigationResource = ({
+  adapter,
+  query,
+  open,
+}: {
+  adapter: Unstable_TriggerAdapter | undefined;
+  query: string;
+  open: boolean;
+}): TriggerNavigationResourceOutput => {
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
-    useEffect(() => {
-      if (!open) setActiveCategoryId(null);
-    }, [open]);
+  useEffect(() => {
+    if (!open) setActiveCategoryId(null);
+  }, [open]);
 
-    const categories = useMemo<readonly Unstable_TriggerCategory[]>(() => {
-      if (!open || !adapter) return [];
-      return adapter.categories();
-    }, [open, adapter]);
+  const categories = useMemo<readonly Unstable_TriggerCategory[]>(() => {
+    if (!open || !adapter) return [];
+    return adapter.categories();
+  }, [open, adapter]);
 
-    const effectiveActiveCategoryId = open ? activeCategoryId : null;
+  const effectiveActiveCategoryId = open ? activeCategoryId : null;
 
-    const allItems = useMemo<readonly Unstable_TriggerItem[]>(() => {
-      if (!effectiveActiveCategoryId || !adapter) return [];
-      return adapter.categoryItems(effectiveActiveCategoryId);
-    }, [effectiveActiveCategoryId, adapter]);
+  const allItems = useMemo<readonly Unstable_TriggerItem[]>(() => {
+    if (!effectiveActiveCategoryId || !adapter) return [];
+    return adapter.categoryItems(effectiveActiveCategoryId);
+  }, [effectiveActiveCategoryId, adapter]);
 
-    const searchResults = useMemo<
-      readonly Unstable_TriggerItem[] | null
-    >(() => {
-      if (!open || !adapter || effectiveActiveCategoryId) return null;
-      // If categories exist and query is empty, show categories first (not search)
-      if (!query && categories.length > 0) return null;
-      if (adapter.search) return adapter.search(query);
+  const searchResults = useMemo<readonly Unstable_TriggerItem[] | null>(() => {
+    if (!open || !adapter || effectiveActiveCategoryId) return null;
+    // If categories exist and query is empty, show categories first (not search)
+    if (!query && categories.length > 0) return null;
+    if (adapter.search) return adapter.search(query);
 
-      // fallback: no adapter.search
-      const all: Unstable_TriggerItem[] = [];
-      const lower = query.toLowerCase();
-      for (const cat of categories) {
-        for (const item of adapter.categoryItems(cat.id)) {
-          if (matchesQuery(item, lower)) {
-            all.push(item);
-          }
+    // fallback: no adapter.search
+    const all: Unstable_TriggerItem[] = [];
+    const lower = query.toLowerCase();
+    for (const cat of categories) {
+      for (const item of adapter.categoryItems(cat.id)) {
+        if (matchesQuery(item, lower)) {
+          all.push(item);
         }
       }
-      return all;
-    }, [open, adapter, query, effectiveActiveCategoryId, categories]);
+    }
+    return all;
+  }, [open, adapter, query, effectiveActiveCategoryId, categories]);
 
-    const isSearchMode = searchResults !== null;
+  const isSearchMode = searchResults !== null;
 
-    const filteredCategories = useMemo(() => {
-      if (isSearchMode) return [];
-      if (!query) return categories;
-      const lower = query.toLowerCase();
-      return categories.filter((cat) =>
-        cat.label.toLowerCase().includes(lower),
-      );
-    }, [categories, query, isSearchMode]);
+  const filteredCategories = useMemo(() => {
+    if (isSearchMode) return [];
+    if (!query) return categories;
+    const lower = query.toLowerCase();
+    return categories.filter((cat) => cat.label.toLowerCase().includes(lower));
+  }, [categories, query, isSearchMode]);
 
-    const filteredItems = useMemo(() => {
-      if (isSearchMode) return searchResults ?? [];
-      if (!query) return allItems;
-      const lower = query.toLowerCase();
-      return allItems.filter((item) => matchesQuery(item, lower));
-    }, [allItems, query, isSearchMode, searchResults]);
+  const filteredItems = useMemo(() => {
+    if (isSearchMode) return searchResults ?? [];
+    if (!query) return allItems;
+    const lower = query.toLowerCase();
+    return allItems.filter((item) => matchesQuery(item, lower));
+  }, [allItems, query, isSearchMode, searchResults]);
 
-    const navigableList = useMemo(() => {
-      if (isSearchMode) return searchResults ?? [];
-      if (effectiveActiveCategoryId) return filteredItems;
-      return filteredCategories;
-    }, [
-      isSearchMode,
-      searchResults,
-      effectiveActiveCategoryId,
-      filteredItems,
-      filteredCategories,
-    ]);
+  const navigableList = useMemo(() => {
+    if (isSearchMode) return searchResults ?? [];
+    if (effectiveActiveCategoryId) return filteredItems;
+    return filteredCategories;
+  }, [
+    isSearchMode,
+    searchResults,
+    effectiveActiveCategoryId,
+    filteredItems,
+    filteredCategories,
+  ]);
 
-    const selectCategory = useEffectEvent((categoryId: string) => {
-      setActiveCategoryId(categoryId);
-    });
+  const selectCategory = useEffectEvent((categoryId: string) => {
+    setActiveCategoryId(categoryId);
+  });
 
-    const goBack = useEffectEvent(() => {
-      setActiveCategoryId(null);
-    });
+  const goBack = useEffectEvent(() => {
+    setActiveCategoryId(null);
+  });
 
-    return {
-      categories: filteredCategories,
-      items: filteredItems,
-      isSearchMode,
-      activeCategoryId: effectiveActiveCategoryId,
-      navigableList,
-      selectCategory,
-      goBack,
-    };
-  },
-);
+  return {
+    categories: filteredCategories,
+    items: filteredItems,
+    isSearchMode,
+    activeCategoryId: effectiveActiveCategoryId,
+    navigableList,
+    selectCategory,
+    goBack,
+  };
+};
+
+export const TriggerNavigationResource = resource(useTriggerNavigationResource);
