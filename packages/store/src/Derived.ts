@@ -25,7 +25,11 @@ import type {
  * });
  * ```
  */
-const useDerived = <K extends ClientNames>(_config: Derived.Props<K>): null => {
+// Exported so consumers (e.g. splitClients) can identify a derived element by its
+// hook: a `Derived(...)` element carries `hook === useDerived`.
+export const useDerived = <K extends ClientNames>(
+  _config: Derived.Props<K>,
+): null => {
   return null;
 };
 

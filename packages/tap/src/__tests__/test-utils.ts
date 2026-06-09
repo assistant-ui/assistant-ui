@@ -1,5 +1,4 @@
 import { createResourceFiberRoot } from "../core/helpers/root";
-import { resource } from "../core/resource";
 import {
   createResourceFiber,
   unmountResourceFiber,
@@ -30,7 +29,7 @@ export function createTestResource<R, A extends readonly unknown[]>(
   };
 
   const fiber = createResourceFiber(
-    resource(fn),
+    fn,
     createResourceFiberRoot(rerenderCallback),
   );
   return fiber;

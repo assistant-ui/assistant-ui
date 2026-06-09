@@ -80,13 +80,6 @@ type Toolkit = Record<string, ToolDefinition<any, any>>;
 
 ### Tools
 
-Registers tools with model context and installs tool-call renderers.
-
-Mount this resource near an assistant subtree when you want to expose a
-group of tools declaratively. Tool definitions are registered with model
-context, while each tool renderer is registered with the tools scope for
-message rendering.
-
 <ParametersTable {...Tools} />
 
 ### defineMcpToolkit

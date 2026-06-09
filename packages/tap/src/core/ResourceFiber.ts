@@ -1,26 +1,20 @@
-import type {
-  ResourceFiber,
-  RenderResult,
-  Resource,
-  ResourceFiberRoot,
-} from "./types";
+import type { ResourceFiber, RenderResult, ResourceFiberRoot } from "./types";
 import { commitAllEffects, cleanupAllEffects } from "./helpers/commit";
 import {
   getDevStrictMode,
   withResourceFiber,
 } from "./helpers/execution-context";
-import { callResourceFn } from "./helpers/callResourceFn";
 import { withReactDispatcher } from "./react-dispatcher";
 import { isDevelopment } from "./helpers/env";
 
 export function createResourceFiber<R, A extends readonly unknown[]>(
-  type: Resource<R, A>,
+  hook: (...args: A) => R,
   root: ResourceFiberRoot,
   markDirty: (() => void) | undefined = undefined,
   strictMode: "root" | "child" | null = getDevStrictMode(false),
 ): ResourceFiber<R, A> {
   return {
-    type,
+    hook,
     root,
     markDirty,
     devStrictMode: strictMode,
@@ -56,9 +50,7 @@ export function renderResourceFiber<R, A extends readonly unknown[]>(
   withResourceFiber(fiber, () => {
     fiber.renderContext = result;
     try {
-      result.output = withReactDispatcher(() =>
-        callResourceFn(fiber.type, args),
-      );
+      result.output = withReactDispatcher(() => fiber.hook(...args));
     } finally {
       fiber.renderContext = undefined;
     }

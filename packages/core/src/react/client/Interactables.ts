@@ -320,7 +320,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
 export const Interactables = resource(useInteractables);
 
-attachTransformScopes(Interactables, (scopes, parent) => {
+attachTransformScopes(useInteractables, (scopes, parent) => {
   if (!scopes.modelContext && parent.modelContext.source === null) {
     scopes.modelContext = ModelContext();
   }

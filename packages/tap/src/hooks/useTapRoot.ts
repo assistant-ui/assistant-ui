@@ -10,7 +10,6 @@ import { useEffect } from "./useEffect";
 import { useEffectEvent } from "./useEffectEvent";
 import { useRef } from "./useRef";
 import type { RenderResult } from "../core/types";
-import { resource } from "../core/resource";
 import { isDevelopment } from "../core/helpers/env";
 import {
   commitRoot,
@@ -34,11 +33,10 @@ export namespace useTapRoot {
   }
 }
 
-// Stable content type: renders by invoking the latest callback inline, so the
+// Stable content hook: renders by invoking the latest callback inline, so the
 // callback's hooks run directly in this fiber (no extra child fiber). The
-// callback is passed as props, so it can change every render.
+// callback is passed as the arg, so it can change every render.
 const useHostRoot = <R>(render: () => R): R => render();
-const HostRoot = resource(useHostRoot);
 
 // The root is never reset, because rollbacks are not supported in useTapRoot.
 
@@ -50,8 +48,8 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   const queue = useMemo(() => [] as (() => void)[], []);
 
   const fiber = useMemo(() => {
-    return createResourceFiber(
-      HostRoot,
+    return createResourceFiber<R, [() => R]>(
+      useHostRoot,
       createResourceFiberRoot((callback) => {
         if (!scheduler.isDirty && !callback()) return;
         queue.push(callback);

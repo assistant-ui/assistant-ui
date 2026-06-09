@@ -159,7 +159,7 @@ const useTools = ({
 
 export const Tools = resource(useTools);
 
-attachTransformScopes(Tools, (scopes, parent) => {
+attachTransformScopes(useTools, (scopes, parent) => {
   if (!scopes.modelContext && parent.modelContext.source === null) {
     scopes.modelContext = ModelContext();
   }

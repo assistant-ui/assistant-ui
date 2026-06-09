@@ -1,4 +1,4 @@
-import { Derived, type DerivedElement } from "../Derived";
+import { useDerived, type DerivedElement } from "../Derived";
 import type {
   AssistantClient,
   ClientElement,
@@ -7,7 +7,6 @@ import type {
 import { getTransformScopes } from "../attachTransformScopes";
 import type { useAui } from "../useAui";
 import { useMemo } from "react";
-import { type ResourceElement } from "@assistant-ui/tap";
 
 export type RootClients = Partial<
   Record<ClientNames, ClientElement<ClientNames>>
@@ -32,13 +31,11 @@ function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
   while (changed) {
     changed = false;
     for (const clientElement of Object.values(scopes)) {
-      if (clientElement.type === (Derived as unknown)) continue;
-      if (visited.has(clientElement.type)) continue;
-      visited.add(clientElement.type);
+      if (clientElement.hook === (useDerived as unknown)) continue;
+      if (visited.has(clientElement.hook)) continue;
+      visited.add(clientElement.hook);
 
-      const transform = getTransformScopes(
-        clientElement.type as (props: any) => ResourceElement<any>,
-      );
+      const transform = getTransformScopes(clientElement.hook);
       if (transform) {
         transform(scopes, baseClient);
         changed = true;
@@ -55,7 +52,7 @@ function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
     ClientNames,
     ClientElement<ClientNames> | DerivedElement<ClientNames>,
   ][]) {
-    if (clientElement.type === (Derived as unknown)) {
+    if (clientElement.hook === (useDerived as unknown)) {
       derivedClients[key] = clientElement as DerivedElement<ClientNames>;
     } else {
       rootClients[key] = clientElement as ClientElement<ClientNames>;

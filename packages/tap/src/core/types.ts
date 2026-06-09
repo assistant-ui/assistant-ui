@@ -1,7 +1,7 @@
 import type { useEffect } from "../hooks/useEffect";
 
 export type ResourceElement<R, A extends readonly unknown[] = any[]> = {
-  readonly type: Resource<R, A>;
+  readonly hook: (...args: A) => R;
   readonly args: Readonly<A>;
   readonly key?: string | number;
 };
@@ -66,7 +66,7 @@ export interface ResourceFiberRoot {
 
 export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
   readonly root: ResourceFiberRoot;
-  readonly type: Resource<R, A>;
+  readonly hook: (...args: A) => R;
   readonly markDirty: (() => void) | undefined;
   readonly devStrictMode: "root" | "child" | null;
 

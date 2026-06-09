@@ -10,14 +10,14 @@ import { useMemo } from "./useMemo";
 import { useRef } from "./useRef";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 
-export function useResource<E extends ResourceElement<any, any>>(
+export function useResource<E extends ResourceElement<any, any[]>>(
   element: E,
 ): ExtractResourceReturnType<E>;
-export function useResource<E extends ResourceElement<any, any>>(
+export function useResource<E extends ResourceElement<any, any[]>>(
   element: E,
   argsDeps: readonly unknown[],
 ): ExtractResourceReturnType<E>;
-export function useResource<E extends ResourceElement<any, any>>(
+export function useResource<E extends ResourceElement<any, any[]>>(
   element: E,
   argsDeps?: readonly unknown[],
 ): ExtractResourceReturnType<E> {
@@ -25,11 +25,11 @@ export function useResource<E extends ResourceElement<any, any>>(
   const versionRef = useRef(0);
   const fiber = useMemo(() => {
     void element.key;
-    return createResourceFiber(element.type, parentFiber.root, () => {
+    return createResourceFiber(element.hook, parentFiber.root, () => {
       versionRef.current++;
       parentFiber.markDirty?.();
     });
-  }, [element.type, element.key, parentFiber]);
+  }, [element.hook, element.key, parentFiber]);
 
   const result = argsDeps
     ? // oxlint-disable-next-line react/rules-of-hooks -- argsDeps presence is fixed per call site, so the conditional call order is stable

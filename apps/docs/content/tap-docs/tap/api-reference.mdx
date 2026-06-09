@@ -222,14 +222,14 @@ takes (a single-object hook is just `A = [Props]`).
 
 ```ts
 type ResourceElement<R, A extends readonly unknown[]> = {
-  type: Resource<R, A>;
+  hook: (...args: A) => R;
   args: Readonly<A>;
   key?: string | number;
 };
 ```
 
-An inert `{ type, args }` description of a resource to host. `args` is the full
-tuple of arguments passed to the factory.
+An inert `{ hook, args }` description of a resource to host: the hook plus the
+arguments to call it with. Hosting it is just `hook(...args)`.
 
 ### ContravariantResource
 

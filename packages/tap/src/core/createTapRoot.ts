@@ -5,18 +5,15 @@ import {
   commitResourceFiber,
 } from "./ResourceFiber";
 import { useTapRoot } from "../hooks/useTapRoot";
-import { resource } from "./resource";
 import { isDevelopment } from "./helpers/env";
 import { flushTapSync, UpdateScheduler } from "./scheduler";
 import { createResourceFiberRoot } from "./helpers/root";
-
-const SubscribableRoot = resource(useTapRoot);
 
 export const createTapRoot = <R>(
   render: () => R,
 ): useTapRoot.Root<R> & { unmount: () => void } => {
   const fiber = createResourceFiber(
-    SubscribableRoot,
+    useTapRoot,
     createResourceFiberRoot((callback) => {
       new UpdateScheduler(() => {
         if (callback()) {

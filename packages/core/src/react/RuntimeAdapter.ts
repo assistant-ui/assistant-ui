@@ -14,7 +14,7 @@ const useRuntimeAdapter = (runtime: AssistantRuntime) => {
 
 export const RuntimeAdapter = resource(useRuntimeAdapter);
 
-attachTransformScopes(RuntimeAdapter, (scopes, parent) => {
+attachTransformScopes(useRuntimeAdapter, (scopes, parent) => {
   baseRuntimeAdapterTransformScopes(scopes, parent);
 
   if (!scopes.tools && parent.tools.source === null) {

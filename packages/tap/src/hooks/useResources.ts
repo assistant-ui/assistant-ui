@@ -21,7 +21,7 @@ type FiberState = {
   next: RenderResult | [ResourceFiber<unknown>, RenderResult] | "delete";
 };
 
-export function useResources<E extends ResourceElement<any, any>>(
+export function useResources<E extends ResourceElement<any, any[]>>(
   getElements: () => readonly E[],
   getElementsDeps?: readonly unknown[],
 ): ExtractResourceReturnType<E>[] {
@@ -71,7 +71,7 @@ export function useResources<E extends ResourceElement<any, any>>(
       let state = fibers.get(elementKey);
       if (!state) {
         const fiber = createResourceFiber(
-          element.type,
+          element.hook,
           parentFiber.root,
           markDirty,
         );
@@ -83,9 +83,9 @@ export function useResources<E extends ResourceElement<any, any>>(
         newCount++;
         fibers.set(elementKey, state);
         results.push(result.output);
-      } else if (state.fiber.type !== element.type) {
+      } else if (state.fiber.hook !== element.hook) {
         const fiber = createResourceFiber(
-          element.type,
+          element.hook,
           parentFiber.root,
           markDirty,
         );

@@ -241,7 +241,7 @@ export const McpManagerResource = resource(useMcpManagerResource);
 // Ensure modelContext exists as a sibling when the manager mounts. If an
 // ancestor (e.g. a chat runtime) already provides modelContext, this is a
 // no-op; otherwise it's auto-mounted alongside `mcp`.
-attachTransformScopes(McpManagerResource, (scopes, parent) => {
+attachTransformScopes(useMcpManagerResource, (scopes, parent) => {
   if (!scopes.modelContext && parent.modelContext.source === null) {
     scopes.modelContext = ModelContext();
   }

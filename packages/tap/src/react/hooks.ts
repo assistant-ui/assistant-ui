@@ -14,7 +14,6 @@ import {
 } from "../core/helpers/root";
 import { peekResourceFiber } from "../core/helpers/execution-context";
 import * as hooks from "../hooks";
-import { resource } from "../core/resource";
 
 const useDevStrictMode = () => {
   if (!isDevelopment) return null;
@@ -31,8 +30,6 @@ const useDevStrictMode = () => {
 const useHostResource = <T>(callback: () => T) => {
   return callback();
 };
-
-const HostResource = resource(useHostResource);
 
 // Runs `callback` inside a resource render hosted by a React component, so the
 // resource composition hooks (useResource/useResources/useTapRoot) work from
@@ -53,7 +50,12 @@ const useResourceHost = <T>(callback: () => T): T => {
 
   const devStrictMode = useDevStrictMode();
   const fiber = useMemo(() => {
-    return createResourceFiber(HostResource<T>, root, undefined, devStrictMode);
+    return createResourceFiber<T, [() => T]>(
+      useHostResource,
+      root,
+      undefined,
+      devStrictMode,
+    );
   }, [root, devStrictMode]);
 
   const result = renderResourceFiber(fiber, [callback]);

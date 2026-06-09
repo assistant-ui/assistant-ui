@@ -1,4 +1,3 @@
-import { type ResourceElement } from "@assistant-ui/tap";
 import type {
   AssistantClient,
   ClientElement,
@@ -17,41 +16,40 @@ type TransformScopesFn = (
   parent: AssistantClient,
 ) => void;
 
-type ResourceWithTransformScopes = {
+// Transforms are keyed by the resource's underlying hook (the function passed to
+// `resource()`), since that is the identity a `ResourceElement` carries.
+type Hook = (...args: any[]) => any;
+type HookWithTransformScopes = Hook & {
   [TRANSFORM_SCOPES]?: TransformScopesFn;
 };
 
-export function attachTransformScopes<
-  T extends (...args: any[]) => ResourceElement<any>,
->(resource: T, transform: TransformScopesFn): void {
-  const r = resource as T & ResourceWithTransformScopes;
-  if (r[TRANSFORM_SCOPES]) {
+export function attachTransformScopes(
+  hook: Hook,
+  transform: TransformScopesFn,
+): void {
+  const h = hook as HookWithTransformScopes;
+  if (h[TRANSFORM_SCOPES]) {
     throw new Error("transformScopes is already attached to this resource");
   }
-  r[TRANSFORM_SCOPES] = transform;
+  h[TRANSFORM_SCOPES] = transform;
 }
 
-export function forwardTransformScopes<
-  T extends (...args: any[]) => ResourceElement<any>,
-  S extends (...args: any[]) => ResourceElement<any>,
->(target: T, source: S): void {
+export function forwardTransformScopes(target: Hook, source: Hook): void {
   const sourceTransform = getTransformScopes(source);
   if (!sourceTransform) return;
 
-  const r = target as T & ResourceWithTransformScopes;
-  const existingTransform = r[TRANSFORM_SCOPES];
+  const t = target as HookWithTransformScopes;
+  const existingTransform = t[TRANSFORM_SCOPES];
   if (existingTransform) {
-    r[TRANSFORM_SCOPES] = (scopes, parent) => {
+    t[TRANSFORM_SCOPES] = (scopes, parent) => {
       sourceTransform(scopes, parent);
       existingTransform(scopes, parent);
     };
   } else {
-    r[TRANSFORM_SCOPES] = sourceTransform;
+    t[TRANSFORM_SCOPES] = sourceTransform;
   }
 }
 
-export function getTransformScopes<
-  T extends (...args: any[]) => ResourceElement<any>,
->(resource: T): TransformScopesFn | undefined {
-  return (resource as T & ResourceWithTransformScopes)[TRANSFORM_SCOPES];
+export function getTransformScopes(hook: Hook): TransformScopesFn | undefined {
+  return (hook as HookWithTransformScopes)[TRANSFORM_SCOPES];
 }

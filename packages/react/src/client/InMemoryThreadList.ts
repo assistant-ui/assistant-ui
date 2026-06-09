@@ -190,7 +190,7 @@ const useInMemoryThreadList = (
 
 export const InMemoryThreadList = resource(useInMemoryThreadList);
 
-attachTransformScopes(InMemoryThreadList, (scopes, parent) => {
+attachTransformScopes(useInMemoryThreadList, (scopes, parent) => {
   scopes.thread ??= Derived({
     source: "threads",
     query: { type: "main" },
