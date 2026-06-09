@@ -117,6 +117,7 @@ export const MessageClient = resource(function MessageClient({
 
     composer: () => composer.methods,
 
+    delete: () => runtime.delete(),
     reload: (config) => runtime.reload(config),
     speak: () => runtime.speak(),
     stopSpeaking: () => runtime.stopSpeaking(),

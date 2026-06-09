@@ -47,6 +47,10 @@ export class ReadonlyThreadRuntimeCore
     throw READONLY_THREAD_ERROR;
   }
 
+  deleteMessage(): void {
+    throw READONLY_THREAD_ERROR;
+  }
+
   startRun(): void {
     throw READONLY_THREAD_ERROR;
   }
@@ -202,6 +206,7 @@ export class ReadonlyThreadRuntimeCore
     switchToBranch: false,
     switchBranchDuringRun: false,
     edit: false,
+    delete: false,
     reload: false,
     cancel: false,
     unstable_copy: false,

@@ -158,7 +158,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
   }));
 
-  const isLoading = useExternalHistory(
+  const { isLoading, deleteMessage: deleteHistoryMessage } = useExternalHistory(
     runtimeRef,
     adapters?.history ?? contextAdapters?.history,
     AISDKMessageConverter.toThreadMessages as (
@@ -314,6 +314,25 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
       });
+    },
+    onDelete: async (messageId) => {
+      const threadMessages = runtimeRef.current.thread.getState().messages;
+      const messageIndex = threadMessages.findIndex(
+        (message) => message.id === messageId,
+      );
+      if (messageIndex === -1) return;
+
+      await deleteHistoryMessage(messageId);
+
+      const deleteIds = new Set(
+        threadMessages
+          .slice(messageIndex)
+          .flatMap((message) => getExternalStoreMessages<UI_MESSAGE>(message))
+          .map((message) => message.id),
+      );
+      chatHelpers.setMessages((current) =>
+        current.filter((message) => !deleteIds.has(message.id)),
+      );
     },
     onReload: async (parentId: string | null, config) => {
       lastRunConfigRef.current = config.runConfig;

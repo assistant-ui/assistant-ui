@@ -8,10 +8,14 @@ import { validateUIMessages } from "ai";
 // in isolation). Every other dependency — useExternalStoreRuntime,
 // useToolInvocations, the message converter — runs for real.
 vi.mock("./useExternalHistory", () => ({
-  useExternalHistory: vi.fn(() => false),
+  useExternalHistory: vi.fn(() => ({
+    isLoading: false,
+    deleteMessage: vi.fn().mockResolvedValue(undefined),
+  })),
   toExportedMessageRepository: vi.fn(),
 }));
 
+import { useExternalHistory } from "./useExternalHistory";
 import { useAISDKRuntime } from "./useAISDKRuntime";
 
 const createChatHelpers = (messages: any[] = []) => {
@@ -46,6 +50,10 @@ const textOf = (message: any): string =>
 describe("useAISDKRuntime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useExternalHistory).mockReturnValue({
+      isLoading: false,
+      deleteMessage: vi.fn().mockResolvedValue(undefined),
+    });
   });
 
   it("sends a new user message through the runtime", async () => {
@@ -275,6 +283,44 @@ describe("useAISDKRuntime", () => {
         ]),
       }),
     );
+  });
+
+  it("deletes a message and later messages from AI SDK state", async () => {
+    const deleteMessage = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(useExternalHistory).mockReturnValue({
+      isLoading: false,
+      deleteMessage,
+    });
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "first-answer" }],
+      },
+      { id: "u2", role: "user", parts: [{ type: "text", text: "second" }] },
+      {
+        id: "a2",
+        role: "assistant",
+        parts: [{ type: "text", text: "second-answer" }],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(4);
+    });
+
+    await act(async () => {
+      result.current.thread.getMessageById("u2").delete();
+    });
+
+    expect(deleteMessage).toHaveBeenCalledWith("u2");
+    expect(chat.messages.map((message: any) => message.id)).toEqual([
+      "u1",
+      "a1",
+    ]);
   });
 
   it("edit slices history to parentId and sends the edited message", async () => {

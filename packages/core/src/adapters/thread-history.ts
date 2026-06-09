@@ -43,6 +43,7 @@ export type GenericThreadHistoryAdapter<TMessage> = {
     item: MessageFormatItem<TMessage>,
     localMessageId: string,
   ): Promise<void>;
+  delete?(items: MessageFormatItem<TMessage>[]): Promise<void>;
   reportTelemetry?(
     items: MessageFormatItem<TMessage>[],
     options?: {
@@ -58,6 +59,7 @@ export type ThreadHistoryAdapter = {
     options: ChatModelRunOptions,
   ): AsyncGenerator<ChatModelRunResult, void, unknown>;
   append(item: ExportedMessageRepositoryItem): Promise<void>;
+  delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
   /** Required when used with `useAISDKRuntime` / `useChatRuntime`. */
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,

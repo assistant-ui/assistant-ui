@@ -137,6 +137,9 @@ export const ThreadMessageClient = resource(function ThreadMessageClient({
         return attachments.get(selector);
       }
     },
+    delete: () => {
+      throw new Error("Not supported in ThreadMessageProvider");
+    },
     reload: () => {
       throw new Error("Not supported in ThreadMessageProvider");
     },

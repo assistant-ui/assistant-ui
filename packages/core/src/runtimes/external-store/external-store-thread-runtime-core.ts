@@ -60,6 +60,7 @@ export class ExternalStoreThreadRuntimeCore
     switchToBranch: false,
     switchBranchDuringRun: false,
     edit: false,
+    delete: false,
     reload: false,
     cancel: false,
     unstable_copy: false,
@@ -148,6 +149,9 @@ export class ExternalStoreThreadRuntimeCore
       switchToBranch: this._store.setMessages !== undefined,
       switchBranchDuringRun: false,
       edit: this._store.onEdit !== undefined,
+      delete:
+        this._store.onDelete !== undefined ||
+        this._store.setMessages !== undefined,
       reload: this._store.onReload !== undefined,
       cancel: this._store.onCancel !== undefined,
       speech: this._store.adapters?.speech !== undefined,
@@ -417,6 +421,26 @@ export class ExternalStoreThreadRuntimeCore
     } else {
       await this._store.onNew(message);
     }
+  }
+
+  public async deleteMessage(messageId: string): Promise<void> {
+    if (this._store.onDelete) {
+      await this._store.onDelete(messageId);
+      return;
+    }
+
+    if (!this._store.setMessages)
+      throw new Error("Runtime does not support deleting messages.");
+
+    if (this._store.isRunning) {
+      await this._toolInvocations?.abort();
+    }
+
+    const messages = this.repository.getMessages();
+    const messageIndex = messages.findIndex((m) => m.id === messageId);
+    if (messageIndex === -1) throw new Error("Message not found.");
+
+    this.updateMessages(messages.slice(0, messageIndex));
   }
 
   public getQueueItems() {

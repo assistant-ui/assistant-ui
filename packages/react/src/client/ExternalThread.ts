@@ -151,6 +151,7 @@ const MessageClient = resource(function MessageClient({
   return {
     getState: () => state,
     composer: () => composerClient.methods,
+    delete: () => {},
     reload: () => {
       onReload?.();
     },
@@ -509,6 +510,7 @@ export const ExternalThread = resource(function ExternalThread({
       isRunning,
       capabilities: {
         edit: false,
+        delete: false,
         reload: false,
         cancel: isRunning,
         speech: false,

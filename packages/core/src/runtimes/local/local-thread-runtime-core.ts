@@ -49,6 +49,7 @@ export class LocalThreadRuntimeCore
     switchToBranch: true,
     switchBranchDuringRun: true,
     edit: true,
+    delete: false,
     reload: true,
     cancel: true,
     unstable_copy: true,
@@ -147,6 +148,12 @@ export class LocalThreadRuntimeCore
     const canFeedback = options.adapters?.feedback !== undefined;
     if (this.capabilities.feedback !== canFeedback) {
       this.capabilities.feedback = canFeedback;
+      hasUpdates = true;
+    }
+
+    const canDelete = options.adapters?.history?.delete !== undefined;
+    if (this.capabilities.delete !== canDelete) {
+      this.capabilities.delete = canDelete;
       hasUpdates = true;
     }
 
@@ -273,6 +280,30 @@ export class LocalThreadRuntimeCore
       this.repository.resetHead(newMessage.id);
       this._notifySubscribers();
     }
+  }
+
+  public async deleteMessage(messageId: string): Promise<void> {
+    const adapter = this._options.adapters.history;
+    if (!adapter?.delete)
+      throw new Error("Runtime does not support deleting messages.");
+
+    const messages = this.repository.getMessages();
+    const messageIndex = messages.findIndex((m) => m.id === messageId);
+    if (messageIndex === -1) throw new Error("Message not found.");
+
+    const items = messages.slice(messageIndex).map((message, idx) => ({
+      parentId:
+        idx === 0
+          ? (messages[messageIndex - 1]?.id ?? null)
+          : messages[messageIndex + idx - 1]!.id,
+      message,
+    }));
+
+    await adapter.delete(items);
+
+    const previousMessage = messages[messageIndex - 1];
+    this.repository.resetHead(previousMessage?.id ?? null);
+    this._notifySubscribers();
   }
 
   public resumeRun({ stream, ...startConfig }: ResumeRunConfig): Promise<void> {

@@ -109,6 +109,7 @@ type ExternalStoreAdapterBase<T> = {
   /** Opt in to message queuing. Typically produced by `createMessageQueue`. */
   queue?: ExternalThreadQueueAdapter | undefined;
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
+  onDelete?: ((messageId: string) => Promise<void> | void) | undefined;
   onReload?: // TODO: remove parentId in 0.12.0
     | ((parentId: string | null, config: StartRunConfig) => Promise<void>)
     | undefined;

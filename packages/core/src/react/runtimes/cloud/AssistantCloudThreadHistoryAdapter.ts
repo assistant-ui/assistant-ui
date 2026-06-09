@@ -57,6 +57,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         if (!remoteId) return;
         await formatted.update?.(remoteId, item, localMessageId);
       },
+      async delete() {
+        throw new Error(
+          "Assistant Cloud does not support deleting thread messages yet.",
+        );
+      },
       reportTelemetry(
         items: MessageFormatItem<TMessage>[],
         options?: {
@@ -95,6 +100,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     if (this.cloudRef.current.telemetry.enabled) {
       this._maybeReportRun(remoteId, "aui/v0", encoded);
     }
+  }
+
+  async delete() {
+    throw new Error(
+      "Assistant Cloud does not support deleting thread messages yet.",
+    );
   }
 
   async load() {

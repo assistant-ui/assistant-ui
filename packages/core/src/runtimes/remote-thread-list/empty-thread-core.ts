@@ -20,6 +20,10 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     throw EMPTY_THREAD_ERROR;
   },
 
+  deleteMessage() {
+    throw EMPTY_THREAD_ERROR;
+  },
+
   startRun() {
     throw EMPTY_THREAD_ERROR;
   },
@@ -183,6 +187,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     switchToBranch: false,
     switchBranchDuringRun: false,
     edit: false,
+    delete: false,
     reload: false,
     cancel: false,
     unstable_copy: false,

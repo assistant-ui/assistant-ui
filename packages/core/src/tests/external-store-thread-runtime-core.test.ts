@@ -49,6 +49,15 @@ describe("ExternalStoreThreadRuntimeCore - state reference stability", () => {
       expect(runtime.capabilities).not.toBe(capsBefore);
     });
 
+    it("enables delete when setMessages is provided", () => {
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        mockContextProvider,
+        makeStore({ setMessages: vi.fn() }),
+      );
+
+      expect(runtime.capabilities.delete).toBe(true);
+    });
+
     it("should maintain stable reference across repeated setAdapter calls", () => {
       const runtime = new ExternalStoreThreadRuntimeCore(
         mockContextProvider,
@@ -151,6 +160,53 @@ describe("ExternalStoreThreadRuntimeCore - state reference stability", () => {
     runtime.__internal_setAdapter(store);
 
     expect(runtime.capabilities).toBe(capsBefore);
+  });
+
+  describe("deleteMessage", () => {
+    it("removes the selected message and later messages from the active branch", async () => {
+      const setMessages = vi.fn();
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        mockContextProvider,
+        makeStore({
+          messages: [
+            {
+              id: "u1",
+              role: "user",
+              content: [{ type: "text", text: "first" }],
+            },
+            {
+              id: "a1",
+              role: "assistant",
+              content: [{ type: "text", text: "answer" }],
+            },
+            {
+              id: "u2",
+              role: "user",
+              content: [{ type: "text", text: "second" }],
+            },
+          ],
+          setMessages,
+        }),
+      );
+
+      await runtime.deleteMessage("a1");
+
+      expect(setMessages).toHaveBeenCalledWith([
+        expect.objectContaining({ id: "u1" }),
+      ]);
+    });
+
+    it("delegates to onDelete when provided", async () => {
+      const onDelete = vi.fn();
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        mockContextProvider,
+        makeStore({ onDelete }),
+      );
+
+      await runtime.deleteMessage("m1");
+
+      expect(onDelete).toHaveBeenCalledWith("m1");
+    });
   });
 });
 describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", () => {

@@ -23,6 +23,7 @@ export type RuntimeCapabilities = {
   readonly switchBranchDuringRun: boolean;
   readonly edit: boolean;
   readonly reload: boolean;
+  readonly delete: boolean;
   readonly cancel: boolean;
   readonly unstable_copy: boolean;
   readonly speech: boolean;
@@ -146,6 +147,7 @@ export type ThreadRuntimeCore = Readonly<{
   switchToBranch: (branchId: string) => void;
 
   append: (message: AppendMessage) => void;
+  deleteMessage: (messageId: string) => void;
   startRun: (config: StartRunConfig) => void;
   resumeRun: (config: ResumeRunConfig) => void;
   cancelRun: () => void;

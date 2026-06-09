@@ -252,6 +252,8 @@ export type ThreadRuntime = {
    */
   append(message: CreateAppendMessage): void;
 
+  deleteMessage(messageId: string): void;
+
   /**
    * Start a new run with the given configuration.
    * @param config The configuration for starting the run
@@ -374,6 +376,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   protected __internal_bindMethods() {
     this.append = this.append.bind(this);
+    this.deleteMessage = this.deleteMessage.bind(this);
     this.resumeRun = this.resumeRun.bind(this);
     this.importExternalState = this.importExternalState.bind(this);
     this.exportExternalState = this.exportExternalState.bind(this);
@@ -409,6 +412,10 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       .append(
         toAppendMessage(this._threadBinding.getState().messages, message),
       );
+  }
+
+  public deleteMessage(messageId: string) {
+    this._threadBinding.getState().deleteMessage(messageId);
   }
 
   public subscribe(callback: () => void) {

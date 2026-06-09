@@ -56,6 +56,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   public abstract get capabilities(): RuntimeCapabilities;
   public abstract append(message: AppendMessage): void;
+  public abstract deleteMessage(messageId: string): void;
   public abstract startRun(config: StartRunConfig): void;
   public abstract resumeRun(config: ResumeRunConfig): void;
   public abstract addToolResult(options: AddToolResultOptions): void;
