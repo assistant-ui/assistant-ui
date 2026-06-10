@@ -30,7 +30,7 @@ export type HighlighterProps = Omit<
 export const SyntaxHighlighter: FC<HighlighterProps> = ({
   code,
   language,
-  theme = { dark: "kanagawa-wave", light: "kanagawa-lotus" },
+  theme = { dark: "github-dark-default", light: "github-light-default" },
   className,
   addDefaultStyles = false, // assistant-ui requires custom base styles
   showLanguage = false, // assistant-ui/react-markdown handles language labels
@@ -47,7 +47,7 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
       showLanguage={showLanguage}
       defaultColor="light-dark()"
       className={cn(
-        "aui-shiki-base [&_pre]:bg-muted/75! [&_pre]:overflow-x-auto [&_pre]:rounded-b-lg [&_pre]:p-4",
+        "aui-shiki-base [&_pre]:border-border/50 [&_pre]:bg-muted/30! [&_.line]:px-0! [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-xl [&_pre]:border [&_pre]:border-t-0 [&_pre]:p-3.5 [&_pre]:text-[13px] [&_pre]:leading-relaxed",
         className,
       )}
     >

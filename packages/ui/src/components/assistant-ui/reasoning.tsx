@@ -60,9 +60,7 @@ function ReasoningRoot({
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      if (!open) {
-        lockScroll();
-      }
+      lockScroll();
       if (!isControlled) {
         setUncontrolledOpen(open);
       }

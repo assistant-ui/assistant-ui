@@ -235,7 +235,7 @@ const Composer: FC = () => {
   const isRunning = useThread((state) => state.isRunning);
 
   return (
-    <ComposerPrimitive.Root className="border-input bg-background has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-ring/20 flex w-full flex-col rounded-2xl border px-1 pt-2 transition-shadow outline-none has-[textarea:focus-visible]:ring-2">
+    <ComposerPrimitive.Root className="border-input bg-background has-[textarea:focus-visible]:border-foreground/60 flex w-full flex-col rounded-2xl border px-1 pt-2 transition-colors outline-none">
       <ComposerPrimitive.Input
         placeholder="Send a message..."
         className="placeholder:text-muted-foreground mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none"

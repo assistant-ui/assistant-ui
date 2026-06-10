@@ -51,9 +51,7 @@ function ToolFallbackRoot({
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      if (!open) {
-        lockScroll();
-      }
+      lockScroll();
       if (!isControlled) {
         setUncontrolledOpen(open);
       }
@@ -69,7 +67,7 @@ function ToolFallbackRoot({
       open={isOpen}
       onOpenChange={handleOpenChange}
       className={cn(
-        "aui-tool-fallback-root group/tool-fallback-root w-full rounded-lg border py-3",
+        "aui-tool-fallback-root group/tool-fallback-root w-full",
         className,
       )}
       style={
@@ -114,7 +112,7 @@ function ToolFallbackTrigger({
     <CollapsibleTrigger
       data-slot="tool-fallback-trigger"
       className={cn(
-        "aui-tool-fallback-trigger group/trigger flex w-full items-center gap-2 px-4 text-sm transition-colors",
+        "aui-tool-fallback-trigger group/trigger text-muted-foreground hover:text-foreground flex w-fit items-center gap-2 py-1 text-sm transition-colors",
         className,
       )}
       {...props}
@@ -130,7 +128,7 @@ function ToolFallbackTrigger({
       <span
         data-slot="tool-fallback-trigger-label"
         className={cn(
-          "aui-tool-fallback-trigger-label-wrapper relative inline-block grow text-start leading-none",
+          "aui-tool-fallback-trigger-label-wrapper relative inline-block text-start leading-none",
           isCancelled && "text-muted-foreground line-through",
         )}
       >
@@ -181,7 +179,7 @@ function ToolFallbackContent({
       )}
       {...props}
     >
-      <div className="mt-3 flex flex-col gap-2 border-t pt-2">{children}</div>
+      <div className="flex flex-col gap-2 ps-6 pt-1 pb-2">{children}</div>
     </CollapsibleContent>
   );
 }
@@ -198,10 +196,10 @@ function ToolFallbackArgs({
   return (
     <div
       data-slot="tool-fallback-args"
-      className={cn("aui-tool-fallback-args px-4", className)}
+      className={cn("aui-tool-fallback-args", className)}
       {...props}
     >
-      <pre className="aui-tool-fallback-args-value whitespace-pre-wrap">
+      <pre className="aui-tool-fallback-args-value bg-muted/50 text-muted-foreground rounded-md p-2.5 text-xs whitespace-pre-wrap">
         {argsText}
       </pre>
     </div>
@@ -220,14 +218,13 @@ function ToolFallbackResult({
   return (
     <div
       data-slot="tool-fallback-result"
-      className={cn(
-        "aui-tool-fallback-result border-t border-dashed px-4 pt-2",
-        className,
-      )}
+      className={cn("aui-tool-fallback-result", className)}
       {...props}
     >
-      <p className="aui-tool-fallback-result-header font-semibold">Result:</p>
-      <pre className="aui-tool-fallback-result-content whitespace-pre-wrap">
+      <p className="aui-tool-fallback-result-header text-muted-foreground text-xs font-medium">
+        Result:
+      </p>
+      <pre className="aui-tool-fallback-result-content bg-muted/50 text-muted-foreground mt-1 rounded-md p-2.5 text-xs whitespace-pre-wrap">
         {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
       </pre>
     </div>
@@ -258,7 +255,7 @@ function ToolFallbackError({
   return (
     <div
       data-slot="tool-fallback-error"
-      className={cn("aui-tool-fallback-error px-4", className)}
+      className={cn("aui-tool-fallback-error", className)}
       {...props}
     >
       <p className="aui-tool-fallback-error-header text-muted-foreground font-semibold">
@@ -311,7 +308,7 @@ function ToolFallbackApproval({
     <div
       data-slot="tool-fallback-approval"
       className={cn(
-        "aui-tool-fallback-approval flex items-center gap-2 border-t border-dashed px-4 pt-2",
+        "aui-tool-fallback-approval flex items-center gap-2 pt-1",
         className,
       )}
       {...props}
@@ -355,11 +352,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   }
 
   return (
-    <ToolFallbackRoot
-      open={open}
-      onOpenChange={setOpen}
-      className={cn(isCancelled && "border-muted-foreground/30 bg-muted/30")}
-    >
+    <ToolFallbackRoot open={open} onOpenChange={setOpen}>
       <ToolFallbackTrigger toolName={toolName} status={status} />
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
