@@ -1,4 +1,5 @@
 import { isJSONValueEqual } from "../utils/json/is-json-equal";
+import { isJSONValue } from "../utils/json/is-json";
 
 export type InteractableSnapshotEntry = {
   id: string;
@@ -20,10 +21,10 @@ export function findLatestSnapshotEntry(
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i]!;
     if (msg.role !== "user") continue;
-    const items = msg.metadata?.custom?.interactables as
-      | InteractableSnapshotEntry[]
-      | undefined;
-    const entry = items?.find((it) => it.id === id);
+    const raw = msg.metadata?.custom?.interactables;
+    const entry = Array.isArray(raw)
+      ? (raw as InteractableSnapshotEntry[]).find((it) => it.id === id)
+      : undefined;
     if (entry) return entry;
   }
   return undefined;
@@ -47,10 +48,7 @@ export function gateInteractableComposerMetadata(
   if (Array.isArray(interactables)) {
     const pending: InteractableSnapshotEntry[] = [];
     for (const it of interactables) {
-      if (
-        process.env.NODE_ENV !== "production" &&
-        !isJSONValueEqual(it.state, it.state)
-      ) {
+      if (process.env.NODE_ENV !== "production" && !isJSONValue(it.state)) {
         console.warn(
           `[Interactables] state for "${it.name}" (${it.id}) is not JSON-equatable ` +
             `(an undefined, NaN, Infinity, function, or symbol value?). It will be ` +

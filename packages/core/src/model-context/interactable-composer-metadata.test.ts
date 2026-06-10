@@ -56,6 +56,18 @@ describe("findLatestSnapshotEntry", () => {
     expect(findLatestSnapshotEntry(history, "a")?.state).toEqual({ v: 1 });
     expect(findLatestSnapshotEntry(history, "missing")).toBeUndefined();
   });
+
+  it("skips a message whose interactables metadata is not an array without throwing", () => {
+    const history = [
+      {
+        role: "user" as const,
+        metadata: { custom: { interactables: "oops" } },
+      },
+      userMsg([entry("a", { v: 1 })]),
+    ];
+    expect(() => findLatestSnapshotEntry(history, "a")).not.toThrow();
+    expect(findLatestSnapshotEntry(history, "a")?.state).toEqual({ v: 1 });
+  });
 });
 
 describe("gateInteractableComposerMetadata", () => {

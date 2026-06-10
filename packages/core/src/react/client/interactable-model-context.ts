@@ -5,20 +5,6 @@ import type {
 } from "../types/scopes/interactables";
 import type { InteractableSnapshotEntry } from "../../model-context/interactable-composer-metadata";
 
-/** Every interactable's current state, ungated (gated later in `handleSend`). */
-function buildRawComposerMetadata(
-  definitions: Record<string, InteractableDefinition>,
-): Record<string, unknown> | undefined {
-  const entries = Object.values(definitions);
-  if (entries.length === 0) return undefined;
-  const interactables: InteractableSnapshotEntry[] = entries.map((def) => ({
-    id: def.id,
-    name: def.name,
-    state: def.state,
-  }));
-  return { interactables };
-}
-
 export function shallowMerge(prev: unknown, partial: unknown): unknown {
   if (
     typeof prev !== "object" ||
@@ -69,11 +55,10 @@ export function buildInteractableModelContext(
         : `update_${safeName}`;
 
       const partialSchema = partialSchemaCache.get(def.id) ?? def.stateSchema;
-      const description = `Update the state of interactable component "${name}"${isMulti ? ` (id: ${def.id})` : ""}. Only include the fields you want to change; omitted fields keep their current values. ${def.description}`;
 
-      const tool: Tool<any, any> = {
-        type: "frontend" as const,
-        description,
+      tools[toolName] = {
+        type: "frontend",
+        description: `Update the state of interactable component "${name}"${isMulti ? ` (id: ${def.id})` : ""}. Only include the fields you want to change; omitted fields keep their current values. ${def.description}`,
         parameters: partialSchema,
         streamCall: async (reader) => {
           try {
@@ -89,12 +74,13 @@ export function buildInteractableModelContext(
           return { success: true };
         },
       };
-      tools[toolName] = tool;
     }
   }
 
-  const composerMetadata = buildRawComposerMetadata(definitions);
-  return composerMetadata
-    ? { tools, unstable_composerMetadata: composerMetadata }
-    : { tools };
+  const interactables: InteractableSnapshotEntry[] = entries.map((def) => ({
+    id: def.id,
+    name: def.name,
+    state: def.state,
+  }));
+  return { tools, unstable_composerMetadata: { interactables } };
 }
