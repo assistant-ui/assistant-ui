@@ -30,34 +30,65 @@ build** (RSC + route handlers) and **OFF where the client build is needed** (SSR
 is also why `server-only` (`{"react-server":"./empty.js","default":"./index.js"}`,
 where the default throws) is safe only in react-server layers.
 
-## How selection happens (no query, no `imports` field)
+## How selection happens (no `imports` field)
 
 The loader rewrites a **bare** generative import into a facade that delegates
 selection to a `react-server`-conditioned package subpath, passing the module's
 own path through a **Turbopack import attribute** (a `?path=` query cannot ride a
-package specifier; `with {}` can):
+package specifier; `with {}` can). The subpath carries a **per-module token** so
+each generative module gets its own indirection identity (see "Per-module
+identity" below):
 
 ```js
 // facade — emitted in place of a bare import of the generative module
-import toolkit from "@assistant-ui/next/bundler-redirect"
+import toolkit from "@assistant-ui/next/bundler-redirect/<token>"
   with { turbopackLoader: "@assistant-ui/next/loader",
          turbopackLoaderOptions: "{\"path\":\"/abs/docs-toolkit.tsx\"}" };
 export default toolkit;
 ```
 
-`@assistant-ui/next/bundler-redirect` resolves by condition to one of two
-indirection modules, which the loader (applied via the attribute) replaces with a
-re-export of the concrete build — using a **relative** specifier computed from the
-indirection's own path to the originating module (Turbopack won't resolve an
-absolute specifier; a relative one is correct for both workspace symlinks and
-installed packages):
+`@assistant-ui/next/bundler-redirect/<token>` resolves through the package's
+`"./bundler-redirect/*"` export by condition to one of two indirection modules,
+which the loader (applied via the attribute) replaces with a re-export of the
+concrete build — using a **relative** specifier computed from the indirection's
+own path to the originating module (Turbopack won't resolve an absolute
+specifier; a relative one is correct for both workspace symlinks and installed
+packages):
 
 ```js
-// react-server → bundler-redirect.server.js  ⇒  emitted:
+// react-server → bundler-redirect.server.js?aui=<token>  ⇒  emitted:
 export { default } from "../../../app/lib/docs-toolkit.tsx?generative-env=server";
-// default       → bundler-redirect.client.js  ⇒  emitted:
+// default       → bundler-redirect.client.js?aui=<token>  ⇒  emitted:
 export { default } from "../../../app/lib/docs-toolkit.tsx?generative-env=client";
 ```
+
+## Per-module identity
+
+Turbopack keys runtime modules by **resolved path (+ query)**, ignoring loader
+options and import attributes. A shared bare `@assistant-ui/next/bundler-redirect`
+would therefore resolve every facade to the one `bundler-redirect.client.js` file
+under a single key — so two generative modules register two indirection bodies
+there and the last write wins, collapsing all imports onto whichever compiled
+last (downstream: two `Tools` providers register the same toolkit → `tool …
+already exists`). This only bites under `next dev`; a production `next build`
+inlines the indirection per import site, so it resolves correctly.
+
+So each facade imports `…/bundler-redirect/<token>`, where `<token>` is the
+module's path encoded `base64url` (path-derived, so unique with no collisions;
+it's already in the loader options, so it leaks nothing new). The wildcard export
+
+```json
+"./bundler-redirect/*": {
+  "react-server": "./dist/bundler-redirect.server.js?aui=*",
+  "default": "./dist/bundler-redirect.client.js?aui=*"
+}
+```
+
+threads the token back as a `?aui=` **query on the resolved file**: both tokens
+hit the same physical file, but the query makes each a distinct module key —
+unique identity without per-module files, still selected by the static
+`react-server` condition. The query is inert (`indirectionVariant` keys off the
+basename; the path still arrives via the import attribute).
 
 The `?generative-env=server|client` query then hits the loader again and compiles the
 concrete build. Net resolution from one bare import:
@@ -91,8 +122,17 @@ concrete build. Net resolution from one bare import:
 - **Runtime `isServer` facade** (`if (isServer) import(server)`): can't prune, and
   `server-only`'s build-time check follows the dynamic `import()` into the
   client/SSR graph and errors.
-- **`?path=` query on the package specifier**: Turbopack can't resolve a query on
-  a package import (`Can't resolve '@pkg/bundler-redirect'`); hence the `with {}` attribute.
+- **A single shared `/bundler-redirect` subpath** for every module: collapses all
+  generative imports onto one resolved module key — see "Per-module identity".
+- **A query on the package specifier** (`…/bundler-redirect?aui=<token>`): still
+  fails to resolve in Next 16.2.7 (`Can't resolve '@pkg/bundler-redirect'`), same
+  as the old `?path=` attempt. A query only survives on a *resolved file* path,
+  which is why the per-module token rides the wildcard-export **target** query
+  (`…client.js?aui=*`) rather than the request.
+- **Per-module physical indirection files** (the other route to distinct resolved
+  paths): the set of generative modules isn't known when the package is built, so
+  pre-shipping a file per module is impossible — the wildcard-target query gives
+  distinct keys off one real file instead.
 - **package.json `imports` field**: works (resolve-time `react-server`), but
   requires a per-app entry; the facade removes that.
 

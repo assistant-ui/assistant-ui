@@ -39,19 +39,30 @@ function queryTarget(resourceQuery: string | undefined): Target | null {
 
 /**
  * Facade for a bare generative import: delegates build selection to the
- * `react-server`-conditioned `/bundler-redirect` subpath, passing the module's
- * path via a Turbopack import attribute. See DESIGN.md.
+ * `react-server`-conditioned `/bundler-redirect/*` subpath, passing the module's
+ * path via a Turbopack import attribute. The per-module token makes each
+ * indirection a distinct module identity (Turbopack keys by resolved path, not
+ * loader options, so a shared subpath would collide). See DESIGN.md.
  */
 function buildFacade(resourcePath: string): string {
   const options = JSON.stringify(JSON.stringify({ path: resourcePath }));
   const attr =
     `with { turbopackLoader: "${PKG}/loader", ` +
     `turbopackLoaderOptions: ${options} }`;
+  const id = moduleIdentityToken(resourcePath);
   return [
-    `import toolkit from "${PKG}/bundler-redirect" ${attr};`,
+    `import toolkit from "${PKG}/bundler-redirect/${id}" ${attr};`,
     `export default toolkit;`,
     ``,
   ].join("\n");
+}
+
+/**
+ * A stable, URL-safe token identifying a module path. Encoded from the path
+ * (not hashed) so distinct modules can never collide onto a shared identity.
+ */
+function moduleIdentityToken(resourcePath: string): string {
+  return Buffer.from(resourcePath, "utf8").toString("base64url");
 }
 
 /**

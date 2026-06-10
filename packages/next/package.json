@@ -25,9 +25,9 @@
       "types": "./dist/loader.d.ts",
       "default": "./dist/loader.js"
     },
-    "./bundler-redirect": {
-      "react-server": "./dist/bundler-redirect.server.js",
-      "default": "./dist/bundler-redirect.client.js"
+    "./bundler-redirect/*": {
+      "react-server": "./dist/bundler-redirect.server.js?aui=*",
+      "default": "./dist/bundler-redirect.client.js?aui=*"
     }
   },
   "main": "./dist/index.js",
