@@ -3396,6 +3396,9 @@ importers:
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
+      assistant-stream:
+        specifier: ^0.3.21
+        version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -3412,9 +3415,6 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
-      assistant-stream:
-        specifier: workspace:*
-        version: link:../assistant-stream
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1

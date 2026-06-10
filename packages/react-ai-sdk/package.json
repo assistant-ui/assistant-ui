@@ -56,7 +56,8 @@
     "@assistant-ui/core": "^0.2.11",
     "@assistant-ui/store": "^0.2.14",
     "ai": "^6.0.197",
-    "assistant-cloud": "*"
+    "assistant-cloud": "*",
+    "assistant-stream": "^0.3.21"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -73,7 +74,6 @@
     "@types/json-schema": "^7.0.15",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "assistant-stream": "workspace:*",
     "jsdom": "^29.1.1",
     "react": "^19.2.7",
     "vitest": "^4.1.8"
