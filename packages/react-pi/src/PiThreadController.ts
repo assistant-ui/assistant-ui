@@ -4,11 +4,10 @@
  * a `useExternalStoreRuntime`.
  *
  * The `PiClient` is the transport boundary (HTTP/SSE, RPC subprocess, IPC), so —
- * unlike react-opencode — there is no separate event-source class here: the
- * controller subscribes through `client.subscribe(threadId, …)` and feeds every
- * event to the pure reducer. `subscribe()` is snapshot-first (the supervisor
- * sends a `snapshot` on connect), and `load()` additionally seeds via
- * `getThread` so the external store can flip out of its loading state promptly.
+ * unlike react-opencode — there is no separate event-source class here. React
+ * store subscriptions stay local; the controller opens live Pi events only for
+ * an explicit `connect()` or operations that need a live runtime. `load()` is the
+ * cold read path and seeds from `getThread`.
  *
  * Browser-safe; imports no `@earendil-works/pi-*` packages.
  */
@@ -51,6 +50,7 @@ export interface PiThreadControllerLike {
   getProjectedMessages(): readonly ThreadMessageLike[];
   getMessageRepository(): ExportedMessageRepository;
   getVersion(): number;
+  connect(): () => void;
   subscribe(listener: () => void): () => void;
   subscribeMetadata(listener: () => void): () => void;
   subscribeMessages(listener: () => void): () => void;
@@ -205,6 +205,21 @@ type OptimisticUserMessage = {
   baseMessageCount: number;
 };
 
+const markStateRunning = (state: PiThreadState): PiThreadState => {
+  if (state.runStatus === "running" && state.metadata.status === "running") {
+    return state;
+  }
+  return {
+    ...state,
+    runStatus: "running",
+    lastError: undefined,
+    metadata:
+      state.metadata.status === "running"
+        ? state.metadata
+        : { ...state.metadata, status: "running" },
+  };
+};
+
 export class PiThreadController implements PiThreadControllerLike {
   private state: PiThreadState;
   private projectedMessages: readonly ThreadMessageLike[] = [];
@@ -213,8 +228,10 @@ export class PiThreadController implements PiThreadControllerLike {
   private readonly allListeners = new Set<() => void>();
   private readonly metadataListeners = new Set<() => void>();
   private readonly messageListeners = new Set<() => void>();
+  private connectionRetainers = 0;
   private readonly optimisticUserMessages: OptimisticUserMessage[] = [];
   private unsubscribeFromEvents: (() => void) | null = null;
+  private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private loadPromise: Promise<void> | null = null;
   private messageFlushScheduled = false;
   /** Synthetic seq for snapshots produced locally (via `getThread`), kept below
@@ -247,9 +264,19 @@ export class PiThreadController implements PiThreadControllerLike {
     return this.version;
   }
 
+  public connect() {
+    this.connectionRetainers += 1;
+    this.ensureEventSubscription({
+      includeSnapshot: this.state.loadState !== "loaded",
+    });
+    return () => {
+      this.connectionRetainers = Math.max(0, this.connectionRetainers - 1);
+      this.maybeDisconnectFromEvents();
+    };
+  }
+
   public subscribe(listener: () => void) {
     this.allListeners.add(listener);
-    this.ensureEventSubscription();
     return () => {
       this.allListeners.delete(listener);
       this.maybeDisconnectFromEvents();
@@ -258,7 +285,6 @@ export class PiThreadController implements PiThreadControllerLike {
 
   public subscribeMetadata(listener: () => void) {
     this.metadataListeners.add(listener);
-    this.ensureEventSubscription();
     return () => {
       this.metadataListeners.delete(listener);
       this.maybeDisconnectFromEvents();
@@ -267,7 +293,6 @@ export class PiThreadController implements PiThreadControllerLike {
 
   public subscribeMessages(listener: () => void) {
     this.messageListeners.add(listener);
-    this.ensureEventSubscription();
     return () => {
       this.messageListeners.delete(listener);
       this.maybeDisconnectFromEvents();
@@ -276,6 +301,7 @@ export class PiThreadController implements PiThreadControllerLike {
 
   public dispose() {
     // React StrictMode can detach then resubscribe the same controller.
+    this.clearDisconnectTimer();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     this.allListeners.clear();
@@ -283,7 +309,8 @@ export class PiThreadController implements PiThreadControllerLike {
     this.messageListeners.clear();
   }
 
-  private ensureEventSubscription() {
+  private ensureEventSubscription(options?: { includeSnapshot?: boolean }) {
+    this.clearDisconnectTimer();
     if (this.unsubscribeFromEvents) return;
     this.unsubscribeFromEvents = this.client.subscribe(
       this.threadId,
@@ -291,19 +318,39 @@ export class PiThreadController implements PiThreadControllerLike {
         if (event.threadId !== this.threadId) return;
         this.dispatch(event);
       },
+      options,
     );
   }
 
   private maybeDisconnectFromEvents() {
     if (
+      this.connectionRetainers > 0 ||
       this.allListeners.size > 0 ||
       this.metadataListeners.size > 0 ||
       this.messageListeners.size > 0
     ) {
       return;
     }
-    this.unsubscribeFromEvents?.();
-    this.unsubscribeFromEvents = null;
+    if (this.disconnectTimer) return;
+    this.disconnectTimer = setTimeout(() => {
+      this.disconnectTimer = null;
+      if (
+        this.connectionRetainers > 0 ||
+        this.allListeners.size > 0 ||
+        this.metadataListeners.size > 0 ||
+        this.messageListeners.size > 0
+      ) {
+        return;
+      }
+      this.unsubscribeFromEvents?.();
+      this.unsubscribeFromEvents = null;
+    }, 30_000);
+  }
+
+  private clearDisconnectTimer() {
+    if (!this.disconnectTimer) return;
+    clearTimeout(this.disconnectTimer);
+    this.disconnectTimer = null;
   }
 
   public async load(force = false) {
@@ -357,10 +404,12 @@ export class PiThreadController implements PiThreadControllerLike {
 
     const input = buildPiSendInput(message, behavior);
     const optimistic = optimisticUserMessageFromInput(input);
+    this.ensureEventSubscription({ includeSnapshot: false });
     this.optimisticUserMessages.push({
       message: optimistic,
       baseMessageCount: this.state.messages.length,
     });
+    this.setState(markStateRunning(this.state));
     this.recomputeProjectedMessagesAndNotify();
 
     try {

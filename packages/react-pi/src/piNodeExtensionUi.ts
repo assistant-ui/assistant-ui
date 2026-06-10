@@ -23,8 +23,8 @@ import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import type { PiHostUiRequest, PiHostUiResponse } from "./piTypes";
 
 /** Thrown by `custom()` — the one host-UI method with no headless degradation
- * (it renders an arbitrary interactive TUI component). Mirrors pi-gui's
- * "typed unsupported issue" so extensions can catch rather than hang. */
+ * (it renders an arbitrary interactive TUI component). This gives extensions a
+ * typed unsupported issue they can catch rather than hanging. */
 export class PiUnsupportedHostUiError extends Error {
   constructor(public readonly method: string) {
     super(

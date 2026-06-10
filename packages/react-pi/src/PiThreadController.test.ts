@@ -22,6 +22,8 @@ const snapshot = (over: Partial<PiThreadSnapshot> = {}): PiThreadSnapshot => ({
 type FakeClient = PiClient & {
   emit: (event: PiClientEvent) => void;
   listeners: Set<(e: PiClientEvent) => void>;
+  subscribed: number;
+  subscribeOptions: Array<{ includeSnapshot?: boolean } | undefined>;
   unsubscribed: number;
   sent: Array<{ threadId: string; input: PiSendMessageInput }>;
   cancelled: string[];
@@ -37,6 +39,8 @@ const createFakeClient = (
   const listeners = new Set<(e: PiClientEvent) => void>();
   const client: FakeClient = {
     listeners,
+    subscribed: 0,
+    subscribeOptions: [],
     unsubscribed: 0,
     sent: [],
     cancelled: [],
@@ -78,7 +82,9 @@ const createFakeClient = (
     async respondToHostUiRequest(threadId, response) {
       client.hostUiResponses.push({ threadId, response });
     },
-    subscribe(_threadId, listener) {
+    subscribe(_threadId, listener, options) {
+      client.subscribed += 1;
+      client.subscribeOptions.push(options);
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
@@ -161,6 +167,7 @@ describe("PiThreadController", () => {
     const controller = new PiThreadController(client, THREAD);
     const notify = vi.fn();
     controller.subscribe(notify);
+    controller.connect();
 
     client.emit(ev({ type: "agent_start" }, 1));
     expect(controller.getState().runStatus).toBe("running");
@@ -182,7 +189,7 @@ describe("PiThreadController", () => {
   it("ignores events addressed to a different thread", () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
-    controller.subscribe(() => {});
+    controller.connect();
     client.emit({ type: "agent_start", threadId: "other", seq: 1 });
     expect(controller.getState().runStatus).toBe("idle");
   });
@@ -197,7 +204,7 @@ describe("PiThreadController", () => {
   it("derives followUp while running and honors a steer runConfig", async () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
-    controller.subscribe(() => {});
+    controller.connect();
     client.emit(ev({ type: "agent_start" }, 1));
 
     await controller.sendMessage(userMessage("queued"));
@@ -209,6 +216,22 @@ describe("PiThreadController", () => {
       }),
     );
     expect(client.sent[1]!.input.streamingBehavior).toBe("steer");
+  });
+
+  it("treats a locally accepted send as running before Pi emits agent_start", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.subscribe(() => {});
+
+    await controller.sendMessage(userMessage("first"));
+    await controller.sendMessage(userMessage("second"));
+
+    expect(client.sent).toHaveLength(2);
+    expect(client.sent[0]!.input).toEqual({ content: "first" });
+    expect(client.sent[1]!.input).toEqual({
+      content: "second",
+      streamingBehavior: "followUp",
+    });
   });
 
   it("maps image attachments to Pi image content", async () => {
@@ -259,7 +282,7 @@ describe("PiThreadController", () => {
     };
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
-    controller.subscribe(() => {});
+    controller.connect();
     client.emit(ev({ type: "extension_ui_request", request }, 1));
     expect(controller.getState().hostUiRequests).toHaveLength(1);
 
@@ -280,7 +303,7 @@ describe("PiThreadController", () => {
     };
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
-    controller.subscribe(() => {});
+    controller.connect();
     client.emit(ev({ type: "extension_ui_request", request }, 1));
 
     await controller.resumeToolCall("tc9", "Ada");
@@ -299,13 +322,59 @@ describe("PiThreadController", () => {
     );
   });
 
-  it("does not cancel the run when the last listener unsubscribes (disconnect ≠ abort)", () => {
+  it("defers disconnecting when the last listener unsubscribes (disconnect ≠ abort)", () => {
+    vi.useFakeTimers();
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
     const unsub = controller.subscribe(() => {});
     unsub();
-    expect(client.unsubscribed).toBe(1);
+    expect(client.subscribed).toBe(0);
+    expect(client.unsubscribed).toBe(0);
+
+    vi.advanceTimersByTime(30_000);
+    expect(client.unsubscribed).toBe(0);
     expect(client.cancelled).toEqual([]);
+
+    vi.useRealTimers();
+  });
+
+  it("keeps the event subscription while the active runtime retains it", () => {
+    vi.useFakeTimers();
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    const release = controller.connect();
+    const unsub = controller.subscribe(() => {});
+
+    unsub();
+    vi.advanceTimersByTime(30_000);
+    expect(client.unsubscribed).toBe(0);
+
+    release();
+    vi.advanceTimersByTime(30_000);
+    expect(client.unsubscribed).toBe(1);
+
+    vi.useRealTimers();
+  });
+
+  it("keeps thread switching on the read-only getThread path", async () => {
+    const client = createFakeClient(
+      snapshot({ messages: [{ role: "user", content: "one", timestamp: 1 }] }),
+    );
+    const first = new PiThreadController(client, "thread-one");
+    const second = new PiThreadController(client, "thread-two");
+    first.subscribe(() => {});
+    second.subscribe(() => {});
+
+    await first.load();
+    client.getThreadSnapshot = snapshot({
+      metadata: { id: "thread-two", status: "idle" },
+      messages: [{ role: "user", content: "two", timestamp: 2 }],
+    });
+    await second.load();
+
+    expect(client.subscribed).toBe(0);
+    expect(first.getState().messages[0]).toMatchObject({ content: "one" });
+    expect(second.getState().messages[0]).toMatchObject({ content: "two" });
   });
 
   it("full-refreshes from a snapshot on an unrecognized event type", async () => {
@@ -314,7 +383,7 @@ describe("PiThreadController", () => {
     );
     const getThread = vi.spyOn(client, "getThread");
     const controller = new PiThreadController(client, THREAD);
-    controller.subscribe(() => {});
+    controller.connect();
 
     client.emit({
       type: "some_future_event",
@@ -351,6 +420,8 @@ describe("PiThreadController", () => {
     });
     expect(controller.getVersion()).toBeGreaterThan(0);
     expect(notify).toHaveBeenCalled();
+    expect(client.subscribed).toBe(1);
+    expect(client.subscribeOptions[0]).toEqual({ includeSnapshot: false });
 
     resolveSend();
     await send;
@@ -364,6 +435,7 @@ describe("PiThreadController", () => {
     });
     const notify = vi.fn();
     controller.subscribe(notify);
+    controller.connect();
 
     client.emit(
       ev(
@@ -415,7 +487,7 @@ describe("PiThreadController", () => {
     const controller = new PiThreadController(client, THREAD, {
       scheduleNotify: (flush) => scheduled.push(flush),
     });
-    controller.subscribe(() => {});
+    controller.connect();
 
     client.emit(
       ev(

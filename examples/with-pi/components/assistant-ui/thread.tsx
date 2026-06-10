@@ -72,7 +72,6 @@ export const Thread: FC = () => {
       }}
     >
       <ThreadPrimitive.Viewport
-        turnAnchor="top"
         data-slot="aui_thread-viewport"
         className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
       >
@@ -335,11 +334,10 @@ const THINKING_LEVELS: readonly PiThinkingLevel[] = [
 const ComposerModelSelector: FC = () => {
   const handshake = usePiHandshake();
   const { metadata, setModel, status } = usePiRuntimeExtras();
-  if (!handshake || handshake.models.length === 0) return null;
-
   const selected =
     modelKey(metadata.config?.provider, metadata.config?.modelId) ??
-    handshake.selectedModelId;
+    handshake?.selectedModelId;
+  if (!handshake || handshake.models.length === 0) return null;
 
   return (
     <ModelSelector

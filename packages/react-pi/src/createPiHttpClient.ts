@@ -23,7 +23,7 @@
  *   POST   /threads/:id/unarchive   → 204
  *   DELETE /threads/:id             → 204
  *   POST   /threads/:id/host-ui     → 204                   (body: { response })
- *   GET    /threads/:id/events      → SSE of PiClientEvent
+ *   GET    /threads/:id/events      → SSE of PiClientEvent (?snapshot=false skips initial snapshot)
  */
 import { openPiEventStream } from "./PiEventSource";
 import type {
@@ -37,6 +37,22 @@ import type {
   PiThreadSnapshot,
 } from "./piTypes";
 
+type SharedStream = {
+  listeners: Set<(event: PiClientEvent) => void>;
+  close: () => void;
+  closeTimer: ReturnType<typeof setTimeout> | undefined;
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __assistantUiPiHttpStreams: Map<string, SharedStream> | undefined;
+}
+
+const getDefaultBrowserStreams = () => {
+  globalThis.__assistantUiPiHttpStreams ??= new Map<string, SharedStream>();
+  return globalThis.__assistantUiPiHttpStreams;
+};
+
 export interface PiHttpClientOptions {
   /** Base path/URL of the route layer. Default: `/api/pi`. */
   baseUrl?: string;
@@ -48,6 +64,8 @@ export interface PiHttpClientOptions {
   onStreamError?: (error: unknown) => void;
   /** Reconnect backoff for the event stream; injectable for tests. */
   reconnectDelay?: () => Promise<void>;
+  /** Delay before closing an idle shared event stream. Defaults to 30s. */
+  streamCloseDelayMs?: number;
 }
 
 const trimTrailingSlash = (value: string): string =>
@@ -78,6 +96,7 @@ export const createPiHttpClient = (
     headers,
     onStreamError,
     reconnectDelay,
+    streamCloseDelayMs = 30_000,
   } = options;
 
   const base = trimTrailingSlash(baseUrl);
@@ -85,6 +104,10 @@ export const createPiHttpClient = (
     `${base}/threads/${encodeURIComponent(threadId)}`;
 
   const jsonHeaders = { "content-type": "application/json", ...headers };
+  const streams =
+    fetchImpl === globalThis.fetch && headers === undefined
+      ? getDefaultBrowserStreams()
+      : new Map<string, SharedStream>();
 
   const send = (url: string, method: string, body?: unknown) =>
     fetchImpl(url, {
@@ -177,14 +200,56 @@ export const createPiHttpClient = (
       );
     },
 
-    subscribe: (threadId, listener) =>
-      openPiEventStream({
-        url: `${threadUrl(threadId)}/events`,
-        fetchImpl,
-        ...(headers ? { headers } : {}),
-        ...(reconnectDelay ? { reconnectDelay } : {}),
-        ...(onStreamError ? { onError: onStreamError } : {}),
-        onEvent: (event) => listener(event as PiClientEvent),
-      }),
+    subscribe: (threadId, listener, subscribeOptions) => {
+      const includeSnapshot = subscribeOptions?.includeSnapshot !== false;
+      const streamKey = `${base}:${threadId}:${
+        includeSnapshot ? "snapshot" : "live"
+      }`;
+      let stream = streams.get(streamKey);
+      if (!stream) {
+        const listeners = new Set<(event: PiClientEvent) => void>();
+        const eventsUrl = `${threadUrl(threadId)}/events${
+          includeSnapshot ? "" : "?snapshot=false"
+        }`;
+        stream = {
+          listeners,
+          closeTimer: undefined,
+          close: openPiEventStream({
+            url: eventsUrl,
+            fetchImpl,
+            ...(headers ? { headers } : {}),
+            ...(reconnectDelay ? { reconnectDelay } : {}),
+            ...(onStreamError ? { onError: onStreamError } : {}),
+            onEvent: (event) => {
+              for (const l of [...listeners]) l(event as PiClientEvent);
+            },
+          }),
+        };
+        streams.set(streamKey, stream);
+      } else if (stream.closeTimer) {
+        clearTimeout(stream.closeTimer);
+        stream.closeTimer = undefined;
+      }
+
+      stream.listeners.add(listener);
+
+      return () => {
+        const current = streams.get(streamKey);
+        if (!current) return;
+        current.listeners.delete(listener);
+        if (current.listeners.size > 0 || current.closeTimer) return;
+        if (streamCloseDelayMs <= 0) {
+          current.close();
+          streams.delete(streamKey);
+          return;
+        }
+        current.closeTimer = setTimeout(() => {
+          const latest = streams.get(streamKey);
+          if (!latest || latest.listeners.size > 0) return;
+          latest.close();
+          streams.delete(streamKey);
+        }, streamCloseDelayMs);
+      };
+    },
   };
 };

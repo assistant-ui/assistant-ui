@@ -514,9 +514,11 @@ export interface PiClient {
     response: PiHostUiResponse,
   ): Promise<void>;
 
-  /** Snapshot-first; replays nothing it can't (see Reconnect in the MVP plan). */
+  /** Snapshot-first by default; callers that already loaded `getThread()` may
+   * opt out so live events layer on top without repeating snapshot work. */
   subscribe(
     threadId: string,
     listener: (event: PiClientEvent) => void,
+    options?: { includeSnapshot?: boolean },
   ): () => void;
 }

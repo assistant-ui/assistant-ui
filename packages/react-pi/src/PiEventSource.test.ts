@@ -99,6 +99,72 @@ describe("openPiEventStream", () => {
     expect(events[0]).toMatchObject({ threadId: "t1", seq: 1 });
   });
 
+  it("uses the controlled fetch stream even when native EventSource exists", async () => {
+    const EventSource = vi.fn();
+    const fetchImpl = vi.fn(async () =>
+      sseResponse([sseFrame({ type: "agent_start", threadId: "t1", seq: 1 })]),
+    ) as unknown as typeof fetch;
+    vi.stubGlobal("EventSource", EventSource);
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      const events: PiAnyClientEvent[] = [];
+
+      await new Promise<void>((resolve) => {
+        const close = openPiEventStream({
+          url: "/events",
+          reconnectDelay: () => Promise.resolve(),
+          onEvent: (event) => {
+            events.push(event);
+            close();
+            resolve();
+          },
+        });
+      });
+
+      expect(events).toEqual([{ type: "agent_start", threadId: "t1", seq: 1 }]);
+      expect(fetchImpl).toHaveBeenCalledWith("/events", {
+        method: "GET",
+        signal: expect.any(AbortSignal),
+        headers: { Accept: "text/event-stream" },
+      });
+      expect(EventSource).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("uses the controlled fetch stream when headers are supplied", async () => {
+    const EventSource = vi.fn();
+    vi.stubGlobal("EventSource", EventSource);
+    try {
+      let calls = 0;
+      const fetchImpl = (async () => {
+        calls += 1;
+        return sseResponse([
+          sseFrame({ type: "agent_start", threadId: "t1", seq: 1 }),
+        ]);
+      }) as unknown as typeof fetch;
+
+      await new Promise<void>((resolve) => {
+        const close = openPiEventStream({
+          url: "/events",
+          fetchImpl,
+          headers: { Authorization: "Bearer token" },
+          reconnectDelay: () => Promise.resolve(),
+          onEvent: () => {
+            close();
+            resolve();
+          },
+        });
+      });
+
+      expect(calls).toBe(1);
+      expect(EventSource).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("reconnects after a dropped stream", async () => {
     let calls = 0;
     const fetchImpl = (async () => {

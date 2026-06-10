@@ -66,6 +66,7 @@ export const createPiNodeClient = (
     deleteThread: (threadId) => supervisor.deleteThread(threadId),
     respondToHostUiRequest: (threadId, response) =>
       supervisor.respondToHostUiRequest(threadId, response),
-    subscribe: (threadId, listener) => supervisor.subscribe(threadId, listener),
+    subscribe: (threadId, listener, subscribeOptions) =>
+      supervisor.subscribe(threadId, listener, subscribeOptions),
   };
 };

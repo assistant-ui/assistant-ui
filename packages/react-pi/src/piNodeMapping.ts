@@ -13,17 +13,35 @@
  */
 import type {
   AgentSessionEvent,
+  ModelRegistry,
+  SessionEntry,
   SessionInfo,
 } from "@earendil-works/pi-coding-agent";
 import type {
   PiAgentMessage,
   PiAssistantMessageDelta,
   PiClientEventBody,
+  PiContextUsage,
+  PiModelInfo,
   PiRuntimeReadiness,
+  PiThinkingLevel,
   PiThreadMetadata,
   PiThreadStatus,
   PiTranscriptMessage,
 } from "./piTypes";
+
+/** A model as the `ModelRegistry` reports it (a Pi `Model`), derived from the
+ *  SDK so this module names it only at the type boundary. */
+export type PiRegistryModel = ReturnType<ModelRegistry["getAll"]>[number];
+
+const THINKING_LEVELS: readonly PiThinkingLevel[] = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+];
 
 /**
  * The real Pi `AgentMessage` / `AssistantMessageEvent`, derived from the event
@@ -192,5 +210,82 @@ export const deriveReadiness = (input: {
     state: "ready",
     selection: { provider: input.model.provider, modelId: input.model.id },
     source: input.source ?? "session",
+  };
+};
+
+/** Map a registry model onto the JSON-safe `PiModelInfo`. */
+export const mapModelInfo = (model: PiRegistryModel): PiModelInfo => {
+  const map = model.thinkingLevelMap as
+    | Partial<Record<PiThinkingLevel, unknown>>
+    | undefined;
+  const availableThinkingLevels = map
+    ? THINKING_LEVELS.filter((level) => map[level] !== null)
+    : undefined;
+  return {
+    provider: String(model.provider),
+    modelId: model.id,
+    ...(model.name ? { name: model.name } : {}),
+    supportsThinking: Boolean(model.reasoning),
+    ...(availableThinkingLevels ? { availableThinkingLevels } : {}),
+  };
+};
+
+/** The readonly view a `SessionManager` exposes for a cold (non-live) thread. */
+export type ReadonlySessionContext = {
+  messages: readonly unknown[];
+  thinkingLevel: string;
+  model: { provider: string; modelId: string } | null;
+};
+
+/** Latest session name from the branch (newest `session_info` entry wins). */
+export const latestSessionName = (
+  branch: readonly SessionEntry[],
+): string | undefined => {
+  for (let index = branch.length - 1; index >= 0; index -= 1) {
+    const entry = branch[index]!;
+    if (entry.type === "session_info") return entry.name;
+  }
+  return undefined;
+};
+
+/** Readiness for a cold thread, from its persisted model selection. */
+export const readinessFromSessionContext = (
+  context: Pick<ReadonlySessionContext, "model">,
+): PiRuntimeReadiness =>
+  deriveReadiness({
+    model: context.model
+      ? { provider: context.model.provider, id: context.model.modelId }
+      : undefined,
+    source: "session",
+  });
+
+/**
+ * Metadata for a cold (non-live) thread, derived from its session file. The
+ * supervisor injects what only it can know: whether the file is archived, and
+ * the context usage (which needs the model registry's context window).
+ */
+export const mapReadonlyMetadata = (
+  info: SessionInfo,
+  branch: readonly SessionEntry[],
+  context: ReadonlySessionContext,
+  opts: { archived: boolean; contextUsage?: PiContextUsage | undefined },
+): PiThreadMetadata => {
+  const sessionName = latestSessionName(branch);
+  const base = mapSessionInfo(info, { liveStatus: "idle" });
+  return {
+    ...base,
+    ...(sessionName !== undefined ? { title: sessionName } : {}),
+    ...(context.model
+      ? {
+          config: {
+            provider: context.model.provider,
+            modelId: context.model.modelId,
+            thinkingLevel: context.thinkingLevel,
+          },
+        }
+      : { config: { thinkingLevel: context.thinkingLevel } }),
+    messageCount: context.messages.length,
+    ...(opts.contextUsage ? { contextUsage: opts.contextUsage } : {}),
+    ...(opts.archived ? { archived: true } : {}),
   };
 };

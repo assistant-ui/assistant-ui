@@ -17,6 +17,7 @@ import type {
 import {
   useEffect,
   useEffectEvent,
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -35,6 +36,7 @@ import type {
   PiHostUiRequest,
   PiHostUiResponse,
   PiRuntimeReadiness,
+  PiSendMessageInput,
   PiThinkingLevel,
   PiThreadMetadata,
   PiThreadStatus,
@@ -159,6 +161,7 @@ const NOOP_CONTROLLER: PiThreadControllerLike = {
   subscribe: () => () => {},
   subscribeMetadata: () => () => {},
   subscribeMessages: () => () => {},
+  connect: () => () => {},
   load: async () => {},
   refresh: async () => {},
   sendMessage: async () => {},
@@ -204,19 +207,49 @@ const EMPTY_RUNTIME_EXTRAS: PiRuntimeExtrasInternal = {
 // Per-thread runtime.
 // ---------------------------------------------------------------------------
 
-const usePiControllerVersion = (controller: PiThreadControllerLike): number =>
-  useSyncExternalStore(
-    (listener) => controller.subscribe(listener),
+const usePiControllerVersion = (
+  controller: PiThreadControllerLike,
+  kind: "all" | "metadata" | "messages",
+): number => {
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      if (kind === "metadata") return controller.subscribeMetadata(listener);
+      if (kind === "messages") return controller.subscribeMessages(listener);
+      return controller.subscribe(listener);
+    },
+    [controller, kind],
+  );
+  return useSyncExternalStore(
+    subscribe,
     () => controller.getVersion(),
     () => 0,
   );
+};
 
 const usePiControllerState = (
   controller: PiThreadControllerLike,
+  kind: "all" | "metadata" = "all",
 ): PiThreadState => {
-  usePiControllerVersion(controller);
+  usePiControllerVersion(controller, kind);
   return controller.getState();
 };
+
+const usePiControllerMessageRepository = (
+  controller: PiThreadControllerLike,
+): ExportedMessageRepository => {
+  usePiControllerVersion(controller, "messages");
+  return controller.getMessageRepository();
+};
+
+const usePiControllerStateSelector = <T>(
+  controller: PiThreadControllerLike,
+  selector: (state: PiThreadState) => T,
+): T =>
+  useSyncExternalStore(
+    useCallback((listener) => controller.subscribe(listener), [controller]),
+    () => selector(controller.getState()),
+    () => selector(EMPTY_THREAD_STATE),
+  );
 
 const isPiStateRunning = (state: PiThreadState): boolean =>
   state.runStatus === "running" ||
@@ -227,8 +260,8 @@ const usePiThreadRuntime = (
   controller: PiThreadControllerLike,
   options: PiRuntimeOptions,
 ): AssistantRuntime => {
-  const state = usePiControllerState(controller);
-  const messageRepository = controller.getMessageRepository();
+  const state = usePiControllerState(controller, "metadata");
+  const messageRepository = usePiControllerMessageRepository(controller);
 
   const {
     adapters,
@@ -352,9 +385,9 @@ const toOptimisticThreadMessage = (
 });
 
 const useNewPiThreadRuntime = (
-  client: PiClient,
   options: PiRuntimeOptions,
   enabled: boolean,
+  pendingInitialMessageRef: { current: PiSendMessageInput | undefined },
 ): AssistantRuntime => {
   const aui = useAui();
   const {
@@ -397,15 +430,16 @@ const useNewPiThreadRuntime = (
           message,
           optimisticMessages.length,
         );
+        const initialMessage = buildPiSendInput(message, undefined);
+        pendingInitialMessageRef.current = initialMessage;
         setOptimisticMessages((messages) => [...messages, optimistic]);
         try {
-          const { remoteId } = await aui.threadListItem().initialize();
-          await client.sendMessage(
-            remoteId,
-            buildPiSendInput(message, undefined),
-          );
+          await aui.threadListItem().initialize();
           setOptimisticMessages([]);
         } catch (error) {
+          if (pendingInitialMessageRef.current === initialMessage) {
+            pendingInitialMessageRef.current = undefined;
+          }
           setOptimisticMessages((messages) =>
             messages.filter((message) => message !== optimistic),
           );
@@ -416,10 +450,10 @@ const useNewPiThreadRuntime = (
     }),
     [
       aui,
-      client,
       enabled,
       optimisticMessages.length,
       optimisticRepository,
+      pendingInitialMessageRef,
       adapters,
       isDisabled,
       isSendDisabled,
@@ -436,8 +470,12 @@ const useRuntimeHook = (
   client: PiClient,
   registry: PiControllerRegistry,
   options: PiRuntimeOptions,
+  pendingInitialMessageRef: { current: PiSendMessageInput | undefined },
 ) => {
   const threadListItem = useAuiState((state: any) => state.threadListItem);
+  const isMainThread = useAuiState(
+    (state: any) => state.threads.mainThreadId === state.threadListItem.id,
+  );
   const threadId = threadListItem.externalId ?? threadListItem.remoteId;
 
   const controllerRef = useRef<{
@@ -456,11 +494,14 @@ const useRuntimeHook = (
     return next;
   })();
 
-  const threadRuntime = usePiThreadRuntime(controller, options);
+  const threadRuntime = usePiThreadRuntime(
+    isMainThread ? controller : NOOP_CONTROLLER,
+    options,
+  );
   const newThreadRuntime = useNewPiThreadRuntime(
-    client,
     options,
     threadListItem.status === "new",
+    pendingInitialMessageRef,
   );
 
   if (threadId) return threadRuntime;
@@ -497,6 +538,9 @@ const mapThreadMetadata = (metadata: PiThreadMetadata) => ({
 export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
   const { client } = options;
   const registry = useMemo(() => createRegistry(client), [client]);
+  const pendingInitialMessageRef = useRef<PiSendMessageInput | undefined>(
+    undefined,
+  );
 
   useEffect(() => () => registry.dispose(), [registry]);
 
@@ -526,10 +570,13 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
         await client.deleteThread?.(remoteId);
       },
       initialize: async () => {
+        const initialMessage = pendingInitialMessageRef.current;
+        pendingInitialMessageRef.current = undefined;
         const snapshot = await client.createThread({
           ...(options.workspacePath !== undefined
             ? { workspacePath: options.workspacePath }
             : {}),
+          ...(initialMessage ? { initialMessage } : {}),
         });
         return {
           remoteId: snapshot.metadata.id,
@@ -550,7 +597,12 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
         return mapThreadMetadata(snapshot.metadata);
       },
     }),
-    [client, options.workspacePath, options.includeArchived],
+    [
+      client,
+      options.workspacePath,
+      options.includeArchived,
+      pendingInitialMessageRef,
+    ],
   );
 
   return useRemoteThreadListRuntime({
@@ -560,8 +612,15 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
       ? { initialThreadId: options.initialThreadId }
       : {}),
     ...(options.threadId !== undefined ? { threadId: options.threadId } : {}),
-    // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook is invoked by useRemoteThreadListRuntime at the correct hook position
-    runtimeHook: () => useRuntimeHook(client, registry, options),
+    runtimeHook: () => {
+      // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook is invoked by useRemoteThreadListRuntime at the correct hook position
+      return useRuntimeHook(
+        client,
+        registry,
+        options,
+        pendingInitialMessageRef,
+      );
+    },
   });
 };
 
@@ -585,9 +644,12 @@ export function usePiThreadState<T>(selector?: (state: PiThreadState) => T) {
     tryGetPiRuntimeExtras(state.thread.extras),
   );
   const controller = extras?.controller ?? NOOP_CONTROLLER;
-  const threadState = usePiControllerState(controller);
+  const selected = usePiControllerStateSelector(
+    controller,
+    selector ?? ((state) => state as T),
+  );
 
-  return selector ? selector(threadState) : threadState;
+  return selected;
 }
 
 export const usePiHostUiRequests = () => {

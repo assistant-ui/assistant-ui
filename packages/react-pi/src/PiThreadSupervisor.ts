@@ -7,19 +7,12 @@
  * runtime. It is reachable only from `node.ts`, never from `index.ts`, so the
  * browser boundary holds (PI_MVP_PLAN "Package Shape").
  *
- * Per PI_MVP_PLAN §1 the supervisor owns one record per open thread, each with
- * its own `AgentSession`, serialized event delivery, monotonic per-thread `seq`,
- * and a bound `ExtensionUIContext` for the approval surface. A browser
+ * The host keeps catalog reads, read-only snapshots, and live runtimes separate:
+ * catalog reads use cached `SessionManager.list()` metadata, cold `getThread()`
+ * reads a session-file snapshot, and a live `AgentSession` record is created
+ * only when an operation needs Pi execution or explicit live events. A browser
  * disconnect (last `subscribe` unsubscribe) does NOT abort the run — only an
  * explicit `cancelRun` or process exit stops it.
- *
- * MVP decision (realized — refines the plan): each thread maps to a distinct
- * `AgentSession` opened from its session file via `createAgentSession`, rather
- * than an `AgentSessionRuntime` with `setRebindSession`. The runtime wrapper
- * exists to support in-thread session *replacement* (new/resume/fork/switch),
- * which MVP explicitly defers (no tree/fork UI). When branching lands (Extended)
- * each record upgrades to an `AgentSessionRuntime` — the event/snapshot bridge
- * here is unchanged by that swap.
  */
 import {
   AuthStorage,
@@ -32,10 +25,14 @@ import {
 import { unlink } from "node:fs/promises";
 import {
   deriveReadiness,
+  mapModelInfo,
+  mapReadonlyMetadata,
   mapSessionEvent,
   mapSessionInfo,
+  readinessFromSessionContext,
   toPiMessages,
 } from "./piNodeMapping";
+import { deriveContextUsage } from "./piContextUsage";
 import {
   createSupervisorUiBridge,
   type SupervisorUiBridge,
@@ -62,22 +59,12 @@ import type {
 type PiSessionModel = NonNullable<
   Parameters<typeof createAgentSession>[0]
 >["model"];
-type PiRegistryModel = ReturnType<ModelRegistry["getAll"]>[number];
 type PiSessionInfo = Awaited<ReturnType<typeof SessionManager.list>>[number];
 
 type CatalogCacheEntry = {
   infos: readonly PiSessionInfo[] | undefined;
   promise: Promise<readonly PiSessionInfo[]> | undefined;
 };
-
-const THINKING_LEVELS: readonly PiThinkingLevel[] = [
-  "off",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-];
 
 export interface PiThreadSupervisorOptions {
   /** Default workspace for `listThreads`/`createThread` when a call omits one.
@@ -112,12 +99,14 @@ const errorText = (err: unknown): string =>
 
 export class PiThreadSupervisor {
   private readonly records = new Map<string, ThreadRecord>();
+  private readonly recordsBySessionFile = new Map<string, ThreadRecord>();
   private readonly workspacePath: string;
   private readonly agentDir: string | undefined;
   private readonly model: PiSessionModel | undefined;
   private readonly modelRegistry: ModelRegistry;
   private readonly archivedSessionFiles = new Set<string>();
   private readonly catalogCache = new Map<string, CatalogCacheEntry>();
+  private readonly catalogInfoByThreadId = new Map<string, PiSessionInfo>();
 
   constructor(options: PiThreadSupervisorOptions = {}) {
     this.workspacePath = options.workspacePath ?? process.cwd();
@@ -169,7 +158,11 @@ export class PiThreadSupervisor {
   }
 
   async getThread(threadId: string): Promise<PiThreadSnapshot> {
-    return this.snapshotOf(await this.ensureOpen(threadId));
+    const live = this.records.get(threadId);
+    if (live) return this.snapshotOf(live);
+    const info = await this.findSessionInfo(threadId);
+    if (!info) throw new Error(`Unknown Pi thread: ${threadId}`);
+    return this.snapshotFromSessionFile(info);
   }
 
   // --- Run loop --------------------------------------------------------------
@@ -190,7 +183,7 @@ export class PiThreadSupervisor {
     const available = this.modelRegistry.getAvailable();
     const catalog =
       available.length > 0 ? available : this.modelRegistry.getAll();
-    return catalog.map((model) => this.modelInfoOf(model));
+    return catalog.map(mapModelInfo);
   }
 
   async setModel(
@@ -220,16 +213,34 @@ export class PiThreadSupervisor {
   }
 
   async renameThread(threadId: string, title: string): Promise<void> {
-    const record = await this.ensureOpen(threadId);
-    record.session.setSessionName(title);
-    this.invalidateCatalog(record.workspacePath);
+    const record = this.records.get(threadId);
+    if (record) {
+      record.session.setSessionName(title);
+      this.invalidateCatalog(record.workspacePath);
+      return;
+    }
+
+    const info = await this.findSessionInfo(threadId);
+    if (!info) throw new Error(`Unknown Pi thread: ${threadId}`);
+    SessionManager.open(info.path).appendSessionInfo(title);
+    this.invalidateCatalog(info.cwd || this.workspacePath);
   }
 
   async archiveThread(threadId: string): Promise<void> {
-    const record = await this.ensureOpen(threadId);
-    const sessionFile = record.session.sessionFile;
-    if (sessionFile) this.archivedSessionFiles.add(sessionFile);
-    this.emit(record, { type: "snapshot", snapshot: this.snapshotOf(record) });
+    const record = this.records.get(threadId);
+    const info = record ? undefined : await this.findSessionInfo(threadId);
+    const sessionFile = record?.session.sessionFile ?? info?.path;
+    if (!sessionFile) throw new Error(`Unknown Pi thread: ${threadId}`);
+    this.archivedSessionFiles.add(sessionFile);
+    this.invalidateCatalog(
+      record?.workspacePath ?? info?.cwd ?? this.workspacePath,
+    );
+    if (record) {
+      this.emit(record, {
+        type: "snapshot",
+        snapshot: this.snapshotOf(record),
+      });
+    }
   }
 
   async unarchiveThread(threadId: string): Promise<void> {
@@ -255,6 +266,7 @@ export class PiThreadSupervisor {
       record.uiBridge.dismissAll();
       record.session.dispose();
       this.records.delete(threadId);
+      if (sessionFile) this.recordsBySessionFile.delete(sessionFile);
     }
     this.archivedSessionFiles.delete(sessionFile);
     await unlink(sessionFile);
@@ -271,6 +283,7 @@ export class PiThreadSupervisor {
   subscribe(
     threadId: string,
     listener: (event: PiClientEvent) => void,
+    options?: { includeSnapshot?: boolean },
   ): () => void {
     let active = true;
     let record: ThreadRecord | undefined;
@@ -279,14 +292,16 @@ export class PiThreadSupervisor {
         if (!active) return;
         record = r;
         r.listeners.add(listener);
-        // Snapshot-first: the authoritative current state, stamped with the
-        // record's seq so subsequent live events (seq+1…) apply on top.
-        listener({
-          type: "snapshot",
-          snapshot: this.snapshotOf(r),
-          threadId,
-          seq: r.seq,
-        });
+        if (options?.includeSnapshot !== false) {
+          // Snapshot-first when requested: the authoritative current state,
+          // stamped with the record's seq so subsequent live events apply on top.
+          listener({
+            type: "snapshot",
+            snapshot: this.snapshotOf(r),
+            threadId,
+            seq: r.seq,
+          });
+        }
       })
       .catch((err) => {
         if (active) {
@@ -309,6 +324,7 @@ export class PiThreadSupervisor {
       record.session.dispose();
     }
     this.records.clear();
+    this.recordsBySessionFile.clear();
   }
 
   // --- Internals -------------------------------------------------------------
@@ -369,6 +385,9 @@ export class PiThreadSupervisor {
       this.onSessionEvent(record, event),
     );
     this.records.set(threadId, record);
+    if (session.sessionFile) {
+      this.recordsBySessionFile.set(session.sessionFile, record);
+    }
     return record;
   }
 
@@ -377,6 +396,11 @@ export class PiThreadSupervisor {
     if (existing) return existing;
     const info = await this.findSessionInfo(threadId);
     if (!info) throw new Error(`Unknown Pi thread: ${threadId}`);
+    const existingBySessionFile = this.recordsBySessionFile.get(info.path);
+    if (existingBySessionFile) {
+      this.records.set(threadId, existingBySessionFile);
+      return existingBySessionFile;
+    }
     const sessionManager = SessionManager.open(info.path);
     return this.openSession(sessionManager, info.cwd || this.workspacePath);
   }
@@ -392,6 +416,7 @@ export class PiThreadSupervisor {
     const promise = SessionManager.list(workspacePath)
       .then((infos) => {
         entry.infos = infos;
+        this.rememberSessionInfos(infos);
         return infos;
       })
       .finally(() => {
@@ -407,11 +432,20 @@ export class PiThreadSupervisor {
   }
 
   private async findSessionInfo(threadId: string) {
+    const cached = this.catalogInfoByThreadId.get(threadId);
+    if (cached) return cached;
     const local = await this.listSessionInfos(this.workspacePath);
     const hit = local.find((info) => info.id === threadId);
     if (hit) return hit;
     const all = await SessionManager.listAll();
+    this.rememberSessionInfos(all);
     return all.find((info) => info.id === threadId);
+  }
+
+  private rememberSessionInfos(infos: readonly PiSessionInfo[]) {
+    for (const info of infos) {
+      this.catalogInfoByThreadId.set(info.id, info);
+    }
   }
 
   private async send(
@@ -422,8 +456,37 @@ export class PiThreadSupervisor {
     if (input.streamingBehavior)
       options.streamingBehavior = input.streamingBehavior;
     if (input.attachments?.length) options.images = input.attachments;
+
+    let settlePreflight: (error?: unknown) => void = () => {};
+    let preflightSettled = false;
+    const accepted = new Promise<void>((resolve, reject) => {
+      settlePreflight = (error) => {
+        if (preflightSettled) return;
+        preflightSettled = true;
+        if (error) reject(error);
+        else resolve();
+      };
+    });
+
+    options.preflightResult = (success) => {
+      if (success) settlePreflight();
+      else settlePreflight(new Error("Pi rejected the prompt before running"));
+    };
+
+    void record.session
+      .prompt(input.content, options)
+      .then(() => {
+        settlePreflight();
+        record.lastError = undefined;
+      })
+      .catch((err: unknown) => {
+        record.lastError = errorText(err);
+        this.emit(record, { type: "error", error: record.lastError });
+        settlePreflight(err);
+      });
+
     try {
-      await record.session.prompt(input.content, options);
+      await accepted;
       record.lastError = undefined;
     } catch (err) {
       record.lastError = errorText(err);
@@ -506,22 +569,6 @@ export class PiThreadSupervisor {
     });
   }
 
-  private modelInfoOf(model: PiRegistryModel): PiModelInfo {
-    const map = model.thinkingLevelMap as
-      | Partial<Record<PiThinkingLevel, unknown>>
-      | undefined;
-    const availableThinkingLevels = map
-      ? THINKING_LEVELS.filter((level) => map[level] !== null)
-      : undefined;
-    return {
-      provider: String(model.provider),
-      modelId: model.id,
-      ...(model.name ? { name: model.name } : {}),
-      supportsThinking: Boolean(model.reasoning),
-      ...(availableThinkingLevels ? { availableThinkingLevels } : {}),
-    };
-  }
-
   private queuedMessagesOf(record: ThreadRecord): PiQueuedMessage[] {
     const session = record.session;
     return [
@@ -577,6 +624,29 @@ export class PiThreadSupervisor {
         ? { hostUiRequests: [...record.hostUiRequests] }
         : {}),
       ...(record.lastError ? { lastError: record.lastError } : {}),
+    };
+  }
+
+  private snapshotFromSessionFile(info: PiSessionInfo): PiThreadSnapshot {
+    const sessionManager = SessionManager.open(info.path);
+    const branch = sessionManager.getBranch();
+    const context = sessionManager.buildSessionContext();
+    const model = context.model
+      ? this.modelRegistry.find(context.model.provider, context.model.modelId)
+      : undefined;
+    const contextUsage = deriveContextUsage(
+      model?.contextWindow ?? 0,
+      branch,
+      context.messages,
+    );
+    const metadata = mapReadonlyMetadata(info, branch, context, {
+      archived: this.archivedSessionFiles.has(info.path),
+      contextUsage,
+    });
+    return {
+      metadata,
+      messages: toPiMessages(context.messages as never),
+      readiness: readinessFromSessionContext(context),
     };
   }
 }

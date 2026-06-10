@@ -75,20 +75,9 @@ function Header({
       <span className="font-semibold">assistant-ui × Pi</span>
 
       <div className="ml-auto flex items-center gap-2">
-        <ContextUsageBadge />
         <WorkspaceBrowser value={workspacePath} onCommit={onCommitWorkspace} />
       </div>
     </header>
-  );
-}
-
-function ContextUsageBadge() {
-  const usage = usePiThreadState((state) => state.contextUsage);
-  if (!usage || usage.percent == null) return null;
-  return (
-    <span className="text-muted-foreground text-xs">
-      {Math.round(usage.percent)}% context
-    </span>
   );
 }
 

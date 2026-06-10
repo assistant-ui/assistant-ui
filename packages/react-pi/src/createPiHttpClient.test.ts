@@ -212,6 +212,7 @@ describe("createPiHttpClient", () => {
     const client = createPiHttpClient({
       fetchImpl: fn,
       reconnectDelay: () => Promise.resolve(),
+      streamCloseDelayMs: 0,
     });
 
     const events: PiAnyClientEvent[] = [];
@@ -224,5 +225,20 @@ describe("createPiHttpClient", () => {
     });
 
     expect(events).toEqual([{ type: "agent_start", threadId: "t1", seq: 1 }]);
+  });
+
+  it("can subscribe to live events without an initial snapshot", async () => {
+    const { fn, calls } = fakeFetch(() => new Response(null, { status: 204 }));
+    const client = createPiHttpClient({
+      fetchImpl: fn,
+      streamCloseDelayMs: 0,
+    });
+
+    const unsubscribe = client.subscribe("t1", () => {}, {
+      includeSnapshot: false,
+    });
+    unsubscribe();
+
+    expect(calls[0]!.url).toBe("/api/pi/threads/t1/events?snapshot=false");
   });
 });

@@ -1,0 +1,123 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { SessionInfo } from "@earendil-works/pi-coding-agent";
+import { PiThreadSupervisor } from "./PiThreadSupervisor";
+
+const sdk = vi.hoisted(() => ({
+  authCreate: vi.fn(() => ({})),
+  createAgentSession: vi.fn(),
+  list: vi.fn(),
+  listAll: vi.fn(),
+  modelRegistryCreate: vi.fn(() => ({
+    refresh: vi.fn(),
+    getAvailable: vi.fn(() => []),
+    getAll: vi.fn(() => []),
+    find: vi.fn(),
+  })),
+  open: vi.fn(),
+  create: vi.fn(),
+}));
+
+vi.mock("@earendil-works/pi-coding-agent", () => ({
+  AuthStorage: { create: sdk.authCreate },
+  createAgentSession: sdk.createAgentSession,
+  ModelRegistry: { create: sdk.modelRegistryCreate },
+  SessionManager: {
+    create: sdk.create,
+    list: sdk.list,
+    listAll: sdk.listAll,
+    open: sdk.open,
+  },
+}));
+
+const SESSION: SessionInfo = {
+  path: "/ws/.pi/agent/sessions/t1.jsonl",
+  id: "t1",
+  cwd: "/ws",
+  name: "Catalog title",
+  created: new Date("2026-06-01T00:00:00.000Z"),
+  modified: new Date("2026-06-02T00:00:00.000Z"),
+  messageCount: 2,
+  firstMessage: "hello",
+  allMessagesText: "hello\nhi",
+};
+
+const createReadonlySessionManager = () => {
+  const branch = [
+    {
+      type: "message",
+      id: "m1",
+      parentId: null,
+      timestamp: "2026-06-01T00:00:00.000Z",
+      message: { role: "user", content: "hello", timestamp: 1 },
+    },
+    {
+      type: "session_info",
+      id: "s1",
+      parentId: "m1",
+      timestamp: "2026-06-01T00:00:01.000Z",
+      name: "Branch title",
+    },
+  ];
+  const messages = [{ role: "user", content: "hello", timestamp: 1 }];
+  return {
+    appendSessionInfo: vi.fn(),
+    buildSessionContext: vi.fn(() => ({
+      messages,
+      thinkingLevel: "high",
+      model: { provider: "anthropic", modelId: "claude-opus-4-5" },
+    })),
+    getBranch: vi.fn(() => branch),
+  };
+};
+
+describe("PiThreadSupervisor", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sdk.list.mockResolvedValue([SESSION]);
+    sdk.listAll.mockResolvedValue([]);
+    sdk.open.mockReturnValue(createReadonlySessionManager());
+  });
+
+  it("loads cold thread snapshots from the session file without creating a live AgentSession", async () => {
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    const snapshot = await supervisor.getThread("t1");
+
+    expect(sdk.list).toHaveBeenCalledWith("/ws");
+    expect(sdk.open).toHaveBeenCalledWith(SESSION.path);
+    expect(sdk.createAgentSession).not.toHaveBeenCalled();
+    expect(snapshot.messages).toEqual([
+      { role: "user", content: "hello", timestamp: 1 },
+    ]);
+    expect(snapshot.metadata).toMatchObject({
+      id: "t1",
+      title: "Branch title",
+      sessionFile: SESSION.path,
+      messageCount: 1,
+      config: {
+        provider: "anthropic",
+        modelId: "claude-opus-4-5",
+        thinkingLevel: "high",
+      },
+    });
+    expect(snapshot.readiness).toEqual({
+      state: "ready",
+      selection: {
+        provider: "anthropic",
+        modelId: "claude-opus-4-5",
+      },
+      source: "session",
+    });
+  });
+
+  it("renames cold threads through SessionManager without opening a live AgentSession", async () => {
+    const manager = createReadonlySessionManager();
+    sdk.open.mockReturnValue(manager);
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    await supervisor.renameThread("t1", "Renamed");
+
+    expect(manager.appendSessionInfo).toHaveBeenCalledWith("Renamed");
+    expect(sdk.createAgentSession).not.toHaveBeenCalled();
+  });
+});
