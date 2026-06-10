@@ -91,7 +91,9 @@ describe("useReducer - Basic Functionality", () => {
   });
 
   describe("Same-state bailout", () => {
-    it("should not re-render when reducer returns same state (Object.is)", async () => {
+    it("re-renders once when the reducer returns the same state, like React", async () => {
+      // React computes user reducers during render (no eager dispatch-time
+      // bailout), so a same-state dispatch still renders once.
       let renderCount = 0;
       const reducer = (state: number, action: number) =>
         action === 0 ? state : state + action;
@@ -115,7 +117,7 @@ describe("useReducer - Basic Functionality", () => {
       // Dispatch action that returns same state
       dispatchFn!(0);
       await waitForNextTick();
-      expect(renderCount).toBe(1);
+      expect(renderCount).toBe(2);
     });
   });
 

@@ -1,10 +1,15 @@
+/**
+ * tap-only strict-mode behaviors: nested child resources and withKey identity.
+ * Children render inline during the parent's render (unlike React components),
+ * so these sequences have no React analog to compare against; everything that
+ * does is covered differentially in strictmode-parity.test.tsx.
+ */
+
 import { describe, it, expect } from "vitest";
 import { resource } from "../../core/resource";
 import { isDevelopment } from "../../core/helpers/env";
-import { useRef } from "../../react-hooks/useRef";
 import { useState } from "../../react-hooks/useState";
 import { useEffect } from "../../react-hooks/useEffect";
-import { useMemo } from "../../react-hooks/useMemo";
 import { useResource } from "../../hooks/useResource";
 import { createTapRoot } from "../../core/createTapRoot";
 import { withKey } from "../../core/withKey";
@@ -12,164 +17,6 @@ import { withKey } from "../../core/withKey";
 describe("Strict Mode", () => {
   it("should be in development", () => {
     expect(isDevelopment).toBe(true);
-  });
-
-  it("should persist useMemo cache across strict mode double render", () => {
-    const events: string[] = [];
-    let outerCount = 0;
-    let memoCount = 0;
-
-    const useTestResource = () => {
-      const idx = outerCount++;
-      events.push(`outer-${idx}`);
-
-      useMemo(() => {
-        events.push(`memo-${memoCount++}`);
-        return {};
-      }, []);
-
-      events.push(`outerend-${idx}`);
-    };
-
-    createTapRoot(function Root() {
-      return useTestResource();
-    });
-
-    console.log("Events:", events);
-
-    // useMemo factory runs twice during first render (strict mode double-call)
-    // but should NOT run during second render (cache should persist)
-    expect(events).toEqual([
-      "outer-0",
-      "memo-0",
-      "memo-1",
-      "outerend-0",
-      "outer-1",
-      // no memo call here — cache should be reused
-      "outerend-1",
-    ]);
-  });
-
-  it("should double-invoke useMemo factory and use the first result", () => {
-    const events: string[] = [];
-    let memoCallCount = 0;
-
-    const useTestResource = () => {
-      const memoValue = useMemo(() => {
-        memoCallCount++;
-        events.push(`memo-${memoCallCount}`);
-        return memoCallCount;
-      }, []);
-
-      events.push(`render memoValue=${memoValue}`);
-    };
-
-    createTapRoot(function Root() {
-      return useTestResource();
-    });
-
-    // Matches React useMemo behavior: factory is double-invoked,
-    // first result is kept
-    expect(events).toEqual([
-      "memo-1",
-      "memo-2",
-      "render memoValue=1",
-      "render memoValue=1",
-    ]);
-  });
-
-  it("should double-render on first render", () => {
-    let renderCount = 0;
-
-    const useTestResource = () => {
-      renderCount++;
-      return { renderCount };
-    };
-
-    const sub = createTapRoot(function Root() {
-      return useTestResource();
-    });
-    const output = sub.getValue();
-
-    expect(renderCount).toBe(2);
-    expect(output.renderCount).toBe(2);
-  });
-
-  it("should double-call hook fns", () => {
-    let renderCount = 0;
-
-    const useTestResource = () => {
-      const ref = useRef(0);
-      const [count] = useState(() => {
-        renderCount++;
-        return ++ref.current;
-      });
-      const [count2] = useState(() => {
-        renderCount++;
-        return ++ref.current;
-      });
-
-      expect(count).toBe(1);
-      expect(count2).toBe(3);
-      expect(ref.current).toBe(4);
-    };
-
-    createTapRoot(function Root() {
-      return useTestResource();
-    });
-
-    expect(renderCount).toBe(4);
-  });
-
-  it("should double-commit effects", () => {
-    const events: string[] = [];
-    const useTestResource = () => {
-      const ref = useRef(0);
-      ref.current++;
-      const count = ref.current;
-
-      useEffect(() => {
-        events.push("mount-1");
-
-        return () => {
-          events.push("unmount-1");
-        };
-      });
-
-      useEffect(() => {
-        events.push("mount-2");
-
-        return () => {
-          events.push("unmount-2");
-        };
-      }, []);
-
-      useEffect(() => {
-        expect(count).toBe(2);
-
-        events.push("mount-3");
-
-        return () => {
-          events.push("unmount-3");
-        };
-      }, [count]);
-    };
-
-    createTapRoot(function Root() {
-      return useTestResource();
-    });
-
-    expect(events).toEqual([
-      "mount-1",
-      "mount-2",
-      "mount-3",
-      "unmount-1",
-      "unmount-2",
-      "unmount-3",
-      "mount-1",
-      "mount-2",
-      "mount-3",
-    ]);
   });
 
   it("should double-render on child render", () => {
@@ -193,37 +40,6 @@ describe("Strict Mode", () => {
 
     expect(renderCount).toBe(2);
     expect(output.renderCount).toBe(2);
-  });
-
-  it("should double-mount before handling state updates", () => {
-    const events: string[] = [];
-    const useTestResource = () => {
-      const [id, setId] = useState(0);
-      events.push(`render-${id}`);
-      useEffect(() => {
-        events.push(`mount-${id}`);
-        setId(1);
-        return () => {
-          events.push(`unmount-${id}`);
-        };
-      });
-    };
-
-    createTapRoot(function Root() {
-      return useTestResource();
-    });
-
-    expect(events).toEqual([
-      "render-0",
-      "render-0",
-      "mount-0",
-      "unmount-0",
-      "mount-0",
-      "render-1",
-      "render-1",
-      "unmount-0",
-      "mount-1",
-    ]);
   });
 
   it("should double-render on child render change", () => {
@@ -279,7 +95,7 @@ describe("Strict Mode", () => {
     expect(unmountCount).toBe(3);
   });
 
-  it("should double-render on child render change", () => {
+  it("should sequence child remounts on key change", () => {
     let renderCount = 0;
     const events: string[] = [];
     const useTestChildResource = () => {
@@ -345,6 +161,5 @@ describe("Strict Mode", () => {
       "unmount-4",
       "mount-4",
     ]);
-    // expect(renderCount).toBe(4);
   });
 });

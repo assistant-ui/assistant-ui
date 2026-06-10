@@ -33,6 +33,10 @@ function useReducerImpl<S, A, I, R extends S>(
   getDerivedState: ((state: S) => R) | undefined,
   initialArg: S | I,
   initFn: ((arg: I) => S) | undefined,
+  // React computes state eagerly at dispatch only for useState's basic state
+  // reducer; user reducers run during render. Mirror that split so dev-mode
+  // invocation counts and kept results match React.
+  eagerDispatch: boolean,
 ): [R, Dispatch<A>] {
   const cell = useCell("reducer", () => {
     const fiber = getCurrentResourceFiber();
@@ -59,7 +63,11 @@ function useReducerImpl<S, A, I, R extends S>(
         };
 
         dispatchOnFiber(fiber, () => {
-          if (fiber.root.dirtyCells.length === 0 && !entry.hasEagerState) {
+          if (
+            eagerDispatch &&
+            fiber.root.dirtyCells.length === 0 &&
+            !entry.hasEagerState
+          ) {
             entry.eagerState = reducer(cell.workInProgress, action);
             entry.hasEagerState = true;
 
@@ -83,9 +91,13 @@ function useReducerImpl<S, A, I, R extends S>(
     if (!item.hasEagerState || !sameReducer) {
       item.eagerState = reducer(cell.workInProgress, item.action);
       item.hasEagerState = true;
-    }
 
-    if (isDevelopment && fiber.devStrictMode) {
+      if (isDevelopment && fiber.devStrictMode) {
+        // React keeps the strict re-invocation's result for render-computed
+        // actions (unlike eager-computed ones, whose ghost is discarded).
+        item.eagerState = reducer(cell.workInProgress, item.action);
+      }
+    } else if (isDevelopment && fiber.devStrictMode) {
       void reducer(cell.workInProgress, item.action);
     }
 
@@ -124,6 +136,31 @@ export function useReducer<S, A, I>(
     undefined,
     initialArg as S,
     init as ((arg: S) => S) | undefined,
+    false,
+  );
+}
+
+/** @internal useState's entry point: eager dispatch, like React's basic state reducer. */
+export function useEagerReducer<S, A>(
+  reducer: (state: S, action: A) => S,
+  initialState: S,
+): [S, Dispatch<A>];
+export function useEagerReducer<S, A, I>(
+  reducer: (state: S, action: A) => S,
+  initialArg: I,
+  init: (arg: I) => S,
+): [S, Dispatch<A>];
+export function useEagerReducer<S, A, I>(
+  reducer: (state: S, action: A) => S,
+  initialArg: S | I,
+  init?: (arg: I) => S,
+): [S, Dispatch<A>] {
+  return useReducerImpl(
+    reducer,
+    undefined,
+    initialArg as S,
+    init as ((arg: S) => S) | undefined,
+    true,
   );
 }
 
@@ -156,5 +193,5 @@ export function useReducerWithDerivedState<S, A, I, R extends S>(
   initialArg: I,
   init?: (arg: I) => S,
 ): [R, Dispatch<A>] {
-  return useReducerImpl(reducer, getDerivedState, initialArg, init);
+  return useReducerImpl(reducer, getDerivedState, initialArg, init, true);
 }

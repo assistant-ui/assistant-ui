@@ -1,4 +1,4 @@
-import { useReducer } from "./useReducer";
+import { useEagerReducer } from "./useReducer";
 
 export namespace useState {
   export type StateUpdater<S> = S | ((prev: S) => S);
@@ -25,5 +25,5 @@ export function useState<S>(
 export function useState<S>(
   initial?: S | (() => S),
 ): [S | undefined, (updater: useState.StateUpdater<S>) => void] {
-  return useReducer(stateReducer, initial, stateInit);
+  return useEagerReducer(stateReducer, initial, stateInit);
 }
