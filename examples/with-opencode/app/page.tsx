@@ -1,6 +1,6 @@
 "use client";
 
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
 import {
   SidebarInset,
   SidebarProvider,
@@ -12,7 +12,22 @@ import {
   useOpenCodeRuntime,
   useOpenCodeSession,
 } from "@assistant-ui/react-opencode";
-import { Thread } from "../components/assistant-ui/thread";
+import {
+  Thread,
+  type ThreadComponents,
+} from "@/components/assistant-ui/thread";
+import { OpenCodeDataPart } from "@/components/opencode-data-part";
+import { FallbackTool } from "@/components/tools/opencode-tools";
+import { ReasoningGroup } from "@/components/tools/reasoning-ghost";
+import { ToolGroup } from "@/components/tools/tool-group";
+import toolkit from "@/components/tools/toolkit";
+import { useEffect } from "react";
+
+const THREAD_COMPONENTS: ThreadComponents = {
+  ToolFallback: FallbackTool,
+  ToolGroup,
+  ReasoningGroup,
+};
 
 export default function Home() {
   const runtime = useOpenCodeRuntime({
@@ -20,8 +35,17 @@ export default function Home() {
       process.env.NEXT_PUBLIC_OPENCODE_BASE_URL ?? "http://localhost:4096",
   });
 
+  const aui = useAui({
+    tools: Tools({ toolkit }),
+  });
+
+  useEffect(
+    () => aui.dataRenderers().setFallbackDataUI(OpenCodeDataPart),
+    [aui],
+  );
+
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       <SidebarProvider>
         <div className="flex h-dvh w-full overflow-hidden pr-0.5">
           <ThreadListSidebar />
@@ -35,7 +59,7 @@ export default function Home() {
               </div>
             </header>
             <div className="min-h-0 flex-1 overflow-hidden">
-              <Thread />
+              <Thread components={THREAD_COMPONENTS} />
             </div>
           </SidebarInset>
         </div>

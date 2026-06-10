@@ -133,6 +133,58 @@ const SuggestionItem = () => (
 );
 ```
 
+## Component Overrides
+
+`Thread` accepts an optional `components` prop that swaps parts of the rendering without editing the copied file. All slots are optional; omitted slots keep the built-in rendering.
+
+```tsx
+import { Thread, type ThreadComponents } from "@/components/assistant-ui/thread";
+
+const THREAD_COMPONENTS: ThreadComponents = {
+  ToolFallback: MyToolFallback,
+  ToolGroup: MyToolGroup,
+};
+
+export default function Chat() {
+  return <Thread components={THREAD_COMPONENTS} />;
+}
+```
+
+<ParametersTable
+  type="ThreadComponents"
+  parameters={[
+    {
+      name: "AssistantMessage",
+      type: "ComponentType",
+      description: "Replaces the entire assistant message, including the action bar and branch picker.",
+    },
+    {
+      name: "Welcome",
+      type: "ComponentType",
+      description: "Replaces the welcome screen shown for a new chat.",
+    },
+    {
+      name: "ToolFallback",
+      type: "ToolCallMessagePartComponent",
+      description: "Renders tool calls that have no tool UI registered by name. Registered tool UIs take precedence over this slot.",
+    },
+    {
+      name: "ToolGroup",
+      type: "ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>",
+      description: "Wraps runs of consecutive tool calls. Receives the group part (`indices`, `status`) and the rendered children.",
+    },
+    {
+      name: "ReasoningGroup",
+      type: "ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>",
+      description: "Wraps runs of consecutive reasoning parts. Receives the group part and the rendered children.",
+    },
+  ]}
+/>
+
+Define the `components` object once at module scope (or memoize it) so message subtrees do not re-render whenever the parent re-renders.
+
+For per-tool UI, prefer registering a renderer by tool name over overriding `ToolFallback`: put `render` on the matching toolkit entry (see [Tool UI](/docs/tools/tool-ui)). `data` message parts render through renderers registered with `useAssistantDataUI`; parts without a registered renderer are not displayed.
+
 ## API Reference
 
 The following primitives are used within the Thread component and can be customized in your `/components/assistant-ui/thread.tsx` file.
