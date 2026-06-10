@@ -2,10 +2,7 @@
 
 import { type ModelContext, tool } from "@assistant-ui/core";
 import type {} from "@assistant-ui/core/store";
-import {
-  type ToolCallMessagePartComponent,
-  useAssistantToolUI,
-} from "@assistant-ui/core/react";
+import { type ToolCallMessagePartComponent } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
 import { useEffect } from "react";
 import {
@@ -150,34 +147,22 @@ export const useAssistantForm = <
   }, [control, setValue, getValues, aui, reset, isSubmitting]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;
-  useAssistantToolUI(
-    renderFormFieldTool
-      ? {
-          toolName: "set_form_field",
-          render: renderFormFieldTool,
-        }
-      : null,
-  );
+  useEffect(() => {
+    if (!renderFormFieldTool) return undefined;
+    return aui.tools().setToolUI("set_form_field", renderFormFieldTool);
+  }, [aui, renderFormFieldTool]);
 
   const renderSubmitFormTool = props?.assistant?.tools?.submit_form?.render;
-  useAssistantToolUI(
-    renderSubmitFormTool
-      ? {
-          toolName: "submit_form",
-          render: renderSubmitFormTool,
-        }
-      : null,
-  );
+  useEffect(() => {
+    if (!renderSubmitFormTool) return undefined;
+    return aui.tools().setToolUI("submit_form", renderSubmitFormTool);
+  }, [aui, renderSubmitFormTool]);
 
   const renderResetFormTool = props?.assistant?.tools?.reset_form?.render;
-  useAssistantToolUI(
-    renderResetFormTool
-      ? {
-          toolName: "reset_form",
-          render: renderResetFormTool,
-        }
-      : null,
-  );
+  useEffect(() => {
+    if (!renderResetFormTool) return undefined;
+    return aui.tools().setToolUI("reset_form", renderResetFormTool);
+  }, [aui, renderResetFormTool]);
 
   return form;
 };

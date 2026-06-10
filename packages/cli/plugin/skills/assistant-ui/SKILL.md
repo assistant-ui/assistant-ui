@@ -124,32 +124,45 @@ const result = streamText({
 
 ### Frontend tool UI:
 
+Create a toolkit with a renderer for the tool. The tool executes on the backend, so the entry uses `externalTool()` and only attaches UI:
+
 ```tsx
-"use client";
+// app/toolkit.tsx
+"use generative";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import { defineToolkit, externalTool } from "@assistant-ui/react";
 
-export const WeatherToolUI = makeAssistantToolUI({
-  toolName: "get_weather",
-  render: ({ args, result }) => {
-    return (
-      <div>
-        <p>Weather for {args?.location}</p>
-        {result && <p>{result.temperature}F, {result.condition}</p>}
-      </div>
-    );
+export default defineToolkit({
+  get_weather: {
+    execute: externalTool(),
+    render: ({ args, result }) => {
+      return (
+        <div>
+          <p>Weather for {args?.location}</p>
+          {result && <p>{result.temperature}F, {result.condition}</p>}
+        </div>
+      );
+    },
   },
 });
 ```
 
-Register the tool UI in your assistant component:
+Register the toolkit in your assistant component:
 
 ```tsx
-<AssistantRuntimeProvider runtime={runtime}>
-  <WeatherToolUI />
+import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
+import toolkit from "@/app/toolkit";
+
+const aui = useAui({
+  tools: Tools({ toolkit }),
+});
+
+<AssistantRuntimeProvider aui={aui} runtime={runtime}>
   <Thread />
 </AssistantRuntimeProvider>
 ```
+
+Do not use `makeAssistantToolUI`, `useAssistantToolUI`, `makeAssistantTool`, or `useAssistantTool`; they are deprecated in favor of toolkits.
 
 ## Key Packages
 
