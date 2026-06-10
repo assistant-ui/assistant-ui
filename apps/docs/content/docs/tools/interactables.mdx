@@ -186,7 +186,7 @@ When only one instance of a name exists, the tool is named `update_{name}` (e.g.
 
 ## Selection
 
-Selection is not a special concept — it's just state. If you want the AI to know which interactable the user is focused on, add a field to your state and set it like any other:
+Selection is not a special concept — it's just state. Add a `selected` field to each interactable's state and let the parent own which `id` is selected. Every card keeps its own `selected` flag in sync from that single source of truth:
 
 ```tsx
 const noteInitialState = {
@@ -196,7 +196,15 @@ const noteInitialState = {
   selected: false,
 };
 
-function NoteCard({ noteId }: { noteId: string }) {
+function NoteCard({
+  noteId,
+  selectedId,
+  onSelect,
+}: {
+  noteId: string;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
   useAssistantInteractable("note", {
     id: noteId,
     description: "A sticky note",
@@ -205,15 +213,29 @@ function NoteCard({ noteId }: { noteId: string }) {
   });
   const [state, { setState }] = useInteractableState(noteId, noteInitialState);
 
-  return (
-    <div onClick={() => setState((prev) => ({ ...prev, selected: true }))}>
-      {state.title}
-    </div>
-  );
+  const isSelected = selectedId === noteId;
+
+  // Each card self-syncs its `selected` field from the parent's selectedId, so
+  // exclusive selection stays a single source of truth — no cross-card writes.
+  useEffect(() => {
+    if (state.selected !== isSelected) {
+      setState((prev) => ({ ...prev, selected: isSelected }));
+    }
+  }, [isSelected, state.selected, setState]);
+
+  return <div onClick={() => onSelect(noteId)}>{state.title}</div>;
 }
 ```
 
-The `selected` field rides the same state snapshot as every other edit, so the AI sees it in the focused note's state. For example, the user can say _"Change the color to blue"_ and the AI knows which note to update. Keep `selected` out of your `stateSchema` if you don't want the AI's `update_*` tool to be able to toggle it — the snapshot still carries it either way.
+The parent renders the cards with `selectedId={selectedId}` and `onSelect={setSelectedId}`. The `selected` field rides the same state snapshot as every other edit, so the AI sees it in the focused note's state. For example, the user can say _"Change the color to blue"_ and the AI knows which note to update. Keep `selected` out of your `stateSchema` if you don't want the AI's `update_*` tool to be able to toggle it — the snapshot still carries it either way.
+
+<Callout type="warn">
+  **Migrating from a previous version:** earlier releases had a top-level
+  `selected` prop on `useAssistantInteractable` and a `setSelected` method on
+  `useInteractableState`. Both have been removed. Move the flag into your state
+  as shown above and toggle it with `setState` — it now flows through the same
+  snapshot and `update_*` tool paths as every other field.
+</Callout>
 
 ## API Reference
 
@@ -397,7 +419,7 @@ The state object updates progressively as the AI streams in each field, so parti
 
 ## Unmount Behavior
 
-When a component that called `useAssistantInteractable` unmounts, the interactable is unregistered from the AI's tool list and system prompt. However, its state is preserved in the `Interactables` scope. When the component mounts again with the same name and id, the scope re-merges the preserved state rather than resetting to `initialState`. This means transient unmounts (such as React Strict Mode double-mounts or tab switches) do not lose state.
+When a component that called `useAssistantInteractable` unmounts, the interactable is unregistered from the AI's tool list. However, its state is preserved in the `Interactables` scope. When the component mounts again with the same name and id, the scope re-merges the preserved state rather than resetting to `initialState`. This means transient unmounts (such as React Strict Mode double-mounts or tab switches) do not lose state.
 
 ## Full Example
 
