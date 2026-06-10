@@ -296,6 +296,7 @@ export class RemoteThreadListThreadListRuntimeCore
           externalId: remoteMetadata.externalId,
           status: remoteMetadata.status,
           title: remoteMetadata.title,
+          lastMessageAt: remoteMetadata.lastMessageAt,
           custom: remoteMetadata.custom,
         } as RemoteThreadData,
       };

@@ -94,6 +94,9 @@ export const useCloudThreadListAdapter = (
           status: t.is_archived ? "archived" : "regular",
           remoteId: t.id,
           title: t.title,
+          lastMessageAt: t.last_message_at
+            ? new Date(t.last_message_at)
+            : undefined,
           externalId: t.external_id ?? undefined,
           custom: toCustom(t.metadata),
         })),
@@ -153,6 +156,9 @@ export const useCloudThreadListAdapter = (
         status: thread.is_archived ? "archived" : "regular",
         remoteId: thread.id,
         title: thread.title,
+        lastMessageAt: thread.last_message_at
+          ? new Date(thread.last_message_at)
+          : undefined,
         externalId: thread.external_id ?? undefined,
         custom: toCustom(thread.metadata),
       };

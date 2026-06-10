@@ -6,6 +6,7 @@ export type ThreadListItemState = {
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
   readonly title?: string | undefined;
+  readonly lastMessageAt?: Date | undefined;
   readonly status: ThreadListItemStatus;
   readonly custom?: Record<string, unknown> | undefined;
 };

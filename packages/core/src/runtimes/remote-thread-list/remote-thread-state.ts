@@ -28,6 +28,7 @@ export type RemoteThreadData =
       readonly externalId: string | undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
+      readonly lastMessageAt?: Date | undefined;
       readonly custom?: Record<string, unknown> | undefined;
     };
 
@@ -75,6 +76,7 @@ export const classifyThreads = (
       externalId: thread.externalId,
       status: thread.status,
       title: thread.title,
+      lastMessageAt: thread.lastMessageAt,
       custom: thread.custom,
       initializeTask: Promise.resolve({
         remoteId: thread.remoteId,
