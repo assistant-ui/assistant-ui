@@ -30,6 +30,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   private _nonTextPassthrough: readonly ThreadMessage["content"][number][];
   private _parentId: string | null;
   private _sourceId: string | null;
+  private _sourceInteractables: unknown;
   constructor(
     private runtime: ThreadRuntimeCore & {
       adapters?:
@@ -45,6 +46,11 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     super();
     this._parentId = parentId;
     this._sourceId = message.id;
+    // Preserve the interactable snapshot this message ran with so the new branch
+    // keeps its model-facing baseline (the edit composer rebuilds metadata fresh).
+    this._sourceInteractables = (
+      message.metadata?.custom as Record<string, unknown> | undefined
+    )?.interactables;
     this._previousText = getThreadMessageText(message);
     this.setText(this._previousText);
 
@@ -97,8 +103,20 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
               ...this._nonTextPassthrough,
             ] as AppendMessage["content"])
           : message.content;
+      const enriched = this._sourceInteractables
+        ? {
+            ...message,
+            metadata: {
+              ...message.metadata,
+              custom: {
+                ...message.metadata?.custom,
+                interactables: this._sourceInteractables,
+              },
+            },
+          }
+        : message;
       this.runtime.append({
-        ...message,
+        ...enriched,
         content,
         parentId: this._parentId,
         sourceId: this._sourceId,

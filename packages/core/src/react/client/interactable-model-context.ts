@@ -3,37 +3,7 @@ import type {
   InteractableDefinition,
   InteractableStateSchema,
 } from "../types/scopes/interactables";
-import { isJSONValueEqual } from "../../utils/json/is-json-equal";
-
-type InteractableSnapshotEntry = { id: string; name: string; state: unknown };
-
-/** Minimal `ThreadMessage` shape needed to read snapshots out of history. */
-type SnapshotCarrierMessage = {
-  role: string;
-  metadata?: { custom?: Record<string, unknown> | undefined } | undefined;
-};
-
-/** The most recent snapshot stamped for `id`, or `undefined` if none. */
-export function findLatestSnapshotEntry(
-  messages: readonly SnapshotCarrierMessage[],
-  id: string,
-): InteractableSnapshotEntry | undefined {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i]!;
-    if (msg.role !== "user") continue;
-    const items = msg.metadata?.custom?.interactables as
-      | InteractableSnapshotEntry[]
-      | undefined;
-    const entry = items?.find((it) => it.id === id);
-    if (entry) return entry;
-  }
-  return undefined;
-}
-
-/** Ungated entry with the `initialState` reference the send-time gate needs. */
-type RawInteractableEntry = InteractableSnapshotEntry & {
-  initialState: unknown;
-};
+import type { InteractableSnapshotEntry } from "../../model-context/interactable-composer-metadata";
 
 /** Every interactable's current state, ungated (gated later in `handleSend`). */
 function buildRawComposerMetadata(
@@ -41,42 +11,12 @@ function buildRawComposerMetadata(
 ): Record<string, unknown> | undefined {
   const entries = Object.values(definitions);
   if (entries.length === 0) return undefined;
-  const interactables: RawInteractableEntry[] = entries.map((def) => ({
+  const interactables: InteractableSnapshotEntry[] = entries.map((def) => ({
     id: def.id,
     name: def.name,
     state: def.state,
-    initialState: def.initialState,
   }));
   return { interactables };
-}
-
-/**
- * Write-once-per-change gate. Keeps interactables that changed since their last
- * snapshot in history (or `initialState` if none), strips `initialState`, and
- * passes other metadata keys through untouched.
- */
-export function gateInteractableComposerMetadata(
-  meta: Record<string, unknown> | undefined,
-  messages: readonly SnapshotCarrierMessage[],
-): Record<string, unknown> | undefined {
-  if (!meta) return undefined;
-  const { interactables, ...rest } = meta as {
-    interactables?: RawInteractableEntry[];
-  } & Record<string, unknown>;
-
-  const gated: Record<string, unknown> = { ...rest };
-  if (Array.isArray(interactables)) {
-    const pending: InteractableSnapshotEntry[] = [];
-    for (const it of interactables) {
-      const prior = findLatestSnapshotEntry(messages, it.id);
-      const reference = prior ? prior.state : it.initialState;
-      if (!isJSONValueEqual(it.state, reference)) {
-        pending.push({ id: it.id, name: it.name, state: it.state });
-      }
-    }
-    if (pending.length) gated.interactables = pending;
-  }
-  return Object.keys(gated).length ? gated : undefined;
 }
 
 export function shallowMerge(prev: unknown, partial: unknown): unknown {
@@ -96,23 +36,10 @@ export function shallowMerge(prev: unknown, partial: unknown): unknown {
   };
 }
 
-/**
- * Cached `update_*` tool keyed by tool name. A tool depends only on these
- * inputs (never on `state`), so it is reused until one of them changes.
- */
-export type InteractableToolCacheEntry = {
-  id: string;
-  description: string;
-  parameters: InteractableStateSchema;
-  setDefState: (id: string, updater: (prev: unknown) => unknown) => void;
-  tool: Tool<any, any>;
-};
-
 export function buildInteractableModelContext(
   definitions: Record<string, InteractableDefinition>,
   partialSchemaCache: Map<string, InteractableStateSchema>,
   setDefState: (id: string, updater: (prev: unknown) => unknown) => void,
-  toolCache: Map<string, InteractableToolCacheEntry>,
 ):
   | {
       tools: Record<string, Tool<any, any>>;
@@ -144,18 +71,6 @@ export function buildInteractableModelContext(
       const partialSchema = partialSchemaCache.get(def.id) ?? def.stateSchema;
       const description = `Update the state of interactable component "${name}"${isMulti ? ` (id: ${def.id})` : ""}. Only include the fields you want to change; omitted fields keep their current values. ${def.description}`;
 
-      const cached = toolCache.get(toolName);
-      if (
-        cached &&
-        cached.id === def.id &&
-        cached.description === description &&
-        cached.parameters === partialSchema &&
-        cached.setDefState === setDefState
-      ) {
-        tools[toolName] = cached.tool;
-        continue;
-      }
-
       const tool: Tool<any, any> = {
         type: "frontend" as const,
         description,
@@ -174,20 +89,8 @@ export function buildInteractableModelContext(
           return { success: true };
         },
       };
-      toolCache.set(toolName, {
-        id: def.id,
-        description,
-        parameters: partialSchema,
-        setDefState,
-        tool,
-      });
       tools[toolName] = tool;
     }
-  }
-
-  // Drop cache entries for tools no longer present (unregistered or renamed).
-  for (const key of toolCache.keys()) {
-    if (!(key in tools)) toolCache.delete(key);
   }
 
   const composerMetadata = buildRawComposerMetadata(definitions);

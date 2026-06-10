@@ -493,7 +493,10 @@ export class LocalThreadRuntimeCore
 
     try {
       this._lastRunConfig = runConfig ?? {};
-      const context = this.getModelContext();
+      // unstable_composerMetadata is composer-only (stamped onto the outgoing
+      // message); never expose it to the chat-model adapter's run context.
+      const { unstable_composerMetadata: _, ...context } =
+        this.getModelContext();
 
       runCallback =
         runCallback ??

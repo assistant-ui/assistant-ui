@@ -260,7 +260,6 @@ function loadNoteIds(): string[] {
 }
 
 function NotesPanel() {
-  const aui = useAui();
   const [noteIds, setNoteIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const hydratedRef = useRef(false);
@@ -275,22 +274,12 @@ function NotesPanel() {
     localStorage.setItem(NOTE_IDS_KEY, JSON.stringify(noteIds));
   }, [noteIds]);
 
-  const handleSelect = useCallback(
-    (id: string) => {
-      if (selectedId && selectedId !== id) {
-        aui.interactables().setState(selectedId, (prev) => ({
-          ...(prev as NoteState),
-          selected: false,
-        }));
-      }
-      aui.interactables().setState(id, (prev) => ({
-        ...(prev as NoteState),
-        selected: true,
-      }));
-      setSelectedId(id);
-    },
-    [aui, selectedId],
-  );
+  // Selection lives in each note's state; every NoteCard self-syncs its
+  // `selected` field from selectedId, so flipping selectedId here is the single
+  // source of truth — no per-instance writes needed.
+  const handleSelect = useCallback((id: string) => {
+    setSelectedId(id);
+  }, []);
 
   const handleRemove = useCallback((id: string) => {
     setNoteIds((prev) => prev.filter((n) => n !== id));

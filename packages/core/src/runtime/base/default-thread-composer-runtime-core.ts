@@ -11,7 +11,7 @@ import {
   type QueueItemState,
 } from "../../store/scopes/queue-item";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
-import { gateInteractableComposerMetadata } from "../../react/client/interactable-model-context";
+import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
 
 export class DefaultThreadComposerRuntimeCore
   extends BaseComposerRuntimeCore

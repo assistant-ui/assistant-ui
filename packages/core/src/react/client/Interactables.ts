@@ -14,11 +14,8 @@ import type {
 } from "../types/scopes/interactables";
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store";
-import {
-  buildInteractableModelContext,
-  findLatestSnapshotEntry,
-  type InteractableToolCacheEntry,
-} from "./interactable-model-context";
+import { buildInteractableModelContext } from "./interactable-model-context";
+import { findLatestSnapshotEntry } from "../../model-context/interactable-composer-metadata";
 
 const PERSISTENCE_DEBOUNCE_MS = 500;
 
@@ -31,15 +28,11 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const clientRef = useAssistantClientRef();
 
   const stateRef = useRef(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
 
   const subscribersRef = useRef(new Set<() => void>());
   const partialSchemaCacheRef = useRef(
     new Map<string, InteractableStateSchema>(),
   );
-  const toolCacheRef = useRef(new Map<string, InteractableToolCacheEntry>());
   const detachedStateRef = useRef(new Map<string, unknown>());
 
   const adapterRef = useRef<InteractablePersistenceAdapter | undefined>(
@@ -175,8 +168,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
           }
         }
         if (!changed) return prev;
-        const next = { ...prev, definitions };
-        return next;
+        return { ...prev, definitions };
       });
     },
     [setStateAndRef],
@@ -241,7 +233,6 @@ const useInteractables = (): ClientOutput<"interactables"> => {
             defs,
             partialSchemaCacheRef.current,
             setDefState,
-            toolCacheRef.current,
           ) ?? {}
         );
       },
@@ -297,28 +288,25 @@ const useInteractables = (): ClientOutput<"interactables"> => {
             )?.state
           : undefined;
 
-      setStateAndRef((prev) => {
-        const next = {
-          ...prev,
-          definitions: {
-            ...prev.definitions,
-            [def.id]: {
-              id: def.id,
-              name: def.name,
-              description: def.description,
-              stateSchema: def.stateSchema,
-              initialState: def.initialState,
-              scope: def.scope,
-              state:
-                prev.definitions[def.id]?.state ??
-                detached ??
-                snapshot ??
-                def.initialState,
-            },
+      setStateAndRef((prev) => ({
+        ...prev,
+        definitions: {
+          ...prev.definitions,
+          [def.id]: {
+            id: def.id,
+            name: def.name,
+            description: def.description,
+            stateSchema: def.stateSchema,
+            initialState: def.initialState,
+            scope: def.scope,
+            state:
+              prev.definitions[def.id]?.state ??
+              detached ??
+              snapshot ??
+              def.initialState,
           },
-        };
-        return next;
-      });
+        },
+      }));
 
       return () => {
         flushIfPending();
