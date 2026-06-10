@@ -67,8 +67,10 @@ messages are gone on the next page load.
 time, the same way a live run never stores them.
 
 `fromAgUiMessages` reconstructs the text, reasoning, and tool calls of each
-message. Non-text message content such as images and files is not restored, so a
-backend that persists multimodal messages loads only their text on reload.
+message. Multimodal user input (`image`, `audio`, `video`, and `document`
+parts) is restored as attachments on the user message, so a backend that
+persists multimodal messages shows them again on reload and re-sends them
+losslessly on the next run.
 
 ## Thread list (experimental)
 

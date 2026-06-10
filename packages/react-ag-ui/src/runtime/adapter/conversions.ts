@@ -204,6 +204,93 @@ function toInputContent(
   return null;
 }
 
+type SnapshotAttachment = NonNullable<
+  CoreThreadMessageLike["attachments"]
+>[number];
+
+const mediaInputTypes = new Set(["image", "audio", "video", "document"]);
+
+// Inverse of buildInputSource: collapse an AG-UI source back to the string
+// form assistant-ui message parts carry (http(s) URL or data URL).
+function inputSourceToString(
+  value: unknown,
+): { value: string; mimeType?: string } | null {
+  if (!isObject(value)) return null;
+  const sourceValue = getString(value, "value");
+  if (sourceValue === undefined) return null;
+  const mimeType = getString(value, "mimeType");
+  const type = getString(value, "type");
+  if (type === "url") {
+    return { value: sourceValue, ...(mimeType !== undefined && { mimeType }) };
+  }
+  if (type === "data") {
+    const resolvedMimeType = mimeType ?? "application/octet-stream";
+    return {
+      value: `data:${resolvedMimeType};base64,${sourceValue}`,
+      mimeType: resolvedMimeType,
+    };
+  }
+  return null;
+}
+
+// Inverse of toInputContent: restore multimodal input parts from a snapshot
+// user message as assistant-ui attachments. The binary payload canonically
+// lives in message.attachments (buildUserContent reads it back from there),
+// so a restored message round-trips through toAgUiMessages without loss.
+function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
+  if (!Array.isArray(content)) return [];
+
+  const attachments: SnapshotAttachment[] = [];
+  for (const part of content) {
+    if (!isObject(part)) continue;
+    const type = getString(part, "type");
+    if (type === undefined || !mediaInputTypes.has(type)) continue;
+    const source = inputSourceToString(part.source);
+    if (!source) continue;
+
+    const filename = isObject(part.metadata)
+      ? getString(part.metadata, "filename")
+      : undefined;
+    const id = attachments.length.toString();
+
+    if (type === "image") {
+      attachments.push({
+        id,
+        type: "image",
+        name: filename ?? "image",
+        ...(source.mimeType !== undefined && { contentType: source.mimeType }),
+        status: { type: "complete" },
+        content: [
+          {
+            type: "image",
+            image: source.value,
+            ...(filename !== undefined && { filename }),
+          },
+        ],
+      });
+      continue;
+    }
+
+    const mimeType = source.mimeType ?? "application/octet-stream";
+    attachments.push({
+      id,
+      type: type === "document" ? "document" : "file",
+      name: filename ?? "file",
+      contentType: mimeType,
+      status: { type: "complete" },
+      content: [
+        {
+          type: "file",
+          data: source.value,
+          mimeType,
+          ...(filename !== undefined && { filename }),
+        },
+      ],
+    });
+  }
+  return attachments;
+}
+
 function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
   // File parts in message.content are intentionally skipped: the canonical
   // binary payload for files always flows through message.attachments.
@@ -353,11 +440,14 @@ function toUserOrSystemSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const messageName = getString(rawMessage, "name");
+  const attachments =
+    role === "user" ? toSnapshotAttachments(rawMessage.content) : [];
   return {
     id: getString(rawMessage, "id") ?? generateId(),
     role,
     content: extractText(rawMessage.content),
     ...(messageName !== undefined ? { name: messageName } : {}),
+    ...(attachments.length > 0 ? { attachments } : {}),
   };
 }
 

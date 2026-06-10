@@ -804,6 +804,190 @@ describe("adapter conversions", () => {
     expect((result[0] as any).content[0].source).not.toHaveProperty("data");
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
+
+  it("restores a document input part as a user attachment", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "review this" },
+          {
+            type: "document",
+            source: {
+              type: "url",
+              value: "https://example.com/spec.pdf",
+              mimeType: "application/pdf",
+            },
+            metadata: { filename: "spec.pdf" },
+          },
+        ],
+      },
+    ]);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: "review this",
+      attachments: [
+        {
+          type: "document",
+          name: "spec.pdf",
+          contentType: "application/pdf",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "file",
+              data: "https://example.com/spec.pdf",
+              mimeType: "application/pdf",
+              filename: "spec.pdf",
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("restores an image input part with a data source as an image attachment", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: {
+              type: "data",
+              value: "iVBORw0KGgo=",
+              mimeType: "image/png",
+            },
+          },
+        ],
+      },
+    ]);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: "",
+      attachments: [
+        {
+          type: "image",
+          name: "image",
+          contentType: "image/png",
+          status: { type: "complete" },
+          content: [
+            { type: "image", image: "data:image/png;base64,iVBORw0KGgo=" },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("restores audio and video input parts as file attachments", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          {
+            type: "audio",
+            source: { type: "data", value: "QUJD", mimeType: "audio/mpeg" },
+            metadata: { filename: "memo.mp3" },
+          },
+          {
+            type: "video",
+            source: {
+              type: "url",
+              value: "https://example.com/clip.mp4",
+              mimeType: "video/mp4",
+            },
+          },
+        ],
+      },
+    ]);
+
+    expect(result[0]!.attachments).toMatchObject([
+      {
+        type: "file",
+        name: "memo.mp3",
+        contentType: "audio/mpeg",
+        content: [
+          {
+            type: "file",
+            data: "data:audio/mpeg;base64,QUJD",
+            mimeType: "audio/mpeg",
+            filename: "memo.mp3",
+          },
+        ],
+      },
+      {
+        type: "file",
+        name: "file",
+        contentType: "video/mp4",
+        content: [
+          {
+            type: "file",
+            data: "https://example.com/clip.mp4",
+            mimeType: "video/mp4",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("does not add attachments to text-only user messages", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "Hi" },
+      {
+        id: "u-2",
+        role: "user",
+        content: [{ type: "text", text: "Hello" }],
+      },
+    ]);
+
+    expect(result[0]).not.toHaveProperty("attachments");
+    expect(result[1]).not.toHaveProperty("attachments");
+  });
+
+  it("round-trips multimodal user input through fromAgUiMessages and back", () => {
+    const original = {
+      id: "u-1",
+      role: "user",
+      content: [
+        { type: "text", text: "see attached" },
+        {
+          type: "document",
+          source: {
+            type: "data",
+            value: "JVBERi0xLjQK",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "spec.pdf" },
+        },
+      ],
+    };
+
+    const restored = fromAgUiMessages([original]);
+    const roundTripped = toAgUiMessages(
+      restored as Parameters<typeof toAgUiMessages>[0],
+    );
+
+    expect(roundTripped[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "see attached" },
+        {
+          type: "document",
+          source: {
+            type: "data",
+            value: "JVBERi0xLjQK",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "spec.pdf" },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(roundTripped[0])).not.toThrow();
+  });
 });
 
 describe("package exports", () => {
