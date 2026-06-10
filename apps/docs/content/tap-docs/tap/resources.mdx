@@ -36,12 +36,12 @@ instance yet.
 
 ### Resource elements
 
-A `ResourceElement` is a plain `{ type, props }` object, the same idea as a React
+A `ResourceElement` is a plain `{ hook, args }` object, the same idea as a React
 JSX element, but written as a function call instead of JSX.
 
 ```ts
 const element = Counter({ initialValue: 10 });
-// { type: Counter, props: { initialValue: 10 } }
+// { hook: useCounter, args: [{ initialValue: 10 }] }
 ```
 
 Calling the factory (`Counter({ ... })`) reads like the plain function call it
