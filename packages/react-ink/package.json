@@ -40,7 +40,7 @@
   "dependencies": {
     "@assistant-ui/core": "^0.2.11",
     "@assistant-ui/store": "^0.2.14",
-    "@assistant-ui/tap": "^0.6.0",
+    "@assistant-ui/tap": "^0.7.0",
     "assistant-stream": "^0.3.21",
     "diff": "^9.0.0",
     "ink-spinner": "^5.0.0",

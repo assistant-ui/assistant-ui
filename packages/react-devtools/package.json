@@ -35,7 +35,7 @@
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.14.14",
-    "@assistant-ui/tap": "^0.6.0",
+    "@assistant-ui/tap": "^0.7.0",
     "@types/react": "*",
     "@types/react-dom": "*",
     "react": "^18 || ^19",
