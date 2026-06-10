@@ -11,6 +11,7 @@ import { useClientLookup } from "@assistant-ui/store";
 import type { MessageState } from "../scopes/message";
 import type { PartState } from "../scopes/part";
 import { NoOpComposerClient } from "./no-op-composer-client";
+import { getThreadMessageText } from "../../utils/text";
 
 const useThreadMessagePartClient = ({
   part,
@@ -160,14 +161,7 @@ const useThreadMessageClient = ({
       throw new Error("Not supported in ThreadMessageProvider");
     },
     getCopyText: () => {
-      return message.content
-        .map((part) => {
-          if ("text" in part && typeof part.text === "string") {
-            return part.text;
-          }
-          return "";
-        })
-        .join("\n");
+      return getThreadMessageText(message);
     },
     setIsCopied,
     setIsHovering,

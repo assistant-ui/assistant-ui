@@ -20,6 +20,7 @@ import type {
 } from "@assistant-ui/core";
 import type { QueueItemState } from "@assistant-ui/core/store";
 import type { ComposerSendOptions } from "@assistant-ui/core/store";
+import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
 import { SingleThreadList } from "./SingleThreadList";
@@ -159,8 +160,7 @@ const useMessageClient = ({
     stopSpeaking: () => {},
     submitFeedback: () => {},
     switchToBranch: () => {},
-    getCopyText: () =>
-      message.content.map((c) => ("text" in c ? c.text : "")).join(""),
+    getCopyText: () => getThreadMessageText(message),
     part: (selector) => {
       if ("index" in selector) {
         return partClients.get(selector);
