@@ -24,9 +24,6 @@ const useDevStrictModeTap = () => {
 export const useDevStrictModeReact = () => {
   if (!isDevelopment) return notDevMode;
 
-  // in tap
-
-  // in react
   // oxlint-disable-next-line react/rules-of-hooks -- isDevelopment is a build-time constant, so this branch is stable per build
   const count = useRef(0);
   // oxlint-disable-next-line react/rules-of-hooks -- isDevelopment is a build-time constant, so this branch is stable per build

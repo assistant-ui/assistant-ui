@@ -40,7 +40,6 @@ export function renderResourceFiber<R, A extends readonly unknown[]>(
 ): RenderResult {
   const result = {
     effectTasks: [],
-    args,
     output: undefined as R | undefined,
   };
 

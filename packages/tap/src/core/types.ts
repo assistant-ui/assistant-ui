@@ -51,7 +51,6 @@ export interface EffectTask {
 
 export interface RenderResult {
   readonly output: any;
-  readonly args: readonly unknown[];
   readonly effectTasks: (() => void)[];
 }
 
