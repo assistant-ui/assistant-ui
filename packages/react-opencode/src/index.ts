@@ -9,7 +9,10 @@ export {
 
 export { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
-export { OpenCodeEventSource } from "./OpenCodeEventSource";
+export {
+  OpenCodeEventSource,
+  STREAM_RECONNECTED_EVENT_TYPE,
+} from "./OpenCodeEventSource";
 export { OpenCodeThreadController } from "./OpenCodeThreadController";
 export {
   createOpenCodeThreadState,

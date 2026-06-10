@@ -69,6 +69,8 @@ const normalizeEventPayload = (event: unknown): OpenCodeServerEvent | null => {
   return normalized;
 };
 
+export const STREAM_RECONNECTED_EVENT_TYPE = "stream.reconnected";
+
 export class OpenCodeEventSource {
   private readonly listeners = new Set<Listener>();
   private readonly reconnectDelayMs = 1_000;
@@ -77,6 +79,7 @@ export class OpenCodeEventSource {
   private connectionPromise: Promise<void> | null = null;
   private stopped = false;
   private nextReconnectDelayMs = this.reconnectDelayMs;
+  private hadConnection = false;
 
   constructor(private readonly client: OpencodeClient) {}
 
@@ -141,6 +144,16 @@ export class OpenCodeEventSource {
         });
         failedToConnect = false;
         this.nextReconnectDelayMs = this.reconnectDelayMs;
+
+        if (this.hadConnection) {
+          this.emit({
+            type: STREAM_RECONNECTED_EVENT_TYPE,
+            sessionId: undefined,
+            raw: undefined,
+            properties: {},
+          });
+        }
+        this.hadConnection = true;
 
         for await (const event of subscription.stream) {
           if (abortController.signal.aborted || this.stopped) {

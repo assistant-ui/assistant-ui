@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { OpenCodeEventSource } from "./OpenCodeEventSource";
+import {
+  OpenCodeEventSource,
+  STREAM_RECONNECTED_EVENT_TYPE,
+} from "./OpenCodeEventSource";
 
 const waitFor = async (assertion: () => void) => {
   let lastError: unknown;
@@ -58,6 +61,38 @@ describe("OpenCodeEventSource", () => {
     await waitFor(() => {
       expect(client.event.subscribe).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it("notifies listeners on reconnect but not on the first connection", async () => {
+    const client = {
+      event: {
+        subscribe: vi.fn((_: unknown, options: { signal: AbortSignal }) =>
+          Promise.resolve({
+            stream: createAbortableStream(options.signal),
+          }),
+        ),
+      },
+    };
+    const source = new OpenCodeEventSource(client as never);
+
+    const firstListener = vi.fn();
+    const unsubscribe = source.subscribe(firstListener);
+
+    await waitFor(() => {
+      expect(client.event.subscribe).toHaveBeenCalledTimes(1);
+    });
+    expect(firstListener).not.toHaveBeenCalled();
+
+    unsubscribe();
+    const secondListener = vi.fn();
+    source.subscribe(secondListener);
+
+    await waitFor(() => {
+      expect(secondListener).toHaveBeenCalledWith(
+        expect.objectContaining({ type: STREAM_RECONNECTED_EVENT_TYPE }),
+      );
+    });
+    expect(secondListener).toHaveBeenCalledTimes(1);
   });
 
   it("continues notifying listeners when one throws", () => {

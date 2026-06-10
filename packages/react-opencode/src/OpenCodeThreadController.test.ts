@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
+import { STREAM_RECONNECTED_EVENT_TYPE } from "./OpenCodeEventSource";
 import type { OpenCodeServerEvent } from "./types";
 
 const createDeferred = <T>() => {
@@ -131,6 +132,133 @@ describe("OpenCodeThreadController", () => {
     unsubscribe();
 
     expect(eventSource.unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-syncs history and status when the stream reconnects", async () => {
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi
+          .fn()
+          .mockResolvedValue({ data: { id: "ses_1", title: "t", time: {} } }),
+        messages: vi.fn().mockResolvedValue({ data: [] }),
+        status: vi.fn().mockResolvedValue({ data: {} }),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "session.status",
+      sessionId: "ses_1",
+      properties: { status: { type: "busy" } },
+      raw: {},
+    });
+
+    expect(controller.getState().sessionStatus).toMatchObject({
+      type: "busy",
+    });
+
+    eventSource.emit({
+      type: STREAM_RECONNECTED_EVENT_TYPE,
+      sessionId: undefined,
+      raw: undefined,
+      properties: {},
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getState().sessionStatus).toMatchObject({
+        type: "idle",
+      });
+    });
+    expect(controller.getState().runState).toMatchObject({ type: "idle" });
+    expect(client.session.status).toHaveBeenCalledTimes(1);
+    expect(client.session.get).toHaveBeenCalledTimes(1);
+    expect(client.session.messages).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a busy status the server still reports after reconnect", async () => {
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi
+          .fn()
+          .mockResolvedValue({ data: { id: "ses_1", title: "t", time: {} } }),
+        messages: vi.fn().mockResolvedValue({ data: [] }),
+        status: vi
+          .fn()
+          .mockResolvedValue({ data: { ses_1: { type: "busy" } } }),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: STREAM_RECONNECTED_EVENT_TYPE,
+      sessionId: undefined,
+      raw: undefined,
+      properties: {},
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getState().sessionStatus).toMatchObject({
+        type: "busy",
+      });
+    });
+    expect(controller.getState().runState).toMatchObject({
+      type: "streaming",
+    });
+  });
+
+  it("keeps current state when the status endpoint is unavailable", async () => {
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi
+          .fn()
+          .mockResolvedValue({ data: { id: "ses_1", title: "t", time: {} } }),
+        messages: vi.fn().mockResolvedValue({ data: [] }),
+        status: vi.fn().mockRejectedValue(new Error("404")),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "session.status",
+      sessionId: "ses_1",
+      properties: { status: { type: "busy" } },
+      raw: {},
+    });
+
+    eventSource.emit({
+      type: STREAM_RECONNECTED_EVENT_TYPE,
+      sessionId: undefined,
+      raw: undefined,
+      properties: {},
+    });
+
+    await vi.waitFor(() => {
+      expect(client.session.get).toHaveBeenCalledTimes(1);
+      expect(client.session.status).toHaveBeenCalledTimes(1);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().sessionStatus).toMatchObject({
+      type: "busy",
+    });
   });
 
   it("keeps forced reloads authoritative while earlier loads finish", async () => {

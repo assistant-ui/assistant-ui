@@ -21,7 +21,10 @@ import type {
   OpenCodeUserMessageOptions,
   PendingUserMessage,
 } from "./types";
-import type { OpenCodeEventSource } from "./OpenCodeEventSource";
+import {
+  STREAM_RECONNECTED_EVENT_TYPE,
+  type OpenCodeEventSource,
+} from "./OpenCodeEventSource";
 import { serializeUserParts } from "./serializeUserParts";
 
 type OpenCodeEventSourceProvider = () => Pick<OpenCodeEventSource, "subscribe">;
@@ -180,9 +183,29 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     if (this.unsubscribeFromEvents) return;
 
     this.unsubscribeFromEvents = this.getEventSource().subscribe((event) => {
+      if (event.type === STREAM_RECONNECTED_EVENT_TYPE) {
+        this.handleStreamReconnect();
+        return;
+      }
       if (event.sessionId !== this.sessionId) return;
       this.handleServerEvent(event);
     });
+  }
+
+  private handleStreamReconnect() {
+    this.refreshInBackground();
+    void this.client.session
+      .status()
+      .catch(() => null)
+      .then((response) => {
+        if (!response) return;
+        const status = response.data?.[this.sessionId];
+        if (status) {
+          this.dispatch({ type: "session.status", status });
+        } else {
+          this.dispatch({ type: "session.idle", sessionId: this.sessionId });
+        }
+      });
   }
 
   public dispose() {
