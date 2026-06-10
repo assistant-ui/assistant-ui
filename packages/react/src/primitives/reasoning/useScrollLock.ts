@@ -63,11 +63,14 @@ export const useScrollLock = <T extends HTMLElement = HTMLElement>(
 
     const scrollPosition = scrollContainer.scrollTop;
     const scrollbarWidth = scrollContainer.style.scrollbarWidth;
-    const paddingRight = scrollContainer.style.paddingRight;
 
     // Hiding the scrollbar collapses its gutter on classic scrollbars, which
-    // shifts centered content horizontally; compensate with padding.
+    // shifts centered content horizontally; compensate with padding on the
+    // side the scrollbar occupies (the left side in RTL).
     const computed = getComputedStyle(scrollContainer);
+    const paddingSide =
+      computed.direction === "rtl" ? "paddingLeft" : "paddingRight";
+    const previousPadding = scrollContainer.style[paddingSide];
     const scrollbarSize =
       scrollContainer.offsetWidth -
       scrollContainer.clientWidth -
@@ -76,14 +79,14 @@ export const useScrollLock = <T extends HTMLElement = HTMLElement>(
 
     scrollContainer.style.scrollbarWidth = "none";
     if (scrollbarSize > 0) {
-      scrollContainer.style.paddingRight = `${
-        parseFloat(computed.paddingRight) + scrollbarSize
+      scrollContainer.style[paddingSide] = `${
+        parseFloat(computed[paddingSide]) + scrollbarSize
       }px`;
     }
 
     const restoreStyles = () => {
       scrollContainer.style.scrollbarWidth = scrollbarWidth;
-      scrollContainer.style.paddingRight = paddingRight;
+      scrollContainer.style[paddingSide] = previousPadding;
     };
 
     const resetPosition = () => (scrollContainer.scrollTop = scrollPosition);
