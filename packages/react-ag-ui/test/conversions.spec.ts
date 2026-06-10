@@ -988,6 +988,159 @@ describe("adapter conversions", () => {
     });
     expect(() => UserMessageSchema.parse(roundTripped[0])).not.toThrow();
   });
+
+  it("restores a legacy binary input part and re-sends it as a modern part", () => {
+    const restored = fromAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "old history" },
+          {
+            type: "binary",
+            mimeType: "application/pdf",
+            data: "JVBERi0xLjQK",
+            filename: "legacy.pdf",
+          },
+        ],
+      },
+    ]);
+
+    expect(restored[0]).toMatchObject({
+      role: "user",
+      content: "old history",
+      attachments: [
+        {
+          type: "document",
+          name: "legacy.pdf",
+          contentType: "application/pdf",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "file",
+              data: "data:application/pdf;base64,JVBERi0xLjQK",
+              mimeType: "application/pdf",
+              filename: "legacy.pdf",
+            },
+          ],
+        },
+      ],
+    });
+
+    const roundTripped = toAgUiMessages(
+      restored as Parameters<typeof toAgUiMessages>[0],
+    );
+    expect(roundTripped[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "old history" },
+        {
+          type: "document",
+          source: {
+            type: "data",
+            value: "JVBERi0xLjQK",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "legacy.pdf" },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(roundTripped[0])).not.toThrow();
+  });
+
+  it("restores a legacy binary image part with a url as an image attachment", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          {
+            type: "binary",
+            mimeType: "image/png",
+            url: "https://example.com/cat.png",
+          },
+        ],
+      },
+    ]);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: "",
+      attachments: [
+        {
+          type: "image",
+          name: "image",
+          contentType: "image/png",
+          status: { type: "complete" },
+          content: [{ type: "image", image: "https://example.com/cat.png" }],
+        },
+      ],
+    });
+  });
+
+  it("prefers data over url in legacy binary parts and routes them by mime type", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          {
+            type: "binary",
+            mimeType: "audio/mpeg",
+            data: "QUJD",
+            url: "https://example.com/memo.mp3",
+          },
+          {
+            type: "binary",
+            mimeType: "video/mp4",
+            data: "",
+            url: "https://example.com/clip.mp4",
+          },
+        ],
+      },
+    ]);
+
+    expect(result[0]!.attachments).toMatchObject([
+      {
+        type: "file",
+        contentType: "audio/mpeg",
+        content: [
+          {
+            type: "file",
+            data: "data:audio/mpeg;base64,QUJD",
+            mimeType: "audio/mpeg",
+          },
+        ],
+      },
+      {
+        type: "file",
+        contentType: "video/mp4",
+        content: [
+          {
+            type: "file",
+            data: "https://example.com/clip.mp4",
+            mimeType: "video/mp4",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("skips legacy binary parts that only carry a file id", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "see file" },
+          { type: "binary", mimeType: "application/pdf", id: "file-1" },
+        ],
+      },
+    ]);
+
+    expect(result[0]).toMatchObject({ role: "user", content: "see file" });
+    expect(result[0]).not.toHaveProperty("attachments");
+  });
 });
 
 describe("package exports", () => {

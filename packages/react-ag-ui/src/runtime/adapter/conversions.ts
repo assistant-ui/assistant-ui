@@ -210,8 +210,7 @@ type SnapshotAttachment = NonNullable<
 
 const mediaInputTypes = new Set(["image", "audio", "video", "document"]);
 
-// Inverse of buildInputSource: collapse an AG-UI source back to the string
-// form assistant-ui message parts carry (http(s) URL or data URL).
+// Inverse of buildInputSource.
 function inputSourceToString(
   value: unknown,
 ): { value: string; mimeType?: string } | null {
@@ -233,16 +232,39 @@ function inputSourceToString(
   return null;
 }
 
-// Inverse of toInputContent: restore multimodal input parts from a snapshot
-// user message as assistant-ui attachments. The binary payload canonically
-// lives in message.attachments (buildUserContent reads it back from there),
-// so a restored message round-trips through toAgUiMessages without loss.
+// Mirrors @ag-ui/client's BackwardCompatibility_0_0_47 middleware.
+function upgradeBinaryInputPart(
+  part: Record<string, unknown>,
+): Record<string, unknown> | null {
+  const mimeType = getString(part, "mimeType");
+  if (mimeType === undefined) return null;
+  const data = getString(part, "data");
+  const url = getString(part, "url");
+  const source = data
+    ? { type: "data", value: data, mimeType }
+    : url
+      ? { type: "url", value: url, mimeType }
+      : null;
+  if (!source) return null;
+  const filename = getString(part, "filename");
+  return {
+    type: mediaTypeForMime(mimeType),
+    source,
+    ...(filename && { metadata: { filename } }),
+  };
+}
+
 function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
   if (!Array.isArray(content)) return [];
 
   const attachments: SnapshotAttachment[] = [];
-  for (const part of content) {
-    if (!isObject(part)) continue;
+  for (const rawPart of content) {
+    if (!isObject(rawPart)) continue;
+    const part =
+      getString(rawPart, "type") === "binary"
+        ? upgradeBinaryInputPart(rawPart)
+        : rawPart;
+    if (!part) continue;
     const type = getString(part, "type");
     if (type === undefined || !mediaInputTypes.has(type)) continue;
     const source = inputSourceToString(part.source);
