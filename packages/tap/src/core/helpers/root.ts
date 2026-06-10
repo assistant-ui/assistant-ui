@@ -13,22 +13,14 @@ export const createResourceFiberRoot = (
 };
 
 export const commitRoot = (root: ResourceFiberRoot): void => {
-  // A cell whose queue still holds entries was updated after the committed
-  // render (e.g. a dispatch from an effect during this commit). It stays
-  // dirty so the next render processes it.
-  const pending: (Cell & { type: "reducer" })[] = [];
   for (const cell of root.dirtyCells) {
+    cell.dirty = false;
+    cell.queue.clear();
     cell.current = cell.workInProgress;
-    if (cell.queue.size > 0) {
-      pending.push(cell);
-    } else {
-      cell.dirty = false;
-    }
   }
   root.committedVersion = root.version;
   root.changelog.length = 0;
   root.dirtyCells.length = 0;
-  root.dirtyCells.push(...pending);
 };
 
 export const setRootVersion = (
