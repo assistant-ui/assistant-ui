@@ -8,6 +8,7 @@ import { usePiThreadState } from "@assistant-ui/react-pi";
 import type { PiRuntimeReadiness } from "@assistant-ui/react-pi";
 import { PiHandshakeProvider } from "../components/pi-handshake";
 import { PiRuntimeProvider } from "./PiRuntimeProvider";
+import { WorkspaceBrowser } from "../components/workspace-browser";
 
 type Handshake = {
   workspacePath: string;
@@ -42,7 +43,6 @@ export default function Home() {
       <PiHandshakeProvider value={handshake}>
         <div className="flex h-dvh flex-col overflow-hidden">
           <Header
-            handshake={handshake}
             workspacePath={workspacePath}
             onCommitWorkspace={setWorkspacePath}
           />
@@ -64,11 +64,9 @@ export default function Home() {
 }
 
 function Header({
-  handshake,
   workspacePath,
   onCommitWorkspace,
 }: {
-  handshake: Handshake | null;
   workspacePath: string;
   onCommitWorkspace: (value: string) => void;
 }) {
@@ -76,65 +74,11 @@ function Header({
     <header className="flex items-center gap-3 border-b px-4 py-2">
       <span className="font-semibold">assistant-ui × Pi</span>
 
-      <ModelStatus fallback={handshake?.readiness} />
-
       <div className="ml-auto flex items-center gap-2">
         <ContextUsageBadge />
-        <label htmlFor="pi-workspace" className="text-muted-foreground text-xs">
-          workspace
-        </label>
-        <WorkspaceField value={workspacePath} onCommit={onCommitWorkspace} />
+        <WorkspaceBrowser value={workspacePath} onCommit={onCommitWorkspace} />
       </div>
     </header>
-  );
-}
-
-/** Commits on Enter or blur so the thread list doesn't re-scope per keystroke. */
-function WorkspaceField({
-  value,
-  onCommit,
-}: {
-  value: string;
-  onCommit: (value: string) => void;
-}) {
-  const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
-  return (
-    <input
-      id="pi-workspace"
-      value={draft}
-      spellCheck={false}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={() => onCommit(draft)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") onCommit(draft);
-      }}
-      className="border-input w-72 rounded-md border bg-transparent px-2 py-1 font-mono text-xs"
-    />
-  );
-}
-
-/** The env-seeded model + credential readiness, live once a thread loads. */
-function ModelStatus({
-  fallback,
-}: {
-  fallback?: PiRuntimeReadiness | undefined;
-}) {
-  const live = usePiThreadState((state) => state.readiness);
-  const readiness = live ?? fallback;
-  if (!readiness) return null;
-  if (readiness.state === "ready") {
-    return (
-      <span className="text-muted-foreground text-xs">
-        ● {readiness.selection.provider}/{readiness.selection.modelId} (
-        {readiness.source})
-      </span>
-    );
-  }
-  return (
-    <span className="text-destructive text-xs" title={readiness.message}>
-      ⚠ {readiness.state}
-    </span>
   );
 }
 
