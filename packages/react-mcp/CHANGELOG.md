@@ -1,5 +1,29 @@
 # @assistant-ui/react-mcp
 
+## 0.0.9
+
+### Patch Changes
+
+- [#4318](https://github.com/assistant-ui/assistant-ui/pull/4318) [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b) - refactor: adopt the extracted-hook convention for resources ([@Yonom](https://github.com/Yonom))
+
+  A resource body is a hook, so resources are now authored as a `use`-prefixed hook
+  wrapped with `resource()`:
+
+  ```ts
+  const useCounter = () => { ... };
+  const Counter = resource(useCounter);
+  ```
+
+  `resource()` turns a hook into a Resource; `useResource(Counter(props))` turns it
+  back into a hook call. Extracting the body to a `use`-prefixed hook lets React's
+  stock rules-of-hooks and exhaustive-deps lint resource bodies directly. No
+  public API or runtime behavior changes.
+
+- Updated dependencies [[`60ef0e9`](https://github.com/assistant-ui/assistant-ui/commit/60ef0e9ed26ceab722468332ff93c4751cc631fb), [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b), [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b), [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b), [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b)]:
+  - @assistant-ui/core@0.2.13
+  - @assistant-ui/tap@0.6.2
+  - @assistant-ui/store@0.2.15
+
 ## 0.0.8
 
 ### Patch Changes

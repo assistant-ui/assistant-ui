@@ -1,5 +1,17 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.34
+
+### Patch Changes
+
+- [#4320](https://github.com/assistant-ui/assistant-ui/pull/4320) [`0e923b4`](https://github.com/assistant-ui/assistant-ui/commit/0e923b4a11bd71a3af7a9c094d21193f1a2540a8) - fix: declare assistant-stream as a regular dependency so it is externalized instead of bundled into dist (the bundled copy broke consumers on its transitive secure-json-parse import) ([@Yonom](https://github.com/Yonom))
+
+- [#4315](https://github.com/assistant-ui/assistant-ui/pull/4315) [`60ef0e9`](https://github.com/assistant-ui/assistant-ui/commit/60ef0e9ed26ceab722468332ff93c4751cc631fb) - feat: add runtime support for deleting messages ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`60ef0e9`](https://github.com/assistant-ui/assistant-ui/commit/60ef0e9ed26ceab722468332ff93c4751cc631fb), [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b), [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b), [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b)]:
+  - @assistant-ui/core@0.2.13
+  - @assistant-ui/store@0.2.15
+
 ## 1.3.33
 
 ### Patch Changes

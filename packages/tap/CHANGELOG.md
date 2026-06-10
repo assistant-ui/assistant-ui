@@ -1,5 +1,64 @@
 # @assistant-ui/tap
 
+## 0.6.2
+
+### Patch Changes
+
+- [#4318](https://github.com/assistant-ui/assistant-ui/pull/4318) [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b) - fix: React parity for useReducer and StrictMode. User reducers now compute during render instead of eagerly at dispatch (matching React, which reserves eager computation for useState), so dev-mode reducer invocation counts and kept results match React; a same-state dispatch now renders once like React instead of bailing out at dispatch. The React bridge keeps one host fiber across both StrictMode render passes (hosted identities match across passes like React's own hook state) and lets React's strict replay drive the effect cycle (mount, unmount, mount). ([@Yonom](https://github.com/Yonom))
+
+- [#4318](https://github.com/assistant-ui/assistant-ui/pull/4318) [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b) - feat(tap): resources carry all hook arguments; elements are `{ hook, args }` ([@Yonom](https://github.com/Yonom))
+
+  A `ResourceElement` is now `{ hook, args }` (was `{ type, props }`): the underlying hook plus the full tuple of arguments to call it with. This lets a resource take multiple positional arguments, exactly like a hook, and makes hosting just `hook(...args)`:
+
+  ```ts
+  const usePair = (a: number, b: string) => ({ a, b });
+  const Pair = resource(usePair);
+  const element = Pair(1, "hi"); // { hook: usePair, args: [1, "hi"] }
+  ```
+
+  The single-object case is unchanged ergonomically (`Counter({ initialValue: 0 })` still works; its `args` is just `[{ initialValue: 0 }]`), so existing resources and call sites are unaffected. `resource()`'s overloads collapse into one variadic signature, and the `fnSymbol` / `callResourceFn` indirection is gone (the element holds the hook directly; `renderResourceFiber` calls `fiber.hook(...args)`).
+
+  Breaking (internal/advanced):
+  - The second type parameter of `Resource` / `ResourceElement` / `ContravariantResource` now means the argument tuple `A extends readonly unknown[]` rather than a single payload `P`. Explicit two-arg annotations must wrap the payload in a tuple (e.g. `ResourceElement<R, [Props]>`).
+  - A resource's identity is now its hook. Reading `element.props` becomes `element.args[0]`; reading `element.type` becomes `element.hook`. `attachTransformScopes` is now keyed by (and called with) the hook rather than the factory.
+  - `useResource(element, deps)`'s second arg is unchanged in behavior (renamed `argsDeps`).
+
+- [#4318](https://github.com/assistant-ui/assistant-ui/pull/4318) [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b) - refactor: adopt the extracted-hook convention for resources ([@Yonom](https://github.com/Yonom))
+
+  A resource body is a hook, so resources are now authored as a `use`-prefixed hook
+  wrapped with `resource()`:
+
+  ```ts
+  const useCounter = () => { ... };
+  const Counter = resource(useCounter);
+  ```
+
+  `resource()` turns a hook into a Resource; `useResource(Counter(props))` turns it
+  back into a hook call. Extracting the body to a `use`-prefixed hook lets React's
+  stock rules-of-hooks and exhaustive-deps lint resource bodies directly. No
+  public API or runtime behavior changes.
+
+- [#4318](https://github.com/assistant-ui/assistant-ui/pull/4318) [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b) - refactor: rename the root APIs to `useTapRoot` / `createTapRoot` and make them callback-based ([@Yonom](https://github.com/Yonom))
+
+  `useResourceRoot(element)` is now `useTapRoot(fn)` and `createResourceRoot().render(element)` is now `createTapRoot(fn)`. Both take a render callback instead of a pre-built resource element, so you no longer have to wrap a hook in `resource()` just to host it as a root. The callback must be a **named** function expression (so React's rules-of-hooks lints the body):
+
+  ```ts
+  // before
+  const root = createResourceRoot();
+  const handle = root.render(Counter());
+  handle.getValue();
+
+  // after
+  const root = createTapRoot(function CounterRoot() {
+    return useResource(Counter());
+  });
+  root.getValue();
+  ```
+
+  `createTapRoot` returns `{ getValue, subscribe, unmount }` directly (no separate `.render` step).
+
+  `flushResourcesSync` is also renamed to `flushTapSync`, to match the `tap` naming of the root APIs (and to stay distinct from react-dom's `flushSync`).
+
 ## 0.6.1
 
 ### Patch Changes

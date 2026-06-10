@@ -1,5 +1,14 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.37
+
+### Patch Changes
+
+- [#4317](https://github.com/assistant-ui/assistant-ui/pull/4317) [`89e603e`](https://github.com/assistant-ui/assistant-ui/commit/89e603e4ec93bb22085e7b9c0127615d97341e3e) - fix: mark the streaming assistant placeholder with `metadata.isOptimistic` so the message repository evicts it after the client→server id swap, instead of leaving a phantom empty sibling branch on every run ([@dkachur1](https://github.com/dkachur1))
+
+- Updated dependencies [[`60ef0e9`](https://github.com/assistant-ui/assistant-ui/commit/60ef0e9ed26ceab722468332ff93c4751cc631fb), [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b), [`1b6a0d6`](https://github.com/assistant-ui/assistant-ui/commit/1b6a0d6ae40b343b233c8c12ab119b13c43cb69b)]:
+  - @assistant-ui/core@0.2.13
+
 ## 0.0.36
 
 ### Patch Changes

@@ -3238,13 +3238,13 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.12
+        specifier: ^0.2.13
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.14
+        specifier: ^0.2.15
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.6.1
+        specifier: ^0.6.2
         version: link:../tap
       '@radix-ui/primitive':
         specifier: ^1.1.4
@@ -3351,7 +3351,7 @@ importers:
         specifier: ^0.0.55
         version: 0.0.55
       '@assistant-ui/core':
-        specifier: ^0.2.11
+        specifier: ^0.2.13
         version: link:../core
       assistant-stream:
         specifier: ^0.3.21
@@ -3385,10 +3385,10 @@ importers:
         specifier: ^3.0.199
         version: 3.0.199(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/core':
-        specifier: ^0.2.11
+        specifier: ^0.2.13
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.14
+        specifier: ^0.2.15
         version: link:../store
       ai:
         specifier: ^6.0.197
@@ -3635,10 +3635,10 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.11
+        specifier: ^0.2.13
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.14
+        specifier: ^0.2.15
         version: link:../store
       markdansi:
         specifier: ^0.2.1
