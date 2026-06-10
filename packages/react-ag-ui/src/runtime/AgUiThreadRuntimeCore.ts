@@ -722,9 +722,6 @@ export class AgUiThreadRuntimeCore {
         unstable_annotations: [],
         unstable_data: [],
         steps: [],
-        // Marks the placeholder for MessageRepository's off-branch eviction;
-        // without it, the client->server id swap leaves a phantom sibling
-        // branch in the external-store repository.
         isOptimistic: true,
         custom: {},
       },
@@ -746,8 +743,6 @@ export class AgUiThreadRuntimeCore {
       );
       this.messages = this.messages.filter((m) => m.id !== oldId);
     } else {
-      // The message is real once it has a server/stable id — drop the
-      // optimistic marker so the repository no longer treats it as evictable.
       this.messages = this.messages.map((m) => {
         if (m.id !== oldId) return m;
         const { isOptimistic: _, ...metadata } = m.metadata;
