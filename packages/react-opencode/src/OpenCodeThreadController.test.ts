@@ -114,6 +114,25 @@ describe("OpenCodeThreadController", () => {
     expect(eventSource.unsubscribe).toHaveBeenCalledTimes(1);
   });
 
+  it("supports detached subscribe and getState references", () => {
+    const eventSource = createEventSource();
+    const controller = new OpenCodeThreadController(
+      {} as never,
+      () => eventSource,
+      "ses_1",
+    );
+
+    const { subscribe, getState } = controller;
+    const unsubscribe = subscribe(vi.fn());
+
+    expect(eventSource.subscribe).toHaveBeenCalledTimes(1);
+    expect(getState().sessionId).toBe("ses_1");
+
+    unsubscribe();
+
+    expect(eventSource.unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps forced reloads authoritative while earlier loads finish", async () => {
     const firstSession = createDeferred<{ data: unknown }>();
     const firstMessages = createDeferred<{ data: unknown[] }>();

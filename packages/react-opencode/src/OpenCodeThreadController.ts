@@ -186,17 +186,16 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   public dispose() {
-    // React StrictMode can detach and then resubscribe the same controller.
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     this.listeners.clear();
   }
 
-  public getState() {
+  public getState = () => {
     return this.state;
-  }
+  };
 
-  public subscribe(listener: () => void) {
+  public subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     this.ensureEventSubscription();
 
@@ -207,7 +206,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         this.unsubscribeFromEvents = null;
       }
     };
-  }
+  };
 
   public async load(force = false) {
     if (this.loadPromise && !force) return this.loadPromise;

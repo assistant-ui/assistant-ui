@@ -12,12 +12,7 @@ import {
   createOpencodeClient,
   type GlobalSession,
 } from "@opencode-ai/sdk/v2/client";
-import {
-  useEffect,
-  useEffectEvent,
-  useMemo,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useEffectEvent, useMemo } from "react";
 import type {
   OpenCodeRuntimeExtras,
   OpenCodeRuntimeOptions,
@@ -28,6 +23,7 @@ import { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
 import { createOpenCodeThreadState } from "./openCodeThreadState";
+import { useOpenCodeControllerState } from "./useOpenCodeControllerState";
 import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
 type OpenCodeControllerRegistry = {
@@ -128,16 +124,6 @@ const NOOP_CONTROLLER: OpenCodeThreadControllerLike = {
 
 const NOOP_ON_NEW = () =>
   Promise.reject(new Error("OpenCode session is still initializing"));
-
-const useOpenCodeControllerState = (
-  controller: OpenCodeThreadControllerLike,
-): OpenCodeThreadState => {
-  return useSyncExternalStore(
-    (listener) => controller.subscribe(listener),
-    () => controller.getState(),
-    () => controller.getState(),
-  );
-};
 
 const isOpenCodeStateRunning = (state: OpenCodeThreadState): boolean =>
   state.runState.type === "streaming" ||
