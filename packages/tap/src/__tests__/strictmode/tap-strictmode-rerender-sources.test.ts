@@ -5,8 +5,8 @@
 /* oxlint-disable react/exhaustive-deps -- empty dep arrays are part of the test scenarios */
 
 import { afterEach, describe, it, expect, vi } from "vitest";
-import { useState } from "../../hooks/useState";
-import { useEffect } from "../../hooks/useEffect";
+import { useState } from "../../react-hooks/useState";
+import { useEffect } from "../../react-hooks/useEffect";
 import { createTapRoot } from "../../core/createTapRoot";
 import { flushTapSync } from "../../core/scheduler";
 

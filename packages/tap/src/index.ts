@@ -9,7 +9,9 @@ export { flushTapSync } from "./core/scheduler";
 export { createResourceContext, withContextProvider } from "./core/context";
 
 // hooks
-export { useResource, useResources, useTapRoot } from "./react/hooks";
+export { useResource } from "./hooks/useResource";
+export { useResources } from "./hooks/useResources";
+export { useTapRoot } from "./hooks/useTapRoot";
 
 // types
 export type {

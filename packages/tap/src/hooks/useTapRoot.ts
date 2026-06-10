@@ -5,10 +5,6 @@ import {
   unmountResourceFiber,
 } from "../core/ResourceFiber";
 import { UpdateScheduler } from "../core/scheduler";
-import { useMemo } from "./useMemo";
-import { useEffect } from "./useEffect";
-import { useEffectEvent } from "./useEffectEvent";
-import { useRef } from "./useRef";
 import type { RenderResult } from "../core/types";
 import { isDevelopment } from "../core/helpers/env";
 import {
@@ -16,6 +12,8 @@ import {
   createResourceFiberRoot,
   setRootVersion,
 } from "../core/helpers/root";
+import { useEffect, useEffectEvent, useMemo, useRef } from "react";
+import { useDevStrictMode } from "./utils/useDevStrictMode";
 
 export namespace useTapRoot {
   export type Unsubscribe = () => void;
@@ -33,12 +31,7 @@ export namespace useTapRoot {
   }
 }
 
-// Stable content hook: renders by invoking the latest callback inline, so the
-// callback's hooks run directly in this fiber (no extra child fiber). The
-// callback is passed as the arg, so it can change every render.
 const useHostRoot = <R>(render: () => R): R => render();
-
-// The root is never reset, because rollbacks are not supported in useTapRoot.
 
 export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   const scheduler = useMemo(
@@ -47,17 +40,21 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   );
   const queue = useMemo(() => [] as (() => void)[], []);
 
+  const getDevStrictMode = useDevStrictMode();
   const fiber = useMemo(() => {
-    return createResourceFiber<R, [() => R]>(
-      useHostRoot,
+    return createResourceFiber(
+      useHostRoot<R>,
       createResourceFiberRoot((callback) => {
         if (!scheduler.isDirty && !callback()) return;
         queue.push(callback);
         scheduler.markDirty();
       }),
+      undefined,
+      getDevStrictMode(),
     );
-  }, [queue, scheduler]);
+  }, [queue, scheduler, getDevStrictMode]);
 
+  // TODO I think dev mode only should double render!
   setRootVersion(fiber.root, fiber.root.committedVersion);
   const render2 = renderResourceFiber(fiber, [render]);
 

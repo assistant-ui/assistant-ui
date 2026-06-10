@@ -1,4 +1,4 @@
-import type { useEffect } from "../hooks/useEffect";
+import { EffectCallback } from "react";
 
 export type ResourceElement<R, A extends readonly unknown[] = any[]> = {
   readonly hook: (...args: A) => R;
@@ -39,12 +39,12 @@ export type Cell =
     }
   | {
       readonly type: "effect";
-      cleanup: useEffect.Destructor | undefined;
+      cleanup: (() => void) | undefined;
       deps: readonly unknown[] | null | undefined;
     };
 
 export interface EffectTask {
-  readonly effect: useEffect.EffectCallback;
+  readonly effect: EffectCallback;
   readonly deps: readonly unknown[] | undefined;
   readonly cell: Cell & { type: "effect" };
 }

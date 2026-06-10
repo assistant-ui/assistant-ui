@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { useEffect } from "../../hooks/useEffect";
-import { useState } from "../../hooks/useState";
+import { useEffect } from "../../react-hooks/useEffect";
+import { useState } from "../../react-hooks/useState";
 import { createTestResource, renderTest, unmountResource } from "../test-utils";
 import {
   renderResourceFiber,

@@ -1,6 +1,6 @@
 import type { Cell } from "../core/types";
-import { depsShallowEqual } from "./utils/depsShallowEqual";
-import { useCell, registerRenderMountTask } from "./utils/useCell";
+import { depsShallowEqual } from "../hooks/utils/depsShallowEqual";
+import { useCell, registerRenderMountTask } from "../hooks/utils/useCell";
 
 const newEffect = (): Cell & { type: "effect" } => ({
   type: "effect",

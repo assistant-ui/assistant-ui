@@ -1,5 +1,5 @@
 export { useState } from "./useState";
-export { useReducer, useReducerWithDerivedState } from "./useReducer";
+export { useReducer } from "./useReducer";
 export { useRef } from "./useRef";
 export { useMemo } from "./useMemo";
 export { useCallback } from "./useCallback";
@@ -7,6 +7,6 @@ export { useEffect } from "./useEffect";
 export { useEffectEvent } from "./useEffectEvent";
 export { use } from "./use";
 export { useMemoCache } from "./useMemoCache";
-export { useResource } from "./useResource";
-export { useResources } from "./useResources";
-export { useTapRoot } from "./useTapRoot";
+export { useResource } from "../hooks/useResource";
+export { useResources } from "../hooks/useResources";
+export { useTapRoot } from "../hooks/useTapRoot";

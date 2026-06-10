@@ -2,7 +2,7 @@ import { isDevelopment } from "../core/helpers/env";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 import type { ReducerQueueEntry, ResourceFiber } from "../core/types";
 import { markCellDirty } from "../core/helpers/root";
-import { useCell } from "./utils/useCell";
+import { useCell } from "../hooks/utils/useCell";
 
 type Dispatch<A> = (action: A) => void;
 

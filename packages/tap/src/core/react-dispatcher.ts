@@ -1,13 +1,14 @@
 import React from "react";
-import { useState } from "../hooks/useState";
-import { useReducer } from "../hooks/useReducer";
-import { useRef } from "../hooks/useRef";
-import { useMemo } from "../hooks/useMemo";
-import { useCallback } from "../hooks/useCallback";
-import { useEffect } from "../hooks/useEffect";
-import { useEffectEvent } from "../hooks/useEffectEvent";
-import { use } from "../hooks/use";
-import { useMemoCache } from "../hooks/useMemoCache";
+
+import { useState } from "../react-hooks/useState";
+import { useReducer } from "../react-hooks/useReducer";
+import { useRef } from "../react-hooks/useRef";
+import { useMemo } from "../react-hooks/useMemo";
+import { useCallback } from "../react-hooks/useCallback";
+import { useEffect } from "../react-hooks/useEffect";
+import { useEffectEvent } from "../react-hooks/useEffectEvent";
+import { use } from "../react-hooks/use";
+import { useMemoCache } from "../react-hooks/useMemoCache";
 
 // The dispatcher React reads while a resource renders, so hooks imported from
 // "react" route to tap with no build step. Hooks tap has no equivalent for are

@@ -1,14 +1,11 @@
 import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
-import { useEffect } from "./useEffect";
 import {
-  createResourceFiber,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
-import { useMemo } from "./useMemo";
-import { useRef } from "./useRef";
-import { getCurrentResourceFiber } from "../core/helpers/execution-context";
+import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
+import { useEffect, useMemo } from "react";
 
 export function useResource<E extends ResourceElement<any, any[]>>(
   element: E,
@@ -21,22 +18,18 @@ export function useResource<E extends ResourceElement<any, any[]>>(
   element: E,
   argsDeps?: readonly unknown[],
 ): ExtractResourceReturnType<E> {
-  const parentFiber = getCurrentResourceFiber();
-  const versionRef = useRef(0);
+  const { version, createFiber } = useResourceFiberHost();
   const fiber = useMemo(() => {
     void element.key;
-    return createResourceFiber(element.hook, parentFiber.root, () => {
-      versionRef.current++;
-      parentFiber.markDirty?.();
-    });
-  }, [element.hook, element.key, parentFiber]);
+    return createFiber(element.hook);
+  }, [element.hook, element.key, createFiber]);
 
   const result = argsDeps
     ? // oxlint-disable-next-line react/rules-of-hooks -- argsDeps presence is fixed per call site, so the conditional call order is stable
       useMemo(
         () => renderResourceFiber(fiber, element.args),
         // oxlint-disable-next-line react/exhaustive-deps -- args identity replaced by user-provided deps
-        [fiber, ...argsDeps, versionRef.current],
+        [fiber, ...argsDeps, version],
       )
     : renderResourceFiber(fiber, element.args);
 

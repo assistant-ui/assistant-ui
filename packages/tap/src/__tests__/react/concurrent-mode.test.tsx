@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import { Suspense, startTransition, use, useState } from "react";
 import { resource } from "../../core/resource";
-import { useResource } from "../../react/hooks";
-import { useState as useResourceState } from "../../hooks/useState";
+import { useResource } from "../../index";
+import { useState as useResourceState } from "../../react-hooks/useState";
 
 const ShouldNeverFallback = () => {
   throw new Error("should never fallback");

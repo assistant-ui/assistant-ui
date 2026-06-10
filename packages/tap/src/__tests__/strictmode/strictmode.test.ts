@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { resource } from "../../core/resource";
 import { isDevelopment } from "../../core/helpers/env";
-import { useRef } from "../../hooks/useRef";
-import { useState } from "../../hooks/useState";
-import { useEffect } from "../../hooks/useEffect";
-import { useMemo } from "../../hooks/useMemo";
+import { useRef } from "../../react-hooks/useRef";
+import { useState } from "../../react-hooks/useState";
+import { useEffect } from "../../react-hooks/useEffect";
+import { useMemo } from "../../react-hooks/useMemo";
 import { useResource } from "../../hooks/useResource";
 import { createTapRoot } from "../../core/createTapRoot";
 import { withKey } from "../../core/withKey";

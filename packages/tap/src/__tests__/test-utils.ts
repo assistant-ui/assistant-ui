@@ -6,7 +6,7 @@ import {
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import type { ResourceFiber } from "../core/types";
-import { useState } from "../hooks/useState";
+import { useState } from "../react-hooks/useState";
 
 /**
  * Creates a test resource fiber for unit testing.
@@ -31,6 +31,8 @@ export function createTestResource<R, A extends readonly unknown[]>(
   const fiber = createResourceFiber(
     fn,
     createResourceFiberRoot(rerenderCallback),
+    undefined,
+    null,
   );
   return fiber;
 }

@@ -1,9 +1,6 @@
 import type { ResourceFiber, RenderResult, ResourceFiberRoot } from "./types";
 import { commitAllEffects, cleanupAllEffects } from "./helpers/commit";
-import {
-  getDevStrictMode,
-  withResourceFiber,
-} from "./helpers/execution-context";
+import { withResourceFiber } from "./helpers/execution-context";
 import { withReactDispatcher } from "./react-dispatcher";
 import { isDevelopment } from "./helpers/env";
 
@@ -11,7 +8,7 @@ export function createResourceFiber<R, A extends readonly unknown[]>(
   hook: (...args: A) => R,
   root: ResourceFiberRoot,
   markDirty: (() => void) | undefined = undefined,
-  strictMode: "root" | "child" | null = getDevStrictMode(false),
+  strictMode: "root" | "child" | null,
 ): ResourceFiber<R, A> {
   return {
     hook,

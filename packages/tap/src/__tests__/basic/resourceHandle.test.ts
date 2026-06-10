@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { createTapRoot } from "../../core/createTapRoot";
 import { flushTapSync } from "../../core/scheduler";
-import { useState } from "../../hooks/useState";
+import { useState } from "../../react-hooks/useState";
 
 describe("ResourceHandle - Basic Usage", () => {
   it("should create a resource handle with const API", () => {

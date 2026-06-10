@@ -1,4 +1,3 @@
-import { isDevelopment } from "./env";
 import type { ResourceFiber } from "../types";
 
 let currentResourceFiber: ResourceFiber<any, any> | null = null;
@@ -36,12 +35,4 @@ export function getCurrentResourceFiber(): ResourceFiber<unknown> {
 
 export function peekResourceFiber(): ResourceFiber<unknown> | null {
   return currentResourceFiber;
-}
-
-export function getDevStrictMode(enable: boolean) {
-  if (!isDevelopment) return null;
-  if (currentResourceFiber?.devStrictMode)
-    return currentResourceFiber.isFirstRender ? "child" : "root";
-
-  return enable ? "root" : null;
 }

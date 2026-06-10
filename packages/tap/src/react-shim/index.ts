@@ -10,7 +10,7 @@
 // React's own. The source-level TS2498 from the `export *` below is suppressed.
 import React from "react";
 import { peekResourceFiber } from "../core/helpers/execution-context";
-import * as hooks from "../hooks";
+import * as hooks from "../react-hooks";
 import { useResourceContext, isResourceContext } from "../core/context";
 
 // @ts-expect-error -- @types/react uses `export =`; this is valid at runtime.

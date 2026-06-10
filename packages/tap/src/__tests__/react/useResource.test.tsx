@@ -8,8 +8,8 @@ import {
 import { resource } from "../../core/resource";
 import { withKey } from "../../core/withKey";
 import { useState } from "react";
-import { useState as useResourceState } from "../../hooks/useState";
-import { useEffect as useResourceEffect } from "../../hooks/useEffect";
+import { useState as useResourceState } from "../../react-hooks/useState";
+import { useEffect as useResourceEffect } from "../../react-hooks/useEffect";
 import {
   useResource,
   useResources,

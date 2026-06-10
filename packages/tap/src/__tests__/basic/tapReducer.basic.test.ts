@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { useReducer } from "../../hooks/useReducer";
-import { useEffect } from "../../hooks/useEffect";
+import { useReducer } from "../../react-hooks/useReducer";
+import { useEffect } from "../../react-hooks/useEffect";
 import {
   createTestResource,
   renderTest,

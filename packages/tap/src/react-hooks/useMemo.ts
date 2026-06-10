@@ -1,7 +1,7 @@
 import { isDevelopment } from "../core/helpers/env";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 import { useReducerWithDerivedState } from "./useReducer";
-import { depsShallowEqual } from "./utils/depsShallowEqual";
+import { depsShallowEqual } from "../hooks/utils/depsShallowEqual";
 
 const memoReducer = () => {
   throw new Error("Memo reducer should not be called");
