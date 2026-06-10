@@ -132,7 +132,7 @@ export function AssistantComposer({
       onSubmit={handleSubmit}
       className={cn("pb-0.5", className)}
     >
-      <div className="border-border bg-background focus-within:border-ring/50 focus-within:ring-ring/20 rounded-xl border focus-within:ring-1">
+      <div className="border-border bg-background focus-within:border-foreground/60 rounded-xl border transition-colors">
         <ComposerPrimitive.Input asChild>
           <textarea
             placeholder={placeholder}

@@ -129,8 +129,8 @@ export function FloatingComposer(): ReactNode {
             className={cn(
               "relative rounded-xl border shadow-lg backdrop-blur-sm transition-all duration-200 ease-out",
               expanded
-                ? "border-ring/50 bg-background/90 ring-ring/20 ring-1"
-                : "border-border bg-background/80 hover:ring-ring/30 hover:ring-2",
+                ? "border-foreground/60 bg-background/90"
+                : "border-border bg-background/80",
             )}
           >
             <div className="relative">

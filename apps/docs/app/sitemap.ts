@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { source, tapDocs, blog, examples, careers } from "@/lib/source";
+import { DEMOS } from "@/lib/demos";
 import { BASE_URL } from "@/lib/constants";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -59,6 +60,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     }));
 
+  const demoPages: MetadataRoute.Sitemap = DEMOS.map((demo) => ({
+    url: `${BASE_URL}/demos/${demo.slug}`,
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }));
+
   const careerPages: MetadataRoute.Sitemap = careers.getPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,
     lastModified: page.data.lastModified,
@@ -72,6 +79,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...tapDocsPages,
     ...blogPages,
     ...examplePages,
+    ...demoPages,
     ...careerPages,
   ];
 }

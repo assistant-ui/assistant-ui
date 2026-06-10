@@ -90,12 +90,14 @@ function Tab({
   variant = "ghost",
   orientation,
   onTabChange,
+  actions,
   ...props
 }: React.ComponentProps<"div"> & {
   tabs: TabItem[];
   defaultActiveIndex?: number;
   variant?: "ghost" | "default" | "outline" | "secondary" | "link";
   onTabChange?: (label: string, index: number) => void;
+  actions?: React.ReactNode;
 } & VariantProps<typeof tabSwitcherVariants>) {
   const pathname = usePathname();
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
@@ -214,40 +216,50 @@ function Tab({
       {...props}
     >
       <TabList orientation={resolvedOrientation}>
-        <TabContainer>
-          {showIndicator && (
-            <TabIndicator
-              activeStyle={activeStyle}
-              hoveredIndex={hoveredIndex}
-              hoverStyle={hoverStyle}
-              orientation={resolvedOrientation}
-              variant={variant}
-            />
+        <div className="flex items-center gap-2">
+          <TabContainer className="min-w-0 flex-1">
+            {showIndicator && (
+              <TabIndicator
+                activeStyle={activeStyle}
+                hoveredIndex={hoveredIndex}
+                hoverStyle={hoverStyle}
+                orientation={resolvedOrientation}
+                variant={variant}
+              />
+            )}
+            {tabs.map((tab, index) => (
+              <TabItem
+                index={index}
+                isActive={
+                  isPureNavigationMode
+                    ? Boolean(
+                        tab.href &&
+                        (tab.isActive
+                          ? tab.isActive(pathname)
+                          : pathname === tab.href),
+                      )
+                    : tab.value !== undefined && index === contentActiveIndex
+                }
+                key={tab.label}
+                onClick={() => handleContentTabClick(index)}
+                onKeyDown={(e) => handleKeyDown(index, e)}
+                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                tab={tab}
+                tabRefs={tabRefs}
+                variant={variant}
+              />
+            ))}
+          </TabContainer>
+          {actions && (
+            <div
+              className="flex flex-none items-center gap-1 pb-2"
+              data-slot="tab-actions"
+            >
+              {actions}
+            </div>
           )}
-          {tabs.map((tab, index) => (
-            <TabItem
-              index={index}
-              isActive={
-                isPureNavigationMode
-                  ? Boolean(
-                      tab.href &&
-                      (tab.isActive
-                        ? tab.isActive(pathname)
-                        : pathname === tab.href),
-                    )
-                  : tab.value !== undefined && index === contentActiveIndex
-              }
-              key={tab.label}
-              onClick={() => handleContentTabClick(index)}
-              onKeyDown={(e) => handleKeyDown(index, e)}
-              onMouseEnter={() => setHoveredIndex(index)}
-              onMouseLeave={() => setHoveredIndex(null)}
-              tab={tab}
-              tabRefs={tabRefs}
-              variant={variant}
-            />
-          ))}
-        </TabContainer>
+        </div>
       </TabList>
 
       {/* Content panel - show when there are content tabs */}

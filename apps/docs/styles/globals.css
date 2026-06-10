@@ -148,6 +148,50 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+    *:hover {
+      scrollbar-color: color-mix(
+          in srgb,
+          var(--muted-foreground) 35%,
+          transparent
+        )
+        transparent;
+    }
+  }
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 9999px;
+  }
+  *:hover::-webkit-scrollbar-thumb {
+    background-color: color-mix(
+      in srgb,
+      var(--muted-foreground) 30%,
+      transparent
+    );
+  }
+  *::-webkit-scrollbar-thumb:hover,
+  *::-webkit-scrollbar-thumb:active {
+    background-color: color-mix(
+      in srgb,
+      var(--muted-foreground) 50%,
+      transparent
+    );
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 :focus-visible {

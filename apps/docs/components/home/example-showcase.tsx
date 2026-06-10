@@ -3,12 +3,17 @@
 import { ChatGPT } from "@/components/examples/chatgpt";
 import { Claude } from "@/components/examples/claude";
 import { Perplexity } from "@/components/examples/perplexity";
-import { Shadcn } from "@/components/examples/shadcn";
+import { Base } from "@/components/examples/base";
 import { Tab } from "@/components/shared/tab";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { Gemini } from "@/components/examples/gemini";
 import { Grok } from "@/components/examples/grok";
 import { analytics } from "@/lib/analytics";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { ArrowUpRightIcon, Maximize2Icon, Minimize2Icon } from "lucide-react";
+import Link from "next/link";
+import React from "react";
 
 const ExampleWrapper = ({ children }: { children: React.ReactNode }) => (
   <div className="not-prose h-full overflow-hidden rounded-2xl border">
@@ -18,17 +23,19 @@ const ExampleWrapper = ({ children }: { children: React.ReactNode }) => (
 
 const EXAMPLE_TABS = [
   {
-    label: "Shadcn",
+    label: "Base",
+    slug: "base",
     value: (
       <ExampleWrapper>
         <DocsRuntimeProvider>
-          <Shadcn />
+          <Base />
         </DocsRuntimeProvider>
       </ExampleWrapper>
     ),
   },
   {
     label: "ChatGPT",
+    slug: "chatgpt",
     value: (
       <ExampleWrapper>
         <DocsRuntimeProvider>
@@ -39,6 +46,7 @@ const EXAMPLE_TABS = [
   },
   {
     label: "Claude",
+    slug: "claude",
     value: (
       <ExampleWrapper>
         <DocsRuntimeProvider>
@@ -49,6 +57,7 @@ const EXAMPLE_TABS = [
   },
   {
     label: "Grok",
+    slug: "grok",
     value: (
       <ExampleWrapper>
         <DocsRuntimeProvider>
@@ -59,6 +68,7 @@ const EXAMPLE_TABS = [
   },
   {
     label: "Gemini",
+    slug: "gemini",
     value: (
       <ExampleWrapper>
         <DocsRuntimeProvider>
@@ -69,6 +79,7 @@ const EXAMPLE_TABS = [
   },
   {
     label: "Perplexity",
+    slug: "perplexity",
     value: (
       <ExampleWrapper>
         <DocsRuntimeProvider>
@@ -84,13 +95,81 @@ const EXAMPLE_TABS = [
 ];
 
 export function ExampleShowcase() {
+  const sectionRef = React.useRef<HTMLElement>(null);
+  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isFullscreen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsFullscreen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+    // The homepage <main> creates a z-2 stacking context, which would paint
+    // the overlay beneath the sticky z-50 site header.
+    const stackingAncestor = sectionRef.current?.closest("main");
+    if (stackingAncestor instanceof HTMLElement) {
+      stackingAncestor.style.zIndex = "100";
+    }
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+      if (stackingAncestor instanceof HTMLElement) {
+        stackingAncestor.style.zIndex = "";
+      }
+    };
+  }, [isFullscreen]);
+
+  const activeSlug = EXAMPLE_TABS[activeIndex]?.slug;
+
   return (
-    <section>
+    <section ref={sectionRef}>
       <Tab
         tabs={EXAMPLE_TABS}
-        className="h-160"
+        className={cn(
+          "h-192",
+          isFullscreen &&
+            "bg-background fixed inset-0 z-[100] h-auto p-4 md:p-6",
+        )}
         variant="ghost"
-        onTabChange={(label) => analytics.example.tabSwitched(label)}
+        onTabChange={(label, index) => {
+          setActiveIndex(index);
+          analytics.example.tabSwitched(label);
+        }}
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground size-[30px]"
+              aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+              title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+              onClick={() => setIsFullscreen((value) => !value)}
+            >
+              {isFullscreen ? (
+                <Minimize2Icon className="size-4" />
+              ) : (
+                <Maximize2Icon className="size-4" />
+              )}
+            </Button>
+            {activeSlug && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-foreground size-[30px]"
+                aria-label="Open demo"
+                title="Open demo"
+                asChild
+              >
+                <Link href={`/demos/${activeSlug}`}>
+                  <ArrowUpRightIcon className="size-4" />
+                </Link>
+              </Button>
+            )}
+          </>
+        }
       />
     </section>
   );

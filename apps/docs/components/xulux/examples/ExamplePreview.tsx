@@ -7,7 +7,7 @@ import { GenUI } from "@/components/examples/genui";
 import { Grok } from "@/components/examples/grok";
 import { ModalChat } from "@/components/examples/modal";
 import { Perplexity } from "@/components/examples/perplexity";
-import { Shadcn } from "@/components/examples/shadcn";
+import { Base } from "@/components/examples/base";
 import { ArtifactsRuntimeProvider } from "@/contexts/ArtifactsRuntimeProvider";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 
@@ -32,7 +32,7 @@ function renderPreview(preview: PreviewData) {
     case "ai-sdk":
       return (
         <DocsRuntimeProvider>
-          <Shadcn />
+          <Base />
         </DocsRuntimeProvider>
       );
     case "artifacts":

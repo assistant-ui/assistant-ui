@@ -218,7 +218,7 @@ function RunningObserver({
 function Composer() {
   return (
     <ComposerPrimitive.Root className="py-2">
-      <div className="border-border bg-background focus-within:border-ring/50 focus-within:ring-ring/20 rounded-lg border focus-within:ring-1">
+      <div className="border-border bg-background focus-within:border-foreground/60 rounded-lg border transition-colors">
         <ComposerPrimitive.Input asChild>
           <textarea
             placeholder="Describe a change..."

@@ -70,7 +70,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Chat persistence with AI SDK.",
     link: "/examples/ai-sdk",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/shadcn.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/base.tsx",
   },
   {
     title: "Mem0 - ChatGPT with memory",

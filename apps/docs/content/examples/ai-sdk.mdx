@@ -3,10 +3,10 @@ title: AI SDK Chat Persistence
 description: Vercel AI SDK chat with thread persistence — open-source React example combining the AI SDK and assistant-ui for streaming, thread management, and message history.
 ---
 
-import { Shadcn } from "@/components/examples/shadcn";
+import { Base } from "@/components/examples/base";
 
 <div className="not-prose h-[600px]">
-  <Shadcn />
+  <Base />
 </div>
 
 ## Overview
@@ -113,4 +113,4 @@ const savedMessages = await db.messages.findMany({ threadId });
 
 ## Source
 
-<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/shadcn.tsx" />
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/base.tsx" />

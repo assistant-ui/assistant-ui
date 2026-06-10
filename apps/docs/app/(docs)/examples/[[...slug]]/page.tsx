@@ -9,6 +9,13 @@ import { ExamplesNavbar } from "@/components/docs/examples-navbar";
 import { DocsFooter } from "@/components/docs/layout/docs-footer";
 import { DocsPager } from "@/components/docs/layout/docs-pager";
 import { findNeighbour } from "fumadocs-core/page-tree";
+import Link from "next/link";
+import { ArrowUpRightIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { getDemo } from "@/lib/demos";
+
+// The AI SDK example renders the Base demo component.
+const EXAMPLE_TO_DEMO_SLUG: Record<string, string> = { "ai-sdk": "base" };
 
 function getPage(slug: string[] | undefined): ExamplePage {
   const page = examples.getPage(slug);
@@ -25,6 +32,11 @@ export default async function Page(props: {
   const mdxComponents = getMDXComponents({});
   const page = getPage(params.slug);
   const isIndex = !params.slug || params.slug.length === 0;
+
+  const exampleSlug = params.slug?.[0];
+  const demo = exampleSlug
+    ? getDemo(EXAMPLE_TO_DEMO_SLUG[exampleSlug] ?? exampleSlug)
+    : undefined;
 
   const markdownUrl = `${page.url}.mdx`;
 
@@ -58,13 +70,23 @@ export default async function Page(props: {
               <h1 className="text-xl font-medium tracking-tight md:text-2xl">
                 {page.data.title}
               </h1>
-              <DocsPager
-                {...(footerPrevious && {
-                  previous: { url: footerPrevious.url },
-                })}
-                {...(footerNext && { next: { url: footerNext.url } })}
-                markdownUrl={markdownUrl}
-              />
+              <div className="flex items-center gap-2">
+                {demo && (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/demos/${demo.slug}`}>
+                      Open demo
+                      <ArrowUpRightIcon className="size-3.5" />
+                    </Link>
+                  </Button>
+                )}
+                <DocsPager
+                  {...(footerPrevious && {
+                    previous: { url: footerPrevious.url },
+                  })}
+                  {...(footerNext && { next: { url: footerNext.url } })}
+                  markdownUrl={markdownUrl}
+                />
+              </div>
             </div>
             {page.data.description && (
               <p className="text-muted-foreground mt-2 text-sm md:text-base">

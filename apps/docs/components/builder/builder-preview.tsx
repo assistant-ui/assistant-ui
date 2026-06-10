@@ -368,8 +368,7 @@ const Composer: FC<ComposerProps> = ({ config }) => {
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone
         className={cn(
-          "aui-composer-attachment-dropzone flex w-full flex-col px-1 pt-2 transition-shadow outline-none",
-          "has-[textarea:focus-visible]:ring-ring/20 has-[textarea:focus-visible]:ring-2",
+          "aui-composer-attachment-dropzone flex w-full flex-col px-1 pt-2 transition-colors outline-none",
           "data-[dragging=true]:bg-accent/50 data-[dragging=true]:border-dashed",
           BORDER_RADIUS_CLASS[styles.borderRadius],
         )}
