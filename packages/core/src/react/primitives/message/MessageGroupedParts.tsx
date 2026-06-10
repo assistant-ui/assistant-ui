@@ -49,8 +49,9 @@ export namespace MessagePrimitiveGroupedParts {
    * which running states qualify:
    * - `"never"` — never.
    * - `"empty"` — only when the message has no parts yet.
-   * - `"no-text"` (default) — when the last part isn't `text`/`reasoning`
-   *   (e.g. it ended on a tool call, so the assistant likely isn't done).
+   * - `"no-text"` (default) — when the message has no parts yet or the last
+   *   part isn't `text`/`reasoning` (e.g. it ended on a tool call, so the
+   *   assistant likely isn't done).
    * - `"always"` — whenever the message is running, regardless of parts.
    */
   export type IndicatorMode = "never" | "empty" | "no-text" | "always";
@@ -153,7 +154,8 @@ const shouldShowIndicator = (
     case "no-text": {
       const last = parts[parts.length - 1];
       return (
-        last !== undefined && last.type !== "text" && last.type !== "reasoning"
+        last === undefined ||
+        (last.type !== "text" && last.type !== "reasoning")
       );
     }
   }

@@ -180,9 +180,17 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   });
 
   const scrollRef = useManagedRef<HTMLElement>((el) => {
+    // A pointer gesture invalidates pending bottom-scroll intent; otherwise an
+    // intent kept alive by a non-overflowing thread (see handleScroll) hijacks
+    // the next content growth, e.g. expanding a collapsible tool call.
+    const cancelPendingScrollToBottom = () => {
+      scrollingToBottomBehaviorRef.current = null;
+    };
     el.addEventListener("scroll", handleScroll);
+    el.addEventListener("pointerdown", cancelPendingScrollToBottom);
     return () => {
       el.removeEventListener("scroll", handleScroll);
+      el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
     };
   });
 
