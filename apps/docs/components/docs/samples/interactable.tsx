@@ -1,6 +1,12 @@
 "use client";
 
-import { type Dispatch, type FC, type SetStateAction, useMemo } from "react";
+import {
+  type Dispatch,
+  type FC,
+  type SetStateAction,
+  useEffect,
+  useMemo,
+} from "react";
 import {
   AssistantRuntimeProvider,
   AuiProvider,
@@ -54,6 +60,25 @@ const TaskBoard: FC = () => {
     taskBoardInitialState,
   );
 
+  // One invariant: every task has a stable, unique id. Enforce it wherever
+  // state enters the board — including model writes via update_taskBoard, which
+  // bypass manage_tasks' crypto.randomUUID() and can collide or omit ids.
+  useEffect(() => {
+    let dirty = false;
+    const seen = new Set<string>();
+    const tasks = state.tasks.map((t) => {
+      if (t.id && !seen.has(t.id)) {
+        seen.add(t.id);
+        return t;
+      }
+      dirty = true;
+      const id = crypto.randomUUID();
+      seen.add(id);
+      return { ...t, id };
+    });
+    if (dirty) setState({ tasks });
+  }, [state.tasks, setState]);
+
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   const toggleTask = (id: string) => {
@@ -87,8 +112,8 @@ const TaskBoard: FC = () => {
             </div>
           ) : (
             <ul className="space-y-1.5">
-              {state.tasks.map((task, index) => (
-                <li key={task.id ? `${task.id}-${index}` : `task-${index}`}>
+              {state.tasks.map((task) => (
+                <li key={task.id}>
                   <button
                     type="button"
                     onClick={() => toggleTask(task.id)}

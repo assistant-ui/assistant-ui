@@ -125,7 +125,37 @@ function App() {
 }
 ```
 
-Now when the user says _"Add a task called 'Buy groceries'"_, the AI will automatically call the `update_taskBoard` tool to update the state. Thanks to partial updates, the AI only needs to send the fields it wants to change.
+### 4. Surface state to the model in your route
+
+The `update_*` tools work out of the box, so the AI can already _write_ to an interactable. For it to _read_ the current state, your route handler has one required step. Each user message carries a frozen state snapshot in its metadata, but `convertToModelMessages` ignores metadata — call `injectInteractableContext` first to turn that snapshot into model-visible text:
+
+```ts title="app/api/chat/route.ts"
+import { openai } from "@ai-sdk/openai";
+import { convertToModelMessages, streamText } from "ai";
+import { injectInteractableContext } from "@assistant-ui/react-ai-sdk";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-5.4"),
+    messages: await convertToModelMessages(injectInteractableContext(messages)),
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+Each snapshot defaults to `[Current state of "note": {...}]`. Pass a second `format` argument to control how it reads to the model.
+
+<Callout type="warn">
+  This step is required, not optional. Without `injectInteractableContext`, the
+  model can still _call_ `update_*` tools but is **blind to current state** — it
+  can't see what's on the task board or which note is selected, so it edits
+  without knowing what's there.
+</Callout>
+
+Now when the user says _"Add a task called 'Buy groceries'"_, the AI sees the board's current state and calls the `update_taskBoard` tool to update it. Thanks to partial updates, the AI only needs to send the fields it wants to change.
 
 ## Partial Updates
 
@@ -256,7 +286,7 @@ const id = useAssistantInteractable(name, config);
 | `config.stateSchema` | `StandardSchemaV1 \| JSONSchema7` | Schema for the state (e.g., a Zod schema) |
 | `config.initialState` | `unknown` | Initial state value |
 | `config.id` | `string?` | Optional unique instance ID (auto-generated if omitted) |
-| `config.scope` | `"app" \| "thread"?` | Persistence + reload-seed source (default `"app"`) |
+| `config.scope` | `"app" \| "thread"?` | Where state persists and re-seeds from — see [Scope](#scope) (default `"app"`) |
 
 **Returns:** `string` — the instance id (auto-generated or provided).
 
@@ -306,14 +336,39 @@ When you call `useAssistantInteractable("taskBoard", config)`:
 
 1. **Registration** — the interactable is registered in the `interactables` scope with its name, description, schema, and initial state.
 2. **Tool generation** — an `update_taskBoard` frontend tool is automatically created with a partial schema (all fields optional). For multiple instances, tools are named `update_{name}_{id}`.
-3. **State snapshot** — the interactable's current state is stamped onto the message you send and surfaced to the AI at request time (no system-prompt mutation). It is sent once per change.
+3. **State snapshot** — the interactable's current state is stamped onto the user message you send as a frozen snapshot in `metadata.custom`, re-stamped only when it changes (no system-prompt mutation). Your route turns that snapshot into model-visible text by calling `injectInteractableContext` — see [Surface state to the model](#4-surface-state-to-the-model-in-your-route).
 4. **Streaming updates** — as the AI generates the tool arguments, the interactable's state updates progressively rather than waiting for complete arguments. This gives users immediate visual feedback.
 5. **Partial merge** — only the fields the AI sends are updated; the rest are preserved.
 6. **Bidirectional updates** — when the AI calls the tool, the state updates and React re-renders. When the user updates state via `setState`, the model context is notified so the AI sees the latest state on the next turn.
 
+## Scope
+
+Each interactable has a `scope` that decides where its state lives and how it is re-seeded after a reload. It defaults to `"app"`.
+
+- **`"app"`** (default) — state is owned by the [persistence adapter](#persistence) and shared across every thread. It's included in `exportState`/`save`, and on reload it re-seeds from the saved adapter blob. Use this for app-wide UI the assistant manipulates regardless of which conversation is open (a settings panel, a shared dashboard).
+- **`"thread"`** — state rides the thread's own message history instead. The snapshot stamped onto each sent message _is_ the persisted copy, so thread-scoped interactables are skipped by the persistence adapter (`save` and `exportState` ignore them) and re-seed from the latest snapshot in the current thread on reload. Use this for state that belongs to one conversation (a per-thread canvas or draft).
+
+```tsx
+useAssistantInteractable("draft", {
+  description: "The draft being edited in this conversation",
+  stateSchema: draftSchema,
+  initialState: draftInitialState,
+  scope: "thread",
+});
+```
+
+<Callout type="warn">
+  For `scope: "thread"`, only **sent** state reaches history. A live edit the
+  user makes but never sends survives in-session remounts (scrolling, list
+  virtualization) but is **lost on a full page reload** — the interactable
+  re-seeds from the last sent snapshot, or `initialState` if it was never sent.
+  If an edit must outlive a reload before the next message, send it or use
+  `scope: "app"` with a persistence adapter.
+</Callout>
+
 ## Persistence
 
-By default, interactable state is in-memory and lost on page refresh. You can add persistence by providing a save callback:
+By default, `scope: "app"` interactable state is in-memory and lost on page refresh. You can add persistence by providing a save callback:
 
 ```tsx
 import { useEffect } from "react";
