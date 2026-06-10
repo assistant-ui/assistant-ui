@@ -7,11 +7,7 @@ import {
 import { UpdateScheduler } from "../core/scheduler";
 import type { RenderResult } from "../core/types";
 import { isDevelopment } from "../core/helpers/env";
-import {
-  commitRoot,
-  createResourceFiberRoot,
-  setRootVersion,
-} from "../core/helpers/root";
+import { commitRoot, createResourceFiberRoot } from "../core/helpers/root";
 import { useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { useDevStrictMode } from "./utils/useDevStrictMode";
 
@@ -38,24 +34,24 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     () => new UpdateScheduler(() => handleUpdate(null)),
     [],
   );
-  const queue = useMemo(() => [] as (() => void)[], []);
 
   const getDevStrictMode = useDevStrictMode();
   const fiber = useMemo(() => {
     return createResourceFiber(
       useHostRoot<R>,
+      // Updates apply immediately: the cells hold the pending entries (and the
+      // root's changelog records them), so the scheduler only batches the
+      // re-render. A `false` return is the eager same-state bailout.
       createResourceFiberRoot((callback) => {
-        if (!scheduler.isDirty && !callback()) return;
-        queue.push(callback);
+        if (!callback()) return;
         scheduler.markDirty();
       }),
       undefined,
       getDevStrictMode(),
     );
-  }, [queue, scheduler, getDevStrictMode]);
+  }, [scheduler, getDevStrictMode]);
 
   // TODO I think dev mode only should double render!
-  setRootVersion(fiber.root, fiber.root.committedVersion);
   const render2 = renderResourceFiber(fiber, [render]);
 
   const isMountedRef = useRef(false);
@@ -64,17 +60,6 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   const subscribers = useMemo(() => new Set<() => void>(), []);
   const handleUpdate = useEffectEvent((render: RenderResult | null) => {
     if (render === null) {
-      setRootVersion(fiber.root, 2);
-      setRootVersion(fiber.root, 1);
-
-      queue.forEach((callback) => {
-        if (isDevelopment && fiber.devStrictMode) {
-          callback();
-        }
-
-        callback();
-      });
-
       if (isDevelopment && fiber.devStrictMode) {
         void renderResourceFiber(fiber, committedArgsRef.current);
       }
@@ -86,7 +71,6 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
       throw new Error("Scheduler is dirty, this should never happen");
 
     commitRoot(fiber.root);
-    queue.length = 0;
 
     if (isMountedRef.current) {
       commitResourceFiber(fiber, render);
