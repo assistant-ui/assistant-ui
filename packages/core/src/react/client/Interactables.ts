@@ -216,7 +216,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
   const setDefState = useCallback(
     (id: string, updater: (prev: unknown) => unknown) => {
-      setState((prev) => {
+      setStateAndRef((prev) => {
         const existing = prev.definitions[id];
         if (!existing) return prev;
         return {
@@ -229,7 +229,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
       });
       if (stateRef.current.definitions[id]) schedulePersistence(id);
     },
-    [schedulePersistence],
+    [schedulePersistence, setStateAndRef],
   );
 
   const provider = useMemo(
@@ -288,7 +288,9 @@ const useInteractables = (): ClientOutput<"interactables"> => {
       // scope is in context; the accessor throws otherwise, so guard it.
       const threadAccessor = clientRef.current?.thread;
       const snapshot =
-        def.scope === "thread" && threadAccessor && threadAccessor.source != null
+        def.scope === "thread" &&
+        threadAccessor &&
+        threadAccessor.source != null
           ? findLatestSnapshotEntry(
               threadAccessor().getState().messages ?? [],
               def.id,
