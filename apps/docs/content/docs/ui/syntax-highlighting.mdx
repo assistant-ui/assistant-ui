@@ -29,7 +29,7 @@ import { SyntaxHighlightingSample } from "@/components/docs/samples/syntax-highl
 
 This adds a `/components/assistant-ui/shiki-highlighter.tsx` file to your project and
 installs the `react-shiki` dependency. The highlighter can be customized by editing
-the config in the `shiki-highlighter.tsx` file.
+the config in the `shiki-highlighter.tsx` file. While a message part is still streaming, the component renders the plain code without tokenization and highlights once the part settles, so streaming stays cheap.
 
   </Step>
   <Step>
