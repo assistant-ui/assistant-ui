@@ -2,7 +2,7 @@
 
 import type { FC } from "react";
 import { useShikiHighlighter, type ShikiHighlighterProps } from "react-shiki";
-import { useAuiState } from "@assistant-ui/react";
+import { useAui, useAuiState } from "@assistant-ui/react";
 import type { SyntaxHighlighterProps as AUIProps } from "@assistant-ui/react-markdown";
 import { cn } from "@/lib/utils";
 
@@ -67,7 +67,11 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
   components: _components,
   ...options
 }) => {
-  const isStreaming = useAuiState((s) => s.part.status.type === "running");
+  const aui = useAui();
+  const hasPart = aui.part.source !== null;
+  const isStreaming = useAuiState(
+    (s) => hasPart && s.part.status.type === "running",
+  );
   const trimmed = code.trim();
 
   return (
@@ -86,7 +90,7 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
           code={trimmed}
           language={language}
           theme={theme}
-          options={{ delay, ...options }}
+          options={{ ...options, delay }}
         />
       )}
     </div>
