@@ -16,6 +16,7 @@ export function createResourceFiber<R, A extends readonly unknown[]>(
     markDirty,
     devStrictMode: strictMode,
     cells: [],
+    renderPendingCells: null,
     currentIndex: 0,
     renderContext: undefined,
     isFirstRender: true,
@@ -38,19 +39,36 @@ export function renderResourceFiber<R, A extends readonly unknown[]>(
   fiber: ResourceFiber<R, A>,
   args: Readonly<A>,
 ): RenderResult {
-  const result = {
-    effectTasks: [],
-    output: undefined as R | undefined,
-  };
+  // Discard render-phase actions left by a previous render
+  if (fiber.renderPendingCells !== null) {
+    for (const cell of fiber.renderPendingCells) cell.renderQueue = null;
+    fiber.renderPendingCells.clear();
+  }
 
-  withResourceFiber(fiber, () => {
-    fiber.renderContext = result;
-    try {
-      result.output = withReactDispatcher(() => fiber.hook(...args));
-    } finally {
-      fiber.renderContext = undefined;
+  let passes = 0;
+  let result: RenderResult;
+  do {
+    if (++passes > 25) {
+      throw new Error(
+        "Too many re-renders. tap limits the number of renders to prevent " +
+          "an infinite loop.",
+      );
     }
-  });
+
+    result = {
+      effectTasks: [],
+      output: undefined as R | undefined,
+    };
+
+    withResourceFiber(fiber, () => {
+      fiber.renderContext = result;
+      try {
+        result.output = withReactDispatcher(() => fiber.hook(...args));
+      } finally {
+        fiber.renderContext = undefined;
+      }
+    });
+  } while ((fiber.renderPendingCells?.size ?? 0) > 0);
 
   return result;
 }

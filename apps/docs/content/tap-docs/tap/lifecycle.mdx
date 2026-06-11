@@ -10,8 +10,6 @@ Like React, tap splits work into two phases:
 1. **Render**: the resource function runs, hooks record their data, and a return value is produced. This phase has no side effects.
 2. **Commit**: effects whose dependencies changed run. If an effect is re-running, its previous cleanup executes first. The resource is considered mounted after this phase.
 
-Unlike React, calling `set` or `dispatch` during the render phase throws. To adjust state in response to changing props, derive it during render instead.
-
 ```ts
 import { resource } from "@assistant-ui/tap";
 import { useState, useEffect } from "react";

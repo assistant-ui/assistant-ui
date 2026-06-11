@@ -7,32 +7,6 @@ Resources are React hooks, so almost everything carries over: the rules of hooks
 dependency arrays, memoization, refs, and effect cleanup all work as you expect.
 This page covers the few places tap deliberately differs.
 
-## No setting state during render
-
-Like React, tap splits work into a **render** phase (the resource function runs,
-no side effects) and a **commit** phase (effects run). Unlike React, calling a
-setter or `dispatch` during render throws.
-
-To adjust state in response to props, derive it during render instead of setting
-it:
-
-```ts
-import { resource } from "@assistant-ui/tap";
-import { useMemo } from "react";
-
-const useFiltered = (props: { items: string[]; query: string }) => {
-  // derive, don't store-and-sync
-  const visible = useMemo(
-    () => props.items.filter((i) => i.includes(props.query)),
-    [props.items, props.query],
-  );
-
-  return { visible };
-};
-
-const Filtered = resource(useFiltered);
-```
-
 ## Effects run in call order
 
 In React, effects run children-first (inside-out), because a component can only
@@ -82,11 +56,3 @@ large tree efficient and how store libraries are built on tap.
 
 tap has a single effect primitive. `useLayoutEffect` is accepted (so React code
 ports cleanly) but behaves like `useEffect` inside a resource.
-
-## Strict mode
-
-In development, resources hosted via `useResource` inherit React's strict mode: if
-your component is inside `<StrictMode>`, the resource also renders twice on mount
-to surface accidental side effects in render. Standalone roots created with
-[`createTapRoot`](/tap/docs/tap/outside-react) enable this automatically in
-development.

@@ -5,7 +5,15 @@ export function commitAllEffects(renderResult: RenderResult): void {
 
   for (const task of renderResult.effectTasks) {
     try {
-      task();
+      task.cleanup();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+
+  for (const task of renderResult.effectTasks) {
+    try {
+      task.setup();
     } catch (error) {
       errors.push(error);
     }

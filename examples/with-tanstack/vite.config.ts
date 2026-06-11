@@ -6,6 +6,14 @@ import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
 
 const config = defineConfig({
+  build: {
+    rolldownOptions: {
+      external: ["shiki/wasm"],
+    },
+  },
+  ssr: {
+    external: ["shiki/wasm"],
+  },
   plugins: [
     nitro({
       output: {

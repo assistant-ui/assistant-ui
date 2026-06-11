@@ -396,7 +396,7 @@ describe("StrictMode parity (React vs tap)", () => {
   }
 });
 
-describe("documented divergence: setState during render", () => {
+describe("render-phase update: setState during render", () => {
   afterEach(() => {
     cleanupAllResources();
     cleanup();
@@ -413,11 +413,8 @@ describe("documented divergence: setState during render", () => {
     expect(events).toEqual(["render 0", "render 1", "render 1"]);
   });
 
-  it("tap throws (see differences-from-react)", () => {
-    expect(() =>
-      createTapRoot(function Root() {
-        return use(() => {});
-      }),
-    ).toThrow("Resource updated during render");
+  it("tap matches", async () => {
+    const events = await runTapRoot({ name: "", use });
+    expect(events).toEqual(["render 0", "render 1", "render 1"]);
   });
 });

@@ -43,21 +43,64 @@ describe("Errors - Render Errors", () => {
     expect(() => renderResourceFiber(resource, [])).toThrow(error);
   });
 
-  it("should detect render during render", () => {
+  it("should process setState during render as a render-phase update", () => {
     const resource = createTestResource(() => {
       const [count, setCount] = useState(0);
-
-      // This violates the rules - no state updates during render
-      if (count < 5) {
-        expect(() => setCount(count + 1)).toThrow(
-          "Resource updated during render",
-        );
-      }
-
+      if (count < 5) setCount(count + 1);
       return count;
     });
 
-    renderResourceFiber(resource, []);
+    expect(renderResourceFiber(resource, []).output).toBe(5);
+  });
+
+  it("should throw when updating a different resource during render", () => {
+    let setOther!: (value: number) => void;
+    const other = createTestResource(() => {
+      const [value, setValue] = useState(0);
+      setOther = setValue;
+      return value;
+    });
+    renderTest(other);
+
+    const resource = createTestResource(() => {
+      setOther(1);
+      return null;
+    });
+
+    expect(() => renderResourceFiber(resource, [])).toThrow(
+      "Cannot update a resource while rendering a different resource",
+    );
+  });
+
+  it("should throw when a child updates its parent mid-render", () => {
+    let setParent!: (value: number) => void;
+    const child = createTestResource(() => {
+      setParent(1);
+      return null;
+    });
+
+    const parent = createTestResource(() => {
+      const [value, setValue] = useState(0);
+      setParent = setValue;
+      renderResourceFiber(child, []);
+      return value;
+    });
+
+    expect(() => renderResourceFiber(parent, [])).toThrow(
+      "Cannot update a resource while rendering a different resource",
+    );
+  });
+
+  it("should throw on unbounded render-phase updates", () => {
+    const resource = createTestResource(() => {
+      const [count, setCount] = useState(0);
+      setCount(count + 1);
+      return count;
+    });
+
+    expect(() => renderResourceFiber(resource, [])).toThrow(
+      "Too many re-renders",
+    );
   });
 
   it("should allow setState during commit (effects)", () => {

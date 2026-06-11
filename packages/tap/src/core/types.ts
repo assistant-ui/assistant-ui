@@ -1,5 +1,3 @@
-import { EffectCallback } from "react";
-
 export type ResourceElement<R, A extends readonly unknown[] = any[]> = {
   readonly hook: (...args: A) => R;
   readonly args: Readonly<A>;
@@ -32,7 +30,8 @@ export type Cell =
       readonly dispatch: (action: any) => void;
 
       readonly queue: Set<ReducerQueueEntry>;
-      dirty: boolean;
+      renderQueue: any[] | null;
+
       workInProgress: any;
       current: any;
       reducer: (state: any, action: any) => any;
@@ -44,23 +43,28 @@ export type Cell =
     };
 
 export interface EffectTask {
-  readonly effect: EffectCallback;
-  readonly deps: readonly unknown[] | undefined;
-  readonly cell: Cell & { type: "effect" };
+  readonly cleanup: () => void;
+  readonly setup: () => void;
 }
 
 export interface RenderResult {
-  readonly output: any;
-  readonly effectTasks: (() => void)[];
+  output: any;
+  effectTasks: EffectTask[];
+}
+
+export interface ChangelogRecord {
+  readonly fiber: ResourceFiber<any, any>;
+  readonly cell: Cell & { type: "reducer" };
+  readonly entry: ReducerQueueEntry;
 }
 
 export interface ResourceFiberRoot {
   version: number;
   committedVersion: number;
-  readonly changelog: (() => void)[];
+  readonly changelog: ChangelogRecord[];
 
   readonly dispatchUpdate: (callback: () => boolean) => void;
-  readonly dirtyCells: (Cell & { type: "reducer" })[];
+  readonly dirtyCells: Set<Cell & { type: "reducer" }>;
 }
 
 export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
@@ -71,6 +75,8 @@ export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
 
   cells: Cell[];
   currentIndex: number;
+
+  renderPendingCells: Set<Cell & { type: "reducer" }> | null;
 
   renderContext: RenderResult | undefined; // set during render
 

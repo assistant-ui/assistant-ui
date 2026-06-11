@@ -1,5 +1,5 @@
 import { getCurrentResourceFiber } from "../../core/helpers/execution-context";
-import type { Cell } from "../../core/types";
+import type { Cell, EffectTask } from "../../core/types";
 
 export const useCell = <T extends Cell["type"]>(
   type: T,
@@ -29,7 +29,7 @@ export const useCell = <T extends Cell["type"]>(
   return cell as Cell & { type: T };
 };
 
-export const registerRenderMountTask = (task: () => void) => {
+export const registerRenderMountTask = (task: EffectTask) => {
   const fiber = getCurrentResourceFiber();
   fiber.renderContext!.effectTasks.push(task);
 };

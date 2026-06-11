@@ -138,10 +138,10 @@ describe("Lifecycle - Mount/Unmount", () => {
       "effect-1",
       "effect-2",
       "render", // Re-render triggered by setMounted(true)
-      "cleanup-1", // Cleanup from first render
-      "effect-1", // Effect from re-render
-      "cleanup-2", // Cleanup from first render
-      "effect-2", // Effect from re-render
+      "cleanup-1", // Cleanups from first render run first, like React
+      "cleanup-2",
+      "effect-1", // Then the re-render's effects
+      "effect-2",
     ]);
 
     // Clear log for unmount testing

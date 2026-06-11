@@ -30,43 +30,29 @@ export function useEffect(
       "useEffect called with and without dependencies across re-renders",
     );
 
-  registerRenderMountTask(() => {
-    const errors: unknown[] = [];
-
-    try {
-      cell.cleanup?.();
-    } catch (error) {
-      errors.push(error);
-    } finally {
-      cell.cleanup = undefined;
-    }
-
-    try {
-      const cleanup = effect();
-
-      if (cleanup !== undefined && typeof cleanup !== "function") {
-        throw new Error(
-          "An effect function must either return a cleanup function or nothing. " +
-            `Received: ${typeof cleanup}`,
-        );
+  registerRenderMountTask({
+    cleanup: () => {
+      try {
+        cell.cleanup?.();
+      } finally {
+        cell.cleanup = undefined;
       }
+    },
+    setup: () => {
+      try {
+        const cleanup = effect();
 
-      cell.cleanup = cleanup;
-    } catch (error) {
-      errors.push(error);
-    }
-
-    cell.deps = deps;
-
-    if (errors.length > 0) {
-      if (errors.length === 1) {
-        throw errors[0];
-      } else {
-        for (const error of errors) {
-          console.error(error);
+        if (cleanup !== undefined && typeof cleanup !== "function") {
+          throw new Error(
+            "An effect function must either return a cleanup function or nothing. " +
+              `Received: ${typeof cleanup}`,
+          );
         }
-        throw new AggregateError(errors, "Errors during commit");
+
+        cell.cleanup = cleanup;
+      } finally {
+        cell.deps = deps;
       }
-    }
+    },
   });
 }

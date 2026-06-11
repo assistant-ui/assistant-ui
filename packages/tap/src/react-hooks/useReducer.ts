@@ -1,27 +1,31 @@
 import { isDevelopment } from "../core/helpers/env";
-import { getCurrentResourceFiber } from "../core/helpers/execution-context";
-import type { ReducerQueueEntry, ResourceFiber } from "../core/types";
-import { markCellDirty } from "../core/helpers/root";
+import {
+  getCurrentResourceFiber,
+  peekResourceFiber,
+} from "../core/helpers/execution-context";
+import type {
+  ChangelogRecord,
+  ReducerQueueEntry,
+  ResourceFiber,
+} from "../core/types";
+import { applyChangelogRecord, markCellDirty } from "../core/helpers/root";
 import { useCell } from "../hooks/utils/useCell";
 
 type Dispatch<A> = (action: A) => void;
 
 const dispatchOnFiber = (
   fiber: ResourceFiber<any, any>,
-  callback: () => (() => void) | null,
+  callback: () => ChangelogRecord | null,
 ): void => {
-  if (fiber.renderContext) {
-    throw new Error("Resource updated during render");
-  }
   if (fiber.isNeverMounted) {
     throw new Error("Resource updated before mount");
   }
 
   fiber.root.dispatchUpdate(() => {
-    const result = callback();
-    if (result) {
-      result();
-      fiber.root.changelog.push(result);
+    const record = callback();
+    if (record) {
+      applyChangelogRecord(record);
+      fiber.root.changelog.push(record);
       return true;
     }
     return false;
@@ -51,34 +55,42 @@ function useReducerImpl<S, A, I, R extends S>(
     return {
       type: "reducer",
       queue: new Set(),
-      dirty: false,
+      renderQueue: null,
       workInProgress: initialState,
       current: initialState,
       reducer,
       dispatch: (action: A) => {
-        const entry: ReducerQueueEntry = {
-          action,
-          hasEagerState: false,
-          eagerState: undefined,
-        };
+        const currentFiber = peekResourceFiber();
+        if (currentFiber !== null) {
+          if (currentFiber !== fiber)
+            throw new Error(
+              "Cannot update a resource while rendering a different resource.",
+            );
 
-        dispatchOnFiber(fiber, () => {
-          if (
-            eagerDispatch &&
-            fiber.root.dirtyCells.length === 0 &&
-            !entry.hasEagerState
-          ) {
-            entry.eagerState = reducer(cell.workInProgress, action);
-            entry.hasEagerState = true;
-
-            if (Object.is(cell.current, entry.eagerState)) return null;
-          }
-
-          return () => {
-            markCellDirty(fiber, cell);
-            cell.queue.add(entry);
+          (fiber.renderPendingCells ??= new Set()).add(cell);
+          (cell.renderQueue ??= []).push(action);
+        } else {
+          const entry: ReducerQueueEntry = {
+            action,
+            hasEagerState: false,
+            eagerState: undefined,
           };
-        });
+
+          dispatchOnFiber(fiber, () => {
+            if (
+              eagerDispatch &&
+              fiber.root.dirtyCells.size === 0 &&
+              !entry.hasEagerState
+            ) {
+              entry.eagerState = reducer(cell.workInProgress, action);
+              entry.hasEagerState = true;
+
+              if (Object.is(cell.current, entry.eagerState)) return null;
+            }
+
+            return { fiber, cell, entry };
+          });
+        }
       },
     };
   });
@@ -87,6 +99,9 @@ function useReducerImpl<S, A, I, R extends S>(
   const sameReducer = reducer === cell.reducer;
   cell.reducer = reducer;
 
+  // The drain consumes entries: a re-render of the same uncommitted lineage
+  // sees an empty queue and must not re-apply them. Rollback replays them
+  // into the queue via the changelog.
   for (const item of cell.queue) {
     if (!item.hasEagerState || !sameReducer) {
       item.eagerState = reducer(cell.workInProgress, item.action);
@@ -105,13 +120,35 @@ function useReducerImpl<S, A, I, R extends S>(
   }
   cell.queue.clear();
 
-  if (getDerivedState) {
-    const derived = getDerivedState(cell.workInProgress);
-
-    if (!Object.is(derived, cell.workInProgress)) {
-      markCellDirty(fiber, cell);
-      cell.workInProgress = derived;
+  let derived = cell.workInProgress;
+  if (cell.renderQueue?.length) {
+    for (const action of cell.renderQueue) {
+      derived = reducer(derived, action);
     }
+
+    cell.renderQueue = null;
+    fiber.renderPendingCells?.delete(cell);
+  }
+
+  if (getDerivedState) {
+    let changed;
+    let passes = 0;
+    do {
+      if (++passes > 25) {
+        throw new Error(
+          "Too many derivations. getDerivedState must reach a fixpoint; " +
+            "tap limits the number of iterations to prevent an infinite loop.",
+        );
+      }
+      const result = getDerivedState(derived);
+      changed = result !== derived;
+      derived = result;
+    } while (changed);
+  }
+
+  if (!Object.is(derived, cell.workInProgress)) {
+    markCellDirty(fiber, cell);
+    cell.workInProgress = derived;
   }
 
   return [cell.workInProgress, cell.dispatch];
@@ -165,22 +202,16 @@ export function useEagerReducer<S, A, I>(
 }
 
 /**
- * @deprecated experimental — a `getDerivedStateFromProps` replacement for
- * resources: adjust state in response to props without setting during render.
- * Tap-only for now (call it inside a resource render, not a React component) and
- * may change before stabilizing.
+ * @internal Backs useMemo and useMemoCache: a reducer cell whose state is
+ * recomputed during render via getDerivedState. Not part of the public API;
+ * user-facing state adjustment during render uses render-phase updates
+ * (setState during render), like React.
  */
 export function useReducerWithDerivedState<S, A, R extends S>(
   reducer: (state: S, action: A) => S,
   getDerivedState: (state: S) => R,
   initialState: S,
 ): [R, Dispatch<A>];
-/**
- * @deprecated experimental — a `getDerivedStateFromProps` replacement for
- * resources: adjust state in response to props without setting during render.
- * Tap-only for now (call it inside a resource render, not a React component) and
- * may change before stabilizing.
- */
 export function useReducerWithDerivedState<S, A, I, R extends S>(
   reducer: (state: S, action: A) => S,
   getDerivedState: (state: S) => R,
