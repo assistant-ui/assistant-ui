@@ -288,9 +288,10 @@ function ToolFallbackApproval({
   }) {
   const [submitted, setSubmitted] = useState(false);
 
+  if (approval != null && approval.approved !== undefined) return null;
+
   const respond = (approved: boolean) => {
     if (submitted) return;
-    setSubmitted(true);
     if (
       approval != null &&
       approval.approved === undefined &&
@@ -302,6 +303,7 @@ function ToolFallbackApproval({
     } else {
       addResult?.(approved ? APPROVED_RESULT : DENIED_RESULT);
     }
+    setSubmitted(true);
   };
 
   return (

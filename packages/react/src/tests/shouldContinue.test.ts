@@ -86,4 +86,37 @@ describe("shouldContinue", () => {
     });
     expect(shouldContinue(msg, undefined)).toBe(true);
   });
+
+  it("returns false while a tool call has a pending approval", () => {
+    const msg = makeMessage({
+      status: { type: "requires-action", reason: "tool-calls" },
+      content: [{ ...toolCall("deploy"), approval: { id: "a1" } }],
+    });
+    expect(shouldContinue(msg, undefined)).toBe(false);
+    expect(shouldContinue(msg, ["human-approval"])).toBe(false);
+  });
+
+  it("returns true when a decided approval has no result", () => {
+    const msg = makeMessage({
+      status: { type: "requires-action", reason: "tool-calls" },
+      content: [
+        { ...toolCall("deploy"), approval: { id: "a1", approved: true } },
+      ],
+    });
+    expect(shouldContinue(msg, undefined)).toBe(true);
+    expect(shouldContinue(msg, ["human-approval"])).toBe(true);
+  });
+
+  it("exempts approval-gated tool calls from the human tool result requirement", () => {
+    const msg = makeMessage({
+      status: { type: "requires-action", reason: "tool-calls" },
+      content: [
+        {
+          ...toolCall("human-approval"),
+          approval: { id: "a1", approved: true },
+        },
+      ],
+    });
+    expect(shouldContinue(msg, ["human-approval"])).toBe(true);
+  });
 });

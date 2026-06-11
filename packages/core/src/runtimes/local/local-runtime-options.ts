@@ -23,7 +23,7 @@ export type LocalRuntimeOptionsBase = {
   };
 
   /**
-   * Names of tools that are allowed to interrupt the run in order to wait for human/external approval.
+   * Names of tools that pause the run until a result is supplied via `addToolResult`.
    */
   unstable_humanToolNames?: string[] | undefined;
 

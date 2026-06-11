@@ -30,7 +30,7 @@ A non-exhaustive list of `unstable_` exports surfaced in the runtime docs.
 | API | Package | Notes |
 | --- | --- | --- |
 | `unstable_createMessageConverter` | `@assistant-ui/react` | Message-format converter used by AssistantTransport and DataStream. |
-| `unstable_humanToolNames` | `@assistant-ui/react` | Tool names that pause for human approval. Only available on LocalRuntime; not supported in DataStream. |
+| `unstable_humanToolNames` | `@assistant-ui/react` | Tool names that pause the run until a result is added via `addResult`. Only available on LocalRuntime; not supported in DataStream. |
 | `unstable_threadListAdapter` | `@assistant-ui/react-langgraph` | LangGraph thread-list adapter slot on `useLangGraphRuntime`. |
 | `unstable_createLangGraphStream` | `@assistant-ui/react-langgraph` | End-to-end cancellation primitive. |
 | `unstable_Provider` | Various adapters | Thread-scoped provider on `RemoteThreadListAdapter`. Must render children synchronously. |

@@ -74,7 +74,7 @@ Shows a muted appearance when a tool call was cancelled.
 
 ### Approval State
 
-Shows the default Allow / Deny buttons rendered when a tool call enters `requires-action`. The block auto-expands so the decision is visible without a click. Edit your project's copy of `tool-fallback.tsx` to add trust escalation, edit-args, custom labels, or analytics hooks — the shadcn philosophy is you own the file.
+Shows the default Allow / Deny buttons rendered when a tool call enters `requires-action`. A tool call whose approval gate is already decided renders no buttons. The block auto-expands so the decision is visible without a click. Edit your project's copy of `tool-fallback.tsx` to add trust escalation, edit-args, custom labels, or analytics hooks — the shadcn philosophy is you own the file.
 
 <ToolFallbackRequiresActionSample />
 
@@ -90,7 +90,7 @@ All sub-components are exported for custom layouts:
 | `ToolFallback.Args` | Displays tool arguments |
 | `ToolFallback.Result` | Displays tool execution result |
 | `ToolFallback.Error` | Displays error or cancellation messages |
-| `ToolFallback.Approval` | Renders Allow / Deny buttons for `requires-action` tools; wires `resume` / `addResult` / `respondToApproval` |
+| `ToolFallback.Approval` | Renders Allow / Deny buttons for `requires-action` tools until a decision is recorded; wires `resume` / `addResult` / `respondToApproval` |
 
 ```tsx
 import {

@@ -457,17 +457,121 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 
 See the [tools guide](/docs/tools/defining-tools) for advanced patterns.
 
-### Human-in-the-loop approval
+### Human-in-the-loop tools
 
-Require user confirmation before specific tools execute:
+Tools listed in `unstable_humanToolNames` are not executed by code. The run pauses on the tool call and the user supplies the result through the tool UI:
 
 ```ts
 const runtime = useLocalRuntime(MyModelAdapter, {
-  unstable_humanToolNames: ["delete_file", "send_email"],
+  unstable_humanToolNames: ["send_email"],
+});
+```
+
+The pause is driven by the message status your adapter returns; `LocalRuntime` never sets it for you. When the model requests a human tool call, end the run with `status: { type: "requires-action", reason: "tool-calls" }`. Without that status, the runtime marks the message complete and nothing waits. Only return it while a listed tool call is missing its result: unresolved tool calls that are not listed do not hold the run, so the runtime would invoke your adapter again immediately.
+
+```tsx
+const MyModelAdapter: ChatModelAdapter = {
+  async run({ messages, abortSignal, unstable_getMessage }) {
+    const toolResults = unstable_getMessage().content.flatMap((part) =>
+      part.type === "tool-call" && part.result !== undefined
+        ? [{ toolCallId: part.toolCallId, result: part.result }]
+        : [],
+    );
+
+    const result = await fetch("<YOUR_API_ENDPOINT>", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages, toolResults }),
+      signal: abortSignal,
+    });
+    const data = await result.json();
+
+    if (data.toolCall) {
+      return {
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: data.toolCall.id,
+            toolName: data.toolCall.name,
+            args: data.toolCall.args,
+            argsText: JSON.stringify(data.toolCall.args),
+          },
+        ],
+        status: { type: "requires-action", reason: "tool-calls" },
+      };
+    }
+
+    return { content: [{ type: "text", text: data.text }] };
+  },
+};
+```
+
+The full loop:
+
+1. **The run pauses.** While a listed tool call has no result, the runtime stops invoking your adapter. The unresolved tool call part reports `status.type === "requires-action"` to its renderer.
+2. **The user responds.** The tool UI completes the call with `addResult(...)`. The stock [`ToolFallback`](/docs/ui/tool-fallback) component handles this out of the box: in the requires-action state it shows Allow and Deny buttons that record the decision as the tool result.
+3. **The run resumes.** Once every listed tool call has a result, the runtime invokes your adapter again. The resumed call receives the same `messages` array as before (it ends at the user message; the in-progress assistant message is not part of it), so read the recorded results from `unstable_getMessage().content` as shown above. Content returned by the resumed call is appended to the same assistant message.
+
+For a custom confirmation UI, register a human tool whose `render` completes the call with `addResult`. The shape of the result payload is yours to define; the adapter receives it verbatim and translates it for your backend:
+
+```tsx
+const toolkit = defineToolkit({
+  send_email: {
+    type: "human",
+    description: "Send an email after the user confirms",
+    parameters: z.object({ to: z.string(), subject: z.string() }),
+    render: ({ args, result, addResult }) => {
+      if (result) {
+        return <p>{result.approved ? "Sent" : `Cancelled: ${result.reason}`}</p>;
+      }
+      return (
+        <div>
+          <p>
+            Send "{args.subject}" to {args.to}?
+          </p>
+          <button onClick={() => addResult({ approved: true })}>Allow</button>
+          <button
+            onClick={() =>
+              addResult({ approved: false, reason: "User declined" })
+            }
+          >
+            Deny
+          </button>
+        </div>
+      );
+    },
+  },
 });
 ```
 
 `unstable_humanToolNames` is unstable; see [stability](/docs/runtimes/concepts/stability).
+
+### Approval gates
+
+The [server-side approval gate](/docs/tools/tool-ui#server-side-approval-gates) is also supported on `LocalRuntime`, for actions your backend executes after the user authorizes them. Where a human tool asks the user to supply the tool result, an approval gate asks the user to allow or block an action the adapter performs. Emit `approval: { id }` on the tool call part and end the run with the same `requires-action` status:
+
+```tsx
+return {
+  content: [
+    {
+      type: "tool-call",
+      toolCallId: data.toolCall.id,
+      toolName: data.toolCall.name,
+      args: data.toolCall.args,
+      argsText: JSON.stringify(data.toolCall.args),
+      approval: { id: data.toolCall.id },
+    },
+  ],
+  status: { type: "requires-action", reason: "tool-calls" },
+};
+```
+
+A tool call with a pending approval pauses the run, whether or not the tool is listed in `unstable_humanToolNames`. Always emit gates in the pending state (`approval: { id }` with no `approved` field); a part that arrives already decided is treated as resolved and the runtime invokes the adapter again immediately. The stock [`ToolFallback`](/docs/ui/tool-fallback) Allow and Deny buttons, or a custom renderer calling `respondToApproval({ approved, reason? })`, record the decision:
+
+- **Deny** sets `approval.approved: false` and synthesizes an error result (`{ error: reason ?? "Tool approval denied" }` with `isError: true`), so the model sees the denial.
+- **Allow** sets `approval.approved: true` and leaves the result empty; performing the action is your adapter's job.
+
+Once every pending approval on the message is decided and every listed human tool has a result, the runtime invokes your adapter again. Read the decisions from `unstable_getMessage().content`, perform the approved actions, and return the follow-up response. A tool call that carries an approval is owned by the gate: it does not additionally require a result, even when its name is listed in `unstable_humanToolNames`.
 
 ## Resuming a run
 
@@ -743,7 +847,7 @@ const CustomAPIAdapter: ChatModelAdapter = {
       name: "unstable_humanToolNames",
       type: "string[]",
       description:
-        "Tool names that require human approval before execution (unstable).",
+        "Tool names that pause the run until the user supplies a result via addResult (unstable).",
     },
   ]}
 />

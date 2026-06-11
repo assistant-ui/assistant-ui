@@ -62,7 +62,7 @@ useAuiEvent("thread.runStart", (payload) => {
 
 ### useNotification
 
-Ring the terminal bell and emit an OSC desktop notification when the assistant finishes a run, stops with an error, or pauses for human approval.
+Ring the terminal bell and emit an OSC desktop notification when the assistant finishes a run, stops with an error, or pauses for user input.
 
 ```tsx
 import { useNotification } from "@assistant-ui/react-ink";
@@ -130,7 +130,7 @@ const runtime = useLocalRuntime(chatModel, {
 | `adapters.feedback` | `FeedbackAdapter` | Adapter for message feedback (thumbs up/down) |
 | `adapters.suggestion` | `SuggestionAdapter` | Adapter for suggested prompts |
 | `cloud` | `AssistantCloud` | Cloud instance for thread persistence via `@assistant-ui/cloud` |
-| `unstable_humanToolNames` | `string[]` | Tool names that trigger a run interruption to wait for human/external approval |
+| `unstable_humanToolNames` | `string[]` | Tool names that pause the run until a result is added via `addResult` |
 
 ### useRemoteThreadListRuntime
 

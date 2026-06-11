@@ -80,7 +80,7 @@ const runtime = useLocalRuntime(chatModel, {
 | `maxSteps` | `number` | Maximum tool call steps per run |
 | `cloud` | `AssistantCloud` | Optional cloud instance for persistence |
 | `adapters` | `object` | Optional adapter overrides (see below) |
-| `unstable_humanToolNames` | `string[]` | Tool names that pause the run for human approval |
+| `unstable_humanToolNames` | `string[]` | Tool names that pause the run until a result is added via `addResult` |
 
 The `adapters` option accepts the following fields (all optional):
 

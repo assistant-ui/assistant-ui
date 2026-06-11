@@ -323,7 +323,7 @@ export class LocalThreadRuntimeCore
 
     // add assistant message
     const id = generateId();
-    let message: ThreadAssistantMessage = {
+    const message: ThreadAssistantMessage = {
       id,
       role: "assistant",
       status: { type: "running" },
@@ -338,6 +338,15 @@ export class LocalThreadRuntimeCore
       createdAt: new Date(),
     };
 
+    return this._runLoop(parentId, message, runConfig, runCallback);
+  }
+
+  private async _runLoop(
+    parentId: string | null,
+    message: ThreadAssistantMessage,
+    runConfig: RunConfig | undefined,
+    runCallback?: ChatModelAdapter["run"],
+  ): Promise<void> {
     this._notifyEventSubscribers("runStart", {});
 
     try {
@@ -618,22 +627,82 @@ export class LocalThreadRuntimeCore
       content: newContent,
     };
     this.repository.addOrUpdateMessage(parentId, message);
+    this._notifySubscribers();
 
     if (
       added &&
       shouldContinue(message, this._options.unstable_humanToolNames)
     ) {
-      this.performRoundtrip(parentId, message, this._lastRunConfig).catch(
-        () => {},
-      );
+      this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
     }
   }
 
   public resumeToolCall(_options: ResumeToolCallOptions) {
-    throw new Error("Local runtime does not support resuming tool calls.");
+    throw new Error(
+      "Local runtime does not support resuming tool calls. For human-in-the-loop tools, list the tool in unstable_humanToolNames and complete the call with addToolResult.",
+    );
   }
 
-  public respondToToolApproval(_options: RespondToToolApprovalOptions) {
-    throw new Error("Local runtime does not support tool approvals.");
+  public respondToToolApproval({
+    approvalId,
+    approved,
+    reason,
+  }: RespondToToolApprovalOptions) {
+    let message = this.repository
+      .getMessages()
+      .findLast(
+        (m): m is ThreadAssistantMessage =>
+          m.role === "assistant" &&
+          m.content.some(
+            (c) => c.type === "tool-call" && c.approval?.id === approvalId,
+          ),
+      );
+
+    if (!message)
+      throw new Error("Tried to respond to a non-existing tool approval");
+
+    if (this.abortController !== null)
+      throw new Error(
+        "Tried to respond to a tool approval while a run is in progress",
+      );
+
+    if (message.status?.type !== "requires-action")
+      throw new Error(
+        "Tried to respond to a tool approval on a message whose status is not requires-action",
+      );
+
+    let pending = false;
+    const newContent = message.content.map((c) => {
+      if (c.type !== "tool-call" || c.approval?.id !== approvalId) return c;
+      if (c.approval.approved !== undefined) return c;
+      pending = true;
+      const approval = {
+        ...c.approval,
+        approved,
+        ...(reason != null && { reason }),
+      };
+      if (approved) return { ...c, approval };
+      return {
+        ...c,
+        approval,
+        result: { error: reason ?? "Tool approval denied" },
+        isError: true,
+      };
+    });
+
+    if (!pending)
+      throw new Error("Tried to respond to an already decided tool approval");
+
+    message = { ...message, content: newContent };
+    const { parentId } = this.repository.getMessage(message.id);
+    this.repository.addOrUpdateMessage(parentId, message);
+    this._notifySubscribers();
+
+    if (
+      this.repository.headId === message.id &&
+      shouldContinue(message, this._options.unstable_humanToolNames)
+    ) {
+      this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
+    }
   }
 }

@@ -91,7 +91,7 @@ type Snapshot = {
 
 /**
  * Emit a terminal notification when the assistant finishes a run, stops with
- * an error, or pauses for human approval. Pass nothing for the default
+ * an error, or pauses for user input. Pass nothing for the default
  * bell-on-every-transition behavior; pass `false` for a key to suppress one.
  */
 export const useNotification = (config: NotificationConfig = {}) => {
