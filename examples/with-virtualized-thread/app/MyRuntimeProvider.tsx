@@ -32,10 +32,11 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
       for (let i = 1; i <= REPLY_CHUNKS.length; i++) {
         await new Promise((resolve) => setTimeout(resolve, 40));
         const content = REPLY_CHUNKS.slice(0, i).join("");
-        setMessages((current) => [
-          ...current.filter((m) => m.id !== id),
-          { id, role: "assistant", content },
-        ]);
+        setMessages((current) =>
+          current.at(-1)?.id === id
+            ? [...current.slice(0, -1), { id, role: "assistant", content }]
+            : [...current, { id, role: "assistant", content }],
+        );
       }
     } finally {
       setIsRunning(false);
