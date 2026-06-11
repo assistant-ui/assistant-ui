@@ -351,7 +351,11 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/shiki-highlighter.tsx",
       },
     ],
-    dependencies: ["react-shiki"],
+    dependencies: [
+      "react-shiki",
+      "@assistant-ui/react",
+      "@assistant-ui/react-markdown",
+    ],
   },
   {
     name: "mermaid-diagram",

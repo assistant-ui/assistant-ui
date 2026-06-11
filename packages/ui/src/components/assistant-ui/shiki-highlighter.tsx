@@ -1,7 +1,8 @@
 "use client";
 
 import type { FC } from "react";
-import ShikiHighlighter, { type ShikiHighlighterProps } from "react-shiki";
+import { useShikiHighlighter, type ShikiHighlighterProps } from "react-shiki";
+import { useAuiState } from "@assistant-ui/react";
 import type { SyntaxHighlighterProps as AUIProps } from "@assistant-ui/react-markdown";
 import { cn } from "@/lib/utils";
 
@@ -16,9 +17,35 @@ export type HighlighterProps = Omit<
 } & Pick<AUIProps, "language" | "code"> &
   Partial<Pick<AUIProps, "node" | "components">>;
 
+const containerClassName =
+  "aui-shiki-base [&_pre]:border-border/50 [&_pre]:bg-muted/30! [&_.line]:px-0! [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-xl [&_pre]:border [&_pre]:border-t-0 [&_pre]:p-3.5 [&_pre]:text-[13px] [&_pre]:leading-relaxed";
+
+const PlainCode: FC<{ code: string }> = ({ code }) => (
+  <pre>
+    <code>{code}</code>
+  </pre>
+);
+
+const HighlightedCode: FC<{
+  code: string;
+  language: HighlighterProps["language"];
+  theme: NonNullable<HighlighterProps["theme"]>;
+  options: Omit<ShikiHighlighterProps, "children" | "language" | "theme">;
+}> = ({ code, language, theme, options }) => {
+  const highlighted = useShikiHighlighter(code, language, theme, {
+    defaultColor: "light-dark()",
+    ...options,
+  });
+  return <>{highlighted ?? <PlainCode code={code} />}</>;
+};
+
 /**
  * SyntaxHighlighter component, using react-shiki
  * Use it by passing to `defaultComponents` in `markdown-text.tsx`
+ *
+ * Skips tokenization while the message part is streaming and renders the
+ * plain code in the same container, so streaming costs no Shiki work and
+ * settling is a color change rather than a layout shift.
  *
  * @example
  * const defaultComponents = memoizeMarkdownComponents({
@@ -32,27 +59,37 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
   language,
   theme = { dark: "github-dark-default", light: "github-light-default" },
   className,
-  addDefaultStyles = false, // assistant-ui requires custom base styles
-  showLanguage = false, // assistant-ui/react-markdown handles language labels
+  style,
+  addDefaultStyles: _addDefaultStyles,
+  showLanguage: _showLanguage,
+  delay = 150, // the part settles before smooth streaming finishes draining, so code keeps changing for a few frames
   node: _node,
   components: _components,
-  ...props
+  ...options
 }) => {
+  const isStreaming = useAuiState((s) => s.part.status.type === "running");
+  const trimmed = code.trim();
+
   return (
-    <ShikiHighlighter
-      {...props}
-      language={language}
-      theme={theme}
-      addDefaultStyles={addDefaultStyles}
-      showLanguage={showLanguage}
-      defaultColor="light-dark()"
+    <div
       className={cn(
-        "aui-shiki-base [&_pre]:border-border/50 [&_pre]:bg-muted/30! [&_.line]:px-0! [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-xl [&_pre]:border [&_pre]:border-t-0 [&_pre]:p-3.5 [&_pre]:text-[13px] [&_pre]:leading-relaxed",
+        containerClassName,
+        isStreaming && "aui-shiki-streaming",
         className,
       )}
+      style={style}
     >
-      {code.trim()}
-    </ShikiHighlighter>
+      {isStreaming ? (
+        <PlainCode code={trimmed} />
+      ) : (
+        <HighlightedCode
+          code={trimmed}
+          language={language}
+          theme={theme}
+          options={{ delay, ...options }}
+        />
+      )}
+    </div>
   );
 };
 
