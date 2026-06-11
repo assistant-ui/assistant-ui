@@ -1,6 +1,14 @@
 "use client";
 
-import { memo, useCallback, useRef, useState } from "react";
+import {
+  createContext,
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import {
@@ -18,6 +26,8 @@ import {
 import { cn } from "@/lib/utils";
 
 const ANIMATION_DURATION = 200;
+
+const ReasoningPreviewContext = createContext(false);
 
 const reasoningVariants = cva("aui-reasoning-root mb-4 w-full", {
   variants: {
@@ -40,6 +50,13 @@ export type ReasoningRootProps = Omit<
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     defaultOpen?: boolean;
+    /**
+     * Whether the reasoning is currently streaming. When provided, it
+     * supersedes `defaultOpen`: the disclosure auto-opens while streaming
+     * with a bottom-pinned live preview, auto-collapses when streaming
+     * ends, and the first manual toggle takes over permanently.
+     */
+    streaming?: boolean;
   };
 
 function ReasoningRoot({
@@ -48,21 +65,34 @@ function ReasoningRoot({
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
   defaultOpen = false,
+  streaming,
   children,
   ...props
 }: ReasoningRootProps) {
   const collapsibleRef = useRef<HTMLDivElement>(null);
-  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
+  const initialOpenRef = useRef(defaultOpen);
+  const [userOpen, setUserOpen] = useState<boolean | null>(null);
   const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
 
   const isControlled = controlledOpen !== undefined;
-  const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
+  const isOpen = isControlled
+    ? controlledOpen
+    : (userOpen ?? streaming ?? initialOpenRef.current);
+  const isPreview =
+    streaming === true && isOpen && (isControlled || userOpen === null);
+
+  const prevStreamingRef = useRef(streaming);
+  useEffect(() => {
+    if (prevStreamingRef.current === streaming) return;
+    prevStreamingRef.current = streaming;
+    if (!isControlled && userOpen === null) lockScroll();
+  }, [streaming, isControlled, userOpen, lockScroll]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
       lockScroll();
       if (!isControlled) {
-        setUncontrolledOpen(open);
+        setUserOpen(open);
       }
       controlledOnOpenChange?.(open);
     },
@@ -87,12 +117,35 @@ function ReasoningRoot({
       }
       {...props}
     >
-      {children}
+      <ReasoningPreviewContext.Provider value={isPreview}>
+        {children}
+      </ReasoningPreviewContext.Provider>
     </Collapsible>
   );
 }
 
-function ReasoningFade({ className, ...props }: React.ComponentProps<"div">) {
+function ReasoningFade({
+  side = "bottom",
+  className,
+  ...props
+}: React.ComponentProps<"div"> & { side?: "top" | "bottom" }) {
+  if (side === "top") {
+    return (
+      <div
+        data-slot="reasoning-fade"
+        className={cn(
+          "aui-reasoning-fade pointer-events-none absolute inset-x-0 top-0 z-10 h-8",
+          "bg-[linear-gradient(to_bottom,var(--color-background),transparent)]",
+          "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_bottom,hsl(var(--muted)/0.5),transparent)]",
+          "fade-in-0 animate-in",
+          "duration-(--animation-duration)",
+          className,
+        )}
+        {...props}
+      />
+    );
+  }
+
   return (
     <div
       data-slot="reasoning-fade"
@@ -171,6 +224,8 @@ function ReasoningContent({
   children,
   ...props
 }: React.ComponentProps<typeof CollapsibleContent>) {
+  const isPreview = useContext(ReasoningPreviewContext);
+
   return (
     <CollapsibleContent
       data-slot="reasoning-content"
@@ -187,18 +242,42 @@ function ReasoningContent({
       )}
       {...props}
     >
+      {isPreview ? <ReasoningFade side="top" /> : null}
       {children}
       <ReasoningFade />
     </CollapsibleContent>
   );
 }
 
-function ReasoningText({ className, ...props }: React.ComponentProps<"div">) {
+function ReasoningText({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"div">) {
+  const isPreview = useContext(ReasoningPreviewContext);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isPreview) return;
+    const scrollEl = scrollRef.current;
+    const contentEl = contentRef.current;
+    if (!scrollEl || !contentEl) return;
+    const pin = () => {
+      scrollEl.scrollTop = scrollEl.scrollHeight;
+    };
+    pin();
+    const observer = new ResizeObserver(pin);
+    observer.observe(contentEl);
+    return () => observer.disconnect();
+  }, [isPreview]);
+
   return (
     <div
+      ref={scrollRef}
       data-slot="reasoning-text"
       className={cn(
-        "aui-reasoning-text relative z-0 max-h-64 space-y-4 overflow-y-auto ps-6 pt-2 pb-2 leading-relaxed",
+        "aui-reasoning-text relative z-0 max-h-64 overflow-y-auto ps-6 pt-2 pb-2 leading-relaxed",
         "transform-gpu transition-[transform,opacity]",
         "group-data-[state=open]/collapsible-content:animate-in",
         "group-data-[state=closed]/collapsible-content:animate-out",
@@ -211,7 +290,11 @@ function ReasoningText({ className, ...props }: React.ComponentProps<"div">) {
         className,
       )}
       {...props}
-    />
+    >
+      <div ref={contentRef} className="aui-reasoning-text-content space-y-4">
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -232,7 +315,7 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
   });
 
   return (
-    <ReasoningRoot defaultOpen={isReasoningStreaming}>
+    <ReasoningRoot streaming={isReasoningStreaming}>
       <ReasoningTrigger active={isReasoningStreaming} />
       <ReasoningContent aria-busy={isReasoningStreaming}>
         <ReasoningText>{children}</ReasoningText>

@@ -28,7 +28,7 @@ Previously, reasoning parts were rendered via `components.Reasoning` and grouped
 
 Render reasoning parts through `MessagePrimitive.GroupedParts`. Group consecutive reasoning parts with `"group-reasoning"`, then compose `ReasoningRoot`, `ReasoningTrigger`, `ReasoningContent`, and `ReasoningText` around the grouped children.
 
-While reasoning is streaming, `part.status.type === "running"`. Pass that to `defaultOpen` so the accordion auto-opens during streaming and lets the user collapse it once the model moves on.
+While reasoning is streaming, `part.status.type === "running"`. Pass that to `streaming` so the accordion auto-opens during streaming with a bottom-pinned live preview of the newest tokens, auto-collapses when the model moves on, and permanently defers to the first manual toggle. When `streaming` is provided it supersedes `defaultOpen`.
 
 ```tsx title="/app/components/assistant-ui/thread.tsx"
 import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
@@ -56,7 +56,7 @@ const AssistantMessage: FC = () => {
               case "group-reasoning": { // [!code ++]
                 const running = part.status.type === "running"; // [!code ++]
                 return ( // [!code ++]
-                  <ReasoningRoot defaultOpen={running}> // [!code ++]
+                  <ReasoningRoot streaming={running}> // [!code ++]
                     <ReasoningTrigger active={running} /> // [!code ++]
                     <ReasoningContent aria-busy={running}> // [!code ++]
                       <ReasoningText>{children}</ReasoningText> // [!code ++]
@@ -139,7 +139,7 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
   });
 
   return (
-    <ReasoningRoot defaultOpen={isReasoningStreaming}>
+    <ReasoningRoot streaming={isReasoningStreaming}>
       <ReasoningTrigger active={isReasoningStreaming} />
       <ReasoningContent aria-busy={isReasoningStreaming}>
         <ReasoningText>{children}</ReasoningText>
