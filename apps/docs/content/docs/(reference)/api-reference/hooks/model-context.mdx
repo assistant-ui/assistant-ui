@@ -3,7 +3,7 @@ title: Model Context Hooks
 description: React hooks for registering assistant-ui tools, data renderers, instructions, and model context providers.
 ---
 
-import { useAssistantInteractable, useAuiToolOverrides, useInteractableState } from "@/generated/typeDocs";
+import { useAuiToolOverrides, useInteractable, useInteractableState } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -13,15 +13,6 @@ import { useAssistantInteractable, useAuiToolOverrides, useInteractableState } f
 {/* Do not edit this block manually. */}
 
 ## API Reference
-
-### useAssistantInteractable
-
-Registers an interactable with the AI assistant.
-
-This hook handles registration only. To read and write the interactable's
-state, use [useInteractableState](/docs/api-reference/hooks/model-context#useinteractablestate) with the returned id.
-
-<ParametersTable {...useAssistantInteractable} />
 
 ### useAuiToolOverrides
 
@@ -41,11 +32,22 @@ mounted override provider may define a given tool name at a time.
 
 <ParametersTable {...useAuiToolOverrides} />
 
+### useInteractable
+
+Registers an interactable with the AI assistant and returns its state, like
+`useState` that the model can also read and update.
+
+Call this once per interactable instance. Other components can read and
+write the same instance by passing its `id` to [useInteractableState](/docs/api-reference/hooks/model-context#useinteractablestate).
+
+<ParametersTable {...useInteractable} />
+
 ### useInteractableState
 
-Reads and writes the state of a registered interactable.
+Reads and writes the state of an interactable registered elsewhere, by id.
 
-Pair with [useAssistantInteractable](/docs/api-reference/hooks/model-context#useassistantinteractable) which handles registration.
+Use this from secondary readers (children, siblings); the owning component
+registers with [useInteractable](/docs/api-reference/hooks/model-context#useinteractable), which returns state directly.
 
 <ParametersTable {...useInteractableState} />
 {/* api-reference:end */}

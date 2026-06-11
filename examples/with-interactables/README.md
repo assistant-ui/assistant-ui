@@ -11,9 +11,9 @@ Demonstrates **interactable components** — persistent UI components whose stat
 
 ### Sticky Notes (multi-instance + selection + partial updates)
 - Multiple `<NoteCard>` components each call `useInteractable("note", { id: noteId, ... })`
-- **Multi-instance**: each note gets its own `update_note_{id}` tool automatically
-- **Selection**: click a note to select it; AI sees `(SELECTED)` in system prompt and prioritizes it
-- **Partial updates**: AI can change just `{ color: "pink" }` without resending title and content
+- **Multi-instance**: all notes share one `update_note` tool; the AI addresses a note by its `id`
+- **Selection**: click a note to select it; the `selected` flag rides the note's state snapshot so the AI prioritizes it
+- **Partial updates**: AI can change just `{ id, color: "pink" }` without resending title and content
 
 ## Getting Started
 
@@ -33,10 +33,10 @@ Open [http://localhost:3000](http://localhost:3000) to see the example.
 
 ## Key Concepts
 
-- **`Interactables()`** — scope resource registered via `useAui`
-- **`useInteractable(name, config)`** — returns `[state, setState, { id, setSelected }]`
+- **`Interactables({ persistence })`** — scope resource registered via `useAui`, with a `load`/`save` adapter
+- **`useInteractable(name, config)`** — returns `[state, { id, setState, isPending, error, flush }]`
 - **Partial updates** — auto-generated tools use partial schemas; AI only sends changed fields
-- **Multi-instance** — same `name`, different `id`; tools named `update_{name}_{id}`
-- **Selection** — `setSelected(true)` marks a component as focused for the AI
+- **Multi-instance** — same `name`, different `id`; one stable `update_{name}` tool addressed by `id`
+- **Selection** — a `selected` field in the note's own state marks it as focused for the AI
 - **`Tools({ toolkit })`** — custom frontend tools for fine-grained control
 - **`sendAutomaticallyWhen`** — auto-sends follow-up messages when tool calls complete

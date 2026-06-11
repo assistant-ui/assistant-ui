@@ -16,8 +16,7 @@ import {
   Suggestions,
   Tools,
   useAuiToolOverrides,
-  useAssistantInteractable,
-  useInteractableState,
+  useInteractable,
   ThreadPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -49,16 +48,12 @@ import {
 import toolkit from "./interactable-toolkit";
 
 const TaskBoard: FC = () => {
-  const id = useAssistantInteractable("taskBoard", {
+  const [state, { setState }] = useInteractable("taskBoard", {
     description:
       "A task board showing the user's tasks. Use the manage_tasks tool (not update_taskBoard) to add/toggle/remove/clear tasks.",
     stateSchema: taskBoardSchema,
     initialState: taskBoardInitialState,
   });
-  const [state, { setState }] = useInteractableState<TaskBoardState>(
-    id,
-    taskBoardInitialState,
-  );
 
   // One invariant: every task has a stable, unique id. Enforce it wherever
   // state enters the board — including model writes via update_taskBoard, which

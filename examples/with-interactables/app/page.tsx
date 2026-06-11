@@ -16,8 +16,7 @@ import {
   Tools,
   useAui,
   useAuiToolOverrides,
-  useAssistantInteractable,
-  useInteractableState,
+  useInteractable,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
@@ -31,7 +30,6 @@ import {
   PlusIcon,
 } from "lucide-react";
 import {
-  type NoteState,
   type TaskBoardState,
   noteInitialState,
   noteSchema,
@@ -41,16 +39,12 @@ import {
 import toolkit from "./toolkits";
 
 function TaskBoard() {
-  const id = useAssistantInteractable("taskBoard", {
+  const [state, { setState, isPending }] = useInteractable("taskBoard", {
     description:
       "A task board showing the user's tasks. Use the manage_tasks tool (not update_taskBoard) to add/toggle/remove/clear tasks.",
     stateSchema: taskBoardSchema,
     initialState: taskBoardInitialState,
   });
-  const [state, { setState, isPending }] = useInteractableState<TaskBoardState>(
-    id,
-    taskBoardInitialState,
-  );
 
   const doneCount = state.tasks.filter((t) => t.done).length;
 
@@ -191,17 +185,13 @@ function NoteCard({
   onSelect: (id: string) => void;
   onRemove: (id: string) => void;
 }) {
-  useAssistantInteractable("note", {
+  const [state, { setState }] = useInteractable("note", {
     id: noteId,
     description:
-      "A sticky note. The AI can partially update any field (title, content, color) without resending the others.",
+      "A sticky note. The AI can partially update any field (title, content, color, selected) without resending the others.",
     stateSchema: noteSchema,
     initialState: noteInitialState,
   });
-  const [state, { setState }] = useInteractableState<NoteState>(
-    noteId,
-    noteInitialState,
-  );
 
   const isSelected = selectedId === noteId;
 
@@ -372,24 +362,20 @@ function NotesToolOverrides({
 
 const STORAGE_KEY = "interactables-example";
 
-function useInteractablePersistence(aui: ReturnType<typeof useAui>) {
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        aui.interactables().importState(JSON.parse(saved));
-      } catch {
-        // ignore malformed data
-      }
+// Module-level so the adapter identity is stable across renders.
+const persistenceAdapter = {
+  load: () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : undefined;
+    } catch {
+      return undefined; // ignore malformed data
     }
-
-    aui.interactables().setPersistenceAdapter({
-      save: (state) => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      },
-    });
-  }, [aui]);
-}
+  },
+  save: (state: unknown) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  },
+};
 
 export default function Home() {
   const runtime = useChatRuntime({
@@ -397,7 +383,7 @@ export default function Home() {
   });
 
   const aui = useAui({
-    interactables: Interactables(),
+    interactables: Interactables({ persistence: persistenceAdapter }),
     tools: Tools({ toolkit }),
     suggestions: Suggestions([
       {
@@ -418,8 +404,6 @@ export default function Home() {
       },
     ]),
   });
-
-  useInteractablePersistence(aui);
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>

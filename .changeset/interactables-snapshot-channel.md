@@ -1,25 +1,26 @@
 ---
 "@assistant-ui/core": patch
 "@assistant-ui/react": patch
+"@assistant-ui/react-native": patch
+"@assistant-ui/react-ink": patch
 ---
 
-feat: send interactable state via message snapshots instead of the system prompt, and add `scope: "app" | "thread"`
+feat: redesign the interactables API with message snapshots, one stable tool per name, a combined hook, and persistence `load`
 
-BREAKING CHANGE: the top-level `selected` prop on `useAssistantInteractable` and the `setSelected` method returned by `useInteractableState` have been removed. Selection is now modeled as ordinary interactable state, so it flows through the same snapshot, persistence, and `update_*` tool paths as every other field.
+Interactable state now reaches the model through a per-message snapshot stamped on the outgoing user message's `metadata.custom.interactables` instead of the system prompt, and is re-stamped only when the model doesn't already know the state (the model's own `update_*` calls count as known). `getInteractableSnapshots` and `formatInteractableSnapshot` are exported for non-AI-SDK integrations.
 
-Migrate by moving the flag into your `stateSchema`/`initialState` and toggling it with `setState`:
+BREAKING CHANGES:
+
+- `useAssistantInteractable` + `useInteractableState` are merged into a single `useInteractable(name, config)` hook that registers and returns `[state, { id, setState, isPending, error, flush }]`, with the state type inferred from `stateSchema`. `useInteractableState(id, fallback)` remains for secondary readers.
 
 ```diff
-  const noteInitialState = {
-    title: "New Note",
-    content: "",
-+   selected: false,
-  };
-
-- const id = useAssistantInteractable("note", { ...config, selected: isFocused });
-- const [state, { setSelected }] = useInteractableState(id, noteInitialState);
-- setSelected(true);
-+ const id = useAssistantInteractable("note", config);
-+ const [state, { setState }] = useInteractableState(id, noteInitialState);
-+ setState((prev) => ({ ...prev, selected: true }));
+- const id = useAssistantInteractable("taskBoard", config);
+- const [state, { setState }] = useInteractableState(id, initialState);
++ const [state, { setState }] = useInteractable("taskBoard", config);
 ```
+
+- Each interactable name now gets exactly one `update_{name}` tool with a required `id` parameter, instead of per-instance `update_{name}_{id}` tools. Tool names, schemas, and descriptions no longer change as instances mount/unmount. A top-level `id` field in `stateSchema` is now reserved for instance addressing.
+
+- The top-level `selected` prop on registration and the `setSelected` method have been removed. Model selection as ordinary state (a `selected` field in your `stateSchema`).
+
+- The persistence adapter gains an optional `load()` and can be passed directly to the scope: `Interactables({ persistence: { load, save } })`. Loaded state seeds app-scoped interactables as they register; local edits win over a slow load.

@@ -17,7 +17,7 @@ export default defineToolkit({
   },
   manage_notes: {
     description:
-      'Manage sticky notes. Actions: "add" (creates a new note, returns its id), "remove" (requires noteId), "clear" (removes all notes). After adding, use the update_note_{id} tool to set its content.',
+      'Manage sticky notes. Actions: "add" (creates a new note, returns its id), "remove" (requires noteId), "clear" (removes all notes). After adding, use the update_note tool with the returned id to set its content.',
     parameters: manageNotesParameters,
     // The generative compiler strips this stub; NotesToolOverrides provides the real executor.
     execute: stubTool(),

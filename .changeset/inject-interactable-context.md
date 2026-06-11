@@ -15,4 +15,6 @@ Interactable state now reaches the model through a per-message snapshot instead 
 + messages: await convertToModelMessages(injectInteractableContext(messages)),
 ```
 
-Existing interactables apps that relied on automatic system-prompt injection must add this call — otherwise the model can still call `update_*` tools but is blind to current state.
+Existing interactables apps that relied on automatic system-prompt injection must add this call. Otherwise the model can still call `update_*` tools but is blind to current state.
+
+The default snapshot wording is `[Current state of "note" (id: "n1"): {...}]`. The instance id is included because the `update_{name}` tool addresses instances by `id`. If you pass a custom `format`, keep the id visible.
