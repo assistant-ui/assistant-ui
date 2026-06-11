@@ -1,3 +1,32 @@
+## Commands
+
+```sh
+pnpm install          # Node >= 24, pnpm 11
+pnpm turbo build      # required once after install — packages import each other's dist/ outputs
+pnpm lint             # oxlint + oxfmt --check
+pnpm lint:fix         # autofix both
+pnpm test             # turbo test (vitest per package) + test:types (tsc --noEmit per package)
+```
+
+Scope work to a single package with turbo filters, or run vitest from inside the package:
+
+```sh
+pnpm turbo build --filter=@assistant-ui/react                # build one package + its deps
+cd packages/react && pnpm vitest run src/tests/foo.test.ts   # single test file
+cd packages/react && pnpm vitest run -t "test name"          # single test by name
+cd packages/react && pnpm test:watch
+```
+
+Docs site: `pnpm docs:dev`. Examples: `cd examples/<name> && pnpm dev` (build packages first — examples consume their dist outputs).
+
+## Monorepo layout
+
+- `packages/*` — published npm libraries. Built with `aui-build` (from `@assistant-ui/x-buildutils`), tested with vitest.
+- `apps/*` — deployed, never published: `docs` (assistant-ui.com), `registry` (shadcn registry), devtools extension/frame.
+- `examples/*` — runnable demos. They resolve `@/components/assistant-ui/*` to `packages/ui` via tsconfig paths, so they must not carry local copies of those components.
+- `templates/*` — starter templates used by the CLI. Shared components must stay byte-equal with the canonical source in `packages/ui/src/components/assistant-ui`; `pnpm sync-templates` checks, `bash scripts/sync-templates.sh --write` fixes drift.
+- `python/*` — uv-managed Python packages (e.g. the `assistant-stream` server library); not part of the pnpm workspace.
+
 ## Architecture
 
 ```
@@ -7,7 +36,10 @@
 @assistant-ui/react        → Web distribution (re-exports core + adds Radix primitives)
 @assistant-ui/react-native → RN distribution (re-exports core + adds RN primitives)
 @assistant-ui/react-ink    → Ink/terminal distribution
+assistant-stream           → Streaming wire protocol (TypeScript side; python/assistant-stream is the Python counterpart)
 ```
+
+Integration packages (`react-ai-sdk`, `react-langgraph`, `react-a2a`, `react-ag-ui`, …) adapt third-party backends and build on top of `@assistant-ui/react`.
 
 ## Changesets
 
@@ -43,4 +75,4 @@ Assume other coding agents are working alongside you. Before editing, check the 
 
 `@assistant-ui/ui` contains shadcn-style components that get copied into user projects. We use them directly in the monorepo to avoid duplication.
 
-There is an ongoing migration from the legacy runtime architecture to a tap-only architecture.
+There is an ongoing migration from the legacy runtime architecture to a tap-only architecture. Legacy code lives in `packages/react/src/legacy-runtime` and `packages/core/src/runtimes`; new code should use the tap architecture.
