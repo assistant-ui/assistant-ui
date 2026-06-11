@@ -20,7 +20,7 @@ function PropName({ row }: { row: TypeTableRow }) {
   return (
     <code
       className={cn(
-        "text-fd-primary w-1/4 min-w-0 [scrollbar-width:none] overflow-x-auto bg-transparent! [mask-image:linear-gradient(to_right,black_calc(100%-12px),transparent)] p-0! pe-2 font-mono font-medium whitespace-nowrap [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+        "text-fd-primary w-1/4 min-w-0 [scrollbar-width:none] overflow-x-auto bg-transparent! mask-[linear-gradient(to_right,black_calc(100%-12px),transparent)] p-0! pe-2 font-mono font-medium whitespace-nowrap [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
         row.deprecated && "text-fd-primary/50 line-through",
       )}
     >
@@ -40,7 +40,7 @@ function TypeCell({
   return (
     <span
       className={cn(
-        "min-w-0 flex-1 overflow-hidden [&_code]:!border-0 [&_code]:!bg-transparent [&_code]:!p-0 [&_code]:!text-[0.8125rem] [&_pre]:!bg-transparent [&_pre]:!p-0 [&>figure]:!my-0",
+        "min-w-0 flex-1 overflow-hidden [&_code]:border-0! [&_code]:bg-transparent! [&_code]:p-0! [&_code]:text-[0.8125rem]! [&_pre]:bg-transparent! [&_pre]:p-0! [&>figure]:my-0!",
         "[scrollbar-width:none] overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
         className,
       )}
@@ -111,8 +111,10 @@ function Item({
     >
       <Collapsible.Trigger className="not-prose group/trigger hover:bg-fd-accent relative flex w-full flex-row items-center px-3 py-2 text-start">
         <PropName row={row} />
-        <TypeCell className="@max-xl:hidden">{row.type}</TypeCell>
-        <ChevronDown className="text-fd-muted-foreground absolute end-2 size-4 transition-transform group-data-[state=open]/trigger:rotate-180" />
+        <TypeCell className="@max-xl:hidden me-4 mask-[linear-gradient(to_right,black_calc(100%-1rem),transparent)]">
+          {row.type}
+        </TypeCell>
+        <ChevronDown className="text-fd-muted-foreground absolute inset-e-2 size-4 transition-transform group-data-[state=open]/trigger:rotate-180" />
       </Collapsible.Trigger>
 
       <Collapsible.Content
@@ -170,8 +172,8 @@ export function TypeTableClient({
     <div
       id={id}
       className={cn(
-        "bg-fd-card text-fd-card-foreground @container flex flex-col overflow-hidden rounded-2xl border p-1 text-sm",
-        nested ? "bg-fd-secondary/50" : "my-6",
+        "bg-fd-card text-fd-card-foreground flex flex-col overflow-hidden rounded-2xl border p-1 text-sm",
+        nested ? "bg-fd-secondary/50" : "@container my-6",
       )}
     >
       <div className="not-prose text-fd-muted-foreground flex items-center px-3 py-1 font-medium">

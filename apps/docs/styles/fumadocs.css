@@ -473,6 +473,14 @@ figure.shiki {
   counter-reset: step;
 }
 
+/* Steps is not-prose, which drops the .prose link styling — restore it so
+   links inside steps aren't invisible. Mirrors the .prose a rule above. */
+.steps-container :where(a):not([data-card]) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--fd-muted-foreground);
+}
+
 .step-number {
   counter-increment: step;
 }
