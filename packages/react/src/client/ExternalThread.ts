@@ -17,6 +17,7 @@ import type {
   ThreadUserMessagePart,
   ThreadMessage,
   ExternalThreadQueueAdapter,
+  ExternalThreadBranchAdapter,
 } from "@assistant-ui/core";
 import type { QueueItemState } from "@assistant-ui/core/store";
 import type { ComposerSendOptions } from "@assistant-ui/core/store";
@@ -26,6 +27,7 @@ import { Tools, DataRenderers } from "@assistant-ui/core/react";
 import { SingleThreadList } from "./SingleThreadList";
 
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
+const EMPTY_BRANCH_IDS: readonly string[] = [];
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
@@ -52,6 +54,8 @@ export type ExternalThreadProps = {
   onCancel?: () => void;
   /** Queue adapter for runtimes that support message queuing and steering. */
   queue?: ExternalThreadQueueAdapter;
+  /** Branch adapter for runtimes that track sibling variants of messages. */
+  branches?: ExternalThreadBranchAdapter;
 };
 
 type MessageClientProps = {
@@ -60,6 +64,7 @@ type MessageClientProps = {
   onEdit?: (message: AppendMessage) => void;
   onReload?: () => void;
   queue?: ExternalThreadQueueAdapter | undefined;
+  branches?: ExternalThreadBranchAdapter | undefined;
 };
 
 // Message Client - minimal implementation
@@ -69,6 +74,7 @@ const useMessageClient = ({
   onEdit,
   onReload,
   queue,
+  branches,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -125,14 +131,19 @@ const useMessageClient = ({
     }),
   );
 
+  const branchIds = branches?.getBranches(message.id) ?? EMPTY_BRANCH_IDS;
+  const branchIndex = branchIds.indexOf(message.id);
+  const branchNumber = branchIndex === -1 ? 1 : branchIndex + 1;
+  const branchCount = branchIndex === -1 ? 1 : branchIds.length;
+
   const state = useMemo(() => {
     return {
       ...message,
       attachments: message.attachments ?? [],
       parentId: null,
       isLast: false, // Will be set by thread
-      branchNumber: 1,
-      branchCount: 1,
+      branchNumber,
+      branchCount,
       speech: undefined,
       parts: partClients.state,
       isCopied,
@@ -147,6 +158,8 @@ const useMessageClient = ({
     index,
     composerClient.state,
     partClients.state,
+    branchNumber,
+    branchCount,
   ]);
 
   return {
@@ -159,7 +172,20 @@ const useMessageClient = ({
     speak: () => {},
     stopSpeaking: () => {},
     submitFeedback: () => {},
-    switchToBranch: () => {},
+    switchToBranch: ({ position, branchId }) => {
+      if (!branches) return;
+      const target =
+        branchId ??
+        (branchIndex === -1
+          ? undefined
+          : position === "previous"
+            ? branchIds[branchIndex - 1]
+            : position === "next"
+              ? branchIds[branchIndex + 1]
+              : undefined);
+      if (target !== undefined && target !== message.id)
+        branches.switchToBranch(target);
+    },
     getCopyText: () => getThreadMessageText(message),
     part: (selector) => {
       if ("index" in selector) {
@@ -458,6 +484,7 @@ const useExternalThread = ({
   onStartRun,
   onCancel,
   queue,
+  branches,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
   const handleReload = (messageId: string) => {
     const messageIndex = messages.findIndex((m) => m.id === messageId);
@@ -476,11 +503,12 @@ const useExternalThread = ({
           index,
           onReload: () => handleReload(msg.id),
           queue,
+          branches,
         };
         if (onEdit) props.onEdit = onEdit;
         return withKey(msg.id, MessageClient(props));
       }),
-    [messages, onEdit, queue],
+    [messages, onEdit, queue, branches],
   );
 
   const handleCancelRun = () => {
@@ -505,6 +533,7 @@ const useExternalThread = ({
   );
 
   const hasQueue = !!queue;
+  const hasBranches = !!branches;
   const state = useMemo(() => {
     const messageStates = messageClients.state.map((s, idx, arr) => ({
       ...s,
@@ -525,7 +554,7 @@ const useExternalThread = ({
         attachments: false,
         feedback: false,
         voice: false,
-        switchToBranch: false,
+        switchToBranch: hasBranches,
         switchBranchDuringRun: false,
         unstable_copy: false,
         dictation: false,
@@ -543,6 +572,7 @@ const useExternalThread = ({
     messages,
     isRunning,
     hasQueue,
+    hasBranches,
     messageClients.state,
     composerClient.state,
   ]);

@@ -287,6 +287,7 @@ export { pickExternalStoreSharedOptions } from "./runtimes/external-store/extern
 
 // Message queue
 export type { ExternalThreadQueueAdapter } from "./runtime/queue/external-thread-queue-adapter";
+export type { ExternalThreadBranchAdapter } from "./runtime/branch/external-thread-branch-adapter";
 export {
   createMessageQueue,
   type MessageQueueDriver,

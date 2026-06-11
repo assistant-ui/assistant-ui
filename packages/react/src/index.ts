@@ -141,6 +141,7 @@ export {
   type MessageQueueDriver,
   type MessageQueueController,
   type ExternalThreadQueueAdapter,
+  type ExternalThreadBranchAdapter,
 } from "@assistant-ui/core";
 export { useExternalStoreRuntime } from "./legacy-runtime/runtime-cores/external-store/useExternalStoreRuntime";
 export { useExternalStoreSharedOptions } from "@assistant-ui/core/react";
