@@ -111,7 +111,7 @@ function Item({
     >
       <Collapsible.Trigger className="not-prose group/trigger hover:bg-fd-accent relative flex w-full flex-row items-center px-3 py-2 text-start">
         <PropName row={row} />
-        <TypeCell className="@max-xl:hidden me-4 mask-[linear-gradient(to_right,black_calc(100%-1rem),transparent)]">
+        <TypeCell className="me-4 mask-[linear-gradient(to_right,black_calc(100%-1rem),transparent)] @max-xl:hidden">
           {row.type}
         </TypeCell>
         <ChevronDown className="text-fd-muted-foreground absolute inset-e-2 size-4 transition-transform group-data-[state=open]/trigger:rotate-180" />
