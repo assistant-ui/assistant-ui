@@ -1,0 +1,55 @@
+---
+title: Input History
+description: Terminal-style ArrowUp/ArrowDown recall of previously sent messages in the assistant-ui React composer.
+platforms: ["react"]
+---
+
+Input history lets users press ArrowUp in an empty composer to recall previously sent messages, newest first, like a shell prompt. ArrowDown steps back toward the newest entry and finally restores the draft that was being typed when browsing started.
+
+<Callout type="warn">
+  This API is marked unstable and may change without notice.
+</Callout>
+
+## Usage
+
+Spread the hook's bundle onto `ComposerPrimitive.Input`:
+
+```tsx
+import {
+  ComposerPrimitive,
+  unstable_useComposerInputHistory,
+} from "@assistant-ui/react";
+
+const Composer = () => {
+  const history = unstable_useComposerInputHistory();
+
+  return (
+    <ComposerPrimitive.Root>
+      <ComposerPrimitive.Input {...history} />
+      <ComposerPrimitive.Send />
+    </ComposerPrimitive.Root>
+  );
+};
+```
+
+The history ring is derived live from the current thread's user messages (trimmed, with adjacent duplicates collapsed), so it needs no persistence or configuration.
+
+## Behavior
+
+- ArrowUp starts recall only when the composer is empty (whitespace-only drafts count as empty and are restored on the way back down).
+- While a recalled multi-line message is shown, arrows move the caret line by line; recall only steps when the caret is on the first line (ArrowUp) or last line (ArrowDown).
+- An open mention or slash-command popover keeps owning the arrow keys; the hook yields whenever a trigger popover is active.
+- IME composition, modifier keys, text selections, and events a preceding handler already `preventDefault`ed are left untouched.
+- Switching threads or sending a message resets the browse position.
+- The hook is inert on edit composers.
+
+To interleave your own ArrowUp handling ahead of history (for example, stepping through queued messages), compose your handler before the hook's and call `preventDefault` when you consume the key:
+
+```tsx
+<ComposerPrimitive.Input
+  onKeyDown={(e) => {
+    myHandler(e);
+    history.onKeyDown(e);
+  }}
+/>
+```

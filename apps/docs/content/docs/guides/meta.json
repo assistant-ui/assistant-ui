@@ -10,6 +10,7 @@
     "attachments",
     "mentions",
     "slash-commands",
+    "input-history",
     "quoting",
     "dictation",
     "---Messages---",

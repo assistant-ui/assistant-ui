@@ -421,6 +421,12 @@ export type {
 } from "@assistant-ui/core";
 export { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 
+// Unstable - composer input history (terminal-style ArrowUp/ArrowDown recall)
+export {
+  unstable_useComposerInputHistory,
+  type Unstable_ComposerInputHistory,
+} from "./unstable/useComposerInputHistory";
+
 export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
