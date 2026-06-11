@@ -28,13 +28,13 @@ assistant-ui ships React adapter packages for these. Pick the matching card and 
     icon={<VercelIcon width={20} height={20} />}
     title="Vercel AI SDK"
     description="useChat hook, streaming, tools, attachments, multi-step. v6 current; v5 / v4 legacy."
-    href="/docs/runtimes/ai-sdk"
+    href="/docs/runtimes/ai-sdk/overview"
   />
   <Card
     icon={<LangGraphIcon width={20} height={20} className="text-[#1C3C3C] dark:text-[#5b9595]" />}
     title="LangGraph"
     description="Direct integration with @langchain/langgraph-sdk. Subgraph events, UI messages, message metadata."
-    href="/docs/runtimes/langgraph"
+    href="/docs/runtimes/langgraph/overview"
   />
   <Card
     icon={<LangChainIcon width={20} height={20} className="text-[#7FC8FF]" />}
@@ -46,7 +46,7 @@ assistant-ui ships React adapter packages for these. Pick the matching card and 
     icon={<AdkIcon width={20} height={20} />}
     title="Google ADK"
     description="ADK JS or Python agents. Tool confirmations, auth flows, multi-agent, code execution."
-    href="/docs/runtimes/google-adk"
+    href="/docs/runtimes/google-adk/overview"
   />
   <Card
     icon={<A2AIcon width={20} height={20} />}
@@ -58,14 +58,14 @@ assistant-ui ships React adapter packages for these. Pick the matching card and 
     icon={<AguiIcon width={20} height={20} />}
     title="AG-UI Protocol"
     description="AG-UI agents (CopilotKit, custom servers). Streaming text, thinking, tool calls, state snapshots."
-    href="/docs/runtimes/ag-ui"
+    href="/docs/runtimes/ag-ui/overview"
   />
   <PlatformOnly platforms={["react"]}>
     <Card
       icon={<OpenCodeIcon width={20} height={20} />}
       title="OpenCode"
       description="OpenCode coding-agent server. Permission flows, questions, fork / revert. Experimental."
-      href="/docs/runtimes/opencode"
+      href="/docs/runtimes/opencode/overview"
     />
   </PlatformOnly>
 </Cards>
@@ -104,7 +104,7 @@ If you do not know your framework yet, or your backend is custom, pick by what y
 | Backend that already speaks the data stream protocol | [DataStream](/docs/runtimes/custom/data-stream) |
 | Stream full agent state snapshots (not just messages) | [AssistantTransport](/docs/runtimes/custom/assistant-transport) |
 
-If none of the framework adapters fits, start at [custom backend](/docs/runtimes/custom).
+If none of the framework adapters fits, start at [custom backend](/docs/runtimes/custom/overview).
 
 ## Shared concepts
 
