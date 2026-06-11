@@ -49,6 +49,20 @@ export type InteractablePersistedState = Record<
 
 export type InteractablePersistenceAdapter = {
   save(state: InteractablePersistedState): void | Promise<void>;
+  /**
+   * Restores previously saved state. Called when the adapter is attached;
+   * loaded state seeds app-scoped interactables that have not been locally
+   * edited yet (a local edit always wins over a slow load).
+   */
+  load?():
+    | InteractablePersistedState
+    | null
+    | undefined
+    | Promise<InteractablePersistedState | null | undefined>;
+};
+
+export type InteractablesConfig = {
+  persistence?: InteractablePersistenceAdapter | undefined;
 };
 
 export type InteractablesMethods = {

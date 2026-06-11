@@ -92,6 +92,12 @@ export { mergeModelContexts } from "./model-context/types";
 
 export { tool } from "./model-context/tool";
 
+export {
+  getInteractableSnapshots,
+  formatInteractableSnapshot,
+  type InteractableSnapshotEntry,
+} from "./model-context/interactable-composer-metadata";
+
 export type { ToolExecutionStatus } from "./runtimes/tool-invocations/ToolInvocationTracker";
 
 export { ModelContextRegistry } from "./model-context/registry";

@@ -1,23 +1,9 @@
 import type { UIMessage } from "ai";
-
-type InteractableSnapshotItem = { name: string; id: string; state: unknown };
-
-const defaultFormat = (item: InteractableSnapshotItem): string =>
-  `[Current state of "${item.name}": ${JSON.stringify(item.state)}]`;
-
-const getInteractables = (
-  metadata: unknown,
-): InteractableSnapshotItem[] | undefined => {
-  if (!metadata || typeof metadata !== "object") return undefined;
-
-  const custom = (metadata as Record<string, unknown>).custom;
-  if (!custom || typeof custom !== "object") return undefined;
-
-  const items = (custom as Record<string, unknown>).interactables;
-  return Array.isArray(items)
-    ? (items as InteractableSnapshotItem[])
-    : undefined;
-};
+import {
+  formatInteractableSnapshot,
+  getInteractableSnapshots,
+  type InteractableSnapshotEntry,
+} from "@assistant-ui/core";
 
 /**
  * Injects interactable state snapshots into messages as model-visible text.
@@ -29,7 +15,8 @@ const getInteractables = (
  *
  * Wording is consumer-owned — pass `format` to control how each snapshot reads.
  * A snapshot may originate from a user edit or an agent `update_*` call, so the
- * default phrasing is neutral.
+ * default phrasing is neutral. Keep the instance id visible in custom wording:
+ * the model needs it to address the `update_*` tool's `id` parameter.
  *
  * @example
  * ```ts
@@ -48,12 +35,14 @@ const getInteractables = (
  */
 export function injectInteractableContext(
   messages: UIMessage[],
-  format: (item: InteractableSnapshotItem) => string = defaultFormat,
+  format: (
+    item: InteractableSnapshotEntry,
+  ) => string = formatInteractableSnapshot,
 ): UIMessage[] {
   return messages.map((msg) => {
     if (msg.role !== "user") return msg;
 
-    const items = getInteractables(msg.metadata);
+    const items = getInteractableSnapshots(msg);
     if (!items?.length) return msg;
 
     const text = `${items.map(format).join("\n")}\n\n`;

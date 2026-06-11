@@ -53,9 +53,10 @@ export {
   type McpToolkitDefinition,
 } from "./model-context/define-mcp-toolkit";
 export {
-  useAssistantInteractable,
-  type AssistantInteractableProps,
-} from "./model-context/useAssistantInteractable";
+  useInteractable,
+  type InteractableConfig,
+  type InferInteractableState,
+} from "./model-context/useInteractable";
 export { useInteractableState } from "./model-context/useInteractableState";
 export {
   useToolArgsStatus,
@@ -116,6 +117,7 @@ export type {
   InteractablePersistenceAdapter,
   InteractablePersistenceStatus,
   InteractablesClientSchema,
+  InteractablesConfig,
 } from "./types/scopes/interactables";
 
 // providers

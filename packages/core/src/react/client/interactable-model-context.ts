@@ -1,30 +1,51 @@
 import type { Tool } from "assistant-stream";
-import type {
-  InteractableDefinition,
-  InteractableStateSchema,
-} from "../types/scopes/interactables";
-import type { InteractableSnapshotEntry } from "../../model-context/interactable-composer-metadata";
+import { toJSONSchema } from "assistant-stream";
+import type { InteractableDefinition } from "../types/scopes/interactables";
+import {
+  interactableToolName,
+  shallowMergeInteractableState,
+  type InteractableSnapshotEntry,
+} from "../../model-context/interactable-composer-metadata";
 
-export function shallowMerge(prev: unknown, partial: unknown): unknown {
-  if (
-    typeof prev !== "object" ||
-    prev === null ||
-    typeof partial !== "object" ||
-    partial === null ||
-    Array.isArray(prev) ||
-    Array.isArray(partial)
-  ) {
-    return partial;
+type PartialJSONSchema = ReturnType<typeof toJSONSchema>;
+
+const ID_PROPERTY = {
+  type: "string" as const,
+  description:
+    "The id of the instance to update, as shown in its state snapshot in the conversation.",
+};
+
+/**
+ * Wraps an interactable's partial state schema with the required `id`
+ * parameter. Falls back to a permissive schema when the partial conversion
+ * failed at registration time.
+ */
+function withRequiredId(partial: PartialJSONSchema | undefined) {
+  if (!partial || typeof partial !== "object" || partial.type !== "object") {
+    return {
+      type: "object" as const,
+      properties: { id: ID_PROPERTY },
+      required: ["id"],
+      additionalProperties: true,
+    };
+  }
+  if (process.env.NODE_ENV !== "production" && partial.properties?.id) {
+    console.warn(
+      `[Interactables] a top-level "id" field in an interactable's stateSchema is ` +
+        `reserved for instance addressing by the update tool and cannot be updated ` +
+        `by the model. Rename the field to make it model-writable.`,
+    );
   }
   return {
-    ...(prev as Record<string, unknown>),
-    ...(partial as Record<string, unknown>),
+    ...partial,
+    properties: { id: ID_PROPERTY, ...partial.properties },
+    required: ["id"],
   };
 }
 
 export function buildInteractableModelContext(
   definitions: Record<string, InteractableDefinition>,
-  partialSchemaCache: Map<string, InteractableStateSchema>,
+  partialSchemaCache: Map<string, PartialJSONSchema>,
   setDefState: (id: string, updater: (prev: unknown) => unknown) => void,
 ):
   | {
@@ -45,36 +66,71 @@ export function buildInteractableModelContext(
   const tools: Record<string, Tool<any, any>> = {};
 
   for (const [name, instances] of byName) {
-    const isMulti = instances.length > 1;
-
-    for (const def of instances) {
-      const safeName = name.replace(/[^a-zA-Z0-9_-]/g, "_");
-      const safeId = def.id.replace(/[^a-zA-Z0-9_-]/g, "_");
-      const toolName = isMulti
-        ? `update_${safeName}_${safeId}`
-        : `update_${safeName}`;
-
-      const partialSchema = partialSchemaCache.get(def.id) ?? def.stateSchema;
-
-      tools[toolName] = {
-        type: "frontend",
-        description: `Update the state of interactable component "${name}"${isMulti ? ` (id: ${def.id})` : ""}. Only include the fields you want to change; omitted fields keep their current values. ${def.description}`,
-        parameters: partialSchema,
-        streamCall: async (reader) => {
-          try {
-            for await (const partialArgs of reader.args.streamValues()) {
-              setDefState(def.id, (prev) => shallowMerge(prev, partialArgs));
-            }
-          } catch {
-            // Non-fatal: execute handles the final state
-          }
-        },
-        execute: async (partialState: unknown) => {
-          setDefState(def.id, (prev) => shallowMerge(prev, partialState));
-          return { success: true };
-        },
-      };
+    const toolName = interactableToolName(name);
+    if (tools[toolName]) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          `[Interactables] interactable names "${name}" and another registered name ` +
+            `both sanitize to the tool name "${toolName}". Rename one of them.`,
+        );
+      }
+      continue;
     }
+
+    const first = instances[0]!;
+
+    // `id` resolves to a definition of this name; an id-less call is accepted
+    // only while exactly one instance exists.
+    const resolveTarget = (id: unknown): InteractableDefinition | undefined => {
+      if (typeof id === "string") {
+        const def = definitions[id];
+        return def?.name === name ? def : undefined;
+      }
+      return instances.length === 1 ? first : undefined;
+    };
+
+    tools[toolName] = {
+      type: "frontend",
+      description:
+        `Update the state of interactable component "${name}". ${first.description} ` +
+        `Pass the id of the instance to update — instance ids and current state ` +
+        `appear in the conversation as state snapshots. Only include the fields ` +
+        `you want to change; omitted fields keep their current values.`,
+      parameters: withRequiredId(partialSchemaCache.get(first.id)),
+      streamCall: async (reader) => {
+        try {
+          for await (const partialArgs of reader.args.streamValues()) {
+            if (!partialArgs || typeof partialArgs !== "object") continue;
+            const { id, ...partial } = partialArgs as Record<string, unknown>;
+            // While `id` is the only key it may still be mid-stream; once any
+            // state field has started streaming, `id` is complete.
+            if (Object.keys(partial).length === 0) continue;
+            const target = resolveTarget(id);
+            if (!target) continue;
+            setDefState(target.id, (prev) =>
+              shallowMergeInteractableState(prev, partial),
+            );
+          }
+        } catch {
+          // Non-fatal: execute handles the final state
+        }
+      },
+      execute: async (args: unknown) => {
+        const { id, ...partial } = (args ?? {}) as Record<string, unknown>;
+        const target = resolveTarget(id);
+        if (!target) {
+          const validIds = instances.map((d) => d.id);
+          return {
+            success: false,
+            error: `Unknown id ${JSON.stringify(id)} for interactable "${name}". Valid ids: ${validIds.join(", ")}`,
+          };
+        }
+        setDefState(target.id, (prev) =>
+          shallowMergeInteractableState(prev, partial),
+        );
+        return { success: true };
+      },
+    };
   }
 
   const interactables: InteractableSnapshotEntry[] = entries.map((def) => ({

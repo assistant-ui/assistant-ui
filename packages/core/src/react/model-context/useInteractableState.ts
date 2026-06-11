@@ -4,9 +4,10 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 type StateUpdater<TState> = TState | ((prev: TState) => TState);
 
 /**
- * Reads and writes the state of a registered interactable.
+ * Reads and writes the state of an interactable registered elsewhere, by id.
  *
- * Pair with {@link useAssistantInteractable} which handles registration.
+ * Use this from secondary readers (children, siblings); the owning component
+ * registers with {@link useInteractable}, which returns state directly.
  */
 export const useInteractableState = <TState>(
   id: string,

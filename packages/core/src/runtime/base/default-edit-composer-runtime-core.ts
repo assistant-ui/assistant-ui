@@ -7,6 +7,7 @@ import type { DictationAdapter } from "../../adapters/speech";
 import type { SendOptions } from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
+import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
 
 export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   public get canCancel() {
@@ -30,7 +31,6 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   private _nonTextPassthrough: readonly ThreadMessage["content"][number][];
   private _parentId: string | null;
   private _sourceId: string | null;
-  private _sourceInteractables: unknown;
   constructor(
     private runtime: ThreadRuntimeCore & {
       adapters?:
@@ -46,11 +46,6 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     super();
     this._parentId = parentId;
     this._sourceId = message.id;
-    // Preserve the interactable snapshot this message ran with so the new branch
-    // keeps its model-facing baseline (the edit composer rebuilds metadata fresh).
-    this._sourceInteractables = (
-      message.metadata?.custom as Record<string, unknown> | undefined
-    )?.interactables;
     this._previousText = getThreadMessageText(message);
     this.setText(this._previousText);
 
@@ -103,15 +98,24 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
               ...this._nonTextPassthrough,
             ] as AppendMessage["content"])
           : message.content;
-      const enriched = this._sourceInteractables
+      // Gate live state against the new branch's prefix (messages up to the
+      // parent): an unchanged interactable re-stamps the prior baseline, an
+      // interactable edited since the original message stamps its newest state.
+      const messages = this.runtime.messages;
+      const parentIndex =
+        this._parentId === null
+          ? -1
+          : messages.findIndex((m) => m.id === this._parentId);
+      const composerMetadata = gateInteractableComposerMetadata(
+        this.runtime.getModelContext().unstable_composerMetadata,
+        messages.slice(0, parentIndex + 1),
+      );
+      const enriched = composerMetadata
         ? {
             ...message,
             metadata: {
               ...message.metadata,
-              custom: {
-                ...message.metadata?.custom,
-                interactables: this._sourceInteractables,
-              },
+              custom: { ...message.metadata?.custom, ...composerMetadata },
             },
           }
         : message;

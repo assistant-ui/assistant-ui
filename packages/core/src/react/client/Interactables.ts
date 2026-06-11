@@ -8,18 +8,22 @@ import {
 import type {
   InteractablesState,
   InteractableRegistration,
-  InteractableStateSchema,
   InteractablePersistedState,
   InteractablePersistenceAdapter,
+  InteractablesConfig,
 } from "../types/scopes/interactables";
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store";
 import { buildInteractableModelContext } from "./interactable-model-context";
-import { findLatestSnapshotEntry } from "../../model-context/interactable-composer-metadata";
+import { findModelKnownState } from "../../model-context/interactable-composer-metadata";
 
 const PERSISTENCE_DEBOUNCE_MS = 500;
 
-const useInteractables = (): ClientOutput<"interactables"> => {
+type PartialJSONSchema = ReturnType<typeof toJSONSchema>;
+
+const useInteractables = ({
+  persistence,
+}: InteractablesConfig = {}): ClientOutput<"interactables"> => {
   const [state, setState] = useState<InteractablesState>(() => ({
     definitions: {},
     persistence: {},
@@ -30,10 +34,12 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const stateRef = useRef(state);
 
   const subscribersRef = useRef(new Set<() => void>());
-  const partialSchemaCacheRef = useRef(
-    new Map<string, InteractableStateSchema>(),
-  );
+  const partialSchemaCacheRef = useRef(new Map<string, PartialJSONSchema>());
   const detachedStateRef = useRef(new Map<string, unknown>());
+  // App-scoped state restored via adapter.load(), consumed as components register.
+  const loadedStateRef = useRef(new Map<string, unknown>());
+  // Ids edited locally this session — a local edit always wins over a slow load.
+  const touchedIdsRef = useRef(new Set<string>());
 
   const adapterRef = useRef<InteractablePersistenceAdapter | undefined>(
     undefined,
@@ -174,12 +180,62 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     [setStateAndRef],
   );
 
+  // Applies adapter.load() output: a local edit made while the load was in
+  // flight wins, and thread-scoped items never restore from the adapter.
+  const applyLoadedState = useCallback(
+    (saved: InteractablePersistedState) => {
+      for (const [id, entry] of Object.entries(saved)) {
+        if (touchedIdsRef.current.has(id)) continue;
+        loadedStateRef.current.set(id, entry.state);
+      }
+      setStateAndRef((prev) => {
+        let changed = false;
+        const definitions = { ...prev.definitions };
+        for (const [id, entry] of Object.entries(saved)) {
+          if (touchedIdsRef.current.has(id)) continue;
+          const def = definitions[id];
+          if (!def || def.scope === "thread") continue;
+          definitions[id] = { ...def, state: entry.state };
+          changed = true;
+        }
+        if (!changed) return prev;
+        return { ...prev, definitions };
+      });
+    },
+    [setStateAndRef],
+  );
+
+  const loadFromAdapter = useCallback(
+    async (adapter: InteractablePersistenceAdapter) => {
+      if (!adapter.load) return;
+      try {
+        const saved = await adapter.load();
+        if (!saved || adapterRef.current !== adapter) return;
+        applyLoadedState(saved);
+      } catch (e) {
+        console.warn("[Interactables] Persistence load failed.", e);
+      }
+    },
+    [applyLoadedState],
+  );
+
   const setPersistenceAdapter = useCallback(
     (adapter: InteractablePersistenceAdapter | undefined) => {
       adapterRef.current = adapter;
+      if (adapter) void loadFromAdapter(adapter);
     },
-    [],
+    [loadFromAdapter],
   );
+
+  useEffect(() => {
+    if (!persistence) return;
+    setPersistenceAdapter(persistence);
+    return () => {
+      if (adapterRef.current === persistence) {
+        adapterRef.current = undefined;
+      }
+    };
+  }, [persistence, setPersistenceAdapter]);
 
   const flush = useCallback(async () => {
     if (debounceTimerRef.current !== undefined) {
@@ -208,6 +264,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
   const setDefState = useCallback(
     (id: string, updater: (prev: unknown) => unknown) => {
+      touchedIdsRef.current.add(id);
       setStateAndRef((prev) => {
         const existing = prev.definitions[id];
         if (!existing) return prev;
@@ -256,6 +313,17 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
   const register = useCallback(
     (def: InteractableRegistration) => {
+      if (
+        process.env.NODE_ENV !== "production" &&
+        stateRef.current.definitions[def.id]
+      ) {
+        console.warn(
+          `[Interactables] "${def.name}" (${def.id}) is already registered. ` +
+            `Register an interactable once (useInteractable) and read it from ` +
+            `other components with useInteractableState.`,
+        );
+      }
+
       try {
         const jsonSchema = toJSONSchema(def.stateSchema);
         partialSchemaCacheRef.current.set(
@@ -264,28 +332,31 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         );
       } catch (e) {
         console.warn(
-          `[Interactables] Failed to create partial schema for "${def.name}". The update tool will require all fields.`,
+          `[Interactables] Failed to create partial schema for "${def.name}". The update tool will accept arbitrary fields without validation.`,
           e,
         );
       }
 
       const detached = detachedStateRef.current.get(def.id);
       detachedStateRef.current.delete(def.id);
+      const loaded =
+        def.scope === "thread" ? undefined : loadedStateRef.current.get(def.id);
 
-      // Thread-scoped items restore from their latest history snapshot on a
-      // fresh reload (no adapter blob); detached (in-session remount) still
-      // wins so an unsent edit survives a scroll/virtualization cycle.
-      // Thread-scoped seeding reads history, only reachable when a thread
-      // scope is in context; the accessor throws otherwise, so guard it.
+      // Thread-scoped items restore from what the model already knows in this
+      // thread (latest snapshot + the model's own update_* calls) on a fresh
+      // reload; detached (in-session remount) still wins so an unsent edit
+      // survives a scroll/virtualization cycle. The thread accessor throws
+      // when no thread scope is in context, so guard it.
       const threadAccessor = clientRef.current?.thread;
-      const snapshot =
+      const known =
         def.scope === "thread" &&
         threadAccessor &&
         threadAccessor.source != null
-          ? findLatestSnapshotEntry(
+          ? findModelKnownState(
               threadAccessor().getState().messages ?? [],
               def.id,
-            )?.state
+              def.name,
+            )
           : undefined;
 
       setStateAndRef((prev) => ({
@@ -302,7 +373,8 @@ const useInteractables = (): ClientOutput<"interactables"> => {
             state:
               prev.definitions[def.id]?.state ??
               detached ??
-              snapshot ??
+              (known ? known.state : undefined) ??
+              loaded ??
               def.initialState,
           },
         },
