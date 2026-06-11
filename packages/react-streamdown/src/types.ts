@@ -275,6 +275,16 @@ export type StreamdownTextPrimitiveProps = Omit<
   preprocess?: ((text: string) => string) | undefined;
 
   /**
+   * Defers markdown parsing and rendering to a lower priority via React's
+   * `useDeferredValue`, so urgent work (typing, scrolling) is not blocked by
+   * re-parsing the growing message on every streamed token. Intermediate
+   * streaming states may be skipped under load; the final text always renders.
+   *
+   * @default false
+   */
+  defer?: boolean | undefined;
+
+  /**
    * Container element props.
    */
   containerProps?:

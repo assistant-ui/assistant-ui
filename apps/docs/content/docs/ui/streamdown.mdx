@@ -119,6 +119,7 @@ const StreamdownText = () => (
 | `components` | `object` | - | Custom components including `SyntaxHighlighter` and `CodeHeader` |
 | `componentsByLanguage` | `object` | - | Language-specific component overrides |
 | `preprocess` | `(text: string) => string` | - | Text preprocessing function |
+| `defer` | `boolean` | `false` | Defer markdown parsing to a lower priority via `useDeferredValue` so typing and scrolling stay responsive during streaming |
 | `controls` | `boolean \| object` | `true` | Enable/disable UI controls for code blocks and tables |
 | `caret` | `"block" \| "circle"` | - | Streaming caret style |
 | `mermaid` | `MermaidOptions` | - | Mermaid diagram configuration |

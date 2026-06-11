@@ -59,6 +59,35 @@ describe("StreamdownTextPrimitive", () => {
     ).toBe(false);
   });
 
+  it("settles on the latest text when defer is enabled", async () => {
+    const { rerender } = render(
+      <TextMessagePartProvider text="first chunk" isRunning>
+        <StreamdownTextPrimitive defer />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("first chunk")).toBeTruthy();
+
+    rerender(
+      <TextMessagePartProvider text="first chunk second chunk" isRunning>
+        <StreamdownTextPrimitive defer />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("first chunk second chunk")).toBeTruthy();
+
+    rerender(
+      <TextMessagePartProvider
+        text="first chunk second chunk"
+        isRunning={false}
+      >
+        <StreamdownTextPrimitive defer />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("first chunk second chunk")).toBeTruthy();
+  });
+
   describe("code adapter with custom components", () => {
     const fencedMarkdown = "```ts\nconst x = 1;\n```";
 

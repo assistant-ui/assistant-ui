@@ -5,7 +5,12 @@ import { harden } from "rehype-harden";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import { Streamdown, type StreamdownProps } from "streamdown";
-import { type ComponentRef, forwardRef, useMemo } from "react";
+import {
+  type ComponentRef,
+  forwardRef,
+  useDeferredValue,
+  useMemo,
+} from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
 import type { SecurityConfig, StreamdownTextPrimitiveProps } from "../types";
@@ -84,6 +89,7 @@ export const StreamdownTextPrimitive = forwardRef<
       components,
       componentsByLanguage,
       preprocess,
+      defer = false,
 
       // plugin configuration
       plugins: userPlugins,
@@ -115,9 +121,12 @@ export const StreamdownTextPrimitive = forwardRef<
   ) => {
     const { text, status } = useMessagePartText();
 
+    const deferredText = useDeferredValue(text);
+    const resolvedText = defer ? deferredText : text;
+
     const processedText = useMemo(
-      () => (preprocess ? preprocess(text) : text),
-      [text, preprocess],
+      () => (preprocess ? preprocess(resolvedText) : resolvedText),
+      [resolvedText, preprocess],
     );
 
     const resolvedPlugins = useMemo(() => {

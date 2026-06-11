@@ -8,6 +8,7 @@ import {
   forwardRef,
   type ForwardRefExoticComponent,
   type RefAttributes,
+  useDeferredValue,
   useMemo,
   type ComponentPropsWithoutRef,
   type ComponentType,
@@ -62,6 +63,15 @@ export type MarkdownTextPrimitiveProps = Omit<
     | undefined;
   smooth?: boolean | undefined;
   /**
+   * Defers markdown parsing and rendering to a lower priority via React's
+   * `useDeferredValue`, so urgent work (typing, scrolling) is not blocked by
+   * re-parsing the growing message on every streamed token. Intermediate
+   * streaming states may be skipped under load; the final text always renders.
+   *
+   * @default false
+   */
+  defer?: boolean | undefined;
+  /**
    * Function to transform text before markdown processing.
    */
   preprocess?: (text: string) => string;
@@ -71,6 +81,7 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   components: userComponents,
   componentsByLanguage,
   smooth = true,
+  defer = false,
   preprocess,
   ...rest
 }) => {
@@ -86,6 +97,9 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   }, [messagePartText, preprocess]);
 
   const { text } = useSmooth(processedMessagePart, smooth);
+
+  const deferredText = useDeferredValue(text);
+  const resolvedText = defer ? deferredText : text;
 
   const {
     pre = DefaultPre,
@@ -121,7 +135,7 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
 
   return (
     <ReactMarkdown components={components} {...rest}>
-      {text}
+      {resolvedText}
     </ReactMarkdown>
   );
 };
