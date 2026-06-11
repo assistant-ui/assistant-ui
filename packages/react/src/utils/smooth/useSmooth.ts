@@ -84,7 +84,7 @@ class TextStreamAnimator {
     }
     // A cap-limited frame must not bank its surplus time, or the next
     // frame would burst past the cap.
-    if (charsToAdd === this.maxCharsPerFrame) {
+    if (charsToAdd === frameLimit && frameLimit === this.maxCharsPerFrame) {
       timeToConsume = 0;
     }
 
@@ -108,17 +108,39 @@ const SMOOTH_STATUS: MessagePartStatus = Object.freeze({
   type: "running",
 });
 
+const positiveOr = (value: number | undefined, fallback: number): number =>
+  value !== undefined && value > 0 ? value : fallback;
+
+/**
+ * Animates streamed message part text with a typewriter-style reveal.
+ *
+ * Takes the current part state and a `smooth` argument: `false` disables,
+ * `true` uses the default rate, and a {@link SmoothOptions} object tunes
+ * the reveal. Returns the part state with `text` replaced by the revealed
+ * prefix and `status` reporting `running` until the reveal catches up.
+ *
+ * @example
+ * ```tsx
+ * const { text, status } = useSmooth(useMessagePartText(), {
+ *   drainMs: 500,
+ *   maxCharsPerFrame: 30,
+ * });
+ * ```
+ */
 export const useSmooth = (
   state: MessagePartState & (TextMessagePart | ReasoningMessagePart),
   smooth: boolean | SmoothOptions = false,
 ): MessagePartState & (TextMessagePart | ReasoningMessagePart) => {
   const { text } = state;
-  const enabled = smooth !== false;
-  const {
-    drainMs = DEFAULT_DRAIN_MS,
-    maxCharIntervalMs = DEFAULT_MAX_CHAR_INTERVAL_MS,
-    maxCharsPerFrame = Infinity,
-  } = typeof smooth === "object" ? smooth : {};
+  const options =
+    typeof smooth === "object" && smooth !== null ? smooth : undefined;
+  const enabled = smooth !== false && smooth !== null;
+  const drainMs = positiveOr(options?.drainMs, DEFAULT_DRAIN_MS);
+  const maxCharIntervalMs = positiveOr(
+    options?.maxCharIntervalMs,
+    DEFAULT_MAX_CHAR_INTERVAL_MS,
+  );
+  const maxCharsPerFrame = positiveOr(options?.maxCharsPerFrame, Infinity);
 
   const [displayedText, setDisplayedText] = useState(
     state.status.type === "running" ? "" : text,
