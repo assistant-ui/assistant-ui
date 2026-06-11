@@ -568,7 +568,7 @@ return {
 
 A tool call with a pending approval pauses the run, whether or not the tool is listed in `unstable_humanToolNames`. Always emit gates in the pending state (`approval: { id }` with no `approved` field); a part that arrives already decided is treated as resolved and the runtime invokes the adapter again immediately. The stock [`ToolFallback`](/docs/ui/tool-fallback) Allow and Deny buttons, or a custom renderer calling `respondToApproval({ approved, reason? })`, record the decision:
 
-- **Deny** sets `approval.approved: false` and synthesizes an error result (`{ error: reason ?? "Tool approval denied" }` with `isError: true`), so the model sees the denial.
+- **Deny** sets `approval.approved: false` and synthesizes an error result (`{ error: reason || "Tool approval denied" }` with `isError: true`), so the model sees the denial.
 - **Allow** sets `approval.approved: true` and leaves the result empty; performing the action is your adapter's job.
 
 Once every pending approval on the message is decided and every listed human tool has a result, the runtime invokes your adapter again. Read the decisions from `unstable_getMessage().content`, perform the approved actions, and return the follow-up response. A tool call that carries an approval is owned by the gate: it does not additionally require a result, even when its name is listed in `unstable_humanToolNames`.

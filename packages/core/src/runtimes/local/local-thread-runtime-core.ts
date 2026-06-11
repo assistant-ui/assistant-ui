@@ -629,6 +629,8 @@ export class LocalThreadRuntimeCore
     this.repository.addOrUpdateMessage(parentId, message);
     this._notifySubscribers();
 
+    // a result may arrive mid-run or on a non-head message; the resume
+    // intentionally aborts any in-flight run, unlike respondToToolApproval
     if (
       added &&
       shouldContinue(message, this._options.unstable_humanToolNames)
@@ -671,11 +673,11 @@ export class LocalThreadRuntimeCore
         "Tried to respond to a tool approval on a message whose status is not requires-action",
       );
 
-    let pending = false;
+    let recorded = false;
     const newContent = message.content.map((c) => {
       if (c.type !== "tool-call" || c.approval?.id !== approvalId) return c;
       if (c.approval.approved !== undefined) return c;
-      pending = true;
+      recorded = true;
       const approval = {
         ...c.approval,
         approved,
@@ -685,12 +687,12 @@ export class LocalThreadRuntimeCore
       return {
         ...c,
         approval,
-        result: { error: reason ?? "Tool approval denied" },
+        result: { error: reason || "Tool approval denied" },
         isError: true,
       };
     });
 
-    if (!pending)
+    if (!recorded)
       throw new Error("Tried to respond to an already decided tool approval");
 
     message = { ...message, content: newContent };
