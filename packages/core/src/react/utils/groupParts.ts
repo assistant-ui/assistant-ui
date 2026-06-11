@@ -119,6 +119,11 @@ export interface GroupNodeGroup {
   readonly key: string;
   /** Structural React key: sibling-index path, e.g. `"0.1.0"`. */
   readonly nodeKey: string;
+  /**
+   * Identity key (`"id:<partId>"`) from the group's first part; undefined
+   * when absent or already claimed by an earlier sibling.
+   */
+  readonly idKey: string | undefined;
   /** Indices of parts in this subtree, in order. */
   readonly indices: readonly number[];
   readonly children: readonly GroupNode[];
@@ -130,6 +135,11 @@ export interface GroupNodePart {
   readonly index: number;
   /** Structural React key: sibling-index path within parent. */
   readonly nodeKey: string;
+  /**
+   * Identity key (`"id:<partId>"`); undefined when absent or already
+   * claimed by an earlier sibling.
+   */
+  readonly idKey: string | undefined;
 }
 
 interface BuildFrame {
@@ -138,6 +148,7 @@ interface BuildFrame {
   indices: number[];
   children: GroupNode[];
   nextChildIdx: number;
+  claimed: Set<string>;
 }
 
 const makeChildNodeKey = (parent: BuildFrame): string => {
@@ -145,13 +156,25 @@ const makeChildNodeKey = (parent: BuildFrame): string => {
   return parent.nodeKey === "" ? String(idx) : `${parent.nodeKey}.${idx}`;
 };
 
+const claimIdKey = (
+  frame: BuildFrame,
+  id: string | undefined,
+): string | undefined => {
+  if (id === undefined || frame.claimed.has(id)) return undefined;
+  frame.claimed.add(id);
+  return `id:${id}`;
+};
+
 /**
  * Build the group tree from an array of normalized group paths.
  * `paths[i]` is the path for part `i`. The output tree contains one
  * `part` node per part and one `group` node per coalesced run.
+ * `partIds[i]` optionally carries a stable identity for part `i` (e.g. a
+ * tool call id), from which nodes derive an `idKey`.
  */
 export const buildGroupTree = (
   paths: readonly (readonly string[])[],
+  partIds?: readonly (string | undefined)[],
 ): readonly GroupNode[] => {
   const root: BuildFrame = {
     key: "",
@@ -159,6 +182,7 @@ export const buildGroupTree = (
     indices: [],
     children: [],
     nextChildIdx: 0,
+    claimed: new Set(),
   };
   const stack: BuildFrame[] = [root];
 
@@ -169,6 +193,7 @@ export const buildGroupTree = (
       type: "group",
       key: closing.key,
       nodeKey: closing.nodeKey,
+      idKey: claimIdKey(parent, partIds?.[closing.indices[0]!]),
       indices: closing.indices,
       children: closing.children,
     });
@@ -202,6 +227,7 @@ export const buildGroupTree = (
         indices: [],
         children: [],
         nextChildIdx: 0,
+        claimed: new Set(),
       });
     }
 
@@ -211,6 +237,7 @@ export const buildGroupTree = (
       type: "part",
       index: i,
       nodeKey: makeChildNodeKey(top),
+      idKey: claimIdKey(top, partIds?.[i]),
     });
 
     // Record the part index in every open ancestor group.

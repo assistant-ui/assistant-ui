@@ -181,9 +181,14 @@ const renderNode = <TKey extends `group-${string}`>(
   render: (info: MessagePrimitiveGroupedParts.RenderInfo<TKey>) => ReactNode,
 ): ReactNode => {
   if (node.type === "part") {
-    // Key by absolute part index, not structural nodeKey — prevents zombie fiber subscriptions when parts reshape (#4051).
+    // Key by part identity when available, else absolute part index — never
+    // the structural nodeKey, which leaves zombie fiber subscriptions when
+    // parts reshape (#4051).
     return (
-      <MessagePartChildren key={`part-${node.index}`} index={node.index}>
+      <MessagePartChildren
+        key={node.idKey ? `part-${node.idKey}` : `part-${node.index}`}
+        index={node.index}
+      >
         {({ part }) => render({ part, children: <PartChildrenSentinel /> })}
       </MessagePartChildren>
     );
@@ -197,7 +202,7 @@ const renderNode = <TKey extends `group-${string}`>(
   };
 
   return (
-    <Fragment key={node.nodeKey}>
+    <Fragment key={node.idKey ?? node.nodeKey}>
       {render({
         part: groupPart,
         children: (
@@ -266,7 +271,12 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
   const memoDep = memoKey ?? groupBy;
   const tree = useMemo(() => {
     const context: GroupByContext = { toolUIs };
-    return buildGroupTree(parts.map((part) => groupBy(part, context) ?? []));
+    return buildGroupTree(
+      parts.map((part) => groupBy(part, context) ?? []),
+      parts.map((part) =>
+        part.type === "tool-call" ? part.toolCallId : undefined,
+      ),
+    );
     // oxlint-disable-next-line react/exhaustive-deps -- groupBy is captured via memoDep (either its identity or the helper's memoKey fingerprint); listing it directly would defeat the helper-tagged memo path
   }, [parts, memoDep, toolUIs]);
 

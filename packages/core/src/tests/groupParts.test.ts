@@ -268,3 +268,58 @@ describe("groupPartByType", () => {
     expect(keyA).not.toBe(keyB);
   });
 });
+
+describe("buildGroupTree idKey", () => {
+  const ids = (values: readonly (string | undefined)[]) => values;
+
+  it("leaves idKey undefined when partIds is not provided", () => {
+    const tree = buildGroupTree(asPaths([["a"], ["a"]]));
+    const group = tree[0]!;
+    expect(group.idKey).toBeUndefined();
+    if (group.type === "group") {
+      expect(group.children.every((c) => c.idKey === undefined)).toBe(true);
+    }
+  });
+
+  it("derives group idKey from the first part of the group", () => {
+    const tree = buildGroupTree(asPaths([["a"], ["a"]]), ids(["t1", "t2"]));
+    const group = tree[0]!;
+    expect(group.idKey).toBe("id:t1");
+  });
+
+  it("keeps group idKey undefined when the first part has no id", () => {
+    const tree = buildGroupTree(
+      asPaths([["a"], ["a"]]),
+      ids([undefined, "t2"]),
+    );
+    expect(tree[0]!.idKey).toBeUndefined();
+  });
+
+  it("assigns leaf idKeys and lets a group and its first leaf share an id across levels", () => {
+    const tree = buildGroupTree(asPaths([["a"], ["a"]]), ids(["t1", "t2"]));
+    const group = tree[0]!;
+    if (group.type !== "group") throw new Error("expected group");
+    expect(group.idKey).toBe("id:t1");
+    expect(group.children.map((c) => c.idKey)).toEqual(["id:t1", "id:t2"]);
+  });
+
+  it("demotes duplicate ids among siblings to undefined", () => {
+    const tree = buildGroupTree(asPaths([[], [], []]), ids(["t1", "t1", "t2"]));
+    expect(tree.map((n) => n.idKey)).toEqual(["id:t1", undefined, "id:t2"]);
+  });
+
+  it("keeps a group's idKey stable when parts reorder across rebuilds", () => {
+    const live = buildGroupTree(
+      asPaths([[], ["a"], [], ["a"]]),
+      ids([undefined, "t1", undefined, "t2"]),
+    );
+    const settled = buildGroupTree(
+      asPaths([[], [], ["a"], ["a"]]),
+      ids([undefined, undefined, "t1", "t2"]),
+    );
+    const liveFirstGroup = live.find((n) => n.type === "group")!;
+    const settledGroup = settled.find((n) => n.type === "group")!;
+    expect(liveFirstGroup.idKey).toBe("id:t1");
+    expect(settledGroup.idKey).toBe("id:t1");
+  });
+});

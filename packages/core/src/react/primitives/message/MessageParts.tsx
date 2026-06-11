@@ -44,9 +44,24 @@ import { useShallow } from "zustand/shallow";
 
 type MessagePartRange =
   | { type: "single"; index: number }
-  | { type: "toolGroup"; startIndex: number; endIndex: number }
-  | { type: "reasoningGroup"; startIndex: number; endIndex: number }
-  | { type: "chainOfThoughtGroup"; startIndex: number; endIndex: number };
+  | {
+      type: "toolGroup";
+      startIndex: number;
+      endIndex: number;
+      idKey?: string | undefined;
+    }
+  | {
+      type: "reasoningGroup";
+      startIndex: number;
+      endIndex: number;
+      idKey?: string | undefined;
+    }
+  | {
+      type: "chainOfThoughtGroup";
+      startIndex: number;
+      endIndex: number;
+      idKey?: string | undefined;
+    };
 
 /**
  * Creates a group state manager for a specific part type.
@@ -91,10 +106,13 @@ const createGroupState = <
  * Groups consecutive tool-call and reasoning message parts into ranges.
  * Always groups tool calls and reasoning parts, even if there's only one.
  * When useChainOfThought is true, groups tool-call and reasoning parts together.
+ * `partIds[i]` optionally carries a stable identity for part `i`; group
+ * ranges derive an `idKey` from their first part's id (first claim wins).
  */
-const groupMessageParts = (
+export const groupMessageParts = (
   messageTypes: readonly string[],
   useChainOfThought: boolean,
+  partIds?: readonly (string | undefined)[],
 ): MessagePartRange[] => {
   const ranges: MessagePartRange[] = [];
 
@@ -137,22 +155,44 @@ const groupMessageParts = (
     reasoningGroup.finalize(messageTypes.length - 1, ranges);
   }
 
+  if (partIds) {
+    const claimed = new Set<string>();
+    for (const range of ranges) {
+      if (range.type === "single") continue;
+      const id = partIds[range.startIndex];
+      if (id !== undefined && !claimed.has(id)) {
+        claimed.add(id);
+        range.idKey = `id:${id}`;
+      }
+    }
+  }
+
   return ranges;
 };
 
 const useMessagePartsGroups = (
   useChainOfThought: boolean,
-): MessagePartRange[] => {
+): { ranges: MessagePartRange[]; partIds: (string | undefined)[] } => {
   const messageTypes = useAuiState(
     useShallow((s) => s.message.parts.map((c: any) => c.type)),
+  );
+  const partIds = useAuiState(
+    useShallow((s) =>
+      s.message.parts.map((c: any) =>
+        c.type === "tool-call" ? c.toolCallId : undefined,
+      ),
+    ),
   );
 
   return useMemo(() => {
     if (messageTypes.length === 0) {
-      return [];
+      return { ranges: [], partIds };
     }
-    return groupMessageParts(messageTypes, useChainOfThought);
-  }, [messageTypes, useChainOfThought]);
+    return {
+      ranges: groupMessageParts(messageTypes, useChainOfThought, partIds),
+      partIds,
+    };
+  }, [messageTypes, partIds, useChainOfThought]);
 };
 
 export namespace MessagePrimitiveParts {
@@ -795,12 +835,23 @@ const MessagePrimitivePartsCompat: FC<{
 }> = ({ components, unstable_showEmptyOnNonTextEnd }) => {
   const contentLength = useAuiState((s) => s.message.parts.length);
   const useChainOfThought = !!components?.ChainOfThought;
-  const messageRanges = useMessagePartsGroups(useChainOfThought);
+  const { ranges: messageRanges, partIds } =
+    useMessagePartsGroups(useChainOfThought);
 
   const partsElements = useMemo(() => {
     if (contentLength === 0) {
       return <EmptyParts components={components} />;
     }
+
+    const claimed = new Set<string>();
+    const toolLeafKey = (partIndex: number) => {
+      const id = partIds[partIndex];
+      if (id !== undefined && !claimed.has(id)) {
+        claimed.add(id);
+        return `part-id:${id}`;
+      }
+      return `part-${partIndex}`;
+    };
 
     return messageRanges.map((range) => {
       if (range.type === "single") {
@@ -816,7 +867,7 @@ const MessagePrimitivePartsCompat: FC<{
         if (!ChainOfThoughtComponent) return null;
         return (
           <ChainOfThoughtByIndicesProvider
-            key={`chainOfThought-${range.startIndex}`}
+            key={`chainOfThought-${range.idKey ?? range.startIndex}`}
             startIndex={range.startIndex}
             endIndex={range.endIndex}
           >
@@ -828,7 +879,7 @@ const MessagePrimitivePartsCompat: FC<{
           components?.ToolGroup ?? defaultComponents.ToolGroup;
         return (
           <ToolGroupComponent
-            key={`tool-${range.startIndex}`}
+            key={`tool-${range.idKey ?? range.startIndex}`}
             startIndex={range.startIndex}
             endIndex={range.endIndex}
           >
@@ -838,7 +889,7 @@ const MessagePrimitivePartsCompat: FC<{
                 const partIndex = range.startIndex + i;
                 return (
                   <MessagePrimitivePartByIndex
-                    key={`part-${partIndex}`}
+                    key={toolLeafKey(partIndex)}
                     index={partIndex}
                     components={components}
                   />
@@ -874,7 +925,7 @@ const MessagePrimitivePartsCompat: FC<{
         );
       }
     });
-  }, [messageRanges, components, contentLength]);
+  }, [messageRanges, partIds, components, contentLength]);
 
   return (
     <>
