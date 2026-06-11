@@ -1,6 +1,6 @@
 "use client";
 
-import { useMessagePartText } from "@assistant-ui/react";
+import { useMessagePartText, useSmooth } from "@assistant-ui/react";
 import { harden } from "rehype-harden";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
@@ -90,6 +90,7 @@ export const StreamdownTextPrimitive = forwardRef<
       componentsByLanguage,
       preprocess,
       defer = false,
+      smooth = false,
 
       // plugin configuration
       plugins: userPlugins,
@@ -119,15 +120,20 @@ export const StreamdownTextPrimitive = forwardRef<
     },
     ref,
   ) => {
-    const { text, status } = useMessagePartText();
+    const messagePart = useMessagePartText();
+
+    const processedPart = useMemo(
+      () =>
+        preprocess
+          ? { ...messagePart, text: preprocess(messagePart.text) }
+          : messagePart,
+      [messagePart, preprocess],
+    );
+
+    const { text, status } = useSmooth(processedPart, smooth);
 
     const deferredText = useDeferredValue(text);
-    const resolvedText = defer ? deferredText : text;
-
-    const processedText = useMemo(
-      () => (preprocess ? preprocess(resolvedText) : resolvedText),
-      [resolvedText, preprocess],
-    );
+    const processedText = defer ? deferredText : text;
 
     const resolvedPlugins = useMemo(() => {
       const merged = mergePlugins(userPlugins, {});

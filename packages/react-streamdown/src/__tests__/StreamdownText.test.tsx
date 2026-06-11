@@ -88,6 +88,31 @@ describe("StreamdownTextPrimitive", () => {
     expect(await screen.findByText("first chunk second chunk")).toBeTruthy();
   });
 
+  it("renders settled text in full when smooth is enabled", async () => {
+    render(
+      <TextMessagePartProvider text="hello smooth" isRunning={false}>
+        <StreamdownTextPrimitive smooth />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("hello smooth")).toBeTruthy();
+  });
+
+  it("accepts a SmoothOptions object and keeps data-status smooth-aware", async () => {
+    const { container } = render(
+      <TextMessagePartProvider text="tuned reveal" isRunning={false}>
+        <StreamdownTextPrimitive
+          smooth={{ drainMs: 500, maxCharsPerFrame: 30 }}
+        />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("tuned reveal")).toBeTruthy();
+    expect(
+      container.querySelector("[data-status]")?.getAttribute("data-status"),
+    ).toBe("complete");
+  });
+
   describe("code adapter with custom components", () => {
     const fencedMarkdown = "```ts\nconst x = 1;\n```";
 

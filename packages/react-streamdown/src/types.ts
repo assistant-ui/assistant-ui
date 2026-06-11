@@ -1,3 +1,4 @@
+import type { SmoothOptions } from "@assistant-ui/react";
 import type { Element } from "hast";
 import type { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
 import type { Options as RemarkRehypeOptions } from "remark-rehype";
@@ -283,6 +284,17 @@ export type StreamdownTextPrimitiveProps = Omit<
    * @default false
    */
   defer?: boolean | undefined;
+
+  /**
+   * Animates the streamed text with a typewriter-style reveal via
+   * `useSmooth`; pass a `SmoothOptions` object to tune the reveal rate.
+   * The caret and streaming controls stay active until the reveal catches
+   * up. Composes with `defer`. For entrance animations at token cadence,
+   * prefer Streamdown's native `animated` prop instead.
+   *
+   * @default false
+   */
+  smooth?: boolean | SmoothOptions | undefined;
 
   /**
    * Container element props.
