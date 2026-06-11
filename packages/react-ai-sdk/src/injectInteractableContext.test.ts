@@ -54,12 +54,12 @@ describe("injectInteractableContext", () => {
     expect(out[0]).toBe(input[0]);
   });
 
-  it("prepends a text part using the default format", () => {
+  it("prepends a text part using the default format (id included for update_* addressing)", () => {
     const out = injectInteractableContext([
       userMsg([{ name: "note", id: "n1", state: { title: "Hi" } }]),
     ]);
     expect(textOf(out[0]!.parts[0])).toBe(
-      '[Current state of "note": {"title":"Hi"}]\n\n',
+      '[Current state of "note" (id: "n1"): {"title":"Hi"}]\n\n',
     );
     expect(textOf(out[0]!.parts[1])).toBe("hello");
   });
@@ -72,8 +72,8 @@ describe("injectInteractableContext", () => {
       ]),
     ]);
     expect(textOf(out[0]!.parts[0])).toBe(
-      '[Current state of "note": {"v":1}]\n' +
-        '[Current state of "board": {"v":2}]\n\n',
+      '[Current state of "note" (id: "n1"): {"v":1}]\n' +
+        '[Current state of "board" (id: "b1"): {"v":2}]\n\n',
     );
   });
 
