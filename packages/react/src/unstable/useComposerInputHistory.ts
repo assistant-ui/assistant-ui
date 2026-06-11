@@ -95,12 +95,7 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
       }
       const browse = browseRef.current;
 
-      const recall = (
-        text: string,
-        cursor: number,
-        draftSnapshot: string,
-      ): void => {
-        browseRef.current = { cursor, draftSnapshot, lastRecalledText: text };
+      const commitText = (text: string): void => {
         flushTapSync(() => aui.composer().setText(text));
         // React's controlled-value commit restores the pre-recall caret;
         // reposition after the commit, before paint.
@@ -110,6 +105,20 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
         e.preventDefault();
       };
 
+      const recall = (
+        history: readonly string[],
+        cursor: number,
+        draftSnapshot: string,
+      ): void => {
+        const entry = history[cursor];
+        if (entry === undefined) {
+          e.preventDefault();
+          return;
+        }
+        browseRef.current = { cursor, draftSnapshot, lastRecalledText: entry };
+        commitText(entry);
+      };
+
       if (e.key === "ArrowUp") {
         if (!isOnFirstLine(value, selectionStart)) return;
 
@@ -117,7 +126,7 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
           if (value.trim() !== "") return;
           const history = deriveHistory(aui.thread().getState().messages);
           if (history.length === 0) return;
-          recall(history[0]!, 0, value);
+          recall(history, 0, value);
           return;
         }
 
@@ -127,7 +136,7 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
           e.preventDefault();
           return;
         }
-        recall(history[next]!, next, browse.draftSnapshot);
+        recall(history, next, browse.draftSnapshot);
         return;
       }
 
@@ -136,18 +145,13 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
 
       const next = browse.cursor - 1;
       if (next < 0) {
-        const draft = browse.draftSnapshot;
         browseRef.current = null;
-        flushTapSync(() => aui.composer().setText(draft));
-        requestAnimationFrame(() => {
-          textarea.setSelectionRange(draft.length, draft.length);
-        });
-        e.preventDefault();
+        commitText(browse.draftSnapshot);
         return;
       }
 
       const history = deriveHistory(aui.thread().getState().messages);
-      recall(history[next]!, next, browse.draftSnapshot);
+      recall(history, next, browse.draftSnapshot);
     },
     [aui, popoverCtx],
   );

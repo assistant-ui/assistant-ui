@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fixture = {
@@ -117,11 +117,14 @@ describe("unstable_useComposerInputHistory", () => {
   });
 
   it("keeps native arrows when the caret is not on the first line", () => {
+    fixture.messages = [user("other"), user("line1\nline2")];
     const { textarea } = setup("");
     arrow(textarea, "ArrowUp");
+    expect(setText).toHaveBeenLastCalledWith("line1\nline2");
     textarea.value = "line1\nline2";
-    fixture.messages = [user("line1\nline2"), user("other")];
     textarea.setSelectionRange(8, 8);
+    const notPrevented = arrow(textarea, "ArrowUp");
+    expect(notPrevented).toBe(true);
     expect(setText).toHaveBeenCalledTimes(1);
   });
 
@@ -141,6 +144,12 @@ describe("unstable_useComposerInputHistory", () => {
     textarea.value = "ab";
     textarea.setSelectionRange(0, 2);
     arrow(textarea, "ArrowUp");
+
+    textarea.value = "";
+    textarea.setSelectionRange(0, 0);
+    const prevented = createEvent.keyDown(textarea, { key: "ArrowUp" });
+    prevented.preventDefault();
+    fireEvent(textarea, prevented);
     expect(setText).not.toHaveBeenCalled();
   });
 
