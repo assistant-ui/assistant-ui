@@ -58,6 +58,7 @@ import {
   PencilIcon,
   RefreshCwIcon,
   SquareIcon,
+  WrenchIcon,
 } from "lucide-react";
 import { useState, type FC } from "react";
 
@@ -436,7 +437,7 @@ const AssistantMessage: FC = () => {
               case "group-reasoning": {
                 const running = part.status.type === "running";
                 return (
-                  <ReasoningRoot defaultOpen={running}>
+                  <ReasoningRoot defaultOpen={running} variant="ghost" className="mb-0 my-1">
                     <ReasoningTrigger active={running} />
                     <ReasoningContent aria-busy={running}>
                       <ReasoningText>{children}</ReasoningText>
@@ -445,13 +446,17 @@ const AssistantMessage: FC = () => {
                 );
               }
               case "group-tool":
+                if (part.indices.length === 1) return <>{children}</>;
                 return (
-                  <ToolGroupRoot>
-                    <ToolGroupTrigger
-                      count={part.indices.length}
-                      active={part.status.type === "running"}
-                    />
-                    <ToolGroupContent>{children}</ToolGroupContent>
+                  <ToolGroupRoot variant="ghost" className="my-1">
+                    <div className="text-muted-foreground flex items-center gap-2">
+                      <WrenchIcon className="size-4 shrink-0" />
+                      <ToolGroupTrigger
+                        count={part.indices.length}
+                        active={part.status.type === "running"}
+                      />
+                    </div>
+                    <ToolGroupContent className="ml-5">{children}</ToolGroupContent>
                   </ToolGroupRoot>
                 );
               case "text":
