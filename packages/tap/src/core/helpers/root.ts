@@ -34,7 +34,10 @@ export const setRootVersion = (
   root.version = version;
   if (rollback) {
     for (const cell of root.dirtyCells) {
-      cell.queue.clear();
+      if (cell.queue !== null) {
+        for (const record of cell.queue) record.queued = false;
+        cell.queue = null;
+      }
       cell.workInProgress = cell.current;
     }
     root.dirtyCells.clear();
@@ -57,13 +60,12 @@ export const setRootVersion = (
   }
 };
 
-export const applyChangelogRecord = ({
-  fiber,
-  cell,
-  entry,
-}: ChangelogRecord): void => {
-  markCellDirty(fiber, cell);
-  cell.queue.add(entry);
+export const applyChangelogRecord = (record: ChangelogRecord): void => {
+  markCellDirty(record.fiber, record.cell);
+  if (!record.queued) {
+    record.queued = true;
+    (record.cell.queue ??= []).push(record);
+  }
 };
 
 export const markCellDirty = (

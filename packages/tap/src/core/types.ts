@@ -18,10 +18,13 @@ export type ExtractResourceReturnType<T> =
       ? R
       : never;
 
-export interface ReducerQueueEntry {
+export interface ChangelogRecord {
+  readonly fiber: ResourceFiber<any, any>;
+  readonly cell: Cell & { type: "reducer" };
   readonly action: any;
   hasEagerState: boolean;
   eagerState: any;
+  queued: boolean;
 }
 
 export type Cell =
@@ -29,7 +32,7 @@ export type Cell =
       readonly type: "reducer";
       readonly dispatch: (action: any) => void;
 
-      readonly queue: Set<ReducerQueueEntry>;
+      queue: ChangelogRecord[] | null;
       renderQueue: any[] | null;
 
       workInProgress: any;
@@ -50,12 +53,6 @@ export interface EffectTask {
 export interface RenderResult {
   output: any;
   effectTasks: EffectTask[];
-}
-
-export interface ChangelogRecord {
-  readonly fiber: ResourceFiber<any, any>;
-  readonly cell: Cell & { type: "reducer" };
-  readonly entry: ReducerQueueEntry;
 }
 
 export interface ResourceFiberRoot {

@@ -3,13 +3,8 @@ import {
   getCurrentResourceFiber,
   peekResourceFiber,
 } from "../core/helpers/execution-context";
-import type {
-  ChangelogRecord,
-  ReducerQueueEntry,
-  ResourceFiber,
-} from "../core/types";
+import type { Cell, ChangelogRecord, ResourceFiber } from "../core/types";
 import { applyChangelogRecord, markCellDirty } from "../core/helpers/root";
-import { useCell } from "../hooks/utils/useCell";
 
 type Dispatch<A> = (action: A) => void;
 
@@ -32,123 +27,154 @@ const dispatchOnFiber = (
   });
 };
 
+const createReducerCell = (
+  fiber: ResourceFiber<any, any>,
+  reducer: (state: any, action: any) => any,
+  initialArg: any,
+  initFn: ((arg: any) => any) | undefined,
+  eagerDispatch: boolean,
+): Cell & { type: "reducer" } => {
+  const initialState = initFn ? initFn(initialArg) : initialArg;
+
+  if (isDevelopment && fiber.devStrictMode && initFn) {
+    void initFn(initialArg);
+  }
+
+  const cell: Cell & { type: "reducer" } = {
+    type: "reducer",
+    queue: null,
+    renderQueue: null,
+    workInProgress: initialState,
+    current: initialState,
+    reducer,
+    dispatch: (action) => {
+      const currentFiber = peekResourceFiber();
+      if (currentFiber !== null) {
+        if (currentFiber !== fiber)
+          throw new Error(
+            "Cannot update a resource while rendering a different resource.",
+          );
+
+        (fiber.renderPendingCells ??= new Set()).add(cell);
+        (cell.renderQueue ??= []).push(action);
+      } else {
+        const record: ChangelogRecord = {
+          fiber,
+          cell,
+          action,
+          hasEagerState: false,
+          eagerState: undefined,
+          queued: false,
+        };
+
+        dispatchOnFiber(fiber, () => {
+          if (
+            eagerDispatch &&
+            fiber.root.dirtyCells.size === 0 &&
+            !record.hasEagerState
+          ) {
+            record.eagerState = reducer(cell.workInProgress, action);
+            record.hasEagerState = true;
+
+            if (Object.is(cell.current, record.eagerState)) return null;
+          }
+
+          return record;
+        });
+      }
+    },
+  };
+  return cell;
+};
+
 function useReducerImpl<S, A, I, R extends S>(
   reducer: (state: S, action: A) => S,
   getDerivedState: ((state: S) => R) | undefined,
   initialArg: S | I,
   initFn: ((arg: I) => S) | undefined,
-  // React computes state eagerly at dispatch only for useState's basic state
-  // reducer; user reducers run during render. Mirror that split so dev-mode
-  // invocation counts and kept results match React.
   eagerDispatch: boolean,
 ): [R, Dispatch<A>] {
-  const cell = useCell("reducer", () => {
-    const fiber = getCurrentResourceFiber();
-
-    // First render: compute initial state
-    const initialState = initFn ? initFn(initialArg as I) : initialArg;
-
-    if (isDevelopment && fiber.devStrictMode && initFn) {
-      void initFn(initialArg as I);
-    }
-
-    return {
-      type: "reducer",
-      queue: new Set(),
-      renderQueue: null,
-      workInProgress: initialState,
-      current: initialState,
-      reducer,
-      dispatch: (action: A) => {
-        const currentFiber = peekResourceFiber();
-        if (currentFiber !== null) {
-          if (currentFiber !== fiber)
-            throw new Error(
-              "Cannot update a resource while rendering a different resource.",
-            );
-
-          (fiber.renderPendingCells ??= new Set()).add(cell);
-          (cell.renderQueue ??= []).push(action);
-        } else {
-          const entry: ReducerQueueEntry = {
-            action,
-            hasEagerState: false,
-            eagerState: undefined,
-          };
-
-          dispatchOnFiber(fiber, () => {
-            if (
-              eagerDispatch &&
-              fiber.root.dirtyCells.size === 0 &&
-              !entry.hasEagerState
-            ) {
-              entry.eagerState = reducer(cell.workInProgress, action);
-              entry.hasEagerState = true;
-
-              if (Object.is(cell.current, entry.eagerState)) return null;
-            }
-
-            return { fiber, cell, entry };
-          });
-        }
-      },
-    };
-  });
-
   const fiber = getCurrentResourceFiber();
-  const sameReducer = reducer === cell.reducer;
+  const index = fiber.currentIndex++;
+
+  const existing = fiber.cells[index];
+  let cell: Cell & { type: "reducer" };
+  if (existing === undefined) {
+    if (!fiber.isFirstRender && index >= fiber.cells.length) {
+      throw new Error(
+        "Rendered more hooks than during the previous render. " +
+          "Hooks must be called in the exact same order in every render.",
+      );
+    }
+    cell = createReducerCell(fiber, reducer, initialArg, initFn, eagerDispatch);
+    fiber.cells[index] = cell;
+  } else {
+    if (existing.type !== "reducer") {
+      throw new Error("Hook order changed between renders");
+    }
+    cell = existing;
+  }
+
+  const queue = cell.queue;
+  if (queue !== null) {
+    const sameReducer = reducer === cell.reducer;
+
+    // The drain consumes entries: a re-render of the same uncommitted lineage
+    // sees an empty queue and must not re-apply them. Rollback replays them
+    // into the queue via the changelog.
+    for (let i = 0; i < queue.length; i++) {
+      const item = queue[i]!;
+      if (!item.hasEagerState || !sameReducer) {
+        item.eagerState = reducer(cell.workInProgress, item.action);
+        item.hasEagerState = true;
+
+        if (isDevelopment && fiber.devStrictMode) {
+          // React keeps the strict re-invocation's result for render-computed
+          // actions (unlike eager-computed ones, whose ghost is discarded).
+          item.eagerState = reducer(cell.workInProgress, item.action);
+        }
+      } else if (isDevelopment && fiber.devStrictMode) {
+        void reducer(cell.workInProgress, item.action);
+      }
+
+      item.queued = false;
+      cell.workInProgress = item.eagerState;
+    }
+    cell.queue = null;
+  }
   cell.reducer = reducer;
 
-  // The drain consumes entries: a re-render of the same uncommitted lineage
-  // sees an empty queue and must not re-apply them. Rollback replays them
-  // into the queue via the changelog.
-  for (const item of cell.queue) {
-    if (!item.hasEagerState || !sameReducer) {
-      item.eagerState = reducer(cell.workInProgress, item.action);
-      item.hasEagerState = true;
-
-      if (isDevelopment && fiber.devStrictMode) {
-        // React keeps the strict re-invocation's result for render-computed
-        // actions (unlike eager-computed ones, whose ghost is discarded).
-        item.eagerState = reducer(cell.workInProgress, item.action);
+  if (cell.renderQueue !== null || getDerivedState !== undefined) {
+    let derived = cell.workInProgress;
+    if (cell.renderQueue !== null) {
+      for (const action of cell.renderQueue) {
+        derived = reducer(derived, action);
       }
-    } else if (isDevelopment && fiber.devStrictMode) {
-      void reducer(cell.workInProgress, item.action);
+
+      cell.renderQueue = null;
+      fiber.renderPendingCells?.delete(cell);
     }
 
-    cell.workInProgress = item.eagerState;
-  }
-  cell.queue.clear();
-
-  let derived = cell.workInProgress;
-  if (cell.renderQueue?.length) {
-    for (const action of cell.renderQueue) {
-      derived = reducer(derived, action);
+    if (getDerivedState) {
+      let changed;
+      let passes = 0;
+      do {
+        if (++passes > 25) {
+          throw new Error(
+            "Too many derivations. getDerivedState must reach a fixpoint; " +
+              "tap limits the number of iterations to prevent an infinite loop.",
+          );
+        }
+        const result = getDerivedState(derived);
+        changed = !Object.is(result, derived);
+        derived = result;
+      } while (changed);
     }
 
-    cell.renderQueue = null;
-    fiber.renderPendingCells?.delete(cell);
-  }
-
-  if (getDerivedState) {
-    let changed;
-    let passes = 0;
-    do {
-      if (++passes > 25) {
-        throw new Error(
-          "Too many derivations. getDerivedState must reach a fixpoint; " +
-            "tap limits the number of iterations to prevent an infinite loop.",
-        );
-      }
-      const result = getDerivedState(derived);
-      changed = result !== derived;
-      derived = result;
-    } while (changed);
-  }
-
-  if (!Object.is(derived, cell.workInProgress)) {
-    markCellDirty(fiber, cell);
-    cell.workInProgress = derived;
+    if (!Object.is(derived, cell.workInProgress)) {
+      markCellDirty(fiber, cell);
+      cell.workInProgress = derived;
+    }
   }
 
   return [cell.workInProgress, cell.dispatch];
