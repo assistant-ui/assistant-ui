@@ -372,6 +372,11 @@ const SUGGESTION_GROUPS: SuggestionGroup[] = [
     icon: <PencilLineIcon />,
     options: [
       {
+        label: "a birthday card message",
+        prompt:
+          "Help me write a birthday card message for a friend in the notepad",
+      },
+      {
         label: "a product announcement",
         prompt: "Draft a short product announcement for a new dark mode",
       },
@@ -731,7 +736,7 @@ const AssistantMessage: FC = () => {
               case "group-reasoning": {
                 const running = part.status.type === "running";
                 return (
-                  <ReasoningRoot streaming={running}>
+                  <ReasoningRoot defaultOpen={running}>
                     <ReasoningTrigger active={running} />
                     <ReasoningContent aria-busy={running}>
                       <ReasoningText>{children}</ReasoningText>

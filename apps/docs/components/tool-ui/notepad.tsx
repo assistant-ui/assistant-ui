@@ -1,0 +1,182 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import {
+  useInteractable,
+  type ToolCallMessagePartComponent,
+} from "@assistant-ui/react";
+import {
+  CheckIcon,
+  CopyIcon,
+  RotateCcwIcon,
+  SquarePenIcon,
+} from "lucide-react";
+import { useEffect, useRef, useState, type FC } from "react";
+import { z } from "zod";
+
+// Mirrors the `notepad` tool's parameters schema in docs-toolkit.tsx (which
+// can't import from this client module on the server).
+const notepadStateSchema = z.object({
+  title: z.string().describe("A short title for the text."),
+  content: z.string().describe("The full plain text."),
+});
+
+export type NotepadArgs = z.infer<typeof notepadStateSchema>;
+
+const NotepadCard: FC<{
+  title: React.ReactNode;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ title, actions, children }) => (
+  <div className="border-border/60 bg-muted/40 my-3 rounded-2xl border">
+    <div className="flex items-center gap-2.5 py-2.5 pr-3 pl-3.5">
+      <SquarePenIcon className="text-muted-foreground size-4.5 shrink-0" />
+      {title}
+      <div className="ml-auto flex items-center gap-0.5">{actions}</div>
+    </div>
+    <div className="px-4 pt-0.5 pb-4 text-[15px] leading-7">{children}</div>
+  </div>
+);
+
+const titleClass =
+  "text-foreground focus:bg-accent min-w-0 max-w-full truncate rounded-md bg-transparent px-1 py-0.5 -mx-1 text-sm font-semibold outline-none";
+
+/**
+ * The live notepad. Registers an interactable so the model sees user edits in
+ * conversation snapshots and can apply its own edits via `update_notepad`.
+ */
+const NotepadInteractive: FC<{ toolCallId: string; args: NotepadArgs }> = ({
+  toolCallId,
+  args,
+}) => {
+  const [state, { setState }] = useInteractable("notepad", {
+    id: toolCallId,
+    description:
+      "A notepad showing drafted text that the user can read and edit.",
+    stateSchema: notepadStateSchema,
+    initialState: args,
+    scope: "thread",
+  });
+
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
+  const copyTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // contentEditable is uncontrolled; mirror external (model) updates into the
+  // DOM, but never while the user is typing in it.
+  useEffect(() => {
+    const node = bodyRef.current;
+    if (!node) return;
+    if (document.activeElement === node) return;
+    if (node.innerText !== state.content) node.innerText = state.content;
+  }, [state.content]);
+
+  const edited = state.title !== args.title || state.content !== args.content;
+
+  const copy = () => {
+    navigator.clipboard?.writeText(state.content).catch(() => {});
+    setCopied(true);
+    clearTimeout(copyTimeout.current);
+    copyTimeout.current = setTimeout(() => setCopied(false), 1400);
+  };
+
+  const revert = () => {
+    setState(args);
+    if (bodyRef.current) bodyRef.current.innerText = args.content;
+  };
+
+  return (
+    <NotepadCard
+      title={
+        <input
+          className={titleClass}
+          value={state.title}
+          spellCheck={false}
+          aria-label="Note title"
+          onChange={(e) =>
+            setState((prev) => ({ ...prev, title: e.target.value }))
+          }
+        />
+      }
+      actions={
+        <>
+          {edited && (
+            <>
+              <span className="relative inline-flex">
+                <TooltipIconButton
+                  tooltip="Revert to original"
+                  className="text-muted-foreground hover:text-foreground size-8 rounded-md"
+                  onClick={revert}
+                >
+                  <RotateCcwIcon className="size-4" />
+                </TooltipIconButton>
+                <span
+                  className="ring-muted/40 pointer-events-none absolute top-0.5 right-0.5 size-[7px] rounded-full bg-amber-500 ring-2"
+                  aria-label="Edited"
+                />
+              </span>
+              <div className="bg-border mx-1 h-4.5 w-px" />
+            </>
+          )}
+          <TooltipIconButton
+            tooltip="Copy"
+            className={cn(
+              "text-muted-foreground hover:text-foreground size-8 rounded-md",
+              copied && "text-green-600 hover:text-green-600",
+            )}
+            onClick={copy}
+          >
+            {copied ? (
+              <CheckIcon className="size-4" />
+            ) : (
+              <CopyIcon className="size-4" />
+            )}
+          </TooltipIconButton>
+        </>
+      }
+    >
+      <div
+        ref={bodyRef}
+        contentEditable
+        suppressContentEditableWarning
+        spellCheck={false}
+        role="textbox"
+        aria-multiline="true"
+        aria-label="Note text"
+        className="caret-foreground wrap-break-word whitespace-pre-wrap outline-none"
+        onInput={() =>
+          setState((prev) => ({
+            ...prev,
+            content: bodyRef.current?.innerText ?? prev.content,
+          }))
+        }
+      />
+    </NotepadCard>
+  );
+};
+
+export const NotepadToolUI: ToolCallMessagePartComponent<
+  NotepadArgs,
+  { success: true }
+> = ({ toolCallId, args, result }) => {
+  // While args stream in, show a read-only preview; register the interactable
+  // only once the draft is complete.
+  if (!result) {
+    return (
+      <NotepadCard
+        title={
+          <span className={cn(titleClass, "animate-pulse")}>
+            {args.title || "Drafting note..."}
+          </span>
+        }
+      >
+        <div className="wrap-break-word whitespace-pre-wrap">
+          {args.content}
+        </div>
+      </NotepadCard>
+    );
+  }
+
+  return <NotepadInteractive toolCallId={toolCallId} args={args} />;
+};
