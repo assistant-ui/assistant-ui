@@ -245,6 +245,17 @@ jobs:
             exit 1
           fi
 
+      - name: Validate no pending changesets
+        run: |
+          pending=$(find .changeset -name '*.md' ! -name 'README.md' | sort)
+          if [ -n "$pending" ]; then
+            echo "::error::Release SHA has pending changesets, so changesets/action would update the version PR instead of publishing."
+            echo "::error::Merge the version PR first, then dispatch with its merge commit as releaseSha."
+            echo "Pending changesets:"
+            echo "$pending"
+            exit 1
+          fi
+
       - name: Resolve publish targets
         id: targets
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
@@ -795,6 +806,8 @@ jobs:
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The action's fallback version path commits without ci:version's lockfile refresh, so the pre-commit hook's pnpm run fails on the stale lockfile.
+          HUSKY: 0
 
       - name: Recovery guidance
         if: failure()
