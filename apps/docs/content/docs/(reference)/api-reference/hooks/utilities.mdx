@@ -375,6 +375,21 @@ import { useScrollLock } from "@assistant-ui/react";
 
 Source: `packages/react/src/primitives/reasoning/useScrollLock.ts`
 
+### useSmooth
+
+Animates streamed message part text with a typewriter-style reveal. Takes the message part state and a `smooth` argument: `false` disables, `true` uses the default rate, and a `SmoothOptions` object tunes it (`drainMs` backlog drain target, default 250; `maxCharIntervalMs` slowest reveal interval, default 5; `maxCharsPerFrame` per-frame cap, default unlimited).
+
+```tsx
+import { useSmooth, type SmoothOptions } from "@assistant-ui/react";
+
+const { text, status } = useSmooth(useMessagePartText(), {
+  drainMs: 500,
+  maxCharsPerFrame: 30,
+});
+```
+
+Source: `packages/react/src/utils/smooth/useSmooth.ts`
+
 ### useThread
 
 Deprecated: Use `useAuiState((s) =&gt; s.thread)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12

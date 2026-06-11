@@ -8,7 +8,7 @@ import {
   type ElementType,
 } from "react";
 import { useMessagePartText } from "./useMessagePartText";
-import { useSmooth } from "../../utils/smooth/useSmooth";
+import { useSmooth, type SmoothOptions } from "../../utils/smooth/useSmooth";
 
 export namespace MessagePartPrimitiveText {
   export type Element = ComponentRef<typeof Primitive.span>;
@@ -19,9 +19,10 @@ export namespace MessagePartPrimitiveText {
     /**
      * Whether to enable smooth text streaming animation.
      * When enabled, text appears with a typing effect as it streams in.
+     * Pass a `SmoothOptions` object to tune the reveal rate.
      * @default true
      */
-    smooth?: boolean;
+    smooth?: boolean | SmoothOptions;
     /**
      * The HTML element or React component to render as.
      * @default "span"

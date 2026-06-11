@@ -288,6 +288,7 @@ export { useThreadViewportAutoScroll } from "./primitives/thread/useThreadViewpo
 export { useScrollLock } from "./primitives/reasoning/useScrollLock";
 export { useMessageQuote } from "./hooks/useMessageQuote";
 export { useMessageTiming } from "./hooks/useMessageTiming";
+export { useSmooth, type SmoothOptions } from "./utils/smooth/useSmooth";
 
 // Re-export core types from @assistant-ui/core
 export type {

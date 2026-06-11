@@ -1,6 +1,10 @@
 "use client";
 
-import { INTERNAL, useMessagePartText } from "@assistant-ui/react";
+import {
+  INTERNAL,
+  type SmoothOptions,
+  useMessagePartText,
+} from "@assistant-ui/react";
 import {
   type ComponentRef,
   type ElementType,
@@ -60,7 +64,7 @@ export type MarkdownTextPrimitiveProps = Omit<
         }
       >
     | undefined;
-  smooth?: boolean | undefined;
+  smooth?: boolean | SmoothOptions | undefined;
   /**
    * Function to transform text before markdown processing.
    */
