@@ -15,6 +15,7 @@ export type LanguageModelConfig = {
   apiKey?: string;
   baseUrl?: string;
   modelName?: string;
+  reasoningEffort?: string;
 };
 
 export type ModelContext = {

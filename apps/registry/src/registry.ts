@@ -487,11 +487,10 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: [
       "@assistant-ui/react",
-      "radix-ui",
       "lucide-react",
       "class-variance-authority",
     ],
-    registryDependencies: ["https://r.assistant-ui.com/select.json"],
+    registryDependencies: ["command", "popover"],
   },
   {
     name: "select",

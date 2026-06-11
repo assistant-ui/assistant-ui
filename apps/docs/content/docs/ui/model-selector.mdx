@@ -1,12 +1,12 @@
 ---
 title: ModelSelector
-description: Model picker with unified overlay positioning and runtime integration.
+description: Composable model picker with reasoning effort levels, search, and runtime integration.
 platforms: ["react"]
 ---
 
 import { ModelSelectorSample } from "@/components/docs/samples/model-selector";
 
-A select component that lets users switch between AI models. Uses item-aligned positioning so the selected model overlays the trigger for a unified look. Integrates with assistant-ui's `ModelContext` system to automatically propagate the selected model to your backend.
+A composable picker that lets users switch between AI models and set a reasoning effort (thinking) level. Built on Popover + Command, so search, grouping, and filtering compose in without being built in. Integrates with assistant-ui's `ModelContext` system to automatically propagate the selected model and effort to your backend.
 
 <ModelSelectorSample />
 
@@ -36,9 +36,10 @@ const ComposerAction: FC = () => {
         models={[
           { id: "gpt-5.4-nano", name: "GPT-5.4 Nano", description: "Fast and efficient" },
           { id: "gpt-5.4-mini", name: "GPT-5.4 Mini", description: "Balanced performance" },
-          { id: "gpt-5.5", name: "GPT-5.5", description: "Most capable" },
+          { id: "gpt-5.5", name: "GPT-5.5", description: "Most capable", efforts: true },
         ]}
         defaultValue="gpt-5.4-nano"
+        defaultEffort="medium"
         size="sm"
       />
     </div>
@@ -46,19 +47,35 @@ const ComposerAction: FC = () => {
 };
 ```
 
+Models with `efforts: true` show a "Thinking" row with Low / Medium / High levels. Pass a custom list to override the levels:
+
+```tsx
+{
+  id: "gpt-5.5",
+  name: "GPT-5.5",
+  efforts: [
+    { id: "minimal", name: "Minimal" },
+    { id: "high", name: "High" },
+  ],
+}
+```
+
   </Step>
   <Step>
 
 ### Read the model in your API route
 
-The selected model's `id` is sent as `config.modelName` in the request body:
+The selected model's `id` is sent as `config.modelName`, and the effort level as `config.reasoningEffort`:
 
-```tsx title="app/api/chat/route.ts" {2,5}
+```tsx title="app/api/chat/route.ts" {2,5-8}
 export async function POST(req: Request) {
   const { messages, config } = await req.json();
 
   const result = streamText({
     model: openai(config?.modelName ?? "gpt-5.4-nano"),
+    providerOptions: {
+      openai: { reasoningEffort: config?.reasoningEffort ?? "medium" },
+    },
     messages: await convertToModelMessages(messages),
   });
 
@@ -68,6 +85,78 @@ export async function POST(req: Request) {
 
   </Step>
 </Steps>
+
+## Search
+
+Search is opt-in. Pass `searchable` to the default component:
+
+```tsx
+<ModelSelector models={models} searchable />
+```
+
+Or compose `ModelSelector.Search` into a custom layout. Matching runs against each model's `id`, `name`, and `keywords`.
+
+## Composition
+
+All parts are exported individually. The default popover content is `List` + `Effort`; replace it to add search, provider groups, or anything else:
+
+```tsx
+import {
+  ModelSelectorRoot,
+  ModelSelectorTrigger,
+  ModelSelectorContent,
+  ModelSelectorSearch,
+  ModelSelectorList,
+  ModelSelectorEmpty,
+  ModelSelectorGroup,
+  ModelSelectorItem,
+  ModelSelectorEffort,
+} from "@/components/assistant-ui/model-selector";
+
+<ModelSelectorRoot
+  models={models}
+  value={modelId}
+  onValueChange={setModelId}
+  effort={effort}
+  onEffortChange={setEffort}
+>
+  <ModelSelectorTrigger variant="outline" />
+  <ModelSelectorContent>
+    <ModelSelectorSearch placeholder="Search models..." />
+    <ModelSelectorList>
+      <ModelSelectorEmpty />
+      <ModelSelectorGroup heading="OpenAI">
+        {openaiModels.map((model) => (
+          <ModelSelectorItem key={model.id} model={model} />
+        ))}
+      </ModelSelectorGroup>
+      <ModelSelectorGroup heading="Anthropic">
+        {anthropicModels.map((model) => (
+          <ModelSelectorItem key={model.id} model={model} />
+        ))}
+      </ModelSelectorGroup>
+    </ModelSelectorList>
+    <ModelSelectorEffort label="Thinking" />
+  </ModelSelectorContent>
+</ModelSelectorRoot>
+```
+
+`ModelSelector.List` is a Command list, so filtering and keyboard navigation work across groups automatically. Custom sorting is plain code — order the models before rendering items.
+
+| Component | Description |
+|-----------|-------------|
+| `ModelSelector` | Default export with runtime integration |
+| `ModelSelector.Root` | Presentational root (no runtime, controlled state) |
+| `ModelSelector.Trigger` | CVA-styled trigger showing the current selection |
+| `ModelSelector.Value` | Selected model name, icon, and active effort |
+| `ModelSelector.Content` | Popover content wrapping a Command |
+| `ModelSelector.Search` | Search input that filters the list |
+| `ModelSelector.List` | List of model items (renders all models by default) |
+| `ModelSelector.Empty` | Empty state shown when search has no matches |
+| `ModelSelector.Group` | Labeled group of items (e.g. by provider) |
+| `ModelSelector.Separator` | Divider between groups or items |
+| `ModelSelector.Item` | Individual model option |
+| `ModelSelector.Effort` | Thinking level row for the selected model |
 
 ## Variants
 
@@ -95,58 +184,19 @@ Use the `size` prop to control the trigger dimensions.
 <ModelSelector size="lg" />      // Large (h-10)
 ```
 
-## Model Options
-
-Each model in the `models` array supports:
-
-```tsx
-const models = [
-  {
-    id: "gpt-5.4-nano",           // Sent to backend as config.modelName
-    name: "GPT-5.4 Nano",   // Display name in trigger and items
-    description: "Fast and efficient", // Optional subtitle in items only
-    icon: <SparklesIcon />,      // Optional icon (any ReactNode)
-  },
-];
-```
-
 ## Runtime Integration
 
-The default `ModelSelector` export automatically registers the selected model with assistant-ui's `ModelContext` system. When a user selects a model:
+The default `ModelSelector` export automatically registers the selection with assistant-ui's `ModelContext` system:
 
-1. The component calls `aui.modelContext().register()` with `config.modelName`
+1. The component calls `aui.modelContext().register()` with `config.modelName` and, when the selected model supports it, `config.reasoningEffort`
 2. The `AssistantChatTransport` includes `config` in the request body
-3. Your API route reads `config.modelName` to determine which model to use
+3. Your API route reads `config.modelName` and `config.reasoningEffort`
 
 This works out of the box with `@assistant-ui/react-ai-sdk`.
 
+The effort selection is sticky: switching to a model that doesn't support the current effort level omits `reasoningEffort` instead of resetting the user's choice. The exported `resolveModelEffort(models, modelId, effort)` helper applies the same rule if you wire up your own runtime integration around `ModelSelector.Root`.
+
 ## API Reference
-
-### Composable API
-
-For custom layouts, use the sub-components directly with `ModelSelector.Root`:
-
-```tsx
-import {
-  ModelSelectorRoot,
-  ModelSelectorTrigger,
-  ModelSelectorContent,
-  ModelSelectorItem,
-} from "@/components/assistant-ui/model-selector";
-
-<ModelSelectorRoot models={models} value={modelId} onValueChange={setModelId}>
-  <ModelSelectorTrigger variant="outline" />
-  <ModelSelectorContent />
-</ModelSelectorRoot>
-```
-
-| Component | Description |
-|-----------|-------------|
-| `ModelSelector` | Default export with runtime integration |
-| `ModelSelector.Root` | Presentational root (no runtime, controlled state) |
-| `ModelSelector.Trigger` | CVA-styled trigger showing current model |
-| `ModelSelector.Content` | Select content with model items |
-| `ModelSelector.Item` | Individual model option with icon, name, description |
 
 ### ModelSelector
 
@@ -162,7 +212,7 @@ import {
     {
       name: "defaultValue",
       type: "string",
-      description: "Initial model ID for uncontrolled usage.",
+      description: "Initial model ID for uncontrolled usage. Defaults to the first model.",
     },
     {
       name: "value",
@@ -173,6 +223,27 @@ import {
       name: "onValueChange",
       type: "(value: string) => void",
       description: "Callback when selected model changes.",
+    },
+    {
+      name: "defaultEffort",
+      type: "string",
+      description: "Initial effort level ID for uncontrolled usage.",
+    },
+    {
+      name: "effort",
+      type: "string",
+      description: "Controlled effort level ID.",
+    },
+    {
+      name: "onEffortChange",
+      type: "(effort: string) => void",
+      description: "Callback when effort level changes.",
+    },
+    {
+      name: "searchable",
+      type: "boolean",
+      default: "false",
+      description: "Render a search input above the model list.",
     },
     {
       name: "variant",
@@ -220,6 +291,21 @@ import {
       name: "icon",
       type: "React.ReactNode",
       description: "Optional icon displayed before the model name.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      description: "Disable selection of this model.",
+    },
+    {
+      name: "keywords",
+      type: "string[]",
+      description: "Extra search terms matched by ModelSelector.Search (e.g. the provider name).",
+    },
+    {
+      name: "efforts",
+      type: "boolean | ModelSelectorEffortOption[]",
+      description: "Reasoning effort levels. true enables the default Low/Medium/High; pass a custom { id, name } list to override. Omit for models without configurable reasoning.",
     },
   ]}
 />
