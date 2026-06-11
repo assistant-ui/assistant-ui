@@ -79,9 +79,11 @@ export const useInteractable = <TSchema extends InteractableStateSchema>(
     });
   }, [interactables, id, name, config.description, config.scope]);
 
-  const [state, methods] = useInteractableState<
-    InferInteractableState<TSchema>
-  >(id, config.initialState);
+  const [registeredState, methods] =
+    useInteractableState<InferInteractableState<TSchema>>(id);
+
+  const state =
+    registeredState === undefined ? config.initialState : registeredState;
 
   return [state, { id, ...methods }] as const;
 };

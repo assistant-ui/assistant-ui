@@ -153,7 +153,7 @@ describe("buildInteractableModelContext", () => {
       const { ctx, setDefState } = build(defs);
       await ctx!.tools["update_note"]!.streamCall!(
         makeReader([
-          { id: "n" }, // id still streaming — must not be routed
+          { id: "n" },
           { id: "n2" },
           { id: "n2", title: "B" },
           { id: "n2", title: "B!" },
@@ -163,6 +163,31 @@ describe("buildInteractableModelContext", () => {
       expect(defs.n2.state).toEqual({ title: "B!" });
       expect(defs.n1.state).toEqual({ title: "a" });
       expect(setDefState).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not route id-last prefix chunks to the wrong instance", async () => {
+      const defs = {
+        "note-1": def("note-1", "note", { title: "a" }),
+        "note-12": def("note-12", "note", { title: "b" }),
+      };
+      const { ctx, setDefState } = build(defs);
+      await ctx!.tools["update_note"]!.streamCall!(
+        makeReader([
+          { title: "B", id: "note-1" },
+          { title: "B", id: "note-12" },
+        ]),
+        {} as never,
+      );
+      expect(defs["note-1"].state).toEqual({ title: "a" });
+      expect(defs["note-12"].state).toEqual({ title: "b" });
+      expect(setDefState).not.toHaveBeenCalled();
+
+      const result = await ctx!.tools["update_note"]!.execute!(
+        { title: "B", id: "note-12" },
+        {} as never,
+      );
+      expect(result).toEqual({ success: true });
+      expect(defs["note-12"].state).toEqual({ title: "B" });
     });
 
     it("streams id-less values to a single instance", async () => {

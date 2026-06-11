@@ -235,10 +235,10 @@ For dynamic setups (an adapter that depends on auth), call `aui.interactables().
 
 ### Sync Status
 
-When a persistence adapter is set, `useInteractableState` exposes sync metadata:
+When a persistence adapter is set, interactable hooks expose sync metadata:
 
 ```tsx
-const [state, { setState, isPending, error, flush }] = useInteractableState(id, fallback);
+const [state, { setState, isPending, error, flush }] = useInteractableState<TState>(id);
 
 // isPending — true while a save is in-flight
 // error — the error from the last failed save, if any
@@ -604,7 +604,7 @@ const [state, { id, setState, isPending, error, flush }] = useInteractable(name,
 Reads and writes the state of an interactable registered elsewhere, by id. Use this from secondary readers (children, siblings of the owning component).
 
 ```tsx
-const [state, { setState, isPending, error, flush }] = useInteractableState<TState>(id, fallback?);
+const [state, { setState, isPending, error, flush }] = useInteractableState<TState>(id);
 ```
 
 **Parameters:**
@@ -622,16 +622,10 @@ const [state, { setState, isPending, error, flush }] = useInteractableState<TSta
         </>
       ),
     },
-    {
-      name: "fallback",
-      type: "TState",
-      required: false,
-      description: "Fallback value before the interactable is registered.",
-    },
   ]}
 />
 
-**Returns:** `[state, methods]`, the same shape as `useInteractable` without `id`.
+**Returns:** `[state, methods]`, the same shape as `useInteractable` without `id`. `state` is `TState | undefined` until the owning `useInteractable` has registered.
 
 ### `Interactables`
 

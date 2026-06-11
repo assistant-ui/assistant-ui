@@ -11,7 +11,7 @@ Interactable state now reaches the model through a per-message snapshot stamped 
 
 BREAKING CHANGES:
 
-- `useAssistantInteractable` + `useInteractableState` are merged into a single `useInteractable(name, config)` hook that registers and returns `[state, { id, setState, isPending, error, flush }]`, with the state type inferred from `stateSchema`. `useInteractableState(id, fallback)` remains for secondary readers.
+- `useAssistantInteractable` + `useInteractableState` are merged into a single `useInteractable(name, config)` hook that registers and returns `[state, { id, setState, isPending, error, flush }]`, with the state type inferred from `stateSchema`. `useInteractableState(id)` remains for secondary readers and returns `undefined` until the owner registers.
 
 ```diff
 - const id = useAssistantInteractable("taskBoard", config);

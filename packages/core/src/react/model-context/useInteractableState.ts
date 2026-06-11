@@ -7,13 +7,13 @@ type StateUpdater<TState> = TState | ((prev: TState) => TState);
  * Reads and writes the state of an interactable registered elsewhere, by id.
  *
  * Use this from secondary readers (children, siblings); the owning component
- * registers with {@link useInteractable}, which returns state directly.
+ * registers with {@link useInteractable}, which returns state directly. Returns
+ * `undefined` until the owning interactable is registered.
  */
 export const useInteractableState = <TState>(
   id: string,
-  fallback: TState,
 ): [
-  TState,
+  TState | undefined,
   {
     setState: (updater: StateUpdater<TState>) => void;
     isPending: boolean;
@@ -23,9 +23,9 @@ export const useInteractableState = <TState>(
 ] => {
   const aui = useAui();
 
-  const state =
-    (useAuiState((s) => s.interactables.definitions[id]?.state) as TState) ??
-    (fallback as TState);
+  const state = useAuiState((s) => s.interactables.definitions[id]?.state) as
+    | TState
+    | undefined;
 
   const persistenceStatus = useAuiState((s) => s.interactables.persistence[id]);
 

@@ -101,9 +101,12 @@ export function buildInteractableModelContext(
         try {
           for await (const partialArgs of reader.args.streamValues()) {
             if (!partialArgs || typeof partialArgs !== "object") continue;
-            const { id, ...partial } = partialArgs as Record<string, unknown>;
-            // While `id` is the only key it may still be mid-stream; once any
-            // state field has started streaming, `id` is complete.
+            const args = partialArgs as Record<string, unknown>;
+            const keys = Object.keys(args);
+            const idIndex = keys.indexOf("id");
+            if (idIndex === keys.length - 1) continue;
+
+            const { id, ...partial } = args;
             if (Object.keys(partial).length === 0) continue;
             const target = resolveTarget(id);
             if (!target) continue;
