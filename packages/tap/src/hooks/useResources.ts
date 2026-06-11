@@ -11,6 +11,7 @@ import {
 } from "../core/ResourceFiber";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
 import { useCallback, useLayoutEffect, useMemo } from "react";
+import { useRenderMemo } from "./utils/useRenderMemo";
 
 type FiberState = {
   fiber: ResourceFiber<unknown>;
@@ -31,7 +32,7 @@ export function useResources<E extends ResourceElement<any, any[]>>(
   // Process each element
 
   const { version, createFiber } = useResourceFiberHost();
-  const res = useMemo(() => {
+  const res = useRenderMemo(() => {
     void version;
 
     const elementsArray = getElementsMemo();
@@ -56,7 +57,7 @@ export function useResources<E extends ResourceElement<any, any[]>>(
 
       let state = fibers.get(elementKey);
       if (!state) {
-        const fiber = createFiber(element.hook);
+        const fiber = createFiber(element.hook, element.key);
         const result = renderResourceFiber(fiber, element.args);
         state = {
           fiber,
@@ -66,7 +67,7 @@ export function useResources<E extends ResourceElement<any, any[]>>(
         fibers.set(elementKey, state);
         results.push(result.output);
       } else if (state.fiber.hook !== element.hook) {
-        const fiber = createFiber(element.hook);
+        const fiber = createFiber(element.hook, element.key);
         const result = renderResourceFiber(fiber, element.args);
         state.next = [fiber, result];
         results.push(result.output);

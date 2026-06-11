@@ -6,6 +6,7 @@ import {
 } from "../core/ResourceFiber";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
 import { useLayoutEffect, useMemo } from "react";
+import { useRenderMemo } from "./utils/useRenderMemo";
 
 export function useResource<E extends ResourceElement<any, any[]>>(
   element: E,
@@ -20,18 +21,15 @@ export function useResource<E extends ResourceElement<any, any[]>>(
 ): ExtractResourceReturnType<E> {
   const { version, createFiber } = useResourceFiberHost();
   const fiber = useMemo(() => {
-    void element.key;
-    return createFiber(element.hook);
+    return createFiber(element.hook, element.key);
   }, [element.hook, element.key, createFiber]);
 
-  const result = argsDeps
-    ? // oxlint-disable-next-line react/rules-of-hooks -- argsDeps presence is fixed per call site, so the conditional call order is stable
-      useMemo(
-        () => renderResourceFiber(fiber, element.args),
-        // oxlint-disable-next-line react/exhaustive-deps -- args identity replaced by user-provided deps
-        [fiber, ...argsDeps, version],
-      )
-    : renderResourceFiber(fiber, element.args);
+  const identity = argsDeps ?? [element.args];
+
+  const result = useRenderMemo(
+    () => renderResourceFiber(fiber, element.args),
+    [fiber, version, ...identity],
+  );
 
   useLayoutEffect(() => () => unmountResourceFiber(fiber), [fiber]);
   useLayoutEffect(() => {

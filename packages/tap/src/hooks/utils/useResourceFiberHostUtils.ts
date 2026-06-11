@@ -49,8 +49,10 @@ export const useResourceFiberHost = () => {
       useResourceFiberHostUtilsReact();
 
   const createFiber = useCallback(
-    <R, A extends readonly any[]>(hook: (...props: A) => R) =>
-      createResourceFiber(hook, root, markDirty, getDevMode()),
+    <R, A extends readonly any[]>(
+      hook: (...props: A) => R,
+      _key: string | number | undefined,
+    ) => createResourceFiber(hook, root, markDirty, getDevMode()),
     // oxlint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
