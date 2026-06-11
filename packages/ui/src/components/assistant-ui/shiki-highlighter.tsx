@@ -33,8 +33,8 @@ const HighlightedCode: FC<{
   options: Omit<ShikiHighlighterProps, "children" | "language" | "theme">;
 }> = ({ code, language, theme, options }) => {
   const highlighted = useShikiHighlighter(code, language, theme, {
-    defaultColor: "light-dark()",
     ...options,
+    defaultColor: "light-dark()",
   });
   return <>{highlighted ?? <PlainCode code={code} />}</>;
 };
