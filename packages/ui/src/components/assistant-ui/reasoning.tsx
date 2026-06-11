@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -78,11 +79,11 @@ function ReasoningRoot({
   const isOpen = isControlled
     ? controlledOpen
     : (userOpen ?? streaming ?? initialOpenRef.current);
-  const isPreview =
-    streaming === true && isOpen && (isControlled || userOpen === null);
+  const isAutoMode = isControlled || userOpen === null;
+  const isPreview = streaming === true && isOpen && isAutoMode;
 
   const prevStreamingRef = useRef(streaming);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (prevStreamingRef.current === streaming) return;
     prevStreamingRef.current = streaming;
     if (!isControlled && userOpen === null) lockScroll();
