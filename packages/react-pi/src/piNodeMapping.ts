@@ -73,7 +73,7 @@ const baseName = (filePath: string): string => {
  * JSON-safe `PiClientEventBody`. `agent_start` / `tool_execution_*` / `message_*`
  * carry through unchanged; the variants Pi renamed or enriched are normalized
  * here. `turn_start` / `turn_end` carry no index in the SDK — the supervisor
- * derives and passes one via `ctx.turnIndex` (see PI_BUILD_NOTES).
+ * derives and passes one via `ctx.turnIndex`.
  *
  * Note: `error`, `context_usage`, and `extension_ui_request` / `_resolved` are
  * NOT in this stream — the supervisor synthesizes them (from caught errors,
@@ -189,11 +189,10 @@ export const mapSessionInfo = (
 };
 
 /**
- * Derive model/credential readiness (PI_MVP_PLAN §5). MVP surfaces the two
- * cheaply-knowable states: a model is selected (`ready`) or none is
- * (`missing-model`). `missing-credentials` / `unavailable-model` are detected
- * lazily when a send fails and routed into `lastError` — we do not probe the
- * provider eagerly here.
+ * Derive model/credential readiness. Only the two cheaply-knowable states are
+ * surfaced: a model is selected (`ready`) or none is (`missing-model`).
+ * `missing-credentials` / `unavailable-model` are detected lazily when a send
+ * fails and routed into `lastError` — we do not probe the provider eagerly.
  */
 export const deriveReadiness = (input: {
   model?: { provider: string; id: string } | undefined;

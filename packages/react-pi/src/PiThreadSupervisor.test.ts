@@ -110,6 +110,19 @@ describe("PiThreadSupervisor", () => {
     });
   });
 
+  it("deletes a cold thread and forgets its cached catalog info", async () => {
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+    await supervisor.getThread("t1"); // primes the per-thread catalog cache
+
+    // The session file doesn't exist on disk; delete tolerates the ENOENT.
+    await supervisor.deleteThread("t1");
+
+    sdk.list.mockResolvedValue([]);
+    await expect(supervisor.getThread("t1")).rejects.toThrow(
+      "Unknown Pi thread",
+    );
+  });
+
   it("renames cold threads through SessionManager without opening a live AgentSession", async () => {
     const manager = createReadonlySessionManager();
     sdk.open.mockReturnValue(manager);

@@ -157,20 +157,21 @@ when it is not `"ready"`.
 ## Composer run semantics
 
 Pi's defining interaction is mid-run steering, and a plain `prompt()` while
-streaming **throws**. The runtime derives the right behavior:
+streaming **throws**. The runtime exposes Pi's native queue to assistant-ui
+(`capabilities.queue`), so the standard composer keeps accepting input during a
+run and derives the right behavior:
 
-| State / action           | Behavior                                             |
-| ------------------------ | ---------------------------------------------------- |
-| idle + submit            | `prompt()`                                           |
-| running + Enter          | follow-up (`streamingBehavior: "followUp"`) — queued |
-| running + Cmd/Ctrl+Enter | steer (`streamingBehavior: "steer"`)                 |
-| running + empty submit   | cancel the run                                       |
+| State / action                 | Behavior                                             |
+| ------------------------------ | ---------------------------------------------------- |
+| idle + submit                  | `prompt()`                                           |
+| running + Enter                | follow-up (`streamingBehavior: "followUp"`) — queued |
+| running + Cmd/Ctrl+Shift+Enter | steer (`streamingBehavior: "steer"`)                 |
 
-To force steer from your composer, set
-`message.runConfig.custom.streamingBehavior = "steer"`. While running, an omitted
-behavior defaults to `"followUp"`. Queued messages are surfaced on the thread
-metadata (`queuedMessages`); queue editing/reorder is out of scope (see Known
-limitations).
+To force steer from your own composer, send with `steer: true` or set
+`message.runConfig.custom.streamingBehavior = "steer"`. While running, an
+omitted behavior defaults to `"followUp"`. Queued messages are mirrored as
+read-only queue items (and on the thread metadata's `queuedMessages`); queue
+editing/reorder is out of scope (see Known limitations).
 
 ## Host-UI requests (the approval surface)
 
@@ -233,10 +234,12 @@ metadata, so metadata controls don't rerender on every token:
   RPC-isomorphic so a subprocess/remote transport can drop in later.
 - **No durable event replay / backpressure / version negotiation.** Recovery is
   snapshot-first only.
-- **Background runs are not auto-followed on view.** Live updates stream while
-  *you* drive a thread; switching to a thread running a job started elsewhere
-  shows a snapshot until it completes or you refresh. (`controller.connect()`
-  exists for explicit live subscription but is not wired into the default UI.)
+- **Idle threads are not auto-followed on view.** Opening a thread is a cheap
+  read-only snapshot; the runtime auto-subscribes to live events only when the
+  loaded snapshot reports the thread as running (or when you send). A run that
+  starts elsewhere *after* you opened an idle view shows up on the next
+  refresh, not live. (`controller.connect()` exists for explicit always-live
+  subscription.)
 - **The node host's catalog is process-local and in-memory.** It caches
   `SessionManager.list()` and tracks archive state for the running process; nothing
   is persisted across restarts (no last-selected workspace, drafts, labels, or
@@ -247,7 +250,9 @@ metadata, so metadata controls don't rerender on every token:
   preserve the underlying data — tree linkage (`parentSessionPath`), queued
   messages (`queuedMessages`), and compaction state — so a consumer can build those
   surfaces, but the client exposes no methods to fork a session, navigate the tree,
-  or reorder/replace the queue.
+  or reorder/replace the queue. The runtime's queue items are a read-only mirror:
+  enqueueing works (that's how mid-run follow-up/steer is sent), but the
+  per-item steer/remove/clear affordances are no-ops.
 - **Attachments are image-passthrough only.** Non-image input parts aren't
   converted into Pi user content.
 - **Model/thinking are the only runtime-config actions.** There are no

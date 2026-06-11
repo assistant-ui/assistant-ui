@@ -264,12 +264,13 @@ describe("piThreadState", () => {
     let s = reducePiThreadState(base, e1);
     const stale: PiClientEvent = {
       ...e1,
-      type: "error",
-      error: "old",
+      type: "queue_update",
+      steering: ["old"],
+      followUp: [],
     } as PiClientEvent;
     // stale.seq === e1.seq <= lastSeq → ignored
     s = reducePiThreadState(s, stale);
-    expect(s.lastError).toBeUndefined();
+    expect(s.queue.steering).toHaveLength(0);
 
     // a snapshot with a low seq still applies
     const snapshot: PiThreadSnapshot = {
@@ -283,6 +284,22 @@ describe("piThreadState", () => {
       seq: 0,
     });
     expect(s.messages).toHaveLength(1);
+  });
+
+  it("applies error events even below the current seq (out-of-band errors)", () => {
+    // A failed `subscribe` is reported at seq 0 — below any live seq. It must
+    // still surface instead of being dropped by the dedup guard.
+    let s = apply(createPiThreadState("t1"), ev({ type: "agent_start" }));
+    const lastSeq = s.lastSeq;
+    s = reducePiThreadState(s, {
+      type: "error",
+      error: "unknown thread",
+      threadId: "t1",
+      seq: 0,
+    });
+    expect(s.lastError).toBe("unknown thread");
+    expect(s.runStatus).toBe("failed");
+    expect(s.lastSeq).toBe(lastSeq);
   });
 
   it("tolerates unknown event types", () => {

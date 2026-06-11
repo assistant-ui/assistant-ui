@@ -285,7 +285,9 @@ const ComposerAction: FC = () => {
       </div>
       <div className="flex items-center gap-1.5">
         <ComposerContextRing />
-        <AuiIf condition={(s) => !s.thread.isRunning}>
+        {/* Pi queues mid-run sends (follow-up/steer), so Send stays available
+            while text is typed even during a run; Stop shows when empty. */}
+        <AuiIf condition={(s) => !s.thread.isRunning || !s.composer.isEmpty}>
           <ComposerPrimitive.Send asChild>
             <TooltipIconButton
               tooltip="Send message"
@@ -300,7 +302,7 @@ const ComposerAction: FC = () => {
             </TooltipIconButton>
           </ComposerPrimitive.Send>
         </AuiIf>
-        <AuiIf condition={(s) => s.thread.isRunning}>
+        <AuiIf condition={(s) => s.thread.isRunning && s.composer.isEmpty}>
           <ComposerPrimitive.Cancel asChild>
             <Button
               type="button"
@@ -437,7 +439,11 @@ const AssistantMessage: FC = () => {
               case "group-reasoning": {
                 const running = part.status.type === "running";
                 return (
-                  <ReasoningRoot defaultOpen={running} variant="ghost" className="mb-0 my-1">
+                  <ReasoningRoot
+                    defaultOpen={running}
+                    variant="ghost"
+                    className="my-1 mb-0"
+                  >
                     <ReasoningTrigger active={running} />
                     <ReasoningContent aria-busy={running}>
                       <ReasoningText>{children}</ReasoningText>
@@ -456,7 +462,9 @@ const AssistantMessage: FC = () => {
                         active={part.status.type === "running"}
                       />
                     </div>
-                    <ToolGroupContent className="ml-5">{children}</ToolGroupContent>
+                    <ToolGroupContent className="ml-5">
+                      {children}
+                    </ToolGroupContent>
                   </ToolGroupRoot>
                 );
               case "text":

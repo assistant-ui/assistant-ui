@@ -269,7 +269,10 @@ export class PiThreadSupervisor {
       if (sessionFile) this.recordsBySessionFile.delete(sessionFile);
     }
     this.archivedSessionFiles.delete(sessionFile);
-    await unlink(sessionFile);
+    this.catalogInfoByThreadId.delete(threadId);
+    await unlink(sessionFile).catch((err: unknown) => {
+      if ((err as { code?: string }).code !== "ENOENT") throw err;
+    });
     if (workspacePath) this.invalidateCatalog(workspacePath);
   }
 
@@ -497,6 +500,11 @@ export class PiThreadSupervisor {
 
   private onSessionEvent(record: ThreadRecord, event: AgentSessionEvent): void {
     if (event.type === "turn_start") record.turnIndex += 1;
+    // Pi renames sessions itself (e.g. auto-titling after the first turn);
+    // without this the cached catalog would keep serving the stale title.
+    if (event.type === "session_info_changed") {
+      this.invalidateCatalog(record.workspacePath);
+    }
     this.emit(record, mapSessionEvent(event, { turnIndex: record.turnIndex }));
 
     // Context usage isn't its own SDK event — synthesize it at run boundaries

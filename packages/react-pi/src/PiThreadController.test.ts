@@ -427,6 +427,55 @@ describe("PiThreadController", () => {
     await send;
   });
 
+  it("rolls back the optimistic running mark when a send rejects", async () => {
+    const client = createFakeClient();
+    client.sendMessage = async () => {
+      throw new Error("nope");
+    };
+    const controller = new PiThreadController(client, THREAD);
+
+    await expect(controller.sendMessage(userMessage("hi"))).rejects.toThrow(
+      "nope",
+    );
+
+    const state = controller.getState();
+    expect(state.runStatus).toBe("failed");
+    expect(state.metadata.status).toBe("failed");
+    expect(state.lastError).toBe("nope");
+    expect(controller.getProjectedMessages()).toHaveLength(0);
+  });
+
+  it("reconciles an optimistic message against an enriched echo", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    await controller.sendMessage(userMessage("look"));
+    expect(controller.getProjectedMessages()).toHaveLength(1);
+
+    // The echoed transcript message carries array content with extra fields —
+    // structurally different from the optimistic string content, same text.
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: {
+            role: "user",
+            content: [
+              { type: "text", text: "look" },
+              { type: "image", data: "AAAA", mimeType: "image/png" },
+            ],
+            timestamp: 2,
+          },
+        },
+        1,
+      ),
+    );
+
+    const projected = controller.getProjectedMessages();
+    expect(projected.filter((m) => m.role === "user")).toHaveLength(1);
+  });
+
   it("coalesces high-frequency stream notifications", () => {
     const client = createFakeClient();
     const scheduled: Array<() => void> = [];

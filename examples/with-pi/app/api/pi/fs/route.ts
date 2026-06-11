@@ -17,6 +17,11 @@ const expand = (p: string): string =>
   p.startsWith("~") ? join(homedir(), p.slice(1)) : p;
 
 export async function GET(request: Request) {
+  // This lists arbitrary host directories for the local workspace picker —
+  // never expose it from a deployed instance.
+  if (process.env.NODE_ENV === "production") {
+    return new Response(null, { status: 404 });
+  }
   try {
     const raw = new URL(request.url).searchParams.get("path");
     const dir = resolve(raw ? expand(raw) : homedir());

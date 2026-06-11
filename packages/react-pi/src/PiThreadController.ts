@@ -197,8 +197,19 @@ const optimisticUserMessageFromInput = (
   timestamp: Date.now(),
 });
 
-const userContentKey = (message: PiAgentMessage): string | null =>
-  message.role === "user" ? JSON.stringify(message.content) : null;
+/** Text-only reconcile key: the echoed transcript message may carry extra
+ * fields (e.g. enriched image content), so structural equality is too strict —
+ * the prompt text is the stable part. */
+const userContentKey = (message: PiAgentMessage): string | null => {
+  if (message.role !== "user") return null;
+  const content = message.content;
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return null;
+  return (content as readonly { type: string; text?: string }[])
+    .filter((part) => part.type === "text" && typeof part.text === "string")
+    .map((part) => part.text)
+    .join("\n");
+};
 
 type OptimisticUserMessage = {
   message: PiAgentMessage;
@@ -420,7 +431,14 @@ export class PiThreadController implements PiThreadControllerLike {
       );
       if (index !== -1) this.optimisticUserMessages.splice(index, 1);
       this.recomputeProjectedMessagesAndNotify();
-      this.setState({ ...this.state, lastError: errorMessage(error) });
+      // The optimistic `running` mark must not outlive the failed send; any
+      // events from a run that did start will self-heal the status.
+      this.setState({
+        ...this.state,
+        lastError: errorMessage(error),
+        runStatus: "failed",
+        metadata: { ...this.state.metadata, status: "failed" },
+      });
       throw error;
     }
   }

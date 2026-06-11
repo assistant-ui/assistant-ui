@@ -1,7 +1,7 @@
 /**
  * Pure, incremental per-thread reducer.
  *
- * Design (PI_MVP_PLAN "Message Projection" / "Reconnect"):
+ * Design:
  * - The canonical transcript is `PiAgentMessage[]`. A `snapshot` event replaces
  *   it wholesale and is **authoritative** — so the reducer never depends on
  *   fragile event ordering; any divergence self-heals on the next snapshot.
@@ -181,7 +181,14 @@ export const reducePiThreadState = (
   state: PiThreadState,
   event: PiClientEvent,
 ): PiThreadState => {
-  if (event.type !== "snapshot" && event.seq <= state.lastSeq) {
+  // Errors bypass the dedup guard alongside snapshots: they can be emitted
+  // out-of-band (e.g. a failed `subscribe` is reported at seq 0, below any
+  // live seq) and re-applying one is harmless.
+  if (
+    event.type !== "snapshot" &&
+    event.type !== "error" &&
+    event.seq <= state.lastSeq
+  ) {
     return state;
   }
 

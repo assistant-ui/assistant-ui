@@ -11,6 +11,7 @@ import type {
   AssistantRuntime,
   ExternalStoreAdapter,
   ExternalStoreSharedOptions,
+  ExternalThreadQueueAdapter,
   ThreadMessage,
   ThreadMessageLike,
 } from "@assistant-ui/react";
@@ -256,10 +257,10 @@ const isPiStateRunning = (state: PiThreadState): boolean =>
   state.compaction.active ||
   state.retry.active;
 
-const usePiThreadRuntime = (
+const usePiThreadStore = (
   controller: PiThreadControllerLike,
   options: PiRuntimeOptions,
-): AssistantRuntime => {
+): ExternalStoreAdapter<ThreadMessage> => {
   const state = usePiControllerState(controller, "metadata");
   const messageRepository = usePiControllerMessageRepository(controller);
 
@@ -282,6 +283,17 @@ const usePiThreadRuntime = (
     if (controller === NOOP_CONTROLLER) return;
     void controller.load().catch(onLoadError);
   }, [controller]);
+
+  // A running thread must stream live events even when this client never
+  // called `sendMessage` — e.g. the first message of a new thread starts the
+  // run server-side inside `createThread`. The supervisor already holds a live
+  // record for a running thread, so subscribing attaches to it; idle threads
+  // never connect and the cold-read path stays cheap.
+  useEffect(() => {
+    if (controller === NOOP_CONTROLLER) return;
+    if (!isRunning) return;
+    return controller.connect();
+  }, [controller, isRunning]);
 
   const extras = useMemo<PiRuntimeExtrasInternal>(() => {
     const { freeStanding } = splitHostUiRequests(state.hostUiRequests);
@@ -312,6 +324,41 @@ const usePiThreadRuntime = (
     };
   }, [controller, state]);
 
+  // Pi queues natively (`prompt()` steers/follows up mid-run), so the queue
+  // adapter forwards every send straight to the controller instead of
+  // buffering client-side. Exposing it flips on `capabilities.queue`, which is
+  // what lets the composer keep accepting input while a run is streaming
+  // (plain Enter → follow-up, Cmd/Ctrl+Shift+Enter → steer).
+  const queue = useMemo<ExternalThreadQueueAdapter>(
+    () => ({
+      items: [
+        ...state.queue.steering.map((content, index) => ({
+          id: `steer:${index}`,
+          prompt: content,
+        })),
+        ...state.queue.followUp.map((content, index) => ({
+          id: `followUp:${index}`,
+          prompt: content,
+        })),
+      ],
+      enqueue: (message, { steer }) => {
+        void controller
+          .sendMessage(
+            message,
+            steer ? { streamingBehavior: "steer" } : undefined,
+          )
+          .catch((error: unknown) => onError?.(error));
+      },
+      // Pi owns the queue server-side and the MVP `PiClient` exposes no
+      // promote/remove/clear operations, so these degrade to no-ops; the
+      // items above stay an honest mirror of the server queue.
+      steer: () => {},
+      remove: () => {},
+      clear: () => {},
+    }),
+    [controller, state.queue, onError],
+  );
+
   const store = useMemo<ExternalStoreAdapter<ThreadMessage>>(
     () => ({
       isDisabled,
@@ -322,6 +369,7 @@ const usePiThreadRuntime = (
       isRunning,
       messageRepository,
       extras,
+      queue,
       ...(adapters ? { adapters } : {}),
       onNew: async (message) => {
         try {
@@ -357,6 +405,7 @@ const usePiThreadRuntime = (
       controller,
       extras,
       messageRepository,
+      queue,
       adapters,
       isDisabled,
       isLoading,
@@ -368,7 +417,7 @@ const usePiThreadRuntime = (
     ],
   );
 
-  return useExternalStoreRuntime<ThreadMessage>(store);
+  return store;
 };
 
 const toOptimisticThreadMessage = (
@@ -384,11 +433,11 @@ const toOptimisticThreadMessage = (
   ],
 });
 
-const useNewPiThreadRuntime = (
+const useNewPiThreadStore = (
   options: PiRuntimeOptions,
   enabled: boolean,
   pendingInitialMessageRef: { current: PiSendMessageInput | undefined },
-): AssistantRuntime => {
+): ExternalStoreAdapter<ThreadMessage> => {
   const aui = useAui();
   const {
     adapters,
@@ -463,7 +512,7 @@ const useNewPiThreadRuntime = (
     ],
   );
 
-  return useExternalStoreRuntime<ThreadMessage>(store);
+  return store;
 };
 
 const useRuntimeHook = (
@@ -494,18 +543,23 @@ const useRuntimeHook = (
     return next;
   })();
 
-  const threadRuntime = usePiThreadRuntime(
+  const threadStore = usePiThreadStore(
     isMainThread ? controller : NOOP_CONTROLLER,
     options,
   );
-  const newThreadRuntime = useNewPiThreadRuntime(
+  const newThreadStore = useNewPiThreadStore(
     options,
     threadListItem.status === "new",
     pendingInitialMessageRef,
   );
 
-  if (threadId) return threadRuntime;
-  return newThreadRuntime;
+  // One runtime whose store CONTENT switches between the new-thread and
+  // live-thread branches. Returning two alternating runtime instances breaks
+  // the remote-thread-list main binding: it can latch onto the runtime that
+  // was current at switch time and miss the other one's later updates.
+  return useExternalStoreRuntime<ThreadMessage>(
+    threadId ? threadStore : newThreadStore,
+  );
 };
 
 // ---------------------------------------------------------------------------
