@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     const { messages }: { messages: SummaryMessage[] } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
-      return Response.json({ error: "messages 参数错误" }, { status: 400 });
+      return Response.json({ error: "Invalid messages parameter" }, { status: 400 });
     }
 
     const conversationText = messages
