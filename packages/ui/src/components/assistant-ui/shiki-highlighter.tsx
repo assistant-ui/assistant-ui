@@ -60,6 +60,7 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
   theme = { dark: "github-dark-default", light: "github-light-default" },
   className,
   style,
+  // Inert: useShikiHighlighter output has no default styles or language label.
   addDefaultStyles: _addDefaultStyles,
   showLanguage: _showLanguage,
   delay = 150, // the part settles before smooth streaming finishes draining, so code keeps changing for a few frames
