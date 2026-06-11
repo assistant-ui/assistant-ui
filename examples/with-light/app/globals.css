@@ -1,0 +1,448 @@
+@import "tailwindcss";
+
+:root {
+    --paper: #fbfaf4;
+    --paper-strong: #fffef9;
+    --ink: #26332e;
+    --ink-soft: #718078;
+    --line: rgba(52, 75, 64, 0.13);
+    --sun: #f4df8b;
+    --mint: #cde7d6;
+    --sky: #d9e8ef;
+    --coral: #e8a684;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans), sans-serif;
+}
+
+button,
+textarea {
+    font: inherit;
+}
+
+button,
+a {
+    -webkit-tap-highlight-color: transparent;
+}
+.scroll-button {
+    border-radius: 999px;
+    border: 1px solid #e8f0e9;
+}
+
+.scroll-button:disabled {
+    visibility: hidden;
+}
+
+.welcome-orbit {
+    position: relative;
+    z-index: 1;
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    background-color: rgba(125, 105, 28, 0.12);
+}
+.light-shell {
+    position: relative;
+    display: grid;
+    min-height: 100dvh;
+    grid-template-columns: 250px minmax(0, 1fr) 250px;
+    overflow: hidden;
+    background:
+        radial-gradient(
+            circle at 16% 2%,
+            rgba(244, 223, 139, 0.42),
+            transparent 23rem
+        ),
+        radial-gradient(
+            circle at 87% 91%,
+            rgba(205, 231, 214, 0.48),
+            transparent 27rem
+        ),
+        var(--paper);
+}
+
+.light-sidebar,
+.inspiration-rail,
+.conversation-panel {
+    position: relative;
+    z-index: 1;
+}
+
+.light-sidebar {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-right: 1px solid var(--line);
+    padding: 32px 24px 24px;
+    background: rgba(255, 254, 249, 0.48);
+    backdrop-filter: blur(18px);
+}
+
+.brand-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ink);
+    font-family: var(--font-serif), serif;
+    font-size: 25px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.brand-sun {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border: 1px solid rgba(95, 84, 34, 0.15);
+    border-radius: 50%;
+    background: var(--sun);
+    box-shadow: 0 7px 18px rgba(125, 105, 28, 0.12);
+}
+
+.sidebar-kicker {
+    margin: 11px 0 28px 0;
+    color: var(--ink-soft);
+    font-family: var(--font-serif), serif;
+    font-size: 13px;
+    font-style: italic;
+}
+
+.new-thread-button {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 9px;
+    border: 1px solid rgba(54, 78, 66, 0.16);
+    border-radius: 14px;
+    padding: 11px 13px;
+    background: rgba(255, 255, 255, 0.58);
+    color: var(--ink);
+    cursor: pointer;
+    transition: 160ms ease;
+}
+
+.section-label,
+.eyebrow {
+    margin: 0 0 10px;
+    color: #859088;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.sidebar-placeholder,
+.inspiration-rail {
+    border-top: 1px solid var(--line);
+    color: var(--ink-soft);
+}
+
+.conversation-panel {
+    display: flex;
+    min-width: 0;
+    height: 100dvh;
+    flex-direction: column;
+    background: rgba(251, 250, 244, 0.62);
+}
+
+.conversation-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 26px 36px 15px;
+}
+
+.conversation-header h1 {
+    margin: 0;
+    font-family: var(--font-serif), serif;
+    font-size: 24px;
+    font-weight: 500;
+}
+
+.eyebrow {
+    margin-bottom: 5px;
+}
+
+.light-thread,
+.light-viewport {
+    min-height: 0;
+    flex: 1;
+}
+
+.light-thread {
+    display: flex;
+    flex-direction: column;
+}
+
+.light-viewport {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 0 36px;
+    scroll-behavior: smooth;
+}
+
+.welcome {
+    display: flex;
+    width: min(100%, 720px);
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 36px;
+    margin: 0 auto;
+    padding: 36px 0 70px;
+}
+
+.welcome-copy {
+    position: relative;
+}
+
+.welcome-copy p {
+    margin: 0;
+    font-family: var(--font-serif), serif;
+    font-size: clamp(37px, 5vw, 62px);
+    font-weight: 400;
+    letter-spacing: -0.045em;
+    line-height: 0.98;
+}
+
+.welcome-copy em {
+    color: #759580;
+    font-weight: 400;
+}
+
+.suggestion-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.suggestion-card {
+    position: relative;
+    min-height: 132px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 17px;
+    background: rgba(255, 254, 249, 0.62);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    color: var(--ink);
+    cursor: pointer;
+    text-align: left;
+    transition: 180ms ease;
+}
+
+.suggestion-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.15);
+    transition-all-duration: 200s;
+}
+.suggestion-title,
+.suggestion-description {
+    display: block;
+}
+
+.suggestion-title {
+    max-width: 90%;
+    font-family: var(--font-serif), serif;
+    font-size: 17px;
+    line-height: 1.1;
+}
+
+.suggestion-description {
+    margin-top: 10px;
+    color: var(--ink-soft);
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.message-row {
+    width: min(100%, 720px);
+    margin: 0 auto;
+    padding: 13px 0;
+}
+
+.user-row {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.user-bubble {
+    max-width: 78%;
+    border: 1px solid rgba(67, 91, 78, 0.1);
+    border-radius: 20px 20px 5px 20px;
+    padding: 11px 15px;
+    background: #e8f0e9;
+    box-shadow: 0 8px 25px rgba(63, 80, 71, 0.06);
+}
+
+.assistant-row {
+    display: grid;
+    grid-template-columns: 16px 1fr;
+    gap: 11px;
+}
+
+.assistant-dot {
+    width: 9px;
+    height: 9px;
+    margin-top: 7px;
+    border-radius: 50%;
+    background: var(--sun);
+    box-shadow: 0 0 0 5px rgba(244, 223, 139, 0.22);
+}
+
+.assistant-copy {
+    max-width: 86%;
+    color: #3e4c45;
+    font-family: var(--font-serif), serif;
+    font-size: 17px;
+    line-height: 1.65;
+}
+
+.message-row p {
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+.composer-dock {
+    position: sticky;
+    bottom: 0;
+    width: min(100%, 720px);
+    margin: auto auto 0;
+    padding: 18px 0 22px;
+    background: linear-gradient(to bottom, transparent, var(--paper) 25%);
+}
+
+.light-composer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 12px;
+    border: 1px solid rgba(59, 82, 70, 0.16);
+    border-radius: 22px;
+    padding: 10px 10px 10px 17px;
+    background: rgba(255, 254, 249, 0.9);
+    box-shadow: 0 18px 55px rgba(59, 78, 68, 0.1);
+    backdrop-filter: blur(16px);
+}
+
+.composer-input {
+    max-height: 130px;
+    min-height: 39px;
+    resize: none;
+    border: 0;
+    padding: 9px 0 5px;
+    background: transparent;
+    color: var(--ink);
+    outline: 0;
+}
+
+.composer-input::placeholder {
+    color: #9aa49e;
+}
+
+.composer-actions {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.send-button {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--paper-strong);
+    cursor: pointer;
+    transition: 160ms ease;
+}
+
+.send-button:disabled {
+    cursor: default;
+    opacity: 0.35;
+    transform: none;
+}
+
+.inspiration-rail {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 32px 24px 24px;
+}
+
+.summary-button {
+    border: 1px solid rgba(54, 78, 66, 0.16);
+    border-radius: 14px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.58);
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.summary-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.summary-card {
+    margin-top: 12px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 14px;
+    background: rgba(255, 254, 249, 0.72);
+}
+
+.empty-text {
+    margin: 0;
+    color: var(--ink-soft);
+}
+
+@media (max-width: 1100px) {
+    .light-shell {
+        grid-template-columns: 220px minmax(0, 1fr);
+    }
+
+    .inspiration-rail {
+        display: none;
+    }
+}
+
+@media (max-width: 760px) {
+    .light-shell {
+        display: block;
+    }
+
+    .light-sidebar {
+        display: none;
+    }
+
+    .conversation-header,
+    .light-viewport {
+        padding-right: 18px;
+        padding-left: 18px;
+    }
+
+    .suggestion-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .suggestion-card {
+        min-height: 105px;
+    }
+}
