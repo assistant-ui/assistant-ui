@@ -1,0 +1,63 @@
+---
+title: Thread Virtualization
+description: Render very long threads with @tanstack/react-virtual and ThreadPrimitive.MessageByIndex.
+platforms: ["react"]
+---
+
+Virtualization mounts only the messages near the viewport and represents the rest as empty space, so a thread with thousands of messages scrolls like one with twenty. assistant-ui does not ship a virtualized thread component; this guide shows the supported composition, extracted from a production consumer and available as a runnable example: [`examples/with-virtualized-thread`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-virtualized-thread).
+
+## Do you need this?
+
+Probably not. The default kit already renders message bodies with `content-visibility: auto` and `contain-intrinsic-size`, which skips paint work for off-screen messages, and `ThreadPrimitive.Viewport` handles auto-scroll. That covers typical threads. Reach for virtualization when React mount and update cost itself becomes the bottleneck: threads with hundreds to thousands of messages, or very heavy per-message content, where typing latency degrades because every message stays mounted.
+
+## Rendering messages by index
+
+`ThreadPrimitive.MessageByIndex` renders a single message at a given index and memoizes on the index plus per-field `components` identity. Pass a module-level components object so the memo holds and a streaming delta only re-renders the message it belongs to:
+
+```tsx
+const MESSAGE_COMPONENTS = { UserMessage, AssistantMessage };
+
+<ThreadPrimitive.MessageByIndex index={index} components={MESSAGE_COMPONENTS} />;
+```
+
+## Grouping into turns
+
+Virtualizing per user turn (a user message plus the responses that follow it) gives the virtualizer stable, meaningfully sized items. Subscribe to a single signature string so the selector returns a primitive and the turn array only rebuilds when membership actually changes:
+
+```tsx
+const signature = useAuiState((s) =>
+  s.thread.messages.map((m, i) => `${i}:${m.id}:${m.role}`).join("\n"),
+);
+const turns = useMemo(() => buildTurns(signature), [signature]);
+```
+
+## Padding spacers, not absolute positioning
+
+Render the virtual items in normal document flow inside a spacer div whose `paddingTop`/`paddingBottom` represent the unmounted regions. Items remain regular flow children, so message CSS (including `position: sticky` patterns and the kit styling) keeps working, and `virtualizer.measureElement` records real heights as items mount:
+
+```tsx
+const items = virtualizer.getVirtualItems();
+const paddingTop = items[0]?.start ?? 0;
+const paddingBottom = Math.max(
+  0,
+  virtualizer.getTotalSize() - (items.at(-1)?.end ?? 0),
+);
+```
+
+## Owning the scroll element
+
+The composition owns its scroll container instead of using `ThreadPrimitive.Viewport`: the built-in auto-scroll assumes every message is mounted, and its resize-driven re-pin can fight the virtualizer's measurement adjustments. Three pieces replace it:
+
+1. **Auto-follow.** A ResizeObserver on the content wrapper re-pins the scroller to the bottom while a sticky flag is armed. The flag disarms when the user scrolls up (detected as `scrollTop` decreasing while `scrollHeight` and `clientHeight` are stable, the same heuristic the built-in viewport uses, plus wheel-up and touchmove) and re-arms when the user returns to the bottom.
+2. **Measurement guard.** While pinned at the bottom, the virtualizer's own scroll adjustments on item re-measurement are suppressed via a custom `scrollToFn`; without this the two scroll writers fight and the view rubber-bands during streaming.
+3. **Run-start jump.** A `useLayoutEffect` observes `s.thread.isRunning` flipping to true and jumps to the bottom before paint, so a just-sent message never flashes below the fold. The `thread.runStart` event is deprecated; deriving the transition from state is the supported path.
+
+The production consumer this is extracted from disables streaming auto-follow entirely as a product choice; the example keeps following because it matches `ThreadPrimitive.Viewport`'s default behavior. Both are valid, and the disarm guard makes either safe.
+
+## Try it
+
+```sh
+npx assistant-ui@latest create my-app
+```
+
+Then copy `app/VirtualizedThread.tsx`, `app/MyRuntimeProvider.tsx`, and `app/seed-messages.ts` from [the example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-virtualized-thread), or clone the repo and run `pnpm --filter with-virtualized-thread dev`.
