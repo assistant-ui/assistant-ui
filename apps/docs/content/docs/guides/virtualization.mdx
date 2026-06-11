@@ -26,7 +26,7 @@ Virtualizing per user turn (a user message plus the responses that follow it) gi
 
 ```tsx
 const signature = useAuiState((s) =>
-  s.thread.messages.map((m, i) => `${i}:${m.id}:${m.role}`).join("\n"),
+  s.thread.messages.map((m, i) => `${i}:${m.role}:${m.id}`).join("\n"),
 );
 const turns = useMemo(() => buildTurns(signature), [signature]);
 ```

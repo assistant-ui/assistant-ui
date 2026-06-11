@@ -33,11 +33,14 @@ const buildTurns = (signature: string): Turn[] => {
   if (!signature) return [];
   const turns: Turn[] = [];
   for (const row of signature.split("\n")) {
-    const [index, id, role] = row.split(":");
+    const firstColon = row.indexOf(":");
+    const secondColon = row.indexOf(":", firstColon + 1);
+    const index = Number(row.slice(0, firstColon));
+    const role = row.slice(firstColon + 1, secondColon);
+    const id = row.slice(secondColon + 1);
     const last = turns.at(-1);
-    if (role === "user" || !last)
-      turns.push({ id: id!, indices: [Number(index)] });
-    else last.indices.push(Number(index));
+    if (role === "user" || !last) turns.push({ id, indices: [index] });
+    else last.indices.push(index);
   }
   return turns;
 };
@@ -81,7 +84,7 @@ const Composer: FC = () => (
 
 export const VirtualizedThread: FC = () => {
   const signature = useAuiState((s) =>
-    s.thread.messages.map((m, i) => `${i}:${m.id}:${m.role}`).join("\n"),
+    s.thread.messages.map((m, i) => `${i}:${m.role}:${m.id}`).join("\n"),
   );
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const turns = useMemo(() => buildTurns(signature), [signature]);
