@@ -10,7 +10,7 @@ import {
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useLayoutEffect, useMemo } from "react";
 
 type FiberState = {
   fiber: ResourceFiber<unknown>;
@@ -89,7 +89,7 @@ export function useResources<E extends ResourceElement<any, any[]>>(
   }, [getElementsMemo, fibers, createFiber, version]);
 
   // Cleanup on unmount
-  useEffect(() => {
+  useLayoutEffect(() => {
     return () => {
       for (const key of fibers.keys()) {
         const fiber = fibers.get(key)!.fiber;
@@ -98,7 +98,7 @@ export function useResources<E extends ResourceElement<any, any[]>>(
     };
   }, [fibers]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     void res; // as a performance optimization, we only run if the results have changed
 
     for (const [key, state] of fibers.entries()) {

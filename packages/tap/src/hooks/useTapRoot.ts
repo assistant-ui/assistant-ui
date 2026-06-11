@@ -12,7 +12,7 @@ import {
   createResourceFiberRoot,
   setRootVersion,
 } from "../core/helpers/root";
-import { useEffect, useEffectEvent, useMemo, useRef } from "react";
+import { useEffectEvent, useLayoutEffect, useMemo, useRef } from "react";
 import { useDevStrictMode } from "./utils/useDevStrictMode";
 
 export namespace useTapRoot {
@@ -97,7 +97,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     subscribers.forEach((callback) => callback());
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
@@ -105,7 +105,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     };
   }, [fiber]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     committedArgsRef.current = [render];
     commitRoot(fiber.root);
     commitResourceFiber(fiber, render2);
