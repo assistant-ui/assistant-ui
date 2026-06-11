@@ -112,7 +112,7 @@ export const VirtualizedThread: FC = () => {
         )
           return;
       }
-      (el as HTMLElement).scrollTo(0, offset);
+      el.scrollTo(0, offset);
     },
   });
 
