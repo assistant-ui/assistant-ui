@@ -21,6 +21,7 @@ export function createResourceFiber<R, A extends readonly unknown[]>(
     isFirstRender: true,
     isMounted: false,
     isNeverMounted: true,
+    preMountQueue: undefined,
   };
 }
 
@@ -70,4 +71,10 @@ export function commitResourceFiber<R, A extends readonly unknown[]>(
 
   fiber.isNeverMounted = false;
   commitAllEffects(result);
+
+  const queue = fiber.preMountQueue;
+  if (queue) {
+    fiber.preMountQueue = undefined;
+    for (const replay of queue) replay();
+  }
 }

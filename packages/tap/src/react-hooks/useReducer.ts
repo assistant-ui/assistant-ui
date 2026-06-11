@@ -14,7 +14,12 @@ const dispatchOnFiber = (
     throw new Error("Resource updated during render");
   }
   if (fiber.isNeverMounted) {
-    throw new Error("Resource updated before mount");
+    // The fiber's host commits it in a passive effect, but React flushes
+    // passive effects child-first — a descendant's mount effect can dispatch
+    // before the ancestor host commits. Buffer the dispatch and replay it
+    // after the first commit; FIFO order preserves dispatch sequences.
+    (fiber.preMountQueue ??= []).push(() => dispatchOnFiber(fiber, callback));
+    return;
   }
 
   fiber.root.dispatchUpdate(() => {

@@ -77,4 +77,12 @@ export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
   isMounted: boolean;
   isFirstRender: boolean;
   isNeverMounted: boolean;
+
+  /**
+   * Dispatches that arrived before the first commit (React flushes passive
+   * effects child-first, so a descendant's mount effect can dispatch before
+   * the ancestor host commits this fiber). Replayed in FIFO order after the
+   * first commit.
+   */
+  preMountQueue: (() => void)[] | undefined;
 }
