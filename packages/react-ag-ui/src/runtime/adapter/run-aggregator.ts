@@ -82,6 +82,10 @@ export class RunAggregator {
     this.onServerMessageId = options.onServerMessageId;
   }
 
+  hasToolCall(toolCallId: string): boolean {
+    return this.toolCalls.has(toolCallId);
+  }
+
   handle(event: AgUiEvent): void {
     switch (event.type) {
       case "RUN_STARTED": {
@@ -388,21 +392,12 @@ export class RunAggregator {
     ) {
       this.partOrder.push({ kind: "tool-call", toolCallId: id });
     }
-    entry.result = this.tryParseJSON(content);
+    entry.result = tryParseJSON(content);
     entry.isError = isError;
     if (toolMessageId) {
       entry.toolMessageId = toolMessageId;
     }
     this.lastResolvedToolCallId = id;
-  }
-
-  private tryParseJSON(value: string): unknown {
-    if (!value) return value;
-    try {
-      return JSON.parse(value);
-    } catch {
-      return value;
-    }
   }
 
   private emit(): void {
@@ -540,5 +535,14 @@ export class RunAggregator {
     if (!this.showThinking) return;
     this.activeReasoningKey = undefined;
     this.emit();
+  }
+}
+
+export function tryParseJSON(value: string): unknown {
+  if (!value) return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
   }
 }

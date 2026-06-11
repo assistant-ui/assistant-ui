@@ -22,6 +22,7 @@ import {
   AG_UI_METADATA_NAMESPACE,
   type AgUiCustomMetadata,
   RunAggregator,
+  tryParseJSON,
 } from "./adapter/run-aggregator";
 import {
   fromAgUiMessages,
@@ -908,9 +909,44 @@ export class AgUiThreadRuntimeCore {
         this.importMessagesSnapshot(event.messages);
         return;
       }
+      case "TOOL_CALL_RESULT": {
+        // Results for tool calls the current run never opened (e.g. resume
+        // after an interrupt) belong to a prior message.
+        if (!aggregator.hasToolCall(event.toolCallId)) {
+          const messageId = this.findMessageIdForToolCall(event.toolCallId);
+          if (messageId !== undefined) {
+            this.applyCrossRunToolResult(messageId, event);
+            return;
+          }
+        }
+        aggregator.handle(event);
+        return;
+      }
       default:
         aggregator.handle(event);
     }
+  }
+
+  private applyCrossRunToolResult(
+    messageId: string,
+    event: Extract<AgUiEvent, { type: "TOOL_CALL_RESULT" }>,
+  ): void {
+    const owner = this.messages.find((m) => m.id === messageId);
+    const part =
+      owner?.role === "assistant"
+        ? owner.content.find(
+            (p): p is ToolCallMessagePart =>
+              p.type === "tool-call" && p.toolCallId === event.toolCallId,
+          )
+        : undefined;
+    this.addToolResult({
+      messageId,
+      toolCallId: event.toolCallId,
+      toolName: part?.toolName ?? "tool",
+      result: tryParseJSON(event.content ?? "") as ReadonlyJSONValue,
+      // mirror finishToolCall: a missing role leaves isError unset
+      isError: event.role === "tool" ? false : undefined,
+    } as AddToolResultOptions);
   }
 
   private importMessagesSnapshot(rawMessages: readonly unknown[]) {
