@@ -397,27 +397,37 @@ export class AgUiThreadRuntimeCore {
     this.maybeResumeAfterToolResults(options.messageId);
   }
 
-  // Re-evaluate whether every tool call on the assistant message now has a
-  // result and, if so, drive the follow-up run. Centralizing this lets the
-  // continuation fire whether the frontend result lands before RUN_FINISHED
-  // (status flips to requires-action only later, while a run is still draining)
-  // or after it. Idempotent: once the message is marked complete it no-ops.
+  // The continuation fires whether the frontend result lands before
+  // RUN_FINISHED (the status flips to requires-action only later, while the
+  // run is still draining) or after it.
   private maybeResumeAfterToolResults(messageId: string): void {
+    if (!this.maybeCompleteAfterToolResults(messageId)) return;
+
+    if (this.isRunningFlag) {
+      // A run is still draining (RUN_FINISHED arrived but the stream has not
+      // closed). Defer until startRun's tail so we never start two runs.
+      this.pendingResumeMessageId = messageId;
+      return;
+    }
+    this.startResumeRun(messageId);
+  }
+
+  private maybeCompleteAfterToolResults(messageId: string): boolean {
     const message = this.messages.find((m) => m.id === messageId);
-    if (!message || message.role !== "assistant") return;
+    if (!message || message.role !== "assistant") return false;
     const assistant = message as ThreadAssistantMessage;
     if (
       assistant.status?.type !== "requires-action" ||
       assistant.status.reason !== "tool-calls"
     ) {
-      return;
+      return false;
     }
     const allResolved = assistant.content.every(
       (part) =>
         part.type !== "tool-call" ||
         ("result" in part && part.result !== undefined),
     );
-    if (!allResolved) return;
+    if (!allResolved) return false;
 
     this.messages = this.messages.map((m) =>
       m.id === messageId && m.role === "assistant"
@@ -429,14 +439,7 @@ export class AgUiThreadRuntimeCore {
     );
     this.notifyUpdate();
     this.persistAssistantHistory(messageId);
-
-    if (this.isRunningFlag) {
-      // A run is still draining (RUN_FINISHED arrived but the stream has not
-      // closed). Defer until startRun's tail so we never start two runs.
-      this.pendingResumeMessageId = messageId;
-      return;
-    }
-    this.startResumeRun(messageId);
+    return true;
   }
 
   private startResumeRun(messageId: string): void {
@@ -910,8 +913,6 @@ export class AgUiThreadRuntimeCore {
         return;
       }
       case "TOOL_CALL_RESULT": {
-        // Results for tool calls the current run never opened (e.g. resume
-        // after an interrupt) belong to a prior message.
         if (!aggregator.hasToolCall(event.toolCallId)) {
           const messageId = this.findMessageIdForToolCall(event.toolCallId);
           if (messageId !== undefined) {
@@ -931,22 +932,35 @@ export class AgUiThreadRuntimeCore {
     messageId: string,
     event: Extract<AgUiEvent, { type: "TOOL_CALL_RESULT" }>,
   ): void {
-    const owner = this.messages.find((m) => m.id === messageId);
-    const part =
-      owner?.role === "assistant"
-        ? owner.content.find(
-            (p): p is ToolCallMessagePart =>
-              p.type === "tool-call" && p.toolCallId === event.toolCallId,
-          )
-        : undefined;
-    this.addToolResult({
-      messageId,
-      toolCallId: event.toolCallId,
-      toolName: part?.toolName ?? "tool",
-      result: tryParseJSON(event.content ?? "") as ReadonlyJSONValue,
-      // mirror finishToolCall: a missing role leaves isError unset
-      isError: event.role === "tool" ? false : undefined,
-    } as AddToolResultOptions);
+    let updated = false;
+    this.messages = this.messages.map((message) => {
+      if (message.id !== messageId || message.role !== "assistant")
+        return message;
+      const assistant = message as ThreadAssistantMessage;
+      let matchedToolCall = false;
+      const content = assistant.content.map((part) => {
+        if (part.type !== "tool-call" || part.toolCallId !== event.toolCallId)
+          return part;
+        matchedToolCall = true;
+        return {
+          ...part,
+          result: tryParseJSON(event.content ?? "") as ReadonlyJSONValue,
+          ...(event.role === "tool" ? { isError: false } : {}),
+          ...(event.messageId
+            ? { unstable_toolMessageId: event.messageId }
+            : {}),
+        };
+      });
+      if (!matchedToolCall) return message;
+      updated = true;
+      return { ...assistant, content };
+    });
+
+    if (!updated) return;
+    this.notifyUpdate();
+    // Not maybeResumeAfterToolResults: the delivering run is already in
+    // flight, and a resume from the owner would reset the head past it.
+    this.maybeCompleteAfterToolResults(messageId);
   }
 
   private importMessagesSnapshot(rawMessages: readonly unknown[]) {
