@@ -5,7 +5,7 @@ const GRID = 5;
 const CENTER = (GRID - 1) / 2;
 const DOT_INDEXES = Array.from({ length: GRID * GRID }, (_, i) => i);
 
-/* Deterministic bit-mixing hash so server and client render identical markup. A plain (i * prime) % range correlates indexes a grid-stride apart and renders as column-synchronized waves instead of a twinkle. */
+/* Deterministic bit-mixing hash so server and client render identical markup; takes a range in milliseconds and returns seconds. A plain (i * prime) % range correlates indexes a grid-stride apart and renders as column-synchronized waves instead of a twinkle. */
 const hash = (n: number, salt: number, range: number) => {
   let h = (Math.imul(n, 374761393) + Math.imul(salt, 668265263)) >>> 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
@@ -223,13 +223,16 @@ function DotMatrix({
       {...props}
     >
       <span className="sr-only">{label ?? state}</span>
+      {/* Hoisted and deduplicated across instances by React; must live in HTML scope, inside the SVG it would be an SVG-namespace element React does not hoist. */}
+      <style href="aui-dot-matrix" precedence="low">
+        {DOT_MATRIX_CSS}
+      </style>
       <svg
         aria-hidden
         viewBox="0 0 20 20"
         fill="currentColor"
         className="size-full"
       >
-        <style>{DOT_MATRIX_CSS}</style>
         {DOT_INDEXES.map((i) => {
           const row = Math.floor(i / GRID);
           const col = i % GRID;
