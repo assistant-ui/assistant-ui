@@ -305,7 +305,7 @@ function ToolFallbackApproval({
     approval?: ToolCallMessagePart["approval"];
   }) {
   const [submitted, setSubmitted] = useState(false);
-  const [confirming, setConfirming] = useState<ToolApprovalOption | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   if (
     approval != null &&
@@ -341,16 +341,21 @@ function ToolFallbackApproval({
     if (submitted) return;
     respondToApproval?.({ optionId: option.id });
     setSubmitted(true);
-    setConfirming(null);
+    setConfirmingId(null);
   };
 
   const handleOption = (option: ToolApprovalOption) => {
     if (option.confirm) {
-      setConfirming(option);
+      setConfirmingId(option.id);
     } else {
       respondWithOption(option);
     }
   };
+
+  const confirming =
+    confirmingId != null
+      ? options?.find((o) => o.id === confirmingId)
+      : undefined;
 
   if (confirming) {
     const confirmMeta =
@@ -394,7 +399,7 @@ function ToolFallbackApproval({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setConfirming(null)}
+            onClick={() => setConfirmingId(null)}
             disabled={submitted}
           >
             Back
@@ -438,6 +443,16 @@ function ToolFallbackApproval({
             {approvalOptionLabel(option)}
           </Button>
         ))}
+        {rejectOptions.length === 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => respond(false)}
+            disabled={submitted}
+          >
+            Deny
+          </Button>
+        )}
       </div>
     );
   }
