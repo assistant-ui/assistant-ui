@@ -124,6 +124,22 @@ function useModelSelectorContext() {
   return ctx;
 }
 
+/**
+ * The selected model's effort levels and the active selection. Use it to build
+ * a custom effort UI inside ModelSelector.Content (e.g. a slider or a shadcn
+ * DropdownMenu) when the built-in ModelSelector.Effort layout doesn't fit.
+ * `efforts` is undefined for models without configurable reasoning.
+ */
+export function useModelSelectorEfforts(): {
+  efforts: readonly ModelSelectorEffortOption[] | undefined;
+  effort: string | undefined;
+  setEffort: (effort: string) => void;
+} {
+  const { models, value, effort, setEffort } = useModelSelectorContext();
+  const efforts = getModelEfforts(models.find((m) => m.id === value));
+  return { efforts, effort, setEffort };
+}
+
 export type ModelSelectorRootProps = {
   models: readonly ModelOption[];
   value?: string;
@@ -182,6 +198,7 @@ function ModelSelectorRoot({
 
   return (
     <ModelSelectorContext.Provider value={contextValue}>
+      {/* `?? false` narrows away undefined for exactOptionalPropertyTypes consumers. */}
       <Popover open={open ?? false} onOpenChange={setOpen}>
         {children}
       </Popover>
@@ -230,11 +247,7 @@ function ModelSelectorTrigger({
       data-variant={variant ?? "outline"}
       data-size={size ?? "default"}
       role="combobox"
-      className={cn(
-        modelSelectorTriggerVariants({ variant, size }),
-        "aui-model-selector-trigger",
-        className,
-      )}
+      className={cn(modelSelectorTriggerVariants({ variant, size }), className)}
       {...props}
     >
       {children ?? <ModelSelectorValue />}
@@ -297,6 +310,8 @@ function ModelSelectorContent({
   children,
   ...props
 }: ModelSelectorContentProps) {
+  const { value } = useModelSelectorContext();
+
   return (
     <PopoverContent
       data-slot="model-selector-content"
@@ -308,7 +323,12 @@ function ModelSelectorContent({
       )}
       {...props}
     >
-      <Command className="bg-transparent">
+      {/* Seeding cmdk with the selected id makes it the active item, which
+          cmdk scrolls into view when the popover opens. */}
+      <Command
+        className="bg-transparent"
+        {...(value !== undefined ? { defaultValue: value } : {})}
+      >
         {children ?? (
           <>
             <ModelSelectorList />
@@ -467,8 +487,7 @@ function ModelSelectorEffort({
   className,
   ...props
 }: ModelSelectorEffortProps) {
-  const { models, value, effort, setEffort } = useModelSelectorContext();
-  const efforts = getModelEfforts(models.find((m) => m.id === value));
+  const { efforts, effort, setEffort } = useModelSelectorEfforts();
 
   if (!efforts?.length) return null;
 
@@ -483,8 +502,8 @@ function ModelSelectorEffort({
     >
       <span className="text-muted-foreground text-xs">{label}</span>
       <div
-        role="radiogroup"
-        aria-label="Reasoning effort"
+        role="group"
+        aria-label={typeof label === "string" ? label : "Reasoning effort"}
         className="flex items-center gap-0.5"
       >
         {efforts.map((option) => {
@@ -493,8 +512,7 @@ function ModelSelectorEffort({
             <button
               key={option.id}
               type="button"
-              role="radio"
-              aria-checked={isActive}
+              aria-pressed={isActive}
               data-state={isActive ? "on" : "off"}
               onClick={() => setEffort(option.id)}
               className={cn(
@@ -521,33 +539,10 @@ export type ModelSelectorProps = Omit<ModelSelectorRootProps, "children"> &
     contentClassName?: string;
   };
 
-const ModelSelectorImpl = ({
-  models,
-  value: valueProp,
-  defaultValue,
-  onValueChange,
-  effort: effortProp,
-  defaultEffort,
-  onEffortChange,
-  searchable,
-  variant,
-  size,
-  className,
-  contentClassName,
-  ...rootProps
-}: ModelSelectorProps) => {
-  const [value, setValue] = useControllableState({
-    prop: valueProp,
-    defaultProp: defaultValue ?? models[0]?.id,
-    onChange: onValueChange,
-  });
-  const [effort, setEffort] = useControllableState({
-    prop: effortProp,
-    defaultProp: defaultEffort,
-    onChange: onEffortChange,
-  });
-  const activeEffort = resolveModelEffort(models, value, effort);
-
+/** Registers the selection with assistant-ui's ModelContext system. The
+ * context's effort is already resolved against the selected model. */
+function ModelSelectorModelContext() {
+  const { value, effort } = useModelSelectorContext();
   const api = useAui();
 
   useEffect(() => {
@@ -555,25 +550,28 @@ const ModelSelectorImpl = ({
     const config = {
       config: {
         modelName: value,
-        ...(activeEffort !== undefined
-          ? { reasoningEffort: activeEffort }
-          : undefined),
+        ...(effort !== undefined ? { reasoningEffort: effort } : undefined),
       },
     };
     return api.modelContext().register({
       getModelContext: () => config,
     });
-  }, [api, value, activeEffort]);
+  }, [api, value, effort]);
 
+  return null;
+}
+
+const ModelSelectorImpl = ({
+  searchable,
+  variant,
+  size,
+  className,
+  contentClassName,
+  ...rootProps
+}: ModelSelectorProps) => {
   return (
-    <ModelSelectorRoot
-      models={models}
-      {...(value !== undefined ? { value } : undefined)}
-      onValueChange={setValue}
-      {...(effort !== undefined ? { effort } : undefined)}
-      onEffortChange={setEffort}
-      {...rootProps}
-    >
+    <ModelSelectorRoot {...rootProps}>
+      <ModelSelectorModelContext />
       <ModelSelectorTrigger
         variant={variant}
         size={size}

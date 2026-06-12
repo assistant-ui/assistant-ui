@@ -1,5 +1,5 @@
 ---
-title: ModelSelector
+title: Model Selector
 description: Composable model picker with reasoning effort levels, search, and runtime integration.
 platforms: ["react"]
 ---
@@ -26,7 +26,7 @@ A composable picker that lets users switch between AI models and set a reasoning
 
 Place the `ModelSelector` inside your thread component, typically in the composer area:
 
-```tsx title="/components/assistant-ui/thread.tsx" {1,6-14}
+```tsx title="/components/assistant-ui/thread.tsx" {1,6-15}
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 
 const ComposerAction: FC = () => {
@@ -47,7 +47,7 @@ const ComposerAction: FC = () => {
 };
 ```
 
-Models with `efforts: true` show a "Thinking" row with Low / Medium / High levels. Pass a custom list to override the levels:
+Models with an `efforts` list show a "Thinking" row with those levels:
 
 ```tsx
 {
@@ -59,6 +59,8 @@ Models with `efforts: true` show a "Thinking" row with Low / Medium / High level
   ],
 }
 ```
+
+`efforts: true` can be used as a shorthand, it defaults to displaying Low / Medium / High.
 
   </Step>
   <Step>
@@ -157,6 +159,48 @@ import {
 | `ModelSelector.Separator` | Divider between groups or items |
 | `ModelSelector.Item` | Individual model option |
 | `ModelSelector.Effort` | Thinking level row for the selected model |
+
+### Custom effort UI
+
+`ModelSelector.Effort` lays the levels out as horizontal segments, which overflows the popover width once a model has more than a few. For those cases — or any other layout, like a slider or a sub-dropdown — build your own effort control with the `useModelSelectorEfforts` hook, which exposes the selected model's levels and the active selection:
+
+```tsx
+import { useModelSelectorEfforts } from "@/components/assistant-ui/model-selector";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+function EffortDropdown() {
+  const { efforts, effort, setEffort } = useModelSelectorEfforts();
+  if (!efforts?.length) return null;
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-t px-3 py-2">
+      <span className="text-muted-foreground text-xs">Thinking</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger className="text-xs">
+          {efforts.find((e) => e.id === effort)?.name ?? "Select"}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuRadioGroup value={effort} onValueChange={setEffort}>
+            {efforts.map((option) => (
+              <DropdownMenuRadioItem key={option.id} value={option.id}>
+                {option.name}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+```
+
+Render it inside `ModelSelector.Content` in place of `ModelSelector.Effort`. The same hook supports any shape — the `with-pi` example composes in a line-graph style slider (one thin vertical line per level, with hover tooltips) built the same way; see `examples/with-pi/components/assistant-ui/thinking-level-slider.tsx`.
 
 ## Variants
 
