@@ -53,6 +53,7 @@ export const createPiNodeClient = (
     getThread: (threadId) => supervisor.getThread(threadId),
     sendMessage: (threadId, input) => supervisor.sendMessage(threadId, input),
     cancelRun: (threadId) => supervisor.cancelRun(threadId),
+    clearQueue: (threadId) => supervisor.clearQueue(threadId),
     getAvailableModels: (input) => {
       void input;
       return supervisor.getAvailableModels();

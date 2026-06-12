@@ -169,9 +169,15 @@ run and derives the right behavior:
 
 To force steer from your own composer, send with `steer: true` or set
 `message.runConfig.custom.streamingBehavior = "steer"`. While running, an
-omitted behavior defaults to `"followUp"`. Queued messages are mirrored as
-read-only queue items (and on the thread metadata's `queuedMessages`); queue
-editing/reorder is out of scope (see Known limitations).
+omitted behavior defaults to `"followUp"`.
+
+Queued messages live in Pi's queue, **not** the transcript — Pi appends the
+user message only when the queue flushes. The runtime mirrors them as queue
+items (`s.composer.queue`, renderable with `ComposerPrimitive.Queue`) and on
+the thread metadata's `queuedMessages`. Pi supports clearing the whole queue
+(`clearQueue()` on the client / `usePiRuntimeExtras().clearQueue()`, which
+resolves with the cleared text so it can be restored into the composer), but
+no per-item remove/promote (see Known limitations).
 
 ## Host-UI requests (the approval surface)
 
@@ -221,8 +227,8 @@ metadata, so metadata controls don't rerender on every token:
 
 - `usePiRuntimeExtras()` — `status`, `readiness`, `contextUsage`, `queue`,
   `compaction`, `retry`, `lastError`, host-UI requests, and the `cancel` /
-  `refresh` / `setModel` / `setThinkingLevel` / `respondTo*` / `resumeToolCall`
-  actions.
+  `refresh` / `clearQueue` / `setModel` / `setThinkingLevel` / `respondTo*` /
+  `resumeToolCall` actions.
 - `usePiSession()` — the current `PiThreadMetadata` (or `null`).
 - `usePiThreadState(selector?)` — the raw reducer state, optionally selected.
 - `usePiHostUiRequests()` — free-standing host-UI requests + a responder.
@@ -246,13 +252,14 @@ metadata, so metadata controls don't rerender on every token:
   search index). Workspace is just a `workspacePath` string on the client — the UI
   for choosing one (text field, directory picker, …) is the consuming app's
   concern, not this package's.
-- **No fork/clone/navigate or queue-editing actions.** The reducer/projection
+- **No fork/clone/navigate or per-item queue editing.** The reducer/projection
   preserve the underlying data — tree linkage (`parentSessionPath`), queued
   messages (`queuedMessages`), and compaction state — so a consumer can build those
-  surfaces, but the client exposes no methods to fork a session, navigate the tree,
-  or reorder/replace the queue. The runtime's queue items are a read-only mirror:
-  enqueueing works (that's how mid-run follow-up/steer is sent), but the
-  per-item steer/remove/clear affordances are no-ops.
+  surfaces, but the client exposes no methods to fork a session, navigate the
+  tree, or reorder the queue. Queue items mirror Pi's server-side queue:
+  enqueueing works (that's how mid-run follow-up/steer is sent) and clearing
+  all works (`clearQueue`, mirroring Pi's only queue mutation), but per-item
+  steer/remove affordances are no-ops — Pi has no such API.
 - **Attachments are image-passthrough only.** Non-image input parts aren't
   converted into Pi user content.
 - **Model/thinking are the only runtime-config actions.** There are no

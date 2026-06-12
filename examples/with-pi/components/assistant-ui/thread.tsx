@@ -44,6 +44,7 @@ import {
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
+  useAui,
   useAuiState,
 } from "@assistant-ui/react";
 import {
@@ -54,10 +55,12 @@ import {
   ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
+  ListEndIcon,
   MoreHorizontalIcon,
   PencilIcon,
   RefreshCwIcon,
   SquareIcon,
+  Trash2Icon,
   WrenchIcon,
 } from "lucide-react";
 import { useState, type FC } from "react";
@@ -252,9 +255,62 @@ const HostUiRequestCard: FC<{
   );
 };
 
+/** Mid-run sends sit in Pi's queue (not the thread); this card mirrors them
+ * above the composer. Pi only supports clearing the whole queue — no per-item
+ * remove/promote — so the lone action restores all queued text to the composer. */
+const ComposerQueue: FC = () => {
+  const aui = useAui();
+  const { clearQueue } = usePiRuntimeExtras();
+  const queueLength = useAuiState((s) => s.composer.queue.length);
+  if (queueLength === 0) return null;
+
+  const handleClear = () => {
+    clearQueue()
+      .then(({ steering, followUp }) => {
+        const restored = [...steering, ...followUp].join("\n");
+        if (!restored) return;
+        const composer = aui.composer();
+        const current = composer.getState().text;
+        composer.setText(current ? `${current}\n${restored}` : restored);
+      })
+      .catch((error: unknown) => console.error("Failed to clear queue", error));
+  };
+
+  return (
+    <div className="bg-muted/50 border-border/60 text-muted-foreground -mb-4 flex flex-col gap-1.5 rounded-t-(--composer-radius) border border-b-0 px-4 pt-2.5 pb-7 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium">Queued</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 gap-1 px-2 text-xs"
+          onClick={handleClear}
+        >
+          <Trash2Icon className="size-3" />
+          Clear
+        </Button>
+      </div>
+      <ComposerPrimitive.Queue>
+        {({ queueItem }) => (
+          <div className="flex items-center gap-2">
+            <ListEndIcon className="size-3.5 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">{queueItem.prompt}</span>
+            {queueItem.id.startsWith("steer:") && (
+              <span className="border-border rounded-full border px-1.5 text-[10px] uppercase">
+                steer
+              </span>
+            )}
+          </div>
+        )}
+      </ComposerPrimitive.Queue>
+    </div>
+  );
+};
+
 const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+      <ComposerQueue />
       <ComposerPrimitive.AttachmentDropzone asChild>
         <div
           data-slot="aui_composer-shell"
@@ -281,7 +337,6 @@ const ComposerAction: FC = () => {
       <div className="flex items-center gap-1">
         <ComposerAddAttachment />
         <ComposerModelSelector />
-        <ComposerThinkingSelector />
       </div>
       <div className="flex items-center gap-1.5">
         <ComposerContextRing />
@@ -323,30 +378,22 @@ const ComposerAction: FC = () => {
 const modelKey = (provider?: string, modelId?: string) =>
   provider && modelId ? `${provider}:${modelId}` : undefined;
 
-const THINKING_LEVELS: readonly PiThinkingLevel[] = [
-  "off",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-];
-
-/** Model picker seeded from the server handshake and wired to Pi's per-thread
- * `session.setModel`. */
+/** Model + thinking-level picker seeded from the server handshake and wired to
+ * Pi's per-thread `session.setModel`/`session.setThinkingLevel`. Per-model
+ * thinking levels come from the handshake; Pi clamps unsupported levels and the
+ * effective config is reflected by the next snapshot/event. */
 const ComposerModelSelector: FC = () => {
   const handshake = usePiHandshake();
-  const { metadata, setModel, status } = usePiRuntimeExtras();
+  const { metadata, setModel, setThinkingLevel, status } = usePiRuntimeExtras();
   const selected =
     modelKey(metadata.config?.provider, metadata.config?.modelId) ??
     handshake?.selectedModelId;
+  const thinkingLevel = metadata.config?.thinkingLevel;
   if (!handshake || handshake.models.length === 0) return null;
 
   return (
-    <ModelSelector
+    <ModelSelector.Root
       models={handshake.models}
-      variant="ghost"
-      size="sm"
       {...(selected ? { value: selected } : {})}
       onValueChange={(value) => {
         if (status === "running") return;
@@ -354,31 +401,21 @@ const ComposerModelSelector: FC = () => {
         if (!model) return;
         void setModel({ provider: model.provider, modelId: model.modelId });
       }}
-    />
-  );
-};
-
-/** Pi thinking-level control. Pi clamps unsupported levels; the effective level
- * is reflected by the next snapshot/event. */
-const ComposerThinkingSelector: FC = () => {
-  const { metadata, setThinkingLevel, status } = usePiRuntimeExtras();
-  const value = metadata.config?.thinkingLevel;
-  return (
-    <select
-      aria-label="Thinking level"
-      value={typeof value === "string" ? value : "medium"}
-      disabled={status === "running"}
-      onChange={(event) =>
-        void setThinkingLevel(event.currentTarget.value as PiThinkingLevel)
-      }
-      className="text-muted-foreground hover:bg-accent h-8 rounded-md bg-transparent px-2 text-xs"
+      effort={typeof thinkingLevel === "string" ? thinkingLevel : "medium"}
+      onEffortChange={(effort) => {
+        if (status === "running") return;
+        void setThinkingLevel(effort as PiThinkingLevel);
+      }}
     >
-      {THINKING_LEVELS.map((level) => (
-        <option key={level} value={level}>
-          {level}
-        </option>
-      ))}
-    </select>
+      <ModelSelector.Trigger variant="ghost" size="sm" />
+      <ModelSelector.Content>
+        <ModelSelector.Search />
+        <ModelSelector.List />
+        {/* Slider instead of ModelSelector.Effort: Pi's six thinking levels
+            overflow the horizontal segmented layout. */}
+        <ModelSelector.EffortSlider label="Thinking" />
+      </ModelSelector.Content>
+    </ModelSelector.Root>
   );
 };
 

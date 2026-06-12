@@ -3,11 +3,11 @@
  * `PiThreadState` and exposes the imperative actions the runtime hook wires into
  * a `useExternalStoreRuntime`.
  *
- * The `PiClient` is the transport boundary (HTTP/SSE, RPC subprocess, IPC), so —
- * unlike react-opencode — there is no separate event-source class here. React
- * store subscriptions stay local; the controller opens live Pi events only for
- * an explicit `connect()` or operations that need a live runtime. `load()` is the
- * cold read path and seeds from `getThread`.
+ * The `PiClient` is the transport boundary (HTTP/SSE, RPC subprocess, IPC), so
+ * there is no separate event-source class here. React store subscriptions stay
+ * local; the controller opens live Pi events only for an explicit `connect()`
+ * or operations that need a live runtime. `load()` is the cold read path and
+ * seeds from `getThread`.
  *
  * Browser-safe; imports no `@earendil-works/pi-*` packages.
  */
@@ -58,6 +58,9 @@ export interface PiThreadControllerLike {
   refresh(): Promise<void>;
   sendMessage(message: AppendMessage, options?: PiSendOptions): Promise<void>;
   cancel(): Promise<void>;
+  /** Clear Pi's server-side queue; resolves with the cleared text so the UI
+   * can restore it to the composer. */
+  clearQueue(): Promise<{ steering: string[]; followUp: string[] }>;
   setModel(input: { provider: string; modelId: string }): Promise<void>;
   setThinkingLevel(level: PiThinkingLevel): Promise<void>;
   /** Answer a native tool-call approval (`confirm`). */
@@ -169,7 +172,7 @@ export const buildPiSendInput = (
     } else if (part.type === "image") {
       attachments.push(toImageContent(part.image));
     }
-    // `file`/other parts are not part of Pi's user-content surface (MVP).
+    // `file`/other parts are not part of Pi's user-content surface.
   }
 
   return {
@@ -408,14 +411,18 @@ export class PiThreadController implements PiThreadControllerLike {
       throw new Error("Pi only supports sending user messages");
     }
 
+    const isQueuedSend = this.state.runStatus === "running";
     const behavior =
       options?.streamingBehavior ??
       readSteeringIntent(message) ??
-      (this.state.runStatus === "running" ? "followUp" : undefined);
+      (isQueuedSend ? "followUp" : undefined);
 
     const input = buildPiSendInput(message, behavior);
-    const optimistic = optimisticUserMessageFromInput(input);
     this.ensureEventSubscription({ includeSnapshot: false });
+
+    if (isQueuedSend) return this.sendQueued(input, behavior ?? "followUp");
+
+    const optimistic = optimisticUserMessageFromInput(input);
     this.optimisticUserMessages.push({
       message: optimistic,
       baseMessageCount: this.state.messages.length,
@@ -441,6 +448,61 @@ export class PiThreadController implements PiThreadControllerLike {
       });
       throw error;
     }
+  }
+
+  /** Mid-run sends land in Pi's queue, not the transcript (Pi appends the user
+   * message only when the queue flushes), so the optimistic mirror goes into
+   * `state.queue` — the thread stays clean and the queue UI shows it instantly.
+   * The next real `queue_update` replaces the arrays wholesale and self-heals. */
+  private async sendQueued(
+    input: PiSendMessageInput,
+    behavior: "followUp" | "steer",
+  ) {
+    const mode = behavior === "steer" ? "steering" : "followUp";
+    this.setState({
+      ...this.state,
+      queue: {
+        ...this.state.queue,
+        [mode]: [...this.state.queue[mode], input.content],
+      },
+    });
+
+    try {
+      await this.client.sendMessage(this.threadId, input);
+    } catch (error) {
+      // Roll back only our optimistic entry; the run itself is unaffected.
+      const entries = this.state.queue[mode];
+      const index = entries.lastIndexOf(input.content);
+      this.setState({
+        ...this.state,
+        lastError: errorMessage(error),
+        ...(index !== -1
+          ? {
+              queue: {
+                ...this.state.queue,
+                [mode]: entries.filter((_, i) => i !== index),
+              },
+            }
+          : {}),
+      });
+      throw error;
+    }
+  }
+
+  public async clearQueue() {
+    const cleared = await this.client.clearQueue(this.threadId);
+    // Optimistically empty the local mirror; Pi's own `queue_update` (emitted
+    // by `session.clearQueue`) confirms it.
+    if (
+      this.state.queue.steering.length > 0 ||
+      this.state.queue.followUp.length > 0
+    ) {
+      this.setState({
+        ...this.state,
+        queue: { steering: [], followUp: [] },
+      });
+    }
+    return cleared;
   }
 
   public async cancel() {
@@ -548,9 +610,9 @@ export class PiThreadController implements PiThreadControllerLike {
       }
     }
 
-    // Forward-compat fallback (PI_MVP_PLAN "Reconnect"): the reducer tolerates
-    // unknown event types but can't act on them; reconcile from a fresh
-    // snapshot so nothing the reducer ignored leaves local state stale.
+    // Forward-compat fallback: the reducer tolerates unknown event types but
+    // can't act on them; reconcile from a fresh snapshot so nothing the
+    // reducer ignored leaves local state stale.
     if (!KNOWN_EVENT_TYPES.has(event.type)) this.refreshInBackground();
   }
 

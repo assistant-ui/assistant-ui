@@ -123,6 +123,16 @@ describe("PiThreadSupervisor", () => {
     );
   });
 
+  it("returns an empty cleared queue for cold threads without going live", async () => {
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    await expect(supervisor.clearQueue("t1")).resolves.toEqual({
+      steering: [],
+      followUp: [],
+    });
+    expect(sdk.createAgentSession).not.toHaveBeenCalled();
+  });
+
   it("renames cold threads through SessionManager without opening a live AgentSession", async () => {
     const manager = createReadonlySessionManager();
     sdk.open.mockReturnValue(manager);

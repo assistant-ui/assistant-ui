@@ -77,6 +77,9 @@ export interface PiRuntimeExtras {
   lastError: string | undefined;
   cancel: () => Promise<void>;
   refresh: () => Promise<void>;
+  /** Clear Pi's queued (steering + follow-up) messages; resolves with the
+   * cleared text so it can be restored into the composer. */
+  clearQueue: () => Promise<{ steering: string[]; followUp: string[] }>;
   setModel: (input: { provider: string; modelId: string }) => Promise<void>;
   setThinkingLevel: (level: PiThinkingLevel) => Promise<void>;
   respondToHostUiRequest: (response: PiHostUiResponse) => Promise<void>;
@@ -87,7 +90,6 @@ export interface PiRuntimeExtras {
   ) => Promise<void>;
 }
 
-// Keep the host-UI answer type in the public surface.
 export type { PiInterruptAnswer } from "./piHostUi";
 
 // ---------------------------------------------------------------------------
@@ -167,6 +169,7 @@ const NOOP_CONTROLLER: PiThreadControllerLike = {
   refresh: async () => {},
   sendMessage: async () => {},
   cancel: async () => {},
+  clearQueue: async () => ({ steering: [], followUp: [] }),
   setModel: async () => {},
   setThinkingLevel: async () => {},
   respondToToolApproval: async () => {},
@@ -194,6 +197,7 @@ const EMPTY_RUNTIME_EXTRAS: PiRuntimeExtrasInternal = {
   lastError: undefined,
   cancel: () => NOOP_CONTROLLER.cancel(),
   refresh: () => NOOP_CONTROLLER.refresh(),
+  clearQueue: () => NOOP_CONTROLLER.clearQueue(),
   setModel: (input) => NOOP_CONTROLLER.setModel(input),
   setThinkingLevel: (level) => NOOP_CONTROLLER.setThinkingLevel(level),
   respondToHostUiRequest: (response) =>
@@ -313,6 +317,7 @@ const usePiThreadStore = (
       lastError: state.lastError,
       cancel: () => controller.cancel(),
       refresh: () => controller.refresh(),
+      clearQueue: () => controller.clearQueue(),
       setModel: (input) => controller.setModel(input),
       setThinkingLevel: (level) => controller.setThinkingLevel(level),
       respondToHostUiRequest: (response) =>
@@ -349,12 +354,16 @@ const usePiThreadStore = (
           )
           .catch((error: unknown) => onError?.(error));
       },
-      // Pi owns the queue server-side and the MVP `PiClient` exposes no
-      // promote/remove/clear operations, so these degrade to no-ops; the
-      // items above stay an honest mirror of the server queue.
+      // Pi owns the queue server-side and exposes no per-item promote or
+      // remove, so these two degrade to no-ops; the items above stay an
+      // honest mirror of the server queue. Clearing all is supported.
       steer: () => {},
       remove: () => {},
-      clear: () => {},
+      clear: () => {
+        void controller.clearQueue().catch((error: unknown) => {
+          onError?.(error);
+        });
+      },
     }),
     [controller, state.queue, onError],
   );
@@ -638,9 +647,8 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
         };
       },
       generateTitle: async () =>
-        // Pi has no server-side title summarization in the MVP; titles come
-        // from `session_info_changed`. Satisfy the contract with an empty
-        // stream.
+        // Pi has no server-side title summarization; titles come from
+        // `session_info_changed`. Satisfy the contract with an empty stream.
         new ReadableStream({
           start(streamController) {
             streamController.close();

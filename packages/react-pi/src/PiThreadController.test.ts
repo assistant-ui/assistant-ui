@@ -27,6 +27,8 @@ type FakeClient = PiClient & {
   unsubscribed: number;
   sent: Array<{ threadId: string; input: PiSendMessageInput }>;
   cancelled: string[];
+  queueCleared: string[];
+  clearQueueResult: { steering: string[]; followUp: string[] };
   modelChanges: Array<{ threadId: string; provider: string; modelId: string }>;
   thinkingChanges: Array<{ threadId: string; level: string }>;
   hostUiResponses: Array<{ threadId: string; response: unknown }>;
@@ -44,6 +46,8 @@ const createFakeClient = (
     unsubscribed: 0,
     sent: [],
     cancelled: [],
+    queueCleared: [],
+    clearQueueResult: { steering: [], followUp: [] },
     modelChanges: [],
     thinkingChanges: [],
     hostUiResponses: [],
@@ -65,6 +69,10 @@ const createFakeClient = (
     },
     async cancelRun(threadId) {
       client.cancelled.push(threadId);
+    },
+    async clearQueue(threadId) {
+      client.queueCleared.push(threadId);
+      return client.clearQueueResult;
     },
     async getAvailableModels() {
       return [];
@@ -443,6 +451,71 @@ describe("PiThreadController", () => {
     expect(state.metadata.status).toBe("failed");
     expect(state.lastError).toBe("nope");
     expect(controller.getProjectedMessages()).toHaveLength(0);
+  });
+
+  it("mirrors a mid-run send into the queue instead of the transcript", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+
+    await controller.sendMessage(userMessage("queued"));
+    expect(controller.getProjectedMessages()).toHaveLength(0);
+    expect(controller.getState().queue.followUp).toEqual(["queued"]);
+
+    await controller.sendMessage(
+      userMessage("now", {
+        runConfig: { custom: { streamingBehavior: "steer" } },
+      }),
+    );
+    expect(controller.getState().queue.steering).toEqual(["now"]);
+
+    // Pi's authoritative queue_update replaces the optimistic mirror wholesale.
+    client.emit(
+      ev({ type: "queue_update", steering: ["now"], followUp: ["queued"] }, 2),
+    );
+    expect(controller.getState().queue).toEqual({
+      steering: ["now"],
+      followUp: ["queued"],
+    });
+  });
+
+  it("rolls back the optimistic queue entry when a mid-run send rejects", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    client.sendMessage = async () => {
+      throw new Error("nope");
+    };
+
+    await expect(controller.sendMessage(userMessage("hi"))).rejects.toThrow(
+      "nope",
+    );
+
+    const state = controller.getState();
+    expect(state.queue.followUp).toEqual([]);
+    expect(state.lastError).toBe("nope");
+    // The run itself is unaffected by a failed enqueue.
+    expect(state.runStatus).toBe("running");
+  });
+
+  it("clears the queue via the client and returns the cleared text", async () => {
+    const client = createFakeClient();
+    client.clearQueueResult = { steering: ["a"], followUp: ["b", "c"] };
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    await controller.sendMessage(userMessage("b"));
+
+    const cleared = await controller.clearQueue();
+
+    expect(client.queueCleared).toEqual([THREAD]);
+    expect(cleared).toEqual({ steering: ["a"], followUp: ["b", "c"] });
+    expect(controller.getState().queue).toEqual({
+      steering: [],
+      followUp: [],
+    });
   });
 
   it("reconciles an optimistic message against an enriched echo", async () => {

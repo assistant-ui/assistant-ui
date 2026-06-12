@@ -6,9 +6,11 @@ feat: initial `@assistant-ui/react-pi` MVP — a Pi coding-agent runtime adapter
 
 - `usePiRuntime` + selector hooks (`usePiRuntimeExtras`, `usePiSession`,
   `usePiThreadState`, `usePiHostUiRequests`): thread list, streaming
-  text/reasoning/tool output, mid-run steer/follow-up via Pi's native queue,
-  per-thread model/thinking controls, context usage, and Pi's blocking host-UI
-  (approval) surface projected as native approvals/interrupts.
+  text/reasoning/tool output, mid-run steer/follow-up via Pi's native queue
+  (mirrored as composer queue items with `clearQueue` restore-to-composer
+  support), per-thread model/thinking controls, context usage, and Pi's
+  blocking host-UI (approval) surface projected as native
+  approvals/interrupts.
 - Browser-safe core: JSON-safe `PiClient` contract (`piTypes`), pure
   snapshot-authoritative reducer (`reducePiThreadState`), pure transcript
   projection, and `PiThreadController` with optimistic echo, frame-coalesced

@@ -170,7 +170,6 @@ export interface PiUnknownAgentMessage {
 
 export type PiAgentMessage = PiKnownAgentMessage | PiUnknownAgentMessage;
 
-/** The canonical transcript is `PiAgentMessage[]`; this alias documents intent. */
 export type PiTranscriptMessage = PiAgentMessage;
 
 // ---------------------------------------------------------------------------
@@ -248,7 +247,7 @@ export interface PiContextUsage {
 }
 
 // ---------------------------------------------------------------------------
-// Model / credential readiness (PI_MVP_PLAN §5).
+// Model / credential readiness.
 // ---------------------------------------------------------------------------
 
 export type PiThinkingLevel =
@@ -493,6 +492,13 @@ export interface PiClient {
 
   sendMessage(threadId: string, input: PiSendMessageInput): Promise<void>;
   cancelRun(threadId: string): Promise<void>;
+
+  /** Clear all queued (steering + follow-up) messages and return their text so
+   * the UI can restore it to the composer. Pi exposes no per-item remove or
+   * promote — clearing everything is the only queue mutation. */
+  clearQueue(
+    threadId: string,
+  ): Promise<{ steering: string[]; followUp: string[] }>;
 
   getAvailableModels(input?: {
     workspacePath?: string;

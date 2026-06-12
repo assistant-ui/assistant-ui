@@ -5,7 +5,7 @@
  *
  * This is the one file (with `piNodeExtensionUi`) that imports the Pi SDK at
  * runtime. It is reachable only from `node.ts`, never from `index.ts`, so the
- * browser boundary holds (PI_MVP_PLAN "Package Shape").
+ * browser boundary holds.
  *
  * The host keeps catalog reads, read-only snapshots, and live runtimes separate:
  * catalog reads use cached `SessionManager.list()` metadata, cold `getThread()`
@@ -72,8 +72,8 @@ export interface PiThreadSupervisorOptions {
   workspacePath?: string;
   /** Global Pi config dir (`~/.pi/agent` by default). Forwarded to the SDK. */
   agentDir?: string;
-  /** Explicit model for new sessions (PI_MVP_PLAN §5 env seeding). When omitted,
-   * Pi resolves from its own settings, else the first available model. */
+  /** Explicit model for new sessions. When omitted, Pi resolves from its own
+   * settings, else the first available model. */
   model?: PiSessionModel;
 }
 
@@ -176,6 +176,17 @@ export class PiThreadSupervisor {
 
   async cancelRun(threadId: string): Promise<void> {
     await this.records.get(threadId)?.session.abort();
+  }
+
+  /** Clear all queued messages, returning the cleared text. The session emits
+   * its own `queue_update`, which the event relay forwards to subscribers.
+   * Cold threads hold no live session and therefore no queue. */
+  async clearQueue(
+    threadId: string,
+  ): Promise<{ steering: string[]; followUp: string[] }> {
+    const record = this.records.get(threadId);
+    if (!record) return { steering: [], followUp: [] };
+    return record.session.clearQueue();
   }
 
   async getAvailableModels(): Promise<PiModelInfo[]> {
@@ -508,7 +519,7 @@ export class PiThreadSupervisor {
     this.emit(record, mapSessionEvent(event, { turnIndex: record.turnIndex }));
 
     // Context usage isn't its own SDK event — synthesize it at run boundaries
-    // (the "am I about to auto-compact?" affordance, PI_MVP_PLAN §6 / Event Model).
+    // (the "am I about to auto-compact?" affordance).
     if (
       event.type === "turn_end" ||
       event.type === "agent_end" ||
@@ -536,10 +547,8 @@ export class PiThreadSupervisor {
     }
   }
 
-  /** Stamp the per-thread seq and deliver to listeners. Delivery is synchronous
-   * and therefore already ordered (Pi calls us synchronously); the plan's
-   * serialized queue only matters once async snapshot persistence lands
-   * (HTTP/Extended slice), so MVP keeps this direct. */
+  /** Stamp the per-thread seq and deliver to listeners. Pi invokes the session
+   * subscription synchronously, so direct delivery is already ordered. */
   private emit(record: ThreadRecord, body: PiClientEventBody): void {
     record.seq += 1;
     const event = {

@@ -113,6 +113,21 @@ describe("createPiHttpClient", () => {
     });
   });
 
+  it("clears the queue and parses the cleared text", async () => {
+    const { fn, calls } = fakeFetch(() =>
+      json({ steering: ["a"], followUp: ["b"] }),
+    );
+    const client = createPiHttpClient({ fetchImpl: fn });
+
+    const cleared = await client.clearQueue("t1");
+
+    expect(calls[0]).toMatchObject({
+      url: "/api/pi/threads/t1/queue/clear",
+      method: "POST",
+    });
+    expect(cleared).toEqual({ steering: ["a"], followUp: ["b"] });
+  });
+
   it("gets models and sets model/thinking through routes", async () => {
     const { fn, calls } = fakeFetch((url) =>
       url.startsWith("/api/pi/models")

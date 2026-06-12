@@ -16,6 +16,7 @@
  *   PATCH  /threads/:id             → 204                   (body: { title })
  *   POST   /threads/:id/messages    → 204                   (body: { input })
  *   POST   /threads/:id/cancel      → 204
+ *   POST   /threads/:id/queue/clear → { steering, followUp } (cleared text)
  *   GET    /models                  → PiModelInfo[]
  *   POST   /threads/:id/model       → 204                   (body: { provider, modelId })
  *   POST   /threads/:id/thinking    → 204                   (body: { level })
@@ -152,6 +153,11 @@ export const createPiHttpClient = (
     cancelRun: async (threadId) => {
       await assertOk(await send(`${threadUrl(threadId)}/cancel`, "POST"));
     },
+
+    clearQueue: async (threadId) =>
+      readJson<{ steering: string[]; followUp: string[] }>(
+        await send(`${threadUrl(threadId)}/queue/clear`, "POST"),
+      ),
 
     getAvailableModels: async (input) => {
       const params = new URLSearchParams();
