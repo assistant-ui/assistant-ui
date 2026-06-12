@@ -69,14 +69,17 @@ Models with an `efforts` list show a "Thinking" row with those levels:
 
 The selected model's `id` is sent as `config.modelName`, and the effort level as `config.reasoningEffort`:
 
-```tsx title="app/api/chat/route.ts" {2,5-8}
+```tsx title="app/api/chat/route.ts" {2,5-11}
 export async function POST(req: Request) {
   const { messages, config } = await req.json();
 
   const result = streamText({
     model: openai(config?.modelName ?? "gpt-5.4-nano"),
     providerOptions: {
-      openai: { reasoningEffort: config?.reasoningEffort ?? "medium" },
+      openai:
+        config?.reasoningEffort !== undefined
+          ? { reasoningEffort: config.reasoningEffort }
+          : {},
     },
     messages: await convertToModelMessages(messages),
   });
@@ -200,7 +203,7 @@ function EffortDropdown() {
 }
 ```
 
-Render it inside `ModelSelector.Content` in place of `ModelSelector.Effort`. The same hook supports any shape — the `with-pi` example composes in a line-graph style slider (one thin vertical line per level, with hover tooltips) built the same way; see `examples/with-pi/components/assistant-ui/thinking-level-slider.tsx`.
+Render it inside `ModelSelector.Content` in place of `ModelSelector.Effort`. The same hook supports any shape — sliders, sub-dropdowns, or anything else that reads the levels and writes the selection.
 
 ## Variants
 

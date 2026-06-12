@@ -31,21 +31,30 @@ function providerOf(modelId: string): string {
 
 const compactNumber = new Intl.NumberFormat("en", { notation: "compact" });
 
-const models: ModelOption[] = docsModelOptions().map((model) => ({
-  ...model,
-  description: `${compactNumber.format(getContextWindow(model.id))} context window`,
-  keywords: [PROVIDER_NAMES[providerOf(model.id)] ?? ""],
-  efforts: true,
-}));
+const EFFORT_SUPPORTED_MODELS = new Set([
+  "gpt-5.4-nano",
+  "gpt-5.4-mini",
+  "grok/grok-3-mini",
+]);
 
-const modelsByProvider = models.reduce<Map<string, ModelOption[]>>(
-  (groups, model) => {
-    const provider = PROVIDER_NAMES[providerOf(model.id)] ?? "Other";
-    groups.set(provider, [...(groups.get(provider) ?? []), model]);
-    return groups;
-  },
-  new Map(),
-);
+const models: ModelOption[] = [];
+const modelsByProvider = new Map<string, ModelOption[]>();
+for (const option of docsModelOptions()) {
+  const provider = PROVIDER_NAMES[providerOf(option.id)] ?? "Other";
+  const model: ModelOption = {
+    ...option,
+    description: `${compactNumber.format(getContextWindow(option.id))} context window`,
+    keywords: [provider],
+    ...(EFFORT_SUPPORTED_MODELS.has(option.id) ? { efforts: true } : undefined),
+  };
+  models.push(model);
+  const group = modelsByProvider.get(provider);
+  if (group) {
+    group.push(model);
+  } else {
+    modelsByProvider.set(provider, [model]);
+  }
+}
 
 function VariantRow({
   label,

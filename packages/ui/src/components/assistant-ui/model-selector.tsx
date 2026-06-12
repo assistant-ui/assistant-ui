@@ -64,6 +64,14 @@ function getModelEfforts(
   return model.efforts === true ? DEFAULT_EFFORT_OPTIONS : model.efforts;
 }
 
+function resolveEffort(
+  efforts: readonly ModelSelectorEffortOption[] | undefined,
+  effort: string | undefined,
+): string | undefined {
+  if (effort === undefined) return undefined;
+  return efforts?.some((e) => e.id === effort) ? effort : undefined;
+}
+
 /**
  * Returns the effort id if the given model supports it, otherwise undefined.
  * Effort selection is kept sticky across model switches; this resolves what
@@ -74,9 +82,10 @@ export function resolveModelEffort(
   modelId: string | undefined,
   effort: string | undefined,
 ): string | undefined {
-  if (effort === undefined) return undefined;
-  const efforts = getModelEfforts(models.find((m) => m.id === modelId));
-  return efforts?.some((e) => e.id === effort) ? effort : undefined;
+  return resolveEffort(
+    getModelEfforts(models.find((m) => m.id === modelId)),
+    effort,
+  );
 }
 
 function useControllableState<T>({
@@ -89,13 +98,14 @@ function useControllableState<T>({
   onChange: ((next: T) => void) | undefined;
 }) {
   const [internal, setInternal] = useState(defaultProp);
-  const value = prop !== undefined ? prop : internal;
+  const isControlled = prop !== undefined;
+  const value = isControlled ? prop : internal;
   const setValue = useCallback(
     (next: T) => {
-      setInternal(next);
+      if (!isControlled) setInternal(next);
       onChange?.(next);
     },
-    [onChange],
+    [isControlled, onChange],
   );
   return [value, setValue] as const;
 }
@@ -104,6 +114,10 @@ type ModelSelectorContextValue = {
   models: readonly ModelOption[];
   value: string | undefined;
   setValue: (value: string) => void;
+  /** The model matching `value`, derived once for all sub-components. */
+  selectedModel: ModelOption | undefined;
+  /** The selected model's effort levels, undefined when not configurable. */
+  efforts: readonly ModelSelectorEffortOption[] | undefined;
   /** Effort resolved against the selected model's supported levels. */
   effort: string | undefined;
   setEffort: (effort: string) => void;
@@ -135,8 +149,7 @@ export function useModelSelectorEfforts(): {
   effort: string | undefined;
   setEffort: (effort: string) => void;
 } {
-  const { models, value, effort, setEffort } = useModelSelectorContext();
-  const efforts = getModelEfforts(models.find((m) => m.id === value));
+  const { efforts, effort, setEffort } = useModelSelectorContext();
   return { efforts, effort, setEffort };
 }
 
@@ -183,17 +196,30 @@ function ModelSelectorRoot({
     onChange: onOpenChange,
   });
 
-  const activeEffort = resolveModelEffort(models, value, effort);
+  const selectedModel = models.find((m) => m.id === value);
+  const efforts = getModelEfforts(selectedModel);
+  const activeEffort = resolveEffort(efforts, effort);
   const contextValue = useMemo(
     () => ({
       models,
       value,
       setValue,
+      selectedModel,
+      efforts,
       effort: activeEffort,
       setEffort,
       setOpen,
     }),
-    [models, value, setValue, activeEffort, setEffort, setOpen],
+    [
+      models,
+      value,
+      setValue,
+      selectedModel,
+      efforts,
+      activeEffort,
+      setEffort,
+      setOpen,
+    ],
   );
 
   return (
@@ -268,9 +294,7 @@ function ModelSelectorValue({
   showEffort = true,
   className,
 }: ModelSelectorValueProps) {
-  const { models, value, effort } = useModelSelectorContext();
-  const selectedModel =
-    value !== undefined ? models.find((m) => m.id === value) : undefined;
+  const { selectedModel, efforts, effort } = useModelSelectorContext();
 
   if (!selectedModel) {
     return <span className="text-muted-foreground">{placeholder}</span>;
@@ -278,7 +302,7 @@ function ModelSelectorValue({
 
   const effortName =
     showEffort && effort !== undefined
-      ? getModelEfforts(selectedModel)?.find((e) => e.id === effort)?.name
+      ? efforts?.find((e) => e.id === effort)?.name
       : undefined;
 
   return (
@@ -346,14 +370,12 @@ export type ModelSelectorSearchProps = ComponentPropsWithoutRef<
 
 function ModelSelectorSearch({
   placeholder = "Search models...",
-  className,
   ...props
 }: ModelSelectorSearchProps) {
   return (
     <CommandInput
       data-slot="model-selector-search"
       placeholder={placeholder}
-      className={className}
       {...props}
     />
   );
