@@ -21,6 +21,7 @@ const aiToolkit = new AISDKToolkit({ toolkit: docsToolkit });
 
 const ALLOWED_ORIGINS = [
   "https://assistant-ui-expo.vercel.app",
+  "https://assistant-ui-ink.vercel.app",
   "http://localhost:8081",
 ];
 

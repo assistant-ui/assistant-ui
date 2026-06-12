@@ -1,0 +1,46 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: #1a1a1a;
+}
+
+.terminal-center {
+  display: flex;
+  height: 100vh;
+  align-items: center;
+  justify-content: center;
+}
+
+.terminal-host {
+  width: 100%;
+  max-width: 960px;
+  height: min(100%, 560px);
+}
+
+.terminal-host .wterm {
+  height: 100%;
+  border-radius: 0;
+  box-shadow: none;
+  background: #1a1a1a;
+  --term-bg: #1a1a1a;
+  --term-fg: #e0e0e0;
+  --term-cursor: #34d399;
+  --term-font-family: Menlo, Monaco, "Courier New", monospace;
+  --term-font-size: 13px;
+  --term-line-height: 1.3;
+}
+
+.terminal-loading {
+  display: flex;
+  height: 100vh;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, Menlo, Monaco, monospace;
+  font-size: 14px;
+  color: #6b7280;
+}

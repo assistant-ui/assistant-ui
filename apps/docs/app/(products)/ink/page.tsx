@@ -15,8 +15,6 @@ import { CopyCommandButton } from "@/components/home/copy-command-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { TerminalDemo } from "./terminal-demo";
 
-import "./terminal-mockup.css";
-
 const ANALYTICS_PAGE = "ink" as const;
 
 const INSTALL_COMMAND = "npx assistant-ui@latest create --ink my-app";

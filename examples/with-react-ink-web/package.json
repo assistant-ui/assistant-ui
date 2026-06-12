@@ -1,0 +1,30 @@
+{
+  "name": "with-react-ink-web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 8081",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@assistant-ui/react-ai-sdk": "workspace:*",
+    "@assistant-ui/react-ink": "workspace:*",
+    "@assistant-ui/react-ink-markdown": "workspace:*",
+    "@wterm/dom": "0.3.0",
+    "@wterm/react": "0.3.0",
+    "ai": "^6.0.197",
+    "ink": "^6.8.0",
+    "ink-web": "^0.2.0",
+    "next": "^16.2.7",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-reconciler": "^0.33.0",
+    "scheduler": "^0.27.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "@types/react": "^19.2.17",
+    "typescript": "^6.0.3"
+  }
+}
