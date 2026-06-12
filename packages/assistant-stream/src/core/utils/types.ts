@@ -53,6 +53,19 @@ type ToolCallStatus =
       reason: "cancelled" | "length" | "content-filter" | "other";
     };
 
+/**
+ * Wall-clock timing of a tool call. Accumulator-populated timings are
+ * measured by the consuming accumulator, so resumed or replayed streams
+ * re-measure them; hosts that need authoritative timings supply the field
+ * themselves.
+ */
+export type ToolCallTiming = {
+  /** Epoch milliseconds when the tool call started streaming or executing. */
+  readonly startedAt: number;
+  /** Epoch milliseconds when the result landed. Absent while the call runs. */
+  readonly completedAt?: number;
+};
+
 type ToolCallPartBase = {
   type: "tool-call";
   status: ToolCallStatus;
@@ -60,7 +73,7 @@ type ToolCallPartBase = {
   toolName: string;
   argsText: string;
   args: ReadonlyJSONObject;
-  timing?: { startedAt: number; completedAt?: number };
+  timing?: ToolCallTiming;
   artifact?: ReadonlyJSONValue;
   result?: ReadonlyJSONValue;
   modelContent?: readonly ToolModelContentPart[];

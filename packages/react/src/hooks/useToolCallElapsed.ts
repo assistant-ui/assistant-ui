@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 
 /**
  * Hook that returns the elapsed wall-clock time of the current tool call in
  * milliseconds, ticking once per second while the call runs.
  *
- * Reads `part.timing`. Returns `undefined` when the part is not a tool call
- * or carries no timing. Must be used inside a message part scope.
+ * Reads `part.timing`. Returns `undefined` when the part is not a tool call,
+ * carries no timing, or when no message part scope is available (so kit
+ * components stay renderable standalone, e.g. in docs previews).
  *
  * @example
  * ```tsx
@@ -20,10 +21,19 @@ import { useAuiState } from "@assistant-ui/store";
  * ```
  */
 export const useToolCallElapsed = (): number | undefined => {
+  const aui = useAui();
+  const hasPart = aui.part.source !== null;
   const timing = useAuiState((s) =>
-    s.part.type === "tool-call" ? s.part.timing : undefined,
+    hasPart && s.part.type === "tool-call" ? s.part.timing : undefined,
   );
-  const running = timing !== undefined && timing.completedAt === undefined;
+  const partRunning = useAuiState(
+    (s) =>
+      hasPart &&
+      s.part.type === "tool-call" &&
+      s.part.status.type === "running",
+  );
+  const running =
+    timing !== undefined && timing.completedAt === undefined && partRunning;
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -34,7 +44,5 @@ export const useToolCallElapsed = (): number | undefined => {
   }, [running]);
 
   if (timing === undefined) return undefined;
-  if (timing.completedAt !== undefined)
-    return timing.completedAt - timing.startedAt;
-  return Math.max(0, now - timing.startedAt);
+  return Math.max(0, (timing.completedAt ?? now) - timing.startedAt);
 };

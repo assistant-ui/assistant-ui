@@ -55,14 +55,25 @@ export function unstable_useMessageStallDetection(
   const [, setTick] = useState(0);
 
   useEffect(() => {
+    if (!running) return undefined;
+    lastActivityRef.current = Date.now();
+    return undefined;
+  }, [running, fingerprint]);
+
+  useEffect(() => {
     if (!running) {
       setStalled(false);
       return undefined;
     }
 
-    lastActivityRef.current = Date.now();
+    const sinceActivity = Date.now() - lastActivityRef.current;
+    if (sinceActivity >= thresholdMs) {
+      setStalled(true);
+      return undefined;
+    }
+
     setStalled(false);
-    const id = setTimeout(() => setStalled(true), thresholdMs);
+    const id = setTimeout(() => setStalled(true), thresholdMs - sinceActivity);
     return () => clearTimeout(id);
   }, [running, fingerprint, thresholdMs]);
 

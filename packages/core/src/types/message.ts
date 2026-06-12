@@ -2,10 +2,10 @@ import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "assistant-stream/utils";
-import type { ToolModelContentPart } from "assistant-stream";
+import type { ToolCallTiming, ToolModelContentPart } from "assistant-stream";
 import type { CompleteAttachment } from "./attachment";
 
-export type { ToolModelContentPart };
+export type { ToolCallTiming, ToolModelContentPart };
 
 export type TextMessagePart = {
   readonly type: "text";
@@ -158,19 +158,6 @@ export type ToolApprovalOption = {
   readonly grants?: readonly string[];
   /** Opt-in confirmation step before this option resolves. */
   readonly confirm?: boolean | { title?: string; description?: string };
-};
-
-/**
- * Wall-clock timing of a tool call. Accumulator-populated timings are
- * measured by the consuming accumulator, so resumed or replayed streams
- * re-measure them; hosts that need authoritative timings supply the field
- * themselves.
- */
-export type ToolCallTiming = {
-  /** Epoch milliseconds when the tool call started streaming or executing. */
-  readonly startedAt: number;
-  /** Epoch milliseconds when the result landed. Absent while the call runs. */
-  readonly completedAt?: number;
 };
 
 export type ToolApprovalResponse =
