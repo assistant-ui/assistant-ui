@@ -1,5 +1,6 @@
 "use client";
 
+// Mirrors examples/with-react-ink/src/app.tsx; keep in sync.
 import { useMemo } from "react";
 import { Box, Text } from "ink";
 import {

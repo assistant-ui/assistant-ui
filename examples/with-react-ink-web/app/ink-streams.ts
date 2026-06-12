@@ -59,9 +59,9 @@ export function createInkStreams(
     cork: () => {},
     uncork: () => {},
     write: (chunk: unknown, encoding?: unknown, cb?: () => void) => {
-      let str = typeof chunk === "string" ? chunk : String(chunk);
+      const str = typeof chunk === "string" ? chunk : String(chunk);
       if (str.length > 0) {
-        writeToTerminal(str.replaceAll("\n", "\r\n"));
+        writeToTerminal(str.replace(/(?<!\r)\n/g, "\r\n"));
       }
       if (typeof encoding === "function") (encoding as () => void)();
       else cb?.();
