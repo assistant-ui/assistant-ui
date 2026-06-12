@@ -1,38 +1,41 @@
-// Browser-safe entry. MUST NOT import `@earendil-works/pi-*` — those live only
-// in the `./node` entry.
+// Browser-safe entry. MUST NOT import `@earendil-works/pi-*` — only `src/node/`
+// may, and it is reachable only from the `./node` entry.
 
-export * from "./piTypes";
+export * from "./types";
 
-export { createPiThreadState, reducePiThreadState } from "./piThreadState";
+export {
+  createPiThreadState,
+  reducePiThreadState,
+} from "./runtime/threadState";
 export type {
   PiThreadState,
   PiRunStatus,
   PiLoadState,
   PiToolExecutionState,
-} from "./piThreadState";
+} from "./runtime/threadState";
 
 export {
   projectPiThreadMessages,
   projectPiThreadRepository,
-} from "./piMessageProjection";
+} from "./runtime/messageProjection";
 export type {
   PiProjectionInput,
   PiProjectedContentPart,
-} from "./piMessageProjection";
+} from "./runtime/messageProjection";
 
 export {
   splitHostUiRequests,
   responseForApproval,
   responseForInterrupt,
   responseForRequest,
-} from "./piHostUi";
-export type { SplitHostUiRequests, PiInterruptAnswer } from "./piHostUi";
+} from "./runtime/hostUi";
+export type { SplitHostUiRequests, PiInterruptAnswer } from "./runtime/hostUi";
 
-export { PiThreadController } from "./PiThreadController";
+export { PiThreadController } from "./runtime/ThreadController";
 export type {
   PiThreadControllerLike,
   PiSendOptions,
-} from "./PiThreadController";
+} from "./runtime/ThreadController";
 
 export {
   usePiRuntime,
@@ -40,11 +43,11 @@ export {
   usePiSession,
   usePiThreadState,
   usePiHostUiRequests,
-} from "./usePiRuntime";
-export type { PiRuntimeOptions, PiRuntimeExtras } from "./usePiRuntime";
+} from "./runtime/usePiRuntime";
+export type { PiRuntimeOptions, PiRuntimeExtras } from "./runtime/usePiRuntime";
 
-export { createPiHttpClient } from "./createPiHttpClient";
-export type { PiHttpClientOptions } from "./createPiHttpClient";
+export { createPiHttpClient } from "./client/httpClient";
+export type { PiHttpClientOptions } from "./client/httpClient";
 
-export { createSseDecoder, openPiEventStream } from "./PiEventSource";
-export type { SseFrame, PiEventStreamOptions } from "./PiEventSource";
+export { createSseDecoder, openPiEventStream } from "./client/eventSource";
+export type { SseFrame, PiEventStreamOptions } from "./client/eventSource";

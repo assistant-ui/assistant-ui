@@ -24,7 +24,7 @@ import type {
   PiRuntimeReadiness,
   PiThreadMetadata,
   PiThreadSnapshot,
-} from "./piTypes";
+} from "../types";
 
 export type PiRunStatus = "idle" | "running" | "failed";
 

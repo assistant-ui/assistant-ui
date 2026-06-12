@@ -8,7 +8,7 @@ import {
   mapSessionEvent,
   mapSessionInfo,
   toPiMessages,
-} from "./piNodeMapping";
+} from "./mapping";
 
 const ev = (body: unknown): AgentSessionEvent => body as AgentSessionEvent;
 

@@ -12,8 +12,8 @@
 import {
   PiThreadSupervisor,
   type PiThreadSupervisorOptions,
-} from "./PiThreadSupervisor";
-import type { PiClient } from "./piTypes";
+} from "./ThreadSupervisor";
+import type { PiClient } from "../types";
 
 export type PiNodeClientOptions = PiThreadSupervisorOptions;
 

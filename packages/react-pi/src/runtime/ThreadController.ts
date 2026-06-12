@@ -18,13 +18,13 @@ import {
   createPiThreadState,
   reducePiThreadState,
   type PiThreadState,
-} from "./piThreadState";
-import { projectPiThreadMessagesShared } from "./piMessageProjection";
+} from "./threadState";
+import { projectPiThreadMessagesShared } from "./messageProjection";
 import {
   responseForApproval,
   responseForInterrupt,
   type PiInterruptAnswer,
-} from "./piHostUi";
+} from "./hostUi";
 import type {
   PiClient,
   PiClientEvent,
@@ -34,7 +34,7 @@ import type {
   PiSendMessageInput,
   PiThinkingLevel,
   PiThreadSnapshot,
-} from "./piTypes";
+} from "../types";
 
 export type PiSendOptions = {
   /** Overrides the derived behavior. While the thread is running this is

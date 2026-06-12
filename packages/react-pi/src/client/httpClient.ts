@@ -26,7 +26,7 @@
  *   POST   /threads/:id/host-ui     → 204                   (body: { response })
  *   GET    /threads/:id/events      → SSE of PiClientEvent (?snapshot=false skips initial snapshot)
  */
-import { openPiEventStream } from "./PiEventSource";
+import { openPiEventStream } from "./eventSource";
 import type {
   PiClient,
   PiClientEvent,
@@ -36,7 +36,7 @@ import type {
   PiThinkingLevel,
   PiThreadMetadata,
   PiThreadSnapshot,
-} from "./piTypes";
+} from "../types";
 
 type SharedStream = {
   listeners: Set<(event: PiClientEvent) => void>;

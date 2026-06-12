@@ -14,13 +14,13 @@ export {
   createPiNodeClient,
   getPiThreadSupervisor,
   type PiNodeClientOptions,
-} from "./createPiNodeClient";
+} from "./node/client";
 export {
   PiThreadSupervisor,
   type PiThreadSupervisorOptions,
-} from "./PiThreadSupervisor";
-export { PiUnsupportedHostUiError } from "./piNodeExtensionUi";
+} from "./node/ThreadSupervisor";
+export { PiUnsupportedHostUiError } from "./node/extensionUi";
 
 // Re-export the browser-safe transport contract so server code can build and
 // type `PiClient` payloads without importing the main entry.
-export * from "./piTypes";
+export * from "./types";

@@ -1,12 +1,12 @@
 /**
- * Pure mappers from real Pi SDK shapes to the JSON-safe mirror in `piTypes`.
+ * Pure mappers from real Pi SDK shapes to the JSON-safe mirror in `types`.
  *
  * Node-reachable, but RUNTIME-PURE: every Pi import here is `import type`, so
  * nothing pulls `@earendil-works/pi-*` into a JS bundle. These functions are the
  * testable seam of the node host — exercised with hand-built fakes in
- * `piNodeMapping.test.ts`, no live `AgentSession` required.
+ * `mapping.test.ts`, no live `AgentSession` required.
  *
- * The mirror in `piTypes` is structurally faithful to Pi `0.78` (verified
+ * The mirror in `types` is structurally faithful to Pi `0.78` (verified
  * against the real `.d.ts`), so most of the mapping is an identity cast at the
  * type boundary plus the few places the supervisor must enrich (turn index, live
  * run status, readiness).
@@ -28,7 +28,7 @@ import type {
   PiThreadMetadata,
   PiThreadStatus,
   PiTranscriptMessage,
-} from "./piTypes";
+} from "../types";
 
 /** A model as the `ModelRegistry` reports it (a Pi `Model`), derived from the
  *  SDK so this module names it only at the type boundary. */

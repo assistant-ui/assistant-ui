@@ -25,7 +25,7 @@
 
 import { ExportedMessageRepository } from "@assistant-ui/react";
 import type { ThreadMessageLike } from "@assistant-ui/react";
-import type { PiThreadState } from "./piThreadState";
+import type { PiThreadState } from "./threadState";
 import type {
   PiAgentMessage,
   PiAssistantMessage,
@@ -38,7 +38,7 @@ import type {
   PiToolResultMessage,
   PiUserContent,
   PiUserMessage,
-} from "./piTypes";
+} from "../types";
 
 type ContentPart = Exclude<ThreadMessageLike["content"], string>[number];
 type ToolCallPart = Extract<ContentPart, { type: "tool-call" }>;

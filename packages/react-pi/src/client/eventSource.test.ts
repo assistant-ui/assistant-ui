@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSseDecoder, openPiEventStream } from "./PiEventSource";
-import type { PiAnyClientEvent } from "./piTypes";
+import { createSseDecoder, openPiEventStream } from "./eventSource";
+import type { PiAnyClientEvent } from "../types";
 
 describe("createSseDecoder", () => {
   it("decodes a single data frame", () => {

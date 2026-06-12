@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AppendMessage } from "@assistant-ui/react";
-import { PiThreadController } from "./PiThreadController";
+import { PiThreadController } from "./ThreadController";
 import type {
   PiClient,
   PiClientEvent,
@@ -9,7 +9,7 @@ import type {
   PiHostUiRequest,
   PiSendMessageInput,
   PiThreadSnapshot,
-} from "./piTypes";
+} from "../types";
 
 const THREAD = "t1";
 

@@ -4,8 +4,8 @@ import {
   responseForInterrupt,
   responseForRequest,
   splitHostUiRequests,
-} from "./piHostUi";
-import type { PiHostUiRequest } from "./piTypes";
+} from "./hostUi";
+import type { PiHostUiRequest } from "../types";
 
 const confirm = (id: string, toolCallId?: string): PiHostUiRequest => ({
   id,

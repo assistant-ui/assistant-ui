@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   projectPiThreadMessages,
   type PiProjectionInput,
-} from "./piMessageProjection";
+} from "./messageProjection";
 import type {
   PiAgentMessage,
   PiAssistantMessage,
   PiHostUiRequest,
   PiToolCall,
-} from "./piTypes";
+} from "../types";
 
 const assistant = (
   content: PiAssistantMessage["content"],
@@ -53,7 +53,7 @@ const input = (
 const contentParts = (m: { content: unknown }) =>
   m.content as ReadonlyArray<Record<string, unknown>>;
 
-describe("piMessageProjection", () => {
+describe("messageProjection", () => {
   it("projects a user text message", () => {
     const out = projectPiThreadMessages(
       input([{ role: "user", content: "hello", timestamp: 1 }]),

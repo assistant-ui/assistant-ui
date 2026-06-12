@@ -1,7 +1,7 @@
 /**
  * Re-derives `AgentSession.getContextUsage()` from persisted session data so the
  * cold read path (`getThread` on a thread with no live session) can report
- * context usage WITHOUT constructing an `AgentSession`. Unlike `piNodeMapping`,
+ * context usage WITHOUT constructing an `AgentSession`. Unlike `mapping`,
  * this touches the Pi SDK at runtime (the token-estimation helpers), so it lives
  * in its own node-only module.
  *
@@ -19,7 +19,7 @@ import {
   getLatestCompactionEntry,
   type SessionEntry,
 } from "@earendil-works/pi-coding-agent";
-import type { PiContextUsage } from "./piTypes";
+import type { PiContextUsage } from "../types";
 
 /** A message that may carry assistant token usage. Structural so this module
  *  stays decoupled from the SDK's `AgentMessage` union. */

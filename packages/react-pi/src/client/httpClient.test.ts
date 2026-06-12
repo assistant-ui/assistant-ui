@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createPiHttpClient } from "./createPiHttpClient";
+import { createPiHttpClient } from "./httpClient";
 import type {
   PiAnyClientEvent,
   PiThreadMetadata,
   PiThreadSnapshot,
-} from "./piTypes";
+} from "../types";
 
 type Call = { url: string; method: string; body: unknown };
 

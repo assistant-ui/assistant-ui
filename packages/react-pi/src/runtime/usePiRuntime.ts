@@ -28,9 +28,9 @@ import {
   buildPiSendInput,
   PiThreadController,
   type PiThreadControllerLike,
-} from "./PiThreadController";
-import { splitHostUiRequests, type PiInterruptAnswer } from "./piHostUi";
-import { createPiThreadState, type PiThreadState } from "./piThreadState";
+} from "./ThreadController";
+import { splitHostUiRequests, type PiInterruptAnswer } from "./hostUi";
+import { createPiThreadState, type PiThreadState } from "./threadState";
 import type {
   PiClient,
   PiContextUsage,
@@ -41,7 +41,7 @@ import type {
   PiThinkingLevel,
   PiThreadMetadata,
   PiThreadStatus,
-} from "./piTypes";
+} from "../types";
 
 // ---------------------------------------------------------------------------
 // Options & extras.
@@ -90,7 +90,7 @@ export interface PiRuntimeExtras {
   ) => Promise<void>;
 }
 
-export type { PiInterruptAnswer } from "./piHostUi";
+export type { PiInterruptAnswer } from "./hostUi";
 
 // ---------------------------------------------------------------------------
 // Symbol-tagged extras (so the selector hooks can validate context).

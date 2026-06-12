@@ -3,8 +3,8 @@ import {
   createSupervisorUiBridge,
   PiUnsupportedHostUiError,
   type SupervisorUiBridgeDeps,
-} from "./piNodeExtensionUi";
-import type { PiHostUiRequest } from "./piTypes";
+} from "./extensionUi";
+import type { PiHostUiRequest } from "../types";
 
 const harness = (over: Partial<SupervisorUiBridgeDeps> = {}) => {
   const emitted: PiHostUiRequest[] = [];

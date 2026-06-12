@@ -3,14 +3,14 @@ import {
   createPiThreadState,
   reducePiThreadState,
   type PiThreadState,
-} from "./piThreadState";
+} from "./threadState";
 import type {
   PiAssistantMessage,
   PiClientEvent,
   PiClientEventBody,
   PiThreadSnapshot,
   PiUserMessage,
-} from "./piTypes";
+} from "../types";
 
 let seq = 0;
 const ev = (body: PiClientEventBody, threadId = "t1"): PiClientEvent =>
@@ -47,7 +47,7 @@ const user = (text: string): PiUserMessage => ({
 const apply = (state: PiThreadState, ...events: PiClientEvent[]) =>
   events.reduce(reducePiThreadState, state);
 
-describe("piThreadState", () => {
+describe("threadState", () => {
   it("starts empty/pending", () => {
     const s = createPiThreadState("t1");
     expect(s.messages).toEqual([]);

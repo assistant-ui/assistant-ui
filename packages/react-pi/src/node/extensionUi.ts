@@ -20,7 +20,7 @@
  * (`undefined` = dismissed).
  */
 import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
-import type { PiHostUiRequest, PiHostUiResponse } from "./piTypes";
+import type { PiHostUiRequest, PiHostUiResponse } from "../types";
 
 /** Thrown by `custom()` — the one host-UI method with no headless degradation
  * (it renders an arbitrary interactive TUI component). This gives extensions a

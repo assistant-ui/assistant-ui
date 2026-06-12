@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
-import { deriveContextUsage } from "./piContextUsage";
+import { deriveContextUsage } from "./contextUsage";
 
 const WINDOW = 100_000;
 

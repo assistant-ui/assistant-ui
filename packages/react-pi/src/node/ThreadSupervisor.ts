@@ -3,7 +3,7 @@
  * SDK (`@earendil-works/pi-coding-agent`) and exposes a multi-thread view of
  * Pi's single-active-session runtime.
  *
- * This is the one file (with `piNodeExtensionUi`) that imports the Pi SDK at
+ * This is the one file (with `extensionUi`) that imports the Pi SDK at
  * runtime. It is reachable only from `node.ts`, never from `index.ts`, so the
  * browser boundary holds.
  *
@@ -31,12 +31,12 @@ import {
   mapSessionInfo,
   readinessFromSessionContext,
   toPiMessages,
-} from "./piNodeMapping";
-import { deriveContextUsage } from "./piContextUsage";
+} from "./mapping";
+import { deriveContextUsage } from "./contextUsage";
 import {
   createSupervisorUiBridge,
   type SupervisorUiBridge,
-} from "./piNodeExtensionUi";
+} from "./extensionUi";
 import type {
   PiClientEvent,
   PiClientEventBody,
@@ -51,7 +51,7 @@ import type {
   PiHostUiResponse,
   PiRuntimeReadiness,
   PiSendMessageInput,
-} from "./piTypes";
+} from "../types";
 
 /** The `model` shape `createAgentSession` accepts (a Pi `Model`), derived from
  * the SDK so the supervisor stays the only file that names it. The host resolves

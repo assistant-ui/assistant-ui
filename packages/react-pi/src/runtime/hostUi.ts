@@ -19,7 +19,7 @@
  * Browser-safe; imports no `@earendil-works/pi-*` packages.
  */
 
-import type { PiHostUiRequest, PiHostUiResponse } from "./piTypes";
+import type { PiHostUiRequest, PiHostUiResponse } from "../types";
 
 export interface SplitHostUiRequests {
   /** Requests the supervisor correlated to a single executing tool, keyed by

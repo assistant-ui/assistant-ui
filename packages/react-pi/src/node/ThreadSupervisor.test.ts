@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionInfo } from "@earendil-works/pi-coding-agent";
-import { PiThreadSupervisor } from "./PiThreadSupervisor";
+import { PiThreadSupervisor } from "./ThreadSupervisor";
 
 const sdk = vi.hoisted(() => ({
   authCreate: vi.fn(() => ({})),

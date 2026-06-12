@@ -17,7 +17,7 @@
  *
  * Browser-safe: imports no `@earendil-works/pi-*`.
  */
-import type { PiAnyClientEvent } from "./piTypes";
+import type { PiAnyClientEvent } from "../types";
 
 /** A decoded SSE frame. `data` is the concatenation of every `data:` line in the
  * frame (joined by `\n`, per the SSE spec); `event`/`id` are the last-seen field
