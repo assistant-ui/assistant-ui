@@ -33,6 +33,7 @@ export type {
   AssistantMessage,
   AssistantMessageTiming,
   DataPart,
+  ToolCallTiming,
 } from "./core/utils/types";
 
 export type {
