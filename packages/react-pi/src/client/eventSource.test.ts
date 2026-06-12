@@ -20,12 +20,11 @@ describe("createSseDecoder", () => {
     expect(decoder.push("data: a\ndata: b\n\n")).toEqual([{ data: "a\nb" }]);
   });
 
-  it("carries event and id fields and tracks lastEventId", () => {
+  it("carries event and id fields", () => {
     const decoder = createSseDecoder();
     expect(decoder.push("event: ping\nid: 7\ndata: x\n\n")).toEqual([
       { event: "ping", id: "7", data: "x" },
     ]);
-    expect(decoder.lastEventId).toBe("7");
   });
 
   it("ignores comment heartbeats and empty frames", () => {

@@ -3,29 +3,23 @@
 import { useEffect, useState } from "react";
 import { Thread } from "../components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
-import type { PiModelOption } from "../components/pi-handshake";
 import { usePiThreadState } from "@assistant-ui/react-pi";
 import type { PiRuntimeReadiness } from "@assistant-ui/react-pi";
+// Type-only import — erased at build time, so no server code reaches the client.
+import type { PiHandshake } from "@/lib/pi-server";
 import { PiHandshakeProvider } from "../components/pi-handshake";
 import { PiRuntimeProvider } from "./PiRuntimeProvider";
 import { WorkspaceBrowser } from "../components/workspace-browser";
 
-type Handshake = {
-  workspacePath: string;
-  models: PiModelOption[];
-  selectedModelId?: string;
-  readiness: PiRuntimeReadiness;
-};
-
 export default function Home() {
-  const [handshake, setHandshake] = useState<Handshake | null>(null);
+  const [handshake, setHandshake] = useState<PiHandshake | null>(null);
   const [workspacePath, setWorkspacePath] = useState("");
 
   useEffect(() => {
     let active = true;
     fetch("/api/pi/handshake")
       .then((response) => response.json())
-      .then((data: Handshake) => {
+      .then((data: PiHandshake) => {
         if (!active) return;
         setHandshake(data);
         setWorkspacePath(data.workspacePath ?? "");

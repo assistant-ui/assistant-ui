@@ -1,38 +1,31 @@
 import type { NextRequest } from "next/server";
 import { piClient } from "@/lib/pi-server";
-import { fail, noContent } from "@/lib/http";
+import { badRequest, noContent, withFail } from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ threadId: string }> };
 
-export async function GET(_req: NextRequest, { params }: Context) {
-  try {
-    const { threadId } = await params;
-    return Response.json(await piClient.getThread(threadId));
-  } catch (error) {
-    return fail(error);
-  }
-}
+export const GET = withFail(async (_req: NextRequest, { params }: Context) => {
+  const { threadId } = await params;
+  return Response.json(await piClient.getThread(threadId));
+});
 
-export async function PATCH(req: NextRequest, { params }: Context) {
-  try {
-    const { threadId } = await params;
-    const { title } = (await req.json()) as { title: string };
-    await piClient.renameThread(threadId, title);
-    return noContent();
-  } catch (error) {
-    return fail(error);
+export const PATCH = withFail(async (req: NextRequest, { params }: Context) => {
+  const { threadId } = await params;
+  const { title } = (await req.json()) as { title?: unknown };
+  if (typeof title !== "string" || title.trim() === "") {
+    return badRequest("title must be a non-empty string");
   }
-}
+  await piClient.renameThread(threadId, title);
+  return noContent();
+});
 
-export async function DELETE(_req: NextRequest, { params }: Context) {
-  try {
+export const DELETE = withFail(
+  async (_req: NextRequest, { params }: Context) => {
     const { threadId } = await params;
     await piClient.deleteThread(threadId);
     return noContent();
-  } catch (error) {
-    return fail(error);
-  }
-}
+  },
+);

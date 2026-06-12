@@ -70,6 +70,24 @@ describe("deriveContextUsage", () => {
     expect(usage).toEqual({ tokens: 3000, contextWindow: WINDOW, percent: 3 });
   });
 
+  it("treats a post-compaction assistant without usage as untrustworthy instead of throwing", () => {
+    const noUsage = {
+      role: "assistant",
+      stopReason: "end_turn",
+      content: [{ type: "text", text: "ok" }],
+    };
+    const usage = deriveContextUsage(
+      WINDOW,
+      branch(compaction, msgEntry(noUsage)),
+      [user("hello"), noUsage],
+    );
+    expect(usage).toEqual({
+      tokens: null,
+      contextWindow: WINDOW,
+      percent: null,
+    });
+  });
+
   it("ignores aborted assistant usage after a compaction", () => {
     const usage = deriveContextUsage(
       WINDOW,

@@ -36,7 +36,9 @@ export async function GET(req: NextRequest, { params }: Context) {
 
   // Flush headers through any buffering proxy immediately.
   write(": connected\n\n");
-  heartbeat = setInterval(() => write(": ping\n\n"), 2000);
+  // Keep-alive under typical proxy idle timeouts (30–60s) without the write
+  // churn of a tighter interval.
+  heartbeat = setInterval(() => write(": ping\n\n"), 20_000);
   unsubscribe = piClient.subscribe(
     threadId,
     (event) => {

@@ -110,6 +110,29 @@ describe("PiThreadSupervisor", () => {
     });
   });
 
+  it("dedupes concurrent cold opens into a single AgentSession", async () => {
+    const session = {
+      sessionId: "t1",
+      sessionFile: SESSION.path,
+      state: { pendingToolCalls: new Set<string>() },
+      subscribe: vi.fn(() => () => {}),
+      bindExtensions: vi.fn(async () => {}),
+      setThinkingLevel: vi.fn(),
+    };
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    // The typical racing pair: a subscribe and an operation arrive together
+    // for a thread with no live record yet.
+    await Promise.all([
+      supervisor.setThinkingLevel("t1", "high"),
+      supervisor.setThinkingLevel("t1", "low"),
+    ]);
+
+    expect(sdk.createAgentSession).toHaveBeenCalledTimes(1);
+    expect(session.setThinkingLevel).toHaveBeenCalledTimes(2);
+  });
+
   it("deletes a cold thread and forgets its cached catalog info", async () => {
     const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
     await supervisor.getThread("t1"); // primes the per-thread catalog cache

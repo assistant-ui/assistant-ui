@@ -14,7 +14,7 @@ export type PiModelOption = ModelOption & {
 
 export type PiHandshakeValue = {
   models: PiModelOption[];
-  selectedModelId?: string;
+  selectedModelId?: string | undefined;
 };
 
 const PiHandshakeContext = createContext<PiHandshakeValue | null>(null);

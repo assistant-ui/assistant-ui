@@ -85,7 +85,12 @@ const compactionInvalidatesUsage = (
     if (message.role !== "assistant") continue;
     if (message.stopReason === "aborted" || message.stopReason === "error")
       continue;
-    return calculateContextTokens(message.usage as never) <= 0;
+    // Mirrors the SDK's break-at-first-assistant check, with one defensive
+    // addition: a message without `usage` (the SDK would throw on it) counts
+    // as "no trustworthy usage yet".
+    return (
+      !message.usage || calculateContextTokens(message.usage as never) <= 0
+    );
   }
   return true;
 };

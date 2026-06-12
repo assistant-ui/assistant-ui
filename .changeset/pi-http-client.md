@@ -11,7 +11,7 @@ feat: initial `@assistant-ui/react-pi` MVP — a Pi coding-agent runtime adapter
   support), per-thread model/thinking controls, context usage, and Pi's
   blocking host-UI (approval) surface projected as native
   approvals/interrupts.
-- Browser-safe core: JSON-safe `PiClient` contract (`piTypes`), pure
+- Browser-safe core: JSON-safe `PiClient` contract (`types`), pure
   snapshot-authoritative reducer (`reducePiThreadState`), pure transcript
   projection, and `PiThreadController` with optimistic echo, frame-coalesced
   stream notifications, and structural sharing of projected messages.

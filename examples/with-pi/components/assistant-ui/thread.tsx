@@ -9,6 +9,7 @@ import { ContextDisplay } from "@/components/assistant-ui/context-display";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
+  isPiSteerQueueItemId,
   responseForRequest,
   usePiHostUiRequests,
   usePiRuntimeExtras,
@@ -17,6 +18,7 @@ import {
   type PiThinkingLevel,
 } from "@assistant-ui/react-pi";
 import { usePiHandshake } from "../pi-handshake";
+import { modelKey } from "@/lib/model-key";
 import { ThinkingLevelSlider } from "./thinking-level-slider";
 import {
   Reasoning,
@@ -296,7 +298,7 @@ const ComposerQueue: FC = () => {
           <div className="flex items-center gap-2">
             <ListEndIcon className="size-3.5 shrink-0" />
             <span className="min-w-0 flex-1 truncate">{queueItem.prompt}</span>
-            {queueItem.id.startsWith("steer:") && (
+            {isPiSteerQueueItemId(queueItem.id) && (
               <span className="border-border rounded-full border px-1.5 text-[10px] uppercase">
                 steer
               </span>
@@ -376,8 +378,8 @@ const ComposerAction: FC = () => {
   );
 };
 
-const modelKey = (provider?: string, modelId?: string) =>
-  provider && modelId ? `${provider}:${modelId}` : undefined;
+const selectedModelKey = (provider?: string, modelId?: string) =>
+  provider && modelId ? modelKey(provider, modelId) : undefined;
 
 /** Model + thinking-level picker seeded from the server handshake and wired to
  * Pi's per-thread `session.setModel`/`session.setThinkingLevel`. Per-model
@@ -387,7 +389,7 @@ const ComposerModelSelector: FC = () => {
   const handshake = usePiHandshake();
   const { metadata, setModel, setThinkingLevel, status } = usePiRuntimeExtras();
   const selected =
-    modelKey(metadata.config?.provider, metadata.config?.modelId) ??
+    selectedModelKey(metadata.config?.provider, metadata.config?.modelId) ??
     handshake?.selectedModelId;
   const thinkingLevel = metadata.config?.thinkingLevel;
   if (!handshake || handshake.models.length === 0) return null;

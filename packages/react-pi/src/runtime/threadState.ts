@@ -118,17 +118,17 @@ const applySnapshot = (
     streamingMessageIndex: undefined,
     toolExecutions: {},
     runStatus,
+    // A missing `queuedMessages` means an empty queue (snapshots omit the
+    // field when there is nothing queued, and cold threads have no queue at
+    // all) — keeping the prior queue here would let items drained while the
+    // event stream was down survive a reconnect snapshot forever.
     queue: {
-      steering: snapshot.metadata.queuedMessages
-        ? snapshot.metadata.queuedMessages
-            .filter((m) => m.mode === "steer")
-            .map((m) => m.content)
-        : state.queue.steering,
-      followUp: snapshot.metadata.queuedMessages
-        ? snapshot.metadata.queuedMessages
-            .filter((m) => m.mode === "followUp")
-            .map((m) => m.content)
-        : state.queue.followUp,
+      steering: (snapshot.metadata.queuedMessages ?? [])
+        .filter((m) => m.mode === "steer")
+        .map((m) => m.content),
+      followUp: (snapshot.metadata.queuedMessages ?? [])
+        .filter((m) => m.mode === "followUp")
+        .map((m) => m.content),
     },
     contextUsage: snapshot.metadata.contextUsage ?? state.contextUsage,
     hostUiRequests: snapshot.hostUiRequests ?? [],
@@ -161,7 +161,7 @@ const upsertToolExecution = (
   },
 });
 
-const removeHostUiRequest = (
+export const removeHostUiRequest = (
   state: PiThreadState,
   requestId: string,
 ): PiThreadState => {

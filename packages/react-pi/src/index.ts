@@ -2,6 +2,8 @@
 // may, and it is reachable only from the `./node` entry.
 
 export * from "./types";
+export { piQueueItemId, isPiSteerQueueItemId } from "./queueIds";
+export type { PiQueueMode } from "./queueIds";
 
 export {
   createPiThreadState,

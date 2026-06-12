@@ -17,8 +17,10 @@ import type { AppendMessage, ThreadMessageLike } from "@assistant-ui/react";
 import {
   createPiThreadState,
   reducePiThreadState,
+  removeHostUiRequest,
   type PiThreadState,
 } from "./threadState";
+import { errorText } from "../utils";
 import { projectPiThreadMessagesShared } from "./messageProjection";
 import {
   responseForApproval,
@@ -72,9 +74,6 @@ export interface PiThreadControllerLike {
   dispose(): void;
 }
 
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
-
 const defaultScheduleNotify: PiNotificationScheduler = (flush) => {
   if (typeof globalThis.requestAnimationFrame === "function") {
     globalThis.requestAnimationFrame(() => flush());
@@ -120,29 +119,14 @@ const METADATA_DIRTY_EVENT_TYPES: ReadonlySet<string> = new Set([
   "error",
 ]);
 
+/** Everything the reducer understands: the two dirty sets plus the event types
+ * it deliberately absorbs without marking anything dirty. */
 const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
-  "snapshot",
-  "agent_start",
-  "agent_end",
+  ...MESSAGE_DIRTY_EVENT_TYPES,
+  ...METADATA_DIRTY_EVENT_TYPES,
   "turn_start",
   "turn_end",
-  "message_start",
-  "message_update",
-  "message_end",
   "tool_execution_start",
-  "tool_execution_update",
-  "tool_execution_end",
-  "queue_update",
-  "compaction_start",
-  "compaction_end",
-  "auto_retry_start",
-  "auto_retry_end",
-  "session_info_changed",
-  "thinking_level_changed",
-  "context_usage",
-  "extension_ui_request",
-  "extension_ui_resolved",
-  "error",
 ]);
 
 /** Parse a `data:<mime>;base64,<data>` URL into Pi `ImageContent`. Non-data-URL
@@ -155,14 +139,17 @@ const toImageContent = (image: string): PiImageContent => {
   return { type: "image", mimeType: "image/png", data: image };
 };
 
+/** All content parts of an append message, with attachment parts flattened in. */
+export const appendMessageParts = (message: AppendMessage) => [
+  ...message.content,
+  ...(message.attachments?.flatMap((a) => a.content ?? []) ?? []),
+];
+
 export const buildPiSendInput = (
   message: AppendMessage,
   streamingBehavior: "followUp" | "steer" | undefined,
 ): PiSendMessageInput => {
-  const parts = [
-    ...message.content,
-    ...(message.attachments?.flatMap((a) => a.content ?? []) ?? []),
-  ];
+  const parts = appendMessageParts(message);
 
   const textChunks: string[] = [];
   const attachments: PiImageContent[] = [];
@@ -336,26 +323,21 @@ export class PiThreadController implements PiThreadControllerLike {
     );
   }
 
-  private maybeDisconnectFromEvents() {
-    if (
+  private hasConsumers(): boolean {
+    return (
       this.connectionRetainers > 0 ||
       this.allListeners.size > 0 ||
       this.metadataListeners.size > 0 ||
       this.messageListeners.size > 0
-    ) {
-      return;
-    }
+    );
+  }
+
+  private maybeDisconnectFromEvents() {
+    if (this.hasConsumers()) return;
     if (this.disconnectTimer) return;
     this.disconnectTimer = setTimeout(() => {
       this.disconnectTimer = null;
-      if (
-        this.connectionRetainers > 0 ||
-        this.allListeners.size > 0 ||
-        this.metadataListeners.size > 0 ||
-        this.messageListeners.size > 0
-      ) {
-        return;
-      }
+      if (this.hasConsumers()) return;
       this.unsubscribeFromEvents?.();
       this.unsubscribeFromEvents = null;
     }, 30_000);
@@ -383,7 +365,7 @@ export class PiThreadController implements PiThreadControllerLike {
         this.setState({
           ...this.state,
           loadState: "loaded",
-          lastError: errorMessage(error),
+          lastError: errorText(error),
         });
         throw error;
       })
@@ -442,7 +424,7 @@ export class PiThreadController implements PiThreadControllerLike {
       // events from a run that did start will self-heal the status.
       this.setState({
         ...this.state,
-        lastError: errorMessage(error),
+        lastError: errorText(error),
         runStatus: "failed",
         metadata: { ...this.state.metadata, status: "failed" },
       });
@@ -475,7 +457,7 @@ export class PiThreadController implements PiThreadControllerLike {
       const index = entries.lastIndexOf(input.content);
       this.setState({
         ...this.state,
-        lastError: errorMessage(error),
+        lastError: errorText(error),
         ...(index !== -1
           ? {
               queue: {
@@ -509,7 +491,7 @@ export class PiThreadController implements PiThreadControllerLike {
     try {
       await this.client.cancelRun(this.threadId);
     } catch (error) {
-      this.setState({ ...this.state, lastError: errorMessage(error) });
+      this.setState({ ...this.state, lastError: errorText(error) });
       throw error;
     }
   }
@@ -518,7 +500,7 @@ export class PiThreadController implements PiThreadControllerLike {
     try {
       await this.client.setModel(this.threadId, input);
     } catch (error) {
-      this.setState({ ...this.state, lastError: errorMessage(error) });
+      this.setState({ ...this.state, lastError: errorText(error) });
       throw error;
     }
     await this.refresh();
@@ -528,7 +510,7 @@ export class PiThreadController implements PiThreadControllerLike {
     try {
       await this.client.setThinkingLevel(this.threadId, level);
     } catch (error) {
-      this.setState({ ...this.state, lastError: errorMessage(error) });
+      this.setState({ ...this.state, lastError: errorText(error) });
       throw error;
     }
     await this.refresh();
@@ -564,20 +546,16 @@ export class PiThreadController implements PiThreadControllerLike {
     try {
       await this.client.respondToHostUiRequest(this.threadId, response);
     } catch (error) {
-      this.setState({ ...this.state, lastError: errorMessage(error) });
+      this.setState({ ...this.state, lastError: errorText(error) });
       throw error;
     }
     // Optimistically clear the resolved request so the gate closes immediately.
     // Done directly (not via the reducer) because a synthetic event at the
     // current seq would be dropped by the dedup guard; the supervisor's real
     // `extension_ui_resolved` is idempotent over this removal.
-    if (this.state.hostUiRequests.some((r) => r.id === response.requestId)) {
-      this.setState({
-        ...this.state,
-        hostUiRequests: this.state.hostUiRequests.filter(
-          (r) => r.id !== response.requestId,
-        ),
-      });
+    const next = removeHostUiRequest(this.state, response.requestId);
+    if (next !== this.state) {
+      this.setState(next);
       this.recomputeProjectedMessagesAndNotify();
     }
   }
@@ -662,12 +640,9 @@ export class PiThreadController implements PiThreadControllerLike {
     const next = this.projectMessages();
     if (next === this.projectedMessages) return;
     this.projectedMessages = next;
-    this.messageRepository = ExportedMessageRepository.fromBranchableArray(
-      next.map((message, index) => ({
-        message,
-        parentId: index > 0 ? (next[index - 1]!.id ?? null) : null,
-      })),
-    );
+    // `fromArray` chains messages linearly and keeps their stable `pi-msg:N`
+    // ids (its generated id is only a fallback for id-less messages).
+    this.messageRepository = ExportedMessageRepository.fromArray(next);
     this.notifyMessageListeners();
   }
 

@@ -95,10 +95,6 @@ export const createSseDecoder = () => {
       }
       return out;
     },
-    /** The last `id:` seen across all frames (the SSE "last event id"). */
-    get lastEventId(): string | undefined {
-      return lastId;
-    },
   };
 };
 

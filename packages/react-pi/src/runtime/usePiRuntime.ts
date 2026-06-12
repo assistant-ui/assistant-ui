@@ -17,18 +17,22 @@ import type {
 } from "@assistant-ui/react";
 import {
   useEffect,
-  useEffectEvent,
   useCallback,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
+// Ponyfill: React only ships `useEffectEvent` from 19.2, but the peer range
+// allows React 18.
+import { useEffectEvent } from "use-effect-event";
 import {
+  appendMessageParts,
   buildPiSendInput,
   PiThreadController,
   type PiThreadControllerLike,
 } from "./ThreadController";
+import { piQueueItemId } from "../queueIds";
 import { splitHostUiRequests, type PiInterruptAnswer } from "./hostUi";
 import { createPiThreadState, type PiThreadState } from "./threadState";
 import type {
@@ -144,14 +148,10 @@ const createRegistry = (client: PiClient): PiControllerRegistry => {
   };
 };
 
-const getController = (
-  registry: PiControllerRegistry,
-  client: PiClient,
-  threadId: string,
-) => {
+const getController = (registry: PiControllerRegistry, threadId: string) => {
   const existing = registry.controllers.get(threadId);
   if (existing) return existing;
-  const controller = new PiThreadController(client, threadId);
+  const controller = new PiThreadController(registry.client, threadId);
   registry.controllers.set(threadId, controller);
   return controller;
 };
@@ -181,32 +181,40 @@ const NOOP_CONTROLLER: PiThreadControllerLike = {
 const NOOP_ON_NEW = () =>
   Promise.reject(new Error("Pi thread is still initializing"));
 
-const EMPTY_RUNTIME_EXTRAS: PiRuntimeExtrasInternal = {
-  [symbolPiRuntimeExtras]: true,
-  controller: NOOP_CONTROLLER,
-  state: EMPTY_THREAD_STATE,
-  metadata: EMPTY_THREAD_STATE.metadata,
-  status: "idle",
-  readiness: undefined,
-  contextUsage: undefined,
-  hostUiRequests: [],
-  allHostUiRequests: [],
-  queue: EMPTY_THREAD_STATE.queue,
-  compaction: EMPTY_THREAD_STATE.compaction,
-  retry: EMPTY_THREAD_STATE.retry,
-  lastError: undefined,
-  cancel: () => NOOP_CONTROLLER.cancel(),
-  refresh: () => NOOP_CONTROLLER.refresh(),
-  clearQueue: () => NOOP_CONTROLLER.clearQueue(),
-  setModel: (input) => NOOP_CONTROLLER.setModel(input),
-  setThinkingLevel: (level) => NOOP_CONTROLLER.setThinkingLevel(level),
-  respondToHostUiRequest: (response) =>
-    NOOP_CONTROLLER.respondToHostUiRequest(response),
-  respondToToolApproval: (id, approved) =>
-    NOOP_CONTROLLER.respondToToolApproval(id, approved),
-  resumeToolCall: (toolCallId, payload) =>
-    NOOP_CONTROLLER.resumeToolCall(toolCallId, payload),
+const buildExtras = (
+  controller: PiThreadControllerLike,
+  state: PiThreadState,
+): PiRuntimeExtrasInternal => {
+  const { freeStanding } = splitHostUiRequests(state.hostUiRequests);
+  return {
+    [symbolPiRuntimeExtras]: true,
+    controller,
+    state,
+    metadata: state.metadata,
+    status: state.runStatus === "failed" ? "failed" : state.runStatus,
+    readiness: state.readiness,
+    contextUsage: state.contextUsage,
+    hostUiRequests: freeStanding,
+    allHostUiRequests: state.hostUiRequests,
+    queue: state.queue,
+    compaction: state.compaction,
+    retry: state.retry,
+    lastError: state.lastError,
+    cancel: () => controller.cancel(),
+    refresh: () => controller.refresh(),
+    clearQueue: () => controller.clearQueue(),
+    setModel: (input) => controller.setModel(input),
+    setThinkingLevel: (level) => controller.setThinkingLevel(level),
+    respondToHostUiRequest: (response) =>
+      controller.respondToHostUiRequest(response),
+    respondToToolApproval: (id, approved) =>
+      controller.respondToToolApproval(id, approved),
+    resumeToolCall: (toolCallId, payload) =>
+      controller.resumeToolCall(toolCallId, payload),
+  };
 };
+
+const EMPTY_RUNTIME_EXTRAS = buildExtras(NOOP_CONTROLLER, EMPTY_THREAD_STATE);
 
 // ---------------------------------------------------------------------------
 // Per-thread runtime.
@@ -233,7 +241,7 @@ const usePiControllerVersion = (
 
 const usePiControllerState = (
   controller: PiThreadControllerLike,
-  kind: "all" | "metadata" = "all",
+  kind: "all" | "metadata",
 ): PiThreadState => {
   usePiControllerVersion(controller, kind);
   return controller.getState();
@@ -299,35 +307,10 @@ const usePiThreadStore = (
     return controller.connect();
   }, [controller, isRunning]);
 
-  const extras = useMemo<PiRuntimeExtrasInternal>(() => {
-    const { freeStanding } = splitHostUiRequests(state.hostUiRequests);
-    return {
-      [symbolPiRuntimeExtras]: true,
-      controller,
-      state,
-      metadata: state.metadata,
-      status: state.runStatus === "failed" ? "failed" : state.runStatus,
-      readiness: state.readiness,
-      contextUsage: state.contextUsage,
-      hostUiRequests: freeStanding,
-      allHostUiRequests: state.hostUiRequests,
-      queue: state.queue,
-      compaction: state.compaction,
-      retry: state.retry,
-      lastError: state.lastError,
-      cancel: () => controller.cancel(),
-      refresh: () => controller.refresh(),
-      clearQueue: () => controller.clearQueue(),
-      setModel: (input) => controller.setModel(input),
-      setThinkingLevel: (level) => controller.setThinkingLevel(level),
-      respondToHostUiRequest: (response) =>
-        controller.respondToHostUiRequest(response),
-      respondToToolApproval: (id, approved) =>
-        controller.respondToToolApproval(id, approved),
-      resumeToolCall: (toolCallId, payload) =>
-        controller.resumeToolCall(toolCallId, payload),
-    };
-  }, [controller, state]);
+  const extras = useMemo<PiRuntimeExtrasInternal>(
+    () => buildExtras(controller, state),
+    [controller, state],
+  );
 
   // Pi queues natively (`prompt()` steers/follows up mid-run), so the queue
   // adapter forwards every send straight to the controller instead of
@@ -338,11 +321,11 @@ const usePiThreadStore = (
     () => ({
       items: [
         ...state.queue.steering.map((content, index) => ({
-          id: `steer:${index}`,
+          id: piQueueItemId("steer", index),
           prompt: content,
         })),
         ...state.queue.followUp.map((content, index) => ({
-          id: `followUp:${index}`,
+          id: piQueueItemId("followUp", index),
           prompt: content,
         })),
       ],
@@ -436,10 +419,7 @@ const toOptimisticThreadMessage = (
   id: `pi-new-user:${index}`,
   role: "user",
   createdAt: new Date(),
-  content: [
-    ...message.content,
-    ...(message.attachments?.flatMap((a) => a.content ?? []) ?? []),
-  ],
+  content: appendMessageParts(message),
 });
 
 const useNewPiThreadStore = (
@@ -460,14 +440,7 @@ const useNewPiThreadStore = (
     readonly ThreadMessageLike[]
   >([]);
   const optimisticRepository = useMemo(
-    () =>
-      ExportedMessageRepository.fromBranchableArray(
-        optimisticMessages.map((message, index) => ({
-          message,
-          parentId:
-            index > 0 ? (optimisticMessages[index - 1]!.id ?? null) : null,
-        })),
-      ),
+    () => ExportedMessageRepository.fromArray(optimisticMessages),
     [optimisticMessages],
   );
 
@@ -525,7 +498,6 @@ const useNewPiThreadStore = (
 };
 
 const useRuntimeHook = (
-  client: PiClient,
   registry: PiControllerRegistry,
   options: PiRuntimeOptions,
   pendingInitialMessageRef: { current: PiSendMessageInput | undefined },
@@ -536,21 +508,11 @@ const useRuntimeHook = (
   );
   const threadId = threadListItem.externalId ?? threadListItem.remoteId;
 
-  const controllerRef = useRef<{
-    client: PiClient;
-    threadId: string;
-    controller: PiThreadController;
-  } | null>(null);
-  const controller = (() => {
-    if (!threadId) return NOOP_CONTROLLER;
-    const cached = controllerRef.current;
-    if (cached?.client === client && cached.threadId === threadId) {
-      return cached.controller;
-    }
-    const next = getController(registry, client, threadId);
-    controllerRef.current = { client, threadId, controller: next };
-    return next;
-  })();
+  // No render-local cache on top: `getController` is already an idempotent
+  // registry lookup, and a second cache could outlive a recreated registry.
+  const controller = threadId
+    ? getController(registry, threadId)
+    : NOOP_CONTROLLER;
 
   const threadStore = usePiThreadStore(
     isMainThread ? controller : NOOP_CONTROLLER,
@@ -676,12 +638,7 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
     ...(options.threadId !== undefined ? { threadId: options.threadId } : {}),
     runtimeHook: () => {
       // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook is invoked by useRemoteThreadListRuntime at the correct hook position
-      return useRuntimeHook(
-        client,
-        registry,
-        options,
-        pendingInitialMessageRef,
-      );
+      return useRuntimeHook(registry, options, pendingInitialMessageRef);
     },
   });
 };

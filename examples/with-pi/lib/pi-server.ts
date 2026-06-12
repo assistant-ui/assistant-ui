@@ -24,8 +24,11 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import {
   createPiNodeClient,
+  type PiModelInfo,
   type PiRuntimeReadiness,
+  type PiThinkingLevel,
 } from "@assistant-ui/react-pi/node";
+import { modelKey } from "./model-key";
 
 const env = (key: string): string | undefined => {
   const value = process.env[key];
@@ -50,10 +53,6 @@ const modelSource: "env" | "pi-default" =
 const seededModel =
   provider && modelId ? modelRegistry.find(provider, modelId) : undefined;
 
-/** Stable, collision-free option id — model ids repeat across providers. */
-const modelKey = (m: { provider: unknown; id: string }): string =>
-  `${String(m.provider)}:${m.id}`;
-
 export const piClient = createPiNodeClient({
   workspacePath,
   ...(agentDir ? { agentDir } : {}),
@@ -70,26 +69,31 @@ export type PiModelOption = {
   efforts?: { id: string; name: string }[];
 };
 
-const THINKING_LEVELS = [
-  { id: "off", name: "Off" },
-  { id: "minimal", name: "Minimal" },
-  { id: "low", name: "Low" },
-  { id: "medium", name: "Medium" },
-  { id: "high", name: "High" },
-  { id: "xhigh", name: "xHigh" },
-] as const;
+/** Display names for Pi's thinking levels (the UI-facing half of `efforts`;
+ * which levels a model supports comes from `PiModelInfo`). */
+const THINKING_LEVEL_NAMES: Record<PiThinkingLevel, string> = {
+  off: "Off",
+  minimal: "Minimal",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  xhigh: "xHigh",
+};
 
-type PiModel = ReturnType<ModelRegistry["getAll"]>[number];
+const ALL_THINKING_LEVELS = Object.keys(
+  THINKING_LEVEL_NAMES,
+) as PiThinkingLevel[];
 
-/** `thinkingLevelMap` uses `null` to mark a level unsupported; missing keys
- * fall back to provider defaults and stay selectable. */
 const thinkingEfforts = (
-  model: PiModel,
+  model: PiModelInfo,
 ): { id: string; name: string }[] | undefined => {
-  if (!model.reasoning) return undefined;
-  return THINKING_LEVELS.filter(
-    (level) => model.thinkingLevelMap?.[level.id] !== null,
-  ).map((level) => ({ ...level }));
+  if (!model.supportsThinking) return undefined;
+  // No `availableThinkingLevels` means the model declares no per-level map;
+  // every level stays selectable (provider defaults apply).
+  return (model.availableThinkingLevels ?? ALL_THINKING_LEVELS).map((id) => ({
+    id,
+    name: THINKING_LEVEL_NAMES[id],
+  }));
 };
 
 export type PiHandshake = {
@@ -130,24 +134,24 @@ const computeReadiness = (): PiRuntimeReadiness => {
   };
 };
 
-export const getHandshake = (): PiHandshake => {
-  modelRegistry.refresh();
-  const available = modelRegistry.getAvailable();
-  const catalog = available.length > 0 ? available : modelRegistry.getAll();
+export const getHandshake = async (): Promise<PiHandshake> => {
+  const catalog = await piClient.getAvailableModels();
   return {
     workspacePath,
     models: catalog.map((model) => {
       const efforts = thinkingEfforts(model);
       return {
-        id: modelKey(model),
-        name: model.name,
-        description: String(model.provider),
-        provider: String(model.provider),
-        modelId: model.id,
+        id: modelKey(model.provider, model.modelId),
+        name: model.name ?? model.modelId,
+        description: model.provider,
+        provider: model.provider,
+        modelId: model.modelId,
         ...(efforts ? { efforts } : {}),
       };
     }),
-    selectedModelId: seededModel ? modelKey(seededModel) : undefined,
+    selectedModelId: seededModel
+      ? modelKey(String(seededModel.provider), seededModel.id)
+      : undefined,
     readiness: computeReadiness(),
   };
 };

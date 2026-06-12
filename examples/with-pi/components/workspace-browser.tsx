@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowLeft, Folder } from "lucide-react";
 import type { FsListing } from "@/app/api/pi/fs/route";
 import {
@@ -29,14 +29,34 @@ export function WorkspaceBrowser({
   const [open, setOpen] = useState(false);
   const [listing, setListing] = useState<FsListing | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Monotonic request token: rapid navigation fires overlapping fetches, and a
+  // slow earlier response must not overwrite the directory navigated to last.
+  const requestSeq = useRef(0);
 
   const load = (path?: string) => {
+    const seq = ++requestSeq.current;
     setLoading(true);
+    setError(null);
     const qs = path ? `?path=${encodeURIComponent(path)}` : "";
     fetch(`/api/pi/fs${qs}`)
-      .then((response) => response.json())
-      .then((data: FsListing) => setListing(data))
-      .finally(() => setLoading(false));
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to list directory (HTTP ${response.status})`);
+        }
+        return (await response.json()) as FsListing;
+      })
+      .then((data) => {
+        if (seq === requestSeq.current) setListing(data);
+      })
+      .catch((err: unknown) => {
+        if (seq === requestSeq.current) {
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      })
+      .finally(() => {
+        if (seq === requestSeq.current) setLoading(false);
+      });
   };
 
   const currentName = value.split("/").filter(Boolean).at(-1);
@@ -86,6 +106,9 @@ export function WorkspaceBrowser({
         </div>
 
         <ScrollArea className="h-72 min-w-0 rounded-md border [&_[data-radix-scroll-area-viewport]>div]:!block">
+          {error && (
+            <p className="text-destructive px-3 py-2 text-xs">{error}</p>
+          )}
           {listing?.entries.map((entry) => (
             <button
               key={entry.path}

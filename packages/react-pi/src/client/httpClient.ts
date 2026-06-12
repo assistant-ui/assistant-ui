@@ -113,8 +113,11 @@ export const createPiHttpClient = (
   const send = (url: string, method: string, body?: unknown) =>
     fetchImpl(url, {
       method,
-      headers: jsonHeaders,
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      ...(body !== undefined
+        ? { headers: jsonHeaders, body: JSON.stringify(body) }
+        : headers
+          ? { headers }
+          : {}),
     });
 
   return {
@@ -124,11 +127,9 @@ export const createPiHttpClient = (
         params.set("workspacePath", input.workspacePath);
       if (input?.includeArchived) params.set("includeArchived", "true");
       const query = params.toString();
-      const response = await fetchImpl(
-        `${base}/threads${query ? `?${query}` : ""}`,
-        { method: "GET", ...(headers ? { headers } : {}) },
+      return readJson<PiThreadMetadata[]>(
+        await send(`${base}/threads${query ? `?${query}` : ""}`, "GET"),
       );
-      return readJson<PiThreadMetadata[]>(response);
     },
 
     createThread: async (input) =>
@@ -137,12 +138,7 @@ export const createPiHttpClient = (
       ),
 
     getThread: async (threadId) =>
-      readJson<PiThreadSnapshot>(
-        await fetchImpl(threadUrl(threadId), {
-          method: "GET",
-          ...(headers ? { headers } : {}),
-        }),
-      ),
+      readJson<PiThreadSnapshot>(await send(threadUrl(threadId), "GET")),
 
     sendMessage: async (threadId, input: PiSendMessageInput) => {
       await assertOk(
@@ -164,14 +160,9 @@ export const createPiHttpClient = (
       if (input?.workspacePath)
         params.set("workspacePath", input.workspacePath);
       const query = params.toString();
-      const response = await fetchImpl(
-        `${base}/models${query ? `?${query}` : ""}`,
-        {
-          method: "GET",
-          ...(headers ? { headers } : {}),
-        },
+      return readJson<PiModelInfo[]>(
+        await send(`${base}/models${query ? `?${query}` : ""}`, "GET"),
       );
-      return readJson<PiModelInfo[]>(response);
     },
 
     setModel: async (threadId, input) => {

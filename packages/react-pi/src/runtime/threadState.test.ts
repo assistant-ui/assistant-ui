@@ -181,6 +181,23 @@ describe("threadState", () => {
     expect(s.toolExecutions["b"]?.status).toBe("complete");
   });
 
+  it("clears the queue when a snapshot omits queuedMessages", () => {
+    // Snapshots omit the field when nothing is queued, so missing ≠ "keep" —
+    // otherwise a queue drained while disconnected would survive reconnect.
+    let s = apply(
+      createPiThreadState("t1"),
+      ev({ type: "queue_update", steering: ["s1"], followUp: ["f1"] }),
+    );
+    expect(s.queue).toEqual({ steering: ["s1"], followUp: ["f1"] });
+    s = apply(s, {
+      type: "snapshot",
+      snapshot: { metadata: { id: "t1", status: "idle" }, messages: [] },
+      threadId: "t1",
+      seq: 0,
+    } as PiClientEvent);
+    expect(s.queue).toEqual({ steering: [], followUp: [] });
+  });
+
   it("updates queue from queue_update", () => {
     const s = apply(
       createPiThreadState("t1"),

@@ -33,6 +33,8 @@ import {
   toPiMessages,
 } from "./mapping";
 import { deriveContextUsage } from "./contextUsage";
+import { errorText } from "../utils";
+import { piQueueItemId } from "../queueIds";
 import {
   createSupervisorUiBridge,
   type SupervisorUiBridge,
@@ -94,11 +96,12 @@ type ThreadRecord = {
   lastError: string | undefined;
 };
 
-const errorText = (err: unknown): string =>
-  err instanceof Error ? err.message : String(err);
-
 export class PiThreadSupervisor {
   private readonly records = new Map<string, ThreadRecord>();
+  /** In-flight cold opens, so concurrent calls for the same thread (e.g. an
+   * SSE subscribe racing a send) share one `AgentSession` instead of creating
+   * two on the same session file. */
+  private readonly pendingOpens = new Map<string, Promise<ThreadRecord>>();
   private readonly recordsBySessionFile = new Map<string, ThreadRecord>();
   private readonly workspacePath: string;
   private readonly agentDir: string | undefined;
@@ -219,8 +222,9 @@ export class PiThreadSupervisor {
   ): Promise<void> {
     const record = await this.ensureOpen(threadId);
     record.session.setThinkingLevel(level as never);
+    // No snapshot here: unlike `setModel`, this has a dedicated event the
+    // reducer applies, so a full-transcript broadcast would be redundant.
     this.emit(record, { type: "thinking_level_changed", level });
-    this.emit(record, { type: "snapshot", snapshot: this.snapshotOf(record) });
   }
 
   async renameThread(threadId: string, title: string): Promise<void> {
@@ -408,6 +412,16 @@ export class PiThreadSupervisor {
   private async ensureOpen(threadId: string): Promise<ThreadRecord> {
     const existing = this.records.get(threadId);
     if (existing) return existing;
+    const pending = this.pendingOpens.get(threadId);
+    if (pending) return pending;
+    const open = this.openCold(threadId).finally(() => {
+      this.pendingOpens.delete(threadId);
+    });
+    this.pendingOpens.set(threadId, open);
+    return open;
+  }
+
+  private async openCold(threadId: string): Promise<ThreadRecord> {
     const info = await this.findSessionInfo(threadId);
     if (!info) throw new Error(`Unknown Pi thread: ${threadId}`);
     const existingBySessionFile = this.recordsBySessionFile.get(info.path);
@@ -590,12 +604,12 @@ export class PiThreadSupervisor {
     const session = record.session;
     return [
       ...session.getSteeringMessages().map((content, i) => ({
-        id: `steer:${i}`,
+        id: piQueueItemId("steer", i),
         mode: "steer" as const,
         content,
       })),
       ...session.getFollowUpMessages().map((content, i) => ({
-        id: `followUp:${i}`,
+        id: piQueueItemId("followUp", i),
         mode: "followUp" as const,
         content,
       })),
