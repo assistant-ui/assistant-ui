@@ -8,7 +8,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
-import type { HttpAgent } from "@ag-ui/client";
+import type { AbstractAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
@@ -42,7 +42,7 @@ export type UseAgUiRuntimeAdapters = {
 };
 
 export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
-  agent: HttpAgent;
+  agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
   onError?: (e: Error) => void;

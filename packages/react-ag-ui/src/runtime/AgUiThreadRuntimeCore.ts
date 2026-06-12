@@ -13,7 +13,7 @@ import type {
   ThreadMessage,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import type { HttpAgent } from "@ag-ui/client";
+import type { AbstractAgent } from "@ag-ui/client";
 import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Logger } from "./logger";
 import type { AgUiEvent, AgUiInterrupt, AgUiResumeEntry } from "./types";
@@ -49,7 +49,7 @@ type ResumeRunConfig = {
 };
 
 type CoreOptions = {
-  agent: HttpAgent;
+  agent: AbstractAgent;
   logger: Logger;
   showThinking: boolean;
   onError?: (error: Error) => void;
@@ -61,7 +61,7 @@ type CoreOptions = {
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
 export class AgUiThreadRuntimeCore {
-  private agent: HttpAgent;
+  private agent: AbstractAgent;
   private logger: Logger;
   private showThinking: boolean;
   private onError: ((error: Error) => void) | undefined;
