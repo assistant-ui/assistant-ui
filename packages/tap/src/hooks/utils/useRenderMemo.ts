@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect } from "react";
+import { useState, useLayoutEffect } from "react";
 import { depsShallowEqual } from "./depsShallowEqual";
 
 export const useRenderMemo = <T>(callback: () => T, deps: unknown[]) => {
