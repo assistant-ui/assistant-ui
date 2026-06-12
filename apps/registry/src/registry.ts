@@ -560,6 +560,20 @@ export const registry: RegistryItem[] = [
     registryDependencies: [],
   },
   {
+    name: "dot-matrix",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/dot-matrix.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/dot-matrix.tsx",
+      },
+    ],
+    dependencies: ["class-variance-authority"],
+    registryDependencies: [],
+  },
+  {
     name: "number-roll",
     type: "registry:component",
     files: [
