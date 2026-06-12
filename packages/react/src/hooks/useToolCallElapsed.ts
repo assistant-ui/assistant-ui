@@ -8,8 +8,9 @@ import { useAui, useAuiState } from "@assistant-ui/store";
  * milliseconds, ticking once per second while the call runs.
  *
  * Reads `part.timing`. Returns `undefined` when the part is not a tool call,
- * carries no timing, or when no message part scope is available (so kit
- * components stay renderable standalone, e.g. in docs previews).
+ * carries no timing, ended without a recorded completion (the duration is
+ * unknown), or when no message part scope is available (so kit components
+ * stay renderable standalone, e.g. in docs previews).
  *
  * @example
  * ```tsx
@@ -44,5 +45,8 @@ export const useToolCallElapsed = (): number | undefined => {
   }, [running]);
 
   if (timing === undefined) return undefined;
-  return Math.max(0, (timing.completedAt ?? now) - timing.startedAt);
+  if (timing.completedAt !== undefined)
+    return Math.max(0, timing.completedAt - timing.startedAt);
+  if (!running) return undefined;
+  return Math.max(0, now - timing.startedAt);
 };

@@ -158,15 +158,13 @@ describe("resumable integration", () => {
     );
     expect(replayMessage.status).toEqual(producerMessage.status);
     const toolPart = replayMessage.parts.find((p) => p.type === "tool-call");
-    expect(toolPart).toMatchObject({
-      timing: { startedAt: expect.any(Number) },
-    });
     expect(toolPart).toBeDefined();
     expect(toolPart).toMatchObject({
       toolName: "lookup",
       toolCallId: "tool-1",
       args: { query: "weather" },
       result: { temperature: 72 },
+      timing: { startedAt: expect.any(Number) },
     });
   });
 });

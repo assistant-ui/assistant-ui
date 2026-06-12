@@ -131,7 +131,7 @@ describe("useToolCallElapsed on terminated calls", () => {
     vi.useRealTimers();
   });
 
-  it("stops ticking when the call ends without a result (cancelled run)", async () => {
+  it("claims no duration when the call ends without a result (cancelled run)", async () => {
     const startedAt = Date.now() - 1000;
     const cancelled: ThreadMessageLike = {
       role: "assistant",
@@ -149,13 +149,13 @@ describe("useToolCallElapsed on terminated calls", () => {
     };
     await renderHarness([cancelled], ElapsedProbe);
 
-    expect(screen.getByTestId("elapsed").textContent).toBe("1000");
+    expect(screen.getByTestId("elapsed").textContent).toBe("none");
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3000);
     });
 
-    expect(screen.getByTestId("elapsed").textContent).toBe("1000");
+    expect(screen.getByTestId("elapsed").textContent).toBe("none");
   });
 });
 
