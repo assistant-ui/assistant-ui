@@ -18,7 +18,11 @@ import type {
   Unstable_AudioMessagePart,
 } from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
-import type { MessageTiming, TextMessagePart } from "../../types/message";
+import type {
+  MessageTiming,
+  TextMessagePart,
+  ToolApprovalOption,
+} from "../../types/message";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
@@ -60,6 +64,9 @@ export type ThreadMessageLike = {
               readonly approved?: boolean;
               readonly reason?: string;
               readonly isAutomatic?: boolean;
+              readonly options?: readonly ToolApprovalOption[];
+              readonly optionId?: string;
+              readonly resolution?: "cancelled" | "expired";
             };
           }
       )[];

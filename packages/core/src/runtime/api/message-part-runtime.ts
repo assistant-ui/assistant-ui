@@ -1,8 +1,10 @@
 import type {
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
+  ToolApprovalResponse,
   ToolCallMessagePartStatus,
 } from "../../types/message";
+import { resolveToolApprovalResponse } from "../utils/resolveToolApprovalResponse";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { MessagePartStatus } from "../../types/message";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
@@ -26,7 +28,7 @@ type MessagePartSnapshotBinding = SubscribableWithState<
 export type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
-  respondToToolApproval(response: { approved: boolean; reason?: string }): void;
+  respondToToolApproval(response: ToolApprovalResponse): void;
 
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
@@ -104,10 +106,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     });
   }
 
-  public respondToToolApproval(response: {
-    approved: boolean;
-    reason?: string;
-  }) {
+  public respondToToolApproval(response: ToolApprovalResponse) {
     const state = this.contentBinding.getState();
     if (!state) throw new Error("Message part is not available");
 
@@ -116,16 +115,20 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
         "Tried to respond to tool approval on non-tool message part",
       );
 
-    if (!state.approval || state.approval.approved !== undefined)
+    if (
+      !state.approval ||
+      state.approval.approved !== undefined ||
+      state.approval.resolution !== undefined
+    )
       throw new Error("Tool call has no pending approval");
 
     if (!this.threadApi) throw new Error("Thread API is not available");
 
-    this.threadApi.getState().respondToToolApproval({
-      approvalId: state.approval.id,
-      approved: response.approved,
-      ...(response.reason != null && { reason: response.reason }),
-    });
+    this.threadApi
+      .getState()
+      .respondToToolApproval(
+        resolveToolApprovalResponse(state.approval, response),
+      );
   }
 
   public subscribe(callback: () => void) {

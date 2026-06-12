@@ -135,6 +135,40 @@ export type ToolCallMessagePartMcpMetadata = {
   readonly app?: McpAppMetadata;
 };
 
+export type ToolApprovalOptionKind =
+  | "allow-once"
+  | "allow-always"
+  | "reject-once"
+  | "reject-always";
+
+export type ToolApprovalOption = {
+  /** Opaque, host-defined identifier. Scope semantics (session vs project vs global) belong to the option supplier. */
+  readonly id: string;
+  /**
+   * Decision class. Drives approved-resolution and default rendering.
+   * Open union: `_`-prefixed custom kinds are never auto-resolved and the
+   * default kit skips them; they must be answered with an explicit
+   * `approved` value (optionally alongside the `optionId`).
+   */
+  readonly kind: ToolApprovalOptionKind | (string & {});
+  /** Human label. Renderers supply defaults per kind when omitted. */
+  readonly label?: string;
+  readonly description?: string;
+  /** Patterns or rules this option would persist, shown before the user commits. Supplied by the host; never derived by the library. */
+  readonly grants?: readonly string[];
+  /** Opt-in confirmation step before this option resolves. */
+  readonly confirm?: boolean | { title?: string; description?: string };
+};
+
+export type ToolApprovalResponse =
+  | { readonly approved: boolean; readonly reason?: string }
+  | { readonly optionId: string; readonly reason?: string }
+  | {
+      readonly approved: boolean;
+      readonly optionId: string;
+      readonly reason?: string;
+    };
+
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
@@ -165,12 +199,18 @@ export type ToolCallMessagePart<
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   /** Human-input request that must be resolved before the run can continue. */
   readonly interrupt?: { type: "human"; payload: unknown };
-  /** Server-side approval gate. `approved === undefined` is the only state in which `respondToApproval` may be called. */
+  /** Server-side approval gate. `respondToApproval` may only be called while `approved` is undefined and no `resolution` is recorded. */
   readonly approval?: {
     readonly id: string;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;
+    /** Available decisions for this call. Absent: a plain allow / deny pair. */
+    readonly options?: readonly ToolApprovalOption[];
+    /** The option chosen at resolution, when options were present. */
+    readonly optionId?: string;
+    /** Terminal non-decision state: the request was cancelled or expired without a user decision. Set by the host. */
+    readonly resolution?: "cancelled" | "expired";
   };
   /** Parent message-part ID when this part belongs to a nested structure. */
   readonly parentId?: string;

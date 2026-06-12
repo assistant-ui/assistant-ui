@@ -31,7 +31,10 @@ const userMessage = (text: string): AppendMessage => ({
   createdAt: new Date(),
 });
 
-const toolCallPart = (toolName: string, approval?: { id: string }) => ({
+const toolCallPart = (
+  toolName: string,
+  approval?: { id: string; resolution?: "cancelled" | "expired" },
+) => ({
   type: "tool-call" as const,
   toolCallId: `call-${toolName}`,
   toolName,
@@ -42,7 +45,7 @@ const toolCallPart = (toolName: string, approval?: { id: string }) => ({
 
 const toolCallResult = (
   toolName: string,
-  approval?: { id: string },
+  approval?: { id: string; resolution?: "cancelled" | "expired" },
 ): ChatModelRunResult => ({
   content: [toolCallPart(toolName, approval)],
   status: { type: "requires-action", reason: "tool-calls" },
@@ -147,6 +150,62 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
     expect(toolCall?.approval).toEqual({ id: "a1", approved: true });
     expect(toolCall?.result).toBeUndefined();
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+
+  it("records the chosen optionId alongside the decision", async () => {
+    const { thread, runs } = createApprovalThread(
+      toolCallResult("send_email", { id: "a1" }),
+    );
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    thread.respondToToolApproval({
+      approvalId: "a1",
+      approved: true,
+      optionId: "always",
+    });
+    await flush();
+
+    expect(runs).toHaveLength(2);
+    const toolCall = runs[1]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(toolCall?.approval).toEqual({
+      id: "a1",
+      approved: true,
+      optionId: "always",
+    });
+  });
+
+  it("treats a terminal resolution as non-pending and continues the run", async () => {
+    const { thread, runs } = createApprovalThread(
+      toolCallResult("deploy", { id: "a1", resolution: "expired" }),
+    );
+
+    await thread.append(userMessage("deploy the app"));
+    await flush();
+
+    expect(runs).toHaveLength(2);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+
+  it("rejects responses to approvals with a terminal resolution", async () => {
+    const { thread } = createApprovalThread({
+      content: [
+        toolCallPart("deploy", { id: "a1", resolution: "expired" }),
+        toolCallPart("send_email"),
+      ],
+      status: { type: "requires-action", reason: "tool-calls" },
+    });
+
+    await thread.append(userMessage("deploy and email"));
+    await flush();
+
+    expect(thread.messages.at(-1)?.status?.type).toBe("requires-action");
+    expect(() =>
+      thread.respondToToolApproval({ approvalId: "a1", approved: true }),
+    ).toThrow("cancelled or expired");
   });
 
   it("continues multi-step turns after an approval resume", async () => {

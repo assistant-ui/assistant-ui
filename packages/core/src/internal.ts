@@ -32,6 +32,7 @@ export {
 
 // Message utilities
 export { getThreadMessageText } from "./utils/text";
+export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
 
 // Composite context provider
 export { CompositeContextProvider } from "./utils/composite-context-provider";

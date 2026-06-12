@@ -2,6 +2,7 @@ import type { ToolResponse } from "assistant-stream";
 import type {
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
+  ToolApprovalResponse,
   ToolCallMessagePartStatus,
 } from "../../types/message";
 import type { MessagePartStatus } from "../../types/message";
@@ -27,9 +28,11 @@ export type PartMethods = {
    */
   resumeToolCall(payload: unknown): void;
   /**
-   * Respond to a server-side tool approval gate. The approval id is read from the part.
+   * Respond to a server-side tool approval gate. The approval id is read from
+   * the part. Accepts a boolean decision or the id of one of the approval's
+   * options.
    */
-  respondToToolApproval(response: { approved: boolean; reason?: string }): void;
+  respondToToolApproval(response: ToolApprovalResponse): void;
   __internal_getRuntime?(): MessagePartRuntime;
 };
 

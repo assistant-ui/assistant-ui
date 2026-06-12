@@ -15,7 +15,8 @@ export const shouldContinue = (
       c.type === "tool-call" &&
       c.result === undefined &&
       c.approval !== undefined &&
-      c.approval.approved === undefined,
+      c.approval.approved === undefined &&
+      c.approval.resolution === undefined,
   );
   if (hasPendingApproval) return false;
 

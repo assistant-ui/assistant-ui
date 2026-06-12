@@ -58,6 +58,8 @@ export type ResumeToolCallOptions = {
 export type RespondToToolApprovalOptions = {
   approvalId: string;
   approved: boolean;
+  /** The approval option that produced this decision, when the request carried options. */
+  optionId?: string;
   reason?: string;
 };
 

@@ -36,7 +36,9 @@ const isInterruptedToolCall = (c: ThreadMessageLikeContentItem): boolean => {
   if (c.type !== "tool-call" || c.result !== undefined) return false;
   return (
     c.interrupt != null ||
-    (c.approval != null && c.approval.approved === undefined)
+    (c.approval != null &&
+      c.approval.approved === undefined &&
+      c.approval.resolution === undefined)
   );
 };
 

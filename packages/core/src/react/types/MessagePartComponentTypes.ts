@@ -9,6 +9,7 @@ import type {
   ReasoningMessagePart,
   SourceMessagePart,
   TextMessagePart,
+  ToolApprovalResponse,
   ToolCallMessagePart,
   Unstable_AudioMessagePart,
   QuoteInfo,
@@ -73,12 +74,11 @@ export type ToolCallMessagePartProps<
     resume: (payload: unknown) => void;
     /**
      * Responds to a server-side tool approval gate. Only valid while
-     * `approval` is set on the part and `approval.approved === undefined`.
+     * `approval` is set on the part, `approval.approved === undefined`, and
+     * no `approval.resolution` is recorded. Accepts a boolean decision or the
+     * id of one of `approval.options`; option kinds resolve to the boolean.
      */
-    respondToApproval: (response: {
-      approved: boolean;
-      reason?: string;
-    }) => void;
+    respondToApproval: (response: ToolApprovalResponse) => void;
   };
 
 /** Component used to render a tool-call message part. */

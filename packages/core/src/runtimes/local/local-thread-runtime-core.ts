@@ -648,6 +648,7 @@ export class LocalThreadRuntimeCore
   public respondToToolApproval({
     approvalId,
     approved,
+    optionId,
     reason,
   }: RespondToToolApprovalOptions) {
     let message = this.repository
@@ -677,10 +678,12 @@ export class LocalThreadRuntimeCore
     const newContent = message.content.map((c) => {
       if (c.type !== "tool-call" || c.approval?.id !== approvalId) return c;
       if (c.approval.approved !== undefined) return c;
+      if (c.approval.resolution !== undefined) return c;
       recorded = true;
       const approval = {
         ...c.approval,
         approved,
+        ...(optionId != null && { optionId }),
         ...(reason != null && { reason }),
       };
       if (approved) return { ...c, approval };
@@ -692,8 +695,19 @@ export class LocalThreadRuntimeCore
       };
     });
 
-    if (!recorded)
+    if (!recorded) {
+      const target = message.content.find(
+        (c) => c.type === "tool-call" && c.approval?.id === approvalId,
+      );
+      if (
+        target?.type === "tool-call" &&
+        target.approval?.resolution !== undefined
+      )
+        throw new Error(
+          "Tried to respond to a tool approval that was cancelled or expired",
+        );
       throw new Error("Tried to respond to an already decided tool approval");
+    }
 
     message = { ...message, content: newContent };
     const { parentId } = this.repository.getMessage(message.id);

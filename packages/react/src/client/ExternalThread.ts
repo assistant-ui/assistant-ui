@@ -13,6 +13,7 @@ import type {
   AppendMessage,
   Attachment,
   CreateAttachment,
+  RespondToToolApprovalOptions,
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
   ThreadMessage,
@@ -21,7 +22,10 @@ import type {
 } from "@assistant-ui/core";
 import type { QueueItemState } from "@assistant-ui/core/store";
 import type { ComposerSendOptions } from "@assistant-ui/core/store";
-import { getThreadMessageText } from "@assistant-ui/core/internal";
+import {
+  getThreadMessageText,
+  resolveToolApprovalResponse,
+} from "@assistant-ui/core/internal";
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
 import { SingleThreadList } from "./SingleThreadList";
@@ -56,6 +60,8 @@ export type ExternalThreadProps = {
   queue?: ExternalThreadQueueAdapter;
   /** Branch adapter for runtimes that track sibling variants of messages. */
   branches?: ExternalThreadBranchAdapter;
+  /** Callback for tool approval decisions. Absent: responding to an approval throws a capability error. */
+  onRespondToToolApproval?: (options: RespondToToolApprovalOptions) => void;
 };
 
 type MessageClientProps = {
@@ -65,6 +71,9 @@ type MessageClientProps = {
   onReload?: () => void;
   queue?: ExternalThreadQueueAdapter | undefined;
   branches?: ExternalThreadBranchAdapter | undefined;
+  onRespondToToolApproval?:
+    | ((options: RespondToToolApprovalOptions) => void)
+    | undefined;
 };
 
 // Message Client - minimal implementation
@@ -75,6 +84,7 @@ const useMessageClient = ({
   onReload,
   queue,
   branches,
+  onRespondToToolApproval,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -82,8 +92,10 @@ const useMessageClient = ({
 
   const partClients = useClientLookup(
     () =>
-      message.content.map((part, idx) => withKey(idx, PartResource({ part }))),
-    [message.content],
+      message.content.map((part, idx) =>
+        withKey(idx, PartResource({ part, onRespondToToolApproval })),
+      ),
+    [message.content, onRespondToToolApproval],
   );
 
   const attachmentClients = useClientLookup(
@@ -211,10 +223,16 @@ const MessageClient = resource(useMessageClient);
 
 type PartResourceProps = {
   part: ThreadAssistantMessagePart | ThreadUserMessagePart;
+  onRespondToToolApproval?:
+    | ((options: RespondToToolApprovalOptions) => void)
+    | undefined;
 };
 
 // Part Client - minimal implementation
-const usePartResource = ({ part }: PartResourceProps): ClientOutput<"part"> => {
+const usePartResource = ({
+  part,
+  onRespondToToolApproval,
+}: PartResourceProps): ClientOutput<"part"> => {
   const state = useMemo(
     () => ({
       ...part,
@@ -227,7 +245,26 @@ const usePartResource = ({ part }: PartResourceProps): ClientOutput<"part"> => {
     getState: () => state,
     addToolResult: () => {},
     resumeToolCall: () => {},
-    respondToToolApproval: () => {},
+    respondToToolApproval: (response) => {
+      if (!onRespondToToolApproval)
+        throw new Error("Runtime does not support tool approvals.");
+
+      if (part.type !== "tool-call")
+        throw new Error(
+          "Tried to respond to tool approval on non-tool message part",
+        );
+
+      if (
+        !part.approval ||
+        part.approval.approved !== undefined ||
+        part.approval.resolution !== undefined
+      )
+        throw new Error("Tool call has no pending approval");
+
+      onRespondToToolApproval(
+        resolveToolApprovalResponse(part.approval, response),
+      );
+    },
   };
 };
 
@@ -485,6 +522,7 @@ const useExternalThread = ({
   onCancel,
   queue,
   branches,
+  onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
   const handleReload = (messageId: string) => {
     const messageIndex = messages.findIndex((m) => m.id === messageId);
@@ -504,11 +542,12 @@ const useExternalThread = ({
           onReload: () => handleReload(msg.id),
           queue,
           branches,
+          onRespondToToolApproval,
         };
         if (onEdit) props.onEdit = onEdit;
         return withKey(msg.id, MessageClient(props));
       }),
-    [messages, onEdit, queue, branches],
+    [messages, onEdit, queue, branches, onRespondToToolApproval],
   );
 
   const handleCancelRun = () => {

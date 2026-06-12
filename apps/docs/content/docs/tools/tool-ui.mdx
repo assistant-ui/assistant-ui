@@ -585,6 +585,40 @@ Approval gates require a runtime that implements them: the AI SDK v6 runtime emi
 
 For the wire-side setup (`needsApproval`, `sendAutomaticallyWhen`), see [AI SDK v6 server-side tool approval](/docs/runtimes/ai-sdk/v6#server-side-tool-approval).
 
+### Approval options
+
+Beyond the plain allow / deny pair, the host can attach a list of decision options to an approval, for example "allow once", "allow for this session", and "always allow". Each option carries a machine-readable `kind` (`"allow-once"`, `"allow-always"`, `"reject-once"`, `"reject-always"`); scope semantics like session versus global belong to the option's `id` and `label`, which only the host interprets:
+
+```ts
+const approval = {
+  id: "a1",
+  options: [
+    { id: "once", kind: "allow-once" },
+    { id: "session", kind: "allow-always", label: "Allow for this session" },
+    {
+      id: "always",
+      kind: "allow-always",
+      label: "Always allow",
+      grants: ["git *"],
+      confirm: true,
+    },
+    { id: "deny", kind: "reject-once" },
+  ],
+};
+```
+
+Renderers respond with the chosen option instead of a boolean; the option's kind resolves the decision:
+
+```tsx
+respondToApproval({ optionId: "session" });
+```
+
+The runtime receives `{ approvalId, approved, optionId, reason? }`, so a host that persists "always allow" decisions can key its store off `optionId`. Persistence is entirely host-owned: assistant-ui never stores a decision and never auto-answers future approvals. `grants` lists the patterns an option would persist (shown to the user before they commit), and `confirm` opts the option into a confirmation step. Options with custom `_`-prefixed kinds are skipped by the default `ToolFallback` bar and must be answered with an explicit `approved` value, optionally alongside the `optionId` so the chosen option is still recorded.
+
+Approvals that end without a decision (a cancelled run or an expired request) are recorded by the host as `approval.resolution: "cancelled" | "expired"`, which closes the gate without recording a deny.
+
+The default `ToolFallback` component renders supplied options automatically, including the confirmation step.
+
 ## Advanced Features
 
 ### Tool Status Handling
