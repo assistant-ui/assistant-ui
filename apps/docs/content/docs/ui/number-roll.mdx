@@ -1,0 +1,154 @@
+---
+title: Number Roll
+description: Animated number that rolls digits odometer-style when the value changes.
+platforms: ["react"]
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import {
+  NumberRollSample,
+  NumberRollCompactSample,
+  NumberRollFormatSample,
+  NumberRollLiveSample,
+} from "@/components/docs/samples/number-roll";
+
+<Callout>
+  This is a **standalone component** that does not depend on the assistant-ui runtime. Use it anywhere in your application.
+</Callout>
+
+<NumberRollSample />
+
+## Installation
+
+<InstallCommand shadcn={["number-roll"]} />
+
+This adds a `/components/assistant-ui/number-roll.tsx` file to your project, which you can adjust as needed. The component has no dependencies beyond React.
+
+## Usage
+
+```tsx
+import { NumberRoll } from "@/components/assistant-ui/number-roll";
+
+export function TokenCounter({ count }: { count: number }) {
+  return <NumberRoll value={count} format={{ notation: "compact" }} />;
+}
+```
+
+When `value` changes, each digit rolls in place to its new value. Formatting is handled by `Intl.NumberFormat`, so structural changes animate too: when `700` becomes `1.1K` with compact notation, the surviving ones digit rolls from 0 to 1 while the leading `70` slides out and the decimal point, fraction digit, and `K` suffix slide in.
+
+## Examples
+
+### Compact Notation
+
+Pass any `Intl.NumberFormatOptions` via the `format` prop. Crossing a compact-notation threshold animates the formatting change instead of remounting the whole string.
+
+<PreviewCode file="components/docs/samples/number-roll" name="NumberRollCompactSample">
+  <NumberRollCompactSample />
+</PreviewCode>
+
+### Formats and Locales
+
+Currencies, percentages, suffixes, and non-English locales all work through the same `Intl.NumberFormat` pipeline. Compact thresholds and suffixes are locale-dependent (`1.2万` in `zh-CN`), so never hardcode them.
+
+<PreviewCode file="components/docs/samples/number-roll" name="NumberRollFormatSample">
+  <NumberRollFormatSample />
+</PreviewCode>
+
+### Live Counter
+
+Rapid successive updates retarget the in-flight roll smoothly, which makes the component suitable for streaming token counts and other live metrics.
+
+<PreviewCode file="components/docs/samples/number-roll" name="NumberRollLiveSample">
+  <NumberRollLiveSample />
+</PreviewCode>
+
+## How It Works
+
+The value is formatted with `Intl.NumberFormat.formatToParts` and split into keyed parts. Integer digits are keyed by place value counted from the right, so when `999` becomes `1,000` the existing columns keep their identity and roll in place while only the new leading digit and separator enter. Symbols (decimal point, group separators, currency signs, compact suffixes) cross-fade and collapse via animated `grid-template-columns`.
+
+Each digit renders a strip of 0 to 9 and animates a registered CSS custom property; CSS `mod()` math wraps the strip into an endless ribbon, so rolling from 9 to 0 continues in the trend direction instead of spinning backwards. There is no JavaScript animation loop and no animation library dependency.
+
+In browsers without CSS `mod()` support, and during server rendering, the component renders the plain formatted string. With `prefers-reduced-motion`, values swap instantly without rolling. When server rendering, pass an explicit `locales`: the server's default locale can differ from the visitor's browser locale, and a mismatched formatted string causes a React hydration error. Locales whose default numbering system is non-Latin (such as `ar-EG`) cross-fade their digits as symbols instead of rolling.
+
+The formatted value is exposed to screen readers as plain text while the animated digits are `aria-hidden`. Value changes are not announced automatically; wrap the component in an `aria-live` region if you need announcements.
+
+## API Reference
+
+### NumberRoll
+
+<ParametersTable
+  type="NumberRollProps"
+  parameters={[
+    {
+      name: "value",
+      type: "number",
+      required: true,
+      description: "The number to display.",
+    },
+    {
+      name: "format",
+      type: "Intl.NumberFormatOptions",
+      description:
+        "Number formatting options, e.g. `{ notation: \"compact\" }` or `{ style: \"currency\", currency: \"USD\" }`.",
+    },
+    {
+      name: "locales",
+      type: "Intl.LocalesArgument",
+      description:
+        "Locale(s) passed to `Intl.NumberFormat`. Pass an explicit value in server-rendered apps so the server and client format identically.",
+    },
+    {
+      name: "prefix",
+      type: "string",
+      description: "Static text rendered before the number.",
+    },
+    {
+      name: "suffix",
+      type: "string",
+      description: "Static text rendered after the number.",
+    },
+    {
+      name: "trend",
+      type: '"auto" | "up" | "down"',
+      default: '"auto"',
+      description:
+        "Roll direction. `auto` follows the sign of the value change; `up` and `down` force a direction, wrapping digits through 9/0 as needed.",
+    },
+    {
+      name: "duration",
+      type: "number",
+      default: "500",
+      description:
+        "Digit roll duration in milliseconds. Enter/exit fades run at 60% of this value.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### Styling
+
+The root applies `tabular-nums` so digits keep a constant width while rolling; the font you use must provide tabular figures for the layout to stay stable. Size and color are inherited from the surrounding text, so style it like any span:
+
+```tsx
+<NumberRoll value={value} className="text-4xl font-semibold" />
+```
+
+Change the animation speed via the `duration` prop; it drives both the CSS timing and the cleanup that unmounts exited characters, so overriding the duration variable in CSS alone would remove them mid-fade. The fade and easing variables are safe to override via the `style` prop (the defaults are set as inline styles, so plain `className` overrides do not apply):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--aui-number-roll-duration` | `500ms` (from the `duration` prop) | Digit roll duration. |
+| `--aui-number-roll-fade` | 60% of the duration | Enter/exit fade and width-collapse duration. |
+| `--aui-number-roll-ease` | `cubic-bezier(0.23, 1, 0.32, 1)` | Digit roll easing. |
+
+Parts are targetable via data attributes: `[data-slot="number-roll"]`, `[data-slot="number-roll-part"]`, `[data-slot="number-roll-digit"]`, and `[data-slot="number-roll-symbol"]`.
+
+## Related Components
+
+- [Context Display](/docs/ui/context-display) - Live token usage ring and bar
+- [Message Timing](/docs/ui/message-timing) - Streaming stats badge
+- [Badge](/docs/ui/badge) - Small status and metadata labels

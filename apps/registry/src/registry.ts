@@ -560,6 +560,20 @@ export const registry: RegistryItem[] = [
     registryDependencies: [],
   },
   {
+    name: "number-roll",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/number-roll.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/number-roll.tsx",
+      },
+    ],
+    dependencies: [],
+    registryDependencies: [],
+  },
+  {
     name: "heat-graph",
     type: "registry:component",
     files: [
