@@ -122,7 +122,14 @@ function ComposedRow() {
         <ModelSelectorTrigger />
         <ModelSelectorContent>
           <ModelSelectorSearch />
-          <div className="flex flex-wrap gap-1 border-b px-3 py-2">
+          <div
+            className="flex flex-wrap gap-1 border-b px-3 py-2"
+            // Keep cmdk's root handler from claiming Enter so the focused
+            // chip toggles instead of selecting the highlighted model.
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.stopPropagation();
+            }}
+          >
             {[...modelsByProvider.keys()].map((provider) => {
               const isActive = providerFilter.has(provider);
               return (

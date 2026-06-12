@@ -60,7 +60,7 @@ Models with an `efforts` list show a "Thinking" row with those levels:
 }
 ```
 
-`efforts: true` can be used as a shorthand, it defaults to displaying Low / Medium / High.
+`efforts: true` can be used as a shorthand — it defaults to displaying Low / Medium / High.
 
   </Step>
   <Step>
@@ -147,6 +147,8 @@ import {
 ```
 
 `ModelSelector.List` is a Command list, so filtering and keyboard navigation work across groups automatically. Custom sorting is plain code — order the models before rendering items.
+
+`ModelSelector.Content` wraps a Command, whose root keydown handler claims <kbd>Enter</kbd> to select the highlighted model. Interactive elements composed inside it — filter chips, custom effort controls — should call `event.stopPropagation()` for Enter in their own `onKeyDown` so the focused control activates instead. `ModelSelector.Effort` already does this.
 
 | Component | Description |
 |-----------|-------------|

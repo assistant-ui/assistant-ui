@@ -5,10 +5,12 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   createContext,
   useContext,
   type ComponentPropsWithoutRef,
+  type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -100,12 +102,18 @@ function useControllableState<T>({
   const [internal, setInternal] = useState(defaultProp);
   const isControlled = prop !== undefined;
   const value = isControlled ? prop : internal;
+  // Read onChange through a ref so inline callbacks don't recreate the setter
+  // (and with it the memoized context value) every render.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
   const setValue = useCallback(
     (next: T) => {
       if (!isControlled) setInternal(next);
-      onChange?.(next);
+      onChangeRef.current?.(next);
     },
-    [isControlled, onChange],
+    [isControlled],
   );
   return [value, setValue] as const;
 }
@@ -289,6 +297,14 @@ export type ModelSelectorValueProps = {
   className?: string;
 };
 
+function ModelIcon({ children }: { children: ReactNode }) {
+  return (
+    <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
+      {children}
+    </span>
+  );
+}
+
 function ModelSelectorValue({
   placeholder = "Select model",
   showEffort = true,
@@ -297,7 +313,14 @@ function ModelSelectorValue({
   const { selectedModel, efforts, effort } = useModelSelectorContext();
 
   if (!selectedModel) {
-    return <span className="text-muted-foreground">{placeholder}</span>;
+    return (
+      <span
+        data-slot="model-selector-value"
+        className={cn("text-muted-foreground", className)}
+      >
+        {placeholder}
+      </span>
+    );
   }
 
   const effortName =
@@ -310,11 +333,7 @@ function ModelSelectorValue({
       data-slot="model-selector-value"
       className={cn("flex min-w-0 items-center gap-2", className)}
     >
-      {selectedModel.icon && (
-        <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
-          {selectedModel.icon}
-        </span>
-      )}
+      {selectedModel.icon && <ModelIcon>{selectedModel.icon}</ModelIcon>}
       <span className="truncate font-medium">{selectedModel.name}</span>
       {effortName && (
         <span className="text-muted-foreground truncate">{effortName}</span>
@@ -476,11 +495,7 @@ function ModelSelectorItem({
     >
       {children ?? (
         <>
-          {model.icon && (
-            <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
-              {model.icon}
-            </span>
-          )}
+          {model.icon && <ModelIcon>{model.icon}</ModelIcon>}
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{model.name}</span>
             {model.description && (
@@ -507,6 +522,7 @@ export type ModelSelectorEffortProps = ComponentPropsWithoutRef<"div"> & {
 function ModelSelectorEffort({
   label = "Thinking",
   className,
+  onKeyDown,
   ...props
 }: ModelSelectorEffortProps) {
   const { efforts, effort, setEffort } = useModelSelectorEfforts();
@@ -520,6 +536,12 @@ function ModelSelectorEffort({
         "flex items-center justify-between gap-3 border-t px-3 py-2",
         className,
       )}
+      onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
+        // cmdk's root keydown handler claims Enter to select the highlighted
+        // model; stop it from seeing Enter so the focused toggle activates.
+        if (e.key === "Enter") e.stopPropagation();
+        onKeyDown?.(e);
+      }}
       {...props}
     >
       <span className="text-muted-foreground text-xs">{label}</span>
