@@ -6,7 +6,7 @@ platforms: ["react"]
 
 import { ModelSelectorSample } from "@/components/docs/samples/model-selector";
 
-A composable picker that lets users switch between AI models and set a reasoning effort (thinking) level. Built on Popover + Command, so search, grouping, and filtering compose in without being built in. Integrates with assistant-ui's `ModelContext` system to automatically propagate the selected model and effort to your backend.
+A picker that lets users switch between AI models and choose a reasoning effort (thinking) level. It is built on Popover + Command, so search, provider grouping, and filtering compose in without being built in. The default export integrates with assistant-ui's `ModelContext` system, so the selection reaches your backend on every request with no extra wiring.
 
 <ModelSelectorSample />
 
@@ -24,7 +24,7 @@ A composable picker that lets users switch between AI models and set a reasoning
 
 ### Use in your application
 
-Place the `ModelSelector` inside your thread component, typically in the composer area:
+Place the `ModelSelector` inside your thread component, typically in the composer area. Each model needs an `id` and a display `name`; everything else is optional:
 
 ```tsx title="/components/assistant-ui/thread.tsx" {1,6-15}
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
@@ -47,27 +47,12 @@ const ComposerAction: FC = () => {
 };
 ```
 
-Models with an `efforts` list show a "Thinking" row with those levels:
-
-```tsx
-{
-  id: "gpt-5.5",
-  name: "GPT-5.5",
-  efforts: [
-    { id: "minimal", name: "Minimal" },
-    { id: "high", name: "High" },
-  ],
-}
-```
-
-`efforts: true` can be used as a shorthand — it defaults to displaying Low / Medium / High.
-
   </Step>
   <Step>
 
-### Read the model in your API route
+### Read the selection in your API route
 
-The selected model's `id` is sent as `config.modelName`, and the effort level as `config.reasoningEffort`:
+The selected model's `id` arrives as `config.modelName`, and the effort level as `config.reasoningEffort`:
 
 ```tsx title="app/api/chat/route.ts" {2,5-11}
 export async function POST(req: Request) {
@@ -88,8 +73,73 @@ export async function POST(req: Request) {
 }
 ```
 
+`config.reasoningEffort` is only present when the selected model supports the chosen level, so the conditional spread mirrors what the component sends. See [How It Works](#how-it-works).
+
   </Step>
 </Steps>
+
+## Reasoning Efforts
+
+A model that declares `efforts` shows a "Thinking" row at the bottom of the popover. `efforts: true` enables the default Low / Medium / High levels; pass a list of `{ id, name }` objects to define your own:
+
+```tsx
+{
+  id: "gpt-5.5",
+  name: "GPT-5.5",
+  efforts: [
+    { id: "minimal", name: "Minimal" },
+    { id: "high", name: "High" },
+  ],
+}
+```
+
+Omit `efforts` for models without configurable reasoning. The row is hidden while such a model is selected.
+
+### Sticky Selection
+
+The effort selection survives model switches. Switching to a model that doesn't support the current level omits `reasoningEffort` from the request instead of resetting the user's choice, and the level applies again when the user switches back. The exported `resolveModelEffort` helper applies the same rule if you build your own runtime integration around `ModelSelector.Root`; see [`resolveModelEffort`](#resolvemodeleffort).
+
+### Custom Effort UI
+
+`ModelSelector.Effort` lays the levels out as horizontal segments, which overflows the popover width once a model has more than a few. For those cases, or for a different layout such as a slider or a sub-dropdown, build your own control with the `useModelSelectorEfforts` hook. It exposes the selected model's levels and the active selection:
+
+```tsx
+import { useModelSelectorEfforts } from "@/components/assistant-ui/model-selector";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+function EffortDropdown() {
+  const { efforts, effort, setEffort } = useModelSelectorEfforts();
+  if (!efforts?.length) return null;
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-t px-3 py-2">
+      <span className="text-muted-foreground text-xs">Thinking</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger className="text-xs">
+          {efforts.find((e) => e.id === effort)?.name ?? "Select"}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuRadioGroup value={effort} onValueChange={setEffort}>
+            {efforts.map((option) => (
+              <DropdownMenuRadioItem key={option.id} value={option.id}>
+                {option.name}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+```
+
+Render it inside `ModelSelector.Content` in place of `ModelSelector.Effort`. The same hook supports any shape that reads the levels and writes the selection.
 
 ## Search
 
@@ -99,7 +149,7 @@ Search is opt-in. Pass `searchable` to the default component:
 <ModelSelector models={models} searchable />
 ```
 
-Or compose `ModelSelector.Search` into a custom layout. Matching runs against each model's `id`, `name`, and `keywords`.
+Or compose `ModelSelector.Search` into a custom layout. Matching runs against each model's `id`, `name`, and `keywords`; add the provider name to `keywords` so typing "openai" finds its models.
 
 ## Composition
 
@@ -146,10 +196,6 @@ import {
 </ModelSelectorRoot>
 ```
 
-`ModelSelector.List` is a Command list, so filtering and keyboard navigation work across groups automatically. Custom sorting is plain code — order the models before rendering items.
-
-`ModelSelector.Content` wraps a Command, whose root keydown handler claims <kbd>Enter</kbd> to select the highlighted model. Interactive elements composed inside it — filter chips, custom effort controls — should call `event.stopPropagation()` for Enter in their own `onKeyDown` so the focused control activates instead. `ModelSelector.Effort` already does this.
-
 | Component | Description |
 |-----------|-------------|
 | `ModelSelector` | Default export with runtime integration |
@@ -165,47 +211,15 @@ import {
 | `ModelSelector.Item` | Individual model option |
 | `ModelSelector.Effort` | Thinking level row for the selected model |
 
-### Custom effort UI
+`ModelSelector.List` is a Command list, so filtering and keyboard navigation work across groups automatically. Custom sorting is plain code: order the models before rendering items.
 
-`ModelSelector.Effort` lays the levels out as horizontal segments, which overflows the popover width once a model has more than a few. For those cases — or any other layout, like a slider or a sub-dropdown — build your own effort control with the `useModelSelectorEfforts` hook, which exposes the selected model's levels and the active selection:
-
-```tsx
-import { useModelSelectorEfforts } from "@/components/assistant-ui/model-selector";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-function EffortDropdown() {
-  const { efforts, effort, setEffort } = useModelSelectorEfforts();
-  if (!efforts?.length) return null;
-
-  return (
-    <div className="flex items-center justify-between gap-3 border-t px-3 py-2">
-      <span className="text-muted-foreground text-xs">Thinking</span>
-      <DropdownMenu>
-        <DropdownMenuTrigger className="text-xs">
-          {efforts.find((e) => e.id === effort)?.name ?? "Select"}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuRadioGroup value={effort} onValueChange={setEffort}>
-            {efforts.map((option) => (
-              <DropdownMenuRadioItem key={option.id} value={option.id}>
-                {option.name}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
-}
-```
-
-Render it inside `ModelSelector.Content` in place of `ModelSelector.Effort`. The same hook supports any shape — sliders, sub-dropdowns, or anything else that reads the levels and writes the selection.
+<Callout type="warn">
+  `ModelSelector.Content` wraps a Command whose root keydown handler claims
+  <kbd>Enter</kbd> to select the highlighted model. Interactive elements
+  composed inside it (filter chips, custom effort controls) should stop
+  propagation for Enter in their own `onKeyDown` so the focused control
+  activates instead. `ModelSelector.Effort` already does this.
+</Callout>
 
 ## Variants
 
@@ -233,17 +247,15 @@ Use the `size` prop to control the trigger dimensions.
 <ModelSelector size="lg" />      // Large (h-10)
 ```
 
-## Runtime Integration
+## How It Works
 
-The default `ModelSelector` export automatically registers the selection with assistant-ui's `ModelContext` system:
+The default `ModelSelector` export registers the selection with assistant-ui's `ModelContext` system:
 
-1. The component calls `aui.modelContext().register()` with `config.modelName` and, when the selected model supports it, `config.reasoningEffort`
-2. The `AssistantChatTransport` includes `config` in the request body
+1. The component calls `aui.modelContext().register()` with `config.modelName`, plus `config.reasoningEffort` when the selected model supports the chosen level
+2. The `AssistantChatTransport` includes `config` in the request body of every chat request
 3. Your API route reads `config.modelName` and `config.reasoningEffort`
 
-This works out of the box with `@assistant-ui/react-ai-sdk`.
-
-The effort selection is sticky: switching to a model that doesn't support the current effort level omits `reasoningEffort` instead of resetting the user's choice. The exported `resolveModelEffort(models, modelId, effort)` helper applies the same rule if you wire up your own runtime integration around `ModelSelector.Root`.
+This works out of the box with `@assistant-ui/react-ai-sdk`. `ModelSelector.Root` performs no registration; it is purely presentational, with controlled and uncontrolled props for the value, effort, and open state.
 
 ## API Reference
 
@@ -358,3 +370,23 @@ The effort selection is sticky: switching to a model that doesn't support the cu
     },
   ]}
 />
+
+### `useModelSelectorEfforts`
+
+```tsx
+const { efforts, effort, setEffort } = useModelSelectorEfforts();
+```
+
+The selected model's effort levels and the active selection, for building a [custom effort UI](#custom-effort-ui) inside `ModelSelector.Content`. `efforts` is `undefined` for models without configurable reasoning.
+
+### `resolveModelEffort`
+
+```tsx
+resolveModelEffort(models, modelId, effort); // => string | undefined
+```
+
+Returns the effort ID when the given model supports it, otherwise `undefined`. This is the [sticky selection](#sticky-selection) rule the default component applies before registering the selection.
+
+## Related
+
+- [Model Context](/docs/copilots/model-context): How registered context (instructions, tools, config) reaches your backend
