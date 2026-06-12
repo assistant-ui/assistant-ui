@@ -215,6 +215,17 @@ export class AgUiThreadRuntimeCore {
     );
   }
 
+  /**
+   * Resume a run that was in flight when the thread was hydrated externally
+   * (thread switch). Mirrors the `unstable_resume` path of `__internal_load`,
+   * including the history adapter's resume stream.
+   */
+  async resumeInFlightRun(messages: readonly ThreadMessage[]): Promise<void> {
+    const parentId = messages.at(-1)?.id ?? null;
+    const resumeStream = this.history?.resume?.bind(this.history);
+    await this.startRun(parentId, this.lastRunConfig, undefined, resumeStream);
+  }
+
   private assertNoPendingInterrupts(): void {
     if (!this.getPendingInterrupts()) return;
     throw new Error(

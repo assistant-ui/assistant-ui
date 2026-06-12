@@ -74,10 +74,11 @@ export function useAgUiRuntime(
   const threadList = useMemo(() => {
     if (!threadListAdapter) return undefined;
 
-    const { onSwitchToNewThread, onSwitchToThread } = threadListAdapter;
+    const { onSwitchToNewThread, onSwitchToThread, ...rest } =
+      threadListAdapter;
 
     return {
-      threadId: threadListAdapter.threadId,
+      ...rest,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             await onSwitchToNewThread();
@@ -86,10 +87,16 @@ export function useAgUiRuntime(
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
+            // Clear before the thread id flips, or the old messages leak
+            // into the new thread as a sibling branch.
+            core.applyExternalMessages([]);
             const result = await onSwitchToThread(threadId);
             core.applyExternalMessages(result.messages);
             if (result.state) {
               core.loadExternalState(result.state);
+            }
+            if (result.unstable_resume) {
+              await core.resumeInFlightRun(result.messages);
             }
           }
         : undefined,

@@ -2,6 +2,7 @@ import type {
   AttachmentAdapter,
   DictationAdapter,
   ExternalStoreSharedOptions,
+  ExternalStoreThreadListAdapter,
   FeedbackAdapter,
   RealtimeVoiceAdapter,
   SpeechSynthesisAdapter,
@@ -14,17 +15,29 @@ import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
 /**
  * @experimental This API is still under active development and might change without notice.
+ *
+ * Same as ExternalStoreThreadListAdapter, except `onSwitchToThread` returns
+ * the messages (and optional state) to hydrate the thread with.
  */
-export type UseAgUiThreadListAdapter = {
-  threadId?: string | undefined;
-  onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
+type SwitchToThreadResult = {
+  messages: readonly ThreadMessage[];
+  state?: ReadonlyJSONValue;
+  /**
+   * Set when the thread has a run in flight. The runtime resumes the run
+   * after hydrating, the same way `ThreadHistoryAdapter.load()` does when it
+   * returns `unstable_resume: true`.
+   */
+  unstable_resume?: boolean;
+};
+
+export type UseAgUiThreadListAdapter = Omit<
+  ExternalStoreThreadListAdapter,
+  "onSwitchToThread"
+> & {
   onSwitchToThread?:
-    | ((threadId: string) =>
-        | Promise<{
-            messages: readonly ThreadMessage[];
-            state?: ReadonlyJSONValue;
-          }>
-        | { messages: readonly ThreadMessage[]; state?: ReadonlyJSONValue })
+    | ((
+        threadId: string,
+      ) => Promise<SwitchToThreadResult> | SwitchToThreadResult)
     | undefined;
 };
 
