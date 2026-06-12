@@ -57,7 +57,7 @@ const getFormatter = (
 type DigitPart = { type: "digit"; key: string; digit: number };
 type SymbolPart = { type: "symbol"; key: string; value: string };
 type Part = DigitPart | SymbolPart;
-type RenderedPart = Part & { exiting?: boolean };
+type RenderedPart = Part & { exiting?: boolean; entered?: boolean };
 
 const toParts = (
   value: number,
@@ -144,8 +144,10 @@ const merge = (prev: RenderedPart[], next: Part[]): RenderedPart[] => {
     if (prevKeys.has(part.key)) {
       emitExited(part.key);
       i++;
+      out.push(part);
+    } else {
+      out.push({ ...part, entered: true });
     }
-    out.push(part);
   }
   emitExited(undefined);
   return out;
@@ -195,7 +197,8 @@ function NumberRollPart({ part, dir }: { part: RenderedPart; dir: number }) {
       data-slot="number-roll-part"
       className={cn(
         "inline-grid grid-cols-[1fr] transition-[grid-template-columns,opacity,translate] duration-(--aui-number-roll-fade) ease-out motion-reduce:transition-none",
-        "starting:translate-y-(--aui-number-roll-shift) starting:grid-cols-[0fr] starting:opacity-0",
+        part.entered &&
+          "starting:translate-y-(--aui-number-roll-shift) starting:grid-cols-[0fr] starting:opacity-0",
         part.exiting &&
           "pointer-events-none translate-y-[calc(var(--aui-number-roll-shift)*-1)] grid-cols-[0fr] opacity-0",
       )}
@@ -261,27 +264,19 @@ function NumberRoll({
     () => toParts(value, formatter, prefix, suffix),
     [value, formatter, prefix, suffix],
   );
-  const signature = useMemo(
-    () =>
-      parts
-        .map((part) =>
-          part.type === "digit" ? `${part.key}=${part.digit}` : part.key,
-        )
-        .join("|"),
-    [parts],
-  );
+  const formatted = `${prefix ?? ""}${formatter.format(value)}${suffix ?? ""}`;
 
   const [display, setDisplay] = useState<{
     value: number;
-    signature: string;
+    formatted: string;
     rendered: RenderedPart[];
     dir: number;
-  }>(() => ({ value, signature, rendered: parts, dir: 0 }));
+  }>(() => ({ value, formatted, rendered: parts, dir: 0 }));
 
-  if (display.signature !== signature) {
+  if (display.formatted !== formatted) {
     setDisplay({
       value,
-      signature,
+      formatted,
       rendered: merge(display.rendered, parts),
       dir:
         trend === "up"
@@ -292,13 +287,9 @@ function NumberRoll({
     });
   }
 
-  /* Each exiting part gets its own removal timer so a new exit batch does not extend the lifetime of parts already mid-exit. */
+  /* Each exiting part gets its own removal timer so a new exit batch does not extend the lifetime of parts already mid-exit. The body is idempotent, so extra runs from unrelated display changes are no-ops. */
   const exitTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const lastDuration = useRef(duration);
-  const exitingKeys = display.rendered
-    .filter((part) => part.exiting)
-    .map((part) => part.key)
-    .join("\u0000");
   useEffect(() => {
     const timers = exitTimers.current;
     if (lastDuration.current !== duration) {
@@ -306,7 +297,9 @@ function NumberRoll({
       for (const timer of timers.values()) clearTimeout(timer);
       timers.clear();
     }
-    const exiting = new Set(exitingKeys ? exitingKeys.split("\u0000") : []);
+    const exiting = new Set(
+      display.rendered.filter((part) => part.exiting).map((part) => part.key),
+    );
     for (const [key, timer] of timers) {
       if (!exiting.has(key)) {
         clearTimeout(timer);
@@ -328,7 +321,7 @@ function NumberRoll({
         }, duration),
       );
     }
-  }, [exitingKeys, duration]);
+  }, [display.rendered, duration]);
   useEffect(() => {
     const timers = exitTimers.current;
     return () => {
@@ -336,8 +329,6 @@ function NumberRoll({
       timers.clear();
     };
   }, []);
-
-  const formatted = `${prefix ?? ""}${formatter.format(value)}${suffix ?? ""}`;
 
   return (
     <span
