@@ -2,7 +2,7 @@
  * Server-only Pi wiring for the example.
  *
  * Owns the process-singleton `createPiNodeClient` (the in-process SDK host) and
- * the env-seeded model resolution (PI_MVP_PLAN §5). Imported only from route
+ * the env-seeded model resolution. Imported only from route
  * handlers — never from a client component — so the Pi SDK and its file I/O stay
  * on the server.
  *
@@ -66,6 +66,30 @@ export type PiModelOption = {
   description?: string;
   provider: string;
   modelId: string;
+  /** Thinking levels the model supports; omitted for non-reasoning models. */
+  efforts?: { id: string; name: string }[];
+};
+
+const THINKING_LEVELS = [
+  { id: "off", name: "Off" },
+  { id: "minimal", name: "Minimal" },
+  { id: "low", name: "Low" },
+  { id: "medium", name: "Medium" },
+  { id: "high", name: "High" },
+  { id: "xhigh", name: "xHigh" },
+] as const;
+
+type PiModel = ReturnType<ModelRegistry["getAll"]>[number];
+
+/** `thinkingLevelMap` uses `null` to mark a level unsupported; missing keys
+ * fall back to provider defaults and stay selectable. */
+const thinkingEfforts = (
+  model: PiModel,
+): { id: string; name: string }[] | undefined => {
+  if (!model.reasoning) return undefined;
+  return THINKING_LEVELS.filter(
+    (level) => model.thinkingLevelMap?.[level.id] !== null,
+  ).map((level) => ({ ...level }));
 };
 
 export type PiHandshake = {
@@ -112,13 +136,17 @@ export const getHandshake = (): PiHandshake => {
   const catalog = available.length > 0 ? available : modelRegistry.getAll();
   return {
     workspacePath,
-    models: catalog.map((model) => ({
-      id: modelKey(model),
-      name: model.name,
-      description: String(model.provider),
-      provider: String(model.provider),
-      modelId: model.id,
-    })),
+    models: catalog.map((model) => {
+      const efforts = thinkingEfforts(model);
+      return {
+        id: modelKey(model),
+        name: model.name,
+        description: String(model.provider),
+        provider: String(model.provider),
+        modelId: model.id,
+        ...(efforts ? { efforts } : {}),
+      };
+    }),
     selectedModelId: seededModel ? modelKey(seededModel) : undefined,
     readiness: computeReadiness(),
   };

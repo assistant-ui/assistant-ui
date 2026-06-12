@@ -17,6 +17,7 @@ import {
   type PiThinkingLevel,
 } from "@assistant-ui/react-pi";
 import { usePiHandshake } from "../pi-handshake";
+import { ThinkingLevelSlider } from "./thinking-level-slider";
 import {
   Reasoning,
   ReasoningContent,
@@ -411,9 +412,9 @@ const ComposerModelSelector: FC = () => {
       <ModelSelector.Content>
         <ModelSelector.Search />
         <ModelSelector.List />
-        {/* Slider instead of ModelSelector.Effort: Pi's six thinking levels
-            overflow the horizontal segmented layout. */}
-        <ModelSelector.EffortSlider label="Thinking" />
+        {/* Custom slider instead of ModelSelector.Effort: Pi's six thinking
+            levels overflow the horizontal segmented layout. */}
+        <ThinkingLevelSlider />
       </ModelSelector.Content>
     </ModelSelector.Root>
   );
