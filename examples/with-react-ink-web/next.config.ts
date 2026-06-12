@@ -2,6 +2,7 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
+  output: "export",
   transpilePackages: ["ink-web"],
   turbopack: {
     // Pin the workspace root; vercel build's environment makes Turbopack's
@@ -15,18 +16,6 @@ const config: NextConfig = {
       },
     },
   },
-  headers: async () => [
-    {
-      source: "/(.*)",
-      headers: [
-        {
-          key: "Content-Security-Policy",
-          value:
-            "frame-ancestors 'self' https://*.assistant-ui.com https://*.vercel.app http://localhost:*;",
-        },
-      ],
-    },
-  ],
 };
 
 export default config;

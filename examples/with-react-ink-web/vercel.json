@@ -1,5 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "ignoreCommand": "bash ../../scripts/vercel-ignore-changeset-release.sh",
-  "buildCommand": "cd ../.. && pnpm turbo build --filter=@assistant-ui/react-ink --filter=@assistant-ui/react-ink-markdown --filter=@assistant-ui/react-ai-sdk && cd examples/with-react-ink-web && pnpm run build"
+  "buildCommand": "cd ../.. && pnpm turbo build --filter=@assistant-ui/react-ink --filter=@assistant-ui/react-ink-markdown --filter=@assistant-ui/react-ai-sdk && cd examples/with-react-ink-web && pnpm run build",
+  "outputDirectory": "out",
+  "framework": null,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self' https://*.assistant-ui.com https://*.vercel.app http://localhost:*;"
+        }
+      ]
+    }
+  ]
 }
