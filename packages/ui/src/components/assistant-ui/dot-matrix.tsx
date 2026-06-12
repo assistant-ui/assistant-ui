@@ -207,18 +207,22 @@ const DOT_MATRIX_CSS =
  * <DotMatrix state={isRunning ? "loading" : "success"} />
  * ```
  */
-function DotMatrix({ className, state, label, ...props }: DotMatrixProps) {
-  const resolvedState = state ?? "loading";
-  const config: StateConfig = STATES[resolvedState];
+function DotMatrix({
+  className,
+  state = "loading",
+  label,
+  ...props
+}: DotMatrixProps) {
+  const config: StateConfig = STATES[state];
   return (
     <span
       data-slot="dot-matrix"
-      data-state={resolvedState}
+      data-state={state}
       role="status"
       className={cn("inline-block size-4 shrink-0", config.color, className)}
       {...props}
     >
-      <span className="sr-only">{label ?? resolvedState}</span>
+      <span className="sr-only">{label ?? state}</span>
       <svg
         aria-hidden
         viewBox="0 0 20 20"
@@ -227,17 +231,17 @@ function DotMatrix({ className, state, label, ...props }: DotMatrixProps) {
       >
         <style>{DOT_MATRIX_CSS}</style>
         {DOT_INDEXES.map((i) => {
+          const row = Math.floor(i / GRID);
+          const col = i % GRID;
           const on = !config.glyph || config.glyph.has(i);
           const hi = on ? (config.base ?? 1) : (config.dim ?? 0.15);
-          const blink = on
-            ? config.blink?.(i, Math.floor(i / GRID), i % GRID)
-            : undefined;
+          const blink = on ? config.blink?.(i, row, col) : undefined;
           return (
             <circle
               key={i}
               data-slot="dot-matrix-dot"
-              cx={2 + (i % GRID) * 4}
-              cy={2 + Math.floor(i / GRID) * 4}
+              cx={2 + col * 4}
+              cy={2 + row * 4}
               r={1.3}
               className="[transition-property:--aui-dot-matrix-hi,--aui-dot-matrix-lo,opacity] duration-300 [animation-iteration-count:infinite] [animation-name:aui-dot-matrix-blink] [animation-timing-function:ease-in-out] motion-reduce:[animation-name:none]"
               style={
