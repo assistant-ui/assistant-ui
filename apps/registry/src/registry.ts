@@ -570,7 +570,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/dot-matrix.tsx",
       },
     ],
-    dependencies: ["class-variance-authority"],
+    dependencies: [],
     registryDependencies: [],
   },
   {

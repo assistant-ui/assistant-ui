@@ -1,5 +1,4 @@
 import type { ComponentProps, CSSProperties } from "react";
-import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const GRID = 5;
@@ -78,43 +77,11 @@ const ELLIPSIS = glyph([
   [2, 4],
 ]);
 
-const dotMatrixVariants = cva("inline-block size-4 shrink-0", {
-  variants: {
-    state: {
-      idle: "text-muted-foreground",
-      loading: "",
-      thinking: "",
-      streaming: "",
-      searching: "",
-      syncing: "",
-      connecting: "",
-      waiting: "",
-      uploading: "",
-      downloading: "",
-      listening: "",
-      speaking: "",
-      recording: "text-red-500",
-      success: "text-emerald-500",
-      error: "text-red-500",
-      warning: "text-amber-500",
-      info: "text-blue-500",
-      paused: "text-muted-foreground",
-      stopped: "text-muted-foreground",
-      offline: "text-muted-foreground",
-    },
-  },
-  defaultVariants: {
-    state: "loading",
-  },
-});
-
-export type DotMatrixState = NonNullable<
-  VariantProps<typeof dotMatrixVariants>["state"]
->;
-
 type Blink = { duration: number; delay: number; lo: number };
 
 type StateConfig = {
+  /** Text color class; dots inherit the surrounding color when omitted. */
+  color?: string;
   /** Dots that render at full opacity; all others rest at `dim`. Omit for the full grid. */
   glyph?: Set<number>;
   /** Resting opacity of on dots. */
@@ -125,8 +92,8 @@ type StateConfig = {
   blink?: (i: number, row: number, col: number) => Blink;
 };
 
-const STATES: Record<DotMatrixState, StateConfig> = {
-  idle: { base: 0.3 },
+const STATES = {
+  idle: { color: "text-muted-foreground", base: 0.3 },
   loading: {
     blink: (i) => ({
       duration: 0.9 + hash(i, 2, 700),
@@ -198,31 +165,36 @@ const STATES: Record<DotMatrixState, StateConfig> = {
     }),
   },
   recording: {
+    color: "text-red-500",
     glyph: RECORD,
     dim: 0.12,
     blink: () => ({ duration: 1.4, delay: 0, lo: 0.3 }),
   },
-  success: { glyph: CHECK },
+  success: { color: "text-emerald-500", glyph: CHECK },
   error: {
+    color: "text-red-500",
     glyph: CROSS,
     blink: () => ({ duration: 1.1, delay: 0, lo: 0.4 }),
   },
   warning: {
+    color: "text-amber-500",
     glyph: BANG,
     blink: () => ({ duration: 1.6, delay: 0, lo: 0.45 }),
   },
-  info: { glyph: INFO },
-  paused: { glyph: PAUSE },
-  stopped: { glyph: STOP },
-  offline: { base: 0.15 },
+  info: { color: "text-blue-500", glyph: INFO },
+  paused: { color: "text-muted-foreground", glyph: PAUSE },
+  stopped: { color: "text-muted-foreground", glyph: STOP },
+  offline: { color: "text-muted-foreground", base: 0.15 },
+} satisfies Record<string, StateConfig>;
+
+export type DotMatrixState = keyof typeof STATES;
+
+const dotMatrixStates = Object.keys(STATES) as readonly DotMatrixState[];
+
+export type DotMatrixProps = Omit<ComponentProps<"span">, "children"> & {
+  state?: DotMatrixState;
+  label?: string;
 };
-
-const dotMatrixStates = Object.keys(STATES) as DotMatrixState[];
-
-export type DotMatrixProps = Omit<ComponentProps<"span">, "children"> &
-  VariantProps<typeof dotMatrixVariants> & {
-    label?: string;
-  };
 
 /* The blink animation runs on every dot in every state (static states set hi = lo) and the registered hi/lo custom properties carry a transition, because removing or adding an animation never triggers a CSS transition on the animated property itself; transitioning the amplitude bounds is what makes state changes cross-fade. */
 const DOT_MATRIX_CSS =
@@ -237,13 +209,13 @@ const DOT_MATRIX_CSS =
  */
 function DotMatrix({ className, state, label, ...props }: DotMatrixProps) {
   const resolvedState = state ?? "loading";
-  const config = STATES[resolvedState];
+  const config: StateConfig = STATES[resolvedState];
   return (
     <span
       data-slot="dot-matrix"
       data-state={resolvedState}
       role="status"
-      className={cn(dotMatrixVariants({ state: resolvedState }), className)}
+      className={cn("inline-block size-4 shrink-0", config.color, className)}
       {...props}
     >
       <span className="sr-only">{label ?? resolvedState}</span>
@@ -267,7 +239,7 @@ function DotMatrix({ className, state, label, ...props }: DotMatrixProps) {
               cx={2 + (i % GRID) * 4}
               cy={2 + Math.floor(i / GRID) * 4}
               r={1.3}
-              className="[transition-property:--aui-dot-matrix-hi,--aui-dot-matrix-lo] duration-300 [animation-iteration-count:infinite] [animation-name:aui-dot-matrix-blink] [animation-timing-function:ease-in-out] motion-reduce:[animation-name:none]"
+              className="[transition-property:--aui-dot-matrix-hi,--aui-dot-matrix-lo,opacity] duration-300 [animation-iteration-count:infinite] [animation-name:aui-dot-matrix-blink] [animation-timing-function:ease-in-out] motion-reduce:[animation-name:none]"
               style={
                 {
                   opacity: hi,
