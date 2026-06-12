@@ -314,12 +314,13 @@ function ToolFallbackApproval({
     return null;
 
   // Custom (`_`-prefixed) kinds cannot be resolved to a boolean by the kit;
-  // hosts using custom kinds render their own bar.
-  const options = respondToApproval
-    ? approval?.options?.filter((o) =>
-        Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, o.kind),
-      )
-    : undefined;
+  // hosts using custom kinds render their own bar. A declared option list is
+  // a host constraint: the kit never adds an approval path beyond it, but
+  // always preserves a refusal path.
+  const declaredOptions = respondToApproval ? approval?.options : undefined;
+  const options = declaredOptions?.filter((o) =>
+    Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, o.kind),
+  );
 
   const respond = (approved: boolean) => {
     if (submitted) return;
@@ -360,6 +361,8 @@ function ToolFallbackApproval({
   if (confirming) {
     const confirmMeta =
       typeof confirming.confirm === "object" ? confirming.confirm : undefined;
+    const confirmDescription =
+      confirmMeta?.description ?? confirming.description;
     return (
       <div
         data-slot="tool-fallback-approval-confirm"
@@ -372,9 +375,9 @@ function ToolFallbackApproval({
         <p className="aui-tool-fallback-approval-confirm-title font-semibold">
           {confirmMeta?.title ?? `${approvalOptionLabel(confirming)}?`}
         </p>
-        {(confirmMeta?.description ?? confirming.description) && (
+        {confirmDescription && (
           <p className="aui-tool-fallback-approval-confirm-description text-muted-foreground">
-            {confirmMeta?.description ?? confirming.description}
+            {confirmDescription}
           </p>
         )}
         {confirming.grants && confirming.grants.length > 0 && (
@@ -409,9 +412,9 @@ function ToolFallbackApproval({
     );
   }
 
-  if (options && options.length > 0) {
-    const allowOptions = options.filter((o) => isAllowKind(o.kind));
-    const rejectOptions = options.filter((o) => !isAllowKind(o.kind));
+  if (declaredOptions && declaredOptions.length > 0) {
+    const allowOptions = options?.filter((o) => isAllowKind(o.kind)) ?? [];
+    const rejectOptions = options?.filter((o) => !isAllowKind(o.kind)) ?? [];
     return (
       <div
         data-slot="tool-fallback-approval"
@@ -421,18 +424,11 @@ function ToolFallbackApproval({
         )}
         {...props}
       >
-        {allowOptions.length === 0 && (
-          <Button size="sm" onClick={() => respond(true)} disabled={submitted}>
-            Allow
-          </Button>
-        )}
-        {[...allowOptions, ...rejectOptions].map((option, index) => (
+        {[...allowOptions, ...rejectOptions].map((option) => (
           <Button
             key={option.id}
             size="sm"
-            variant={
-              index === 0 && allowOptions.length > 0 ? "default" : "outline"
-            }
+            variant={option === allowOptions[0] ? "default" : "outline"}
             onClick={() => handleOption(option)}
             disabled={submitted}
           >
