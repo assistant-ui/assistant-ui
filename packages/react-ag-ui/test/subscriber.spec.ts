@@ -41,6 +41,22 @@ describe("createAgUiSubscriber", () => {
     expect(events[0]).toMatchObject({ type: "RUN_ERROR", message: "boom" });
   });
 
+  it("does not synthesize RUN_FINISHED when finalize follows a failed run", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+    });
+
+    subscriber.onRunFailed?.({ error: new Error("boom") });
+    // onRunFinalized fires after onRunFailed in real ag-ui flows; a synthetic
+    // RUN_FINISHED here would overwrite the error status with a successful one.
+    subscriber.onRunFinalized?.();
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: "RUN_ERROR", message: "boom" });
+  });
+
   it("dispatches RUN_FINISHED with outcome from onRunFinishedEvent", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({

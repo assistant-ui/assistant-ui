@@ -143,6 +143,10 @@ export const createAgUiSubscriber = (
       dispatch({ type: "RUN_FINISHED", runId });
     },
     onRunFailed: ({ error }) => {
+      // The finalize hook fires after onRunFailed; without this flag it
+      // synthesizes a RUN_FINISHED that overwrites the error status, so the
+      // failed run renders as successful.
+      runFinishedDispatched = true;
       onRunFailed?.(error);
       const message =
         typeof error.message === "string" ? error.message : "Run failed";
