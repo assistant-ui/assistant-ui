@@ -1,5 +1,5 @@
 import type React from "react";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
 import type { AssistantClient, AssistantClientAccessor } from "../types/client";
 import {
   createProxiedAssistantState,
@@ -80,6 +80,29 @@ export const createRootAssistantClient = (): AssistantClient =>
  */
 const AssistantContext = createContext<AssistantClient>(DefaultAssistantClient);
 
+/**
+ * Carries the tap host's effects callback on the client so AuiProvider can
+ * mount the host's commit ahead of its children's effects.
+ */
+export const AUI_USE_EFFECTS_SYMBOL = Symbol("assistant-ui.store.useEffects");
+
+const NOOP_EFFECT = () => {};
+
+const getTapEffects = (client: AssistantClient): (() => void) => {
+  return (
+    (client as Record<symbol, never>)[AUI_USE_EFFECTS_SYMBOL] ?? NOOP_EFFECT
+  );
+};
+
+const UseTapEffects = () => {
+  "use no memo";
+
+  const aui = useAssistantContextValue();
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(getTapEffects(aui));
+  return null;
+};
+
 export const useAssistantContextValue = (): AssistantClient => {
   return useContext(AssistantContext);
 };
@@ -114,8 +137,11 @@ export const AuiProvider = ({
   /** Subtree that may read from the client. */
   children: React.ReactNode;
 }): React.ReactElement => {
+  // The <UseTapEffects /> element must be created fresh each render
+  "use no memo";
   return (
     <AssistantContext.Provider value={value}>
+      <UseTapEffects />
       {children}
     </AssistantContext.Provider>
   );

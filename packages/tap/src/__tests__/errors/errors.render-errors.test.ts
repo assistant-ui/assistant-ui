@@ -50,7 +50,7 @@ describe("Errors - Render Errors", () => {
       return count;
     });
 
-    expect(renderResourceFiber(resource, []).output).toBe(5);
+    expect(renderResourceFiber(resource, []).value).toBe(5);
   });
 
   it("should throw when updating a different resource during render", () => {

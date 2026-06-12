@@ -11,7 +11,7 @@ import {
   createResourceFiberRoot,
   setRootVersion,
 } from "../core/helpers/root";
-import { useEffectEvent, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { useDevStrictMode } from "./utils/useDevStrictMode";
 
 export namespace useTapRoot {
@@ -61,7 +61,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   const isMountedRef = useRef(false);
   const committedArgsRef = useRef([render] as const);
-  const valueRef = useRef<R>(render2.output);
+  const valueRef = useRef<R>(render2.value);
   const subscribers = useMemo(() => new Set<() => void>(), []);
 
   const publish = (output: R) => {
@@ -102,10 +102,10 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
       commitResourceFiber(fiber, render);
     }
 
-    publish(render.output);
+    publish(render.value);
   });
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
@@ -113,13 +113,13 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     };
   }, [fiber]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     committedArgsRef.current = [render];
     commitRoot(fiber.root);
     queue.splice(0, drainedCount);
     commitResourceFiber(fiber, render2);
 
-    publish(render2.output);
+    publish(render2.value);
   });
 
   return useMemo(

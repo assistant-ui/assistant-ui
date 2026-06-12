@@ -51,7 +51,7 @@ export interface EffectTask {
 }
 
 export interface RenderResult {
-  output: any;
+  value: any;
   effectTasks: EffectTask[];
 }
 

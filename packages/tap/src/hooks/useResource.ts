@@ -5,7 +5,7 @@ import {
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useLayoutEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 
 export function useResource<E extends ResourceElement<any, any[]>>(
@@ -31,10 +31,10 @@ export function useResource<E extends ResourceElement<any, any[]>>(
     [fiber, version, ...identity],
   );
 
-  useLayoutEffect(() => () => unmountResourceFiber(fiber), [fiber]);
-  useLayoutEffect(() => {
+  useEffect(() => () => unmountResourceFiber(fiber), [fiber]);
+  useEffect(() => {
     commitResourceFiber(fiber, result);
   }, [fiber, result]);
 
-  return result.output;
+  return result.value;
 }

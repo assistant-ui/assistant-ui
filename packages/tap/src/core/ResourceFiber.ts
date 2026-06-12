@@ -57,13 +57,13 @@ export function renderResourceFiber<R, A extends readonly unknown[]>(
 
     result = {
       effectTasks: [],
-      output: undefined as R | undefined,
+      value: undefined as R | undefined,
     };
 
     withResourceFiber(fiber, () => {
       fiber.renderContext = result;
       try {
-        result.output = withReactDispatcher(() => fiber.hook(...args));
+        result.value = withReactDispatcher(() => fiber.hook(...args));
       } finally {
         fiber.renderContext = undefined;
       }

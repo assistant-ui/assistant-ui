@@ -63,7 +63,7 @@ export function renderTest<R, A extends readonly unknown[]>(
 
   // Return the committed state from the result
   // This accounts for any re-renders that happened during commit
-  return result.output;
+  return result.value;
 }
 
 /**
@@ -99,7 +99,7 @@ export function getCommittedOutput<R, A extends readonly unknown[]>(
       "No render result found for fiber. Make sure to call renderResource first.",
     );
   }
-  return lastResult.output;
+  return lastResult.value;
 }
 
 /**
@@ -117,7 +117,7 @@ export class TestSubscriber<T> {
     const lastArgs = propsMap.get(fiber) ?? [];
     const initialResult = renderResourceFiber(fiber, lastArgs as any);
     commitResourceFiber(fiber, initialResult);
-    this.lastState = initialResult.output;
+    this.lastState = initialResult.value;
     lastRenderResultMap.set(fiber, initialResult);
     activeResources.add(fiber);
   }
@@ -150,7 +150,7 @@ export class TestResourceManager<R, A extends readonly unknown[]> {
     const result = renderResourceFiber(this.fiber, args);
     commitResourceFiber(this.fiber, result);
     lastRenderResultMap.set(this.fiber, result);
-    return result.output;
+    return result.value;
   }
 
   cleanup() {

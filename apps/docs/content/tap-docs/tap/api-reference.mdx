@@ -79,6 +79,38 @@ handle.getValue();
 handle.subscribe(() => {});
 ```
 
+## useTapHost
+
+Hosts a resource tree inside a React component. The tree renders with the
+component and commits in a passive effect, so it never blocks paint. Returns
+`{ value, effects }`.
+
+`effects` is a per-render callback (not a hook) that performs the commit. The
+host mounts it itself, but parent effects run after children's, so a child
+effect that subscribes to the tree would run before the commit. To commit
+ahead of a subtree, render a component before it that passes `effects` to a
+deps-less `useEffect`; the first instance to run wins. Consumers of `effects`
+must be descendants of the host component.
+
+```tsx
+function CounterProvider({ children }: { children: ReactNode }) {
+  const { value, effects } = useTapHost(function CounterHost() {
+    return useResource(Counter({ initialValue: 0 }));
+  });
+  return (
+    <CounterContext.Provider value={value}>
+      <TapEffects effects={effects} />
+      {children}
+    </CounterContext.Provider>
+  );
+}
+
+function TapEffects({ effects }: { effects: () => void }) {
+  useEffect(effects);
+  return null;
+}
+```
+
 ## createTapRoot
 
 Hosts a resource tree [outside React](/tap/docs/tap/outside-react). Takes a render

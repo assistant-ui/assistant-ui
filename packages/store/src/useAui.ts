@@ -3,6 +3,7 @@
 import {
   useResource,
   useResources,
+  useTapHost,
   useTapRoot,
   resource,
   withKey,
@@ -21,6 +22,7 @@ import {
   useAssistantContextValue,
   DefaultAssistantClient,
   createRootAssistantClient,
+  AUI_USE_EFFECTS_SYMBOL,
 } from "./utils/react-assistant-context";
 import {
   type DerivedClients,
@@ -362,6 +364,19 @@ const useAssistantClient = ({
   return client;
 };
 
+const useHostedAssistantClient = (props: {
+  parent: AssistantClient;
+  clients: useAui.Props;
+}): AssistantClient => {
+  const { value: client, effects } = useTapHost(function AssistantClientHost() {
+    return useAssistantClient(props);
+  });
+
+  (client as Record<symbol, unknown>)[AUI_USE_EFFECTS_SYMBOL] = effects;
+
+  return client;
+};
+
 export namespace useAui {
   export type Props = {
     [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
@@ -441,7 +456,7 @@ export function useAui(
   },
 ): AssistantClient {
   if (clients) {
-    return useAssistantClient({
+    return useHostedAssistantClient({
       parent: parent ?? DefaultAssistantClient,
       clients,
     });

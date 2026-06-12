@@ -1,4 +1,4 @@
-import { useState, useLayoutEffect } from "react";
+import { useState, useEffect } from "react";
 import { depsShallowEqual } from "./depsShallowEqual";
 
 export const useRenderMemo = <T>(callback: () => T, deps: unknown[]) => {
@@ -12,7 +12,7 @@ export const useRenderMemo = <T>(callback: () => T, deps: unknown[]) => {
   state.wipDeps = state.currentDeps;
   state.wip = state.current;
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     state.currentDeps = state.wipDeps;
     state.current = state.wip;
   });

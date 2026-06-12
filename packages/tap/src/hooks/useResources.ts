@@ -10,7 +10,7 @@ import {
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useCallback, useLayoutEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 
 type FiberState = {
@@ -65,15 +65,15 @@ export function useResources<E extends ResourceElement<any, any[]>>(
         };
         newCount++;
         fibers.set(elementKey, state);
-        results.push(result.output);
+        results.push(result.value);
       } else if (state.fiber.hook !== element.hook) {
         const fiber = createFiber(element.hook, element.key);
         const result = renderResourceFiber(fiber, element.args);
         state.next = [fiber, result];
-        results.push(result.output);
+        results.push(result.value);
       } else {
         state.next = renderResourceFiber(state.fiber, element.args);
-        results.push(state.next.output);
+        results.push(state.next.value);
       }
     }
 
@@ -90,7 +90,7 @@ export function useResources<E extends ResourceElement<any, any[]>>(
   }, [getElementsMemo, fibers, createFiber, version]);
 
   // Cleanup on unmount
-  useLayoutEffect(() => {
+  useEffect(() => {
     return () => {
       for (const key of fibers.keys()) {
         const fiber = fibers.get(key)!.fiber;
@@ -99,7 +99,7 @@ export function useResources<E extends ResourceElement<any, any[]>>(
     };
   }, [fibers]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     void res; // as a performance optimization, we only run if the results have changed
 
     for (const [key, state] of fibers.entries()) {

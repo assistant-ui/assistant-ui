@@ -12,6 +12,7 @@ export { createResourceContext, withContextProvider } from "./core/context";
 export { useResource } from "./hooks/useResource";
 export { useResources } from "./hooks/useResources";
 export { useTapRoot } from "./hooks/useTapRoot";
+export { useTapHost } from "./hooks/useTapHost";
 
 // types
 export type {
