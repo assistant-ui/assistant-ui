@@ -73,7 +73,7 @@ export async function POST(req: Request) {
 }
 ```
 
-`config.reasoningEffort` is only present when the selected model supports the chosen level, so the conditional spread mirrors what the component sends. See [How It Works](#how-it-works).
+`config.reasoningEffort` is only present when the selected model supports the chosen level, so the route only forwards it when it exists. See [How It Works](#how-it-works).
 
   </Step>
 </Steps>
@@ -273,7 +273,7 @@ This works out of the box with `@assistant-ui/react-ai-sdk`. `ModelSelector.Root
     {
       name: "defaultValue",
       type: "string",
-      description: "Initial model ID for uncontrolled usage. Defaults to the first model.",
+      description: "Initial model ID for uncontrolled usage. Defaults to the first model, captured on first render; if models loads asynchronously, control the value instead.",
     },
     {
       name: "value",
