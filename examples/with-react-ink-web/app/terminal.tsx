@@ -18,25 +18,35 @@ export default function InkTerminal() {
   const startedRef = useRef(false);
   const disposedRef = useRef(false);
   const colsRef = useRef(0);
+  const scrollPendingRef = useRef(false);
+
+  const writeRef = useRef(write);
+  writeRef.current = write;
 
   // wterm does not auto-scroll on new output (vercel-labs/wterm#61); follow
   // the tail after its coalesced write -> setTimeout(0) -> rAF render pass.
+  // Skipped while the visitor has scrolled up to read scrollback.
   const scheduleScroll = useCallback(() => {
+    if (scrollPendingRef.current) return;
+    const el = wrapperRef.current?.querySelector(".wterm");
+    if (el && el.scrollHeight - el.scrollTop - el.clientHeight > 100) return;
+    scrollPendingRef.current = true;
     setTimeout(() => {
       requestAnimationFrame(() => {
-        const el = wrapperRef.current?.querySelector(".wterm");
-        if (el) el.scrollTop = el.scrollHeight;
+        scrollPendingRef.current = false;
+        const target = wrapperRef.current?.querySelector(".wterm");
+        if (target) target.scrollTop = target.scrollHeight;
       });
     }, 0);
   }, []);
 
   const getStreams = useCallback(() => {
     streamsRef.current ??= createInkStreams((data) => {
-      write(data);
+      writeRef.current(data);
       scheduleScroll();
     });
     return streamsRef.current;
-  }, [write, scheduleScroll]);
+  }, [scheduleScroll]);
 
   const handleReady = useCallback(
     (wt: WTerm) => {
@@ -83,12 +93,12 @@ export default function InkTerminal() {
     (cols: number, rows: number) => {
       if (cols < colsRef.current && instanceRef.current) {
         instanceRef.current.clear();
-        write("\x1b[2J\x1b[3J\x1b[H");
+        writeRef.current("\x1b[2J\x1b[3J\x1b[H");
       }
       colsRef.current = cols;
       getStreams().setSize(cols, rows);
     },
-    [getStreams, write],
+    [getStreams],
   );
 
   useEffect(() => {
