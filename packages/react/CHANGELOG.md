@@ -1,5 +1,38 @@
 # @assistant-ui/react
 
+## 0.14.18
+
+### Patch Changes
+
+- [#4352](https://github.com/assistant-ui/assistant-ui/pull/4352) [`14aa2ac`](https://github.com/assistant-ui/assistant-ui/commit/14aa2accbb384eafd5edd731c88d55cade027517) - feat: `unstable_useComposerInputHistory` ([@okisdev](https://github.com/okisdev))
+
+  terminal-style input history for the thread composer: ArrowUp on an empty draft recalls previously sent user messages (newest first, derived live from thread state), ArrowDown steps back and finally restores the in-progress draft. spread the returned `{ onKeyDown }` bundle onto `ComposerPrimitive.Input`. yields to open trigger popovers, IME composition, modifiers, selections, and consumer handlers that already prevented the event; inert on edit composers.
+
+- [#4340](https://github.com/assistant-ui/assistant-ui/pull/4340) [`ab8e5bc`](https://github.com/assistant-ui/assistant-ui/commit/ab8e5bc8650b1e39c8f01ab6c0efb80aa8baf723) - fix: exclude reasoning parts from copied message text ([@serhiizghama](https://github.com/serhiizghama))
+
+  `getCopyText` filtered parts with `"text" in part`, which also matched `reasoning` parts (they carry a `text` field), leaking the model's chain-of-thought into the clipboard. Both copy paths now delegate to the canonical `getThreadMessageText`, so copy returns only `type: "text"` content — consistent with the rest of the runtime.
+
+- [#4359](https://github.com/assistant-ui/assistant-ui/pull/4359) [`59d252f`](https://github.com/assistant-ui/assistant-ui/commit/59d252fa09c1511acd7e31c9d8178514c5a5cb77) - feat: branch switching for the ExternalThread client ([@okisdev](https://github.com/okisdev))
+
+  `ExternalThread` accepts an optional `branches` adapter (`ExternalThreadBranchAdapter` in `@assistant-ui/core`, re-exported from `@assistant-ui/react`): `getBranches(messageId)` returns ordered sibling branch ids and `switchToBranch(branchId)` makes a sibling visible by swapping the `messages` array. messages with more than one sibling get real `branchNumber`/`branchCount`, which is what shows the branch picker; `capabilities.switchToBranch` is set for parity with the legacy external store. without the adapter, behavior is unchanged.
+
+- [#4329](https://github.com/assistant-ui/assistant-ui/pull/4329) [`2b96cb5`](https://github.com/assistant-ui/assistant-ui/commit/2b96cb5e696222f7cd190c604375df79739ad943) - fix: emit the GroupedParts streaming indicator for empty running messages, so the assistant slot shows a loading affordance immediately after sending instead of staying blank ([@okisdev](https://github.com/okisdev))
+
+- [#4329](https://github.com/assistant-ui/assistant-ui/pull/4329) [`2b96cb5`](https://github.com/assistant-ui/assistant-ui/commit/2b96cb5e696222f7cd190c604375df79739ad943) - fix: compensate scrollbar gutter in useScrollLock so collapsible animations don't shift centered content horizontally on classic scrollbars ([@okisdev](https://github.com/okisdev))
+
+- [#4350](https://github.com/assistant-ui/assistant-ui/pull/4350) [`42fd04f`](https://github.com/assistant-ui/assistant-ui/commit/42fd04f0b1012a1bee153a50639f1286ca9a4fbe) - feat: public, tunable `useSmooth` ([@okisdev](https://github.com/okisdev))
+
+  `useSmooth` and a new `SmoothOptions` type are now exported from `@assistant-ui/react` (previously internal-only with a hard-coded reveal rate). the `smooth` prop on `MessagePartPrimitive.Text` and `MarkdownTextPrimitive` widens to `boolean | SmoothOptions`, with `drainMs` (backlog drain target, default 250), `maxCharIntervalMs` (slowest reveal interval, default 5), and `maxCharsPerFrame` (per-frame cap, default unlimited). the hook also now preserves the part type for reasoning parts instead of always returning `type: "text"`. react-markdown's `@assistant-ui/react` peer floor moves to the release that ships `SmoothOptions`.
+
+- [#4325](https://github.com/assistant-ui/assistant-ui/pull/4325) [`5a4f20e`](https://github.com/assistant-ui/assistant-ui/commit/5a4f20e75dcd93aeb70a4a5582a0a5a1f870b4f2) - chore: update @assistant-ui/tap dependency ranges to ^0.7.0 ([@Yonom](https://github.com/Yonom))
+
+- [#4329](https://github.com/assistant-ui/assistant-ui/pull/4329) [`2b96cb5`](https://github.com/assistant-ui/assistant-ui/commit/2b96cb5e696222f7cd190c604375df79739ad943) - fix: clear pending viewport bottom-scroll intent on pointer interaction, preventing collapsible expand/collapse from yanking the thread to the bottom ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`ab8e5bc`](https://github.com/assistant-ui/assistant-ui/commit/ab8e5bc8650b1e39c8f01ab6c0efb80aa8baf723), [`59d252f`](https://github.com/assistant-ui/assistant-ui/commit/59d252fa09c1511acd7e31c9d8178514c5a5cb77), [`feecac3`](https://github.com/assistant-ui/assistant-ui/commit/feecac38c6ba0f8f30ec356376d1d6b19188e08f), [`3e58253`](https://github.com/assistant-ui/assistant-ui/commit/3e5825369c7206f4df3532d5fabfbe5cf5e4fd40), [`12b016b`](https://github.com/assistant-ui/assistant-ui/commit/12b016bd14560c847dadae075edb57631ac9c516), [`3e58253`](https://github.com/assistant-ui/assistant-ui/commit/3e5825369c7206f4df3532d5fabfbe5cf5e4fd40), [`5a4f20e`](https://github.com/assistant-ui/assistant-ui/commit/5a4f20e75dcd93aeb70a4a5582a0a5a1f870b4f2), [`f10b8ae`](https://github.com/assistant-ui/assistant-ui/commit/f10b8ae6659ed8df8b0c25b5bb2bb8cfa7d7a718), [`1fb5862`](https://github.com/assistant-ui/assistant-ui/commit/1fb586241534064fa48e3498f422bdaa7f382139)]:
+  - @assistant-ui/core@0.2.14
+  - @assistant-ui/store@0.2.16
+  - @assistant-ui/tap@0.7.1
+
 ## 0.14.17
 
 ### Patch Changes

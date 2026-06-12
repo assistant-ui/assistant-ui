@@ -1,5 +1,17 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.3
+
+### Patch Changes
+
+- [#4348](https://github.com/assistant-ui/assistant-ui/pull/4348) [`5ca6558`](https://github.com/assistant-ui/assistant-ui/commit/5ca655858351dc7ad852ef4bc8292aa74d90e174) - feat: opt-in `defer` prop on the markdown text primitives ([@okisdev](https://github.com/okisdev))
+
+  `StreamdownTextPrimitive` and `MarkdownTextPrimitive` accept a `defer` flag that routes the streamed text through `useDeferredValue`, so re-parsing the growing message runs at a lower priority and typing/scrolling stay responsive while a long message streams in. intermediate streaming states may be skipped under load; the final text always renders. default off; the shadcn kit's markdown-text turns it on.
+
+- [#4357](https://github.com/assistant-ui/assistant-ui/pull/4357) [`fb1a7d3`](https://github.com/assistant-ui/assistant-ui/commit/fb1a7d373cebf29803a83b275fb4795449aef4bd) - feat: `smooth` prop on `StreamdownTextPrimitive` ([@okisdev](https://github.com/okisdev))
+
+  opt-in typewriter reveal via the now-public `useSmooth`, accepting `boolean | SmoothOptions`. the pipeline runs preprocess, then smooth, then the existing `defer` deferral, and `data-status`/`isAnimating` derive from the smooth status so the caret keeps blinking and the copy/download controls stay disabled until the reveal catches up. default off; streamdown's block memoization bounds the per-frame cost to linear string scans plus the tail block parse. the `@assistant-ui/react` peer floor moves to the release that ships `SmoothOptions`.
+
 ## 0.3.2
 
 ### Patch Changes

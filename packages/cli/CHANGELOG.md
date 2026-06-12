@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.100
+
+### Patch Changes
+
+- [#4337](https://github.com/assistant-ui/assistant-ui/pull/4337) [`e14ca8c`](https://github.com/assistant-ui/assistant-ui/commit/e14ca8c6e29d72b62146754b287dbf1ac0a19d69) - docs: teach defineToolkit instead of deprecated makeAssistantToolUI in the assistant-ui skill ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.99
 
 ### Patch Changes

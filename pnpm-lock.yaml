@@ -3305,13 +3305,13 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.13
+        specifier: ^0.2.14
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.7.0
+        specifier: ^0.7.1
         version: link:../tap
       '@radix-ui/primitive':
         specifier: ^1.1.4
@@ -3418,7 +3418,7 @@ importers:
         specifier: ^0.0.55
         version: 0.0.55
       '@assistant-ui/core':
-        specifier: ^0.2.13
+        specifier: ^0.2.14
         version: link:../core
       assistant-stream:
         specifier: ^0.3.21
@@ -3452,10 +3452,10 @@ importers:
         specifier: ^3.0.199
         version: 3.0.199(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/core':
-        specifier: ^0.2.13
+        specifier: ^0.2.14
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../store
       ai:
         specifier: ^6.0.197
@@ -3625,10 +3625,10 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.11
+        specifier: ^0.2.14
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.14
+        specifier: ^0.2.16
         version: link:../store
       zod:
         specifier: ^4.4.3
@@ -3650,13 +3650,13 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.11
+        specifier: ^0.2.14
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.14
+        specifier: ^0.2.16
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.7.0
+        specifier: ^0.7.1
         version: link:../tap
       assistant-stream:
         specifier: ^0.3.21
@@ -3702,10 +3702,10 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.13
+        specifier: ^0.2.14
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../store
       markdansi:
         specifier: ^0.2.1
@@ -3936,13 +3936,13 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.11
+        specifier: ^0.2.14
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.14
+        specifier: ^0.2.16
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.7.0
+        specifier: ^0.7.1
         version: link:../tap
       assistant-stream:
         specifier: ^0.3.21

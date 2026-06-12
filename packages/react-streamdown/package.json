@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-streamdown",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Streamdown-based markdown rendering for assistant-ui",
   "keywords": [
     "markdown",

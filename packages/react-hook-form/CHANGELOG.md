@@ -1,5 +1,15 @@
 # @assistant-ui/react-hook-form
 
+## 0.12.19
+
+### Patch Changes
+
+- [#4337](https://github.com/assistant-ui/assistant-ui/pull/4337) [`e14ca8c`](https://github.com/assistant-ui/assistant-ui/commit/e14ca8c6e29d72b62146754b287dbf1ac0a19d69) - refactor: replace deprecated useAssistantToolUI with the tools client API ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`ab8e5bc`](https://github.com/assistant-ui/assistant-ui/commit/ab8e5bc8650b1e39c8f01ab6c0efb80aa8baf723), [`59d252f`](https://github.com/assistant-ui/assistant-ui/commit/59d252fa09c1511acd7e31c9d8178514c5a5cb77), [`feecac3`](https://github.com/assistant-ui/assistant-ui/commit/feecac38c6ba0f8f30ec356376d1d6b19188e08f), [`3e58253`](https://github.com/assistant-ui/assistant-ui/commit/3e5825369c7206f4df3532d5fabfbe5cf5e4fd40), [`5a4f20e`](https://github.com/assistant-ui/assistant-ui/commit/5a4f20e75dcd93aeb70a4a5582a0a5a1f870b4f2), [`f10b8ae`](https://github.com/assistant-ui/assistant-ui/commit/f10b8ae6659ed8df8b0c25b5bb2bb8cfa7d7a718), [`1fb5862`](https://github.com/assistant-ui/assistant-ui/commit/1fb586241534064fa48e3498f422bdaa7f382139)]:
+  - @assistant-ui/core@0.2.14
+  - @assistant-ui/store@0.2.16
+
 ## 0.12.18
 
 ### Patch Changes

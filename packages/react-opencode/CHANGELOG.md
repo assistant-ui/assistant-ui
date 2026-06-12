@@ -1,5 +1,13 @@
 # @assistant-ui/react-opencode
 
+## 0.2.7
+
+### Patch Changes
+
+- [#4338](https://github.com/assistant-ui/assistant-ui/pull/4338) [`4f1e240`](https://github.com/assistant-ui/assistant-ui/commit/4f1e240ac5b5612cc79fa82b8409914b2d204205) - fix(react-opencode): re-sync thread history, session status, and pending permissions/questions after the event stream reconnects, so events lost while disconnected (e.g. `session.idle` or `permission.asked`) cannot leave `isRunning` stuck or deadlock a run ([@okisdev](https://github.com/okisdev))
+
+- [#4334](https://github.com/assistant-ui/assistant-ui/pull/4334) [`0f7f1bc`](https://github.com/assistant-ui/assistant-ui/commit/0f7f1bcb470e5add27ece9c492f1636ccd2419da) - fix(react-opencode): stop re-subscribing to the OpenCode event stream on every render, which could drop `session.idle` and leave `isRunning` stuck at `true` ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.6
 
 ### Patch Changes

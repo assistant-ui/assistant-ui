@@ -1,5 +1,31 @@
 # @assistant-ui/core
 
+## 0.2.14
+
+### Patch Changes
+
+- [#4340](https://github.com/assistant-ui/assistant-ui/pull/4340) [`ab8e5bc`](https://github.com/assistant-ui/assistant-ui/commit/ab8e5bc8650b1e39c8f01ab6c0efb80aa8baf723) - fix: exclude reasoning parts from copied message text ([@serhiizghama](https://github.com/serhiizghama))
+
+  `getCopyText` filtered parts with `"text" in part`, which also matched `reasoning` parts (they carry a `text` field), leaking the model's chain-of-thought into the clipboard. Both copy paths now delegate to the canonical `getThreadMessageText`, so copy returns only `type: "text"` content — consistent with the rest of the runtime.
+
+- [#4359](https://github.com/assistant-ui/assistant-ui/pull/4359) [`59d252f`](https://github.com/assistant-ui/assistant-ui/commit/59d252fa09c1511acd7e31c9d8178514c5a5cb77) - feat: branch switching for the ExternalThread client ([@okisdev](https://github.com/okisdev))
+
+  `ExternalThread` accepts an optional `branches` adapter (`ExternalThreadBranchAdapter` in `@assistant-ui/core`, re-exported from `@assistant-ui/react`): `getBranches(messageId)` returns ordered sibling branch ids and `switchToBranch(branchId)` makes a sibling visible by swapping the `messages` array. messages with more than one sibling get real `branchNumber`/`branchCount`, which is what shows the branch picker; `capabilities.switchToBranch` is set for parity with the legacy external store. without the adapter, behavior is unchanged.
+
+- [#4347](https://github.com/assistant-ui/assistant-ui/pull/4347) [`feecac3`](https://github.com/assistant-ui/assistant-ui/commit/feecac38c6ba0f8f30ec356376d1d6b19188e08f) - feat: support tool approvals on the local runtime ([@okisdev](https://github.com/okisdev))
+
+  `LocalRuntime.respondToToolApproval` previously threw "Local runtime does not support tool approvals". the local runtime now implements the approval gate natively, treating the `ChatModelAdapter` as the server side of the protocol: the adapter emits `approval: { id }` on a tool call part and ends the run with `requires-action`. a pending approval pauses the run (previously `shouldContinue` ignored approvals, so an unlisted tool call carrying one re-invoked the adapter in a loop). denying records the decision and synthesizes an error result (`{ error: reason || "Tool approval denied" }` with `isError: true`, matching the AI SDK v6 denial shape); approving records the decision and resumes the run once every gate on the message is decided, with the decisions readable via `unstable_getMessage()`. tool calls carrying an approval are exempt from the `unstable_humanToolNames` result requirement, and a gated call that receives a result via `addToolResult` counts as resolved, so neither combination deadlocks.
+
+  resumed runs (from `respondToToolApproval` and `addToolResult` alike) now go through the same run loop as `startRun`: they continue multi-step turns instead of stalling after one roundtrip, emit `runStart`/`runEnd` events, mark the message queue busy so a concurrent send no longer aborts the in-flight roundtrip, and regenerate suggestions on completion. `addToolResult` also notifies subscribers when it records a result without resuming. `resumeToolCall` still throws, now with an error that points at the supported alternatives, and the `unstable_humanToolNames` JSDoc no longer describes the pause as an approval ([#4339](https://github.com/assistant-ui/assistant-ui/issues/4339)).
+
+- [#4325](https://github.com/assistant-ui/assistant-ui/pull/4325) [`5a4f20e`](https://github.com/assistant-ui/assistant-ui/commit/5a4f20e75dcd93aeb70a4a5582a0a5a1f870b4f2) - chore: update @assistant-ui/tap dependency ranges to ^0.7.0 ([@Yonom](https://github.com/Yonom))
+
+- [#4328](https://github.com/assistant-ui/assistant-ui/pull/4328) [`f10b8ae`](https://github.com/assistant-ui/assistant-ui/commit/f10b8ae6659ed8df8b0c25b5bb2bb8cfa7d7a718) - feat: expose `lastMessageAt` on thread list items, populated from the cloud thread list adapter ([@okisdev](https://github.com/okisdev))
+
+- [#4351](https://github.com/assistant-ui/assistant-ui/pull/4351) [`1fb5862`](https://github.com/assistant-ui/assistant-ui/commit/1fb586241534064fa48e3498f422bdaa7f382139) - fix: stable identity for grouped message parts across reorders ([@okisdev](https://github.com/okisdev))
+
+  tool groups (and chain-of-thought groups) in `MessagePrimitive.Parts` and group nodes in `MessagePrimitive.GroupedParts` are now keyed by the id of their first part (`toolCallId`) instead of their positional index, and tool parts inside a group are keyed by their own id. when a message's parts array re-orders between live streaming and the settled shape, group and part React identity now survives the re-slice, so collapse/open state no longer resets. groups whose first part has no id keep their structural key, and duplicate ids fall back to structural keys, so keys stay unique.
+
 ## 0.2.13
 
 ### Patch Changes

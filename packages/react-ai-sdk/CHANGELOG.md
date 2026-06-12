@@ -1,5 +1,15 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.35
+
+### Patch Changes
+
+- [#4344](https://github.com/assistant-ui/assistant-ui/pull/4344) [`d51fe1c`](https://github.com/assistant-ui/assistant-ui/commit/d51fe1cd216827f98bb8080284f49e23ed23276e) - fix: attach partial-JSON meta to streaming tool args so consumers can tell which field is still mid-arrival ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`ab8e5bc`](https://github.com/assistant-ui/assistant-ui/commit/ab8e5bc8650b1e39c8f01ab6c0efb80aa8baf723), [`59d252f`](https://github.com/assistant-ui/assistant-ui/commit/59d252fa09c1511acd7e31c9d8178514c5a5cb77), [`feecac3`](https://github.com/assistant-ui/assistant-ui/commit/feecac38c6ba0f8f30ec356376d1d6b19188e08f), [`3e58253`](https://github.com/assistant-ui/assistant-ui/commit/3e5825369c7206f4df3532d5fabfbe5cf5e4fd40), [`5a4f20e`](https://github.com/assistant-ui/assistant-ui/commit/5a4f20e75dcd93aeb70a4a5582a0a5a1f870b4f2), [`f10b8ae`](https://github.com/assistant-ui/assistant-ui/commit/f10b8ae6659ed8df8b0c25b5bb2bb8cfa7d7a718), [`1fb5862`](https://github.com/assistant-ui/assistant-ui/commit/1fb586241534064fa48e3498f422bdaa7f382139)]:
+  - @assistant-ui/core@0.2.14
+  - @assistant-ui/store@0.2.16
+
 ## 1.3.34
 
 ### Patch Changes

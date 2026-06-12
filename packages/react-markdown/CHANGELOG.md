@@ -1,5 +1,17 @@
 # @assistant-ui/react-markdown
 
+## 0.14.3
+
+### Patch Changes
+
+- [#4348](https://github.com/assistant-ui/assistant-ui/pull/4348) [`5ca6558`](https://github.com/assistant-ui/assistant-ui/commit/5ca655858351dc7ad852ef4bc8292aa74d90e174) - feat: opt-in `defer` prop on the markdown text primitives ([@okisdev](https://github.com/okisdev))
+
+  `StreamdownTextPrimitive` and `MarkdownTextPrimitive` accept a `defer` flag that routes the streamed text through `useDeferredValue`, so re-parsing the growing message runs at a lower priority and typing/scrolling stay responsive while a long message streams in. intermediate streaming states may be skipped under load; the final text always renders. default off; the shadcn kit's markdown-text turns it on.
+
+- [#4350](https://github.com/assistant-ui/assistant-ui/pull/4350) [`42fd04f`](https://github.com/assistant-ui/assistant-ui/commit/42fd04f0b1012a1bee153a50639f1286ca9a4fbe) - feat: public, tunable `useSmooth` ([@okisdev](https://github.com/okisdev))
+
+  `useSmooth` and a new `SmoothOptions` type are now exported from `@assistant-ui/react` (previously internal-only with a hard-coded reveal rate). the `smooth` prop on `MessagePartPrimitive.Text` and `MarkdownTextPrimitive` widens to `boolean | SmoothOptions`, with `drainMs` (backlog drain target, default 250), `maxCharIntervalMs` (slowest reveal interval, default 5), and `maxCharsPerFrame` (per-frame cap, default unlimited). the hook also now preserves the part type for reasoning parts instead of always returning `type: "text"`. react-markdown's `@assistant-ui/react` peer floor moves to the release that ships `SmoothOptions`.
+
 ## 0.14.2
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.38
+
+### Patch Changes
+
+- [#4321](https://github.com/assistant-ui/assistant-ui/pull/4321) [`f5e183b`](https://github.com/assistant-ui/assistant-ui/commit/f5e183bde86b96d5c0a885f59ed9d449c56e40e7) - feat: restore multimodal user input (`image`, `audio`, `video`, `document`, and legacy `binary` parts) as attachments in `fromAgUiMessages`, so persisted conversations reload attachments instead of dropping them and re-send them on the next run ([@dkachur1](https://github.com/dkachur1))
+
+- Updated dependencies [[`ab8e5bc`](https://github.com/assistant-ui/assistant-ui/commit/ab8e5bc8650b1e39c8f01ab6c0efb80aa8baf723), [`59d252f`](https://github.com/assistant-ui/assistant-ui/commit/59d252fa09c1511acd7e31c9d8178514c5a5cb77), [`feecac3`](https://github.com/assistant-ui/assistant-ui/commit/feecac38c6ba0f8f30ec356376d1d6b19188e08f), [`5a4f20e`](https://github.com/assistant-ui/assistant-ui/commit/5a4f20e75dcd93aeb70a4a5582a0a5a1f870b4f2), [`f10b8ae`](https://github.com/assistant-ui/assistant-ui/commit/f10b8ae6659ed8df8b0c25b5bb2bb8cfa7d7a718), [`1fb5862`](https://github.com/assistant-ui/assistant-ui/commit/1fb586241534064fa48e3498f422bdaa7f382139)]:
+  - @assistant-ui/core@0.2.14
+
 ## 0.0.37
 
 ### Patch Changes

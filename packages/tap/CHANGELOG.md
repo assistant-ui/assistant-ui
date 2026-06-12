@@ -1,5 +1,13 @@
 # @assistant-ui/tap
 
+## 0.7.1
+
+### Patch Changes
+
+- [#4360](https://github.com/assistant-ui/assistant-ui/pull/4360) [`12b016b`](https://github.com/assistant-ui/assistant-ui/commit/12b016bd14560c847dadae075edb57631ac9c516) - fix: match React semantics: support render-phase updates (setState during render re-renders before committing, capped at 25 passes, instead of throwing; discarded render attempts drop their render-phase dispatches like React; updating a resource other than the one currently rendering throws), apply dispatches exactly once across React-discarded and replayed renders of tap sub-roots, run all effect cleanups before any setups within a commit, and compare only the common prefix of deps arrays that change length (with a dev warning) ([@Yonom](https://github.com/Yonom))
+
+- [#4366](https://github.com/assistant-ui/assistant-ui/pull/4366) [`3e58253`](https://github.com/assistant-ui/assistant-ui/commit/3e5825369c7206f4df3532d5fabfbe5cf5e4fd40) - feat: add useTapHost, a React host that commits the resource in the passive phase without blocking paint; the returned per-render effects callback lets descendant consumers mount the commit ahead of their own effects via useEffect(effects). The React bridge hosts (useResource, useResources, useTapRoot) now also commit in useEffect instead of useLayoutEffect. ([@Yonom](https://github.com/Yonom))
+
 ## 0.6.2
 
 ### Patch Changes

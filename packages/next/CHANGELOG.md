@@ -1,5 +1,11 @@
 # @assistant-ui/next
 
+## 0.0.6
+
+### Patch Changes
+
+- [#4327](https://github.com/assistant-ui/assistant-ui/pull/4327) [`1437805`](https://github.com/assistant-ui/assistant-ui/commit/14378055bb24134a5256b3b2125a6fdc835b7bce) - fix: give each `"use generative"` module a distinct bundler-redirect identity so two toolkits in one app no longer collide under `next dev` ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
 ## 0.0.5
 
 ### Patch Changes

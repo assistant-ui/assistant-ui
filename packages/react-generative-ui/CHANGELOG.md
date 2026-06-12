@@ -1,5 +1,11 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.4
+
+### Patch Changes
+
+- [#4344](https://github.com/assistant-ui/assistant-ui/pull/4344) [`d51fe1c`](https://github.com/assistant-ui/assistant-ui/commit/d51fe1cd216827f98bb8080284f49e23ed23276e) - fix: hold back nodes whose `$type` is still streaming instead of reporting them as unknown components ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.3
 
 ### Patch Changes

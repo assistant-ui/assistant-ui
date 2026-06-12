@@ -1,5 +1,11 @@
 # @assistant-ui/react-devtools
 
+## 1.2.4
+
+### Patch Changes
+
+- [#4325](https://github.com/assistant-ui/assistant-ui/pull/4325) [`5a4f20e`](https://github.com/assistant-ui/assistant-ui/commit/5a4f20e75dcd93aeb70a4a5582a0a5a1f870b4f2) - chore: update @assistant-ui/tap dependency ranges to ^0.7.0 ([@Yonom](https://github.com/Yonom))
+
 ## 1.2.3
 
 ### Patch Changes
