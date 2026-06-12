@@ -23,7 +23,10 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
 
 const { Interactables } = await import("./Interactables");
 
-const makeClient = (threadMessages?: ThreadMessage[]) => ({
+const makeClient = (
+  threadMessages?: ThreadMessage[],
+  setToolUI?: (...args: unknown[]) => () => void,
+) => ({
   modelContext: () => ({ register: () => () => {} }),
   thread: threadMessages
     ? Object.assign(
@@ -38,13 +41,17 @@ const makeClient = (threadMessages?: ThreadMessage[]) => ({
         },
         { source: null },
       ),
+  ...(setToolUI
+    ? { tools: Object.assign(() => ({ setToolUI }), { source: "root" }) }
+    : {}),
 });
 
 const mount = (config?: {
   persistence?: InteractablePersistenceAdapter;
   threadMessages?: ThreadMessage[];
+  setToolUI?: (...args: unknown[]) => () => void;
 }) => {
-  clientHolder.client = makeClient(config?.threadMessages);
+  clientHolder.client = makeClient(config?.threadMessages, config?.setToolUI);
   const root = createTapRoot(function InteractablesRoot() {
     return useResource(
       Interactables(
@@ -117,6 +124,64 @@ describe("Interactables registration", () => {
     root = mount({ threadMessages: [snapshot] });
     root.getValue().register(reg("n1", { scope: "thread" }));
     expect(stateOf(root, "n1")).toEqual({ v: 42 });
+  });
+
+  it("restores a thread-scoped registration from its creating call's args", () => {
+    const createCall = {
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "n1",
+          toolName: "notepad",
+          args: { v: 7 },
+          result: { success: true },
+        },
+      ],
+    } as unknown as ThreadMessage;
+    root = mount({ threadMessages: [createCall] });
+    root.getValue().register(reg("n1", { scope: "thread" }));
+    expect(stateOf(root, "n1")).toEqual({ v: 7 });
+  });
+
+  it("keeps the definition alive until the last of several anchors unregisters", async () => {
+    root = mount();
+    const first = root.getValue().register(reg("n1", { scope: "thread" }));
+    const second = root.getValue().register(reg("n1", { scope: "thread" }));
+    await flushMicrotasks();
+    root.getValue().setState("n1", () => ({ v: 5 }));
+
+    first();
+    await flushMicrotasks();
+    expect(stateOf(root, "n1")).toEqual({ v: 5 });
+
+    second();
+    await flushMicrotasks();
+    expect(stateOf(root, "n1")).toBeUndefined();
+  });
+
+  it("installs the update tool UI once per name and removes it with the last anchor", () => {
+    const removeToolUI = vi.fn();
+    const setToolUI = vi.fn(() => removeToolUI);
+    root = mount({ setToolUI });
+
+    const render = () => null;
+    const first = root
+      .getValue()
+      .register(reg("n1", { scope: "thread", updateRender: render }));
+    const second = root
+      .getValue()
+      .register(reg("n2", { scope: "thread", updateRender: render }));
+
+    expect(setToolUI).toHaveBeenCalledTimes(1);
+    expect(setToolUI).toHaveBeenCalledWith("update_note", render, {
+      standalone: true,
+    });
+
+    first();
+    expect(removeToolUI).not.toHaveBeenCalled();
+    second();
+    expect(removeToolUI).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -95,7 +95,9 @@ export { tool } from "./model-context/tool";
 export {
   getInteractableSnapshots,
   formatInteractableSnapshot,
+  getInteractableVersions,
   type InteractableSnapshotEntry,
+  type InteractableVersion,
 } from "./model-context/interactable-composer-metadata";
 
 export type { ToolExecutionStatus } from "./runtimes/tool-invocations/ToolInvocationTracker";

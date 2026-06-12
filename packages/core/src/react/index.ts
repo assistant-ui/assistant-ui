@@ -56,8 +56,15 @@ export {
   useInteractable,
   type InteractableConfig,
   type InferInteractableState,
+  type InteractableVersionInfo,
 } from "./model-context/useInteractable";
 export { useInteractableState } from "./model-context/useInteractableState";
+export { useInteractableVersions } from "./model-context/useInteractableVersions";
+export {
+  interactableTool,
+  type InteractableToolConfig,
+  type InteractableToolRenderProps,
+} from "./model-context/interactableTool";
 export {
   useToolArgsStatus,
   type ToolArgsStatus,

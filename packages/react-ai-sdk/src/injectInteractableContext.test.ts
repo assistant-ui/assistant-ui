@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { injectInteractableContext } from "./injectInteractableContext";
 import { injectQuoteContext } from "./injectQuoteContext";
 
-type Interactable = { name: string; id: string; state: unknown };
+type Interactable = {
+  name: string;
+  id: string;
+  state: unknown;
+  partial?: boolean;
+};
 
 const userMsg = (
   interactables?: Interactable[],
@@ -62,6 +67,17 @@ describe("injectInteractableContext", () => {
       '[Current state of "note" (id: "n1"): {"title":"Hi"}]\n\n',
     );
     expect(textOf(out[0]!.parts[1])).toBe("hello");
+  });
+
+  it("formats a partial snapshot as changed fields", () => {
+    const out = injectInteractableContext([
+      userMsg([
+        { name: "note", id: "n1", state: { title: "Hi" }, partial: true },
+      ]),
+    ]);
+    expect(textOf(out[0]!.parts[0])).toBe(
+      '[State of "note" (id: "n1") changed — updated fields: {"title":"Hi"}; fields not listed are unchanged]\n\n',
+    );
   });
 
   it("joins multiple interactables with a newline", () => {

@@ -3,11 +3,14 @@
 "@assistant-ui/react": patch
 "@assistant-ui/react-native": patch
 "@assistant-ui/react-ink": patch
+"@assistant-ui/react-ai-sdk": patch
 ---
 
 feat: redesign the interactables API with message snapshots, one stable tool per name, a combined hook, and persistence `load`
 
-Interactable state now reaches the model through a per-message snapshot stamped on the outgoing user message's `metadata.custom.interactables` instead of the system prompt, and is re-stamped only when the model doesn't already know the state (the model's own `update_*` calls count as known). `getInteractableSnapshots` and `formatInteractableSnapshot` are exported for non-AI-SDK integrations.
+Interactable state now reaches the model through a per-message snapshot stamped on the outgoing user message's `metadata.custom.interactables` instead of the system prompt, and is stamped only when the model doesn't already know the state (the model's own `update_*` calls count as known, as do the args of the tool call that created an instance under the `id: toolCallId` convention). When a change fits a shallow merge, the snapshot carries only the changed fields (`partial: true`) instead of cloning the full state. `getInteractableSnapshots` and `formatInteractableSnapshot` are exported for non-AI-SDK integrations; custom snapshot wording must handle partial entries.
+
+Thread-scoped interactables rendered inside tool-call message parts are version-aware: `useInteractable` always returns the live state, plus a `version` object for the rendering message — its state as of that point in the conversation, an `isLatest` flag, and a `restore()` back to it. Whether older messages render frozen history or stay live-editable is the component's choice. `interactableTool({ description, stateSchema, render })` defines the creating tool as a complete toolkit entry (the entry key is the interactable name), building the full in-message wiring from one render function — streaming previews and the tool UI for the auto-generated `update_{name}` tool included (available standalone as the `updateRender` config option). `useInteractableVersions(id, name)` (and the pure `getInteractableVersions`) lists every recorded version with `restore()`, for artifact-style version pickers. The `update_{name}` tool's success result now includes the resolved instance `id`, and an instance registered from several places stays registered until the last one unmounts.
 
 BREAKING CHANGES:
 

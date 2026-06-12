@@ -1,5 +1,6 @@
 import type { Tool } from "assistant-stream";
 import type { Unsubscribe } from "../../..";
+import type { ToolCallMessagePartComponent } from "../MessagePartComponentTypes";
 
 /**
  * Schema type matching Tool["parameters"] from assistant-stream.
@@ -28,6 +29,12 @@ export type InteractableRegistration = {
   stateSchema: InteractableStateSchema;
   initialState: unknown;
   scope?: InteractableScope | undefined;
+  /**
+   * Component installed as the tool UI for this interactable's `update_{name}`
+   * tool calls, so a model edit re-renders the interactable at the message
+   * that made it. Registered once per name; requires the `tools` scope.
+   */
+  updateRender?: ToolCallMessagePartComponent | undefined;
 };
 
 export type InteractablePersistenceStatus = {

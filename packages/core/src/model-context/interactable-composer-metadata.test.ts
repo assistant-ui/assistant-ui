@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  findLatestSnapshotEntry,
   findModelKnownState,
   formatInteractableSnapshot,
   gateInteractableComposerMetadata,
   getInteractableSnapshots,
+  getInteractableVersions,
   interactableToolName,
   type InteractableSnapshotEntry,
 } from "./interactable-composer-metadata";
@@ -19,27 +19,44 @@ const assistantMsg = (interactables: InteractableSnapshotEntry[]) => ({
   metadata: { custom: { interactables } },
 });
 
+const toolCallPart = (
+  toolName: string,
+  args: Record<string, unknown>,
+  result?: unknown,
+  toolCallId?: string,
+) => ({
+  type: "tool-call" as const,
+  ...(toolCallId !== undefined ? { toolCallId } : {}),
+  toolName,
+  args,
+  ...(result !== undefined ? { result } : {}),
+});
+
 const assistantToolCall = (
   toolName: string,
   args: Record<string, unknown>,
   result?: unknown,
+  toolCallId?: string,
 ) => ({
   role: "assistant" as const,
-  content: [
-    {
-      type: "tool-call" as const,
-      toolName,
-      args,
-      ...(result !== undefined ? { result } : {}),
-    },
-  ],
+  content: [toolCallPart(toolName, args, result, toolCallId)],
 });
+
+/** The assistant message that created instance `id` via a tool call. */
+const assistantCreateCall = (id: string, args: Record<string, unknown>) =>
+  assistantToolCall("notepad", args, { success: true }, id);
 
 const entry = (
   id: string,
   state: unknown,
   name = id,
 ): InteractableSnapshotEntry => ({ id, name, state });
+
+const partialEntry = (
+  id: string,
+  state: unknown,
+  name = id,
+): InteractableSnapshotEntry => ({ id, name, state, partial: true });
 
 describe("getInteractableSnapshots", () => {
   it("reads entries from metadata.custom.interactables", () => {
@@ -64,6 +81,14 @@ describe("formatInteractableSnapshot", () => {
       '[Current state of "note" (id: "n1"): {"v":1}]',
     );
   });
+
+  it("formats a partial snapshot as changed fields", () => {
+    expect(
+      formatInteractableSnapshot(partialEntry("n1", { v: 1 }, "note")),
+    ).toBe(
+      '[State of "note" (id: "n1") changed — updated fields: {"v":1}; fields not listed are unchanged]',
+    );
+  });
 });
 
 describe("interactableToolName", () => {
@@ -73,57 +98,8 @@ describe("interactableToolName", () => {
   });
 });
 
-describe("findLatestSnapshotEntry", () => {
-  it("returns undefined for empty history", () => {
-    expect(findLatestSnapshotEntry([], "a")).toBeUndefined();
-  });
-
-  it("returns the latest snapshot when an id appears in multiple messages", () => {
-    const history = [
-      userMsg([entry("a", { v: 1 })]),
-      userMsg([entry("a", { v: 2 })]),
-    ];
-    expect(findLatestSnapshotEntry(history, "a")?.state).toEqual({ v: 2 });
-  });
-
-  it("skips non-user messages even when they carry interactable metadata", () => {
-    const history = [
-      userMsg([entry("a", { v: 1 })]),
-      assistantMsg([entry("a", { v: 999 })]),
-    ];
-    expect(findLatestSnapshotEntry(history, "a")?.state).toEqual({ v: 1 });
-  });
-
-  it("finds the right entry by id among several in one message", () => {
-    const history = [userMsg([entry("a", { v: 1 }), entry("b", { v: 2 })])];
-    expect(findLatestSnapshotEntry(history, "b")?.state).toEqual({ v: 2 });
-  });
-
-  it("skips messages without interactable metadata", () => {
-    const history = [
-      { role: "user" as const },
-      { role: "user" as const, metadata: { custom: {} } },
-      userMsg([entry("a", { v: 1 })]),
-    ];
-    expect(findLatestSnapshotEntry(history, "a")?.state).toEqual({ v: 1 });
-    expect(findLatestSnapshotEntry(history, "missing")).toBeUndefined();
-  });
-
-  it("skips a message whose interactables metadata is not an array without throwing", () => {
-    const history = [
-      {
-        role: "user" as const,
-        metadata: { custom: { interactables: "oops" } },
-      },
-      userMsg([entry("a", { v: 1 })]),
-    ];
-    expect(() => findLatestSnapshotEntry(history, "a")).not.toThrow();
-    expect(findLatestSnapshotEntry(history, "a")?.state).toEqual({ v: 1 });
-  });
-});
-
 describe("findModelKnownState", () => {
-  it("returns undefined when no snapshot exists", () => {
+  it("returns undefined when no snapshot or creating call exists", () => {
     const history = [assistantToolCall("update_note", { id: "a", v: 9 })];
     expect(findModelKnownState(history, "a", "note")).toBeUndefined();
   });
@@ -144,7 +120,7 @@ describe("findModelKnownState", () => {
     });
   });
 
-  it("only folds calls made after the latest snapshot", () => {
+  it("lets a later full snapshot replace earlier folded state", () => {
     const history = [
       userMsg([entry("a", { v: 1 }, "note")]),
       assistantToolCall("update_note", { id: "a", v: 2 }),
@@ -152,6 +128,42 @@ describe("findModelKnownState", () => {
     ];
     expect(findModelKnownState(history, "a", "note")?.state).toEqual({
       v: 10,
+    });
+  });
+
+  it("merges partial snapshots into the known state", () => {
+    const history = [
+      userMsg([entry("a", { v: 1, title: "x" }, "note")]),
+      assistantToolCall("update_note", { id: "a", v: 2 }, { success: true }),
+      userMsg([partialEntry("a", { title: "y" }, "note")]),
+    ];
+    expect(findModelKnownState(history, "a", "note")?.state).toEqual({
+      v: 2,
+      title: "y",
+    });
+  });
+
+  it("ignores a partial snapshot without a baseline", () => {
+    const history = [userMsg([partialEntry("a", { title: "y" }, "note")])];
+    expect(findModelKnownState(history, "a", "note")).toBeUndefined();
+  });
+
+  it("seeds the baseline from the creating call's args (id === toolCallId)", () => {
+    const history = [assistantCreateCall("a", { v: 1, title: "draft" })];
+    expect(findModelKnownState(history, "a", "note")?.state).toEqual({
+      v: 1,
+      title: "draft",
+    });
+  });
+
+  it("folds update_* calls on top of the creating call's args", () => {
+    const history = [
+      assistantCreateCall("a", { v: 1, title: "draft" }),
+      assistantToolCall("update_note", { id: "a", v: 2 }, { success: true }),
+    ];
+    expect(findModelKnownState(history, "a", "note")?.state).toEqual({
+      v: 2,
+      title: "draft",
     });
   });
 
@@ -188,12 +200,110 @@ describe("findModelKnownState", () => {
   });
 });
 
+describe("getInteractableVersions", () => {
+  it("returns an empty list when nothing references the instance", () => {
+    expect(getInteractableVersions([], "a", "note")).toEqual([]);
+    expect(
+      getInteractableVersions(
+        [assistantToolCall("update_note", { id: "b", v: 1 }, undefined, "x")],
+        "a",
+        "note",
+      ),
+    ).toEqual([]);
+  });
+
+  it("records create, user-edit, and update versions in order", () => {
+    const history = [
+      assistantCreateCall("a", { v: 1, title: "draft" }),
+      userMsg([partialEntry("a", { title: "edited" }, "note")]),
+      assistantToolCall(
+        "update_note",
+        { id: "a", v: 2 },
+        { success: true },
+        "call-2",
+      ),
+    ];
+    expect(getInteractableVersions(history, "a", "note")).toEqual([
+      { state: { v: 1, title: "draft" }, origin: "create", toolCallId: "a" },
+      { state: { v: 1, title: "edited" }, origin: "user-edit" },
+      {
+        state: { v: 2, title: "edited" },
+        origin: "update",
+        toolCallId: "call-2",
+      },
+    ]);
+  });
+
+  it("replaces the state on a full user snapshot", () => {
+    const history = [
+      assistantCreateCall("a", { v: 1, title: "draft" }),
+      userMsg([entry("a", { v: 10 }, "note")]),
+    ];
+    expect(getInteractableVersions(history, "a", "note")).toEqual([
+      { state: { v: 1, title: "draft" }, origin: "create", toolCallId: "a" },
+      { state: { v: 10 }, origin: "user-edit" },
+    ]);
+  });
+
+  it("attributes an id-less update via the result's resolved id", () => {
+    const history = [
+      assistantCreateCall("a", { v: 1 }),
+      assistantToolCall(
+        "update_note",
+        { v: 2 },
+        { success: true, id: "a" },
+        "call-2",
+      ),
+    ];
+    expect(getInteractableVersions(history, "a", "note")).toEqual([
+      { state: { v: 1 }, origin: "create", toolCallId: "a" },
+      { state: { v: 2 }, origin: "update", toolCallId: "call-2" },
+    ]);
+  });
+
+  it("excludes an id-less update resolved to another instance", () => {
+    const history = [
+      assistantCreateCall("a", { v: 1 }),
+      assistantToolCall(
+        "update_note",
+        { v: 2 },
+        { success: true, id: "b" },
+        "call-2",
+      ),
+    ];
+    expect(getInteractableVersions(history, "a", "note")).toHaveLength(1);
+  });
+
+  it("skips rejected update calls", () => {
+    const history = [
+      assistantCreateCall("a", { v: 1 }),
+      assistantToolCall(
+        "update_note",
+        { id: "a", v: 2 },
+        { success: false },
+        "call-2",
+      ),
+    ];
+    expect(getInteractableVersions(history, "a", "note")).toEqual([
+      { state: { v: 1 }, origin: "create", toolCallId: "a" },
+    ]);
+  });
+
+  it("skips partial snapshots and updates that have no baseline", () => {
+    const history = [
+      userMsg([partialEntry("a", { title: "y" }, "note")]),
+      assistantToolCall("update_note", { id: "a", v: 2 }, { success: true }),
+    ];
+    expect(getInteractableVersions(history, "a", "note")).toEqual([]);
+  });
+});
+
 describe("gateInteractableComposerMetadata", () => {
   it("returns undefined when meta is undefined", () => {
     expect(gateInteractableComposerMetadata(undefined, [])).toBeUndefined();
   });
 
-  it("stamps a baseline on the first send (no prior snapshot in history)", () => {
+  it("stamps a full baseline on the first send (no prior record in history)", () => {
     const meta = { interactables: [entry("a", { v: 1 })] };
     const gated = gateInteractableComposerMetadata(meta, []);
     expect(gated?.interactables).toEqual([entry("a", { v: 1 })]);
@@ -205,11 +315,33 @@ describe("gateInteractableComposerMetadata", () => {
     expect(gateInteractableComposerMetadata(meta, history)).toBeUndefined();
   });
 
-  it("stamps when state differs from the latest snapshot", () => {
+  it("omits an unedited tool-created interactable (the model authored its args)", () => {
+    const meta = { interactables: [entry("a", { v: 1, title: "draft" })] };
+    const history = [assistantCreateCall("a", { v: 1, title: "draft" })];
+    expect(gateInteractableComposerMetadata(meta, history)).toBeUndefined();
+  });
+
+  it("stamps the full state when every field changed", () => {
     const meta = { interactables: [entry("a", { v: 2 })] };
     const history = [userMsg([entry("a", { v: 1 })])];
     const gated = gateInteractableComposerMetadata(meta, history);
     expect(gated?.interactables).toEqual([entry("a", { v: 2 })]);
+  });
+
+  it("stamps only the changed fields as a partial snapshot", () => {
+    const meta = { interactables: [entry("a", { v: 1, title: "edited" })] };
+    const history = [userMsg([entry("a", { v: 1, title: "draft" })])];
+    const gated = gateInteractableComposerMetadata(meta, history);
+    expect(gated?.interactables).toEqual([
+      partialEntry("a", { title: "edited" }),
+    ]);
+  });
+
+  it("falls back to a full snapshot when a top-level key was removed", () => {
+    const meta = { interactables: [entry("a", { v: 1 })] };
+    const history = [userMsg([entry("a", { v: 1, title: "draft" })])];
+    const gated = gateInteractableComposerMetadata(meta, history);
+    expect(gated?.interactables).toEqual([entry("a", { v: 1 })]);
   });
 
   it("omits an interactable the model already knows via its own update_* call", () => {
@@ -248,6 +380,16 @@ describe("gateInteractableComposerMetadata", () => {
     const history = [userMsg([entry("a", { v: 1 }), entry("b", { v: 2 })])];
     const gated = gateInteractableComposerMetadata(meta, history);
     expect(gated?.interactables).toEqual([entry("b", { v: 99 })]);
+  });
+
+  it("skips non-user snapshot carriers when folding", () => {
+    const meta = { interactables: [entry("a", { v: 999 })] };
+    const history = [
+      userMsg([entry("a", { v: 1 })]),
+      assistantMsg([entry("a", { v: 999 })]),
+    ];
+    const gated = gateInteractableComposerMetadata(meta, history);
+    expect(gated?.interactables).toEqual([entry("a", { v: 999 })]);
   });
 
   it("passes through non-interactable metadata keys untouched", () => {

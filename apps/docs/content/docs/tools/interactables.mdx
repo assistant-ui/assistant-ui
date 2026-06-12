@@ -1,12 +1,12 @@
 ---
 title: Interactable Tool UIs
-description: Build stateful tool UI components that both the user and model can read and edit.
+description: Build stateful tool UIs that both the user and the model can read and edit. Render them beside the thread, or inside messages as versioned, editable surfaces like notepads and artifacts.
 platforms: ["react"]
 ---
 
 import { InteractableSample } from "@/components/docs/samples/interactable";
 
-An interactable is a tool UI with live, shared state: the user edits it through React, the model edits it through an auto-generated tool, and both sides always see the latest value. A notepad, a task board, a form, or a canvas; anything the user and the assistant work on together, rather than the assistant just emitting into the chat.
+An interactable is a tool UI with live, shared state: the user edits it through React, the model edits it through an auto-generated tool, and both sides always see the latest value. An editable artifact, a notepad, a task board, or a canvas; anything the user and the assistant work on together, rather than the assistant just emitting into the chat.
 
 <InteractableSample />
 
@@ -17,7 +17,7 @@ What makes an interactable different from an ordinary tool UI:
 - **Shared, editable state**: the user (via React) and the model (via the `update_{name}` tool) both write to the same state, and each sees the other's edits
 - **Persistent**: state outlives the tool call and the turn. By default it's shared across the whole app, or scope it to a single thread
 - **Partial updates**: the model sends only the fields it wants to change; the rest are preserved
-- **Placed by you**: render it wherever it belongs, beside the thread, inside a message, anywhere in your app
+- **Placed by you**: render it anywhere in your app, beside the thread ([Quick Start](#quick-start)) or inside messages as an artifact or notepad ([Interactables in Messages](#interactables-in-messages))
 - **One tool per name**: every instance of a name shares a single `update_{name}` tool, addressed by `id`
 
 Common use cases:
@@ -26,6 +26,7 @@ Common use cases:
 - Data dashboards that update based on conversation
 - Forms that the AI pre-fills
 - Canvas/editor components that the AI can manipulate
+- Artifacts and notepads the AI drafts in the thread and the user edits in place
 
 ## Quick Start
 
@@ -161,7 +162,7 @@ export async function POST(req: Request) {
 }
 ```
 
-Each snapshot defaults to `[Current state of "note" (id: "n1"): {...}]`. Pass a second `format` argument to control how it reads to the model. Keep the instance id visible in custom wording; the model uses it to address the `update_*` tool.
+Each snapshot defaults to `[Current state of "note" (id: "n1"): {...}]`. When only some fields changed since the model last saw the state, the snapshot is a **diff**: it carries just the changed fields (`partial: true`) and reads as `[State of "note" (id: "n1") changed — updated fields: {...}]`, so a small edit to a large state doesn't re-send the whole thing. Pass a second `format` argument to control how snapshots read to the model. Handle both full and partial entries, and keep the instance id visible; the model uses it to address the `update_*` tool.
 
 `injectInteractableContext` is part of `@assistant-ui/react-ai-sdk` and works on AI SDK `UIMessage`s. On a different backend (LangGraph, a custom runtime), this step is the same idea with your own injection; see [Other Runtimes](#other-runtimes).
 
@@ -197,10 +198,168 @@ useInteractable("draft", {
   For `scope: "thread"`, only **sent** state reaches history. A live edit the
   user makes but never sends survives in-session remounts (scrolling, list
   virtualization) but is **lost on a full page reload**: the interactable
-  re-seeds from the last sent snapshot, or from `initialState` if it was never
-  sent. If an edit must outlive a reload before the next message, send it or
-  use `scope: "app"` with a persistence adapter.
+  re-seeds from the model-known thread record (its creating tool call's args,
+  sent snapshots, and the model's own `update_*` calls), or from `initialState`
+  if none exists. If an edit must outlive a reload before the next message,
+  send it or use `scope: "app"` with a persistence adapter.
 </Callout>
+
+## Interactables in Messages
+
+An interactable doesn't have to live in your layout. A tool call can _be_ the interactable: the model drafts a document, the user edits it right there in the thread, and later model edits render where they happen. Render it inline like a notepad, or out-of-line like an artifact panel.
+
+`interactableTool` defines the whole tool as one toolkit entry: the entry key is the interactable name, and the tool's arguments are the initial state. You write one render function; instance wiring, streaming previews, and rendering the model's `update_{name}` calls are handled:
+
+```tsx
+import { defineToolkit, interactableTool } from "@assistant-ui/react";
+import { z } from "zod";
+
+const notepadSchema = z.object({
+  title: z.string(),
+  content: z.string(),
+});
+
+const toolkit = defineToolkit({
+  notepad: interactableTool({
+    description: "A notepad with drafted text that the user can read and edit.",
+    stateSchema: notepadSchema,
+    render: ({ state, setState, version, streaming }) => (
+      <NotepadView
+        value={state}
+        onChange={setState}
+        busy={streaming}
+        readOnly={version ? !version.isLatest : false}
+      />
+    ),
+  }),
+});
+```
+
+That's the whole setup. When the model later calls the auto-generated `update_notepad`, the same `render` appears at the message that made the edit. In-message interactables are thread-scoped: state rides the thread's history (see [Scope](#scope)).
+
+### Versions
+
+A thread is an append-only log, so one instance accumulates **versions**: the creating call, each user edit, and each `update_*` call. Your `render` runs at every message that touched the instance and receives two things:
+
+- `state` / `setState`: the **live** instance. There is exactly one, shared by every message.
+- `version`: **this message's** version, `{ state, isLatest, restore }`. `version.state` is the interactable as it was at this point in the conversation; `restore()` sets the live state back to it.
+
+What older messages do with that is your choice, and both common policies are one-liners:
+
+```tsx
+// Frozen history (claude.ai-style):
+// old messages show their version read-only; only the newest is live
+render: ({ state, setState, version }) =>
+  version && !version.isLatest ? (
+    <Notepad value={version.state} readOnly />
+  ) : (
+    <Notepad value={state} onChange={setState} />
+  );
+```
+
+```tsx
+// Editable history:
+// every message edits the live note; revert returns to this message's version
+render: ({ state, setState, version }) => (
+  <Notepad value={state} onChange={setState} onRevert={version?.restore} />
+);
+```
+
+Versions are computed from the thread record itself (the creating call's args, the state snapshots stamped on sent user messages, and the model's `update_*` calls), so history survives reloads with nothing extra to persist.
+
+### Streaming
+
+While a tool call's arguments are still streaming, `render` is called with `streaming: true`: at the creating call `state` is the partially generated draft (fields may be missing), and at an `update_{name}` call it is the live state updating as the edit streams in. Render a preview; edits made during a create stream are dropped.
+
+### Artifacts
+
+Artifacts are usually read-only: the model produces a document, and the user can only view it. An interactable artifact goes a step further, since the user can edit it too and the model sees those edits. It is the same pattern with the rendering split in two: the inline tool UI renders a **button**, and the full interactable lives in a panel (sidebar, dialog) in your layout.
+
+```
+inline messages                         artifact panel (layout)
+───────────────────────────            ─────────────────────────────
+render: a button per version           useInteractable(name, {id,
+  "📝 Meeting notes" → onOpen(id)        scope: "thread"}) → live,
+                                         editable, full height
+```
+
+```tsx
+const toolkit = defineToolkit({
+  document: interactableTool({
+    description: "A document the user can open and edit.",
+    stateSchema: documentSchema,
+    render: ({ state, version, id }) => (
+      <ArtifactButton
+        title={(version?.state ?? state).title}
+        onClick={() => openArtifact(id)}
+      />
+    ),
+  }),
+});
+
+function ArtifactPanel({ id }: { id: string }) {
+  const [state, { setState }] = useInteractable("document", {
+    id,
+    description: "A document the user can open and edit.",
+    stateSchema: documentSchema,
+    initialState: emptyDocument,
+    scope: "thread",
+  });
+  const versions = useInteractableVersions<Document>(id, "document");
+
+  return (
+    <aside>
+      <VersionDropdown>
+        {versions.map((v, i) => (
+          <DropdownItem key={i} onSelect={v.restore}>
+            v{i + 1}: {v.origin === "user-edit" ? "you" : "assistant"}
+          </DropdownItem>
+        ))}
+      </VersionDropdown>
+      <Editor value={state} onChange={setState} />
+    </aside>
+  );
+}
+```
+
+Outside message parts the hook always returns the live state (`version` is `undefined`), so the panel is plainly editable. Both the panel and the inline tool UIs can register the same `id`; registration is shared.
+
+<Callout type="warn">
+  Keep the artifact panel mounted (hidden is fine) whenever its instance should
+  stay available. If every component registering the instance unmounts (panel
+  closed and inline buttons virtualized out of the thread), the instance and
+  its `update_{name}` tool unregister, and the tool list churns.
+</Callout>
+
+### How it's wired
+
+`interactableTool` is built on two low-level pieces, available as an escape hatch:
+
+- **The `id: toolCallId` convention.** The creating tool call's `toolCallId` doubles as the instance id, which also tells the snapshot channel the model authored the initial state (the call's args), so nothing is re-stamped on the next send and state restores from thread history after a reload.
+- **`updateRender` on `useInteractable`.** The `update_{name}` tool is auto-generated, so this config option installs its tool UI (once per name). Inside an `update_{name}` part the hook infers the instance `id` from the call, so the same component serves both call types.
+
+```tsx
+const NotepadToolUI: ToolCallMessagePartComponent<NotepadArgs> = ({
+  toolCallId,
+  args,
+  result,
+}) => {
+  if (!result) return <DraftPreview args={args} />;
+  return <Notepad id={toolCallId} initial={args} />;
+};
+
+function Notepad({ id, initial }: { id?: string; initial: NotepadArgs }) {
+  const [state, { setState, version }] = useInteractable("notepad", {
+    id,
+    description: "A notepad the user can read and edit.",
+    stateSchema: notepadSchema,
+    initialState: initial,
+    scope: "thread",
+    updateRender: NotepadUpdateToolUI, // gate on `result` before mounting this
+  });
+  // ...
+}
+```
 
 ## Persistence
 
@@ -240,9 +399,9 @@ When a persistence adapter is set, interactable hooks expose sync metadata:
 ```tsx
 const [state, { setState, isPending, error, flush }] = useInteractableState<TState>(id);
 
-// isPending — true while a save is in-flight
-// error — the error from the last failed save, if any
-// flush() — force an immediate save (useful before navigation)
+// isPending: true while a save is in-flight
+// error: the error from the last failed save, if any
+// flush(): force an immediate save (useful before navigation)
 ```
 
 State changes are automatically debounced (500ms) before saving. When the owning component unmounts, any pending save is flushed immediately.
@@ -428,7 +587,7 @@ When you call `useInteractable("taskBoard", config)`:
 
 1. **Registration**: the interactable is registered in the `interactables` scope with its name, description, schema, and initial state.
 2. **Tool generation**: an `update_taskBoard` frontend tool is created with a partial schema (all fields optional) plus a required `id` parameter. One tool exists per name no matter how many instances mount, so the tool list stays stable and provider prompt caches stay warm.
-3. **State snapshot**: the interactable's current state is stamped onto the outgoing user message as a frozen snapshot in `metadata.custom` (no system-prompt mutation). It is re-stamped only when the model doesn't already know the state: a user edit triggers a fresh snapshot, while the model's own `update_*` calls don't, since it knows the outcome of its own tool calls. Your route turns snapshots into model-visible text with `injectInteractableContext`; see [Surface state to the model](#surface-state-to-the-model-in-your-route).
+3. **State snapshot**: the interactable's current state is stamped onto the outgoing user message as a frozen snapshot in `metadata.custom` (no system-prompt mutation). It is stamped only when the model doesn't already know the state: a user edit triggers a fresh snapshot, while the model's own `update_*` calls (and the args of the tool call that created an [in-message instance](#interactables-in-messages)) don't, since the model authored those. When the change fits a shallow merge, the snapshot carries only the changed fields (`partial: true`) instead of cloning the full state. Your route turns snapshots into model-visible text with `injectInteractableContext`; see [Surface state to the model](#surface-state-to-the-model-in-your-route).
 4. **Streaming updates**: as the AI generates the tool arguments, the interactable's state updates progressively rather than waiting for complete arguments. This gives users immediate visual feedback.
 5. **Partial merge**: only the fields the AI sends are updated; the rest are preserved.
 6. **Bidirectional updates**: when the AI calls the tool, the state updates and React re-renders. When the user updates state via `setState`, the next user message carries a fresh snapshot so the AI sees the latest state.
@@ -436,6 +595,8 @@ When you call `useInteractable("taskBoard", config)`:
 ## Unmount Behavior
 
 When a component that called `useInteractable` unmounts, the interactable is unregistered, but its state is preserved in the `Interactables` scope. When the component mounts again with the same name and id, the scope restores the preserved state rather than resetting to `initialState`. This means transient unmounts (such as React Strict Mode double-mounts or tab switches) do not lose state.
+
+An instance registered from several places (its creating tool call, `update_*` calls, an artifact panel) stays registered until the last one unmounts, so scrolling one out of a virtualized thread doesn't tear the instance down while another is visible.
 
 ## Other Runtimes
 
@@ -456,7 +617,7 @@ for (const message of messages) {
 }
 ```
 
-Two rules to preserve: only transform a copy of the messages on the way to the model (snapshots must stay raw in stored history, since the send-time gate diffs against them), and keep each instance's `id` visible in the wording so the model can address the `update_*` tool.
+Three rules to preserve: only transform a copy of the messages on the way to the model (snapshots must stay raw in stored history, since the send-time gate diffs against them), keep each instance's `id` visible in the wording so the model can address the `update_*` tool, and handle `partial: true` entries, whose `state` carries only the fields that changed (`formatInteractableSnapshot` does).
 
 ## API Reference
 
@@ -574,6 +735,19 @@ const [state, { id, setState, isPending, error, flush }] = useInteractable(name,
       ),
     },
     {
+      name: "version",
+      type: "{ state: TState; isLatest: boolean; restore: () => void } | undefined",
+      required: true,
+      description: (
+        <>
+          This message's version of the instance, when rendered inside a
+          tool-call part with <code>scope: "thread"</code>; see{" "}
+          <a href="#interactables-in-messages">Interactables in Messages</a>.{" "}
+          <code>undefined</code> outside messages and for app scope.
+        </>
+      ),
+    },
+    {
       name: "isPending",
       type: "boolean",
       required: true,
@@ -626,6 +800,61 @@ const [state, { setState, isPending, error, flush }] = useInteractableState<TSta
 />
 
 **Returns:** `[state, methods]`, the same shape as `useInteractable` without `id`. `state` is `TState | undefined` until the owning `useInteractable` has registered.
+
+### `interactableTool`
+
+```tsx
+notepad: interactableTool({ description, stateSchema, render }),
+```
+
+Returns a complete toolkit tool entry (a frontend tool with standalone display); the entry key is the interactable name. See [Interactables in Messages](#interactables-in-messages). `render` receives:
+
+<PrimitivesTypeTable
+  type="interactableTool-render-props"
+  parameters={[
+    {
+      name: "state",
+      type: "TState",
+      required: true,
+      description:
+        "The live state. While streaming, fields the model has not finished generating may be missing.",
+    },
+    {
+      name: "setState",
+      type: "(updater: TState | ((prev: TState) => TState)) => void",
+      required: true,
+      description: "Updates the live state.",
+    },
+    {
+      name: "version",
+      type: "{ state: TState; isLatest: boolean; restore: () => void } | undefined",
+      required: true,
+      description:
+        "This message's version of the instance; undefined while streaming.",
+    },
+    {
+      name: "id",
+      type: "string",
+      required: true,
+      description: "The instance id (the creating call's toolCallId).",
+    },
+    {
+      name: "streaming",
+      type: "boolean",
+      required: true,
+      description: "True while the tool call's arguments are still streaming.",
+    },
+  ]}
+/>
+
+### `useInteractableVersions`
+
+```tsx
+const versions = useInteractableVersions<TState>(id, name);
+// → [{ state, origin: "create" | "update" | "user-edit", toolCallId?, restore }, ...]
+```
+
+Every version of a thread-scoped interactable recorded in the current thread, oldest first. `restore()` sets the live state back to that version. The non-React equivalent for backends is `getInteractableVersions(messages, id, name)`, exported from `@assistant-ui/react`.
 
 ### `Interactables`
 

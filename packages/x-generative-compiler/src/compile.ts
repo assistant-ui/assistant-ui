@@ -43,6 +43,13 @@ const DISTRIBUTION_PACKAGES = [
  * through untouched — the library, not this compiler, routes its halves.
  */
 const GENERATIVE_FACTORY = "JSONGenerativeUI";
+/**
+ * The factory producing an interactable's complete tool entry. Unlike
+ * `JSONGenerativeUI`, its package has no per-target builds, so this compiler
+ * splits the inline config: the client keeps `render`, the server drops it.
+ * The factory's own `execute` is internal and client-safe (frontend tool).
+ */
+const INTERACTABLE_TOOL_FACTORY = "interactableTool";
 
 /** Mutable per-build outcomes the toolkit pass reports back for directive/guard injection. */
 interface TargetFlags {
@@ -142,6 +149,7 @@ export function compileGenerative(
   // such entries pass through.
   ensureDefaultExport(ast, filename);
   const generativeInstances = collectGenerativeInstances(ast);
+  const interactableToolImports = collectInteractableToolImports(ast);
   const toolkitSpreadNames = collectToolkitSpreadNames(
     ast,
     filename,
@@ -183,6 +191,7 @@ export function compileGenerative(
           object,
           target,
           generativeInstances,
+          interactableToolImports,
           toolkitSpreadNames,
           flags,
           filename,
@@ -505,6 +514,44 @@ function createToolkitNameContext(): ToolkitNameContext {
     importedToolkitNamesByFile: new Map(),
     resolvingImportedToolkitNames: new Set(),
   };
+}
+
+/**
+ * Collects the local names `interactableTool` is imported under from a
+ * distribution package, so toolkit entries calling it can be recognized
+ * (and a same-named local function can't smuggle an arbitrary call through).
+ */
+function collectInteractableToolImports(ast: t.File): Set<string> {
+  const names = new Set<string>();
+  for (const statement of ast.program.body) {
+    if (!t.isImportDeclaration(statement)) continue;
+    if (!packageNameFromSpecifier(statement.source.value)) continue;
+    for (const specifier of statement.specifiers) {
+      if (
+        t.isImportSpecifier(specifier) &&
+        t.isIdentifier(specifier.imported, { name: INTERACTABLE_TOOL_FACTORY })
+      ) {
+        names.add(specifier.local.name);
+      }
+    }
+  }
+  return names;
+}
+
+/**
+ * The inline config of an `interactableTool({ ... })` toolkit entry, or `null`
+ * when the entry is some other expression.
+ */
+function interactableToolConfig(
+  value: t.Node,
+  imports: Set<string>,
+): t.ObjectExpression | null {
+  return t.isCallExpression(value) &&
+    t.isIdentifier(value.callee) &&
+    imports.has(value.callee.name) &&
+    t.isObjectExpression(value.arguments[0])
+    ? value.arguments[0]
+    : null;
 }
 
 /**
@@ -1049,6 +1096,7 @@ function compileToolkit(
   object: t.ObjectExpression,
   target: Target,
   instances: Set<string>,
+  interactableToolImports: Set<string>,
   toolkitSpreadNames: ToolkitSpreadNames,
   flags: TargetFlags,
   filename: string | undefined,
@@ -1080,11 +1128,20 @@ function compileToolkit(
         nextProperties.push(entry);
         continue;
       }
+      const config =
+        raw && interactableToolConfig(raw, interactableToolImports);
+      if (config) {
+        if (target === "client") flags.keptRender = true;
+        else removeMember(config, "render");
+        nextProperties.push(entry);
+        continue;
+      }
       throw new GenerativeCompileError(
         "each tool must be an inline object literal (`name: { ... }`) or a " +
           "compiler-visible toolkit spread / generative tool (e.g. " +
-          "`...defineMcpToolkit(...)`, `...baseToolkit`, or " +
-          "`generative.present()`) so its `execute` can be routed",
+          "`...defineMcpToolkit(...)`, `...baseToolkit`, " +
+          "`generative.present()`, or `interactableTool(...)`) so its " +
+          "`execute` can be routed",
         filename,
       );
     }

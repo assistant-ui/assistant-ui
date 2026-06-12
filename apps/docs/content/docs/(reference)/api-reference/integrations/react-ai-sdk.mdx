@@ -87,7 +87,9 @@ time) and prepends a text part. Run this in your route handler before
 Wording is consumer-owned — pass `format` to control how each snapshot reads.
 A snapshot may originate from a user edit or an agent `update_*` call, so the
 default phrasing is neutral. Keep the instance id visible in custom wording:
-the model needs it to address the `update_*` tool's `id` parameter.
+the model needs it to address the `update_*` tool's `id` parameter. A custom
+`format` must also handle entries with `partial: true`, whose `state` carries
+only the fields that changed since the model's last known state.
 
 ```ts
 import { convertToModelMessages, streamText } from "ai";

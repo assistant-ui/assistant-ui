@@ -131,7 +131,9 @@ export function buildInteractableModelContext(
         setDefState(target.id, (prev) =>
           shallowMergeInteractableState(prev, partial),
         );
-        return { success: true };
+        // The resolved id lets an id-less call's UI (and the model) address
+        // the instance that was actually updated.
+        return { success: true, id: target.id };
       },
     };
   }

@@ -185,7 +185,12 @@ export {
   useInteractable,
   type InteractableConfig,
   type InferInteractableState,
+  type InteractableVersionInfo,
   useInteractableState,
+  useInteractableVersions,
+  interactableTool,
+  type InteractableToolConfig,
+  type InteractableToolRenderProps,
   useToolArgsStatus,
   type ToolArgsStatus,
 } from "@assistant-ui/core/react";

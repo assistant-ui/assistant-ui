@@ -15,7 +15,10 @@ import type {
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store";
 import { buildInteractableModelContext } from "./interactable-model-context";
-import { findModelKnownState } from "../../model-context/interactable-composer-metadata";
+import {
+  findModelKnownState,
+  interactableToolName,
+} from "../../model-context/interactable-composer-metadata";
 
 const PERSISTENCE_DEBOUNCE_MS = 500;
 
@@ -36,6 +39,14 @@ const useInteractables = ({
   const subscribersRef = useRef(new Set<() => void>());
   const partialSchemaCacheRef = useRef(new Map<string, PartialJSONSchema>());
   const detachedStateRef = useRef(new Map<string, unknown>());
+  // An instance may be registered from several anchors (its creating tool
+  // call plus update_* calls); the definition lives until the last one leaves.
+  const registrationCountsRef = useRef(new Map<string, number>());
+  // One update-tool UI per interactable name, alive while any registrant
+  // that supplied an updateRender is mounted.
+  const updateToolUIsRef = useRef(
+    new Map<string, { count: number; unsubscribe: () => void }>(),
+  );
   // App-scoped state restored via adapter.load(), consumed as components register.
   const loadedStateRef = useRef(new Map<string, unknown>());
   // Ids edited locally this session — a local edit always wins over a slow load.
@@ -315,13 +326,53 @@ const useInteractables = ({
     (def: InteractableRegistration) => {
       if (
         process.env.NODE_ENV !== "production" &&
-        stateRef.current.definitions[def.id]
+        stateRef.current.definitions[def.id] &&
+        def.scope !== "thread"
       ) {
         console.warn(
           `[Interactables] "${def.name}" (${def.id}) is already registered. ` +
-            `Register an interactable once (useInteractable) and read it from ` +
-            `other components with useInteractableState.`,
+            `Register an app-scoped interactable once (useInteractable) and ` +
+            `read it from other components with useInteractableState.`,
         );
+      }
+
+      registrationCountsRef.current.set(
+        def.id,
+        (registrationCountsRef.current.get(def.id) ?? 0) + 1,
+      );
+
+      let releaseUpdateToolUI: (() => void) | undefined;
+      if (def.updateRender) {
+        const toolsAccessor = clientRef.current?.tools;
+        if (toolsAccessor && toolsAccessor.source != null) {
+          const toolName = interactableToolName(def.name);
+          const existing = updateToolUIsRef.current.get(def.name);
+          if (existing) {
+            existing.count++;
+          } else {
+            updateToolUIsRef.current.set(def.name, {
+              count: 1,
+              unsubscribe: toolsAccessor().setToolUI(
+                toolName,
+                def.updateRender,
+                { standalone: true },
+              ),
+            });
+          }
+          releaseUpdateToolUI = () => {
+            const entry = updateToolUIsRef.current.get(def.name);
+            if (!entry) return;
+            if (--entry.count === 0) {
+              updateToolUIsRef.current.delete(def.name);
+              entry.unsubscribe();
+            }
+          };
+        } else if (process.env.NODE_ENV !== "production") {
+          console.warn(
+            `[Interactables] "${def.name}" supplied an updateRender, but no ` +
+              `tools scope is available to install it into.`,
+          );
+        }
       }
 
       try {
@@ -381,6 +432,15 @@ const useInteractables = ({
       }));
 
       return () => {
+        releaseUpdateToolUI?.();
+
+        const remaining = (registrationCountsRef.current.get(def.id) ?? 1) - 1;
+        if (remaining > 0) {
+          registrationCountsRef.current.set(def.id, remaining);
+          return;
+        }
+        registrationCountsRef.current.delete(def.id);
+
         flushIfPending();
         setStateAndRef((prev) => {
           const existing = prev.definitions[def.id];

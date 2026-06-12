@@ -84,7 +84,7 @@ describe("buildInteractableModelContext", () => {
         { id: "n2", title: "B!" },
         {} as never,
       );
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ success: true, id: "n2" });
       expect(defs.n2.state).toEqual({ title: "B!", color: "blue" });
       expect(defs.n1.state).toEqual({ title: "a", color: "yellow" });
     });
@@ -96,7 +96,7 @@ describe("buildInteractableModelContext", () => {
         { title: "B" },
         {} as never,
       );
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ success: true, id: "n1" });
       expect(defs.n1.state).toEqual({ title: "B" });
     });
 
@@ -186,7 +186,7 @@ describe("buildInteractableModelContext", () => {
         { title: "B", id: "note-12" },
         {} as never,
       );
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ success: true, id: "note-12" });
       expect(defs["note-12"].state).toEqual({ title: "B" });
     });
 

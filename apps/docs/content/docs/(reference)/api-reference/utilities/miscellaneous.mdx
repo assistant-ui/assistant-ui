@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, Interactables, SingleThreadList, Suggestions, formatInteractableSnapshot, getInteractableSnapshots, useSmooth } from "@/generated/typeDocs";
+import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, Interactables, SingleThreadList, Suggestions, formatInteractableSnapshot, getInteractableSnapshots, getInteractableVersions, useSmooth } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -47,6 +47,23 @@ state to the model (see `injectInteractableContext` in
 `@assistant-ui/react-ai-sdk` for the AI SDK implementation).
 
 <ParametersTable {...getInteractableSnapshots} />
+
+### getInteractableVersions
+
+Every version of interactable `id` recorded in the thread, oldest first,
+folded chronologically:
+
+- the tool call whose `toolCallId` equals `id` seeds the baseline with its
+  args (`origin: "create"`) — the `id: toolCallId` convention for
+  tool-created interactables,
+- a snapshot stamped on a user message is a `"user-edit"` version (a full
+  snapshot replaces the state; a partial one shallow-merges),
+- each accepted `update_*` call shallow-merges an `"update"` version.
+
+The last entry is the state the model knows. Partial snapshots and update
+calls with no baseline to merge into are skipped.
+
+<ParametersTable {...getInteractableVersions} />
 
 ### InMemoryThreadList
 
