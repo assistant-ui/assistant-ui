@@ -3,6 +3,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentProps,
   type CSSProperties,
@@ -34,6 +35,21 @@ const canAnimate = () =>
       "transform",
       "translateY(clamp(-1lh, calc((mod(7.5, 10) - 5) * 1lh), 1lh))",
     ));
+
+/* Cached because Intl.NumberFormat construction is expensive and inline format/locales props change identity on every parent render. */
+const formatterCache = new Map<string, Intl.NumberFormat>();
+const getFormatter = (
+  locales: Intl.LocalesArgument,
+  format: Intl.NumberFormatOptions | undefined,
+) => {
+  const key = `${String(locales)}\u0000${JSON.stringify(format)}`;
+  let formatter = formatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locales, format);
+    formatterCache.set(key, formatter);
+  }
+  return formatter;
+};
 
 type DigitPart = { type: "digit"; key: string; digit: number };
 type SymbolPart = { type: "symbol"; key: string; value: string };
@@ -237,10 +253,7 @@ function NumberRoll({
     if (canAnimate()) setEnhanced(true);
   }, []);
 
-  const formatter = useMemo(
-    () => new Intl.NumberFormat(locales, format),
-    [locales, format],
-  );
+  const formatter = getFormatter(locales, format);
   const parts = useMemo(
     () => toParts(value, formatter, prefix, suffix),
     [value, formatter, prefix, suffix],
@@ -276,20 +289,44 @@ function NumberRoll({
     });
   }
 
+  /* Each exiting part gets its own removal timer so a new exit batch does not extend the lifetime of parts already mid-exit. */
+  const exitTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const exitingKeys = display.rendered
     .filter((part) => part.exiting)
     .map((part) => part.key)
-    .join("|");
+    .join("\u0000");
   useEffect(() => {
-    if (!exitingKeys) return;
-    const timeout = setTimeout(() => {
-      setDisplay((current) => ({
-        ...current,
-        rendered: current.rendered.filter((part) => !part.exiting),
-      }));
-    }, duration);
-    return () => clearTimeout(timeout);
+    const timers = exitTimers.current;
+    const exiting = new Set(exitingKeys ? exitingKeys.split("\u0000") : []);
+    for (const [key, timer] of timers) {
+      if (!exiting.has(key)) {
+        clearTimeout(timer);
+        timers.delete(key);
+      }
+    }
+    for (const key of exiting) {
+      if (timers.has(key)) continue;
+      timers.set(
+        key,
+        setTimeout(() => {
+          timers.delete(key);
+          setDisplay((current) => ({
+            ...current,
+            rendered: current.rendered.filter(
+              (part) => !(part.exiting && part.key === key),
+            ),
+          }));
+        }, duration),
+      );
+    }
   }, [exitingKeys, duration]);
+  useEffect(() => {
+    const timers = exitTimers.current;
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
+    };
+  }, []);
 
   const formatted = `${prefix ?? ""}${formatter.format(value)}${suffix ?? ""}`;
 
