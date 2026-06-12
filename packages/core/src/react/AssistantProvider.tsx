@@ -23,11 +23,13 @@ export const AssistantProviderBase: FC<AssistantProviderBaseProps> = memo(
   ({ runtime, aui: parent = null, children }) => {
     const aui = useAui({ threads: RuntimeAdapter(runtime) }, { parent });
     const RenderComponent = getRenderComponent(runtime);
-    return (
+    const inner = (
       <AuiProvider value={aui}>
         {RenderComponent && <RenderComponent />}
         {children}
       </AuiProvider>
     );
+    if (!parent) return inner;
+    return <AuiProvider value={parent}>{inner}</AuiProvider>;
   },
 );
