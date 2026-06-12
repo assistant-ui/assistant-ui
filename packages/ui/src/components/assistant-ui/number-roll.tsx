@@ -13,28 +13,31 @@ import { cn } from "@/lib/utils";
 const DEFAULT_DURATION = 500;
 const DIGIT_CELLS = Array.from({ length: 10 }, (_, i) => i);
 
-if (typeof CSS !== "undefined" && typeof CSS.registerProperty === "function") {
-  try {
-    CSS.registerProperty({
-      name: "--aui-number-roll-pos",
-      syntax: "<number>",
-      inherits: true,
-      initialValue: "0",
-    });
-  } catch {
-    /* Already registered by another copy of this component. */
-  }
-}
-
 let supportsRoll: boolean | undefined;
-const canAnimate = () =>
-  (supportsRoll ??=
-    typeof CSS !== "undefined" &&
-    typeof CSS.registerProperty === "function" &&
-    CSS.supports(
-      "transform",
-      "translateY(clamp(-1lh, calc((mod(7.5, 10) - 5) * 1lh), 1lh))",
-    ));
+const canAnimate = () => {
+  if (supportsRoll === undefined) {
+    supportsRoll =
+      typeof CSS !== "undefined" &&
+      typeof CSS.registerProperty === "function" &&
+      CSS.supports(
+        "transform",
+        "translateY(clamp(-1lh, calc((mod(7.5, 10) - 5) * 1lh), 1lh))",
+      );
+    if (supportsRoll) {
+      try {
+        CSS.registerProperty({
+          name: "--aui-number-roll-pos",
+          syntax: "<number>",
+          inherits: true,
+          initialValue: "0",
+        });
+      } catch {
+        /* Already registered by another copy of this component. */
+      }
+    }
+  }
+  return supportsRoll;
+};
 
 /* Cached because Intl.NumberFormat construction is expensive and inline format/locales props change identity on every parent render. */
 const formatterCache = new Map<string, Intl.NumberFormat>();
@@ -291,12 +294,18 @@ function NumberRoll({
 
   /* Each exiting part gets its own removal timer so a new exit batch does not extend the lifetime of parts already mid-exit. */
   const exitTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const lastDuration = useRef(duration);
   const exitingKeys = display.rendered
     .filter((part) => part.exiting)
     .map((part) => part.key)
     .join("\u0000");
   useEffect(() => {
     const timers = exitTimers.current;
+    if (lastDuration.current !== duration) {
+      lastDuration.current = duration;
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
+    }
     const exiting = new Set(exitingKeys ? exitingKeys.split("\u0000") : []);
     for (const [key, timer] of timers) {
       if (!exiting.has(key)) {
