@@ -60,6 +60,7 @@ type ToolCallPartBase = {
   toolName: string;
   argsText: string;
   args: ReadonlyJSONObject;
+  timing?: { startedAt: number; completedAt?: number };
   artifact?: ReadonlyJSONValue;
   result?: ReadonlyJSONValue;
   modelContent?: readonly ToolModelContentPart[];

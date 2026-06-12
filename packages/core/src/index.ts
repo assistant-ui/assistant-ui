@@ -25,6 +25,7 @@ export type {
   ToolApprovalOptionKind,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  ToolCallTiming,
   ToolCallMessagePartMcpMetadata,
   McpAppMetadata,
   ToolModelContentPart,

@@ -22,6 +22,7 @@ import type {
   MessageTiming,
   TextMessagePart,
   ToolApprovalOption,
+  ToolCallTiming,
 } from "../../types/message";
 import type {
   ReadonlyJSONObject,
@@ -59,6 +60,7 @@ export type ThreadMessageLike = {
             readonly parentId?: string | undefined;
             readonly messages?: readonly ThreadMessage[] | undefined;
             readonly interrupt?: { type: "human"; payload: unknown };
+            readonly timing?: ToolCallTiming;
             readonly approval?: {
               readonly id: string;
               readonly approved?: boolean;

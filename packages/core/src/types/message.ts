@@ -160,6 +160,19 @@ export type ToolApprovalOption = {
   readonly confirm?: boolean | { title?: string; description?: string };
 };
 
+/**
+ * Wall-clock timing of a tool call. Accumulator-populated timings are
+ * measured by the consuming accumulator, so resumed or replayed streams
+ * re-measure them; hosts that need authoritative timings supply the field
+ * themselves.
+ */
+export type ToolCallTiming = {
+  /** Epoch milliseconds when the tool call started streaming or executing. */
+  readonly startedAt: number;
+  /** Epoch milliseconds when the result landed. Absent while the call runs. */
+  readonly completedAt?: number;
+};
+
 export type ToolApprovalResponse =
   | { readonly approved: boolean; readonly reason?: string }
   | { readonly optionId: string; readonly reason?: string }
@@ -193,6 +206,8 @@ export type ToolCallMessagePart<
   readonly argsText: string;
   /** UI-only artifact associated with the tool result. */
   readonly artifact?: unknown;
+  /** Wall-clock timing for this call, when the runtime or host tracks it. */
+  readonly timing?: ToolCallTiming;
   /** MCP app metadata associated with this tool call, when present. */
   readonly mcp?: ToolCallMessagePartMcpMetadata;
   /** Content returned to the model for this tool result. */

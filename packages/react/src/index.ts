@@ -289,6 +289,12 @@ export { useThreadViewportAutoScroll } from "./primitives/thread/useThreadViewpo
 export { useScrollLock } from "./primitives/reasoning/useScrollLock";
 export { useMessageQuote } from "./hooks/useMessageQuote";
 export { useMessageTiming } from "./hooks/useMessageTiming";
+export { useToolCallElapsed } from "./hooks/useToolCallElapsed";
+export {
+  unstable_useMessageStallDetection,
+  type Unstable_MessageStallDetection,
+  type Unstable_MessageStallDetectionOptions,
+} from "./unstable/useMessageStallDetection";
 export { useSmooth, type SmoothOptions } from "./utils/smooth/useSmooth";
 
 // Re-export core types from @assistant-ui/core
@@ -314,6 +320,7 @@ export type {
   ToolApprovalOptionKind,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  ToolCallTiming,
   ToolModelContentPart,
   MessageStatus,
   MessagePartStatus,

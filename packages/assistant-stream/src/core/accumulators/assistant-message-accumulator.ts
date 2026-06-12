@@ -92,6 +92,7 @@ const handlePartStart = (
       toolName: partInit.toolName,
       argsText: "",
       args: {},
+      timing: { startedAt: Date.now() },
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
     return {
@@ -213,6 +214,14 @@ const handleResult = (
       return {
         ...part,
         state: "result",
+        ...(part.timing !== undefined
+          ? {
+              timing: {
+                ...part.timing,
+                completedAt: part.timing.completedAt ?? Date.now(),
+              },
+            }
+          : {}),
         ...(chunk.artifact !== undefined ? { artifact: chunk.artifact } : {}),
         result: chunk.result,
         isError: chunk.isError ?? false,

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import {
   useScrollLock,
+  useToolCallElapsed,
   type ToolApprovalOption,
   type ToolCallMessagePart,
   type ToolCallMessagePartProps,
@@ -92,6 +93,35 @@ const statusIconMap: Record<ToolStatus, React.ElementType> = {
   "requires-action": AlertCircleIcon,
 };
 
+const formatToolDuration = (ms: number) => {
+  if (ms < 1000) return "<1s";
+  const seconds = ms / 1000;
+  if (seconds < 10) return `${seconds.toFixed(1)}s`;
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+};
+
+function ToolFallbackDuration({
+  className,
+  ...props
+}: React.ComponentProps<"span">) {
+  const elapsedMs = useToolCallElapsed();
+  if (elapsedMs === undefined) return null;
+
+  return (
+    <span
+      data-slot="tool-fallback-duration"
+      className={cn(
+        "aui-tool-fallback-duration text-muted-foreground text-xs tabular-nums",
+        className,
+      )}
+      {...props}
+    >
+      {formatToolDuration(elapsedMs)}
+    </span>
+  );
+}
+
 function ToolFallbackTrigger({
   toolName,
   status,
@@ -146,6 +176,7 @@ function ToolFallbackTrigger({
           </span>
         )}
       </span>
+      <ToolFallbackDuration />
       <ChevronDownIcon
         data-slot="tool-fallback-trigger-chevron"
         className={cn(

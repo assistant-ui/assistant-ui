@@ -101,6 +101,57 @@ describe("AssistantMessageAccumulator timing", () => {
     expect(last.metadata.timing!.toolCallCount).toBe(1);
   });
 
+  it("should record per-tool-call timing on the part", async () => {
+    const before = Date.now();
+    const chunks: AssistantStreamChunk[] = [
+      {
+        type: "part-start",
+        path: [0],
+        part: {
+          type: "tool-call",
+          toolCallId: "tc-1",
+          toolName: "search",
+        },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"q":"test"}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+      {
+        type: "result",
+        path: [0],
+        result: "found",
+        isError: false,
+      },
+      { type: "part-finish", path: [0] },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ];
+
+    const messages = await collectStream(chunks);
+    const after = Date.now();
+
+    const runningPart = messages
+      .find((m) =>
+        m.parts.some((p) => p.type === "tool-call" && p.state !== "result"),
+      )!
+      .parts.find((p) => p.type === "tool-call")!;
+    expect(runningPart.timing).toBeDefined();
+    expect(runningPart.timing!.startedAt).toBeGreaterThanOrEqual(before);
+    expect(runningPart.timing!.completedAt).toBeUndefined();
+
+    const settledPart = messages
+      .at(-1)!
+      .parts.find((p) => p.type === "tool-call")!;
+    expect(settledPart.timing).toBeDefined();
+    expect(settledPart.timing!.completedAt).toBeGreaterThanOrEqual(
+      settledPart.timing!.startedAt,
+    );
+    expect(settledPart.timing!.completedAt).toBeLessThanOrEqual(after);
+  });
+
   it("should include timing on flush when stream closes without message-finish", async () => {
     const chunks: AssistantStreamChunk[] = [
       { type: "part-start", path: [0], part: { type: "text" } },

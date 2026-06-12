@@ -145,9 +145,22 @@ describe("resumable integration", () => {
       new AssistantTransportDecoder(),
     );
 
-    expect(replayMessage.parts).toEqual(producerMessage.parts);
+    // Tool-call timing is measured by the consuming accumulator, so a replay
+    // re-measures it; compare parts modulo timing.
+    const withoutTiming = (parts: typeof replayMessage.parts) =>
+      parts.map((part) =>
+        part.type === "tool-call"
+          ? (({ timing: _timing, ...rest }) => rest)(part)
+          : part,
+      );
+    expect(withoutTiming(replayMessage.parts)).toEqual(
+      withoutTiming(producerMessage.parts),
+    );
     expect(replayMessage.status).toEqual(producerMessage.status);
     const toolPart = replayMessage.parts.find((p) => p.type === "tool-call");
+    expect(toolPart).toMatchObject({
+      timing: { startedAt: expect.any(Number) },
+    });
     expect(toolPart).toBeDefined();
     expect(toolPart).toMatchObject({
       toolName: "lookup",
