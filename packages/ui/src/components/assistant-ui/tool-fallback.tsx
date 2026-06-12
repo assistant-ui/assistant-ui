@@ -421,22 +421,18 @@ function ToolFallbackApproval({
         )}
         {...props}
       >
-        {allowOptions.map((option, index) => (
-          <Button
-            key={option.id}
-            size="sm"
-            variant={index === 0 ? "default" : "outline"}
-            onClick={() => handleOption(option)}
-            disabled={submitted}
-          >
-            {approvalOptionLabel(option)}
+        {allowOptions.length === 0 && (
+          <Button size="sm" onClick={() => respond(true)} disabled={submitted}>
+            Allow
           </Button>
-        ))}
-        {rejectOptions.map((option) => (
+        )}
+        {[...allowOptions, ...rejectOptions].map((option, index) => (
           <Button
             key={option.id}
             size="sm"
-            variant="outline"
+            variant={
+              index === 0 && allowOptions.length > 0 ? "default" : "outline"
+            }
             onClick={() => handleOption(option)}
             disabled={submitted}
           >

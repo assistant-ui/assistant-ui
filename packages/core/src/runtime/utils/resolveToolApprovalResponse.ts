@@ -2,6 +2,7 @@ import type {
   ToolApprovalOption,
   ToolApprovalResponse,
 } from "../../types/message";
+import type { RespondToToolApprovalOptions } from "../interfaces/thread-runtime-core";
 
 const APPROVED_BY_KIND: Record<string, boolean> = {
   "allow-once": true,
@@ -20,12 +21,7 @@ export const resolveToolApprovalResponse = (
     readonly options?: readonly ToolApprovalOption[];
   },
   response: ToolApprovalResponse,
-): {
-  approvalId: string;
-  approved: boolean;
-  optionId?: string;
-  reason?: string;
-} => {
+): RespondToToolApprovalOptions => {
   let approved: boolean;
   let optionId: string | undefined;
 
