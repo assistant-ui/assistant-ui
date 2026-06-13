@@ -356,9 +356,9 @@ figure.shiki {
   margin-top: 1.25rem !important;
   margin-bottom: 1.25rem !important;
   border-radius: 0.75rem !important;
-  border: none !important;
+  border: 1px solid var(--border) !important;
   box-shadow: none !important;
-  background: var(--muted) !important;
+  background: var(--background) !important;
   overflow: hidden;
 
   /* Header with title */
@@ -366,7 +366,7 @@ figure.shiki {
     height: 2.25rem !important;
     padding-inline: 0.875rem !important;
     border-bottom: none !important;
-    background: transparent !important;
+    background: var(--background) !important;
   }
 
   & figcaption {
@@ -415,6 +415,13 @@ figure.shiki {
     padding-bottom: 0.875rem !important;
     font-size: 0.8125rem !important;
     line-height: 1.65 !important;
+    background: var(--muted) !important;
+  }
+
+  /* Code region top corners, when a title header sits above it */
+  &:has(figcaption) > div[role="region"] {
+    border-top-left-radius: 0.5rem !important;
+    border-top-right-radius: 0.5rem !important;
   }
 
   & pre {

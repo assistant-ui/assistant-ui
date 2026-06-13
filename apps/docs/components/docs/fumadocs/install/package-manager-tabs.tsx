@@ -76,7 +76,7 @@ function CommandTabs({
   } = useAnimatedTabs({ activeIndex });
 
   return (
-    <div className="not-prose my-4 overflow-hidden rounded-xl bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.16_0_0)]">
+    <div className="not-prose border-border bg-background my-4 overflow-hidden rounded-xl border">
       <div
         ref={containerRef}
         className="relative flex items-center gap-1 px-3 py-2"
@@ -127,7 +127,7 @@ function CommandTabs({
           </button>
         ))}
       </div>
-      <div className="[&_figure]:my-0! [&_figure]:rounded-none! [&_figure]:bg-transparent!">
+      <div className="bg-muted overflow-hidden rounded-t-lg [&_figure]:my-0! [&_figure]:rounded-none! [&_figure]:border-none! [&_figure]:bg-transparent!">
         <DynamicCodeBlock lang="bash" code={getCommand(pm)} />
       </div>
     </div>

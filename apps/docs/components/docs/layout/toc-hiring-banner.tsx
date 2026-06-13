@@ -15,7 +15,7 @@ export const TOCHiringBanner = () => {
     <div className="group relative">
       <Link
         href="/careers"
-        className="bg-muted hover:bg-accent block rounded-xl px-3.5 py-3 transition-colors"
+        className="border-border/60 bg-muted/30 hover:border-border hover:bg-muted/50 block rounded-xl border px-3.5 py-3 transition-colors"
       >
         <p className="shimmer text-foreground/80 text-[11px] font-medium tracking-wide uppercase">
           We are hiring
@@ -31,7 +31,7 @@ export const TOCHiringBanner = () => {
           e.preventDefault();
           setDismissed(true);
         }}
-        className="bg-background text-muted-foreground hover:text-foreground absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full opacity-0 shadow-sm transition-all group-hover:opacity-100"
+        className="border-border/60 bg-background text-muted-foreground hover:text-foreground absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full border opacity-0 transition-all group-hover:opacity-100"
       >
         <X className="size-3" />
       </button>
