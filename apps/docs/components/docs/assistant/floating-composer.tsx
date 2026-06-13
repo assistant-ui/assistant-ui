@@ -132,7 +132,7 @@ export function FloatingComposer(): ReactNode {
           type="button"
           aria-label="Dismiss"
           onClick={() => setDismissed(true)}
-          className="border-border/60 bg-background text-muted-foreground hover:text-foreground absolute -top-2 -right-2 z-10 flex size-5 items-center justify-center rounded-full border opacity-0 transition-opacity group-hover:opacity-100"
+          className="border-border/60 bg-background text-muted-foreground hover:text-foreground absolute -top-2 -right-2 z-10 flex size-5 items-center justify-center rounded-full border opacity-0 transition-opacity group-hover:opacity-100 [@media(hover:none)]:opacity-100"
         >
           <XIcon className="size-3" />
         </button>
