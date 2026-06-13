@@ -22,6 +22,7 @@ export function createResourceFiber<R, A extends readonly unknown[]>(
       workInProgress: null,
       index: 0,
     },
+    commitCallbacks: [],
     renderPendingCells: null,
     currentIndex: 0,
     renderContext: undefined,
@@ -88,6 +89,11 @@ export function commitResourceFiber<R, A extends readonly unknown[]>(
 ): void {
   fiber.isMounted = true;
   commitRoot(fiber.root);
+
+  for (let i = 0; i < fiber.commitCallbacks.length; i++) {
+    fiber.commitCallbacks[i]!();
+  }
+  fiber.commitCallbacks.length = 0;
 
   if (fiber.memoCache.workInProgress !== null) {
     fiber.memoCache.current = fiber.memoCache.workInProgress;

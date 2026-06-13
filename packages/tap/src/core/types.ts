@@ -74,7 +74,6 @@ export interface ResourceFiberRoot {
   readonly changelog: (() => void)[];
 
   readonly dispatchUpdate: (callback: () => boolean) => void;
-  readonly commitCallbacks: (() => void)[];
   readonly rollbackCallbacks: (() => void)[];
   hasDirtyReducers: boolean;
 }
@@ -93,6 +92,7 @@ export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
     index: number;
   };
 
+  readonly commitCallbacks: (() => void)[];
   renderPendingCells: Set<ReducerCell> | null;
 
   renderContext: RenderResult | undefined; // set during render

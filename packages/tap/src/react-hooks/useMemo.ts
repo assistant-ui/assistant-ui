@@ -54,12 +54,13 @@ export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
 
   if (!memoCell.isDirty) {
     memoCell.isDirty = true;
-    addCommit(fiber.root, () => {
+    addCommit(fiber, () => {
       memoCell.current = memoCell.wip;
       memoCell.currentDeps = memoCell.wipDeps;
       memoCell.isDirty = false;
     });
     addRollback(fiber.root, () => {
+      fiber.commitCallbacks.length = 0;
       memoCell.wip = memoCell.current;
       memoCell.wipDeps = memoCell.currentDeps;
       memoCell.isDirty = false;
