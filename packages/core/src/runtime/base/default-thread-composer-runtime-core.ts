@@ -92,15 +92,7 @@ export class DefaultThreadComposerRuntimeCore
       this.runtime.getModelContext().unstable_composerMetadata,
       this.runtime.messages,
     );
-    const enriched = composerMetadata
-      ? {
-          ...message,
-          metadata: {
-            ...message.metadata,
-            custom: { ...message.metadata?.custom, ...composerMetadata },
-          },
-        }
-      : message;
+    const enriched = this.enrichWithComposerMetadata(message, composerMetadata);
 
     this.runtime.append({
       ...(enriched as AppendMessage),

@@ -110,15 +110,10 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
         this.runtime.getModelContext().unstable_composerMetadata,
         messages.slice(0, parentIndex + 1),
       );
-      const enriched = composerMetadata
-        ? {
-            ...message,
-            metadata: {
-              ...message.metadata,
-              custom: { ...message.metadata?.custom, ...composerMetadata },
-            },
-          }
-        : message;
+      const enriched = this.enrichWithComposerMetadata(
+        message,
+        composerMetadata,
+      );
       this.runtime.append({
         ...enriched,
         content,

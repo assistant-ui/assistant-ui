@@ -7,7 +7,7 @@ import {
   type InteractableSnapshotEntry,
 } from "../../model-context/interactable-composer-metadata";
 
-type PartialJSONSchema = ReturnType<typeof toJSONSchema>;
+export type PartialJSONSchema = ReturnType<typeof toJSONSchema>;
 
 const ID_PROPERTY = {
   type: "string" as const,
@@ -36,9 +36,10 @@ function withRequiredId(partial: PartialJSONSchema | undefined) {
         `by the model. Rename the field to make it model-writable.`,
     );
   }
+  const { id: _reserved, ...properties } = partial.properties ?? {};
   return {
     ...partial,
-    properties: { id: ID_PROPERTY, ...partial.properties },
+    properties: { id: ID_PROPERTY, ...properties },
     required: ["id"],
   };
 }

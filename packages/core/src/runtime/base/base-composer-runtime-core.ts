@@ -41,6 +41,19 @@ export abstract class BaseComposerRuntimeCore
   protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
   protected abstract getDictationAdapter(): DictationAdapter | undefined;
 
+  protected enrichWithComposerMetadata<
+    T extends { metadata?: { custom?: Record<string, unknown> } },
+  >(message: T, composerMetadata: Record<string, unknown> | undefined): T {
+    if (!composerMetadata) return message;
+    return {
+      ...message,
+      metadata: {
+        ...message.metadata,
+        custom: { ...message.metadata?.custom, ...composerMetadata },
+      },
+    } as T;
+  }
+
   public get attachmentAccept(): string {
     return this.getAttachmentAdapter()?.accept ?? "*";
   }

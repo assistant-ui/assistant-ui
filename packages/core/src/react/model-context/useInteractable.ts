@@ -33,7 +33,7 @@ export type InferInteractableState<TSchema> = TSchema extends {
 export type InteractableVersionInfo<TState> = {
   /** The interactable's state as it was at this message. */
   state: TState;
-  /** Whether this message holds the instance's most recent edit. */
+  /** Whether this message holds the instance's most recent tool-driven version. */
   isLatest: boolean;
   /** Sets the live state back to this version. */
   restore: () => void;
@@ -54,7 +54,8 @@ export type InteractableConfig<TSchema extends InteractableStateSchema> = {
    * Component installed as the tool UI for this interactable's `update_{name}`
    * tool calls, so a model edit re-renders the interactable at the message
    * that made it instead of only mutating an earlier one. Prefer
-   * `interactableTool`, which wires this up.
+   * `interactableTool`, which wires this up. Pass a stable component reference;
+   * changing identity re-registers the tool UI.
    */
   updateRender?: ToolCallMessagePartComponent | undefined;
 };
@@ -69,8 +70,8 @@ export type InteractableConfig<TSchema extends InteractableStateSchema> = {
  *
  * For `scope: "thread"` interactables rendered inside tool-call message parts,
  * `version` carries this message's version of the instance — its state as of
- * that point in the conversation, whether it is the most recent edit, and a
- * `restore()` back to it. Whether older messages render frozen history or stay
+ * that point in the conversation, whether it is the most recent tool-driven
+ * version, and a `restore()` back to it. Whether older messages render frozen history or stay
  * live-editable is the component's choice. Inside an `update_{name}` part the
  * instance `id` is inferred from the call, so the same component works at the
  * creating call and at update calls.

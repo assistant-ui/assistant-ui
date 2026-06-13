@@ -59,29 +59,17 @@ export function interactableToolName(name: string): string {
   return `update_${name.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 /** The merge `update_*` tools apply: top-level keys replace, rest preserved. */
 export function shallowMergeInteractableState(
   prev: unknown,
   partial: unknown,
 ): unknown {
-  if (
-    typeof prev !== "object" ||
-    prev === null ||
-    typeof partial !== "object" ||
-    partial === null ||
-    Array.isArray(prev) ||
-    Array.isArray(partial)
-  ) {
-    return partial;
-  }
-  return {
-    ...(prev as Record<string, unknown>),
-    ...(partial as Record<string, unknown>),
-  };
+  if (!isPlainObject(prev) || !isPlainObject(partial)) return partial;
+  return { ...prev, ...partial };
 }
-
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
  * The top-level fields of `next` that differ from `known`, for stamping a

@@ -14,7 +14,10 @@ import type {
 } from "../types/scopes/interactables";
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store";
-import { buildInteractableModelContext } from "./interactable-model-context";
+import {
+  buildInteractableModelContext,
+  type PartialJSONSchema,
+} from "./interactable-model-context";
 import {
   findModelKnownState,
   interactableToolName,
@@ -22,7 +25,14 @@ import {
 
 const PERSISTENCE_DEBOUNCE_MS = 500;
 
-type PartialJSONSchema = ReturnType<typeof toJSONSchema>;
+type RestorePersistedStateOptions = {
+  stash: Map<string, unknown>;
+  shouldStash?: (id: string) => boolean;
+  shouldApply?: (
+    id: string,
+    def: InteractablesState["definitions"][string],
+  ) => boolean;
+};
 
 const useInteractables = ({
   persistence,
@@ -72,6 +82,15 @@ const useInteractables = ({
     [],
   );
 
+  const exportState = useCallback((): InteractablePersistedState => {
+    const result: InteractablePersistedState = {};
+    for (const [id, def] of Object.entries(stateRef.current.definitions)) {
+      if (def.scope === "thread") continue; // thread items persist via snapshot, not the adapter
+      result[id] = { name: def.name, state: def.state };
+    }
+    return result;
+  }, []);
+
   const runPersistence = useCallback(async () => {
     const adapter = adapterRef.current;
     if (!adapter) {
@@ -86,12 +105,7 @@ const useInteractables = ({
     hasPendingLocalChangeRef.current = true;
 
     // Snapshot before any await so unregistered definitions are still included.
-    const exported = stateRef.current.definitions;
-    const payload: InteractablePersistedState = {};
-    for (const [id, def] of Object.entries(exported)) {
-      if (def.scope === "thread") continue; // thread items persist via snapshot, not the adapter
-      payload[id] = { name: def.name, state: def.state };
-    }
+    const payload = exportState();
 
     setStateAndRef((prev) => ({
       ...prev,
@@ -137,7 +151,7 @@ const useInteractables = ({
         flushResolversRef.current = [];
       }
     }
-  }, [setStateAndRef]);
+  }, [exportState, setStateAndRef]);
 
   const schedulePersistence = useCallback(
     (id: string) => {
@@ -161,51 +175,23 @@ const useInteractables = ({
     [runPersistence],
   );
 
-  const exportState = useCallback((): InteractablePersistedState => {
-    const result: InteractablePersistedState = {};
-    for (const [id, def] of Object.entries(stateRef.current.definitions)) {
-      if (def.scope === "thread") continue; // thread items persist via snapshot, not the adapter
-      result[id] = { name: def.name, state: def.state };
-    }
-    return result;
-  }, []);
+  const restorePersistedState = useCallback(
+    (
+      saved: InteractablePersistedState,
+      options: RestorePersistedStateOptions,
+    ) => {
+      const shouldStash = options.shouldStash ?? (() => true);
+      const shouldApply = options.shouldApply ?? (() => true);
 
-  const importState = useCallback(
-    (saved: InteractablePersistedState) => {
       for (const [id, entry] of Object.entries(saved)) {
-        detachedStateRef.current.set(id, entry.state);
+        if (shouldStash(id)) options.stash.set(id, entry.state);
       }
       setStateAndRef((prev) => {
         let changed = false;
         const definitions = { ...prev.definitions };
         for (const [id, entry] of Object.entries(saved)) {
-          if (definitions[id]) {
-            definitions[id] = { ...definitions[id], state: entry.state };
-            changed = true;
-          }
-        }
-        if (!changed) return prev;
-        return { ...prev, definitions };
-      });
-    },
-    [setStateAndRef],
-  );
-
-  // Applies adapter.load() output: a local edit made while the load was in
-  // flight wins, and thread-scoped items never restore from the adapter.
-  const applyLoadedState = useCallback(
-    (saved: InteractablePersistedState) => {
-      for (const [id, entry] of Object.entries(saved)) {
-        if (touchedIdsRef.current.has(id)) continue;
-        loadedStateRef.current.set(id, entry.state);
-      }
-      setStateAndRef((prev) => {
-        let changed = false;
-        const definitions = { ...prev.definitions };
-        for (const [id, entry] of Object.entries(saved)) {
-          if (touchedIdsRef.current.has(id)) continue;
           const def = definitions[id];
-          if (!def || def.scope === "thread") continue;
+          if (!def || !shouldApply(id, def)) continue;
           definitions[id] = { ...def, state: entry.state };
           changed = true;
         }
@@ -214,6 +200,27 @@ const useInteractables = ({
       });
     },
     [setStateAndRef],
+  );
+
+  const importState = useCallback(
+    (saved: InteractablePersistedState) => {
+      restorePersistedState(saved, { stash: detachedStateRef.current });
+    },
+    [restorePersistedState],
+  );
+
+  // Applies adapter.load() output: a local edit made while the load was in
+  // flight wins, and thread-scoped items never restore from the adapter.
+  const applyLoadedState = useCallback(
+    (saved: InteractablePersistedState) => {
+      restorePersistedState(saved, {
+        stash: loadedStateRef.current,
+        shouldStash: (id) => !touchedIdsRef.current.has(id),
+        shouldApply: (id, def) =>
+          !touchedIdsRef.current.has(id) && def.scope !== "thread",
+      });
+    },
+    [restorePersistedState],
   );
 
   const loadFromAdapter = useCallback(
@@ -427,7 +434,7 @@ const useInteractables = ({
             state:
               prev.definitions[def.id]?.state ??
               detached ??
-              (known ? known.state : undefined) ??
+              known?.state ??
               loaded ??
               def.initialState,
           },

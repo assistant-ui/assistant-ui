@@ -62,6 +62,44 @@ describe("buildInteractableModelContext", () => {
     expect(params.required).toEqual(["id"]);
   });
 
+  it("keeps the reserved id parameter when the state schema also has id", () => {
+    const userIdProperty = { type: "number" as const };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { ctx } = build(
+        { n1: def("n1", "note") },
+        new Map([
+          [
+            "n1",
+            {
+              type: "object" as const,
+              properties: {
+                id: userIdProperty,
+                title: { type: "string" as const },
+              },
+            },
+          ],
+        ]),
+      );
+      const params = ctx!.tools["update_note"]!.parameters as {
+        properties: Record<string, { type: string }>;
+        required?: string[];
+      };
+
+      expect(Object.keys(params.properties)).toEqual(["id", "title"]);
+      expect(params.properties.id).toEqual({
+        type: "string",
+        description:
+          "The id of the instance to update, as shown in its state snapshot in the conversation.",
+      });
+      expect(params.properties.id).not.toBe(userIdProperty);
+      expect(params.required).toEqual(["id"]);
+      expect(warn).toHaveBeenCalledOnce();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("falls back to a permissive schema when the partial conversion failed", () => {
     const { ctx } = build({ n1: def("n1", "note") }, new Map());
     const params = ctx!.tools["update_note"]!.parameters as {
