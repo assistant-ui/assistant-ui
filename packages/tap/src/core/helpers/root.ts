@@ -15,7 +15,6 @@ export const createResourceFiberRoot = (
     dispatchUpdate,
     changelog: [],
     rollbackCallbacks: [],
-    hasDirtyReducers: false,
   };
 };
 
@@ -23,7 +22,6 @@ export const commitRoot = (root: ResourceFiberRoot): void => {
   root.committedVersion = root.version;
   root.changelog.length = 0;
   root.rollbackCallbacks.length = 0;
-  root.hasDirtyReducers = false;
 };
 
 export const setRootVersion = (
@@ -37,7 +35,6 @@ export const setRootVersion = (
       root.rollbackCallbacks[i]!();
     }
     root.rollbackCallbacks.length = 0;
-    root.hasDirtyReducers = false;
 
     if (version === root.committedVersion) {
       root.changelog.length = 0;
@@ -90,7 +87,6 @@ export const markReducerDirty = (
   if (cell.isDirty) return;
 
   cell.isDirty = true;
-  fiber.root.hasDirtyReducers = true;
   fiber.markDirty?.();
   addRollback(fiber.root, () => {
     if (cell.queue !== null) {

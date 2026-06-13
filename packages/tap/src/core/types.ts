@@ -73,7 +73,6 @@ export interface ResourceFiberRoot {
 
   readonly dispatchUpdate: (callback: () => boolean) => void;
   readonly rollbackCallbacks: (() => void)[];
-  hasDirtyReducers: boolean;
 }
 
 export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {

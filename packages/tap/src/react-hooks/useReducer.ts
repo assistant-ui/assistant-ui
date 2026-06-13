@@ -81,7 +81,7 @@ const createReducerCell = (
         dispatchOnFiber(fiber, () => {
           if (
             eagerDispatch &&
-            !fiber.root.hasDirtyReducers &&
+            fiber.root.changelog.length === 0 &&
             !cell.isDirty &&
             !record.hasEagerState
           ) {
