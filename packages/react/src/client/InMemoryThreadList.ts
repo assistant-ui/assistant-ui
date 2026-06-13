@@ -129,21 +129,19 @@ const useInMemoryThreadList = (
   };
 
   const threadListItems = useClientLookup(
-    () =>
-      threads.map((t) =>
-        withKey(
-          t.id,
-          ThreadListItemClient({
-            data: t,
-            onSwitchTo: () => handleSwitchToThread(t.id),
-            onUpdateCustom: (custom) => handleUpdateCustom(t.id, custom),
-            onArchive: () => handleArchive(t.id),
-            onUnarchive: () => handleUnarchive(t.id),
-            onDelete: () => handleDelete(t.id),
-          }),
-        ),
+    threads.map((t) =>
+      withKey(
+        t.id,
+        ThreadListItemClient({
+          data: t,
+          onSwitchTo: () => handleSwitchToThread(t.id),
+          onUpdateCustom: (custom) => handleUpdateCustom(t.id, custom),
+          onArchive: () => handleArchive(t.id),
+          onUnarchive: () => handleUnarchive(t.id),
+          onDelete: () => handleDelete(t.id),
+        }),
       ),
-    [threads],
+    ),
   );
 
   // Create the main thread

@@ -17,17 +17,13 @@ const getElementKey = (el: ResourceElement<unknown>) => {
 };
 
 export function useClientLookup<TMethods extends ClientMethods>(
-  getElements: () => readonly ResourceElement<TMethods>[],
-  getElementsDeps: readonly unknown[],
+  elements: readonly ResourceElement<TMethods>[],
 ): {
   state: InferClientState<TMethods>[];
   get: (lookup: { index: number } | { key: string }) => TMethods;
 } {
   const resources = useResources(
-    () =>
-      getElements().map((el) => withKey(getElementKey(el), ClientResource(el))),
-    // oxlint-disable-next-line react/exhaustive-deps -- caller-supplied deps array
-    getElementsDeps,
+    elements.map((el) => withKey(getElementKey(el), ClientResource(el))),
   );
 
   const keys = useMemo(() => Object.keys(resources), [resources]);

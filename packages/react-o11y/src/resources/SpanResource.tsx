@@ -166,18 +166,16 @@ const useSpanResource = ({
   };
 
   const lookup = useClientLookup(
-    () =>
-      visibleSpans.map((span) =>
-        withKey(
-          span.id,
-          SpanChildResource({
-            span,
-            timeRange,
-            onToggleCollapse: toggleCollapse,
-          }),
-        ),
+    visibleSpans.map((span) =>
+      withKey(
+        span.id,
+        SpanChildResource({
+          span,
+          timeRange,
+          onToggleCollapse: toggleCollapse,
+        }),
       ),
-    [visibleSpans, timeRange, toggleCollapse],
+    ),
   );
 
   const rootState: SpanState = {

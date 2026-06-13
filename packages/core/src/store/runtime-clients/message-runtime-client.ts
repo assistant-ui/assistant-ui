@@ -7,6 +7,7 @@ import {
 } from "@assistant-ui/store";
 import type { MessageRuntime } from "../../runtime/api/message-runtime";
 import { useSubscribable } from "./useSubscribable";
+import { liveRef } from "./liveRef";
 import { ComposerClient } from "./composer-runtime-client";
 import { MessagePartClient } from "./message-part-runtime-client";
 import type { MessageState } from "../scopes/message";
@@ -59,11 +60,7 @@ const useMessageClient = ({
   const [isHoveringState, setIsHovering] = useState(false);
 
   const messageIdRef = useMemo(
-    () => ({
-      get current() {
-        return runtime.getState().id;
-      },
-    }),
+    () => liveRef(() => runtime.getState().id),
     [runtime],
   );
 
@@ -75,27 +72,23 @@ const useMessageClient = ({
     }),
   );
   const parts = useClientLookup(
-    () =>
-      runtimeState.content.map((part, idx) =>
-        withKey(
-          "toolCallId" in part && part.toolCallId != null
-            ? `toolCallId-${part.toolCallId}`
-            : `index-${idx}`,
-          MessagePartByIndex({ runtime, index: idx }),
-        ),
+    runtimeState.content.map((part, idx) =>
+      withKey(
+        "toolCallId" in part && part.toolCallId != null
+          ? `toolCallId-${part.toolCallId}`
+          : `index-${idx}`,
+        MessagePartByIndex({ runtime, index: idx }),
       ),
-    [runtimeState.content, runtime],
+    ),
   );
 
   const attachments = useClientLookup(
-    () =>
-      (runtimeState.attachments ?? []).map((attachment, idx) =>
-        withKey(
-          attachment.id,
-          MessageAttachmentClientByIndex({ runtime, index: idx }),
-        ),
+    (runtimeState.attachments ?? []).map((attachment, idx) =>
+      withKey(
+        attachment.id,
+        MessageAttachmentClientByIndex({ runtime, index: idx }),
       ),
-    [runtimeState.attachments, runtime],
+    ),
   );
 
   const state = useMemo<MessageState>(() => {

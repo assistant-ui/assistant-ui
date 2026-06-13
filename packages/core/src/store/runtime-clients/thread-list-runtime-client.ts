@@ -47,11 +47,9 @@ const useThreadListClient = ({
     }),
   );
   const threadItems = useClientLookup(
-    () =>
-      Object.keys(runtimeState.threadItems).map((id) =>
-        withKey(id, ThreadListItemClientById({ runtime, id })),
-      ),
-    [runtimeState.threadItems, runtime],
+    Object.keys(runtimeState.threadItems).map((id) =>
+      withKey(id, ThreadListItemClientById({ runtime, id })),
+    ),
   );
 
   const state = useMemo<ThreadsState>(() => {

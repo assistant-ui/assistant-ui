@@ -72,7 +72,7 @@
   },
   "peerDependencies": {
     "@assistant-ui/store": "^0.2.13",
-    "@assistant-ui/tap": "^0.7.0",
+    "@assistant-ui/tap": "^0.8.0",
     "@types/react": "*",
     "react": "^18 || ^19",
     "assistant-cloud": "^0.1.31",

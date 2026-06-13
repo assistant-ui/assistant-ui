@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.8.0
+
+### Minor Changes
+
+- feat: drop the experimental deps array from `useResource`/`useResources` and make `useResources` take an array of elements directly instead of a `getElements` callback. The React Compiler memoizes element inputs, so the manual dependency arrays were redundant; re-renders are now controlled by element identity. ([@Yonom](https://github.com/Yonom))
+
 ## 0.7.1
 
 ### Patch Changes

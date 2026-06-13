@@ -91,25 +91,21 @@ const useMessageClient = ({
   const [isEditing, setIsEditing] = useState(false);
 
   const partClients = useClientLookup(
-    () =>
-      message.content.map((part, idx) =>
-        withKey(idx, PartResource({ part, onRespondToToolApproval })),
-      ),
-    [message.content, onRespondToToolApproval],
+    message.content.map((part, idx) =>
+      withKey(idx, PartResource({ part, onRespondToToolApproval })),
+    ),
   );
 
   const attachmentClients = useClientLookup(
-    () =>
-      (message.attachments ?? []).map((attachment) =>
-        withKey(
-          attachment.id,
-          AttachmentResource({
-            attachment,
-            onRemove: () => {},
-          }),
-        ),
+    (message.attachments ?? []).map((attachment) =>
+      withKey(
+        attachment.id,
+        AttachmentResource({
+          attachment,
+          onRemove: () => {},
+        }),
       ),
-    [message.attachments],
+    ),
   );
 
   const handleBeginEdit = () => {
@@ -362,35 +358,31 @@ const useComposerClientResource = ({
   }, [isEditing]);
 
   const attachmentClients = useClientLookup(
-    () =>
-      attachments.map((attachment, idx) =>
-        withKey(
-          attachment.id,
-          AttachmentResource({
-            attachment,
-            onRemove: () => {
-              setAttachments(attachments.filter((_, i) => i !== idx));
-            },
-          }),
-        ),
+    attachments.map((attachment, idx) =>
+      withKey(
+        attachment.id,
+        AttachmentResource({
+          attachment,
+          onRemove: () => {
+            setAttachments(attachments.filter((_, i) => i !== idx));
+          },
+        }),
       ),
-    [attachments],
+    ),
   );
 
   const queueItems = queue?.items ?? EMPTY_QUEUE_ITEMS;
   const queueItemClients = useClientLookup(
-    () =>
-      queueItems.map((item) =>
-        withKey(
-          item.id,
-          QueueItemClient({
-            item,
-            onSteer: () => queue?.steer(item.id),
-            onRemove: () => queue?.remove(item.id),
-          }),
-        ),
+    queueItems.map((item) =>
+      withKey(
+        item.id,
+        QueueItemClient({
+          item,
+          onSteer: () => queue?.steer(item.id),
+          onRemove: () => queue?.remove(item.id),
+        }),
       ),
-    [queueItems],
+    ),
   );
 
   const state = useMemo(() => {
@@ -534,20 +526,18 @@ const useExternalThread = ({
   };
 
   const messageClients = useClientLookup(
-    () =>
-      messages.map((msg, index) => {
-        const props: MessageClientProps = {
-          message: msg,
-          index,
-          onReload: () => handleReload(msg.id),
-          queue,
-          branches,
-          onRespondToToolApproval,
-        };
-        if (onEdit) props.onEdit = onEdit;
-        return withKey(msg.id, MessageClient(props));
-      }),
-    [messages, onEdit, queue, branches, onRespondToToolApproval],
+    messages.map((msg, index) => {
+      const props: MessageClientProps = {
+        message: msg,
+        index,
+        onReload: () => handleReload(msg.id),
+        queue,
+        branches,
+        onRespondToToolApproval,
+      };
+      if (onEdit) props.onEdit = onEdit;
+      return withKey(msg.id, MessageClient(props));
+    }),
   );
 
   const handleCancelRun = () => {

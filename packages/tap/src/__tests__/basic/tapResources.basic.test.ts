@@ -56,14 +56,11 @@ describe("useResources - Basic Functionality", () => {
   describe("Basic Rendering", () => {
     it("should render multiple resources with keys", () => {
       const testFiber = createTestResource(() => {
-        const results = useResources(
-          () => [
-            withKey("a", SimpleCounter({ value: 10 })),
-            withKey("b", SimpleCounter({ value: 20 })),
-            withKey("c", SimpleCounter({ value: 30 })),
-          ],
-          [],
-        );
+        const results = useResources([
+          withKey("a", SimpleCounter({ value: 10 })),
+          withKey("b", SimpleCounter({ value: 20 })),
+          withKey("c", SimpleCounter({ value: 30 })),
+        ]);
 
         return results;
       });
@@ -88,11 +85,9 @@ describe("useResources - Basic Functionality", () => {
 
       const testFiber = createTestResource(() => {
         const results = useResources(
-          () =>
-            items.map((item) =>
-              withKey(item.key, Counter({ value: item.value })),
-            ),
-          [],
+          items.map((item) =>
+            withKey(item.key, Counter({ value: item.value })),
+          ),
         );
 
         return results;
@@ -113,14 +108,14 @@ describe("useResources - Basic Functionality", () => {
         (props: {
           items: Array<{ key: string; value: number; id: string }>;
         }) => {
-          return useResources(() => {
-            return props.items.map((item) =>
+          return useResources(
+            props.items.map((item) =>
               withKey(
                 item.key,
                 TrackingCounter({ value: item.value, id: item.id }),
               ),
-            );
-          }, [props.items]);
+            ),
+          );
         },
       );
 
@@ -170,11 +165,11 @@ describe("useResources - Basic Functionality", () => {
     it("should handle adding and removing resources", () => {
       const testFiber = createTestResource(
         (props: { items: Array<{ key: string; value: number }> }) => {
-          const results = useResources(() => {
-            return props.items.map((item) =>
+          const results = useResources(
+            props.items.map((item) =>
               withKey(item.key, SimpleCounter({ value: item.value })),
-            );
-          }, [props.items]);
+            ),
+          );
           return results;
         },
       );
@@ -211,17 +206,14 @@ describe("useResources - Basic Functionality", () => {
 
     it("should handle changing resource types for the same key", () => {
       const testFiber = createTestResource((props: { useCounter: boolean }) => {
-        const results = useResources(
-          () => [
-            withKey(
-              "item",
-              props.useCounter
-                ? StatefulCounter({ initial: 42 })
-                : Display({ text: "Hello" }),
-            ),
-          ],
-          [props.useCounter],
-        );
+        const results = useResources([
+          withKey(
+            "item",
+            props.useCounter
+              ? StatefulCounter({ initial: 42 })
+              : Display({ text: "Hello" }),
+          ),
+        ]);
         return results;
       });
 

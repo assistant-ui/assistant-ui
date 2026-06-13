@@ -87,18 +87,3 @@ No special configuration is needed.
 those reads trigger synchronous re-renders and opt out of concurrent scheduling.
 This may change in a future release.
 </Callout>
-
-## Controlling child re-renders
-
-By default a child re-renders whenever its parent does. `useResource` accepts an
-optional dependency array as a second argument to control when the child receives
-new props, mirroring a `useMemo` dependency list:
-
-```ts
-const counter = useResource(Counter({ incrementBy }), [incrementBy]);
-```
-
-<Callout type="warn">
-This optimization is experimental and applies inside a resource render; it is
-ignored when `useResource` runs in a React component.
-</Callout>

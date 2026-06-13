@@ -76,24 +76,20 @@ const useThreadMessageClient = ({
   const [isHoveringState, setIsHovering] = useState(false);
 
   const parts = useClientLookup(
-    () =>
-      message.content.map((part, idx) =>
-        withKey(
-          "toolCallId" in part && part.toolCallId != null
-            ? `toolCallId-${part.toolCallId}`
-            : `index-${idx}`,
-          ThreadMessagePartClient({ part }),
-        ),
+    message.content.map((part, idx) =>
+      withKey(
+        "toolCallId" in part && part.toolCallId != null
+          ? `toolCallId-${part.toolCallId}`
+          : `index-${idx}`,
+        ThreadMessagePartClient({ part }),
       ),
-    [message.content],
+    ),
   );
 
   const attachments = useClientLookup(
-    () =>
-      (message.attachments ?? []).map((attachment) =>
-        withKey(attachment.id, ThreadMessageAttachmentClient({ attachment })),
-      ),
-    [message.attachments],
+    (message.attachments ?? []).map((attachment) =>
+      withKey(attachment.id, ThreadMessageAttachmentClient({ attachment })),
+    ),
   );
 
   const composer = useResource(NoOpComposerClient({ type: "edit" }));

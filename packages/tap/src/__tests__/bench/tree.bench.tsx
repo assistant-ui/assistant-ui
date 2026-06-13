@@ -54,7 +54,7 @@ const useTree = () => {
 const useTreeDeps = () => {
   let total = 0;
   for (let i = 0; i < M; i++) {
-    total += useResource(Leaf({ id: i }), [i]);
+    total += useResource(Leaf({ id: i }));
   }
   return total;
 };

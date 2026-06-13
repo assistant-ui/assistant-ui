@@ -102,33 +102,29 @@ const useComposerClient = ({
   }, [runtime, emit, threadIdRef, messageIdRef]);
 
   const attachments = useClientLookup(
-    () =>
-      runtimeState.attachments.map((attachment, idx) =>
-        withKey(
-          attachment.id,
-          ComposerAttachmentClientByIndex({
-            runtime,
-            index: idx,
-          }),
-        ),
+    runtimeState.attachments.map((attachment, idx) =>
+      withKey(
+        attachment.id,
+        ComposerAttachmentClientByIndex({
+          runtime,
+          index: idx,
+        }),
       ),
-    [runtimeState.attachments, runtime],
+    ),
   );
 
   const queue = runtimeState.queue;
   const queueItems = useClientLookup(
-    () =>
-      queue.map((item) =>
-        withKey(
-          item.id,
-          QueueItemClient({
-            item,
-            onSteer: () => runtime.steerQueueItem(item.id),
-            onRemove: () => runtime.removeQueueItem(item.id),
-          }),
-        ),
+    queue.map((item) =>
+      withKey(
+        item.id,
+        QueueItemClient({
+          item,
+          onSteer: () => runtime.steerQueueItem(item.id),
+          onRemove: () => runtime.removeQueueItem(item.id),
+        }),
       ),
-    [queue, runtime],
+    ),
   );
 
   const state = useMemo<ComposerState>(() => {

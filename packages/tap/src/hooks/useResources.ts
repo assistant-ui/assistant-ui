@@ -10,7 +10,7 @@ import {
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useCallback, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 
 type FiberState = {
@@ -19,15 +19,9 @@ type FiberState = {
 };
 
 export function useResources<E extends ResourceElement<any, any[]>>(
-  getElements: () => readonly E[],
-  getElementsDeps?: readonly unknown[],
+  elements: readonly E[],
 ): ExtractResourceReturnType<E>[] {
   const fibers = useMemo(() => new Map<string | number, FiberState>(), []);
-
-  const getElementsMemo = getElementsDeps
-    ? // oxlint-disable-next-line react/exhaustive-deps,react/rules-of-hooks -- deps forwarded by caller; getElementsDeps presence is fixed per call site
-      useCallback(getElements, getElementsDeps)
-    : getElements;
 
   // Process each element
 
@@ -35,14 +29,13 @@ export function useResources<E extends ResourceElement<any, any[]>>(
   const res = useRenderMemo(() => {
     void version;
 
-    const elementsArray = getElementsMemo();
     const seenKeys = new Set<string | number>();
     const results: any[] = [];
     let newCount = 0;
 
     // Create/update fibers and render
-    for (let i = 0; i < elementsArray.length; i++) {
-      const element = elementsArray[i]!;
+    for (let i = 0; i < elements.length; i++) {
+      const element = elements[i]!;
 
       const elementKey = element.key;
       if (elementKey === undefined) {
@@ -87,7 +80,7 @@ export function useResources<E extends ResourceElement<any, any[]>>(
     }
 
     return results;
-  }, [getElementsMemo, fibers, createFiber, version]);
+  }, [elements, fibers, createFiber, version]);
 
   // Cleanup on unmount
   useEffect(() => {

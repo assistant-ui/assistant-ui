@@ -127,7 +127,7 @@ const NoOpRootClientsAccessorsResource = resource(
   useNoOpRootClientsAccessorsResource,
 );
 
-const useRootClientsAccessorsResource = ({
+const useRootClientsAccessors = ({
   clients: inputClients,
   clientRef,
 }: {
@@ -143,21 +143,29 @@ const useRootClientsAccessorsResource = ({
 
   const results = useShallowMemoArray(
     useResources(
-      () =>
-        Object.keys(inputClients).map((key) =>
-          withKey(
-            key,
-            RootClientAccessorResource({
-              element: inputClients[key as keyof typeof inputClients]!,
-              notifications,
-              clientRef,
-              name: key as keyof typeof inputClients,
-            }),
-          ),
+      Object.keys(inputClients).map((key) =>
+        withKey(
+          key,
+          RootClientAccessorResource({
+            element: inputClients[key as keyof typeof inputClients]!,
+            notifications,
+            clientRef,
+            name: key as keyof typeof inputClients,
+          }),
         ),
-      [inputClients, notifications, clientRef],
+      ),
     ),
   );
+
+  return { notifications, results };
+};
+
+const useRootClientsAccessorsResource = (props: {
+  clients: RootClients;
+  clientRef: { parent: AssistantClient; current: AssistantClient | null };
+}) => {
+  const { clientRef } = props;
+  const { notifications, results } = useRootClientsAccessors(props);
 
   return useMemo(() => {
     return {
@@ -285,20 +293,18 @@ const useDerivedClientsAccessorsResource = ({
 }) => {
   return useShallowMemoArray(
     useResources(
-      () =>
-        Object.keys(clients).map((key) => {
-          const name = key as keyof typeof clients;
-          const element = clients[name]!;
-          return withKey(
-            serializeMeta(name, element.args[0]),
-            DerivedClientAccessorResource({
-              element,
-              clientRef,
-              name,
-            }),
-          );
-        }),
-      [clients, clientRef],
+      Object.keys(clients).map((key) => {
+        const name = key as keyof typeof clients;
+        const element = clients[name]!;
+        return withKey(
+          serializeMeta(name, element.args[0]),
+          DerivedClientAccessorResource({
+            element,
+            clientRef,
+            name,
+          }),
+        );
+      }),
     ),
   );
 };
@@ -306,6 +312,20 @@ const useDerivedClientsAccessorsResource = ({
 /**
  * Resource that creates an extended AssistantClient.
  */
+const useRootFields = ({
+  rootClients,
+  clientRef,
+}: {
+  rootClients: RootClients;
+  clientRef: { parent: AssistantClient; current: AssistantClient | null };
+}) => {
+  return useResource(
+    Object.keys(rootClients).length > 0
+      ? RootClientsAccessorsResource({ clients: rootClients, clientRef })
+      : NoOpRootClientsAccessorsResource(),
+  );
+};
+
 const useAssistantClient = ({
   parent,
   clients,
@@ -324,11 +344,7 @@ const useAssistantClient = ({
     clientRef.current = client;
   });
 
-  const rootFields = useResource(
-    Object.keys(rootClients).length > 0
-      ? RootClientsAccessorsResource({ clients: rootClients, clientRef })
-      : NoOpRootClientsAccessorsResource(),
-  );
+  const rootFields = useRootFields({ rootClients, clientRef });
 
   const derivedFields = useDerivedClientsAccessorsResource({
     clients: derivedClients,

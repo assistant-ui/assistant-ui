@@ -54,23 +54,31 @@ const useMcpManagerResource = (
   const hydratedRef = useRef(false);
 
   const hydrate = useEffectEvent(async (signal: { cancelled: boolean }) => {
-    try {
-      const records = await storage.loadCustomServers();
-      if (signal.cancelled) return;
-      // Merge rather than replace so any addCustomServer calls that
-      // happened before hydration resolved aren't silently overwritten.
-      // Persisted order wins; pre-hydration locals append.
-      setCustomServers((prev) => {
-        if (prev.length === 0) return records;
-        const persistedIds = new Set(records.map((r) => r.id));
-        return [...records, ...prev.filter((r) => !persistedIds.has(r.id))];
-      });
-    } finally {
+    const markHydrated = () => {
       if (!signal.cancelled) {
         hydratedRef.current = true;
         setIsHydrated(true);
       }
+    };
+
+    let records: Awaited<ReturnType<typeof storage.loadCustomServers>>;
+    try {
+      records = await storage.loadCustomServers();
+    } catch (error) {
+      markHydrated();
+      throw error;
     }
+
+    if (signal.cancelled) return;
+    // Merge rather than replace so any addCustomServer calls that
+    // happened before hydration resolved aren't silently overwritten.
+    // Persisted order wins; pre-hydration locals append.
+    setCustomServers((prev) => {
+      if (prev.length === 0) return records;
+      const persistedIds = new Set(records.map((r) => r.id));
+      return [...records, ...prev.filter((r) => !persistedIds.has(r.id))];
+    });
+    markHydrated();
   });
 
   useEffect(() => {
@@ -133,7 +141,7 @@ const useMcpManagerResource = (
     return [...connectorElements, ...customElements];
   }, [connectors, customServers, storage, redirectUri, autoConnect]);
 
-  const lookup = useClientLookup(() => serverElements, [serverElements]);
+  const lookup = useClientLookup(serverElements);
 
   const state = useMemo<MCPManagerState>(() => {
     const all = lookup.state;

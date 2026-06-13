@@ -90,8 +90,7 @@ const useTodoListResource = (): ClientOutput<"todoList"> => {
   ]);
 
   const todos = useClientLookup(
-    () => items.map((item) => withKey(item.id, TodoResource(item))),
-    [items],
+    items.map((item) => withKey(item.id, TodoResource(item))),
   );
 
   const state = useMemo(

@@ -39,10 +39,7 @@ const useTools = ({
   /** Optional MCP app resource whose tools should be merged into context. */
   mcpApp?: ResourceElement<McpAppResourceOutput> | undefined;
 }): ClientOutput<"tools"> => {
-  const mcpAppOutputs = useResources(
-    () => (mcpApp ? [withKey("mcpApp", mcpApp)] : []),
-    [mcpApp],
-  );
+  const mcpAppOutputs = useResources(mcpApp ? [withKey("mcpApp", mcpApp)] : []);
   const mcpAppOutput = mcpAppOutputs[0];
 
   const [toolUIs, setToolUIs] = useState<ToolsState["toolUIs"]>(() => ({}));
@@ -88,7 +85,8 @@ const useTools = ({
           if (next.length > 0) return { ...prev, [toolName]: next };
           // Drop the key entirely so repeatedly mounted/unmounted tools
           // don't leave empty arrays accumulating across a long session.
-          const { [toolName]: _removed, ...rest } = prev;
+          const rest = { ...prev };
+          delete rest[toolName];
           return rest;
         });
       };

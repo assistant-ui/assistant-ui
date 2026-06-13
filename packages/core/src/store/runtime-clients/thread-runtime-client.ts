@@ -3,6 +3,7 @@ import type { ThreadRuntimeEventType } from "../../runtime/interfaces/thread-run
 import type { ThreadRuntime } from "../../runtime/api/thread-runtime";
 import { useMemo, useEffect, RefObject } from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
+import { liveRef } from "./liveRef";
 import {
   type ClientOutput,
   useAssistantEmit,
@@ -67,11 +68,7 @@ const useThreadClient = ({
   }, [runtime, emit]);
 
   const threadIdRef = useMemo(
-    () => ({
-      get current() {
-        return runtime.getState()!.threadId;
-      },
-    }),
+    () => liveRef(() => runtime.getState()!.threadId),
     [runtime],
   );
 
@@ -82,11 +79,9 @@ const useThreadClient = ({
     }),
   );
   const messages = useClientLookup(
-    () =>
-      runtimeState.messages.map((m) =>
-        withKey(m.id, MessageClientById({ runtime, id: m.id, threadIdRef })),
-      ),
-    [runtimeState.messages, runtime, threadIdRef],
+    runtimeState.messages.map((m) =>
+      withKey(m.id, MessageClientById({ runtime, id: m.id, threadIdRef })),
+    ),
   );
 
   const state = useMemo<ThreadState>(() => {

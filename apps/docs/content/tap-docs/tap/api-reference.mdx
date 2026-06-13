@@ -50,18 +50,16 @@ and inside another resource. Returns the resource's value.
 
 ```ts
 const value = useResource(Counter({ initialValue: 0 }));
-const value = useResource(Counter({ incrementBy }), [incrementBy]); // optional deps (experimental)
 ```
 
 ## useResources
 
-Hosts a dynamic, keyed list of resources. Every element must have a key via
-[`withKey`](#withkey). Isomorphic.
+Hosts a dynamic, keyed list of resources. Takes an array of elements; every
+element must have a key via [`withKey`](#withkey). Isomorphic.
 
 ```ts
 const values = useResources(
-  () => items.map((item) => withKey(item.id, Item({ text: item.text }))),
-  [items],
+  items.map((item) => withKey(item.id, Item({ text: item.text }))),
 );
 ```
 

@@ -33,16 +33,12 @@ const useTimer = () => {
 const Timer = resource(useTimer);
 ```
 
-### Props dependencies
+### Controlling re-renders
 
-<Callout type="warn">
-This API is experimental and may change.
-</Callout>
-
-By default, the child re-renders whenever the parent re-renders. You can pass a dependency array to control when the child receives new props.
+The child re-renders when the element identity changes. The [React Compiler](https://react.dev/learn/react-compiler) keeps the element stable across renders when its props are unchanged, so the child only re-renders when its inputs actually change, no manual dependency tracking required.
 
 ```ts
-const result = useResource(Counter({ incrementBy }), [incrementBy]);
+const result = useResource(Counter({ incrementBy }));
 ```
 
 ## useResources
@@ -51,7 +47,7 @@ const result = useResource(Counter({ incrementBy }), [incrementBy]);
 This API is experimental and may change.
 </Callout>
 
-Render a dynamic list of child resources. Each element **must** have a key via `withKey`. Resources are preserved across renders when their key stays the same.
+Render a dynamic list of child resources, passed as an array. Each element **must** have a key via `withKey`. Resources are preserved across renders when their key stays the same.
 
 ```ts
 import { resource, withKey, useResources } from "@assistant-ui/tap";
@@ -64,8 +60,7 @@ const useTodoList = () => {
   ]);
 
   const todos = useResources(
-    () => items.map((item) => withKey(item.id, TodoItem({ text: item.text }))),
-    [items],
+    items.map((item) => withKey(item.id, TodoItem({ text: item.text }))),
   );
 
   return {

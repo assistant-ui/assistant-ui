@@ -63,7 +63,7 @@ describe("@assistant-ui/tap/react resource API", () => {
 
       const Item = resource(useItem);
       const parent = createTestResource(() =>
-        useResources(() => [
+        useResources([
           withKey("a", Item({ n: 1 })),
           withKey("b", Item({ n: 2 })),
         ]),
@@ -84,11 +84,9 @@ describe("@assistant-ui/tap/react resource API", () => {
         const [count, setCountState] = useState(2);
         setCount = setCountState;
         const items = useResources(
-          () =>
-            Array.from({ length: count }, (_, i) =>
-              withKey(i, Item({ n: i + 1 })),
-            ),
-          [count],
+          Array.from({ length: count }, (_, i) =>
+            withKey(i, Item({ n: i + 1 })),
+          ),
         );
         return <div data-testid="list">{items.join(",")}</div>;
       }

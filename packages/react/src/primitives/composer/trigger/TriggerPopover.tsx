@@ -9,6 +9,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useEffectEvent,
   useId,
   useMemo,
   useRef,
@@ -161,23 +162,21 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
       }),
     );
 
-    // Wrapper changes per render, but tap-stable methods inside don't.
-    const resourceRef = useRef(resource);
-    resourceRef.current = resource;
+    const getResource = useEffectEvent(() => resource);
 
     const root = useTriggerPopoverRootContext();
     useEffect(() => {
       return root.register({
         char,
         ...(behavior ? { behavior } : {}),
-        resource: resourceRef.current,
+        resource: getResource(),
       });
     }, [root, char, behavior]);
 
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     useEffect(() => {
       if (!pluginRegistry) return undefined;
-      return pluginRegistry.register(resourceRef.current);
+      return pluginRegistry.register(getResource());
     }, [pluginRegistry]);
 
     const open = behavior !== null && resource.open;

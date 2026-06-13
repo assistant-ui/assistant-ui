@@ -154,8 +154,7 @@ Wraps a single resource element into a client. Adds the client to the internal c
 
 ```ts
 function useClientLookup<TMethods extends ClientMethods>(
-  getElements: () => readonly ResourceElement<TMethods>[],
-  getElementsDeps: readonly unknown[],
+  elements: readonly ResourceElement<TMethods>[],
 ): {
   state: InferClientState<TMethods>[];
   get: (lookup: { index: number } | { key: string }) => TMethods;

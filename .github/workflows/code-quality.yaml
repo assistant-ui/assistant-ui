@@ -59,6 +59,9 @@ jobs:
       - name: Run oxlint + oxfmt
         run: pnpm lint
 
+      - name: Check resource memoization (React Compiler)
+        run: pnpm check:resource-memo
+
   template-sync:
     name: Template Sync
     runs-on: blacksmith-4vcpu-ubuntu-2404

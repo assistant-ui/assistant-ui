@@ -65,9 +65,7 @@ export const useClientList = <TData, TMethods extends ClientMethods>(
   });
 
   const lookup = useClientLookup<TMethods>(
-    () =>
-      Object.values(items).map((props) => withKey(props.key, Resource(props))),
-    [items, Resource],
+    Object.values(items).map((props) => withKey(props.key, Resource(props))),
   );
 
   initialDataHandles.forEach((handle) => {
