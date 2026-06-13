@@ -7,7 +7,7 @@ import type {
 import { CommitPriority } from "./commit";
 
 export const createResourceFiberRoot = (
-  dispatchUpdate: (cb: () => boolean) => void,
+  dispatchUpdate: (evaluate: () => boolean, apply: () => boolean) => void,
 ): ResourceFiberRoot => {
   return {
     version: 0,
@@ -49,7 +49,7 @@ export const setRootVersion = (
       }
 
       for (let i = 0; i < root.changelog.length; i++) {
-        root.changelog[i]!();
+        applyChangelogRecord(root.changelog[i]!);
       }
       commitRoot(root);
     }

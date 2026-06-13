@@ -6,8 +6,6 @@
  *  - tap's eager dispatch bailout is more aggressive than React's: no stale
  *    lanes, so a same-value dispatch right after an update skips the render
  *    React still does, and no-change renders commit no-deps effects.
- *  - Bridge dispatches ride the host's React reducer: a fully bailable
- *    dispatch renders the host once where React and tap roots render nothing.
  *  - useLayoutEffect collapses onto useEffect (no layout phase).
  *  - Dispatch after unmount applies, like an Activity hide: tap cannot
  *    distinguish a hide from a deletion. Do NOT add an isMounted guard.
@@ -94,7 +92,7 @@ describe("divergence: eager dispatch bailout is more aggressive than React's", (
   });
 });
 
-describe("divergence: fully-bailable dispatch renders the bridge host once", () => {
+describe("fully-bailable bridge dispatch matches React", () => {
   const scenario: Scenario = {
     name: "",
     use: (log) => {
@@ -107,17 +105,14 @@ describe("divergence: fully-bailable dispatch renders the bridge host once", () 
     },
   };
 
-  it("React and tap roots bail without rendering; the bridge renders once", async () => {
+  it("React, tap roots, and the bridge bail without rendering", async () => {
     const react = await runScenario("react", scenario);
     expect(countOf(react, "render 0")).toBe(perRender);
 
-    for (const env of ["tapRoot", "createTapRoot"] as const) {
+    for (const env of TAP_ENVS) {
       const tap = await runScenario(env, scenario);
       expect(tap).toEqual(react);
     }
-
-    const bridge = await runScenario("bridge", scenario);
-    expect(countOf(bridge, "render 0")).toBe(2 * perRender);
   });
 });
 

@@ -14,9 +14,10 @@ export const createTapRoot = <R>(
 ): useTapRoot.Root<R> & { unmount: () => void } => {
   const fiber = createResourceFiber(
     useTapRoot,
-    createResourceFiberRoot((callback) => {
+    createResourceFiberRoot((evaluate, apply) => {
       new UpdateScheduler(() => {
-        if (callback()) {
+        if (evaluate()) {
+          apply();
           throw new Error("Unexpected rerender of createTapRoot outer fiber");
         }
         return false;

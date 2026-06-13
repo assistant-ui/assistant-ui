@@ -1,4 +1,4 @@
-import { useRef, useMemo, useReducer, useCallback } from "react";
+import { useRef, useMemo, useReducer, useState, useCallback } from "react";
 import {
   getCurrentResourceFiber,
   peekResourceFiber,
@@ -28,13 +28,28 @@ const useResourceFiberHostUtilsTap = () => {
 
 const useResourceFiberHostUtilsReact = () => {
   const root = useMemo<ResourceFiberRoot>(() => {
-    return createResourceFiberRoot((cb) => dispatch(cb));
+    return createResourceFiberRoot((evaluateUpdate, applyUpdate) => {
+      let eagerBail = false;
+
+      evaluate((version) => {
+        eagerBail = !evaluateUpdate();
+        return eagerBail ? version : version + 1;
+      });
+
+      if (!eagerBail) {
+        apply(applyUpdate);
+      }
+    });
   }, []);
 
-  const [version, dispatch] = useReducer((v: number, cb: () => boolean) => {
-    setRootVersion(root!, v);
-    return v + (cb() ? 1 : 0);
-  }, 0);
+  const [version, apply] = useReducer(
+    (v: number, applyUpdate: () => boolean) => {
+      setRootVersion(root!, v);
+      return v + (applyUpdate() ? 1 : 0);
+    },
+    0,
+  );
+  const [, evaluate] = useState(0);
   setRootVersion(root, version);
 
   return { root, version, markDirty: undefined };

@@ -16,8 +16,9 @@ import { useState } from "../react-hooks/useState";
 export function createTestResource<R, A extends readonly unknown[]>(
   fn: (...args: A) => R,
 ) {
-  const rerenderCallback = (callback: () => boolean) => {
-    if (!callback()) return;
+  const rerenderCallback = (evaluate: () => boolean, apply: () => boolean) => {
+    if (!evaluate()) return;
+    apply();
 
     // Re-render when state changes
     if (activeResources.has(fiber)) {

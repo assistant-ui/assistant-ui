@@ -35,14 +35,16 @@ export function useEffect(
     throwRenderedMoreHooks();
   }
 
-  let cell = fiber.cells[index];
-  if (cell === undefined) {
-    cell = newEffect();
-    fiber.cells[index] = cell;
-  }
+  const existing = fiber.cells[index];
+  const cell: Cell & { type: "effect" } =
+    existing === undefined
+      ? newEffect()
+      : existing.type === "effect"
+        ? existing
+        : throwHookOrderChanged();
 
-  if (cell.type !== "effect") {
-    throwHookOrderChanged();
+  if (existing === undefined) {
+    fiber.cells[index] = cell;
   }
 
   if (deps && cell.deps && depsShallowEqual(cell.deps, deps)) return;

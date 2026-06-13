@@ -19,22 +19,46 @@ type Dispatch<A> = (action: A) => void;
 
 const dispatchOnFiber = (
   fiber: ResourceFiber<any, any>,
-  callback: () => ChangelogRecord | null,
+  record: ChangelogRecord,
+  eagerReducer: ((state: any, action: any) => any) | undefined,
 ): void => {
   if (fiber.isNeverMounted) {
     throw new Error("Resource updated before mount");
   }
 
-  fiber.root.dispatchUpdate(() => {
-    const record = callback();
-    if (record) {
-      const apply = () => applyChangelogRecord(record);
-      apply();
-      fiber.root.changelog.push(apply);
+  let evaluated = false;
+  let hasWork = true;
+
+  fiber.root.dispatchUpdate(
+    () => {
+      if (evaluated) return hasWork;
+      evaluated = true;
+
+      if (
+        eagerReducer &&
+        fiber.root.changelog.length === 0 &&
+        !record.cell.isDirty &&
+        !record.hasEagerState
+      ) {
+        record.eagerState = eagerReducer(
+          record.cell.workInProgress,
+          record.action,
+        );
+        record.hasEagerState = true;
+
+        hasWork = !Object.is(record.cell.current, record.eagerState);
+      }
+
+      return hasWork;
+    },
+    () => {
+      evaluated = true;
+      hasWork = true;
+      applyChangelogRecord(record);
+      fiber.root.changelog.push(record);
       return true;
-    }
-    return false;
-  });
+    },
+  );
 };
 
 const createReducerCell = (
@@ -78,21 +102,7 @@ const createReducerCell = (
           queued: false,
         };
 
-        dispatchOnFiber(fiber, () => {
-          if (
-            eagerBailout &&
-            fiber.root.changelog.length === 0 &&
-            !cell.isDirty &&
-            !record.hasEagerState
-          ) {
-            record.eagerState = reducer(cell.workInProgress, action);
-            record.hasEagerState = true;
-
-            if (Object.is(cell.current, record.eagerState)) return null;
-          }
-
-          return record;
-        });
+        dispatchOnFiber(fiber, record, eagerBailout ? reducer : undefined);
       }
     },
   };
@@ -110,19 +120,25 @@ export function useReducerImpl<S, A, I, R extends S>(
   const index = fiber.currentIndex++;
 
   const existing = fiber.cells[index];
-  let cell: Cell & { type: "reducer" };
-  if (existing === undefined) {
+  const cell: Cell & { type: "reducer" } = (() => {
+    if (existing !== undefined) {
+      return existing.type === "reducer" ? existing : throwHookOrderChanged();
+    }
+
     if (!fiber.isFirstRender && index >= fiber.cells.length) {
       throwRenderedMoreHooks();
     }
-    cell = createReducerCell(fiber, reducer, initialArg, initFn, eagerBailout);
+
+    const cell = createReducerCell(
+      fiber,
+      reducer,
+      initialArg,
+      initFn,
+      eagerBailout,
+    );
     fiber.cells[index] = cell;
-  } else {
-    if (existing.type !== "reducer") {
-      throwHookOrderChanged();
-    }
-    cell = existing;
-  }
+    return cell;
+  })();
 
   const queue = cell.queue;
   if (queue !== null) {

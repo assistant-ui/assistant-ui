@@ -41,11 +41,14 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   const getDevStrictMode = useDevStrictMode();
   const fiber = useMemo(() => {
-    const root = createResourceFiberRoot((callback) => {
-      if (!scheduler.isDirty && !callback()) return;
+    const root = createResourceFiberRoot((evaluate, apply) => {
+      if (!scheduler.isDirty) {
+        if (!evaluate()) return;
+        apply();
+      }
 
       setRootVersion(root, root.committedVersion + root.changelog.length);
-      queue.push(callback);
+      queue.push(apply);
       scheduler.markDirty();
     });
     return createResourceFiber(

@@ -23,6 +23,7 @@ export interface ChangelogRecord {
   readonly fiber: ResourceFiber<any, any>;
   readonly cell: ReducerCell;
   readonly action: any;
+
   hasEagerState: boolean;
   eagerState: any;
   queued: boolean;
@@ -69,9 +70,12 @@ export interface RenderResult {
 export interface ResourceFiberRoot {
   version: number;
   committedVersion: number;
-  readonly changelog: (() => void)[];
+  readonly changelog: ChangelogRecord[];
+  readonly dispatchUpdate: (
+    evaluate: () => boolean,
+    apply: () => boolean,
+  ) => void;
 
-  readonly dispatchUpdate: (callback: () => boolean) => void;
   readonly rollbackCallbacks: (() => void)[];
 }
 
