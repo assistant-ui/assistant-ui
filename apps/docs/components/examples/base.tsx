@@ -6,6 +6,7 @@ import {
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { DotMatrix } from "@/components/assistant-ui/dot-matrix";
 import { MessageTiming } from "@/components/assistant-ui/message-timing";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import {
@@ -656,6 +657,31 @@ const MessageError: FC = () => {
   );
 };
 
+const AssistantWorkingIndicator: FC = () => {
+  const isEmpty = useAuiState((s) => s.message.content.length === 0);
+  if (isEmpty) {
+    return (
+      <span
+        data-slot="aui_assistant-message-indicator"
+        className="text-muted-foreground inline-flex items-center gap-2 align-middle"
+        aria-label="Connecting"
+      >
+        <DotMatrix state="connecting" label="Connecting" />
+        <span className="text-sm">Connecting</span>
+      </span>
+    );
+  }
+  return (
+    <span
+      data-slot="aui_assistant-message-indicator"
+      className="animate-pulse font-sans"
+      aria-label="Assistant is working"
+    >
+      {"●"}
+    </span>
+  );
+};
+
 const AssistantMessage: FC = () => {
   // reserves space for action bar and compensates with `-mb` for consistent msg spacing
   // keeps hovered action bar from shifting layout (autohide doesn't support absolute positioning well)
@@ -712,15 +738,7 @@ const AssistantMessage: FC = () => {
               case "tool-call":
                 return part.toolUI ?? <ToolFallback {...part} />;
               case "indicator":
-                return (
-                  <span
-                    data-slot="aui_assistant-message-indicator"
-                    className="animate-pulse font-sans"
-                    aria-label="Assistant is working"
-                  >
-                    {"●"}
-                  </span>
-                );
+                return <AssistantWorkingIndicator />;
               case "data":
                 return part.dataRendererUI;
               default:

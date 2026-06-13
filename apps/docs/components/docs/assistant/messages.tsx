@@ -27,6 +27,7 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
+import { DotMatrix } from "@/components/assistant-ui/dot-matrix";
 
 export function UserMessage(): ReactNode {
   return (
@@ -62,8 +63,8 @@ export function AssistantMessage({
           }
         >
           <div className="text-muted-foreground flex items-center gap-2 py-1">
-            <LoaderIcon className="size-3 animate-spin" />
-            <span className="text-sm">Thinking...</span>
+            <DotMatrix state="connecting" label="Connecting" />
+            <span className="text-sm">Connecting</span>
           </div>
         </AuiIf>
         <MessageError />
