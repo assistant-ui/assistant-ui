@@ -23,10 +23,10 @@ export function DocsFooter({ previous, next }: DocsFooterProps) {
       {previous ? (
         <Link
           href={previous.url}
-          className="group text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
+          className="group text-muted-foreground hover:text-foreground inline-flex min-w-0 items-center gap-1.5 transition-colors"
         >
           <ChevronLeft className="size-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
-          <span>
+          <span className="min-w-0 truncate">
             {previous.section ? (
               <span className="opacity-60">{previous.section} / </span>
             ) : null}
@@ -40,9 +40,9 @@ export function DocsFooter({ previous, next }: DocsFooterProps) {
       {next ? (
         <Link
           href={next.url}
-          className="group text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
+          className="group text-muted-foreground hover:text-foreground inline-flex min-w-0 items-center gap-1.5 transition-colors"
         >
-          <span>
+          <span className="min-w-0 truncate">
             {next.section ? (
               <span className="opacity-60">{next.section} / </span>
             ) : null}
