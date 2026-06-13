@@ -42,7 +42,7 @@ const createReducerCell = (
   reducer: (state: any, action: any) => any,
   initialArg: any,
   initFn: ((arg: any) => any) | undefined,
-  eagerDispatch: boolean,
+  eagerBailout: boolean,
 ): Cell & { type: "reducer" } => {
   const initialState = initFn ? initFn(initialArg) : initialArg;
 
@@ -80,7 +80,7 @@ const createReducerCell = (
 
         dispatchOnFiber(fiber, () => {
           if (
-            eagerDispatch &&
+            eagerBailout &&
             fiber.root.changelog.length === 0 &&
             !cell.isDirty &&
             !record.hasEagerState
@@ -99,12 +99,12 @@ const createReducerCell = (
   return cell;
 };
 
-function useReducerImpl<S, A, I, R extends S>(
+export function useReducerImpl<S, A, I, R extends S>(
   reducer: (state: S, action: A) => S,
   getDerivedState: ((state: S) => R) | undefined,
   initialArg: S | I,
   initFn: ((arg: I) => S) | undefined,
-  eagerDispatch: boolean,
+  eagerBailout: boolean,
 ): [R, Dispatch<A>] {
   const fiber = getCurrentResourceFiber();
   const index = fiber.currentIndex++;
@@ -115,7 +115,7 @@ function useReducerImpl<S, A, I, R extends S>(
     if (!fiber.isFirstRender && index >= fiber.cells.length) {
       throwRenderedMoreHooks();
     }
-    cell = createReducerCell(fiber, reducer, initialArg, initFn, eagerDispatch);
+    cell = createReducerCell(fiber, reducer, initialArg, initFn, eagerBailout);
     fiber.cells[index] = cell;
   } else {
     if (existing.type !== "reducer") {
@@ -216,30 +216,6 @@ export function useReducer<S, A, I>(
     initialArg as S,
     init as ((arg: S) => S) | undefined,
     false,
-  );
-}
-
-/** @internal useState's entry point: eager dispatch, like React's basic state reducer. */
-export function useEagerReducer<S, A>(
-  reducer: (state: S, action: A) => S,
-  initialState: S,
-): [S, Dispatch<A>];
-export function useEagerReducer<S, A, I>(
-  reducer: (state: S, action: A) => S,
-  initialArg: I,
-  init: (arg: I) => S,
-): [S, Dispatch<A>];
-export function useEagerReducer<S, A, I>(
-  reducer: (state: S, action: A) => S,
-  initialArg: S | I,
-  init?: (arg: I) => S,
-): [S, Dispatch<A>] {
-  return useReducerImpl(
-    reducer,
-    undefined,
-    initialArg as S,
-    init as ((arg: S) => S) | undefined,
-    true,
   );
 }
 
