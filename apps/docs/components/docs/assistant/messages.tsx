@@ -63,7 +63,7 @@ export function AssistantMessage({
           }
         >
           <div className="text-muted-foreground flex items-center gap-2 py-1">
-            <DotMatrix state="connecting" label="Connecting" />
+            <DotMatrix state="connecting" aria-hidden />
             <span className="text-sm">Connecting</span>
           </div>
         </AuiIf>

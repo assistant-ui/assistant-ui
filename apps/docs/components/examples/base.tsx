@@ -664,9 +664,8 @@ const AssistantWorkingIndicator: FC = () => {
       <span
         data-slot="aui_assistant-message-indicator"
         className="text-muted-foreground inline-flex items-center gap-2 align-middle"
-        aria-label="Connecting"
       >
-        <DotMatrix state="connecting" label="Connecting" />
+        <DotMatrix state="connecting" aria-hidden />
         <span className="text-sm">Connecting</span>
       </span>
     );
