@@ -1,13 +1,21 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { depsShallowEqual } from "./depsShallowEqual";
 
 export const useRenderMemo = <T>(callback: () => T, deps: unknown[]) => {
-  const [state] = useState(() => ({
-    wipDeps: null as unknown[] | null,
-    wip: null as T,
-    currentDeps: null as unknown[] | null,
-    current: null as T,
-  }));
+  const stateRef = useRef<{
+    wipDeps: unknown[] | null;
+    wip: T | null;
+    currentDeps: unknown[] | null;
+    current: T | null;
+  }>(null);
+  const state =
+    stateRef.current ??
+    (stateRef.current = {
+      wipDeps: null,
+      wip: null,
+      currentDeps: null,
+      current: null,
+    });
 
   state.wipDeps = state.currentDeps;
   state.wip = state.current;
@@ -18,10 +26,10 @@ export const useRenderMemo = <T>(callback: () => T, deps: unknown[]) => {
   });
 
   if (state.currentDeps && depsShallowEqual(state.currentDeps, deps))
-    return state.current;
+    return state.current as T;
 
   state.wipDeps = deps;
   state.wip = callback();
 
-  return state.wip;
+  return state.wip as T;
 };

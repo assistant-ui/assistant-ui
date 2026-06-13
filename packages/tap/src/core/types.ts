@@ -21,30 +21,42 @@ export type ExtractResourceReturnType<T> =
 
 export interface ChangelogRecord {
   readonly fiber: ResourceFiber<any, any>;
-  readonly cell: Cell & { type: "reducer" };
+  readonly cell: ReducerCell;
   readonly action: any;
   hasEagerState: boolean;
   eagerState: any;
   queued: boolean;
 }
 
-export type Cell =
-  | {
-      readonly type: "reducer";
-      readonly dispatch: (action: any) => void;
+export type ReducerCell = {
+  readonly type: "reducer";
+  readonly dispatch: (action: any) => void;
 
-      queue: ChangelogRecord[] | null;
-      renderQueue: any[] | null;
+  queue: ChangelogRecord[] | null;
+  renderQueue: any[] | null;
 
-      workInProgress: any;
-      current: any;
-      reducer: (state: any, action: any) => any;
-    }
-  | {
-      readonly type: "effect";
-      cleanup: (() => void) | undefined;
-      deps: readonly unknown[] | null | undefined;
-    };
+  workInProgress: any;
+  current: any;
+  reducer: (state: any, action: any) => any;
+  isDirty: boolean;
+};
+
+export type MemoCell<T = any> = {
+  readonly type: "memo";
+  current: T;
+  currentDeps: readonly unknown[];
+  wip: T;
+  wipDeps: readonly unknown[];
+  isDirty: boolean;
+};
+
+export type EffectCell = {
+  readonly type: "effect";
+  cleanup: (() => void) | undefined;
+  deps: readonly unknown[] | null | undefined;
+};
+
+export type Cell = ReducerCell | MemoCell | EffectCell;
 
 export interface EffectTask {
   readonly cleanup: () => void;
@@ -59,10 +71,12 @@ export interface RenderResult {
 export interface ResourceFiberRoot {
   version: number;
   committedVersion: number;
-  readonly changelog: ChangelogRecord[];
+  readonly changelog: (() => void)[];
 
   readonly dispatchUpdate: (callback: () => boolean) => void;
-  readonly dirtyCells: Set<Cell & { type: "reducer" }>;
+  readonly commitCallbacks: (() => void)[];
+  readonly rollbackCallbacks: (() => void)[];
+  hasDirtyReducers: boolean;
 }
 
 export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
@@ -73,8 +87,13 @@ export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
 
   cells: Cell[];
   currentIndex: number;
+  memoCache: {
+    current: unknown[][] | null;
+    workInProgress: unknown[][] | null;
+    index: number;
+  };
 
-  renderPendingCells: Set<Cell & { type: "reducer" }> | null;
+  renderPendingCells: Set<ReducerCell> | null;
 
   renderContext: RenderResult | undefined; // set during render
 

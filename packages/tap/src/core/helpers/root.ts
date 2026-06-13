@@ -1,6 +1,6 @@
 import type {
-  Cell,
   ChangelogRecord,
+  ReducerCell,
   ResourceFiber,
   ResourceFiberRoot,
 } from "../types";
@@ -13,17 +13,21 @@ export const createResourceFiberRoot = (
     committedVersion: 0,
     dispatchUpdate,
     changelog: [],
-    dirtyCells: new Set(),
+    commitCallbacks: [],
+    rollbackCallbacks: [],
+    hasDirtyReducers: false,
   };
 };
 
 export const commitRoot = (root: ResourceFiberRoot): void => {
-  for (const cell of root.dirtyCells) {
-    cell.current = cell.workInProgress;
+  for (let i = 0; i < root.commitCallbacks.length; i++) {
+    root.commitCallbacks[i]!();
   }
   root.committedVersion = root.version;
   root.changelog.length = 0;
-  root.dirtyCells.clear();
+  root.commitCallbacks.length = 0;
+  root.rollbackCallbacks.length = 0;
+  root.hasDirtyReducers = false;
 };
 
 export const setRootVersion = (
@@ -33,14 +37,12 @@ export const setRootVersion = (
   const rollback = root.version > version;
   root.version = version;
   if (rollback) {
-    for (const cell of root.dirtyCells) {
-      if (cell.queue !== null) {
-        for (const record of cell.queue) record.queued = false;
-        cell.queue = null;
-      }
-      cell.workInProgress = cell.current;
+    for (let i = 0; i < root.rollbackCallbacks.length; i++) {
+      root.rollbackCallbacks[i]!();
     }
-    root.dirtyCells.clear();
+    root.commitCallbacks.length = 0;
+    root.rollbackCallbacks.length = 0;
+    root.hasDirtyReducers = false;
 
     if (version === root.committedVersion) {
       root.changelog.length = 0;
@@ -54,26 +56,55 @@ export const setRootVersion = (
         root.changelog.pop();
       }
 
-      root.changelog.forEach(applyChangelogRecord);
+      for (let i = 0; i < root.changelog.length; i++) {
+        root.changelog[i]!();
+      }
       commitRoot(root);
     }
   }
 };
 
 export const applyChangelogRecord = (record: ChangelogRecord): void => {
-  markCellDirty(record.fiber, record.cell);
+  markReducerDirty(record.fiber, record.cell);
   if (!record.queued) {
     record.queued = true;
     (record.cell.queue ??= []).push(record);
   }
 };
 
-export const markCellDirty = (
-  fiber: ResourceFiber<any, any>,
-  cell: Cell & { type: "reducer" },
+export const addCommit = (
+  root: ResourceFiberRoot,
+  callback: () => void,
 ): void => {
-  if (!fiber.root.dirtyCells.has(cell)) {
-    fiber.markDirty?.();
-    fiber.root.dirtyCells.add(cell);
-  }
+  root.commitCallbacks.push(callback);
+};
+
+export const addRollback = (
+  root: ResourceFiberRoot,
+  callback: () => void,
+): void => {
+  root.rollbackCallbacks.push(callback);
+};
+
+export const markReducerDirty = (
+  fiber: ResourceFiber<any, any>,
+  cell: ReducerCell,
+): void => {
+  if (cell.isDirty) return;
+
+  cell.isDirty = true;
+  fiber.root.hasDirtyReducers = true;
+  fiber.markDirty?.();
+  addCommit(fiber.root, () => {
+    cell.current = cell.workInProgress;
+    cell.isDirty = false;
+  });
+  addRollback(fiber.root, () => {
+    if (cell.queue !== null) {
+      for (const record of cell.queue) record.queued = false;
+      cell.queue = null;
+    }
+    cell.workInProgress = cell.current;
+    cell.isDirty = false;
+  });
 };

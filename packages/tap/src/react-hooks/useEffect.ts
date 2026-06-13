@@ -1,6 +1,10 @@
+import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 import type { Cell } from "../core/types";
 import { depsShallowEqual } from "../hooks/utils/depsShallowEqual";
-import { useCell, registerRenderMountTask } from "../hooks/utils/useCell";
+import {
+  throwHookOrderChanged,
+  throwRenderedMoreHooks,
+} from "./utils/hookErrors";
 
 const newEffect = (): Cell & { type: "effect" } => ({
   type: "effect",
@@ -22,7 +26,22 @@ export function useEffect(
   effect: useEffect.EffectCallback,
   deps?: readonly unknown[],
 ): void {
-  const cell = useCell("effect", newEffect);
+  const fiber = getCurrentResourceFiber();
+  const index = fiber.currentIndex++;
+
+  if (!fiber.isFirstRender && index >= fiber.cells.length) {
+    throwRenderedMoreHooks();
+  }
+
+  let cell = fiber.cells[index];
+  if (cell === undefined) {
+    cell = newEffect();
+    fiber.cells[index] = cell;
+  }
+
+  if (cell.type !== "effect") {
+    throwHookOrderChanged();
+  }
 
   if (deps && cell.deps && depsShallowEqual(cell.deps, deps)) return;
   if (cell.deps !== null && !!deps !== !!cell.deps)
@@ -30,7 +49,7 @@ export function useEffect(
       "useEffect called with and without dependencies across re-renders",
     );
 
-  registerRenderMountTask({
+  fiber.renderContext!.effectTasks.push({
     cleanup: () => {
       try {
         cell.cleanup?.();

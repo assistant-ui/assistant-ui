@@ -6,7 +6,6 @@ export { useCallback } from "./useCallback";
 export { useEffect } from "./useEffect";
 export { useEffectEvent } from "./useEffectEvent";
 export { use } from "./use";
-export { useMemoCache } from "./useMemoCache";
 export { useSyncExternalStore } from "./useSyncExternalStore";
 export { useDebugValue } from "./useDebugValue";
 export { useResource } from "../hooks/useResource";

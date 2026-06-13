@@ -1,9 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import * as React from "react";
-// react/compiler-runtime exports `c` (= useMemoCache) at runtime but ships no types for it.
-// @ts-expect-error -- runtime-only export
-import { c as _c } from "react/compiler-runtime";
 import { renderResourceFiber } from "../core/ResourceFiber";
+import { setRootVersion } from "../core/helpers/root";
 import {
   createTestResource,
   renderTest,
@@ -51,18 +49,28 @@ describe("react dispatcher", () => {
     expect(runs).toBe(2);
   });
 
-  it("backs react/compiler-runtime's useMemoCache so compiled resources work", () => {
-    const SENTINEL = Symbol.for("react.memo_cache_sentinel");
-    const fiber = createTestResource(() => {
-      // exactly what React Compiler emits: const $ = _c(n)
-      const $ = _c(3);
-      if ($[0] === SENTINEL) $[0] = "computed-once";
-      return $[0];
+  it("rolls back React.useMemo work from discarded root versions", () => {
+    let runs = 0;
+    const fiber = createTestResource((p: { x: number }) =>
+      React.useMemo(
+        () => ({
+          run: ++runs,
+          value: p.x,
+        }),
+        [p.x],
+      ),
+    );
+
+    expect(renderTest(fiber, { x: 1 })).toEqual({ run: 1, value: 1 });
+
+    setRootVersion(fiber.root, 1);
+    expect(renderResourceFiber(fiber, [{ x: 2 }]).value).toEqual({
+      run: 2,
+      value: 2,
     });
 
-    expect(renderTest(fiber)).toBe("computed-once");
-    // re-render: the cache persists across renders, slot already filled
-    expect(renderTest(fiber)).toBe("computed-once");
+    setRootVersion(fiber.root, 0);
+    expect(renderTest(fiber, { x: 2 })).toEqual({ run: 3, value: 2 });
   });
 
   it("throws for a hook tap does not implement", () => {

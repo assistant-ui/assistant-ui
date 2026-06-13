@@ -7,7 +7,7 @@ import {
   getCommittedOutput,
   waitForNextTick,
 } from "../test-utils";
-import { useState, useEffect, useMemoCache } from "../../react-shim";
+import { useState, useEffect } from "../../react-shim";
 import { c as _c } from "../../react-shim/compiler-runtime";
 
 const SENTINEL = Symbol.for("react.memo_cache_sentinel");
@@ -42,7 +42,7 @@ describe("@assistant-ui/tap/react-shim", () => {
       expect(effectLog).toEqual([0, 5]);
     });
 
-    it("useMemoCache persists the memo cache across renders", () => {
+    it("c() persists the memo cache across renders", () => {
       let computes = 0;
       const testFiber = createTestResource((p: { x: number }) => {
         // exactly what React Compiler emits: const $ = _c(n)
@@ -90,10 +90,10 @@ describe("@assistant-ui/tap/react-shim", () => {
       expect(btn.textContent).toBe("1");
     });
 
-    it("useMemoCache routes to React's compiler runtime", () => {
+    it("c() routes to React's compiler runtime", () => {
       let computes = 0;
       function Compiled({ x }: { x: number }) {
-        const $ = useMemoCache(2);
+        const $ = _c(2);
         let double;
         if ($[0] === SENTINEL || $[0] !== x) {
           computes++;

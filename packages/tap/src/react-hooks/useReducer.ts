@@ -4,7 +4,11 @@ import {
   peekResourceFiber,
 } from "../core/helpers/execution-context";
 import type { Cell, ChangelogRecord, ResourceFiber } from "../core/types";
-import { applyChangelogRecord, markCellDirty } from "../core/helpers/root";
+import { applyChangelogRecord, markReducerDirty } from "../core/helpers/root";
+import {
+  throwHookOrderChanged,
+  throwRenderedMoreHooks,
+} from "./utils/hookErrors";
 
 type Dispatch<A> = (action: A) => void;
 
@@ -19,8 +23,9 @@ const dispatchOnFiber = (
   fiber.root.dispatchUpdate(() => {
     const record = callback();
     if (record) {
-      applyChangelogRecord(record);
-      fiber.root.changelog.push(record);
+      const apply = () => applyChangelogRecord(record);
+      apply();
+      fiber.root.changelog.push(apply);
       return true;
     }
     return false;
@@ -42,10 +47,11 @@ const createReducerCell = (
 
   const cell: Cell & { type: "reducer" } = {
     type: "reducer",
-    queue: null,
-    renderQueue: null,
     workInProgress: initialState,
     current: initialState,
+    isDirty: false,
+    queue: null,
+    renderQueue: null,
     reducer,
     dispatch: (action) => {
       const currentFiber = peekResourceFiber();
@@ -70,7 +76,7 @@ const createReducerCell = (
         dispatchOnFiber(fiber, () => {
           if (
             eagerDispatch &&
-            fiber.root.dirtyCells.size === 0 &&
+            !fiber.root.hasDirtyReducers &&
             !record.hasEagerState
           ) {
             record.eagerState = reducer(cell.workInProgress, action);
@@ -101,16 +107,13 @@ function useReducerImpl<S, A, I, R extends S>(
   let cell: Cell & { type: "reducer" };
   if (existing === undefined) {
     if (!fiber.isFirstRender && index >= fiber.cells.length) {
-      throw new Error(
-        "Rendered more hooks than during the previous render. " +
-          "Hooks must be called in the exact same order in every render.",
-      );
+      throwRenderedMoreHooks();
     }
     cell = createReducerCell(fiber, reducer, initialArg, initFn, eagerDispatch);
     fiber.cells[index] = cell;
   } else {
     if (existing.type !== "reducer") {
-      throw new Error("Hook order changed between renders");
+      throwHookOrderChanged();
     }
     cell = existing;
   }
@@ -172,7 +175,7 @@ function useReducerImpl<S, A, I, R extends S>(
     }
 
     if (!Object.is(derived, cell.workInProgress)) {
-      markCellDirty(fiber, cell);
+      markReducerDirty(fiber, cell);
       cell.workInProgress = derived;
     }
   }
@@ -228,10 +231,9 @@ export function useEagerReducer<S, A, I>(
 }
 
 /**
- * @internal Backs useMemo and useMemoCache: a reducer cell whose state is
- * recomputed during render via getDerivedState. Not part of the public API;
- * user-facing state adjustment during render uses render-phase updates
- * (setState during render), like React.
+ * @internal A reducer cell whose state is recomputed during render via
+ * getDerivedState. Not part of the public API; user-facing state adjustment
+ * during render uses render-phase updates (setState during render), like React.
  */
 export function useReducerWithDerivedState<S, A, R extends S>(
   reducer: (state: S, action: A) => S,

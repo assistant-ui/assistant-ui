@@ -20,17 +20,6 @@ export { default } from "react";
 const inTap = () => peekResourceFiber() !== null;
 const ReactRuntime = React as any;
 
-// React 18 lacks `__COMPILER_RUNTIME` (its dispatcher has no useMemoCache), so
-// mirror Meta's react-compiler-runtime polyfill: a once-per-mount memo cell.
-const MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
-const useMemoCachePolyfill = (size: number): unknown[] =>
-  ReactRuntime.useMemo(() => {
-    const $: unknown[] = new Array(size).fill(MEMO_CACHE_SENTINEL);
-    // tells react devtools this array is a memo cache
-    ($ as any)[MEMO_CACHE_SENTINEL] = true;
-    return $;
-  }, []);
-
 // --- hooks with a tap equivalent: override the star-exported react hooks ---
 export const useState = (initialState?: any) =>
   inTap() ? hooks.useState(initialState) : ReactRuntime.useState(initialState);
@@ -85,11 +74,6 @@ export const useDebugValue = (value: any, format?: any) =>
   inTap()
     ? hooks.useDebugValue(value, format)
     : ReactRuntime.useDebugValue(value, format);
-
-export const useMemoCache = (size: number): unknown[] =>
-  inTap()
-    ? hooks.useMemoCache(size)
-    : (ReactRuntime.__COMPILER_RUNTIME?.c ?? useMemoCachePolyfill)(size);
 
 // `use(usable)` reads tap resource context when handed a tap context (routed by
 // its brand, not by ambient render state), and falls back to React's `use`
