@@ -8,7 +8,7 @@ import {
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { MODELS } from "@/constants/model";
-import { SparklesIcon } from "lucide-react";
+import { SparklesIcon, XIcon } from "lucide-react";
 import Image from "next/image";
 import { ComposerPrimitive, useAuiState } from "@assistant-ui/react";
 import {
@@ -20,6 +20,7 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
+import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
 
 const models = MODELS.map((m) => ({
   id: m.value,
@@ -82,10 +83,13 @@ export function FloatingComposer(): ReactNode {
   const { modelValue, onModelChange } = useSharedDocsModelSelection();
   const [expanded, setExpanded] = useState(false);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
+  const [dismissed, setDismissed] = usePersistentBoolean(
+    "floating-composer-dismissed",
+  );
   const containerRef = useRef<HTMLDivElement>(null);
 
   const hasScrolled = useHasScrolled(100);
-  const visible = hasScrolled && !open;
+  const visible = hasScrolled && !open && !dismissed;
 
   // Reset expanded state when floating composer becomes hidden
   useEffect(() => {
@@ -123,7 +127,15 @@ export function FloatingComposer(): ReactNode {
             : "pointer-events-none translate-y-full opacity-0",
       )}
     >
-      <div ref={containerRef}>
+      <div ref={containerRef} className="group relative">
+        <button
+          type="button"
+          aria-label="Dismiss"
+          onClick={() => setDismissed(true)}
+          className="border-border/60 bg-background text-muted-foreground hover:text-foreground absolute -top-2 -right-2 z-10 flex size-5 items-center justify-center rounded-full border opacity-0 transition-opacity group-hover:opacity-100"
+        >
+          <XIcon className="size-3" />
+        </button>
         <ComposerPrimitive.Root onSubmit={handleSubmit}>
           <div
             className={cn(
