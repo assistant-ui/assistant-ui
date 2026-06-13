@@ -6,7 +6,7 @@ export { createTapRoot } from "./core/createTapRoot";
 export { flushTapSync } from "./core/scheduler";
 
 // context
-export { createResourceContext, withContextProvider } from "./core/context";
+export { useContextProvider } from "./core/context";
 
 // hooks
 export { useResource } from "./hooks/useResource";

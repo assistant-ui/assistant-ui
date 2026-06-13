@@ -67,9 +67,12 @@ export interface RenderResult {
   readonly commitCallbacks: CommitCallbacks;
 }
 
-export interface ResourceFiberRoot {
+export type ResourceContext = Map<object, unknown>;
+
+export interface TapRoot {
   version: number;
   committedVersion: number;
+  context: ResourceContext;
   readonly changelog: ChangelogRecord[];
   readonly dispatchUpdate: (
     evaluate: () => boolean,
@@ -80,7 +83,7 @@ export interface ResourceFiberRoot {
 }
 
 export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
-  readonly root: ResourceFiberRoot;
+  readonly root: TapRoot;
   readonly hook: (...args: A) => R;
   readonly markDirty: (() => void) | undefined;
   readonly devStrictMode: "root" | "child" | null;

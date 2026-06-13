@@ -36,7 +36,7 @@ import {
   type AssistantEventSelector,
 } from "./types/events";
 import { NotificationManager } from "./utils/NotificationManager";
-import { withAssistantTapContextProvider } from "./utils/tap-assistant-context";
+import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
 import { useClientResource } from "./useClientResource";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import {
@@ -58,7 +58,7 @@ const useRootClientResource = <K extends ClientNames>({
   emit: NotificationManager["emit"];
   clientRef: { parent: AssistantClient; current: AssistantClient | null };
 }) => {
-  const { methods, state } = withAssistantTapContextProvider(
+  const { methods, state } = useAssistantTapContextProvider(
     { clientRef, emit },
     function WithTapContext() {
       return useClientResource(element);

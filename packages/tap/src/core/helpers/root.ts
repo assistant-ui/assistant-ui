@@ -2,32 +2,31 @@ import type {
   ChangelogRecord,
   ReducerCell,
   ResourceFiber,
-  ResourceFiberRoot,
+  TapRoot,
 } from "../types";
+import { cloneCurrentTapContext } from "../context";
 import { CommitPriority } from "./commit";
 
 export const createResourceFiberRoot = (
   dispatchUpdate: (evaluate: () => boolean, apply: () => boolean) => void,
-): ResourceFiberRoot => {
+): TapRoot => {
   return {
     version: 0,
     committedVersion: 0,
+    context: cloneCurrentTapContext(),
     dispatchUpdate,
     changelog: [],
     rollbackCallbacks: [],
   };
 };
 
-export const commitRoot = (root: ResourceFiberRoot): void => {
+export const commitRoot = (root: TapRoot): void => {
   root.committedVersion = root.version;
   root.changelog.length = 0;
   root.rollbackCallbacks.length = 0;
 };
 
-export const setRootVersion = (
-  root: ResourceFiberRoot,
-  version: number,
-): void => {
+export const setRootVersion = (root: TapRoot, version: number): void => {
   const rollback = root.version > version;
   root.version = version;
   if (rollback) {
@@ -73,10 +72,7 @@ export const addCommit = (
   (callbacks[priority] ??= []).push(callback);
 };
 
-export const addRollback = (
-  root: ResourceFiberRoot,
-  callback: () => void,
-): void => {
+export const addRollback = (root: TapRoot, callback: () => void): void => {
   root.rollbackCallbacks.push(callback);
 };
 

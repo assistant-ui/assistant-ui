@@ -11,6 +11,7 @@ import {
   createResourceFiberRoot,
   setRootVersion,
 } from "../core/helpers/root";
+import { cloneCurrentTapContext } from "../core/context";
 import { useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { useDevStrictMode } from "./utils/useDevStrictMode";
 
@@ -59,8 +60,10 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     );
   }, [queue, scheduler, getDevStrictMode]);
 
+  const context = cloneCurrentTapContext();
+
   const drainedCount = fiber.root.version - fiber.root.committedVersion;
-  const render2 = renderResourceFiber(fiber, [render]);
+  const render2 = renderResourceFiber(fiber, [render], context);
 
   const isMountedRef = useRef(false);
   const committedArgsRef = useRef([render] as const);
@@ -90,10 +93,14 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     );
 
     if (isDevelopment && fiber.devStrictMode) {
-      void renderResourceFiber(fiber, committedArgsRef.current);
+      void renderResourceFiber(fiber, committedArgsRef.current, context);
     }
 
-    const render = renderResourceFiber(fiber, committedArgsRef.current);
+    const render = renderResourceFiber(
+      fiber,
+      committedArgsRef.current,
+      context,
+    );
 
     if (scheduler.isDirty)
       throw new Error("Scheduler is dirty, this should never happen");
@@ -120,6 +127,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     committedArgsRef.current = [render];
     commitRoot(fiber.root);
     queue.splice(0, drainedCount);
+    fiber.root.context = context;
     commitResourceFiber(fiber, render2);
 
     publish(render2.value);

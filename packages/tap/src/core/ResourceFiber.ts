@@ -1,4 +1,5 @@
-import type { ResourceFiber, RenderResult, ResourceFiberRoot } from "./types";
+import type { ResourceFiber, RenderResult, TapRoot } from "./types";
+import { withTapRootContext } from "./context";
 import {
   commitAllCallbacks,
   createCommitCallbacks,
@@ -11,7 +12,7 @@ import { commitRoot } from "./helpers/root";
 
 export function createResourceFiber<R, A extends readonly unknown[]>(
   hook: (...args: A) => R,
-  root: ResourceFiberRoot,
+  root: TapRoot,
   markDirty: (() => void) | undefined = undefined,
   strictMode: "root" | "child" | null,
 ): ResourceFiber<R, A> {
@@ -48,6 +49,7 @@ export function unmountResourceFiber<R, A extends readonly unknown[]>(
 export function renderResourceFiber<R, A extends readonly unknown[]>(
   fiber: ResourceFiber<R, A>,
   args: Readonly<A>,
+  context = fiber.root.context,
 ): RenderResult {
   fiber.memoCache.workInProgress = null;
 
@@ -69,17 +71,20 @@ export function renderResourceFiber<R, A extends readonly unknown[]>(
 
     result = {
       commitCallbacks: createCommitCallbacks(),
+      context,
       value: undefined as R | undefined,
     };
     fiber.memoCache.index = 0;
 
-    withResourceFiber(fiber, () => {
-      fiber.renderContext = result;
-      try {
-        result.value = withReactDispatcher(() => fiber.hook(...args));
-      } finally {
-        fiber.renderContext = undefined;
-      }
+    withTapRootContext(fiber.root, context, () => {
+      withResourceFiber(fiber, () => {
+        fiber.renderContext = result;
+        try {
+          result.value = withReactDispatcher(() => fiber.hook(...args));
+        } finally {
+          fiber.renderContext = undefined;
+        }
+      });
     });
   } while ((fiber.renderPendingCells?.size ?? 0) > 0);
 

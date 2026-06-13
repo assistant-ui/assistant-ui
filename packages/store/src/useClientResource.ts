@@ -3,7 +3,7 @@ import { resource, useResource, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientMethods } from "./types/client";
 import {
   useClientStack,
-  useWithClientStack,
+  useClientStackProvider,
   SYMBOL_CLIENT_INDEX,
 } from "./utils/tap-client-stack-context";
 import {
@@ -144,7 +144,7 @@ export const useClientResource = <TMethods extends ClientMethods>(
     [index],
   );
 
-  const value = useWithClientStack(methods, function WithClientStack() {
+  const value = useClientStackProvider(methods, function WithClientStack() {
     return useResource(element);
   });
 

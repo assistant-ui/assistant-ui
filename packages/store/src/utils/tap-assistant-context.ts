@@ -1,6 +1,5 @@
-import { useEffectEvent, use } from "react";
-
-import { createResourceContext, withContextProvider } from "@assistant-ui/tap";
+import { useEffectEvent, use, createContext } from "react";
+import { useContextProvider } from "@assistant-ui/tap";
 import type {
   AssistantEventName,
   AssistantEventPayload,
@@ -19,14 +18,15 @@ export type AssistantTapContextValue = {
   emit: EmitFn;
 };
 
-const AssistantTapContext =
-  createResourceContext<AssistantTapContextValue | null>(null);
+const AssistantTapContext = createContext<AssistantTapContextValue | null>(
+  null,
+);
 
-export const withAssistantTapContextProvider = <TResult>(
+export const useAssistantTapContextProvider = <TResult>(
   value: AssistantTapContextValue,
   fn: () => TResult,
 ) => {
-  return withContextProvider(AssistantTapContext, value, fn);
+  return useContextProvider(AssistantTapContext, value, fn);
 };
 
 const useAssistantTapContext = () => {

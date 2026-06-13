@@ -7,7 +7,13 @@ import {
   getCommittedOutput,
   waitForNextTick,
 } from "../test-utils";
-import { useState, useEffect } from "../../react-shim";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+} from "../../react-shim";
+import { useContextProvider } from "../../core/context";
 import { c as _c } from "../../react-shim/compiler-runtime";
 
 const SENTINEL = Symbol.for("react.memo_cache_sentinel");
@@ -19,6 +25,21 @@ describe("@assistant-ui/tap/react-shim", () => {
   });
 
   describe("inside a tap resource", () => {
+    it("uses shim-created React contexts as tap contexts", () => {
+      const TestContext = createContext("default");
+
+      const testFiber = createTestResource((value: string | null) => {
+        if (value === null) return useContext(TestContext);
+
+        return useContextProvider(TestContext, value, () =>
+          useContext(TestContext),
+        );
+      });
+
+      expect(renderTest(testFiber, null)).toBe("default");
+      expect(renderTest(testFiber, "tap")).toBe("tap");
+    });
+
     it("useState routes to useState and useEffect to useEffect", async () => {
       let setCount: ((n: number) => void) | null = null;
       const effectLog: number[] = [];
@@ -69,6 +90,31 @@ describe("@assistant-ui/tap/react-shim", () => {
   });
 
   describe("inside a React component", () => {
+    it("uses shim-created contexts as regular React contexts", () => {
+      const TestContext = createContext("default");
+
+      function App({ value }: { value?: string }) {
+        const text = useContext(TestContext);
+        if (value === undefined) return <div data-testid="out">{text}</div>;
+
+        return (
+          <TestContext.Provider value={value}>
+            <Child />
+          </TestContext.Provider>
+        );
+      }
+
+      function Child() {
+        return <div data-testid="out">{useContext(TestContext)}</div>;
+      }
+
+      const { rerender } = render(<App />);
+      expect(screen.getByTestId("out").textContent).toBe("default");
+
+      rerender(<App value="react" />);
+      expect(screen.getByTestId("out").textContent).toBe("react");
+    });
+
     it("useState routes to React.useState", () => {
       function Counter() {
         const [count, setCount] = useState(0);

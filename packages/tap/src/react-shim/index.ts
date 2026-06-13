@@ -11,7 +11,7 @@
 import React from "react";
 import { peekResourceFiber } from "../core/helpers/execution-context";
 import * as hooks from "../react-hooks";
-import { useResourceContext, isResourceContext } from "../core/context";
+import { attachDefaultValueToContext } from "../core/context";
 
 // @ts-expect-error -- @types/react uses `export =`; this is valid at runtime.
 export * from "react";
@@ -75,18 +75,14 @@ export const useDebugValue = (value: any, format?: any) =>
     ? hooks.useDebugValue(value, format)
     : ReactRuntime.useDebugValue(value, format);
 
-// `use(usable)` reads tap resource context when handed a tap context (routed by
-// its brand, not by ambient render state), and falls back to React's `use`
-// (promises / React context) for everything else. The non-tap fallback requires
-// React 19.
-export const use = (usable: any) =>
-  isResourceContext(usable)
-    ? useResourceContext(usable)
-    : ReactRuntime.use(usable);
+export const createContext = (defaultValue: any) => {
+  const context = ReactRuntime.createContext(defaultValue);
+  attachDefaultValueToContext(context, defaultValue);
+  return context;
+};
 
-// `useContext(context)` reads tap resource context when handed a tap context
-// (routed by its brand), and falls back to React's `useContext` otherwise.
+export const use = (usable: any) =>
+  inTap() ? hooks.use(usable) : ReactRuntime.use(usable);
+
 export const useContext = (context: any) =>
-  isResourceContext(context)
-    ? useResourceContext(context)
-    : ReactRuntime.useContext(context);
+  inTap() ? hooks.use(context) : ReactRuntime.useContext(context);

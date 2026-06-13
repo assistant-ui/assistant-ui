@@ -8,7 +8,6 @@ import {
   setRootVersion,
 } from "../../core/helpers/root";
 import { createResourceFiber } from "../../core/ResourceFiber";
-import type { ResourceFiberRoot } from "../../core/types";
 import { useDevStrictMode } from "./useDevStrictMode";
 
 const useResourceFiberHostUtilsTap = () => {
@@ -27,7 +26,7 @@ const useResourceFiberHostUtilsTap = () => {
 };
 
 const useResourceFiberHostUtilsReact = () => {
-  const root = useMemo<ResourceFiberRoot>(() => {
+  const root = useMemo(() => {
     return createResourceFiberRoot((evaluateUpdate, applyUpdate) => {
       let eagerBail = false;
 
