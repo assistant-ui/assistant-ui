@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
 import { source } from "@/lib/source";
-import { getPageTreePeers, findNeighbour } from "fumadocs-core/page-tree";
+import { getPageTreePeers } from "fumadocs-core/page-tree";
+import { getDocsNeighbours } from "@/lib/docs-neighbours";
 import { Card, Cards } from "@/components/docs/fumadocs/card";
 import { TableOfContents } from "@/components/docs/layout/table-of-contents";
 import { DocsFooter } from "@/components/docs/layout/docs-footer";
@@ -43,13 +44,9 @@ export default async function Page(props: {
   const markdownUrl = `${page.url}.mdx`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
 
-  const neighbours = findNeighbour(source.pageTree, page.url);
-  const footerPrevious = neighbours.previous
-    ? { name: neighbours.previous.name, url: neighbours.previous.url }
-    : undefined;
-  const footerNext = neighbours.next
-    ? { name: neighbours.next.name, url: neighbours.next.url }
-    : undefined;
+  const neighbours = getDocsNeighbours(source.pageTree, page.url);
+  const footerPrevious = neighbours.previous;
+  const footerNext = neighbours.next;
 
   return (
     <DocsPage

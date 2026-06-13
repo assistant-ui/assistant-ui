@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 type FooterItem = {
   name: ReactNode;
   url: string;
+  section?: ReactNode;
 };
 
 type DocsFooterProps = {
@@ -18,29 +19,39 @@ export function DocsFooter({ previous, next }: DocsFooterProps) {
   if (!previous && !next) return null;
 
   return (
-    <nav className="not-prose mt-16 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 sm:gap-3">
+    <nav className="not-prose mt-16 flex items-center justify-between gap-4 text-sm">
       {previous ? (
         <Link
           href={previous.url}
-          className="group bg-muted/50 hover:bg-muted flex items-center gap-2 rounded-lg px-4 py-3 transition-colors"
+          className="group text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
         >
-          <ChevronLeft className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
-          <span className="truncate">{previous.name}</span>
+          <ChevronLeft className="size-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
+          <span>
+            {previous.section ? (
+              <span className="opacity-60">{previous.section} / </span>
+            ) : null}
+            {previous.name}
+          </span>
         </Link>
       ) : (
-        <div />
+        <span />
       )}
 
       {next ? (
         <Link
           href={next.url}
-          className="group bg-muted/50 hover:bg-muted flex items-center justify-end gap-2 rounded-lg px-4 py-3 text-right transition-colors"
+          className="group text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
         >
-          <span className="truncate">{next.name}</span>
-          <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+          <span>
+            {next.section ? (
+              <span className="opacity-60">{next.section} / </span>
+            ) : null}
+            {next.name}
+          </span>
+          <ChevronRight className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
         </Link>
       ) : (
-        <div />
+        <span />
       )}
     </nav>
   );
