@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.22
+
+### Patch Changes
+
+- [#4379](https://github.com/assistant-ui/assistant-ui/pull/4379) [`94cc028`](https://github.com/assistant-ui/assistant-ui/commit/94cc02875b4e813e1af7020709511bb5f61e6067) - feat: per-tool-call timing and stall detection. `ToolCallMessagePart` gains a `timing` field (`{ startedAt, completedAt? }` in epoch ms), auto-populated by the assistant-stream accumulator at part start and result, and accepted on `ThreadMessageLike` for external-store hosts. New `useToolCallElapsed()` hook returns the call's elapsed milliseconds, ticking once per second while running; `unstable_useMessageStallDetection({ thresholdMs })` reports mid-run output stalls by watching a message content fingerprint. The kit `ToolFallback` trigger renders the duration when timing is present. ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.21
 
 ### Patch Changes

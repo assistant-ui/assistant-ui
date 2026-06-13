@@ -39,10 +39,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.2.11",
-    "@assistant-ui/store": "^0.2.14",
+    "@assistant-ui/core": "^0.2.15",
+    "@assistant-ui/store": "^0.2.17",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.21",
+    "assistant-stream": "^0.3.22",
     "uuid": "^14.0.0"
   },
   "peerDependencies": {

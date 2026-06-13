@@ -1,5 +1,21 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.39
+
+### Patch Changes
+
+- [#4381](https://github.com/assistant-ui/assistant-ui/pull/4381) [`f9db6ca`](https://github.com/assistant-ui/assistant-ui/commit/f9db6cac4dd69131c4b6668da170e742302d48cd) - feat: accept any AbstractAgent in useAgUiRuntime instead of requiring HttpAgent ([@dkachur1](https://github.com/dkachur1))
+
+- [#4380](https://github.com/assistant-ui/assistant-ui/pull/4380) [`6f2f687`](https://github.com/assistant-ui/assistant-ui/commit/6f2f68761088b857334e005b01d835ffc10d1f05) - feat: forward the full ExternalStoreThreadListAdapter (threads, archivedThreads, onRename, onArchive, ...) through adapters.threadList so server-persisted threads can be registered and switched to; clear messages before onSwitchToThread so the previous thread's messages no longer merge in as a phantom sibling branch; onSwitchToThread can return unstable_resume to reattach to an in-flight run after switching (resumes in the background and requires a ThreadHistoryAdapter with resume(), otherwise it reports through onError instead of re-running the agent) ([@dkachur1](https://github.com/dkachur1))
+
+- [#4362](https://github.com/assistant-ui/assistant-ui/pull/4362) [`64a6566`](https://github.com/assistant-ui/assistant-ui/commit/64a6566eea3b97735194c04b61724bd1a6b7f2dc) - fix: attach a TOOL_CALL_RESULT for a prior run's tool call to its owning message instead of synthesizing a duplicate empty-args part ([@dkachur1](https://github.com/dkachur1))
+
+- [#4382](https://github.com/assistant-ui/assistant-ui/pull/4382) [`fa89168`](https://github.com/assistant-ui/assistant-ui/commit/fa89168083cb87e9044d8683625723bc6e629b9e) - fix: keep failed and aborted runs visible. the synthetic RUN_FINISHED from onRunFinalized used to overwrite RUN_ERROR with a successful status, so failed runs rendered as complete and MessagePrimitive.Error never showed. aborts (which @ag-ui/client routes through onRunFailed) now map to RUN_CANCELLED instead of RUN_ERROR, so the run lands as incomplete/cancelled. ([@dkachur1](https://github.com/dkachur1))
+
+- Updated dependencies [[`c207bcd`](https://github.com/assistant-ui/assistant-ui/commit/c207bcda24468c1ae6e5adb61054a3682d3ff1d8), [`ae59baf`](https://github.com/assistant-ui/assistant-ui/commit/ae59baf3bb9b1779f403d378aca19bb3d83781ff), [`4583ca7`](https://github.com/assistant-ui/assistant-ui/commit/4583ca7477c834ef0906e7268005b469c7300cbe), [`94cc028`](https://github.com/assistant-ui/assistant-ui/commit/94cc02875b4e813e1af7020709511bb5f61e6067)]:
+  - @assistant-ui/core@0.2.15
+  - assistant-stream@0.3.22
+
 ## 0.0.38
 
 ### Patch Changes
