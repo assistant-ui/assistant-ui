@@ -31,7 +31,7 @@ export default function RootLayout({
       dynamic
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
-      appearance={{ baseTheme: dark }}
+      appearance={{ theme: dark }}
     >
       <html lang="en" className="dark">
         <body
