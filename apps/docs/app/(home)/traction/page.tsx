@@ -19,7 +19,7 @@ import {
   PACKAGES,
   TIMELINE_PACKAGES,
   daysSince,
-  fetchAiContributors,
+  fetchBotCoAuthors,
   fetchCommitActivity,
   fetchContributors,
   fetchNpmDownloads,
@@ -70,7 +70,7 @@ export default async function TractionPage({
     starHistory,
     downloadsTimeline,
     contributors,
-    aiContributors,
+    botCoAuthors,
     dependents,
     commitActivity,
     releaseActivity,
@@ -80,7 +80,7 @@ export default async function TractionPage({
     fetchStarHistory(repo?.stars ?? 0, revalidate),
     fetchTimelineSeries(TIMELINE_PACKAGES, revalidate),
     fetchContributors(revalidate),
-    fetchAiContributors(revalidate),
+    fetchBotCoAuthors(revalidate),
     getDependents(revalidate),
     fetchCommitActivity(revalidate),
     fetchReleaseActivity(revalidate),
@@ -328,20 +328,20 @@ export default async function TractionPage({
               </a>
             ))}
           </div>
-          {aiContributors.length > 0 ? (
+          {botCoAuthors.length > 0 ? (
             <div className="mt-8 flex flex-col gap-3">
               <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
                 <Bot className="size-4" />
                 <span>With bot</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {aiContributors.map((c) => (
+                {botCoAuthors.map((c) => (
                   <a
                     key={c.login}
                     href={c.htmlUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    title={`${c.login} · ${c.contributions.toLocaleString()} commit${c.contributions === 1 ? "" : "s"}`}
+                    title={`${c.login} · co-authored ${c.contributions.toLocaleString()} commit${c.contributions === 1 ? "" : "s"}`}
                     className="block transition-transform hover:scale-110"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}

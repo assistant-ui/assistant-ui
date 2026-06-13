@@ -1,10 +1,13 @@
 import {
   type GitHubContributor,
   getCommitActivityStats,
+  getCommitCoAuthors,
   getCommitsSince,
   getContributors,
   getReleases,
   getStargazersPage,
+  getUser,
+  getUserById,
 } from "./github";
 import { getDownloadsRange } from "./npm";
 
@@ -380,24 +383,6 @@ export async function fetchReleaseActivity(
 const isBot = (login: string, type?: string) =>
   type === "Bot" || /\[bot\]$/i.test(login);
 
-/* Bot accounts that are AI coding/docs agents, as opposed to CI and release automation (github-actions, blacksmith, dependabot, renovate, ...). Surfaced as "With AI" collaborators on the traction page; extend as new agents ship code. */
-const AI_BOT_LOGINS = new Set(
-  [
-    "Copilot",
-    "devin-ai-integration[bot]",
-    "promptless[bot]",
-    "dosubot[bot]",
-    "claude[bot]",
-    "cursor[bot]",
-    "coderabbitai[bot]",
-    "codegen-sh[bot]",
-    "sweep-ai[bot]",
-    "greptile-apps[bot]",
-    "ellipsis-dev[bot]",
-    "qodo-merge-pro[bot]",
-  ].map((login) => login.toLowerCase()),
-);
-
 const toContributor = (c: GitHubContributor): Contributor => ({
   login: c.login,
   avatarUrl: c.avatar_url,
@@ -413,16 +398,79 @@ export async function fetchContributors(
   return raw.filter((c) => !isBot(c.login, c.type)).map(toContributor);
 }
 
-export async function fetchAiContributors(
+/* Claude has no GitHub account, so it never resolves as a "Bot"; it is matched by the co-author email every model variant shares. */
+const CLAUDE_CO_AUTHOR_EMAIL = "noreply@anthropic.com";
+
+export async function fetchBotCoAuthors(
   revalidate?: number,
 ): Promise<Contributor[]> {
-  const raw = await getContributors(undefined, revalidate);
-  if (raw === null) return [];
-  return raw
-    .filter(
-      (c) => isBot(c.login, c.type) && AI_BOT_LOGINS.has(c.login.toLowerCase()),
-    )
-    .map(toContributor);
+  const coAuthors = await getCommitCoAuthors(revalidate);
+  if (coAuthors === null) return [];
+
+  let claudeCount = 0;
+  const accounts = new Map<
+    string,
+    { id: number | null; login: string | null; count: number }
+  >();
+  for (const author of coAuthors) {
+    if (author.email === CLAUDE_CO_AUTHOR_EMAIL) {
+      claudeCount += author.count;
+      continue;
+    }
+    if (author.id == null && author.login == null) continue;
+    const key =
+      author.id != null
+        ? `id:${author.id}`
+        : `login:${author.login!.toLowerCase()}`;
+    const entry = accounts.get(key);
+    if (entry) entry.count += author.count;
+    else
+      accounts.set(key, {
+        id: author.id,
+        login: author.login,
+        count: author.count,
+      });
+  }
+
+  const resolved = await Promise.all(
+    Array.from(accounts.values()).map(async ({ id, login, count }) => {
+      const user =
+        id != null
+          ? await getUserById(id, revalidate)
+          : await getUser(login!, revalidate);
+      if (!user || user.type !== "Bot") return null;
+      return {
+        login: user.login,
+        avatarUrl: user.avatarUrl,
+        htmlUrl: user.htmlUrl,
+        contributions: count,
+      } satisfies Contributor;
+    }),
+  );
+
+  // distinct app accounts can resolve to the same login (e.g. Copilot reviewer + swe-agent), so merge by login.
+  const byLogin = new Map<string, Contributor>();
+  for (const bot of resolved) {
+    if (!bot) continue;
+    const entry = byLogin.get(bot.login);
+    if (entry) entry.contributions += bot.contributions;
+    else byLogin.set(bot.login, { ...bot });
+  }
+  const result = Array.from(byLogin.values());
+
+  if (claudeCount > 0) {
+    const anthropic = await getUser("anthropics", revalidate);
+    if (anthropic) {
+      result.push({
+        login: "Claude",
+        avatarUrl: anthropic.avatarUrl,
+        htmlUrl: "https://claude.com",
+        contributions: claudeCount,
+      });
+    }
+  }
+
+  return result.sort((a, b) => b.contributions - a.contributions);
 }
 
 const EMPTY_DOWNLOADS: PackageDownloads = {
