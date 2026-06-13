@@ -58,14 +58,12 @@ export type EffectCell = {
 
 export type Cell = ReducerCell | MemoCell | EffectCell;
 
-export interface EffectTask {
-  readonly cleanup: () => void;
-  readonly setup: () => void;
-}
+export type CommitCallback = () => void;
+export type CommitCallbacks = Array<CommitCallback[] | undefined>;
 
 export interface RenderResult {
   value: any;
-  effectTasks: EffectTask[];
+  readonly commitCallbacks: CommitCallbacks;
 }
 
 export interface ResourceFiberRoot {
@@ -92,7 +90,7 @@ export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
     index: number;
   };
 
-  readonly commitCallbacks: (() => void)[];
+  commitCallbacks: CommitCallbacks;
   renderPendingCells: Set<ReducerCell> | null;
 
   renderContext: RenderResult | undefined; // set during render

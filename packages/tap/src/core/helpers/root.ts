@@ -4,6 +4,7 @@ import type {
   ResourceFiber,
   ResourceFiberRoot,
 } from "../types";
+import { CommitPriority } from "./commit";
 
 export const createResourceFiberRoot = (
   dispatchUpdate: (cb: () => boolean) => void,
@@ -68,9 +69,15 @@ export const applyChangelogRecord = (record: ChangelogRecord): void => {
 
 export const addCommit = (
   fiber: ResourceFiber<any, any>,
+  priority: CommitPriority,
   callback: () => void,
 ): void => {
-  fiber.commitCallbacks.push(callback);
+  const renderContext = fiber.renderContext;
+  if (renderContext !== undefined) {
+    (renderContext.commitCallbacks[priority] ??= []).push(callback);
+  } else {
+    (fiber.commitCallbacks[priority] ??= []).push(callback);
+  }
 };
 
 export const addRollback = (
@@ -89,7 +96,7 @@ export const markReducerDirty = (
   cell.isDirty = true;
   fiber.root.hasDirtyReducers = true;
   fiber.markDirty?.();
-  addCommit(fiber, () => {
+  addCommit(fiber, CommitPriority.HookState, () => {
     cell.current = cell.workInProgress;
     cell.isDirty = false;
   });

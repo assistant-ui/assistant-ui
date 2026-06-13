@@ -1,4 +1,6 @@
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
+import { CommitPriority } from "../core/helpers/commit";
+import { addCommit } from "../core/helpers/root";
 import type { Cell } from "../core/types";
 import { depsShallowEqual } from "../hooks/utils/depsShallowEqual";
 import {
@@ -49,29 +51,27 @@ export function useEffect(
       "useEffect called with and without dependencies across re-renders",
     );
 
-  fiber.renderContext!.effectTasks.push({
-    cleanup: () => {
-      try {
-        cell.cleanup?.();
-      } finally {
-        cell.cleanup = undefined;
-      }
-    },
-    setup: () => {
-      try {
-        const cleanup = effect();
+  addCommit(fiber, CommitPriority.PassiveEffectCleanup, () => {
+    try {
+      cell.cleanup?.();
+    } finally {
+      cell.cleanup = undefined;
+    }
+  });
+  addCommit(fiber, CommitPriority.PassiveEffectSetup, () => {
+    try {
+      const cleanup = effect();
 
-        if (cleanup !== undefined && typeof cleanup !== "function") {
-          throw new Error(
-            "An effect function must either return a cleanup function or nothing. " +
-              `Received: ${typeof cleanup}`,
-          );
-        }
-
-        cell.cleanup = cleanup;
-      } finally {
-        cell.deps = deps;
+      if (cleanup !== undefined && typeof cleanup !== "function") {
+        throw new Error(
+          "An effect function must either return a cleanup function or nothing. " +
+            `Received: ${typeof cleanup}`,
+        );
       }
-    },
+
+      cell.cleanup = cleanup;
+    } finally {
+      cell.deps = deps;
+    }
   });
 }

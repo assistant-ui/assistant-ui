@@ -1,6 +1,7 @@
 import { isDevelopment } from "../core/helpers/env";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 import { addCommit, addRollback } from "../core/helpers/root";
+import { CommitPriority } from "../core/helpers/commit";
 import type { MemoCell } from "../core/types";
 import { depsShallowEqual } from "../hooks/utils/depsShallowEqual";
 import {
@@ -54,7 +55,7 @@ export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
 
   if (!memoCell.isDirty) {
     memoCell.isDirty = true;
-    addCommit(fiber, () => {
+    addCommit(fiber, CommitPriority.HookState, () => {
       memoCell.current = memoCell.wip;
       memoCell.currentDeps = memoCell.wipDeps;
       memoCell.isDirty = false;

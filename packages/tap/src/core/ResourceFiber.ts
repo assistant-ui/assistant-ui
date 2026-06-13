@@ -1,5 +1,9 @@
 import type { ResourceFiber, RenderResult, ResourceFiberRoot } from "./types";
-import { commitAllEffects, cleanupAllEffects } from "./helpers/commit";
+import {
+  commitAllCallbacks,
+  createCommitCallbacks,
+  cleanupAllEffects,
+} from "./helpers/commit";
 import { withResourceFiber } from "./helpers/execution-context";
 import { withReactDispatcher } from "./react-dispatcher";
 import { isDevelopment } from "./helpers/env";
@@ -22,7 +26,7 @@ export function createResourceFiber<R, A extends readonly unknown[]>(
       workInProgress: null,
       index: 0,
     },
-    commitCallbacks: [],
+    commitCallbacks: createCommitCallbacks(),
     renderPendingCells: null,
     currentIndex: 0,
     renderContext: undefined,
@@ -65,7 +69,7 @@ export function renderResourceFiber<R, A extends readonly unknown[]>(
     }
 
     result = {
-      effectTasks: [],
+      commitCallbacks: createCommitCallbacks(),
       value: undefined as R | undefined,
     };
     fiber.memoCache.index = 0;
@@ -90,10 +94,8 @@ export function commitResourceFiber<R, A extends readonly unknown[]>(
   fiber.isMounted = true;
   commitRoot(fiber.root);
 
-  for (let i = 0; i < fiber.commitCallbacks.length; i++) {
-    fiber.commitCallbacks[i]!();
-  }
-  fiber.commitCallbacks.length = 0;
+  const fiberCommitCallbacks = fiber.commitCallbacks;
+  fiber.commitCallbacks = createCommitCallbacks();
 
   if (fiber.memoCache.workInProgress !== null) {
     fiber.memoCache.current = fiber.memoCache.workInProgress;
@@ -103,10 +105,10 @@ export function commitResourceFiber<R, A extends readonly unknown[]>(
   if (isDevelopment && fiber.isNeverMounted && fiber.devStrictMode === "root") {
     fiber.isNeverMounted = false;
 
-    commitAllEffects(result);
+    commitAllCallbacks(fiberCommitCallbacks, result.commitCallbacks);
     cleanupAllEffects(fiber);
   }
 
   fiber.isNeverMounted = false;
-  commitAllEffects(result);
+  commitAllCallbacks(fiberCommitCallbacks, result.commitCallbacks);
 }

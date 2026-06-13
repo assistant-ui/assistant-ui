@@ -1,21 +1,38 @@
-import type { ResourceFiber, RenderResult } from "../types";
+import type { CommitCallbacks, ResourceFiber } from "../types";
 
-export function commitAllEffects(renderResult: RenderResult): void {
+export enum CommitPriority {
+  HookState = 0,
+  EffectEvent = 1,
+  PassiveEffectCleanup = 2,
+  PassiveEffectSetup = 3,
+}
+
+const COMMIT_PRIORITIES = [
+  CommitPriority.HookState,
+  CommitPriority.EffectEvent,
+  CommitPriority.PassiveEffectCleanup,
+  CommitPriority.PassiveEffectSetup,
+] as const;
+
+export const createCommitCallbacks = (): CommitCallbacks => [];
+
+export function commitAllCallbacks(
+  ...callbackLists: readonly CommitCallbacks[]
+): void {
   const errors: unknown[] = [];
 
-  for (const task of renderResult.effectTasks) {
-    try {
-      task.cleanup();
-    } catch (error) {
-      errors.push(error);
-    }
-  }
+  for (const priority of COMMIT_PRIORITIES) {
+    for (const callbacks of callbackLists) {
+      const lane = callbacks[priority];
+      if (lane === undefined) continue;
 
-  for (const task of renderResult.effectTasks) {
-    try {
-      task.setup();
-    } catch (error) {
-      errors.push(error);
+      for (let i = 0; i < lane.length; i++) {
+        try {
+          lane[i]!();
+        } catch (error) {
+          errors.push(error);
+        }
+      }
     }
   }
 

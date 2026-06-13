@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { useEffect } from "../../react-hooks/useEffect";
+import { useEffectEvent } from "../../react-hooks/useEffectEvent";
 import { useState } from "../../react-hooks/useState";
 import {
   createTestResource,
@@ -211,6 +212,50 @@ describe("useEffect - Basic Functionality", () => {
   });
 
   describe("Effect Timing", () => {
+    it("should update effect events before user effect setup", () => {
+      const events: string[] = [];
+      let value = "initial";
+
+      const testFiber = createTestResource(() => {
+        let event!: () => string;
+        useEffect(() => {
+          events.push(event());
+        });
+        event = useEffectEvent(() => value);
+
+        return null;
+      });
+
+      renderTest(testFiber);
+      value = "updated";
+      renderTest(testFiber);
+
+      expect(events).toEqual(["initial", "updated"]);
+    });
+
+    it("should update effect events before user effect cleanup", () => {
+      const events: string[] = [];
+      let value = "initial";
+
+      const testFiber = createTestResource(() => {
+        let event!: () => string;
+        useEffect(() => {
+          return () => {
+            events.push(event());
+          };
+        });
+        event = useEffectEvent(() => value);
+
+        return null;
+      });
+
+      renderTest(testFiber);
+      value = "updated";
+      renderTest(testFiber);
+
+      expect(events).toEqual(["updated"]);
+    });
+
     it("should run effects after state updates are committed", () => {
       const events: string[] = [];
 
