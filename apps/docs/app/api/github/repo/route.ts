@@ -4,6 +4,12 @@ export const revalidate = 3600;
 
 export async function GET() {
   const repo = await getRepo();
+  if (!repo) {
+    return Response.json(
+      { error: "Repository data unavailable" },
+      { status: 503 },
+    );
+  }
   return Response.json(repo, {
     headers: {
       "Cache-Control":

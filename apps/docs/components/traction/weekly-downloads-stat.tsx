@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ArrowLeftRight, ArrowUpRight } from "lucide-react";
-import { formatCompact } from "@/lib/format";
+import { NumberRoll } from "@/components/assistant-ui/number-roll";
 
 type Mode = { value: number; caption: string };
 
@@ -19,7 +19,15 @@ export function WeeklyDownloadsStat({
     <div className="bg-background flex flex-col gap-3 p-6">
       <ArrowUpRight className="text-muted-foreground size-4" />
       <div className="text-3xl font-medium tracking-tight tabular-nums md:text-4xl">
-        {current.value > 0 ? formatCompact(current.value) : "—"}
+        {current.value > 0 ? (
+          <NumberRoll
+            value={current.value}
+            locales="en-US"
+            format={{ notation: "compact", maximumFractionDigits: 1 }}
+          />
+        ) : (
+          "—"
+        )}
       </div>
       <div className="flex flex-col gap-0.5">
         <span className="text-sm">Weekly downloads</span>

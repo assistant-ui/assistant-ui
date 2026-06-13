@@ -1,4 +1,5 @@
 import {
+  type GitHubContributor,
   getCommitActivityStats,
   getCommitsSince,
   getContributors,
@@ -376,18 +377,52 @@ export async function fetchReleaseActivity(
   return Array.from(counts.entries()).map(([date, count]) => ({ date, count }));
 }
 
+const isBot = (login: string, type?: string) =>
+  type === "Bot" || /\[bot\]$/i.test(login);
+
+/* Bot accounts that are AI coding/docs agents, as opposed to CI and release automation (github-actions, blacksmith, dependabot, renovate, ...). Surfaced as "With AI" collaborators on the traction page; extend as new agents ship code. */
+const AI_BOT_LOGINS = new Set(
+  [
+    "Copilot",
+    "devin-ai-integration[bot]",
+    "promptless[bot]",
+    "dosubot[bot]",
+    "claude[bot]",
+    "cursor[bot]",
+    "coderabbitai[bot]",
+    "codegen-sh[bot]",
+    "sweep-ai[bot]",
+    "greptile-apps[bot]",
+    "ellipsis-dev[bot]",
+    "qodo-merge-pro[bot]",
+  ].map((login) => login.toLowerCase()),
+);
+
+const toContributor = (c: GitHubContributor): Contributor => ({
+  login: c.login,
+  avatarUrl: c.avatar_url,
+  htmlUrl: c.html_url,
+  contributions: c.contributions,
+});
+
 export async function fetchContributors(
+  revalidate?: number,
+): Promise<Contributor[] | null> {
+  const raw = await getContributors(undefined, revalidate);
+  if (raw === null) return null;
+  return raw.filter((c) => !isBot(c.login, c.type)).map(toContributor);
+}
+
+export async function fetchAiContributors(
   revalidate?: number,
 ): Promise<Contributor[]> {
   const raw = await getContributors(undefined, revalidate);
+  if (raw === null) return [];
   return raw
-    .filter((c) => c.type !== "Bot" && !/\[bot\]$/i.test(c.login))
-    .map((c) => ({
-      login: c.login,
-      avatarUrl: c.avatar_url,
-      htmlUrl: c.html_url,
-      contributions: c.contributions,
-    }));
+    .filter(
+      (c) => isBot(c.login, c.type) && AI_BOT_LOGINS.has(c.login.toLowerCase()),
+    )
+    .map(toContributor);
 }
 
 const EMPTY_DOWNLOADS: PackageDownloads = {
@@ -724,15 +759,6 @@ function resampleMonthly(anchors: TimelinePoint[]): TimelinePoint[] {
 
   return out;
 }
-
-export const PROJECT_FACTS = {
-  firstCommitDate: "2024-04-21",
-  totalCommits: 3062,
-  uniqueAuthors: 100,
-  publicPackages: PACKAGES.filter((pkg) => !pkg.deprecated).length,
-  examples: 30,
-  showcased: 8,
-} as const;
 
 export function daysSince(isoDate: string): number {
   const start = new Date(isoDate).getTime();

@@ -56,28 +56,22 @@ export type RepoStats = {
   watchers: number;
 };
 
-const REPO_FALLBACK: RepoStats = {
-  stars: 9700,
-  forks: 990,
-  openIssues: 60,
-  watchers: 80,
-};
-
 export async function getRepo(
   revalidate: number = REVALIDATE.WARM,
-): Promise<RepoStats> {
+): Promise<RepoStats | null> {
   try {
     const res = await ghFetch("", revalidate);
-    if (!res.ok) return REPO_FALLBACK;
+    if (!res.ok) return null;
     const data = await res.json();
+    if (typeof data?.stargazers_count !== "number") return null;
     return {
-      stars: data.stargazers_count ?? REPO_FALLBACK.stars,
-      forks: data.forks_count ?? REPO_FALLBACK.forks,
-      openIssues: data.open_issues_count ?? REPO_FALLBACK.openIssues,
-      watchers: data.subscribers_count ?? REPO_FALLBACK.watchers,
+      stars: data.stargazers_count,
+      forks: data.forks_count,
+      openIssues: data.open_issues_count,
+      watchers: data.subscribers_count,
     };
   } catch {
-    return REPO_FALLBACK;
+    return null;
   }
 }
 
@@ -161,6 +155,40 @@ export async function getCommitsSince(
   return all;
 }
 
+export type CommitStats = {
+  total: number | null;
+  firstCommitDate: string | null;
+};
+
+const commitDate = (item: CommitListItem | undefined): string | null =>
+  item?.commit?.author?.date ?? item?.commit?.committer?.date ?? null;
+
+export async function getCommitStats(
+  revalidate: number = REVALIDATE.COOL,
+): Promise<CommitStats> {
+  try {
+    const res = await ghFetch("/commits?per_page=1", revalidate);
+    if (!res.ok) return { total: null, firstCommitDate: null };
+    // With per_page=1 the last page number equals the total number of commits on the default branch (every author, bots included).
+    const last = parseLastPage(res.headers.get("Link"));
+    const page1 = (await res.json()) as CommitListItem[];
+    const total = last ?? (Array.isArray(page1) ? page1.length : null);
+
+    if (last == null || last <= 1) {
+      return { total, firstCommitDate: commitDate(page1[0]) };
+    }
+    const oldest = await ghFetch(
+      `/commits?per_page=1&page=${last}`,
+      revalidate,
+    );
+    if (!oldest.ok) return { total, firstCommitDate: null };
+    const data = (await oldest.json()) as CommitListItem[];
+    return { total, firstCommitDate: commitDate(data[0]) };
+  } catch {
+    return { total: null, firstCommitDate: null };
+  }
+}
+
 export type GitHubContributor = {
   login: string;
   avatar_url: string;
@@ -172,22 +200,27 @@ export type GitHubContributor = {
 export async function getContributors(
   maxPages = 2,
   revalidate: number = REVALIDATE.COOL,
-): Promise<GitHubContributor[]> {
-  const all: GitHubContributor[] = [];
+): Promise<GitHubContributor[] | null> {
   try {
+    const all: GitHubContributor[] = [];
     for (let page = 1; page <= maxPages; page++) {
       const res = await ghFetch(
         `/contributors?per_page=100&page=${page}`,
         revalidate,
       );
-      if (!res.ok) break;
+      if (!res.ok) {
+        if (page === 1) return null;
+        break;
+      }
       const batch = (await res.json()) as GitHubContributor[];
       if (batch.length === 0) break;
       all.push(...batch);
       if (batch.length < 100) break;
     }
-  } catch {}
-  return all;
+    return all;
+  } catch {
+    return null;
+  }
 }
 
 export type StargazerEntry = { starred_at: string };

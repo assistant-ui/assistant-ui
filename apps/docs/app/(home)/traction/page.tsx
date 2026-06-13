@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   ArrowUpRight,
+  Bot,
   GitFork,
   GitCommit,
   Network,
@@ -15,9 +16,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { GitHubIcon } from "@/components/icons/github";
 import { createOgMetadata } from "@/lib/og";
 import {
-  PROJECT_FACTS,
+  PACKAGES,
   TIMELINE_PACKAGES,
   daysSince,
+  fetchAiContributors,
   fetchCommitActivity,
   fetchContributors,
   fetchNpmDownloads,
@@ -25,7 +27,7 @@ import {
   fetchStarHistory,
   fetchTimelineSeries,
 } from "@/lib/traction";
-import { getDependents, getRepo } from "@/lib/github";
+import { getCommitStats, getDependents, getRepo } from "@/lib/github";
 import { formatCompact, formatNumber } from "@/lib/format";
 import { ActivityHeatmap } from "@/components/traction/activity-heatmap";
 import { DownloadsChart } from "@/components/traction/downloads-chart";
@@ -46,7 +48,7 @@ const REPO_URL = "https://github.com/assistant-ui/assistant-ui";
 
 type HeroStat = {
   label: string;
-  value: string;
+  value: string | null;
   caption: string;
   icon: typeof Star;
 };
@@ -68,32 +70,36 @@ export default async function TractionPage({
     starHistory,
     downloadsTimeline,
     contributors,
+    aiContributors,
     dependents,
     commitActivity,
     releaseActivity,
+    commitStats,
   ] = await Promise.all([
     fetchNpmDownloads(revalidate),
-    fetchStarHistory(repo.stars, revalidate),
+    fetchStarHistory(repo?.stars ?? 0, revalidate),
     fetchTimelineSeries(TIMELINE_PACKAGES, revalidate),
     fetchContributors(revalidate),
+    fetchAiContributors(revalidate),
     getDependents(revalidate),
     fetchCommitActivity(revalidate),
     fetchReleaseActivity(revalidate),
+    getCommitStats(revalidate),
   ]);
 
-  const days = daysSince(PROJECT_FACTS.firstCommitDate);
   const flagshipWeekly = npm.perPackage[FLAGSHIP_PACKAGE]?.weekly ?? 0;
+  const publicPackages = PACKAGES.filter((pkg) => !pkg.deprecated).length;
 
   const heroStats: HeroStat[] = [
     {
       label: "GitHub stars",
-      value: formatCompact(repo.stars),
+      value: repo ? formatCompact(repo.stars) : null,
       caption: "and counting",
       icon: Star,
     },
     {
       label: "Public packages",
-      value: PROJECT_FACTS.publicPackages.toString(),
+      value: publicPackages.toString(),
       caption: "shipped on npm",
       icon: Package,
     },
@@ -105,10 +111,7 @@ export default async function TractionPage({
     },
     {
       label: "Contributors",
-      value:
-        contributors.length > 0
-          ? contributors.length.toString()
-          : `${PROJECT_FACTS.uniqueAuthors}+`,
+      value: contributors ? contributors.length.toString() : null,
       caption: "from the community",
       icon: Users,
     },
@@ -117,17 +120,20 @@ export default async function TractionPage({
   const detailStats = [
     {
       label: "Forks",
-      value: formatNumber(repo.forks),
+      value: repo ? formatNumber(repo.forks) : null,
       icon: GitFork,
     },
     {
       label: "Total commits",
-      value: PROJECT_FACTS.totalCommits.toLocaleString(),
+      value:
+        commitStats.total != null ? commitStats.total.toLocaleString() : null,
       icon: GitCommit,
     },
     {
       label: "Days building in the open",
-      value: days.toLocaleString(),
+      value: commitStats.firstCommitDate
+        ? daysSince(commitStats.firstCommitDate).toLocaleString()
+        : null,
       icon: Sparkles,
     },
     ...(dependents && dependents.repos > 0
@@ -196,7 +202,7 @@ export default async function TractionPage({
               >
                 <Icon className="text-muted-foreground size-4" />
                 <div className="text-3xl font-medium tracking-tight tabular-nums md:text-4xl">
-                  {stat.value}
+                  {stat.value ?? "—"}
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-sm">{stat.label}</span>
@@ -278,7 +284,7 @@ export default async function TractionPage({
                 <Icon className="text-muted-foreground mt-1 size-4" />
                 <div className="flex flex-col">
                   <span className="text-2xl font-medium tracking-tight tabular-nums">
-                    {stat.value}
+                    {stat.value ?? "—"}
                   </span>
                   <span className="text-muted-foreground text-sm">
                     {stat.label}
@@ -290,7 +296,7 @@ export default async function TractionPage({
         </div>
       </section>
 
-      {contributors.length > 0 ? (
+      {contributors && contributors.length > 0 ? (
         <section className="mb-20">
           <div className="mb-8 flex flex-col gap-1">
             <h2 className="text-xl font-medium tracking-tight">
@@ -322,6 +328,36 @@ export default async function TractionPage({
               </a>
             ))}
           </div>
+          {aiContributors.length > 0 ? (
+            <div className="mt-8 flex flex-col gap-3">
+              <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
+                <Bot className="size-4" />
+                <span>With bot</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {aiContributors.map((c) => (
+                  <a
+                    key={c.login}
+                    href={c.htmlUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`${c.login} · ${c.contributions.toLocaleString()} commit${c.contributions === 1 ? "" : "s"}`}
+                    className="block transition-transform hover:scale-110"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={c.avatarUrl}
+                      alt={c.login}
+                      width={32}
+                      height={32}
+                      loading="lazy"
+                      className="border-border size-8 rounded-full border"
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -370,7 +406,7 @@ export default async function TractionPage({
             className={buttonVariants({ variant: "outline" })}
           >
             <GitHubIcon className="size-4" />
-            {formatCompact(repo.stars)} on GitHub
+            {repo ? `${formatCompact(repo.stars)} on GitHub` : "Star on GitHub"}
           </a>
         </div>
       </section>
