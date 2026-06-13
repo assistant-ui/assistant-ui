@@ -44,7 +44,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-generative-compiler": "workspace:^",
-    "@types/node": "^25.9.2",
+    "@types/node": "^25.9.3",
     "tsdown": "^0.22.2",
     "vitest": "^4.1.8"
   },

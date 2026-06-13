@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.8"
   },
   "publishConfig": {
     "access": "public",

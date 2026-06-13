@@ -12,11 +12,11 @@
     "lint:fix": "oxlint --fix && oxfmt"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.68",
+    "@ai-sdk/openai": "^3.0.71",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
-    "@clerk/nextjs": "^7.4.3",
+    "@clerk/nextjs": "^7.5.2",
     "@clerk/themes": "^2.4.57",
     "@radix-ui/react-avatar": "^1.1.12",
     "@radix-ui/react-collapsible": "^1.1.13",
@@ -24,11 +24,11 @@
     "@radix-ui/react-separator": "^1.1.9",
     "@radix-ui/react-slot": "^1.2.5",
     "@radix-ui/react-tooltip": "^1.2.9",
-    "ai": "^6.0.197",
+    "ai": "^6.0.204",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.17.0",
-    "next": "^16.2.7",
+    "lucide-react": "^1.18.0",
+    "next": "^16.2.9",
     "radix-ui": "^1.5.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -40,13 +40,13 @@
   },
   "devDependencies": {
     "@assistant-ui/next": "workspace:*",
-    "@tailwindcss/postcss": "^4.3.0",
-    "@types/node": "^25.9.2",
+    "@tailwindcss/postcss": "^4.3.1",
+    "@types/node": "^25.9.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "oxfmt": "^0.53.0",
-    "oxlint": "^1.68.0",
-    "tailwindcss": "^4.3.0",
+    "oxfmt": "^0.54.0",
+    "oxlint": "^1.69.0",
+    "tailwindcss": "^4.3.1",
     "typescript": "^6.0.3"
   }
 }

@@ -13,17 +13,17 @@
     "@assistant-ui/react-ink-markdown": "workspace:*",
     "@wterm/dom": "0.3.0",
     "@wterm/react": "0.3.0",
-    "ai": "^6.0.197",
-    "ink": "^6.8.0",
+    "ai": "^6.0.204",
+    "ink": "^7.0.5",
     "ink-web": "^0.2.0",
-    "next": "^16.2.7",
+    "next": "^16.2.9",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-reconciler": "^0.33.0",
     "scheduler": "^0.27.0"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
+    "@types/node": "^25.9.3",
     "@types/react": "^19.2.17",
     "typescript": "^6.0.3"
   }
