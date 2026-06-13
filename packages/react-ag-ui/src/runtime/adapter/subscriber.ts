@@ -38,6 +38,16 @@ type Subscriber = {
   onRunFailed?: (payload: { error: Error }) => void;
 };
 
+const isAbortError = (error: Error): boolean => {
+  if (error.name === "AbortError") return true;
+  const message = typeof error.message === "string" ? error.message : "";
+  return (
+    message === "Fetch is aborted" ||
+    message === "signal is aborted without reason" ||
+    message === "component unmounted"
+  );
+};
+
 const ensureEvent = (
   raw: unknown,
   type: AgUiEvent["type"],
@@ -143,11 +153,12 @@ export const createAgUiSubscriber = (
       dispatch({ type: "RUN_FINISHED", runId });
     },
     onRunFailed: ({ error }) => {
-      // The finalize hook fires after onRunFailed; without this flag it
-      // synthesizes a RUN_FINISHED that overwrites the error status, so the
-      // failed run renders as successful.
       runFinishedDispatched = true;
       onRunFailed?.(error);
+      if (isAbortError(error)) {
+        dispatch({ type: "RUN_CANCELLED" } satisfies AgUiEvent);
+        return;
+      }
       const message =
         typeof error.message === "string" ? error.message : "Run failed";
       const code =

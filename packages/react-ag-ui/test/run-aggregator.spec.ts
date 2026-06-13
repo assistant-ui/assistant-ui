@@ -3,6 +3,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { ChatModelRunResult } from "@assistant-ui/core";
 import { RunAggregator } from "../src/runtime/adapter/run-aggregator";
+import { createAgUiSubscriber } from "../src/runtime/adapter/subscriber";
 import type { AgUiEvent } from "../src/runtime/types";
 
 const makeLogger = () => ({
@@ -483,6 +484,46 @@ describe("RunAggregator", () => {
       type: "incomplete",
       reason: "error",
       error: "boom",
+    });
+  });
+
+  it("preserves incomplete/error status when subscriber finalize follows a failed run", () => {
+    const aggregator = createAggregator(false);
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => aggregator.handle(evt),
+      runId: "r1",
+    });
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    subscriber.onRunFailed?.({ error: new Error("boom") });
+    subscriber.onRunFinalized?.();
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: "boom",
+    });
+  });
+
+  it("preserves incomplete/cancelled status when subscriber finalize follows an aborted run", () => {
+    const aggregator = createAggregator(false);
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => aggregator.handle(evt),
+      runId: "r1",
+    });
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    const abortError = Object.assign(new Error("aborted"), {
+      name: "AbortError",
+    });
+    subscriber.onRunFailed?.({ error: abortError });
+    subscriber.onRunFinalized?.();
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
     });
   });
 

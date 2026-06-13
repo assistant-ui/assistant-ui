@@ -49,12 +49,53 @@ describe("createAgUiSubscriber", () => {
     });
 
     subscriber.onRunFailed?.({ error: new Error("boom") });
-    // onRunFinalized fires after onRunFailed in real ag-ui flows; a synthetic
-    // RUN_FINISHED here would overwrite the error status with a successful one.
     subscriber.onRunFinalized?.();
 
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ type: "RUN_ERROR", message: "boom" });
+  });
+
+  it.each([
+    [
+      "AbortError name",
+      Object.assign(new Error("aborted"), { name: "AbortError" }),
+    ],
+    ["Fetch is aborted", new Error("Fetch is aborted")],
+    [
+      "signal is aborted without reason",
+      new Error("signal is aborted without reason"),
+    ],
+    ["component unmounted", new Error("component unmounted")],
+  ])(
+    "dispatches RUN_CANCELLED instead of RUN_ERROR for abort-shaped errors (%s)",
+    (_label, error) => {
+      const events: AgUiEvent[] = [];
+      const subscriber = createAgUiSubscriber({
+        dispatch: (evt) => events.push(evt),
+        runId: "run",
+      });
+
+      subscriber.onRunFailed?.({ error });
+      subscriber.onRunFinalized?.();
+
+      expect(events).toEqual([{ type: "RUN_CANCELLED" }]);
+    },
+  );
+
+  it("still forwards abort errors to the onRunFailed callback", () => {
+    const onRunFailed = vi.fn();
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+      onRunFailed,
+    });
+
+    const error = Object.assign(new Error("aborted"), { name: "AbortError" });
+    subscriber.onRunFailed?.({ error });
+
+    expect(onRunFailed).toHaveBeenCalledWith(error);
+    expect(events).toEqual([{ type: "RUN_CANCELLED" }]);
   });
 
   it("dispatches RUN_FINISHED with outcome from onRunFinishedEvent", () => {
@@ -74,8 +115,6 @@ describe("createAgUiSubscriber", () => {
         },
       },
     });
-    // onRunFinalized fires after onRunFinishedEvent in real ag-ui flows;
-    // we should not double-dispatch.
     subscriber.onRunFinalized?.();
 
     expect(events).toHaveLength(1);
