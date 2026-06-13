@@ -34,8 +34,7 @@ export function GET() {
   return new Response(`${markdown}\n`, {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
-      "X-Robots-Tag": "index, follow",
+      "X-Robots-Tag": "noindex, follow",
     },
   });
 }
-
