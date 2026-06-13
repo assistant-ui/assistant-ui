@@ -12,6 +12,7 @@ import {
   interactableToolName,
 } from "../../model-context/interactable-composer-metadata";
 import { useInteractableState } from "./useInteractableState";
+import { useJSONEqual } from "../utils/useJSONEqual";
 
 /**
  * The state type described by an interactable's `stateSchema`. Resolves the
@@ -157,34 +158,35 @@ export const useInteractable = <TSchema extends InteractableStateSchema>(
     config.updateRender,
   ]);
 
-  const messages = useAuiState((s) =>
-    isThreadAnchor ? s.thread.messages : undefined,
-  );
   const myToolCallId = part?.toolCallId;
 
   const [registeredState, methods] =
     useInteractableState<InferInteractableState<TSchema>>(id);
   const { setState } = methods;
 
-  const version = useMemo(() => {
-    if (!messages || !myToolCallId) return undefined;
-    const versions = getInteractableVersions(messages, id, name);
-    const mine = versions.find((v) => v.toolCallId === myToolCallId);
-    if (!mine) return undefined;
-    let latestToolCallId: string | undefined;
-    for (let i = versions.length - 1; i >= 0; i--) {
-      if (versions[i]!.toolCallId !== undefined) {
-        latestToolCallId = versions[i]!.toolCallId;
-        break;
-      }
-    }
-    const state = mine.state as InferInteractableState<TSchema>;
-    return {
-      state,
-      isLatest: latestToolCallId === myToolCallId,
-      restore: () => setState(state),
-    };
-  }, [messages, myToolCallId, id, name, setState]);
+  const versionValue = useAuiState(
+    useJSONEqual((s) => {
+      if (!isThreadAnchor || !myToolCallId) return undefined;
+      const versions = getInteractableVersions(s.thread.messages, id, name);
+      const mine = versions.find((v) => v.toolCallId === myToolCallId);
+      if (!mine) return undefined;
+      const latestToolCallId = versions.findLast(
+        (v) => v.toolCallId !== undefined,
+      )?.toolCallId;
+      return { state: mine.state, isLatest: latestToolCallId === myToolCallId };
+    }),
+  );
+
+  const version = useMemo(
+    () =>
+      versionValue && {
+        state: versionValue.state as InferInteractableState<TSchema>,
+        isLatest: versionValue.isLatest,
+        restore: () =>
+          setState(versionValue.state as InferInteractableState<TSchema>),
+      },
+    [versionValue, setState],
+  );
 
   const state =
     registeredState === undefined ? config.initialState : registeredState;

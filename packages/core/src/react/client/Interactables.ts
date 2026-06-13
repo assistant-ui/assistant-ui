@@ -375,17 +375,20 @@ const useInteractables = ({
         }
       }
 
-      try {
-        const jsonSchema = toJSONSchema(def.stateSchema);
-        partialSchemaCacheRef.current.set(
-          def.id,
-          toPartialJSONSchema(jsonSchema),
-        );
-      } catch (e) {
-        console.warn(
-          `[Interactables] Failed to create partial schema for "${def.name}". The update tool will accept arbitrary fields without validation.`,
-          e,
-        );
+      // The same id re-registers once per anchor (its create call + each update_*).
+      if (!partialSchemaCacheRef.current.has(def.id)) {
+        try {
+          const jsonSchema = toJSONSchema(def.stateSchema);
+          partialSchemaCacheRef.current.set(
+            def.id,
+            toPartialJSONSchema(jsonSchema),
+          );
+        } catch (e) {
+          console.warn(
+            `[Interactables] Failed to create partial schema for "${def.name}". The update tool will accept arbitrary fields without validation.`,
+            e,
+          );
+        }
       }
 
       const detached = detachedStateRef.current.get(def.id);

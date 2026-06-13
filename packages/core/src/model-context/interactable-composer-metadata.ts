@@ -141,6 +141,13 @@ export type InteractableVersion = {
   toolCallId?: string | undefined;
 };
 
+// Without this, every mounted anchor re-folds the whole thread on each streaming
+// token, since the repository hands out a new messages array per token.
+const versionsCache = new WeakMap<
+  readonly SnapshotCarrierMessage[],
+  Map<string, Map<string, InteractableVersion[]>>
+>();
+
 /**
  * Every version of interactable `id` recorded in the thread, oldest first,
  * folded chronologically:
@@ -160,6 +167,19 @@ export function getInteractableVersions(
   id: string,
   name: string,
 ): InteractableVersion[] {
+  let byName = versionsCache.get(messages);
+  if (!byName) {
+    byName = new Map();
+    versionsCache.set(messages, byName);
+  }
+  let byId = byName.get(name);
+  if (!byId) {
+    byId = new Map();
+    byName.set(name, byId);
+  }
+  const cached = byId.get(id);
+  if (cached) return cached;
+
   const toolName = interactableToolName(name);
   const versions: InteractableVersion[] = [];
   const current = () => versions[versions.length - 1];
@@ -203,6 +223,7 @@ export function getInteractableVersions(
       }
     }
   }
+  byId.set(id, versions);
   return versions;
 }
 
