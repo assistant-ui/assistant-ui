@@ -23,7 +23,10 @@ export function useClientLookup<TMethods extends ClientMethods>(
   get: (lookup: { index: number } | { key: string }) => TMethods;
 } {
   const resources = useResources(
-    elements.map((el) => withKey(getElementKey(el), ClientResource(el))),
+    // Forward each element's bailout deps so an unchanged child is reused.
+    elements.map((el) =>
+      withKey(getElementKey(el), ClientResource(el), el.deps),
+    ),
   );
 
   const keys = useMemo(() => Object.keys(resources), [resources]);

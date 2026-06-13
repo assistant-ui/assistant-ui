@@ -78,6 +78,7 @@ const useMessageClient = ({
           ? `toolCallId-${part.toolCallId}`
           : `index-${idx}`,
         MessagePartByIndex({ runtime, index: idx }),
+        [runtime, idx],
       ),
     ),
   );
@@ -87,6 +88,7 @@ const useMessageClient = ({
       withKey(
         attachment.id,
         MessageAttachmentClientByIndex({ runtime, index: idx }),
+        [runtime, idx],
       ),
     ),
   );

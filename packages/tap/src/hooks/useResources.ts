@@ -12,11 +12,46 @@ import {
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
 import { useEffect, useMemo } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
+import { depsShallowEqual } from "./utils/depsShallowEqual";
+
+// What this render decided for a child, applied in the commit phase.
+//   { ... }   render to commit; `remount` set when the hook changed
+//   "skip"    bailed out; keep the committed result
+//   "delete"  removed from the list; unmount
+type Pending =
+  | {
+      result: RenderResult;
+      deps: readonly unknown[] | undefined;
+      remount?: ResourceFiber<unknown>;
+    }
+  | "skip"
+  | "delete";
 
 type FiberState = {
   fiber: ResourceFiber<unknown>;
-  next: RenderResult | [ResourceFiber<unknown>, RenderResult] | "delete";
+  next: Pending;
+  // Set when this child (or a descendant) dispatches, cleared on commit.
+  isDirty: boolean;
+  // Last committed deps + value, used to decide and serve a bailout.
+  committedDeps: readonly unknown[] | undefined;
+  committedValue: unknown;
 };
+
+// Looked up by key (not captured) so it survives fiber replacement on remount.
+const markChildDirty = (
+  fibers: Map<string | number, FiberState>,
+  key: string | number,
+) => {
+  const state = fibers.get(key);
+  if (state) state.isDirty = true;
+};
+
+// A child is reused when its deps are unchanged and it has no pending work.
+const canReuse = (state: FiberState, deps: readonly unknown[] | undefined) =>
+  !state.isDirty &&
+  deps !== undefined &&
+  state.committedDeps !== undefined &&
+  depsShallowEqual(state.committedDeps, deps);
 
 export function useResources<E extends ResourceElement<any, any[]>>(
   elements: readonly E[],
@@ -50,24 +85,38 @@ export function useResources<E extends ResourceElement<any, any[]>>(
 
       let state = fibers.get(elementKey);
       if (!state) {
-        const fiber = createFiber(element.hook, element.key);
+        const fiber = createFiber(element.hook, element.key, () =>
+          markChildDirty(fibers, elementKey),
+        );
         const result = renderResourceFiber(fiber, element.args);
         state = {
           fiber,
-          next: result,
+          next: { result, deps: element.deps },
+          isDirty: false,
+          committedDeps: undefined,
+          committedValue: undefined,
         };
         newCount++;
         fibers.set(elementKey, state);
-        results.push(result.value);
       } else if (state.fiber.hook !== element.hook) {
-        const fiber = createFiber(element.hook, element.key);
+        const fiber = createFiber(element.hook, element.key, () =>
+          markChildDirty(fibers, elementKey),
+        );
         const result = renderResourceFiber(fiber, element.args);
-        state.next = [fiber, result];
-        results.push(result.value);
+        state.next = { result, deps: element.deps, remount: fiber };
+      } else if (canReuse(state, element.deps)) {
+        state.next = "skip";
       } else {
-        state.next = renderResourceFiber(state.fiber, element.args);
-        results.push(state.next.value);
+        const result = renderResourceFiber(state.fiber, element.args);
+        state.next = { result, deps: element.deps };
       }
+
+      // Reused children serve their committed value; everything else its render.
+      results.push(
+        typeof state.next === "object"
+          ? state.next.result.value
+          : state.committedValue,
+      );
     }
 
     // Clean up removed fibers (only if there might be stale ones)
@@ -96,18 +145,23 @@ export function useResources<E extends ResourceElement<any, any[]>>(
     void res; // as a performance optimization, we only run if the results have changed
 
     for (const [key, state] of fibers.entries()) {
-      if (state.next === "delete") {
+      const next = state.next;
+      if (next === "delete") {
         if (state.fiber.isMounted) {
           unmountResourceFiber(state.fiber);
         }
-
         fibers.delete(key);
-      } else if (Array.isArray(state.next)) {
-        unmountResourceFiber(state.fiber);
-        state.fiber = state.next[0];
-        commitResourceFiber(state.fiber, state.next[1]);
+      } else if (next === "skip") {
+        // Bailed this render: nothing to commit, keep committed deps/value.
       } else {
-        commitResourceFiber(state.fiber, state.next);
+        if (next.remount) {
+          unmountResourceFiber(state.fiber);
+          state.fiber = next.remount;
+        }
+        commitResourceFiber(state.fiber, next.result);
+        state.committedDeps = next.deps;
+        state.committedValue = next.result.value;
+        state.isDirty = false;
       }
     }
   }, [res, fibers]);

@@ -96,6 +96,88 @@ describe("@assistant-ui/tap/react resource API", () => {
       act(() => setCount(3));
       expect(screen.getByTestId("list").textContent).toBe("10,20,30");
     });
+
+    it("propagates a child's own state update through the list", () => {
+      const setters: Record<string, (n: number) => void> = {};
+      const useItem = (p: { id: string }) => {
+        const [v, setV] = useResourceState(0);
+        setters[p.id] = setV;
+        return v;
+      };
+
+      const Item = resource(useItem);
+
+      let values: number[] = [];
+      function App() {
+        values = useResources([
+          withKey("a", Item({ id: "a" })),
+          withKey("b", Item({ id: "b" })),
+        ]);
+        return <div data-testid="list">{values.join(",")}</div>;
+      }
+
+      render(<App />);
+      expect(values).toEqual([0, 0]);
+      act(() => setters.a!(5));
+      expect(values).toEqual([5, 0]);
+    });
+
+    it("skips re-rendering a child whose withKey deps are unchanged", () => {
+      const renders: Record<string, number> = {};
+      const useItem = (p: { id: string; text: string }) => {
+        renders[p.id] = (renders[p.id] ?? 0) + 1;
+        return p.text;
+      };
+      const Item = resource(useItem);
+
+      let setTick: (n: number) => void = () => {};
+      function App() {
+        const [tick, set] = useState(0);
+        setTick = set;
+        const items = useResources([
+          withKey("a", Item({ id: "a", text: "A" }), ["A"]),
+          withKey("b", Item({ id: "b", text: `B${tick}` }), [`B${tick}`]),
+        ]);
+        return <div data-testid="list">{items.join(",")}</div>;
+      }
+
+      render(<App />);
+      expect(renders).toEqual({ a: 1, b: 1 });
+      expect(screen.getByTestId("list").textContent).toBe("A,B0");
+
+      act(() => setTick(1));
+      // a's deps are unchanged -> reused; b's deps changed -> re-rendered.
+      expect(renders).toEqual({ a: 1, b: 2 });
+      expect(screen.getByTestId("list").textContent).toBe("A,B1");
+    });
+
+    it("re-renders a child with unchanged deps when it dispatches its own state", () => {
+      const renders: Record<string, number> = {};
+      const setters: Record<string, (n: number) => void> = {};
+      const useItem = (p: { id: string }) => {
+        renders[p.id] = (renders[p.id] ?? 0) + 1;
+        const [v, setV] = useResourceState(0);
+        setters[p.id] = setV;
+        return v;
+      };
+      const Item = resource(useItem);
+
+      let values: number[] = [];
+      function App() {
+        values = useResources([
+          withKey("a", Item({ id: "a" }), ["a"]),
+          withKey("b", Item({ id: "b" }), ["b"]),
+        ]);
+        return null;
+      }
+
+      render(<App />);
+      expect(renders).toEqual({ a: 1, b: 1 });
+      act(() => setters.a!(5));
+      // a is dirty -> re-renders despite unchanged deps; b bails.
+      expect(values).toEqual([5, 0]);
+      expect(renders).toEqual({ a: 2, b: 1 });
+    });
   });
 
   describe("useTapRoot", () => {

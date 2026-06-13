@@ -109,6 +109,7 @@ const useComposerClient = ({
           runtime,
           index: idx,
         }),
+        [runtime, idx],
       ),
     ),
   );

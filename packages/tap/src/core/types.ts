@@ -2,6 +2,7 @@ export type ResourceElement<R, A extends readonly unknown[] = any[]> = {
   readonly hook: (...args: A) => R;
   readonly args: Readonly<A>;
   readonly key?: string | number;
+  readonly deps?: readonly unknown[];
 };
 
 export type Resource<R, A extends readonly unknown[] = any[]> = (

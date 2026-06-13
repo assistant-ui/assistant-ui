@@ -80,7 +80,11 @@ const useThreadClient = ({
   );
   const messages = useClientLookup(
     runtimeState.messages.map((m) =>
-      withKey(m.id, MessageClientById({ runtime, id: m.id, threadIdRef })),
+      withKey(m.id, MessageClientById({ runtime, id: m.id, threadIdRef }), [
+        runtime,
+        m.id,
+        threadIdRef,
+      ]),
     ),
   );
 

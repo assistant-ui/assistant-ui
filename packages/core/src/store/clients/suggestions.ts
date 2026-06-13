@@ -45,7 +45,7 @@ const useSuggestionsResource = (
 
   const suggestionClients = useClientLookup(
     state.suggestions.map((suggestion, index) =>
-      withKey(index, SuggestionClient(suggestion)),
+      withKey(index, SuggestionClient(suggestion), [suggestion]),
     ),
   );
 

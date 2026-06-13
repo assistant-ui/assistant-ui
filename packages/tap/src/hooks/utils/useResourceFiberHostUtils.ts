@@ -52,7 +52,18 @@ export const useResourceFiberHost = () => {
     <R, A extends readonly any[]>(
       hook: (...props: A) => R,
       _key: string | number | undefined,
-    ) => createResourceFiber(hook, root, markDirty, getDevMode()),
+      // Per-fiber dirty callback, fired before the host's markDirty (which
+      // bumps versions up the tree). Lets a host track which child needs work.
+      onDirty?: () => void,
+    ) => {
+      const fiberMarkDirty = onDirty
+        ? () => {
+            onDirty();
+            markDirty?.();
+          }
+        : markDirty;
+      return createResourceFiber(hook, root, fiberMarkDirty, getDevMode());
+    },
     // oxlint-disable-next-line react-hooks/exhaustive-deps
     [],
   );

@@ -48,7 +48,7 @@ const useThreadListClient = ({
   );
   const threadItems = useClientLookup(
     Object.keys(runtimeState.threadItems).map((id) =>
-      withKey(id, ThreadListItemClientById({ runtime, id })),
+      withKey(id, ThreadListItemClientById({ runtime, id }), [runtime, id]),
     ),
   );
 

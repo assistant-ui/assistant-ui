@@ -82,13 +82,16 @@ const useThreadMessageClient = ({
           ? `toolCallId-${part.toolCallId}`
           : `index-${idx}`,
         ThreadMessagePartClient({ part }),
+        [part],
       ),
     ),
   );
 
   const attachments = useClientLookup(
     (message.attachments ?? []).map((attachment) =>
-      withKey(attachment.id, ThreadMessageAttachmentClient({ attachment })),
+      withKey(attachment.id, ThreadMessageAttachmentClient({ attachment }), [
+        attachment,
+      ]),
     ),
   );
 
