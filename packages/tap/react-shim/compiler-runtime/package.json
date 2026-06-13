@@ -1,0 +1,4 @@
+{
+  "type": "module",
+  "main": "../../dist/react-shim/compiler-runtime.js"
+}

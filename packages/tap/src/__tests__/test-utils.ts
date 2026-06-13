@@ -23,8 +23,8 @@ export function createTestResource<R, A extends readonly unknown[]>(
     if (activeResources.has(fiber)) {
       const lastArgs = propsMap.get(fiber);
       const result = renderResourceFiber(fiber, lastArgs);
-      commitResourceFiber(fiber, result);
       lastRenderResultMap.set(fiber, result);
+      commitResourceFiber(fiber, result);
     }
   };
 
@@ -56,10 +56,12 @@ export function renderTest<R, A extends readonly unknown[]>(
   // Track resource for cleanup
   activeResources.add(fiber);
 
-  // Render with new args
+  // Render with new args. Record the result before committing: the commit can
+  // synchronously trigger a nested re-render whose newer result must not be
+  // clobbered afterwards.
   const result = renderResourceFiber(fiber, args);
-  commitResourceFiber(fiber, result);
   lastRenderResultMap.set(fiber, result);
+  commitResourceFiber(fiber, result);
 
   // Return the committed state from the result
   // This accounts for any re-renders that happened during commit

@@ -20,6 +20,10 @@
     "./react-shim": {
       "types": null,
       "default": "./dist/react-shim/index.js"
+    },
+    "./react-shim/compiler-runtime": {
+      "types": null,
+      "default": "./dist/react-shim/compiler-runtime.js"
     }
   },
   "main": "./dist/index.js",

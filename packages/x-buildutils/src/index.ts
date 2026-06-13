@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { build } from "tsdown";
 import { preserveReferenceDirectives } from "./reference-directives";
+import { reactCompiler } from "./react-compiler";
 
 const isDev = process.argv.slice(2).includes("dev");
 
@@ -19,8 +20,10 @@ if (isDev && pkg.scripts?.start) onSuccess = pkg.scripts.start;
 // import hooks from "react" and have them resolve to tap inside a resource
 // render. Done with output `paths` (remap of the external specifier) so the
 // import stays external and only the specifier is rewritten — `alias` does not
-// affect unbundled external imports. Exact "react" only, so "react/jsx-runtime"
-// and "react-dom" are untouched.
+// affect unbundled external imports. Exact specifiers only ("react" and
+// "react/compiler-runtime", the latter so React Compiler output's memo cache
+// routes to tap inside a resource render), so "react/jsx-runtime" and
+// "react-dom" are untouched.
 //
 // Only applied to packages that actually depend on `@assistant-ui/tap` (so the
 // remapped `@assistant-ui/tap/react-shim` specifier resolves for consumers).
@@ -43,6 +46,8 @@ await build({
           paths: {
             ...(options.paths as Record<string, string>),
             react: "@assistant-ui/tap/react-shim",
+            "react/compiler-runtime":
+              "@assistant-ui/tap/react-shim/compiler-runtime",
           },
         }),
       }
@@ -55,7 +60,14 @@ await build({
   sourcemap: true,
   watch: isDev,
   ...(onSuccess ? { onSuccess } : {}),
-  plugins: [preserveReferenceDirectives()],
+  // React Compiler shares the remap gate: compiled output's memo cache only
+  // works inside tap renders through the shimmed `react/compiler-runtime`, and
+  // tap itself (which implements the hooks the compiler output runs on) must
+  // never be compiled.
+  plugins: [
+    ...(remapReactToShim ? [reactCompiler()] : []),
+    preserveReferenceDirectives(),
+  ],
 });
 
 // `output.paths` rewrites the `react` specifier in BOTH the emitted JS and the
@@ -71,6 +83,14 @@ if (remapReactToShim && !isDev && existsSync("dist")) {
     const file = resolve("dist", rel);
     const src = readFileSync(file, "utf8");
     const out = src
+      .replaceAll(
+        '"@assistant-ui/tap/react-shim/compiler-runtime"',
+        '"react/compiler-runtime"',
+      )
+      .replaceAll(
+        "'@assistant-ui/tap/react-shim/compiler-runtime'",
+        "'react/compiler-runtime'",
+      )
       .replaceAll('"@assistant-ui/tap/react-shim"', '"react"')
       .replaceAll("'@assistant-ui/tap/react-shim'", "'react'");
     if (out !== src) writeFileSync(file, out);

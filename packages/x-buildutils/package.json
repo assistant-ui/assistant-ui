@@ -24,13 +24,16 @@
   },
   "sideEffects": false,
   "dependencies": {
+    "@babel/core": "^7.29.7",
     "@tsconfig/strictest": "^2.0.8",
+    "babel-plugin-react-compiler": "^1.0.0",
     "jiti": "^2.7.0",
     "rolldown": "1.0.2",
     "tsdown": "^0.22.2",
     "typescript": "^6.0.3"
   },
   "devDependencies": {
+    "@types/babel__core": "^7.20.5",
     "@types/node": "^25.9.2"
   },
   "homepage": "https://www.assistant-ui.com/",

@@ -7,7 +7,10 @@ import {
   getCommittedOutput,
   waitForNextTick,
 } from "../test-utils";
-import { useState, useEffect } from "../../react-shim";
+import { useState, useEffect, useMemoCache } from "../../react-shim";
+import { c as _c } from "../../react-shim/compiler-runtime";
+
+const SENTINEL = Symbol.for("react.memo_cache_sentinel");
 
 describe("@assistant-ui/tap/react-shim", () => {
   afterEach(() => {
@@ -38,6 +41,31 @@ describe("@assistant-ui/tap/react-shim", () => {
       expect(getCommittedOutput(testFiber)).toBe(5);
       expect(effectLog).toEqual([0, 5]);
     });
+
+    it("useMemoCache persists the memo cache across renders", () => {
+      let computes = 0;
+      const testFiber = createTestResource((p: { x: number }) => {
+        // exactly what React Compiler emits: const $ = _c(n)
+        const $ = _c(2);
+        let double;
+        if ($[0] !== p.x) {
+          computes++;
+          double = p.x * 2;
+          $[0] = p.x;
+          $[1] = double;
+        } else {
+          double = $[1];
+        }
+        return double;
+      });
+
+      expect(renderTest(testFiber, { x: 2 })).toBe(4);
+      expect(computes).toBe(1);
+      expect(renderTest(testFiber, { x: 2 })).toBe(4);
+      expect(computes).toBe(1);
+      expect(renderTest(testFiber, { x: 3 })).toBe(6);
+      expect(computes).toBe(2);
+    });
   });
 
   describe("inside a React component", () => {
@@ -60,6 +88,32 @@ describe("@assistant-ui/tap/react-shim", () => {
       expect(btn.textContent).toBe("0");
       act(() => btn.click());
       expect(btn.textContent).toBe("1");
+    });
+
+    it("useMemoCache routes to React's compiler runtime", () => {
+      let computes = 0;
+      function Compiled({ x }: { x: number }) {
+        const $ = useMemoCache(2);
+        let double;
+        if ($[0] === SENTINEL || $[0] !== x) {
+          computes++;
+          double = x * 2;
+          $[0] = x;
+          $[1] = double;
+        } else {
+          double = $[1];
+        }
+        return <div data-testid="out">{double as number}</div>;
+      }
+
+      const { rerender } = render(<Compiled x={2} />);
+      expect(screen.getByTestId("out").textContent).toBe("4");
+      expect(computes).toBe(1);
+      rerender(<Compiled x={2} />);
+      expect(computes).toBe(1);
+      rerender(<Compiled x={3} />);
+      expect(screen.getByTestId("out").textContent).toBe("6");
+      expect(computes).toBe(2);
     });
   });
 });
