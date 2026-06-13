@@ -28,19 +28,25 @@ function ghHeaders(extra?: HeadersInit): HeadersInit {
   return h;
 }
 
+const cacheInit = (
+  revalidate: number,
+): { cache: "no-store" } | { next: { revalidate: number } } =>
+  revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } };
+
 async function ghFetch(
   path: string,
   revalidate: number,
   init?: RequestInit & { headers?: Record<string, string> },
 ): Promise<Response> {
   const { next: initNext, ...rest } = init ?? {};
-  const common = { ...rest, headers: ghHeaders(init?.headers) };
-  return fetch(
-    `${API_BASE}${path}`,
-    revalidate === 0
-      ? { ...common, cache: "no-store" }
-      : { ...common, next: { revalidate, ...(initNext ?? {}) } },
-  );
+  const cache = cacheInit(revalidate);
+  return fetch(`${API_BASE}${path}`, {
+    ...rest,
+    headers: ghHeaders(init?.headers),
+    ...("next" in cache
+      ? { next: { ...cache.next, ...(initNext ?? {}) } }
+      : cache),
+  });
 }
 
 function parseLastPage(linkHeader: string | null): number | null {
@@ -275,12 +281,10 @@ async function fetchGitHubUser(
   revalidate: number,
 ): Promise<GitHubUser | null> {
   try {
-    const res = await fetch(
-      `https://api.github.com/${path}`,
-      revalidate === 0
-        ? { headers: ghHeaders(), cache: "no-store" }
-        : { headers: ghHeaders(), next: { revalidate } },
-    );
+    const res = await fetch(`https://api.github.com/${path}`, {
+      headers: ghHeaders(),
+      ...cacheInit(revalidate),
+    });
     if (!res.ok) return null;
     const data = await res.json();
     if (typeof data?.login !== "string") return null;
@@ -367,9 +371,7 @@ export async function getDependents(
   try {
     const res = await fetch(`${HTML_BASE}/network/dependents`, {
       headers: { "User-Agent": "Mozilla/5.0 (assistant-ui-traction)" },
-      ...(revalidate === 0
-        ? { cache: "no-store" as const }
-        : { next: { revalidate } }),
+      ...cacheInit(revalidate),
     });
     if (!res.ok) return null;
     const html = await res.text();
