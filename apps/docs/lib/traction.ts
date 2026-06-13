@@ -460,14 +460,12 @@ export async function fetchBotCoAuthors(
 
   if (claudeCount > 0) {
     const anthropic = await getUser("anthropics", revalidate);
-    if (anthropic) {
-      result.push({
-        login: "Claude",
-        avatarUrl: anthropic.avatarUrl,
-        htmlUrl: "https://claude.com",
-        contributions: claudeCount,
-      });
-    }
+    result.push({
+      login: "Claude",
+      avatarUrl: anthropic?.avatarUrl ?? "/icons/anthropic.svg",
+      htmlUrl: "https://claude.com",
+      contributions: claudeCount,
+    });
   }
 
   return result.sort((a, b) => b.contributions - a.contributions);
