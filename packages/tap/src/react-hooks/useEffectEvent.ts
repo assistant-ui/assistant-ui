@@ -26,9 +26,11 @@ export function useEffectEvent<T extends (...args: any[]) => any>(
   const fiber = getCurrentResourceFiber();
   const callbackRef = useRef(callback);
 
-  addCommit(fiber, CommitPriority.EffectEvent, () => {
-    callbackRef.current = callback;
-  });
+  if (callbackRef.current !== callback) {
+    addCommit(fiber, CommitPriority.EffectEvent, () => {
+      callbackRef.current = callback;
+    });
+  }
 
   return useCallback(
     ((...args: Parameters<T>) => {

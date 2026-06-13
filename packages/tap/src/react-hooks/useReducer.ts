@@ -109,13 +109,12 @@ const createReducerCell = (
   return cell;
 };
 
-export function useReducerImpl<S, A, I, R extends S>(
+export function useReducerImpl<S, A, I>(
   reducer: (state: S, action: A) => S,
-  getDerivedState: ((state: S) => R) | undefined,
   initialArg: S | I,
   initFn: ((arg: I) => S) | undefined,
   eagerBailout: boolean,
-): [R, Dispatch<A>] {
+): [S, Dispatch<A>] {
   const fiber = getCurrentResourceFiber();
   const index = fiber.currentIndex++;
 
@@ -169,32 +168,14 @@ export function useReducerImpl<S, A, I, R extends S>(
   }
   cell.reducer = reducer;
 
-  if (cell.renderQueue !== null || getDerivedState !== undefined) {
+  if (cell.renderQueue !== null) {
     let derived = cell.workInProgress;
-    if (cell.renderQueue !== null) {
-      for (const action of cell.renderQueue) {
-        derived = reducer(derived, action);
-      }
-
-      cell.renderQueue = null;
-      fiber.renderPendingCells?.delete(cell);
+    for (const action of cell.renderQueue) {
+      derived = reducer(derived, action);
     }
 
-    if (getDerivedState) {
-      let changed;
-      let passes = 0;
-      do {
-        if (++passes > 25) {
-          throw new Error(
-            "Too many derivations. getDerivedState must reach a fixpoint; " +
-              "tap limits the number of iterations to prevent an infinite loop.",
-          );
-        }
-        const result = getDerivedState(derived);
-        changed = !Object.is(result, derived);
-        derived = result;
-      } while (changed);
-    }
+    cell.renderQueue = null;
+    fiber.renderPendingCells?.delete(cell);
 
     if (!Object.is(derived, cell.workInProgress)) {
       markReducerDirty(fiber, cell);
@@ -228,34 +209,8 @@ export function useReducer<S, A, I>(
 ): [S, Dispatch<A>] {
   return useReducerImpl(
     reducer,
-    undefined,
     initialArg as S,
     init as ((arg: S) => S) | undefined,
     false,
   );
-}
-
-/**
- * @internal A reducer cell whose state is recomputed during render via
- * getDerivedState. Not part of the public API; user-facing state adjustment
- * during render uses render-phase updates (setState during render), like React.
- */
-export function useReducerWithDerivedState<S, A, R extends S>(
-  reducer: (state: S, action: A) => S,
-  getDerivedState: (state: S) => R,
-  initialState: S,
-): [R, Dispatch<A>];
-export function useReducerWithDerivedState<S, A, I, R extends S>(
-  reducer: (state: S, action: A) => S,
-  getDerivedState: (state: S) => R,
-  initialArg: I,
-  init: (arg: I) => S,
-): [R, Dispatch<A>];
-export function useReducerWithDerivedState<S, A, I, R extends S>(
-  reducer: (state: S, action: A) => S,
-  getDerivedState: (state: S) => R,
-  initialArg: I,
-  init?: (arg: I) => S,
-): [R, Dispatch<A>] {
-  return useReducerImpl(reducer, getDerivedState, initialArg, init, true);
 }

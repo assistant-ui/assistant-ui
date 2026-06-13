@@ -32,7 +32,6 @@ export function useState<S>(
   return useReducerImpl<
     S | undefined,
     useState.StateUpdater<S>,
-    S | (() => S) | undefined,
-    S | undefined
-  >(stateReducer, undefined, initial, stateInit, true);
+    S | (() => S) | undefined
+  >(stateReducer, initial, stateInit, true);
 }

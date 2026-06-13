@@ -31,10 +31,6 @@ export function useEffect(
   const fiber = getCurrentResourceFiber();
   const index = fiber.currentIndex++;
 
-  if (!fiber.isFirstRender && index >= fiber.cells.length) {
-    throwRenderedMoreHooks();
-  }
-
   const existing = fiber.cells[index];
   const cell: Cell & { type: "effect" } =
     existing === undefined
@@ -44,6 +40,10 @@ export function useEffect(
         : throwHookOrderChanged();
 
   if (existing === undefined) {
+    if (!fiber.isFirstRender && index >= fiber.cells.length) {
+      throwRenderedMoreHooks();
+    }
+
     fiber.cells[index] = cell;
   }
 

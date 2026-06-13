@@ -16,22 +16,18 @@ const COMMIT_PRIORITIES = [
 
 export const createCommitCallbacks = (): CommitCallbacks => [];
 
-export function commitAllCallbacks(
-  ...callbackLists: readonly CommitCallbacks[]
-): void {
+export function commitAllCallbacks(callbacks: CommitCallbacks): void {
   const errors: unknown[] = [];
 
   for (const priority of COMMIT_PRIORITIES) {
-    for (const callbacks of callbackLists) {
-      const lane = callbacks[priority];
-      if (lane === undefined) continue;
+    const lane = callbacks[priority];
+    if (lane === undefined) continue;
 
-      for (let i = 0; i < lane.length; i++) {
-        try {
-          lane[i]!();
-        } catch (error) {
-          errors.push(error);
-        }
+    for (let i = 0; i < lane.length; i++) {
+      try {
+        lane[i]!();
+      } catch (error) {
+        errors.push(error);
       }
     }
   }
