@@ -96,9 +96,7 @@ for (const rel of files) {
     filename: join(repoRoot, rel),
     babelrc: false,
     configFile: false,
-    parserOpts: {
-      plugins: rel.endsWith(".tsx") ? ["typescript", "jsx"] : ["typescript"],
-    },
+    parserOpts: { plugins: parserPlugins(rel) },
     plugins: [
       [
         reactCompilerPlugin,
