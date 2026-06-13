@@ -89,7 +89,7 @@ function Item({
         className="not-prose flex w-full flex-row items-center rounded-xl px-3 py-2"
       >
         <PropName row={row} />
-        <TypeCell className="@max-xl:hidden">{row.type}</TypeCell>
+        <TypeCell>{row.type}</TypeCell>
       </div>
     );
   }
@@ -111,7 +111,7 @@ function Item({
     >
       <Collapsible.Trigger className="not-prose group/trigger hover:bg-fd-accent relative flex w-full flex-row items-center px-3 py-2 text-start">
         <PropName row={row} />
-        <TypeCell className="me-4 mask-[linear-gradient(to_right,black_calc(100%-1rem),transparent)] @max-xl:hidden">
+        <TypeCell className="me-4 mask-[linear-gradient(to_right,black_calc(100%-1rem),transparent)]">
           {row.type}
         </TypeCell>
         <ChevronDown className="text-fd-muted-foreground absolute inset-e-2 size-4 transition-transform group-data-[state=open]/trigger:rotate-180" />
@@ -173,12 +173,12 @@ export function TypeTableClient({
       id={id}
       className={cn(
         "bg-fd-card text-fd-card-foreground flex flex-col overflow-hidden rounded-2xl border p-1 text-sm",
-        nested ? "bg-fd-secondary/50" : "@container my-6",
+        nested ? "bg-fd-secondary/50" : "my-6",
       )}
     >
       <div className="not-prose text-fd-muted-foreground flex items-center px-3 py-1 font-medium">
         <p className="w-1/4 shrink-0 pe-2">Prop</p>
-        <p className="min-w-0 flex-1 pl-4 @max-xl:hidden">Type</p>
+        <p className="min-w-0 flex-1 pl-4">Type</p>
       </div>
       {rows.map((row) => (
         <Item key={row.name} row={row} parentId={id} />

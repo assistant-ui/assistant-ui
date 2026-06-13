@@ -3,7 +3,7 @@ title: External Store Runtime
 description: Runtime components, options, and adapters for using assistant-ui with externally owned chat state.
 ---
 
-import { ExternalStoreAdapter, ExternalThread, ExternalThreadBranchAdapter, ExternalThreadProps, ExternalThreadQueueAdapter, useExternalStoreRuntime, useExternalStoreSharedOptions } from "@/generated/typeDocs";
+import { ExternalStoreAdapter, ExternalThread, ExternalThreadProps, ExternalThreadQueueAdapter, useExternalStoreRuntime, useExternalStoreSharedOptions } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -32,12 +32,6 @@ The queue surface a runtime exposes so the composer can stay usable during a
 run and render the pending messages.
 
 <ParametersTable {...ExternalThreadQueueAdapter} />
-
-### ExternalThreadBranchAdapter
-
-The branch surface a runtime exposes so the branch picker can navigate between sibling variants of a message. The consumer keeps passing the visible branch as the flat `messages` array; `getBranches(messageId)` returns ordered sibling ids (including the message's own id) and `switchToBranch(branchId)` swaps the visible branch. The picker appears when a message reports more than one sibling. Editing a message creates a branch only if the `onEdit` handler creates a sibling and `getBranches` reports it; note the edit payload carries the edited message's own id as both `parentId` and `sourceId`.
-
-<ParametersTable {...ExternalThreadBranchAdapter} />
 
 ### pickExternalStoreSharedOptions
 

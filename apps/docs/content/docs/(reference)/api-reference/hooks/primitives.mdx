@@ -3,7 +3,7 @@ title: Primitive Hooks
 description: Primitive hooks for reading scoped assistant-ui runtime state, viewport behavior, timing, and message part data inside React components.
 ---
 
-import { useAssistantRuntime, useAttachmentRuntime, useCloudThreadListAdapter, useComposerRuntime, useEditComposerAttachmentRuntime, useMessageAttachmentRuntime, useMessagePartData, useMessagePartRuntime, useMessageRuntime, useScrollLock, useThreadComposerAttachmentRuntime, useThreadListItemRuntime, useThreadRuntime, useThreadViewportAutoScroll } from "@/generated/typeDocs";
+import { unstable_useMessageStallDetection, useAssistantRuntime, useAttachmentRuntime, useCloudThreadListAdapter, useComposerRuntime, useEditComposerAttachmentRuntime, useMessageAttachmentRuntime, useMessagePartData, useMessagePartRuntime, useMessageRuntime, useScrollLock, useThreadComposerAttachmentRuntime, useThreadListItemRuntime, useThreadRuntime, useThreadViewportAutoScroll } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -637,4 +637,47 @@ const useThreadViewport: { (): ThreadViewportState; <TSelected>(selector: (state
 ```ts
 const useThreadViewportStore: { (): ReadonlyStore<ThreadViewportState>; (options: { optional: true; }): ReadonlyStore<ThreadViewportState> | null; };
 ```
+
+### unstable_useComposerInputHistory
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Under active development and might change without notice.
+</Callout>
+
+Terminal-style input history for the thread composer: ArrowUp on an
+empty draft recalls previously sent user messages (newest first),
+ArrowDown steps back toward the newest and finally restores the draft
+that was being typed when browsing started.
+
+Recall only triggers when the caret is on the first/last line with no
+selection, so multi-line editing keeps native arrow behavior. The
+handler yields to an open mention/slash popover, to IME composition,
+to modifier keys, and to consumer handlers that already called
+`preventDefault`. It is inert on edit composers.
+
+```tsx
+const history = unstable_useComposerInputHistory();
+<ComposerPrimitive.Input {...history} />
+```
+
+```ts
+function unstable_useComposerInputHistory(): Unstable_ComposerInputHistory;
+```
+
+### unstable_useMessageStallDetection
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Under active development and might change without notice.
+</Callout>
+
+Detects mid-run output stalls on the current message: while the message is
+running, watches a fingerprint of its content (part count plus text,
+argument, and result sizes) and reports a stall once the fingerprint stops
+changing for `thresholdMs`. Useful for re-surfacing a "still working"
+indicator during tool think-time or provider stalls, after the first
+tokens have already streamed.
+
+Must be used inside a message scope.
+
+<ParametersTable {...unstable_useMessageStallDetection} />
 {/* api-reference:end */}
