@@ -46,6 +46,13 @@ const config: NextConfig = {
         destination: "/llms.txt",
       },
       {
+        source: "/pricing",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/pricing.md",
+      },
+      {
         source: "/docs/:path*",
         has: [
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },

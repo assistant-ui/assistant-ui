@@ -4,17 +4,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
-
-interface PricingPlan {
-  name: string;
-  price: string;
-  period?: string;
-  description: string;
-  features: string[];
-  cta: string;
-  href: string;
-  highlighted: boolean;
-}
+import type { PricingPlan } from "./pricing-data";
 
 export function PricingPlanCard({ plan }: { plan: PricingPlan }) {
   const handleClick = () => {
