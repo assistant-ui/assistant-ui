@@ -61,7 +61,6 @@ export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
       memoCell.isDirty = false;
     });
     addRollback(fiber.root, () => {
-      fiber.commitCallbacks.length = 0;
       memoCell.wip = memoCell.current;
       memoCell.wipDeps = memoCell.currentDeps;
       memoCell.isDirty = false;

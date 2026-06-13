@@ -4,7 +4,12 @@ import {
   peekResourceFiber,
 } from "../core/helpers/execution-context";
 import type { Cell, ChangelogRecord, ResourceFiber } from "../core/types";
-import { applyChangelogRecord, markReducerDirty } from "../core/helpers/root";
+import {
+  addCommit,
+  applyChangelogRecord,
+  markReducerDirty,
+} from "../core/helpers/root";
+import { CommitPriority } from "../core/helpers/commit";
 import {
   throwHookOrderChanged,
   throwRenderedMoreHooks,
@@ -77,6 +82,7 @@ const createReducerCell = (
           if (
             eagerDispatch &&
             !fiber.root.hasDirtyReducers &&
+            !cell.isDirty &&
             !record.hasEagerState
           ) {
             record.eagerState = reducer(cell.workInProgress, action);
@@ -178,6 +184,13 @@ function useReducerImpl<S, A, I, R extends S>(
       markReducerDirty(fiber, cell);
       cell.workInProgress = derived;
     }
+  }
+
+  if (cell.isDirty) {
+    addCommit(fiber, CommitPriority.HookState, () => {
+      cell.current = cell.workInProgress;
+      cell.isDirty = false;
+    });
   }
 
   return [cell.workInProgress, cell.dispatch];

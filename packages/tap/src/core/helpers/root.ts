@@ -72,12 +72,8 @@ export const addCommit = (
   priority: CommitPriority,
   callback: () => void,
 ): void => {
-  const renderContext = fiber.renderContext;
-  if (renderContext !== undefined) {
-    (renderContext.commitCallbacks[priority] ??= []).push(callback);
-  } else {
-    (fiber.commitCallbacks[priority] ??= []).push(callback);
-  }
+  const callbacks = fiber.renderContext!.commitCallbacks;
+  (callbacks[priority] ??= []).push(callback);
 };
 
 export const addRollback = (
@@ -96,12 +92,7 @@ export const markReducerDirty = (
   cell.isDirty = true;
   fiber.root.hasDirtyReducers = true;
   fiber.markDirty?.();
-  addCommit(fiber, CommitPriority.HookState, () => {
-    cell.current = cell.workInProgress;
-    cell.isDirty = false;
-  });
   addRollback(fiber.root, () => {
-    fiber.commitCallbacks.length = 0;
     if (cell.queue !== null) {
       for (const record of cell.queue) record.queued = false;
       cell.queue = null;

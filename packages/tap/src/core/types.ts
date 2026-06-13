@@ -90,7 +90,6 @@ export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
     index: number;
   };
 
-  commitCallbacks: CommitCallbacks;
   renderPendingCells: Set<ReducerCell> | null;
 
   renderContext: RenderResult | undefined; // set during render

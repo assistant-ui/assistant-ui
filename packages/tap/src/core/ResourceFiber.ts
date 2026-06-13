@@ -26,7 +26,6 @@ export function createResourceFiber<R, A extends readonly unknown[]>(
       workInProgress: null,
       index: 0,
     },
-    commitCallbacks: createCommitCallbacks(),
     renderPendingCells: null,
     currentIndex: 0,
     renderContext: undefined,
@@ -94,9 +93,6 @@ export function commitResourceFiber<R, A extends readonly unknown[]>(
   fiber.isMounted = true;
   commitRoot(fiber.root);
 
-  const fiberCommitCallbacks = fiber.commitCallbacks;
-  fiber.commitCallbacks = createCommitCallbacks();
-
   if (fiber.memoCache.workInProgress !== null) {
     fiber.memoCache.current = fiber.memoCache.workInProgress;
     fiber.memoCache.workInProgress = null;
@@ -105,10 +101,10 @@ export function commitResourceFiber<R, A extends readonly unknown[]>(
   if (isDevelopment && fiber.isNeverMounted && fiber.devStrictMode === "root") {
     fiber.isNeverMounted = false;
 
-    commitAllCallbacks(fiberCommitCallbacks, result.commitCallbacks);
+    commitAllCallbacks(result.commitCallbacks);
     cleanupAllEffects(fiber);
   }
 
   fiber.isNeverMounted = false;
-  commitAllCallbacks(fiberCommitCallbacks, result.commitCallbacks);
+  commitAllCallbacks(result.commitCallbacks);
 }
