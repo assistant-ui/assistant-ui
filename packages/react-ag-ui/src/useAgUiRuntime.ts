@@ -96,7 +96,7 @@ export function useAgUiRuntime(
               core.loadExternalState(result.state);
             }
             if (result.unstable_resume) {
-              await core.resumeInFlightRun(result.messages);
+              void core.resumeInFlightRun(result.messages);
             }
           }
         : undefined,

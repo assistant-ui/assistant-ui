@@ -215,15 +215,28 @@ export class AgUiThreadRuntimeCore {
     );
   }
 
-  /**
-   * Resume a run that was in flight when the thread was hydrated externally
-   * (thread switch). Mirrors the `unstable_resume` path of `__internal_load`,
-   * including the history adapter's resume stream.
-   */
   async resumeInFlightRun(messages: readonly ThreadMessage[]): Promise<void> {
-    const parentId = messages.at(-1)?.id ?? null;
+    // Without a resume stream startRun would re-run the agent from scratch.
     const resumeStream = this.history?.resume?.bind(this.history);
-    await this.startRun(parentId, this.lastRunConfig, undefined, resumeStream);
+    if (!resumeStream) {
+      const error = new Error(
+        "[agui] unstable_resume requires a ThreadHistoryAdapter with a resume() method; skipping resume after thread switch",
+      );
+      this.logger.error?.(error.message);
+      this.onError?.(error);
+      return;
+    }
+    const parentId = messages.at(-1)?.id ?? null;
+    try {
+      await this.startRun(
+        parentId,
+        this.lastRunConfig,
+        undefined,
+        resumeStream,
+      );
+    } catch {
+      // startRun already reported via onError; don't reject the switch.
+    }
   }
 
   private assertNoPendingInterrupts(): void {
