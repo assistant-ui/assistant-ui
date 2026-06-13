@@ -12,12 +12,17 @@ An interactable is a tool UI with live, shared state: the user edits it through 
 
 ## Overview
 
-What makes an interactable different from an ordinary tool UI:
+There are two ways to define an interactable, depending on who creates it:
 
-- **Shared, editable state**: the user (via React) and the model (via the `update_{name}` tool) both write to the same state, and each sees the other's edits
-- **Persistent**: state outlives the tool call and the turn. By default it's shared across the whole app, or scope it to a single thread
+- **App-scoped:** a component you mount yourself with `useInteractable`, anywhere in your app (a sidebar, a panel, wherever). The model automatically gets an `update_{name}` tool to read and edit it, and its state can persist across threads.
+- **Thread-scoped:** an interactable tool UI the model summons into the conversation. You define it with `interactableTool` inside `defineToolkit`, and it renders inline when the model calls it. Its state rides the thread's history.
+
+Either way, an interactable is more than an ordinary tool UI:
+
+- **Shared, editable state**: the user (via React) and the model (via the auto-generated `update_{name}` tool) both write to the same state, and each sees the other's edits
 - **Partial updates**: the model sends only the fields it wants to change; the rest are preserved
-- **Placed by you**: render it anywhere in your app, beside the thread ([Quick Start](#quick-start)) or inside messages as an artifact or notepad ([Interactables in Messages](#interactables-in-messages))
+- **Versioned**: each user edit and model `update_*` is recorded as a version you can display and `restore()` ([Versions](#versions))
+- **Persistent**: state outlives the tool call and the turn, and survives a reload
 - **One tool per name**: every instance of a name shares a single `update_{name}` tool, addressed by `id`
 
 Common use cases:
@@ -54,10 +59,19 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
+This scope is needed for both kinds of interactable. Thread-scoped interactables also live in a toolkit, which you register with `Tools` (shown below).
+
 </Step>
 <Step>
 
-### Create an interactable
+### Define an interactable
+
+Pick the path that matches who creates it.
+
+<Tabs items={["App-scoped", "Thread-scoped"]}>
+<Tab>
+
+A component you mount yourself. Define it with `useInteractable` where you render it (a sidebar, a panel, wherever). The model automatically gets an `update_{name}` tool to read and edit it.
 
 <Callout type="warn">
   Define the `stateSchema` and `initialState` **outside** the component (or
@@ -118,12 +132,7 @@ function TaskBoard() {
 }
 ```
 
-By default the state is app-scoped: shared across every thread and persisted by a [persistence adapter](#persistence). Pass `scope: "thread"` to tie it to a single conversation instead. See [Scope](#scope).
-
-</Step>
-<Step>
-
-### Place it in your layout
+Then place it anywhere in your layout:
 
 ```tsx
 function App() {
@@ -137,6 +146,52 @@ function App() {
   );
 }
 ```
+
+App-scoped state is shared across every thread and persisted by a [persistence adapter](#persistence). To tie state to a single conversation instead, see [Scope](#scope).
+
+</Tab>
+<Tab>
+
+An interactable tool UI the model summons into the conversation. Define it with `interactableTool` inside `defineToolkit`; it renders inline when the model calls it, so there's nothing to place in your layout.
+
+```tsx
+import { defineToolkit, interactableTool } from "@assistant-ui/react";
+import { z } from "zod";
+
+const notepadSchema = z.object({
+  title: z.string(),
+  content: z.string(),
+});
+
+const toolkit = defineToolkit({
+  notepad: interactableTool({
+    description: "A notepad with drafted text the user can read and edit.",
+    stateSchema: notepadSchema,
+    render: ({ state, setState, version, streaming }) => (
+      <NotepadView
+        value={state}
+        onChange={setState}
+        busy={streaming}
+        readOnly={version ? !version.isLatest : false}
+      />
+    ),
+  }),
+});
+```
+
+Register the toolkit alongside the Interactables scope:
+
+```tsx
+const aui = useAui({
+  interactables: Interactables(),
+  tools: Tools({ toolkit }),
+});
+```
+
+The model creates a notepad by calling the tool and revises it through the auto-generated `update_notepad` tool. Thread-scoped state rides the thread's history, so it survives reloads with nothing extra to persist. Your `render` runs at every message that touched the instance; see [Interactables in Messages](#interactables-in-messages).
+
+</Tab>
+</Tabs>
 
 </Step>
 <Step>
@@ -165,13 +220,6 @@ export async function POST(req: Request) {
 Each snapshot defaults to `[Current state of "note" (id: "n1"): {...}]`. When only some fields changed since the model last saw the state, the snapshot is a **diff**: it carries just the changed fields (`partial: true`) and reads as `[State of "note" (id: "n1") changed — updated fields: {...}]`, so a small edit to a large state doesn't re-send the whole thing. Pass a second `format` argument to control how snapshots read to the model. Handle both full and partial entries, and keep the instance id visible; the model uses it to address the `update_*` tool.
 
 `injectInteractableContext` is part of `@assistant-ui/react-ai-sdk` and works on AI SDK `UIMessage`s. On a different backend (LangGraph, a custom runtime), this step is the same idea with your own injection; see [Other Runtimes](#other-runtimes).
-
-<Callout type="warn">
-  This step is required, not optional. Without it, the model can still _call_
-  `update_*` tools but is **blind to current state**: it can't see what's on
-  the task board or which note is selected, so it edits without knowing what's
-  there.
-</Callout>
 
 Now when the user says _"Add a task called 'Buy groceries'"_, the AI sees the board's current state and calls the `update_taskBoard` tool to update it. Thanks to partial updates, the AI only needs to send the fields it wants to change.
 
@@ -247,7 +295,7 @@ A thread is an append-only log, so one instance accumulates **versions**: the cr
 What older messages do with that is your choice, and both common policies are one-liners:
 
 ```tsx
-// Frozen history (claude.ai-style):
+// Frozen history:
 // old messages show their version read-only; only the newest is live
 render: ({ state, setState, version }) =>
   version && !version.isLatest ? (
@@ -266,6 +314,8 @@ render: ({ state, setState, version }) => (
 ```
 
 Versions are computed from the thread record itself (the creating call's args, the state snapshots stamped on sent user messages, and the model's `update_*` calls), so history survives reloads with nothing extra to persist.
+
+The `version` prop above is per-message, for what each message renders. To list every version at once, for a history dropdown that works for both scopes, see [Version History](#version-history).
 
 ### Streaming
 
@@ -360,6 +410,47 @@ function Notepad({ id, initial }: { id?: string; initial: NotepadArgs }) {
   // ...
 }
 ```
+
+## Version History
+
+Every interactable accumulates **versions** as it changes: each user edit, each model `update_*` call, and (for thread-scoped) the creating call. `useInteractableVersions(id, name)` returns them oldest-first, each with the full `state` as of that version and a `restore()` that sets the live instance back to it. You can use it to create a versions dropdown:
+
+```tsx
+function VersionDropdown({ id, name }: { id: string; name: string }) {
+  const versions = useInteractableVersions(id, name);
+  if (versions.length < 2) return null;
+
+  return (
+    <select onChange={(e) => versions[+e.target.value]!.restore()}>
+      {versions.map((v, i) => (
+        <option key={i} value={i}>
+          v{i + 1}: {v.origin === "user-edit" ? "you" : "assistant"}
+        </option>
+      ))}
+    </select>
+  );
+}
+```
+
+**Thread-scoped:**
+
+```tsx
+const Notepad = ({ id, state, setState }: InteractableToolRenderProps<NotepadArgs>) => (
+  <div>
+    <VersionDropdown id={id} name="notepad" />
+    {/* ...editor... */}
+  </div>
+);
+```
+
+**App-scoped:**
+
+```tsx
+const [state, { id }] = useInteractable("taskBoard", config);
+return <VersionDropdown id={id} name="taskBoard" />;
+```
+
+Versions are read from the current thread's messages, so an app-scoped item's history covers the current conversation, not its full cross-thread lifetime.
 
 ## Persistence
 
@@ -570,20 +661,7 @@ function NoteCard({
 
 The parent passes `selectedId` and `onSelect={setSelectedId}` to each card. Because `selected` lives in the schema, the AI sees which note is focused: _"Change the color to blue"_ targets the right note, and _"select the meeting-prep note"_ works too.
 
-## Combining with Tools
-
-You can use `Interactables` alongside `Tools`:
-
-```tsx
-const aui = useAui({
-  tools: Tools({ toolkit: myToolkit }),
-  interactables: Interactables(),
-});
-```
-
 ## How It Works
-
-When you call `useInteractable("taskBoard", config)`:
 
 1. **Registration**: the interactable is registered in the `interactables` scope with its name, description, schema, and initial state.
 2. **Tool generation**: an `update_taskBoard` frontend tool is created with a partial schema (all fields optional) plus a required `id` parameter. One tool exists per name no matter how many instances mount, so the tool list stays stable and provider prompt caches stay warm.
@@ -854,7 +932,7 @@ const versions = useInteractableVersions<TState>(id, name);
 // → [{ state, origin: "create" | "update" | "user-edit", toolCallId?, restore }, ...]
 ```
 
-Every version of a thread-scoped interactable recorded in the current thread, oldest first. `restore()` sets the live state back to that version. The non-React equivalent for backends is `getInteractableVersions(messages, id, name)`, exported from `@assistant-ui/react`.
+Every version of an interactable recorded in the current thread, oldest first. Each entry carries the full `state` and a `restore()` that sets the live instance back to it. Works for both scopes; see [Version History](#version-history) for usage. The non-React equivalent for backends is `getInteractableVersions(messages, id, name)`, exported from `@assistant-ui/react`.
 
 ### `Interactables`
 
