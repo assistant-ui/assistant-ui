@@ -2,12 +2,23 @@ import { isDevelopment } from "../core/helpers/env";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 import { addCommit, addRollback } from "../core/helpers/root";
 import { CommitPriority } from "../core/helpers/commit";
-import type { MemoCell } from "../core/types";
+import type { MemoCell, ResourceFiber } from "../core/types";
 import { depsShallowEqual } from "../hooks/utils/depsShallowEqual";
 import {
   throwHookOrderChanged,
   throwRenderedMoreHooks,
 } from "./utils/hookErrors";
+
+const addMemoCommit = <T>(
+  fiber: ResourceFiber<any, any>,
+  cell: MemoCell<T>,
+) => {
+  addCommit(fiber, CommitPriority.HookState, () => {
+    cell.current = cell.wip;
+    cell.currentDeps = cell.wipDeps;
+    cell.isDirty = false;
+  });
+};
 
 export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
   const fiber = getCurrentResourceFiber();
@@ -42,7 +53,12 @@ export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
   }
 
   const memoCell = cell as MemoCell<T>;
-  if (depsShallowEqual(memoCell.wipDeps, deps)) return memoCell.wip;
+  if (depsShallowEqual(memoCell.wipDeps, deps)) {
+    if (memoCell.isDirty) {
+      addMemoCommit(fiber, memoCell);
+    }
+    return memoCell.wip;
+  }
 
   const value = fn();
 
@@ -55,17 +71,13 @@ export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
 
   if (!memoCell.isDirty) {
     memoCell.isDirty = true;
-    addCommit(fiber, CommitPriority.HookState, () => {
-      memoCell.current = memoCell.wip;
-      memoCell.currentDeps = memoCell.wipDeps;
-      memoCell.isDirty = false;
-    });
     addRollback(fiber.root, () => {
       memoCell.wip = memoCell.current;
       memoCell.wipDeps = memoCell.currentDeps;
       memoCell.isDirty = false;
     });
   }
+  addMemoCommit(fiber, memoCell);
 
   return value;
 };

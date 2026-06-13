@@ -1,7 +1,11 @@
 import { describe, it, expect, afterEach } from "vitest";
 import * as React from "react";
-import { renderResourceFiber } from "../core/ResourceFiber";
+import {
+  commitResourceFiber,
+  renderResourceFiber,
+} from "../core/ResourceFiber";
 import { setRootVersion } from "../core/helpers/root";
+import type { MemoCell } from "../core/types";
 import {
   createTestResource,
   renderTest,
@@ -71,6 +75,33 @@ describe("react dispatcher", () => {
 
     setRootVersion(fiber.root, 0);
     expect(renderTest(fiber, { x: 2 })).toEqual({ run: 3, value: 2 });
+  });
+
+  it("commits React.useMemo work from a replayed render", () => {
+    let runs = 0;
+    const fiber = createTestResource((p: { x: number }) =>
+      React.useMemo(
+        () => ({
+          run: ++runs,
+          value: p.x,
+        }),
+        [p.x],
+      ),
+    );
+
+    expect(renderTest(fiber, { x: 1 })).toEqual({ run: 1, value: 1 });
+
+    expect(renderResourceFiber(fiber, [{ x: 2 }]).value).toEqual({
+      run: 2,
+      value: 2,
+    });
+    const replayed = renderResourceFiber(fiber, [{ x: 2 }]);
+    commitResourceFiber(fiber, replayed);
+
+    const cell = fiber.cells[0] as MemoCell;
+    expect(cell.isDirty).toBe(false);
+    expect(cell.current).toBe(replayed.value);
+    expect(cell.currentDeps).toEqual([2]);
   });
 
   it("throws for a hook tap does not implement", () => {
