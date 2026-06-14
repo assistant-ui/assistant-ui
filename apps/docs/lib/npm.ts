@@ -39,7 +39,7 @@ export function getDownloadsRange(
 }
 
 // The flagship package; its last-week downloads stand in for the headline figure.
-const FLAGSHIP_PACKAGE = "@assistant-ui/react";
+export const FLAGSHIP_PACKAGE = "@assistant-ui/react";
 
 export async function getWeeklyDownloads(
   pkg: string = FLAGSHIP_PACKAGE,

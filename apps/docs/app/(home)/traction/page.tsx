@@ -28,6 +28,7 @@ import {
   fetchTimelineSeries,
 } from "@/lib/traction";
 import { getCommitStats, getDependents, getRepo } from "@/lib/github";
+import { FLAGSHIP_PACKAGE } from "@/lib/npm";
 import { formatCompact, formatNumber } from "@/lib/format";
 import { ActivityHeatmap } from "@/components/traction/activity-heatmap";
 import { DownloadsChart } from "@/components/traction/downloads-chart";
@@ -52,8 +53,6 @@ type HeroStat = {
   caption: string;
   icon: typeof Star;
 };
-
-const FLAGSHIP_PACKAGE = "@assistant-ui/react";
 
 export default async function TractionPage({
   searchParams,

@@ -7,6 +7,7 @@ import { Menu, X, ArrowUpRight, ArrowRight, Search } from "lucide-react";
 import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { formatCompact } from "@/lib/format";
 import { SearchDialog } from "./search-dialog";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
@@ -63,9 +64,6 @@ function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
     </div>
   );
 }
-
-const formatStars = (count: number) =>
-  count >= 1000 ? `${(count / 1000).toFixed(1)}k` : count.toString();
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -128,7 +126,9 @@ export function Header() {
             aria-label="GitHub"
           >
             {stars !== null && (
-              <span className="text-sm tabular-nums">{formatStars(stars)}</span>
+              <span className="text-sm tabular-nums">
+                {formatCompact(stars)}
+              </span>
             )}
             <GitHubIcon className="size-4" />
           </a>

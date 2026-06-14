@@ -41,16 +41,14 @@ export function FeatureHighlights() {
         {FEATURES.map((feature) => {
           const Icon = feature.icon;
           return (
-            <div key={feature.title} className="flex flex-col gap-4">
-              <div className="bg-muted/30 flex size-10 items-center justify-center rounded-lg border">
+            <div key={feature.title} className="flex flex-col gap-1.5">
+              <div className="bg-muted/30 mb-2.5 flex size-10 items-center justify-center rounded-lg border">
                 <Icon className="text-muted-foreground size-5" />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <dt className="font-medium">{feature.title}</dt>
-                <dd className="text-muted-foreground text-sm leading-relaxed text-pretty">
-                  {feature.description}
-                </dd>
-              </div>
+              <dt className="font-medium">{feature.title}</dt>
+              <dd className="text-muted-foreground text-sm leading-relaxed text-pretty">
+                {feature.description}
+              </dd>
             </div>
           );
         })}
