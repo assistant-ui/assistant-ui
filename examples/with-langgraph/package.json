@@ -10,10 +10,11 @@
   },
   "dependencies": {
     "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/react-langgraph": "workspace:*",
+    "@assistant-ui/react-langchain": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@langchain/langgraph-sdk": "^1.9.22",
+    "@langchain/react": "^1.0.23",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.18.0",

@@ -2114,9 +2114,9 @@ importers:
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-langgraph':
+      '@assistant-ui/react-langchain':
         specifier: workspace:*
-        version: link:../../packages/react-langgraph
+        version: link:../../packages/react-langchain
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -2126,6 +2126,9 @@ importers:
       '@langchain/langgraph-sdk':
         specifier: ^1.9.22
         version: 1.9.22(@langchain/core@1.1.49(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.1))(openai@6.42.0(ws@8.21.0)(zod@4.4.3))(ws@8.21.0))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@langchain/react':
+        specifier: ^1.0.23
+        version: 1.0.23(@langchain/core@1.1.49(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.1))(openai@6.42.0(ws@8.21.0)(zod@4.4.3))(ws@8.21.0))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -4868,9 +4871,9 @@ importers:
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-langgraph':
+      '@assistant-ui/react-langchain':
         specifier: workspace:*
-        version: link:../../packages/react-langgraph
+        version: link:../../packages/react-langchain
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -4880,9 +4883,9 @@ importers:
       '@langchain/langgraph':
         specifier: ^1.4.2
         version: 1.4.2(@langchain/core@1.1.49(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.1))(openai@6.42.0(ws@8.21.0)(zod@4.4.3))(ws@8.21.0))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
-      '@langchain/langgraph-sdk':
-        specifier: ^1.9.22
-        version: 1.9.22(@langchain/core@1.1.49(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.1))(openai@6.42.0(ws@8.21.0)(zod@4.4.3))(ws@8.21.0))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@langchain/react':
+        specifier: ^1.0.23
+        version: 1.0.23(@langchain/core@1.1.49(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.1))(openai@6.42.0(ws@8.21.0)(zod@4.4.3))(ws@8.21.0))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@radix-ui/react-avatar':
         specifier: ^1.1.12
         version: 1.1.12(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)

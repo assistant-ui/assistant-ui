@@ -34,7 +34,7 @@ npm run dev
 
 ## Features
 
-- LangGraph agent integration via `@assistant-ui/react-langgraph`
+- LangGraph agent integration via `@assistant-ui/react-langchain`
 - Thread list for conversation management
 - Custom tool UI for stock price snapshots
 - Custom tool UI for stock purchases

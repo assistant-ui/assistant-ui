@@ -33,8 +33,7 @@ This is the [assistant-ui](https://github.com/assistant-ui/assistant-ui) starter
 ```
 app/                Next.js App Router pages + /api proxy
 backend/agent.ts    LangGraph graph exported as `graph`
-lib/chatApi.ts      LangGraph SDK client factory
 langgraph.json      LangGraph CLI config (graph id, node version, env file)
 ```
 
-`app/assistant.tsx` builds the runtime with `unstable_createLangGraphStream({ client, assistantId })` from `@assistant-ui/react-langgraph`.
+`app/assistant.tsx` builds the runtime with `useStreamRuntime({ assistantId, apiUrl })` from `@assistant-ui/react-langchain`, which wraps `useStream` from `@langchain/react`.

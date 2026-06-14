@@ -15,11 +15,11 @@
   },
   "dependencies": {
     "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/react-langgraph": "workspace:*",
+    "@assistant-ui/react-langchain": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@langchain/anthropic": "^1.4.1",
     "@langchain/langgraph": "^1.4.2",
-    "@langchain/langgraph-sdk": "^1.9.22",
+    "@langchain/react": "^1.0.23",
     "@radix-ui/react-avatar": "^1.1.12",
     "@radix-ui/react-collapsible": "^1.1.13",
     "@radix-ui/react-dialog": "^1.1.16",
