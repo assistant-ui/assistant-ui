@@ -41,7 +41,10 @@ describe("createAgUiResumeStream", () => {
       createAgUiResumeStream(
         fromArray([
           { type: "STATE_SNAPSHOT", snapshot: { count: 1 } },
-          { type: "STATE_DELTA", delta: [{ op: "replace", path: "/count", value: 2 }] },
+          {
+            type: "STATE_DELTA",
+            delta: [{ op: "replace", path: "/count", value: 2 }],
+          },
         ]),
       ),
     );
