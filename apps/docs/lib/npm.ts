@@ -9,21 +9,27 @@ export const NPM_REVALIDATE = {
 
 export type NpmDailyDownloads = { day: string; downloads: number };
 
-async function npmFetch(
-  path: string,
-  revalidate: number,
-): Promise<NpmDailyDownloads[]> {
+async function npmGetJson(path: string, revalidate: number): Promise<unknown> {
   try {
     const res = await fetch(
       `${NPM_BASE}${path}`,
       revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } },
     );
-    if (!res.ok) return [];
-    const data = (await res.json()) as { downloads?: NpmDailyDownloads[] };
-    return data.downloads ?? [];
+    if (!res.ok) return null;
+    return await res.json();
   } catch {
-    return [];
+    return null;
   }
+}
+
+async function npmFetch(
+  path: string,
+  revalidate: number,
+): Promise<NpmDailyDownloads[]> {
+  const data = (await npmGetJson(path, revalidate)) as {
+    downloads?: NpmDailyDownloads[];
+  } | null;
+  return data?.downloads ?? [];
 }
 
 export function getDownloadsRange(
@@ -45,15 +51,9 @@ export async function getWeeklyDownloads(
   pkg: string = FLAGSHIP_PACKAGE,
   revalidate: number = NPM_REVALIDATE.COOL,
 ): Promise<number | null> {
-  try {
-    const res = await fetch(
-      `${NPM_BASE}/downloads/point/last-week/${pkg}`,
-      revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } },
-    );
-    if (!res.ok) return null;
-    const data = (await res.json()) as { downloads?: number };
-    return typeof data.downloads === "number" ? data.downloads : null;
-  } catch {
-    return null;
-  }
+  const data = (await npmGetJson(
+    `/downloads/point/last-week/${pkg}`,
+    revalidate,
+  )) as { downloads?: number } | null;
+  return typeof data?.downloads === "number" ? data.downloads : null;
 }
