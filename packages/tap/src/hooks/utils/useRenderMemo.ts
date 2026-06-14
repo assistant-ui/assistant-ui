@@ -1,7 +1,11 @@
 import { useEffect, useRef } from "react";
 import { depsShallowEqual } from "./depsShallowEqual";
 
-export const useRenderMemo = <T>(callback: () => T, deps: unknown[]) => {
+export const useRenderMemo = <T>(
+  callback: () => T,
+  deps: unknown[],
+  disableMemo: boolean,
+) => {
   const stateRef = useRef<{
     wipDeps: unknown[] | null;
     wip: T | null;
@@ -25,7 +29,11 @@ export const useRenderMemo = <T>(callback: () => T, deps: unknown[]) => {
     state.current = state.wip;
   });
 
-  if (state.currentDeps && depsShallowEqual(state.currentDeps, deps))
+  if (
+    !disableMemo &&
+    state.currentDeps &&
+    depsShallowEqual(state.currentDeps, deps)
+  )
     return state.current as T;
 
   state.wipDeps = deps;

@@ -181,6 +181,27 @@ describe("@assistant-ui/tap/react resource API", () => {
       expect(values).toEqual([5, 0]);
       expect(renders).toEqual({ a: 2, b: 1 });
     });
+
+    it("re-renders a child with unchanged deps when its tap context changes", () => {
+      const TestContext = createContext("default");
+      let renders = 0;
+
+      const useItem = () => {
+        renders++;
+        return useResourceContext(TestContext);
+      };
+      const Item = resource(useItem);
+
+      const parent = createTestResource((value: string) =>
+        useContextProvider(TestContext, value, () =>
+          useResources([withKey("item", Item(), [])]),
+        ),
+      );
+
+      expect(renderTest(parent, "a")).toEqual(["a"]);
+      expect(renderTest(parent, "b")).toEqual(["b"]);
+      expect(renders).toBe(2);
+    });
   });
 
   describe("useTapRoot", () => {

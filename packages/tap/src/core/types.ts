@@ -68,6 +68,7 @@ export interface RenderResult {
 }
 
 export type ResourceContext = Map<object, unknown>;
+export type ResourceContextDeps = Map<object, unknown>;
 
 export interface TapRoot {
   version: number;
@@ -89,6 +90,10 @@ export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
   readonly devStrictMode: "root" | "child" | null;
 
   cells: Cell[];
+
+  wipContextDeps: ResourceContextDeps | null;
+  contextDeps: ResourceContextDeps | null;
+
   currentIndex: number;
   memoCache: {
     current: unknown[][] | null;

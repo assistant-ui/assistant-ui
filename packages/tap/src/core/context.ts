@@ -1,6 +1,9 @@
 import type { Context as ReactContext } from "react";
-import type { ResourceContext, TapRoot } from "./types";
-import { peekResourceFiber } from "./helpers/execution-context";
+import type { ResourceContext, ResourceFiber, TapRoot } from "./types";
+import {
+  getCurrentResourceFiber,
+  peekResourceFiber,
+} from "./helpers/execution-context";
 
 const defaultContextValue: unique symbol = Symbol("tap.Context.defaultValue");
 type TapContext<T> = ReactContext<T> & {
@@ -10,29 +13,21 @@ type TapContext<T> = ReactContext<T> & {
 const asTap = <T>(context: ReactContext<T>): TapContext<T> =>
   context as unknown as TapContext<T>;
 
-let ambientContext: ResourceContext = new Map();
-
-const getCurrentTapContext = (): ResourceContext => {
-  const fiber = peekResourceFiber();
-  if (fiber) return fiber.root.context;
-
-  return ambientContext;
-};
+let currentContext: ResourceContext = new Map();
 
 export const cloneCurrentTapContext = (): ResourceContext =>
-  new Map(getCurrentTapContext());
+  new Map(currentContext);
 
-export const withTapRootContext = <TResult>(
-  root: TapRoot,
+export const withTapContextRoot = <TResult>(
   context: ResourceContext,
   fn: () => TResult,
 ) => {
-  const previousContext = root.context;
-  root.context = context;
+  const previousContext = currentContext;
+  currentContext = context;
   try {
     return fn();
   } finally {
-    root.context = previousContext;
+    currentContext = previousContext;
   }
 };
 
@@ -70,19 +65,19 @@ export const useContextProvider = <T, TResult>(
   value: T,
   fn: () => TResult,
 ) => {
-  const resourceContext = getCurrentTapContext();
   const key = context as object;
-  const previousValue = resourceContext.get(key);
-  const hadPreviousValue = previousValue || resourceContext.has(key);
+  const previousValue = currentContext.get(key);
+  const hadPreviousValue =
+    previousValue !== undefined || currentContext.has(key);
 
-  resourceContext.set(key, value);
+  currentContext.set(key, value);
   try {
     return fn();
   } finally {
     if (hadPreviousValue) {
-      resourceContext.set(key, previousValue);
+      currentContext.set(key, previousValue);
     } else {
-      resourceContext.delete(key);
+      currentContext.delete(key);
     }
   }
 };
@@ -90,8 +85,33 @@ export const useContextProvider = <T, TResult>(
 export const useTapContext = <T>(context: ReactContext<T>) => {
   ensureTapContext(context);
 
-  const resourceContext = getCurrentTapContext();
-  return resourceContext.has(context as object)
-    ? (resourceContext.get(context as object) as T)
+  const key = context as object;
+  const value = currentContext.has(key)
+    ? currentContext.get(key)
     : asTap(context)[defaultContextValue];
+  const currentFiber = getCurrentResourceFiber();
+  (currentFiber.wipContextDeps ??= new Map()).set(key, value);
+  return value as T;
+};
+
+export const bubbleContextDeps = (fiber: ResourceFiber<any>) => {
+  const currentFiber = peekResourceFiber();
+  if (!currentFiber?.wipContextDeps || !fiber.wipContextDeps) return;
+
+  for (const [context, value] of fiber.wipContextDeps) {
+    // TODO instead of always forwarding, there should be context source tracking
+    // if context source of a context dep is this current fiber, don't bubble it up
+    currentFiber?.wipContextDeps.set(context, value);
+  }
+};
+
+export const hasContextDepsChanged = (fiber: ResourceFiber<any, any[]>) => {
+  if (!fiber.contextDeps) return false;
+
+  for (const [context, previousValue] of fiber.contextDeps) {
+    const currentValue = currentContext.get(context);
+    if (!Object.is(previousValue, currentValue)) return true;
+  }
+
+  return false;
 };

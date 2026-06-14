@@ -9,6 +9,7 @@ import {
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
+import { hasContextDepsChanged } from "../core/context";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
 import { useEffect, useMemo } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
@@ -49,6 +50,7 @@ const markChildDirty = (
 // A child is reused when its deps are unchanged and it has no pending work.
 const canReuse = (state: FiberState, deps: readonly unknown[] | undefined) =>
   !state.isDirty &&
+  !hasContextDepsChanged(state.fiber) &&
   deps !== undefined &&
   state.committedDeps !== undefined &&
   depsShallowEqual(state.committedDeps, deps);
@@ -61,75 +63,86 @@ export function useResources<E extends ResourceElement<any, any[]>>(
   // Process each element
 
   const { version, createFiber } = useResourceFiberHost();
-  const res = useRenderMemo(() => {
-    void version;
+  const hasAnyContextDepsChanged = Array.from(fibers.values()).some((state) =>
+    hasContextDepsChanged(state.fiber),
+  );
 
-    const seenKeys = new Set<string | number>();
-    const results: any[] = [];
-    let newCount = 0;
+  const res = useRenderMemo(
+    () => {
+      void version;
+      void hasAnyContextDepsChanged;
 
-    // Create/update fibers and render
-    for (let i = 0; i < elements.length; i++) {
-      const element = elements[i]!;
+      const seenKeys = new Set<string | number>();
+      const results: any[] = [];
+      let newCount = 0;
 
-      const elementKey = element.key;
-      if (elementKey === undefined) {
-        throw new Error(
-          `useResources did not provide a key for array at index ${i}`,
+      // Create/update fibers and render
+      for (let i = 0; i < elements.length; i++) {
+        const element = elements[i]!;
+
+        const elementKey = element.key;
+        if (elementKey === undefined) {
+          throw new Error(
+            `useResources did not provide a key for array at index ${i}`,
+          );
+        }
+
+        if (seenKeys.has(elementKey))
+          throw new Error(`Duplicate key ${elementKey} in useResources`);
+        seenKeys.add(elementKey);
+
+        let state = fibers.get(elementKey);
+        if (!state) {
+          const fiber = createFiber(element.hook, element.key, () =>
+            markChildDirty(fibers, elementKey),
+          );
+          const result = renderResourceFiber(fiber, element.args);
+          state = {
+            fiber,
+            next: { result, deps: element.deps },
+            isDirty: false,
+            committedDeps: undefined,
+            committedValue: undefined,
+          };
+          newCount++;
+          fibers.set(elementKey, state);
+        } else if (state.fiber.hook !== element.hook) {
+          const fiber = createFiber(element.hook, element.key, () =>
+            markChildDirty(fibers, elementKey),
+          );
+          const result = renderResourceFiber(fiber, element.args);
+          state.next = { result, deps: element.deps, remount: fiber };
+        } else if (canReuse(state, element.deps)) {
+          state.next = "skip";
+        } else {
+          const result = renderResourceFiber(state.fiber, element.args);
+          state.next = { result, deps: element.deps };
+        }
+
+        // Reused children serve their committed value; everything else its render.
+        // TODO merge all fiber's context usage for fast lookup
+
+        results.push(
+          typeof state.next === "object"
+            ? state.next.result.value
+            : state.committedValue,
         );
       }
 
-      if (seenKeys.has(elementKey))
-        throw new Error(`Duplicate key ${elementKey} in useResources`);
-      seenKeys.add(elementKey);
-
-      let state = fibers.get(elementKey);
-      if (!state) {
-        const fiber = createFiber(element.hook, element.key, () =>
-          markChildDirty(fibers, elementKey),
-        );
-        const result = renderResourceFiber(fiber, element.args);
-        state = {
-          fiber,
-          next: { result, deps: element.deps },
-          isDirty: false,
-          committedDeps: undefined,
-          committedValue: undefined,
-        };
-        newCount++;
-        fibers.set(elementKey, state);
-      } else if (state.fiber.hook !== element.hook) {
-        const fiber = createFiber(element.hook, element.key, () =>
-          markChildDirty(fibers, elementKey),
-        );
-        const result = renderResourceFiber(fiber, element.args);
-        state.next = { result, deps: element.deps, remount: fiber };
-      } else if (canReuse(state, element.deps)) {
-        state.next = "skip";
-      } else {
-        const result = renderResourceFiber(state.fiber, element.args);
-        state.next = { result, deps: element.deps };
-      }
-
-      // Reused children serve their committed value; everything else its render.
-      results.push(
-        typeof state.next === "object"
-          ? state.next.result.value
-          : state.committedValue,
-      );
-    }
-
-    // Clean up removed fibers (only if there might be stale ones)
-    if (fibers.size > results.length - newCount) {
-      for (const key of fibers.keys()) {
-        if (!seenKeys.has(key)) {
-          fibers.get(key)!.next = "delete";
+      // Clean up removed fibers (only if there might be stale ones)
+      if (fibers.size > results.length - newCount) {
+        for (const key of fibers.keys()) {
+          if (!seenKeys.has(key)) {
+            fibers.get(key)!.next = "delete";
+          }
         }
       }
-    }
 
-    return results;
-  }, [elements, fibers, createFiber, version]);
+      return results;
+    },
+    [elements, fibers, createFiber, version],
+    hasAnyContextDepsChanged,
+  );
 
   // Cleanup on unmount
   useEffect(() => {

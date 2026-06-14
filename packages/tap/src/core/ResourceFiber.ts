@@ -1,5 +1,5 @@
 import type { ResourceFiber, RenderResult, TapRoot } from "./types";
-import { withTapRootContext } from "./context";
+import { bubbleContextDeps } from "./context";
 import {
   commitAllCallbacks,
   createCommitCallbacks,
@@ -22,6 +22,8 @@ export function createResourceFiber<R, A extends readonly unknown[]>(
     markDirty,
     devStrictMode: strictMode,
     cells: [],
+    contextDeps: null,
+    wipContextDeps: null,
     memoCache: {
       current: null,
       workInProgress: null,
@@ -49,7 +51,6 @@ export function unmountResourceFiber<R, A extends readonly unknown[]>(
 export function renderResourceFiber<R, A extends readonly unknown[]>(
   fiber: ResourceFiber<R, A>,
   args: Readonly<A>,
-  context = fiber.root.context,
 ): RenderResult {
   fiber.memoCache.workInProgress = null;
 
@@ -71,22 +72,21 @@ export function renderResourceFiber<R, A extends readonly unknown[]>(
 
     result = {
       commitCallbacks: createCommitCallbacks(),
-      context,
       value: undefined as R | undefined,
     };
     fiber.memoCache.index = 0;
 
-    withTapRootContext(fiber.root, context, () => {
-      withResourceFiber(fiber, () => {
-        fiber.renderContext = result;
-        try {
-          result.value = withReactDispatcher(() => fiber.hook(...args));
-        } finally {
-          fiber.renderContext = undefined;
-        }
-      });
+    withResourceFiber(fiber, () => {
+      fiber.renderContext = result;
+      try {
+        result.value = withReactDispatcher(() => fiber.hook(...args));
+      } finally {
+        fiber.renderContext = undefined;
+      }
     });
   } while ((fiber.renderPendingCells?.size ?? 0) > 0);
+
+  bubbleContextDeps(fiber);
 
   return result;
 }
@@ -96,6 +96,7 @@ export function commitResourceFiber<R, A extends readonly unknown[]>(
   result: RenderResult,
 ): void {
   fiber.isMounted = true;
+  fiber.contextDeps = fiber.wipContextDeps;
   commitRoot(fiber.root);
 
   if (fiber.memoCache.workInProgress !== null) {
