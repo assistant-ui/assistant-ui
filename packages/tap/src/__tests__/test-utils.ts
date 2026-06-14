@@ -23,9 +23,9 @@ export function createTestResource<R, A extends readonly unknown[]>(
     // Re-render when state changes
     if (activeResources.has(fiber)) {
       const lastArgs = propsMap.get(fiber);
-      const result = renderResourceFiber(fiber, lastArgs);
-      lastRenderResultMap.set(fiber, result);
-      commitResourceFiber(fiber, result);
+      const value = renderResourceFiber(fiber, lastArgs);
+      lastRenderValueMap.set(fiber, value);
+      commitResourceFiber(fiber);
     }
   };
 
@@ -41,7 +41,7 @@ export function createTestResource<R, A extends readonly unknown[]>(
 // Track resources for cleanup
 const activeResources = new Set<ResourceFiber<any, any>>();
 const propsMap = new WeakMap<ResourceFiber<any, any>, any>();
-const lastRenderResultMap = new WeakMap<ResourceFiber<any, any>, any>();
+const lastRenderValueMap = new WeakMap<ResourceFiber<any, any>, any>();
 
 /**
  * Renders a test resource fiber with the given props and manages its lifecycle.
@@ -60,13 +60,13 @@ export function renderTest<R, A extends readonly unknown[]>(
   // Render with new args. Record the result before committing: the commit can
   // synchronously trigger a nested re-render whose newer result must not be
   // clobbered afterwards.
-  const result = renderResourceFiber(fiber, args);
-  lastRenderResultMap.set(fiber, result);
-  commitResourceFiber(fiber, result);
+  const value = renderResourceFiber(fiber, args);
+  lastRenderValueMap.set(fiber, value);
+  commitResourceFiber(fiber);
 
   // Return the committed state from the result
   // This accounts for any re-renders that happened during commit
-  return result.value;
+  return value;
 }
 
 /**
@@ -93,16 +93,15 @@ export function cleanupAllResources() {
  * Gets the current committed state of a resource fiber.
  * Returns the state from the last render/commit cycle.
  */
-export function getCommittedOutput<R, A extends readonly unknown[]>(
+export function getCommittedValue<R, A extends readonly unknown[]>(
   fiber: ResourceFiber<R, A>,
 ): R {
-  const lastResult = lastRenderResultMap.get(fiber);
-  if (!lastResult) {
+  if (!lastRenderValueMap.has(fiber)) {
     throw new Error(
       "No render result found for fiber. Make sure to call renderResource first.",
     );
   }
-  return lastResult.value;
+  return lastRenderValueMap.get(fiber);
 }
 
 /**
@@ -118,10 +117,10 @@ export class TestSubscriber<T> {
     this.fiber = fiber;
     // Need to render once to get initial state
     const lastArgs = propsMap.get(fiber) ?? [];
-    const initialResult = renderResourceFiber(fiber, lastArgs as any);
-    commitResourceFiber(fiber, initialResult);
-    this.lastState = initialResult.value;
-    lastRenderResultMap.set(fiber, initialResult);
+    const initialValue = renderResourceFiber(fiber, lastArgs as any);
+    commitResourceFiber(fiber);
+    this.lastState = initialValue;
+    lastRenderValueMap.set(fiber, initialValue);
     activeResources.add(fiber);
   }
 
@@ -150,10 +149,10 @@ export class TestResourceManager<R, A extends readonly unknown[]> {
     this.isActive = true;
     activeResources.add(this.fiber);
     propsMap.set(this.fiber, args);
-    const result = renderResourceFiber(this.fiber, args);
-    commitResourceFiber(this.fiber, result);
-    lastRenderResultMap.set(this.fiber, result);
-    return result.value;
+    const value = renderResourceFiber(this.fiber, args);
+    commitResourceFiber(this.fiber);
+    lastRenderValueMap.set(this.fiber, value);
+    return value;
   }
 
   cleanup() {

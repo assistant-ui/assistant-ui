@@ -1,7 +1,10 @@
 import { useRef } from "./useRef";
 import { isDevelopment } from "../core/helpers/env";
 import { useCallback } from "./useCallback";
-import { getCurrentResourceFiber } from "../core/helpers/execution-context";
+import {
+  getCurrentResourceFiber,
+  peekResourceFiber,
+} from "../core/helpers/execution-context";
 import { CommitPriority } from "../core/helpers/commit";
 import { addCommit } from "../core/helpers/root";
 
@@ -34,10 +37,10 @@ export function useEffectEvent<T extends (...args: any[]) => any>(
 
   return useCallback(
     ((...args: Parameters<T>) => {
-      if (isDevelopment && fiber.renderContext)
+      if (isDevelopment && peekResourceFiber())
         throw new Error("useEffectEvent cannot be called during render");
       return callbackRef.current(...args);
     }) as T,
-    [fiber],
+    [],
   );
 }

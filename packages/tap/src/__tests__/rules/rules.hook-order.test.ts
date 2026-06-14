@@ -93,8 +93,8 @@ describe("Rules of Hooks - Hook Order", () => {
       return states;
     });
 
-    const result = renderTest(resource);
-    expect(result).toEqual([1, 2, 3]);
+    const value = renderTest(resource);
+    expect(value).toEqual([1, 2, 3]);
 
     // Re-render should work fine
     expect(() => renderResourceFiber(resource, [])).not.toThrow();
@@ -131,12 +131,12 @@ describe("Rules of Hooks - Hook Order", () => {
       return { a, b, c };
     });
 
-    const result = renderTest(resource);
-    expect(result).toEqual({ a: 1, b: 2, c: 3 });
+    const value = renderTest(resource);
+    expect(value).toEqual({ a: 1, b: 2, c: 3 });
 
     // Re-render should maintain same order
-    const ctx = renderResourceFiber(resource, []);
-    expect(() => commitResourceFiber(resource, ctx)).not.toThrow();
+    renderResourceFiber(resource, []);
+    expect(() => commitResourceFiber(resource)).not.toThrow();
   });
 
   it("should detect early return causing different hook counts", () => {

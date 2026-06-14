@@ -68,7 +68,7 @@ export const addCommit = (
   priority: CommitPriority,
   callback: () => void,
 ): void => {
-  const callbacks = fiber.renderContext!.commitCallbacks;
+  const callbacks = fiber.wipCommitCallbacks!;
   (callbacks[priority] ??= []).push(callback);
 };
 

@@ -100,10 +100,10 @@ export const flushTapSync = <T>(callback: () => T): T => {
   };
 
   try {
-    const result = callback();
+    const value = callback();
     flushScheduled();
 
-    return result;
+    return value;
   } finally {
     flushState = prev;
   }

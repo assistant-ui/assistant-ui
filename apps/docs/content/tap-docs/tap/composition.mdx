@@ -38,7 +38,7 @@ const Timer = resource(useTimer);
 The child re-renders when the element identity changes. The [React Compiler](https://react.dev/learn/react-compiler) keeps the element stable across renders when its props are unchanged, so the child only re-renders when its inputs actually change, no manual dependency tracking required.
 
 ```ts
-const result = useResource(Counter({ incrementBy }));
+const value = useResource(Counter({ incrementBy }));
 ```
 
 ## useResources

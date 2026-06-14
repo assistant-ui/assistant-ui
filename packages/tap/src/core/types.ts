@@ -62,11 +62,6 @@ export type Cell = ReducerCell | MemoCell | EffectCell;
 export type CommitCallback = () => void;
 export type CommitCallbacks = Array<CommitCallback[] | undefined>;
 
-export interface RenderResult {
-  value: any;
-  readonly commitCallbacks: CommitCallbacks;
-}
-
 export type ResourceContext = Map<object, ResourceContextValue>;
 export type ResourceContextDeps = Map<object, ResourceFiber<any> | null>;
 
@@ -98,6 +93,8 @@ export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
 
   wipContextDeps: ResourceContextDeps | null;
   contextDeps: ResourceContextDeps | null;
+  commitCallbacks: CommitCallbacks | null;
+  wipCommitCallbacks: CommitCallbacks | null;
 
   currentIndex: number;
   memoCache: {
@@ -107,8 +104,6 @@ export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
   };
 
   renderPendingCells: Set<ReducerCell> | null;
-
-  renderContext: RenderResult | undefined; // set during render
 
   isMounted: boolean;
   isFirstRender: boolean;

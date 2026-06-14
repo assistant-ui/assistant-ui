@@ -120,17 +120,17 @@ describe("Lifecycle - Mount/Unmount", () => {
     });
 
     // Initial render
-    const ctx = renderResourceFiber(resource, []);
+    renderResourceFiber(resource, []);
     expect(log).toEqual(["render"]);
 
     // Commit - effects will run
-    commitResourceFiber(resource, ctx);
+    commitResourceFiber(resource);
     // After commit: initial render + effects
     expect(log).toEqual(["render", "effect-1", "effect-2"]);
 
     // The setState in effect schedules a re-render; trigger it manually
-    const ctx2 = renderResourceFiber(resource, []);
-    commitResourceFiber(resource, ctx2);
+    renderResourceFiber(resource, []);
+    commitResourceFiber(resource);
 
     // Now we should see the re-render and cleanup/re-run of effects
     expect(log).toEqual([
@@ -200,8 +200,8 @@ describe("Lifecycle - Mount/Unmount", () => {
       return null;
     });
 
-    const ctx = renderResourceFiber(resource, []);
-    commitResourceFiber(resource, ctx);
+    renderResourceFiber(resource, []);
+    commitResourceFiber(resource);
     unmountResourceFiber(resource);
 
     expect(effect).toHaveBeenCalledTimes(1);

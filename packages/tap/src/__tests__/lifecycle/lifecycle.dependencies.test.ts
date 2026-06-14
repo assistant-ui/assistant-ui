@@ -78,8 +78,8 @@ describe("Lifecycle - Dependencies", () => {
 
     // Change dep
     setDep(2);
-    const ctx = renderResourceFiber(resource, []);
-    commitResourceFiber(resource, ctx);
+    renderResourceFiber(resource, []);
+    commitResourceFiber(resource);
 
     expect(log).toEqual(["effect-1", "cleanup-1", "effect-2"]);
   });
@@ -124,8 +124,8 @@ describe("Lifecycle - Dependencies", () => {
 
     // Re-render
     triggerRerender(1);
-    const ctx = renderResourceFiber(resource, []);
-    commitResourceFiber(resource, ctx);
+    renderResourceFiber(resource, []);
+    commitResourceFiber(resource);
 
     expect(effect).toHaveBeenCalledTimes(1); // Should not re-run
   });
@@ -145,27 +145,27 @@ describe("Lifecycle - Dependencies", () => {
     });
 
     // Initial render
-    let ctx = renderResourceFiber(resource, []);
-    commitResourceFiber(resource, ctx);
+    renderResourceFiber(resource, []);
+    commitResourceFiber(resource);
     expect(effect).toHaveBeenCalledTimes(1);
 
     // Change first dep
     setDep1("b");
-    ctx = renderResourceFiber(resource, []);
-    commitResourceFiber(resource, ctx);
+    renderResourceFiber(resource, []);
+    commitResourceFiber(resource);
     expect(effect).toHaveBeenCalledTimes(2);
 
     // Change second dep
     setDep2(2);
-    ctx = renderResourceFiber(resource, []);
-    commitResourceFiber(resource, ctx);
+    renderResourceFiber(resource, []);
+    commitResourceFiber(resource);
     expect(effect).toHaveBeenCalledTimes(3);
 
     // Change both deps
     setDep1("c");
     setDep2(3);
-    ctx = renderResourceFiber(resource, []);
-    commitResourceFiber(resource, ctx);
+    renderResourceFiber(resource, []);
+    commitResourceFiber(resource);
     expect(effect).toHaveBeenCalledTimes(4);
 
     unmountResourceFiber(resource);
@@ -188,8 +188,8 @@ describe("Lifecycle - Dependencies", () => {
 
     // Set to new object with same shape
     setObj({ value: 1 });
-    const ctx = renderResourceFiber(resource, []);
-    commitResourceFiber(resource, ctx);
+    renderResourceFiber(resource, []);
+    commitResourceFiber(resource);
 
     expect(effect).toHaveBeenCalledTimes(2); // Should re-run (different object)
   });
@@ -210,9 +210,9 @@ describe("Lifecycle - Dependencies", () => {
     expect(effect).toHaveBeenCalledTimes(1);
 
     // Set to NaN again
-    const ctx = renderResourceFiber(resource, []);
+    renderResourceFiber(resource, []);
     setValue(NaN);
-    commitResourceFiber(resource, ctx);
+    commitResourceFiber(resource);
 
     expect(effect).toHaveBeenCalledTimes(1); // Should not re-run (NaN === NaN in Object.is)
   });

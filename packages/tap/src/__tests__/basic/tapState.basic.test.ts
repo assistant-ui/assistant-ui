@@ -6,7 +6,7 @@ import {
   renderTest,
   cleanupAllResources,
   waitForNextTick,
-  getCommittedOutput,
+  getCommittedValue,
 } from "../test-utils";
 
 describe("useState - Basic Functionality", () => {
@@ -21,8 +21,8 @@ describe("useState - Basic Functionality", () => {
         return count;
       });
 
-      const result = renderTest(testFiber);
-      expect(result).toBe(42);
+      const value = renderTest(testFiber);
+      expect(value).toBe(42);
     });
 
     it("should initialize with lazy value function", () => {
@@ -37,8 +37,8 @@ describe("useState - Basic Functionality", () => {
       });
 
       // First render
-      const result = renderTest(testFiber);
-      expect(result).toBe(100);
+      const value = renderTest(testFiber);
+      expect(value).toBe(100);
       expect(initCalled).toBe(1);
 
       // Re-render should not call initializer again
@@ -52,8 +52,8 @@ describe("useState - Basic Functionality", () => {
         return value;
       });
 
-      const result = renderTest(testFiber);
-      expect(result).toBeUndefined();
+      const value = renderTest(testFiber);
+      expect(value).toBeUndefined();
     });
   });
 
@@ -85,7 +85,7 @@ describe("useState - Basic Functionality", () => {
       await waitForNextTick();
 
       // Check that state was updated
-      expect(getCommittedOutput(testFiber)).toEqual({
+      expect(getCommittedValue(testFiber)).toEqual({
         count: 10,
         renderCount: 2,
       });
@@ -136,19 +136,19 @@ describe("useState - Basic Functionality", () => {
 
       // Initial render
       renderTest(testFiber);
-      expect(getCommittedOutput(testFiber)).toBe(10);
+      expect(getCommittedValue(testFiber)).toBe(10);
 
       // Functional update
       setCountFn!((prev) => prev * 2);
 
       await waitForNextTick();
-      expect(getCommittedOutput(testFiber)).toBe(20);
+      expect(getCommittedValue(testFiber)).toBe(20);
 
       // Another functional update
       setCountFn!((prev) => prev + 5);
 
       await waitForNextTick();
-      expect(getCommittedOutput(testFiber)).toBe(25);
+      expect(getCommittedValue(testFiber)).toBe(25);
     });
   });
 
@@ -167,8 +167,8 @@ describe("useState - Basic Functionality", () => {
         };
       });
 
-      const result = renderTest(testFiber);
-      expect(result).toMatchObject({
+      const value = renderTest(testFiber);
+      expect(value).toMatchObject({
         count1: 1,
         count2: 2,
         text: "hello",
@@ -192,18 +192,18 @@ describe("useState - Basic Functionality", () => {
 
       // Initial render
       renderTest(testFiber);
-      expect(getCommittedOutput(testFiber)).toEqual({ a: "a", b: "b", c: "c" });
+      expect(getCommittedValue(testFiber)).toEqual({ a: "a", b: "b", c: "c" });
 
       // Update only B
       setters.setB("B");
       await waitForNextTick();
-      expect(getCommittedOutput(testFiber)).toEqual({ a: "a", b: "B", c: "c" });
+      expect(getCommittedValue(testFiber)).toEqual({ a: "a", b: "B", c: "c" });
 
       // Update A and C
       setters.setA("A");
       setters.setC("C");
       await waitForNextTick();
-      expect(getCommittedOutput(testFiber)).toEqual({ a: "A", b: "B", c: "C" });
+      expect(getCommittedValue(testFiber)).toEqual({ a: "A", b: "B", c: "C" });
     });
   });
 

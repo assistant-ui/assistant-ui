@@ -69,7 +69,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   const isMountedRef = useRef(false);
   const committedArgsRef = useRef([render] as const);
-  const valueRef = useRef<R>(render2.value);
+  const valueRef = useRef<R>(render2);
   const subscribers = useMemo(() => new Set<() => void>(), []);
 
   const publish = (output: R) => {
@@ -95,12 +95,12 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     );
 
     if (isDevelopment && fiber.devStrictMode) {
-      void withTapContextRoot(context, () => {
+      void withTapContextRoot(fiber.root.context, () => {
         return renderResourceFiber(fiber, committedArgsRef.current);
       });
     }
 
-    const render = withTapContextRoot(context, () => {
+    const render = withTapContextRoot(fiber.root.context, () => {
       return renderResourceFiber(fiber, committedArgsRef.current);
     });
 
@@ -111,10 +111,10 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     queue.length = 0;
 
     if (isMountedRef.current) {
-      commitResourceFiber(fiber, render);
+      commitResourceFiber(fiber);
     }
 
-    publish(render.value);
+    publish(render);
   });
 
   useEffect(() => {
@@ -130,9 +130,9 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     commitRoot(fiber.root);
     queue.splice(0, drainedCount);
     fiber.root.context = context;
-    commitResourceFiber(fiber, render2);
+    commitResourceFiber(fiber);
 
-    publish(render2.value);
+    publish(render2);
   });
 
   return useMemo(

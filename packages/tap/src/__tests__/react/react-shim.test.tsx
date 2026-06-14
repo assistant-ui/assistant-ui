@@ -5,7 +5,7 @@ import {
   createTestResource,
   renderTest,
   cleanupAllResources,
-  getCommittedOutput,
+  getCommittedValue,
   waitForNextTick,
 } from "../test-utils";
 import {
@@ -53,6 +53,19 @@ describe("@assistant-ui/tap/react-shim", () => {
 
       expect(renderTest(defaultFiber)).toBe("default");
       expect(renderTest(testFiber, "tap")).toBe("tap");
+
+      const ProviderFirstContext = React.createContext("default");
+      const providerFirstFiber = createTestResource((value: string) => {
+        return useContextProvider(ProviderFirstContext, value, () =>
+          use(ProviderFirstContext),
+        );
+      });
+      const providerFirstDefaultFiber = createTestResource(() =>
+        use(ProviderFirstContext),
+      );
+
+      expect(renderTest(providerFirstFiber, "tap")).toBe("tap");
+      expect(renderTest(providerFirstDefaultFiber)).toBe("default");
     });
 
     it("forwards non-context use values to React.use", () => {
@@ -90,12 +103,12 @@ describe("@assistant-ui/tap/react-shim", () => {
       });
 
       renderTest(testFiber);
-      expect(getCommittedOutput(testFiber)).toBe(0);
+      expect(getCommittedValue(testFiber)).toBe(0);
       expect(effectLog).toEqual([0]);
 
       setCount!(5);
       await waitForNextTick();
-      expect(getCommittedOutput(testFiber)).toBe(5);
+      expect(getCommittedValue(testFiber)).toBe(5);
       expect(effectLog).toEqual([0, 5]);
     });
 

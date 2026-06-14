@@ -6,7 +6,7 @@ import {
   renderTest,
   cleanupAllResources,
   waitForNextTick,
-  getCommittedOutput,
+  getCommittedValue,
 } from "../test-utils";
 
 const createStore = <T>(initial: T) => {
@@ -57,7 +57,7 @@ describe("useSyncExternalStore", () => {
     renderTest(testFiber);
     store.setState(2);
     await waitForNextTick();
-    expect(getCommittedOutput(testFiber)).toBe(2);
+    expect(getCommittedValue(testFiber)).toBe(2);
   });
 
   it("does not re-render when the snapshot is Object.is-equal", async () => {
@@ -89,7 +89,7 @@ describe("useSyncExternalStore", () => {
     expect(renderTest(testFiber)).toBe("server");
     // the mount effect detects the mismatch and re-renders with the client read
     await waitForNextTick();
-    expect(getCommittedOutput(testFiber)).toBe("client");
+    expect(getCommittedValue(testFiber)).toBe("client");
   });
 
   it("does not re-render when server and client snapshots match", async () => {
@@ -140,11 +140,11 @@ describe("useSyncExternalStore", () => {
     // storeA changes no longer reach the resource
     storeA.setState("a2");
     await waitForNextTick();
-    expect(getCommittedOutput(testFiber)).toBe("b");
+    expect(getCommittedValue(testFiber)).toBe("b");
 
     storeB.setState("b2");
     await waitForNextTick();
-    expect(getCommittedOutput(testFiber)).toBe("b2");
+    expect(getCommittedValue(testFiber)).toBe("b2");
 
     cleanupAllResources();
     expect(storeB.unsubscribeCalls).toBe(1);

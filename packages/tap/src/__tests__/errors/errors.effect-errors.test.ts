@@ -39,15 +39,15 @@ describe("Errors - Effect Errors", () => {
     });
 
     // First render and commit - establishes the effect
-    const ctx1 = renderResourceFiber(resource, []);
-    commitResourceFiber(resource, ctx1);
+    renderResourceFiber(resource, []);
+    commitResourceFiber(resource);
 
     // Change dep to trigger cleanup on next render
     dep = 1;
 
     // Second render with different dep should trigger cleanup that throws
-    const ctx2 = renderResourceFiber(resource, []);
-    expect(() => commitResourceFiber(resource, ctx2)).toThrow(error);
+    renderResourceFiber(resource, []);
+    expect(() => commitResourceFiber(resource)).toThrow(error);
   });
 
   it("should throw on invalid effect return value", () => {

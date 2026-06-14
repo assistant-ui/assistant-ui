@@ -1,6 +1,5 @@
 import type {
   ExtractResourceReturnType,
-  RenderResult,
   ResourceElement,
   ResourceFiber,
 } from "../core/types";
@@ -25,7 +24,7 @@ import { depsShallowEqual } from "./utils/depsShallowEqual";
 //   "delete"  removed from the list; unmount
 type Pending =
   | {
-      result: RenderResult;
+      value: any;
       deps: readonly unknown[] | undefined;
       remount?: ResourceFiber<unknown>;
     }
@@ -81,13 +80,12 @@ export function useResources<E extends ResourceElement<any, any[]>>(
   const { version, createFiber } = useResourceFiberHost();
   const hasAnyContextDepsChanged = hasAnyChildContextDepsChanged(fibers);
 
-  const res = useRenderMemo(
+  const val = useRenderMemo(
     () => {
       void version;
-      void hasAnyContextDepsChanged;
 
       const seenKeys = new Set<string | number>();
-      const results: any[] = [];
+      const values: any[] = [];
       let newCount = 0;
 
       for (let i = 0; i < elements.length; i++) {
@@ -109,10 +107,10 @@ export function useResources<E extends ResourceElement<any, any[]>>(
           const fiber = createFiber(element.hook, element.key, () =>
             markChildDirty(fibers, elementKey),
           );
-          const result = renderResourceFiber(fiber, element.args);
+          const value = renderResourceFiber(fiber, element.args);
           state = {
             fiber,
-            next: { result, deps: element.deps },
+            next: { value: value, deps: element.deps },
             isDirty: false,
             committedDeps: undefined,
             committedValue: undefined,
@@ -123,27 +121,27 @@ export function useResources<E extends ResourceElement<any, any[]>>(
           const fiber = createFiber(element.hook, element.key, () =>
             markChildDirty(fibers, elementKey),
           );
-          const result = renderResourceFiber(fiber, element.args);
-          state.next = { result, deps: element.deps, remount: fiber };
+          const value = renderResourceFiber(fiber, element.args);
+          state.next = { value: value, deps: element.deps, remount: fiber };
         } else if (canReuse(state, element.deps)) {
           if (state.fiber.contextDeps) {
             bubbleContextDeps(state.fiber, state.fiber.contextDeps);
           }
           state.next = "skip";
         } else {
-          const result = renderResourceFiber(state.fiber, element.args);
-          state.next = { result, deps: element.deps };
+          const value = renderResourceFiber(state.fiber, element.args);
+          state.next = { value: value, deps: element.deps };
         }
 
-        results.push(
+        values.push(
           typeof state.next === "object"
-            ? state.next.result.value
+            ? state.next.value
             : state.committedValue,
         );
       }
 
       // Clean up removed fibers (only if there might be stale ones)
-      if (fibers.size > results.length - newCount) {
+      if (fibers.size > values.length - newCount) {
         for (const key of fibers.keys()) {
           if (!seenKeys.has(key)) {
             fibers.get(key)!.next = "delete";
@@ -151,7 +149,7 @@ export function useResources<E extends ResourceElement<any, any[]>>(
         }
       }
 
-      return results;
+      return values;
     },
     [elements, fibers, createFiber, version],
     hasAnyContextDepsChanged,
@@ -168,7 +166,7 @@ export function useResources<E extends ResourceElement<any, any[]>>(
   }, [fibers]);
 
   useEffect(() => {
-    void res; // as a performance optimization, we only run if the results have changed
+    void val; // as a performance optimization, we only run if the results have changed
 
     for (const [key, state] of fibers.entries()) {
       const next = state.next;
@@ -184,13 +182,13 @@ export function useResources<E extends ResourceElement<any, any[]>>(
           unmountResourceFiber(state.fiber);
           state.fiber = next.remount;
         }
-        commitResourceFiber(state.fiber, next.result);
+        commitResourceFiber(state.fiber);
         state.committedDeps = next.deps;
-        state.committedValue = next.result.value;
+        state.committedValue = next.value;
         state.isDirty = false;
       }
     }
-  }, [res, fibers]);
+  }, [val, fibers]);
 
-  return res;
+  return val;
 }

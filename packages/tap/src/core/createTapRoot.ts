@@ -33,9 +33,9 @@ export const createTapRoot = <R>(
   }
 
   const rendered = renderResourceFiber(fiber, [render]);
-  flushTapSync(() => commitResourceFiber(fiber, rendered));
+  flushTapSync(() => commitResourceFiber(fiber));
 
-  const root = rendered.value as useTapRoot.Root<R>;
+  const root = rendered as useTapRoot.Root<R>;
 
   return {
     ...root,

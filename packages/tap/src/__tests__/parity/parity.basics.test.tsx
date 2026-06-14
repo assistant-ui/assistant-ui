@@ -67,9 +67,9 @@ const scenarios: Scenario[] = [
       const countRef = useRef(0);
       const [state, dispatch] = useReducer((s: number, _a: number) => {
         countRef.current++;
-        const result = countRef.current * 100;
-        log(`reducer-${countRef.current} state=${s} -> ${result}`);
-        return result;
+        const value = countRef.current * 100;
+        log(`reducer-${countRef.current} state=${s} -> ${value}`);
+        return value;
       }, 0);
       log(`render state=${state}`);
       return { dispatch };

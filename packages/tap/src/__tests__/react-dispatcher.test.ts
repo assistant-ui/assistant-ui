@@ -9,7 +9,7 @@ import type { MemoCell } from "../core/types";
 import {
   createTestResource,
   renderTest,
-  getCommittedOutput,
+  getCommittedValue,
   cleanupAllResources,
   waitForNextTick,
 } from "./test-utils";
@@ -33,7 +33,7 @@ describe("react dispatcher", () => {
     expect(renderTest(fiber)).toBe(10);
     set(42);
     await waitForNextTick();
-    expect(getCommittedOutput(fiber)).toBe(42);
+    expect(getCommittedValue(fiber)).toBe(42);
   });
 
   it("routes React.useMemo with deps memoization", () => {
@@ -68,7 +68,7 @@ describe("react dispatcher", () => {
     expect(renderTest(fiber, { x: 1 })).toEqual({ run: 1, value: 1 });
 
     setRootVersion(fiber.root, 1);
-    expect(renderResourceFiber(fiber, [{ x: 2 }]).value).toEqual({
+    expect(renderResourceFiber(fiber, [{ x: 2 }])).toEqual({
       run: 2,
       value: 2,
     });
@@ -91,16 +91,16 @@ describe("react dispatcher", () => {
 
     expect(renderTest(fiber, { x: 1 })).toEqual({ run: 1, value: 1 });
 
-    expect(renderResourceFiber(fiber, [{ x: 2 }]).value).toEqual({
+    expect(renderResourceFiber(fiber, [{ x: 2 }])).toEqual({
       run: 2,
       value: 2,
     });
     const replayed = renderResourceFiber(fiber, [{ x: 2 }]);
-    commitResourceFiber(fiber, replayed);
+    commitResourceFiber(fiber);
 
     const cell = fiber.cells[0] as MemoCell;
     expect(cell.isDirty).toBe(false);
-    expect(cell.current).toBe(replayed.value);
+    expect(cell.current).toBe(replayed);
     expect(cell.currentDeps).toEqual([2]);
   });
 

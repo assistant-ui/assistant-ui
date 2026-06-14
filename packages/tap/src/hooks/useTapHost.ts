@@ -48,13 +48,13 @@ export const useTapHost = <R>(callback: () => R): useTapHost.Result<R> => {
     if (renderCommitted && fiber.isMounted) return;
     renderCommitted = true;
 
-    commitResourceFiber(fiber, render);
+    commitResourceFiber(fiber);
   };
 
   useEffect(effects);
 
   return {
-    value: render.value as R,
+    value: render as R,
     effects,
   };
 };

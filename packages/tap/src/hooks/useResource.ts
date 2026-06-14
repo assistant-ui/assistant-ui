@@ -18,14 +18,15 @@ export function useResource<E extends ResourceElement<any, any[]>>(
   }, [element.hook, element.key, createFiber]);
 
   const result = useRenderMemo(
-    () => renderResourceFiber(fiber, element.args),
+    () => ({ value: renderResourceFiber(fiber, element.args) }),
     [fiber, version, element.args],
     hasContextDepsChanged(fiber),
   );
 
   useEffect(() => () => unmountResourceFiber(fiber), [fiber]);
   useEffect(() => {
-    commitResourceFiber(fiber, result);
+    void result;
+    commitResourceFiber(fiber);
   }, [fiber, result]);
 
   return result.value;

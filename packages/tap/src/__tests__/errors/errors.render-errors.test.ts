@@ -50,7 +50,7 @@ describe("Errors - Render Errors", () => {
       return count;
     });
 
-    expect(renderResourceFiber(resource, []).value).toBe(5);
+    expect(renderResourceFiber(resource, [])).toBe(5);
   });
 
   it("should throw when updating a different resource during render", () => {
@@ -117,9 +117,9 @@ describe("Errors - Render Errors", () => {
       return count;
     });
 
-    const ctx = renderResourceFiber(resource, []);
+    renderResourceFiber(resource, []);
     // This should not throw - setState in effects is allowed
-    expect(() => commitResourceFiber(resource, ctx)).not.toThrow();
+    expect(() => commitResourceFiber(resource)).not.toThrow();
     unmountResourceFiber(resource);
   });
 
@@ -160,8 +160,8 @@ describe("Errors - Render Errors", () => {
     });
 
     // First successful render
-    const result = renderTest(resource);
-    expect(result).toBe(42);
+    const value = renderTest(resource);
+    expect(value).toBe(42);
 
     // Failed render
     shouldThrow = true;
@@ -227,7 +227,7 @@ describe("Errors - Render Errors", () => {
       return feature;
     });
 
-    const result = renderTest(resource);
-    expect(result).toBe("feature");
+    const value = renderTest(resource);
+    expect(value).toBe("feature");
   });
 });

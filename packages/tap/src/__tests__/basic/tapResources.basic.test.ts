@@ -65,8 +65,8 @@ describe("useResources - Basic Functionality", () => {
         return results;
       });
 
-      const result = renderTest(testFiber);
-      expect(result).toEqual([{ count: 10 }, { count: 20 }, { count: 30 }]);
+      const value = renderTest(testFiber);
+      expect(value).toEqual([{ count: 10 }, { count: 20 }, { count: 30 }]);
     });
 
     it("should work with resource constructor syntax", () => {
@@ -93,8 +93,8 @@ describe("useResources - Basic Functionality", () => {
         return results;
       });
 
-      const result = renderTest(testFiber);
-      expect(result).toEqual([
+      const value = renderTest(testFiber);
+      expect(value).toEqual([
         { count: 5, double: 10 },
         { count: 10, double: 20 },
         { count: 15, double: 30 },

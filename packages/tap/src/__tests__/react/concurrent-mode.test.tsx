@@ -24,8 +24,8 @@ describe("Concurrent Mode with useResource", () => {
     });
 
     function Suspender() {
-      const result = use(suspendPromise);
-      return result;
+      const value = use(suspendPromise);
+      return value;
     }
 
     function App() {
@@ -86,8 +86,8 @@ describe("Concurrent Mode with useResource", () => {
     });
 
     function Suspender() {
-      const result = use(suspendPromise);
-      return result;
+      const value = use(suspendPromise);
+      return value;
     }
 
     function App() {
@@ -156,8 +156,8 @@ describe("Concurrent Mode with useResource", () => {
     const TestResource = resource(useTestResource);
 
     function Inner({ id }: { id: number }) {
-      const result = useResource(TestResource({ id }));
-      return <div data-testid="result">{result.value}</div>;
+      const value = useResource(TestResource({ id }));
+      return <div data-testid="result">{value.value}</div>;
     }
 
     function App() {
@@ -204,8 +204,8 @@ describe("Concurrent Mode with useResource", () => {
     });
 
     function Suspender() {
-      const result = use(suspendPromise);
-      return result;
+      const value = use(suspendPromise);
+      return value;
     }
 
     function App() {

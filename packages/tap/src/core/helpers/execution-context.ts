@@ -8,6 +8,7 @@ export function withResourceFiber<R, A extends readonly unknown[]>(
 ): void {
   fiber.currentIndex = 0;
   fiber.wipContextDeps = null;
+  fiber.wipCommitCallbacks = [];
 
   const previousContext = currentResourceFiber;
   currentResourceFiber = fiber;

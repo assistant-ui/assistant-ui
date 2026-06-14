@@ -11,7 +11,7 @@ import { createElement, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { createTapRoot, flushTapSync } from "@assistant-ui/tap";
-import { c } from "@assistant-ui/tap/react-shim/compiler-runtime";
+import { c } from "../../react-shim/compiler-runtime";
 import { useRenderMemo } from "../../hooks/utils/useRenderMemo";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = false;
@@ -172,7 +172,7 @@ const reactUseRenderMemoStable = (): Host => {
 
     let sum = 0;
     for (let i = 0; i < N; i++) {
-      sum += useRenderMemo(() => i, [i]);
+      sum += useRenderMemo(() => i, [i], false);
     }
     return sum;
   }
@@ -195,7 +195,7 @@ const tapUseRenderMemoStable = (): Host => {
 
     let sum = 0;
     for (let i = 0; i < N; i++) {
-      sum += useRenderMemo(() => i, [i]);
+      sum += useRenderMemo(() => i, [i], false);
     }
     return sum;
   });

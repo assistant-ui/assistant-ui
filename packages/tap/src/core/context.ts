@@ -25,7 +25,7 @@ const asTap = <T>(context: ReactContext<T>): TapContext<T> =>
   context as unknown as TapContext<T>;
 
 let currentContext: ResourceContext = new Map();
-const changedContexts = new Map<object, true>();
+const changedContexts = new Set<object>();
 
 export const cloneCurrentTapContext = (): ResourceContext =>
   new Map(currentContext);
@@ -98,7 +98,7 @@ export const useContextProvider = <T, TResult>(
 ) => {
   if (typeof context !== "object" || context === null)
     throw new Error("useContextProvider only accepts a React context.");
-  if (!isTapContext(context)) attachDefaultValueToContext(context, value);
+  assertTapContext(context);
 
   const key = context as object;
   const currentFiber = getCurrentResourceFiber();
@@ -134,7 +134,7 @@ const withChangedContext = <T>(
   const restoreChangedContext = changedContexts.has(context);
 
   if (didChange) {
-    changedContexts.set(context, true);
+    changedContexts.add(context);
   } else {
     changedContexts.delete(context);
   }
@@ -143,7 +143,7 @@ const withChangedContext = <T>(
     return fn();
   } finally {
     if (restoreChangedContext) {
-      changedContexts.set(context, true);
+      changedContexts.add(context);
     } else {
       changedContexts.delete(context);
     }
