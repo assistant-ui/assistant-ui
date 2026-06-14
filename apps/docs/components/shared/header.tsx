@@ -81,8 +81,12 @@ export function Header() {
 
   useEffect(() => {
     fetch("/api/github/repo")
-      .then((res) => res.json())
-      .then((data) => setStars(data.stars))
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.stars === "number") {
+          setStars(data.stars);
+        }
+      })
       .catch(console.error);
   }, []);
 
