@@ -63,10 +63,6 @@ const ensureTapContext = (context: unknown) => {
   );
 };
 
-/**
- * @deprecated experimental — the resource context API is not yet stable and may
- * change or be removed in a future release.
- */
 export const useContextProvider = <T, TResult>(
   context: ReactContext<T>,
   value: T,
@@ -91,7 +87,7 @@ export const useContextProvider = <T, TResult>(
     return withChangedContext(key, didChange, fn);
   } finally {
     if (hadPreviousValue) {
-      currentContext.set(key, previousValue);
+      currentContext.set(key, previousValue!);
     } else {
       currentContext.delete(key);
     }

@@ -3,20 +3,20 @@ title: Context
 description: Pass values through resource boundaries without prop drilling.
 ---
 
-<Callout type="warn">
-The context API is experimental and not yet stable. It may change significantly in a future version.
+<Callout type="info">
+Tap context is supported as of `@assistant-ui/tap` 0.9 and is no longer deprecated.
 </Callout>
 
 Context lets you pass values through the resource tree without threading props through every level, the same idea as React's `createContext` / `useContext`.
 
-## createResourceContext
+## createContext
 
 Create a context with a default value.
 
 ```ts
-import { createResourceContext } from "@assistant-ui/tap";
+import { createContext } from "react";
 
-const ThemeContext = createResourceContext("light");
+const ThemeContext = createContext("light");
 ```
 
 ## Reading context
@@ -34,15 +34,15 @@ const useButton = () => {
 const Button = resource(useButton);
 ```
 
-## withContextProvider
+## useContextProvider
 
 Provide a context value to all resources rendered within the callback.
 
 ```ts
-import { useResource, withContextProvider } from "@assistant-ui/tap";
+import { useContextProvider, useResource } from "@assistant-ui/tap";
 
 const useApp = () => {
-  const child = withContextProvider(ThemeContext, "dark", () => {
+  const child = useContextProvider(ThemeContext, "dark", () => {
     return useResource(Button());
   });
 
@@ -53,7 +53,3 @@ const App = resource(useApp);
 ```
 
 Any resource rendered inside the callback (including deeply nested children) reads `"dark"` from `ThemeContext`.
-
-<Callout type="warn">
-Context is not properly persisted across `useTapRoot` boundaries. If a child resource is wrapped with `useTapRoot`, it may not see context values provided by its ancestors. This is a known bug.
-</Callout>

@@ -133,29 +133,23 @@ trees (`createTapRoot` / `useTapRoot`); for `useResource` trees use
 flushTapSync(() => handle.getValue().increment());
 ```
 
-## createResourceContext
+## Context
 
-<Callout type="warn">
-The context API is experimental and may change.
-</Callout>
+Tap context uses regular React contexts and is supported as of `@assistant-ui/tap` 0.9.
 
-Creates a [context](/tap/docs/tap/context) with a default value. Read it
-with `use` / `useContext` from `"react"`.
+Create a [context](/tap/docs/tap/context) with `createContext` from `"react"`.
+Read it with `use` / `useContext` from `"react"`.
 
 ```ts
-const ThemeContext = createResourceContext("light");
+const ThemeContext = createContext("light");
 ```
 
-## withContextProvider
-
-<Callout type="warn">
-The context API is experimental and may change.
-</Callout>
+## useContextProvider
 
 Provides a context value to every resource rendered inside the callback.
 
 ```ts
-withContextProvider(ThemeContext, "dark", () => useResource(Button()));
+useContextProvider(ThemeContext, "dark", () => useResource(Button()));
 ```
 
 ## Types

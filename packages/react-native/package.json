@@ -38,7 +38,7 @@
   "dependencies": {
     "@assistant-ui/core": "^0.2.15",
     "@assistant-ui/store": "^0.2.17",
-    "@assistant-ui/tap": "^0.8.1",
+    "@assistant-ui/tap": "^0.9.0",
     "assistant-stream": "^0.3.22",
     "zustand": "^5.0.14"
   },
