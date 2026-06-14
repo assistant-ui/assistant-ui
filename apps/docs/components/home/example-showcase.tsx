@@ -140,7 +140,7 @@ export function ExampleShowcase() {
     // the overlay beneath the sticky z-50 site header.
     const stackingAncestor = sectionRef.current?.closest("main");
     if (stackingAncestor instanceof HTMLElement) {
-      stackingAncestor.style.zIndex = "100";
+      stackingAncestor.style.zIndex = "50";
     }
     return () => {
       document.removeEventListener("keydown", handleKeyDown);

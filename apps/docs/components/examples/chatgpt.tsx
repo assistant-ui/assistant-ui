@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import {
   ActionBarPrimitive,
+  ActionBarMorePrimitive,
   AuiIf,
   AttachmentPrimitive,
   BranchPickerPrimitive,
@@ -28,6 +29,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { useShallow } from "zustand/shallow";
 import {
   AudioLines,
+  Download,
   Globe,
   ImageIcon,
   Lightbulb,
@@ -335,9 +337,33 @@ const AssistantMessage: FC = () => {
           <ActionBarPrimitive.Reload className={assistantActionClassName}>
             <ReloadIcon />
           </ActionBarPrimitive.Reload>
-          <button type="button" className={assistantActionClassName}>
-            <MoreHorizontal className="size-4" />
-          </button>
+          <ActionBarMorePrimitive.Root>
+            <ActionBarMorePrimitive.Trigger asChild>
+              <button
+                type="button"
+                aria-label="More"
+                className={cn(
+                  assistantActionClassName,
+                  "data-[state=open]:bg-[#0d0d0d]/5 dark:data-[state=open]:bg-white/10",
+                )}
+              >
+                <MoreHorizontal className="size-4" />
+              </button>
+            </ActionBarMorePrimitive.Trigger>
+            <ActionBarMorePrimitive.Content
+              side="bottom"
+              align="end"
+              sideOffset={6}
+              className="bg-popover/95 text-popover-foreground data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out data-[side=bottom]:slide-in-from-top-2 z-50 min-w-40 overflow-hidden rounded-xl border p-1.5 shadow-lg backdrop-blur-sm"
+            >
+              <ActionBarPrimitive.ExportMarkdown asChild>
+                <ActionBarMorePrimitive.Item className="text-muted-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm outline-none select-none">
+                  <Download className="size-4" />
+                  Export as Markdown
+                </ActionBarMorePrimitive.Item>
+              </ActionBarPrimitive.ExportMarkdown>
+            </ActionBarMorePrimitive.Content>
+          </ActionBarMorePrimitive.Root>
         </ActionBarPrimitive.Root>
         <BranchPicker className="ml-1" />
       </div>
