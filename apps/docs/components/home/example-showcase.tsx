@@ -120,6 +120,14 @@ export function ExampleShowcase() {
     document.startViewTransition(() => flushSync(apply));
   }, []);
 
+  // Inline, the demo is a static preview: clicking anywhere except the tab bar
+  // expands it to fullscreen, where it becomes interactive.
+  const handlePanelClick = (e: React.MouseEvent) => {
+    if (isFullscreen) return;
+    if ((e.target as HTMLElement).closest('[data-slot="tab-list"]')) return;
+    toggleFullscreen();
+  };
+
   React.useEffect(() => {
     if (!isFullscreen) return;
 
@@ -151,11 +159,12 @@ export function ExampleShowcase() {
           the panel detaches to fullscreen. */}
       <div className="relative h-192">
         <div
+          onClick={handlePanelClick}
           className={cn(
             "inset-0 [view-transition-name:example-demo]",
             isFullscreen
               ? "bg-background fixed z-[100] p-4 md:p-6"
-              : "absolute",
+              : "absolute cursor-zoom-in [&_[data-slot=tab-content-panel]]:pointer-events-none",
           )}
         >
           <Tab
