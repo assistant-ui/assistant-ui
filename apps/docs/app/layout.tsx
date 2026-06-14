@@ -29,8 +29,8 @@ export const viewport = {
 export const metadata = {
   metadataBase: getMetadataBase(),
   title: {
-    template: "%s — assistant-ui (React Chat UI for AI)",
-    default: "assistant-ui — React Chat UI for AI Apps",
+    template: "%s — assistant-ui",
+    default: "assistant-ui - React Chat UI for AI Apps",
   },
   description:
     "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",

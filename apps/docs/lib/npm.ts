@@ -37,3 +37,23 @@ export function getDownloadsRange(
     revalidate,
   );
 }
+
+// The flagship package; its last-week downloads stand in for the headline figure.
+const FLAGSHIP_PACKAGE = "@assistant-ui/react";
+
+export async function getWeeklyDownloads(
+  pkg: string = FLAGSHIP_PACKAGE,
+  revalidate: number = NPM_REVALIDATE.COOL,
+): Promise<number | null> {
+  try {
+    const res = await fetch(
+      `${NPM_BASE}/downloads/point/last-week/${pkg}`,
+      revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { downloads?: number };
+    return typeof data.downloads === "number" ? data.downloads : null;
+  } catch {
+    return null;
+  }
+}

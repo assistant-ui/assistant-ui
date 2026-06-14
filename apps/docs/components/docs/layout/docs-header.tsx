@@ -249,7 +249,7 @@ export function DocsHeader({
           </button>
           <AskAIButton />
           <nav className="flex shrink-0 items-center">
-            <NavItems items={condensedItems} />
+            <NavItems items={condensedItems} megaAlign="end" />
             {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
           </nav>
           <ThemeToggle />
@@ -260,7 +260,7 @@ export function DocsHeader({
           <HeaderSearch />
           <AskAIButton />
           <nav className="flex shrink-0 items-center">
-            <NavItems items={filteredItems} />
+            <NavItems items={filteredItems} megaAlign="end" />
           </nav>
           <ThemeToggle />
         </div>
@@ -274,9 +274,9 @@ export function DocsHeader({
         )}
       >
         <nav className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
-          {filteredItems.map((item) =>
-            item.type === "link" ? (
-              item.href.startsWith("http") ? (
+          {filteredItems.map((item) => {
+            if (item.type === "link") {
+              return item.href.startsWith("http") ? (
                 <a
                   key={item.href}
                   href={item.href}
@@ -296,39 +296,47 @@ export function DocsHeader({
                 >
                   {item.label}
                 </Link>
-              )
-            ) : (
+              );
+            }
+
+            const groups = item.groups;
+
+            return (
               <div key={item.label} className="flex flex-col">
-                <span className="text-muted-foreground py-3 text-sm">
-                  {item.label}
-                </span>
-                {item.items.map((link) =>
-                  link.external ? (
-                    <a
-                      key={link.href}
-                      href={link.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setNavMenuOpen(false)}
-                      className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
-                    >
-                      {link.label}
-                      <ArrowUpRight className="size-3.5 opacity-40" />
-                    </a>
-                  ) : (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setNavMenuOpen(false)}
-                      className="text-foreground py-2 pl-4 text-lg transition-colors"
-                    >
-                      {link.label}
-                    </Link>
-                  ),
-                )}
+                {groups.map((group) => (
+                  <div key={group.label} className="flex flex-col">
+                    <span className="text-muted-foreground py-3 text-sm">
+                      {group.label}
+                    </span>
+                    {group.items.map((link) =>
+                      link.external ? (
+                        <a
+                          key={link.href}
+                          href={link.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setNavMenuOpen(false)}
+                          className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
+                        >
+                          {link.label}
+                          <ArrowUpRight className="size-3.5 opacity-40" />
+                        </a>
+                      ) : (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          onClick={() => setNavMenuOpen(false)}
+                          className="text-foreground py-2 pl-4 text-lg transition-colors"
+                        >
+                          {link.label}
+                        </Link>
+                      ),
+                    )}
+                  </div>
+                ))}
               </div>
-            ),
-          )}
+            );
+          })}
         </nav>
       </div>
     </header>

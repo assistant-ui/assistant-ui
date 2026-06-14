@@ -27,32 +27,34 @@ const FEATURES = [
 
 export function FeatureHighlights() {
   return (
-    <section className="flex flex-col gap-8">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h2 className="text-3xl font-medium tracking-tight">
+    <section className="flex flex-col gap-10">
+      <div className="flex flex-col gap-2">
+        <h2 className="max-w-[40ch] text-3xl font-semibold tracking-tight text-balance">
           Everything you need to ship AI chat
         </h2>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground max-w-[48ch] text-pretty">
           Production-ready components and state management.
         </p>
       </div>
 
-      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
         {FEATURES.map((feature) => {
           const Icon = feature.icon;
           return (
-            <div key={feature.title} className="flex flex-col gap-3">
-              <Icon className="text-muted-foreground size-5" />
-              <div className="flex flex-col gap-1">
-                <h3 className="font-medium">{feature.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
+            <div key={feature.title} className="flex flex-col gap-4">
+              <div className="bg-muted/30 flex size-10 items-center justify-center rounded-lg border">
+                <Icon className="text-muted-foreground size-5" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <dt className="font-medium">{feature.title}</dt>
+                <dd className="text-muted-foreground text-sm leading-relaxed text-pretty">
                   {feature.description}
-                </p>
+                </dd>
               </div>
             </div>
           );
         })}
-      </div>
+      </dl>
     </section>
   );
 }

@@ -10,12 +10,10 @@ import { FeatureHighlights } from "@/components/home/feature-highlights";
 import { TrustedBy } from "@/components/home/trusted-by";
 import { Hero } from "@/components/home/hero";
 import { ExampleShowcase } from "@/components/home/example-showcase";
-import { WarpBackground } from "@/components/home/warp-background";
 
 export default function HomePage() {
   return (
-    <main className="relative z-2 mx-auto w-full max-w-7xl flex-col space-y-10 px-4 pt-14 pb-8 md:space-y-20">
-      <WarpBackground />
+    <main className="relative z-2 mx-auto w-full max-w-7xl flex-col space-y-10 px-4 pt-20 pb-8 md:space-y-20 md:pt-28">
       <Hero />
 
       <ExampleShowcase />
@@ -30,10 +28,10 @@ export default function HomePage() {
       />
 
       <section className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="text-2xl font-medium tracking-tight">
-          Build once. Ready for production.
+        <p className="max-w-[24ch] text-3xl font-semibold tracking-tight text-balance">
+          The UX of ChatGPT in your own app.
         </p>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 pb-16">
           <Button asChild>
             <Link
               href="/docs"

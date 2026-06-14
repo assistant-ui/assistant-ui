@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { PRODUCTS } from "@/lib/constants";
 
 type FooterLinkItem = {
@@ -89,7 +90,7 @@ export function Footer(): React.ReactElement {
             <span className="text-xl font-medium">assistant-ui</span>
           </Link>
 
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
             <a
               href="https://x.com/assistantui"
               target="_blank"
@@ -126,14 +127,19 @@ export function Footer(): React.ReactElement {
             </a>
           </div>
 
-          <a
-            href="https://agentbase.dev"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground mt-auto text-sm transition-colors"
-          >
-            &copy; {new Date().getFullYear()} AgentbaseAI Inc.
-          </a>
+          <div className="mt-auto flex flex-col gap-3">
+            <div className="-ml-2">
+              <ThemeToggle />
+            </div>
+            <a
+              href="https://agentbase.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+            >
+              &copy; {new Date().getFullYear()} AgentbaseAI Inc.
+            </a>
+          </div>
         </div>
       </div>
     </footer>

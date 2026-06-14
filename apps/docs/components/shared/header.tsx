@@ -8,11 +8,9 @@ import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { SearchDialog } from "./search-dialog";
-import { ThemeToggle } from "./theme-toggle";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { NAV_ITEMS } from "@/lib/constants";
-import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems } from "@/components/shared/nav-items";
 
 function SearchButton({ onToggle }: { onToggle: () => void }) {
@@ -66,10 +64,14 @@ function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
+const formatStars = (count: number) =>
+  count >= 1000 ? `${(count / 1000).toFixed(1)}k` : count.toString();
+
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [stars, setStars] = useState<number | null>(null);
   const pathname = usePathname();
   const [dismissed, setDismissed] = usePersistentBoolean(
     "homepage-hiring-banner-dismissed",
@@ -79,75 +81,69 @@ export function Header() {
     setMounted(true);
   }, []);
 
-  const showBanner = mounted && pathname === "/" && !dismissed;
+  useEffect(() => {
+    fetch("/api/github/repo")
+      .then((res) => res.json())
+      .then((data) => setStars(data.stars))
+      .catch(console.error);
+  }, []);
+
+  const isHome = pathname === "/";
+  const showBanner = mounted && isHome && !dismissed;
 
   return (
     <header className="sticky top-0 z-50 w-full">
       <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl" />
       <div className="relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
-          <Image
-            src="/favicon/icon.svg"
-            alt="assistant-ui logo"
-            width={18}
-            height={18}
-            className="dark:hue-rotate-180 dark:invert"
-          />
-          <span className="font-medium tracking-tight">assistant-ui</span>
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/" className="flex items-center gap-2">
+            <Image
+              src="/favicon/icon.svg"
+              alt="assistant-ui logo"
+              width={18}
+              height={18}
+              className="dark:hue-rotate-180 dark:invert"
+            />
+            <span className="font-medium tracking-tight">assistant-ui</span>
+          </Link>
 
-        {/* Condensed nav: md to lg */}
-        <nav className="hidden items-center md:flex lg:hidden">
-          <NavItems
-            items={NAV_ITEMS.filter(
-              (item) =>
-                !(
-                  "label" in item &&
-                  (item.label === "Showcase" ||
-                    item.label === "Playground" ||
-                    item.label === "Pricing")
-                ),
-            )}
-          />
-          <MoreDropdown
-            items={[
-              { label: "Showcase", href: "/showcase" },
-              { label: "Playground", href: "/playground" },
-              { label: "Pricing", href: "/pricing" },
-            ]}
-          />
-        </nav>
-
-        {/* Full nav: lg+ */}
-        <nav className="hidden items-center lg:flex">
-          <NavItems items={NAV_ITEMS} />
-        </nav>
+          <nav className="hidden items-center md:flex">
+            <NavItems items={NAV_ITEMS} />
+          </nav>
+        </div>
 
         <div className="flex items-center gap-1">
-          <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
-          <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+          {!isHome && (
+            <>
+              <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
+              <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+            </>
+          )}
 
           <a
             href="https://github.com/assistant-ui/assistant-ui"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground hidden size-8 items-center justify-center transition-colors sm:flex"
+            className="text-muted-foreground hover:text-foreground hidden items-center gap-2.5 transition-colors sm:flex"
             aria-label="GitHub"
           >
+            {stars !== null && (
+              <span className="text-sm tabular-nums">{formatStars(stars)}</span>
+            )}
             <GitHubIcon className="size-4" />
           </a>
 
-          <a
-            href="https://discord.gg/S9dwgCNEFs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground hidden size-8 items-center justify-center transition-colors sm:flex"
-            aria-label="Discord"
-          >
-            <DiscordIcon className="size-4" />
-          </a>
-
-          <ThemeToggle />
+          {!isHome && (
+            <a
+              href="https://discord.gg/S9dwgCNEFs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground hidden size-8 items-center justify-center transition-colors sm:flex"
+              aria-label="Discord"
+            >
+              <DiscordIcon className="size-4" />
+            </a>
+          )}
 
           <button
             type="button"
@@ -171,9 +167,9 @@ export function Header() {
         )}
       >
         <nav className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
-          {NAV_ITEMS.map((item) =>
-            item.type === "link" ? (
-              item.href.startsWith("http") ? (
+          {NAV_ITEMS.map((item) => {
+            if (item.type === "link") {
+              return item.href.startsWith("http") ? (
                 <a
                   key={item.href}
                   href={item.href}
@@ -193,39 +189,47 @@ export function Header() {
                 >
                   {item.label}
                 </Link>
-              )
-            ) : (
+              );
+            }
+
+            const groups = item.groups;
+
+            return (
               <div key={item.label} className="flex flex-col">
-                <span className="text-muted-foreground py-3 text-sm">
-                  {item.label}
-                </span>
-                {item.items.map((link) =>
-                  link.external ? (
-                    <a
-                      key={link.href}
-                      href={link.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
-                    >
-                      {link.label}
-                      <ArrowUpRight className="size-3.5 opacity-40" />
-                    </a>
-                  ) : (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="text-foreground py-2 pl-4 text-lg transition-colors"
-                    >
-                      {link.label}
-                    </Link>
-                  ),
-                )}
+                {groups.map((group) => (
+                  <div key={group.label} className="flex flex-col">
+                    <span className="text-muted-foreground py-3 text-sm">
+                      {group.label}
+                    </span>
+                    {group.items.map((link) =>
+                      link.external ? (
+                        <a
+                          key={link.href}
+                          href={link.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
+                        >
+                          {link.label}
+                          <ArrowUpRight className="size-3.5 opacity-40" />
+                        </a>
+                      ) : (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="text-foreground py-2 pl-4 text-lg transition-colors"
+                        >
+                          {link.label}
+                        </Link>
+                      ),
+                    )}
+                  </div>
+                ))}
               </div>
-            ),
-          )}
+            );
+          })}
 
           <div className="mt-auto flex gap-4 border-t py-6">
             <a

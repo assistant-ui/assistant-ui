@@ -1,59 +1,51 @@
 "use client";
 
-import { analytics } from "@/lib/analytics";
-import { StarPill } from "@/components/home/star-pill";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
-import { CopyPromptButton } from "@/components/home/copy-prompt-button";
-import { LaunchWeekBanner } from "@/components/home/launch-week-banner";
+import { NpmDownloads } from "@/components/home/npm-downloads";
 import Image from "next/image";
-import Link from "next/link";
 
 export function Hero() {
   return (
-    <section className="relative flex items-start justify-between gap-10">
-      <div className="flex flex-col gap-6">
-        <StarPill />
-
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-medium">
-            The UX of ChatGPT in your own app
+    <section className="flex flex-col pb-4 md:pb-8">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2 pb-1">
+          <h1 className="max-w-[30ch] text-4xl font-semibold tracking-tight text-balance lg:text-5xl">
+            A frontend for your AI agents
           </h1>
-          <p className="text-muted-foreground text-lg">
-            Open-source React toolkit for production AI chat experiences.
+          <p className="text-muted-foreground max-w-[48ch] text-lg text-pretty">
+            React primitives for building AI chat interfaces.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <CopyCommandButton />
-          <CopyPromptButton analyticsContext={{ section: "hero" }} />
+        <div className="flex flex-wrap items-center">
+          <CopyCommandButton withPromptOption />
         </div>
 
-        <div className="text-muted-foreground flex flex-wrap items-center gap-x-5 gap-y-3 text-[13px]">
-          <Link
-            href="/docs"
-            onClick={() => analytics.cta.clicked("get_started", "hero")}
-            className="shimmer text-foreground/60 hover:text-foreground font-medium"
+        <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-3 text-[13px]">
+          <a
+            href="https://github.com/assistant-ui/assistant-ui/blob/main/LICENSE"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground transition-colors"
           >
-            Get Started →
-          </Link>
+            MIT License
+          </a>
           <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
-          <Link
-            href="/traction"
-            onClick={() => analytics.cta.clicked("why_us", "hero")}
-            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
+          <a
+            href="https://www.npmjs.com/package/@assistant-ui/react"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground transition-colors"
           >
-            Why us?
-          </Link>
+            <NpmDownloads />
+          </a>
           <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
-          <Link
-            href="https://cal.com/simon-farshid/assistant-ui"
-            onClick={() => analytics.cta.clicked("contact_sales", "hero")}
-            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
+          <a
+            href="https://www.ycombinator.com/companies/assistant-ui"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground inline-flex w-full items-center gap-1.5 transition-colors sm:w-auto"
           >
-            Contact Sales
-          </Link>
-          <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
-          <span className="inline-flex w-full items-center gap-1.5 sm:w-auto">
             Backed by
             <Image
               src="/icons/yc_logo.png"
@@ -62,11 +54,9 @@ export function Hero() {
               width={18}
             />
             Combinator
-          </span>
+          </a>
         </div>
       </div>
-
-      <LaunchWeekBanner />
     </section>
   );
 }

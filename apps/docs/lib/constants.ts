@@ -22,12 +22,6 @@ export type Product = {
 
 export const PRODUCTS: Product[] = [
   {
-    label: "Tool UI",
-    href: "https://tool-ui.com/",
-    description: "Build tool UIs for AI agents",
-    external: true,
-  },
-  {
     slug: "tw-shimmer",
     label: "tw-shimmer",
     href: "/tw-shimmer",
@@ -90,56 +84,110 @@ export type DropdownItem = {
   external: boolean;
 };
 
+export type NavGroup = {
+  label: string;
+  items: DropdownItem[];
+};
+
 export type NavItem =
   | { type: "link"; label: string; href: string }
-  | { type: "dropdown"; label: string; items: DropdownItem[] };
+  | { type: "mega"; label: string; groups: NavGroup[] };
 
 export const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Docs", href: "/docs" },
-  { type: "link", label: "Showcase", href: "/showcase" },
-  { type: "link", label: "Examples", href: "/examples" },
-  { type: "link", label: "Cloud", href: "https://cloud.assistant-ui.com" },
-  { type: "link", label: "Playground", href: "/playground" },
   {
-    type: "dropdown",
-    label: "Products",
-    items: PRODUCTS,
-  },
-  {
-    type: "dropdown",
+    type: "mega",
     label: "Resources",
-    items: [
+    groups: [
       {
-        label: "Blog",
-        href: "/blog",
-        description: "Latest news and updates",
-        external: false,
+        label: "Learn",
+        items: [
+          {
+            label: "Examples",
+            href: "/examples",
+            description: "Full implementations and demos",
+            external: false,
+          },
+          {
+            label: "Showcase",
+            href: "/showcase",
+            description: "Apps built with assistant-ui",
+            external: false,
+          },
+          {
+            label: "Playground",
+            href: "/playground",
+            description: "Experiment in the browser",
+            external: false,
+          },
+          {
+            label: "Changelog",
+            href: "/changelog",
+            description: "Release notes and updates",
+            external: false,
+          },
+        ],
       },
       {
-        label: "Traction",
-        href: "/traction",
-        description: "Stars, downloads, and adoption",
-        external: false,
+        label: "Company",
+        items: [
+          {
+            label: "Blog",
+            href: "/blog",
+            description: "Latest news and updates",
+            external: false,
+          },
+          {
+            label: "Traction",
+            href: "/traction",
+            description: "Stars, downloads, and adoption",
+            external: false,
+          },
+          {
+            label: "Careers",
+            href: "/careers",
+            description: "Join our team",
+            external: false,
+          },
+          {
+            label: "Brand",
+            href: "/brand",
+            description: "Logos and brand assets",
+            external: false,
+          },
+        ],
       },
       {
-        label: "Packages",
-        href: "/packages",
-        description: "Every distribution on npm",
-        external: false,
-      },
-      {
-        label: "Changelog",
-        href: "/changelog",
-        description: "Release notes and version history",
-        external: false,
-      },
-      {
-        label: "Careers",
-        href: "/careers",
-        description: "Join our team",
-        external: false,
+        label: "Open source",
+        items: [
+          {
+            label: "GitHub",
+            href: "https://github.com/assistant-ui/assistant-ui",
+            description: "Star us on GitHub",
+            external: true,
+          },
+          {
+            label: "Packages",
+            href: "/packages",
+            description: "Every distribution on npm",
+            external: false,
+          },
+          {
+            label: "React Native",
+            href: "/native",
+            description: "Build mobile apps",
+            external: false,
+          },
+          {
+            label: "Ink",
+            href: "/ink",
+            description: "Build terminal UIs",
+            external: false,
+          },
+        ],
       },
     ],
   },
+  { type: "link", label: "Cloud", href: "https://cloud.assistant-ui.com" },
   { type: "link", label: "Pricing", href: "/pricing" },
 ];
