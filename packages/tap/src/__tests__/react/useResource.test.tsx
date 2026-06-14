@@ -199,7 +199,9 @@ describe("@assistant-ui/tap/react resource API", () => {
       );
 
       expect(renderTest(parent, "a")).toEqual(["a"]);
+      expect(parent.contextDeps).toBeNull();
       expect(renderTest(parent, "b")).toEqual(["b"]);
+      expect(parent.contextDeps).toBeNull();
       expect(renders).toBe(2);
     });
   });

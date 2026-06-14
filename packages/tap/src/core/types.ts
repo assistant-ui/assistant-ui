@@ -67,8 +67,13 @@ export interface RenderResult {
   readonly commitCallbacks: CommitCallbacks;
 }
 
-export type ResourceContext = Map<object, unknown>;
-export type ResourceContextDeps = Set<object>;
+export type ResourceContext = Map<object, ResourceContextValue>;
+export type ResourceContextDeps = Map<object, ResourceFiber<any> | null>;
+
+export interface ResourceContextValue {
+  value: unknown;
+  source: ResourceFiber<any> | null;
+}
 
 export interface TapRoot {
   version: number;

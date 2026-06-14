@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import type {
   ResourceContext,
   ResourceContextDeps,
+  ResourceContextValue,
   ResourceFiber,
 } from "./types";
 import {
@@ -72,6 +73,7 @@ export const useContextProvider = <T, TResult>(
   fn: () => TResult,
 ) => {
   const key = context as object;
+  const currentFiber = getCurrentResourceFiber();
   const committedValueRef = useRef<{ value: T } | undefined>(undefined);
   const didChange =
     committedValueRef.current === undefined ||
@@ -83,7 +85,7 @@ export const useContextProvider = <T, TResult>(
   const previousValue = currentContext.get(key);
   const hadPreviousValue =
     previousValue !== undefined || currentContext.has(key);
-  currentContext.set(key, value);
+  currentContext.set(key, { value, source: currentFiber });
 
   try {
     return withChangedContext(key, didChange, fn);
@@ -124,26 +126,35 @@ export const useTapContext = <T>(context: ReactContext<T>) => {
   ensureTapContext(context);
 
   const key = context as object;
-  const value = getCurrentContextValue(key);
+  const contextValue = getCurrentContextValue(key, context);
   const currentFiber = getCurrentResourceFiber();
-  (currentFiber.wipContextDeps ??= new Set()).add(key);
-  return value as T;
+  (currentFiber.wipContextDeps ??= new Map()).set(key, contextValue.source);
+  return contextValue.value as T;
 };
 
-const getCurrentContextValue = (context: object) =>
-  currentContext.has(context)
-    ? currentContext.get(context)
-    : asTap(context as ReactContext<unknown>)[defaultContextValue];
+const getCurrentContextValue = <T>(
+  key: object,
+  context: ReactContext<T>,
+): ResourceContextValue =>
+  currentContext.get(key) ?? {
+    value: asTap(context)[defaultContextValue],
+    source: null,
+  };
 
 const mergeContextDeps = (
+  targetFiber: ResourceFiber<any>,
+  sourceFiber: ResourceFiber<any>,
   target: ResourceContextDeps | null,
   source: ResourceContextDeps | null,
 ) => {
   if (!source) return target;
 
-  const next = target ?? new Set();
-  for (const context of source) {
-    next.add(context);
+  let next = target;
+  for (const [context, providerFiber] of source) {
+    if (providerFiber === sourceFiber || providerFiber === targetFiber) {
+      continue;
+    }
+    (next ??= new Map()).set(context, providerFiber);
   }
   return next;
 };
@@ -155,9 +166,9 @@ export const bubbleContextDeps = (
   const currentFiber = peekResourceFiber();
   if (!currentFiber || !contextDeps) return;
 
-  // TODO instead of always forwarding, there should be context source tracking
-  // if context source of a context dep is this current fiber, don't bubble it up
   currentFiber.wipContextDeps = mergeContextDeps(
+    currentFiber,
+    fiber,
     currentFiber.wipContextDeps,
     contextDeps,
   );
