@@ -68,7 +68,7 @@ export interface RenderResult {
 }
 
 export type ResourceContext = Map<object, unknown>;
-export type ResourceContextDeps = Map<object, unknown>;
+export type ResourceContextDeps = Set<object>;
 
 export interface TapRoot {
   version: number;

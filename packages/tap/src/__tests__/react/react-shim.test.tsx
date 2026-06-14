@@ -28,16 +28,15 @@ describe("@assistant-ui/tap/react-shim", () => {
     it("uses shim-created React contexts as tap contexts", () => {
       const TestContext = createContext("default");
 
-      const testFiber = createTestResource((value: string | null) => {
-        if (value === null) return useContext(TestContext);
-
+      const defaultFiber = createTestResource(() => useContext(TestContext));
+      const providedFiber = createTestResource((value: string) => {
         return useContextProvider(TestContext, value, () =>
           useContext(TestContext),
         );
       });
 
-      expect(renderTest(testFiber, null)).toBe("default");
-      expect(renderTest(testFiber, "tap")).toBe("tap");
+      expect(renderTest(defaultFiber)).toBe("default");
+      expect(renderTest(providedFiber, "tap")).toBe("tap");
     });
 
     it("useState routes to useState and useEffect to useEffect", async () => {

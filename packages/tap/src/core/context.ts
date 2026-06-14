@@ -1,5 +1,10 @@
 import type { Context as ReactContext } from "react";
-import type { ResourceContext, ResourceFiber, TapRoot } from "./types";
+import { useEffect, useRef } from "react";
+import type {
+  ResourceContext,
+  ResourceContextDeps,
+  ResourceFiber,
+} from "./types";
 import {
   getCurrentResourceFiber,
   peekResourceFiber,
@@ -14,6 +19,7 @@ const asTap = <T>(context: ReactContext<T>): TapContext<T> =>
   context as unknown as TapContext<T>;
 
 let currentContext: ResourceContext = new Map();
+const changedContexts = new Map<object, true>();
 
 export const cloneCurrentTapContext = (): ResourceContext =>
   new Map(currentContext);
@@ -66,13 +72,21 @@ export const useContextProvider = <T, TResult>(
   fn: () => TResult,
 ) => {
   const key = context as object;
+  const committedValueRef = useRef<{ value: T } | undefined>(undefined);
+  const didChange =
+    committedValueRef.current === undefined ||
+    !Object.is(committedValueRef.current.value, value);
+  useEffect(() => {
+    committedValueRef.current = { value };
+  }, [value]);
+
   const previousValue = currentContext.get(key);
   const hadPreviousValue =
     previousValue !== undefined || currentContext.has(key);
-
   currentContext.set(key, value);
+
   try {
-    return fn();
+    return withChangedContext(key, didChange, fn);
   } finally {
     if (hadPreviousValue) {
       currentContext.set(key, previousValue);
@@ -82,35 +96,80 @@ export const useContextProvider = <T, TResult>(
   }
 };
 
+const withChangedContext = <T>(
+  context: object,
+  didChange: boolean,
+  fn: () => T,
+) => {
+  const restoreChangedContext = changedContexts.has(context);
+
+  if (didChange) {
+    changedContexts.set(context, true);
+  } else {
+    changedContexts.delete(context);
+  }
+
+  try {
+    return fn();
+  } finally {
+    if (restoreChangedContext) {
+      changedContexts.set(context, true);
+    } else {
+      changedContexts.delete(context);
+    }
+  }
+};
+
 export const useTapContext = <T>(context: ReactContext<T>) => {
   ensureTapContext(context);
 
   const key = context as object;
-  const value = currentContext.has(key)
-    ? currentContext.get(key)
-    : asTap(context)[defaultContextValue];
+  const value = getCurrentContextValue(key);
   const currentFiber = getCurrentResourceFiber();
-  (currentFiber.wipContextDeps ??= new Map()).set(key, value);
+  (currentFiber.wipContextDeps ??= new Set()).add(key);
   return value as T;
 };
 
-export const bubbleContextDeps = (fiber: ResourceFiber<any>) => {
-  const currentFiber = peekResourceFiber();
-  if (!currentFiber?.wipContextDeps || !fiber.wipContextDeps) return;
+const getCurrentContextValue = (context: object) =>
+  currentContext.has(context)
+    ? currentContext.get(context)
+    : asTap(context as ReactContext<unknown>)[defaultContextValue];
 
-  for (const [context, value] of fiber.wipContextDeps) {
-    // TODO instead of always forwarding, there should be context source tracking
-    // if context source of a context dep is this current fiber, don't bubble it up
-    currentFiber?.wipContextDeps.set(context, value);
+const mergeContextDeps = (
+  target: ResourceContextDeps | null,
+  source: ResourceContextDeps | null,
+) => {
+  if (!source) return target;
+
+  const next = target ?? new Set();
+  for (const context of source) {
+    next.add(context);
   }
+  return next;
 };
 
-export const hasContextDepsChanged = (fiber: ResourceFiber<any, any[]>) => {
-  if (!fiber.contextDeps) return false;
+export const bubbleContextDeps = (
+  fiber: ResourceFiber<any>,
+  contextDeps: ResourceContextDeps | null = fiber.wipContextDeps,
+) => {
+  const currentFiber = peekResourceFiber();
+  if (!currentFiber || !contextDeps) return;
 
-  for (const [context, previousValue] of fiber.contextDeps) {
-    const currentValue = currentContext.get(context);
-    if (!Object.is(previousValue, currentValue)) return true;
+  // TODO instead of always forwarding, there should be context source tracking
+  // if context source of a context dep is this current fiber, don't bubble it up
+  currentFiber.wipContextDeps = mergeContextDeps(
+    currentFiber.wipContextDeps,
+    contextDeps,
+  );
+};
+
+export const hasChangedContexts = () => changedContexts.size > 0;
+
+export const hasContextDepsChanged = (fiber: ResourceFiber<any, any[]>) => {
+  if (!fiber.contextDeps || !hasChangedContexts()) return false;
+
+  for (const context of changedContexts.keys()) {
+    if (fiber.contextDeps.has(context)) return true;
   }
 
   return false;

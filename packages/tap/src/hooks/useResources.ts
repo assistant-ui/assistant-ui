@@ -9,7 +9,11 @@ import {
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
-import { hasContextDepsChanged } from "../core/context";
+import {
+  bubbleContextDeps,
+  hasChangedContexts,
+  hasContextDepsChanged,
+} from "../core/context";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
 import { useEffect, useMemo } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
@@ -55,6 +59,18 @@ const canReuse = (state: FiberState, deps: readonly unknown[] | undefined) =>
   state.committedDeps !== undefined &&
   depsShallowEqual(state.committedDeps, deps);
 
+const hasAnyChildContextDepsChanged = (
+  fibers: Map<string | number, FiberState>,
+) => {
+  if (!hasChangedContexts()) return false;
+
+  for (const { fiber } of fibers.values()) {
+    if (hasContextDepsChanged(fiber)) return true;
+  }
+
+  return false;
+};
+
 export function useResources<E extends ResourceElement<any, any[]>>(
   elements: readonly E[],
 ): ExtractResourceReturnType<E>[] {
@@ -63,9 +79,7 @@ export function useResources<E extends ResourceElement<any, any[]>>(
   // Process each element
 
   const { version, createFiber } = useResourceFiberHost();
-  const hasAnyContextDepsChanged = Array.from(fibers.values()).some((state) =>
-    hasContextDepsChanged(state.fiber),
-  );
+  const hasAnyContextDepsChanged = hasAnyChildContextDepsChanged(fibers);
 
   const res = useRenderMemo(
     () => {
@@ -76,7 +90,6 @@ export function useResources<E extends ResourceElement<any, any[]>>(
       const results: any[] = [];
       let newCount = 0;
 
-      // Create/update fibers and render
       for (let i = 0; i < elements.length; i++) {
         const element = elements[i]!;
 
@@ -113,14 +126,14 @@ export function useResources<E extends ResourceElement<any, any[]>>(
           const result = renderResourceFiber(fiber, element.args);
           state.next = { result, deps: element.deps, remount: fiber };
         } else if (canReuse(state, element.deps)) {
+          if (state.fiber.contextDeps) {
+            bubbleContextDeps(state.fiber, state.fiber.contextDeps);
+          }
           state.next = "skip";
         } else {
           const result = renderResourceFiber(state.fiber, element.args);
           state.next = { result, deps: element.deps };
         }
-
-        // Reused children serve their committed value; everything else its render.
-        // TODO merge all fiber's context usage for fast lookup
 
         results.push(
           typeof state.next === "object"
