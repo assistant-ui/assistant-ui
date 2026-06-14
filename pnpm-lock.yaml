@@ -1796,7 +1796,7 @@ importers:
         version: link:../../packages/ui
       '@google/adk':
         specifier: ^1.2.0
-        version: 1.2.0(@bufbuild/protobuf@2.12.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(@mikro-orm/mariadb@6.6.14(@mikro-orm/core@6.6.14))(@mikro-orm/mssql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@mikro-orm/mysql@6.6.14(@mikro-orm/core@6.6.14)(@types/node@25.9.3)(mariadb@3.4.5))(@mikro-orm/postgresql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))(encoding@0.1.13)
+        version: 1.2.0(@bufbuild/protobuf@2.12.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(@mikro-orm/mariadb@6.6.14(@mikro-orm/core@6.6.14)(pg@8.20.0))(@mikro-orm/mssql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/mysql@6.6.14(@mikro-orm/core@6.6.14)(@types/node@25.9.3)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/postgresql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5)(pg@8.20.0))(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3209,7 +3209,7 @@ importers:
   packages/cloud:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3250,7 +3250,7 @@ importers:
         specifier: ^6.0.204
         version: 6.0.204(zod@4.4.3)
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
       jsdom:
         specifier: ^29.1.1
@@ -3265,7 +3265,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.11
@@ -3430,13 +3430,13 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.17
+        specifier: ^0.2.18
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.0
+        specifier: ^0.9.1
         version: link:../tap
       '@radix-ui/primitive':
         specifier: ^1.1.4
@@ -3457,10 +3457,10 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2(@types/react@19.2.17)(react@19.2.7)
       assistant-cloud:
-        specifier: ^0.1.32
+        specifier: ^0.1.33
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.11
@@ -3518,10 +3518,10 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.17
+        specifier: ^0.2.18
         version: link:../store
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3543,10 +3543,10 @@ importers:
         specifier: ^0.0.57
         version: 0.0.57
       '@assistant-ui/core':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../core
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
       fast-json-patch:
         specifier: ^3.1.1
@@ -3577,10 +3577,10 @@ importers:
         specifier: ^3.0.206
         version: 3.0.206(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/core':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.17
+        specifier: ^0.2.18
         version: link:../store
       ai:
         specifier: ^6.0.204
@@ -3589,7 +3589,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3623,13 +3623,13 @@ importers:
         specifier: ^3.0.10
         version: 3.0.10
       '@assistant-ui/core':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../core
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3682,7 +3682,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -3713,19 +3713,19 @@ importers:
   packages/react-google-adk:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.17
+        specifier: ^0.2.18
         version: link:../store
       '@google/adk':
         specifier: '>=0.5.0'
-        version: 1.2.0(@bufbuild/protobuf@2.12.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(@mikro-orm/mariadb@6.6.14(@mikro-orm/core@6.6.14)(pg@8.20.0))(@mikro-orm/mssql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/mysql@6.6.14(@mikro-orm/core@6.6.14)(@types/node@25.9.3)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/postgresql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5)(pg@8.20.0))(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)
+        version: 1.2.0(@bufbuild/protobuf@2.12.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(@mikro-orm/mariadb@6.6.14(@mikro-orm/core@6.6.14))(@mikro-orm/mssql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@mikro-orm/mysql@6.6.14(@mikro-orm/core@6.6.14)(@types/node@25.9.3)(mariadb@3.4.5))(@mikro-orm/postgresql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))(encoding@0.1.13)
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
       uuid:
         specifier: ^14.0.0
@@ -3750,10 +3750,10 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.17
+        specifier: ^0.2.18
         version: link:../store
       zod:
         specifier: ^4.4.3
@@ -3775,16 +3775,16 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.17
+        specifier: ^0.2.18
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.0
+        specifier: ^0.9.1
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
       diff:
         specifier: ^9.0.0
@@ -3827,10 +3827,10 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.17
+        specifier: ^0.2.18
         version: link:../store
       markdansi:
         specifier: ^0.3.1
@@ -3864,16 +3864,16 @@ importers:
   packages/react-langchain:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.17
+        specifier: ^0.2.18
         version: link:../store
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3907,16 +3907,16 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.17
+        specifier: ^0.2.18
         version: link:../store
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
       uuid:
         specifier: ^14.0.0
@@ -4061,16 +4061,16 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.15
+        specifier: ^0.2.16
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.17
+        specifier: ^0.2.18
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.0
+        specifier: ^0.9.1
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.22
+        specifier: ^0.3.23
         version: link:../assistant-stream
       zustand:
         specifier: ^5.0.14

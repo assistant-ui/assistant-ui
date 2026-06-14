@@ -32,9 +32,9 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^3.0.10",
-    "@assistant-ui/core": "^0.2.15",
+    "@assistant-ui/core": "^0.2.16",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.22"
+    "assistant-stream": "^0.3.23"
   },
   "peerDependencies": {
     "@types/react": "*",

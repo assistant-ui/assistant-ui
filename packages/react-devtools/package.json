@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-devtools",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "React development tools for assistant-ui components",
   "keywords": [
     "assistant-ui",

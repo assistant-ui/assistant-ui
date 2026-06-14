@@ -1,5 +1,14 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.5
+
+### Patch Changes
+
+- [#4393](https://github.com/assistant-ui/assistant-ui/pull/4393) [`434bba5`](https://github.com/assistant-ui/assistant-ui/commit/434bba5f7c59ab7cf6f1c78a8898fd4d3addb12d) - fix: resolve typecheck regressions ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`434bba5`](https://github.com/assistant-ui/assistant-ui/commit/434bba5f7c59ab7cf6f1c78a8898fd4d3addb12d)]:
+  - assistant-stream@0.3.23
+
 ## 0.0.4
 
 ### Patch Changes

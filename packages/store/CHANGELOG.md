@@ -1,5 +1,13 @@
 # @assistant-ui/store
 
+## 0.2.18
+
+### Patch Changes
+
+- [#4392](https://github.com/assistant-ui/assistant-ui/pull/4392) [`4cc7eaa`](https://github.com/assistant-ui/assistant-ui/commit/4cc7eaac61d68ae970b998465bb7e5c722cc9dda) - chore: update peer and dependency ranges for @assistant-ui/tap 0.9 ([@Yonom](https://github.com/Yonom))
+
+- [#4392](https://github.com/assistant-ui/assistant-ui/pull/4392) [`4cc7eaa`](https://github.com/assistant-ui/assistant-ui/commit/4cc7eaac61d68ae970b998465bb7e5c722cc9dda) - fix: preserve tap context across nested tap root rerenders and mark tap context as supported ([@Yonom](https://github.com/Yonom))
+
 ## 0.2.17
 
 ### Patch Changes
