@@ -19,7 +19,7 @@ export function useResource<E extends ResourceElement<any, any[]>>(
 
   const result = useRenderMemo(
     () => renderResourceFiber(fiber, element.args),
-    [fiber, version, ...element.args],
+    [fiber, version, element.args],
     hasContextDepsChanged(fiber),
   );
 

@@ -1,8 +1,8 @@
 import { isReadableTapContext, useTapContext } from "../core/context";
 
 /**
- * Reads a resource context from inside a resource render, the tap equivalent of
- * React's `use(Context)`. Only resource contexts are supported.
+ * Reads a context from inside a resource render, the tap equivalent of React's
+ * `use(Context)` / `useContext(Context)`. Accepts React contexts.
  */
 export const use = (usable: unknown): unknown => {
   if (!isReadableTapContext(usable))
