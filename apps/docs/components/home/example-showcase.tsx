@@ -11,7 +11,7 @@ import { Grok } from "@/components/examples/grok";
 import { analytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ArrowUpRightIcon, Maximize2Icon, Minimize2Icon } from "lucide-react";
+import { ArrowUpRightIcon, Maximize2Icon, XIcon } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 import { flushSync } from "react-dom";
@@ -177,20 +177,6 @@ export function ExampleShowcase() {
             }}
             actions={
               <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-foreground size-[30px]"
-                  aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-                  title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-                  onClick={toggleFullscreen}
-                >
-                  {isFullscreen ? (
-                    <Minimize2Icon className="size-4" />
-                  ) : (
-                    <Maximize2Icon className="size-4" />
-                  )}
-                </Button>
                 {activeSlug && (
                   <Button
                     variant="ghost"
@@ -205,6 +191,20 @@ export function ExampleShowcase() {
                     </Link>
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-foreground size-[30px]"
+                  aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                  title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                  onClick={toggleFullscreen}
+                >
+                  {isFullscreen ? (
+                    <XIcon className="size-4" />
+                  ) : (
+                    <Maximize2Icon className="size-4" />
+                  )}
+                </Button>
               </>
             }
           />
