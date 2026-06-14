@@ -157,7 +157,7 @@ export function ExampleShowcase() {
     <section ref={sectionRef}>
       {/* Placeholder reserves the inline height so the page doesn't jump when
           the panel detaches to fullscreen. */}
-      <div className="relative h-192">
+      <div className="relative h-160">
         <div
           onClick={handlePanelClick}
           className={cn(
