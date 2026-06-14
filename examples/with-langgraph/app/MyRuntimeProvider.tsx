@@ -9,13 +9,16 @@ export function MyRuntimeProvider({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const apiUrl =
+    process.env.NEXT_PUBLIC_LANGGRAPH_API_URL ||
+    (typeof window !== "undefined"
+      ? new URL("/api", window.location.href).href
+      : undefined);
+
   const runtime = useStreamRuntime({
     assistantId: process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID!,
-    apiUrl: process.env.NEXT_PUBLIC_LANGGRAPH_API_URL,
+    apiUrl,
     create: async () => {
-      const apiUrl =
-        process.env.NEXT_PUBLIC_LANGGRAPH_API_URL ||
-        new URL("/api", window.location.href).href;
       const { thread_id } = await new Client({ apiUrl }).threads.create();
       return { externalId: thread_id };
     },
