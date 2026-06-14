@@ -74,10 +74,20 @@ export function Header() {
   const [dismissed, setDismissed] = usePersistentBoolean(
     "homepage-hiring-banner-dismissed",
   );
+  const [visited, setVisited] = usePersistentBoolean("homepage-visited");
+  const [returningVisitor, setReturningVisitor] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (pathname !== "/") return;
+    // Show the banner only from the second homepage visit onward.
+    setReturningVisitor(visited);
+    if (!visited) setVisited(true);
+    // oxlint-disable-next-line react/exhaustive-deps
+  }, [pathname]);
 
   useEffect(() => {
     fetch("/api/github/repo")
@@ -91,7 +101,7 @@ export function Header() {
   }, []);
 
   const isHome = pathname === "/";
-  const showBanner = mounted && isHome && !dismissed;
+  const showBanner = mounted && isHome && returningVisitor && !dismissed;
 
   return (
     <header className="sticky top-0 z-50 w-full">
