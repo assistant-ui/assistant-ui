@@ -407,7 +407,7 @@ export class ToolCallArgsReaderImpl<
 
   forEach<PathT extends TypePath<T>>(
     ...fieldPath: PathT
-  ): TypeAtPath<T, PathT> extends Array<infer U>
+  ): NonNullable<TypeAtPath<T, PathT>> extends Array<infer U>
     ? AsyncIterableStream<U>
     : never {
     // Use a type assertion to convert the complex TypePath to a simple array

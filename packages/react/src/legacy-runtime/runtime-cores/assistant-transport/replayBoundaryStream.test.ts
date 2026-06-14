@@ -29,12 +29,16 @@ const createResponse = (
   chunks: readonly string[],
   replayContentLength?: number | string,
 ) =>
-  new Response(createBody(chunks), {
-    headers:
-      replayContentLength === undefined
-        ? undefined
-        : { [REPLAY_CONTENT_LENGTH_HEADER]: String(replayContentLength) },
-  });
+  new Response(
+    createBody(chunks),
+    replayContentLength === undefined
+      ? undefined
+      : {
+          headers: {
+            [REPLAY_CONTENT_LENGTH_HEADER]: String(replayContentLength),
+          },
+        },
+  );
 
 const createRenderWait = () => {
   const pending: Array<() => void> = [];

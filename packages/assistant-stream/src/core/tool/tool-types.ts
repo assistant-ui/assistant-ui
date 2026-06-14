@@ -110,7 +110,7 @@ export interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
    */
   forEach<PathT extends TypePath<TArgs>>(
     ...fieldPath: PathT
-  ): TypeAtPath<TArgs, PathT> extends Array<infer U>
+  ): NonNullable<TypeAtPath<TArgs, PathT>> extends Array<infer U>
     ? AsyncIterableStream<U>
     : never;
 }

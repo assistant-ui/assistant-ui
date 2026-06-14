@@ -5,7 +5,6 @@ import {
   Platform,
   StyleSheet,
   useColorScheme,
-  type TextStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -189,11 +188,11 @@ const styles = StyleSheet.create({
     maxHeight: 120,
     alignSelf: "center",
     paddingVertical: 0,
-    ...(Platform.select({
-      web: { paddingHorizontal: 4, outlineStyle: "none" },
+    ...Platform.select({
+      web: { paddingHorizontal: 4, outlineStyle: "none" } as any,
       default: {},
-    }) as object),
-  } as TextStyle,
+    }),
+  },
   button: {
     width: 30,
     height: 30,

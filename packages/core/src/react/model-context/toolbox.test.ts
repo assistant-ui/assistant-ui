@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ToolCallMessagePartProps } from "../types/MessagePartComponentTypes";
 import { makeToolCallTextComponent } from "./toolbox";
 
 describe("makeToolCallTextComponent", () => {
@@ -94,7 +95,7 @@ describe("makeToolCallTextComponent", () => {
         addResult: () => {},
         resume: () => {},
         respondToApproval: () => {},
-      }),
+      } as unknown as ToolCallMessagePartProps),
     ).toBe("Complete");
   });
 

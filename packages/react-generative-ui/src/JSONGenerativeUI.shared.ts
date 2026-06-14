@@ -23,14 +23,22 @@ export type PresentToolOptions = {
   display?: "standalone";
 };
 
+type BackendDefaultMetadata = {
+  unstable_backendDefault?: {
+    parameters?: boolean;
+  };
+};
+
 /** The `present` tool, as the model sees it (no client `render`/`execute`). */
 export type PresentTool = ToolDefinition<
   Record<string, unknown>,
   Record<string, never>
->;
+> &
+  BackendDefaultMetadata;
 
 /** The `prompt_user` tool, as the model sees it (no client `render`). */
-export type PromptUserTool = ToolDefinition<Record<string, unknown>, unknown>;
+export type PromptUserTool = ToolDefinition<Record<string, unknown>, unknown> &
+  BackendDefaultMetadata;
 
 const PRESENT_DESCRIPTION =
   "Present a UI component to the user. Select a component with `$type` and " +

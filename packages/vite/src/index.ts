@@ -1,4 +1,4 @@
-import type { Plugin } from "vite";
+import type { Plugin, TransformResult } from "vite";
 import {
   compileGenerative,
   isGenerativeModule,
@@ -29,7 +29,13 @@ function generativePlugin(): Plugin {
         // The environment split already keeps `execute` out of the client.
         injectServerOnly: false,
       });
-      return { code: out, map: map ?? null };
+      return {
+        code: out,
+        map: (map ?? null) as Extract<
+          TransformResult,
+          { map?: unknown }
+        >["map"],
+      };
     },
   };
 }

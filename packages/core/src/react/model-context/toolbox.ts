@@ -102,7 +102,7 @@ export const makeToolCallTextComponent = <
   TResult,
 >(
   text: ToolCallText<TArgs, TResult>,
-): ToolCallMessagePartComponent<TArgs, TResult> => {
+): ((part: ToolCallMessagePartProps<TArgs, TResult>) => ReactNode) => {
   return function ToolCallTextComponent(part) {
     return resolveToolCallText(text, part);
   };
@@ -195,11 +195,7 @@ type OverrideToolDeclarationCallbacks<
         ) => NoInfer<TResult> | Promise<NoInfer<TResult>>
       >
     : {}) &
-  OverrideOptionalField<
-    T,
-    "streamCall",
-    ToolStreamCall<TArgs, NoInfer<TResult>>
-  >;
+  OverrideOptionalField<T, "streamCall", ToolStreamCall<TArgs, unknown>>;
 
 // Keep the authored shape tied to ToolDeclaration's union variants while
 // overriding callback fields to avoid inference pollution.
