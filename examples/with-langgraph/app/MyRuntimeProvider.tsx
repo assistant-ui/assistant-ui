@@ -19,7 +19,9 @@ export function MyRuntimeProvider({
     assistantId: process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID!,
     apiUrl,
     create: async () => {
-      const { thread_id } = await new Client({ apiUrl }).threads.create();
+      const { thread_id } = await new Client(
+        apiUrl ? { apiUrl } : {},
+      ).threads.create();
       return { externalId: thread_id };
     },
   });
