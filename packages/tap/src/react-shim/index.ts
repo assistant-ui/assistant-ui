@@ -11,7 +11,10 @@
 import React from "react";
 import { peekResourceFiber } from "../core/helpers/execution-context";
 import * as hooks from "../react-hooks";
-import { attachDefaultValueToContext } from "../core/context";
+import {
+  attachDefaultValueToContext,
+  isReadableTapContext,
+} from "../core/context";
 
 // @ts-expect-error -- @types/react uses `export =`; this is valid at runtime.
 export * from "react";
@@ -82,7 +85,11 @@ export const createContext = (defaultValue: any) => {
 };
 
 export const use = (usable: any) =>
-  inTap() ? hooks.use(usable) : ReactRuntime.use(usable);
+  inTap() && isReadableTapContext(usable)
+    ? hooks.use(usable)
+    : ReactRuntime.use(usable);
 
 export const useContext = (context: any) =>
-  inTap() ? hooks.use(context) : ReactRuntime.useContext(context);
+  inTap() && isReadableTapContext(context)
+    ? hooks.use(context)
+    : ReactRuntime.useContext(context);

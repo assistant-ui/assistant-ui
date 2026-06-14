@@ -16,6 +16,11 @@ type TapContext<T> = ReactContext<T> & {
   [defaultContextValue]: T;
 };
 
+type ReactContextWithDefault<T> = ReactContext<T> & {
+  _currentValue?: T;
+  _currentValue2?: T;
+};
+
 const asTap = <T>(context: ReactContext<T>): TapContext<T> =>
   context as unknown as TapContext<T>;
 
@@ -48,19 +53,42 @@ export const attachDefaultValueToContext = <T>(
   (context as TapContext<T>)[defaultContextValue] = defaultValue;
 };
 
-const ensureTapContext = (context: unknown) => {
-  // TODO fitler out promises and stores
-  if (
-    typeof context === "object" &&
-    context !== null &&
-    defaultContextValue in context
-  )
-    return;
+export const isTapContext = (
+  context: unknown,
+): context is TapContext<unknown> =>
+  typeof context === "object" &&
+  context !== null &&
+  defaultContextValue in context;
 
-  attachDefaultValueToContext(
-    context as ReactContext<unknown>,
-    (context as any)._currentValue2,
-  );
+const isReactContext = (
+  context: unknown,
+): context is ReactContextWithDefault<unknown> =>
+  typeof context === "object" &&
+  context !== null &&
+  "$$typeof" in context &&
+  (context as { $$typeof: unknown }).$$typeof === Symbol.for("react.context");
+
+export const isReadableTapContext = (
+  context: unknown,
+): context is ReactContext<unknown> =>
+  isTapContext(context) || isReactContext(context);
+
+const assertTapContext: (
+  context: unknown,
+) => asserts context is TapContext<unknown> = (context) => {
+  if (isTapContext(context)) return;
+  if (isReactContext(context)) {
+    // React stores the createContext default on the context object. There is no
+    // public accessor, so this guarded fallback only runs for actual React
+    // contexts that were created before the tap shim could attach the marker.
+    attachDefaultValueToContext(
+      context,
+      context._currentValue ?? context._currentValue2,
+    );
+    return;
+  }
+
+  throw new Error("A tap resource's `use()` only accepts a tap context.");
 };
 
 export const useContextProvider = <T, TResult>(
@@ -68,6 +96,10 @@ export const useContextProvider = <T, TResult>(
   value: T,
   fn: () => TResult,
 ) => {
+  if (typeof context !== "object" || context === null)
+    throw new Error("useContextProvider only accepts a React context.");
+  if (!isTapContext(context)) attachDefaultValueToContext(context, value);
+
   const key = context as object;
   const currentFiber = getCurrentResourceFiber();
   const committedValueRef = useRef<{ value: T } | undefined>(undefined);
@@ -119,7 +151,7 @@ const withChangedContext = <T>(
 };
 
 export const useTapContext = <T>(context: ReactContext<T>) => {
-  ensureTapContext(context);
+  assertTapContext(context);
 
   const key = context as object;
   const contextValue = getCurrentContextValue(key, context);

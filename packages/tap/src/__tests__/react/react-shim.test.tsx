@@ -1,4 +1,5 @@
-import { describe, it, expect, afterEach } from "vitest";
+import React from "react";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, act, cleanup } from "@testing-library/react";
 import {
   createTestResource,
@@ -9,17 +10,21 @@ import {
 } from "../test-utils";
 import {
   createContext,
+  use,
   useContext,
   useState,
   useEffect,
 } from "../../react-shim";
 import { useContextProvider } from "../../core/context";
+import { renderResourceFiber } from "../../core/ResourceFiber";
+import { use as tapUse } from "../../react-hooks/use";
 import { c as _c } from "../../react-shim/compiler-runtime";
 
 const SENTINEL = Symbol.for("react.memo_cache_sentinel");
 
 describe("@assistant-ui/tap/react-shim", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     cleanupAllResources();
     cleanup();
   });
@@ -37,6 +42,38 @@ describe("@assistant-ui/tap/react-shim", () => {
 
       expect(renderTest(defaultFiber)).toBe("default");
       expect(renderTest(providedFiber, "tap")).toBe("tap");
+    });
+
+    it("registers provided React contexts created outside the shim", () => {
+      const TestContext = React.createContext("default");
+      const defaultFiber = createTestResource(() => use(TestContext));
+      const testFiber = createTestResource((value: string) => {
+        return useContextProvider(TestContext, value, () => use(TestContext));
+      });
+
+      expect(renderTest(defaultFiber)).toBe("default");
+      expect(renderTest(testFiber, "tap")).toBe("tap");
+    });
+
+    it("forwards non-context use values to React.use", () => {
+      const promise = Promise.resolve("react");
+      const useSpy = vi
+        .spyOn(React, "use")
+        .mockImplementation(() => "react-use");
+      const testFiber = createTestResource(() => use(promise));
+
+      expect(renderTest(testFiber)).toBe("react-use");
+      expect(useSpy).toHaveBeenCalledWith(promise);
+
+      useSpy.mockRestore();
+    });
+
+    it("rejects non-context values in tap's direct use hook", () => {
+      const testFiber = createTestResource(() => tapUse(Promise.resolve()));
+
+      expect(() => renderResourceFiber(testFiber, [])).toThrow(
+        "A tap resource's `use()` only accepts a tap context.",
+      );
     });
 
     it("useState routes to useState and useEffect to useEffect", async () => {
