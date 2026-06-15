@@ -29,6 +29,8 @@ export type TriggerPopoverResourceOutput = {
   readonly items: readonly Unstable_TriggerItem[];
   readonly highlightedIndex: number;
   readonly isSearchMode: boolean;
+  /** Whether the adapter is currently resolving items (async sources). */
+  readonly isLoading: boolean;
   /** Stable ID prefix for generating accessible element IDs. */
   readonly popoverId: string;
   /** ID of the currently highlighted item (for aria-activedescendant). */
@@ -58,6 +60,7 @@ const useTriggerPopoverResource = ({
   behavior,
   aui,
   popoverId,
+  isLoading,
 }: {
   adapter: Unstable_TriggerAdapter | undefined;
   text: string;
@@ -66,6 +69,7 @@ const useTriggerPopoverResource = ({
   aui: AssistantClient;
   /** Stable ID for accessible element IDs (pass React's useId() from component layer). */
   popoverId: string;
+  isLoading: boolean;
 }): TriggerPopoverResourceOutput => {
   const detection = useResource(
     TriggerDetectionResource({ text, triggerChar }),
@@ -122,6 +126,7 @@ const useTriggerPopoverResource = ({
     items: navigation.items,
     highlightedIndex: keyboard.highlightedIndex,
     isSearchMode: navigation.isSearchMode,
+    isLoading,
     popoverId,
     highlightedItemId: keyboard.highlightedItemId,
     selectCategory: navigation.selectCategory,

@@ -4,6 +4,7 @@ import { memo, useRef, type ComponentPropsWithoutRef, type FC } from "react";
 import {
   ComposerPrimitive,
   unstable_defaultDirectiveFormatter,
+  unstable_useTriggerPopoverScopeContext,
   type Unstable_DirectiveFormatter,
   type Unstable_TriggerItem,
 } from "@assistant-ui/react";
@@ -45,6 +46,8 @@ type ComposerTriggerPopoverBaseProps = Omit<
   emptyCategoriesLabel?: string;
   /** Label shown when no items match. @default "No matching items" */
   emptyItemsLabel?: string;
+  /** Label shown while an async adapter is resolving items. @default "Loading…" */
+  loadingLabel?: string;
 };
 
 type ComposerTriggerPopoverProps = ComposerTriggerPopoverBaseProps &
@@ -118,6 +121,7 @@ type ItemsProps = {
   fallbackIcon: IconComponent;
   backLabel: string;
   emptyLabel: string;
+  loadingLabel: string;
 };
 
 const Items: FC<ItemsProps> = ({
@@ -125,7 +129,9 @@ const Items: FC<ItemsProps> = ({
   fallbackIcon,
   backLabel,
   emptyLabel,
+  loadingLabel,
 }) => {
+  const { isLoading } = unstable_useTriggerPopoverScopeContext();
   return (
     <ComposerPrimitive.Unstable_TriggerPopoverItems>
       {(items) => (
@@ -166,7 +172,7 @@ const Items: FC<ItemsProps> = ({
             })}
             {items.length === 0 && (
               <div className="text-muted-foreground px-3 py-2 text-sm">
-                {emptyLabel}
+                {isLoading ? loadingLabel : emptyLabel}
               </div>
             )}
           </div>
@@ -186,6 +192,7 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
   backLabel = "Back",
   emptyCategoriesLabel = "No items available",
   emptyItemsLabel = "No matching items",
+  loadingLabel = "Loading…",
   className,
   directive,
   action,
@@ -234,6 +241,7 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
         fallbackIcon={fallbackIcon}
         backLabel={backLabel}
         emptyLabel={emptyItemsLabel}
+        loadingLabel={loadingLabel}
       />
     </ComposerPrimitive.Unstable_TriggerPopover>
   );

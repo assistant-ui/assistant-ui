@@ -414,6 +414,12 @@ export {
   type Unstable_UseSlashCommandAdapterOptions,
 } from "./unstable/useSlashCommandAdapter";
 
+// Unstable - live (async) completion adapter helper
+export {
+  unstable_useLiveCompletionAdapter,
+  type Unstable_UseLiveCompletionAdapterOptions,
+} from "./unstable/useLiveCompletionAdapter";
+
 export type { ToolExecutionStatus } from "./internal";
 
 // Unstable - trigger popover (unified root for @ mentions, / slash commands, etc.)

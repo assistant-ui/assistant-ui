@@ -85,7 +85,35 @@ const myAdapter: Unstable_TriggerAdapter = {
 
 ### Async Mention Search
 
-The adapter interface is synchronous, but the data it reads can come from any async source. Load results into React state (or a query cache) and read the current snapshot inside the adapter methods. The adapter re-creates on each render, so the popover always sees the latest results.
+The built-in `unstable_useLiveCompletionAdapter` wraps an async fetcher with debouncing, stale-request cancellation (results for an outdated query are dropped), and a single-entry cache. Its `search` returns the last results synchronously and schedules a debounced fetch when the query changes; when results arrive the returned `adapter` re-creates, which re-runs the popover lookup so the fresh items render. It also reports `isLoading`, which you pass to the popover to show a loading state.
+
+```tsx
+import {
+  unstable_useLiveCompletionAdapter,
+  unstable_defaultDirectiveFormatter,
+} from "@assistant-ui/react";
+import { ComposerTriggerPopover } from "@/components/assistant-ui/composer-trigger-popover";
+
+function MentionPopover() {
+  const mentions = unstable_useLiveCompletionAdapter({
+    fetcher: async (query) => {
+      const users = await fetchUsers(query);
+      return users.map((u) => ({ id: u.id, type: "user", label: u.name }));
+    },
+  });
+
+  return (
+    <ComposerTriggerPopover
+      char="@"
+      adapter={mentions.adapter}
+      isLoading={mentions.isLoading}
+      directive={{ formatter: unstable_defaultDirectiveFormatter }}
+    />
+  );
+}
+```
+
+The adapter interface is itself synchronous, so you can also wire async data by hand when you need a custom cache, no debounce, or an existing query client. Load results into React state (or a query cache) and read the current snapshot inside the adapter methods. The adapter re-creates on each render, so the popover always sees the latest results.
 
 **With React state and `useEffect`:**
 

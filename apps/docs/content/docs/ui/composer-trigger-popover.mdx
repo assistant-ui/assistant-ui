@@ -185,6 +185,8 @@ The popover implements the WAI-ARIA editable combobox pattern.
 | `backLabel` | `string` | `"Back"` | Back button label |
 | `emptyCategoriesLabel` | `string` | `"No items available"` | Shown when no categories are available |
 | `emptyItemsLabel` | `string` | `"No matching items"` | Shown when no items match |
+| `isLoading` | `boolean` | `false` | Whether the adapter is resolving items (async sources). Pair with `unstable_useLiveCompletionAdapter`. |
+| `loadingLabel` | `string` | `"Loading…"` | Shown in place of `emptyItemsLabel` while `isLoading` and no items are present |
 
 All other props (`className`, etc.) forward to the underlying popover `div`.
 
