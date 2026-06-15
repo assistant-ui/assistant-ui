@@ -1,13 +1,14 @@
-import React, { useCallback, useLayoutEffect, useRef } from "react";
+import React, { useCallback, useInsertionEffect, useRef } from "react";
 
 const ReactRuntime = React as any;
 
+// Keep this local so @assistant-ui/tap stays runtime-dependency-free.
 function useReactEffectEventShim<T extends (...args: any[]) => any>(
   callback: T,
 ): T {
   const callbackRef = useRef(callback);
 
-  useLayoutEffect(() => {
+  useInsertionEffect(() => {
     callbackRef.current = callback;
   });
 
