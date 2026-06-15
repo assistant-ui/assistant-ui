@@ -1,6 +1,6 @@
 "use client";
 
-import { generateId, fromThreadMessageLike } from "@assistant-ui/core/internal";
+import { generateId, fromThreadMessageLike } from "@assistant-ui/core";
 import type {
   AddToolResultOptions,
   AppendMessage,

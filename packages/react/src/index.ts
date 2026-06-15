@@ -124,6 +124,7 @@ export type {
 
 // --- external-store ---
 export type { ThreadMessageLike } from "@assistant-ui/core";
+export { fromThreadMessageLike, generateId } from "@assistant-ui/core";
 export {
   getExternalStoreMessages,
   bindExternalStoreMessage,

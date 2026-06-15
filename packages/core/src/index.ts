@@ -265,6 +265,10 @@ export type {
 
 // ThreadMessageLike
 export type { ThreadMessageLike } from "./runtime/utils/thread-message-like";
+export { fromThreadMessageLike } from "./runtime/utils/thread-message-like";
+
+// ID generation
+export { generateId } from "./utils/id";
 
 // External Store Message Utilities
 export {
