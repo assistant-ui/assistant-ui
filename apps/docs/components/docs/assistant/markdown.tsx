@@ -4,13 +4,13 @@ import "@assistant-ui/react-markdown/styles/dot.css";
 import "react-shiki/css";
 
 import {
-  type CodeHeaderProps,
-  MarkdownTextPrimitive,
+  StreamdownTextPrimitive,
+  useIsStreamdownCodeBlock,
+  type StreamdownTextComponents,
   type SyntaxHighlighterProps,
-  unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
-  useIsMarkdownCodeBlock,
-} from "@assistant-ui/react-markdown";
-import remarkGfm from "remark-gfm";
+} from "@assistant-ui/react-streamdown";
+import { type CodeHeaderProps } from "@assistant-ui/react-markdown";
+import { OpenInSyntaxHighlighter } from "@/components/xulux/chat/OpenInCard";
 import { type CSSProperties, type FC, memo } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,10 +20,15 @@ import { useCopyToClipboard } from "@assistant-ui/ui/hooks/use-copy-to-clipboard
 
 const MarkdownTextImpl = () => {
   return (
-    <MarkdownTextPrimitive
-      remarkPlugins={[remarkGfm]}
-      className="aui-md-assistant"
-      components={markdownComponents}
+    <StreamdownTextPrimitive
+      containerClassName="aui-md-assistant"
+      components={markdownComponents as unknown as StreamdownTextComponents}
+      componentsByLanguage={{
+        "open-in": {
+          SyntaxHighlighter: OpenInSyntaxHighlighter,
+          CodeHeader: () => null,
+        },
+      }}
     />
   );
 };
@@ -81,7 +86,7 @@ const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
   );
 };
 
-const markdownComponents = memoizeMarkdownComponents({
+const markdownComponents = {
   SyntaxHighlighter: SyntaxHighlighter,
   h1: ({ className, ...props }) => (
     <h1
@@ -241,7 +246,7 @@ const markdownComponents = memoizeMarkdownComponents({
     />
   ),
   code: function Code({ className, ...props }) {
-    const isCodeBlock = useIsMarkdownCodeBlock();
+    const isCodeBlock = useIsStreamdownCodeBlock();
     return (
       <code
         className={cn(
@@ -254,4 +259,4 @@ const markdownComponents = memoizeMarkdownComponents({
     );
   },
   CodeHeader,
-});
+};
