@@ -36,6 +36,23 @@ const config: NextConfig = {
       ],
     },
   ],
+  redirects: async () => [
+    {
+      source: "/docs/:path*.md",
+      destination: "/docs/:path*.mdx",
+      permanent: true,
+    },
+    {
+      source: "/examples.md",
+      destination: "/examples.mdx",
+      permanent: true,
+    },
+    {
+      source: "/examples/:path*.md",
+      destination: "/examples/:path*.mdx",
+      permanent: true,
+    },
+  ],
   rewrites: async () => ({
     beforeFiles: [
       {
