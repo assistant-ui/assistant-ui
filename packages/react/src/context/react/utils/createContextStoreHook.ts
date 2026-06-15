@@ -1,8 +1,5 @@
-import { create, type UseBoundStore } from "zustand";
+import type { UseBoundStore } from "zustand";
 import type { ReadonlyStore } from "../../ReadonlyStore";
-
-const identity = <T>(state: T) => state;
-const useNullStore = create<null>(() => null);
 
 /**
  * Creates hooks for accessing a store within a context.
@@ -48,6 +45,8 @@ export function createContextStoreHook<T, K extends keyof T & string>(
           selector?: (state: StateType) => TSelected;
         },
   ): TSelected | StateType | null {
+    "use no memo";
+
     let optional = false;
     let selector: ((state: StateType) => TSelected) | undefined;
 
@@ -60,17 +59,9 @@ export function createContextStoreHook<T, K extends keyof T & string>(
 
     const store = useStoreStoreHook({
       optional,
-    } as any) as UseBoundStore<ReadonlyStore<StateType>> | null;
-
-    const useStore = (store ?? useNullStore) as UseBoundStore<
-      ReadonlyStore<StateType | null>
-    >;
-    const selected = useStore(
-      (store ? (selector ?? identity) : identity) as (
-        state: StateType | null,
-      ) => TSelected | StateType | null,
-    );
-    return store ? selected : null;
+    } as any) as UseBoundStore<ReadonlyStore<StateType>>;
+    if (!store) return null;
+    return selector ? store(selector) : store();
   }
 
   // Return an object with keys based on contextKey
