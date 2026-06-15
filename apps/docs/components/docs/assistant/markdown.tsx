@@ -27,7 +27,7 @@ const MarkdownTextImpl = () => {
   return (
     <StreamdownTextPrimitive
       containerClassName="aui-md-assistant"
-      components={markdownComponents}
+      components={markdownComponents as StreamdownTextComponents}
       componentsByLanguage={{
         "open-in": {
           SyntaxHighlighter: OpenInSyntaxHighlighter,
@@ -91,7 +91,7 @@ const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
   );
 };
 
-const markdownComponents: StreamdownTextComponents = {
+const markdownComponents = {
   SyntaxHighlighter: SyntaxHighlighter,
   h1: ({ className, ...props }: ComponentPropsWithoutRef<"h1">) => (
     <h1
