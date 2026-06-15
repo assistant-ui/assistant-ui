@@ -45,6 +45,8 @@ export function createContextStoreHook<T, K extends keyof T & string>(
           selector?: (state: StateType) => TSelected;
         },
   ): TSelected | StateType | null {
+    "use no memo";
+
     let optional = false;
     let selector: ((state: StateType) => TSelected) | undefined;
 
