@@ -128,4 +128,49 @@ describe("unstable_useLiveCompletionAdapter", () => {
     });
     expect(result.current.adapter.search!("ab")).toEqual([item("ab")]);
   });
+
+  it("drops an in-flight fetch when the query returns to a cached value", async () => {
+    const resolvers: Record<
+      string,
+      (value: readonly Unstable_TriggerItem[]) => void
+    > = {};
+    const fetcher = vi.fn(
+      (q: string) =>
+        new Promise<readonly Unstable_TriggerItem[]>((r) => {
+          resolvers[q] = r;
+        }),
+    );
+    const { result } = renderHook(() =>
+      unstable_useLiveCompletionAdapter({ fetcher, debounceMs: 0 }),
+    );
+
+    await act(async () => {
+      result.current.adapter.search!("ab");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      resolvers["ab"]!([item("ab")]);
+    });
+    expect(result.current.adapter.search!("ab")).toEqual([item("ab")]);
+
+    // type "abc": a fetch goes in flight
+    await act(async () => {
+      result.current.adapter.search!("abc");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(resolvers["abc"]).toBeTypeOf("function");
+
+    // delete back to the cached "ab": the in-flight "abc" must be invalidated
+    await act(async () => {
+      result.current.adapter.search!("ab");
+    });
+    await act(async () => {
+      resolvers["abc"]!([item("abc")]);
+    });
+    expect(result.current.adapter.search!("ab")).toEqual([item("ab")]);
+  });
 });

@@ -101,16 +101,20 @@ export function unstable_useLiveCompletionAdapter(
     [enabled, debounceMs, cancelTimer],
   );
 
-  useEffect(() => {
-    if (enabled) return;
+  const invalidatePending = useCallback(() => {
     cancelTimer();
     pendingQueryRef.current = null;
     tokenRef.current += 1;
     setIsLoading(false);
+  }, [cancelTimer]);
+
+  useEffect(() => {
+    if (enabled) return;
+    invalidatePending();
     setState((s) =>
       s.query === NO_QUERY ? s : { query: NO_QUERY, items: [] },
     );
-  }, [enabled, cancelTimer]);
+  }, [enabled, invalidatePending]);
 
   useEffect(() => cancelTimer, [cancelTimer]);
 
@@ -119,13 +123,22 @@ export function unstable_useLiveCompletionAdapter(
       categories: () => [],
       categoryItems: () => [],
       search: (query: string) => {
-        // search() runs inside the popover's render; defer the fetch so its
-        // state updates are not dispatched while another component renders.
-        if (query !== state.query) queueMicrotask(() => scheduleFetch(query));
+        // search() runs inside the popover's render; defer state updates with
+        // queueMicrotask so they are not dispatched while another component renders.
+        if (query !== state.query) {
+          queueMicrotask(() => scheduleFetch(query));
+        } else if (
+          pendingQueryRef.current !== null &&
+          pendingQueryRef.current !== query
+        ) {
+          // the query returned to a cached value while a fetch for a different
+          // query is in flight; drop it so its result cannot overwrite the cache
+          queueMicrotask(invalidatePending);
+        }
         return state.items;
       },
     }),
-    [state, scheduleFetch],
+    [state, scheduleFetch, invalidatePending],
   );
 
   return useMemo(() => ({ adapter, isLoading }), [adapter, isLoading]);
