@@ -141,5 +141,5 @@ export function unstable_useLiveCompletionAdapter(
     [state, scheduleFetch, invalidatePending],
   );
 
-  return useMemo(() => ({ adapter, isLoading }), [adapter, isLoading]);
+  return { adapter, isLoading };
 }
