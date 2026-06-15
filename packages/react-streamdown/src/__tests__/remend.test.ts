@@ -86,4 +86,13 @@ describe("tailBoundedRemend", () => {
     expect(findRemendWindowStart(text)).toBe(text.indexOf("para two"));
     expect(blocksOf(tailBoundedRemend(text))).toEqual(blocksOf(remend(text)));
   });
+
+  it("matches full remend when $$ appears inside a math block", () => {
+    for (const text of [
+      "intro\n\n$$\nsome content with $$ inside\n\nmore content",
+      "p\n\n$$\nx\n$$\n\nafter $$ y $$ done\n\ntail **b",
+    ]) {
+      expect(blocksOf(tailBoundedRemend(text))).toEqual(blocksOf(remend(text)));
+    }
+  });
 });
