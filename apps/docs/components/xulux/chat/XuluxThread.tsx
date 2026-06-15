@@ -74,9 +74,6 @@ function XuluxModelSelector(): ReactNode {
       XULUX_MODELS.map((model) => ({
         id: model.id,
         name: model.name,
-        ...("description" in model
-          ? { description: model.description }
-          : undefined),
         icon: (
           <Image
             src="/icons/openai.svg"
@@ -91,17 +88,12 @@ function XuluxModelSelector(): ReactNode {
   );
 
   useEffect(() => {
-    const config = {
-      config: {
-        modelName: selectedModel.modelName,
-        ...("reasoningEffort" in selectedModel
-          ? { reasoningEffort: selectedModel.reasoningEffort }
-          : undefined),
-      },
-    };
-
     return aui.modelContext().register({
-      getModelContext: () => config,
+      getModelContext: () => ({
+        config: {
+          modelName: selectedModel.modelName,
+        },
+      }),
     });
   }, [aui, selectedModel]);
 
