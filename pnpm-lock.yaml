@@ -122,8 +122,8 @@ importers:
         specifier: ^3.0.71
         version: 3.0.71(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^3.0.206
-        version: 3.0.206(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.207
+        version: 3.0.207(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/next':
         specifier: workspace:*
         version: link:../../packages/next
@@ -168,13 +168,13 @@ importers:
         version: link:../../packages/ui
       '@aui-x/prism':
         specifier: ^0.0.5
-        version: 0.0.5(@ai-sdk/provider@3.0.10)(ai@6.0.204(zod@4.4.3))(openai@6.42.0(ws@8.21.0)(zod@4.4.3))
+        version: 0.0.5(@ai-sdk/provider@3.0.10)(ai@6.0.205(zod@4.4.3))(openai@6.42.0(ws@8.21.0)(zod@4.4.3))
       '@blaxel/core':
-        specifier: ^0.2.89
-        version: 0.2.89(@cfworker/json-schema@4.1.1)(@hey-api/openapi-ts@0.98.2(magicast@0.5.3)(typescript@6.0.3))
+        specifier: ^0.2.90
+        version: 0.2.90(@cfworker/json-schema@4.1.1)(@hey-api/openapi-ts@0.98.2(magicast@0.5.3)(typescript@6.0.3))
       '@hookform/resolvers':
         specifier: ^5.4.0
-        version: 5.4.0(react-hook-form@7.78.0(react@19.2.7))
+        version: 5.4.0(react-hook-form@7.79.0(react@19.2.7))
       '@langchain/langgraph-sdk':
         specifier: ^1.9.22
         version: 1.9.22(@langchain/core@1.1.49(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.1))(openai@6.42.0(ws@8.21.0)(zod@4.4.3))(ws@8.21.0))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -203,14 +203,14 @@ importers:
         specifier: ^2.0.1
         version: 2.0.1(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
       bash-tool:
         specifier: ^1.3.17
-        version: 1.3.17(ai@6.0.204(zod@4.4.3))(just-bash@3.0.1)
+        version: 1.3.17(ai@6.0.205(zod@4.4.3))(just-bash@3.0.1)
       beautiful-mermaid:
         specifier: ^1.1.3
         version: 1.1.3
@@ -296,8 +296,8 @@ importers:
         specifier: ^19.2.7
         version: 19.2.7(react@19.2.7)
       react-hook-form:
-        specifier: ^7.78.0
-        version: 7.78.0(react@19.2.7)
+        specifier: ^7.79.0
+        version: 7.79.0(react@19.2.7)
       react-markdown:
         specifier: ^10.1.0
         version: 10.1.0(@types/react@19.2.17)(react@19.2.7)
@@ -457,8 +457,8 @@ importers:
         specifier: ^15.5.13
         version: 15.5.13
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -734,8 +734,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -810,8 +810,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1017,8 +1017,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1093,8 +1093,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1157,8 +1157,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/cloud-ai-sdk
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1230,8 +1230,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
@@ -1297,8 +1297,8 @@ importers:
         specifier: ^3.0.71
         version: 3.0.71(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^3.0.206
-        version: 3.0.206(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.207
+        version: 3.0.207(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:^
         version: link:../../packages/react
@@ -1318,8 +1318,8 @@ importers:
         specifier: ^4.3.1
         version: 4.3.1
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1382,8 +1382,8 @@ importers:
         specifier: ^3.0.71
         version: 3.0.71(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^3.0.206
-        version: 3.0.206(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.207
+        version: 3.0.207(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:^
         version: link:../../packages/react
@@ -1403,8 +1403,8 @@ importers:
         specifier: ^4.3.1
         version: 4.3.1
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1467,8 +1467,8 @@ importers:
         specifier: ^3.0.71
         version: 3.0.71(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^3.0.206
-        version: 3.0.206(react@19.2.3)(zod@4.4.3)
+        specifier: ^3.0.207
+        version: 3.0.207(react@19.2.3)(zod@4.4.3)
       '@assistant-ui/react-ai-sdk':
         specifier: workspace:*
         version: link:../../packages/react-ai-sdk
@@ -1485,8 +1485,8 @@ importers:
         specifier: 7.1.33
         version: 7.1.33(react-native@0.85.3(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       expo:
         specifier: ~56.0.11
         version: 56.0.11(@babel/core@7.29.7)(@expo/dom-webview@56.0.5)(@expo/metro-runtime@56.0.15)(expo-router@56.2.10)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-worklets@0.8.3(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(react-native@0.85.3(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.85.3(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
@@ -1649,8 +1649,8 @@ importers:
         specifier: ^0.12.2
         version: 0.12.2
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1722,8 +1722,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1914,8 +1914,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1984,8 +1984,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2194,8 +2194,8 @@ importers:
         specifier: ^3.0.71
         version: 3.0.71(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^3.0.206
-        version: 3.0.206(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.207
+        version: 3.0.207(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:^
         version: link:../../packages/react
@@ -2212,8 +2212,8 @@ importers:
         specifier: ^4.3.1
         version: 4.3.1
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2306,8 +2306,8 @@ importers:
         specifier: ^1.29.0
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
@@ -2470,8 +2470,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@earendil-works/pi-coding-agent':
-        specifier: ^0.79.1
-        version: 0.79.1(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
+        specifier: ^0.79.3
+        version: 0.79.3(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2549,8 +2549,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2570,8 +2570,8 @@ importers:
         specifier: ^19.2.7
         version: 19.2.7(react@19.2.7)
       react-hook-form:
-        specifier: ^7.78.0
-        version: 7.78.0(react@19.2.7)
+        specifier: ^7.79.0
+        version: 7.79.0(react@19.2.7)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
@@ -2616,8 +2616,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/react-ink-markdown
       ink:
-        specifier: ^7.0.5
-        version: 7.0.5(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
+        specifier: ^7.0.6
+        version: 7.0.6(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -2653,14 +2653,14 @@ importers:
         specifier: 0.3.0
         version: 0.3.0(@wterm/dom@0.3.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       ink:
-        specifier: ^6.8.0
-        version: 6.8.0(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
+        specifier: ^7.0.6
+        version: 7.0.6(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
       ink-web:
         specifier: ^0.2.0
-        version: 0.2.0(@xterm/xterm@6.0.0)(ink@6.8.0(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7))(react-reconciler@0.33.0(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 0.2.0(@xterm/xterm@6.0.0)(ink@7.0.6(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7))(react-reconciler@0.33.0(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
       next:
         specifier: ^16.2.9
         version: 16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -2772,8 +2772,8 @@ importers:
         specifier: ^3.0.71
         version: 3.0.71(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^3.0.206
-        version: 3.0.206(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.207
+        version: 3.0.207(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -2793,8 +2793,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
@@ -2934,7 +2934,7 @@ importers:
         version: 1.18.0(react@19.2.7)
       nitro:
         specifier: ^3.0.260311-beta
-        version: 3.0.260311-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@25.9.3))(rollup@4.61.1)(sqlite3@5.1.7)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 3.0.260311-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@25.9.3))(rollup@4.62.0)(sqlite3@5.1.7)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
       openai:
         specifier: ^6.42.0
         version: 6.42.0(ws@8.21.0)(zod@4.4.3)
@@ -3238,8 +3238,8 @@ importers:
         version: link:../cloud
     devDependencies:
       '@ai-sdk/react':
-        specifier: ^3.0.206
-        version: 3.0.206(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.207
+        version: 3.0.207(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -3256,8 +3256,8 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       assistant-stream:
         specifier: ^0.3.23
         version: link:../assistant-stream
@@ -3583,8 +3583,8 @@ importers:
         specifier: ^1.0.50
         version: 1.0.50(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^3.0.206
-        version: 3.0.206(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.207
+        version: 3.0.207(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/core':
         specifier: ^0.2.16
         version: link:../core
@@ -3592,8 +3592,8 @@ importers:
         specifier: ^0.2.18
         version: link:../store
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
@@ -3778,8 +3778,8 @@ importers:
         specifier: ^19.2.7
         version: 19.2.7
       react-hook-form:
-        specifier: ^7.78.0
-        version: 7.78.0(react@19.2.7)
+        specifier: ^7.79.0
+        version: 7.79.0(react@19.2.7)
 
   packages/react-ink:
     dependencies:
@@ -3800,7 +3800,7 @@ importers:
         version: 9.0.0
       ink-spinner:
         specifier: ^5.0.0
-        version: 5.0.0(ink@7.0.5(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7))(react@19.2.7)
+        version: 5.0.0(ink@7.0.6(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7))(react@19.2.7)
       parse-diff:
         specifier: ^0.12.0
         version: 0.12.0
@@ -3818,8 +3818,8 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       ink:
-        specifier: ^7.0.5
-        version: 7.0.5(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
+        specifier: ^7.0.6
+        version: 7.0.6(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
       ink-testing-library:
         specifier: ^4.0.0
         version: 4.0.0(@types/react@19.2.17)
@@ -3855,8 +3855,8 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       ink:
-        specifier: ^7.0.5
-        version: 7.0.5(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
+        specifier: ^7.0.6
+        version: 7.0.6(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
       ink-testing-library:
         specifier: ^4.0.0
         version: 4.0.0(@types/react@19.2.17)
@@ -4126,8 +4126,8 @@ importers:
   packages/react-opencode:
     dependencies:
       '@opencode-ai/sdk':
-        specifier: ^1.17.4
-        version: 1.17.4
+        specifier: ^1.17.6
+        version: 1.17.6
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
@@ -4170,8 +4170,8 @@ importers:
         specifier: workspace:*
         version: link:../x-buildutils
       '@earendil-works/pi-coding-agent':
-        specifier: ^0.79.1
-        version: 0.79.1(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
+        specifier: ^0.79.3
+        version: 0.79.3(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
       '@types/node':
         specifier: ^25.9.3
         version: 25.9.3
@@ -4380,7 +4380,7 @@ importers:
         version: 1.5.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@hookform/resolvers':
         specifier: ^5.4.0
-        version: 5.4.0(react-hook-form@7.78.0(react@19.2.7))
+        version: 5.4.0(react-hook-form@7.79.0(react@19.2.7))
       beautiful-mermaid:
         specifier: ^1.1.3
         version: 1.1.3
@@ -4424,8 +4424,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(@types/react@19.2.17)(react@19.2.7)
       react-hook-form:
-        specifier: ^7.78.0
-        version: 7.78.0(react@19.2.7)
+        specifier: ^7.79.0
+        version: 7.79.0(react@19.2.7)
       react-resizable-panels:
         specifier: ^4.11.2
         version: 4.11.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -4602,8 +4602,8 @@ importers:
         specifier: ^1.2.9
         version: 1.2.9(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -4708,8 +4708,8 @@ importers:
         specifier: ^1.2.9
         version: 1.2.9(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -4808,8 +4808,8 @@ importers:
         specifier: ^1.2.9
         version: 1.2.9(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5023,8 +5023,8 @@ importers:
         specifier: ^1.2.9
         version: 1.2.9(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5120,8 +5120,8 @@ importers:
         specifier: ^1.2.9
         version: 1.2.9(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^6.0.204
-        version: 6.0.204(zod@4.4.3)
+        specifier: ^6.0.205
+        version: 6.0.205(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5219,8 +5219,8 @@ packages:
   '@ag-ui/proto@0.0.57':
     resolution: {integrity: sha512-pPENOZt0P6ibH8sCTgq05wLYXi5t3P9B5r/1bWYehXjUxtyOdnukSlWM++SsCIwUXsQdm/b3aBgGjEeTF7RenA==}
 
-  '@ai-sdk/gateway@3.0.130':
-    resolution: {integrity: sha512-qenRdpoYM+2y8Ibj3Y7XngvfcG4NIpejaM+YqAKWXi3/N1qZYeIelrm19jxhIwQW0W/g7WUz0L2Agl7+FnwrQA==}
+  '@ai-sdk/gateway@3.0.131':
+    resolution: {integrity: sha512-CnjOZdywQaUnCyZ0N5wVNm7Sm63+NeHDVZQJKFX2IDq+t03SLwiiuoi3ILTLPlM+YSOhkQ/pvIDoR4qa98Zp5A==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -5247,15 +5247,11 @@ packages:
     resolution: {integrity: sha512-Q3BZ27qfpYqnCYGvE3vt+Qi6LGOF9R5Nmzn+9JoM1lCRsD9mYaIhfJLkSunN48nfGXJ6n+XNV0J/XVpqGQl7Dw==}
     engines: {node: '>=18'}
 
-  '@ai-sdk/react@3.0.206':
-    resolution: {integrity: sha512-26gbPT876BZVXJlSNjqkCDOFiqfxAAhYn+a/ryV6ce5TWo6EfWQZeEiLrZOS6bxaOi7xxkB5uPZaZKFaIJndjQ==}
+  '@ai-sdk/react@3.0.207':
+    resolution: {integrity: sha512-/wlJv214OQIqUDvoEFO4pqGYCmcXUJMEPcPc+1w2pQhf86onLv7My2+KlsKdK9XGATlI3hHpYaB3MbrpvLDzbQ==}
     engines: {node: '>=18'}
     peerDependencies:
       react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
-
-  '@alcalzone/ansi-tokenize@0.2.5':
-    resolution: {integrity: sha512-3NX/MpTdroi0aKz134A6RC2Gb2iXVECN4QaAXnvCIxxIm3C3AVB1mkUe8NaaiyvOpDfsrqWhYtj+Q6a62RrTsw==}
-    engines: {node: '>=18'}
 
   '@alcalzone/ansi-tokenize@0.3.0':
     resolution: {integrity: sha512-p+CMKJ93HFmLkjXKlXiVGlMQEuRb6H0MokBSwUsX+S6BRX8eV5naFZpQJFfJHjRZY0Hmnqy1/r6UWl3x+19zYA==}
@@ -5934,8 +5930,8 @@ packages:
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
 
-  '@blaxel/core@0.2.89':
-    resolution: {integrity: sha512-2lWvXqpJ+tFqIroHvDahrlKnu0dSlleE4kQihX9xrULVVlMGqIPjOWDFs56YU3FMSd0yviG9P+wjqBWVV1vXGQ==}
+  '@blaxel/core@0.2.90':
+    resolution: {integrity: sha512-BTgdBnsMjLRnhw92c3suwQnSAly2RoWIqoQphIvgbgbUPs2Ss400F4mEq4JhXo+obPmHoFS5TobvEhvvHivnZA==}
     engines: {node: '>=18'}
 
   '@borewit/text-codec@0.2.2':
@@ -6099,8 +6095,8 @@ packages:
       '@csstools/css-parser-algorithms': ^4.0.0
       '@csstools/css-tokenizer': ^4.0.0
 
-  '@csstools/css-color-parser@4.1.3':
-    resolution: {integrity: sha512-DOgvIPkikIOixQRlD4YF31VN6fLLUTdrzhfRbis8vm0kMTgIbEPX0Ip/YX9fOeV9iywAS4sUUbTclpan7yYP8Q==}
+  '@csstools/css-color-parser@4.1.7':
+    resolution: {integrity: sha512-CmjJFQTFQx/U/xNJhSjCQ0ilpesPmNQ8+eOUeM/+kDOVW33qsIjeOXc27vrQDdWVkf83ZSWwtg7kXSUvKDJ8cQ==}
     engines: {node: '>=20.19.0'}
     peerDependencies:
       '@csstools/css-parser-algorithms': ^4.0.0
@@ -6130,22 +6126,22 @@ packages:
   '@date-fns/tz@1.5.0':
     resolution: {integrity: sha512-lwYN/vDPeNRULcepoE/LO2Pgx+7/RV+S9ARfbc9lr2DtGkOD7pAiruHvbR1RX3Qyf6ja47EWJDMsNK5vK08DJg==}
 
-  '@earendil-works/pi-agent-core@0.79.1':
-    resolution: {integrity: sha512-PBPjBa2YBm9jauiLtHAKaSfVJ4Dvm3/nK/bR/oHebLjwBCS2tGx3aQDX7MSGAOXi6BejlhzbB/z82BkyAyNjjQ==}
+  '@earendil-works/pi-agent-core@0.79.3':
+    resolution: {integrity: sha512-Ksvnu6CpQLYGbCSgnQEetzliI7yb+QkqtSlmmunJ69QluT45kd3DjQZRNHfRLk++Dd02Y8QvsRKMopSJCcWoWw==}
     engines: {node: '>=22.19.0'}
 
-  '@earendil-works/pi-ai@0.79.1':
-    resolution: {integrity: sha512-UnORwrcsTNLm4StEvoM8iEom0u87Te7BXEWxhec3iNXygWD6eEBosUoq9ddcveqtj/QpUZBMPWUu81cCtZxzkQ==}
-    engines: {node: '>=22.19.0'}
-    hasBin: true
-
-  '@earendil-works/pi-coding-agent@0.79.1':
-    resolution: {integrity: sha512-dLnje4U5H3/ZytJpvhjhPINeDT/yvx85e4OH/ziMQRLpPlfNP12/peY9jRQd4W11Xth2+y2xGAFwS+NeVf2ZwA==}
+  '@earendil-works/pi-ai@0.79.3':
+    resolution: {integrity: sha512-lMSput/haP5uZAGbXhS5rAYd3GB7GYdJkoAUxg3VFummBeqGqGqllaTWrbHFN12kVGyVfWHhdySNXkiqVh65Iw==}
     engines: {node: '>=22.19.0'}
     hasBin: true
 
-  '@earendil-works/pi-tui@0.79.1':
-    resolution: {integrity: sha512-YvZCMfSE0YDSLNklAwMY6LC6SyEgnP0zMOoioTLNnXFNdexrCexMJdee7iDJsNcFlKt7+DVLccomuURtZS1C6g==}
+  '@earendil-works/pi-coding-agent@0.79.3':
+    resolution: {integrity: sha512-B3rAyw4/f1l3EYjQpCKpevzuBIPjYor6fHxPHQpLMdn/NTv3536i1P4ZrsyFkKpXqJWH66xKK5hyf8sqRe3dGA==}
+    engines: {node: '>=22.19.0'}
+    hasBin: true
+
+  '@earendil-works/pi-tui@0.79.3':
+    resolution: {integrity: sha512-cpmkEM1aEuGUx6YZM36VlzpulwLzqD5T2cUEkGHndDTNGEbnn5sj/9SYm+QBfKjvZsWoHfZuFBnu4+hh96/FbA==}
     engines: {node: '>=22.19.0'}
 
   '@elevenlabs/client@1.11.1':
@@ -6165,6 +6161,9 @@ packages:
 
   '@emnapi/runtime@1.11.0':
     resolution: {integrity: sha512-55coeOFKHv1ywEcUXJtWU5f+Jr/W5tZDvZig8DLKSwUN1JpROQ4rk/SNOQiFWmaR/VKF4zuFyW1B8JduOSv6Pg==}
+
+  '@emnapi/runtime@1.11.1':
+    resolution: {integrity: sha512-vgj7R3y3Wgx24IQaGPA/R6YFXLHVMOZ0uVEyIQPaWs+rd1AzfEMXlAC22FYwO1XkKR6NPsq7mUandH8oIRdZFw==}
 
   '@emnapi/wasi-threads@1.2.1':
     resolution: {integrity: sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w==}
@@ -7558,8 +7557,8 @@ packages:
     resolution: {integrity: sha512-hAX0pT/73190NLqBPPWSdBVGtbY6VOhWYK3qqHqtXQ1gK7kS2yz4+ivsN07hpJ6I3aeMtKP6J6npsEKOAzuTLA==}
     engines: {node: '>=20.0'}
 
-  '@opencode-ai/sdk@1.17.4':
-    resolution: {integrity: sha512-OdHkBoNIQOjQsPnFtkcxAp9HsLAKn/MQiq7wIQURkRARmw8yhFqGiMPYbNm+UfLn6bMkx97rdPkWQARejMyiXQ==}
+  '@opencode-ai/sdk@1.17.6':
+    resolution: {integrity: sha512-kCzdd9Git2sjDjXSHj4mMWuU1RXZ38d7gFEcq2rzlVz7XV6PPwNw8pelWsk99La2CtDkpfoW5lfHnpCaK6/oBQ==}
 
   '@opentelemetry/api-logs@0.205.0':
     resolution: {integrity: sha512-wBlPk1nFB37Hsm+3Qy73yQSobVn28F4isnWIBvKpd5IUH/eat8bwcL02H9yzmHyyPmukeccSl2mbN5sDQZYnPg==}
@@ -9413,141 +9412,141 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
-  '@rollup/rollup-android-arm-eabi@4.61.1':
-    resolution: {integrity: sha512-JnBB8MdXj45cajvTuO5FmPlvFVJRQgvrz1uSEl3NwqFnReAPGwb8EanbGi4z2nRaqLzjJSv5/JmycoTKlRZxHA==}
+  '@rollup/rollup-android-arm-eabi@4.62.0':
+    resolution: {integrity: sha512-IPIQ55ythEHkfEd9jMEi32OQ7SxURsGA43JI22lj01OLZNt2NUbJX8YUHxkVWyQ6daHPNn0truF5nSj3DQp6YQ==}
     cpu: [arm]
     os: [android]
 
-  '@rollup/rollup-android-arm64@4.61.1':
-    resolution: {integrity: sha512-Jx2g7iSjw4AOT0HDPHM9RV3GNjRXwybWtSFZiZAYUTjUwjVrYIwq3kBf+LnhqJlzXFAqTAh2F7IGI+O568exPw==}
+  '@rollup/rollup-android-arm64@4.62.0':
+    resolution: {integrity: sha512-M6s9cr10MibETyo8JsOkq+Lo1+lU6hcvb1MApnUql5qte/5hMEgzlN8/ReIKNfRV8rrqX50W1BX9zoUhC192RA==}
     cpu: [arm64]
     os: [android]
 
-  '@rollup/rollup-darwin-arm64@4.61.1':
-    resolution: {integrity: sha512-0F1L/Z3Eqv8mT2n3dCpeO8GcTvHvVqkP5/t6DMsn0KzhYVcg+s7Ncl5DS8qjKYEeio6Az0Gt6nyBORay5qIlCA==}
+  '@rollup/rollup-darwin-arm64@4.62.0':
+    resolution: {integrity: sha512-BqCoMoIbn0keKys+dEAdBa70EtOwV1bEsQCUgU9FdiZmmMge/Zk7LlkYGqbrdHR+Frnt0E1FOanly+rlwvvQzw==}
     cpu: [arm64]
     os: [darwin]
 
-  '@rollup/rollup-darwin-x64@4.61.1':
-    resolution: {integrity: sha512-qLttcH871ujY4YcVfUSShhOw+CsoTatYz8gRbHO7Bb92QH059/P0y5do1KMs41fY0BpD2x4AJH/gID0zFiqVKQ==}
+  '@rollup/rollup-darwin-x64@4.62.0':
+    resolution: {integrity: sha512-SIMzST3VFNXDAbeIWDWiFCNM5qncUBDWaEV7NfE7oZbDt2mgfW4MvbKdbYiGOLoM32gbTv608UMd0XktEYSD7w==}
     cpu: [x64]
     os: [darwin]
 
-  '@rollup/rollup-freebsd-arm64@4.61.1':
-    resolution: {integrity: sha512-fUI4RapGE0Oh3mb8mgfvC1O2nU1RpDZUKnDQm3xB1Ipg7C2wTs5Kstz7G2uWK99a8S2yTMq8/P4uycwNa0nJyw==}
+  '@rollup/rollup-freebsd-arm64@4.62.0':
+    resolution: {integrity: sha512-ezjfSQMP7ArdUsbBwbQIfwAlhE84I2iVnzQNCFSveqV42q+BmKlzVpf7mxv5EchLcoWU4y6/heFzVg1F+hodUQ==}
     cpu: [arm64]
     os: [freebsd]
 
-  '@rollup/rollup-freebsd-x64@4.61.1':
-    resolution: {integrity: sha512-H5YrdvJaDtI/U9/emrD4b++xkvp3y/JvOe4rizHbxvkyMfRS/CiRYdji+Pl8D0brEaNFWUh1drQxgAGIl6Xudw==}
+  '@rollup/rollup-freebsd-x64@4.62.0':
+    resolution: {integrity: sha512-9+qTWGW9AZRhnUgwtTwzNwcPlL87ngkeN0LA+q1bADvmY9aNvWaF2TFW8BZgnQPYxpDI7+rMVLivcd4V737TAQ==}
     cpu: [x64]
     os: [freebsd]
 
-  '@rollup/rollup-linux-arm-gnueabihf@4.61.1':
-    resolution: {integrity: sha512-Q8CBCCQtDFrYtXoeUXSrnFXKOnyUhx6bz+SkL6A0E7V8kAiCJ5pamq1WtbfpVGhR5TSpXY6ak3avmDc5fHTyJA==}
+  '@rollup/rollup-linux-arm-gnueabihf@4.62.0':
+    resolution: {integrity: sha512-T1dMEQhXA/jkJ/jyMIw9IovK8bSUq7A8kLIlvZTb/6YIVsp2zLavr4F3oyllHWo7eIVJRyE5n3tUjQJEbE1IuQ==}
     cpu: [arm]
     os: [linux]
     libc: [glibc]
 
-  '@rollup/rollup-linux-arm-musleabihf@4.61.1':
-    resolution: {integrity: sha512-nwnhk1581l0FBVellGcVCAT0Oi06onEA3WB53sf01VO3I0UPBkMH9sXONYME2K0ovXcNayJfNtHfm6mpJElatQ==}
+  '@rollup/rollup-linux-arm-musleabihf@4.62.0':
+    resolution: {integrity: sha512-2as0LgT7qQpyceQq6VUJYnumUMUrgGQCWIiDIN9DE0/tglsk6o66uCB4f3djRawAltvfCNLyZZrsqbPA6inCsA==}
     cpu: [arm]
     os: [linux]
     libc: [musl]
 
-  '@rollup/rollup-linux-arm64-gnu@4.61.1':
-    resolution: {integrity: sha512-x5Xr49hwt3hdW75UOZm3395YwwzPyauktslv29KpWL/T+vVAzoT3azLcTWv0eMciBNrx+DYjH4paehHoLpPvpg==}
+  '@rollup/rollup-linux-arm64-gnu@4.62.0':
+    resolution: {integrity: sha512-bVURMg+6eNN9C/yc0aVjooZcwTTtYF4YW3xta5pP0//r3o1V8gXEHXWCndj47w/HhwsFroZrFhR+6uQP5T0n0g==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@rollup/rollup-linux-arm64-musl@4.61.1':
-    resolution: {integrity: sha512-unMS3H73DpaoPyyEVPjGKleM/s0mkmsauTENpw4INQY8y4+IuLNjkueQ5QCtC0D3N38Y38yhAU8OoZ20S2Tm6w==}
+  '@rollup/rollup-linux-arm64-musl@4.62.0':
+    resolution: {integrity: sha512-Ful8pM/2yYI83PViWdFdpZhdI8HJ5qsXANe5atypbHDf+KIBBDsZsbyy8hbXnULVvW9NsTh5DHwbcBftyLTfiw==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@rollup/rollup-linux-loong64-gnu@4.61.1':
-    resolution: {integrity: sha512-zNZzGRnAhwjFEYmvphJRV5XaQGjs62cCmeYYHUT//NbvEnHauw+I85nGG+SiVg5ld4GX8D1IbKIX+ozITQnhMQ==}
+  '@rollup/rollup-linux-loong64-gnu@4.62.0':
+    resolution: {integrity: sha512-9Gp/DgrkzfUBmNPVTyPTvay+4xEP7M/clXpj3efXBcm6uTIVIgDg4rqUpqKXvLEuFRVuEpSAOkhgNeecvaZ4Cg==}
     cpu: [loong64]
     os: [linux]
     libc: [glibc]
 
-  '@rollup/rollup-linux-loong64-musl@4.61.1':
-    resolution: {integrity: sha512-LdpWGL8X209B2SIvWjqlc8VZgM6PKfontSerGepuldQmHYrAOtnMCXeJkxXGbC+PPZVOuu5czJo7fNV6aeW8rQ==}
+  '@rollup/rollup-linux-loong64-musl@4.62.0':
+    resolution: {integrity: sha512-m9tsJz54LUXkSYM8+8PG81B9IKK5r+2T0clMq4QrS16xFosufU7firBDAZEsDheDs7wTlP7h3++S7lMsU955HA==}
     cpu: [loong64]
     os: [linux]
     libc: [musl]
 
-  '@rollup/rollup-linux-ppc64-gnu@4.61.1':
-    resolution: {integrity: sha512-EC5kTtNaNGOmbMGqar8dvJy6y/hg99GAwjfBz++pxZhQATXGcRjd6c5en5wcbru0vkRmiMGsQKdMJOOf6sza4g==}
+  '@rollup/rollup-linux-ppc64-gnu@4.62.0':
+    resolution: {integrity: sha512-3UvJ5PNVU16aJf6M3tFI24pWzAl2/ynfbyRN3ICyQajK1lSkrnVYNnLz3v04J32qKa0FczJc22zeToc0lr2A3w==}
     cpu: [ppc64]
     os: [linux]
     libc: [glibc]
 
-  '@rollup/rollup-linux-ppc64-musl@4.61.1':
-    resolution: {integrity: sha512-8hiwp6D4acEcNK78I4rP0/XtS1sknWIAMJBPdR4l6zUtyTm5KiTDr5bXmWt4foY7nAN7AThDHgkLIEZOWKbzWw==}
+  '@rollup/rollup-linux-ppc64-musl@4.62.0':
+    resolution: {integrity: sha512-vRWUAbYLGHBZS6Q8Msb2sfnf1fvJf+47t8l/TwOerM2qArzy+IeNMTHrYLHXh95h8MoatPHI5hhSZNs+mGXKPg==}
     cpu: [ppc64]
     os: [linux]
     libc: [musl]
 
-  '@rollup/rollup-linux-riscv64-gnu@4.61.1':
-    resolution: {integrity: sha512-10dh/h/BqA7DuMPWSxkR8uks18FRwnwOEqr5zOTEl+NOwP/OMzKX8OFR/Of9xxDA7D5qef1Nzar5WDD2kCCr1g==}
+  '@rollup/rollup-linux-riscv64-gnu@4.62.0':
+    resolution: {integrity: sha512-c00T5SYENHAt86cfW47URaP3Us5vLC/4QO7GYud1G5VNRffCwwCuBspwqYrriuJB+5m0WFzClCn9wed0FBjKvg==}
     cpu: [riscv64]
     os: [linux]
     libc: [glibc]
 
-  '@rollup/rollup-linux-riscv64-musl@4.61.1':
-    resolution: {integrity: sha512-YKJ5lg35DP17gcAOggnihe+APw9HLyj1Xn7gsmGumBJAUDa6NGXNixJzmkWLhcK9TOuuyQjdamzvJefkO7qHZQ==}
+  '@rollup/rollup-linux-riscv64-musl@4.62.0':
+    resolution: {integrity: sha512-krrCDilhXOwFkSkO3Wm9I/f9H0L92XHHwy2fwxjukxIbh0dem8gZqOW5Y8BsHrpJv5qwlRBV+Wl4ZFyRWhUpwg==}
     cpu: [riscv64]
     os: [linux]
     libc: [musl]
 
-  '@rollup/rollup-linux-s390x-gnu@4.61.1':
-    resolution: {integrity: sha512-Mlil5G2Jj6a7B3LWGctg+XPL9vdXYuzCtNXfxOQ0nPjc2m6ueUktocPGH9bnAM0bNRKb/bAWTujUU7IJQdQA+g==}
+  '@rollup/rollup-linux-s390x-gnu@4.62.0':
+    resolution: {integrity: sha512-7pfYFSTc4/rUC/FtAI0Qp6QthDBCIi6/AuP1xYqFk5vanI6KnL5dWKP60OM/05LOsbwTmIcvr6eXC4CJuJ75IA==}
     cpu: [s390x]
     os: [linux]
     libc: [glibc]
 
-  '@rollup/rollup-linux-x64-gnu@4.61.1':
-    resolution: {integrity: sha512-bVWIOIk6pV01p4CdUbPP7CJ/434z+OooYjDuFcR+44N35YvKUC66G8MGnvcWx5mWKW3g61J+t74l3Kj15Kwn2Q==}
+  '@rollup/rollup-linux-x64-gnu@4.62.0':
+    resolution: {integrity: sha512-7SDIalKeIpG0Ifogbbdn58HmSotYMlf23K3dCJEmiVd9Fg36Vmni82iPQec27N3wY4Bvbxftkxz6vSx9OcouTg==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@rollup/rollup-linux-x64-musl@4.61.1':
-    resolution: {integrity: sha512-qy5pBvZbqNFheBz61R1rzsezjm0J7O2oNGoWtGoY89SZYLUfxAJTBAqDChqAIdB4rCiIbi9nF7yZ83GnNiLwSw==}
+  '@rollup/rollup-linux-x64-musl@4.62.0':
+    resolution: {integrity: sha512-eRZevouTH2i1HeAVLqJuLnt256krQkGY0TN6WsTmsIhuzbh457HuWDMakKwmi0Cjadux983CoSr8Lim2QhUIFw==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@rollup/rollup-openbsd-x64@4.61.1':
-    resolution: {integrity: sha512-E83TXjI4zm0+5f2qO+UOudaCYIhYwpJ5jq6YCZNIZ+6CbfhKrkAGezeiASBL9ElxAxFsRS9ZhESv8mfnj6TKeg==}
+  '@rollup/rollup-openbsd-x64@4.62.0':
+    resolution: {integrity: sha512-3oVS7FLGa4U1qcvao9ylGxrjXZyUQqR8UwxEcnUEyPX53O/C/mKDZegNXTdHCP+h3e6ta/f1EN38Yif1mmZHYg==}
     cpu: [x64]
     os: [openbsd]
 
-  '@rollup/rollup-openharmony-arm64@4.61.1':
-    resolution: {integrity: sha512-fbWnKqVkjrJN38vNe3ahkbk6iejS/3b0Nt7EEtPpE6RBacZcGXNKbzfHN3GUUlXOPghUg0j6XUGrtjX9z1sIvA==}
+  '@rollup/rollup-openharmony-arm64@4.62.0':
+    resolution: {integrity: sha512-yTB9TgfWj5wHe5QgktAgXTLLot1gvEjl1NiPPAUiCs4oPrIWFl5V4nC3GrkNdj9LaAU4s94nVrGbGOCqUpyWsg==}
     cpu: [arm64]
     os: [openharmony]
 
-  '@rollup/rollup-win32-arm64-msvc@4.61.1':
-    resolution: {integrity: sha512-ArMl38iVAbk0New1ogihQNY6iphLi4ZaRsa037gUzv5yeKPY8TD3Dmy4x2RNC1VztU/uqm+G+/RwFrSka3Oy2g==}
+  '@rollup/rollup-win32-arm64-msvc@4.62.0':
+    resolution: {integrity: sha512-5LOhoaesY3doG1c+ac/2JtgREpKoJr5bUHH8tKY0V8di7+uSV6BwLs2PlR0/yzefGOkR+wE7ZolZphHCsyG5Rw==}
     cpu: [arm64]
     os: [win32]
 
-  '@rollup/rollup-win32-ia32-msvc@4.61.1':
-    resolution: {integrity: sha512-0mYtjHS9ucAbcATycCNK9IGBk/cCe/ma7EmSLGZdsxnOA8cjRIyU04wDpVAD9NiOfLUR9KTxdiO53uOkherqjQ==}
+  '@rollup/rollup-win32-ia32-msvc@4.62.0':
+    resolution: {integrity: sha512-yYkWHhmbhRTWTnWos5HC4GcPQfjlzzCNbM9e/+GXrLuaBXYA3qSDR9f0Vgufd5S8yX81U8jPKp7ZnAjZFMtRnw==}
     cpu: [ia32]
     os: [win32]
 
-  '@rollup/rollup-win32-x64-gnu@4.61.1':
-    resolution: {integrity: sha512-gK1iCEPfpoSG9wfBihXxvBMi8ZfcWffYkEsC/Eih+iFENTaewvNcrEQ69lIOWYO5pePHKLHHO7nq5AILGO/HQQ==}
+  '@rollup/rollup-win32-x64-gnu@4.62.0':
+    resolution: {integrity: sha512-SoTb6lPg25xZlA2ibwQ++ahCCnH+FP0qmEuafMJ4gznZKOlXioKEAeJLgCrqjM98ACziXM9V1amFjICVL4IFoA==}
     cpu: [x64]
     os: [win32]
 
-  '@rollup/rollup-win32-x64-msvc@4.61.1':
-    resolution: {integrity: sha512-X+zaP2x+j4RXGfbp/seSoRHWnPxzApilDszisZxbYH5C/jTxFhCtDNdPGZb9lJyYPs24wGxruPF7Y+sIXt9Gzw==}
+  '@rollup/rollup-win32-x64-msvc@4.62.0':
+    resolution: {integrity: sha512-5L+T1fMX4RIEBoZzT0+sQ0PhTS36NULFmMXtl1TZo44TMAROIMHbZufSOjVWt/Y622BtxgxtaNOokbTDvfsrZA==}
     cpu: [x64]
     os: [win32]
 
@@ -10522,8 +10521,8 @@ packages:
     resolution: {integrity: sha512-4I7Td01quW/RpocfNayFdFVk1qSuoh0E7JrbRJ16nH01HhKFQ88INq9Sd+nd72zqRySlr9BmDA8xlEJ6vJMrYA==}
     engines: {node: '>=8'}
 
-  ai@6.0.204:
-    resolution: {integrity: sha512-SudB8rUwaVhpWF8+qTJcxUptXPIdN9rWMknzTT3WbKa2QwiGRshyepFKNkDILWm882LgqlEyRZgKhNT14j0jpQ==}
+  ai@6.0.205:
+    resolution: {integrity: sha512-F4akEGF41UdgJO3L4v+D5noVD1/czhJy6x0k9R/i1EXfxqrkBh/PdYSgRSLPiGFvrw76dzI8h4w3NYmLrTb8dw==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -11057,10 +11056,6 @@ packages:
   clean-stack@2.2.0:
     resolution: {integrity: sha512-4diC9HaTE+KRAMWhDhrGOECgWZxoevMc5TlkObMqNSsVU62PYzXZ/SMTjzyGAFF1YusgxGcSWTEXBhp0CPwQ1A==}
     engines: {node: '>=6'}
-
-  cli-boxes@3.0.0:
-    resolution: {integrity: sha512-/lzGpEWL/8PfI0BmBOPRwp0c/wFNX1RdUML3jK/RcSBA9T8mZDdQpqYBKtCFTOfQbwPqWEOpjqW+Fnayc0969g==}
-    engines: {node: '>=10'}
 
   cli-boxes@4.0.1:
     resolution: {integrity: sha512-5IOn+jcCEHEraYolBPs/sT4BxYCe2nHg374OPiItB1O96KZFseS2gthU4twyYzeDcFew4DaUM/xwc5BQf08JJw==}
@@ -13131,21 +13126,8 @@ packages:
       scheduler: ^0.27.0
       vite: '>=7.0.0'
 
-  ink@6.8.0:
-    resolution: {integrity: sha512-sbl1RdLOgkO9isK42WCZlJCFN9hb++sX9dsklOvfd1YQ3bQ2AiFu12Q6tFlr0HvEUvzraJntQCCpfEoUe9DSzA==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@types/react': '>=19.0.0'
-      react: '>=19.0.0'
-      react-devtools-core: '>=6.1.2'
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      react-devtools-core:
-        optional: true
-
-  ink@7.0.5:
-    resolution: {integrity: sha512-zWNjGHQPxSeiSAmDUOq+QPQ6CfmMhmNi85vrJIuy4prafKKUSoZlXEy4wbM7LuLuF1pDURk7qvF4fxrQlLxv3w==}
+  ink@7.0.6:
+    resolution: {integrity: sha512-/KG651f+LHln9gumb5ltieFqzNGJdhX1b/WwsCUd2Py7Htuk9KUzyFrk25ugmzjXyDneXSoXD3cm4ql4dWFGsQ==}
     engines: {node: '>=22'}
     peerDependencies:
       '@types/react': '>=19.2.0'
@@ -13934,6 +13916,24 @@ packages:
 
   mdast-util-to-hast@13.2.1:
     resolution: {integrity: sha512-cctsq2wp5vTsLIcaymblUriiTcZd0CwWtCbLvrOzYCDZoWyMNV8sZ7krj09FSnsiJi3WVsHLM4k6Dq/yaPyCXA==}
+
+  mdast-util-to-markdown-cjk-friendly-gfm-strikethrough@1.0.0:
+    resolution: {integrity: sha512-1ePVfB4P/vz3xSsm6H3D32r6VYGErxclnuLLFK02/2ReF+UdEKm7caulK6Vm0LBIp5gPRtB2Z1OYDznCkX3k2w==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/mdast': '*'
+    peerDependenciesMeta:
+      '@types/mdast':
+        optional: true
+
+  mdast-util-to-markdown-cjk-friendly@1.0.0:
+    resolution: {integrity: sha512-BoaAm8mlJ+LAYz0Qs532Y3ciTuQYgBUPZcSFbvC/ZKmEMAKgulw84YvQK1gI34t/vL2euSfuaWlqczkTBgamkw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/mdast': '*'
+    peerDependenciesMeta:
+      '@types/mdast':
+        optional: true
 
   mdast-util-to-markdown@2.1.2:
     resolution: {integrity: sha512-xj68wMTvGXVOKonmog6LwyJKrYXZPvlwabaryTjLh9LuvovB/KAH+kvi8Gjj+7rJjsFi23nkUxRQv1KqSroMqA==}
@@ -15267,8 +15267,8 @@ packages:
       react:
         optional: true
 
-  react-hook-form@7.78.0:
-    resolution: {integrity: sha512-EEZqc+N23moyzTlz61Pj+JvcXo76ICkpfOZo8JZw+sM4+wLQGh6nI2Ms+PdMOYNluFu0ghlM7B8mCzhRYtJCnA==}
+  react-hook-form@7.79.0:
+    resolution: {integrity: sha512-mhYp/MTmXvzYX6AJcJVko0rktoIhhmRnEouObj4wF5i/tCttgJvnp1+9wRkpITZjDTqpo4IOSJqu0dBlPlV/Lw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
@@ -15585,8 +15585,8 @@ packages:
   regjsgen@0.8.0:
     resolution: {integrity: sha512-RvwtGe3d7LvWiDQXeQw8p5asZUmfU1G/l6WbUXeHta7Y2PEIvBTwH6E2EfmYUK8pxcxEdEmaomqyp0vZZ7C+3Q==}
 
-  regjsparser@0.13.1:
-    resolution: {integrity: sha512-dLsljMd9sqwRkby8zhO1gSg3PnJIBFid8f4CQj/sXx+7cKx+E7u0PKhZ+U4wmhx7EfmtvnA318oVaIkAB1lRJw==}
+  regjsparser@0.13.2:
+    resolution: {integrity: sha512-NgRBy2Nx/bE+9F27nVHnqcN5HjyLmecqsqx2PJHu3/IEtADD4WuxuXIVExD5PoSDFVrl78dOonfcOe5O+5nbzQ==}
     hasBin: true
 
   rehype-harden@1.1.8:
@@ -15613,8 +15613,8 @@ packages:
   rehype-sanitize@6.0.0:
     resolution: {integrity: sha512-CsnhKNsyI8Tub6L4sm5ZFsme4puGfc6pYylvXo1AeqaGbjOYyzNv3qZPwvs0oMJ39eryyeOdmxwUIo94IpEhqg==}
 
-  remark-cjk-friendly-gfm-strikethrough@2.0.1:
-    resolution: {integrity: sha512-pWKj25O2eLXIL1aBupayl1fKhco+Brw8qWUWJPVB9EBzbQNd7nGLj0nLmJpggWsGLR5j5y40PIdjxby9IEYTuA==}
+  remark-cjk-friendly-gfm-strikethrough@2.1.0:
+    resolution: {integrity: sha512-3Kyq2hjY7V7eU8MbVbWW6QQLN81pjJcIvKHvPxr8hZZmcq/9wqm3MJ3iUG34Ch9QTM4WHN+a1JVAVC1fSi5mig==}
     engines: {node: '>=18'}
     peerDependencies:
       '@types/mdast': ^4.0.0
@@ -15623,8 +15623,8 @@ packages:
       '@types/mdast':
         optional: true
 
-  remark-cjk-friendly@2.0.1:
-    resolution: {integrity: sha512-6WwkoQyZf/4j5k53zdFYrR8Ca+UVn992jXdLUSBDZR4eBpFhKyVxmA4gUHra/5fesjGIxrDhHesNr/sVoiiysA==}
+  remark-cjk-friendly@2.1.0:
+    resolution: {integrity: sha512-ZWGDfTJNLEZ1gap+pd33K13ZhRAWgVDqxKA7JIlBs5IDu+qvbiWl/pEbeuxzRrWyrrkeFFoTnvNw00iW9mBcow==}
     engines: {node: '>=18'}
     peerDependencies:
       '@types/mdast': ^4.0.0
@@ -15759,8 +15759,8 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
 
-  rollup@4.61.1:
-    resolution: {integrity: sha512-I4KW6iuRpuu2uHBLraZ1wNZe0DP7lnRha+VJ9tNaYVaVgKhW0aI3h4RYnoRPeql0flHm/Co55b7snEDcOfOJrA==}
+  rollup@4.62.0:
+    resolution: {integrity: sha512-nc72Wgq62I7rtDV4izT5/aaS0zxy3kttkinf9586ApknY3jZO9NYsmtc24fUckA0X7Q2v+ML4a15pdUlV5V/jA==}
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
@@ -16517,6 +16517,7 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
+    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0
@@ -17401,7 +17402,7 @@ snapshots:
       '@bufbuild/protobuf': 2.12.0
       '@protobuf-ts/protoc': 2.11.1
 
-  '@ai-sdk/gateway@3.0.130(zod@4.4.3)':
+  '@ai-sdk/gateway@3.0.131(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
       '@ai-sdk/provider-utils': 4.0.29(zod@4.4.3)
@@ -17432,30 +17433,25 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@3.0.206(react@19.2.3)(zod@4.4.3)':
+  '@ai-sdk/react@3.0.207(react@19.2.3)(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider-utils': 4.0.29(zod@4.4.3)
-      ai: 6.0.204(zod@4.4.3)
+      ai: 6.0.205(zod@4.4.3)
       react: 19.2.3
       swr: 2.4.1(react@19.2.3)
       throttleit: 2.1.0
     transitivePeerDependencies:
       - zod
 
-  '@ai-sdk/react@3.0.206(react@19.2.7)(zod@4.4.3)':
+  '@ai-sdk/react@3.0.207(react@19.2.7)(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider-utils': 4.0.29(zod@4.4.3)
-      ai: 6.0.204(zod@4.4.3)
+      ai: 6.0.205(zod@4.4.3)
       react: 19.2.7
       swr: 2.4.1(react@19.2.7)
       throttleit: 2.1.0
     transitivePeerDependencies:
       - zod
-
-  '@alcalzone/ansi-tokenize@0.2.5':
-    dependencies:
-      ansi-styles: 6.2.3
-      is-fullwidth-code-point: 5.1.0
 
   '@alcalzone/ansi-tokenize@0.3.0':
     dependencies:
@@ -17486,7 +17482,7 @@ snapshots:
     dependencies:
       '@asamuzakjp/generational-cache': 1.0.1
       '@csstools/css-calc': 3.2.1(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
-      '@csstools/css-color-parser': 4.1.3(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
+      '@csstools/css-color-parser': 4.1.7(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
 
@@ -17502,9 +17498,9 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
-  '@aui-x/prism@0.0.5(@ai-sdk/provider@3.0.10)(ai@6.0.204(zod@4.4.3))(openai@6.42.0(ws@8.21.0)(zod@4.4.3))':
+  '@aui-x/prism@0.0.5(@ai-sdk/provider@3.0.10)(ai@6.0.205(zod@4.4.3))(openai@6.42.0(ws@8.21.0)(zod@4.4.3))':
     dependencies:
-      ai: 6.0.204(zod@4.4.3)
+      ai: 6.0.205(zod@4.4.3)
     optionalDependencies:
       '@ai-sdk/provider': 3.0.10
       openai: 6.42.0(ws@8.21.0)(zod@4.4.3)
@@ -17554,7 +17550,7 @@ snapshots:
       '@aws-sdk/types': 3.973.12
       '@smithy/core': 3.24.7
       '@smithy/fetch-http-handler': 5.4.7
-      '@smithy/node-http-handler': 4.7.3
+      '@smithy/node-http-handler': 4.7.8
       '@smithy/types': 4.14.4
       tslib: 2.8.1
 
@@ -18422,7 +18418,7 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@blaxel/core@0.2.89(@cfworker/json-schema@4.1.1)(@hey-api/openapi-ts@0.98.2(magicast@0.5.3)(typescript@6.0.3))':
+  '@blaxel/core@0.2.90(@cfworker/json-schema@4.1.1)(@hey-api/openapi-ts@0.98.2(magicast@0.5.3)(typescript@6.0.3))':
     dependencies:
       '@hey-api/client-fetch': 0.10.2(@hey-api/openapi-ts@0.98.2(magicast@0.5.3)(typescript@6.0.3))
       '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)
@@ -18707,7 +18703,7 @@ snapshots:
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
 
-  '@csstools/css-color-parser@4.1.3(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)':
+  '@csstools/css-color-parser@4.1.7(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)':
     dependencies:
       '@csstools/color-helpers': 6.0.2
       '@csstools/css-calc': 3.2.1(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
@@ -18732,9 +18728,9 @@ snapshots:
 
   '@date-fns/tz@1.5.0': {}
 
-  '@earendil-works/pi-agent-core@0.79.1(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)':
+  '@earendil-works/pi-agent-core@0.79.3(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)':
     dependencies:
-      '@earendil-works/pi-ai': 0.79.1(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
+      '@earendil-works/pi-ai': 0.79.3(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
       ignore: 7.0.5
       typebox: 1.1.38
       yaml: 2.9.0
@@ -18746,7 +18742,7 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-ai@0.79.1(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)':
+  '@earendil-works/pi-ai@0.79.3(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)':
     dependencies:
       '@anthropic-ai/sdk': 0.91.1(zod@4.4.3)
       '@aws-sdk/client-bedrock-runtime': 3.1048.0
@@ -18766,11 +18762,11 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-coding-agent@0.79.1(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)':
+  '@earendil-works/pi-coding-agent@0.79.3(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)':
     dependencies:
-      '@earendil-works/pi-agent-core': 0.79.1(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
-      '@earendil-works/pi-ai': 0.79.1(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
-      '@earendil-works/pi-tui': 0.79.1
+      '@earendil-works/pi-agent-core': 0.79.3(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
+      '@earendil-works/pi-ai': 0.79.3(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
+      '@earendil-works/pi-tui': 0.79.3
       '@silvia-odwyer/photon-node': 0.3.4
       chalk: 5.6.2
       cross-spawn: 7.0.6
@@ -18795,7 +18791,7 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-tui@0.79.1':
+  '@earendil-works/pi-tui@0.79.3':
     dependencies:
       get-east-asian-width: 1.6.0
       marked: 15.0.12
@@ -18827,6 +18823,11 @@ snapshots:
     optional: true
 
   '@emnapi/runtime@1.11.0':
+    dependencies:
+      tslib: 2.8.1
+    optional: true
+
+  '@emnapi/runtime@1.11.1':
     dependencies:
       tslib: 2.8.1
     optional: true
@@ -19739,10 +19740,10 @@ snapshots:
       hono: 4.12.25
       zod: 4.4.3
 
-  '@hookform/resolvers@5.4.0(react-hook-form@7.78.0(react@19.2.7))':
+  '@hookform/resolvers@5.4.0(react-hook-form@7.79.0(react@19.2.7))':
     dependencies:
       '@standard-schema/utils': 0.3.0
-      react-hook-form: 7.78.0(react@19.2.7)
+      react-hook-form: 7.79.0(react@19.2.7)
 
   '@iarna/toml@2.2.5': {}
 
@@ -19839,7 +19840,7 @@ snapshots:
 
   '@img/sharp-wasm32@0.34.5':
     dependencies:
-      '@emnapi/runtime': 1.11.0
+      '@emnapi/runtime': 1.11.1
     optional: true
 
   '@img/sharp-win32-arm64@0.34.5':
@@ -20696,13 +20697,13 @@ snapshots:
 
   '@oozcitak/util@10.0.0': {}
 
-  '@opencode-ai/sdk@1.17.4':
+  '@opencode-ai/sdk@1.17.6':
     dependencies:
       cross-spawn: 7.0.6
 
   '@opentelemetry/api-logs@0.205.0':
     dependencies:
-      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/api': 1.9.1
 
   '@opentelemetry/api@1.9.0': {}
 
@@ -22459,7 +22460,7 @@ snapshots:
       immer: 11.1.8
       redux: 5.0.1
       redux-thunk: 3.1.0(redux@5.0.1)
-      reselect: 5.1.1
+      reselect: 5.2.0
     optionalDependencies:
       react: 19.2.7
       react-redux: 9.3.0(@types/react@19.2.17)(react@19.2.7)(redux@5.0.1)
@@ -22666,79 +22667,79 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
-  '@rollup/rollup-android-arm-eabi@4.61.1':
+  '@rollup/rollup-android-arm-eabi@4.62.0':
     optional: true
 
-  '@rollup/rollup-android-arm64@4.61.1':
+  '@rollup/rollup-android-arm64@4.62.0':
     optional: true
 
-  '@rollup/rollup-darwin-arm64@4.61.1':
+  '@rollup/rollup-darwin-arm64@4.62.0':
     optional: true
 
-  '@rollup/rollup-darwin-x64@4.61.1':
+  '@rollup/rollup-darwin-x64@4.62.0':
     optional: true
 
-  '@rollup/rollup-freebsd-arm64@4.61.1':
+  '@rollup/rollup-freebsd-arm64@4.62.0':
     optional: true
 
-  '@rollup/rollup-freebsd-x64@4.61.1':
+  '@rollup/rollup-freebsd-x64@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-arm-gnueabihf@4.61.1':
+  '@rollup/rollup-linux-arm-gnueabihf@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-arm-musleabihf@4.61.1':
+  '@rollup/rollup-linux-arm-musleabihf@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-arm64-gnu@4.61.1':
+  '@rollup/rollup-linux-arm64-gnu@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-arm64-musl@4.61.1':
+  '@rollup/rollup-linux-arm64-musl@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-loong64-gnu@4.61.1':
+  '@rollup/rollup-linux-loong64-gnu@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-loong64-musl@4.61.1':
+  '@rollup/rollup-linux-loong64-musl@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-ppc64-gnu@4.61.1':
+  '@rollup/rollup-linux-ppc64-gnu@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-ppc64-musl@4.61.1':
+  '@rollup/rollup-linux-ppc64-musl@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-riscv64-gnu@4.61.1':
+  '@rollup/rollup-linux-riscv64-gnu@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-riscv64-musl@4.61.1':
+  '@rollup/rollup-linux-riscv64-musl@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-s390x-gnu@4.61.1':
+  '@rollup/rollup-linux-s390x-gnu@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-x64-gnu@4.61.1':
+  '@rollup/rollup-linux-x64-gnu@4.62.0':
     optional: true
 
-  '@rollup/rollup-linux-x64-musl@4.61.1':
+  '@rollup/rollup-linux-x64-musl@4.62.0':
     optional: true
 
-  '@rollup/rollup-openbsd-x64@4.61.1':
+  '@rollup/rollup-openbsd-x64@4.62.0':
     optional: true
 
-  '@rollup/rollup-openharmony-arm64@4.61.1':
+  '@rollup/rollup-openharmony-arm64@4.62.0':
     optional: true
 
-  '@rollup/rollup-win32-arm64-msvc@4.61.1':
+  '@rollup/rollup-win32-arm64-msvc@4.62.0':
     optional: true
 
-  '@rollup/rollup-win32-ia32-msvc@4.61.1':
+  '@rollup/rollup-win32-ia32-msvc@4.62.0':
     optional: true
 
-  '@rollup/rollup-win32-x64-gnu@4.61.1':
+  '@rollup/rollup-win32-x64-gnu@4.62.0':
     optional: true
 
-  '@rollup/rollup-win32-x64-msvc@4.61.1':
+  '@rollup/rollup-win32-x64-msvc@4.62.0':
     optional: true
 
   '@sec-ant/readable-stream@0.4.1': {}
@@ -22904,13 +22905,14 @@ snapshots:
   '@streamdown/cjk@1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(react@19.2.7)(unified@11.0.5)':
     dependencies:
       react: 19.2.7
-      remark-cjk-friendly: 2.0.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5)
-      remark-cjk-friendly-gfm-strikethrough: 2.0.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5)
+      remark-cjk-friendly: 2.1.0(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5)
+      remark-cjk-friendly-gfm-strikethrough: 2.1.0(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5)
       unist-util-visit: 5.1.0
     transitivePeerDependencies:
       - '@types/mdast'
       - micromark
       - micromark-util-types
+      - supports-color
       - unified
 
   '@streamdown/code@1.1.1(react@19.2.7)':
@@ -23828,9 +23830,9 @@ snapshots:
       indent-string: 4.0.0
     optional: true
 
-  ai@6.0.204(zod@4.4.3):
+  ai@6.0.205(zod@4.4.3):
     dependencies:
-      '@ai-sdk/gateway': 3.0.130(zod@4.4.3)
+      '@ai-sdk/gateway': 3.0.131(zod@4.4.3)
       '@ai-sdk/provider': 3.0.10
       '@ai-sdk/provider-utils': 4.0.29(zod@4.4.3)
       '@opentelemetry/api': 1.9.1
@@ -24147,9 +24149,9 @@ snapshots:
 
   baseline-browser-mapping@2.10.37: {}
 
-  bash-tool@1.3.17(ai@6.0.204(zod@4.4.3))(just-bash@3.0.1):
+  bash-tool@1.3.17(ai@6.0.205(zod@4.4.3))(just-bash@3.0.1):
     dependencies:
-      ai: 6.0.204(zod@4.4.3)
+      ai: 6.0.205(zod@4.4.3)
       fast-glob: 3.3.3
       yaml: 2.9.0
       zod: 3.25.76
@@ -24441,8 +24443,6 @@ snapshots:
 
   clean-stack@2.2.0:
     optional: true
-
-  cli-boxes@3.0.0: {}
 
   cli-boxes@4.0.1: {}
 
@@ -26715,62 +26715,27 @@ snapshots:
 
   ini@6.0.0: {}
 
-  ink-spinner@5.0.0(ink@7.0.5(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7))(react@19.2.7):
+  ink-spinner@5.0.0(ink@7.0.6(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7))(react@19.2.7):
     dependencies:
       cli-spinners: 2.9.2
-      ink: 7.0.5(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
+      ink: 7.0.6(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
       react: 19.2.7
 
   ink-testing-library@4.0.0(@types/react@19.2.17):
     optionalDependencies:
       '@types/react': 19.2.17
 
-  ink-web@0.2.0(@xterm/xterm@6.0.0)(ink@6.8.0(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7))(react-reconciler@0.33.0(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)):
+  ink-web@0.2.0(@xterm/xterm@6.0.0)(ink@7.0.6(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7))(react-reconciler@0.33.0(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)):
     dependencies:
       '@xterm/addon-fit': 0.11.0
       '@xterm/xterm': 6.0.0
-      ink: 6.8.0(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
+      ink: 7.0.6(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
       react: 19.2.7
       react-reconciler: 0.33.0(react@19.2.7)
       scheduler: 0.27.0
       vite: 8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)
 
-  ink@6.8.0(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7):
-    dependencies:
-      '@alcalzone/ansi-tokenize': 0.2.5
-      ansi-escapes: 7.3.0
-      ansi-styles: 6.2.3
-      auto-bind: 5.0.1
-      chalk: 5.6.2
-      cli-boxes: 3.0.0
-      cli-cursor: 4.0.0
-      cli-truncate: 5.2.0
-      code-excerpt: 4.0.0
-      es-toolkit: 1.47.1
-      indent-string: 5.0.0
-      is-in-ci: 2.0.0
-      patch-console: 2.0.0
-      react: 19.2.7
-      react-reconciler: 0.33.0(react@19.2.7)
-      scheduler: 0.27.0
-      signal-exit: 3.0.7
-      slice-ansi: 8.0.0
-      stack-utils: 2.0.6
-      string-width: 8.2.1
-      terminal-size: 4.0.1
-      type-fest: 5.7.0
-      widest-line: 6.0.0
-      wrap-ansi: 9.0.2
-      ws: 8.21.0
-      yoga-layout: 3.2.1
-    optionalDependencies:
-      '@types/react': 19.2.17
-      react-devtools-core: 6.1.5
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-
-  ink@7.0.5(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7):
+  ink@7.0.6(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7):
     dependencies:
       '@alcalzone/ansi-tokenize': 0.3.0
       ansi-escapes: 7.3.0
@@ -27742,6 +27707,28 @@ snapshots:
       unist-util-visit: 5.1.0
       vfile: 6.0.3
 
+  mdast-util-to-markdown-cjk-friendly-gfm-strikethrough@1.0.0(@types/mdast@4.0.4)(micromark-util-types@2.0.2):
+    dependencies:
+      mdast-util-gfm-strikethrough: 2.0.0
+      mdast-util-to-markdown: 2.1.2
+      micromark-extension-cjk-friendly-util: 3.0.1(micromark-util-types@2.0.2)
+      micromark-util-symbol: 2.0.1
+    optionalDependencies:
+      '@types/mdast': 4.0.4
+    transitivePeerDependencies:
+      - micromark-util-types
+      - supports-color
+
+  mdast-util-to-markdown-cjk-friendly@1.0.0(@types/mdast@4.0.4)(micromark-util-types@2.0.2):
+    dependencies:
+      mdast-util-to-markdown: 2.1.2
+      micromark-extension-cjk-friendly-util: 3.0.1(micromark-util-types@2.0.2)
+      micromark-util-symbol: 2.0.1
+    optionalDependencies:
+      '@types/mdast': 4.0.4
+    transitivePeerDependencies:
+      - micromark-util-types
+
   mdast-util-to-markdown@2.1.2:
     dependencies:
       '@types/mdast': 4.0.4
@@ -28527,7 +28514,7 @@ snapshots:
 
   nf3@0.3.17: {}
 
-  nitro@3.0.260311-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@25.9.3))(rollup@4.61.1)(sqlite3@5.1.7)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)):
+  nitro@3.0.260311-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@25.9.3))(rollup@4.62.0)(sqlite3@5.1.7)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)):
     dependencies:
       consola: 3.4.2
       crossws: 0.4.6(srvx@0.11.16)
@@ -28547,7 +28534,7 @@ snapshots:
       dotenv: 17.4.2
       giget: 3.3.0
       jiti: 2.7.0
-      rollup: 4.61.1
+      rollup: 4.62.0
       vite: 8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)
     transitivePeerDependencies:
       - '@azure/app-configuration'
@@ -29447,7 +29434,7 @@ snapshots:
     optionalDependencies:
       react: 19.2.7
 
-  react-hook-form@7.78.0(react@19.2.7):
+  react-hook-form@7.79.0(react@19.2.7):
     dependencies:
       react: 19.2.7
 
@@ -29924,13 +29911,13 @@ snapshots:
       regenerate: 1.4.2
       regenerate-unicode-properties: 10.2.2
       regjsgen: 0.8.0
-      regjsparser: 0.13.1
+      regjsparser: 0.13.2
       unicode-match-property-ecmascript: 2.0.0
       unicode-match-property-value-ecmascript: 2.2.1
 
   regjsgen@0.8.0: {}
 
-  regjsparser@0.13.1:
+  regjsparser@0.13.2:
     dependencies:
       jsesc: 3.1.0
 
@@ -29986,8 +29973,9 @@ snapshots:
       '@types/hast': 3.0.4
       hast-util-sanitize: 5.0.2
 
-  remark-cjk-friendly-gfm-strikethrough@2.0.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5):
+  remark-cjk-friendly-gfm-strikethrough@2.1.0(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5):
     dependencies:
+      mdast-util-to-markdown-cjk-friendly-gfm-strikethrough: 1.0.0(@types/mdast@4.0.4)(micromark-util-types@2.0.2)
       micromark-extension-cjk-friendly-gfm-strikethrough: 2.0.1(micromark-util-types@2.0.2)(micromark@4.0.2)
       unified: 11.0.5
     optionalDependencies:
@@ -29995,9 +29983,11 @@ snapshots:
     transitivePeerDependencies:
       - micromark
       - micromark-util-types
+      - supports-color
 
-  remark-cjk-friendly@2.0.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5):
+  remark-cjk-friendly@2.1.0(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(unified@11.0.5):
     dependencies:
+      mdast-util-to-markdown-cjk-friendly: 1.0.0(@types/mdast@4.0.4)(micromark-util-types@2.0.2)
       micromark-extension-cjk-friendly: 2.0.1(micromark-util-types@2.0.2)(micromark@4.0.2)
       unified: 11.0.5
     optionalDependencies:
@@ -30206,35 +30196,35 @@ snapshots:
       '@rolldown/binding-win32-arm64-msvc': 1.1.1
       '@rolldown/binding-win32-x64-msvc': 1.1.1
 
-  rollup@4.61.1:
+  rollup@4.62.0:
     dependencies:
       '@types/estree': 1.0.9
     optionalDependencies:
-      '@rollup/rollup-android-arm-eabi': 4.61.1
-      '@rollup/rollup-android-arm64': 4.61.1
-      '@rollup/rollup-darwin-arm64': 4.61.1
-      '@rollup/rollup-darwin-x64': 4.61.1
-      '@rollup/rollup-freebsd-arm64': 4.61.1
-      '@rollup/rollup-freebsd-x64': 4.61.1
-      '@rollup/rollup-linux-arm-gnueabihf': 4.61.1
-      '@rollup/rollup-linux-arm-musleabihf': 4.61.1
-      '@rollup/rollup-linux-arm64-gnu': 4.61.1
-      '@rollup/rollup-linux-arm64-musl': 4.61.1
-      '@rollup/rollup-linux-loong64-gnu': 4.61.1
-      '@rollup/rollup-linux-loong64-musl': 4.61.1
-      '@rollup/rollup-linux-ppc64-gnu': 4.61.1
-      '@rollup/rollup-linux-ppc64-musl': 4.61.1
-      '@rollup/rollup-linux-riscv64-gnu': 4.61.1
-      '@rollup/rollup-linux-riscv64-musl': 4.61.1
-      '@rollup/rollup-linux-s390x-gnu': 4.61.1
-      '@rollup/rollup-linux-x64-gnu': 4.61.1
-      '@rollup/rollup-linux-x64-musl': 4.61.1
-      '@rollup/rollup-openbsd-x64': 4.61.1
-      '@rollup/rollup-openharmony-arm64': 4.61.1
-      '@rollup/rollup-win32-arm64-msvc': 4.61.1
-      '@rollup/rollup-win32-ia32-msvc': 4.61.1
-      '@rollup/rollup-win32-x64-gnu': 4.61.1
-      '@rollup/rollup-win32-x64-msvc': 4.61.1
+      '@rollup/rollup-android-arm-eabi': 4.62.0
+      '@rollup/rollup-android-arm64': 4.62.0
+      '@rollup/rollup-darwin-arm64': 4.62.0
+      '@rollup/rollup-darwin-x64': 4.62.0
+      '@rollup/rollup-freebsd-arm64': 4.62.0
+      '@rollup/rollup-freebsd-x64': 4.62.0
+      '@rollup/rollup-linux-arm-gnueabihf': 4.62.0
+      '@rollup/rollup-linux-arm-musleabihf': 4.62.0
+      '@rollup/rollup-linux-arm64-gnu': 4.62.0
+      '@rollup/rollup-linux-arm64-musl': 4.62.0
+      '@rollup/rollup-linux-loong64-gnu': 4.62.0
+      '@rollup/rollup-linux-loong64-musl': 4.62.0
+      '@rollup/rollup-linux-ppc64-gnu': 4.62.0
+      '@rollup/rollup-linux-ppc64-musl': 4.62.0
+      '@rollup/rollup-linux-riscv64-gnu': 4.62.0
+      '@rollup/rollup-linux-riscv64-musl': 4.62.0
+      '@rollup/rollup-linux-s390x-gnu': 4.62.0
+      '@rollup/rollup-linux-x64-gnu': 4.62.0
+      '@rollup/rollup-linux-x64-musl': 4.62.0
+      '@rollup/rollup-openbsd-x64': 4.62.0
+      '@rollup/rollup-openharmony-arm64': 4.62.0
+      '@rollup/rollup-win32-arm64-msvc': 4.62.0
+      '@rollup/rollup-win32-ia32-msvc': 4.62.0
+      '@rollup/rollup-win32-x64-gnu': 4.62.0
+      '@rollup/rollup-win32-x64-msvc': 4.62.0
       fsevents: 2.3.3
 
   rou3@0.8.1: {}
@@ -31464,7 +31454,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
       postcss: 8.5.15
-      rollup: 4.61.1
+      rollup: 4.62.0
       tinyglobby: 0.2.17
     optionalDependencies:
       '@types/node': 25.9.3

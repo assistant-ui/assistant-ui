@@ -11,7 +11,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^3.0.71",
     "@assistant-ui/cloud-ai-sdk": "workspace:*",
-    "ai": "^6.0.204",
+    "ai": "^6.0.205",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.18.0",
