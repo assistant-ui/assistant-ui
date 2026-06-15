@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen } from "@testing-library/react";
-import { createContext, useEffect, type PropsWithChildren } from "react";
+import { createContext, type PropsWithChildren } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { create, type UseBoundStore } from "zustand";
 import type { ReadonlyStore } from "../../ReadonlyStore";
@@ -31,9 +31,6 @@ const TestProvider = ({ children }: PropsWithChildren) => (
 
 const Consumer = () => {
   const value = useTestStore(selectValue);
-
-  useEffect(() => {}, [value]);
-
   return <div>{value}</div>;
 };
 
@@ -42,7 +39,7 @@ describe("createContextStoreHook", () => {
     cleanup();
   });
 
-  it("does not memoize the generated zustand hook call", () => {
+  it("rerenders with a stable selector", () => {
     const { rerender } = render(
       <TestProvider>
         <Consumer />
