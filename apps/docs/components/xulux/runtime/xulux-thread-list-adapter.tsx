@@ -16,12 +16,14 @@ import {
   readXuluxMessages,
   readXuluxThreads,
   updateXuluxThread,
-  upsertXuluxThread,
   writeXuluxMessages,
   writeXuluxThreads,
-  type XuluxStoredMessageRow,
-  type XuluxStoredThread,
 } from "./xulux-local-storage";
+import type {
+  XuluxStoredMessageRow,
+  XuluxStoredThread,
+  XuluxThreadCustom,
+} from "./types";
 
 function getTextFromMessages(messages: readonly ThreadMessage[]): string {
   for (const message of messages) {
@@ -38,28 +40,6 @@ function getTextFromMessages(messages: readonly ThreadMessage[]): string {
 function titleFromMessages(messages: readonly ThreadMessage[]): string {
   const text = getTextFromMessages(messages);
   return text.length > 44 ? `${text.slice(0, 41)}...` : text;
-}
-
-function toRemoteThread(thread: XuluxStoredThread) {
-  return {
-    remoteId: thread.remoteId,
-    externalId: thread.externalId,
-    status: thread.status,
-    title: thread.title,
-    custom: thread.custom,
-  };
-}
-
-function upsertMessage(
-  messages: XuluxStoredMessageRow[],
-  row: XuluxStoredMessageRow,
-) {
-  const index = messages.findIndex((message) => message.id === row.id);
-  return index === -1
-    ? [...messages, row]
-    : messages.map((message, messageIndex) =>
-        messageIndex === index ? row : message,
-      );
 }
 
 class XuluxLocalHistoryAdapter implements ThreadHistoryAdapter {
@@ -97,16 +77,23 @@ class XuluxLocalHistoryAdapter implements ThreadHistoryAdapter {
       async append(item: { parentId: string | null; message: TMessage }) {
         const { remoteId } = await adapter.aui.threadListItem().initialize();
         const repository = readXuluxMessages(remoteId);
+        const id = fmt.getId(item.message);
         const row: XuluxStoredMessageRow = {
-          id: fmt.getId(item.message),
+          id,
           parent_id: item.parentId,
           format: fmt.format,
           content: fmt.encode(item),
         };
-        writeXuluxMessages(remoteId, {
-          headId: row.id,
-          messages: upsertMessage(repository.messages, row),
-        });
+        const index = repository.messages.findIndex(
+          (message) => message.id === id,
+        );
+        const messages =
+          index === -1
+            ? [...repository.messages, row]
+            : repository.messages.map((message, messageIndex) =>
+                messageIndex === index ? row : message,
+              );
+        writeXuluxMessages(remoteId, { headId: id, messages });
       },
       async update(
         item: { parentId: string | null; message: TMessage },
@@ -150,23 +137,60 @@ export function createXuluxLocalThreadListAdapter({
 }): RemoteThreadListAdapter {
   const Provider: FC<PropsWithChildren> = XuluxLocalHistoryProvider;
 
+  const upsertThread = (
+    remoteId: string,
+    updater: (thread: XuluxStoredThread | null) => XuluxStoredThread,
+  ) => {
+    const threads = readXuluxThreads();
+    const index = threads.findIndex((thread) => thread.remoteId === remoteId);
+    const nextThread = updater(index === -1 ? null : threads[index]!);
+    const nextThreads =
+      index === -1
+        ? [nextThread, ...threads]
+        : threads.map((thread, threadIndex) =>
+            threadIndex === index ? nextThread : thread,
+          );
+    writeXuluxThreads(nextThreads);
+  };
+
   return {
     unstable_Provider: Provider,
     async list() {
-      return { threads: readXuluxThreads().map(toRemoteThread) };
+      const threads = readXuluxThreads();
+      return {
+        threads: threads.map((thread) => ({
+          remoteId: thread.remoteId,
+          externalId: thread.externalId,
+          status: thread.status,
+          title: thread.title,
+          custom: thread.custom,
+        })),
+      };
     },
     async initialize() {
       const sessionId = getCurrentSessionId();
-      upsertXuluxThread(sessionId, (existing) => ({
-        ...existing,
+      const now = Date.now();
+      upsertThread(sessionId, (existing) => ({
         remoteId: sessionId,
         status: existing?.status ?? "regular",
         custom: {
+          xuluxStatus: existing?.custom.xuluxStatus ?? "idle",
           sessionId,
-          xuluxStatus: "idle",
-          ...existing?.custom,
-          updatedAt: Date.now(),
-        },
+          updatedAt: now,
+          ...(existing?.custom.pendingUserMessage !== undefined
+            ? { pendingUserMessage: existing.custom.pendingUserMessage }
+            : {}),
+          ...(existing?.custom.selectedTemplate !== undefined
+            ? { selectedTemplate: existing.custom.selectedTemplate }
+            : {}),
+          ...(existing?.custom.canvas !== undefined
+            ? { canvas: existing.custom.canvas }
+            : {}),
+        } satisfies XuluxThreadCustom,
+        ...(existing?.externalId !== undefined
+          ? { externalId: existing.externalId }
+          : {}),
+        ...(existing?.title !== undefined ? { title: existing.title } : {}),
       }));
       return { remoteId: sessionId, externalId: undefined };
     },
@@ -200,7 +224,13 @@ export function createXuluxLocalThreadListAdapter({
     async fetch(remoteId) {
       const thread = findXuluxThread(remoteId);
       if (!thread) throw new Error("Thread not found");
-      return toRemoteThread(thread);
+      return {
+        remoteId: thread.remoteId,
+        externalId: thread.externalId,
+        status: thread.status,
+        title: thread.title,
+        custom: thread.custom,
+      };
     },
     async generateTitle(remoteId, messages) {
       const title = titleFromMessages(messages);

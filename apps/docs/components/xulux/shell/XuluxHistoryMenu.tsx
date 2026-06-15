@@ -15,7 +15,7 @@ import {
   useNormalizeInterruptedXuluxThreads,
   useXuluxStoredThreads,
 } from "../runtime/xulux-local-storage";
-import type { XuluxStoredThread } from "../runtime/xulux-local-storage";
+import type { XuluxStoredThread } from "../runtime/types";
 
 function formatUpdatedAt(updatedAt: number): string {
   const delta = Date.now() - updatedAt;

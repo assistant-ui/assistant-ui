@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { LayoutGrid, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { XuluxStoredThread } from "../runtime/xulux-local-storage";
+import type { XuluxStoredThread } from "../runtime/types";
 import { XuluxHistoryMenu } from "./XuluxHistoryMenu";
 
 function HeaderPortal({ children }: { children: ReactNode }) {
@@ -21,16 +21,20 @@ function HeaderPortal({ children }: { children: ReactNode }) {
 }
 
 export function XuluxHeaderActions({
+  visible,
   showChatActions,
   onNewChat,
   onShowTemplates,
   onRestoreThread,
 }: {
+  visible: boolean;
   showChatActions: boolean;
   onNewChat: () => void;
   onShowTemplates: () => void;
   onRestoreThread: (thread: XuluxStoredThread) => void;
 }) {
+  if (!visible) return null;
+
   return (
     <HeaderPortal>
       <XuluxHistoryMenu

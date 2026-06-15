@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   Code2,
+  Download,
   ExternalLink,
   KeyRound,
   Loader2,
@@ -52,9 +53,10 @@ export function TemplateDetailModal({
   if (!current) return null;
 
   const hasPreview = Boolean(current.previewUrl);
+  const hasDownload = Boolean(current.downloadUrl);
   const requiredEnv = current.env.filter((item) => item.required);
   const startLabel =
-    current.kind === "template" ? "Start building" : "Use this example";
+    current.kind === "template" ? "Spin up app" : "Use this example";
   const previewLabel =
     current.previewStatus === "live"
       ? "Hosted preview"
@@ -79,6 +81,11 @@ export function TemplateDetailModal({
                     <Thumbnail
                       gradient={current.gradient}
                       src={current.screenshotUrl}
+                      previewUrl={
+                        current.kind === "template"
+                          ? current.previewUrl
+                          : undefined
+                      }
                       className="absolute inset-0 h-full w-full rounded-none"
                     />
                     <div className="relative flex flex-col items-center gap-2 rounded-md bg-black/40 px-4 py-2 text-white/90 backdrop-blur-sm">
@@ -115,6 +122,9 @@ export function TemplateDetailModal({
               <Thumbnail
                 gradient={current.gradient}
                 src={current.screenshotUrl}
+                previewUrl={
+                  current.kind === "template" ? current.previewUrl : undefined
+                }
                 label={current.title}
                 className="absolute inset-0 h-full w-full rounded-none"
               />
@@ -147,10 +157,11 @@ export function TemplateDetailModal({
                 <div className="flex flex-wrap gap-1.5">
                   <InfoPill>
                     {current.kind === "template"
-                      ? "Editable template"
+                      ? "Hosted template"
                       : "Reference example"}
                   </InfoPill>
                   <InfoPill>{previewLabel}</InfoPill>
+                  {hasDownload && <InfoPill>Download ready</InfoPill>}
                   <InfoPill>{current.tech.framework}</InfoPill>
                 </div>
                 <div className="text-muted-foreground flex items-start gap-2 text-xs">
@@ -189,17 +200,47 @@ export function TemplateDetailModal({
                     </span>
                   </div>
                 ) : null}
+                {current.versions && current.versions.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <div className="text-foreground text-xs font-medium">
+                      Available versions
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {current.versions.map((version) => (
+                        <span
+                          key={version.id}
+                          className="border-border bg-background text-muted-foreground rounded-md border px-2 py-1 text-[11px]"
+                        >
+                          {version.title}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => current.canStart && onSelect(current)}
-              disabled={!current.canStart}
-              className="bg-foreground text-background mt-6 w-full rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              {startLabel}
-            </button>
+            <div className="mt-6 space-y-2">
+              <button
+                type="button"
+                onClick={() => current.canStart && onSelect(current)}
+                disabled={!current.canStart}
+                className="bg-foreground text-background w-full rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {startLabel}
+              </button>
+              {current.downloadUrl ? (
+                <a
+                  href={current.downloadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="border-border text-muted-foreground hover:text-foreground flex w-full items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-sm font-medium transition-colors"
+                >
+                  <Download className="size-4" />
+                  Download app
+                </a>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -222,6 +263,9 @@ export function TemplateDetailModal({
                   <Thumbnail
                     gradient={other.gradient}
                     src={other.screenshotUrl}
+                    previewUrl={
+                      other.kind === "template" ? other.previewUrl : undefined
+                    }
                     label={other.title}
                     className="aspect-video w-full"
                   />

@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { useAuiState } from "@assistant-ui/react";
 import {
-  getXuluxTextFromParts,
   updateXuluxPendingUserMessage,
   updateXuluxThreadStatus,
 } from "./xulux-local-storage";
@@ -57,7 +56,17 @@ function getLatestUserText(
     const message = messages[index];
     if (message?.role !== "user") continue;
 
-    const text = getXuluxTextFromParts(message.content);
+    const text = message.content
+      .flatMap((part) => {
+        if (!part || typeof part !== "object") return [];
+        const typedPart = part as Record<string, unknown>;
+        return typedPart.type === "text" && typeof typedPart.text === "string"
+          ? [typedPart.text]
+          : [];
+      })
+      .join("\n")
+      .trim();
+
     if (text) return text;
   }
 

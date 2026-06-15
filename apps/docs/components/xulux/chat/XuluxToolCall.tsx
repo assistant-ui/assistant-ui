@@ -7,9 +7,12 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ExternalLinkIcon,
   FileCodeIcon,
   FileTextIcon,
   FolderTreeIcon,
+  InfoIcon,
+  LayoutTemplateIcon,
   LoaderIcon,
   TerminalIcon,
   type LucideIcon,
@@ -56,6 +59,48 @@ function getToolDisplay(
         icon: FileCodeIcon,
         label: isRunning ? "Reading" : "Read",
         detail: shortPath,
+      };
+    }
+    case "inspectSourceMap": {
+      const command = (args as { command?: string })?.command ?? "";
+      const preview =
+        command.length > 60 ? `${command.slice(0, 57)}...` : command;
+      return {
+        icon: TerminalIcon,
+        label: isRunning ? "Running" : "Ran",
+        detail: preview,
+      };
+    }
+    case "readSourceMapFile": {
+      const filePath = (args as { path?: string })?.path ?? "";
+      const shortPath = filePath.split("/").slice(-2).join("/");
+      return {
+        icon: FileCodeIcon,
+        label: isRunning ? "Reading" : "Read",
+        detail: shortPath,
+      };
+    }
+    case "getTemplateList":
+      return {
+        icon: LayoutTemplateIcon,
+        label: isRunning ? "Searching" : "Searched",
+        detail: "templates",
+      };
+    case "getTemplateDetails": {
+      const tid = (args as { templateId?: string })?.templateId ?? "";
+      return {
+        icon: InfoIcon,
+        label: isRunning ? "Reading" : "Read",
+        detail: tid,
+      };
+    }
+    case "openTemplatePreview": {
+      const tid = (args as { templateId?: string })?.templateId ?? "";
+      const vid = (args as { versionId?: string })?.versionId;
+      return {
+        icon: ExternalLinkIcon,
+        label: isRunning ? "Opening" : "Opened",
+        detail: vid ? `${tid}/${vid}` : tid,
       };
     }
     default:

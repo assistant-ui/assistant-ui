@@ -1,58 +1,14 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import type {
+  XuluxCanvasSnapshot,
+  XuluxStoredMessageRepository,
+  XuluxStoredThread,
+  XuluxThreadCustom,
+  XuluxThreadStatus,
+} from "./types";
 import type { SelectedTemplateContext } from "../XuluxApp";
-
-export type XuluxThreadStatus = "idle" | "running" | "interrupted";
-
-export type XuluxCanvasSnapshot = {
-  status: "empty" | "ready" | "error";
-  url: string | null;
-  source: "template" | "refresh" | null;
-  error: string | null;
-  title?: string;
-};
-
-export type XuluxStoredThread = {
-  remoteId: string;
-  externalId?: string;
-  status: "regular" | "archived";
-  title?: string;
-  custom: {
-    xuluxStatus: XuluxThreadStatus;
-    sessionId: string;
-    updatedAt: number;
-    pendingUserMessage?: string | null;
-    selectedTemplate?: SelectedTemplateContext | null;
-    canvas?: XuluxCanvasSnapshot;
-  };
-};
-
-export type XuluxStoredMessageRow = {
-  id: string;
-  parent_id: string | null;
-  format: string;
-  content: Record<string, unknown>;
-};
-
-export type XuluxStoredMessageRepository = {
-  headId?: string | null;
-  messages: XuluxStoredMessageRow[];
-};
-
-export function getXuluxTextFromParts(parts: unknown): string {
-  if (!Array.isArray(parts)) return "";
-  return parts
-    .flatMap((part) => {
-      if (!part || typeof part !== "object") return [];
-      const typedPart = part as Record<string, unknown>;
-      return typedPart.type === "text" && typeof typedPart.text === "string"
-        ? [typedPart.text]
-        : [];
-    })
-    .join("\n")
-    .trim();
-}
 
 const PREFIX = "xulux:";
 const THREADS_KEY = `${PREFIX}threads`;
@@ -172,33 +128,21 @@ export function findXuluxThread(remoteId: string): XuluxStoredThread | null {
   );
 }
 
-export function upsertXuluxThread(
-  remoteId: string,
-  updater: (thread: XuluxStoredThread | null) => XuluxStoredThread,
-) {
-  const threads = readXuluxThreads();
-  const index = threads.findIndex((thread) => thread.remoteId === remoteId);
-  const nextThread = updater(index === -1 ? null : threads[index]!);
-  writeXuluxThreads(
-    index === -1
-      ? [nextThread, ...threads]
-      : threads.map((thread, threadIndex) =>
-          threadIndex === index ? nextThread : thread,
-        ),
-  );
-}
-
 export function updateXuluxThread(
   remoteId: string,
   updater: (thread: XuluxStoredThread) => XuluxStoredThread,
 ) {
-  const thread = findXuluxThread(remoteId);
-  if (thread) upsertXuluxThread(remoteId, () => updater(thread));
+  const threads = readXuluxThreads();
+  const index = threads.findIndex((thread) => thread.remoteId === remoteId);
+  if (index === -1) return;
+  const nextThreads = [...threads];
+  nextThreads[index] = updater(threads[index]!);
+  writeXuluxThreads(nextThreads);
 }
 
-function patchXuluxThread(
+export function updateXuluxThreadCustom(
   remoteId: string,
-  patch: Partial<XuluxStoredThread["custom"]>,
+  patch: Partial<Omit<XuluxThreadCustom, "sessionId">>,
 ) {
   updateXuluxThread(remoteId, (thread) => ({
     ...thread,
@@ -214,34 +158,33 @@ export function updateXuluxThreadStatus(
   remoteId: string,
   status: XuluxThreadStatus,
 ) {
-  patchXuluxThread(remoteId, { xuluxStatus: status });
+  updateXuluxThreadCustom(remoteId, { xuluxStatus: status });
 }
 
 export function updateXuluxPendingUserMessage(
   remoteId: string,
   pendingUserMessage: string | null,
 ) {
-  upsertXuluxThread(remoteId, (thread) =>
-    thread
-      ? {
-          ...thread,
-          custom: {
-            ...thread.custom,
-            pendingUserMessage,
-            updatedAt: Date.now(),
-          },
-        }
-      : {
-          remoteId,
-          status: "regular",
-          custom: {
-            xuluxStatus: pendingUserMessage ? "running" : "idle",
-            sessionId: remoteId,
-            updatedAt: Date.now(),
-            pendingUserMessage,
-          },
+  const threads = readXuluxThreads();
+  const index = threads.findIndex((thread) => thread.remoteId === remoteId);
+  if (index === -1) {
+    writeXuluxThreads([
+      {
+        remoteId,
+        status: "regular",
+        custom: {
+          xuluxStatus: pendingUserMessage ? "running" : "idle",
+          sessionId: remoteId,
+          updatedAt: Date.now(),
+          pendingUserMessage,
         },
-  );
+      },
+      ...threads,
+    ]);
+    return;
+  }
+
+  updateXuluxThreadCustom(remoteId, { pendingUserMessage });
 }
 
 export function updateXuluxThreadContext(
@@ -251,7 +194,7 @@ export function updateXuluxThreadContext(
     canvas?: XuluxCanvasSnapshot;
   },
 ) {
-  patchXuluxThread(remoteId, context);
+  updateXuluxThreadCustom(remoteId, context);
 }
 
 export function useXuluxStoredThreads() {

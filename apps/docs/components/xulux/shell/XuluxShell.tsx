@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { Button } from "@/components/ui/button";
@@ -9,18 +10,17 @@ import type { XuluxTemplate } from "../templates/types";
 import type { SelectedTemplateContext } from "../XuluxApp";
 import { XuluxCanvas } from "../canvas/XuluxCanvas";
 import { XuluxCanvasObserver } from "../canvas/XuluxCanvasObserver";
+import { XuluxTemplatePreviewObserver } from "../canvas/XuluxTemplatePreviewObserver";
 import { XuluxLandingPage } from "../landing/XuluxLandingPage";
 import { TemplatesModal } from "../landing/TemplatesModal";
 import { XuluxHeaderActions } from "./XuluxHeaderActions";
 import {
-  getXuluxTextFromParts,
   readXuluxMessages,
   updateXuluxPendingUserMessage,
   updateXuluxThreadContext,
   useXuluxStoredThreads,
-  type XuluxCanvasSnapshot,
-  type XuluxStoredThread,
 } from "../runtime/xulux-local-storage";
+import type { XuluxCanvasSnapshot, XuluxStoredThread } from "../runtime/types";
 
 const ASSISTANT_UI_REPO_URL = "https://github.com/assistant-ui/assistant-ui";
 
@@ -30,6 +30,10 @@ type CanvasState = {
   url: string | null;
   source: "template" | "refresh" | null;
   error: string | null;
+  downloadUrl?: string;
+  templateId?: string;
+  versionId?: string;
+  title?: string;
 };
 
 export function XuluxShell({
@@ -87,6 +91,10 @@ export function XuluxShell({
         url: template.previewUrl ?? null,
         source: template.previewUrl ? "template" : null,
         error: null,
+        ...(template.downloadUrl ? { downloadUrl: template.downloadUrl } : {}),
+        ...(template.templateId ? { templateId: template.templateId } : {}),
+        ...(template.versionId ? { versionId: template.versionId } : {}),
+        title: template.title,
       });
       setTemplatesOpen(false);
       setViewMode(template.previewUrl ? "preview" : "chat");
@@ -157,6 +165,7 @@ export function XuluxShell({
     (selectedTemplate || selectedTemplateContext)
       ? getTemplateSourceUrl(selectedTemplate ?? selectedTemplateContext!)
       : undefined;
+  const canvasTitle = canvas.title ?? selectedTemplate?.title;
 
   return (
     <div className="bg-background text-foreground flex h-full min-h-0 flex-col overflow-hidden">
@@ -175,8 +184,30 @@ export function XuluxShell({
           setViewMode("preview");
         }}
       />
+      <XuluxTemplatePreviewObserver
+        onTemplatePreviewReady={(preview) => {
+          setCanvas({
+            status: "ready",
+            url: preview.previewUrl,
+            source: "template",
+            error: null,
+            downloadUrl: preview.downloadUrl,
+            templateId: preview.templateId,
+            ...(preview.versionId !== undefined
+              ? { versionId: preview.versionId }
+              : {}),
+            title: preview.title,
+          });
+          setViewMode("preview");
+        }}
+        onCanvasError={(error) => {
+          setCanvas({ status: "error", url: null, source: null, error });
+          setViewMode("preview");
+        }}
+      />
 
       <XuluxHeaderActions
+        visible
         showChatActions={viewMode !== "landing"}
         onNewChat={handleNewChat}
         onShowTemplates={() => setTemplatesOpen(true)}
@@ -188,14 +219,16 @@ export function XuluxShell({
           onStartChat={handleStartChat}
           onSelectTemplate={handleSelectTemplate}
         />
-      ) : (
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <section
-            className={
-              viewMode === "preview"
-                ? "flex w-[40%] min-w-[320px] flex-col border-r"
-                : "flex flex-1 flex-col"
-            }
+      ) : viewMode === "preview" ? (
+        <Group
+          orientation="horizontal"
+          className="min-h-0 flex-1 overflow-hidden"
+        >
+          <Panel
+            defaultSize="30%"
+            minSize="20%"
+            maxSize="55%"
+            className="flex h-full flex-col overflow-hidden border-r"
           >
             {isInterrupted && (
               <InterruptedRunBanner
@@ -204,23 +237,34 @@ export function XuluxShell({
               />
             )}
             <XuluxThread onNewThread={handleNewChat} />
-          </section>
-
-          {viewMode === "preview" && (
-            <main className="min-w-0 flex-1">
-              <XuluxCanvas
-                sessionId={sessionId}
-                status={canvas.status}
-                previewUrl={canvas.url}
-                source={canvas.source}
-                error={canvas.error}
-                {...(sourceUrl ? { sourceUrl } : {})}
-                {...(selectedTemplate?.title
-                  ? { title: selectedTemplate.title }
-                  : {})}
+          </Panel>
+          <Separator className="bg-border hover:bg-primary/30 w-1 cursor-col-resize transition-colors" />
+          <Panel className="h-full overflow-hidden">
+            <XuluxCanvas
+              sessionId={sessionId}
+              status={canvas.status}
+              previewUrl={canvas.url}
+              source={canvas.source}
+              error={canvas.error}
+              {...(canvas.downloadUrl
+                ? { downloadUrl: canvas.downloadUrl }
+                : {})}
+              {...(sourceUrl ? { sourceUrl } : {})}
+              {...(canvasTitle ? { title: canvasTitle } : {})}
+            />
+          </Panel>
+        </Group>
+      ) : (
+        <div className="flex min-h-0 flex-1 justify-center overflow-hidden">
+          <section className="flex w-full max-w-3xl flex-col">
+            {isInterrupted && (
+              <InterruptedRunBanner
+                lastUserMessage={interruptedUserMessage}
+                onRetry={handleRetryInterrupted}
               />
-            </main>
-          )}
+            )}
+            <XuluxThread onNewThread={handleNewChat} />
+          </section>
         </div>
       )}
 
@@ -244,6 +288,10 @@ function toSelectedTemplateContext(
     prompt: template.prompt,
     ...(template.sourcePath ? { sourcePath: template.sourcePath } : {}),
     ...(template.docsUrl ? { docsUrl: template.docsUrl } : {}),
+    ...(template.templateId ? { templateId: template.templateId } : {}),
+    ...(template.versionId ? { versionId: template.versionId } : {}),
+    ...(template.previewUrl ? { previewUrl: template.previewUrl } : {}),
+    ...(template.downloadUrl ? { downloadUrl: template.downloadUrl } : {}),
   };
 }
 
@@ -264,6 +312,9 @@ function toCanvasSnapshot(
     url: canvas.url,
     source: canvas.source,
     error: canvas.error,
+    ...(canvas.downloadUrl ? { downloadUrl: canvas.downloadUrl } : {}),
+    ...(canvas.templateId ? { templateId: canvas.templateId } : {}),
+    ...(canvas.versionId ? { versionId: canvas.versionId } : {}),
     ...(title ? { title } : {}),
   };
 }
@@ -279,6 +330,10 @@ function fromCanvasSnapshot(
     url: snapshot.url,
     source: snapshot.source,
     error: snapshot.error,
+    ...(snapshot.downloadUrl ? { downloadUrl: snapshot.downloadUrl } : {}),
+    ...(snapshot.templateId ? { templateId: snapshot.templateId } : {}),
+    ...(snapshot.versionId ? { versionId: snapshot.versionId } : {}),
+    ...(snapshot.title ? { title: snapshot.title } : {}),
   };
 }
 
@@ -289,10 +344,26 @@ function getLatestSavedUserMessage(remoteId: string): string | null {
     if (row?.format !== "ai-sdk/v6") continue;
     if (row.content.role !== "user") continue;
 
-    const text = getXuluxTextFromParts(row.content.parts);
+    const text = getTextFromMessageContent(row.content);
     if (text) return text;
   }
   return null;
+}
+
+function getTextFromMessageContent(content: Record<string, unknown>): string {
+  const parts = content.parts;
+  if (!Array.isArray(parts)) return "";
+
+  return parts
+    .flatMap((part) => {
+      if (!part || typeof part !== "object") return [];
+      const typedPart = part as Record<string, unknown>;
+      return typedPart.type === "text" && typeof typedPart.text === "string"
+        ? [typedPart.text]
+        : [];
+    })
+    .join("\n")
+    .trim();
 }
 
 function previewText(text: string): string {

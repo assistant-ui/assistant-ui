@@ -117,6 +117,11 @@ export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
                 <Thumbnail
                   gradient={template.gradient}
                   src={template.screenshotUrl}
+                  previewUrl={
+                    template.kind === "template"
+                      ? template.previewUrl
+                      : undefined
+                  }
                   label={template.title}
                   className="aspect-video w-full"
                 />

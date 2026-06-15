@@ -24,6 +24,7 @@ export function XuluxCanvas({
   previewUrl,
   source,
   error,
+  downloadUrl,
   sourceUrl,
   title,
 }: {
@@ -32,6 +33,7 @@ export function XuluxCanvas({
   previewUrl: string | null;
   source: "template" | "refresh" | null;
   error: string | null;
+  downloadUrl?: string;
   sourceUrl?: string;
   title?: string;
 }) {
@@ -39,7 +41,8 @@ export function XuluxCanvas({
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [iframeVersion, setIframeVersion] = useState(0);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const canDownload = source === "refresh" && status === "ready";
+  const canDownloadTemplate = Boolean(downloadUrl) && status === "ready";
+  const canDownloadSandbox = source === "refresh" && status === "ready";
   const canOpenSource =
     source === "template" && status === "ready" && sourceUrl;
   const resolvedPreviewUrl = toAbsoluteUrl(previewUrl);
@@ -128,7 +131,21 @@ export function XuluxCanvas({
               <span className="sr-only">Refresh preview</span>
             </Button>
           )}
-          {canDownload && (
+          {canDownloadTemplate && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 px-2.5 text-xs"
+              asChild
+            >
+              <a href={downloadUrl} target="_blank" rel="noreferrer">
+                <Download className="size-3.5" />
+                <span className="hidden sm:inline">Download</span>
+              </a>
+            </Button>
+          )}
+          {canDownloadSandbox && (
             <Button
               type="button"
               variant="ghost"
