@@ -151,12 +151,18 @@ importers:
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
+      '@assistant-ui/react-o11y':
+        specifier: workspace:*
+        version: link:../../packages/react-o11y
       '@assistant-ui/react-streamdown':
         specifier: workspace:*
         version: link:../../packages/react-streamdown
       '@assistant-ui/react-syntax-highlighter':
         specifier: workspace:*
         version: link:../../packages/react-syntax-highlighter
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../../packages/store
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui

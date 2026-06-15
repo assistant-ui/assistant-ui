@@ -4,6 +4,13 @@ description: Headless primitives for visualizing observability spans (traces, wa
 platforms: ["react"]
 ---
 
+import { WaterfallSample } from "@/components/docs/samples/o11y/waterfall";
+import {
+  StatusSample,
+  CollapseSample,
+  StreamingSample,
+} from "@/components/docs/samples/o11y/capability-samples";
+
 <Callout type="warn">
 `@assistant-ui/react-o11y` is currently v0.0.11 and experimental. The API may change without notice.
 </Callout>
@@ -14,6 +21,10 @@ platforms: ["react"]
 - **Composable** — Radix-style primitive parts you fully control.
 - **Tree-aware** — Automatic depth, parent / child collapse, time range computation.
 - **Reactive** — Built on the same reactive core as the runtimes, so spans stream into your UI as they change.
+
+<div className="not-prose my-6">
+  <WaterfallSample />
+</div>
 
 ## Installation
 
@@ -43,13 +54,12 @@ function SpanRow() {
       <SpanPrimitive.StatusIndicator className="size-2 rounded-full data-[span-status=running]:bg-yellow-500 data-[span-status=completed]:bg-green-500 data-[span-status=failed]:bg-red-500" />
       <SpanPrimitive.TypeBadge className="rounded bg-muted px-1.5 text-xs" />
       <SpanPrimitive.Name className="text-sm" />
-      <SpanPrimitive.Children components={{ Span: SpanRow }} />
     </SpanPrimitive.Root>
   );
 }
 
 export function TraceView({ spans }: { spans: SpanData[] }) {
-  const aui = useAui({ resource: SpanResource({ spans }) });
+  const aui = useAui({ span: SpanResource({ spans }) });
 
   return (
     <AuiProvider value={aui}>
@@ -61,6 +71,32 @@ export function TraceView({ spans }: { spans: SpanData[] }) {
 
 `SpanData` is the input shape your code produces (see [SpanData](#spandata)). `SpanResource` enriches it with depth, child counts, time range, and collapse state.
 
+## Examples
+
+### Status states
+
+`data-span-status` exposes each span's lifecycle, so running, completed, failed, and skipped are styled with pure CSS.
+
+<div className="not-prose my-6">
+  <StatusSample />
+</div>
+
+### Collapsible subtrees
+
+`SpanPrimitive.CollapseToggle` removes a span's descendants from the visible flat list, not just hides them. Click a chevron to collapse a subtree.
+
+<div className="not-prose my-6">
+  <CollapseSample />
+</div>
+
+### Streaming spans
+
+`SpanResource` re-derives the tree whenever the `spans` prop changes, so spans stream in and update live.
+
+<div className="not-prose my-6">
+  <StreamingSample />
+</div>
+
 ## Anatomy
 
 ```tsx
@@ -71,7 +107,7 @@ import {
 } from "@assistant-ui/react-o11y";
 
 // Top-level: mount SpanResource via useAui
-const aui = useAui({ resource: SpanResource({ spans }) });
+const aui = useAui({ span: SpanResource({ spans }) });
 
 <AuiProvider value={aui}>
   {/* Render visible spans (flat-list output respecting collapsed state) */}
@@ -104,7 +140,7 @@ Resource that ingests raw span data and exposes a tree-aware reactive state to p
 SpanResource({ spans }: { spans: SpanData[] }): ClientOutput<"span">;
 ```
 
-Mount through `useAui({ resource: SpanResource({ spans }) })`.
+Mount through `useAui({ span: SpanResource({ spans }) })`.
 
 The resource computes:
 

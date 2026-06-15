@@ -63,6 +63,13 @@ export const PRODUCTS: Product[] = [
     description: "Activity heatmap graph components",
     external: false,
   },
+  {
+    slug: "react-o11y",
+    label: "react-o11y",
+    href: "/react-o11y",
+    description: "Observability span primitives",
+    external: false,
+  },
 ];
 
 /** Internal products/pages that have sub-project routes (used by SubProjectLayout switcher). */
