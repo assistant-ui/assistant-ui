@@ -25,13 +25,15 @@ if (isDev && pkg.scripts?.start) onSuccess = pkg.scripts.start;
 // routes to tap inside a resource render), so "react/jsx-runtime" and
 // "react-dom" are untouched.
 //
-// Only applied to packages that actually depend on `@assistant-ui/tap` (so the
-// remapped `@assistant-ui/tap/react-shim` specifier resolves for consumers).
-// `@assistant-ui/tap` itself naturally falls out — it doesn't depend on itself,
-// so it keeps the real react that its react-shim re-exports.
-const remapReactToShim = ["dependencies", "peerDependencies"].some(
+// Applied to packages that actually depend on `@assistant-ui/tap` (so the
+// remapped `@assistant-ui/tap/react-shim` specifier resolves for consumers) and
+// to `@assistant-ui/tap` itself so its React-facing hooks can share the same
+// React 18 compatibility shim.
+const dependsOnTap = ["dependencies", "peerDependencies"].some(
   (field) => pkg[field]?.["@assistant-ui/tap"],
 );
+const isTapPackage = pkg.name === "@assistant-ui/tap";
+const remapReactToShim = dependsOnTap || isTapPackage;
 
 await build({
   entry: [
@@ -60,12 +62,12 @@ await build({
   sourcemap: true,
   watch: isDev,
   ...(onSuccess ? { onSuccess } : {}),
-  // React Compiler shares the remap gate: compiled output's memo cache only
+  // React Compiler shares the dependency gate: compiled output's memo cache only
   // works inside tap renders through the shimmed `react/compiler-runtime`, and
   // tap itself (which implements the hooks the compiler output runs on) must
   // never be compiled.
   plugins: [
-    ...(remapReactToShim ? [reactCompiler()] : []),
+    ...(dependsOnTap ? [reactCompiler()] : []),
     preserveReferenceDirectives(),
   ],
 });
@@ -73,13 +75,21 @@ await build({
 // `output.paths` rewrites the `react` specifier in BOTH the emitted JS and the
 // declarations. Only the runtime (.js) should route through the shim; declared
 // types should reference real `react` (so published `.d.ts` stay clean and the
-// shim isn't an editor auto-import source). Revert the specifier in dist `.d.ts`.
+// shim isn't an editor auto-import source). When building tap itself, the
+// runtime shim files must also keep importing real `react` to avoid self-routing.
 if (remapReactToShim && !isDev && existsSync("dist")) {
   for (const rel of readdirSync("dist", {
     recursive: true,
     encoding: "utf8",
   })) {
-    if (typeof rel !== "string" || !rel.endsWith(".d.ts")) continue;
+    if (typeof rel !== "string") continue;
+
+    const isDeclaration = rel.endsWith(".d.ts");
+    const isTapShimRuntime =
+      isTapPackage && rel.startsWith("react-shim/") && rel.endsWith(".js");
+
+    if (!isDeclaration && !isTapShimRuntime) continue;
+
     const file = resolve("dist", rel);
     const src = readFileSync(file, "utf8");
     const out = src

@@ -15,6 +15,7 @@ import {
   attachDefaultValueToContext,
   isReadableTapContext,
 } from "../core/context";
+import { useReactEffectEvent } from "./useReactEffectEvent";
 
 // @ts-expect-error -- @types/react uses `export =`; this is valid at runtime.
 export * from "react";
@@ -54,11 +55,8 @@ export const useLayoutEffect = (effect: any, deps?: any) =>
     ? hooks.useEffect(effect, deps)
     : ReactRuntime.useLayoutEffect(effect, deps);
 
-// The non-tap fallback requires a React version that provides useEffectEvent.
 export const useEffectEvent = (callback: any) =>
-  inTap()
-    ? hooks.useEffectEvent(callback)
-    : ReactRuntime.useEffectEvent(callback);
+  inTap() ? hooks.useEffectEvent(callback) : useReactEffectEvent(callback);
 
 export const useSyncExternalStore = (
   subscribe: any,
