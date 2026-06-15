@@ -70,6 +70,19 @@ type UsageBudgetStore = {
   ) => Promise<void>;
 };
 
+function pruneStaleMemoryDailyKeys(
+  dailySpent: Map<string, number>,
+  dailySessions: Map<string, Set<string>>,
+  currentDate: string,
+) {
+  for (const key of dailySpent.keys()) {
+    if (!key.endsWith(`:${currentDate}`)) dailySpent.delete(key);
+  }
+  for (const key of dailySessions.keys()) {
+    if (!key.endsWith(`:${currentDate}`)) dailySessions.delete(key);
+  }
+}
+
 function createMemoryStore(): UsageBudgetStore {
   const turns = new Map<string, number>();
   const sessionSpent = new Map<string, number>();
@@ -79,6 +92,7 @@ function createMemoryStore(): UsageBudgetStore {
 
   return {
     async loadSnapshot(sessionId, distinctId, date) {
+      pruneStaleMemoryDailyKeys(dailySpent, dailySessions, date);
       const sessionTurns = turns.get(sessionId) ?? 0;
       return {
         sessionTurns,
@@ -190,11 +204,25 @@ async function getStore(): Promise<UsageBudgetStore | null> {
   }
 
   storePromise ??= (async () => {
-    const { Redis } = await import("@upstash/redis");
-    return createRedisStore(Redis.fromEnv());
+    try {
+      const { Redis } = await import("@upstash/redis");
+      return createRedisStore(Redis.fromEnv());
+    } catch (error) {
+      console.error(
+        "[usage-budget] Redis init failed; using memory store",
+        error,
+      );
+      memoryStore ??= createMemoryStore();
+      return memoryStore;
+    }
   })();
   return storePromise;
 }
+
+export type BeginTurnResult = {
+  denied: Response | null;
+  budgetDate: string;
+};
 
 function denyResponse(code: BudgetDenyCode): Response {
   const limits = getBudgetLimits();
@@ -207,25 +235,29 @@ function denyResponse(code: BudgetDenyCode): Response {
 export async function beginTurn(
   sessionId: string,
   distinctId: string,
-): Promise<Response | null> {
+): Promise<BeginTurnResult> {
+  const budgetDate = utcDateKey();
   const store = await getStore();
-  if (!store) return null;
+  if (!store) return { denied: null, budgetDate };
 
   const limits = getBudgetLimits();
-  const date = utcDateKey();
-  const snap = await store.loadSnapshot(sessionId, distinctId, date);
+  const snap = await store.loadSnapshot(sessionId, distinctId, budgetDate);
   const deny = evaluateBudget(snap, limits);
-  if (deny) return denyResponse(deny);
+  if (deny) return { denied: denyResponse(deny), budgetDate };
 
   if (snap.isNewSession) {
-    const chatCount = await store.registerChat(sessionId, distinctId, date);
+    const chatCount = await store.registerChat(
+      sessionId,
+      distinctId,
+      budgetDate,
+    );
     if (chatCount > limits.maxChatsPerDay) {
-      return denyResponse("DAILY_CHAT_LIMIT");
+      return { denied: denyResponse("DAILY_CHAT_LIMIT"), budgetDate };
     }
   }
 
   await store.incrementTurn(sessionId);
-  return null;
+  return { denied: null, budgetDate };
 }
 
 export async function finishTurn(
@@ -233,12 +265,13 @@ export async function finishTurn(
   distinctId: string,
   usage: TokenUsage,
   modelId?: string,
+  budgetDate = utcDateKey(),
 ): Promise<void> {
   const store = await getStore();
   if (!store) return;
 
   const microUsd = estimateMicroUsd(usage, modelId);
-  await store.addSpend(sessionId, distinctId, utcDateKey(), microUsd);
+  await store.addSpend(sessionId, distinctId, budgetDate, microUsd);
 }
 
 /** @internal Test-only memory store for integration checks. */

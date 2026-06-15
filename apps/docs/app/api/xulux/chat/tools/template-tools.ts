@@ -2,10 +2,7 @@ import { getXuluxHostedTemplatesCatalog } from "@/lib/xulux/templates-catalog";
 import type { XuluxTemplate } from "@/components/xulux/templates/types";
 import { getDemoDownloadManifest } from "@/lib/xulux/demo-downloads/manifest";
 import { tool, zodSchema } from "ai";
-import { setDefaultResultOrder } from "node:dns";
 import z from "zod";
-
-setDefaultResultOrder("ipv4first");
 
 // ---------------------------------------------------------------------------
 // Helpers

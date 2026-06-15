@@ -18,6 +18,7 @@ import {
   readXuluxMessages,
   updateXuluxPendingUserMessage,
   updateXuluxThreadContext,
+  updateXuluxThreadStatus,
   useXuluxStoredThreads,
 } from "../runtime/xulux-local-storage";
 import type { XuluxCanvasSnapshot, XuluxStoredThread } from "../runtime/types";
@@ -145,9 +146,20 @@ export function XuluxShell({
       currentRemoteId ?? sessionId,
       interruptedUserMessage,
     );
+    updateXuluxThreadStatus(currentRemoteId ?? sessionId, "running");
     setViewMode("chat");
+
+    const messages = aui.thread().getState().messages;
+    const lastUserMessage = [...messages]
+      .reverse()
+      .find((message) => message.role === "user");
+    if (lastUserMessage) {
+      void aui.thread().startRun({ parentId: lastUserMessage.id });
+      return;
+    }
+
     askAI(interruptedUserMessage);
-  }, [askAI, currentRemoteId, interruptedUserMessage, sessionId]);
+  }, [askAI, aui, currentRemoteId, interruptedUserMessage, sessionId]);
 
   useEffect(() => {
     if (!currentRemoteId) return;

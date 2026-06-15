@@ -72,6 +72,8 @@ function XuluxRuntimeProvider({
 }) {
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
+  const selectedTemplateContextRef = useRef(selectedTemplateContext);
+  selectedTemplateContextRef.current = selectedTemplateContext;
   const [limitBlock, setLimitBlock] = useState<XuluxLimitBlock | null>(null);
 
   useEffect(() => {
@@ -91,8 +93,12 @@ function XuluxRuntimeProvider({
       new AssistantChatTransport({
         api: "/api/xulux/chat",
         body: {
-          sessionId,
-          selectedTemplate: selectedTemplateContext,
+          get sessionId() {
+            return sessionIdRef.current;
+          },
+          get selectedTemplate() {
+            return selectedTemplateContextRef.current;
+          },
         },
         fetch: async (input, init) => {
           const res = await fetch(input, init);
@@ -107,7 +113,7 @@ function XuluxRuntimeProvider({
           return res;
         },
       }),
-    [sessionId, selectedTemplateContext],
+    [],
   );
 
   const runtime = useRemoteThreadListRuntime({

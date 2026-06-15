@@ -286,8 +286,9 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     const distinctId = getDistinctId(req);
-    const budgetDenied = await beginTurn(sessionId.trim(), distinctId);
-    if (budgetDenied) return budgetDenied;
+    const budget = await beginTurn(sessionId.trim(), distinctId);
+    if (budget.denied) return budget.denied;
+    const budgetDate = budget.budgetDate;
 
     const isFirstUserTurn =
       prunedMessages.filter((m) => m.role === "user").length === 1 &&
@@ -368,7 +369,13 @@ export async function POST(req: Request): Promise<Response> {
       stopWhen: stepCountIs(50),
       tools: xuluxTools,
       onFinish: async ({ usage, response }) => {
-        await finishTurn(sessionId.trim(), distinctId, usage, response.modelId);
+        await finishTurn(
+          sessionId.trim(),
+          distinctId,
+          usage,
+          response.modelId,
+          budgetDate,
+        );
         await prism?.end();
       },
       onError: async ({ error }) => {

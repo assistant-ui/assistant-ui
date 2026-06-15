@@ -6,8 +6,10 @@ export function createZip(files: ZipFileMap) {
   const localParts: Buffer[] = [];
   const centralParts: Buffer[] = [];
   let offset = 0;
+  let entryCount = 0;
 
   for (const [rawName, rawContents] of Object.entries(files).sort()) {
+    entryCount += 1;
     const name = normalizeZipPath(rawName);
     const nameBytes = Buffer.from(encoder.encode(name));
     const contents =
@@ -59,8 +61,8 @@ export function createZip(files: ZipFileMap) {
   end.writeUInt32LE(0x06054b50, 0);
   end.writeUInt16LE(0, 4);
   end.writeUInt16LE(0, 6);
-  end.writeUInt16LE(Object.keys(files).length, 8);
-  end.writeUInt16LE(Object.keys(files).length, 10);
+  end.writeUInt16LE(entryCount, 8);
+  end.writeUInt16LE(entryCount, 10);
   end.writeUInt32LE(centralDirectory.length, 12);
   end.writeUInt32LE(offset, 16);
   end.writeUInt16LE(0, 20);

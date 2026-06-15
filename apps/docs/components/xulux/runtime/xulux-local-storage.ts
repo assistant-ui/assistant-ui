@@ -40,16 +40,24 @@ function readJson<T>(key: string, fallback: T): T {
 
 function writeJson<T>(key: string, value: T) {
   if (!isBrowser()) return;
-  const nextRaw = JSON.stringify(value);
-  if (window.localStorage.getItem(key) === nextRaw) return;
-  window.localStorage.setItem(key, nextRaw);
-  notify();
+  try {
+    const nextRaw = JSON.stringify(value);
+    if (window.localStorage.getItem(key) === nextRaw) return;
+    window.localStorage.setItem(key, nextRaw);
+    notify();
+  } catch {
+    // Ignore quota and private-mode write failures.
+  }
 }
 
 function removeItem(key: string) {
   if (!isBrowser()) return;
-  window.localStorage.removeItem(key);
-  notify();
+  try {
+    window.localStorage.removeItem(key);
+    notify();
+  } catch {
+    // Ignore storage failures.
+  }
 }
 
 function messagesKey(remoteId: string) {
@@ -57,11 +65,15 @@ function messagesKey(remoteId: string) {
 }
 
 function normalizeThread(thread: XuluxStoredThread): XuluxStoredThread {
-  if (thread.custom.xuluxStatus !== "running") return thread;
+  const status = thread.custom?.xuluxStatus;
+  if (status !== "running") return thread;
   return {
     ...thread,
     custom: {
-      ...thread.custom,
+      ...(thread.custom ?? {
+        sessionId: thread.remoteId,
+        updatedAt: Date.now(),
+      }),
       xuluxStatus: "interrupted",
       updatedAt: Date.now(),
     },
@@ -147,7 +159,11 @@ export function updateXuluxThreadCustom(
   updateXuluxThread(remoteId, (thread) => ({
     ...thread,
     custom: {
-      ...thread.custom,
+      ...(thread.custom ?? {
+        sessionId: remoteId,
+        xuluxStatus: "idle",
+        updatedAt: Date.now(),
+      }),
       ...patch,
       updatedAt: Date.now(),
     },
