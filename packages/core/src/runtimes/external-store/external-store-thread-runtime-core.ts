@@ -180,6 +180,11 @@ export class ExternalStoreThreadRuntimeCore
       }
 
       if (oldStore && oldStore.messageRepository === store.messageRepository) {
+        this.repository.resetHead(
+          store.messageRepository.headId ??
+            store.messageRepository.messages.at(-1)?.message.id ??
+            null,
+        );
         messages = this.repository.getMessages();
       } else {
         const incoming = store.messageRepository.messages;
