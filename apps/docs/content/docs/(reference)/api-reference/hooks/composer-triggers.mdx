@@ -3,7 +3,7 @@ title: Composer Trigger Hooks
 description: Unstable assistant-ui hooks for mention menus, slash commands, and custom composer trigger popovers.
 ---
 
-import { unstable_useMentionAdapter, unstable_useSlashCommandAdapter } from "@/generated/typeDocs";
+import { unstable_useLiveCompletionAdapter, unstable_useMentionAdapter, unstable_useSlashCommandAdapter } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -13,6 +13,37 @@ import { unstable_useMentionAdapter, unstable_useSlashCommandAdapter } from "@/g
 {/* Do not edit this block manually. */}
 
 ## API Reference
+
+### unstable_useLiveCompletionAdapter
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Under active development and may change without notice.
+</Callout>
+
+Bridges an async completion source (a server search, a gateway RPC) into the
+synchronous `Unstable_TriggerAdapter` that `ComposerTriggerPopover` consumes.
+`search(query)` returns the last fetched items synchronously and schedules a
+debounced fetch when the query changes; when results arrive the returned
+`adapter` identity changes, which re-runs the popover's lookup so the fresh
+items render. This is a search-only adapter (`categories` are empty).
+
+`isLoading` is `true` while a fetch is in flight. Pass it to the popover's
+`isLoading` prop to render a loading state.
+
+```tsx
+const mentions = unstable_useLiveCompletionAdapter({
+  fetcher: (query) => searchUsers(query),
+});
+
+<ComposerTriggerPopover
+  char="@"
+  adapter={mentions.adapter}
+  isLoading={mentions.isLoading}
+  directive={{ onInserted }}
+/>
+```
+
+<ParametersTable {...unstable_useLiveCompletionAdapter} />
 
 ### unstable_useMentionAdapter
 
