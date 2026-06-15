@@ -107,6 +107,9 @@ export function unstable_useLiveCompletionAdapter(
     pendingQueryRef.current = null;
     tokenRef.current += 1;
     setIsLoading(false);
+    setState((s) =>
+      s.query === NO_QUERY ? s : { query: NO_QUERY, items: [] },
+    );
   }, [enabled, cancelTimer]);
 
   useEffect(() => cancelTimer, [cancelTimer]);
@@ -116,7 +119,9 @@ export function unstable_useLiveCompletionAdapter(
       categories: () => [],
       categoryItems: () => [],
       search: (query: string) => {
-        if (query !== state.query) scheduleFetch(query);
+        // search() runs inside the popover's render; defer the fetch so its
+        // state updates are not dispatched while another component renders.
+        if (query !== state.query) queueMicrotask(() => scheduleFetch(query));
         return state.items;
       },
     }),

@@ -27,15 +27,15 @@ describe("unstable_useLiveCompletionAdapter", () => {
     );
 
     let returned: readonly Unstable_TriggerItem[] = [];
-    act(() => {
+    await act(async () => {
       returned = result.current.adapter.search!("ab");
     });
     expect(returned).toEqual([]);
     expect(result.current.isLoading).toBe(true);
     expect(fetcher).not.toHaveBeenCalled();
 
-    act(() => {
-      vi.advanceTimersByTime(50);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
     });
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(fetcher).toHaveBeenCalledWith("ab");
@@ -48,23 +48,45 @@ describe("unstable_useLiveCompletionAdapter", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it("does not fetch when disabled", () => {
-    const fetcher = vi.fn(async () => [item("a")]);
+  it("defers its state update out of search() so it is safe to call during render", () => {
+    const fetcher = vi.fn(async () => []);
     const { result } = renderHook(() =>
-      unstable_useLiveCompletionAdapter({
-        fetcher,
-        enabled: false,
-        debounceMs: 0,
-      }),
+      unstable_useLiveCompletionAdapter({ fetcher, debounceMs: 0 }),
     );
 
-    act(() => {
+    const returned = result.current.adapter.search!("ab");
+    expect(returned).toEqual([]);
+    // the fetch (and its setIsLoading) is queued, not run synchronously
+    expect(result.current.isLoading).toBe(false);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("does not fetch when disabled and clears cached items", async () => {
+    const fetcher = vi.fn(async () => [item("a")]);
+    const { result, rerender } = renderHook(
+      ({ enabled }) =>
+        unstable_useLiveCompletionAdapter({ fetcher, enabled, debounceMs: 0 }),
+      { initialProps: { enabled: true } },
+    );
+
+    await act(async () => {
       result.current.adapter.search!("ab");
-      vi.advanceTimersByTime(100);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.adapter.search!("ab")).toEqual([item("a")]);
+
+    fetcher.mockClear();
+    await act(async () => {
+      rerender({ enabled: false });
+    });
+    expect(result.current.adapter.search!("ab")).toEqual([]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
     });
     expect(fetcher).not.toHaveBeenCalled();
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.adapter.search!("ab")).toEqual([]);
   });
 
   it("drops a stale in-flight result when the query changes", async () => {
@@ -82,14 +104,19 @@ describe("unstable_useLiveCompletionAdapter", () => {
       unstable_useLiveCompletionAdapter({ fetcher, debounceMs: 0 }),
     );
 
-    act(() => {
+    await act(async () => {
       result.current.adapter.search!("a");
-      vi.advanceTimersByTime(0);
     });
-    act(() => {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
       result.current.adapter.search!("ab");
-      vi.advanceTimersByTime(0);
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
 
     await act(async () => {
       resolvers["a"]!([item("a")]);
