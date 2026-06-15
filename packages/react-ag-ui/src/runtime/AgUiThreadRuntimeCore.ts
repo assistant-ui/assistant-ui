@@ -134,7 +134,7 @@ export class AgUiThreadRuntimeCore {
         const messages = repo.messages.map((item) => item.message);
         this.applyExternalMessages(messages);
 
-        if (repo.state) {
+        if (repo.state !== undefined) {
           this.loadExternalState(repo.state);
         }
 
