@@ -54,18 +54,19 @@ export function normalizeMathDelimiters(text: string): string {
   return rewriteLatexBracketDelimiters(rewriteCustomMathTags(text));
 }
 
-const CURRENCY_DOLLAR = /(^|[^\\$])\$(?=\d)/g;
+const CURRENCY_DOLLAR = /(^|[^\\$])((?:\\\\)*)\$(?=\d)/g;
 
 /**
  * Escapes a `$` immediately followed by a digit (`$5`, `$19.99`, `$1,299`) so that
  * remark-math with single-dollar math enabled does not consume currency amounts in
  * prose as math delimiters. A math expression almost always opens with a letter or a
  * `\command`, so a digit after `$` is treated as currency. The `$$` of display math
- * is left intact.
+ * is left intact, and an already-escaped `\$` is not escaped twice (the even run of
+ * backslashes before the `$` is preserved).
  *
  * Trade-off: an expression that genuinely opens with a digit (`$5x = 10$`) has its
  * leading `$` escaped as well. This is rare in practice.
  */
 export function escapeCurrencyDollars(text: string): string {
-  return text.replace(CURRENCY_DOLLAR, "$1\\$");
+  return text.replace(CURRENCY_DOLLAR, "$1$2\\$");
 }

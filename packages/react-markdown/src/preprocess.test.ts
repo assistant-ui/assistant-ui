@@ -73,4 +73,8 @@ describe("escapeCurrencyDollars", () => {
   it("does not double-escape an already escaped dollar", () => {
     expect(escapeCurrencyDollars("already \\$5")).toBe("already \\$5");
   });
+
+  it("escapes currency after an escaped backslash", () => {
+    expect(escapeCurrencyDollars("\\\\$5")).toBe("\\\\\\$5");
+  });
 });
