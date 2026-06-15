@@ -81,11 +81,7 @@ export function TemplateDetailModal({
                     <Thumbnail
                       gradient={current.gradient}
                       src={current.screenshotUrl}
-                      previewUrl={
-                        current.kind === "template"
-                          ? current.previewUrl
-                          : undefined
-                      }
+                      previewUrl={current.previewUrl}
                       className="absolute inset-0 h-full w-full rounded-none"
                     />
                     <div className="relative flex flex-col items-center gap-2 rounded-md bg-black/40 px-4 py-2 text-white/90 backdrop-blur-sm">
@@ -122,9 +118,7 @@ export function TemplateDetailModal({
               <Thumbnail
                 gradient={current.gradient}
                 src={current.screenshotUrl}
-                previewUrl={
-                  current.kind === "template" ? current.previewUrl : undefined
-                }
+                previewUrl={current.previewUrl}
                 label={current.title}
                 className="absolute inset-0 h-full w-full rounded-none"
               />
@@ -263,9 +257,7 @@ export function TemplateDetailModal({
                   <Thumbnail
                     gradient={other.gradient}
                     src={other.screenshotUrl}
-                    previewUrl={
-                      other.kind === "template" ? other.previewUrl : undefined
-                    }
+                    previewUrl={other.previewUrl}
                     label={other.title}
                     className="aspect-video w-full"
                   />
