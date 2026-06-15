@@ -3,16 +3,14 @@
 import { SpanPrimitive } from "@assistant-ui/react-o11y";
 import { AuiIf } from "@assistant-ui/store";
 import { WaterfallBar } from "./waterfall-bar";
-import { useWaterfallLayout } from "./waterfall-timeline";
-
-const LABEL_WIDTH = 200;
+import { LABEL_WIDTH, useWaterfallLayout } from "./waterfall-timeline";
 
 export function WaterfallRow() {
   const { barWidth, contentWidth, barHeight } = useWaterfallLayout();
 
   return (
     <SpanPrimitive.Root
-      className="group flex cursor-pointer items-center"
+      className="group flex items-center"
       style={{ width: contentWidth, height: barHeight }}
     >
       <SpanPrimitive.Indent
@@ -22,10 +20,10 @@ export function WaterfallRow() {
         style={{ width: LABEL_WIDTH, height: barHeight }}
       >
         <AuiIf condition={(s) => s.span.hasChildren}>
-          <SpanPrimitive.CollapseToggle className="text-muted-foreground hover:text-foreground flex shrink-0 items-center justify-center rounded p-0.5">
+          <SpanPrimitive.CollapseToggle className="text-muted-foreground hover:text-foreground flex shrink-0 items-center justify-center rounded p-0.5 [&_svg]:transition-transform data-[collapsed=true]:[&_svg]:-rotate-90">
             <svg
               aria-hidden="true"
-              className="size-3.5 transition-transform data-[collapsed=true]:-rotate-90"
+              className="size-3.5"
               viewBox="0 0 16 16"
               fill="currentColor"
             >

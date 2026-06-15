@@ -28,8 +28,8 @@ function TreeSpanRow() {
         className="flex w-full items-center gap-2 py-1.5 pr-2"
       >
         <AuiIf condition={(s) => s.span.hasChildren}>
-          <SpanPrimitive.CollapseToggle className="text-muted-foreground hover:text-foreground flex size-4 shrink-0 items-center justify-center rounded">
-            <ChevronRightIcon className="size-3.5 transition-transform data-[collapsed=false]:rotate-90" />
+          <SpanPrimitive.CollapseToggle className="text-muted-foreground hover:text-foreground flex size-4 shrink-0 items-center justify-center rounded [&_svg]:transition-transform data-[collapsed=false]:[&_svg]:rotate-90">
+            <ChevronRightIcon className="size-3.5" />
           </SpanPrimitive.CollapseToggle>
         </AuiIf>
         <AuiIf condition={(s) => !s.span.hasChildren}>

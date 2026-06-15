@@ -3,17 +3,11 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import type { SpanItemState } from "@assistant-ui/react-o11y";
-import { useWaterfallLayout } from "./waterfall-timeline";
-
-const TYPE_COLORS: Record<string, string> = {
-  action: "hsl(221 83% 53%)",
-  api: "hsl(262 83% 58%)",
-  tool: "hsl(142 71% 45%)",
-  flow: "hsl(25 95% 53%)",
-  pipeline: "hsl(340 75% 55%)",
-};
-
-const FALLBACK_COLOR = "hsl(220 9% 46%)";
+import {
+  FALLBACK_COLOR,
+  TYPE_COLORS,
+  useWaterfallLayout,
+} from "./waterfall-timeline";
 
 const STATUS_OPACITY: Record<SpanItemState["status"], number> = {
   running: 0.7,
@@ -54,7 +48,7 @@ export function WaterfallBar() {
     return () => cancelAnimationFrame(frameId);
   }, [status, x, scale]);
 
-  const rawWidth = endedAt ? scale(endedAt) - x : 0;
+  const rawWidth = endedAt !== null ? scale(endedAt) - x : 0;
   const width = Math.max(rawWidth, 4);
   const fill = TYPE_COLORS[type] ?? FALLBACK_COLOR;
   const opacity = STATUS_OPACITY[status];

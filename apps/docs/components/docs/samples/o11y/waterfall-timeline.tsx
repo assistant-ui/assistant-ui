@@ -13,19 +13,27 @@ import { useAuiState } from "@assistant-ui/store";
 import { SpanPrimitive, type SpanState } from "@assistant-ui/react-o11y";
 import { WaterfallRow } from "./waterfall-row";
 
-const LABEL_WIDTH = 200;
+export const LABEL_WIDTH = 200;
 const MAX_LIST_HEIGHT = 400;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 20;
 const RIGHT_PADDING_RATIO = 0.08;
+
+export const TYPE_COLORS: Record<string, string> = {
+  action: "hsl(221 83% 53%)",
+  api: "hsl(262 83% 58%)",
+  tool: "hsl(142 71% 45%)",
+  flow: "hsl(25 95% 53%)",
+  pipeline: "hsl(340 75% 55%)",
+};
+
+export const FALLBACK_COLOR = "hsl(220 9% 46%)";
 
 export type WaterfallLayoutContextValue = {
   barWidth: number;
   timeRange: { min: number; max: number };
   barHeight: number;
   contentWidth: number;
-  selectedSpanId: string | null;
-  onSelectSpan: (spanId: string) => void;
 };
 
 export const WaterfallLayoutContext =
@@ -104,8 +112,6 @@ export function WaterfallTimeline() {
     mouseX: number;
     ratio: number;
   } | null>(null);
-
-  const [selectedSpanId, setSelectedSpanId] = useState<string | null>(null);
 
   const barWidth = Math.max(200, Math.round(baseBarWidth * zoom));
 
@@ -186,10 +192,8 @@ export function WaterfallTimeline() {
       timeRange: renderTimeRange,
       barHeight: 32,
       contentWidth,
-      selectedSpanId,
-      onSelectSpan: setSelectedSpanId,
     }),
-    [barWidth, renderTimeRange, contentWidth, selectedSpanId],
+    [barWidth, renderTimeRange, contentWidth],
   );
 
   if (!hasSpans) {
@@ -226,16 +230,7 @@ export function WaterfallTimeline() {
         </div>
 
         <WaterfallLayoutContext.Provider value={layoutValue}>
-          <div
-            style={{ width: contentWidth }}
-            onClick={(e) => {
-              const target = e.target as HTMLElement;
-              const el = target.closest("[data-span-id]") as HTMLElement | null;
-              if (el?.dataset.spanId) {
-                setSelectedSpanId(el.dataset.spanId);
-              }
-            }}
-          >
+          <div style={{ width: contentWidth }}>
             <SpanPrimitive.Children>
               {() => <WaterfallRow />}
             </SpanPrimitive.Children>
@@ -244,13 +239,7 @@ export function WaterfallTimeline() {
       </div>
 
       <div className="border-border text-muted-foreground flex items-center gap-4 border-t px-3 py-2 text-xs">
-        {[
-          ["action", "hsl(221 83% 53%)"],
-          ["api", "hsl(262 83% 58%)"],
-          ["tool", "hsl(142 71% 45%)"],
-          ["flow", "hsl(25 95% 53%)"],
-          ["pipeline", "hsl(340 75% 55%)"],
-        ].map(([label, color]) => (
+        {Object.entries(TYPE_COLORS).map(([label, color]) => (
           <div key={label} className="flex items-center gap-1.5">
             <span
               className="size-2.5 rounded-sm"
