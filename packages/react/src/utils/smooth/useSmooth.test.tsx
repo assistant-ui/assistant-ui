@@ -155,4 +155,45 @@ describe("useSmooth", () => {
     expect(floored.final).toBe("0123456789");
     expect(floored.commits).toBeLessThan(everyFrame.commits);
   });
+
+  it("commits the first frame after a discontinuity without waiting out minCommitMs", () => {
+    const raf: FrameRequestCallback[] = [];
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      raf.push(cb);
+      return raf.length;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    let now = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+
+    const frame = () => {
+      if (raf.length === 0) return;
+      const cb = raf.shift()!;
+      now += 16;
+      act(() => {
+        cb(now);
+      });
+    };
+
+    const options: SmoothOptions = {
+      minCommitMs: 10000,
+      maxCharsPerFrame: 1,
+      maxCharIntervalMs: 1,
+    };
+    const { result, rerender } = renderHook(
+      (part) => useSmooth(part, options),
+      {
+        initialProps: runningState("aaaaaaaaaa"),
+      },
+    );
+
+    frame();
+    expect(result.current.text).toBe("a");
+    frame();
+    expect(result.current.text).toBe("a");
+
+    rerender(runningState("zzzzzzzzzz"));
+    frame();
+    expect(result.current.text).toBe("z");
+  });
 });
