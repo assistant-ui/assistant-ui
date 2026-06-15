@@ -10,22 +10,16 @@ import Image from "next/image";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { XuluxPoweredBy } from "../XuluxPoweredBy";
 import { XuluxToolCall } from "./XuluxToolCall";
+import { XuluxUsageLimitBanner } from "./XuluxUsageLimitBanner";
 
 const XULUX_CONTEXT_WINDOW = 400_000;
-const XULUX_DEFAULT_MODEL_ID = "gpt-5.4-low";
+const XULUX_DEFAULT_MODEL_ID = "gpt-5.4-mini";
 
 const XULUX_MODELS = [
   {
     id: "gpt-5.4-mini",
     name: "GPT-5.4 Mini",
     modelName: "gpt-5.4-mini",
-  },
-  {
-    id: "gpt-5.4-low",
-    name: "GPT-5.4 Low",
-    description: "Low reasoning",
-    modelName: "gpt-5.4",
-    reasoningEffort: "low",
   },
 ] as const;
 
@@ -39,7 +33,7 @@ export function XuluxThread({
   return (
     <AssistantThread
       welcome={<XuluxWelcome />}
-      composer={<XuluxComposer />}
+      composer={<XuluxComposer onNewThread={onNewThread} />}
       footer={
         <AssistantFooter
           onNewThread={onNewThread}
@@ -52,12 +46,19 @@ export function XuluxThread({
   );
 }
 
-function XuluxComposer(): ReactNode {
+function XuluxComposer({
+  onNewThread,
+}: {
+  onNewThread: () => void;
+}): ReactNode {
   return (
-    <AssistantComposer
-      placeholder="Ask Xulux to build or refine the UI..."
-      modelSelector={<XuluxModelSelector />}
-    />
+    <div>
+      <XuluxUsageLimitBanner onNewThread={onNewThread} />
+      <AssistantComposer
+        placeholder="Ask Xulux to build or refine the UI..."
+        modelSelector={<XuluxModelSelector />}
+      />
+    </div>
   );
 }
 

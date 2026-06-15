@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   useRemoteThreadListRuntime,
@@ -14,10 +14,25 @@ import type { XuluxTemplate } from "./templates/types";
 import { XuluxShell } from "./shell/XuluxShell";
 import { createXuluxLocalThreadListAdapter } from "./runtime/xulux-thread-list-adapter";
 import { XuluxThreadStatusObserver } from "./runtime/XuluxThreadStatusObserver";
+import {
+  parseXuluxLimitBlock,
+  XuluxUsageBudgetProvider,
+  type XuluxLimitBlock,
+} from "./chat/XuluxUsageLimitBanner";
 
 export type SelectedTemplateContext = Pick<
   XuluxTemplate,
-  "id" | "title" | "description" | "kind" | "prompt" | "sourcePath" | "docsUrl"
+  | "id"
+  | "templateId"
+  | "versionId"
+  | "title"
+  | "description"
+  | "kind"
+  | "prompt"
+  | "previewUrl"
+  | "downloadUrl"
+  | "sourcePath"
+  | "docsUrl"
 >;
 
 export function XuluxApp() {
@@ -57,6 +72,11 @@ function XuluxRuntimeProvider({
 }) {
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
+  const [limitBlock, setLimitBlock] = useState<XuluxLimitBlock | null>(null);
+
+  useEffect(() => {
+    setLimitBlock(null);
+  }, [sessionId]);
 
   const adapter = useMemo(
     () =>
@@ -66,25 +86,49 @@ function XuluxRuntimeProvider({
     [],
   );
 
+  const transport = useMemo(
+    () =>
+      new AssistantChatTransport({
+        api: "/api/xulux/chat",
+        body: {
+          sessionId,
+          selectedTemplate: selectedTemplateContext,
+        },
+        fetch: async (input, init) => {
+          const res = await fetch(input, init);
+          if (res.status === 429) {
+            const payload = await res
+              .clone()
+              .json()
+              .catch(() => null);
+            const block = parseXuluxLimitBlock(payload);
+            if (block) setLimitBlock(block);
+          }
+          return res;
+        },
+      }),
+    [sessionId, selectedTemplateContext],
+  );
+
   const runtime = useRemoteThreadListRuntime({
     adapter,
     runtimeHook: function XuluxChatRuntimeHook() {
       return useChatRuntime({
-        transport: new AssistantChatTransport({
-          api: "/api/xulux/chat",
-          body: {
-            sessionId,
-            selectedTemplate: selectedTemplateContext,
-          },
-        }),
+        transport,
+        isSendDisabled: limitBlock != null,
       });
     },
   });
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <XuluxThreadStatusObserver />
-      {children}
-    </AssistantRuntimeProvider>
+    <XuluxUsageBudgetProvider
+      limitBlock={limitBlock}
+      clearLimitBlock={() => setLimitBlock(null)}
+    >
+      <AssistantRuntimeProvider runtime={runtime}>
+        <XuluxThreadStatusObserver />
+        {children}
+      </AssistantRuntimeProvider>
+    </XuluxUsageBudgetProvider>
   );
 }
