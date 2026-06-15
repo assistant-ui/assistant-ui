@@ -1,5 +1,17 @@
 # @assistant-ui/core
 
+## 0.2.17
+
+### Patch Changes
+
+- [#4414](https://github.com/assistant-ui/assistant-ui/pull/4414) [`344f737`](https://github.com/assistant-ui/assistant-ui/commit/344f7370511f7238db17e1982f2a43a10829604c) - feat: export `fromThreadMessageLike` and `generateId` from the public API ([@okisdev](https://github.com/okisdev))
+
+  these two utilities were only reachable via `@assistant-ui/core/internal`, so materializing a `ThreadMessageLike` into a `ThreadMessage`, or generating an id for a hand-built message, meant reaching into internals (the first-party ag-ui and a2a runtimes already did). they are now exported from `@assistant-ui/core`, `@assistant-ui/react`, `@assistant-ui/react-native`, and `@assistant-ui/react-ink`. also removes the now-redundant duplicate listing of both from the unstable `INTERNAL` namespace (the one in-repo consumer, the with-ffmpeg example, now uses the public export).
+
+- [#4415](https://github.com/assistant-ui/assistant-ui/pull/4415) [`a2e21ee`](https://github.com/assistant-ui/assistant-ui/commit/a2e21ee797761907db9b7e4559da2a41afd00fc9) - perf: sync the external-store `messageRepository` incrementally instead of clear()+import() ([@okisdev](https://github.com/okisdev))
+
+  when an `ExternalStoreAdapter` drives the thread via `messageRepository`, each update tore the whole repository down (`clear()`) and rebuilt it from scratch (`import()`). it now diffs against the current repository (add or update incoming messages, delete the ones no longer present), so unchanged messages keep their existing per-message repository state instead of being recreated, and short-circuits when only `isRunning` flips on an unchanged repository reference. behavior is unchanged; this removes the teardown/rebuild churn on high-frequency streaming that previously pushed consumers to subclass the runtime core.
+
 ## 0.2.16
 
 ### Patch Changes

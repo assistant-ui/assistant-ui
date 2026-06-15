@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-opencode",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "OpenCode runtime adapter for assistant-ui",
   "keywords": [
     "opencode",

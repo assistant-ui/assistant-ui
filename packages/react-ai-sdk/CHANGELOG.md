@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.37
+
+### Patch Changes
+
+- [#4422](https://github.com/assistant-ui/assistant-ui/pull/4422) [`e100f90`](https://github.com/assistant-ui/assistant-ui/commit/e100f906489f27d5193b6c8be80a6f87c5667850) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`344f737`](https://github.com/assistant-ui/assistant-ui/commit/344f7370511f7238db17e1982f2a43a10829604c), [`a2e21ee`](https://github.com/assistant-ui/assistant-ui/commit/a2e21ee797761907db9b7e4559da2a41afd00fc9)]:
+  - @assistant-ui/core@0.2.17
+
 ## 1.3.36
 
 ### Patch Changes

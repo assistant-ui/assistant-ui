@@ -1,5 +1,24 @@
 # @assistant-ui/react
 
+## 0.14.22
+
+### Patch Changes
+
+- [#4414](https://github.com/assistant-ui/assistant-ui/pull/4414) [`344f737`](https://github.com/assistant-ui/assistant-ui/commit/344f7370511f7238db17e1982f2a43a10829604c) - feat: export `fromThreadMessageLike` and `generateId` from the public API ([@okisdev](https://github.com/okisdev))
+
+  these two utilities were only reachable via `@assistant-ui/core/internal`, so materializing a `ThreadMessageLike` into a `ThreadMessage`, or generating an id for a hand-built message, meant reaching into internals (the first-party ag-ui and a2a runtimes already did). they are now exported from `@assistant-ui/core`, `@assistant-ui/react`, `@assistant-ui/react-native`, and `@assistant-ui/react-ink`. also removes the now-redundant duplicate listing of both from the unstable `INTERNAL` namespace (the one in-repo consumer, the with-ffmpeg example, now uses the public export).
+
+- [#4419](https://github.com/assistant-ui/assistant-ui/pull/4419) [`3cef745`](https://github.com/assistant-ui/assistant-ui/commit/3cef74559e683f6ce703e77af0959338e0c3f96d) - feat(react): add `minCommitMs` to `SmoothOptions` to throttle committed reveal updates ([@okisdev](https://github.com/okisdev))
+
+  `useSmooth` keeps advancing the typewriter reveal every frame, but with `minCommitMs` the visible text (and the downstream re-render and markdown re-parse it triggers) is committed at most once per interval. The final frame always commits, so no characters are lost. Defaults to `0`, which commits every frame and preserves the previous behavior.
+
+- [#4411](https://github.com/assistant-ui/assistant-ui/pull/4411) [`d76a922`](https://github.com/assistant-ui/assistant-ui/commit/d76a922cb718e6bfb773c63502335a367cd73562) - feat: add `unstable_useLiveCompletionAdapter` for async trigger completions ([@okisdev](https://github.com/okisdev))
+
+  bridges an async completion source (a server search, a gateway RPC) into the synchronous `Unstable_TriggerAdapter`. `search` returns cached items synchronously and schedules a debounced fetch with stale-request cancellation; when results land the adapter re-creates so the popover re-renders. also adds an `isLoading` prop on `ComposerPrimitive.Unstable_TriggerPopover` (surfaced on the popover scope) so async sources can render a loading state.
+
+- Updated dependencies [[`344f737`](https://github.com/assistant-ui/assistant-ui/commit/344f7370511f7238db17e1982f2a43a10829604c), [`a2e21ee`](https://github.com/assistant-ui/assistant-ui/commit/a2e21ee797761907db9b7e4559da2a41afd00fc9)]:
+  - @assistant-ui/core@0.2.17
+
 ## 0.14.21
 
 ### Patch Changes

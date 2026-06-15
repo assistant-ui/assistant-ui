@@ -1,5 +1,11 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.22
+
+### Patch Changes
+
+- [#4422](https://github.com/assistant-ui/assistant-ui/pull/4422) [`e100f90`](https://github.com/assistant-ui/assistant-ui/commit/e100f906489f27d5193b6c8be80a6f87c5667850) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.1.21
 
 ### Patch Changes

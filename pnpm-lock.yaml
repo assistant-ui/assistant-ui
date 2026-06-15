@@ -3439,7 +3439,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.16
+        specifier: ^0.2.17
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.18
@@ -3527,7 +3527,7 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.16
+        specifier: ^0.2.17
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.18
@@ -3552,7 +3552,7 @@ importers:
         specifier: ^0.0.57
         version: 0.0.57
       '@assistant-ui/core':
-        specifier: ^0.2.16
+        specifier: ^0.2.17
         version: link:../core
       assistant-stream:
         specifier: ^0.3.23
@@ -3586,7 +3586,7 @@ importers:
         specifier: ^3.0.207
         version: 3.0.207(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/core':
-        specifier: ^0.2.16
+        specifier: ^0.2.17
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.18
@@ -3759,7 +3759,7 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.16
+        specifier: ^0.2.17
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.18
@@ -3784,7 +3784,7 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.16
+        specifier: ^0.2.17
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.18
@@ -3836,7 +3836,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.16
+        specifier: ^0.2.17
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.18
@@ -4070,7 +4070,7 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.16
+        specifier: ^0.2.17
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.18
