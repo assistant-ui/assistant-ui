@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.14.21
+
+### Patch Changes
+
+- [#4403](https://github.com/assistant-ui/assistant-ui/pull/4403) [`9f59d69`](https://github.com/assistant-ui/assistant-ui/commit/9f59d694ccf2e0317f48efbb078f36b87be8dc62) - fix: prevent compiled context store hooks from skipping subscriptions ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`8d3b0e8`](https://github.com/assistant-ui/assistant-ui/commit/8d3b0e8aade47116d9616d8dac2328e0bb73f296)]:
+  - @assistant-ui/tap@0.9.2
+
 ## 0.14.20
 
 ### Patch Changes

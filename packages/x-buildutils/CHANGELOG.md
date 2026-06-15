@@ -1,5 +1,11 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.15
+
+### Patch Changes
+
+- [#4405](https://github.com/assistant-ui/assistant-ui/pull/4405) [`8d3b0e8`](https://github.com/assistant-ui/assistant-ui/commit/8d3b0e8aade47116d9616d8dac2328e0bb73f296) - fix: keep tap React hooks compatible with React 18 builds ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.14
 
 ### Patch Changes
