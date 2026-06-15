@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
-import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   MessagePartState,
   ReasoningMessagePart,
@@ -32,7 +32,61 @@ const reasoningState = (text: string) =>
     status: { type: "complete", reason: "stop" },
   }) as MessagePartState & ReasoningMessagePart;
 
+const runningState = (text: string) =>
+  ({
+    type: "text",
+    text,
+    status: { type: "running" },
+  }) as MessagePartState & TextMessagePart;
+
+const driveAndCount = (minCommitMs: number) => {
+  const raf: FrameRequestCallback[] = [];
+  const rafSpy = vi
+    .spyOn(globalThis, "requestAnimationFrame")
+    .mockImplementation((cb) => {
+      raf.push(cb);
+      return raf.length;
+    });
+  const cafSpy = vi
+    .spyOn(globalThis, "cancelAnimationFrame")
+    .mockImplementation(() => {});
+  let now = 1000;
+  const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+
+  const state = runningState("0123456789");
+  const { result, unmount } = renderHook(() =>
+    useSmooth(state, {
+      minCommitMs,
+      maxCharsPerFrame: 1,
+      maxCharIntervalMs: 1,
+    }),
+  );
+
+  const seen = new Set<string>();
+  let guard = 0;
+  while (raf.length > 0 && guard < 100) {
+    guard++;
+    const cb = raf.shift()!;
+    now += 16;
+    act(() => {
+      cb(now);
+    });
+    seen.add(result.current.text);
+  }
+
+  const final = result.current.text;
+  unmount();
+  rafSpy.mockRestore();
+  cafSpy.mockRestore();
+  nowSpy.mockRestore();
+  return { final, commits: seen.size };
+};
+
 describe("useSmooth", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("returns the input state unchanged when disabled", () => {
     const state = textState("hello");
     const { result } = renderHook(() => useSmooth(state, false));
@@ -91,5 +145,14 @@ describe("useSmooth", () => {
     const { result } = renderHook(() => useSmooth(state, options));
     expect(result.current.text).toBe("hello");
     expect(result.current.status).toBe(state.status);
+  });
+
+  it("commits fewer times under minCommitMs without losing characters", () => {
+    const everyFrame = driveAndCount(0);
+    const floored = driveAndCount(50);
+
+    expect(everyFrame.final).toBe("0123456789");
+    expect(floored.final).toBe("0123456789");
+    expect(floored.commits).toBeLessThan(everyFrame.commits);
   });
 });
