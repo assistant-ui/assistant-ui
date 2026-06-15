@@ -55,7 +55,7 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 
 export const ChatGPT: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-white px-4 text-[#0d0d0d] dark:bg-[#212121] dark:text-[#ececec]">
+    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-white px-4 text-[#0d0d0d] dark:bg-black dark:text-[#ececec]">
       <AuiIf condition={(s) => s.thread.isEmpty}>
         <EmptyState />
       </AuiIf>
@@ -70,7 +70,7 @@ export const ChatGPT: FC = () => {
             }}
           </ThreadPrimitive.Messages>
 
-          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-3xl flex-col gap-2 overflow-visible rounded-t-3xl bg-white pb-2 dark:bg-[#212121]">
+          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-3xl flex-col gap-2 overflow-visible rounded-t-3xl bg-white pb-2 dark:bg-black">
             <ThreadScrollToBottom />
             <Composer placeholder="Ask anything" />
             <p className="text-center text-xs text-[#5d5d5d] dark:text-[#a8a8a8]">
@@ -91,6 +91,7 @@ const EmptyState: FC = () => {
           Where should we begin?
         </h1>
         <Composer placeholder="Ask anything" />
+        <ChatGPTSuggestions />
       </div>
     </div>
   );
@@ -98,7 +99,7 @@ const EmptyState: FC = () => {
 
 const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
   return (
-    <ComposerPrimitive.Root className="group/composer flex w-full flex-col rounded-[28px] border border-[#e5e5e5] bg-white px-2 py-2 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.05)] focus-within:border-[#d0d0d0] dark:border-transparent dark:bg-[#303030] dark:shadow-none dark:focus-within:border-transparent">
+    <ComposerPrimitive.Root className="group/composer flex w-full flex-col rounded-[28px] border border-[#e5e5e5] bg-white px-2 py-2 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.05)] focus-within:border-[#d0d0d0] dark:border-transparent dark:bg-[#212121] dark:shadow-none dark:focus-within:border-transparent">
       <AuiIf condition={(s) => s.composer.attachments.length > 0}>
         <div className="flex flex-row flex-wrap gap-2 px-1 pt-1 pb-2">
           <ComposerPrimitive.Attachments
@@ -107,26 +108,24 @@ const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
         </div>
       </AuiIf>
 
-      <ComposerPrimitive.Input
-        placeholder={placeholder}
-        rows={1}
-        className="min-h-9 w-full resize-none bg-transparent px-3 pt-2 text-base text-[#0d0d0d] outline-none placeholder:text-[#8e8e8e] dark:text-[#ececec] dark:placeholder:text-[#8e8e8e]"
-      />
+      <div className="flex items-center gap-1">
+        <ComposerPrimitive.AddAttachment asChild>
+          <button
+            type="button"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white"
+            aria-label="Add attachment"
+          >
+            <PlusIcon size={18} />
+          </button>
+        </ComposerPrimitive.AddAttachment>
 
-      <div className="flex items-center justify-between gap-2 px-1 pt-1">
-        <div className="flex items-center gap-1">
-          <ComposerPrimitive.AddAttachment asChild>
-            <button
-              type="button"
-              className="flex size-9 items-center justify-center rounded-full text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white"
-              aria-label="Add attachment"
-            >
-              <PlusIcon size={18} />
-            </button>
-          </ComposerPrimitive.AddAttachment>
-        </div>
+        <ComposerPrimitive.Input
+          placeholder={placeholder}
+          rows={1}
+          className="max-h-52 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-base text-[#0d0d0d] outline-none placeholder:text-[#8e8e8e] dark:text-[#ececec] dark:placeholder:text-[#8e8e8e]"
+        />
 
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <ChatGPTToolsMenu />
           <ComposerPrimaryAction />
         </div>
@@ -166,6 +165,41 @@ const ChatGPTToolsMenu: FC = () => {
   );
 };
 
+const CHATGPT_SUGGESTIONS = [
+  {
+    label: "Create an image",
+    prompt: "Create an image of a serene mountain lake at sunrise.",
+    Icon: ImageIcon,
+  },
+  {
+    label: "Write or edit",
+    prompt: "Help me write a short, friendly out-of-office email.",
+    Icon: Pencil1Icon,
+  },
+  {
+    label: "Look something up",
+    prompt: "What are the latest developments in AI?",
+    Icon: Globe,
+  },
+];
+
+const ChatGPTSuggestions: FC = () => {
+  return (
+    <div className="flex flex-wrap justify-center gap-2">
+      {CHATGPT_SUGGESTIONS.map(({ label, prompt, Icon }) => (
+        <ThreadPrimitive.Suggestion
+          key={label}
+          prompt={prompt}
+          className="flex items-center gap-2 rounded-full border border-[#e5e5e5] px-4 py-2 text-sm text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:border-[#3a3a3a] dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white"
+        >
+          <Icon className="size-4" />
+          {label}
+        </ThreadPrimitive.Suggestion>
+      ))}
+    </div>
+  );
+};
+
 const ComposerPrimaryAction: FC = () => {
   return (
     <div className="flex items-center gap-1">
@@ -179,7 +213,7 @@ const ComposerPrimaryAction: FC = () => {
         condition={(s) => !s.thread.isRunning && s.composer.dictation != null}
       >
         <ComposerPrimitive.StopDictation
-          className="flex size-9 items-center justify-center rounded-full bg-[#ff5d1f] text-white"
+          className="flex size-9 items-center justify-center rounded-full bg-[#0d0d0d] text-white dark:bg-white dark:text-black"
           aria-label="Stop dictation"
         >
           <div className="size-2.5 animate-pulse rounded-[2px] bg-current" />
@@ -216,7 +250,7 @@ const ComposerPrimaryAction: FC = () => {
           type="button"
           aria-hidden="true"
           tabIndex={-1}
-          className="flex size-9 items-center justify-center rounded-full bg-[#ff5d1f] text-white"
+          className="flex size-9 items-center justify-center rounded-full bg-[#0d0d0d] text-white dark:bg-white dark:text-black"
         >
           <AudioLines className="size-4" />
         </button>
