@@ -1,7 +1,6 @@
 "use client";
 
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-streamdown";
-import { useState } from "react";
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import { useCopyToClipboard } from "@assistant-ui/ui/hooks/use-copy-to-clipboard";
 
@@ -139,7 +138,11 @@ export function OpenInCard({
   downloadUrl,
   customizationNote,
 }: OpenInData) {
-  const prompt = buildPrompt({ title, downloadUrl, customizationNote });
+  const prompt = buildPrompt({
+    title,
+    ...(downloadUrl ? { downloadUrl } : {}),
+    ...(customizationNote ? { customizationNote } : {}),
+  });
   const encoded = encodeURIComponent(prompt);
   const { isCopied, copyToClipboard } = useCopyToClipboard();
   const hasDownload = Boolean(downloadUrl);
