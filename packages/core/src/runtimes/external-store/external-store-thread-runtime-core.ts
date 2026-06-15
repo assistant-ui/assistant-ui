@@ -179,10 +179,24 @@ export class ExternalStoreThreadRuntimeCore
         return;
       }
 
-      this.repository.clear();
-      this.repository.import(store.messageRepository);
-
-      messages = this.repository.getMessages();
+      if (oldStore && oldStore.messageRepository === store.messageRepository) {
+        messages = this.repository.getMessages();
+      } else {
+        const incoming = store.messageRepository.messages;
+        const incomingIds = new Set(incoming.map(({ message }) => message.id));
+        for (const { message, parentId } of incoming) {
+          this.repository.addOrUpdateMessage(parentId, message);
+        }
+        for (const { message } of this.repository.export().messages) {
+          if (!incomingIds.has(message.id)) {
+            this.repository.deleteMessage(message.id);
+          }
+        }
+        this.repository.resetHead(
+          store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null,
+        );
+        messages = this.repository.getMessages();
+      }
     } else if (store.messages) {
       // Handle messages array
 
