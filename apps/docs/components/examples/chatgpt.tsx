@@ -108,7 +108,7 @@ const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
         </div>
       </AuiIf>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-end gap-1">
         <ComposerPrimitive.AddAttachment asChild>
           <button
             type="button"
