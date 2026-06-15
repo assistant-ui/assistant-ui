@@ -179,15 +179,14 @@ export class ExternalStoreThreadRuntimeCore
         return;
       }
 
+      const incoming = store.messageRepository.messages;
+      const headId =
+        store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null;
+
       if (oldStore && oldStore.messageRepository === store.messageRepository) {
-        this.repository.resetHead(
-          store.messageRepository.headId ??
-            store.messageRepository.messages.at(-1)?.message.id ??
-            null,
-        );
+        this.repository.resetHead(headId);
         messages = this.repository.getMessages();
       } else {
-        const incoming = store.messageRepository.messages;
         const incomingIds = new Set(incoming.map(({ message }) => message.id));
         for (const { message, parentId } of incoming) {
           this.repository.addOrUpdateMessage(parentId, message);
@@ -197,9 +196,7 @@ export class ExternalStoreThreadRuntimeCore
             this.repository.deleteMessage(message.id);
           }
         }
-        this.repository.resetHead(
-          store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null,
-        );
+        this.repository.resetHead(headId);
         messages = this.repository.getMessages();
       }
     } else if (store.messages) {
