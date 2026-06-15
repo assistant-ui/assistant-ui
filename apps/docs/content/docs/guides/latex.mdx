@@ -106,47 +106,53 @@ By default, remark-math (react-markdown path) supports:
 
 ## Supporting Alternative LaTeX Delimiters
 
-Many language models generate LaTeX using different delimiter formats:
-- `\(...\)` for inline math
-- `\[...\]` for display math
-- Custom formats like `[/math]...[/math]`
+Many language models emit math in delimiters that remark-math does not recognize:
+- `\(...\)` for inline math and `\[...\]` for display math
+- custom tags like `[/math]...[/math]` and `[/inline]...[/inline]`
 
-You can use the `preprocess` prop on `MarkdownTextPrimitive` to normalize these formats before parsing:
+`@assistant-ui/react-markdown` exports `normalizeMathDelimiters`, which rewrites these to the `$...$` and `$$...$$` form remark-math parses. Pass it to the `preprocess` prop of `MarkdownTextPrimitive`:
 
 ```tsx title="/components/assistant-ui/markdown-text.tsx"
-import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
+import {
+  MarkdownTextPrimitive,
+  normalizeMathDelimiters, // [!code ++]
+} from "@assistant-ui/react-markdown";
 
 const MarkdownTextImpl = () => {
   return (
     <MarkdownTextPrimitive
       remarkPlugins={[remarkGfm, remarkMath]}
       rehypePlugins={[rehypeKatex]}
-      preprocess={normalizeCustomMathTags} // [!code ++]
+      preprocess={normalizeMathDelimiters} // [!code ++]
       className="aui-md"
       components={defaultComponents}
     />
   );
 };
+```
 
-// Your LaTeX preprocessing function
-function normalizeCustomMathTags(input: string): string {
-  return (
-    input
-      // Convert [/math]...[/math] to $$...$$
-      .replace(/\[\/math\]([\s\S]*?)\[\/math\]/g, (_, content) => `$$${content.trim()}$$`)
+The individual transforms `rewriteLatexBracketDelimiters` and `rewriteCustomMathTags` are exported too, for finer control over which delimiters are normalized.
 
-      // Convert [/inline]...[/inline] to $...$
-      .replace(/\[\/inline\]([\s\S]*?)\[\/inline\]/g, (_, content) => `$${content.trim()}$`)
+<Callout type="info">
+  Using [Streamdown](/docs/ui/streamdown) as your renderer? The same helpers are exported from `@assistant-ui/react-streamdown` and accepted by the `preprocess` prop of `StreamdownTextPrimitive`.
+</Callout>
 
-      // Convert \( ... \) to $...$ (inline math) - handles both single and double backslashes
-      .replace(/\\{1,2}\(([\s\S]*?)\\{1,2}\)/g, (_, content) => `$${content.trim()}$`)
+### Currency amounts
 
-      // Convert \[ ... \] to $$...$$ (block math) - handles both single and double backslashes
-      .replace(/\\{1,2}\[([\s\S]*?)\\{1,2}\]/g, (_, content) => `$$${content.trim()}$$`)
-  );
-}
+With single-dollar inline math enabled (the default on the react-markdown path), remark-math reads a lone `$` as a math delimiter, so prose such as `$5 ... $10` is parsed as math. `escapeCurrencyDollars` escapes a `$` immediately followed by a digit so currency survives, while leaving the `$$` of display math intact. Compose it with the delimiter normalization:
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import {
+  normalizeMathDelimiters,
+  escapeCurrencyDollars, // [!code ++]
+} from "@assistant-ui/react-markdown";
+
+<MarkdownTextPrimitive
+  preprocess={(text) => escapeCurrencyDollars(normalizeMathDelimiters(text))} // [!code ++]
+  // ...
+/>;
 ```
 
 <Callout type="tip">
-Inside `MarkdownTextPrimitive`, the streamed text first passes through `preprocess` (delimiter normalization) and then through `useSmooth` (character-by-character accumulation), and only then reaches the markdown parser. Both run before remark-math sees the text, so delimiter replacement and the streaming smoothing are streaming-safe — partially-received delimiters are accumulated in the smoothing buffer rather than parsed mid-fragment.
+Inside `MarkdownTextPrimitive`, the streamed text first passes through `preprocess` (delimiter normalization) and then through `useSmooth` (character by character accumulation), and only then reaches the markdown parser. Both run before remark-math sees the text, so delimiter replacement and the streaming smoothing stay streaming safe; a partially received delimiter is accumulated in the smoothing buffer rather than parsed mid fragment.
 </Callout>

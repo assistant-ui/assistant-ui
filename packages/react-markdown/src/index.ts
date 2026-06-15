@@ -10,3 +10,10 @@ export type {
 
 export { useIsMarkdownCodeBlock } from "./overrides/PreOverride";
 export { memoizeMarkdownComponents as unstable_memoizeMarkdownComponents } from "./memoization";
+
+export {
+  rewriteLatexBracketDelimiters,
+  rewriteCustomMathTags,
+  normalizeMathDelimiters,
+  escapeCurrencyDollars,
+} from "./preprocess";
