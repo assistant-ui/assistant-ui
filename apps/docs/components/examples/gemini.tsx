@@ -1,5 +1,6 @@
 "use client";
 
+import "./gemini.css";
 import {
   ActionBarPrimitive,
   AttachmentPrimitive,
@@ -43,31 +44,32 @@ import {
 
 export const Gemini: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col overflow-hidden bg-[#fdfcfc] text-[#1f1f1f] dark:bg-[#131314] dark:text-[#e3e3e3]">
+    <ThreadPrimitive.Root className="flex h-full flex-col overflow-hidden bg-[#fdfcfc] text-[#1f1f1f] dark:bg-[#0c0c0c] dark:text-[#e3e3e3]">
       <AuiIf condition={(s) => s.thread.isEmpty}>
         <div className="relative flex grow flex-col">
-          <div className="relative flex grow flex-col items-center justify-center px-4">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 left-1/2 h-[330px] w-[720px] max-w-[96%] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(closest-side,#a9d1fb,transparent)] opacity-70 blur-[55px] dark:bg-[radial-gradient(closest-side,#1d4068,transparent)] dark:opacity-65"
-            />
-            <div className="relative z-10 flex w-full max-w-3xl flex-col">
-              <h1 className="mb-6 text-center text-4xl font-normal text-[#1f1f1f] dark:text-[#e3e3e3]">
+          <div className="flex grow flex-col items-center justify-center px-4">
+            <div className="flex w-full max-w-3xl flex-col">
+              <h1 className="gemini-rise mb-6 text-center text-4xl font-normal text-[#1f1f1f] dark:text-white">
                 How can I help you today?
               </h1>
-              <Composer />
+              <div className="relative">
+                <div
+                  aria-hidden="true"
+                  className="gemini-glow pointer-events-none absolute top-1/2 left-1/2 h-[260px] w-[680px] max-w-[92%] -translate-x-1/2 -translate-y-1/2 rounded-[140px] bg-[#a9d1fb]/60 blur-[90px] dark:bg-[#1b2f9c]/50"
+                />
+                <div className="relative z-10">
+                  <Composer />
+                </div>
+              </div>
             </div>
           </div>
-          <p className="pb-3 text-center text-xs text-[#5e6063] dark:text-[#9aa0a6]">
-            Gemini can make mistakes, so double-check it.
-          </p>
         </div>
       </AuiIf>
 
       <AuiIf condition={(s) => !s.thread.isEmpty}>
         <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-12">
           <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
-          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto flex w-full flex-col items-center gap-1.5 bg-[#fdfcfc] px-4 pb-3 dark:bg-[#131314]">
+          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto flex w-full flex-col items-center gap-1.5 bg-[#fdfcfc] px-4 pb-3 dark:bg-[#0c0c0c]">
             <Composer />
             <p className="text-center text-xs text-[#5e6063] dark:text-[#9aa0a6]">
               Gemini can make mistakes, so double-check it.
@@ -84,7 +86,7 @@ const ghostBtnClass =
 
 const Composer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl flex-col rounded-4xl bg-white p-3 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.18)] dark:bg-[#1e1f20] dark:shadow-[0_2px_12px_-2px_rgba(0,0,0,0.6)]">
+    <ComposerPrimitive.Root className="mx-auto flex w-full max-w-2xl flex-col rounded-4xl bg-white p-3 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.18)] dark:bg-[#1e1f20] dark:shadow-[0_2px_12px_-2px_rgba(0,0,0,0.6)]">
       <AuiIf condition={(s) => s.composer.attachments.length > 0}>
         <div className="flex flex-row gap-2.5 overflow-x-auto px-1 pt-1 pb-2.5">
           <ComposerPrimitive.Attachments
@@ -151,11 +153,11 @@ const GeminiPlusMenu: FC = () => {
 };
 
 const GEMINI_MODELS = [
-  { id: "fast", name: "Fast", description: "Quick everyday help" },
+  { id: "flash", name: "Flash", description: "Fast all-around help" },
   {
     id: "thinking",
     name: "Thinking",
-    description: "Reasons through harder problems",
+    description: "Reasoning, math & code",
   },
 ];
 
@@ -193,12 +195,12 @@ const GeminiModelPicker: FC = () => {
 };
 
 const sendBtnClass =
-  "flex size-9 shrink-0 items-center justify-center rounded-full bg-[#d3e3fd] text-[#062e6f] transition-colors hover:bg-[#c2d7fb] dark:bg-[#1f3760] dark:text-[#d3e3fd] dark:hover:bg-[#27497d]";
+  "flex size-9 shrink-0 items-center justify-center rounded-full bg-[#1f3b9b] text-white transition-colors hover:bg-[#274aad]";
 
 const GeminiSendButton: FC = () => {
   return (
     <>
-      <AuiIf condition={(s) => !s.thread.isRunning}>
+      <AuiIf condition={(s) => !s.thread.isRunning && !s.composer.isEmpty}>
         <ComposerPrimitive.Send
           aria-label="Send message"
           className={`${sendBtnClass} disabled:bg-[#e8eaed] disabled:text-[#1f1f1f]/40 dark:disabled:bg-[#2b2c2e] dark:disabled:text-white/30`}
