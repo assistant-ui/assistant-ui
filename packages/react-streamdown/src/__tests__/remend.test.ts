@@ -80,4 +80,10 @@ describe("tailBoundedRemend", () => {
       remend(text, { links: false }),
     );
   });
+
+  it("treats CRLF blank lines as block boundaries", () => {
+    const text = `para one\r\n\r\npara two with **bold`;
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("para two"));
+    expect(blocksOf(tailBoundedRemend(text))).toEqual(blocksOf(remend(text)));
+  });
 });

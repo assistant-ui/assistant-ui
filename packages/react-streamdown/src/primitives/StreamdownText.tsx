@@ -137,7 +137,9 @@ export const StreamdownTextPrimitive = forwardRef<
     const processedText = defer ? deferredText : text;
 
     const shouldTailRemend =
-      mode === "streaming" && parseIncompleteMarkdown !== false;
+      mode === "streaming" &&
+      parseIncompleteMarkdown !== false &&
+      !parseMarkdownIntoBlocksFn;
     const repairedText = useMemo(
       () =>
         shouldTailRemend
@@ -145,6 +147,9 @@ export const StreamdownTextPrimitive = forwardRef<
           : processedText,
       [shouldTailRemend, processedText, remend],
     );
+    const resolvedParseIncomplete = shouldTailRemend
+      ? false
+      : parseIncompleteMarkdown;
 
     const resolvedPlugins = useMemo(() => {
       const merged = mergePlugins(userPlugins, {});
@@ -190,11 +195,9 @@ export const StreamdownTextPrimitive = forwardRef<
       ...(linkSafety && { linkSafety }),
       ...(remend && { remend }),
       ...(mermaid && { mermaid }),
-      ...(shouldTailRemend
-        ? { parseIncompleteMarkdown: false }
-        : parseIncompleteMarkdown !== undefined
-          ? { parseIncompleteMarkdown }
-          : {}),
+      ...(resolvedParseIncomplete !== undefined && {
+        parseIncompleteMarkdown: resolvedParseIncomplete,
+      }),
       ...(allowedTags && { allowedTags }),
       ...(resolvedPlugins && { plugins: resolvedPlugins }),
       ...(resolvedShikiTheme && { shikiTheme: resolvedShikiTheme }),

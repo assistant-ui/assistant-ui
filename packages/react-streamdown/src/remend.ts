@@ -4,9 +4,10 @@ const BACKTICK = 96;
 const TILDE = 126;
 const SPACE = 32;
 const TAB = 9;
+const CR = 13;
 const BACKSLASH = 92;
 
-const isSpace = (c: number) => c === SPACE || c === TAB;
+const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
 
 function onlyWhitespace(text: string, from: number, to: number): boolean {
   for (let i = from; i < to; i += 1) {
@@ -87,8 +88,9 @@ export function findRemendWindowStart(text: string): number {
  * than the whole message. Streamdown splits into blocks after repair and renders
  * each independently, and inline constructs cannot cross a blank line, so a
  * dangling opener can only be in the last block. Repairing just that block is
- * render-equivalent to repairing the full text, but avoids re-scanning the
- * entire (growing) message on every streaming flush.
+ * render-equivalent to repairing the full text, but bounds the heavier `remend`
+ * repair to the tail instead of running it over the whole message every flush
+ * (the cheap boundary scan still runs over the full text).
  */
 export function tailBoundedRemend(
   text: string,
