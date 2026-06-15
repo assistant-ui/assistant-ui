@@ -84,9 +84,12 @@ if (remapReactToShim && !isDev && existsSync("dist")) {
   })) {
     if (typeof rel !== "string") continue;
 
-    const isDeclaration = rel.endsWith(".d.ts");
+    const normalizedRel = rel.replaceAll("\\", "/");
+    const isDeclaration = normalizedRel.endsWith(".d.ts");
     const isTapShimRuntime =
-      isTapPackage && rel.startsWith("react-shim/") && rel.endsWith(".js");
+      isTapPackage &&
+      normalizedRel.startsWith("react-shim/") &&
+      normalizedRel.endsWith(".js");
 
     if (!isDeclaration && !isTapShimRuntime) continue;
 
