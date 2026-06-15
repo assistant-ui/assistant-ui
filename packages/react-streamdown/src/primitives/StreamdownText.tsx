@@ -13,6 +13,7 @@ import {
 } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
+import { tailBoundedRemend } from "../remend";
 import type { SecurityConfig, StreamdownTextPrimitiveProps } from "../types";
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
@@ -135,6 +136,16 @@ export const StreamdownTextPrimitive = forwardRef<
     const deferredText = useDeferredValue(text);
     const processedText = defer ? deferredText : text;
 
+    const shouldTailRemend =
+      mode === "streaming" && parseIncompleteMarkdown !== false;
+    const repairedText = useMemo(
+      () =>
+        shouldTailRemend
+          ? tailBoundedRemend(processedText, remend)
+          : processedText,
+      [shouldTailRemend, processedText, remend],
+    );
+
     const resolvedPlugins = useMemo(() => {
       const merged = mergePlugins(userPlugins, {});
       return Object.keys(merged).length > 0 ? merged : undefined;
@@ -179,7 +190,11 @@ export const StreamdownTextPrimitive = forwardRef<
       ...(linkSafety && { linkSafety }),
       ...(remend && { remend }),
       ...(mermaid && { mermaid }),
-      ...(parseIncompleteMarkdown !== undefined && { parseIncompleteMarkdown }),
+      ...(shouldTailRemend
+        ? { parseIncompleteMarkdown: false }
+        : parseIncompleteMarkdown !== undefined
+          ? { parseIncompleteMarkdown }
+          : {}),
       ...(allowedTags && { allowedTags }),
       ...(resolvedPlugins && { plugins: resolvedPlugins }),
       ...(resolvedShikiTheme && { shikiTheme: resolvedShikiTheme }),
@@ -203,7 +218,7 @@ export const StreamdownTextPrimitive = forwardRef<
           {...optionalProps}
           {...streamdownProps}
         >
-          {processedText}
+          {repairedText}
         </Streamdown>
       </div>
     );
