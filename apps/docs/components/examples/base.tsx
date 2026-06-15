@@ -927,12 +927,7 @@ export const Base: FC = () => {
       <div className="hidden md:block">
         <Sidebar collapsed={sidebarCollapsed} />
       </div>
-      <div
-        className={cn(
-          "flex flex-1 flex-col overflow-hidden p-2 transition-[padding] duration-200",
-          !sidebarCollapsed && "md:pl-0",
-        )}
-      >
+      <div className="flex flex-1 flex-col overflow-hidden p-2 md:pl-0">
         <div className="bg-background flex flex-1 flex-col overflow-hidden rounded-lg">
           <Header
             sidebarCollapsed={sidebarCollapsed}
