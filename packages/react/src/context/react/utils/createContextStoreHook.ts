@@ -45,10 +45,6 @@ export function createContextStoreHook<T, K extends keyof T & string>(
           selector?: (state: StateType) => TSelected;
         },
   ): TSelected | StateType | null {
-    // Opt out of React Compiler so it cannot memoize and skip the dynamic
-    // Zustand hook call, which would shift later hook slots on rerender.
-    "use no memo";
-
     let optional = false;
     let selector: ((state: StateType) => TSelected) | undefined;
 
