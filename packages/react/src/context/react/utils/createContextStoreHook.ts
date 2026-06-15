@@ -55,11 +55,12 @@ export function createContextStoreHook<T, K extends keyof T & string>(
       selector = param.selector;
     }
 
-    const store = useStoreStoreHook({
+    const useStore = useStoreStoreHook({
       optional,
     } as any) as UseBoundStore<ReadonlyStore<StateType>>;
-    if (!store) return null;
-    return selector ? store(selector) : store();
+    if (!useStore) return null;
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- optional context returns before calling the dynamic Zustand hook
+    return selector ? useStore(selector) : useStore();
   }
 
   // Return an object with keys based on contextKey
