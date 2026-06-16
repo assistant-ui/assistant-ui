@@ -2,8 +2,39 @@ import { describe, expect, it } from "vitest";
 import {
   REDACTED,
   redactSensitive,
+  sanitizeForMessage,
   serializeModelContext,
 } from "./serialization";
+
+describe("sanitizeForMessage", () => {
+  it("preserves shared (non-cyclic) sibling references instead of marking them circular", () => {
+    const shared = { value: 1 };
+
+    expect(sanitizeForMessage({ a: shared, b: shared })).toEqual({
+      a: { value: 1 },
+      b: { value: 1 },
+    });
+
+    const sharedArray = [1, 2];
+    expect(sanitizeForMessage({ a: sharedArray, b: sharedArray })).toEqual({
+      a: [1, 2],
+      b: [1, 2],
+    });
+  });
+
+  it("still detects genuine circular references", () => {
+    const cyclic: Record<string, unknown> = { name: "root" };
+    cyclic.self = cyclic;
+    expect(sanitizeForMessage(cyclic)).toEqual({
+      name: "root",
+      self: "[Circular]",
+    });
+
+    const cyclicArray: unknown[] = [];
+    cyclicArray.push(cyclicArray);
+    expect(sanitizeForMessage(cyclicArray)).toEqual(["[Circular]"]);
+  });
+});
 
 describe("redactSensitive", () => {
   it("masks credential-named keys but leaves lookalikes alone", () => {

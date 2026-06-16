@@ -34,9 +34,13 @@ export const sanitizeForMessage = (
   if (Array.isArray(value)) {
     if (seen.has(value as unknown as object)) return "[Circular]";
     seen.add(value as unknown as object);
-    return value
+    const result = value
       .map((entry) => sanitizeForMessage(entry, seen))
       .filter((item) => item !== undefined);
+    // Track only the current ancestor path so shared (non-cyclic) sibling
+    // references are not misreported as circular.
+    seen.delete(value as unknown as object);
+    return result;
   }
   if (typeof value === "object") {
     if (seen.has(value as object)) return "[Circular]";
@@ -47,6 +51,7 @@ export const sanitizeForMessage = (
     )) {
       result[key] = sanitizeForMessage(entry, seen);
     }
+    seen.delete(value as object);
     return result;
   }
   return value;
