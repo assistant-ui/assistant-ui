@@ -32,6 +32,7 @@ type LangChainRuntimeExtras = {
   [symbolLangChainRuntimeExtras]: true;
   interrupt: { value?: unknown } | undefined;
   interrupts: readonly { value?: unknown }[];
+  error: unknown;
   submit: (
     values: Record<string, unknown> | null | undefined,
     options?: Record<string, unknown>,
@@ -208,6 +209,7 @@ const useStreamThreadRuntime = (
       [symbolLangChainRuntimeExtras]: true,
       interrupt: stream.interrupt,
       interrupts: stream.interrupts,
+      error: stream.error,
       submit: stream.submit,
       values: stream.values,
       messagesKey,
@@ -215,6 +217,7 @@ const useStreamThreadRuntime = (
     [
       stream.interrupt,
       stream.interrupts,
+      stream.error,
       stream.submit,
       stream.values,
       messagesKey,
@@ -338,6 +341,15 @@ export const useLangChainInterruptState = () => {
     const extras = s.thread.extras;
     if (!extras) return undefined;
     return asLangChainRuntimeExtras(extras).interrupt;
+  });
+};
+
+/** Read the last run/hydration error from the runtime extras. */
+export const useLangChainError = () => {
+  return useAuiState((s) => {
+    const extras = s.thread.extras;
+    if (!extras) return undefined;
+    return asLangChainRuntimeExtras(extras).error;
   });
 };
 
