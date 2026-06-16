@@ -112,35 +112,41 @@ const Sidebar: FC<{ collapsed?: boolean }> = ({ collapsed }) => {
         collapsed ? "w-12" : "w-65",
       )}
     >
+      <div
+        className={cn(
+          "mt-2 flex h-12 shrink-0 items-center transition-[padding] duration-200",
+          collapsed ? "px-3.5" : "px-6",
+        )}
+      >
+        <Image
+          src={icon}
+          alt="logo"
+          className="size-5 shrink-0 dark:hue-rotate-180 dark:invert"
+        />
+        <span
+          className={cn(
+            "ml-2 text-sm font-medium whitespace-nowrap text-foreground/90 transition-opacity duration-200",
+            collapsed && "opacity-0",
+          )}
+        >
+          assistant-ui
+        </span>
+      </div>
       {collapsed ? (
-        <div className="flex flex-col items-center gap-1">
-          <div className="mt-2 flex h-12 shrink-0 items-center justify-center">
-            <Image
-              src={icon}
-              alt="logo"
-              className="size-5 dark:hue-rotate-180 dark:invert"
-            />
-          </div>
-          <ThreadListPrimitive.New asChild>
-            <TooltipIconButton
-              tooltip="New thread"
-              side="right"
-              variant="ghost"
-              size="icon"
-              className="size-8"
-            >
-              <PlusIcon className="size-4" />
-            </TooltipIconButton>
-          </ThreadListPrimitive.New>
-        </div>
+        <ThreadListPrimitive.New asChild>
+          <TooltipIconButton
+            tooltip="New thread"
+            side="right"
+            variant="ghost"
+            size="icon"
+            className="mt-1 ml-2 size-8"
+          >
+            <PlusIcon className="size-4" />
+          </TooltipIconButton>
+        </ThreadListPrimitive.New>
       ) : (
-        <div className="flex h-full w-65 shrink-0 flex-col">
-          <div className="mt-2 flex h-12 shrink-0 items-center px-4">
-            <Logo />
-          </div>
-          <div className="relative flex-1 overflow-y-auto p-3">
-            <ThreadList />
-          </div>
+        <div className="relative w-65 flex-1 overflow-y-auto p-3">
+          <ThreadList />
         </div>
       )}
     </aside>
