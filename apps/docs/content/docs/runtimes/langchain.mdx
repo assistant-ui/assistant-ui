@@ -498,7 +498,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Stream messages | Yes (`useLangGraphRuntime`) | Yes (`useStreamRuntime`) |
 | Interrupt state | Yes | Yes |
 | Send raw state update / resume command | Yes | Yes (`useLangChainSubmit`) |
-| Forward per-run `runConfig` | Yes | Yes |
+| Forward per-run `runConfig` | Yes (whole object → `config`) | Yes (`custom` → `config.configurable`) |
 | Read arbitrary custom state key | No | Yes (`useLangChainState<T>(key)`) |
 | Per-message metadata (`messages-tuple`) | Yes | Not exposed |
 | Generative UI messages (LangSmith) | Yes | Not exposed |
