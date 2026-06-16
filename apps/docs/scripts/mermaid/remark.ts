@@ -53,13 +53,16 @@ export function remarkMermaidTldraw() {
       ) => {
         if (
           node.lang !== "mermaid" ||
+          !node.value.trim() ||
           parent === undefined ||
           index === undefined
         )
           return;
 
         const hash = hashMermaid(node.value);
-        const width = toCssLength(parseMeta(node.meta)["width"]);
+        const meta = parseMeta(node.meta);
+        const width = toCssLength(meta["width"]);
+        const alt = meta["alt"];
 
         const attributes: MdxJsxAttribute[] = [
           {
@@ -78,6 +81,12 @@ export function remarkMermaidTldraw() {
             type: "mdxJsxAttribute",
             name: "width",
             value: width,
+          });
+        if (alt)
+          attributes.push({
+            type: "mdxJsxAttribute",
+            name: "alt",
+            value: alt,
           });
 
         const element: MdxJsxFlowElement = {

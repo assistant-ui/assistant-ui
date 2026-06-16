@@ -2,9 +2,15 @@ type MermaidFigureProps = {
   light: string;
   dark: string;
   width?: string;
+  alt?: string;
 };
 
-export function MermaidFigure({ light, dark, width }: MermaidFigureProps) {
+export function MermaidFigure({
+  light,
+  dark,
+  width,
+  alt = "Diagram",
+}: MermaidFigureProps) {
   return (
     <figure
       className="mermaid-diagram"
@@ -14,7 +20,7 @@ export function MermaidFigure({ light, dark, width }: MermaidFigureProps) {
       <img
         className="mermaid-light"
         src={light}
-        alt="Diagram"
+        alt={alt}
         loading="lazy"
         decoding="async"
       />
@@ -22,7 +28,7 @@ export function MermaidFigure({ light, dark, width }: MermaidFigureProps) {
       <img
         className="mermaid-dark"
         src={dark}
-        alt="Diagram"
+        alt={alt}
         loading="lazy"
         decoding="async"
       />

@@ -189,7 +189,26 @@ export async function renderDiagrams(): Promise<RenderSummary> {
     console.log(
       `[mermaid] rendering ${pending.length} of ${diagrams.length} diagram(s)...`,
     );
-    await renderPending(pending);
+    try {
+      await renderPending(pending);
+    } catch (err) {
+      if (!process.env.VERCEL) throw err;
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `[mermaid] render unavailable here, relying on committed SVGs: ${message}`,
+      );
+    }
+  }
+
+  const missing: string[] = [];
+  for (const diagram of pending) {
+    if (!(await isUpToDate(diagram.hash)))
+      missing.push(`${diagram.doc} (${diagram.hash})`);
+  }
+  if (missing.length) {
+    throw new Error(
+      `[mermaid] ${missing.length} diagram(s) have no committed SVG (run \`pnpm generate:mermaid\` and commit the result):\n  ${missing.join("\n  ")}`,
+    );
   }
 
   return { total: diagrams.length, rendered: pending.length };
@@ -216,10 +235,6 @@ if (
 ) {
   main().catch((err: unknown) => {
     console.error("[mermaid] render failed:", err);
-    if (process.env.VERCEL) {
-      console.warn("[mermaid] continuing with committed diagrams");
-      return;
-    }
     process.exit(1);
   });
 }
