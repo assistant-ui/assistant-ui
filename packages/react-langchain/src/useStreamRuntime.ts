@@ -224,6 +224,7 @@ const useStreamThreadRuntime = (
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
+    isLoading: stream.isThreadLoading,
     messages: threadMessages,
     adapters,
     extras,
