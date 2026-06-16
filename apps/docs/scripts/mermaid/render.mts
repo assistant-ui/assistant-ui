@@ -16,8 +16,6 @@ const projectRoot = path.resolve(here, "..", "..");
 const contentDir = path.join(projectRoot, "content");
 const outDir = path.join(projectRoot, "public", DIAGRAM_DIR);
 
-// Visual export options. SVG keeps diagrams crisp and small; padding gives the
-// shapes a little breathing room inside the prose column.
 const RENDER_OPTS = { padding: 16 };
 
 interface Diagram {
@@ -54,7 +52,6 @@ async function collectDiagrams(): Promise<Diagram[]> {
   return diagrams;
 }
 
-/** Path to the light/dark SVG variants for a diagram hash. */
 function variantPaths(hash: string): { light: string; dark: string } {
   return {
     light: path.join(outDir, `${hash}.svg`),
@@ -70,22 +67,11 @@ async function hasMarker(file: string): Promise<boolean> {
   }
 }
 
-/**
- * A diagram is up to date when both theme variants exist and carry the current
- * render marker. Source edits change the filename (so a missing file triggers a
- * render); render-logic changes bump the marker (so a stale marker does).
- */
 async function isUpToDate(hash: string): Promise<boolean> {
   const { light, dark } = variantPaths(hash);
   return (await hasMarker(light)) && (await hasMarker(dark));
 }
 
-/**
- * Remove rendered SVGs that no diagram references anymore. NOT run as part of a
- * normal render: a stale content render cache can still reference an old
- * filename, and deleting that file would 404. Run explicitly
- * (`pnpm generate:mermaid -- --clean`) when you want to GC.
- */
 async function pruneOrphans(keep: Set<string>): Promise<void> {
   let files: string[];
   try {
@@ -110,8 +96,6 @@ async function renderPending(pending: Diagram[]): Promise<void> {
     server = await createServer({
       root: harnessRoot,
       configFile: false,
-      // tldraw.css is plain CSS — pin an empty inline PostCSS config so Vite
-      // doesn't walk up and load the docs' Tailwind postcss.config.mjs.
       css: { postcss: { plugins: [] } },
       logLevel: "warn",
       server: { host: "127.0.0.1" },
@@ -174,8 +158,6 @@ async function renderPending(pending: Diagram[]): Promise<void> {
       }
     }
     if (failures.length) {
-      // Renderable diagrams are already written; only the failed ones stay
-      // pending, so a re-run after a fix retries just those.
       throw new Error(
         `${failures.length} diagram(s) failed to render:\n  ${failures.join("\n  ")}`,
       );
@@ -191,11 +173,6 @@ export interface RenderSummary {
   rendered: number;
 }
 
-/**
- * Ensure every mermaid diagram in the content has an up-to-date SVG. Returns how
- * many were (re)rendered. Launches the headless browser only when something is
- * actually pending, so a fully-cached run never touches Vite or Playwright.
- */
 export async function renderDiagrams(): Promise<RenderSummary> {
   const diagrams = await collectDiagrams();
   if (!diagrams.length) return { total: 0, rendered: 0 };
@@ -233,16 +210,12 @@ async function main(): Promise<void> {
   else console.log("[mermaid] done");
 }
 
-// Run as a CLI only when invoked directly (not when imported).
 if (
   process.argv[1] &&
   fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
 ) {
   main().catch((err: unknown) => {
     console.error("[mermaid] render failed:", err);
-    // The committed SVGs are the source of truth for a deploy build. Never fail
-    // the build because a headless browser isn't available to (re)render — the
-    // local dev/build flow renders and commits them. Run locally to refresh.
     if (process.env.VERCEL) {
       console.warn("[mermaid] continuing with committed diagrams");
       return;

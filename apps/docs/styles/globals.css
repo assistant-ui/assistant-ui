@@ -198,8 +198,6 @@
   box-shadow: none;
 }
 
-/* Build-time tldraw-rendered mermaid diagrams (see scripts/mermaid). Both theme
-   variants are emitted; show the one matching the active theme. */
 .mermaid-diagram {
   margin: 2rem auto;
   text-align: center;

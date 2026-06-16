@@ -25,10 +25,6 @@ interface Parent {
   children: Array<{ type: string }>;
 }
 
-/**
- * Parse `key=value` options from a code fence's meta string, e.g.
- * ```` ```mermaid width=380 ```` -> `{ width: "380" }`.
- */
 function parseMeta(meta: string | null | undefined): Record<string, string> {
   const out: Record<string, string> = {};
   for (const match of (meta ?? "").matchAll(/(\w+)=("[^"]*"|'[^']*'|\S+)/g)) {
@@ -40,22 +36,11 @@ function parseMeta(meta: string | null | undefined): Record<string, string> {
   return out;
 }
 
-/** Turn a width option into a CSS length (bare numbers become px). */
 function toCssLength(value: string | undefined): string | undefined {
   if (!value) return undefined;
   return /^\d+(\.\d+)?$/.test(value) ? `${value}px` : value;
 }
 
-/**
- * Replaces ```mermaid fenced code blocks with a `<MermaidFigure>` element
- * (registered in `mdx-components.tsx`) pointing at the light/dark SVGs that
- * `scripts/mermaid/render.mts` produces in `public/diagrams/`. Both sides
- * derive the filename from `hashMermaid(node.value)`, so they always line up
- * without a shared manifest.
- *
- * Per-diagram sizing is configurable from the page via the fence meta, e.g.
- * ```` ```mermaid width=380 ```` caps the rendered width.
- */
 export function remarkMermaidTldraw() {
   return (tree: unknown) => {
     visit(
