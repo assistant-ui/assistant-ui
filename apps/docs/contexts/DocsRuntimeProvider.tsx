@@ -10,7 +10,7 @@ import {
   useAui,
   Tools,
   Suggestions,
-  Interactables,
+  unstable_Interactables,
   type FeedbackAdapter,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
@@ -58,7 +58,7 @@ export function DocsRuntimeProvider({
 
   const aui = useAui({
     tools: Tools({ toolkit: docsToolkit }),
-    interactables: Interactables(),
+    unstable_interactables: unstable_Interactables(),
     suggestions: Suggestions([
       {
         title: "What's the weather",

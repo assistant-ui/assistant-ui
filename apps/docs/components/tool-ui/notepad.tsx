@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { type InteractableToolRenderProps } from "@assistant-ui/react";
+import { type Unstable_InteractableToolRenderProps as InteractableToolRenderProps } from "@assistant-ui/react";
 import {
   CheckIcon,
   CopyIcon,
@@ -15,8 +15,14 @@ import { z } from "zod";
 // Mirrors the `notepad` tool's parameters schema in docs-toolkit.tsx (which
 // can't import from this client module on the server).
 const notepadStateSchema = z.object({
-  title: z.string().describe("A short title for the text."),
-  content: z.string().describe("The full plain text."),
+  title: z
+    .string()
+    .describe("A short title, shown as the heading of the notepad card."),
+  content: z
+    .string()
+    .describe(
+      "The full plain text, shown to the user in the body of the notepad card.",
+    ),
 });
 
 export type NotepadArgs = z.infer<typeof notepadStateSchema>;

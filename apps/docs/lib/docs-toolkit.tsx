@@ -14,7 +14,7 @@ import { MapPin, CloudSun, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import {
   defineToolkit,
-  interactableTool,
+  unstable_interactableTool,
   useAuiState,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
@@ -195,7 +195,7 @@ export default defineToolkit({
     render: GetWeatherToolUI,
   },
   present: generative.present({ display: "standalone" }),
-  notepad: interactableTool({
+  notepad: unstable_interactableTool({
     description:
       "A notepad with drafted text that the user can read and edit. Open one " +
       "when the user asks for help writing something; revise it later via " +
