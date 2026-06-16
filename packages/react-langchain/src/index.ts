@@ -5,6 +5,7 @@ export {
   useLangChainSendCommand,
   useLangChainState,
   useLangChainSubmit,
+  useLangChainToolCalls,
 } from "./useStreamRuntime";
 export type { UseStreamRuntimeOptions } from "./useStreamRuntime";
 
