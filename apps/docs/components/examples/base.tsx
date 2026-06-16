@@ -125,7 +125,7 @@ const Sidebar: FC<{ collapsed?: boolean }> = ({ collapsed }) => {
         />
         <span
           className={cn(
-            "ml-2 text-sm font-medium whitespace-nowrap text-foreground/90 transition-opacity duration-200",
+            "text-foreground/90 ml-2 text-sm font-medium whitespace-nowrap transition-opacity duration-200",
             collapsed && "opacity-0",
           )}
         >
