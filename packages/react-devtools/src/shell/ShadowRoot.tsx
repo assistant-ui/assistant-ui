@@ -79,7 +79,7 @@ export const ShadowRoot = ({
     const mount = mountRef.current;
     if (mount) mount.className = theme === "dark" ? "dark" : "";
     rootRef.current?.render(children);
-  });
+  }, [children, theme]);
 
   return <div ref={hostRef} className={className} style={style} />;
 };

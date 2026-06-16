@@ -1,8 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { DevToolsOverlay } from "./shell/DevToolsOverlay";
-import { ShadowRoot } from "./shell/ShadowRoot";
+import { lazy, Suspense } from "react";
 import type { DevToolsPanelPlugin } from "./shell/registry";
 import type { DevToolsClient } from "./data/types";
 
@@ -15,54 +13,13 @@ export interface DevToolsModalProps {
   client?: DevToolsClient;
 }
 
-const isDarkMode = (): boolean => {
-  if (typeof document === "undefined") return false;
-  return (
-    document.documentElement.classList.contains("dark") ||
-    document.body.classList.contains("dark")
-  );
-};
+const DevToolsModalImpl = lazy(() => import("./DevToolsModalImpl"));
 
-const subscribeToThemeChanges = (callback: () => void) => {
-  if (typeof MutationObserver === "undefined") {
-    return () => {};
-  }
-
-  const observer = new MutationObserver(callback);
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["class"],
-  });
-  if (document.body !== document.documentElement) {
-    observer.observe(document.body, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-  }
-
-  return () => observer.disconnect();
-};
-
-const DevToolsModalImpl = ({
-  plugins,
-  theme = "system",
-  client,
-}: DevToolsModalProps) => {
-  const darkMode = useSyncExternalStore(
-    subscribeToThemeChanges,
-    isDarkMode,
-    () => false,
-  );
-  const resolved = theme === "system" ? (darkMode ? "dark" : "light") : theme;
-
-  return (
-    <ShadowRoot theme={resolved}>
-      <DevToolsOverlay theme={resolved} plugins={plugins} client={client} />
-    </ShadowRoot>
-  );
-};
-
-// Renders only in development; production bundlers dead-code-eliminate the body.
+/**
+ * Dev-only. In production the body returns null before the lazy panel chunk is
+ * ever requested, so the panel and its compiled styles stay out of the
+ * production bundle (the dynamic import is also code-split).
+ */
 export const DevToolsModal = (props: DevToolsModalProps = {}) => {
   if (
     typeof process !== "undefined" &&
@@ -71,5 +28,9 @@ export const DevToolsModal = (props: DevToolsModalProps = {}) => {
     return null;
   }
 
-  return <DevToolsModalImpl {...props} />;
+  return (
+    <Suspense fallback={null}>
+      <DevToolsModalImpl {...props} />
+    </Suspense>
+  );
 };
