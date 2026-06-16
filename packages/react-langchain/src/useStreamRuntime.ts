@@ -360,7 +360,7 @@ export const useLangChainToolCalls = () => {
   return useAuiState((s) => {
     const extras = s.thread.extras;
     if (!extras) return EMPTY_TOOL_CALLS;
-    return asLangChainRuntimeExtras(extras).toolCalls;
+    return asLangChainRuntimeExtras(extras).toolCalls ?? EMPTY_TOOL_CALLS;
   });
 };
 
