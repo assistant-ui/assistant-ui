@@ -9,8 +9,10 @@ type StateUpdater<TState> = TState | ((prev: TState) => TState);
  * Reads and writes the state of an interactable registered elsewhere, by id.
  *
  * Use this from secondary readers (children, siblings); the owning component
- * registers with {@link useInteractable}, which returns state directly. Returns
+ * registers with `unstable_useInteractable`, which returns state directly. Returns
  * `undefined` until the owning interactable is registered.
+ *
+ * @deprecated Unstable / Experimental (not actually removed).
  */
 export const useInteractableState = <TState>(
   id: string,
@@ -25,15 +27,17 @@ export const useInteractableState = <TState>(
 ] => {
   const aui = useAui();
 
-  const state = useAuiState((s) => s.interactables.definitions[id]?.state) as
-    | TState
-    | undefined;
+  const state = useAuiState(
+    (s) => s.unstable_interactables.definitions[id]?.state,
+  ) as TState | undefined;
 
-  const persistenceStatus = useAuiState((s) => s.interactables.persistence[id]);
+  const persistenceStatus = useAuiState(
+    (s) => s.unstable_interactables.persistence[id],
+  );
 
   const setState = useCallback(
     (updater: StateUpdater<TState>) => {
-      aui.interactables().setState(id, (prev) => {
+      aui.unstable_interactables().setState(id, (prev) => {
         if (typeof updater === "function") {
           return (updater as (prev: TState) => TState)(prev as TState);
         }
@@ -43,7 +47,7 @@ export const useInteractableState = <TState>(
     [aui, id],
   );
 
-  const flush = useCallback(() => aui.interactables().flush(), [aui]);
+  const flush = useCallback(() => aui.unstable_interactables().flush(), [aui]);
 
   return [
     state,

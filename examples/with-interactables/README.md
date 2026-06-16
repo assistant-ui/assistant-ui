@@ -5,12 +5,12 @@ Demonstrates **interactable components** — persistent UI components whose stat
 ## Features Demonstrated
 
 ### Task Board (single instance + custom tool)
-- `useInteractable("taskBoard", config)` — registers a single interactable
+- `unstable_useInteractable("taskBoard", config)` — registers a single interactable
 - `Tools({ toolkit })` — custom tool for incremental add/toggle/remove/clear
 - Auto-generated `update_taskBoard` tool with **partial updates** (AI only sends changed fields)
 
 ### Sticky Notes (multi-instance + selection + partial updates)
-- Multiple `<NoteCard>` components each call `useInteractable("note", { id: noteId, ... })`
+- Multiple `<NoteCard>` components each call `unstable_useInteractable("note", { id: noteId, ... })`
 - **Multi-instance**: all notes share one `update_note` tool; the AI addresses a note by its `id`
 - **Selection**: click a note to select it; the `selected` flag rides the note's state snapshot so the AI prioritizes it
 - **Partial updates**: AI can change just `{ id, color: "pink" }` without resending title and content
@@ -33,8 +33,8 @@ Open [http://localhost:3000](http://localhost:3000) to see the example.
 
 ## Key Concepts
 
-- **`Interactables({ persistence })`** — scope resource registered via `useAui`, with a `load`/`save` adapter
-- **`useInteractable(name, config)`** — returns `[state, { id, setState, isPending, error, flush }]`
+- **`unstable_Interactables({ persistence })`** — scope resource registered via `useAui`, with a `load`/`save` adapter
+- **`unstable_useInteractable(name, config)`** — returns `[state, { id, setState, isPending, error, flush }]`
 - **Partial updates** — auto-generated tools use partial schemas; AI only sends changed fields
 - **Multi-instance** — same `name`, different `id`; one stable `update_{name}` tool addressed by `id`
 - **Selection** — a `selected` field in the note's own state marks it as focused for the AI

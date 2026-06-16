@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, Interactables, SingleThreadList, Suggestions, formatInteractableSnapshot, getInteractableSnapshots, getInteractableVersions, useSmooth } from "@/generated/typeDocs";
+import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -32,7 +32,7 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 
 <ParametersTable {...DevToolsHooks} />
 
-### formatInteractableSnapshot
+### fromThreadMessageLike
 
 Canonical model-facing wording for one snapshot entry.
 
@@ -59,19 +59,44 @@ folded chronologically:
 - a snapshot stamped on a user message is a `"user-edit"` version (a full
   snapshot replaces the state; a partial one shallow-merges),
 - each accepted `update_*` call shallow-merges an `"update"` version.
+Canonical model-facing wording for one snapshot entry.
 
-The last entry is the state the model knows. Partial snapshots and update
-calls with no baseline to merge into are skipped.
+<ParametersTable {...formatInteractableSnapshot} />
 
-<ParametersTable {...getInteractableVersions} />
+### getInteractableSnapshots
+
+Reads the interactable snapshots stamped on a message's
+`metadata.custom.interactables`, or `undefined` if none. This is the read
+half of the snapshot channel — integrations use it to surface interactable
+state to the model (see `injectInteractableContext` in
+`@assistant-ui/react-ai-sdk` for the AI SDK implementation).
+
+<ParametersTable {...getInteractableSnapshots} />
+
+### getInteractableVersions
+
+Every version of interactable `id` recorded in the thread, oldest first,
+folded chronologically:
+
+- the tool call whose `toolCallId` equals `id` seeds the baseline with its
+  args (`origin: "create"`) — the `id: toolCallId` convention for
+  tool-created interactables,
+- a snapshot stamped on a user message is a `"user-edit"` version (a full
+  snapshot replaces the state; a partial one shallow-merges),
+- each accepted `update_*` call shallow-merges an `"update"` version.
+```ts
+const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallbackStatus: MessageStatus) => ThreadMessage;
+```
+
+### generateId
+
+```ts
+const generateId: (size?: number) => string;
+```
 
 ### InMemoryThreadList
 
 <ParametersTable {...InMemoryThreadList} />
-
-### Interactables
-
-<ParametersTable {...Interactables} />
 
 ### SingleThreadList
 

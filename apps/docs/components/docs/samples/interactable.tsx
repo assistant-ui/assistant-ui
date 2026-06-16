@@ -12,11 +12,11 @@ import {
   AuiProvider,
   useAui,
   useAuiState,
-  Interactables,
+  unstable_Interactables,
   Suggestions,
   Tools,
   useAuiToolOverrides,
-  useInteractable,
+  unstable_useInteractable,
   ThreadPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -48,7 +48,7 @@ import {
 import toolkit from "./interactable-toolkit";
 
 const TaskBoard: FC = () => {
-  const [state, { setState }] = useInteractable("taskBoard", {
+  const [state, { setState }] = unstable_useInteractable("taskBoard", {
     description:
       "A task board showing the user's tasks. Use the manage_tasks tool (not update_taskBoard) to add/toggle/remove/clear tasks.",
     stateSchema: taskBoardSchema,
@@ -329,7 +329,7 @@ function InteractableRuntimeProvider({
   });
 
   const aui = useAui({
-    interactables: Interactables(),
+    unstable_interactables: unstable_Interactables(),
     suggestions: Suggestions([
       {
         title: "Add 3 tasks",

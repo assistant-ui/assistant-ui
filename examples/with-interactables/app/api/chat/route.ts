@@ -3,7 +3,7 @@ import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import type { UIMessage } from "ai";
 import {
   AISDKToolkit,
-  injectInteractableContext,
+  unstable_injectInteractableContext,
 } from "@assistant-ui/react-ai-sdk";
 import toolkit from "../../toolkits";
 
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
   const aiToolkit = new AISDKToolkit({ toolkit });
   const modelMessages = await convertToModelMessages(
-    injectInteractableContext(messages),
+    unstable_injectInteractableContext(messages),
   );
   const tools = await aiToolkit.tools(
     clientTools ? { frontend: clientTools } : {},

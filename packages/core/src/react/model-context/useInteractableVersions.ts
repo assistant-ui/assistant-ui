@@ -13,6 +13,8 @@ import { useJSONEqual } from "../utils/useJSONEqual";
  * `update_*` call. Each entry carries the full state as of that version and a
  * `restore()` that sets the live instance back to it — enough for a version
  * picker like an artifact's history dropdown.
+ *
+ * @deprecated Unstable / Experimental (not actually removed).
  */
 export const useInteractableVersions = <TState = unknown>(
   id: string,

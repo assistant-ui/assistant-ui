@@ -1,8 +1,8 @@
 import type { UIMessage } from "ai";
 import {
-  formatInteractableSnapshot,
-  getInteractableSnapshots,
-  type InteractableSnapshotEntry,
+  unstable_formatInteractableSnapshot as formatInteractableSnapshot,
+  unstable_getInteractableSnapshots as getInteractableSnapshots,
+  type Unstable_InteractableSnapshotEntry as InteractableSnapshotEntry,
 } from "@assistant-ui/core";
 
 /**
@@ -23,13 +23,13 @@ import {
  * @example
  * ```ts
  * import { convertToModelMessages, streamText } from "ai";
- * import { injectInteractableContext } from "@assistant-ui/react-ai-sdk";
+ * import { unstable_injectInteractableContext } from "@assistant-ui/react-ai-sdk";
  *
  * export async function POST(req: Request) {
  *   const { messages } = await req.json();
  *   const result = streamText({
  *     model: myModel,
- *     messages: await convertToModelMessages(injectInteractableContext(messages)),
+ *     messages: await convertToModelMessages(unstable_injectInteractableContext(messages)),
  *   });
  *   return result.toUIMessageStreamResponse();
  * }

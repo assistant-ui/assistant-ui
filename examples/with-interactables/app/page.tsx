@@ -11,12 +11,12 @@ import {
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
-  Interactables,
+  unstable_Interactables,
   Suggestions,
   Tools,
   useAui,
   useAuiToolOverrides,
-  useInteractable,
+  unstable_useInteractable,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
@@ -39,12 +39,15 @@ import {
 import toolkit from "./toolkits";
 
 function TaskBoard() {
-  const [state, { setState, isPending }] = useInteractable("taskBoard", {
-    description:
-      "A task board showing the user's tasks. Use the manage_tasks tool (not update_taskBoard) to add/toggle/remove/clear tasks.",
-    stateSchema: taskBoardSchema,
-    initialState: taskBoardInitialState,
-  });
+  const [state, { setState, isPending }] = unstable_useInteractable(
+    "taskBoard",
+    {
+      description:
+        "A task board showing the user's tasks. Use the manage_tasks tool (not update_taskBoard) to add/toggle/remove/clear tasks.",
+      stateSchema: taskBoardSchema,
+      initialState: taskBoardInitialState,
+    },
+  );
 
   const doneCount = state.tasks.filter((t) => t.done).length;
 
@@ -185,7 +188,7 @@ function NoteCard({
   onSelect: (id: string) => void;
   onRemove: (id: string) => void;
 }) {
-  const [state, { setState }] = useInteractable("note", {
+  const [state, { setState }] = unstable_useInteractable("note", {
     id: noteId,
     description:
       "A sticky note. The AI can partially update any field (title, content, color, selected) without resending the others.",
@@ -383,7 +386,9 @@ export default function Home() {
   });
 
   const aui = useAui({
-    interactables: Interactables({ persistence: persistenceAdapter }),
+    unstable_interactables: unstable_Interactables({
+      persistence: persistenceAdapter,
+    }),
     tools: Tools({ toolkit }),
     suggestions: Suggestions([
       {

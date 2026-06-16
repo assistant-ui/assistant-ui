@@ -2,7 +2,7 @@ import { getDistinctId, posthogServer } from "@/lib/posthog-server";
 import { createPrismTracer } from "@/lib/prism-server";
 import {
   injectQuoteContext,
-  injectInteractableContext,
+  unstable_injectInteractableContext as injectInteractableContext,
 } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateGeneralChatInput } from "@/lib/validate-input";

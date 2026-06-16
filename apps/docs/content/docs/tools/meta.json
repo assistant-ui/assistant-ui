@@ -14,6 +14,7 @@
     "tool-ui",
     "generative-ui",
     "interactables",
+    "interactables-legacy",
     "---MCP---",
     "mcp",
     "user-managed-mcp",

@@ -49,7 +49,7 @@ const GENERATIVE_FACTORY = "JSONGenerativeUI";
  * splits the inline config: the client keeps `render`, the server drops it.
  * The factory's own `execute` is internal and client-safe (frontend tool).
  */
-const INTERACTABLE_TOOL_FACTORY = "interactableTool";
+const INTERACTABLE_TOOL_FACTORY = "unstable_interactableTool";
 
 /** Mutable per-build outcomes the toolkit pass reports back for directive/guard injection. */
 interface TargetFlags {
@@ -509,15 +509,8 @@ interface ToolkitNameContext {
   resolvingImportedToolkitNames: Set<string>;
 }
 
-function createToolkitNameContext(): ToolkitNameContext {
-  return {
-    importedToolkitNamesByFile: new Map(),
-    resolvingImportedToolkitNames: new Set(),
-  };
-}
-
 /**
- * Collects the local names `interactableTool` is imported under from a
+ * Collects the local names `unstable_interactableTool` is imported under from a
  * distribution package, so toolkit entries calling it can be recognized
  * (and a same-named local function can't smuggle an arbitrary call through).
  */
@@ -538,8 +531,15 @@ function collectInteractableToolImports(ast: t.File): Set<string> {
   return names;
 }
 
+function createToolkitNameContext(): ToolkitNameContext {
+  return {
+    importedToolkitNamesByFile: new Map(),
+    resolvingImportedToolkitNames: new Set(),
+  };
+}
+
 /**
- * The inline config of an `interactableTool({ ... })` toolkit entry, or `null`
+ * The inline config of an `unstable_interactableTool({ ... })` toolkit entry, or `null`
  * when the entry is some other expression.
  */
 function interactableToolConfig(
@@ -1140,7 +1140,7 @@ function compileToolkit(
         "each tool must be an inline object literal (`name: { ... }`) or a " +
           "compiler-visible toolkit spread / generative tool (e.g. " +
           "`...defineMcpToolkit(...)`, `...baseToolkit`, " +
-          "`generative.present()`, or `interactableTool(...)`) so its " +
+          "`generative.present()`, or `unstable_interactableTool(...)`) so its " +
           "`execute` can be routed",
         filename,
       );

@@ -39,6 +39,10 @@ export type InteractableVersionInfo<TState> = {
   restore: () => void;
 };
 
+/**
+ * Unstable / Experimental — the interactables API is still evolving and may change in any release.
+ * @deprecated Unstable / Experimental (not actually removed).
+ */
 export type InteractableConfig<TSchema extends InteractableStateSchema> = {
   description: string;
   stateSchema: TSchema;
@@ -66,7 +70,7 @@ export type InteractableConfig<TSchema extends InteractableStateSchema> = {
  *
  * Call this once per place that shows the interactable. Other components can
  * read and write the same instance by passing its `id` to
- * {@link useInteractableState}.
+ * `unstable_useInteractableState`.
  *
  * For `scope: "thread"` interactables rendered inside tool-call message parts,
  * `version` carries this message's version of the instance — its state as of
@@ -75,6 +79,8 @@ export type InteractableConfig<TSchema extends InteractableStateSchema> = {
  * live-editable is the component's choice. Inside an `update_{name}` part the
  * instance `id` is inferred from the call, so the same component works at the
  * creating call and at update calls.
+ *
+ * @deprecated Unstable / Experimental (not actually removed).
  */
 export const useInteractable = <TSchema extends InteractableStateSchema>(
   name: string,
@@ -138,7 +144,7 @@ export const useInteractable = <TSchema extends InteractableStateSchema>(
   const initialStateRef = useRef(config.initialState);
   initialStateRef.current = config.initialState;
 
-  const interactables = useAuiState(() => aui.interactables());
+  const interactables = useAuiState(() => aui.unstable_interactables());
 
   useEffect(() => {
     return interactables.register({

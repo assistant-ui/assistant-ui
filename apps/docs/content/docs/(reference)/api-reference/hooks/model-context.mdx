@@ -3,7 +3,7 @@ title: Model Context Hooks
 description: React hooks for registering assistant-ui tools, data renderers, instructions, and model context providers.
 ---
 
-import { useAuiToolOverrides, useInteractable, useInteractableState, useInteractableVersions } from "@/generated/typeDocs";
+import { useAuiToolOverrides } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -31,43 +31,4 @@ Overrides are registered at priority 1000, above toolkit defaults. Only one
 mounted override provider may define a given tool name at a time.
 
 <ParametersTable {...useAuiToolOverrides} />
-
-### useInteractable
-
-Registers an interactable with the AI assistant and returns its live state,
-like `useState` that the model can also read and update.
-
-Call this once per place that shows the interactable. Other components can
-read and write the same instance by passing its `id` to
-[useInteractableState](/docs/api-reference/hooks/model-context#useinteractablestate).
-
-For `scope: "thread"` interactables rendered inside tool-call message parts,
-`version` carries this message's version of the instance — its state as of
-that point in the conversation, whether it is the most recent edit, and a
-`restore()` back to it. Whether older messages render frozen history or stay
-live-editable is the component's choice. Inside an `update_{name}` part the
-instance `id` is inferred from the call, so the same component works at the
-creating call and at update calls.
-
-<ParametersTable {...useInteractable} />
-
-### useInteractableState
-
-Reads and writes the state of an interactable registered elsewhere, by id.
-
-Use this from secondary readers (children, siblings); the owning component
-registers with [useInteractable](/docs/api-reference/hooks/model-context#useinteractable), which returns state directly. Returns
-`undefined` until the owning interactable is registered.
-
-<ParametersTable {...useInteractableState} />
-
-### useInteractableVersions
-
-Every version of a thread-scoped interactable recorded in the current
-thread, oldest first: the creating tool call, each user edit, and each
-`update_*` call. Each entry carries the full state as of that version and a
-`restore()` that sets the live instance back to it — enough for a version
-picker like an artifact's history dropdown.
-
-<ParametersTable {...useInteractableVersions} />
 {/* api-reference:end */}

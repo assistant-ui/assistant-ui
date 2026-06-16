@@ -93,11 +93,11 @@ export { mergeModelContexts } from "./model-context/types";
 export { tool } from "./model-context/tool";
 
 export {
-  getInteractableSnapshots,
-  formatInteractableSnapshot,
-  getInteractableVersions,
-  type InteractableSnapshotEntry,
-  type InteractableVersion,
+  getInteractableSnapshots as unstable_getInteractableSnapshots,
+  formatInteractableSnapshot as unstable_formatInteractableSnapshot,
+  getInteractableVersions as unstable_getInteractableVersions,
+  type InteractableSnapshotEntry as Unstable_InteractableSnapshotEntry,
+  type InteractableVersion as Unstable_InteractableVersion,
 } from "./model-context/interactable-composer-metadata";
 
 export type { ToolExecutionStatus } from "./runtimes/tool-invocations/ToolInvocationTracker";

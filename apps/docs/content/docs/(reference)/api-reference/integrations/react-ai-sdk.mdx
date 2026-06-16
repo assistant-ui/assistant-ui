@@ -3,7 +3,7 @@ title: "@assistant-ui/react-ai-sdk"
 description: Vercel AI SDK runtime hooks, chat transports, and message conversion utilities for assistant-ui React applications.
 ---
 
-import { reactAiSdk_AISDKToolkit, reactAiSdk_AssistantChatTransport, reactAiSdk_createResumableSessionStorage, reactAiSdk_getThreadMessageTokenUsage, reactAiSdk_injectInteractableContext, reactAiSdk_injectQuoteContext, reactAiSdk_useAISDKRuntime, reactAiSdk_useChatRuntime } from "@/generated/integrationTypeDocs";
+import { reactAiSdk_AISDKToolkit, reactAiSdk_AssistantChatTransport, reactAiSdk_createResumableSessionStorage, reactAiSdk_getThreadMessageTokenUsage, reactAiSdk_injectQuoteContext, reactAiSdk_useAISDKRuntime, reactAiSdk_useChatRuntime } from "@/generated/integrationTypeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -75,38 +75,6 @@ const generativeTools: (options: GenerativeToolsOptions) => ToolSet;
 
 <ParametersTable {...reactAiSdk_getThreadMessageTokenUsage} />
 
-### injectInteractableContext
-
-Injects interactable state snapshots into messages as model-visible text.
-
-Mirrors [injectQuoteContext](/docs/api-reference/integrations/react-ai-sdk#injectquotecontext): reads the frozen snapshot stamped on a user
-message's `metadata.custom.interactables` (by the interactables scope at send
-time) and prepends a text part. Run this in your route handler before
-`convertToModelMessages`, which otherwise ignores `metadata.custom`.
-
-Wording is consumer-owned — pass `format` to control how each snapshot reads.
-A snapshot may originate from a user edit or an agent `update_*` call, so the
-default phrasing is neutral. Keep the instance id visible in custom wording:
-the model needs it to address the `update_*` tool's `id` parameter. A custom
-`format` must also handle entries with `partial: true`, whose `state` carries
-only the fields that changed since the model's last known state.
-
-```ts
-import { convertToModelMessages, streamText } from "ai";
-import { injectInteractableContext } from "@assistant-ui/react-ai-sdk";
-
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-  const result = streamText({
-    model: myModel,
-    messages: await convertToModelMessages(injectInteractableContext(messages)),
-  });
-  return result.toUIMessageStreamResponse();
-}
-```
-
-<ParametersTable {...reactAiSdk_injectInteractableContext} />
-
 ### injectQuoteContext
 
 Injects quote context into messages as markdown blockquotes.
@@ -148,5 +116,41 @@ const RESUMABLE_STREAM_ID_HEADER: "x-resumable-stream-id";
 
 ```ts
 function useThreadTokenUsage(): ThreadTokenUsage;
+```
+
+### unstable_injectInteractableContext
+
+Injects interactable state snapshots into messages as model-visible text.
+
+Mirrors [injectQuoteContext](/docs/api-reference/integrations/react-ai-sdk#injectquotecontext): reads the frozen snapshot stamped on a user
+message's `metadata.custom.interactables` (by the interactables scope at send
+time) and prepends a text part. Run this in your route handler before
+`convertToModelMessages`, which otherwise ignores `metadata.custom`.
+
+Wording is consumer-owned — pass `format` to control how each snapshot reads.
+A snapshot may originate from a user edit or an agent `update_*` call, so the
+default phrasing is neutral. Keep the instance id visible in custom wording:
+the model needs it to address the `update_*` tool's `id` parameter. A custom
+`format` must also handle entries with `partial: true`, whose `state` carries
+only the fields that changed since the model's last known state.
+
+```ts
+import { convertToModelMessages, streamText } from "ai";
+import { unstable_injectInteractableContext } from "@assistant-ui/react-ai-sdk";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: myModel,
+    messages: await convertToModelMessages(unstable_injectInteractableContext(messages)),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```ts
+function unstable_injectInteractableContext(messages: UIMessage[], format: (
+    item: InteractableSnapshotEntry,
+  ) => string = formatInteractableSnapshot): UIMessage[];
 ```
 {/* api-reference:end */}

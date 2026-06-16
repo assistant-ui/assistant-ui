@@ -1,6 +1,10 @@
 import { isJSONValueEqual } from "../utils/json/is-json-equal";
 import { isJSONValue } from "../utils/json/is-json";
 
+/**
+ * Unstable / Experimental — the interactables API is still evolving and may change in any release.
+ * @deprecated Unstable / Experimental (not actually removed).
+ */
 export type InteractableSnapshotEntry = {
   id: string;
   name: string;
@@ -28,8 +32,10 @@ type SnapshotCarrierMessage = {
  * Reads the interactable snapshots stamped on a message's
  * `metadata.custom.interactables`, or `undefined` if none. This is the read
  * half of the snapshot channel — integrations use it to surface interactable
- * state to the model (see `injectInteractableContext` in
+ * state to the model (see `unstable_injectInteractableContext` in
  * `@assistant-ui/react-ai-sdk` for the AI SDK implementation).
+ *
+ * @deprecated Unstable / Experimental (not actually removed).
  */
 export function getInteractableSnapshots(message: {
   metadata?: unknown;
@@ -44,7 +50,11 @@ export function getInteractableSnapshots(message: {
     : undefined;
 }
 
-/** Canonical model-facing wording for one snapshot entry. */
+/**
+ * Canonical model-facing wording for one snapshot entry.
+ *
+ * @deprecated Unstable / Experimental (not actually removed).
+ */
 export function formatInteractableSnapshot(
   entry: InteractableSnapshotEntry,
 ): string {
@@ -121,6 +131,10 @@ const updateCallTargets = (p: ToolCallLikePart, id: string): boolean => {
   return argsId === id || argsId === undefined;
 };
 
+/**
+ * Unstable / Experimental — the interactables API is still evolving and may change in any release.
+ * @deprecated Unstable / Experimental (not actually removed).
+ */
 export type InteractableVersion = {
   /** The full state as of this version. */
   state: unknown;
@@ -149,6 +163,8 @@ const versionsCache = new WeakMap<
  *
  * The last entry is the state the model knows. Partial snapshots and update
  * calls with no baseline to merge into are skipped.
+ *
+ * @deprecated Unstable / Experimental (not actually removed).
  */
 export function getInteractableVersions(
   messages: readonly SnapshotCarrierMessage[],

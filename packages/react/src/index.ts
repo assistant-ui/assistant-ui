@@ -213,15 +213,19 @@ export {
   Tools,
   DataRenderers,
   Interactables,
-  useInteractable,
-  type InteractableConfig,
-  type InferInteractableState,
-  type InteractableVersionInfo,
+  useAssistantInteractable,
+  type AssistantInteractableProps,
   useInteractableState,
-  useInteractableVersions,
-  interactableTool,
-  type InteractableToolConfig,
-  type InteractableToolRenderProps,
+  unstable_Interactables,
+  unstable_useInteractable,
+  type Unstable_InteractableConfig,
+  type Unstable_InferInteractableState,
+  type Unstable_InteractableVersionInfo,
+  unstable_useInteractableState,
+  unstable_useInteractableVersions,
+  unstable_interactableTool,
+  type Unstable_InteractableToolConfig,
+  type Unstable_InteractableToolRenderProps,
   useToolArgsStatus,
   type ToolArgsStatus,
 } from "@assistant-ui/core/react";
@@ -236,11 +240,11 @@ export type {
 export { mergeModelContexts } from "@assistant-ui/core";
 
 export {
-  getInteractableSnapshots,
-  formatInteractableSnapshot,
-  getInteractableVersions,
-  type InteractableSnapshotEntry,
-  type InteractableVersion,
+  unstable_getInteractableSnapshots,
+  unstable_formatInteractableSnapshot,
+  unstable_getInteractableVersions,
+  type Unstable_InteractableSnapshotEntry,
+  type Unstable_InteractableVersion,
 } from "@assistant-ui/core";
 
 export type { Tool } from "assistant-stream";

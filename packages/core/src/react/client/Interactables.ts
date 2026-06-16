@@ -36,7 +36,7 @@ type RestorePersistedStateOptions = {
 
 const useInteractables = ({
   persistence,
-}: InteractablesConfig = {}): ClientOutput<"interactables"> => {
+}: InteractablesConfig = {}): ClientOutput<"unstable_interactables"> => {
   const [state, setState] = useState<InteractablesState>(() => ({
     definitions: {},
     persistence: {},
@@ -478,6 +478,11 @@ const useInteractables = ({
   };
 };
 
+/**
+ * Registers the unstable interactables store scope.
+ *
+ * @deprecated Unstable / Experimental (not actually removed).
+ */
 export const Interactables = resource(useInteractables);
 
 attachTransformScopes(useInteractables, (scopes, parent) => {

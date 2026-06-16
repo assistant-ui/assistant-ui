@@ -420,20 +420,20 @@ export default defineToolkit({
     expect(client.trimStart().startsWith('"use client"')).toBe(true);
   });
 
-  it("splits an interactableTool entry: client keeps render, server drops it", () => {
+  it("splits an unstable_interactableTool entry: client keeps render, server drops it", () => {
     const src = `"use generative";
 import { z } from "zod";
 import { Notepad } from "@/ui/notepad";
-import { defineToolkit, interactableTool } from "@assistant-ui/react";
+import { defineToolkit, unstable_interactableTool } from "@assistant-ui/react";
 export default defineToolkit({
-  notepad: interactableTool({
+  notepad: unstable_interactableTool({
     description: "A notepad.",
     stateSchema: z.object({ content: z.string() }),
     render: (props) => <Notepad {...props} />,
   }),
 });`;
     const server = compileGenerative(src, { target: "server" }).code;
-    expect(server).toContain("interactableTool({");
+    expect(server).toContain("unstable_interactableTool({");
     expect(server).toContain('description: "A notepad."');
     expect(server).toContain("z.object");
     expect(server).not.toMatch(/render\s*:/);
@@ -445,11 +445,11 @@ export default defineToolkit({
     expect(client).toContain('import { Notepad } from "@/ui/notepad"');
   });
 
-  it("rejects interactableTool not imported from an assistant-ui package", () => {
+  it("rejects unstable_interactableTool not imported from an assistant-ui package", () => {
     const src = `"use generative";
 import { defineToolkit } from "@assistant-ui/react";
-import { interactableTool } from "@/my-tools";
-export default defineToolkit({ notepad: interactableTool({ render: () => null }) });`;
+import { unstable_interactableTool } from "@/my-tools";
+export default defineToolkit({ notepad: unstable_interactableTool({ render: () => null }) });`;
     expect(() => compileGenerative(src, { target: "server" })).toThrow(
       /inline object literal/,
     );

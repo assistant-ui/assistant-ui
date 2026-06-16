@@ -44,7 +44,7 @@ const UPDATE_TOOL_PREFIX = "update_";
  * for assignment to a toolkit entry — the entry key is the interactable name:
  *
  * ```tsx
- * notepad: interactableTool({
+ * notepad: unstable_interactableTool({
  *   description: "A notepad the user can read and edit.",
  *   stateSchema: notepadSchema,
  *   render: (props) => <Notepad {...props} />,
@@ -56,6 +56,8 @@ const UPDATE_TOOL_PREFIX = "update_";
  * registration handled. It receives the live `state`/`setState` plus this
  * message's `version`; whether older messages render frozen history or stay
  * live-editable is the render function's choice.
+ *
+ * @deprecated Unstable / Experimental (not actually removed).
  */
 export const interactableTool = <TSchema extends InteractableStateSchema>(
   config: InteractableToolConfig<TSchema>,
