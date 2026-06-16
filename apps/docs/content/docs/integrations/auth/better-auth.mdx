@@ -11,8 +11,11 @@ This page covers the non-cloud path. AssistantCloud users should see [cloud auth
 
 ```mermaid
 flowchart LR
-    browser["browser"] --> auth["/api/auth/[...all]"] --> handlers["better-auth handlers"]
-    browser --> routes["/api/chat<br/>/api/threads/*"] --> session["auth.api.getSession<br/>({ headers })"] --> uid["session.user.id"] --> scope["scope queries by userId"]
+    browser["browser"] --> routes["/api/auth/[...all]<br/>/api/chat<br/>/api/threads/*"]
+    routes --> handlers["better-auth handlers"]
+    routes --> session["auth.api.getSession({ headers })"]
+    handlers --> session
+    session --> uid["session.user.id"] --> scope["scope queries by userId"]
 ```
 
 Three integration points:
