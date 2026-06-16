@@ -1,8 +1,11 @@
 import { DevToolsHooks } from "@assistant-ui/react";
 import { projectApi } from "./projectApi";
-import type { ApiInfo, DevToolsClient, DevToolsSnapshot } from "./types";
-
-const EMPTY_SNAPSHOT: DevToolsSnapshot = { apiIds: [], byId: new Map() };
+import {
+  EMPTY_SNAPSHOT,
+  type ApiInfo,
+  type DevToolsClient,
+  type DevToolsSnapshot,
+} from "./types";
 
 /**
  * The default transport: reads the in-process DevToolsHooks registry and
@@ -25,7 +28,8 @@ export const createInProcessClient = (): DevToolsClient => {
         // Skip an api that fails to project rather than breaking the panel.
       }
     }
-    snapshot = { apiIds: [...apis.keys()], byId };
+    // apiIds tracks byId so the selector never lists an id without data.
+    snapshot = { apiIds: [...byId.keys()], byId };
   };
 
   return {

@@ -69,9 +69,15 @@ export const projectApi = (apiId: number, entry: DevToolsApiEntry): ApiInfo => {
     });
   }
 
-  const modelContext = serializeModelContext(
-    entry.api.thread?.().getModelContext(),
-  );
+  let modelContext: ApiInfo["modelContext"];
+  try {
+    modelContext = serializeModelContext(
+      entry.api.thread?.().getModelContext(),
+    );
+  } catch {
+    // A throwing thread()/getModelContext() should not drop the whole api;
+    // show partial data (state, scopes, logs) without the model context.
+  }
 
   return {
     id: apiId,

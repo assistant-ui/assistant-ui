@@ -1,9 +1,6 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { inProcessClient } from "./createInProcessClient";
-import type { ApiInfo, DevToolsClient, DevToolsSnapshot } from "./types";
-
-const EMPTY_SNAPSHOT: DevToolsSnapshot = { apiIds: [], byId: new Map() };
-const getEmptySnapshot = () => EMPTY_SNAPSHOT;
+import { EMPTY_SNAPSHOT, type ApiInfo, type DevToolsClient } from "./types";
 
 export interface DevToolsClientResult {
   apiIds: number[];
@@ -21,10 +18,23 @@ export const useDevToolsClient = (
   selectedApiId: number | null,
   client: DevToolsClient = inProcessClient,
 ): DevToolsClientResult => {
+  // Bind the client methods so class-based or relay clients that rely on `this`
+  // work, and keep the references stable so useSyncExternalStore does not
+  // resubscribe on every render.
+  const store = useMemo(
+    () => ({
+      subscribe: (listener: () => void) => client.subscribe(listener),
+      getSnapshot: () => client.getSnapshot(),
+      getServerSnapshot: () =>
+        client.getServerSnapshot ? client.getServerSnapshot() : EMPTY_SNAPSHOT,
+    }),
+    [client],
+  );
+
   const snapshot = useSyncExternalStore(
-    client.subscribe,
-    client.getSnapshot,
-    client.getServerSnapshot ?? getEmptySnapshot,
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot,
   );
 
   const selected =

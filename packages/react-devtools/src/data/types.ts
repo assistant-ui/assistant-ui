@@ -37,3 +37,6 @@ export interface DevToolsClient {
   /** Clears the buffered event log for an instance. */
   clearEvents(apiId: number): void;
 }
+
+/** Shared stable empty snapshot identity for the empty/server state. */
+export const EMPTY_SNAPSHOT: DevToolsSnapshot = { apiIds: [], byId: new Map() };
