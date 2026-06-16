@@ -1,17 +1,21 @@
-export { DevToolsModal } from "./DevToolsModal";
-export { DevToolsFrame } from "./DevToolsFrame";
-export { FrameHost } from "./FrameHost";
-export { DevToolsHost } from "./DevToolsHost";
-export { ExtensionHost } from "./ExtensionHost";
-export { FrameClient } from "./FrameClient";
+export { DevToolsModal, type DevToolsModalProps } from "./DevToolsModal";
+export { DevToolsPanel, type DevToolsPanelProps } from "./shell/DevToolsPanel";
+export { ShadowRoot } from "./shell/ShadowRoot";
+export {
+  builtinPlugins,
+  createDevToolsPlugin,
+  type DevToolsPanelPlugin,
+  type DevToolsTabContext,
+} from "./shell/registry";
+export type { ApiInfo, DevToolsClient, DevToolsSnapshot } from "./data/types";
+export {
+  createInProcessClient,
+  inProcessClient,
+} from "./data/createInProcessClient";
+export { projectApi } from "./data/projectApi";
 export {
   normalizeToolList,
   type NormalizedTool,
 } from "./utils/toolNormalization";
-export {
-  sanitizeForMessage,
-  serializeModelContext,
-} from "./utils/serialization";
-// Export types
-export type { SerializedModelContext, TabType, ViewMode } from "./types";
-export * from "./constants";
+export { serializeModelContext } from "./utils/serialization";
+export type { SerializedModelContext } from "./types";
