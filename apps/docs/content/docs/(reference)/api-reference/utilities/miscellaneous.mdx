@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, Interactables, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
+import { ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, Interactables, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -13,10 +13,6 @@ import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList
 {/* Do not edit this block manually. */}
 
 ## API Reference
-
-### AssistantCloud
-
-<ParametersTable {...AssistantCloud} />
 
 ### ChainOfThoughtClient
 
@@ -31,6 +27,18 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 ### DevToolsHooks
 
 <ParametersTable {...DevToolsHooks} />
+
+### fromThreadMessageLike
+
+```ts
+const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallbackStatus: MessageStatus) => ThreadMessage;
+```
+
+### generateId
+
+```ts
+const generateId: (size?: number) => string;
+```
 
 ### InMemoryThreadList
 

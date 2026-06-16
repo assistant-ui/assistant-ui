@@ -18,9 +18,10 @@ If you're rolling your own auth, replace `auth()` calls with whatever your stack
 
 ## How it works
 
-```
-client  ──►  /api/threads/*   (RemoteThreadListAdapter)  ──►  threads table
-             /api/messages/*  (ThreadHistoryAdapter)     ──►  messages table
+```mermaid
+flowchart LR
+    client["client"] --> threads["/api/threads/*<br/>(RemoteThreadListAdapter)"] --> tt["threads table"]
+    client --> messages["/api/messages/*<br/>(ThreadHistoryAdapter)"] --> mt["messages table"]
 ```
 
 Two adapters, two tables:

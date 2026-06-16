@@ -21,6 +21,7 @@ import {
 import { PrimitivesTypeTable } from "@/components/docs/primitives-type-table";
 import { SourceLink } from "@/components/docs/source-link";
 import { Flow } from "@/components/assistant-ui/flow";
+import { MermaidFigure } from "@/components/docs/mermaid-figure";
 import { Code } from "@radix-ui/themes";
 
 function Kbd({ children, ...props }: ComponentProps<"kbd">) {
@@ -61,6 +62,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     PrimitivesTypeTable,
     SourceLink,
     Flow,
+    MermaidFigure,
     Code,
     blockquote: (props) => <Callout>{props.children}</Callout>,
     ...components,

@@ -11,10 +11,10 @@ Helicone is independent of which assistant-ui runtime you use. It slots in at th
 
 ## How it works
 
-```
-your server  ──►  Helicone proxy  ──►  OpenAI / Anthropic / etc.
-                  │
-                  └─ logs request, response, tokens, cost
+```mermaid
+flowchart LR
+    server["your server"] --> proxy["Helicone proxy"] --> provider["OpenAI / Anthropic / etc."]
+    proxy --- logs["logs request, response,<br/>tokens, cost"]
 ```
 
 Calls pass through Helicone's edge before reaching the upstream provider. The proxy is transparent: response shape and streaming behavior are unchanged, you just gain a dashboard of every call.

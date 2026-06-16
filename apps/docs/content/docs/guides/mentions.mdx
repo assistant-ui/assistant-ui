@@ -8,12 +8,9 @@ Mentions let users type `@` in the composer to open a popover picker, select an 
 
 ## How It Works
 
-```
-User types "@"  →  Trigger detected  →  Adapter provides categories/items
-                                              ↓
-              Directive inserted  ←  User selects item from popover
-                   ↓
-         Message sent with ":tool[Label]{name=id}" in text
+```mermaid
+flowchart LR
+    type["User types @"] --> trigger["Trigger detected"] --> adapter["Adapter provides<br/>categories / items"] --> select["User selects item<br/>from popover"] --> insert["Directive inserted"] --> sent["Message sent with<br/>:tool[Label]{name=id} text"]
 ```
 
 The mention system has three layers:

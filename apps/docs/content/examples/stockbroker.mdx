@@ -27,22 +27,9 @@ A stock trading assistant built with LangGraph that demonstrates human-in-the-lo
 
 ## How It Works
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Research  │────▶│   Analyze   │────▶│   Prepare   │
-│    Stock    │     │    Data     │     │    Trade    │
-└─────────────┘     └─────────────┘     └─────────────┘
-                                              │
-                                              ▼
-                                    ┌─────────────────┐
-                                    │  Human Approval │
-                                    │   (Required)    │
-                                    └─────────────────┘
-                                              │
-                                              ▼
-                                    ┌─────────────────┐
-                                    │  Execute Trade  │
-                                    └─────────────────┘
+```mermaid
+flowchart LR
+    research["Research Stock"] --> analyze["Analyze Data"] --> prepare["Prepare Trade"] --> approval["Human Approval<br/>(Required)"] --> execute["Execute Trade"]
 ```
 
 1. User asks about a stock (e.g., "Should I buy AAPL?")
