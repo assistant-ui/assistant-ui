@@ -86,6 +86,13 @@ type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
   delete?: ((threadId: string) => Promise<void>) | undefined;
 };
 
+export const runConfigToSubmitOptions = (
+  runConfig: AppendMessage["runConfig"],
+) =>
+  runConfig?.custom
+    ? { config: { configurable: runConfig.custom } }
+    : undefined;
+
 const getPendingToolCalls = (
   messages: readonly LangChainBaseMessage[],
 ): LangChainToolCall[] => {
@@ -243,9 +250,10 @@ const useStreamThreadRuntime = (
               status: "error" as const,
             }))
           : [];
-      await stream.submit({
-        [messagesKey]: [...cancellations, { type: "human", content }],
-      });
+      await stream.submit(
+        { [messagesKey]: [...cancellations, { type: "human", content }] },
+        runConfigToSubmitOptions(msg.runConfig),
+      );
     },
     onAddToolResult: async ({
       toolCallId,
