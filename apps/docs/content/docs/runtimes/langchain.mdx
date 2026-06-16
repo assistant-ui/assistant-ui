@@ -441,6 +441,20 @@ function InterruptPrompt() {
 </Tab>
 </PlatformTabs>
 
+## Errors
+
+`useLangChainError` exposes the last run or hydration error from upstream `useStream().error`. It is untyped (`unknown`), so narrow it at the use site before rendering.
+
+```tsx
+import { useLangChainError } from "@assistant-ui/react-langchain";
+
+function ErrorBanner() {
+  const error = useLangChainError();
+  if (!error) return null;
+  return <div role="alert">{error instanceof Error ? error.message : String(error)}</div>;
+}
+```
+
 ## Message conversion
 
 `convertLangChainBaseMessage` transforms a LangChain `BaseMessage` into an assistant-ui message. Use it when building a custom `ExternalStoreAdapter` that consumes LangChain messages outside `useStreamRuntime`.
@@ -515,6 +529,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | `useLangGraphMessageMetadata` | _(not available)_ | Open an issue if you rely on this. |
 | `useLangGraphUIMessages` | _(not available)_ | Open an issue if you rely on this. |
 | _(none)_ | `useLangChainState<T>(key)` | New — reads any custom state key reactively. |
+| _(none)_ | `useLangChainError()` | New — reads the last run/hydration error reactively. |
 
 ## Related
 

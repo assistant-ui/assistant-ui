@@ -35,4 +35,4 @@ export function App() {
 
 `useStreamRuntime` accepts every option `@langchain/react`'s `useStream` does, plus `cloud` for thread persistence, an `adapters` bag, and a `messagesKey` override.
 
-Full reference for `useLangChainState`, `useLangChainInterruptState`, `useLangChainSubmit`, and `convertLangChainBaseMessage` at [assistant-ui.com/docs/runtimes/langchain](https://www.assistant-ui.com/docs/runtimes/langchain).
+Full reference for `useLangChainState`, `useLangChainInterruptState`, `useLangChainError`, `useLangChainSubmit`, and `convertLangChainBaseMessage` at [assistant-ui.com/docs/runtimes/langchain](https://www.assistant-ui.com/docs/runtimes/langchain).
