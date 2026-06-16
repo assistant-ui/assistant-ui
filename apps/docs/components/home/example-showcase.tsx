@@ -101,23 +101,47 @@ const prefersReducedMotion = () =>
 
 export function ExampleShowcase() {
   const sectionRef = React.useRef<HTMLElement>(null);
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const animationRef = React.useRef<Animation | null>(null);
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
 
-  // Toggling the panel between its inline box and `fixed inset-0` is wrapped in
-  // a View Transition so the browser morphs the shared `example-demo` element
-  // between the two states. Timing lives in styles/animate.css.
+  // FLIP: measure the panel before and after toggling between its inline
+  // `absolute` slot and `fixed inset-0`, then tween width/height plus a
+  // translate offset. The content keeps its real pixel size throughout (no
+  // scaling), so nothing stretches the way a View Transition's bitmap morph —
+  // or a non-uniform transform scale across the aspect-ratio change — would.
   const toggleFullscreen = React.useCallback(() => {
-    const apply = () => setIsFullscreen((value) => !value);
-    if (
-      typeof document === "undefined" ||
-      !document.startViewTransition ||
-      prefersReducedMotion()
-    ) {
-      apply();
+    const el = panelRef.current;
+    if (!el || prefersReducedMotion()) {
+      setIsFullscreen((value) => !value);
       return;
     }
-    document.startViewTransition(() => flushSync(apply));
+
+    const first = el.getBoundingClientRect();
+    flushSync(() => setIsFullscreen((value) => !value));
+    const last = el.getBoundingClientRect();
+    const expanding = last.height > first.height;
+
+    animationRef.current?.cancel();
+    animationRef.current = el.animate(
+      [
+        {
+          transform: `translate(${first.left - last.left}px, ${first.top - last.top}px)`,
+          width: `${first.width}px`,
+          height: `${first.height}px`,
+        },
+        {
+          transform: "translate(0px, 0px)",
+          width: `${last.width}px`,
+          height: `${last.height}px`,
+        },
+      ],
+      {
+        duration: expanding ? 350 : 250,
+        easing: "cubic-bezier(0.32, 0.72, 0, 1)",
+      },
+    );
   }, []);
 
   // Inline, the demo is a static preview: clicking anywhere except the tab bar
@@ -159,9 +183,10 @@ export function ExampleShowcase() {
           the panel detaches to fullscreen. */}
       <div className="relative h-160">
         <div
+          ref={panelRef}
           onClick={handlePanelClick}
           className={cn(
-            "inset-0 [view-transition-name:example-demo]",
+            "inset-0",
             isFullscreen
               ? "bg-background fixed z-[100] p-4 md:p-6"
               : "absolute cursor-zoom-in [&_[data-slot=tab-content-panel]]:pointer-events-none",
