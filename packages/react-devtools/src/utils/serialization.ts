@@ -37,8 +37,6 @@ export const sanitizeForMessage = (
     const result = value
       .map((entry) => sanitizeForMessage(entry, seen))
       .filter((item) => item !== undefined);
-    // Track only the current ancestor path so shared (non-cyclic) sibling
-    // references are not misreported as circular.
     seen.delete(value as unknown as object);
     return result;
   }
