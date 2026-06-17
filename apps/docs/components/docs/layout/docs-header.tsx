@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
 import { NAV_ITEMS, type NavItem } from "@/lib/constants";
+import { CloudButton } from "@/components/shared/cloud-button";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
@@ -252,14 +253,7 @@ export function DocsHeader({
             <NavItems items={condensedItems} megaAlign="end" />
             {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
           </nav>
-          <a
-            href="https://cloud.assistant-ui.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="border-border/50 bg-muted/50 hover:bg-muted flex h-8 items-center rounded-lg border px-3 text-sm font-medium transition-colors"
-          >
-            Cloud
-          </a>
+          <CloudButton variant="docs" />
           <ThemeToggle />
         </div>
 
@@ -270,14 +264,7 @@ export function DocsHeader({
           <nav className="flex shrink-0 items-center">
             <NavItems items={filteredItems} megaAlign="end" />
           </nav>
-          <a
-            href="https://cloud.assistant-ui.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="border-border/50 bg-muted/50 hover:bg-muted flex h-8 items-center rounded-lg border px-3 text-sm font-medium transition-colors"
-          >
-            Cloud
-          </a>
+          <CloudButton variant="docs" />
           <ThemeToggle />
         </div>
       </div>
@@ -354,15 +341,11 @@ export function DocsHeader({
             );
           })}
           <div className="mt-auto border-t py-6">
-            <a
-              href="https://cloud.assistant-ui.com"
-              target="_blank"
-              rel="noopener noreferrer"
+            <CloudButton
+              variant="mobile"
+              className="w-auto"
               onClick={() => setNavMenuOpen(false)}
-              className="border-border hover:bg-muted inline-flex rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-            >
-              Cloud
-            </a>
+            />
           </div>
         </nav>
       </div>

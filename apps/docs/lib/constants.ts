@@ -1,4 +1,5 @@
 export const BASE_URL = "https://www.assistant-ui.com";
+export const CLOUD_URL = "https://cloud.assistant-ui.com";
 
 export const PLATFORMS = ["react", "rn", "ink"] as const;
 export type Platform = (typeof PLATFORMS)[number];

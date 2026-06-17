@@ -12,6 +12,7 @@ import { SearchDialog } from "./search-dialog";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { NAV_ITEMS } from "@/lib/constants";
+import { CloudButton } from "@/components/shared/cloud-button";
 import { NavItems } from "@/components/shared/nav-items";
 
 function SearchButton({ onToggle }: { onToggle: () => void }) {
@@ -132,14 +133,7 @@ export function Header() {
             </>
           )}
 
-          <a
-            href="https://cloud.assistant-ui.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="border-border hover:bg-muted hidden rounded-md border px-3 py-1.5 text-sm font-medium transition-colors md:inline-flex"
-          >
-            Cloud
-          </a>
+          <CloudButton variant="marketing" />
 
           <a
             href="https://github.com/assistant-ui/assistant-ui"
@@ -255,15 +249,10 @@ export function Header() {
           })}
 
           <div className="mt-auto flex flex-col gap-4 border-t py-6">
-            <a
-              href="https://cloud.assistant-ui.com"
-              target="_blank"
-              rel="noopener noreferrer"
+            <CloudButton
+              variant="mobile"
               onClick={() => setMobileMenuOpen(false)}
-              className="border-border hover:bg-muted inline-flex w-fit rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-            >
-              Cloud
-            </a>
+            />
             <div className="flex gap-4">
               <a
                 href="https://github.com/assistant-ui/assistant-ui"
