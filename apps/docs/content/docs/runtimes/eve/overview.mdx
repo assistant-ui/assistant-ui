@@ -1,0 +1,100 @@
+---
+title: Eve Runtime
+description: Connect an Eve agent to assistant-ui with useEveAgentRuntime, eve/next, durable sessions, streaming messages, and human-in-the-loop approvals.
+---
+
+import { VercelIcon } from "@/components/icons/vercel";
+
+`@assistant-ui/eve` integrates assistant-ui with [Eve](https://eve.dev/), Vercel's filesystem-first framework for durable agents. It wraps Eve's `useEveAgent` hook and exposes it as an assistant-ui `ExternalStoreRuntime`, so Eve owns the session stream while assistant-ui renders messages, reasoning, dynamic tool calls, and approval requests.
+
+## When to use it
+
+Pick the Eve runtime when:
+
+- You want your agent implementation to live under `agent/` and be served by `eve/next`.
+- You want Eve sessions, continuation tokens, NDJSON streaming, and local development tooling.
+- You want assistant-ui to render Eve messages and human-in-the-loop tool approvals without writing a custom runtime adapter.
+
+## Architecture
+
+The Next.js app mounts Eve with `withEve()` and assistant-ui's registry transform with `withAui()`:
+
+```ts title="next.config.ts"
+import { withAui } from "@assistant-ui/next";
+import type { NextConfig } from "next";
+import { withEve } from "eve/next";
+
+const nextConfig: NextConfig = {};
+
+export default withEve(withAui(nextConfig));
+```
+
+On the client, `useEveAgentRuntime()` calls Eve's React hook and converts Eve message parts into assistant-ui thread messages:
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { Thread } from "@/components/assistant-ui/thread";
+import { useEveAgentRuntime } from "@assistant-ui/eve";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+
+export default function Home() {
+  const runtime = useEveAgentRuntime();
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Requirements
+
+- Node.js 24 or higher.
+- React 18 or 19.
+- An Eve app mounted with `eve/next`.
+- A model credential for the model configured in `agent/agent.ts`.
+
+Eve's default gateway model ids route through the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway). Use `AI_GATEWAY_API_KEY` or Vercel OIDC, or configure a direct provider `LanguageModel`.
+
+## Install
+
+<PlatformTabs>
+<Tab value="React">
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/eve", "eve"]} />
+
+</Tab>
+<Tab value="React Native">
+
+Eve's browser hook talks to the Eve HTTP channel. There is not a React Native Eve runtime package yet.
+
+</Tab>
+<Tab value="React Ink">
+
+Use Eve's terminal UI directly for command-line agent sessions. There is not an Ink Eve runtime package yet.
+
+</Tab>
+</PlatformTabs>
+
+## Auth note
+
+Eve's built-in `eve` channel accepts localhost during development and trusted Vercel OIDC callers. It does not automatically admit browser users in production. Before deploying a public app, add `agent/channels/eve.ts` and wire the channel to your application auth.
+
+## Next
+
+<Cards>
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="Quickstart"
+    description="Scaffold the Eve template or add Eve to an existing assistant-ui app."
+    href="/docs/runtimes/eve/quickstart"
+  />
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="Eve channel"
+    description="Routes, auth, session creation, and stream events in the default Eve HTTP channel."
+    href="https://eve.dev/docs/channels/eve"
+  />
+</Cards>

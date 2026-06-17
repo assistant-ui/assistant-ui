@@ -78,6 +78,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     path: "templates/mcp",
     hasLocalComponents: false,
   },
+  {
+    name: "eve",
+    label: "Eve",
+    description: "Eve agent + Next.js starter",
+    category: "template",
+    path: "templates/eve",
+    hasLocalComponents: false,
+  },
   // Examples
   {
     name: "with-ag-ui",
@@ -101,6 +109,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Vercel AI SDK v6",
     category: "example",
     path: "examples/with-ai-sdk-v6",
+    hasLocalComponents: false,
+  },
+  {
+    name: "with-eve",
+    label: "Eve",
+    description: "Eve agent integration",
+    category: "example",
+    path: "examples/with-eve",
     hasLocalComponents: false,
   },
   {

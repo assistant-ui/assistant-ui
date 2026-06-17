@@ -1,0 +1,143 @@
+---
+title: Quickstart
+description: From-template and manual setup paths to a working Eve agent chat in assistant-ui.
+---
+
+Two paths to a running Eve-powered assistant-ui app. The template is fastest; the manual path is what you adapt when integrating into an existing Next.js project.
+
+## From the template
+
+<PlatformTabs>
+<Tab value="React">
+
+```sh
+npx create-assistant-ui@latest -t eve my-app
+cd my-app
+```
+
+Set a model credential:
+
+```sh title=".env.local"
+AI_GATEWAY_API_KEY=your-api-key
+```
+
+```sh
+npm run dev
+```
+
+Open http://localhost:3000 and send a message. The template includes:
+
+- `agent/agent.ts` for Eve runtime config.
+- `agent/instructions.md` for the always-on system prompt.
+- `next.config.ts` with `withEve(withAui(nextConfig))`.
+- `app/page.tsx` with `useEveAgentRuntime()`.
+
+</Tab>
+<Tab value="React Native">
+
+There is not a React Native Eve template yet.
+
+</Tab>
+<Tab value="React Ink">
+
+Use Eve's terminal UI directly for command-line agent sessions.
+
+</Tab>
+</PlatformTabs>
+
+## Manual setup in an existing app
+
+<Steps>
+<Step>
+
+### Install dependencies
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/eve", "eve"]} />
+
+</Step>
+<Step>
+
+### Mount Eve in Next.js
+
+```ts title="next.config.ts"
+import { withAui } from "@assistant-ui/next";
+import type { NextConfig } from "next";
+import { withEve } from "eve/next";
+
+const nextConfig: NextConfig = {};
+
+export default withEve(withAui(nextConfig));
+```
+
+</Step>
+<Step>
+
+### Add an Eve agent
+
+```ts title="agent/agent.ts"
+import { defineAgent } from "eve";
+
+export default defineAgent({
+  model: "anthropic/claude-sonnet-4.6",
+});
+```
+
+```md title="agent/instructions.md"
+You are a concise assistant. Use tools when they are available.
+```
+
+</Step>
+<Step>
+
+### Create the runtime
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { Thread } from "@/components/assistant-ui/thread";
+import { useEveAgentRuntime } from "@assistant-ui/eve";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+
+export default function Home() {
+  const runtime = useEveAgentRuntime();
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Step>
+</Steps>
+
+## Production auth
+
+The default Eve channel is convenient for local development. For production browser users, define `agent/channels/eve.ts` and replace the default auth policy with your app's auth.
+
+```ts title="agent/channels/eve.ts"
+import { localDev, vercelOidc } from "eve/channels/auth";
+import { eveChannel } from "eve/channels/eve";
+
+export default eveChannel({
+  auth: [localDev(), vercelOidc()],
+});
+```
+
+That example keeps the development defaults. Swap in your Clerk, Auth.js, OIDC, or JWT verification before going live.
+
+## Next
+
+<Cards>
+  <Card
+    title="Eve overview"
+    description="Architecture, requirements, and runtime behavior."
+    href="/docs/runtimes/eve/overview"
+  />
+  <Card
+    title="API reference"
+    description="useEveAgentRuntime and message conversion helpers."
+    href="/docs/api-reference/integrations/eve"
+  />
+</Cards>

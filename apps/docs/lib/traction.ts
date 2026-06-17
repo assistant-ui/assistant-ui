@@ -153,6 +153,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "frameworks",
   },
   {
+    name: "@assistant-ui/eve",
+    description: "Eve runtime adapter.",
+    category: "frameworks",
+  },
+  {
     name: "@assistant-ui/react-langgraph",
     description: "LangGraph adapter.",
     category: "frameworks",

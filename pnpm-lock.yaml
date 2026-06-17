@@ -1378,6 +1378,76 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
+  examples/with-eve:
+    dependencies:
+      '@assistant-ui/eve':
+        specifier: workspace:*
+        version: link:../../packages/eve
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      '@assistant-ui/react-markdown':
+        specifier: workspace:*
+        version: link:../../packages/react-markdown
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      eve:
+        specifier: ^0.11.4
+        version: 0.11.4(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.0-beta.178(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.1)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@25.9.3))(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(rollup@4.62.0)(sqlite3@5.1.7)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+      lucide-react:
+        specifier: ^1.18.0
+        version: 1.18.0(react@19.2.7)
+      next:
+        specifier: ^16.2.9
+        version: 16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react:
+        specifier: ^19.2.7
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.7
+        version: 19.2.7(react@19.2.7)
+      tailwind-merge:
+        specifier: ^3.6.0
+        version: 3.6.0
+    devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../../packages/x-buildutils
+      '@tailwindcss/postcss':
+        specifier: ^4.3.1
+        version: 4.3.1
+      '@types/node':
+        specifier: ^25.9.3
+        version: 25.9.3
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      postcss:
+        specifier: ^8.5.15
+        version: 8.5.15
+      tailwindcss:
+        specifier: ^4.3.1
+        version: 4.3.1
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   examples/with-expo:
     dependencies:
       '@ai-sdk/openai':
@@ -3241,6 +3311,28 @@ importers:
         specifier: ^6.0.6
         version: 6.0.6
 
+  packages/eve:
+    dependencies:
+      '@assistant-ui/core':
+        specifier: ^0.2.18
+        version: link:../core
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      eve:
+        specifier: ^0.11.4
+        version: 0.11.4(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.0-beta.178(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.1)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@25.9.3))(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(rollup@4.62.0)(sqlite3@5.1.7)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+      react:
+        specifier: ^19.2.7
+        version: 19.2.7
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@29.1.1)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+
   packages/gorp:
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4801,6 +4893,82 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
+  templates/eve:
+    dependencies:
+      '@assistant-ui/eve':
+        specifier: workspace:*
+        version: link:../../packages/eve
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      '@assistant-ui/react-markdown':
+        specifier: workspace:*
+        version: link:../../packages/react-markdown
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      eve:
+        specifier: ^0.11.4
+        version: 0.11.4(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.0-beta.178(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.1)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@25.9.3))(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(rollup@4.62.0)(sqlite3@5.1.7)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+      lucide-react:
+        specifier: ^1.18.0
+        version: 1.18.0(react@19.2.7)
+      next:
+        specifier: ^16.2.9
+        version: 16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react:
+        specifier: ^19.2.7
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.7
+        version: 19.2.7(react@19.2.7)
+      tailwind-merge:
+        specifier: ^3.6.0
+        version: 3.6.0
+    devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../../packages/x-buildutils
+      '@tailwindcss/postcss':
+        specifier: ^4.3.1
+        version: 4.3.1
+      '@types/node':
+        specifier: ^25.9.3
+        version: 25.9.3
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      oxfmt:
+        specifier: ^0.54.0
+        version: 0.54.0
+      oxlint:
+        specifier: ^1.69.0
+        version: 1.69.0
+      postcss:
+        specifier: ^8.5.15
+        version: 8.5.15
+      tailwindcss:
+        specifier: ^4.3.1
+        version: 4.3.1
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   templates/langgraph:
     dependencies:
       '@assistant-ui/react':
@@ -5151,6 +5319,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/gateway@4.0.0-beta.109':
+    resolution: {integrity: sha512-W/1kLlPb6Bgbhwep3CA3R6do0HD7SXV5gyuz2XBLY1YABqgxYkw+IhEcjOYlmn9v+Tifjqy5yJqmWdSHMJhyPQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/mcp@1.0.50':
     resolution: {integrity: sha512-iLqDZ62ezEjBhTJgiAQ4D2tHG1q7INVhPx0uOPnxJTxxqVUzN4KqeWAd6j5hYNhsPqC7TPGRQHQqAa1Z/lu2jg==}
     engines: {node: '>=18'}
@@ -5169,9 +5343,19 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/provider-utils@5.0.0-beta.49':
+    resolution: {integrity: sha512-7xnpAQLpW0KGIsh0CQERcIZuXEGqv7FtFW2BdFk14iuMxRMVpXhTVvEQyqkm6tWAbQ7OsGQJhO6M0Me9gHQ52g==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/provider@3.0.10':
     resolution: {integrity: sha512-Q3BZ27qfpYqnCYGvE3vt+Qi6LGOF9R5Nmzn+9JoM1lCRsD9mYaIhfJLkSunN48nfGXJ6n+XNV0J/XVpqGQl7Dw==}
     engines: {node: '>=18'}
+
+  '@ai-sdk/provider@4.0.0-beta.19':
+    resolution: {integrity: sha512-Aca/KiGeRtMM7rOJ38Qio+Dc2V45PpiGoWgdrdtIkgM9zkhYpS043t0ggKoNOWgm/csv99XWGrfSF63PSkVeHw==}
+    engines: {node: '>=22'}
 
   '@ai-sdk/react@3.0.207':
     resolution: {integrity: sha512-/wlJv214OQIqUDvoEFO4pqGYCmcXUJMEPcPc+1w2pQhf86onLv7My2+KlsKdK9XGATlI3hHpYaB3MbrpvLDzbQ==}
@@ -10468,6 +10652,9 @@ packages:
   '@vitest/utils@4.1.8':
     resolution: {integrity: sha512-uOJamYALNhfJ6iolExyQM40yIQwDqYnkKtQ5VCiSe17E33H0aQ/u+1GlRuz4LZBk6Mm3sg90G9hEbmEt37C1Zg==}
 
+  '@workflow/serde@4.1.0':
+    resolution: {integrity: sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ==}
+
   '@wterm/core@0.3.0':
     resolution: {integrity: sha512-aQ73QBP+eyA3kcn31mA7DmAi7qmEsQijZdmvgwxtSjCi2248EAOZgtkGDpjlspfrxyVxQbUl/IF+gCVcXt4nZQ==}
 
@@ -10543,6 +10730,12 @@ packages:
   ai@6.0.205:
     resolution: {integrity: sha512-F4akEGF41UdgJO3L4v+D5noVD1/czhJy6x0k9R/i1EXfxqrkBh/PdYSgRSLPiGFvrw76dzI8h4w3NYmLrTb8dw==}
     engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  ai@7.0.0-beta.178:
+    resolution: {integrity: sha512-kOfIbf23FDkvvfDHOS1gIjImBF9MlYut8fEMlps57vvS622VKL1PeEDLJ181aVd2LPSiDr3SupAMSzI2rEaW3w==}
+    engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
@@ -12040,6 +12233,47 @@ packages:
   etag@1.8.1:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
+
+  eve@0.11.4:
+    resolution: {integrity: sha512-gwJO+mIFj/LQL+D4WJTshPMUkK6cYXIA6ff1RML8I3rFOeIm1x/Mw6U8C+1Mx4o5HhWda38DnnlK84Bewqo/+Q==}
+    engines: {node: '>=24'}
+    hasBin: true
+    peerDependencies:
+      '@opentelemetry/api': ^1.0.0
+      '@sveltejs/kit': ^2.0.0
+      ai: 7.0.0-beta.178
+      braintrust: ^3.0.0
+      just-bash: ^3.0.0
+      microsandbox: ^0.5.0
+      next: ^16.0.0
+      nuxt: ^4.0.0
+      react: ^19.0.0
+      svelte: ^5.0.0
+      vite: ^8.0.0
+      vue: ^3.5.0
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      '@sveltejs/kit':
+        optional: true
+      braintrust:
+        optional: true
+      just-bash:
+        optional: true
+      microsandbox:
+        optional: true
+      next:
+        optional: true
+      nuxt:
+        optional: true
+      react:
+        optional: true
+      svelte:
+        optional: true
+      vite:
+        optional: true
+      vue:
+        optional: true
 
   event-target-shim@5.0.1:
     resolution: {integrity: sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==}
@@ -14479,6 +14713,37 @@ packages:
       xml2js: ^0.6.2
       zephyr-agent: ^0.1.15
     peerDependenciesMeta:
+      dotenv:
+        optional: true
+      giget:
+        optional: true
+      jiti:
+        optional: true
+      rollup:
+        optional: true
+      vite:
+        optional: true
+      xml2js:
+        optional: true
+      zephyr-agent:
+        optional: true
+
+  nitro@3.0.260610-beta:
+    resolution: {integrity: sha512-KPb4L5yaF/Rx/xoGMpgHRJvZhbhGiqbRKOwwPLCH9jKTKTsEUHLjnJas85AeCzaswqa8Wi52eQBtRsODC4PS0Q==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    hasBin: true
+    peerDependencies:
+      '@vercel/queue': ^0.3.0
+      dotenv: '*'
+      giget: '*'
+      jiti: ^2.7.0
+      rollup: ^4.61.1
+      vite: ^7 || ^8
+      xml2js: ^0.6.2
+      zephyr-agent: ^0.2.0
+    peerDependenciesMeta:
+      '@vercel/queue':
+        optional: true
       dotenv:
         optional: true
       giget:
@@ -17450,6 +17715,13 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.4.3
 
+  '@ai-sdk/gateway@4.0.0-beta.109(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.0-beta.19
+      '@ai-sdk/provider-utils': 5.0.0-beta.49(zod@4.4.3)
+      '@vercel/oidc': 3.2.0
+      zod: 4.4.3
+
   '@ai-sdk/mcp@1.0.50(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
@@ -17470,7 +17742,19 @@ snapshots:
       eventsource-parser: 3.1.0
       zod: 4.4.3
 
+  '@ai-sdk/provider-utils@5.0.0-beta.49(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.0-beta.19
+      '@standard-schema/spec': 1.1.0
+      '@workflow/serde': 4.1.0
+      eventsource-parser: 3.1.0
+      zod: 4.4.3
+
   '@ai-sdk/provider@3.0.10':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@ai-sdk/provider@4.0.0-beta.19':
     dependencies:
       json-schema: 0.4.0
 
@@ -23873,6 +24157,8 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
+  '@workflow/serde@4.1.0': {}
+
   '@wterm/core@0.3.0': {}
 
   '@wterm/dom@0.3.0':
@@ -23950,6 +24236,13 @@ snapshots:
       '@ai-sdk/provider': 3.0.10
       '@ai-sdk/provider-utils': 4.0.29(zod@4.4.3)
       '@opentelemetry/api': 1.9.1
+      zod: 4.4.3
+
+  ai@7.0.0-beta.178(zod@4.4.3):
+    dependencies:
+      '@ai-sdk/gateway': 4.0.0-beta.109(zod@4.4.3)
+      '@ai-sdk/provider': 4.0.0-beta.19
+      '@ai-sdk/provider-utils': 5.0.0-beta.49(zod@4.4.3)
       zod: 4.4.3
 
   ajv-formats@3.0.1(ajv@8.20.0):
@@ -25458,6 +25751,55 @@ snapshots:
       '@types/estree': 1.0.9
 
   etag@1.8.1: {}
+
+  eve@0.11.4(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.0-beta.178(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.1)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@25.9.3))(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(rollup@4.62.0)(sqlite3@5.1.7)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)):
+    dependencies:
+      ai: 7.0.0-beta.178(zod@4.4.3)
+      nitro: 3.0.260610-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@25.9.3))(rollup@4.62.0)(sqlite3@5.1.7)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+      just-bash: 3.0.1
+      next: 16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react: 19.2.7
+      vite: 8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@electric-sql/pglite'
+      - '@libsql/client'
+      - '@netlify/blobs'
+      - '@netlify/runtime'
+      - '@planetscale/database'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - '@vercel/queue'
+      - aws4fetch
+      - better-sqlite3
+      - chokidar
+      - dotenv
+      - drizzle-orm
+      - giget
+      - idb-keyval
+      - ioredis
+      - jiti
+      - lru-cache
+      - miniflare
+      - mongodb
+      - mysql2
+      - rollup
+      - sqlite3
+      - uploadthing
+      - wrangler
+      - xml2js
+      - zephyr-agent
 
   event-target-shim@5.0.1: {}
 
@@ -28708,6 +29050,60 @@ snapshots:
       - '@vercel/functions'
       - '@vercel/kv'
       - '@vercel/queue'
+      - aws4fetch
+      - better-sqlite3
+      - chokidar
+      - drizzle-orm
+      - idb-keyval
+      - ioredis
+      - lru-cache
+      - miniflare
+      - mongodb
+      - mysql2
+      - sqlite3
+      - uploadthing
+      - wrangler
+
+  nitro@3.0.260610-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@25.9.3))(rollup@4.62.0)(sqlite3@5.1.7)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)):
+    dependencies:
+      consola: 3.4.2
+      crossws: 0.4.6(srvx@0.11.16)
+      db0: 0.3.4(mysql2@3.20.0(@types/node@25.9.3))(sqlite3@5.1.7)
+      env-runner: 0.1.14
+      h3: 2.0.1-rc.22(crossws@0.4.6(srvx@0.11.16))
+      hookable: 6.1.1
+      nf3: 0.3.17
+      ocache: 0.1.5
+      ofetch: 2.0.0-alpha.3
+      ohash: 2.0.11
+      rolldown: 1.1.1
+      srvx: 0.11.16
+      unenv: 2.0.0-rc.24
+      unstorage: 2.0.0-alpha.7(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(db0@0.3.4(mysql2@3.20.0(@types/node@25.9.3))(sqlite3@5.1.7))(ioredis@5.11.1)(lru-cache@11.5.1)(ofetch@2.0.0-alpha.3)
+    optionalDependencies:
+      dotenv: 17.4.2
+      giget: 3.3.0
+      jiti: 2.7.0
+      rollup: 4.62.0
+      vite: 8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@electric-sql/pglite'
+      - '@libsql/client'
+      - '@netlify/blobs'
+      - '@netlify/runtime'
+      - '@planetscale/database'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
       - aws4fetch
       - better-sqlite3
       - chokidar

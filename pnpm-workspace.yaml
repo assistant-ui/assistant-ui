@@ -20,6 +20,7 @@ minimumReleaseAgeExclude:
   - assistant-stream
   - assistant-ui
   - create-assistant-ui
+  - eve
   - heat-graph
   - safe-content-frame
   - tw-glass

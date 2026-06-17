@@ -1,0 +1,5 @@
+{
+  "title": "Eve",
+  "description": "Eve runtime docs for assistant-ui, covering setup, the Next.js plugin, the eve channel, and useEveAgentRuntime.",
+  "pages": ["overview", "quickstart"]
+}
