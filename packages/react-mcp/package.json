@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-mcp",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "MCP server configuration and connection primitives for @assistant-ui",
   "keywords": [
     "mcp",

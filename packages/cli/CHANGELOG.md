@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.102
+
+### Patch Changes
+
+- [#4446](https://github.com/assistant-ui/assistant-ui/pull/4446) [`25e0ede`](https://github.com/assistant-ui/assistant-ui/commit/25e0edeb152c89ac674860b5942fefb260818210) - fix: authenticate CLI GitHub downloads with configured tokens ([@ProfTrader](https://github.com/ProfTrader))
+
 ## 0.0.101
 
 ### Patch Changes
