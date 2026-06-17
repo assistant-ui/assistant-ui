@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  AssistantCloud,
   AssistantRuntimeProvider,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/react";
@@ -80,6 +81,14 @@ function XuluxRuntimeProvider({
     setLimitBlock(null);
   }, [sessionId]);
 
+  const assistantCloud = useMemo(() => {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_XULUX_ASSISTANT_BASE_URL ??
+      process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL;
+    if (!baseUrl) return null;
+    return new AssistantCloud({ baseUrl, anonymous: true });
+  }, []);
+
   const adapter = useMemo(
     () =>
       createXuluxLocalThreadListAdapter({
@@ -122,6 +131,7 @@ function XuluxRuntimeProvider({
       return useChatRuntime({
         transport,
         isSendDisabled: limitBlock != null,
+        ...(assistantCloud ? { cloud: assistantCloud } : {}),
       });
     },
   });
