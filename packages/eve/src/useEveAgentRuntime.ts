@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   pickExternalStoreSharedOptions,
   type AttachmentAdapter,
@@ -68,6 +68,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
+  const createdAtByMessageIdRef = useRef(new Map<string, Date>());
 
   const hasExecutingTools = Object.values(toolStatuses).some(
     (status) => status?.type === "executing",
@@ -77,10 +78,27 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     agent.status === "streaming" ||
     hasExecutingTools;
 
-  const messages = useMemo(
-    () => convertEveMessages(agent.data, { isRunning }),
-    [agent.data, isRunning],
-  );
+  const messages = useMemo(() => {
+    const createdAtByMessageId = createdAtByMessageIdRef.current;
+    const messageIds = new Set(
+      agent.data.messages.map((message) => message.id),
+    );
+    for (const messageId of createdAtByMessageId.keys()) {
+      if (!messageIds.has(messageId)) createdAtByMessageId.delete(messageId);
+    }
+
+    return convertEveMessages(agent.data, {
+      isRunning,
+      getCreatedAt: (message) => {
+        const existing = createdAtByMessageId.get(message.id);
+        if (existing) return existing;
+
+        const createdAt = new Date();
+        createdAtByMessageId.set(message.id, createdAt);
+        return createdAt;
+      },
+    });
+  }, [agent.data, isRunning]);
 
   return useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),

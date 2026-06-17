@@ -39,6 +39,7 @@ export type ConvertEveMessagesOptions = {
    * streaming.
    */
   readonly isRunning?: boolean | undefined;
+  readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -214,7 +215,7 @@ export const convertEveMessage = (
   messages: readonly EveMessage[],
   options: ConvertEveMessagesOptions = {},
 ): ThreadMessage => {
-  const createdAt = new Date();
+  const createdAt = options.getCreatedAt?.(message) ?? new Date();
   const metadata = {
     ...(message.metadata?.optimistic && { isOptimistic: true }),
     custom: {

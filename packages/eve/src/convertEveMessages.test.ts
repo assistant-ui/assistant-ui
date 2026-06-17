@@ -139,6 +139,25 @@ describe("convertEveMessages", () => {
       ],
     });
   });
+
+  it("uses the supplied message creation time", () => {
+    const createdAt = new Date("2026-06-17T00:00:00.000Z");
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data, {
+      getCreatedAt: () => createdAt,
+    });
+
+    expect(message?.createdAt).toBe(createdAt);
+  });
 });
 
 describe("getEveMessageContent", () => {
