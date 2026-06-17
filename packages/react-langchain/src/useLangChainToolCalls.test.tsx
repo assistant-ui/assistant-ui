@@ -2,8 +2,12 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
+import {
+  createRunSelectorAgainst,
+  makeExtras,
+  type Selector,
+} from "./__tests__/langChainTestUtils";
 
-type Selector = (state: unknown) => unknown;
 const { mockUseAuiState } = vi.hoisted(() => ({
   mockUseAuiState: vi.fn(),
 }));
@@ -20,22 +24,7 @@ vi.mock(import("@assistant-ui/store"), async (importOriginal) => {
 
 import { useLangChainToolCalls } from "./useStreamRuntime";
 
-// The real guard symbol in useStreamRuntime is module-private. To stand in for
-// runtime-produced extras, we use a Proxy whose `has` trap claims any symbol
-// with the description "langchain-runtime-extras" is present.
-const makeExtrasWith = (props: Record<string, unknown>) =>
-  new Proxy(props, {
-    has: (target, key) =>
-      (typeof key === "symbol" &&
-        key.description === "langchain-runtime-extras") ||
-      Reflect.has(target, key),
-  });
-
-const runSelectorAgainst = (extras: unknown) => {
-  mockUseAuiState.mockImplementationOnce((selector: Selector) =>
-    selector({ thread: { extras } }),
-  );
-};
+const runSelectorAgainst = createRunSelectorAgainst(mockUseAuiState);
 
 describe("useLangChainToolCalls", () => {
   it("returns an empty array when extras are absent", () => {
@@ -46,8 +35,14 @@ describe("useLangChainToolCalls", () => {
 
   it("returns the assembled tool calls from extras", () => {
     const toolCalls = [{ id: "a", name: "search", args: { q: "x" } }];
-    runSelectorAgainst(makeExtrasWith({ toolCalls }));
+    runSelectorAgainst(makeExtras({ toolCalls }));
     const { result } = renderHook(() => useLangChainToolCalls());
     expect(result.current).toBe(toolCalls);
+  });
+
+  it("returns an empty array when extras carry no tool calls", () => {
+    runSelectorAgainst(makeExtras({ toolCalls: undefined }));
+    const { result } = renderHook(() => useLangChainToolCalls());
+    expect(result.current).toEqual([]);
   });
 });
