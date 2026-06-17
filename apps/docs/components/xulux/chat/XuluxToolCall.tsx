@@ -1,179 +1,148 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import {
+  formatToolCall,
+  ToolErrorCard,
+  ToolStatusCard,
+  ToolTraceCard,
+} from "@/lib/tool-trace";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import {
   BookOpenIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   ExternalLinkIcon,
   FileCodeIcon,
   FileTextIcon,
   FolderTreeIcon,
   InfoIcon,
   LayoutTemplateIcon,
-  LoaderIcon,
   TerminalIcon,
   type LucideIcon,
 } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode } from "react";
 
-function getToolDisplay(
-  toolName: string,
-  args: Record<string, unknown>,
-  isRunning: boolean,
-): { icon: LucideIcon; label: string; detail: string } {
+function getToolIcon(toolName: string): ReactNode {
+  const Icon = getToolIconComponent(toolName);
+  return <Icon className="size-3.5" />;
+}
+
+function getToolIconComponent(toolName: string): LucideIcon {
+  switch (toolName) {
+    case "listDocs":
+      return FolderTreeIcon;
+    case "readDoc":
+      return FileTextIcon;
+    case "bash":
+    case "inspectSourceMap":
+      return TerminalIcon;
+    case "readFile":
+    case "readSourceMapFile":
+      return FileCodeIcon;
+    case "getTemplateList":
+      return LayoutTemplateIcon;
+    case "getTemplateDetails":
+      return InfoIcon;
+    case "openTemplatePreview":
+      return ExternalLinkIcon;
+    default:
+      return BookOpenIcon;
+  }
+}
+
+function getRunningMessage(toolName: string): string {
+  switch (toolName) {
+    case "listDocs":
+      return "Listing docs...";
+    case "readDoc":
+      return "Reading page...";
+    case "bash":
+    case "inspectSourceMap":
+      return "Running command...";
+    case "readFile":
+    case "readSourceMapFile":
+      return "Reading file...";
+    case "getTemplateList":
+      return "Loading templates...";
+    case "getTemplateDetails":
+      return "Reading template...";
+    case "openTemplatePreview":
+      return "Opening preview...";
+    default:
+      return "Running...";
+  }
+}
+
+function extractToolError(result: unknown): string | null {
+  if (!result || typeof result !== "object") return null;
+  const record = result as Record<string, unknown>;
+  if (record.success === false) {
+    if (typeof record.error === "string") return record.error;
+    return "Tool failed";
+  }
+  if (typeof record.error === "string") return record.error;
+  return null;
+}
+
+function summarizeXuluxResult(toolName: string, result: unknown): string {
+  if (result === undefined || result === null) return "Done";
+
+  const error = extractToolError(result);
+  if (error) return error;
+
+  if (typeof result !== "object") return String(result);
+
+  const record = result as Record<string, unknown>;
+
   switch (toolName) {
     case "listDocs": {
-      const path = (args as { path?: string })?.path;
-      return {
-        icon: FolderTreeIcon,
-        label: isRunning ? "Listing" : "Listed",
-        detail: path ? `/${path}` : "documentation structure",
-      };
+      const children = record.children;
+      if (Array.isArray(children)) {
+        return `${children.length} item${children.length === 1 ? "" : "s"}`;
+      }
+      return "Listed";
     }
-    case "readDoc": {
-      const slug = (args as { slugOrUrl?: string })?.slugOrUrl ?? "";
-      const normalizedSlug = slug.replace(/^\/docs\/?/, "");
-      return {
-        icon: FileTextIcon,
-        label: isRunning ? "Reading" : "Read",
-        detail: `/docs/${normalizedSlug}`,
-      };
-    }
-    case "bash": {
-      const command = (args as { command?: string })?.command ?? "";
-      const preview =
-        command.length > 60 ? `${command.slice(0, 57)}...` : command;
-      return {
-        icon: TerminalIcon,
-        label: isRunning ? "Running" : "Ran",
-        detail: preview,
-      };
-    }
-    case "readFile": {
-      const filePath = (args as { path?: string })?.path ?? "";
-      const shortPath = filePath.split("/").slice(-2).join("/");
-      return {
-        icon: FileCodeIcon,
-        label: isRunning ? "Reading" : "Read",
-        detail: shortPath,
-      };
-    }
+    case "readDoc":
+      return typeof record.title === "string" ? record.title : "Read page";
+    case "bash":
     case "inspectSourceMap": {
-      const command = (args as { command?: string })?.command ?? "";
-      const preview =
-        command.length > 60 ? `${command.slice(0, 57)}...` : command;
-      return {
-        icon: TerminalIcon,
-        label: isRunning ? "Running" : "Ran",
-        detail: preview,
-      };
+      const stdout = record.stdout;
+      if (typeof stdout === "string" && stdout.trim()) {
+        const line = stdout.trim().split("\n")[0] ?? "";
+        return line.length > 48 ? `${line.slice(0, 45)}...` : line;
+      }
+      return "Completed";
     }
+    case "readFile":
     case "readSourceMapFile": {
-      const filePath = (args as { path?: string })?.path ?? "";
-      const shortPath = filePath.split("/").slice(-2).join("/");
-      return {
-        icon: FileCodeIcon,
-        label: isRunning ? "Reading" : "Read",
-        detail: shortPath,
-      };
+      const path = typeof record.path === "string" ? record.path : "";
+      return path ? path.split("/").slice(-2).join("/") : "Read file";
     }
-    case "getTemplateList":
-      return {
-        icon: LayoutTemplateIcon,
-        label: isRunning ? "Searching" : "Searched",
-        detail: "templates",
-      };
+    case "getTemplateList": {
+      const templates = record.templates;
+      if (Array.isArray(templates)) {
+        return `${templates.length} template${templates.length === 1 ? "" : "s"}`;
+      }
+      return "Templates loaded";
+    }
     case "getTemplateDetails": {
-      const tid = (args as { templateId?: string })?.templateId ?? "";
-      return {
-        icon: InfoIcon,
-        label: isRunning ? "Reading" : "Read",
-        detail: tid,
-      };
+      const name =
+        typeof record.name === "string"
+          ? record.name
+          : typeof record.id === "string"
+            ? record.id
+            : "Template details";
+      return name;
     }
     case "openTemplatePreview": {
-      const tid = (args as { templateId?: string })?.templateId ?? "";
-      const vid = (args as { versionId?: string })?.versionId;
-      return {
-        icon: ExternalLinkIcon,
-        label: isRunning ? "Opening" : "Opened",
-        detail: vid ? `${tid}/${vid}` : tid,
-      };
+      if (typeof record.title === "string") return record.title;
+      const templateId =
+        typeof record.templateId === "string" ? record.templateId : "";
+      const versionId =
+        typeof record.versionId === "string" ? record.versionId : "";
+      if (templateId && versionId) return `${templateId} · ${versionId}`;
+      return templateId || "Preview opened";
     }
     default:
-      return {
-        icon: BookOpenIcon,
-        label: isRunning ? "Running" : "Completed",
-        detail: toolName,
-      };
-  }
-}
-
-function ToolStatusIcon({
-  status,
-  FallbackIcon,
-}: {
-  status: { type: string } | undefined;
-  FallbackIcon: LucideIcon;
-}): ReactNode {
-  switch (status?.type) {
-    case "running":
-      return <LoaderIcon className="size-3 animate-spin" />;
-    case "complete":
-      return <CheckIcon className="size-3 text-emerald-500" />;
-    default:
-      return <FallbackIcon className="size-3" />;
-  }
-}
-
-function useToolDuration(isRunning: boolean): number | null {
-  const startTimeRef = useRef<number | null>(null);
-  const [duration, setDuration] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (isRunning && startTimeRef.current === null) {
-      startTimeRef.current = Date.now();
-    } else if (!isRunning && startTimeRef.current !== null) {
-      setDuration(Date.now() - startTimeRef.current);
-    }
-  }, [isRunning]);
-
-  return duration;
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function ToolPayload({
-  label,
-  value,
-}: {
-  label: string;
-  value: unknown;
-}): ReactNode {
-  return (
-    <div>
-      <p className="text-muted-foreground/60 mb-1 text-[10px] font-medium tracking-wide uppercase">
-        {label}
-      </p>
-      <pre className="text-muted-foreground overflow-x-auto break-all whitespace-pre-wrap">
-        {formatPayload(value)}
-      </pre>
-    </div>
-  );
-}
-
-function formatPayload(value: unknown): string {
-  if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
+      return "Completed";
   }
 }
 
@@ -183,45 +152,32 @@ export function XuluxToolCall({
   result,
   status,
 }: ToolCallMessagePartProps): ReactNode {
+  const signature = formatToolCall(toolName, args);
+  const icon = getToolIcon(toolName);
   const isRunning = status?.type === "running";
-  const { icon, label, detail } = getToolDisplay(toolName, args, isRunning);
-  const duration = useToolDuration(isRunning);
-  const [expanded, setExpanded] = useState(false);
+  const error = !isRunning ? extractToolError(result) : null;
+
+  if (isRunning) {
+    return (
+      <ToolStatusCard
+        icon={icon}
+        signature={signature}
+        message={getRunningMessage(toolName)}
+        loading
+      />
+    );
+  }
+
+  if (error) {
+    return <ToolErrorCard signature={signature} error={error} />;
+  }
 
   return (
-    <div className="border-border/60 bg-muted/30 my-1.5 rounded-lg border text-xs">
-      <button
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        className={cn(
-          "text-muted-foreground flex w-full items-center gap-2 px-2.5 py-1.5",
-          isRunning && "animate-pulse",
-        )}
-      >
-        <ToolStatusIcon status={status} FallbackIcon={icon} />
-        <span className="flex-1 truncate text-left">
-          {label} {detail}
-        </span>
-        {duration !== null && (
-          <span className="text-muted-foreground/60">
-            {formatDuration(duration)}
-          </span>
-        )}
-        {expanded ? (
-          <ChevronUpIcon className="text-muted-foreground/50 size-3" />
-        ) : (
-          <ChevronDownIcon className="text-muted-foreground/50 size-3" />
-        )}
-      </button>
-
-      {expanded && (
-        <div className="border-border/60 space-y-2 border-t px-2.5 py-2">
-          <ToolPayload label="Input" value={args} />
-          {result !== undefined && (
-            <ToolPayload label="Output" value={result} />
-          )}
-        </div>
-      )}
-    </div>
+    <ToolTraceCard
+      icon={icon}
+      signature={signature}
+      description={summarizeXuluxResult(toolName, result)}
+      result={result}
+    />
   );
 }
