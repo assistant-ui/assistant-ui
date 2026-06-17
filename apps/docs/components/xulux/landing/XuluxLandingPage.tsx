@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { XuluxTemplate } from "../templates/types";
 import { XuluxPoweredBy } from "../XuluxPoweredBy";
 import { CategoryGrid } from "./CategoryGrid";
+import { LandingSuggestions } from "./LandingSuggestions";
 import { PromptInput } from "./PromptInput";
 import { TemplatesModal } from "./TemplatesModal";
 
@@ -39,6 +40,12 @@ export function XuluxLandingPage({
           onValueChange={setPrompt}
           onSubmit={onStartChat}
           placeholder={placeholder}
+        />
+        <LandingSuggestions
+          onSelectPrompt={(nextPrompt) => {
+            setPrompt(nextPrompt);
+            onStartChat(nextPrompt);
+          }}
         />
       </div>
 
