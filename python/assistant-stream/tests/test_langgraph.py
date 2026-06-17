@@ -100,6 +100,20 @@ async def test_merging_ai_message_chunk_emits_content_append_text_delta() -> Non
 
 
 @pytest.mark.anyio
+async def test_merging_ai_message_chunk_handles_plain_dict_messages() -> None:
+    state: dict[str, Any] = {"messages": []}
+
+    append_langgraph_event(
+        state, (), "messages", (AIMessageChunk(content="Hello", id="m1"), {})
+    )
+    append_langgraph_event(
+        state, (), "messages", (AIMessageChunk(content=" world", id="m1"), {})
+    )
+
+    assert state["messages"][0]["content"] == "Hello world"
+
+
+@pytest.mark.anyio
 async def test_merging_ai_message_chunk_patches_nested_tool_call_args() -> None:
     manager, ops = _manager_with_ops({"messages": []})
 

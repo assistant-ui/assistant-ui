@@ -136,9 +136,7 @@ def append_langgraph_event(
 
         if existing_message_index is not None:
             if is_ai_message_chunk:
-                existing_message = state["messages"][
-                    existing_message_index
-                ]._get_value()
+                existing_message = _plain(state["messages"][existing_message_index])
                 new_message_dict = add_ai_message_chunks(
                     AIMessageChunk(**{**existing_message, "type": "AIMessageChunk"}),
                     AIMessageChunk(**{**message_dict, "type": "AIMessageChunk"}),

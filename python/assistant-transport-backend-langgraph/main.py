@@ -57,7 +57,13 @@ class AddToolResultCommand(BaseModel):
 
     type: str = Field(default="add-tool-result", description="Command type")
     tool_call_id: str = Field(..., alias="toolCallId", description="ID of the tool call")
-    result: dict[str, Any] = Field(..., description="Tool execution result")
+    tool_name: str | None = Field(None, alias="toolName", description="Name of the tool")
+    result: Any = Field(..., description="Tool execution result")
+    is_error: bool | None = Field(None, alias="isError", description="Whether the tool failed")
+    artifact: Any | None = Field(None, description="UI-only tool result artifact")
+    model_content: Any | None = Field(
+        None, alias="modelContent", description="Tool result content for the model"
+    )
 
 
 class ChatRequest(BaseModel):
@@ -94,13 +100,49 @@ def add_messages_delta(
     return result
 
 
+def request_tool_schemas(tools: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not tools:
+        return []
+
+    schemas = []
+    for name, tool_definition in tools.items():
+        if name in TOOL_BY_NAME or not isinstance(tool_definition, dict):
+            continue
+
+        parameters = tool_definition.get("parameters") or {
+            "type": "object",
+            "properties": {},
+        }
+        schemas.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": name,
+                    "description": tool_definition.get("description", ""),
+                    "parameters": parameters,
+                },
+            }
+        )
+    return schemas
+
+
+def bindable_tools(tools: dict[str, Any] | None) -> list[Any]:
+    return [*TOOLS, *request_tool_schemas(tools)]
+
+
+def tool_result_content(command: AddToolResultCommand) -> str:
+    content = command.model_content if command.model_content is not None else command.result
+    return content if isinstance(content, str) else json.dumps(content)
+
+
 # Define LangGraph state
-class GraphState(TypedDict):
+class GraphState(TypedDict, total=False):
     """State for the conversation graph."""
     messages: Annotated[
         Sequence[BaseMessage],
         DeltaChannel(reducer=add_messages_delta, snapshot_frequency=50),
     ]
+    tools: dict[str, Any] | None
 
 
 # Define subagent state
@@ -128,26 +170,6 @@ def task_tool(task_description: str) -> str:
     """
     # This is a placeholder - the actual execution will be handled by the subgraph
     return f"Task '{task_description}' will be executed by the subagent."
-
-
-@tool
-def get_weather(location: str, unit: str = "celsius") -> dict[str, Any]:
-    """
-    Get deterministic sample weather for a location.
-
-    Args:
-        location: City or place to look up.
-        unit: Temperature unit, either celsius or fahrenheit.
-    """
-    normalized_unit = unit.lower()
-    celsius = 22 + (len(location) % 7)
-    temperature = celsius if normalized_unit != "fahrenheit" else round(celsius * 9 / 5 + 32)
-    return {
-        "location": location,
-        "temperature": temperature,
-        "unit": "fahrenheit" if normalized_unit == "fahrenheit" else "celsius",
-        "condition": ["sunny", "partly cloudy", "windy"][len(location) % 3],
-    }
 
 
 @tool
@@ -184,7 +206,7 @@ def save_note(title: str, body: str) -> dict[str, Any]:
     }
 
 
-TOOLS = [task_tool, get_weather, calculate_sum, save_note]
+TOOLS = [task_tool, calculate_sum, save_note]
 TOOL_BY_NAME = {tool.name: tool for tool in TOOLS}
 
 
@@ -235,6 +257,7 @@ def create_subagent_graph() -> CompiledStateGraph:
 async def agent_node(state: GraphState) -> dict[str, Any]:
     """Main agent node that can call tools."""
     messages = state.get("messages", [])
+    tools = state.get("tools")
 
     # Check if OpenAI API key is set
     if os.getenv("OPENAI_API_KEY"):
@@ -245,8 +268,8 @@ async def agent_node(state: GraphState) -> dict[str, Any]:
             streaming=True,
         )
 
-        # Bind smoke-test tools to the LLM
-        llm_with_tools = llm.bind_tools(TOOLS)
+        # Bind server tools plus request-provided frontend tool declarations.
+        llm_with_tools = llm.bind_tools(bindable_tools(tools))
         response = await llm_with_tools.ainvoke(messages)
     elif messages and isinstance(messages[-1], ToolMessage):
         response = AIMessage(
@@ -256,11 +279,11 @@ async def agent_node(state: GraphState) -> dict[str, Any]:
         # Mock response with a tool call for testing
         print("⚠️ No OpenAI API key found - using mock response with tool call")
         last_content = messages[-1].content if messages else ""
-        if "weather" in str(last_content).lower():
+        if "weather" in str(last_content).lower() and tools and "get_weather" in tools:
             tool_call = {
                 "id": "weather_001",
                 "name": "get_weather",
-                "args": {"location": "San Francisco", "unit": "celsius"},
+                "args": {"location": "San Francisco", "unit": "fahrenheit"},
             }
         elif "sum" in str(last_content).lower() or "add" in str(last_content).lower():
             tool_call = {
@@ -287,14 +310,17 @@ async def agent_node(state: GraphState) -> dict[str, Any]:
 
 
 def should_call_tools(state: GraphState) -> str:
-    """Determine if tools should be called."""
+    """Run only backend-owned tools. Frontend tools are returned to the client."""
     messages = state.get("messages", [])
     if not messages:
         return "end"
 
     last_message = messages[-1]
-    # Check if the last message has tool calls
-    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+    if (
+        hasattr(last_message, 'tool_calls')
+        and last_message.tool_calls
+        and any(tool_call["name"] in TOOL_BY_NAME for tool_call in last_message.tool_calls)
+    ):
         return "tools"
 
     return "end"
@@ -466,8 +492,11 @@ async def chat_endpoint(request: ChatRequest):
             elif command.type == "add-tool-result":
                 # Handle tool results
                 input_messages.append(ToolMessage(
-                    content=str(command.result),
-                    tool_call_id=command.tool_call_id
+                    content=tool_result_content(command),
+                    tool_call_id=command.tool_call_id,
+                    name=command.tool_name,
+                    artifact=command.artifact if command.artifact is not None else command.result,
+                    status="error" if command.is_error else "success",
                 ))
 
         # Add messages to controller state
@@ -475,7 +504,7 @@ async def chat_endpoint(request: ChatRequest):
             controller.state["messages"].append(message.model_dump())
 
         # Create initial state for LangGraph
-        input_state = {"messages": input_messages}
+        input_state = {"messages": input_messages, "tools": request.tools}
 
         # Stream with subgraph support
         config = {

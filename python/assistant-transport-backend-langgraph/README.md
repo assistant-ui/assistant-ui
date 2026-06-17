@@ -118,6 +118,8 @@ Health check endpoint.
 5. Both streams are synchronized to the frontend using `append_langgraph_event`
 6. The response is streamed back using assistant-stream's DataStreamResponse
 
+Frontend tools declared by `useAssistantTransportRuntime` are bound to the LangGraph model from the request `tools` payload, but they are not executed by this backend. For example, the `with-assistant-transport` demo keeps `get_weather` frontend-only: the backend streams the tool call, the browser runs the tool and sends an `add-tool-result` command, and LangGraph continues from that result. Server-owned smoke tools such as `calculate_sum`, `save_note`, and `task_tool` still execute inside the backend graph.
+
 ## DeltaChannel Prototype Notes
 
 The graph's `messages` state uses LangGraph's `DeltaChannel` with a bulk reducer:
