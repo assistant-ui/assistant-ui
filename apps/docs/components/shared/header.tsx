@@ -133,6 +133,15 @@ export function Header() {
           )}
 
           <a
+            href="https://cloud.assistant-ui.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="border-border hover:bg-muted hidden rounded-md border px-3 py-1.5 text-sm font-medium transition-colors md:inline-flex"
+          >
+            Cloud
+          </a>
+
+          <a
             href="https://github.com/assistant-ui/assistant-ui"
             target="_blank"
             rel="noopener noreferrer"
@@ -245,23 +254,34 @@ export function Header() {
             );
           })}
 
-          <div className="mt-auto flex gap-4 border-t py-6">
+          <div className="mt-auto flex flex-col gap-4 border-t py-6">
             <a
-              href="https://github.com/assistant-ui/assistant-ui"
+              href="https://cloud.assistant-ui.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
+              className="border-border hover:bg-muted inline-flex w-fit rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
             >
-              <GitHubIcon className="size-5" />
+              Cloud
             </a>
-            <a
-              href="https://discord.gg/S9dwgCNEFs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
-            >
-              <DiscordIcon className="size-5" />
-            </a>
+            <div className="flex gap-4">
+              <a
+                href="https://github.com/assistant-ui/assistant-ui"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
+              >
+                <GitHubIcon className="size-5" />
+              </a>
+              <a
+                href="https://discord.gg/S9dwgCNEFs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
+              >
+                <DiscordIcon className="size-5" />
+              </a>
+            </div>
           </div>
         </nav>
       </div>

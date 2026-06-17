@@ -27,34 +27,7 @@ export default function PricingPage() {
         </p>
       </header>
 
-      {/* assistant-cloud section */}
       <section className="mb-20">
-        <div className="mb-8">
-          <h2 className="text-xl font-medium tracking-tight">
-            assistant-cloud
-          </h2>
-          <p className="text-muted-foreground mt-1">
-            Fully managed backend for AI chat applications
-          </p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-3">
-          {pricingPlans.map((plan) => (
-            <PricingPlanCard key={plan.name} plan={plan} />
-          ))}
-        </div>
-
-        <p className="text-muted-foreground mt-4 text-xs">
-          * MAU = Monthly Active Users who send at least one message.{" "}
-          <a href="mailto:b2c-pricing@assistant.dev" className="underline">
-            Contact us
-          </a>{" "}
-          for B2C pricing.
-        </p>
-      </section>
-
-      {/* assistant-ui section */}
-      <section>
         <div className="mb-8">
           <h2 className="text-xl font-medium tracking-tight">assistant-ui</h2>
           <p className="text-muted-foreground mt-1">
@@ -89,6 +62,31 @@ export default function PricingPage() {
             ))}
           </ul>
         </div>
+      </section>
+
+      <section>
+        <div className="mb-8">
+          <h2 className="text-xl font-medium tracking-tight">
+            assistant-cloud
+          </h2>
+          <p className="text-muted-foreground mt-1">
+            Fully managed backend for AI chat applications
+          </p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-3">
+          {pricingPlans.map((plan) => (
+            <PricingPlanCard key={plan.name} plan={plan} />
+          ))}
+        </div>
+
+        <p className="text-muted-foreground mt-4 text-xs">
+          * MAU = Monthly Active Users who send at least one message.{" "}
+          <a href="mailto:b2c-pricing@assistant.dev" className="underline">
+            Contact us
+          </a>{" "}
+          for B2C pricing.
+        </p>
       </section>
     </main>
   );
