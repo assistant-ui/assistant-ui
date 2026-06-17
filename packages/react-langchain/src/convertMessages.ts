@@ -11,43 +11,6 @@ export const getMessageType = (message: LangChainBaseMessage): string => {
   throw new Error("Cannot determine message type");
 };
 
-type LangChainFileBlock = Extract<LangChainContentBlock, { type: "file" }>;
-
-const contentFilePartToThreadPart = (
-  part: LangChainFileBlock,
-): {
-  type: "file";
-  filename: string;
-  data: string;
-  mimeType: string;
-} | null => {
-  if ("file" in part) {
-    return {
-      type: "file" as const,
-      filename: part.file.filename,
-      data: part.file.file_data,
-      mimeType: part.file.mime_type,
-    };
-  }
-  if ("data" in part && typeof part.data === "string") {
-    return {
-      type: "file" as const,
-      filename: part.metadata?.filename ?? "file",
-      data: part.data,
-      mimeType: part.mime_type,
-    };
-  }
-  if ("base64" in part && typeof part.base64 === "string") {
-    return {
-      type: "file" as const,
-      filename: part.filename ?? "file",
-      data: part.base64,
-      mimeType: part.mime_type,
-    };
-  }
-  return null;
-};
-
 const contentToParts = (content: unknown) => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
@@ -66,7 +29,12 @@ const contentToParts = (content: unknown) => {
           }
           return { type: "image" as const, image: part.image_url.url };
         case "file":
-          return contentFilePartToThreadPart(part);
+          return {
+            type: "file" as const,
+            filename: part.metadata?.filename ?? "file",
+            data: part.data,
+            mimeType: part.mime_type,
+          };
         case "thinking":
           return { type: "reasoning" as const, text: part.thinking };
         case "reasoning":

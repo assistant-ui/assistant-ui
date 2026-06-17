@@ -12,15 +12,11 @@ export type LangChainContentBlock =
     }
   | {
       type: "file";
-      file: { filename: string; file_data: string; mime_type: string };
-    }
-  | {
-      type: "file";
       data: string;
       mime_type: string;
+      source_type?: "base64";
       metadata?: { filename?: string };
     }
-  | { type: "file"; base64: string; mime_type: string; filename?: string }
   | { type: "tool_use" | "input_json_delta" };
 
 export type LangChainToolCall = {
