@@ -8,6 +8,7 @@ import os
 from collections.abc import Sequence
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, TypedDict
+from uuid import uuid4
 
 import uvicorn
 from assistant_stream import RunController, create_run
@@ -73,6 +74,11 @@ class ChatRequest(BaseModel):
     )
     thread_id: str | None = Field(None, alias="threadId", description="Assistant UI thread ID")
     state: dict[str, Any] | None = Field(None, description="State")
+
+
+def get_thread_id(request: ChatRequest) -> str:
+    """Use persistent checkpoints only when the AssistantTransport request identifies a thread."""
+    return request.thread_id or f"anonymous-{uuid4()}"
 
 
 def add_messages_delta(
@@ -474,7 +480,7 @@ async def chat_endpoint(request: ChatRequest):
         # Stream with subgraph support
         config = {
             "configurable": {
-                "thread_id": request.thread_id or "assistant-transport-default",
+                "thread_id": get_thread_id(request),
             }
         }
 

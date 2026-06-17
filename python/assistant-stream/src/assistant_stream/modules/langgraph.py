@@ -36,7 +36,31 @@ def _find_existing_message_index(
     return None
 
 
+def _can_patch_value(current_value: Any, next_value: Any) -> bool:
+    current_value = _plain(current_value)
+
+    if current_value == next_value:
+        return True
+
+    if isinstance(current_value, dict) and isinstance(next_value, dict):
+        current_keys = set(current_value.keys())
+        next_keys = set(next_value.keys())
+        return current_keys.issubset(next_keys) and all(
+            _can_patch_value(current_value[key], next_value[key])
+            for key in current_keys
+        )
+
+    if isinstance(current_value, list) and isinstance(next_value, list):
+        return len(current_value) <= len(next_value) and all(
+            _can_patch_value(item, next_value[index])
+            for index, item in enumerate(current_value)
+        )
+
+    return True
+
+
 def _patch_child(parent: Any, key: str | int, next_value: Any) -> None:
+    """Patch through StateProxy containers so writes emit granular object ops."""
     current_value = _plain(parent[key])
 
     if current_value == next_value:
@@ -49,11 +73,11 @@ def _patch_child(parent: Any, key: str | int, next_value: Any) -> None:
             raise ValueError("Cannot represent deleted dictionary keys as object ops")
 
         target = parent[key]
-        for key in next_keys:
-            if key not in current_value:
-                target[key] = next_value[key]
+        for child_key in next_keys:
+            if child_key not in current_value:
+                target[child_key] = next_value[child_key]
             else:
-                _patch_child(target, key, next_value[key])
+                _patch_child(target, child_key, next_value[child_key])
         return
 
     if isinstance(current_value, list) and isinstance(next_value, list):
@@ -72,24 +96,14 @@ def _patch_child(parent: Any, key: str | int, next_value: Any) -> None:
 
 
 def _patch_message(messages: Any, index: int, next_message: Dict[str, Any]) -> None:
-    try:
-        current_message = _plain(messages[index])
-        if not isinstance(current_message, dict):
-            raise ValueError("Expected existing message to be a dictionary")
-
-        current_keys = set(current_message.keys())
-        next_keys = set(next_message.keys())
-        if not current_keys.issubset(next_keys):
-            raise ValueError("Cannot represent deleted message keys as object ops")
-
-        message = messages[index]
-        for key in next_keys:
-            if key not in current_message:
-                message[key] = next_message[key]
-            else:
-                _patch_child(message, key, next_message[key])
-    except ValueError:
+    current_message = _plain(messages[index])
+    if not isinstance(current_message, dict) or not _can_patch_value(
+        current_message, next_message
+    ):
         messages[index] = next_message
+        return
+
+    _patch_child(messages, index, next_message)
 
 
 def append_langgraph_event(
