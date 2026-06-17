@@ -103,6 +103,40 @@ describe("convertEveMessages", () => {
       ],
     });
   });
+
+  it("handles denied tool parts without approval metadata", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "dynamic-tool",
+              state: "output-denied",
+              toolCallId: "call_1",
+              toolName: "send_email",
+              input: { to: "dev@example.com" },
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message).toMatchObject({
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call_1",
+          toolName: "send_email",
+          result: { error: "Tool approval denied" },
+          isError: true,
+        },
+      ],
+    });
+  });
 });
 
 describe("getEveMessageContent", () => {

@@ -123,6 +123,9 @@ const toApproval = (
 
   const approval = part.approval;
   if (!approval) return undefined;
+  const options = toolApprovalOptionsFromInputRequest(
+    part.toolMetadata?.eve?.inputRequest,
+  );
 
   return {
     id: approval.id,
@@ -131,26 +134,21 @@ const toApproval = (
     ...(approval.isAutomatic !== undefined && {
       isAutomatic: approval.isAutomatic,
     }),
-    ...(toolApprovalOptionsFromInputRequest(
-      part.toolMetadata?.eve?.inputRequest,
-    ) && {
-      options: toolApprovalOptionsFromInputRequest(
-        part.toolMetadata?.eve?.inputRequest,
-      ),
-    }),
+    ...(options && { options }),
   };
 };
 
 const convertDynamicToolPart = (
   part: EveDynamicToolPart,
 ): ToolCallMessagePart => {
+  const approval = toApproval(part);
   const toolCall: ToolCallMessagePart = {
     type: "tool-call",
     toolCallId: part.toolCallId,
     toolName: part.toolName,
     args: toJsonObject(part.input),
     argsText: stringifyArgs(part.input),
-    ...(toApproval(part) && { approval: toApproval(part) }),
+    ...(approval && { approval }),
   };
 
   switch (part.state) {
@@ -167,7 +165,7 @@ const convertDynamicToolPart = (
     case "output-denied":
       return {
         ...toolCall,
-        result: { error: part.approval.reason ?? "Tool approval denied" },
+        result: { error: part.approval?.reason ?? "Tool approval denied" },
         isError: true,
       };
 
