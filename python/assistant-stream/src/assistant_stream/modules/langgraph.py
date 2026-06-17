@@ -37,6 +37,8 @@ def _find_existing_message_index(
 
 
 def _can_patch_value(current_value: Any, next_value: Any) -> bool:
+    # Keep these guards in sync with _patch_child so the later mutation cannot
+    # partially apply before discovering an unsupported deletion/truncation.
     current_value = _plain(current_value)
 
     if current_value == next_value:
