@@ -1,11 +1,32 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
+
+const SM_BREAKPOINT = 640;
+
+function useIsSmallScreen(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const mql = window.matchMedia(`(max-width: ${SM_BREAKPOINT - 1}px)`);
+      mql.addEventListener("change", cb);
+      return () => mql.removeEventListener("change", cb);
+    },
+    () => window.innerWidth < SM_BREAKPOINT,
+    () => false,
+  );
+}
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { Button } from "@/components/ui/button";
 import { XuluxThread } from "../chat/XuluxThread";
+import { XuluxTemplateProvider } from "../chat/XuluxTemplateContext";
 import type { XuluxTemplate } from "../templates/types";
 import type { SelectedTemplateContext } from "../XuluxApp";
 import { XuluxCanvas } from "../canvas/XuluxCanvas";
@@ -52,6 +73,7 @@ export function XuluxShell({
 }) {
   const { askAI } = useAssistantPanel();
   const aui = useAui();
+  const isSmallScreen = useIsSmallScreen();
   const currentRemoteId = useAuiState((state) => state.threadListItem.remoteId);
   const storedThreads = useXuluxStoredThreads();
   const [viewMode, setViewMode] = useState<XuluxViewMode>("landing");
@@ -84,6 +106,7 @@ export function XuluxShell({
   const handleSelectTemplate = useCallback(
     (template: XuluxTemplate) => {
       const context = toSelectedTemplateContext(template);
+      void aui.threads().switchToNewThread();
       setSelectedTemplate(template);
       setSelectedTemplateContext(context);
       onSetSelectedTemplateContext(context);
@@ -100,7 +123,7 @@ export function XuluxShell({
       setTemplatesOpen(false);
       setViewMode(template.previewUrl ? "preview" : "chat");
     },
-    [onSetSelectedTemplateContext],
+    [aui, onSetSelectedTemplateContext],
   );
 
   const handleNewChat = useCallback(() => {
@@ -180,112 +203,142 @@ export function XuluxShell({
   const canvasTitle = canvas.title ?? selectedTemplate?.title;
 
   return (
-    <div className="bg-background text-foreground flex h-full min-h-0 flex-col overflow-hidden">
-      <XuluxCanvasObserver
-        onCanvasReady={(url) => {
-          setCanvas({
-            status: "ready",
-            url,
-            source: "refresh",
-            error: null,
-          });
-          setViewMode("preview");
-        }}
-        onCanvasError={(error) => {
-          setCanvas({ status: "error", url: null, source: null, error });
-          setViewMode("preview");
-        }}
-      />
-      <XuluxTemplatePreviewObserver
-        onTemplatePreviewReady={(preview) => {
-          setCanvas({
-            status: "ready",
-            url: preview.previewUrl,
-            source: "template",
-            error: null,
-            downloadUrl: preview.downloadUrl,
-            templateId: preview.templateId,
-            ...(preview.versionId !== undefined
-              ? { versionId: preview.versionId }
-              : {}),
-            title: preview.title,
-          });
-          setViewMode("preview");
-        }}
-        onCanvasError={(error) => {
-          setCanvas({ status: "error", url: null, source: null, error });
-          setViewMode("preview");
-        }}
-      />
-
-      <XuluxHeaderActions
-        visible
-        showChatActions={viewMode !== "landing"}
-        onNewChat={handleNewChat}
-        onShowTemplates={() => setTemplatesOpen(true)}
-        onRestoreThread={handleRestoreThread}
-      />
-
-      {viewMode === "landing" ? (
-        <XuluxLandingPage
-          onStartChat={handleStartChat}
-          onSelectTemplate={handleSelectTemplate}
+    <XuluxTemplateProvider template={selectedTemplateContext}>
+      <div className="bg-background text-foreground flex h-full min-h-0 flex-col overflow-hidden">
+        <XuluxCanvasObserver
+          onCanvasReady={(url) => {
+            setCanvas({
+              status: "ready",
+              url,
+              source: "refresh",
+              error: null,
+            });
+            setViewMode("preview");
+          }}
+          onCanvasError={(error) => {
+            setCanvas({ status: "error", url: null, source: null, error });
+            setViewMode("preview");
+          }}
         />
-      ) : viewMode === "preview" ? (
-        <Group
-          orientation="horizontal"
-          className="min-h-0 flex-1 overflow-hidden"
-        >
-          <Panel
-            defaultSize="30%"
-            minSize="20%"
-            maxSize="55%"
-            className="flex h-full flex-col overflow-hidden border-r"
-          >
-            {isInterrupted && (
-              <InterruptedRunBanner
-                lastUserMessage={interruptedUserMessage}
-                onRetry={handleRetryInterrupted}
-              />
-            )}
-            <XuluxThread onNewThread={handleNewChat} />
-          </Panel>
-          <Separator className="bg-border hover:bg-primary/30 w-1 cursor-col-resize transition-colors" />
-          <Panel className="h-full overflow-hidden">
-            <XuluxCanvas
-              sessionId={sessionId}
-              status={canvas.status}
-              previewUrl={canvas.url}
-              source={canvas.source}
-              error={canvas.error}
-              {...(canvas.downloadUrl
-                ? { downloadUrl: canvas.downloadUrl }
-                : {})}
-              {...(sourceUrl ? { sourceUrl } : {})}
-              {...(canvasTitle ? { title: canvasTitle } : {})}
-            />
-          </Panel>
-        </Group>
-      ) : (
-        <div className="flex min-h-0 flex-1 justify-center overflow-hidden">
-          <section className="flex w-full max-w-3xl flex-col">
-            {isInterrupted && (
-              <InterruptedRunBanner
-                lastUserMessage={interruptedUserMessage}
-                onRetry={handleRetryInterrupted}
-              />
-            )}
-            <XuluxThread onNewThread={handleNewChat} />
-          </section>
-        </div>
-      )}
+        <XuluxTemplatePreviewObserver
+          onTemplatePreviewReady={(preview) => {
+            setCanvas({
+              status: "ready",
+              url: preview.previewUrl,
+              source: "template",
+              error: null,
+              downloadUrl: preview.downloadUrl,
+              templateId: preview.templateId,
+              ...(preview.versionId !== undefined
+                ? { versionId: preview.versionId }
+                : {}),
+              title: preview.title,
+            });
+            setViewMode("preview");
+          }}
+          onCanvasError={(error) => {
+            setCanvas({ status: "error", url: null, source: null, error });
+            setViewMode("preview");
+          }}
+        />
 
-      <TemplatesModal
-        open={templatesOpen}
-        onOpenChange={setTemplatesOpen}
-        onSelect={handleSelectTemplate}
-      />
-    </div>
+        <XuluxHeaderActions
+          visible
+          showChatActions={viewMode !== "landing"}
+          onNewChat={handleNewChat}
+          onShowTemplates={() => setTemplatesOpen(true)}
+          onRestoreThread={handleRestoreThread}
+        />
+
+        {viewMode === "landing" ? (
+          <XuluxLandingPage
+            onStartChat={handleStartChat}
+            onSelectTemplate={handleSelectTemplate}
+          />
+        ) : viewMode === "preview" ? (
+          isSmallScreen ? (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <XuluxCanvas
+                  sessionId={sessionId}
+                  status={canvas.status}
+                  previewUrl={canvas.url}
+                  source={canvas.source}
+                  error={canvas.error}
+                  {...(canvas.downloadUrl
+                    ? { downloadUrl: canvas.downloadUrl }
+                    : {})}
+                  {...(sourceUrl ? { sourceUrl } : {})}
+                  {...(canvasTitle ? { title: canvasTitle } : {})}
+                />
+              </div>
+              <div className="flex h-[45%] min-h-[180px] flex-col overflow-hidden border-t">
+                {isInterrupted && (
+                  <InterruptedRunBanner
+                    lastUserMessage={interruptedUserMessage}
+                    onRetry={handleRetryInterrupted}
+                  />
+                )}
+                <XuluxThread onNewThread={handleNewChat} />
+              </div>
+            </div>
+          ) : (
+            <Group
+              orientation="horizontal"
+              className="min-h-0 flex-1 overflow-hidden"
+            >
+              <Panel
+                defaultSize="30%"
+                minSize="20%"
+                maxSize="55%"
+                className="flex h-full flex-col overflow-hidden border-r"
+              >
+                {isInterrupted && (
+                  <InterruptedRunBanner
+                    lastUserMessage={interruptedUserMessage}
+                    onRetry={handleRetryInterrupted}
+                  />
+                )}
+                <XuluxThread onNewThread={handleNewChat} />
+              </Panel>
+              <Separator className="bg-border hover:bg-primary/30 w-1 cursor-col-resize transition-colors" />
+              <Panel className="h-full overflow-hidden">
+                <XuluxCanvas
+                  sessionId={sessionId}
+                  status={canvas.status}
+                  previewUrl={canvas.url}
+                  source={canvas.source}
+                  error={canvas.error}
+                  {...(canvas.downloadUrl
+                    ? { downloadUrl: canvas.downloadUrl }
+                    : {})}
+                  {...(sourceUrl ? { sourceUrl } : {})}
+                  {...(canvasTitle ? { title: canvasTitle } : {})}
+                />
+              </Panel>
+            </Group>
+          )
+        ) : (
+          <div className="flex min-h-0 flex-1 justify-center overflow-hidden">
+            <section className="flex w-full max-w-3xl flex-col">
+              {isInterrupted && (
+                <InterruptedRunBanner
+                  lastUserMessage={interruptedUserMessage}
+                  onRetry={handleRetryInterrupted}
+                />
+              )}
+              <XuluxThread onNewThread={handleNewChat} />
+            </section>
+          </div>
+        )}
+
+        <TemplatesModal
+          open={templatesOpen}
+          onOpenChange={setTemplatesOpen}
+          onSelect={handleSelectTemplate}
+        />
+      </div>
+    </XuluxTemplateProvider>
   );
 }
 
