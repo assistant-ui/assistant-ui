@@ -38,32 +38,31 @@ A personalized AI chat experience powered by Mem0 that remembers user preference
 The example integrates Mem0's memory SDK with assistant-ui:
 
 ```tsx
-import { Mem0Client } from "mem0ai";
+import MemoryClient from "mem0ai";
 
-const mem0 = new Mem0Client({
+const mem0 = new MemoryClient({
   apiKey: process.env.MEM0_API_KEY,
 });
 
 // Store memories from a conversation
 async function storeMemory(userId: string, messages: Message[]) {
-  await mem0.add({
-    messages: messages.map((m) => ({
+  await mem0.add(
+    messages.map((m) => ({
       role: m.role,
       content: m.content,
     })),
-    user_id: userId,
-  });
+    { user_id: userId },
+  );
 }
 
 // Retrieve relevant memories for context
 async function getRelevantMemories(userId: string, query: string) {
-  const memories = await mem0.search({
-    query,
+  const { results } = await mem0.search(query, {
     user_id: userId,
     limit: 10,
   });
 
-  return memories.map((m) => m.memory).join("\n");
+  return results.map((m) => m.memory).join("\n");
 }
 ```
 
