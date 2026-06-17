@@ -26,11 +26,12 @@ const mediaFromContent = (
     if (type === "image") {
       const image = asString(part.image);
       if (image && isSafeImagePreviewUrl(image)) {
+        const sizeBytes = image.startsWith("data:")
+          ? estimateBase64Bytes(image.split(",", 2)[1] ?? image)
+          : undefined;
         return {
           previewUrl: image,
-          sizeBytes: image.startsWith("data:")
-            ? estimateBase64Bytes(image.split(",", 2)[1] ?? image)
-            : undefined,
+          ...(sizeBytes !== undefined ? { sizeBytes } : {}),
         };
       }
     }
