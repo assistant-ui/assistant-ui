@@ -353,7 +353,30 @@ Added in v0.0.2 — see issue [#3862](https://github.com/assistant-ui/assistant-
 
 ## Interrupts
 
-LangGraph interrupts pause the graph and wait for client input. `useLangChainInterruptState` exposes the current interrupt; `useLangChainSubmit` resumes the graph with a raw state update.
+LangGraph interrupts pause the graph and wait for client input. `useLangChainInterruptState` exposes the current interrupt; `useLangChainRespond` resumes it with a response payload, while `useLangChainSubmit` resumes the graph with a raw state update.
+
+`useLangChainRespond` is the cleaner resume path — it carries the response payload via `useStream().respond` and handles interrupt namespaces, so you don't have to construct a `Command`.
+
+```tsx
+import {
+  useLangChainInterruptState,
+  useLangChainRespond,
+} from "@assistant-ui/react-langchain";
+
+function InterruptPrompt() {
+  const interrupt = useLangChainInterruptState();
+  const respond = useLangChainRespond();
+  if (!interrupt) return null;
+  return (
+    <div>
+      <pre>{JSON.stringify(interrupt.value, null, 2)}</pre>
+      <button onClick={() => respond({ approved: true })}>Approve</button>
+    </div>
+  );
+}
+```
+
+You can also resume with a raw `Command` via `useLangChainSubmit`:
 
 <PlatformTabs>
 <Tab value="React">
@@ -604,6 +627,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | `useLangGraphRuntime` | `useStreamRuntime` | Options extend upstream `UseStreamOptions`; no `stream` / `create` / `load` to write. |
 | `useLangGraphInterruptState` | `useLangChainInterruptState` | Same return shape. |
 | `useLangGraphSendCommand` | `useLangChainSubmit` | `submit(values, { command })` replaces the dedicated hook. |
+| `useLangGraphSendCommand` | `useLangChainRespond` | Preferred resume — carries a payload via `stream.respond` (vs the older `useLangChainSubmit(null, { command })`). |
 | `useLangGraphSend` | _(use `runtime.thread.append`)_ | No direct equivalent; send turns through the runtime. |
 | `useLangGraphMessageMetadata` | _(not available)_ | Open an issue if you rely on this. |
 | `useLangGraphUIMessages` | _(not available)_ | Open an issue if you rely on this. |

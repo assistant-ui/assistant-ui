@@ -2,6 +2,7 @@ export {
   useStreamRuntime,
   useLangChainError,
   useLangChainInterruptState,
+  useLangChainRespond,
   useLangChainSend,
   useLangChainSendCommand,
   useLangChainState,

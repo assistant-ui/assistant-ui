@@ -44,6 +44,10 @@ type LangChainRuntimeExtras = {
     values: Record<string, unknown> | null | undefined,
     options?: Record<string, unknown>,
   ) => Promise<void>;
+  respond: (
+    response: unknown,
+    options?: Record<string, unknown>,
+  ) => Promise<void>;
   values: Record<string, unknown>;
   messagesKey: string;
 };
@@ -226,6 +230,7 @@ const useStreamThreadRuntime = (
       toolCalls: stream.toolCalls,
       error: stream.error,
       submit: stream.submit,
+      respond: stream.respond,
       values: stream.values,
       messagesKey,
     }),
@@ -235,6 +240,7 @@ const useStreamThreadRuntime = (
       stream.toolCalls,
       stream.error,
       stream.submit,
+      stream.respond,
       stream.values,
       messagesKey,
     ],
@@ -399,6 +405,21 @@ export const useLangChainSubmit = () => {
     const extras = aui.thread().getState().extras;
     const { submit } = asLangChainRuntimeExtras(extras);
     return submit(values, options);
+  };
+};
+
+/**
+ * Resume a LangGraph interrupt with a response payload via
+ * `useStream().respond`. Preferred over `useLangChainSendCommand` —
+ * carries the response cleanly and handles interrupt namespaces.
+ */
+export const useLangChainRespond = () => {
+  const aui = useAui();
+  return (response: unknown, options?: Record<string, unknown>) => {
+    const { respond } = asLangChainRuntimeExtras(
+      aui.thread().getState().extras,
+    );
+    return respond(response, options);
   };
 };
 
