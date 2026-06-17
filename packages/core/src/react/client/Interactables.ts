@@ -48,7 +48,10 @@ const useInteractables = ({
 
   const subscribersRef = useRef(new Set<() => void>());
   const partialSchemaCacheRef = useRef(new Map<string, PartialJSONSchema>());
-  const detachedStateRef = useRef(new Map<string, unknown>());
+  const detachedAppStateRef = useRef(new Map<string, unknown>());
+  const detachedThreadStateRef = useRef(
+    new Map<string, Map<string, unknown>>(),
+  );
   // An instance may be registered from several anchors (its creating tool
   // call plus update_* calls); the definition lives until the last one leaves.
   const registrationCountsRef = useRef(new Map<string, number>());
@@ -204,7 +207,7 @@ const useInteractables = ({
 
   const importState = useCallback(
     (saved: InteractablePersistedState) => {
-      restorePersistedState(saved, { stash: detachedStateRef.current });
+      restorePersistedState(saved, { stash: detachedAppStateRef.current });
     },
     [restorePersistedState],
   );
@@ -244,6 +247,23 @@ const useInteractables = ({
     },
     [loadFromAdapter],
   );
+
+  const getCurrentThreadId = useCallback((): string | undefined => {
+    const client = clientRef.current;
+    if (!client) return undefined;
+
+    const threadListItem = client.threadListItem;
+    if (threadListItem.source != null) {
+      return threadListItem().getState().id;
+    }
+
+    const threads = client.threads;
+    if (threads.source != null) {
+      return threads().getState().mainThreadId;
+    }
+
+    return undefined;
+  }, [clientRef]);
 
   useEffect(() => {
     if (!persistence) return;
@@ -398,8 +418,20 @@ const useInteractables = ({
         }
       }
 
-      const detached = detachedStateRef.current.get(def.id);
-      detachedStateRef.current.delete(def.id);
+      const threadId =
+        def.scope === "thread" ? getCurrentThreadId() : undefined;
+      const detached =
+        def.scope === "thread"
+          ? threadId
+            ? detachedThreadStateRef.current.get(threadId)?.get(def.id)
+            : undefined
+          : detachedAppStateRef.current.get(def.id);
+      if (def.scope === "thread") {
+        if (threadId)
+          detachedThreadStateRef.current.get(threadId)?.delete(def.id);
+      } else {
+        detachedAppStateRef.current.delete(def.id);
+      }
       const loaded =
         def.scope === "thread" ? undefined : loadedStateRef.current.get(def.id);
 
@@ -455,7 +487,19 @@ const useInteractables = ({
         setStateAndRef((prev) => {
           const existing = prev.definitions[def.id];
           if (existing) {
-            detachedStateRef.current.set(def.id, existing.state);
+            if (existing.scope === "thread") {
+              const threadId = getCurrentThreadId();
+              if (threadId) {
+                let stateById = detachedThreadStateRef.current.get(threadId);
+                if (!stateById) {
+                  stateById = new Map();
+                  detachedThreadStateRef.current.set(threadId, stateById);
+                }
+                stateById.set(def.id, existing.state);
+              }
+            } else {
+              detachedAppStateRef.current.set(def.id, existing.state);
+            }
           }
           partialSchemaCacheRef.current.delete(def.id);
           const { [def.id]: _, ...rest } = prev.definitions;
@@ -464,7 +508,7 @@ const useInteractables = ({
         });
       };
     },
-    [flushIfPending, clientRef, setStateAndRef],
+    [flushIfPending, clientRef, getCurrentThreadId, setStateAndRef],
   );
 
   return {

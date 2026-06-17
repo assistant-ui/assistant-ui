@@ -23,9 +23,18 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
 
 const { Interactables } = await import("./Interactables");
 
+const missingScope = (name: string) =>
+  Object.assign(
+    () => {
+      throw new Error(`${name} scope not available`);
+    },
+    { source: null },
+  );
+
 const makeClient = (
   threadMessages?: ThreadMessage[],
   setToolUI?: (...args: unknown[]) => () => void,
+  threadId?: string,
 ) => ({
   modelContext: () => ({ register: () => () => {} }),
   thread: threadMessages
@@ -35,12 +44,17 @@ const makeClient = (
           source: "root",
         },
       )
-    : Object.assign(
-        () => {
-          throw new Error("thread scope not available");
-        },
-        { source: null },
-      ),
+    : missingScope("thread"),
+  threadListItem: threadId
+    ? Object.assign(() => ({ getState: () => ({ id: threadId }) }), {
+        source: "root",
+      })
+    : missingScope("threadListItem"),
+  threads: threadId
+    ? Object.assign(() => ({ getState: () => ({ mainThreadId: threadId }) }), {
+        source: "root",
+      })
+    : missingScope("threads"),
   ...(setToolUI
     ? { tools: Object.assign(() => ({ setToolUI }), { source: "root" }) }
     : {}),
@@ -50,8 +64,13 @@ const mount = (config?: {
   persistence?: InteractablePersistenceAdapter;
   threadMessages?: ThreadMessage[];
   setToolUI?: (...args: unknown[]) => () => void;
+  threadId?: string;
 }) => {
-  clientHolder.client = makeClient(config?.threadMessages, config?.setToolUI);
+  clientHolder.client = makeClient(
+    config?.threadMessages,
+    config?.setToolUI,
+    config?.threadId,
+  );
   const root = createTapRoot(function InteractablesRoot() {
     return useResource(
       Interactables(
@@ -124,6 +143,21 @@ describe("Interactables registration", () => {
     root = mount({ threadMessages: [snapshot] });
     root.getValue().register(reg("n1", { scope: "thread" }));
     expect(stateOf(root, "n1")).toEqual({ v: 42 });
+  });
+
+  it("only restores detached thread-scoped state in the same thread", async () => {
+    root = mount({ threadId: "thread-a" });
+    const unregister = root
+      .getValue()
+      .register(reg("shared", { scope: "thread" }));
+    await flushMicrotasks();
+    root.getValue().setState("shared", () => ({ v: 5 }));
+    unregister();
+    await flushMicrotasks();
+
+    clientHolder.client = makeClient(undefined, undefined, "thread-b");
+    root.getValue().register(reg("shared", { scope: "thread" }));
+    expect(stateOf(root, "shared")).toEqual({ v: 0 });
   });
 
   it("restores a thread-scoped registration from its creating call's args", () => {
