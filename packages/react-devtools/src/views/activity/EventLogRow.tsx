@@ -1,7 +1,6 @@
 import clsx from "clsx";
-import { formatClockTime } from "../../utils/common";
+import { eventScope, formatClockTime } from "../../utils/common";
 import type { EventLogEntry } from "../../data/types";
-import { eventScope } from "../../utils/common";
 import { PartDisclosure } from "../message/PartDisclosure";
 import { PayloadDiff } from "../runs/PayloadDiff";
 import { Chip, JSONTree } from "../ui";
