@@ -1,8 +1,8 @@
 import type { UIMessage } from "ai";
 import {
-  unstable_formatInteractableSnapshot as formatInteractableSnapshot,
-  unstable_getInteractableSnapshots as getInteractableSnapshots,
-  type Unstable_InteractableSnapshotEntry as InteractableSnapshotEntry,
+  unstable_formatInteractableSnapshot,
+  unstable_getInteractableSnapshots,
+  type Unstable_InteractableSnapshotEntry,
 } from "@assistant-ui/core";
 
 /**
@@ -35,16 +35,16 @@ import {
  * }
  * ```
  */
-export function injectInteractableContext(
+export function unstable_injectInteractableContext(
   messages: UIMessage[],
   format: (
-    item: InteractableSnapshotEntry,
-  ) => string = formatInteractableSnapshot,
+    item: Unstable_InteractableSnapshotEntry,
+  ) => string = unstable_formatInteractableSnapshot,
 ): UIMessage[] {
   return messages.map((msg) => {
     if (msg.role !== "user") return msg;
 
-    const items = getInteractableSnapshots(msg);
+    const items = unstable_getInteractableSnapshots(msg);
     if (!items?.length) return msg;
 
     const text = `${items.map(format).join("\n")}\n\n`;

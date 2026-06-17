@@ -32,68 +32,6 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 
 <ParametersTable {...DevToolsHooks} />
 
-### fromThreadMessageLike
-
-Canonical model-facing wording for one snapshot entry.
-
-<ParametersTable {...formatInteractableSnapshot} />
-
-### getInteractableSnapshots
-
-Reads the interactable snapshots stamped on a message's
-`metadata.custom.interactables`, or `undefined` if none. This is the read
-half of the snapshot channel — integrations use it to surface interactable
-state to the model (see `injectInteractableContext` in
-`@assistant-ui/react-ai-sdk` for the AI SDK implementation).
-
-<ParametersTable {...getInteractableSnapshots} />
-
-### getInteractableVersions
-
-Every version of interactable `id` recorded in the thread, oldest first,
-folded chronologically:
-
-- the tool call whose `toolCallId` equals `id` seeds the baseline with its
-  args (`origin: "create"`) — the `id: toolCallId` convention for
-  tool-created interactables,
-- a snapshot stamped on a user message is a `"user-edit"` version (a full
-  snapshot replaces the state; a partial one shallow-merges),
-- each accepted `update_*` call shallow-merges an `"update"` version.
-Canonical model-facing wording for one snapshot entry.
-
-<ParametersTable {...formatInteractableSnapshot} />
-
-### getInteractableSnapshots
-
-Reads the interactable snapshots stamped on a message's
-`metadata.custom.interactables`, or `undefined` if none. This is the read
-half of the snapshot channel — integrations use it to surface interactable
-state to the model (see `injectInteractableContext` in
-`@assistant-ui/react-ai-sdk` for the AI SDK implementation).
-
-<ParametersTable {...getInteractableSnapshots} />
-
-### getInteractableVersions
-
-Every version of interactable `id` recorded in the thread, oldest first,
-folded chronologically:
-
-- the tool call whose `toolCallId` equals `id` seeds the baseline with its
-  args (`origin: "create"`) — the `id: toolCallId` convention for
-  tool-created interactables,
-- a snapshot stamped on a user message is a `"user-edit"` version (a full
-  snapshot replaces the state; a partial one shallow-merges),
-- each accepted `update_*` call shallow-merges an `"update"` version.
-```ts
-const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallbackStatus: MessageStatus) => ThreadMessage;
-```
-
-### generateId
-
-```ts
-const generateId: (size?: number) => string;
-```
-
 ### InMemoryThreadList
 
 <ParametersTable {...InMemoryThreadList} />

@@ -437,7 +437,7 @@ function VersionDropdown({ id, name }: { id: string; name: string }) {
 **Thread-scoped:**
 
 ```tsx
-const Notepad = ({ id, state, setState }: InteractableToolRenderProps<NotepadArgs>) => (
+const Notepad = ({ id, state, setState }: Unstable_InteractableToolRenderProps<NotepadArgs>) => (
   <div>
     <VersionDropdown id={id} name="notepad" />
     {/* ...editor... */}
@@ -726,7 +726,7 @@ const [state, { id, setState, isPending, error, flush }] = unstable_useInteracta
     },
     {
       name: "config",
-      type: "InteractableConfig<TSchema>",
+      type: "Unstable_InteractableConfig<TSchema>",
       required: true,
       description: "Configuration for the interactable.",
       children: [

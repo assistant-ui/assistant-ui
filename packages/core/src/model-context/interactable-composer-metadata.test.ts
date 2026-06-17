@@ -1,20 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   findModelKnownState,
-  formatInteractableSnapshot,
+  unstable_formatInteractableSnapshot,
   gateInteractableComposerMetadata,
-  getInteractableSnapshots,
-  getInteractableVersions,
+  unstable_getInteractableSnapshots,
+  unstable_getInteractableVersions,
   interactableToolName,
-  type InteractableSnapshotEntry,
+  type Unstable_InteractableSnapshotEntry,
 } from "./interactable-composer-metadata";
 
-const userMsg = (interactables: InteractableSnapshotEntry[]) => ({
+const userMsg = (interactables: Unstable_InteractableSnapshotEntry[]) => ({
   role: "user" as const,
   metadata: { custom: { interactables } },
 });
 
-const assistantMsg = (interactables: InteractableSnapshotEntry[]) => ({
+const assistantMsg = (interactables: Unstable_InteractableSnapshotEntry[]) => ({
   role: "assistant" as const,
   metadata: { custom: { interactables } },
 });
@@ -50,41 +50,45 @@ const entry = (
   id: string,
   state: unknown,
   name = id,
-): InteractableSnapshotEntry => ({ id, name, state });
+): Unstable_InteractableSnapshotEntry => ({ id, name, state });
 
 const partialEntry = (
   id: string,
   state: unknown,
   name = id,
-): InteractableSnapshotEntry => ({ id, name, state, partial: true });
+): Unstable_InteractableSnapshotEntry => ({ id, name, state, partial: true });
 
-describe("getInteractableSnapshots", () => {
+describe("unstable_getInteractableSnapshots", () => {
   it("reads entries from metadata.custom.interactables", () => {
     const msg = userMsg([entry("a", { v: 1 })]);
-    expect(getInteractableSnapshots(msg)).toEqual([entry("a", { v: 1 })]);
+    expect(unstable_getInteractableSnapshots(msg)).toEqual([
+      entry("a", { v: 1 }),
+    ]);
   });
 
   it("returns undefined for missing or malformed metadata", () => {
-    expect(getInteractableSnapshots({})).toBeUndefined();
-    expect(getInteractableSnapshots({ metadata: null })).toBeUndefined();
+    expect(unstable_getInteractableSnapshots({})).toBeUndefined();
     expect(
-      getInteractableSnapshots({
+      unstable_getInteractableSnapshots({ metadata: null }),
+    ).toBeUndefined();
+    expect(
+      unstable_getInteractableSnapshots({
         metadata: { custom: { interactables: "x" } },
       }),
     ).toBeUndefined();
   });
 });
 
-describe("formatInteractableSnapshot", () => {
+describe("unstable_formatInteractableSnapshot", () => {
   it("includes the name, id, and JSON state", () => {
-    expect(formatInteractableSnapshot(entry("n1", { v: 1 }, "note"))).toBe(
-      '[Current state of "note" (id: "n1"): {"v":1}]',
-    );
+    expect(
+      unstable_formatInteractableSnapshot(entry("n1", { v: 1 }, "note")),
+    ).toBe('[Current state of "note" (id: "n1"): {"v":1}]');
   });
 
   it("formats a partial snapshot as changed fields", () => {
     expect(
-      formatInteractableSnapshot(partialEntry("n1", { v: 1 }, "note")),
+      unstable_formatInteractableSnapshot(partialEntry("n1", { v: 1 }, "note")),
     ).toBe(
       '[State of "note" (id: "n1") changed — updated fields: {"v":1}; fields not listed are unchanged]',
     );
@@ -200,11 +204,11 @@ describe("findModelKnownState", () => {
   });
 });
 
-describe("getInteractableVersions", () => {
+describe("unstable_getInteractableVersions", () => {
   it("returns an empty list when nothing references the instance", () => {
-    expect(getInteractableVersions([], "a", "note")).toEqual([]);
+    expect(unstable_getInteractableVersions([], "a", "note")).toEqual([]);
     expect(
-      getInteractableVersions(
+      unstable_getInteractableVersions(
         [assistantToolCall("update_note", { id: "b", v: 1 }, undefined, "x")],
         "a",
         "note",
@@ -223,7 +227,7 @@ describe("getInteractableVersions", () => {
         "call-2",
       ),
     ];
-    expect(getInteractableVersions(history, "a", "note")).toEqual([
+    expect(unstable_getInteractableVersions(history, "a", "note")).toEqual([
       { state: { v: 1, title: "draft" }, origin: "create", toolCallId: "a" },
       { state: { v: 1, title: "edited" }, origin: "user-edit" },
       {
@@ -239,7 +243,7 @@ describe("getInteractableVersions", () => {
       assistantCreateCall("a", { v: 1, title: "draft" }),
       userMsg([entry("a", { v: 10 }, "note")]),
     ];
-    expect(getInteractableVersions(history, "a", "note")).toEqual([
+    expect(unstable_getInteractableVersions(history, "a", "note")).toEqual([
       { state: { v: 1, title: "draft" }, origin: "create", toolCallId: "a" },
       { state: { v: 10 }, origin: "user-edit" },
     ]);
@@ -255,7 +259,7 @@ describe("getInteractableVersions", () => {
         "call-2",
       ),
     ];
-    expect(getInteractableVersions(history, "a", "note")).toEqual([
+    expect(unstable_getInteractableVersions(history, "a", "note")).toEqual([
       { state: { v: 1 }, origin: "create", toolCallId: "a" },
       { state: { v: 2 }, origin: "update", toolCallId: "call-2" },
     ]);
@@ -271,7 +275,9 @@ describe("getInteractableVersions", () => {
         "call-2",
       ),
     ];
-    expect(getInteractableVersions(history, "a", "note")).toHaveLength(1);
+    expect(unstable_getInteractableVersions(history, "a", "note")).toHaveLength(
+      1,
+    );
   });
 
   it("skips rejected update calls", () => {
@@ -284,7 +290,7 @@ describe("getInteractableVersions", () => {
         "call-2",
       ),
     ];
-    expect(getInteractableVersions(history, "a", "note")).toEqual([
+    expect(unstable_getInteractableVersions(history, "a", "note")).toEqual([
       { state: { v: 1 }, origin: "create", toolCallId: "a" },
     ]);
   });
@@ -294,7 +300,7 @@ describe("getInteractableVersions", () => {
       userMsg([partialEntry("a", { title: "y" }, "note")]),
       assistantToolCall("update_note", { id: "a", v: 2 }, { success: true }),
     ];
-    expect(getInteractableVersions(history, "a", "note")).toEqual([]);
+    expect(unstable_getInteractableVersions(history, "a", "note")).toEqual([]);
   });
 });
 
@@ -422,7 +428,7 @@ describe("gateInteractableComposerMetadata", () => {
       // Second send: history already carries the snapshot, yet the value never
       // compares equal, so it re-stamps — documenting per-message growth.
       const history = [
-        userMsg(first!.interactables as InteractableSnapshotEntry[]),
+        userMsg(first!.interactables as Unstable_InteractableSnapshotEntry[]),
       ];
       const second = gateInteractableComposerMetadata(meta, history);
       expect(second?.interactables).toHaveLength(1);

@@ -6,29 +6,29 @@ import type { ToolCallMessagePartComponent } from "../MessagePartComponentTypes"
  * Schema type matching Tool["parameters"] from assistant-stream.
  * Accepts both StandardSchemaV1 and JSONSchema7.
  */
-export type InteractableStateSchema = NonNullable<
+export type Unstable_InteractableStateSchema = NonNullable<
   Extract<Tool, { parameters: unknown }>["parameters"]
 >;
 
-export type InteractableScope = "app" | "thread";
+export type Unstable_InteractableScope = "app" | "thread";
 
-export type InteractableDefinition = {
+export type Unstable_InteractableDefinition = {
   id: string;
   name: string;
   description: string;
-  stateSchema: InteractableStateSchema;
+  stateSchema: Unstable_InteractableStateSchema;
   state: unknown;
   initialState: unknown;
-  scope?: InteractableScope | undefined;
+  scope?: Unstable_InteractableScope | undefined;
 };
 
-export type InteractableRegistration = {
+export type Unstable_InteractableRegistration = {
   id: string;
   name: string;
   description: string;
-  stateSchema: InteractableStateSchema;
+  stateSchema: Unstable_InteractableStateSchema;
   initialState: unknown;
-  scope?: InteractableScope | undefined;
+  scope?: Unstable_InteractableScope | undefined;
   /**
    * Component installed as the tool UI for this interactable's `update_{name}`
    * tool calls, so a model edit re-renders the interactable at the message
@@ -37,53 +37,53 @@ export type InteractableRegistration = {
   updateRender?: ToolCallMessagePartComponent | undefined;
 };
 
-export type InteractablePersistenceStatus = {
+export type Unstable_InteractablePersistenceStatus = {
   isPending: boolean;
   error: unknown;
 };
 
-export type InteractablesState = {
+export type Unstable_InteractablesState = {
   /** Keyed by instance id */
-  definitions: Record<string, InteractableDefinition>;
+  definitions: Record<string, Unstable_InteractableDefinition>;
   /** Per-id persistence sync status */
-  persistence: Record<string, InteractablePersistenceStatus>;
+  persistence: Record<string, Unstable_InteractablePersistenceStatus>;
 };
 
-export type InteractablePersistedState = Record<
+export type Unstable_InteractablePersistedState = Record<
   string,
   { name: string; state: unknown }
 >;
 
-export type InteractablePersistenceAdapter = {
-  save(state: InteractablePersistedState): void | Promise<void>;
+export type Unstable_InteractablePersistenceAdapter = {
+  save(state: Unstable_InteractablePersistedState): void | Promise<void>;
   /**
    * Restores previously saved state. Called when the adapter is attached;
    * loaded state seeds app-scoped interactables that have not been locally
    * edited yet (a local edit always wins over a slow load).
    */
   load?():
-    | InteractablePersistedState
+    | Unstable_InteractablePersistedState
     | null
     | undefined
-    | Promise<InteractablePersistedState | null | undefined>;
+    | Promise<Unstable_InteractablePersistedState | null | undefined>;
 };
 
-export type InteractablesConfig = {
-  persistence?: InteractablePersistenceAdapter | undefined;
+export type Unstable_InteractablesConfig = {
+  persistence?: Unstable_InteractablePersistenceAdapter | undefined;
 };
 
-export type InteractablesMethods = {
-  getState(): InteractablesState;
-  register(def: InteractableRegistration): Unsubscribe;
+export type Unstable_InteractablesMethods = {
+  getState(): Unstable_InteractablesState;
+  register(def: Unstable_InteractableRegistration): Unsubscribe;
   setState(id: string, updater: (prev: unknown) => unknown): void;
-  exportState(): InteractablePersistedState;
-  importState(saved: InteractablePersistedState): void;
+  exportState(): Unstable_InteractablePersistedState;
+  importState(saved: Unstable_InteractablePersistedState): void;
   setPersistenceAdapter(
-    adapter: InteractablePersistenceAdapter | undefined,
+    adapter: Unstable_InteractablePersistenceAdapter | undefined,
   ): void;
   flush(): Promise<void>;
 };
 
-export type InteractablesClientSchema = {
-  methods: InteractablesMethods;
+export type Unstable_InteractablesClientSchema = {
+  methods: Unstable_InteractablesMethods;
 };

@@ -3,15 +3,15 @@
 import { useEffect, useId, useMemo, useRef } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
-  InteractableScope,
-  InteractableStateSchema,
+  Unstable_InteractableScope,
+  Unstable_InteractableStateSchema,
 } from "../types/scopes/interactables";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import {
-  getInteractableVersions,
+  unstable_getInteractableVersions,
   interactableToolName,
 } from "../../model-context/interactable-composer-metadata";
-import { useInteractableState } from "./useInteractableState";
+import { unstable_useInteractableState } from "./useInteractableState";
 import { useJSONEqual } from "../utils/useJSONEqual";
 
 /**
@@ -19,7 +19,7 @@ import { useJSONEqual } from "../utils/useJSONEqual";
  * output type of a StandardSchemaV1 schema (e.g. Zod); plain JSON Schema
  * falls back to `unknown`.
  */
-export type InferInteractableState<TSchema> = TSchema extends {
+export type Unstable_InferInteractableState<TSchema> = TSchema extends {
   "~standard": { types?: { output: infer TOutput } | undefined };
 }
   ? TOutput
@@ -30,7 +30,7 @@ export type InferInteractableState<TSchema> = TSchema extends {
  * tool-call parts. Show `state` to display history; call `restore()` to set
  * the live instance back to it.
  */
-export type InteractableVersionInfo<TState> = {
+export type Unstable_InteractableVersionInfo<TState> = {
   /** The interactable's state as it was at this message. */
   state: TState;
   /** Whether this message holds the instance's most recent tool-driven version. */
@@ -43,50 +43,36 @@ export type InteractableVersionInfo<TState> = {
  * Unstable / Experimental — the interactables API is still evolving and may change in any release.
  * @deprecated Unstable / Experimental (not actually removed).
  */
-export type InteractableConfig<TSchema extends InteractableStateSchema> = {
+export type Unstable_InteractableConfig<
+  TSchema extends Unstable_InteractableStateSchema,
+> = {
   description: string;
   stateSchema: TSchema;
-  initialState: InferInteractableState<TSchema>;
+  initialState: Unstable_InferInteractableState<TSchema>;
   /** Unique instance ID; required to address this instance when multiple interactables share a name. Auto-generated if omitted. */
   id?: string | undefined;
   /**
    * Persistence + reload-seed source. `"app"` (default) participates in the BYO
    * adapter; `"thread"` persists via the per-send snapshot in thread history.
    */
-  scope?: InteractableScope | undefined;
+  scope?: Unstable_InteractableScope | undefined;
   /**
    * Component installed as the tool UI for this interactable's `update_{name}`
    * tool calls, so a model edit re-renders the interactable at the message
    * that made it instead of only mutating an earlier one. Prefer
-   * `interactableTool`, which wires this up. Pass a stable component reference;
+   * `unstable_interactableTool`, which wires this up. Pass a stable component reference;
    * changing identity re-registers the tool UI.
    */
   updateRender?: ToolCallMessagePartComponent | undefined;
 };
 
-/**
- * Registers an interactable with the AI assistant and returns its live state,
- * like `useState` that the model can also read and update.
- *
- * Call this once per place that shows the interactable. Other components can
- * read and write the same instance by passing its `id` to
- * `unstable_useInteractableState`.
- *
- * For `scope: "thread"` interactables rendered inside tool-call message parts,
- * `version` carries this message's version of the instance — its state as of
- * that point in the conversation, whether it is the most recent tool-driven
- * version, and a `restore()` back to it. Whether older messages render frozen history or stay
- * live-editable is the component's choice. Inside an `update_{name}` part the
- * instance `id` is inferred from the call, so the same component works at the
- * creating call and at update calls.
- *
- * @deprecated Unstable / Experimental (not actually removed).
- */
-export const useInteractable = <TSchema extends InteractableStateSchema>(
+const useUnstableInteractable = <
+  TSchema extends Unstable_InteractableStateSchema,
+>(
   name: string,
-  config: InteractableConfig<TSchema>,
+  config: Unstable_InteractableConfig<TSchema>,
 ): readonly [
-  InferInteractableState<TSchema>,
+  Unstable_InferInteractableState<TSchema>,
   {
     id: string;
     /**
@@ -95,14 +81,16 @@ export const useInteractable = <TSchema extends InteractableStateSchema>(
      * for app scope.
      */
     version:
-      | InteractableVersionInfo<InferInteractableState<TSchema>>
+      | Unstable_InteractableVersionInfo<
+          Unstable_InferInteractableState<TSchema>
+        >
       | undefined;
     setState: (
       updater:
-        | InferInteractableState<TSchema>
+        | Unstable_InferInteractableState<TSchema>
         | ((
-            prev: InferInteractableState<TSchema>,
-          ) => InferInteractableState<TSchema>),
+            prev: Unstable_InferInteractableState<TSchema>,
+          ) => Unstable_InferInteractableState<TSchema>),
     ) => void;
     isPending: boolean;
     error: unknown;
@@ -168,13 +156,17 @@ export const useInteractable = <TSchema extends InteractableStateSchema>(
   const myToolCallId = part?.toolCallId;
 
   const [registeredState, methods] =
-    useInteractableState<InferInteractableState<TSchema>>(id);
+    unstable_useInteractableState<Unstable_InferInteractableState<TSchema>>(id);
   const { setState } = methods;
 
   const versionValue = useAuiState(
     useJSONEqual((s) => {
       if (!isThreadAnchor || !myToolCallId) return undefined;
-      const versions = getInteractableVersions(s.thread.messages, id, name);
+      const versions = unstable_getInteractableVersions(
+        s.thread.messages,
+        id,
+        name,
+      );
       const mine = versions.find((v) => v.toolCallId === myToolCallId);
       if (!mine) return undefined;
       const latestToolCallId = versions.findLast(
@@ -187,10 +179,12 @@ export const useInteractable = <TSchema extends InteractableStateSchema>(
   const version = useMemo(
     () =>
       versionValue && {
-        state: versionValue.state as InferInteractableState<TSchema>,
+        state: versionValue.state as Unstable_InferInteractableState<TSchema>,
         isLatest: versionValue.isLatest,
         restore: () =>
-          setState(versionValue.state as InferInteractableState<TSchema>),
+          setState(
+            versionValue.state as Unstable_InferInteractableState<TSchema>,
+          ),
       },
     [versionValue, setState],
   );
@@ -200,3 +194,48 @@ export const useInteractable = <TSchema extends InteractableStateSchema>(
 
   return [state, { id, version, ...methods }] as const;
 };
+
+/**
+ * Registers an interactable with the AI assistant and returns its live state,
+ * like `useState` that the model can also read and update.
+ *
+ * Call this once per place that shows the interactable. Other components can
+ * read and write the same instance by passing its `id` to
+ * `unstable_useInteractableState`.
+ *
+ * For `scope: "thread"` interactables rendered inside tool-call message parts,
+ * `version` carries this message's version of the instance — its state as of
+ * that point in the conversation, whether it is the most recent tool-driven
+ * version, and a `restore()` back to it. Whether older messages render frozen history or stay
+ * live-editable is the component's choice. Inside an `update_{name}` part the
+ * instance `id` is inferred from the call, so the same component works at the
+ * creating call and at update calls.
+ *
+ * @deprecated Unstable / Experimental (not actually removed).
+ */
+export const unstable_useInteractable: <
+  TSchema extends Unstable_InteractableStateSchema,
+>(
+  name: string,
+  config: Unstable_InteractableConfig<TSchema>,
+) => readonly [
+  Unstable_InferInteractableState<TSchema>,
+  {
+    id: string;
+    version:
+      | Unstable_InteractableVersionInfo<
+          Unstable_InferInteractableState<TSchema>
+        >
+      | undefined;
+    setState: (
+      updater:
+        | Unstable_InferInteractableState<TSchema>
+        | ((
+            prev: Unstable_InferInteractableState<TSchema>,
+          ) => Unstable_InferInteractableState<TSchema>),
+    ) => void;
+    isPending: boolean;
+    error: unknown;
+    flush: () => Promise<void>;
+  },
+] = useUnstableInteractable;

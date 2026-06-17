@@ -69,24 +69,24 @@ export {
 export { useInteractableState } from "./interactables-legacy/useInteractableState";
 export {
   /** @deprecated Unstable / Experimental — may change in any release. */
-  useInteractable as unstable_useInteractable,
-  type InteractableConfig as Unstable_InteractableConfig,
-  type InferInteractableState as Unstable_InferInteractableState,
-  type InteractableVersionInfo as Unstable_InteractableVersionInfo,
+  unstable_useInteractable,
+  type Unstable_InteractableConfig,
+  type Unstable_InferInteractableState,
+  type Unstable_InteractableVersionInfo,
 } from "./model-context/useInteractable";
 export {
   /** @deprecated Unstable / Experimental — may change in any release. */
-  useInteractableState as unstable_useInteractableState,
+  unstable_useInteractableState,
 } from "./model-context/useInteractableState";
 export {
   /** @deprecated Unstable / Experimental — may change in any release. */
-  useInteractableVersions as unstable_useInteractableVersions,
+  unstable_useInteractableVersions,
 } from "./model-context/useInteractableVersions";
 export {
   /** @deprecated Unstable / Experimental — may change in any release. */
-  interactableTool as unstable_interactableTool,
-  type InteractableToolConfig as Unstable_InteractableToolConfig,
-  type InteractableToolRenderProps as Unstable_InteractableToolRenderProps,
+  unstable_interactableTool,
+  type Unstable_InteractableToolConfig,
+  type Unstable_InteractableToolRenderProps,
 } from "./model-context/interactableTool";
 export {
   useToolArgsStatus,
@@ -104,7 +104,7 @@ export { DataRenderers } from "./client/DataRenderers";
 export { Interactables } from "./interactables-legacy/Interactables";
 export {
   /** @deprecated Unstable / Experimental — may change in any release. */
-  Interactables as unstable_Interactables,
+  unstable_Interactables,
 } from "./client/Interactables";
 
 // types
@@ -167,16 +167,17 @@ export type {
   InteractablesClientSchema,
 } from "./interactables-legacy/scopes";
 export type {
-  InteractableStateSchema as Unstable_InteractableStateSchema,
-  InteractablesState as Unstable_InteractablesState,
-  InteractableDefinition as Unstable_InteractableDefinition,
-  InteractableRegistration as Unstable_InteractableRegistration,
-  InteractablesMethods as Unstable_InteractablesMethods,
-  InteractablePersistedState as Unstable_InteractablePersistedState,
-  InteractablePersistenceAdapter as Unstable_InteractablePersistenceAdapter,
-  InteractablePersistenceStatus as Unstable_InteractablePersistenceStatus,
-  InteractablesClientSchema as Unstable_InteractablesClientSchema,
-  InteractablesConfig as Unstable_InteractablesConfig,
+  Unstable_InteractableStateSchema,
+  Unstable_InteractableScope,
+  Unstable_InteractablesState,
+  Unstable_InteractableDefinition,
+  Unstable_InteractableRegistration,
+  Unstable_InteractablesMethods,
+  Unstable_InteractablePersistedState,
+  Unstable_InteractablePersistenceAdapter,
+  Unstable_InteractablePersistenceStatus,
+  Unstable_InteractablesClientSchema,
+  Unstable_InteractablesConfig,
 } from "./types/scopes/interactables";
 
 // providers

@@ -6,11 +6,11 @@ import {
   attachTransformScopes,
 } from "@assistant-ui/store";
 import type {
-  InteractablesState,
-  InteractableRegistration,
-  InteractablePersistedState,
-  InteractablePersistenceAdapter,
-  InteractablesConfig,
+  Unstable_InteractablesState,
+  Unstable_InteractableRegistration,
+  Unstable_InteractablePersistedState,
+  Unstable_InteractablePersistenceAdapter,
+  Unstable_InteractablesConfig,
 } from "../types/scopes/interactables";
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store";
@@ -30,14 +30,14 @@ type RestorePersistedStateOptions = {
   shouldStash?: (id: string) => boolean;
   shouldApply?: (
     id: string,
-    def: InteractablesState["definitions"][string],
+    def: Unstable_InteractablesState["definitions"][string],
   ) => boolean;
 };
 
-const useInteractables = ({
+const useUnstableInteractables = ({
   persistence,
-}: InteractablesConfig = {}): ClientOutput<"unstable_interactables"> => {
-  const [state, setState] = useState<InteractablesState>(() => ({
+}: Unstable_InteractablesConfig = {}): ClientOutput<"unstable_interactables"> => {
+  const [state, setState] = useState<Unstable_InteractablesState>(() => ({
     definitions: {},
     persistence: {},
   }));
@@ -65,9 +65,9 @@ const useInteractables = ({
   // Ids edited locally this session — a local edit always wins over a slow load.
   const touchedIdsRef = useRef(new Set<string>());
 
-  const adapterRef = useRef<InteractablePersistenceAdapter | undefined>(
-    undefined,
-  );
+  const adapterRef = useRef<
+    Unstable_InteractablePersistenceAdapter | undefined
+  >(undefined);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
@@ -77,7 +77,11 @@ const useInteractables = ({
   const dirtyIdsRef = useRef(new Set<string>());
 
   const setStateAndRef = useCallback(
-    (updater: (prev: InteractablesState) => InteractablesState) => {
+    (
+      updater: (
+        prev: Unstable_InteractablesState,
+      ) => Unstable_InteractablesState,
+    ) => {
       const next = updater(stateRef.current);
       stateRef.current = next;
       setState(next);
@@ -85,8 +89,8 @@ const useInteractables = ({
     [],
   );
 
-  const exportState = useCallback((): InteractablePersistedState => {
-    const result: InteractablePersistedState = {};
+  const exportState = useCallback((): Unstable_InteractablePersistedState => {
+    const result: Unstable_InteractablePersistedState = {};
     for (const [id, def] of Object.entries(stateRef.current.definitions)) {
       if (def.scope === "thread") continue; // thread items persist via snapshot, not the adapter
       result[id] = { name: def.name, state: def.state };
@@ -180,7 +184,7 @@ const useInteractables = ({
 
   const restorePersistedState = useCallback(
     (
-      saved: InteractablePersistedState,
+      saved: Unstable_InteractablePersistedState,
       options: RestorePersistedStateOptions,
     ) => {
       const shouldStash = options.shouldStash ?? (() => true);
@@ -206,7 +210,7 @@ const useInteractables = ({
   );
 
   const importState = useCallback(
-    (saved: InteractablePersistedState) => {
+    (saved: Unstable_InteractablePersistedState) => {
       restorePersistedState(saved, { stash: detachedAppStateRef.current });
     },
     [restorePersistedState],
@@ -215,7 +219,7 @@ const useInteractables = ({
   // Applies adapter.load() output: a local edit made while the load was in
   // flight wins, and thread-scoped items never restore from the adapter.
   const applyLoadedState = useCallback(
-    (saved: InteractablePersistedState) => {
+    (saved: Unstable_InteractablePersistedState) => {
       restorePersistedState(saved, {
         stash: loadedStateRef.current,
         shouldStash: (id) => !touchedIdsRef.current.has(id),
@@ -227,7 +231,7 @@ const useInteractables = ({
   );
 
   const loadFromAdapter = useCallback(
-    async (adapter: InteractablePersistenceAdapter) => {
+    async (adapter: Unstable_InteractablePersistenceAdapter) => {
       if (!adapter.load) return;
       try {
         const saved = await adapter.load();
@@ -241,7 +245,7 @@ const useInteractables = ({
   );
 
   const setPersistenceAdapter = useCallback(
-    (adapter: InteractablePersistenceAdapter | undefined) => {
+    (adapter: Unstable_InteractablePersistenceAdapter | undefined) => {
       adapterRef.current = adapter;
       if (adapter) void loadFromAdapter(adapter);
     },
@@ -350,7 +354,7 @@ const useInteractables = ({
   }, [clientRef, provider]);
 
   const register = useCallback(
-    (def: InteractableRegistration) => {
+    (def: Unstable_InteractableRegistration) => {
       if (
         process.env.NODE_ENV !== "production" &&
         stateRef.current.definitions[def.id] &&
@@ -358,8 +362,8 @@ const useInteractables = ({
       ) {
         console.warn(
           `[Interactables] "${def.name}" (${def.id}) is already registered. ` +
-            `Register an app-scoped interactable once (useInteractable) and ` +
-            `read it from other components with useInteractableState.`,
+            `Register an app-scoped interactable once (unstable_useInteractable) and ` +
+            `read it from other components with unstable_useInteractableState.`,
         );
       }
 
@@ -527,9 +531,9 @@ const useInteractables = ({
  *
  * @deprecated Unstable / Experimental (not actually removed).
  */
-export const Interactables = resource(useInteractables);
+export const unstable_Interactables = resource(useUnstableInteractables);
 
-attachTransformScopes(useInteractables, (scopes, parent) => {
+attachTransformScopes(useUnstableInteractables, (scopes, parent) => {
   if (!scopes.modelContext && parent.modelContext.source === null) {
     scopes.modelContext = ModelContext();
   }

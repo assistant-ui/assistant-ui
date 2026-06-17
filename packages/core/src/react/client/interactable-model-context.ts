@@ -1,10 +1,10 @@
 import type { Tool } from "assistant-stream";
 import { toJSONSchema } from "assistant-stream";
-import type { InteractableDefinition } from "../types/scopes/interactables";
+import type { Unstable_InteractableDefinition } from "../types/scopes/interactables";
 import {
   interactableToolName,
   shallowMergeInteractableState,
-  type InteractableSnapshotEntry,
+  type Unstable_InteractableSnapshotEntry,
 } from "../../model-context/interactable-composer-metadata";
 
 export type PartialJSONSchema = ReturnType<typeof toJSONSchema>;
@@ -45,7 +45,7 @@ function withRequiredId(partial: PartialJSONSchema | undefined) {
 }
 
 export function buildInteractableModelContext(
-  definitions: Record<string, InteractableDefinition>,
+  definitions: Record<string, Unstable_InteractableDefinition>,
   partialSchemaCache: Map<string, PartialJSONSchema>,
   setDefState: (id: string, updater: (prev: unknown) => unknown) => void,
 ):
@@ -57,7 +57,7 @@ export function buildInteractableModelContext(
   const entries = Object.values(definitions);
   if (entries.length === 0) return undefined;
 
-  const byName = new Map<string, InteractableDefinition[]>();
+  const byName = new Map<string, Unstable_InteractableDefinition[]>();
   for (const def of entries) {
     const list = byName.get(def.name) ?? [];
     list.push(def);
@@ -82,7 +82,9 @@ export function buildInteractableModelContext(
 
     // `id` resolves to a definition of this name; an id-less call is accepted
     // only while exactly one instance exists.
-    const resolveTarget = (id: unknown): InteractableDefinition | undefined => {
+    const resolveTarget = (
+      id: unknown,
+    ): Unstable_InteractableDefinition | undefined => {
       if (typeof id === "string") {
         const def = definitions[id];
         return def?.name === name ? def : undefined;
@@ -139,10 +141,12 @@ export function buildInteractableModelContext(
     };
   }
 
-  const interactables: InteractableSnapshotEntry[] = entries.map((def) => ({
-    id: def.id,
-    name: def.name,
-    state: def.state,
-  }));
+  const interactables: Unstable_InteractableSnapshotEntry[] = entries.map(
+    (def) => ({
+      id: def.id,
+      name: def.name,
+      state: def.state,
+    }),
+  );
   return { tools, unstable_composerMetadata: { interactables } };
 }

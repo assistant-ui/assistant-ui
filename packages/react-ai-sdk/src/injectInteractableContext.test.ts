@@ -1,6 +1,6 @@
 import type { UIMessage } from "ai";
 import { describe, expect, it } from "vitest";
-import { injectInteractableContext } from "./injectInteractableContext";
+import { unstable_injectInteractableContext } from "./injectInteractableContext";
 import { injectQuoteContext } from "./injectQuoteContext";
 
 type Interactable = {
@@ -35,10 +35,10 @@ const isStateText = (part: unknown) =>
   (part as { type?: string }).type === "text" &&
   (textOf(part) ?? "").startsWith("[Current state of");
 
-describe("injectInteractableContext", () => {
+describe("unstable_injectInteractableContext", () => {
   it("returns the message unchanged when there is no interactable metadata", () => {
     const input = [userMsg()];
-    const out = injectInteractableContext(input);
+    const out = unstable_injectInteractableContext(input);
     expect(out[0]).toBe(input[0]);
   });
 
@@ -55,12 +55,12 @@ describe("injectInteractableContext", () => {
         },
       } as UIMessage,
     ];
-    const out = injectInteractableContext(input);
+    const out = unstable_injectInteractableContext(input);
     expect(out[0]).toBe(input[0]);
   });
 
   it("prepends a text part using the default format (id included for update_* addressing)", () => {
-    const out = injectInteractableContext([
+    const out = unstable_injectInteractableContext([
       userMsg([{ name: "note", id: "n1", state: { title: "Hi" } }]),
     ]);
     expect(textOf(out[0]!.parts[0])).toBe(
@@ -70,7 +70,7 @@ describe("injectInteractableContext", () => {
   });
 
   it("formats a partial snapshot as changed fields", () => {
-    const out = injectInteractableContext([
+    const out = unstable_injectInteractableContext([
       userMsg([
         { name: "note", id: "n1", state: { title: "Hi" }, partial: true },
       ]),
@@ -81,7 +81,7 @@ describe("injectInteractableContext", () => {
   });
 
   it("joins multiple interactables with a newline", () => {
-    const out = injectInteractableContext([
+    const out = unstable_injectInteractableContext([
       userMsg([
         { name: "note", id: "n1", state: { v: 1 } },
         { name: "board", id: "b1", state: { v: 2 } },
@@ -94,7 +94,7 @@ describe("injectInteractableContext", () => {
   });
 
   it("respects a custom format function", () => {
-    const out = injectInteractableContext(
+    const out = unstable_injectInteractableContext(
       [userMsg([{ name: "note", id: "n1", state: { v: 1 } }])],
       (item) => `X:${item.name}`,
     );
@@ -103,14 +103,14 @@ describe("injectInteractableContext", () => {
 
   it("leaves messages with an empty interactables array unchanged", () => {
     const input = [userMsg([])];
-    expect(injectInteractableContext(input)[0]).toBe(input[0]);
+    expect(unstable_injectInteractableContext(input)[0]).toBe(input[0]);
   });
 
   it("is idempotent on its own (does not double-inject)", () => {
-    const once = injectInteractableContext([
+    const once = unstable_injectInteractableContext([
       userMsg([{ name: "note", id: "n1", state: { v: 1 } }]),
     ]);
-    const twice = injectInteractableContext(once);
+    const twice = unstable_injectInteractableContext(once);
     expect(twice[0]).toBe(once[0]);
     expect(twice[0]!.parts.filter(isStateText)).toHaveLength(1);
   });
@@ -123,7 +123,9 @@ describe("injectInteractableContext", () => {
 
     it("stacks both injections in a fixed order over source messages", () => {
       // Apply interactable first, then quote — quote ends up outermost.
-      const out = injectQuoteContext(injectInteractableContext([both()]));
+      const out = injectQuoteContext(
+        unstable_injectInteractableContext([both()]),
+      );
       const parts = out[0]!.parts;
       expect(textOf(parts[0])).toBe("> quoted\n\n");
       expect(isStateText(parts[1])).toBe(true);
@@ -134,8 +136,12 @@ describe("injectInteractableContext", () => {
       // Each injector's `alreadyInjected` guard only inspects parts[0]. Once the
       // other injector sits at parts[0], the guard misses and re-prepends. So the
       // composition must run once over source messages, never re-run over output.
-      const once = injectQuoteContext(injectInteractableContext([both()]));
-      const twice = injectQuoteContext(injectInteractableContext(once));
+      const once = injectQuoteContext(
+        unstable_injectInteractableContext([both()]),
+      );
+      const twice = injectQuoteContext(
+        unstable_injectInteractableContext(once),
+      );
       expect(twice[0]!.parts.filter(isStateText)).toHaveLength(2);
     });
   });

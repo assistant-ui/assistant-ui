@@ -3,7 +3,7 @@ title: Interactables
 description: Unstable interactables APIs for model-editable app and message state, including hooks, resources, toolkit helpers, and snapshot utilities.
 ---
 
-
+import { unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -23,7 +23,7 @@ description: Unstable interactables APIs for model-editable app and message stat
 Registers the unstable interactables store scope.
 
 ```ts
-const unstable_Interactables: Resource<ClientOutput<"unstable_interactables">, [(InteractablesConfig | undefined)?]>;
+const unstable_Interactables: Resource<ClientOutput<"unstable_interactables">, [(Unstable_InteractablesConfig | undefined)?]>;
 ```
 
 ### unstable_useInteractable
@@ -47,9 +47,7 @@ live-editable is the component's choice. Inside an `update_{name}` part the
 instance `id` is inferred from the call, so the same component works at the
 creating call and at update calls.
 
-```ts
-const unstable_useInteractable: <TSchema extends InteractableStateSchema>(name: string, config: InteractableConfig<TSchema>) => readonly [InferInteractableState<TSchema>, { id: string; version: InteractableVersionInfo<InferInteractableState<TSchema>> | undefined; setState: (updater: InferInteractableState<TSchema> | ((prev: InferInteractableState<TSchema>) => InferInteractableState<TSchema>)) => void; isPending: boolean; error: unknown; flush: () => Promise<void>; }];
-```
+<ParametersTable {...unstable_useInteractable} />
 
 ### unstable_useInteractableState
 
@@ -63,9 +61,7 @@ Use this from secondary readers (children, siblings); the owning component
 registers with `unstable_useInteractable`, which returns state directly. Returns
 `undefined` until the owning interactable is registered.
 
-```ts
-const unstable_useInteractableState: <TState>(id: string) => [TState | undefined, { setState: (updater: StateUpdater<TState>) => void; isPending: boolean; error: unknown; flush: () => Promise<void>; }];
-```
+<ParametersTable {...unstable_useInteractableState} />
 
 ### unstable_useInteractableVersions
 
@@ -79,9 +75,7 @@ thread, oldest first: the creating tool call, each user edit, and each
 `restore()` that sets the live instance back to it — enough for a version
 picker like an artifact's history dropdown.
 
-```ts
-const unstable_useInteractableVersions: <TState = unknown>(id: string, name: string) => (Omit<InteractableVersion, "state"> & { state: TState; restore: () => void; })[];
-```
+<ParametersTable {...unstable_useInteractableVersions} />
 
 ### unstable_interactableTool
 
@@ -107,7 +101,7 @@ message's `version`; whether older messages render frozen history or stay
 live-editable is the render function's choice.
 
 ```ts
-const unstable_interactableTool: <TSchema extends InteractableStateSchema>(config: InteractableToolConfig<TSchema>) => ToolDefinition<Record<string, unknown>, { success: true; }>;
+const unstable_interactableTool: <TSchema extends Unstable_InteractableStateSchema>(config: Unstable_InteractableToolConfig<TSchema>) => ToolDefinition<Record<string, unknown>, { success: true; }>;
 ```
 
 ### unstable_getInteractableSnapshots
@@ -122,11 +116,7 @@ half of the snapshot channel — integrations use it to surface interactable
 state to the model (see `unstable_injectInteractableContext` in
 `@assistant-ui/react-ai-sdk` for the AI SDK implementation).
 
-```ts
-function unstable_getInteractableSnapshots(message: {
-  metadata?: unknown;
-}): InteractableSnapshotEntry[];
-```
+<ParametersTable {...unstable_getInteractableSnapshots} />
 
 ### unstable_formatInteractableSnapshot
 
@@ -136,9 +126,7 @@ function unstable_getInteractableSnapshots(message: {
 
 Canonical model-facing wording for one snapshot entry.
 
-```ts
-function unstable_formatInteractableSnapshot(entry: InteractableSnapshotEntry): string;
-```
+<ParametersTable {...unstable_formatInteractableSnapshot} />
 
 ### unstable_getInteractableVersions
 
@@ -159,7 +147,5 @@ folded chronologically:
 The last entry is the state the model knows. Partial snapshots and update
 calls with no baseline to merge into are skipped.
 
-```ts
-function unstable_getInteractableVersions(messages: readonly SnapshotCarrierMessage[], id: string, name: string): InteractableVersion[];
-```
+<ParametersTable {...unstable_getInteractableVersions} />
 {/* api-reference:end */}

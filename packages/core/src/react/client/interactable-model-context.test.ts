@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildInteractableModelContext } from "./interactable-model-context";
-import type { InteractableDefinition } from "../types/scopes/interactables";
+import type { Unstable_InteractableDefinition } from "../types/scopes/interactables";
 
 const def = (
   id: string,
   name: string,
   state: unknown = {},
-): InteractableDefinition => ({
+): Unstable_InteractableDefinition => ({
   id,
   name,
   description: `desc of ${name}`,
@@ -21,7 +21,7 @@ const partialNoteSchema = {
 };
 
 const build = (
-  definitions: Record<string, InteractableDefinition>,
+  definitions: Record<string, Unstable_InteractableDefinition>,
   cache = new Map([["n1", partialNoteSchema]]),
 ) => {
   const setDefState = vi.fn(

@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
-import type { InteractableStateSchema } from "../types/scopes/interactables";
+import type { Unstable_InteractableStateSchema } from "../types/scopes/interactables";
 import type { ToolDefinition } from "./toolbox";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import {
-  useInteractable,
-  type InferInteractableState,
-  type InteractableVersionInfo,
+  unstable_useInteractable,
+  type Unstable_InferInteractableState,
+  type Unstable_InteractableVersionInfo,
 } from "./useInteractable";
-import { useInteractableState } from "./useInteractableState";
+import { unstable_useInteractableState } from "./useInteractableState";
 
-export type InteractableToolRenderProps<TState> = {
+export type Unstable_InteractableToolRenderProps<TState> = {
   /**
    * The live state. While `streaming` is true, fields the model has not
    * finished generating may still be missing.
@@ -21,17 +21,21 @@ export type InteractableToolRenderProps<TState> = {
    * conversation, whether it is the most recent edit, and a `restore()` back
    * to it. `undefined` while streaming.
    */
-  version: InteractableVersionInfo<TState> | undefined;
+  version: Unstable_InteractableVersionInfo<TState> | undefined;
   id: string;
   /** True while the tool call's arguments are still streaming in. */
   streaming: boolean;
 };
 
-export type InteractableToolConfig<TSchema extends InteractableStateSchema> = {
+export type Unstable_InteractableToolConfig<
+  TSchema extends Unstable_InteractableStateSchema,
+> = {
   description: string;
   stateSchema: TSchema;
   render: (
-    props: InteractableToolRenderProps<InferInteractableState<TSchema>>,
+    props: Unstable_InteractableToolRenderProps<
+      Unstable_InferInteractableState<TSchema>
+    >,
   ) => ReactNode;
 };
 
@@ -59,10 +63,12 @@ const UPDATE_TOOL_PREFIX = "update_";
  *
  * @deprecated Unstable / Experimental (not actually removed).
  */
-export const interactableTool = <TSchema extends InteractableStateSchema>(
-  config: InteractableToolConfig<TSchema>,
+export const unstable_interactableTool = <
+  TSchema extends Unstable_InteractableStateSchema,
+>(
+  config: Unstable_InteractableToolConfig<TSchema>,
 ): ToolDefinition<Record<string, unknown>, { success: true }> => {
-  type TState = InferInteractableState<TSchema>;
+  type TState = Unstable_InferInteractableState<TSchema>;
   type UpdateArgs = { id?: string | undefined } & Record<string, unknown>;
   type UpdateResult =
     | { success: true; id: string }
@@ -77,17 +83,15 @@ export const interactableTool = <TSchema extends InteractableStateSchema>(
     id?: string | undefined;
     initial: TState;
   }) => {
-    const [state, { id: resolvedId, setState, version }] = useInteractable(
-      name,
-      {
+    const [state, { id: resolvedId, setState, version }] =
+      unstable_useInteractable(name, {
         id,
         description: config.description,
         stateSchema: config.stateSchema,
         initialState: initial,
         scope: "thread",
         updateRender: UpdateToolUI,
-      },
-    );
+      });
     return (
       <>
         {config.render({
@@ -102,7 +106,7 @@ export const interactableTool = <TSchema extends InteractableStateSchema>(
   };
 
   const StreamingUpdate = ({ id }: { id: string }) => {
-    const [state, { setState }] = useInteractableState<TState>(id);
+    const [state, { setState }] = unstable_useInteractableState<TState>(id);
     if (state === undefined) return null;
     return (
       <>

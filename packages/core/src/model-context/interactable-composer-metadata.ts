@@ -5,7 +5,7 @@ import { isJSONValue } from "../utils/json/is-json";
  * Unstable / Experimental — the interactables API is still evolving and may change in any release.
  * @deprecated Unstable / Experimental (not actually removed).
  */
-export type InteractableSnapshotEntry = {
+export type Unstable_InteractableSnapshotEntry = {
   id: string;
   name: string;
   state: unknown;
@@ -37,16 +37,16 @@ type SnapshotCarrierMessage = {
  *
  * @deprecated Unstable / Experimental (not actually removed).
  */
-export function getInteractableSnapshots(message: {
+export function unstable_getInteractableSnapshots(message: {
   metadata?: unknown;
-}): InteractableSnapshotEntry[] | undefined {
+}): Unstable_InteractableSnapshotEntry[] | undefined {
   const metadata = message.metadata;
   if (!metadata || typeof metadata !== "object") return undefined;
   const custom = (metadata as Record<string, unknown>).custom;
   if (!custom || typeof custom !== "object") return undefined;
   const items = (custom as Record<string, unknown>).interactables;
   return Array.isArray(items)
-    ? (items as InteractableSnapshotEntry[])
+    ? (items as Unstable_InteractableSnapshotEntry[])
     : undefined;
 }
 
@@ -55,8 +55,8 @@ export function getInteractableSnapshots(message: {
  *
  * @deprecated Unstable / Experimental (not actually removed).
  */
-export function formatInteractableSnapshot(
-  entry: InteractableSnapshotEntry,
+export function unstable_formatInteractableSnapshot(
+  entry: Unstable_InteractableSnapshotEntry,
 ): string {
   if (entry.partial) {
     return `[State of "${entry.name}" (id: ${JSON.stringify(entry.id)}) changed — updated fields: ${JSON.stringify(entry.state)}; fields not listed are unchanged]`;
@@ -135,7 +135,7 @@ const updateCallTargets = (p: ToolCallLikePart, id: string): boolean => {
  * Unstable / Experimental — the interactables API is still evolving and may change in any release.
  * @deprecated Unstable / Experimental (not actually removed).
  */
-export type InteractableVersion = {
+export type Unstable_InteractableVersion = {
   /** The full state as of this version. */
   state: unknown;
   origin: "create" | "update" | "user-edit";
@@ -147,7 +147,7 @@ export type InteractableVersion = {
 // token, since the repository hands out a new messages array per token.
 const versionsCache = new WeakMap<
   readonly SnapshotCarrierMessage[],
-  Map<string, Map<string, InteractableVersion[]>>
+  Map<string, Map<string, Unstable_InteractableVersion[]>>
 >();
 
 /**
@@ -166,11 +166,11 @@ const versionsCache = new WeakMap<
  *
  * @deprecated Unstable / Experimental (not actually removed).
  */
-export function getInteractableVersions(
+export function unstable_getInteractableVersions(
   messages: readonly SnapshotCarrierMessage[],
   id: string,
   name: string,
-): InteractableVersion[] {
+): Unstable_InteractableVersion[] {
   let byName = versionsCache.get(messages);
   if (!byName) {
     byName = new Map();
@@ -185,12 +185,14 @@ export function getInteractableVersions(
   if (cached) return cached;
 
   const toolName = interactableToolName(name);
-  const versions: InteractableVersion[] = [];
+  const versions: Unstable_InteractableVersion[] = [];
   const current = () => versions[versions.length - 1];
 
   for (const msg of messages) {
     if (msg.role === "user") {
-      const entry = getInteractableSnapshots(msg)?.find((it) => it.id === id);
+      const entry = unstable_getInteractableSnapshots(msg)?.find(
+        (it) => it.id === id,
+      );
       if (!entry) continue;
       if (entry.partial) {
         const prev = current();
@@ -240,7 +242,7 @@ export function findModelKnownState(
   id: string,
   name: string,
 ): { state: unknown } | undefined {
-  const versions = getInteractableVersions(messages, id, name);
+  const versions = unstable_getInteractableVersions(messages, id, name);
   const last = versions[versions.length - 1];
   return last ? { state: last.state } : undefined;
 }
@@ -258,12 +260,12 @@ export function gateInteractableComposerMetadata(
 ): Record<string, unknown> | undefined {
   if (!meta) return undefined;
   const { interactables, ...rest } = meta as {
-    interactables?: InteractableSnapshotEntry[];
+    interactables?: Unstable_InteractableSnapshotEntry[];
   } & Record<string, unknown>;
 
   const gated: Record<string, unknown> = { ...rest };
   if (Array.isArray(interactables)) {
-    const pending: InteractableSnapshotEntry[] = [];
+    const pending: Unstable_InteractableSnapshotEntry[] = [];
     for (const it of interactables) {
       if (process.env.NODE_ENV !== "production" && !isJSONValue(it.state)) {
         console.warn(

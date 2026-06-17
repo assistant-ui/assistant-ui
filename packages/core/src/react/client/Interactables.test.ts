@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTapRoot, useResource } from "@assistant-ui/tap";
 import type {
-  InteractablePersistedState,
-  InteractablePersistenceAdapter,
-  InteractableRegistration,
+  Unstable_InteractablePersistedState,
+  Unstable_InteractablePersistenceAdapter,
+  Unstable_InteractableRegistration,
 } from "../types/scopes/interactables";
 import type { ThreadMessage } from "../../types/message";
 
@@ -21,7 +21,8 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   };
 });
 
-const { Interactables } = await import("./Interactables");
+const { unstable_Interactables: Interactables } =
+  await import("./Interactables");
 
 const missingScope = (name: string) =>
   Object.assign(
@@ -61,7 +62,7 @@ const makeClient = (
 });
 
 const mount = (config?: {
-  persistence?: InteractablePersistenceAdapter;
+  persistence?: Unstable_InteractablePersistenceAdapter;
   threadMessages?: ThreadMessage[];
   setToolUI?: (...args: unknown[]) => () => void;
   threadId?: string;
@@ -83,8 +84,8 @@ const mount = (config?: {
 
 const reg = (
   id: string,
-  overrides: Partial<InteractableRegistration> = {},
-): InteractableRegistration => ({
+  overrides: Partial<Unstable_InteractableRegistration> = {},
+): Unstable_InteractableRegistration => ({
   id,
   name: "note",
   description: "a note",
@@ -277,11 +278,14 @@ describe("Interactables persistence save", () => {
 });
 
 describe("Interactables persistence load", () => {
-  const adapter = (saved: InteractablePersistedState, delayMs = 0) => ({
+  const adapter = (
+    saved: Unstable_InteractablePersistedState,
+    delayMs = 0,
+  ) => ({
     save: vi.fn(),
     load: vi.fn(
       () =>
-        new Promise<InteractablePersistedState>((resolve) =>
+        new Promise<Unstable_InteractablePersistedState>((resolve) =>
           setTimeout(() => resolve(saved), delayMs),
         ),
     ),
