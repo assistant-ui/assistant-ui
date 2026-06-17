@@ -13,6 +13,7 @@ const SUPPORT_BASE_URL =
   "https://8fd186ab9f30417b876d717f734067a9.preview.bl.run";
 
 const CATEGORIES: XuluxTemplateCategory[] = [
+  DEMO_DOWNLOAD_CATEGORY,
   {
     id: "docs",
     name: "Docs and Knowledge",
@@ -25,7 +26,6 @@ const CATEGORIES: XuluxTemplateCategory[] = [
     description:
       "Support triage, troubleshooting, handoffs, and tool-call demos.",
   },
-  DEMO_DOWNLOAD_CATEGORY,
 ];
 
 type HostedTemplateVersion = {
@@ -148,65 +148,74 @@ function docsVersionCards(): XuluxTemplate[] {
     downloadUrl: joinUrl(DOCS_BASE_URL, version.downloadPath),
   }));
 
-  return docsVersions.map((version, index) => ({
-    id: `webpage-assistant-${version.id}`,
-    templateId: "webpage-assistant",
-    versionId: version.id,
-    title: version.title,
-    description: version.description,
-    categoryId: "docs",
-    categoryName: "Docs and Knowledge",
-    tags: version.tags,
-    prompt: version.prompt,
-    gradient: "from-sky-500/40 via-cyan-500/30 to-emerald-400/20",
-    kind: "template",
-    previewStatus: "live",
-    previewUrl: joinUrl(DOCS_BASE_URL, version.previewPath),
-    downloadUrl: joinUrl(DOCS_BASE_URL, version.downloadPath),
-    sandboxBaseUrl: DOCS_BASE_URL,
-    featured: index < 4,
-    versions,
-    intent: {
-      goodFor: version.goodFor,
-      notFor: ["Support ticket triage", "CRM workflows"],
-      exampleUserRequests: [
-        "Build me an API docs assistant for a billing API.",
-        "Create a website copilot that explains the current page.",
-        "Make a docs search assistant that can generate code snippets.",
-      ],
-    },
-    customization: {
-      safeFieldsSummary: [
-        "hostUi docs shell names, default page, nav groups, and rendered pages",
-        "assistant product/docs/assistant names, welcome copy, labels, and suggested prompts",
-        "assistant tools with fixed ids, display metadata, implementation hints, and renderer types",
-        "assistant.demoFlows steps with assistant text, tool order, tool input, mock output, and final response",
-        "brandTheme shared visual tokens",
-        "template-owned contract at /api/template/contract",
-      ],
-      supportedRenderers: [
-        "sourceResults",
-        "pagePreview",
-        "codeSnippet",
-        "generic",
-      ],
-      sourceEditFiles: [
-        "lib/docs/host-ui.ts",
-        "lib/docs/assistant-config.ts",
-        "lib/docs/tool-data.ts",
-        "lib/docs/version-presets.ts",
-        "lib/docs/preview-schema.ts",
-        "lib/docs/download-materializer.ts",
-      ],
-    },
-    tech: {
-      framework: "Next.js",
-      runtime: "assistant-ui + AI SDK",
-      frontendPattern: "Docs assistant",
-    },
-    env: [],
-    canStart: true,
-  }));
+  return docsVersions.map((version, index) => {
+    const gradients = [
+      "from-sky-500/40 via-cyan-500/30 to-emerald-400/20",
+      "from-blue-500/40 via-indigo-500/30 to-violet-400/20",
+      "from-teal-500/40 via-cyan-500/30 to-sky-400/20",
+      "from-indigo-500/40 via-purple-500/30 to-pink-400/20",
+      "from-cyan-500/40 via-sky-500/30 to-blue-400/20",
+    ];
+    return {
+      id: `webpage-assistant-${version.id}`,
+      templateId: "webpage-assistant",
+      versionId: version.id,
+      title: version.title,
+      description: version.description,
+      categoryId: "docs",
+      categoryName: "Docs and Knowledge",
+      tags: version.tags,
+      prompt: version.prompt,
+      gradient: gradients[index % gradients.length],
+      kind: "template",
+      previewStatus: "live",
+      previewUrl: joinUrl(DOCS_BASE_URL, version.previewPath),
+      downloadUrl: joinUrl(DOCS_BASE_URL, version.downloadPath),
+      sandboxBaseUrl: DOCS_BASE_URL,
+      featured: index < 4,
+      versions,
+      intent: {
+        goodFor: version.goodFor,
+        notFor: ["Support ticket triage", "CRM workflows"],
+        exampleUserRequests: [
+          "Build me an API docs assistant for a billing API.",
+          "Create a website copilot that explains the current page.",
+          "Make a docs search assistant that can generate code snippets.",
+        ],
+      },
+      customization: {
+        safeFieldsSummary: [
+          "hostUi docs shell names, default page, nav groups, and rendered pages",
+          "assistant product/docs/assistant names, welcome copy, labels, and suggested prompts",
+          "assistant tools with fixed ids, display metadata, implementation hints, and renderer types",
+          "assistant.demoFlows steps with assistant text, tool order, tool input, mock output, and final response",
+          "brandTheme shared visual tokens",
+          "template-owned contract at /api/template/contract",
+        ],
+        supportedRenderers: [
+          "sourceResults",
+          "pagePreview",
+          "codeSnippet",
+          "generic",
+        ],
+        sourceEditFiles: [
+          "lib/docs/host-ui.ts",
+          "lib/docs/assistant-config.ts",
+          "lib/docs/tool-data.ts",
+          "lib/docs/version-presets.ts",
+          "lib/docs/preview-schema.ts",
+          "lib/docs/download-materializer.ts",
+        ],
+      },
+      tech: {
+        framework: "Next.js",
+        runtime: "assistant-ui + AI SDK",
+        frontendPattern: "Docs assistant",
+      },
+      env: [],
+      canStart: true,
+    };
+  });
 }
 
 function supportVersionCards(): XuluxTemplate[] {
@@ -218,66 +227,68 @@ function supportVersionCards(): XuluxTemplate[] {
     downloadUrl: joinUrl(SUPPORT_BASE_URL, version.downloadPath),
   }));
 
-  return supportVersions.map((version, index) => ({
-    id: `product-page-assistant-${version.id}`,
-    templateId: "product-page-assistant",
-    versionId: version.id,
-    title: version.title,
-    description: version.description,
-    categoryId: "support",
-    categoryName: "Support and Operations",
-    tags: version.tags,
-    prompt: version.prompt,
-    gradient:
-      index === 1
-        ? "from-violet-500/40 via-fuchsia-500/25 to-sky-400/20"
-        : index === 2
-          ? "from-teal-500/40 via-emerald-500/25 to-cyan-400/20"
-          : "from-blue-500/40 via-cyan-500/30 to-teal-400/20",
-    kind: "template",
-    previewStatus: "live",
-    previewUrl: joinUrl(SUPPORT_BASE_URL, version.previewPath),
-    downloadUrl: joinUrl(SUPPORT_BASE_URL, version.downloadPath),
-    sandboxBaseUrl: SUPPORT_BASE_URL,
-    featured: true,
-    versions,
-    intent: {
-      goodFor: version.goodFor,
-      notFor: ["Docs search", "API reference helpers"],
-      exampleUserRequests: [
-        "Build me a support assistant that triages customer issues.",
-        "Create a troubleshooting copilot with two tool calls and a handoff summary.",
-        "Make an integration health assistant for support teams.",
-      ],
-    },
-    customization: {
-      safeFieldsSummary: [
-        "hostUi dashboard shell names, labels, metrics, status lists, and activity content",
-        "assistant company/product/assistant names, welcome copy, labels, prompts, and scenario ids",
-        "assistant tools with fixed ids, display metadata, implementation hints, and card types",
-        "assistant.demoFlows steps with assistant text, tool order, tool input, mock output, and final response",
-        "support-specific assistant.toolData for routing, account status, labels, and scenario metadata",
-        "brandTheme shared visual tokens",
-        "template-owned contract at /api/template/contract",
-      ],
-      supportedRenderers: ["analysis", "summary", "generic"],
-      sourceEditFiles: [
-        "lib/support/host-ui.ts",
-        "lib/support/assistant-config.ts",
-        "lib/support/tool-data.ts",
-        "lib/support/version-presets.ts",
-        "lib/support/preview-schema.ts",
-        "lib/support/download-materializer.ts",
-      ],
-    },
-    tech: {
-      framework: "Next.js",
-      runtime: "assistant-ui + AI SDK",
-      frontendPattern: "Support modal + dashboard",
-    },
-    env: [],
-    canStart: true,
-  }));
+  return supportVersions.map((version, index) => {
+    const gradients = [
+      "from-rose-500/40 via-orange-500/30 to-amber-400/20",
+      "from-violet-500/40 via-fuchsia-500/25 to-sky-400/20",
+      "from-teal-500/40 via-emerald-500/25 to-cyan-400/20",
+    ];
+    return {
+      id: `product-page-assistant-${version.id}`,
+      templateId: "product-page-assistant",
+      versionId: version.id,
+      title: version.title,
+      description: version.description,
+      categoryId: "support",
+      categoryName: "Support and Operations",
+      tags: version.tags,
+      prompt: version.prompt,
+      gradient: gradients[index % gradients.length],
+      kind: "template",
+      previewStatus: "live",
+      previewUrl: joinUrl(SUPPORT_BASE_URL, version.previewPath),
+      downloadUrl: joinUrl(SUPPORT_BASE_URL, version.downloadPath),
+      sandboxBaseUrl: SUPPORT_BASE_URL,
+      featured: true,
+      versions,
+      intent: {
+        goodFor: version.goodFor,
+        notFor: ["Docs search", "API reference helpers"],
+        exampleUserRequests: [
+          "Build me a support assistant that triages customer issues.",
+          "Create a troubleshooting copilot with two tool calls and a handoff summary.",
+          "Make an integration health assistant for support teams.",
+        ],
+      },
+      customization: {
+        safeFieldsSummary: [
+          "hostUi dashboard shell names, labels, metrics, status lists, and activity content",
+          "assistant company/product/assistant names, welcome copy, labels, prompts, and scenario ids",
+          "assistant tools with fixed ids, display metadata, implementation hints, and card types",
+          "assistant.demoFlows steps with assistant text, tool order, tool input, mock output, and final response",
+          "support-specific assistant.toolData for routing, account status, labels, and scenario metadata",
+          "brandTheme shared visual tokens",
+          "template-owned contract at /api/template/contract",
+        ],
+        supportedRenderers: ["analysis", "summary", "generic"],
+        sourceEditFiles: [
+          "lib/support/host-ui.ts",
+          "lib/support/assistant-config.ts",
+          "lib/support/tool-data.ts",
+          "lib/support/version-presets.ts",
+          "lib/support/preview-schema.ts",
+          "lib/support/download-materializer.ts",
+        ],
+      },
+      tech: {
+        framework: "Next.js",
+        runtime: "assistant-ui + AI SDK",
+        frontendPattern: "Support modal + dashboard",
+      },
+      env: [],
+      canStart: true,
+    };
+  });
 }
 
 function demoCards(): XuluxTemplate[] {
@@ -319,9 +330,9 @@ export function getXuluxHostedTemplatesCatalog(): XuluxTemplateCatalog {
   return {
     categories: CATEGORIES,
     templates: [
+      ...demoCards(),
       ...docsVersionCards(),
       ...supportVersionCards(),
-      ...demoCards(),
     ],
   };
 }
