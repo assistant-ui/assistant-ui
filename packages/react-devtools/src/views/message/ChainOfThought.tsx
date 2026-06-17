@@ -28,7 +28,7 @@ const hasAwaitingTool = (parts: readonly PartPreview[]) =>
     (part) =>
       part.type === "tool-call" &&
       (part.status?.type === "requires-action" ||
-        part.approval !== undefined ||
+        (part.approval !== undefined && part.approval.approved === undefined) ||
         part.interrupt !== undefined),
   );
 

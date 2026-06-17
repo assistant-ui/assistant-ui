@@ -212,11 +212,14 @@ export const JSONTree = ({
   openDepth?: number;
   compact?: boolean;
 }) => {
-  const serialized = useMemo(() => serialize(value, compact), [value, compact]);
+  const isLeaf = isInline(value, compact) || !isContainer(value);
+  const serialized = useMemo(
+    () => (isLeaf ? serialize(value, compact) : ""),
+    [value, compact, isLeaf],
+  );
   const copyText = useMemo(() => JSON.stringify(value, null, 2), [value]);
-  const inline = isInline(value, compact);
 
-  if (inline || !isContainer(value)) {
+  if (isLeaf) {
     return (
       <InlineJson
         serialized={serialized}
