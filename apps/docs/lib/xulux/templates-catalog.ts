@@ -139,6 +139,10 @@ function joinUrl(baseUrl: string, path: string) {
   return `${baseUrl}${path}`;
 }
 
+function pickGradient(gradients: readonly string[], index: number): string {
+  return gradients[index % gradients.length] ?? gradients[0]!;
+}
+
 function docsVersionCards(): XuluxTemplate[] {
   const versions = docsVersions.map((version) => ({
     id: version.id,
@@ -166,7 +170,7 @@ function docsVersionCards(): XuluxTemplate[] {
       categoryName: "Docs and Knowledge",
       tags: version.tags,
       prompt: version.prompt,
-      gradient: gradients[index % gradients.length],
+      gradient: pickGradient(gradients, index),
       kind: "template",
       previewStatus: "live",
       previewUrl: joinUrl(DOCS_BASE_URL, version.previewPath),
@@ -243,7 +247,7 @@ function supportVersionCards(): XuluxTemplate[] {
       categoryName: "Support and Operations",
       tags: version.tags,
       prompt: version.prompt,
-      gradient: gradients[index % gradients.length],
+      gradient: pickGradient(gradients, index),
       kind: "template",
       previewStatus: "live",
       previewUrl: joinUrl(SUPPORT_BASE_URL, version.previewPath),

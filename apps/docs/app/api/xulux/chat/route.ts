@@ -113,9 +113,6 @@ function formatSelectedTemplateContext(
   if (typeof selectedTemplate.sourcePath === "string") {
     lines.push(`sourcePath: ${selectedTemplate.sourcePath}`);
   }
-  if (typeof selectedTemplate.docsUrl === "string") {
-    lines.push(`docsUrl: ${selectedTemplate.docsUrl}`);
-  }
   if (typeof selectedTemplate.downloadUrl === "string") {
     lines.push(`downloadUrl: ${selectedTemplate.downloadUrl}`);
   }
