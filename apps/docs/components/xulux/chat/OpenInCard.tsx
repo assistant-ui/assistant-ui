@@ -23,6 +23,25 @@ function isValidOpenInUrl(url: unknown): url is string {
   }
 }
 
+function toAbsoluteDownloadUrl(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  if (typeof window === "undefined") return url;
+  return new URL(url, window.location.origin).href;
+}
+
+function getDocsAppendix(): string {
+  const docsIndexUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/llms.txt`
+      : "https://www.assistant-ui.com/llms.txt";
+
+  return (
+    `Before implementing, read ${docsIndexUrl} to discover relevant documentation pages. ` +
+    "Traverse the index and read the specific pages you need (installation, architecture, runtimes, components) so your setup matches current assistant-ui APIs. " +
+    "Use the assistant-ui CLI for scaffolding — do not manually create projects with create-next-app."
+  );
+}
+
 function buildPrompt(data: OpenInData): string {
   const sections: string[] = [];
 
@@ -31,7 +50,11 @@ function buildPrompt(data: OpenInData): string {
   const downloadUrl = isValidOpenInUrl(data.downloadUrl)
     ? data.downloadUrl
     : undefined;
-  if (downloadUrl) sections.push(`Download: ${downloadUrl}`);
+  if (downloadUrl) {
+    sections.push(`Download: ${toAbsoluteDownloadUrl(downloadUrl)}`);
+  }
+
+  sections.push(getDocsAppendix());
 
   return sections.join("\n\n");
 }
