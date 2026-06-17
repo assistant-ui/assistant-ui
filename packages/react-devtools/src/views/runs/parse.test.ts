@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { EventLogEntry } from "../common";
+import type { EventLogEntry } from "../../data/types";
 import { groupRuns } from "./parse";
 
 const base = 2_000_000_000_000;

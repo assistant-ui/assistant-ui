@@ -1,127 +1,151 @@
-import type { ReactNode } from "react";
-import { Chip, JSONPreview, ToneBadge } from "../ui";
+import clsx from "clsx";
+import { JSONTree, ToneBadge } from "../ui";
+import { PartDisclosure } from "./PartDisclosure";
 import { StatusBadge } from "./StatusBadge";
 import type { ToolCallPartPreview } from "./types";
 
-const Disclosure = ({
-  label,
-  defaultOpen,
-  children,
+const isAwaiting = (part: ToolCallPartPreview) =>
+  part.status?.type === "requires-action" ||
+  part.interrupt !== undefined ||
+  (part.approval !== undefined && part.approval.approved === undefined);
+
+const sameAsArgsJson = (part: ToolCallPartPreview) => {
+  if (part.argsText === undefined) return false;
+  try {
+    return part.argsText.trim() === JSON.stringify(part.args);
+  } catch {
+    return false;
+  }
+};
+
+export const ToolCallView = ({
+  part,
+  nested = false,
 }: {
-  label: string;
-  defaultOpen?: boolean;
-  children: ReactNode;
-}) => (
-  <details open={defaultOpen} className="group">
-    <summary className="text-muted-foreground hover:text-foreground cursor-pointer list-none text-[10px] font-medium select-none">
-      <span className="mr-1 inline-block transition-transform group-open:rotate-90">
-        ›
-      </span>
-      {label}
-    </summary>
-    <div className="mt-1">{children}</div>
-  </details>
-);
+  part: ToolCallPartPreview;
+  nested?: boolean;
+}) => {
+  const awaiting = isAwaiting(part);
 
-export const ToolCallView = ({ part }: { part: ToolCallPartPreview }) => {
-  const awaiting =
-    part.status?.type === "requires-action" ||
-    part.interrupt !== undefined ||
-    (part.approval !== undefined && part.approval.approved === undefined);
   return (
-    <div className="bg-card rounded-md border p-3 text-[11px] transition-colors">
-      <div className="flex flex-wrap items-center gap-2">
-        <Chip>tool</Chip>
-        <span className="text-foreground font-semibold">{part.toolName}</span>
+    <details
+      open={awaiting}
+      className={clsx(
+        "group",
+        !nested && "border-border overflow-hidden rounded-md border",
+      )}
+    >
+      <summary className="hover:bg-accent/40 flex cursor-pointer list-none items-center gap-1.5 px-2 py-1.5 text-[11px] select-none">
+        <span className="text-muted-foreground inline-block shrink-0 transition-transform group-open:rotate-90">
+          ›
+        </span>
+        <span className="text-foreground min-w-0 flex-1 truncate font-medium">
+          {part.toolName}
+        </span>
         {part.status ? (
-          <StatusBadge type={part.status.type} reason={part.status.reason} />
+          <StatusBadge
+            type={part.status.type}
+            reason={part.status.reason}
+            compact
+            size="sm"
+          />
         ) : null}
-        {part.isError ? <StatusBadge type="incomplete" reason="error" /> : null}
+        {part.isError ? (
+          <StatusBadge type="incomplete" reason="error" compact size="sm" />
+        ) : null}
         {part.mcp !== undefined ? (
-          <ToneBadge tone="violet">MCP</ToneBadge>
-        ) : null}
-      </div>
-
-      {part.toolCallId ? (
-        <div className="text-muted-foreground mt-1 font-mono text-[10px]">
-          {part.toolCallId}
-        </div>
-      ) : null}
-
-      {awaiting ? (
-        <div className="bg-muted text-foreground mt-2 rounded-md border p-2">
-          <ToneBadge tone="amber">
-            {part.approval ? "Awaiting approval" : "Awaiting human input"}
+          <ToneBadge tone="violet" size="sm">
+            mcp
           </ToneBadge>
-          {part.approval ? (
-            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px]">
-              {part.approval.id ? <span>id: {part.approval.id}</span> : null}
-              <span>
-                approved:{" "}
-                {part.approval.approved === undefined
-                  ? "pending"
-                  : String(part.approval.approved)}
-              </span>
-              {part.approval.isAutomatic !== undefined ? (
-                <span>automatic: {String(part.approval.isAutomatic)}</span>
-              ) : null}
-              {part.approval.reason ? (
-                <span>reason: {part.approval.reason}</span>
-              ) : null}
-            </div>
-          ) : null}
-          {part.interrupt?.payload !== undefined ? (
-            <div className="mt-1">
-              <JSONPreview value={part.interrupt.payload} />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
+      </summary>
 
-      <div className="mt-2 flex flex-col gap-2">
-        <Disclosure label="Arguments" defaultOpen>
-          <JSONPreview value={part.args} />
-        </Disclosure>
+      <div className="border-border flex flex-col gap-0.5 border-t px-2 py-1">
+        {awaiting ? (
+          <div className="bg-muted/50 rounded border px-2 py-1.5 text-[10px]">
+            <ToneBadge tone="amber" size="sm">
+              {part.approval ? "Awaiting approval" : "Awaiting human input"}
+            </ToneBadge>
+            {part.approval ? (
+              <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
+                {part.approval.id ? <span>id: {part.approval.id}</span> : null}
+                <span>
+                  approved:{" "}
+                  {part.approval.approved === undefined
+                    ? "pending"
+                    : String(part.approval.approved)}
+                </span>
+                {part.approval.isAutomatic !== undefined ? (
+                  <span>auto: {String(part.approval.isAutomatic)}</span>
+                ) : null}
+                {part.approval.reason ? (
+                  <span>{part.approval.reason}</span>
+                ) : null}
+              </div>
+            ) : null}
+            {part.interrupt?.payload !== undefined ? (
+              <div className="mt-1">
+                <JSONTree
+                  value={part.interrupt.payload}
+                  openDepth={0}
+                  compact
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
-        {part.argsText !== undefined ? (
-          <Disclosure label="Raw args text">
-            <pre className="bg-muted text-foreground rounded-md p-2 text-[10px] break-words whitespace-pre-wrap">
+        {part.toolCallId ? (
+          <PartDisclosure label="Call id">
+            <span className="text-muted-foreground font-mono text-[10px] break-all">
+              {part.toolCallId}
+            </span>
+          </PartDisclosure>
+        ) : null}
+
+        <PartDisclosure label="Arguments">
+          <JSONTree value={part.args} openDepth={0} compact />
+        </PartDisclosure>
+
+        {part.argsText !== undefined && !sameAsArgsJson(part) ? (
+          <PartDisclosure label="Raw args">
+            <pre className="text-foreground font-mono text-[10px] leading-snug break-words whitespace-pre-wrap">
               {part.argsText}
             </pre>
-          </Disclosure>
+          </PartDisclosure>
         ) : null}
 
         {part.result !== undefined ? (
-          <Disclosure label={part.isError ? "Result (error)" : "Result"}>
-            <JSONPreview value={part.result} />
-          </Disclosure>
+          <PartDisclosure label={part.isError ? "Result (error)" : "Result"}>
+            <JSONTree value={part.result} openDepth={0} compact />
+          </PartDisclosure>
         ) : null}
 
         {part.artifact !== undefined ? (
-          <Disclosure label="Artifact">
-            <JSONPreview value={part.artifact} />
-          </Disclosure>
+          <PartDisclosure label="Artifact">
+            <JSONTree value={part.artifact} openDepth={0} compact />
+          </PartDisclosure>
         ) : null}
 
         {part.modelContent !== undefined ? (
-          <Disclosure label="Model content">
-            <JSONPreview value={part.modelContent} />
-          </Disclosure>
+          <PartDisclosure label="Model content">
+            <JSONTree value={part.modelContent} openDepth={0} compact />
+          </PartDisclosure>
         ) : null}
 
         {part.mcp !== undefined ? (
-          <Disclosure label="MCP metadata">
-            <JSONPreview value={part.mcp} />
-          </Disclosure>
+          <PartDisclosure label="MCP">
+            <JSONTree value={part.mcp} openDepth={0} compact />
+          </PartDisclosure>
         ) : null}
 
         {part.subMessageCount > 0 ? (
-          <div className="text-muted-foreground text-[10px]">
+          <span className="text-muted-foreground text-[10px]">
             {part.subMessageCount} nested sub-agent message
             {part.subMessageCount === 1 ? "" : "s"}
-          </div>
+          </span>
         ) : null}
       </div>
-    </div>
+    </details>
   );
 };

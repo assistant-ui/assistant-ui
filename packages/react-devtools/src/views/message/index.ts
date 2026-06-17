@@ -1,15 +1,5 @@
 export { MessageList } from "./MessageList";
-export { MessageItem } from "./MessageItem";
-export { PartView } from "./PartView";
-export { ToolCallView } from "./ToolCallView";
-export { ChainOfThought } from "./ChainOfThought";
+export { MessageDetailBody, messageDetailHeader } from "./MessageDetailPane";
 export { StatusBadge } from "./StatusBadge";
-export { parseMessage, parsePart, parsePartStatus } from "./parse";
-export type {
-  MessagePreview,
-  PartPreview,
-  PartStatusPreview,
-  MessageTimingPreview,
-  MessageUsagePreview,
-  ToolCallPartPreview,
-} from "./types";
+export { parseMessage } from "./parse";
+export type { MessagePreview, PartPreview } from "./types";

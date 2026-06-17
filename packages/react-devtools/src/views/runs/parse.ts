@@ -1,5 +1,5 @@
-import { eventScope, isRecord } from "../common";
-import type { EventLogEntry } from "../common";
+import { eventScope, isRecord } from "../../utils/common";
+import type { EventLogEntry } from "../../data/types";
 import type { RunEventEntry, RunGrouping, RunPreview } from "./types";
 
 // thread.runStart/runEnd are @deprecated in core but kept for backward

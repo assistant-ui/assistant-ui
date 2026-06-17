@@ -1,4 +1,7 @@
 import type { MessagePreview } from "../message";
+import type { AttachmentPreview } from "../attachments/types";
+
+export type { AttachmentPreview };
 
 export interface ThreadListItemPreview {
   id: string;
@@ -6,6 +9,7 @@ export interface ThreadListItemPreview {
   status?: string;
   externalId?: string;
   remoteId?: string;
+  lastMessageAt?: string;
 }
 
 export interface SuggestionPreview {
@@ -15,20 +19,6 @@ export interface SuggestionPreview {
 export interface ComposerQueueItem {
   id?: string;
   prompt: string;
-}
-
-export interface AttachmentStatusPreview {
-  type: string;
-  reason?: string;
-  progress?: number;
-}
-
-export interface AttachmentPreview {
-  id?: string;
-  name: string;
-  kind?: string;
-  contentType?: string;
-  status?: AttachmentStatusPreview;
 }
 
 export interface ComposerPreview {
@@ -56,7 +46,6 @@ export interface ThreadPreview {
 export interface ThreadListPreview {
   mainThreadId?: string;
   newThreadId?: string | null;
-  isLoading?: boolean;
   threadIds: string[];
   archivedThreadIds: string[];
   threadItems: ThreadListItemPreview[];

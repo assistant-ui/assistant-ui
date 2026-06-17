@@ -1,5 +1,10 @@
 import type { ReactNode } from "react";
-import { Chip, JSONPreview, ToneBadge } from "../ui";
+import {
+  AudioPartView,
+  FilePartView,
+  ImagePartView,
+} from "../attachments/MediaPartView";
+import { Chip, JSONTree, ToneBadge } from "../ui";
 import { StatusBadge } from "./StatusBadge";
 import { ToolCallView } from "./ToolCallView";
 import type { PartPreview, PartStatusPreview } from "./types";
@@ -9,59 +14,104 @@ const PartShell = ({
   status,
   children,
   tone,
+  compact = false,
 }: {
   type: string;
   status?: PartStatusPreview | undefined;
   children?: ReactNode;
   tone?: "reasoning" | undefined;
-}) => (
-  <div className="flex flex-col gap-1">
-    <div className="flex items-center gap-2">
-      {tone === "reasoning" ? (
-        <ToneBadge tone="violet">{type}</ToneBadge>
-      ) : (
-        <Chip>{type}</Chip>
-      )}
-      {status ? (
-        <StatusBadge type={status.type} reason={status.reason} />
-      ) : null}
-    </div>
-    {children}
-  </div>
-);
+  compact?: boolean;
+}) => {
+  if (compact) {
+    return (
+      <div className="px-2 py-1.5">
+        {children}
+        {status ? (
+          <div className="mt-1">
+            <StatusBadge
+              type={status.type}
+              reason={status.reason}
+              compact
+              size="sm"
+            />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
-const Text = ({ value, muted }: { value: string; muted?: boolean }) => (
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        {tone === "reasoning" ? (
+          <ToneBadge tone="violet">{type}</ToneBadge>
+        ) : (
+          <Chip>{type}</Chip>
+        )}
+        {status ? (
+          <StatusBadge type={status.type} reason={status.reason} />
+        ) : null}
+      </div>
+      {children}
+    </div>
+  );
+};
+
+const Text = ({
+  value,
+  muted,
+  compact = false,
+}: {
+  value: string;
+  muted?: boolean;
+  compact?: boolean;
+}) => (
   <div
     className={
       muted
-        ? "text-muted-foreground wrap-break-word whitespace-pre-wrap italic"
-        : "text-foreground wrap-break-word whitespace-pre-wrap"
+        ? compact
+          ? "text-muted-foreground text-[11px] wrap-break-word whitespace-pre-wrap italic"
+          : "text-muted-foreground wrap-break-word whitespace-pre-wrap italic"
+        : compact
+          ? "text-foreground text-[11px] wrap-break-word whitespace-pre-wrap"
+          : "text-foreground wrap-break-word whitespace-pre-wrap"
     }
   >
     {value || "(empty)"}
   </div>
 );
 
-export const PartView = ({ part }: { part: PartPreview }) => {
+export const PartView = ({
+  part,
+  compact = false,
+}: {
+  part: PartPreview;
+  compact?: boolean;
+}) => {
   switch (part.type) {
     case "tool-call":
-      return <ToolCallView part={part} />;
+      return <ToolCallView part={part} nested={compact} />;
     case "text":
       return (
-        <PartShell type="text" status={part.status}>
-          <Text value={part.text} />
+        <PartShell type="text" status={part.status} compact={compact}>
+          <Text value={part.text} compact={compact} />
         </PartShell>
       );
     case "reasoning":
       return (
-        <PartShell type="reasoning" status={part.status} tone="reasoning">
-          <Text value={part.text} muted />
+        <PartShell
+          type="reasoning"
+          status={part.status}
+          tone="reasoning"
+          compact={compact}
+        >
+          <Text value={part.text} muted compact={compact} />
         </PartShell>
       );
     case "source":
       return (
-        <PartShell type="source" status={part.status}>
-          <div className="text-foreground">
+        <PartShell type="source" status={part.status} compact={compact}>
+          <div className="text-foreground text-[11px]">
             {part.title ?? part.url ?? part.sourceType ?? "(source)"}
             {part.title && part.url ? (
               <span className="text-muted-foreground ml-1">({part.url})</span>
@@ -71,48 +121,76 @@ export const PartView = ({ part }: { part: PartPreview }) => {
       );
     case "image":
       return (
-        <PartShell type="image" status={part.status}>
-          <div className="text-foreground">{part.filename ?? "(image)"}</div>
-        </PartShell>
+        <div className="flex flex-col gap-1">
+          <ImagePartView part={part} compact={compact} />
+          {part.status ? (
+            <div className={compact ? "px-2" : undefined}>
+              <StatusBadge
+                type={part.status.type}
+                reason={part.status.reason}
+                compact
+                size="sm"
+              />
+            </div>
+          ) : null}
+        </div>
       );
     case "file":
       return (
-        <PartShell type="file" status={part.status}>
-          <div className="text-foreground">
-            {part.filename ?? "(file)"}
-            {part.mimeType ? (
-              <span className="text-muted-foreground ml-1">
-                {part.mimeType}
-              </span>
-            ) : null}
-          </div>
-        </PartShell>
+        <div className="flex flex-col gap-1">
+          <FilePartView part={part} compact={compact} />
+          {part.status ? (
+            <div className={compact ? "px-2" : undefined}>
+              <StatusBadge
+                type={part.status.type}
+                reason={part.status.reason}
+                compact
+                size="sm"
+              />
+            </div>
+          ) : null}
+        </div>
       );
     case "audio":
       return (
-        <PartShell type="audio" status={part.status}>
-          <div className="text-foreground">{part.format ?? "(audio)"}</div>
-        </PartShell>
+        <div className="flex flex-col gap-1">
+          <AudioPartView part={part} compact={compact} />
+          {part.status ? (
+            <div className={compact ? "px-2" : undefined}>
+              <StatusBadge
+                type={part.status.type}
+                reason={part.status.reason}
+                compact
+                size="sm"
+              />
+            </div>
+          ) : null}
+        </div>
       );
     case "data":
       return (
         <PartShell
           type={part.name ? `data: ${part.name}` : "data"}
           status={part.status}
+          compact={compact}
         >
-          <JSONPreview value={part.data} />
+          <JSONTree value={part.data} openDepth={compact ? 0 : 1} />
         </PartShell>
       );
     case "generative-ui":
       return (
-        <PartShell type="generative-ui" status={part.status}>
-          <JSONPreview value={part.spec} />
+        <PartShell type="generative-ui" status={part.status} compact={compact}>
+          <JSONTree value={part.spec} openDepth={compact ? 0 : 1} />
         </PartShell>
       );
     default:
       return (
-        <PartShell type={part.rawType || "unknown"} status={part.status}>
-          <JSONPreview value={part.raw} />
+        <PartShell
+          type={part.rawType || "unknown"}
+          status={part.status}
+          compact={compact}
+        >
+          <JSONTree value={part.raw} openDepth={compact ? 0 : 1} />
         </PartShell>
       );
   }

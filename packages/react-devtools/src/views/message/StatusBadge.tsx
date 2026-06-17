@@ -1,22 +1,28 @@
-import { ToneBadge } from "../ui";
-import type { BadgeTone } from "../ui";
-
-const TONE: Record<string, BadgeTone> = {
-  running: "blue",
-  complete: "emerald",
-  incomplete: "red",
-  "requires-action": "amber",
-};
+import clsx from "clsx";
+import { STATUS_TONE, ToneBadge } from "../ui";
 
 export const StatusBadge = ({
   type,
   reason,
+  compact = false,
+  size = "default",
+  className,
 }: {
   type: string;
   reason?: string | undefined;
+  /** Omits the reason segment — better for narrow transcript rails. */
+  compact?: boolean;
+  size?: "default" | "sm";
+  className?: string | undefined;
 }) => (
-  <ToneBadge tone={TONE[type]} className="inline-flex items-center gap-1">
-    <span>{type}</span>
-    {reason ? <span className="opacity-70">· {reason}</span> : null}
+  <ToneBadge
+    tone={STATUS_TONE[type]}
+    size={size}
+    className={clsx("inline-flex max-w-full items-center gap-0.5", className)}
+  >
+    <span className="truncate">{type}</span>
+    {!compact && reason ? (
+      <span className="truncate opacity-70">· {reason}</span>
+    ) : null}
   </ToneBadge>
 );

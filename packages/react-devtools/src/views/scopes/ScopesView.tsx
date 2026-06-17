@@ -1,45 +1,65 @@
-import { isRecord } from "../common";
-import { Chip, EmptyState, SectionLabel, SummaryItem, ToneBadge } from "../ui";
+import { isRecord } from "../../utils/common";
+import { Chip, EmptyState, SummaryItem, SummaryList, ToneBadge } from "../ui";
 import { parseScopes } from "./parse";
 import type { ScopePreview } from "./types";
 
 const SourceBadge = ({ source }: { source: string | null }) => {
   if (!source) return null;
-  if (source === "root") {
-    return <ToneBadge tone="emerald">root</ToneBadge>;
-  }
+  if (source === "root") return <ToneBadge tone="emerald">root</ToneBadge>;
   return <Chip>← {source}</Chip>;
 };
 
-const ScopeCard = ({ scope }: { scope: ScopePreview }) => {
+const ScopeNode = ({
+  scope,
+  scopes,
+  path,
+}: {
+  scope: ScopePreview;
+  scopes: readonly ScopePreview[];
+  path: ReadonlySet<string>;
+}) => {
   const hasQuery = isRecord(scope.query) && Object.keys(scope.query).length > 0;
+  const children = path.has(scope.name)
+    ? []
+    : scopes.filter((candidate) => candidate.source === scope.name);
+  const nextPath = new Set(path).add(scope.name);
 
   return (
-    <div className="bg-card rounded-lg border p-3 text-[11px]">
+    <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-foreground font-semibold">{scope.name}</span>
+        <span className="text-foreground text-[13px] font-medium">
+          {scope.name}
+        </span>
         <SourceBadge source={scope.source} />
         {hasQuery ? (
-          <span className="text-muted-foreground font-mono text-[10px]">
+          <span className="text-muted-foreground font-mono text-[11px]">
             {JSON.stringify(scope.query)}
           </span>
         ) : null}
       </div>
 
-      <div className="mt-2">
-        <SectionLabel>Methods ({scope.methods.length})</SectionLabel>
-      </div>
       {scope.methods.length ? (
-        <div className="mt-1 flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1.5">
           {scope.methods.map((method) => (
             <Chip key={method} className="font-mono">
               {method}
             </Chip>
           ))}
         </div>
-      ) : (
-        <div className="text-muted-foreground mt-1">No methods.</div>
-      )}
+      ) : null}
+
+      {children.length ? (
+        <div className="border-border/60 ms-1 mt-1 flex flex-col gap-3 border-s ps-3">
+          {children.map((child) => (
+            <ScopeNode
+              key={child.name}
+              scope={child}
+              scopes={scopes}
+              path={nextPath}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -56,18 +76,28 @@ export const ScopesView = ({ scopes }: { scopes?: unknown }) => {
     );
   }
 
+  const names = new Set(list.map((scope) => scope.name));
+  const roots = list.filter(
+    (scope) =>
+      scope.source === "root" ||
+      scope.source === null ||
+      !names.has(scope.source),
+  );
+
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid gap-2 sm:grid-cols-2">
+    <div className="flex flex-col gap-4">
+      <SummaryList>
         <SummaryItem label="Scopes" value={String(list.length)} />
-        <SummaryItem
-          label="Roots"
-          value={String(list.filter((s) => s.source === "root").length)}
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        {list.map((scope) => (
-          <ScopeCard key={scope.name} scope={scope} />
+        <SummaryItem label="Roots" value={String(roots.length)} />
+      </SummaryList>
+      <div className="flex flex-col gap-3">
+        {roots.map((scope) => (
+          <ScopeNode
+            key={scope.name}
+            scope={scope}
+            scopes={list}
+            path={new Set()}
+          />
         ))}
       </div>
     </div>

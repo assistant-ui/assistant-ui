@@ -1,60 +1,123 @@
-import { useCallback, useState } from "react";
-import clsx from "clsx";
-import { ScopesView } from "../../views/scopes";
+import { useMemo } from "react";
+import { buildRawNav, RawDetail, type RawNode } from "../../views/raw";
+import { findNavNode, firstNavId } from "../../views/nav";
+import { Chip, EmptyState, PaneHeader, SelectableRow } from "../../views/ui";
+import { NAV_COL, SplitLayout } from "../SplitLayout";
+import { useNavSelectionSync } from "./navSelection";
 import type { DevToolsTabContext } from "../registry";
 
-export const RawTab = ({ data }: DevToolsTabContext) => {
-  const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set());
+const detailTitle = (node: RawNode | undefined) => {
+  if (!node) return "Raw";
+  if (node.kind === "scopes") return "Scopes";
+  return node.key;
+};
 
-  const toggleStateSection = useCallback((key: string) => {
-    setExpandedStates((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }, []);
+export const RawTab = ({
+  data,
+  selection,
+  setSelection,
+}: DevToolsTabContext) => {
+  const groups = useMemo(() => buildRawNav(data), [data]);
+  const sliceCount = Object.keys(data.state).length;
 
-  const stateEntries = Object.entries(data.state);
+  const selectedId = useMemo(() => {
+    if (selection && findNavNode(groups, selection)) return selection;
+    return firstNavId(groups);
+  }, [groups, selection]);
+
+  useNavSelectionSync(selectedId, selection, setSelection);
+
+  const active = findNavNode(groups, selectedId);
+
+  if (!groups.length) {
+    return (
+      <div className="flex h-full items-center justify-center p-3">
+        <EmptyState>No runtime state reported for this instance.</EmptyState>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-3">
-      {stateEntries.map(([key, value]) => {
-        const expanded = expandedStates.has(key);
-        return (
-          <div
-            key={key}
-            className="bg-card overflow-hidden rounded-lg border transition-colors"
-          >
-            <button
-              type="button"
-              onClick={() => toggleStateSection(key)}
-              className="bg-muted text-foreground hover:bg-accent flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium transition-colors"
+    <SplitLayout
+      sizes={NAV_COL}
+      columns={[
+        {
+          key: "nav",
+          header: (
+            <PaneHeader
+              trailing={
+                <span>
+                  {sliceCount} slice{sliceCount === 1 ? "" : "s"}
+                </span>
+              }
             >
-              <span>{key}</span>
-              <span
-                className={clsx(
-                  "text-muted-foreground transition-transform",
-                  expanded && "rotate-90",
-                )}
-              >
-                ›
-              </span>
-            </button>
-            {expanded && (
-              <div className="border-t p-4">
-                <pre className="bg-muted text-foreground overflow-auto rounded-lg p-3 font-mono text-[11px] whitespace-pre">
-                  {JSON.stringify(value, null, 2)}
-                </pre>
+              Raw
+            </PaneHeader>
+          ),
+          children: groups.map((group) => (
+            <div key={group.label} className="flex flex-col">
+              <div className="text-muted-foreground px-3 pt-2 pb-0.5 text-[10px] font-medium tracking-wide uppercase">
+                {group.label}
               </div>
-            )}
-          </div>
-        );
-      })}
-      <ScopesView scopes={data.scopes} />
-    </div>
+              {group.nodes.map((node) => (
+                <SelectableRow
+                  key={node.id}
+                  selected={selectedId === node.id}
+                  dense
+                  onSelect={() => setSelection(node.id)}
+                >
+                  {node.kind === "slice" ? (
+                    <div className="flex min-w-0 items-center justify-between gap-2 py-1.5">
+                      <span className="text-foreground truncate font-medium">
+                        {node.key}
+                      </span>
+                      {node.hint ? (
+                        <span className="text-muted-foreground shrink-0 text-[10px]">
+                          {node.hint}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="flex min-w-0 items-center justify-between gap-2 py-1.5">
+                      <span className="text-foreground font-medium">
+                        scopes
+                      </span>
+                      {node.count ? (
+                        <Chip className="shrink-0">{node.count}</Chip>
+                      ) : null}
+                    </div>
+                  )}
+                </SelectableRow>
+              ))}
+            </div>
+          )),
+        },
+        {
+          key: "detail",
+          header: (
+            <PaneHeader
+              trailing={
+                active?.kind === "slice" && active.hint ? (
+                  <span>{active.hint}</span>
+                ) : active?.kind === "scopes" && active.count ? (
+                  <Chip>{active.count}</Chip>
+                ) : undefined
+              }
+            >
+              {detailTitle(active)}
+            </PaneHeader>
+          ),
+          children: active ? (
+            <div className="p-3">
+              <RawDetail
+                node={active}
+                state={data.state}
+                scopes={data.scopes}
+              />
+            </div>
+          ) : null,
+        },
+      ]}
+    />
   );
 };

@@ -12,7 +12,6 @@ export {
   createInProcessClient,
   inProcessClient,
 } from "./data/createInProcessClient";
-export { projectApi } from "./data/projectApi";
 export {
   normalizeToolList,
   type NormalizedTool,

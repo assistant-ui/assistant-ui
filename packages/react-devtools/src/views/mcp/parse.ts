@@ -1,4 +1,4 @@
-import { asString, isRecord } from "../common";
+import { asString, isRecord } from "../../utils/common";
 import type {
   McpManagerPreview,
   McpServerPreview,

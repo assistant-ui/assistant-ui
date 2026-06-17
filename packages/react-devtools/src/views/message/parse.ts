@@ -1,10 +1,9 @@
+import { parseAttachments } from "../attachments/parseAttachment";
 import {
-  asBool,
-  asNumber,
-  asString,
-  extractAttachmentNames,
-  isRecord,
-} from "../common";
+  estimateBase64Bytes,
+  isSafeImagePreviewUrl,
+} from "../attachments/formatBytes";
+import { asBool, asNumber, asString, isRecord } from "../../utils/common";
 import type {
   MessagePreview,
   MessageTimingPreview,
@@ -126,22 +125,44 @@ export const parsePart = (value: unknown): PartPreview => {
     }
     case "image": {
       const filename = asString(value.filename);
-      return { type: "image", ...(filename ? { filename } : {}), ...base };
+      const image = asString(value.image);
+      const previewUrl =
+        image && isSafeImagePreviewUrl(image) ? image : undefined;
+      const sizeBytes = previewUrl?.startsWith("data:")
+        ? estimateBase64Bytes(previewUrl.split(",", 2)[1] ?? previewUrl)
+        : undefined;
+      return {
+        type: "image",
+        ...(filename ? { filename } : {}),
+        ...(previewUrl ? { previewUrl } : {}),
+        ...(sizeBytes !== undefined ? { sizeBytes } : {}),
+        ...base,
+      };
     }
     case "file": {
       const filename = asString(value.filename);
       const mimeType = asString(value.mimeType);
+      const data = asString(value.data);
+      const sizeBytes = data ? estimateBase64Bytes(data) : undefined;
       return {
         type: "file",
         ...(filename ? { filename } : {}),
         ...(mimeType ? { mimeType } : {}),
+        ...(sizeBytes !== undefined ? { sizeBytes } : {}),
         ...base,
       };
     }
     case "audio": {
       const audio = isRecord(value.audio) ? value.audio : undefined;
       const format = asString(audio?.format);
-      return { type: "audio", ...(format ? { format } : {}), ...base };
+      const audioData = asString(audio?.data);
+      const sizeBytes = audioData ? estimateBase64Bytes(audioData) : undefined;
+      return {
+        type: "audio",
+        ...(format ? { format } : {}),
+        ...(sizeBytes !== undefined ? { sizeBytes } : {}),
+        ...base,
+      };
     }
     case "data": {
       const name = asString(value.name);
@@ -247,7 +268,7 @@ export const parseMessage = (
     id,
     role,
     parts,
-    attachments: extractAttachmentNames(value.attachments),
+    attachments: parseAttachments(value.attachments),
     ...(createdAt ? { createdAt } : {}),
     ...(status ? { status } : {}),
     ...(timing ? { timing } : {}),

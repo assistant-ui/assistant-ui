@@ -1,203 +1,161 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import clsx from "clsx";
-import { eventScope, formatClockTime } from "../../views/common";
-import { RunTimeline } from "../../views/runs";
+import { useMemo } from "react";
+import { formatClockTime, formatMs } from "../../utils/common";
 import {
-  ControlButton,
-  EmptyState,
-  JSONPreview,
-  SectionLabel,
-} from "../../views/ui";
+  buildActivityNav,
+  defaultActivitySelection,
+  EventStreamPane,
+  findActivityNode,
+  OrphansPane,
+  RunDetailPane,
+} from "../../views/activity";
+import { Chip, PaneHeader, SelectableRow, ToneBadge } from "../../views/ui";
+import { NAV_COL, SplitLayout } from "../SplitLayout";
+import { useNavSelectionSync } from "./navSelection";
 import type { DevToolsTabContext } from "../registry";
+
+const detailTitle = (node: ReturnType<typeof findActivityNode>) => {
+  if (!node) return "Activity";
+  switch (node.kind) {
+    case "stream":
+      return "Event stream";
+    case "run":
+      return `Run #${node.run.index}`;
+    case "orphans":
+      return "Outside runs";
+    default:
+      return "Activity";
+  }
+};
 
 export const ActivityTab = ({
   apiId,
   data,
   clearEvents,
+  selection,
+  setSelection,
 }: DevToolsTabContext) => {
-  const [unselectedEventTypes, setUnselectedEventTypes] = useState<Set<string>>(
-    new Set(),
-  );
-  const knownEventTypesRef = useRef(new Set<string>());
+  const logs = data.logs;
+  const { nodes, runs } = useMemo(() => buildActivityNav(logs), [logs]);
 
-  const eventTypes = useMemo(() => {
-    const types = new Set<string>();
-    data.logs.forEach((log) => types.add(log.event));
-    return Array.from(types).sort();
-  }, [data.logs]);
+  const selectedId = useMemo(() => {
+    if (selection && findActivityNode(nodes, selection)) return selection;
+    return defaultActivitySelection(nodes);
+  }, [nodes, selection]);
 
-  const eventTypesByScope = useMemo(() => {
-    const grouped = new Map<string, string[]>();
-    for (const type of eventTypes) {
-      const scope = eventScope(type);
-      const existing = grouped.get(scope);
-      if (existing) {
-        existing.push(type);
-      } else {
-        grouped.set(scope, [type]);
-      }
-    }
-    return Array.from(grouped.entries());
-  }, [eventTypes]);
+  useNavSelectionSync(selectedId, selection, setSelection);
 
-  useEffect(() => {
-    setUnselectedEventTypes((prev) => {
-      const eventTypeSet = new Set(eventTypes);
-      const next = new Set(prev);
-      let changed = false;
+  const active = findActivityNode(nodes, selectedId);
 
-      Array.from(next).forEach((value) => {
-        if (!eventTypeSet.has(value)) {
-          next.delete(value);
-          knownEventTypesRef.current.delete(value);
-          changed = true;
-        }
-      });
-
-      eventTypes.forEach((type) => {
-        if (!knownEventTypesRef.current.has(type)) {
-          knownEventTypesRef.current.add(type);
-          changed = true;
-        }
-      });
-
-      return changed ? next : prev;
-    });
-  }, [eventTypes]);
-
-  const filteredLogs = useMemo(
-    () => data.logs.filter((log) => !unselectedEventTypes.has(log.event)),
-    [data.logs, unselectedEventTypes],
-  );
-
-  const toggleEventType = useCallback((eventType: string) => {
-    setUnselectedEventTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(eventType)) {
-        next.delete(eventType);
-      } else {
-        next.add(eventType);
-      }
-      return next;
-    });
-  }, []);
-
-  const toggleScope = useCallback((types: string[]) => {
-    setUnselectedEventTypes((prev) => {
-      const allSelected = types.every((type) => !prev.has(type));
-      const next = new Set(prev);
-      for (const type of types) {
-        if (allSelected) {
-          next.add(type);
-        } else {
-          next.delete(type);
-        }
-      }
-      return next;
-    });
-  }, []);
+  if (!logs.length) {
+    return (
+      <div className="text-muted-foreground flex h-full items-center justify-center p-3 text-[12px]">
+        No events logged for this assistant instance.
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-end">
-        <ControlButton onClick={() => clearEvents(apiId)}>
-          Clear events
-        </ControlButton>
-      </div>
-
-      <RunTimeline logs={data.logs} />
-
-      <div className="flex flex-col gap-3">
-        <SectionLabel>Event log</SectionLabel>
-        {eventTypesByScope.length > 0 && (
-          <div className="bg-muted/40 flex flex-col gap-2 rounded-lg border p-3">
-            {eventTypesByScope.map(([scope, types]) => {
-              const allSelected = types.every(
-                (type) => !unselectedEventTypes.has(type),
-              );
-              return (
-                <div key={scope} className="flex flex-wrap items-center gap-2">
+    <SplitLayout
+      sizes={NAV_COL}
+      columns={[
+        {
+          key: "nav",
+          header: (
+            <PaneHeader
+              trailing={
+                <span>
+                  {runs.length} runs · {logs.length} events
+                </span>
+              }
+            >
+              Activity
+            </PaneHeader>
+          ),
+          children: nodes.map((node) => (
+            <SelectableRow
+              key={node.id}
+              selected={selectedId === node.id}
+              dense
+              onSelect={() => setSelection(node.id)}
+            >
+              {node.kind === "stream" ? (
+                <span className="text-foreground block py-1.5 font-medium">
+                  All events
+                  <span className="text-muted-foreground font-normal">
+                    {" "}
+                    · {logs.length}
+                  </span>
+                </span>
+              ) : node.kind === "run" ? (
+                <div className="flex min-w-0 items-center justify-between gap-2 py-1.5">
+                  <span className="text-foreground font-medium">
+                    Run #{node.run.index}
+                  </span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {node.run.endTime === undefined ? (
+                      <ToneBadge tone="blue" size="sm">
+                        running
+                      </ToneBadge>
+                    ) : (
+                      <Chip>{formatMs(node.run.durationMs ?? 0)}</Chip>
+                    )}
+                    <span className="text-muted-foreground font-mono text-[10px] tabular-nums">
+                      {formatClockTime(node.run.startTime)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <span className="text-foreground block py-1.5 font-medium">
+                  Outside runs
+                  <span className="text-muted-foreground font-normal">
+                    {" "}
+                    · {node.events.length}
+                  </span>
+                </span>
+              )}
+            </SelectableRow>
+          )),
+        },
+        {
+          key: "detail",
+          header: (
+            <PaneHeader
+              trailing={
+                active?.kind === "stream" && logs.length ? (
                   <button
                     type="button"
-                    onClick={() => toggleScope(types)}
-                    className={clsx(
-                      "rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors",
-                      allSelected
-                        ? "bg-accent text-foreground"
-                        : "bg-muted text-muted-foreground",
-                    )}
+                    onClick={() => clearEvents(apiId)}
+                    className="text-muted-foreground hover:text-foreground text-[11px] leading-none"
                   >
-                    {scope}
+                    clear
                   </button>
-                  {types.map((eventType) => (
-                    <label
-                      key={eventType}
-                      title={eventType}
-                      className={clsx(
-                        "flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors",
-                        !unselectedEventTypes.has(eventType)
-                          ? "border-foreground/40 bg-accent text-foreground"
-                          : "bg-card text-muted-foreground",
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!unselectedEventTypes.has(eventType)}
-                        onChange={() => toggleEventType(eventType)}
-                        className="accent-foreground size-3 rounded"
-                      />
-                      <span>
-                        {eventType.slice(scope.length + 1) || eventType}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {filteredLogs.length === 0 ? (
-          <EmptyState>
-            {eventTypes.length === 0
-              ? "No events logged for this assistant instance."
-              : "No events match the current filters."}
-          </EmptyState>
-        ) : (
-          <div className="bg-card overflow-hidden rounded-lg border">
-            <table className="w-full table-auto border-collapse text-left">
-              <thead className="bg-muted text-muted-foreground text-[11px]">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Time</th>
-                  <th className="px-4 py-2 font-medium">Scope</th>
-                  <th className="px-4 py-2 font-medium">Event</th>
-                  <th className="px-4 py-2 font-medium">Data</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLogs.map((log, index) => (
-                  <tr
-                    key={`${log.event}-${index}`}
-                    className="border-t text-[11px]"
-                  >
-                    <td className="text-muted-foreground px-4 py-2 align-top font-mono whitespace-nowrap">
-                      {formatClockTime(log.time)}
-                    </td>
-                    <td className="text-muted-foreground px-4 py-2 align-top">
-                      {eventScope(log.event)}
-                    </td>
-                    <td className="text-foreground px-4 py-2 align-top font-medium">
-                      {log.event}
-                    </td>
-                    <td className="px-4 py-2 align-top">
-                      <JSONPreview value={log.data} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
+                ) : active?.kind === "run" &&
+                  active.run.endTime === undefined ? (
+                  <ToneBadge tone="blue" size="sm">
+                    running
+                  </ToneBadge>
+                ) : active?.kind === "run" &&
+                  active.run.durationMs !== undefined ? (
+                  <Chip>{formatMs(active.run.durationMs)}</Chip>
+                ) : undefined
+              }
+            >
+              {detailTitle(active)}
+            </PaneHeader>
+          ),
+          children: active ? (
+            active.kind === "stream" ? (
+              <EventStreamPane logs={logs} />
+            ) : active.kind === "run" ? (
+              <div className="p-3">
+                <RunDetailPane run={active.run} />
+              </div>
+            ) : (
+              <OrphansPane events={active.events} />
+            )
+          ) : null,
+        },
+      ]}
+    />
   );
 };

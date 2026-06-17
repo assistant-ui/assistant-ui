@@ -39,7 +39,7 @@
 /* Light tokens default to the shadow host so they inherit into the panel; the
    dark class is toggled on the panel root inside the shadow root. */
 :host {
-  --radius: 0.625rem;
+  --radius: 0.75rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -55,31 +55,48 @@
   --accent: oklch(0.967 0.001 286.375);
   --accent-foreground: oklch(0.21 0.006 285.885);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
+  --border: oklch(0 0 0 / 0.08);
+  --input: oklch(0 0 0 / 0.1);
   --ring: oklch(0.705 0.015 286.067);
+  --shadow-window:
+    0 1px 1px rgb(0 0 0 / 0.02), 0 4px 8px -4px rgb(0 0 0 / 0.04),
+    0 16px 24px -8px rgb(0 0 0 / 0.06);
+  --shadow-launcher:
+    0 0 0 1px rgb(0 0 0 / 0.06), inset 0 0 0 1px rgb(255 255 255 / 0.12),
+    0 16px 32px -8px rgb(0 0 0 / 0.24);
+
+  color-scheme: light;
+  font-family: var(--font-sans);
+  font-variant-ligatures: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 :host(.dark),
 .dark {
-  --background: oklch(0.141 0.005 285.823);
+  --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
+  --card: oklch(0.185 0 0);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
+  --popover: oklch(0.185 0 0);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.92 0.004 286.32);
   --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
+  --secondary: oklch(0.205 0 0);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
+  --muted: oklch(0.205 0 0);
   --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
+  --accent: oklch(0.225 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
+  --border: oklch(1 0 0 / 0.1);
+  --input: oklch(1 0 0 / 0.12);
   --ring: oklch(0.552 0.016 285.938);
+  --shadow-window:
+    0 1px 1px rgb(0 0 0 / 0.2), 0 4px 8px -4px rgb(0 0 0 / 0.3),
+    0 16px 32px -8px rgb(0 0 0 / 0.45);
+
+  color-scheme: dark;
 }
 
 @layer base {
@@ -94,6 +111,19 @@
   }
 }
 
+/* Animates the independent `scale` property so it composes with the Tailwind
+   `-translate-x-1/2 -translate-y-1/2` centering (which sets `translate`). */
+@keyframes aui-dt-window-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
 @keyframes aui-dt-fade-in {
   from {
     opacity: 0;
@@ -103,13 +133,21 @@
   }
 }
 
-@keyframes aui-dt-zoom-in {
+@keyframes aui-dt-launcher-in {
   from {
     opacity: 0;
-    transform: scale(0.96);
+    transform: scale(0.8);
   }
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

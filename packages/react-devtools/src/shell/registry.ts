@@ -14,6 +14,16 @@ export interface DevToolsTabContext {
   clearEvents: (apiId: number) => void;
   /** The resolved theme of the panel. */
   theme: "light" | "dark";
+  /**
+   * The selected node id for this tab and instance, or null. Always a stable id
+   * (message id, run id, slice key, …), never an array index, so the detail
+   * pane does not jump as data streams in.
+   */
+  selection: string | null;
+  /** Selects a node in this tab. Pass null to clear. Persisted per instance. */
+  setSelection: (nodeId: string | null) => void;
+  /** Switches the live app to a thread, when the runtime supports thread lists. */
+  switchToThread?: ((threadId: string) => void | Promise<void>) | undefined;
 }
 
 export interface DevToolsPanelPlugin {

@@ -1,4 +1,4 @@
-import { isRecord, isStringArray } from "../common";
+import { isRecord, isStringArray } from "../../utils/common";
 import type { ScopePreview } from "./types";
 
 const parseScope = (value: unknown): ScopePreview | null => {

@@ -22,7 +22,7 @@ describe("ComposerAttachments", () => {
         ]}
       />,
     );
-    expect(html).toContain("Attachments (2)");
+    expect(html).toContain("Composer attachments (2)");
     expect(html).toContain("photo.png");
     expect(html).toContain("uploading 50%");
     expect(html).toContain("complete");

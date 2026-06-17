@@ -12,5 +12,29 @@ export const BADGE_TONE = {
 
 export type BadgeTone = keyof typeof BADGE_TONE;
 
+/** Message and attachment lifecycle status to badge tone. */
+export const STATUS_TONE: Record<string, BadgeTone> = {
+  running: "blue",
+  "requires-action": "amber",
+  incomplete: "red",
+  complete: "emerald",
+};
+
+/** MCP connection state to badge tone. */
+export const CONNECTION_TONE: Record<string, BadgeTone> = {
+  connected: "emerald",
+  connecting: "blue",
+  authPending: "blue",
+  authRequired: "amber",
+  disconnected: "zinc",
+  error: "red",
+};
+
 export const BADGE_BASE =
-  "inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium";
+  "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-medium leading-none";
+
+export const BADGE_SM =
+  "inline-flex items-center rounded border px-1 py-px text-[9px] font-medium leading-none";
+
+/** Uniform width for short status labels in transcript rails (e.g. opt vs running). */
+export const RAIL_STATUS_BADGE_CLASS = "min-w-[2.875rem] justify-center";

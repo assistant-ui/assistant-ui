@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SectionLabel } from "../ui";
+import { InfoCard } from "../ui";
 import { MessageItem } from "./MessageItem";
 import type { MessagePreview } from "./types";
 
@@ -16,9 +16,11 @@ export const MessageList = ({
 
   if (!messages.length) {
     return (
-      <div className="bg-card text-muted-foreground rounded-lg border p-4 text-center text-[11px]">
-        No messages in this thread.
-      </div>
+      <InfoCard title={title}>
+        <p className="text-muted-foreground text-[12px]">
+          No messages in this thread.
+        </p>
+      </InfoCard>
     );
   }
 
@@ -26,18 +28,12 @@ export const MessageList = ({
   const visible = hidden > 0 ? messages.slice(-DEFAULT_LIMIT) : messages;
 
   return (
-    <div className="bg-card overflow-hidden rounded-lg border">
-      <div className="bg-muted flex items-center justify-between border-b px-3 py-2">
-        <SectionLabel>{title}</SectionLabel>
-        <span className="text-muted-foreground text-[10px]">
-          {messages.length} total
-        </span>
-      </div>
+    <InfoCard title={title} count={messages.length}>
       {hidden > 0 ? (
         <button
           type="button"
           onClick={() => setShowAll(true)}
-          className="bg-muted text-muted-foreground hover:bg-accent w-full border-b px-3 py-1.5 text-[10px] font-medium transition-colors"
+          className="text-muted-foreground hover:text-foreground self-start text-[11px] font-medium transition-colors"
         >
           Show {hidden} older message{hidden === 1 ? "" : "s"}
         </button>
@@ -47,6 +43,6 @@ export const MessageList = ({
           <MessageItem key={message.id} message={message} />
         ))}
       </div>
-    </div>
+    </InfoCard>
   );
 };

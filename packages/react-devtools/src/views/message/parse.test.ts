@@ -236,7 +236,9 @@ describe("parseMessage", () => {
     if (!message) return;
     expect(message.parts).toHaveLength(1);
     expect(message.parts[0]?.type).toBe("text");
-    expect(message.attachments).toEqual(["photo.png"]);
+    expect(message.attachments).toEqual([
+      expect.objectContaining({ name: "photo.png" }),
+    ]);
     expect(message.status).toBeUndefined();
     expect(message.usage).toBeUndefined();
   });

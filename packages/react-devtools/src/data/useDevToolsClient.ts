@@ -6,6 +6,7 @@ export interface DevToolsClientResult {
   apiIds: number[];
   selected: ApiInfo | undefined;
   clearEvents: (apiId: number) => void;
+  switchToThread: (apiId: number, threadId: string) => void | Promise<void>;
 }
 
 /**
@@ -45,5 +46,14 @@ export const useDevToolsClient = (
     [client],
   );
 
-  return { apiIds: snapshot.apiIds, selected, clearEvents };
+  const switchToThread = useCallback(
+    (apiId: number, threadId: string) => {
+      if (client.switchToThread) {
+        return client.switchToThread(apiId, threadId);
+      }
+    },
+    [client],
+  );
+
+  return { apiIds: snapshot.apiIds, selected, clearEvents, switchToThread };
 };

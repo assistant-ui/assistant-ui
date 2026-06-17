@@ -7,7 +7,7 @@ export const ControlButton = ({
 }: ButtonHTMLAttributes<HTMLButtonElement>) => (
   <button
     className={clsx(
-      "text-foreground hover:bg-accent inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium transition-colors",
+      "text-muted-foreground hover:bg-accent hover:text-foreground border-border inline-flex h-8 items-center rounded-md border px-3 text-[13px] font-medium transition-colors",
       className,
     )}
     {...props}

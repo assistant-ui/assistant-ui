@@ -1,8 +1,8 @@
-import { formatBoolean } from "../common";
+import { formatBoolean } from "../../utils/common";
 import type { ComposerPreview } from "./types";
 
 export const ComposerFlags = ({ composer }: { composer: ComposerPreview }) => (
-  <div className="text-muted-foreground flex flex-wrap gap-2 text-[10px]">
+  <div className="text-muted-foreground flex flex-wrap gap-2 text-[11px]">
     {typeof composer.isEditing === "boolean" ? (
       <span>Edit: {formatBoolean(composer.isEditing)}</span>
     ) : null}

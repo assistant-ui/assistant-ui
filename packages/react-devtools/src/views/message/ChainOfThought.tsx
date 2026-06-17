@@ -23,33 +23,50 @@ const rollupStatus = (
   return { type: "complete" };
 };
 
+const hasAwaitingTool = (parts: readonly PartPreview[]) =>
+  parts.some(
+    (part) =>
+      part.type === "tool-call" &&
+      (part.status?.type === "requires-action" ||
+        part.approval !== undefined ||
+        part.interrupt !== undefined),
+  );
+
 export const ChainOfThought = ({
   parts,
 }: {
   parts: readonly PartPreview[];
 }) => {
   const status = rollupStatus(parts);
+  const defaultOpen = hasAwaitingTool(parts);
 
   return (
-    <details open className="group bg-muted/40 rounded-md border p-3">
-      <summary className="flex cursor-pointer list-none items-center gap-2 select-none">
-        <span className="text-muted-foreground inline-block transition-transform group-open:rotate-90">
+    <details
+      open={defaultOpen}
+      className="group border-border overflow-hidden rounded-md border"
+    >
+      <summary className="hover:bg-accent/40 flex cursor-pointer list-none items-center gap-1.5 px-2 py-1.5 select-none">
+        <span className="text-muted-foreground inline-block shrink-0 transition-transform group-open:rotate-90">
           ›
         </span>
-        <ToneBadge tone="violet">reasoning</ToneBadge>
-        <span className="text-foreground text-[10px] font-medium">
-          Chain of thought
-        </span>
+        <ToneBadge tone="violet" size="sm">
+          cot
+        </ToneBadge>
         <span className="text-muted-foreground text-[10px]">
           {parts.length} step{parts.length === 1 ? "" : "s"}
         </span>
         {status ? (
-          <StatusBadge type={status.type} reason={status.reason} />
+          <StatusBadge
+            type={status.type}
+            reason={status.reason}
+            compact
+            size="sm"
+          />
         ) : null}
       </summary>
-      <div className="mt-2 flex flex-col gap-2 border-l pl-3">
+      <div className="border-border divide-border divide-y border-t">
         {parts.map((part, index) => (
-          <PartView key={partKey(part, index)} part={part} />
+          <PartView key={partKey(part, index)} part={part} compact />
         ))}
       </div>
     </details>

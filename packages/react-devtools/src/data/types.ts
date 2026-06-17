@@ -1,8 +1,12 @@
-import type { EventLogEntry } from "../views/common";
 import type { SerializedModelContext } from "../types";
 
-export type { EventLogEntry } from "../views/common";
 export type { SerializedModelContext } from "../types";
+
+export interface EventLogEntry {
+  readonly time: Date;
+  readonly event: string;
+  readonly data: unknown;
+}
 
 export interface ApiInfo {
   id: number;
@@ -10,6 +14,12 @@ export interface ApiInfo {
   logs: EventLogEntry[];
   modelContext?: SerializedModelContext | undefined;
   scopes?: unknown;
+  /**
+   * Cached thread states keyed by thread id. Populated for threads whose runtime
+   * has been mounted (visited in the app). Unvisited threads only appear in
+   * `state.threads.threadItems`.
+   */
+  threadSnapshots?: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -36,6 +46,8 @@ export interface DevToolsClient {
   getServerSnapshot?(): DevToolsSnapshot;
   /** Clears the buffered event log for an instance. */
   clearEvents(apiId: number): void;
+  /** Switches the inspected instance to a thread by id, when supported. */
+  switchToThread?(apiId: number, threadId: string): void | Promise<void>;
 }
 
 /** Shared stable empty snapshot identity for the empty/server state. */

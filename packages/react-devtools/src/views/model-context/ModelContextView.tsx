@@ -1,113 +1,71 @@
 import type { NormalizedTool } from "../../utils/toolNormalization";
-import type { SerializedModelContext } from "../../data/types";
-import {
-  Chip,
-  EmptyState,
-  InfoCard,
-  JSONPreview,
-  SectionLabel,
-  SectionTitle,
-  ToneBadge,
-} from "../ui";
+import { PartDisclosure } from "../message/PartDisclosure";
+import { Chip, JSONTree, ToneBadge } from "../ui";
 
-const Field = ({ label, value }: { label: string; value: unknown }) => (
-  <div className="mt-2">
-    <div className="mb-1">
-      <SectionLabel>{label}</SectionLabel>
-    </div>
-    <JSONPreview value={value} />
+export const SystemPromptPane = ({ system }: { system: string }) => (
+  <div className="text-foreground text-[12px] wrap-break-word whitespace-pre-wrap">
+    {system}
   </div>
 );
 
-const ToolCard = ({ tool }: { tool: NormalizedTool }) => (
-  <div className="bg-card text-foreground rounded-lg border p-3 text-[11px] transition-colors">
-    <div className="text-foreground flex flex-wrap items-center gap-2 font-semibold">
-      <span>{tool.name}</span>
+export const ToolDetailPane = ({ tool }: { tool: NormalizedTool }) => (
+  <div className="flex flex-col gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       {tool.type ? <Chip>{tool.type}</Chip> : null}
       {tool.providerId ? (
-        <ToneBadge tone="violet">{tool.providerId}</ToneBadge>
+        <ToneBadge tone="violet" size="sm">
+          {tool.providerId}
+        </ToneBadge>
       ) : null}
       {tool.display ? <Chip>{tool.display}</Chip> : null}
       {tool.supportsDeferredResults ? <Chip>deferred</Chip> : null}
-      {tool.disabled ? <ToneBadge tone="amber">disabled</ToneBadge> : null}
+      {tool.disabled ? (
+        <ToneBadge tone="amber" size="sm">
+          disabled
+        </ToneBadge>
+      ) : null}
     </div>
 
     {tool.description ? (
-      <p className="text-muted-foreground mt-1 text-[11px]">
+      <p className="text-muted-foreground text-[11px] leading-snug">
         {tool.description}
       </p>
     ) : null}
 
-    {tool.server !== undefined ? (
-      <Field label="MCP server" value={tool.server} />
+    {tool.parameters !== undefined ? (
+      <PartDisclosure label="Parameters">
+        <JSONTree value={tool.parameters} openDepth={0} compact />
+      </PartDisclosure>
     ) : null}
     {tool.providerArgs !== undefined ? (
-      <Field label="Provider args" value={tool.providerArgs} />
+      <PartDisclosure label="Provider args">
+        <JSONTree value={tool.providerArgs} openDepth={0} compact />
+      </PartDisclosure>
     ) : null}
     {tool.providerOptions !== undefined ? (
-      <Field label="Provider options" value={tool.providerOptions} />
+      <PartDisclosure label="Provider options">
+        <JSONTree value={tool.providerOptions} openDepth={0} compact />
+      </PartDisclosure>
     ) : null}
     {tool.backendDefault !== undefined ? (
-      <Field label="Backend defaults" value={tool.backendDefault} />
+      <PartDisclosure label="Backend defaults">
+        <JSONTree value={tool.backendDefault} openDepth={0} compact />
+      </PartDisclosure>
     ) : null}
-    {tool.parameters ? (
-      <Field label="Parameters" value={tool.parameters} />
+    {tool.server !== undefined ? (
+      <PartDisclosure label="MCP server">
+        <JSONTree value={tool.server} openDepth={0} compact />
+      </PartDisclosure>
     ) : null}
   </div>
 );
 
-export const ModelContextView = ({
-  modelContext,
+export const CallSettingsPane = ({
+  value,
 }: {
-  modelContext?: SerializedModelContext | undefined;
-}) => {
-  const toolList = Array.isArray(modelContext?.tools) ? modelContext.tools : [];
-  const system = modelContext?.system;
-  const callSettings = modelContext?.callSettings;
-  const config = modelContext?.config;
-  const hasCallSettings = callSettings && Object.keys(callSettings).length > 0;
-  const hasConfig = config && Object.keys(config).length > 0;
+  value: Record<string, unknown>;
+}) => <JSONTree value={value} openDepth={1} compact />;
 
-  if (!system && toolList.length === 0 && !hasCallSettings && !hasConfig) {
-    return (
-      <EmptyState>
-        No model context configured for this assistant instance.
-      </EmptyState>
-    );
-  }
-
-  return (
-    <div className="grid gap-3">
-      {system ? (
-        <InfoCard>
-          <SectionTitle>System prompt</SectionTitle>
-          <div className="bg-muted text-foreground rounded-lg p-3 text-[11px] whitespace-pre-wrap">
-            {system}
-          </div>
-        </InfoCard>
-      ) : null}
-      {toolList.length > 0 ? (
-        <InfoCard>
-          <SectionTitle>Tools ({toolList.length})</SectionTitle>
-          <div className="flex flex-col gap-3">
-            {toolList.map((tool) => (
-              <ToolCard key={tool.name} tool={tool} />
-            ))}
-          </div>
-        </InfoCard>
-      ) : null}
-      {hasCallSettings ? (
-        <InfoCard>
-          <SectionTitle>Call settings</SectionTitle>
-          <JSONPreview value={callSettings} />
-        </InfoCard>
-      ) : null}
-      {hasConfig ? (
-        <InfoCard>
-          <SectionTitle>Config</SectionTitle>
-          <JSONPreview value={config} />
-        </InfoCard>
-      ) : null}
-    </div>
-  );
-};
+export const ConfigPane = ({ value }: { value: Record<string, unknown> }) => (
+  <JSONTree value={value} openDepth={1} compact />
+);

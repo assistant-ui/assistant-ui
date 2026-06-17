@@ -1,3 +1,5 @@
+import type { AttachmentPreview } from "../attachments/types";
+
 export interface PartStatusPreview {
   readonly type: string;
   readonly reason?: string;
@@ -40,17 +42,21 @@ export interface SourcePartPreview extends BasePartPreview {
 export interface ImagePartPreview extends BasePartPreview {
   readonly type: "image";
   readonly filename?: string;
+  readonly previewUrl?: string;
+  readonly sizeBytes?: number;
 }
 
 export interface FilePartPreview extends BasePartPreview {
   readonly type: "file";
   readonly filename?: string;
   readonly mimeType?: string;
+  readonly sizeBytes?: number;
 }
 
 export interface AudioPartPreview extends BasePartPreview {
   readonly type: "audio";
   readonly format?: string;
+  readonly sizeBytes?: number;
 }
 
 export interface DataPartPreview extends BasePartPreview {
@@ -120,7 +126,7 @@ export interface MessagePreview {
   readonly createdAt?: string;
   readonly status?: PartStatusPreview;
   readonly parts: readonly PartPreview[];
-  readonly attachments: readonly string[];
+  readonly attachments: readonly AttachmentPreview[];
   readonly timing?: MessageTimingPreview;
   readonly usage?: MessageUsagePreview;
   readonly branchNumber?: number;

@@ -12,7 +12,7 @@ const parsed = (value: unknown): MessagePreview => {
 };
 
 describe("MessageItem rendering", () => {
-  it("renders reasoning + tool-call grouped as chain of thought, plus answer", () => {
+  it("renders reasoning + tool-call grouped as chain of thought, plus text", () => {
     const message = parsed({
       id: "m1",
       role: "assistant",
@@ -52,10 +52,50 @@ describe("MessageItem rendering", () => {
 
     const html = renderToStaticMarkup(<MessageItem message={message} />);
     expect(html).toContain("getWeather");
-    expect(html).toContain("Chain of thought");
+    expect(html).toContain("cot");
     expect(html).toContain("It is 18 degrees.");
     expect(html).toContain("branch 1/2");
     expect(html).toContain("TTFT");
+  });
+
+  it("renders interleaved tool and text parts in order", () => {
+    const message = parsed({
+      id: "m3",
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      parts: [
+        {
+          type: "tool-call",
+          toolCallId: "c1",
+          toolName: "search",
+          args: { q: "x" },
+          status: { type: "complete" },
+        },
+        { type: "text", text: "Partial update.", status: { type: "complete" } },
+        {
+          type: "tool-call",
+          toolCallId: "c2",
+          toolName: "summarize",
+          args: {},
+          status: { type: "complete" },
+        },
+        {
+          type: "text",
+          text: "Done.",
+          status: { type: "complete" },
+        },
+      ],
+      metadata: { custom: {} },
+    });
+
+    const html = renderToStaticMarkup(<MessageItem message={message} />);
+    expect(html.indexOf("search")).toBeLessThan(
+      html.indexOf("Partial update."),
+    );
+    expect(html.indexOf("Partial update.")).toBeLessThan(
+      html.indexOf("summarize"),
+    );
+    expect(html.indexOf("summarize")).toBeLessThan(html.indexOf("Done."));
   });
 
   it("renders a pending approval gate prominently", () => {
