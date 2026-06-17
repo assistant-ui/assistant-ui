@@ -106,7 +106,11 @@ def request_tool_schemas(tools: dict[str, Any] | None) -> list[dict[str, Any]]:
 
     schemas = []
     for name, tool_definition in tools.items():
-        if name in TOOL_BY_NAME or not isinstance(tool_definition, dict):
+        if (
+            name in TOOL_BY_NAME
+            or not isinstance(tool_definition, dict)
+            or tool_definition.get("disabled") is True
+        ):
             continue
 
         parameters = tool_definition.get("parameters") or {
