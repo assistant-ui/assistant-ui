@@ -7,13 +7,14 @@ import { useCopyToClipboard } from "@assistant-ui/ui/hooks/use-copy-to-clipboard
 export type OpenInData = {
   title: string;
   downloadUrl?: string;
-  customizationNote?: string;
+  prompt?: string;
 };
 
-function isValidDownloadUrl(url: unknown): url is string {
+function isValidOpenInUrl(url: unknown): url is string {
   if (typeof url !== "string" || url.trim().length === 0) return false;
   if (url.includes("<") || url.includes(">")) return false;
   if (/from-tool-result|placeholder|<downloadurl/i.test(url)) return false;
+  if (url.startsWith("/")) return true;
   try {
     const parsed = new URL(url);
     return parsed.protocol === "http:" || parsed.protocol === "https:";
@@ -23,18 +24,16 @@ function isValidDownloadUrl(url: unknown): url is string {
 }
 
 function buildPrompt(data: OpenInData): string {
-  const note =
-    data.customizationNote ?? "Help me build this with assistant-ui.";
-  if (data.downloadUrl) {
-    return [
-      `I downloaded the "${data.title}" app template.`,
-      `Download: ${data.downloadUrl}`,
-      note,
-    ].join("\n\n");
-  }
-  return [`I want to build a "${data.title}" with assistant-ui.`, note].join(
-    "\n\n",
-  );
+  const sections: string[] = [];
+
+  if (data.prompt?.trim()) sections.push(data.prompt.trim());
+
+  const downloadUrl = isValidOpenInUrl(data.downloadUrl)
+    ? data.downloadUrl
+    : undefined;
+  if (downloadUrl) sections.push(`Download: ${downloadUrl}`);
+
+  return sections.join("\n\n");
 }
 
 const TOOLS = [
@@ -136,12 +135,12 @@ const TOOLS = [
 export function OpenInCard({
   title,
   downloadUrl,
-  customizationNote,
+  prompt: agentPrompt,
 }: OpenInData) {
   const prompt = buildPrompt({
     title,
     ...(downloadUrl ? { downloadUrl } : {}),
-    ...(customizationNote ? { customizationNote } : {}),
+    ...(agentPrompt ? { prompt: agentPrompt } : {}),
   });
   const encoded = encodeURIComponent(prompt);
   const { isCopied, copyToClipboard } = useCopyToClipboard();
@@ -207,16 +206,14 @@ export function OpenInSyntaxHighlighter({ code }: SyntaxHighlighterProps) {
     return null;
   }
   if (!data.title) return null;
-  const downloadUrl = isValidDownloadUrl(data.downloadUrl)
+  const downloadUrl = isValidOpenInUrl(data.downloadUrl)
     ? data.downloadUrl
     : undefined;
   return (
     <OpenInCard
       title={data.title}
       {...(downloadUrl ? { downloadUrl } : {})}
-      {...(data.customizationNote
-        ? { customizationNote: data.customizationNote }
-        : {})}
+      {...(data.prompt ? { prompt: data.prompt } : {})}
     />
   );
 }

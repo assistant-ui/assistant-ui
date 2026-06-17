@@ -77,7 +77,7 @@ type SelectedTemplateRequestContext = {
   kind?: unknown;
   prompt?: unknown;
   sourcePath?: unknown;
-  docsUrl?: unknown;
+  downloadUrl?: unknown;
 };
 
 async function prepareMessages(messages: readonly UIMessage[]) {
@@ -115,6 +115,9 @@ function formatSelectedTemplateContext(
   }
   if (typeof selectedTemplate.docsUrl === "string") {
     lines.push(`docsUrl: ${selectedTemplate.docsUrl}`);
+  }
+  if (typeof selectedTemplate.downloadUrl === "string") {
+    lines.push(`downloadUrl: ${selectedTemplate.downloadUrl}`);
   }
 
   lines.push(
@@ -193,11 +196,11 @@ Case 1: User wants to build an app:
 4. **Case 1A — openTemplatePreview succeeded:** include a fenced code block with language \`open-in\` at the end of your response (this renders a card with download + coding agent buttons — do NOT separately write a download markdown link):
 \`\`\`
 \`\`\`open-in
-{"title":"<template title>","downloadUrl":"<exact downloadUrl from openTemplatePreview result>","customizationNote":"<2-4 sentences: which files to edit and what to change>"}
+{"title":"<template title>","downloadUrl":"<exact downloadUrl from openTemplatePreview result>","prompt":"<your build/customization instructions for the external coding agent — be specific about which files to edit and what to change>"}
 \`\`\`
 \`\`\`
-  - \`downloadUrl\` MUST be copied exactly from the openTemplatePreview tool result. Never use placeholders like \`<downloadUrl-from-tool-result>\`.
-  - This renders an interactive card with buttons to open the template in Claude Code, Codex, Cursor, Conductor, or ChatGPT. Don't share preview or download url seperately.
+  - \`downloadUrl\` MUST be copied exactly from the openTemplatePreview tool result. Never use placeholders.
+  - This renders an interactive card with buttons to open the template in Claude Code, Codex, Cursor, Conductor, or ChatGPT. Don't share preview or download url separately.
 
 5. **Case 1B — no suitable hosted template:**
 - You MUST call **listDocs** and **readDoc** (and **inspectSourceMap** / **readSourceMapFile** when helpful) before answering. Do not skip documentation.
@@ -208,7 +211,7 @@ Case 1: User wants to build an app:
 - Optionally end with a prompt-only \`open-in\` block (no downloadUrl) so the user can open the guide in their coding agent:
 \`\`\`
 \`\`\`open-in
-{"title":"<short app name>","customizationNote":"<full step-by-step build prompt from docs — no fake download link>"}
+{"title":"<short app name>","prompt":"<full step-by-step build guide from the docs you read — no fake download link>"}
 \`\`\`
 \`\`\`
 - Also include the same prompt as a blockquote in your response.
@@ -216,6 +219,7 @@ Case 1: User wants to build an app:
 Case 2: User ask questions about assistant-ui:
 - Use listDocs → readDoc to find relevant information.
 - Use inspectSourceMap / readSourceMapFile to explore source code.
+- You can also use open-in code block to share a prompt to help user get started with assistant-ui, try sharing the code block if you think it is relevant.
 </recommended_pattern>
 
 <template_customization_guide>
@@ -232,6 +236,7 @@ Case 2: User ask questions about assistant-ui:
 - You skip the architecture, installation, and CLI docs and manually scaffold with Next/React create commands, writing low-level code. Instead, read the docs and use the assistant-ui CLI and other available utilities to scaffold with prebuilt components.
 - You assume wrong CLI flags; use the help command to understand how to use the CLI.
 - You confuse assistant-ui components at \`@/components/assistant-ui/*\` to be exported from \`@assistant-ui/react\`. They are shadcn-based components—read the Components doc/subdocs for details on available components and installation (use assistant-ui CLI or shadcn). If customization is needed, customize the generated components.
+- You some time guess for fabricate urls, always use the urls from the tool results.
 </common_pitfalls_to_avoid>
 
 <answering>
