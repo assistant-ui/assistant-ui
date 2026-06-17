@@ -32,6 +32,26 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 
 <ParametersTable {...DevToolsHooks} />
 
+### fromThreadMessageLike
+
+<Callout type="warn">
+<strong>Deprecated.</strong> This API is experimental and may change without notice.
+</Callout>
+
+```ts
+const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallbackStatus: MessageStatus) => ThreadMessage;
+```
+
+### generateId
+
+<Callout type="warn">
+<strong>Deprecated.</strong> This API is experimental and may change without notice.
+</Callout>
+
+```ts
+const generateId: (size?: number) => string;
+```
+
 ### InMemoryThreadList
 
 <ParametersTable {...InMemoryThreadList} />

@@ -30,6 +30,7 @@ allowBuilds:
   '@google/genai': false
   '@modelcontextprotocol/ext-apps': false
   '@mongodb-js/zstd': false
+  '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false
   esbuild@0.25.12: true

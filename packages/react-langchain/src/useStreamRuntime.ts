@@ -39,6 +39,7 @@ type LangChainRuntimeExtras = {
   interrupt: { value?: unknown } | undefined;
   interrupts: readonly { value?: unknown }[];
   toolCalls: readonly AssembledToolCall[];
+  error: unknown;
   submit: (
     values: Record<string, unknown> | null | undefined,
     options?: Record<string, unknown>,
@@ -92,6 +93,13 @@ type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
   /** Custom thread-deletion hook, forwarded to the cloud adapter. */
   delete?: ((threadId: string) => Promise<void>) | undefined;
 };
+
+export const runConfigToSubmitOptions = (
+  runConfig: AppendMessage["runConfig"],
+) =>
+  runConfig?.custom
+    ? { config: { configurable: runConfig.custom } }
+    : undefined;
 
 const getPendingToolCalls = (
   messages: readonly LangChainBaseMessage[],
@@ -216,6 +224,7 @@ const useStreamThreadRuntime = (
       interrupt: stream.interrupt,
       interrupts: stream.interrupts,
       toolCalls: stream.toolCalls,
+      error: stream.error,
       submit: stream.submit,
       values: stream.values,
       messagesKey,
@@ -224,6 +233,7 @@ const useStreamThreadRuntime = (
       stream.interrupt,
       stream.interrupts,
       stream.toolCalls,
+      stream.error,
       stream.submit,
       stream.values,
       messagesKey,
@@ -233,6 +243,7 @@ const useStreamThreadRuntime = (
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
+    isLoading: stream.isThreadLoading,
     messages: threadMessages,
     adapters,
     extras,
@@ -252,9 +263,10 @@ const useStreamThreadRuntime = (
               status: "error" as const,
             }))
           : [];
-      await stream.submit({
-        [messagesKey]: [...cancellations, { type: "human", content }],
-      });
+      await stream.submit(
+        { [messagesKey]: [...cancellations, { type: "human", content }] },
+        runConfigToSubmitOptions(msg.runConfig),
+      );
     },
     onAddToolResult: async ({
       toolCallId,
@@ -347,6 +359,15 @@ export const useLangChainInterruptState = () => {
     const extras = s.thread.extras;
     if (!extras) return undefined;
     return asLangChainRuntimeExtras(extras).interrupt;
+  });
+};
+
+/** Read the last run/hydration error from the runtime extras. */
+export const useLangChainError = () => {
+  return useAuiState((s) => {
+    const extras = s.thread.extras;
+    if (!extras) return undefined;
+    return asLangChainRuntimeExtras(extras).error;
   });
 };
 
