@@ -102,7 +102,7 @@ const toolApprovalOptionsFromInputRequest = (
         ? "allow-once"
         : option.id === "deny"
           ? "reject-once"
-          : option.id,
+          : `_${option.id}`,
     ...(option.label && { label: option.label }),
     ...(option.description && { description: option.description }),
   }));

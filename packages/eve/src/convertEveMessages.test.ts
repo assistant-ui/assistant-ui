@@ -72,6 +72,7 @@ describe("convertEveMessages", () => {
                     options: [
                       { id: "approve", label: "Approve" },
                       { id: "deny", label: "Deny", style: "danger" },
+                      { id: "escalate", label: "Escalate" },
                     ],
                   },
                 },
@@ -97,6 +98,7 @@ describe("convertEveMessages", () => {
             options: [
               { id: "approve", kind: "allow-once", label: "Approve" },
               { id: "deny", kind: "reject-once", label: "Deny" },
+              { id: "escalate", kind: "_escalate", label: "Escalate" },
             ],
           },
         },
