@@ -44,7 +44,7 @@ The function will:
 
 - Create a `messages` list in the state if it does not exist.
 - Convert the message to a plain dict with `model_dump()`.
-- Merge into an existing message when the `id` (or `tool_call_id`) matches: for an `AIMessageChunk` the content is concatenated with `add_ai_message_chunks`, otherwise the stored message is replaced.
+- Merge into an existing message when the `id` (or `tool_call_id`) matches: for an `AIMessageChunk` the message is merged with `add_ai_message_chunks`, then patched into state with granular `set` / `append-text` operations where possible. This lets streaming text and tool-call argument chunks update only the field that changed instead of sending the whole message again. If the shape cannot be represented safely as object-stream operations, the helper falls back to replacing the message.
 - Append the message when no existing id matches.
 
 ```python

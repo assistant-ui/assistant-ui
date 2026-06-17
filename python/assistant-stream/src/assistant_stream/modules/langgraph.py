@@ -1,8 +1,95 @@
-from typing import Any, Dict, List, Union, Tuple, Callable, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from assistant_stream.create_run import RunController
 from langchain_core.messages.ai import AIMessageChunk, add_ai_message_chunks
 from langchain_core.messages.tool import ToolMessage
+
+
+def _plain(value: Any) -> Any:
+    if hasattr(value, "_get_value"):
+        return value._get_value()
+    return value
+
+
+def _message_matches(existing_message: Any, message_dict: Dict[str, Any]) -> bool:
+    existing_message = _plain(existing_message)
+    if not isinstance(existing_message, dict):
+        return False
+
+    message_id = message_dict.get("id")
+    if message_id is not None and existing_message.get("id") == message_id:
+        return True
+
+    tool_call_id = message_dict.get("tool_call_id")
+    return (
+        tool_call_id is not None
+        and existing_message.get("tool_call_id") == tool_call_id
+    )
+
+
+def _find_existing_message_index(
+    messages: Any, message_dict: Dict[str, Any]
+) -> int | None:
+    for i, existing_message in enumerate(messages):
+        if _message_matches(existing_message, message_dict):
+            return i
+    return None
+
+
+def _patch_child(parent: Any, key: str | int, next_value: Any) -> None:
+    current_value = _plain(parent[key])
+
+    if current_value == next_value:
+        return
+
+    if isinstance(current_value, dict) and isinstance(next_value, dict):
+        current_keys = set(current_value.keys())
+        next_keys = set(next_value.keys())
+        if not current_keys.issubset(next_keys):
+            raise ValueError("Cannot represent deleted dictionary keys as object ops")
+
+        target = parent[key]
+        for key in next_keys:
+            if key not in current_value:
+                target[key] = next_value[key]
+            else:
+                _patch_child(target, key, next_value[key])
+        return
+
+    if isinstance(current_value, list) and isinstance(next_value, list):
+        if len(next_value) < len(current_value):
+            raise ValueError("Cannot represent list truncation as object ops")
+
+        target = parent[key]
+        for index, item in enumerate(next_value):
+            if index >= len(current_value):
+                target.append(item)
+            else:
+                _patch_child(target, index, item)
+        return
+
+    parent[key] = next_value
+
+
+def _patch_message(messages: Any, index: int, next_message: Dict[str, Any]) -> None:
+    try:
+        current_message = _plain(messages[index])
+        if not isinstance(current_message, dict):
+            raise ValueError("Expected existing message to be a dictionary")
+
+        current_keys = set(current_message.keys())
+        next_keys = set(next_message.keys())
+        if not current_keys.issubset(next_keys):
+            raise ValueError("Cannot represent deleted message keys as object ops")
+
+        message = messages[index]
+        for key in next_keys:
+            if key not in current_message:
+                message[key] = next_message[key]
+            else:
+                _patch_child(message, key, next_message[key])
+    except ValueError:
+        messages[index] = next_message
 
 
 def append_langgraph_event(
@@ -26,18 +113,12 @@ def append_langgraph_event(
         message_dict = message.model_dump()
 
         # Check if this is an AIMessageChunk
-        is_ai_message_chunk = message_dict.get("type") == "AIMessageChunk" 
+        is_ai_message_chunk = message_dict.get("type") == "AIMessageChunk"
         if is_ai_message_chunk:
             message_dict["type"] = "ai"
-        existing_message_index = None
-        if "id" in message_dict:
-            for i, existing_message in enumerate(state["messages"]):
-                if existing_message.get("id") == message_dict["id"] or \
-                  "tool_call_id" in existing_message and \
-                  "tool_call_id" in message_dict and \
-                  existing_message["tool_call_id"] == message_dict["tool_call_id"]:
-                    existing_message_index = i
-                    break
+        existing_message_index = _find_existing_message_index(
+            state["messages"], message_dict
+        )
 
         if existing_message_index is not None:
             if is_ai_message_chunk:
@@ -49,7 +130,11 @@ def append_langgraph_event(
                     AIMessageChunk(**{**message_dict, "type": "AIMessageChunk"}),
                 ).model_dump()
                 new_message_dict["type"] = "ai"
-                state["messages"][existing_message_index] = new_message_dict
+                _patch_message(
+                    state["messages"],
+                    existing_message_index,
+                    new_message_dict,
+                )
 
             else:
                 state["messages"][existing_message_index] = message_dict
@@ -63,9 +148,6 @@ def append_langgraph_event(
             for channel_name, channel_value in channels.items():
                 if channel_name == "messages":
                     continue
-                    # if "messages" in state:
-                    #     continue
-                    # state["messages"] = [c.model_dump() for c in channel_value]
 
                 state[channel_name] = channel_value
 

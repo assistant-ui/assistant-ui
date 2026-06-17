@@ -21,6 +21,11 @@ def _manager(initial: Any) -> StateManager:
     return StateManager(lambda _chunk: None, initial)
 
 
+def _manager_with_ops(initial: Any) -> tuple[StateManager, list[dict[str, Any]]]:
+    ops: list[dict[str, Any]] = []
+    return StateManager(lambda chunk: ops.extend(chunk.operations), initial), ops
+
+
 @pytest.mark.anyio
 async def test_appends_single_message_to_empty_state() -> None:
     manager = _manager({})
@@ -66,6 +71,95 @@ async def test_merges_ai_message_chunks_by_id() -> None:
     assert messages[0]["content"] == "Hello world"
     assert messages[0]["id"] == "m1"
     assert messages[0]["type"] == "ai"
+
+
+@pytest.mark.anyio
+async def test_merging_ai_message_chunk_emits_content_append_text_delta() -> None:
+    manager, ops = _manager_with_ops({"messages": []})
+
+    append_langgraph_event(
+        manager.state, (), "messages", (AIMessageChunk(content="Hello", id="m1"), {})
+    )
+    manager.flush()
+    ops.clear()
+
+    append_langgraph_event(
+        manager.state, (), "messages", (AIMessageChunk(content=" world", id="m1"), {})
+    )
+    manager.flush()
+
+    assert manager.state_data["messages"][0]["content"] == "Hello world"
+    assert {
+        "type": "append-text",
+        "path": ["messages", "0", "content"],
+        "value": " world",
+    } in ops
+    assert not any(
+        op["type"] == "set" and op["path"] == ["messages", "0"] for op in ops
+    )
+
+
+@pytest.mark.anyio
+async def test_merging_ai_message_chunk_patches_nested_tool_call_args() -> None:
+    manager, ops = _manager_with_ops({"messages": []})
+
+    append_langgraph_event(
+        manager.state,
+        (),
+        "messages",
+        (
+            AIMessageChunk(
+                content="",
+                id="m1",
+                tool_call_chunks=[
+                    {
+                        "name": "search",
+                        "args": '{"query"',
+                        "id": "call_1",
+                        "index": 0,
+                    }
+                ],
+            ),
+            {},
+        ),
+    )
+    manager.flush()
+    ops.clear()
+
+    append_langgraph_event(
+        manager.state,
+        (),
+        "messages",
+        (
+            AIMessageChunk(
+                content="",
+                id="m1",
+                tool_call_chunks=[
+                    {
+                        "name": None,
+                        "args": ':"docs"}',
+                        "id": None,
+                        "index": 0,
+                    }
+                ],
+            ),
+            {},
+        ),
+    )
+    manager.flush()
+
+    assert (
+        manager.state_data["messages"][0]["tool_call_chunks"][0]["args"]
+        == '{"query":"docs"}'
+    )
+    assert {
+        "type": "append-text",
+        "path": ["messages", "0", "tool_call_chunks", "0", "args"],
+        "value": ':"docs"}',
+    } in ops
+    assert not any(
+        op["type"] == "set" and op["path"] == ["messages", "0"] for op in ops
+    )
 
 
 @pytest.mark.anyio

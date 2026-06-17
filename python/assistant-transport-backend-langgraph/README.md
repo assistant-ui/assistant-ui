@@ -7,6 +7,8 @@ This is a LangGraph-based implementation of the assistant transport backend, pro
 - Streaming responses using LangGraph's astream and astream_events
 - Synchronization of LangGraph state to the frontend
 - Support for both message streaming and state updates
+- DeltaChannel-backed LangGraph message checkpoints (`langgraph>=1.2`)
+- Optional Postgres checkpoint storage via `langgraph-checkpoint-postgres`
 - Compatible with the assistant-ui frontend
 
 ## Installation
@@ -16,7 +18,7 @@ This is a LangGraph-based implementation of the assistant transport backend, pro
 1. Initialize and install dependencies:
 ```bash
 uv init --name assistant-transport-backend-langgraph --package
-uv add fastapi uvicorn[standard] assistant-stream pydantic python-dotenv langgraph langchain langchain-core langchain-openai httpx
+uv add fastapi uvicorn[standard] assistant-stream pydantic python-dotenv "langgraph>=1.2.0" langgraph-checkpoint-postgres langchain langchain-core langchain-openai httpx
 # Or simply:
 uv sync
 ```
@@ -50,6 +52,8 @@ The server can be configured via environment variables:
 - `LOG_LEVEL`: Log level (default: info)
 - `CORS_ORIGINS`: CORS origins (default: http://localhost:3000)
 - `OPENAI_API_KEY`: Your OpenAI API key (required)
+- `LANGGRAPH_POSTGRES_URL`: Optional Postgres connection URL for LangGraph checkpoints
+- `DATABASE_URL`: Fallback Postgres connection URL when `LANGGRAPH_POSTGRES_URL` is not set
 
 ## Running the Server
 
@@ -107,12 +111,43 @@ Health check endpoint.
 
 1. The server receives chat requests at `/api/chat`
 2. Commands are converted to LangGraph messages (HumanMessage, AIMessage, etc.)
-3. The LangGraph processes the messages through its nodes
+3. The LangGraph processes the messages through its nodes using a per-thread checkpoint keyed by the AssistantTransport `threadId`
 4. Two streaming tasks run concurrently:
    - `astream` provides state updates
    - `astream_events` provides message streaming
 5. Both streams are synchronized to the frontend using `append_langgraph_event`
 6. The response is streamed back using assistant-stream's DataStreamResponse
+
+## DeltaChannel Prototype Notes
+
+The graph's `messages` state uses LangGraph's `DeltaChannel` with a bulk reducer:
+
+```python
+def add_messages_delta(state, writes):
+    result = list(state)
+    for write in writes:
+        if isinstance(write, BaseMessage):
+            result = add_messages(result, [write])
+        else:
+            result = add_messages(result, list(write))
+    return result
+```
+
+This keeps the assistant-ui API unchanged. The frontend still uses `useAssistantTransportRuntime`; the backend still accepts normal AssistantTransport `add-message` and `add-tool-result` commands; and the response remains the default data-stream encoding. The only required API adjustment is inside the LangGraph state definition: a delta-backed channel reducer receives `(state, writes)` where `writes` is a batch, not the old pairwise `(state, update)` reducer shape.
+
+Postgres works through LangGraph's async checkpointer path:
+
+```bash
+docker run --rm -p 127.0.0.1:55432:5432 \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=assistant_ui \
+  postgres:16-alpine
+
+LANGGRAPH_POSTGRES_URL=postgresql://postgres:postgres@127.0.0.1:55432/assistant_ui \
+  uv run python main.py
+```
+
+Because the FastAPI route streams with `graph.astream`, the backend uses `AsyncPostgresSaver`; the synchronous `PostgresSaver` does not implement the async checkpointer methods used by this route.
 
 ## Integration with Frontend
 
