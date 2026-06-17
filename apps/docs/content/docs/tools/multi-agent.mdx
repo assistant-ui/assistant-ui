@@ -16,6 +16,10 @@ Key behaviors:
 - **Recursive** — Sub-agent messages can contain tool calls that themselves have nested messages. Just use `MessagePartPrimitive.Messages` again.
 - **Read-only** — Sub-agent messages are rendered in a readonly context. No editing, branching, or composing.
 
+<Callout type="info">
+  This renders a sub-agent's **messages**. To visualize a sub-agent's **execution trace** instead (timing, span hierarchy, waterfalls), see [react-o11y](/docs/utilities/react-o11y), which renders observability spans as collapsible trees and timelines.
+</Callout>
+
 ## Quick Start
 
 <Steps>
@@ -226,6 +230,7 @@ function SubConversation({
 ## Related
 
 - [Generative UI](/docs/tools/tool-ui) — Creating tool call UIs
+- [react-o11y](/docs/utilities/react-o11y) — Visualize sub-agent execution as collapsible span trees, waterfalls, and call timelines
 - [MessagePartPrimitive](/docs/api-reference/primitives/message-part) — API reference for message part primitives
 - [Sub-Agent Model Tracking](/docs/cloud/ai-sdk#sub-agent-model-tracking) — Track delegated model usage and costs in the Cloud dashboard
 - [LangGraph Streaming](/docs/runtimes/langgraph/streaming) — Event handlers, subgraph events, and message metadata

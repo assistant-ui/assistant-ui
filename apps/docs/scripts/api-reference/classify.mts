@@ -56,6 +56,7 @@ const STATE_HOOKS = new Set([
 const COMPOSER_TRIGGER_HOOKS = new Set([
   "unstable_useMentionAdapter",
   "unstable_useSlashCommandAdapter",
+  "unstable_useLiveCompletionAdapter",
   "unstable_useTriggerPopoverRootContext",
   "unstable_useTriggerPopoverRootContextOptional",
   "unstable_useTriggerPopoverScopeContext",

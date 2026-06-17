@@ -104,6 +104,9 @@ const convertDataPrefixedPart = (
   return { type: "data", name: type.substring(5), data };
 };
 
+/**
+ * @deprecated This API is experimental and may change without notice.
+ */
 export const fromThreadMessageLike = (
   like: ThreadMessageLike,
   fallbackId: string,

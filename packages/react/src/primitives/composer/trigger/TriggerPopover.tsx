@@ -72,6 +72,8 @@ export namespace ComposerPrimitiveTriggerPopover {
     readonly char: string;
     /** Adapter providing categories and items. */
     readonly adapter?: Unstable_TriggerAdapter | undefined;
+    /** Whether the adapter is resolving items, surfaced to the popover scope for async sources. @default false */
+    readonly isLoading?: boolean | undefined;
   };
 }
 
@@ -107,7 +109,14 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
   ComposerPrimitiveTriggerPopover.Props
 >(
   (
-    { char, adapter, "aria-label": ariaLabel, children, ...props },
+    {
+      char,
+      adapter,
+      isLoading = false,
+      "aria-label": ariaLabel,
+      children,
+      ...props
+    },
     forwardedRef,
   ) => {
     const aui = useAui();
@@ -159,6 +168,7 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
         behavior: behavior ?? undefined,
         aui,
         popoverId,
+        isLoading,
       }),
     );
 

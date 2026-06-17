@@ -124,6 +124,7 @@ export type {
 
 // --- external-store ---
 export type { ThreadMessageLike } from "@assistant-ui/core";
+export { fromThreadMessageLike, generateId } from "@assistant-ui/core";
 export {
   getExternalStoreMessages,
   bindExternalStoreMessage,
@@ -413,6 +414,12 @@ export {
   type Unstable_SlashCommandAction,
   type Unstable_UseSlashCommandAdapterOptions,
 } from "./unstable/useSlashCommandAdapter";
+
+// Unstable - live (async) completion adapter helper
+export {
+  unstable_useLiveCompletionAdapter,
+  type Unstable_UseLiveCompletionAdapterOptions,
+} from "./unstable/useLiveCompletionAdapter";
 
 export type { ToolExecutionStatus } from "./internal";
 

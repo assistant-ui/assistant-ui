@@ -33,6 +33,14 @@ export type SmoothOptions = {
    * @default Infinity
    */
   maxCharsPerFrame?: number | undefined;
+  /**
+   * Minimum time in milliseconds between committed updates. The reveal keeps
+   * advancing every frame, but the visible text (and the downstream re-render
+   * and markdown re-parse it triggers) is committed at most once per interval.
+   * The final frame always commits. `0` commits every frame.
+   * @default 0
+   */
+  minCommitMs?: number | undefined;
 };
 
 const DEFAULT_DRAIN_MS = 250;
@@ -41,11 +49,13 @@ const DEFAULT_MAX_CHAR_INTERVAL_MS = 5;
 class TextStreamAnimator {
   private animationFrameId: number | null = null;
   private lastUpdateTime: number = Date.now();
+  public lastCommitTime: number = 0;
 
   public targetText: string = "";
   public drainMs: number = DEFAULT_DRAIN_MS;
   public maxCharIntervalMs: number = DEFAULT_MAX_CHAR_INTERVAL_MS;
   public maxCharsPerFrame: number = Infinity;
+  public minCommitMs: number = 0;
 
   constructor(
     public currentText: string,
@@ -100,7 +110,12 @@ class TextStreamAnimator {
       this.currentText.length + charsToAdd,
     );
     this.lastUpdateTime = currentTime - timeToConsume;
-    this.setText(this.currentText);
+
+    const isComplete = charsToAdd === remainingChars;
+    if (isComplete || currentTime - this.lastCommitTime >= this.minCommitMs) {
+      this.lastCommitTime = currentTime;
+      this.setText(this.currentText);
+    }
   };
 }
 
@@ -141,6 +156,7 @@ export const useSmooth = (
     DEFAULT_MAX_CHAR_INTERVAL_MS,
   );
   const maxCharsPerFrame = positiveOr(options?.maxCharsPerFrame, Infinity);
+  const minCommitMs = positiveOr(options?.minCommitMs, 0);
 
   const [displayedText, setDisplayedText] = useState(
     state.status.type === "running" ? "" : text,
@@ -194,7 +210,8 @@ export const useSmooth = (
     animatorRef.drainMs = drainMs;
     animatorRef.maxCharIntervalMs = maxCharIntervalMs;
     animatorRef.maxCharsPerFrame = maxCharsPerFrame;
-  }, [animatorRef, drainMs, maxCharIntervalMs, maxCharsPerFrame]);
+    animatorRef.minCommitMs = minCommitMs;
+  }, [animatorRef, drainMs, maxCharIntervalMs, maxCharsPerFrame, minCommitMs]);
 
   const animatorPartRef = useRef(part);
   useEffect(() => {
@@ -214,6 +231,7 @@ export const useSmooth = (
       if (state.status.type === "running") {
         animatorRef.currentText = "";
         animatorRef.targetText = text;
+        animatorRef.lastCommitTime = 0;
         animatorRef.start();
       } else {
         animatorRef.currentText = text;

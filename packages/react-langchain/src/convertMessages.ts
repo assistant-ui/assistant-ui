@@ -28,6 +28,13 @@ const contentToParts = (content: unknown) => {
             return { type: "image" as const, image: part.image_url };
           }
           return { type: "image" as const, image: part.image_url.url };
+        case "file":
+          return {
+            type: "file" as const,
+            filename: part.metadata?.filename ?? "file",
+            data: part.data,
+            mimeType: part.mime_type,
+          };
         case "thinking":
           return { type: "reasoning" as const, text: part.thinking };
         case "reasoning":

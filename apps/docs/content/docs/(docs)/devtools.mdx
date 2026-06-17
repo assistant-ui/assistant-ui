@@ -43,9 +43,32 @@ export function AssistantApp() {
 
 ### Verify the DevTools overlay
 
-That's it! In development builds you should now see the DevTools in the lower-right corner of your site.
+That's it! In development builds you should now see the DevTools launcher in the lower-right corner of your site. The panel renders inline in an isolated shadow root, and the whole component is stripped from production builds.
 
-![DevTools floating modal anchored in the lower-right corner of a page](../../../../../.github/assets/devtoolsmodal.png)
+![DevTools floating launcher anchored in the lower-right corner of a page](../../../../../.github/assets/devtoolsmodal.png)
 
   </Step>
 </Steps>
+
+## Custom tabs
+
+The panel is extensible. Pass extra inspector tabs to `DevToolsModal` with `plugins`; each plugin renders from the inspected instance's projected data (`state`, `logs`, `modelContext`, `scopes`).
+
+```tsx
+import { createDevToolsPlugin, DevToolsModal } from "@assistant-ui/react-devtools";
+
+const stateTab = createDevToolsPlugin({
+  id: "my-state",
+  label: "My state",
+  Component: ({ data }) => <pre>{JSON.stringify(data.state, null, 2)}</pre>,
+});
+
+export function AssistantApp() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <DevToolsModal plugins={[stateTab]} />
+      {/* ...your assistant-ui... */}
+    </AssistantRuntimeProvider>
+  );
+}
+```

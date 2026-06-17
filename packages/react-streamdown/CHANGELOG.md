@@ -1,5 +1,17 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.4
+
+### Patch Changes
+
+- [#4408](https://github.com/assistant-ui/assistant-ui/pull/4408) [`b6016d1`](https://github.com/assistant-ui/assistant-ui/commit/b6016d1d3dd98ee9c3d3e7ee6ff1fa818a225abb) - feat: export math-delimiter preprocess helpers for the markdown text primitives ([@okisdev](https://github.com/okisdev))
+
+  adds `normalizeMathDelimiters`, `rewriteLatexBracketDelimiters`, `rewriteCustomMathTags`, and `escapeCurrencyDollars` so you can pass them to the `preprocess` prop instead of copy-pasting a regex blob. they rewrite the `\(...\)` / `\[...\]` brackets and `[/math]` / `[/inline]` tags that models emit to the `$...$` / `$$...$$` form remark-math parses, and escape `$5`-style currency so single-dollar math doesn't eat it.
+
+- [#4418](https://github.com/assistant-ui/assistant-ui/pull/4418) [`2a03d96`](https://github.com/assistant-ui/assistant-ui/commit/2a03d9680e63011c0091750036137dc713d50dd9) - perf: repair only the trailing block of streaming markdown instead of the whole message ([@okisdev](https://github.com/okisdev))
+
+  `StreamdownTextPrimitive` let Streamdown run `remend` (incomplete-markdown repair) over the entire accumulated message on every streaming flush, which grows with the message. It now repairs only the last top-level block (the only place a dangling opener can be, since inline constructs cannot cross a blank line and blocks are split after repair), which is render-equivalent but bounds the heavier `remend` repair to the tail instead of running it over the whole message each flush. `tailBoundedRemend` and `findRemendWindowStart` are exported so you can apply the same windowing yourself. Custom `remend` options are honored, repair falls back to the full message when a custom `parseMarkdownIntoBlocksFn` is supplied, and `parseIncompleteMarkdown={false}` still disables repair entirely.
+
 ## 0.3.3
 
 ### Patch Changes

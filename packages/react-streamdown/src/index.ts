@@ -13,6 +13,8 @@ export {
   escapeCurrencyDollars,
 } from "./preprocess";
 
+export { tailBoundedRemend, findRemendWindowStart } from "./remend";
+
 export type {
   StreamdownTextPrimitiveProps,
   SyntaxHighlighterProps,

@@ -299,6 +299,21 @@ runtime.thread.import(repo);
 
 Each message must have an explicit `id` and `parentId`; messages with the same `parentId` create branches. Parents must appear before children in the array.
 
+### Exporting a snapshot
+
+`thread.import()` has a counterpart, `thread.export()`, which captures the current thread (including its full branch tree) as a serializable `ExportedMessageRepository`. Use it to persist a conversation and re-import it later:
+
+```tsx
+// capture the current thread as a serializable snapshot
+const repo = runtime.thread.export();
+await saveToBackend(JSON.stringify(repo));
+
+// later, restore it into a runtime
+runtime.thread.import(repo);
+```
+
+The exported shape round-trips through `thread.import()` directly, so the same value is both your persistence format and what you load back.
+
 ## Tool calling
 
 Handle tool results by updating the matching tool-call entry:

@@ -10,6 +10,13 @@ export type LangChainContentBlock =
       type: "reasoning";
       summary: Array<{ type: "summary_text"; text: string }>;
     }
+  | {
+      type: "file";
+      data: string;
+      mime_type: string;
+      source_type?: "base64";
+      metadata?: { filename?: string };
+    }
   | { type: "tool_use" | "input_json_delta" };
 
 export type LangChainToolCall = {

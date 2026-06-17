@@ -1,5 +1,8 @@
 import { customAlphabet } from "nanoid/non-secure";
 
+/**
+ * @deprecated This API is experimental and may change without notice.
+ */
 export const generateId = customAlphabet(
   "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
   7,

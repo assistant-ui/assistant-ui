@@ -1,6 +1,6 @@
 "use client";
 
-import { generateId, fromThreadMessageLike } from "@assistant-ui/core/internal";
+import { generateId, fromThreadMessageLike } from "@assistant-ui/core";
 import type {
   AddToolResultOptions,
   AppendMessage,
@@ -140,6 +140,10 @@ export class AgUiThreadRuntimeCore {
 
         const messages = repo.messages.map((item) => item.message);
         this.applyExternalMessages(messages);
+
+        if (repo.state !== undefined) {
+          this.loadExternalState(repo.state);
+        }
 
         if (repo.unstable_resume) {
           const parentId = repo.headId ?? messages.at(-1)?.id ?? null;

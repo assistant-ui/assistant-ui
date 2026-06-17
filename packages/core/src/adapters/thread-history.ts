@@ -6,6 +6,7 @@ import type {
   ExportedMessageRepository,
   ExportedMessageRepositoryItem,
 } from "../runtime/utils/message-repository";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export interface MessageStorageEntry<TPayload> {
   id: string;
@@ -54,7 +55,12 @@ export type GenericThreadHistoryAdapter<TMessage> = {
 };
 
 export type ThreadHistoryAdapter = {
-  load(): Promise<ExportedMessageRepository & { unstable_resume?: boolean }>;
+  load(): Promise<
+    ExportedMessageRepository & {
+      state?: ReadonlyJSONValue;
+      unstable_resume?: boolean;
+    }
+  >;
   resume?(
     options: ChatModelRunOptions,
   ): AsyncGenerator<ChatModelRunResult, void, unknown>;

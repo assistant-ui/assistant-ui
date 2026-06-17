@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.14.4
+
+### Patch Changes
+
+- [#4408](https://github.com/assistant-ui/assistant-ui/pull/4408) [`b6016d1`](https://github.com/assistant-ui/assistant-ui/commit/b6016d1d3dd98ee9c3d3e7ee6ff1fa818a225abb) - feat: export math-delimiter preprocess helpers for the markdown text primitives ([@okisdev](https://github.com/okisdev))
+
+  adds `normalizeMathDelimiters`, `rewriteLatexBracketDelimiters`, `rewriteCustomMathTags`, and `escapeCurrencyDollars` so you can pass them to the `preprocess` prop instead of copy-pasting a regex blob. they rewrite the `\(...\)` / `\[...\]` brackets and `[/math]` / `[/inline]` tags that models emit to the `$...$` / `$$...$$` form remark-math parses, and escape `$5`-style currency so single-dollar math doesn't eat it.
+
 ## 0.14.3
 
 ### Patch Changes

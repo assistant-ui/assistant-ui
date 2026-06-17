@@ -39,6 +39,7 @@
     "**/*.yml",
     "**/*.toml",
     "python/**",
-    "apps/docs/components/tool-ui/weather-widget/generated/**"
+    "apps/docs/components/tool-ui/weather-widget/generated/**",
+    "**/*.generated.ts"
   ]
 }

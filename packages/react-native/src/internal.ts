@@ -10,10 +10,8 @@ export {
   CompositeContextProvider,
   MessageRepository,
   BaseAssistantRuntimeCore,
-  generateId,
   AssistantRuntimeImpl,
   ThreadRuntimeImpl,
-  fromThreadMessageLike,
   getAutoStatus,
 } from "@assistant-ui/core/internal";
 export type {

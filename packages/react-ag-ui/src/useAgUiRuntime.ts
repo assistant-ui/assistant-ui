@@ -92,7 +92,7 @@ export function useAgUiRuntime(
             core.applyExternalMessages([]);
             const result = await onSwitchToThread(threadId);
             core.applyExternalMessages(result.messages);
-            if (result.state) {
+            if (result.state !== undefined) {
               core.loadExternalState(result.state);
             }
             if (result.unstable_resume) {

@@ -10,19 +10,37 @@ npm install @assistant-ui/react-devtools
 
 ## Usage
 
+Drop `DevToolsModal` inside your `AssistantRuntimeProvider`. It renders a floating launcher and an inline panel (isolated in a shadow root), and is a no-op in production builds.
+
 ```tsx
-import { DevToolsModal, DevToolsFrame } from "@assistant-ui/react-devtools";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { DevToolsModal } from "@assistant-ui/react-devtools";
 
-// render as a modal overlay
-<DevToolsModal />;
-
-// or embed inline as a frame
-<DevToolsFrame />;
+export function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <DevToolsModal />
+      {/* ...your assistant-ui... */}
+    </AssistantRuntimeProvider>
+  );
+}
 ```
 
-## Chrome extension
+## Custom tabs
 
-A standalone Chrome extension consuming this package lives at [`apps/devtools-extension`](https://github.com/assistant-ui/assistant-ui/tree/main/apps/devtools-extension).
+The panel is extensible through a plugin registry. Each plugin receives the inspected instance's projected data and renders a tab body.
+
+```tsx
+import { createDevToolsPlugin, DevToolsModal } from "@assistant-ui/react-devtools";
+
+const myTab = createDevToolsPlugin({
+  id: "my-tab",
+  label: "My tab",
+  Component: ({ data }) => <pre>{JSON.stringify(data.state, null, 2)}</pre>,
+});
+
+<DevToolsModal plugins={[myTab]} />;
+```
 
 ## Documentation
 

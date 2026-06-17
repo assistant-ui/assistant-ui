@@ -22,16 +22,24 @@ import {
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
-import { useStream, type UseStreamOptions } from "@langchain/react";
+import {
+  useStream,
+  type UseStreamOptions,
+  type AssembledToolCall,
+} from "@langchain/react";
 import type { LangChainBaseMessage, LangChainToolCall } from "./types";
 import { convertLangChainBaseMessage, getMessageType } from "./convertMessages";
 
 const symbolLangChainRuntimeExtras = Symbol("langchain-runtime-extras");
 
+const EMPTY_TOOL_CALLS: readonly AssembledToolCall[] = [];
+
 type LangChainRuntimeExtras = {
   [symbolLangChainRuntimeExtras]: true;
   interrupt: { value?: unknown } | undefined;
   interrupts: readonly { value?: unknown }[];
+  toolCalls: readonly AssembledToolCall[];
+  error: unknown;
   submit: (
     values: Record<string, unknown> | null | undefined,
     options?: Record<string, unknown>,
@@ -85,6 +93,13 @@ type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
   /** Custom thread-deletion hook, forwarded to the cloud adapter. */
   delete?: ((threadId: string) => Promise<void>) | undefined;
 };
+
+export const runConfigToSubmitOptions = (
+  runConfig: AppendMessage["runConfig"],
+) =>
+  runConfig?.custom
+    ? { config: { configurable: runConfig.custom } }
+    : undefined;
 
 const getPendingToolCalls = (
   messages: readonly LangChainBaseMessage[],
@@ -208,6 +223,8 @@ const useStreamThreadRuntime = (
       [symbolLangChainRuntimeExtras]: true,
       interrupt: stream.interrupt,
       interrupts: stream.interrupts,
+      toolCalls: stream.toolCalls,
+      error: stream.error,
       submit: stream.submit,
       values: stream.values,
       messagesKey,
@@ -215,6 +232,8 @@ const useStreamThreadRuntime = (
     [
       stream.interrupt,
       stream.interrupts,
+      stream.toolCalls,
+      stream.error,
       stream.submit,
       stream.values,
       messagesKey,
@@ -224,6 +243,7 @@ const useStreamThreadRuntime = (
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
+    isLoading: stream.isThreadLoading,
     messages: threadMessages,
     adapters,
     extras,
@@ -243,9 +263,10 @@ const useStreamThreadRuntime = (
               status: "error" as const,
             }))
           : [];
-      await stream.submit({
-        [messagesKey]: [...cancellations, { type: "human", content }],
-      });
+      await stream.submit(
+        { [messagesKey]: [...cancellations, { type: "human", content }] },
+        runConfigToSubmitOptions(msg.runConfig),
+      );
     },
     onAddToolResult: async ({
       toolCallId,
@@ -338,6 +359,29 @@ export const useLangChainInterruptState = () => {
     const extras = s.thread.extras;
     if (!extras) return undefined;
     return asLangChainRuntimeExtras(extras).interrupt;
+  });
+};
+
+/** Read the last run/hydration error from the runtime extras. */
+export const useLangChainError = () => {
+  return useAuiState((s) => {
+    const extras = s.thread.extras;
+    if (!extras) return undefined;
+    return asLangChainRuntimeExtras(extras).error;
+  });
+};
+
+/**
+ * Read the root tool calls assembled by `useStream` from the `tools`
+ * channel. Defaults to an empty array, so consumers can `.map` without
+ * a guard. Useful for rendering pending/streamed tool calls and
+ * approval UIs.
+ */
+export const useLangChainToolCalls = () => {
+  return useAuiState((s) => {
+    const extras = s.thread.extras;
+    if (!extras) return EMPTY_TOOL_CALLS;
+    return asLangChainRuntimeExtras(extras).toolCalls ?? EMPTY_TOOL_CALLS;
   });
 };
 

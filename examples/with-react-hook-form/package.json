@@ -15,14 +15,14 @@
     "@assistant-ui/react-hook-form": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "ai": "^6.0.204",
+    "ai": "^6.0.205",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.18.0",
     "next": "^16.2.9",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-hook-form": "^7.78.0",
+    "react-hook-form": "^7.79.0",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

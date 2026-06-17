@@ -569,4 +569,117 @@ describe("ExternalStoreThreadRuntimeCore", () => {
       );
     });
   });
+
+  describe("messageRepository incremental sync", () => {
+    const u1 = createUserMessage("u1");
+    const a1 = createAssistantMessage("a1");
+
+    const repoAdapter = (
+      messages: { message: ThreadMessage; parentId: string | null }[],
+      headId: string | null,
+      overrides: Partial<ExternalStoreAdapter<ThreadMessage>> = {},
+    ): ExternalStoreAdapter<ThreadMessage> => ({
+      messageRepository: { headId, messages },
+      onNew: vi.fn(async () => {}),
+      ...overrides,
+    });
+
+    it("imports the initial repository", () => {
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        repoAdapter([{ message: u1, parentId: null }], "u1"),
+      );
+      expect(core.messages.map((m) => m.id)).toEqual(["u1"]);
+    });
+
+    it("adds a message when the repository is replaced", () => {
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        repoAdapter([{ message: u1, parentId: null }], "u1"),
+      );
+      core.__internal_setAdapter(
+        repoAdapter(
+          [
+            { message: u1, parentId: null },
+            { message: a1, parentId: "u1" },
+          ],
+          "a1",
+        ),
+      );
+      expect(core.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
+    });
+
+    it("deletes a message no longer present in the new repository", () => {
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        repoAdapter(
+          [
+            { message: u1, parentId: null },
+            { message: a1, parentId: "u1" },
+          ],
+          "a1",
+        ),
+      );
+      expect(core.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
+
+      core.__internal_setAdapter(
+        repoAdapter([{ message: u1, parentId: null }], "u1"),
+      );
+      expect(core.messages.map((m) => m.id)).toEqual(["u1"]);
+    });
+
+    it("matches a fresh import when built incrementally", () => {
+      const incremental = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        repoAdapter([{ message: u1, parentId: null }], "u1"),
+      );
+      incremental.__internal_setAdapter(
+        repoAdapter(
+          [
+            { message: u1, parentId: null },
+            { message: a1, parentId: "u1" },
+          ],
+          "a1",
+        ),
+      );
+      const fresh = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        repoAdapter(
+          [
+            { message: u1, parentId: null },
+            { message: a1, parentId: "u1" },
+          ],
+          "a1",
+        ),
+      );
+      expect(incremental.messages.map((m) => m.id)).toEqual(
+        fresh.messages.map((m) => m.id),
+      );
+    });
+
+    it("coalesces an isRunning flip on an unchanged repository reference", () => {
+      const messageRepository = {
+        headId: "u1",
+        messages: [{ message: u1, parentId: null }],
+      };
+      const onNew = vi.fn(async () => {});
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, {
+        messageRepository,
+        onNew,
+        isRunning: false,
+      });
+      expect(core.messages.map((m) => m.id)).toEqual(["u1"]);
+
+      core.__internal_setAdapter({ messageRepository, onNew, isRunning: true });
+      expect(core.messages.length).toBe(2);
+      expect(core.messages[1]!.role).toBe("assistant");
+
+      core.__internal_setAdapter({
+        messageRepository,
+        onNew,
+        isRunning: false,
+      });
+      expect(core.messages.map((m) => m.id)).toEqual(["u1"]);
+    });
+  });
 });
