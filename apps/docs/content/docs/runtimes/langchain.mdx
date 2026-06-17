@@ -259,6 +259,10 @@ Follow the [Ink setup](/docs/ink).
 | `adapters` | `{ attachments?, speech?, feedback? }` | Optional. Attachment, speech, and feedback adapters. |
 | `messagesKey` | `string` | The state key that holds messages. Defaults to `"messages"`. |
 
+### Forwarding per-run config
+
+When a message is sent, its `runConfig.custom` (for example a selected mode or model) is forwarded on the underlying `useStream().submit` call as `config.configurable`. Read it in the graph from `config["configurable"]`; on LangGraph v1 the same values are also reachable through the Runtime `context`, which `config.configurable` is aliased to. This lets per-run app config reach the graph without extra wiring.
+
 ## Reading custom state keys
 
 LangGraph agents often expose structured state beyond messages (plans, todos, scratch files, generative-UI artifacts). Read them directly with `useLangChainState`. It mirrors `useStream().values[key]` upstream and updates when the stream emits new state.
@@ -443,6 +447,20 @@ function InterruptPrompt() {
 </Tab>
 </PlatformTabs>
 
+## Errors
+
+`useLangChainError` exposes the last run or hydration error from upstream `useStream().error`. It is untyped (`unknown`), so narrow it at the use site before rendering.
+
+```tsx
+import { useLangChainError } from "@assistant-ui/react-langchain";
+
+function ErrorBanner() {
+  const error = useLangChainError();
+  if (!error) return null;
+  return <div role="alert">{error instanceof Error ? error.message : String(error)}</div>;
+}
+```
+
 ## Message conversion
 
 `convertLangChainBaseMessage` transforms a LangChain `BaseMessage` into an assistant-ui message. Use it when building a custom `ExternalStoreAdapter` that consumes LangChain messages outside `useStreamRuntime`.
@@ -497,6 +515,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Interrupt state | Yes | Yes |
 | Thread history loading state (`thread.isLoading`) | Yes | Yes |
 | Send raw state update / resume command | Yes | Yes (`useLangChainSubmit`) |
+| Forward per-run `runConfig` | Yes (whole object → `config`) | Yes (`custom` → `config.configurable`) |
 | Read arbitrary custom state key | No | Yes (`useLangChainState<T>(key)`) |
 | File content parts in messages | Yes | Yes |
 | Per-message metadata (`messages-tuple`) | Yes | Not exposed |
@@ -519,6 +538,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | `useLangGraphMessageMetadata` | _(not available)_ | Open an issue if you rely on this. |
 | `useLangGraphUIMessages` | _(not available)_ | Open an issue if you rely on this. |
 | _(none)_ | `useLangChainState<T>(key)` | New — reads any custom state key reactively. |
+| _(none)_ | `useLangChainError()` | New — reads the last run/hydration error reactively. |
 
 ## Related
 
