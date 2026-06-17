@@ -3,7 +3,7 @@
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { AssistantComposer } from "@/components/docs/assistant/composer";
 import { AssistantActionBar } from "@/components/docs/assistant/assistant-action-bar";
-import { MarkdownText } from "@/components/docs/assistant/markdown";
+import { XuluxMarkdownText } from "./XuluxMarkdownText";
 import { AssistantFooter } from "@/components/docs/assistant/footer";
 import { AssistantThread } from "@/components/docs/assistant/thread";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
@@ -142,7 +142,7 @@ function XuluxAssistantMessage(): ReactNode {
             if (part.type === "text") {
               return (
                 <div data-part-type="text">
-                  <MarkdownText />
+                  <XuluxMarkdownText />
                 </div>
               );
             }
