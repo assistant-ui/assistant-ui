@@ -54,13 +54,33 @@ const defaultOpts = {
 } as const;
 
 let testDir: string;
+const GITHUB_AUTH_ENV_KEYS = [
+  "GIGET_AUTH",
+  "GITHUB_TOKEN",
+  "GH_TOKEN",
+] as const;
+let originalGitHubAuthEnv: Record<
+  (typeof GITHUB_AUTH_ENV_KEYS)[number],
+  string | undefined
+>;
 
 beforeEach(() => {
   testDir = fs.mkdtempSync(path.join(os.tmpdir(), "cli-create-project-"));
+  originalGitHubAuthEnv = Object.fromEntries(
+    GITHUB_AUTH_ENV_KEYS.map((key) => [key, process.env[key]]),
+  ) as Record<(typeof GITHUB_AUTH_ENV_KEYS)[number], string | undefined>;
+  for (const key of GITHUB_AUTH_ENV_KEYS) {
+    delete process.env[key];
+  }
 });
 
 afterEach(() => {
   fs.rmSync(testDir, { recursive: true, force: true });
+  for (const key of GITHUB_AUTH_ENV_KEYS) {
+    const value = originalGitHubAuthEnv[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
   vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
@@ -97,6 +117,21 @@ describe("resolveLatestReleaseRef", () => {
     expect(await resolveLatestReleaseRef()).toBe("@assistant-ui/react@0.12.15");
   });
 
+  it("authenticates the latest release request when a GitHub token is configured", async () => {
+    process.env.GITHUB_TOKEN = "ghs_test-token";
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ tag_name: "@assistant-ui/react@0.12.15" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await resolveLatestReleaseRef()).toBe("@assistant-ui/react@0.12.15");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.github.com/repos/assistant-ui/assistant-ui/releases/latest",
+      { headers: { Authorization: "Bearer ghs_test-token" } },
+    );
+  });
+
   it("returns undefined when fetch fails", async () => {
     vi.stubGlobal(
       "fetch",
@@ -122,6 +157,17 @@ describe("downloadProject", () => {
     expect(downloadTemplate).toHaveBeenCalledWith(
       "gh:assistant-ui/assistant-ui/examples/with-tanstack",
       expect.objectContaining({ dir: "/tmp/dest", force: true, silent: true }),
+    );
+  });
+
+  it("passes auth to giget when a GitHub token is configured", async () => {
+    process.env.GH_TOKEN = "ghs_test-token";
+
+    await downloadProject("templates/default", "/tmp/dest", "v1.0.0");
+
+    expect(downloadTemplate).toHaveBeenCalledWith(
+      "gh:assistant-ui/assistant-ui/templates/default#v1.0.0",
+      expect.objectContaining({ auth: "ghs_test-token" }),
     );
   });
 });
