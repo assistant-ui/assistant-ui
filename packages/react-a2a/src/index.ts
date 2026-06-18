@@ -1,14 +1,7 @@
 // Main hook
-export {
-  useA2ARuntime,
-  useA2ATask,
-  useA2AArtifacts,
-  useA2AAgentCard,
-} from "./useA2ARuntime";
-export type {
-  UseA2ARuntimeOptions,
-  UseA2AThreadListAdapter,
-} from "./useA2ARuntime";
+export { useA2ARuntime } from "./useA2ARuntime";
+export { useA2ATask, useA2AArtifacts, useA2AAgentCard } from "./hooks";
+export type { UseA2ARuntimeOptions, UseA2AThreadListAdapter } from "./types";
 
 // Client
 export { A2AClient, A2AError } from "./A2AClient";
