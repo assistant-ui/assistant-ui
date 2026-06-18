@@ -10,7 +10,7 @@ import { transformerMetaHighlight } from "@shikijs/transformers";
 import { z } from "zod";
 import lastModified from "fumadocs-mdx/plugins/last-modified";
 import type { ShikiTransformer } from "shiki";
-import { remarkMermaidTldraw } from "./scripts/mermaid/remark";
+import { remarkMermaid } from "./lib/remark-mermaid";
 
 function transformerLineNumbers(): ShikiTransformer {
   return {
@@ -104,7 +104,7 @@ export const careers = defineCollections({
 export default defineConfig({
   plugins: [lastModified()],
   mdxOptions: {
-    remarkPlugins: [remarkMermaidTldraw],
+    remarkPlugins: [remarkMermaid],
     rehypeCodeOptions: {
       lazy: true,
       langs: ["ts", "js", "html", "tsx", "mdx", "bash"],

@@ -197,26 +197,3 @@
 :focus-visible {
   box-shadow: none;
 }
-
-.mermaid-diagram {
-  margin: 2rem auto;
-  text-align: center;
-}
-
-.mermaid-diagram img {
-  display: inline-block;
-  max-width: 100%;
-  height: auto;
-}
-
-.mermaid-diagram .mermaid-dark {
-  display: none;
-}
-
-.dark .mermaid-diagram .mermaid-light {
-  display: none;
-}
-
-.dark .mermaid-diagram .mermaid-dark {
-  display: inline-block;
-}
