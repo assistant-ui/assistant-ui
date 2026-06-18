@@ -12,7 +12,10 @@ export { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
 // Lower-level building blocks, deliberately public as advanced API and
 // documented in the docs site's OpenCode "lower-level building blocks" table.
-export { OpenCodeEventSource } from "./OpenCodeEventSource";
+export {
+  OpenCodeEventSource,
+  STREAM_RECONNECTED_EVENT_TYPE,
+} from "./OpenCodeEventSource";
 export { OpenCodeThreadController } from "./OpenCodeThreadController";
 export {
   createOpenCodeThreadState,
