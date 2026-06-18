@@ -1,10 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { RemoteThreadListThreadListRuntimeCore } from "../react/runtimes/RemoteThreadListThreadListRuntimeCore";
 import type { RemoteThreadListAdapter } from "../runtimes/remote-thread-list/types";
-import {
-  contextProvider,
-  makeAdapter,
-} from "./remote-thread-list-test-helpers";
+import { createCore, makeAdapter } from "./remote-thread-list-test-helpers";
 
 /**
  * Tests for the reactive threadId useEffect logic in useRemoteThreadListRuntime.
@@ -109,17 +105,7 @@ function createCoreWithCallback(
   adapterOverrides: Partial<RemoteThreadListAdapter> = {},
 ) {
   const adapter = makeAdapter(adapterOverrides);
-  const core = new RemoteThreadListThreadListRuntimeCore(
-    { adapter, runtimeHook: () => ({}) as never, onThreadIdChange },
-    contextProvider,
-  );
-  // startThreadRuntime blocks until a React component attaches a runtime; stub
-  // it so these non-React unit tests don't hang.
-  (
-    core as unknown as {
-      _hookManager: { startThreadRuntime: (id: string) => Promise<unknown> };
-    }
-  )._hookManager.startThreadRuntime = async () => ({});
+  const core = createCore(adapter, undefined, onThreadIdChange);
   return { core, adapter };
 }
 
