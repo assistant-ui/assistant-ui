@@ -442,11 +442,11 @@ When several interrupts are pending at once (e.g. parallel approvals), use `useL
 import { useLangChainRespondAll } from "@assistant-ui/react-langchain";
 
 const respondAll = useLangChainRespondAll();
-// `interrupts` is the list of interrupts pending at the checkpoint;
-// resume every one with the same payload:
-await respondAll(
-  Object.fromEntries(interrupts.map((i) => [i.id!, { approved: true }])),
-);
+// `responsesById` maps each pending interrupt id to its response:
+await respondAll({
+  [interruptIdA]: { approved: true },
+  [interruptIdB]: { approved: false },
+});
 ```
 
 You can also resume with a raw `Command` via `useLangChainSubmit`:
