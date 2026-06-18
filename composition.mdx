@@ -1,0 +1,260 @@
+---
+title: Composition
+description: The foundation of building modern UI components.
+type: conceptual
+summary: How to break monolithic components into smaller, focused subcomponents using the compound component pattern and naming conventions.
+prerequisites:
+  - /definitions
+related:
+  - /types
+  - /state
+  - /as-child
+  - /polymorphism
+---
+
+Composition, or composability, is the foundation of building modern UI components. It is one of the most powerful techniques for creating flexible, reusable components that can handle complex requirements without sacrificing API clarity.
+
+Instead of cramming all functionality into a single component with dozens of props, composition distributes responsibility across multiple cooperating components.
+
+Fernando gave a great talk about this at React Universe Conf 2025, where he shared his approach to rebuilding Slack's Message Composer as a composable component.
+
+<Video src="https://www.youtube.com/watch?v=4KvbVq3Eg5w" />
+
+## Making a component composable
+
+To make a component composable, you need to break it down into smaller, more focused components. For example, let's take this Accordion component:
+
+```tsx title="accordion.tsx"
+import { Accordion } from "@/components/ui/accordion";
+
+const data = [
+  {
+    title: "Accordion 1",
+    content: "Accordion 1 content",
+  },
+  {
+    title: "Accordion 2",
+    content: "Accordion 2 content",
+  },
+  {
+    title: "Accordion 3",
+    content: "Accordion 3 content",
+  },
+];
+
+return <Accordion data={data} />;
+```
+
+While this Accordion component might seem simple, it's handling too many responsibilities. It's responsible for rendering the container, trigger and content; as well as handling the accordion state and data.
+
+Customizing the styling of this component is difficult because it's tightly coupled. It likely requires global CSS overrides. Additionally, adding new functionality or tweaking the behavior requires modifying the component source code.
+
+To solve this, we can break this down into smaller, more focused components.
+
+### 1. Root Component
+
+First, let's focus on the container - the component that holds everything together i.e. the trigger and content. This container doesn't need to know about the data, but it does need to keep track of which item is open.
+
+We'll manage that state internally with `useState`, tracking the `value` of the currently open item (or `null` when every item is closed). We want this state to be accessible by child components, so let's use the Context API to share it.
+
+Finally, to allow for modification of the `div` element, we'll extend the default HTML attributes.
+
+We'll call this component the "Root" component.
+
+```tsx title="@/components/ui/accordion.tsx"
+import { createContext, useContext, useState } from "react";
+
+type AccordionContextValue = {
+  value: string | null;
+  setValue: (value: string | null) => void;
+};
+
+const AccordionContext = createContext<AccordionContextValue>({
+  value: null,
+  setValue: () => {},
+});
+
+export type AccordionRootProps = React.ComponentProps<"div">;
+
+export const Root = ({ children, ...props }: AccordionRootProps) => {
+  const [value, setValue] = useState<string | null>(null);
+
+  return (
+    <AccordionContext.Provider value={{ value, setValue }}>
+      <div {...props}>{children}</div>
+    </AccordionContext.Provider>
+  );
+};
+```
+
+### 2. Item Component
+
+The Item component wraps each item in the accordion. It takes a `value` to identify itself, derives whether it is open by comparing against the Root state, and exposes its own `open`/`toggle` to its children through a second context. This keeps each item's state isolated, so opening one item doesn't affect the others.
+
+```tsx title="@/components/ui/accordion.tsx"
+type AccordionItemContextValue = {
+  open: boolean;
+  toggle: () => void;
+};
+
+const AccordionItemContext = createContext<AccordionItemContextValue>({
+  open: false,
+  toggle: () => {},
+});
+
+export type AccordionItemProps = React.ComponentProps<"div"> & {
+  value: string;
+};
+
+export const Item = ({ value, ...props }: AccordionItemProps) => {
+  const { value: openValue, setValue } = useContext(AccordionContext);
+  const open = openValue === value;
+  const toggle = () => setValue(open ? null : value);
+
+  return (
+    <AccordionItemContext.Provider value={{ open, toggle }}>
+      <div {...props} />
+    </AccordionItemContext.Provider>
+  );
+};
+```
+
+### 3. Trigger Component
+
+The Trigger component is the element that opens the accordion when activated. It is responsible for:
+
+- Rendering as a button by default (can be customized with `asChild`)
+- Handling click events to toggle its item
+- Managing focus when accordion closes
+- Providing proper ARIA attributes
+
+Let's add this component to our Accordion component.
+
+```tsx title="@/components/ui/accordion.tsx"
+export type AccordionTriggerProps = React.ComponentProps<"button"> & {
+  asChild?: boolean;
+};
+
+export const Trigger = ({ asChild, ...props }: AccordionTriggerProps) => {
+  const { open, toggle } = useContext(AccordionItemContext);
+
+  return <button aria-expanded={open} onClick={toggle} {...props} />;
+};
+```
+
+### 4. Content Component
+
+The Content component is the element that contains the accordion content. It is responsible for:
+
+- Rendering the content when the accordion is open
+- Providing proper ARIA attributes
+
+Let's add this component to our Accordion component.
+
+```tsx title="@/components/ui/accordion.tsx"
+export type AccordionContentProps = React.ComponentProps<"div"> & {
+  asChild?: boolean;
+};
+
+export const Content = ({ asChild, ...props }: AccordionContentProps) => {
+  const { open } = useContext(AccordionItemContext);
+
+  if (!open) return null;
+
+  return <div {...props} />;
+};
+```
+
+### 5. Putting it all together
+
+Now that we have all the components, we can put them together in our original file. The Root manages the open state itself, so each Item only needs a `value` to identify it.
+
+```tsx title="accordion.tsx"
+import * as Accordion from "@/components/ui/accordion";
+
+const data = [
+  {
+    title: "Accordion 1",
+    content: "Accordion 1 content",
+  },
+  {
+    title: "Accordion 2",
+    content: "Accordion 2 content",
+  },
+  {
+    title: "Accordion 3",
+    content: "Accordion 3 content",
+  },
+];
+
+return (
+  <Accordion.Root>
+    {data.map((item) => (
+      <Accordion.Item key={item.title} value={item.title}>
+        <Accordion.Trigger>{item.title}</Accordion.Trigger>
+        <Accordion.Content>{item.content}</Accordion.Content>
+      </Accordion.Item>
+    ))}
+  </Accordion.Root>
+);
+```
+
+## Naming Conventions
+
+When building composable components, consistent naming conventions are crucial for creating intuitive and predictable APIs. Both shadcn/ui and Radix UI follow established patterns that have become the de facto standard in the React ecosystem.
+
+### Root Components
+
+The `Root` component serves as the main container that wraps all other sub-components. It typically manages shared state and context by providing a context to all child components.
+
+```tsx
+<AccordionRoot>{/* Child components */}</AccordionRoot>
+```
+
+### Interactive Elements
+
+Interactive components that trigger actions or toggle states use descriptive names:
+
+- `Trigger` - The element that initiates an action (opening, closing, toggling)
+- `Content` - The element that contains the main content being shown/hidden
+
+```tsx
+<CollapsibleTrigger>Click to expand</CollapsibleTrigger>
+<CollapsibleContent>
+  Hidden content revealed here
+</CollapsibleContent>
+```
+
+### Content Structure
+
+For components with structured content areas, use semantic names that describe their purpose:
+
+- `Header` - Top section containing titles or controls
+- `Body` - Main content area
+- `Footer` - Bottom section for actions or metadata
+
+```tsx
+<DialogHeader>
+  {/* Dialog title */}
+</DialogHeader>
+<DialogBody>
+  {/* Dialog content */}
+</DialogBody>
+<DialogFooter>
+  {/* Dialog footer */}
+</DialogFooter>
+```
+
+### Informational Components
+
+Components that provide information or context use descriptive suffixes:
+
+- `Title` - Primary heading or label
+- `Description` - Supporting text or explanatory content
+
+```tsx
+<CardTitle>Project Statistics</CardTitle>
+<CardDescription>
+  View your project's performance over time
+</CardDescription>
+```
