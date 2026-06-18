@@ -23,6 +23,7 @@ import {
   getMessageType,
 } from "./convertMessages";
 import { langChainExtras } from "./runtimeExtras";
+import { resolveForkCheckpointId } from "./resolveForkCheckpointId";
 
 export const runConfigToSubmitOptions = (
   runConfig: AppendMessage["runConfig"],
@@ -159,6 +160,30 @@ const useStreamThreadRuntime = (
             status: isError ? "error" : "success",
           },
         ],
+      });
+    },
+    onReload: async (parentId, config) => {
+      const threadId = externalId;
+      if (!threadId || parentId == null) return;
+      const s = streamRef.current;
+      const messages = s.messages as readonly LangChainBaseMessage[];
+      const parentIndex = messages.findIndex((m) => m.id === parentId);
+      if (parentIndex === -1) return;
+      let checkpointId: string | null;
+      try {
+        checkpointId = await resolveForkCheckpointId(
+          s.client,
+          threadId,
+          messages.slice(0, parentIndex + 1),
+          messagesKey,
+        );
+      } catch {
+        return;
+      }
+      if (!checkpointId) return;
+      await s.submit(null, {
+        forkFrom: checkpointId,
+        ...runConfigToSubmitOptions(config.runConfig),
       });
     },
     onCancel:

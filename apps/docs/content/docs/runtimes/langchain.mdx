@@ -684,6 +684,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Read arbitrary custom state key | No | Yes (`useLangChainState<T>(key)`) |
 | Root tool-calls projection | Via message parts | Yes (`useLangChainToolCalls`) |
 | File content parts in messages | Yes | Yes |
+| Regenerate (checkpoint fork) | Yes (`getCheckpointId`) | Yes (auto-resolved) |
 | Per-message metadata (`messages-tuple`) | Yes | Not exposed |
 | Generative UI messages (LangSmith) | Yes | Not exposed |
 | Subgraph / namespaced stream events | Yes (via `eventHandlers`) | Not exposed |
@@ -692,6 +693,8 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Cloud thread persistence | Yes | Yes |
 
 `react-langchain` is the newer, thinner wrapper. It delegates to upstream `useStream` rather than re-implementing the stream plumbing, which is why its footprint is smaller. Features absent today have not been ported, not deprecated.
+
+Regenerate works without configuration: clicking regenerate auto-resolves the server checkpoint whose persisted messages match the messages up to that point via `stream.client.threads.getHistory(threadId)`, then re-runs with `submit(null, { forkFrom })`. This works on checkpoint-enabled backends (e.g. LangGraph Cloud) and degrades gracefully — no resolvable checkpoint means the regenerate is a no-op — where `react-langgraph` instead requires a user-supplied `getCheckpointId` callback.
 
 ### Hook name mapping
 
