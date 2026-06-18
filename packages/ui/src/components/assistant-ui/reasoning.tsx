@@ -155,12 +155,7 @@ function ReasoningFade({
         "bg-[linear-gradient(to_top,var(--color-background),transparent)]",
         "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_top,hsl(var(--muted)/0.5),transparent)]",
         "fade-in-0 animate-in",
-        "group-data-[state=open]/collapsible-content:animate-out",
-        "group-data-[state=open]/collapsible-content:fade-out-0",
-        "group-data-[state=open]/collapsible-content:delay-[calc(var(--animation-duration)*0.75)]",
-        "group-data-[state=open]/collapsible-content:fill-mode-forwards",
         "duration-(--animation-duration)",
-        "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
         className,
       )}
       {...props}
@@ -183,7 +178,7 @@ function ReasoningTrigger({
     <CollapsibleTrigger
       data-slot="reasoning-trigger"
       className={cn(
-        "aui-reasoning-trigger group/trigger text-muted-foreground hover:text-foreground flex max-w-[75%] items-center gap-2 py-1 text-sm transition-colors",
+        "aui-reasoning-trigger group/trigger text-muted-foreground hover:text-foreground flex max-w-[75%] origin-left items-center gap-2 py-1.5 text-sm transition-[color,scale] active:scale-[0.98]",
         className,
       )}
       {...props}
@@ -194,7 +189,7 @@ function ReasoningTrigger({
       />
       <span
         data-slot="reasoning-trigger-label"
-        className="aui-reasoning-trigger-label-wrapper relative inline-block leading-none"
+        className="aui-reasoning-trigger-label-wrapper relative inline-block leading-none tabular-nums"
       >
         <span>Reasoning{durationText}</span>
         {active ? (
@@ -211,7 +206,7 @@ function ReasoningTrigger({
         data-slot="reasoning-trigger-chevron"
         className={cn(
           "aui-reasoning-trigger-chevron mt-0.5 size-4 shrink-0",
-          "transition-transform duration-(--animation-duration) ease-out",
+          "ease-drawer transition-transform duration-(--animation-duration) motion-reduce:transition-none",
           "group-data-[state=closed]/trigger:-rotate-90",
           "group-data-[state=open]/trigger:rotate-0",
         )}
@@ -232,7 +227,7 @@ function ReasoningContent({
       data-slot="reasoning-content"
       className={cn(
         "aui-reasoning-content text-muted-foreground relative overflow-hidden text-sm outline-none",
-        "group/collapsible-content ease-out",
+        "group/collapsible-content ease-drawer motion-reduce:animate-none",
         "data-[state=closed]:animate-collapsible-up",
         "data-[state=open]:animate-collapsible-down",
         "data-[state=closed]:fill-mode-forwards",
@@ -243,9 +238,9 @@ function ReasoningContent({
       )}
       {...props}
     >
-      {isPreview ? <ReasoningFade side="top" /> : null}
+      <ReasoningFade side="top" />
       {children}
-      <ReasoningFade />
+      {isPreview ? <ReasoningFade /> : null}
     </CollapsibleContent>
   );
 }
@@ -278,14 +273,17 @@ function ReasoningText({
       ref={scrollRef}
       data-slot="reasoning-text"
       className={cn(
-        "aui-reasoning-text relative z-0 max-h-64 overflow-y-auto ps-6 pt-2 pb-2 leading-relaxed",
-        "transform-gpu transition-[transform,opacity]",
+        "aui-reasoning-text relative z-0 max-h-64 overflow-y-auto ps-6 pt-2 pb-2 leading-relaxed text-pretty",
+        "ease-drawer transform-gpu transition-[transform,opacity]",
+        "motion-reduce:animate-none",
         "group-data-[state=open]/collapsible-content:animate-in",
         "group-data-[state=closed]/collapsible-content:animate-out",
         "group-data-[state=open]/collapsible-content:fade-in-0",
         "group-data-[state=closed]/collapsible-content:fade-out-0",
         "group-data-[state=open]/collapsible-content:slide-in-from-top-4",
         "group-data-[state=closed]/collapsible-content:slide-out-to-top-4",
+        "group-data-[state=open]/collapsible-content:blur-in-[2px]",
+        "group-data-[state=closed]/collapsible-content:blur-out-[2px]",
         "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
         "group-data-[state=closed]/collapsible-content:duration-(--animation-duration)",
         className,
