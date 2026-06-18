@@ -91,3 +91,76 @@ describe("threadId reactive effect", () => {
     expect(switchToThread).toHaveBeenCalledTimes(3);
   });
 });
+
+/**
+ * Tests for the onThreadIdChange notification logic in
+ * RemoteThreadListThreadListRuntimeCore._notifyThreadIdChange.
+ *
+ * The core emits the active thread's settled remote ID, deduping against the
+ * last value so the same ID is never emitted twice, and never surfacing the
+ * transient optimistic local ID (remote ID is undefined until initialized).
+ * We mirror the dedup logic here.
+ */
+function makeNotifier(onThreadIdChange: (id: string | undefined) => void) {
+  let last: string | undefined = undefined;
+  return (remoteId: string | undefined) => {
+    if (last === remoteId) return;
+    last = remoteId;
+    onThreadIdChange(remoteId);
+  };
+}
+
+describe("onThreadIdChange notification", () => {
+  it("does not emit when a new thread stays optimistic (no remote ID)", () => {
+    const cb = vi.fn();
+    const notify = makeNotifier(cb);
+
+    // initial new thread: remote ID undefined, matches initial last → no emit
+    notify(undefined);
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("emits the remote ID once the thread is initialized", () => {
+    const cb = vi.fn();
+    const notify = makeNotifier(cb);
+
+    notify(undefined); // optimistic new thread
+    notify("remote-1"); // initialize resolves
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith("remote-1");
+  });
+
+  it("dedupes repeated notifications for the same remote ID", () => {
+    const cb = vi.fn();
+    const notify = makeNotifier(cb);
+
+    notify("remote-1");
+    notify("remote-1");
+    notify("remote-1");
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith("remote-1");
+  });
+
+  it("emits undefined when switching from a thread to a new thread", () => {
+    const cb = vi.fn();
+    const notify = makeNotifier(cb);
+
+    notify("remote-1"); // on an existing thread
+    notify(undefined); // switched to a fresh new thread
+
+    expect(cb).toHaveBeenLastCalledWith(undefined);
+    expect(cb).toHaveBeenCalledTimes(2);
+  });
+
+  it("emits each distinct remote ID across navigation", () => {
+    const cb = vi.fn();
+    const notify = makeNotifier(cb);
+
+    notify("remote-1");
+    notify("remote-2");
+    notify("remote-1");
+
+    expect(cb.mock.calls).toEqual([["remote-1"], ["remote-2"], ["remote-1"]]);
+  });
+});

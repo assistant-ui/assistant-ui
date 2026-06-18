@@ -1,4 +1,11 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  useEffectEvent,
+} from "react";
 import { BaseAssistantRuntimeCore } from "../../runtime/base/base-assistant-runtime-core";
 import { AssistantRuntimeImpl } from "../../runtime/api/assistant-runtime";
 import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/types";
@@ -51,12 +58,17 @@ export const useRemoteThreadListRuntime = (
     return runtimeHookRef.current();
   }, []);
 
+  const onThreadIdChange = useEffectEvent((threadId: string | undefined) => {
+    options.onThreadIdChange?.(threadId);
+  });
+
   const stableOptions = useMemo<RemoteThreadListOptions>(
     () => ({
       adapter: options.adapter,
       allowNesting: options.allowNesting,
       initialThreadId: startThreadIdRef.current,
       runtimeHook: stableRuntimeHook,
+      onThreadIdChange,
     }),
     [options.adapter, options.allowNesting, stableRuntimeHook],
   );

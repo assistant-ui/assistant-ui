@@ -163,7 +163,10 @@ export class RemoteThreadListThreadListRuntimeCore
     super();
     this.contextProvider = contextProvider;
 
-    this._state.subscribe(() => this._notifySubscribers());
+    this._state.subscribe(() => {
+      this._notifySubscribers();
+      this._notifyThreadIdChange();
+    });
     this._hookManager = new RemoteThreadListHookInstanceManager(
       options.runtimeHook,
       this,
@@ -251,6 +254,22 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public get mainThreadId(): string {
     return this._mainThreadId;
+  }
+
+  // The settled remote ID of the active thread, or undefined while it is still
+  // a new/optimistic thread. This is the value surfaced to `onThreadIdChange`.
+  private get _mainThreadRemoteId(): string | undefined {
+    if (this._mainThreadId === undefined) return undefined;
+    return getThreadData(this._state.value, this._mainThreadId)?.remoteId;
+  }
+
+  private _lastNotifiedThreadId: string | undefined = undefined;
+
+  private _notifyThreadIdChange() {
+    const threadId = this._mainThreadRemoteId;
+    if (this._lastNotifiedThreadId === threadId) return;
+    this._lastNotifiedThreadId = threadId;
+    this._options.onThreadIdChange?.(threadId);
   }
 
   public getMainThreadRuntimeCore() {
@@ -351,6 +370,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._mainThreadId = data.id;
 
     this._notifySubscribers();
+    this._notifyThreadIdChange();
   }
 
   public async switchToNewThread(): Promise<void> {
