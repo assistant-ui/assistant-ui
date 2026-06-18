@@ -31,7 +31,7 @@ import type {
 } from "./types";
 import { useAdkMessages } from "./useAdkMessages";
 import { convertAdkMessage } from "./convertAdkMessages";
-import { symbolAdkRuntimeExtras, type AdkRuntimeExtras } from "./hooks";
+import { adkExtras } from "./adkExtras";
 import { v4 as uuidv4 } from "uuid";
 
 /** @internal — exported for unit tests. */
@@ -239,8 +239,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     unstable_enableToolInvocations: true,
     setToolStatuses,
     adapters: { attachments, dictation, feedback, speech, voice },
-    extras: {
-      [symbolAdkRuntimeExtras]: true,
+    extras: adkExtras.provide({
       agentInfo,
       stateDelta,
       artifactDelta,
@@ -250,7 +249,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       escalated,
       messageMetadata,
       send: handleSendMessage,
-    } satisfies AdkRuntimeExtras,
+    }),
     onNew: async (msg) => {
       const cancellations =
         autoCancelPendingToolCalls !== false
