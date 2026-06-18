@@ -75,6 +75,45 @@ jobs:
       - name: Verify templates match packages/ui source
         run: bash scripts/sync-templates.sh
 
+  docs-generated:
+    name: Docs Reference Up-to-date
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Regenerate reference docs
+        run: pnpm --filter @assistant-ui/docs generate:all
+
+      - name: Verify generated docs are committed
+        run: |
+          if ! git diff --quiet -- \
+            apps/docs/generated \
+            "apps/docs/content/docs/(reference)" \
+            apps/docs/content/docs/primitives; then
+            echo "::error::Generated reference docs are out of date. Run 'pnpm --filter @assistant-ui/docs generate:all' and commit the result."
+            git --no-pager diff -- \
+              apps/docs/generated \
+              "apps/docs/content/docs/(reference)" \
+              apps/docs/content/docs/primitives
+            exit 1
+          fi
+
   build:
     name: Build Changed Packages
     runs-on: blacksmith-4vcpu-ubuntu-2404
