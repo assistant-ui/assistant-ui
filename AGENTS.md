@@ -44,3 +44,15 @@ Assume other coding agents are working alongside you. Before editing, check the 
 `@assistant-ui/ui` contains shadcn-style components that get copied into user projects. We use them directly in the monorepo to avoid duplication.
 
 There is an ongoing migration from the legacy runtime architecture to a tap-only architecture.
+
+## Adapter orchestration
+
+A framework adapter (`@assistant-ui/react-*`) maps a provider onto a core runtime through one `use<Name>Runtime` entry hook, accessor hooks in `hooks.ts`, and pure converters. The rule of thumb: the runtime file orchestrates, pure modules convert, the controller (if any) reduces, hooks read.
+
+- **Core runtime.** Build on `useExternalStoreRuntime` (messages derived from an external source) or `useLocalRuntime` plus a `ChatModelAdapter` (no provider-side thread state, like `react-data-stream`), and wrap it in `useRemoteThreadListRuntime` for multi-thread support.
+- **State exposure.** Expose runtime state to accessor hooks with `createRuntimeExtras` from `@assistant-ui/core/internal`, not a hand-rolled `Symbol` brand and guard.
+- **Standard files.** `use<Name>Runtime.ts` (orchestration only), `hooks.ts` (accessor and action hooks), a pure `convertMessages.ts` (both directions), and `types.ts`; add a `<Name>ThreadController.ts` plus a pure `reduce<Name>ThreadState` reducer when the adapter owns thread state, and a `./server` or `./node` subpath entry when the protocol owns the wire.
+- **Tests.** Colocate them beside each module, covering the converter both ways, the reducer or controller, and each accessor hook.
+- **Do not introduce.** A state holder named `*ThreadRuntimeCore`, a `notifyUpdate` plus version-counter re-render hack (bridge non-React state with `useSyncExternalStore`), `Object.create` method grafting, or monkeypatching the caller's objects. The legacy `react-a2a` and `react-ag-ui` predate this and are being migrated.
+
+Keep provider-driven choices flexible: the core-primitive choice, thin wrapper vs accumulator vs controller, bespoke transports, HITL richness, and thread-list depth. `@assistant-ui/react-langchain` is the reference for the external-store plus converter plus `createRuntimeExtras` shape.

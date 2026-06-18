@@ -4,6 +4,8 @@ A big welcome and thank you for considering contributing to assistant-ui! It’s
 
 You can contribute by opening an issue, or by making a pull request. For large pull requests, we ask that you open an issue first to discuss the changes before submitting a pull request.
 
+Project conventions (architecture, package layout, changesets, and how to author a runtime adapter) live in [`AGENTS.md`](./AGENTS.md); please read and follow them.
+
 ### Setting up your environment
 
 You need to have Node.js installed on your computer. We develop with the latest LTS version of Node.js.
