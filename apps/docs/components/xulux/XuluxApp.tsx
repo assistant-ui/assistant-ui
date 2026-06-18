@@ -85,16 +85,33 @@ function XuluxRuntimeProvider({
     const baseUrl =
       process.env.NEXT_PUBLIC_XULUX_ASSISTANT_BASE_URL ??
       process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL;
-    if (!baseUrl) return null;
-    return new AssistantCloud({ baseUrl, anonymous: true });
+    if (!baseUrl) {
+      throw new Error(
+        "NEXT_PUBLIC_XULUX_ASSISTANT_BASE_URL or NEXT_PUBLIC_ASSISTANT_BASE_URL must be set",
+      );
+    }
+    return new AssistantCloud({
+      baseUrl,
+      anonymous: true,
+      telemetry: {
+        beforeReport: (report) => ({
+          ...report,
+          metadata: {
+            ...(report.metadata ?? {}),
+            app: "xulux_playground",
+          },
+        }),
+      },
+    });
   }, []);
 
   const adapter = useMemo(
     () =>
       createXuluxLocalThreadListAdapter({
         getCurrentSessionId: () => sessionIdRef.current,
+        cloud: assistantCloud,
       }),
-    [],
+    [assistantCloud],
   );
 
   const transport = useMemo(
@@ -131,7 +148,6 @@ function XuluxRuntimeProvider({
       return useChatRuntime({
         transport,
         isSendDisabled: limitBlock != null,
-        ...(assistantCloud ? { cloud: assistantCloud } : {}),
       });
     },
   });

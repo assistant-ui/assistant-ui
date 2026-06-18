@@ -24,20 +24,9 @@ export type XuluxThreadCustom = {
 
 export type XuluxStoredThread = {
   remoteId: string;
+  /** The sessionId used to correlate with /api/xulux/chat. Stored as externalId on cloud thread. */
   externalId?: string;
   status: "regular" | "archived";
   title?: string;
   custom: XuluxThreadCustom;
-};
-
-export type XuluxStoredMessageRow = {
-  id: string;
-  parent_id: string | null;
-  format: string;
-  content: Record<string, unknown>;
-};
-
-export type XuluxStoredMessageRepository = {
-  headId?: string | null;
-  messages: XuluxStoredMessageRow[];
 };

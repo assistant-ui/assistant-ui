@@ -22,7 +22,7 @@ function useIsSmallScreen(): boolean {
     () => false,
   );
 }
-import { useAui, useAuiState } from "@assistant-ui/react";
+import { useAui, useAuiState, type ThreadMessage } from "@assistant-ui/react";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { Button } from "@/components/ui/button";
 import { XuluxThread } from "../chat/XuluxThread";
@@ -36,7 +36,6 @@ import { XuluxLandingPage } from "../landing/XuluxLandingPage";
 import { TemplatesModal } from "../landing/TemplatesModal";
 import { XuluxHeaderActions } from "./XuluxHeaderActions";
 import {
-  readXuluxMessages,
   updateXuluxPendingUserMessage,
   updateXuluxThreadContext,
   updateXuluxThreadStatus,
@@ -156,12 +155,13 @@ export function XuluxShell({
     storedThreads.find((thread) => thread.remoteId === currentRemoteId) ?? null;
   const isInterrupted =
     activeStoredThread?.custom.xuluxStatus === "interrupted";
+  const runtimeMessages = useAuiState((s) => s.thread.messages);
   const interruptedUserMessage = useMemo(() => {
     if (!isInterrupted || !currentRemoteId) return null;
     const pending = activeStoredThread?.custom.pendingUserMessage?.trim();
     if (pending) return pending;
-    return getLatestSavedUserMessage(currentRemoteId);
-  }, [activeStoredThread, currentRemoteId, isInterrupted]);
+    return getLatestUserTextFromMessages(runtimeMessages);
+  }, [activeStoredThread, currentRemoteId, isInterrupted, runtimeMessages]);
 
   const handleRetryInterrupted = useCallback(() => {
     if (!interruptedUserMessage) return;
@@ -402,33 +402,19 @@ function fromCanvasSnapshot(
   };
 }
 
-function getLatestSavedUserMessage(remoteId: string): string | null {
-  const repository = readXuluxMessages(remoteId);
-  for (let index = repository.messages.length - 1; index >= 0; index -= 1) {
-    const row = repository.messages[index];
-    if (row?.format !== "ai-sdk/v6") continue;
-    if (row.content.role !== "user") continue;
-
-    const text = getTextFromMessageContent(row.content);
+function getLatestUserTextFromMessages(
+  messages: readonly ThreadMessage[],
+): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg?.role !== "user") continue;
+    const text = msg.content
+      .flatMap((part) => (part.type === "text" ? [part.text] : []))
+      .join("\n")
+      .trim();
     if (text) return text;
   }
   return null;
-}
-
-function getTextFromMessageContent(content: Record<string, unknown>): string {
-  const parts = content.parts;
-  if (!Array.isArray(parts)) return "";
-
-  return parts
-    .flatMap((part) => {
-      if (!part || typeof part !== "object") return [];
-      const typedPart = part as Record<string, unknown>;
-      return typedPart.type === "text" && typeof typedPart.text === "string"
-        ? [typedPart.text]
-        : [];
-    })
-    .join("\n")
-    .trim();
 }
 
 function previewText(text: string): string {

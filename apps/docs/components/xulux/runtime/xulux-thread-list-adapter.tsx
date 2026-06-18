@@ -1,29 +1,21 @@
 "use client";
 
 import { createAssistantStream } from "assistant-stream";
-import { type FC, type PropsWithChildren, useMemo } from "react";
+import { type FC, type PropsWithChildren, useMemo, useRef } from "react";
 import {
+  type AssistantCloud,
   RuntimeAdapterProvider,
-  useAui,
-  type MessageFormatAdapter,
   type RemoteThreadListAdapter,
-  type ThreadHistoryAdapter,
   type ThreadMessage,
 } from "@assistant-ui/react";
+import { useAssistantCloudThreadHistoryAdapter } from "@assistant-ui/core/react";
 import {
-  deleteXuluxMessages,
   findXuluxThread,
-  readXuluxMessages,
   readXuluxThreads,
   updateXuluxThread,
-  writeXuluxMessages,
   writeXuluxThreads,
 } from "./xulux-local-storage";
-import type {
-  XuluxStoredMessageRow,
-  XuluxStoredThread,
-  XuluxThreadCustom,
-} from "./types";
+import type { XuluxStoredThread, XuluxThreadCustom } from "./types";
 
 function getTextFromMessages(messages: readonly ThreadMessage[]): string {
   for (const message of messages) {
@@ -42,100 +34,30 @@ function titleFromMessages(messages: readonly ThreadMessage[]): string {
   return text.length > 44 ? `${text.slice(0, 41)}...` : text;
 }
 
-class XuluxLocalHistoryAdapter implements ThreadHistoryAdapter {
-  constructor(private aui: ReturnType<typeof useAui>) {}
-
-  async load() {
-    return { messages: [] };
-  }
-
-  async append() {}
-
-  withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
-    fmt: MessageFormatAdapter<TMessage, TStorageFormat>,
-  ) {
-    const adapter = this;
-    return {
-      async load() {
-        const remoteId = adapter.aui.threadListItem().getState().remoteId;
-        if (!remoteId) return { headId: null, messages: [] };
-        const repository = readXuluxMessages(remoteId);
-        return {
-          headId: repository.headId ?? null,
-          messages: repository.messages
-            .filter((row) => row.format === fmt.format)
-            .map((row) =>
-              fmt.decode({
-                id: row.id,
-                parent_id: row.parent_id,
-                format: row.format,
-                content: row.content as TStorageFormat,
-              }),
-            ),
-        };
-      },
-      async append(item: { parentId: string | null; message: TMessage }) {
-        const { remoteId } = await adapter.aui.threadListItem().initialize();
-        const repository = readXuluxMessages(remoteId);
-        const id = fmt.getId(item.message);
-        const row: XuluxStoredMessageRow = {
-          id,
-          parent_id: item.parentId,
-          format: fmt.format,
-          content: fmt.encode(item),
-        };
-        const index = repository.messages.findIndex(
-          (message) => message.id === id,
-        );
-        const messages =
-          index === -1
-            ? [...repository.messages, row]
-            : repository.messages.map((message, messageIndex) =>
-                messageIndex === index ? row : message,
-              );
-        writeXuluxMessages(remoteId, { headId: id, messages });
-      },
-      async update(
-        item: { parentId: string | null; message: TMessage },
-        localMessageId: string,
-      ) {
-        const remoteId = adapter.aui.threadListItem().getState().remoteId;
-        if (!remoteId) return;
-        const repository = readXuluxMessages(remoteId);
-        const row: XuluxStoredMessageRow = {
-          id: localMessageId,
-          parent_id: item.parentId,
-          format: fmt.format,
-          content: fmt.encode(item),
-        };
-        writeXuluxMessages(remoteId, {
-          headId: repository.headId ?? null,
-          messages: repository.messages.map((message) =>
-            message.id === localMessageId ? row : message,
-          ),
-        });
-      },
-    };
-  }
-}
-
-function XuluxLocalHistoryProvider({ children }: PropsWithChildren) {
-  const aui = useAui();
-  const history = useMemo(() => new XuluxLocalHistoryAdapter(aui), [aui]);
-  const adapters = useMemo(() => ({ history }), [history]);
-  return (
-    <RuntimeAdapterProvider adapters={adapters}>
-      {children}
-    </RuntimeAdapterProvider>
-  );
+function createXuluxCloudHistoryProvider(
+  cloud: AssistantCloud,
+): FC<PropsWithChildren> {
+  return function XuluxCloudHistoryProvider({ children }) {
+    const cloudRef = useRef(cloud);
+    cloudRef.current = cloud;
+    const history = useAssistantCloudThreadHistoryAdapter(cloudRef);
+    const adapters = useMemo(() => ({ history }), [history]);
+    return (
+      <RuntimeAdapterProvider adapters={adapters}>
+        {children}
+      </RuntimeAdapterProvider>
+    );
+  };
 }
 
 export function createXuluxLocalThreadListAdapter({
   getCurrentSessionId,
+  cloud,
 }: {
   getCurrentSessionId: () => string;
+  cloud: AssistantCloud;
 }): RemoteThreadListAdapter {
-  const Provider: FC<PropsWithChildren> = XuluxLocalHistoryProvider;
+  const Provider = createXuluxCloudHistoryProvider(cloud);
 
   const upsertThread = (
     remoteId: string,
@@ -170,8 +92,17 @@ export function createXuluxLocalThreadListAdapter({
     async initialize() {
       const sessionId = getCurrentSessionId();
       const now = Date.now();
-      upsertThread(sessionId, (existing) => ({
-        remoteId: sessionId,
+
+      // Create a cloud thread — its id becomes our remoteId
+      const { thread_id: cloudThreadId } = await cloud.threads.create({
+        last_message_at: new Date(),
+        external_id: sessionId,
+        metadata: { source: "xulux_playground" },
+      });
+
+      upsertThread(cloudThreadId, (existing) => ({
+        remoteId: cloudThreadId,
+        externalId: sessionId,
         status: existing?.status ?? "regular",
         custom: {
           xuluxStatus: existing?.custom.xuluxStatus ?? "idle",
@@ -187,12 +118,12 @@ export function createXuluxLocalThreadListAdapter({
             ? { canvas: existing.custom.canvas }
             : {}),
         } satisfies XuluxThreadCustom,
-        ...(existing?.externalId !== undefined
-          ? { externalId: existing.externalId }
-          : {}),
-        ...(existing?.title !== undefined ? { title: existing.title } : {}),
       }));
-      return { remoteId: sessionId, externalId: undefined };
+
+      return {
+        remoteId: cloudThreadId,
+        externalId: sessionId,
+      };
     },
     async rename(remoteId, title) {
       updateXuluxThread(remoteId, (thread) => ({
@@ -219,7 +150,6 @@ export function createXuluxLocalThreadListAdapter({
       writeXuluxThreads(
         readXuluxThreads().filter((thread) => thread.remoteId !== remoteId),
       );
-      deleteXuluxMessages(remoteId);
     },
     async fetch(remoteId) {
       const thread = findXuluxThread(remoteId);

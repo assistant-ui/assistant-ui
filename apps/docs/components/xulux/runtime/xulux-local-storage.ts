@@ -3,7 +3,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 import type {
   XuluxCanvasSnapshot,
-  XuluxStoredMessageRepository,
   XuluxStoredThread,
   XuluxThreadCustom,
   XuluxThreadStatus,
@@ -12,7 +11,6 @@ import type { SelectedTemplateContext } from "../XuluxApp";
 
 const PREFIX = "xulux:";
 const THREADS_KEY = `${PREFIX}threads`;
-const MESSAGES_PREFIX = `${PREFIX}messages:`;
 const STORAGE_EVENT = "xulux-storage";
 const EMPTY_THREADS: XuluxStoredThread[] = [];
 
@@ -28,16 +26,6 @@ function notify() {
   window.dispatchEvent(new Event(STORAGE_EVENT));
 }
 
-function readJson<T>(key: string, fallback: T): T {
-  if (!isBrowser()) return fallback;
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
 function writeJson<T>(key: string, value: T) {
   if (!isBrowser()) return;
   try {
@@ -48,20 +36,6 @@ function writeJson<T>(key: string, value: T) {
   } catch {
     // Ignore quota and private-mode write failures.
   }
-}
-
-function removeItem(key: string) {
-  if (!isBrowser()) return;
-  try {
-    window.localStorage.removeItem(key);
-    notify();
-  } catch {
-    // Ignore storage failures.
-  }
-}
-
-function messagesKey(remoteId: string) {
-  return `${MESSAGES_PREFIX}${remoteId}`;
 }
 
 function normalizeThread(thread: XuluxStoredThread): XuluxStoredThread {
@@ -112,26 +86,6 @@ function normalizePersistedThreads() {
 
 export function writeXuluxThreads(threads: XuluxStoredThread[]) {
   writeJson(THREADS_KEY, threads);
-}
-
-export function readXuluxMessages(
-  remoteId: string,
-): XuluxStoredMessageRepository {
-  return readJson<XuluxStoredMessageRepository>(messagesKey(remoteId), {
-    headId: null,
-    messages: [],
-  });
-}
-
-export function writeXuluxMessages(
-  remoteId: string,
-  repository: XuluxStoredMessageRepository,
-) {
-  writeJson(messagesKey(remoteId), repository);
-}
-
-export function deleteXuluxMessages(remoteId: string) {
-  removeItem(messagesKey(remoteId));
 }
 
 export function findXuluxThread(remoteId: string): XuluxStoredThread | null {
