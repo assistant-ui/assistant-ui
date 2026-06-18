@@ -1,5 +1,21 @@
-import type { MessageStatus } from "@assistant-ui/core";
+import type {
+  MessageStatus,
+  AttachmentAdapter,
+  DictationAdapter,
+  ExternalStoreSharedOptions,
+  FeedbackAdapter,
+  RealtimeVoiceAdapter,
+  RemoteThreadListAdapter,
+  SpeechSynthesisAdapter,
+} from "@assistant-ui/core";
+import type { DataMessagePartComponent } from "@assistant-ui/core/react";
+import type { AssistantCloud } from "assistant-cloud";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import type {
+  LangGraphInterruptState,
+  LangGraphSendMessageConfig,
+  LangGraphStreamCallback,
+} from "./useLangGraphMessages";
 
 export type LangChainToolCallChunk = {
   index: number;
@@ -219,3 +235,139 @@ export type OnCustomEventCallback = (
   type: string,
   data: unknown,
 ) => void | Promise<void>;
+
+/** Private state and actions `useLangGraphRuntime` exposes through `thread.extras`. */
+export type LangGraphRuntimeExtras = {
+  send: (
+    messages: LangChainMessage[],
+    config: LangGraphSendMessageConfig,
+  ) => Promise<void>;
+  interrupt: LangGraphInterruptState | undefined;
+  messageMetadata: Map<string, LangGraphTupleMetadata>;
+  uiMessages: readonly UIMessage[];
+};
+
+export type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
+  autoCancelPendingToolCalls?: boolean | undefined;
+  /**
+   * When true, renders the Cancel button in the composer and aborts the
+   * `AbortController` whose signal is exposed to your `stream` callback
+   * as `config.abortSignal`.
+   */
+  unstable_allowCancellation?: boolean | undefined;
+  /**
+   * Opt in to message queuing: a message sent during a run is held in
+   * `composer.queue` and sent once the run settles. Steering runs it next.
+   */
+  unstable_enableMessageQueue?: boolean | undefined;
+  stream: LangGraphStreamCallback<LangChainMessage>;
+  /**
+   * State key under which LangGraph's `typed_ui` writes Generative UI
+   * messages in the graph state. Must match the `stateKey` option passed to
+   * `typedUi(config, { stateKey })` on the server. Defaults to `"ui"`.
+   */
+  uiStateKey?: string;
+  /**
+   * Resolves a checkpoint ID for a given thread and message history.
+   * When provided, enables message editing (onEdit) and regeneration (onReload).
+   * The checkpoint ID is passed to the stream callback for server-side forking.
+   */
+  getCheckpointId?: (
+    threadId: string,
+    parentMessages: LangChainMessage[],
+  ) => Promise<string | null>;
+  load?: (
+    threadId: string,
+    config?: { signal: AbortSignal },
+  ) => Promise<{
+    messages: LangChainMessage[];
+    interrupts?: LangGraphInterruptState[];
+    /**
+     * Persisted LangSmith Generative UI messages for this thread, typically
+     * read from `state.values[uiStateKey]` returned by the LangGraph SDK's
+     * `client.threads.getState()`. Defaults to an empty list.
+     */
+    uiMessages?: UIMessage[];
+  }>;
+  create?: () => Promise<{
+    externalId: string;
+  }>;
+  delete?: (threadId: string) => Promise<void>;
+  adapters?:
+    | {
+        attachments?: AttachmentAdapter;
+        speech?: SpeechSynthesisAdapter;
+        dictation?: DictationAdapter;
+        voice?: RealtimeVoiceAdapter;
+        feedback?: FeedbackAdapter;
+      }
+    | undefined;
+  eventHandlers?:
+    | {
+        /**
+         * Called for each message chunk received from messages-tuple streaming,
+         * with the chunk and its associated metadata
+         */
+        onMessageChunk?: OnMessageChunkCallback;
+        /**
+         * Called when top-level values events are received from the LangGraph stream.
+         * Subgraph values are routed to `onSubgraphValues`.
+         */
+        onValues?: OnValuesEventCallback;
+        /**
+         * Called when top-level updates events are received from the LangGraph stream.
+         * Subgraph updates are routed to `onSubgraphUpdates`.
+         */
+        onUpdates?: OnUpdatesEventCallback;
+        /** Called when a subgraph (namespaced) values event is received. */
+        onSubgraphValues?: OnSubgraphValuesEventCallback;
+        /** Called when a subgraph (namespaced) updates event is received. */
+        onSubgraphUpdates?: OnSubgraphUpdatesEventCallback;
+        /**
+         * Called when metadata is received from the LangGraph stream
+         */
+        onMetadata?: OnMetadataEventCallback;
+        /**
+         * Called when informational messages are received from the LangGraph stream
+         */
+        onInfo?: OnInfoEventCallback;
+        /**
+         * Called when errors occur during LangGraph stream processing.
+         * Fires for both top-level and subgraph errors; subgraph errors
+         * additionally trigger `onSubgraphError` with the namespace.
+         */
+        onError?: OnErrorEventCallback;
+        /** Called when a subgraph (namespaced) error event is received, in addition to `onError`. */
+        onSubgraphError?: OnSubgraphErrorEventCallback;
+        /**
+         * Called when custom events are received from the LangGraph stream
+         */
+        onCustomEvent?: OnCustomEventCallback;
+      }
+    | undefined;
+  /**
+   * Register data renderers for Generative UI components.
+   *
+   * `renderers` maps a `ui_message` name to a static component.
+   * `fallback` handles any name without a static match — use this for
+   * dynamic loading (e.g. LangSmith's `LoadExternalComponent`).
+   */
+  uiComponents?:
+    | {
+        fallback?: DataMessagePartComponent;
+        renderers?: Record<string, DataMessagePartComponent>;
+      }
+    | undefined;
+  cloud?: AssistantCloud | undefined;
+  /**
+   * A `RemoteThreadListAdapter` to use instead of the cloud adapter. Provide
+   * this to back the thread list with a custom store (e.g. LangGraph
+   * `client.threads.search()`) so pre-existing LangGraph thread ids appear in
+   * the UI and can be switched between without assistant-cloud.
+   *
+   * When provided, `cloud`, `create`, and `delete` are ignored — the adapter
+   * owns the full thread list lifecycle. The `externalId` returned by the
+   * adapter's `list()` / `initialize()` is what the `load` callback receives.
+   */
+  unstable_threadListAdapter?: RemoteThreadListAdapter | undefined;
+};

@@ -7,7 +7,8 @@ import type {
 } from "@assistant-ui/core";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import { useLangGraphRuntime, useLangGraphSend } from "./useLangGraphRuntime";
+import { useLangGraphRuntime } from "./useLangGraphRuntime";
+import { useLangGraphSend } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
 import type { LangChainMessage } from "./types";
 import type { LangGraphInterruptState } from "./useLangGraphMessages";
