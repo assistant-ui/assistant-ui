@@ -98,19 +98,14 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Regenerate reference docs
-        run: pnpm --filter @assistant-ui/docs generate:all
+        run: pnpm --filter @assistant-ui/docs generate:reference-docs
 
       - name: Verify generated docs are committed
         run: |
-          if ! git diff --quiet -- \
-            apps/docs/generated \
-            "apps/docs/content/docs/(reference)" \
-            apps/docs/content/docs/primitives; then
-            echo "::error::Generated reference docs are out of date. Run 'pnpm --filter @assistant-ui/docs generate:all' and commit the result."
-            git --no-pager diff -- \
-              apps/docs/generated \
-              "apps/docs/content/docs/(reference)" \
-              apps/docs/content/docs/primitives
+          git add --intent-to-add "apps/docs/content/docs/(reference)"
+          if ! git diff --quiet -- "apps/docs/content/docs/(reference)"; then
+            echo "::error::Generated reference docs are out of date. Run 'pnpm --filter @assistant-ui/docs generate:reference-docs' and commit the result."
+            git --no-pager diff -- "apps/docs/content/docs/(reference)"
             exit 1
           fi
 
