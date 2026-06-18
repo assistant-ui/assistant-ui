@@ -26,7 +26,7 @@ export const createRuntimeExtras = <T>(
   const assert = (extras: unknown): T => {
     if (!is(extras))
       throw new Error(
-        `This hook can only be used inside the ${runtimeName} runtime.`,
+        `The current thread is not backed by the ${runtimeName} runtime.`,
       );
     return extras;
   };
