@@ -1,5 +1,11 @@
 # @assistant-ui/react-langchain
 
+## 0.0.16
+
+### Patch Changes
+
+- [#4447](https://github.com/assistant-ui/assistant-ui/pull/4447) [`e3cdb10`](https://github.com/assistant-ui/assistant-ui/commit/e3cdb100a864ad020f9e3ba413f7ab6e86673c75) - feat(react-langchain): resume interrupts via useLangChainRespond ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.0.15
 
 ### Patch Changes
