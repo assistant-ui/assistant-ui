@@ -439,14 +439,19 @@ function InterruptPrompt() {
 When several interrupts are pending at once (e.g. parallel approvals), use `useLangChainRespondAll()` to resume them all in one run. Sequential `useLangChainRespond` calls can't, since the first resume starts a run and strands the rest.
 
 ```tsx
-import { useLangChainRespondAll } from "@assistant-ui/react-langchain";
+import {
+  useLangChainInterrupts,
+  useLangChainRespondAll,
+} from "@assistant-ui/react-langchain";
 
+const interrupts = useLangChainInterrupts();
 const respondAll = useLangChainRespondAll();
-// `responsesById` maps each pending interrupt id to its response:
-await respondAll({
-  [interruptIdA]: { approved: true },
-  [interruptIdB]: { approved: false },
-});
+// resume every pending interrupt with the same payload:
+await respondAll(
+  Object.fromEntries(
+    interrupts.flatMap((i) => (i.id ? [[i.id, { approved: true }]] : [])),
+  ),
+);
 ```
 
 You can also resume with a raw `Command` via `useLangChainSubmit`:
@@ -707,6 +712,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | _(none)_ | `useLangChainToolCalls` | New — root tool calls assembled by `useStream`. |
 | _(none)_ | `useLangChainError()` | New — reads the last run/hydration error reactively. |
 | _(none)_ | `useLangChainRespondAll` | Resume multiple interrupts at one checkpoint (`stream.respondAll`). |
+| _(none)_ | `useLangChainInterrupts` | New — every interrupt pending at the checkpoint, each with `id` and `value`. |
 
 ## Related
 

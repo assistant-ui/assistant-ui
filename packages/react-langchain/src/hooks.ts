@@ -7,11 +7,24 @@ import type { LangChainBaseMessage } from "./types";
 
 const EMPTY_TOOL_CALLS: readonly AssembledToolCall[] = [];
 
+const EMPTY_INTERRUPTS: readonly { id?: string; value?: unknown }[] = [];
+
 /**
  * Read the current LangGraph interrupt state from the runtime extras.
  */
 export const useLangChainInterruptState = () =>
   langChainExtras.use((e) => e.interrupt, undefined);
+
+/**
+ * Read every interrupt pending at the current checkpoint, each with `id`
+ * and `value`. Defaults to an empty array. Pair with `useLangChainRespondAll`
+ * (keyed by interrupt id) to resolve several at once.
+ */
+export const useLangChainInterrupts = () =>
+  langChainExtras.use(
+    (e) => e.interrupts ?? EMPTY_INTERRUPTS,
+    EMPTY_INTERRUPTS,
+  );
 
 /** Read the last run/hydration error from the runtime extras. */
 export const useLangChainError = () =>

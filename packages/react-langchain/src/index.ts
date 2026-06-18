@@ -2,6 +2,7 @@ export { useStreamRuntime } from "./useStreamRuntime";
 
 export {
   useLangChainError,
+  useLangChainInterrupts,
   useLangChainInterruptState,
   useLangChainRespond,
   useLangChainRespondAll,

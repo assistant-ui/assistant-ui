@@ -61,7 +61,7 @@ export type LangChainBaseMessage = {
 
 export type LangChainRuntimeExtras = {
   interrupt: { value?: unknown } | undefined;
-  interrupts: readonly { value?: unknown }[];
+  interrupts: readonly { id?: string; value?: unknown }[];
   toolCalls: readonly AssembledToolCall[];
   error: unknown;
   submit: (
