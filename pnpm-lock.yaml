@@ -4183,6 +4183,12 @@ importers:
 
   packages/react-pi:
     dependencies:
+      '@assistant-ui/core':
+        specifier: ^0.2.18
+        version: link:../core
+      '@assistant-ui/store':
+        specifier: ^0.2.18
+        version: link:../store
       use-effect-event:
         specifier: ^2.0.3
         version: 2.0.3(react@19.2.7)
