@@ -687,3 +687,7 @@ export const reduceOpenCodeThreadState = (
     }
   }
 };
+
+/** Stable placeholder state used before a session controller is attached. */
+export const EMPTY_OPENCODE_THREAD_STATE =
+  createOpenCodeThreadState("__pending__");

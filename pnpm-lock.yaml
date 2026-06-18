@@ -4143,6 +4143,12 @@ importers:
 
   packages/react-opencode:
     dependencies:
+      '@assistant-ui/core':
+        specifier: ^0.2.18
+        version: link:../core
+      '@assistant-ui/store':
+        specifier: ^0.2.18
+        version: link:../store
       '@opencode-ai/sdk':
         specifier: ^1.17.6
         version: 1.17.6
