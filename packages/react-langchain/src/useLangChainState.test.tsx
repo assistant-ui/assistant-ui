@@ -22,7 +22,7 @@ vi.mock(import("@assistant-ui/store"), async (importOriginal) => {
   };
 });
 
-import { useLangChainState } from "./useStreamRuntime";
+import { useLangChainState } from "./hooks";
 
 const runSelectorAgainst = createRunSelectorAgainst(mockUseAuiState);
 

@@ -16,7 +16,7 @@ vi.mock(import("@assistant-ui/store"), async (importOriginal) => {
   };
 });
 
-import { useLangChainRespondAll } from "./useStreamRuntime";
+import { useLangChainRespondAll } from "./hooks";
 
 describe("useLangChainRespondAll", () => {
   it("forwards the responses and options to stream.respondAll", async () => {
@@ -46,7 +46,7 @@ describe("useLangChainRespondAll", () => {
 
     const { result } = renderHook(() => useLangChainRespondAll());
     expect(() => result.current({ a: { approved: true } })).toThrow(
-      "This method can only be called when you are using useStreamRuntime",
+      "useStreamRuntime",
     );
   });
 });

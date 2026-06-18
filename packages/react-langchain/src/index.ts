@@ -1,5 +1,6 @@
+export { useStreamRuntime } from "./useStreamRuntime";
+
 export {
-  useStreamRuntime,
   useLangChainError,
   useLangChainInterruptState,
   useLangChainRespond,
@@ -9,8 +10,7 @@ export {
   useLangChainState,
   useLangChainSubmit,
   useLangChainToolCalls,
-} from "./useStreamRuntime";
-export type { UseStreamRuntimeOptions } from "./useStreamRuntime";
+} from "./hooks";
 
 export { convertLangChainBaseMessage } from "./convertMessages";
 
@@ -18,4 +18,5 @@ export type {
   LangChainBaseMessage,
   LangChainContentBlock,
   LangChainToolCall,
+  UseStreamRuntimeOptions,
 } from "./types";

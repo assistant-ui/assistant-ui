@@ -1,6 +1,7 @@
 "use client";
 
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
+import type { AppendMessage } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { LangChainBaseMessage, LangChainContentBlock } from "./types";
 
@@ -141,4 +142,55 @@ export const convertLangChainBaseMessage: useExternalMessageConverter.Callback<
         ],
       };
   }
+};
+
+export const getMessageContent = (msg: AppendMessage) => {
+  const allContent = [
+    ...msg.content,
+    ...(msg.attachments?.flatMap((a) => a.content) ?? []),
+  ];
+
+  const hasNonText = allContent.some(
+    (part) => part.type === "file" || part.type === "image",
+  );
+  const hasText = allContent.some((part) => part.type === "text");
+  if (hasNonText && !hasText) {
+    allContent.unshift({ type: "text", text: " " });
+  }
+
+  const content = allContent.map((part) => {
+    const type = part.type;
+    switch (type) {
+      case "text":
+        return { type: "text" as const, text: part.text };
+      case "image":
+        return { type: "image_url" as const, image_url: { url: part.image } };
+      case "file":
+        return {
+          type: "file" as const,
+          data: part.data,
+          mime_type: part.mimeType,
+          metadata: { filename: part.filename ?? "file" },
+          source_type: "base64" as const,
+        };
+      case "tool-call":
+        throw new Error("Tool call appends are not supported.");
+      default: {
+        const _exhaustiveCheck:
+          | "reasoning"
+          | "source"
+          | "audio"
+          | "data"
+          | "generative-ui" = type;
+        throw new Error(
+          `Unsupported append message part type: ${_exhaustiveCheck}`,
+        );
+      }
+    }
+  });
+
+  if (content.length === 1 && content[0]?.type === "text") {
+    return content[0].text ?? "";
+  }
+  return content;
 };
