@@ -27,6 +27,8 @@ import { Button } from "@/components/ui/button";
 
 const ANIMATION_DURATION = 200;
 
+const pressable = "active:scale-[0.97]";
+
 export type ToolFallbackRootProps = Omit<
   React.ComponentProps<typeof Collapsible>,
   "open" | "onOpenChange"
@@ -143,7 +145,7 @@ function ToolFallbackTrigger({
     <CollapsibleTrigger
       data-slot="tool-fallback-trigger"
       className={cn(
-        "aui-tool-fallback-trigger group/trigger text-muted-foreground hover:text-foreground flex w-fit items-center gap-2 py-1 text-sm transition-colors",
+        "aui-tool-fallback-trigger group/trigger text-muted-foreground hover:text-foreground flex w-fit origin-left items-center gap-2 py-1.5 text-sm transition-[color,scale] active:scale-[0.98]",
         className,
       )}
       {...props}
@@ -153,7 +155,7 @@ function ToolFallbackTrigger({
         className={cn(
           "aui-tool-fallback-trigger-icon size-4 shrink-0",
           isCancelled && "text-muted-foreground",
-          isRunning && "animate-spin",
+          isRunning && "animate-spin [animation-duration:0.6s]",
         )}
       />
       <span
@@ -181,7 +183,7 @@ function ToolFallbackTrigger({
         data-slot="tool-fallback-trigger-chevron"
         className={cn(
           "aui-tool-fallback-trigger-chevron size-4 shrink-0",
-          "transition-transform duration-(--animation-duration) ease-out",
+          "transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
           "group-data-[state=closed]/trigger:-rotate-90",
           "group-data-[state=open]/trigger:rotate-0",
         )}
@@ -200,7 +202,7 @@ function ToolFallbackContent({
       data-slot="tool-fallback-content"
       className={cn(
         "aui-tool-fallback-content relative overflow-hidden text-sm outline-none",
-        "group/collapsible-content ease-out",
+        "group/collapsible-content ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
         "data-[state=closed]:animate-collapsible-up",
         "data-[state=open]:animate-collapsible-down",
         "data-[state=closed]:fill-mode-forwards",
@@ -211,7 +213,16 @@ function ToolFallbackContent({
       )}
       {...props}
     >
-      <div className="flex flex-col gap-2 ps-6 pt-1 pb-2">{children}</div>
+      <div
+        className={cn(
+          "flex flex-col gap-2 ps-6 pt-1 pb-2 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
+          "group-data-[state=open]/collapsible-content:animate-in group-data-[state=open]/collapsible-content:fade-in-0 group-data-[state=open]/collapsible-content:blur-in-[2px] group-data-[state=open]/collapsible-content:slide-in-from-top-1",
+          "group-data-[state=closed]/collapsible-content:animate-out group-data-[state=closed]/collapsible-content:fade-out-0 group-data-[state=closed]/collapsible-content:blur-out-[2px] group-data-[state=closed]/collapsible-content:slide-out-to-top-1",
+          "group-data-[state=closed]/collapsible-content:duration-(--animation-duration) group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
+        )}
+      >
+        {children}
+      </div>
     </CollapsibleContent>
   );
 }
@@ -231,7 +242,7 @@ function ToolFallbackArgs({
       className={cn("aui-tool-fallback-args", className)}
       {...props}
     >
-      <pre className="aui-tool-fallback-args-value bg-muted/50 text-muted-foreground rounded-md p-2.5 text-xs whitespace-pre-wrap">
+      <pre className="aui-tool-fallback-args-value bg-muted/50 text-foreground/90 rounded-md p-2.5 text-xs whitespace-pre-wrap">
         {argsText}
       </pre>
     </div>
@@ -256,7 +267,7 @@ function ToolFallbackResult({
       <p className="aui-tool-fallback-result-header text-muted-foreground text-xs font-medium">
         Result:
       </p>
-      <pre className="aui-tool-fallback-result-content bg-muted/50 text-muted-foreground mt-1 rounded-md p-2.5 text-xs whitespace-pre-wrap">
+      <pre className="aui-tool-fallback-result-content bg-muted/50 text-foreground/90 mt-1 rounded-md p-2.5 text-xs whitespace-pre-wrap">
         {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
       </pre>
     </div>
@@ -425,6 +436,7 @@ function ToolFallbackApproval({
         <div className="flex items-center gap-2">
           <Button
             size="sm"
+            className={pressable}
             onClick={() => respondWithOption(confirming)}
             disabled={submitted}
           >
@@ -433,6 +445,7 @@ function ToolFallbackApproval({
           <Button
             size="sm"
             variant="outline"
+            className={pressable}
             onClick={() => setConfirmingId(null)}
             disabled={submitted}
           >
@@ -460,6 +473,7 @@ function ToolFallbackApproval({
             key={option.id}
             size="sm"
             variant={option === allowOptions[0] ? "default" : "outline"}
+            className={pressable}
             onClick={() => handleOption(option)}
             disabled={submitted}
           >
@@ -470,6 +484,7 @@ function ToolFallbackApproval({
           <Button
             size="sm"
             variant="outline"
+            className={pressable}
             onClick={() => respond(false)}
             disabled={submitted}
           >
@@ -489,12 +504,18 @@ function ToolFallbackApproval({
       )}
       {...props}
     >
-      <Button size="sm" onClick={() => respond(true)} disabled={submitted}>
+      <Button
+        size="sm"
+        className={pressable}
+        onClick={() => respond(true)}
+        disabled={submitted}
+      >
         Allow
       </Button>
       <Button
         size="sm"
         variant="outline"
+        className={pressable}
         onClick={() => respond(false)}
         disabled={submitted}
       >
