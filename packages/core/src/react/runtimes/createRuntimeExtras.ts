@@ -3,7 +3,8 @@
 import { useAuiState } from "@assistant-ui/store";
 import type { AssistantClient } from "@assistant-ui/store";
 
-export type RuntimeExtras<T> = {
+/** @deprecated Internal API for external-store adapter authors. Not part of the public API; may change or be removed without notice. */
+export type RuntimeExtras<T extends object> = {
   provide: (value: T) => T;
   is: (extras: unknown) => extras is T;
   tryGet: (extras: unknown) => T | undefined;
@@ -15,7 +16,8 @@ export type RuntimeExtras<T> = {
   };
 };
 
-export const createRuntimeExtras = <T>(
+/** @deprecated Internal API for external-store adapter authors. Not part of the public API; may change or be removed without notice. */
+export const createRuntimeExtras = <T extends object>(
   runtimeName: string,
 ): RuntimeExtras<T> => {
   const brand = Symbol(`${runtimeName} extras`);
