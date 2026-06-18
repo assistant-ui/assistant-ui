@@ -355,7 +355,10 @@ Added in v0.0.2 — see issue [#3862](https://github.com/assistant-ui/assistant-
 
 LangGraph interrupts pause the graph and wait for client input. `useLangChainInterruptState` exposes the current interrupt; `useLangChainRespond` resumes it with a response payload, while `useLangChainSubmit` resumes the graph with a raw state update.
 
-`useLangChainRespond` is the cleaner resume path — it carries the response payload via `useStream().respond` and handles interrupt namespaces, so you don't have to construct a `Command`.
+`useLangChainRespond` is the cleaner resume path; it carries the response payload via `useStream().respond` and handles interrupt namespaces, so you don't have to construct a `Command`.
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx
 import {
@@ -375,6 +378,63 @@ function InterruptPrompt() {
   );
 }
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import {
+  useLangChainInterruptState,
+  useLangChainRespond,
+} from "@assistant-ui/react-langchain";
+import { Pressable, Text, View } from "react-native";
+
+function InterruptPrompt() {
+  const interrupt = useLangChainInterruptState();
+  const respond = useLangChainRespond();
+  if (!interrupt) return null;
+  return (
+    <View>
+      <Text>{JSON.stringify(interrupt.value, null, 2)}</Text>
+      <Pressable onPress={() => respond({ approved: true })}>
+        <Text>Approve</Text>
+      </Pressable>
+    </View>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import {
+  useLangChainInterruptState,
+  useLangChainRespond,
+} from "@assistant-ui/react-langchain";
+import { Box, Text, useInput } from "ink";
+
+function InterruptPrompt() {
+  const interrupt = useLangChainInterruptState();
+  const respond = useLangChainRespond();
+
+  useInput((input) => {
+    if (!interrupt || input !== "a") return;
+    respond({ approved: true });
+  });
+
+  if (!interrupt) return null;
+  return (
+    <Box flexDirection="column">
+      <Text>{JSON.stringify(interrupt.value, null, 2)}</Text>
+      <Text>Press a to approve.</Text>
+    </Box>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
 
 You can also resume with a raw `Command` via `useLangChainSubmit`:
 
@@ -606,7 +666,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Stream messages | Yes (`useLangGraphRuntime`) | Yes (`useStreamRuntime`) |
 | Interrupt state | Yes | Yes |
 | Thread history loading state (`thread.isLoading`) | Yes | Yes |
-| Send raw state update / resume command | Yes | Yes (`useLangChainSubmit`) |
+| Send raw state update / resume command | Yes | Yes (`useLangChainSubmit`; `useLangChainRespond` for payload resume) |
 | Forward per-run `runConfig` | Yes (whole object → `config`) | Yes (`custom` → `config.configurable`) |
 | Read arbitrary custom state key | No | Yes (`useLangChainState<T>(key)`) |
 | Root tool-calls projection | Via message parts | Yes (`useLangChainToolCalls`) |
@@ -626,8 +686,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | --- | --- | --- |
 | `useLangGraphRuntime` | `useStreamRuntime` | Options extend upstream `UseStreamOptions`; no `stream` / `create` / `load` to write. |
 | `useLangGraphInterruptState` | `useLangChainInterruptState` | Same return shape. |
-| `useLangGraphSendCommand` | `useLangChainSubmit` | `submit(values, { command })` replaces the dedicated hook. |
-| `useLangGraphSendCommand` | `useLangChainRespond` | Preferred resume — carries a payload via `stream.respond` (vs the older `useLangChainSubmit(null, { command })`). |
+| `useLangGraphSendCommand` | `useLangChainRespond` | Preferred resume; carries a payload via `stream.respond`. For a raw `Command`, use `useLangChainSubmit(null, { command })`. |
 | `useLangGraphSend` | _(use `runtime.thread.append`)_ | No direct equivalent; send turns through the runtime. |
 | `useLangGraphMessageMetadata` | _(not available)_ | Open an issue if you rely on this. |
 | `useLangGraphUIMessages` | _(not available)_ | Open an issue if you rely on this. |

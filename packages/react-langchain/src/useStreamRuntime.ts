@@ -410,7 +410,7 @@ export const useLangChainSubmit = () => {
 
 /**
  * Resume a LangGraph interrupt with a response payload via
- * `useStream().respond`. Preferred over `useLangChainSendCommand` —
+ * `useStream().respond`. Preferred over `useLangChainSendCommand`; it
  * carries the response cleanly and handles interrupt namespaces.
  */
 export const useLangChainRespond = () => {
