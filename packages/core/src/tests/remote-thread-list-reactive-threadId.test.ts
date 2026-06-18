@@ -1,4 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
+import { RemoteThreadListThreadListRuntimeCore } from "../react/runtimes/RemoteThreadListThreadListRuntimeCore";
+import type { RemoteThreadListAdapter } from "../runtimes/remote-thread-list/types";
+import {
+  contextProvider,
+  makeAdapter,
+} from "./remote-thread-list-test-helpers";
 
 /**
  * Tests for the reactive threadId useEffect logic in useRemoteThreadListRuntime.
@@ -93,74 +99,99 @@ describe("threadId reactive effect", () => {
 });
 
 /**
- * Tests for the onThreadIdChange notification logic in
- * RemoteThreadListThreadListRuntimeCore._notifyThreadIdChange.
- *
- * The core emits the active thread's settled remote ID, deduping against the
- * last value so the same ID is never emitted twice, and never surfacing the
- * transient optimistic local ID (remote ID is undefined until initialized).
- * We mirror the dedup logic here.
+ * Tests for onThreadIdChange, driving the real
+ * RemoteThreadListThreadListRuntimeCore via a mock adapter (no React). These
+ * exercise the actual _notifyThreadIdChange / _mainThreadRemoteId path and the
+ * subscription + switchToThread wiring that invokes it.
  */
-function makeNotifier(onThreadIdChange: (id: string | undefined) => void) {
-  let last: string | undefined = undefined;
-  return (remoteId: string | undefined) => {
-    if (last === remoteId) return;
-    last = remoteId;
-    onThreadIdChange(remoteId);
-  };
+function createCoreWithCallback(
+  onThreadIdChange: (id: string | undefined) => void,
+  adapterOverrides: Partial<RemoteThreadListAdapter> = {},
+) {
+  const adapter = makeAdapter(adapterOverrides);
+  const core = new RemoteThreadListThreadListRuntimeCore(
+    { adapter, runtimeHook: () => ({}) as never, onThreadIdChange },
+    contextProvider,
+  );
+  // startThreadRuntime blocks until a React component attaches a runtime; stub
+  // it so these non-React unit tests don't hang.
+  (
+    core as unknown as {
+      _hookManager: { startThreadRuntime: (id: string) => Promise<unknown> };
+    }
+  )._hookManager.startThreadRuntime = async () => ({});
+  return { core, adapter };
 }
 
-describe("onThreadIdChange notification", () => {
-  it("does not emit when a new thread stays optimistic (no remote ID)", () => {
-    const cb = vi.fn();
-    const notify = makeNotifier(cb);
+// Let the constructor's in-flight switchToNewThread settle.
+const flush = () => new Promise((resolve) => setTimeout(resolve));
 
-    // initial new thread: remote ID undefined, matches initial last → no emit
-    notify(undefined);
+describe("onThreadIdChange", () => {
+  it("does not emit while the active thread is still optimistic", async () => {
+    const cb = vi.fn();
+    createCoreWithCallback(cb);
+    await flush();
 
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("emits the remote ID once the thread is initialized", () => {
+  it("emits the remote ID once a new thread is initialized", async () => {
     const cb = vi.fn();
-    const notify = makeNotifier(cb);
+    const { core } = createCoreWithCallback(cb, {
+      initialize: vi.fn(async () => ({
+        remoteId: "remote-1",
+        externalId: "ext-1",
+      })),
+    });
+    await flush();
 
-    notify(undefined); // optimistic new thread
-    notify("remote-1"); // initialize resolves
+    const newThreadId = core.newThreadId!;
+    expect(newThreadId).toBeDefined();
+    expect(cb).not.toHaveBeenCalled(); // still optimistic, no remote ID
 
-    expect(cb).toHaveBeenCalledExactlyOnceWith("remote-1");
+    await core.initialize(newThreadId);
+
+    expect(cb).toHaveBeenLastCalledWith("remote-1");
   });
 
-  it("dedupes repeated notifications for the same remote ID", () => {
+  it("emits the remote ID when switching to an existing thread", async () => {
     const cb = vi.fn();
-    const notify = makeNotifier(cb);
+    const { core } = createCoreWithCallback(cb);
+    await flush();
 
-    notify("remote-1");
-    notify("remote-1");
-    notify("remote-1");
+    await core.switchToThread("existing-1");
 
-    expect(cb).toHaveBeenCalledExactlyOnceWith("remote-1");
+    expect(cb).toHaveBeenLastCalledWith("existing-1");
   });
 
-  it("emits undefined when switching from a thread to a new thread", () => {
+  it("dedupes: switching to the already-active thread does not re-emit", async () => {
     const cb = vi.fn();
-    const notify = makeNotifier(cb);
+    const { core } = createCoreWithCallback(cb);
+    await flush();
 
-    notify("remote-1"); // on an existing thread
-    notify(undefined); // switched to a fresh new thread
+    await core.switchToThread("existing-1");
+    const callsAfterFirstSwitch = cb.mock.calls.length;
 
-    expect(cb).toHaveBeenLastCalledWith(undefined);
-    expect(cb).toHaveBeenCalledTimes(2);
+    await core.switchToThread("existing-1");
+
+    expect(cb).toHaveBeenCalledTimes(callsAfterFirstSwitch);
   });
 
-  it("emits each distinct remote ID across navigation", () => {
+  it("never surfaces the transient local ID", async () => {
     const cb = vi.fn();
-    const notify = makeNotifier(cb);
+    const { core } = createCoreWithCallback(cb, {
+      initialize: vi.fn(async () => ({
+        remoteId: "remote-1",
+        externalId: "ext-1",
+      })),
+    });
+    await flush();
 
-    notify("remote-1");
-    notify("remote-2");
-    notify("remote-1");
+    const localId = core.newThreadId!;
+    await core.initialize(localId);
 
-    expect(cb.mock.calls).toEqual([["remote-1"], ["remote-2"], ["remote-1"]]);
+    for (const [emitted] of cb.mock.calls) {
+      expect(emitted).not.toBe(localId);
+    }
   });
 });
