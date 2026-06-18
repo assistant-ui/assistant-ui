@@ -436,6 +436,19 @@ function InterruptPrompt() {
 </Tab>
 </PlatformTabs>
 
+When several interrupts are pending at once (e.g. parallel approvals), use `useLangChainRespondAll()` to resume them all in one run. Sequential `useLangChainRespond` calls can't, since the first resume starts a run and strands the rest.
+
+```tsx
+import { useLangChainRespondAll } from "@assistant-ui/react-langchain";
+
+const respondAll = useLangChainRespondAll();
+// `interrupts` is the list of interrupts pending at the checkpoint;
+// resume every one with the same payload:
+await respondAll(
+  Object.fromEntries(interrupts.map((i) => [i.id!, { approved: true }])),
+);
+```
+
 You can also resume with a raw `Command` via `useLangChainSubmit`:
 
 <PlatformTabs>
@@ -693,6 +706,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | _(none)_ | `useLangChainState<T>(key)` | New — reads any custom state key reactively. |
 | _(none)_ | `useLangChainToolCalls` | New — root tool calls assembled by `useStream`. |
 | _(none)_ | `useLangChainError()` | New — reads the last run/hydration error reactively. |
+| _(none)_ | `useLangChainRespondAll` | Resume multiple interrupts at one checkpoint (`stream.respondAll`). |
 
 ## Related
 

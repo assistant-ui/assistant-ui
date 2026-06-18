@@ -48,6 +48,10 @@ type LangChainRuntimeExtras = {
     response: unknown,
     options?: Record<string, unknown>,
   ) => Promise<void>;
+  respondAll: (
+    responsesById: Record<string, unknown>,
+    options?: Record<string, unknown>,
+  ) => Promise<void>;
   values: Record<string, unknown>;
   messagesKey: string;
 };
@@ -231,6 +235,7 @@ const useStreamThreadRuntime = (
       error: stream.error,
       submit: stream.submit,
       respond: stream.respond,
+      respondAll: stream.respondAll,
       values: stream.values,
       messagesKey,
     }),
@@ -241,6 +246,7 @@ const useStreamThreadRuntime = (
       stream.error,
       stream.submit,
       stream.respond,
+      stream.respondAll,
       stream.values,
       messagesKey,
     ],
@@ -420,6 +426,25 @@ export const useLangChainRespond = () => {
       aui.thread().getState().extras,
     );
     return respond(response, options);
+  };
+};
+
+/**
+ * Resume several LangGraph interrupts pending at the same checkpoint in
+ * one run via `useStream().respondAll`. Use when a run pauses on multiple
+ * interrupts at once; sequential `useLangChainRespond` calls can't service
+ * them (the first resume starts a run, stranding the rest).
+ */
+export const useLangChainRespondAll = () => {
+  const aui = useAui();
+  return (
+    responsesById: Record<string, unknown>,
+    options?: Record<string, unknown>,
+  ) => {
+    const { respondAll } = asLangChainRuntimeExtras(
+      aui.thread().getState().extras,
+    );
+    return respondAll(responsesById, options);
   };
 };
 

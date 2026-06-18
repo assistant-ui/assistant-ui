@@ -3,6 +3,7 @@ export {
   useLangChainError,
   useLangChainInterruptState,
   useLangChainRespond,
+  useLangChainRespondAll,
   useLangChainSend,
   useLangChainSendCommand,
   useLangChainState,
