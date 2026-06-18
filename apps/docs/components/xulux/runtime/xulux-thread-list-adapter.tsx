@@ -11,6 +11,7 @@ import {
 import { useAssistantCloudThreadHistoryAdapter } from "@assistant-ui/core/react";
 import {
   findXuluxThread,
+  findXuluxThreadBySessionId,
   readXuluxThreads,
   updateXuluxThread,
   writeXuluxThreads,
@@ -50,6 +51,11 @@ function createXuluxCloudHistoryProvider(
   };
 }
 
+type InitializeResult = {
+  remoteId: string;
+  externalId: string;
+};
+
 export function createXuluxLocalThreadListAdapter({
   getCurrentSessionId,
   cloud,
@@ -58,6 +64,7 @@ export function createXuluxLocalThreadListAdapter({
   cloud: AssistantCloud;
 }): RemoteThreadListAdapter {
   const Provider = createXuluxCloudHistoryProvider(cloud);
+  const initializeTasks = new Map<string, Promise<InitializeResult>>();
 
   const upsertThread = (
     remoteId: string,
@@ -73,6 +80,52 @@ export function createXuluxLocalThreadListAdapter({
             threadIndex === index ? nextThread : thread,
           );
     writeXuluxThreads(nextThreads);
+  };
+
+  const createCloudThread = async (
+    sessionId: string,
+  ): Promise<InitializeResult> => {
+    const now = Date.now();
+    let cloudThreadId: string;
+
+    try {
+      ({ thread_id: cloudThreadId } = await cloud.threads.create({
+        last_message_at: new Date(),
+        external_id: sessionId,
+        metadata: { source: "xulux_playground" },
+      }));
+    } catch (error) {
+      console.warn("[xulux] cloud thread create failed", error);
+      throw new Error(
+        "Unable to start a chat session. Assistant Cloud is unavailable — please try again.",
+      );
+    }
+
+    upsertThread(cloudThreadId, (existing) => ({
+      remoteId: cloudThreadId,
+      externalId: sessionId,
+      status: existing?.status ?? "regular",
+      ...(existing?.title !== undefined ? { title: existing.title } : {}),
+      custom: {
+        xuluxStatus: existing?.custom.xuluxStatus ?? "idle",
+        sessionId,
+        updatedAt: now,
+        ...(existing?.custom.pendingUserMessage !== undefined
+          ? { pendingUserMessage: existing.custom.pendingUserMessage }
+          : {}),
+        ...(existing?.custom.selectedTemplate !== undefined
+          ? { selectedTemplate: existing.custom.selectedTemplate }
+          : {}),
+        ...(existing?.custom.canvas !== undefined
+          ? { canvas: existing.custom.canvas }
+          : {}),
+      } satisfies XuluxThreadCustom,
+    }));
+
+    return {
+      remoteId: cloudThreadId,
+      externalId: sessionId,
+    };
   };
 
   return {
@@ -91,39 +144,22 @@ export function createXuluxLocalThreadListAdapter({
     },
     async initialize() {
       const sessionId = getCurrentSessionId();
-      const now = Date.now();
+      const existing = findXuluxThreadBySessionId(sessionId);
+      if (existing?.remoteId) {
+        return {
+          remoteId: existing.remoteId,
+          externalId: sessionId,
+        };
+      }
 
-      // Create a cloud thread — its id becomes our remoteId
-      const { thread_id: cloudThreadId } = await cloud.threads.create({
-        last_message_at: new Date(),
-        external_id: sessionId,
-        metadata: { source: "xulux_playground" },
+      const inFlight = initializeTasks.get(sessionId);
+      if (inFlight) return inFlight;
+
+      const task = createCloudThread(sessionId).finally(() => {
+        initializeTasks.delete(sessionId);
       });
-
-      upsertThread(cloudThreadId, (existing) => ({
-        remoteId: cloudThreadId,
-        externalId: sessionId,
-        status: existing?.status ?? "regular",
-        custom: {
-          xuluxStatus: existing?.custom.xuluxStatus ?? "idle",
-          sessionId,
-          updatedAt: now,
-          ...(existing?.custom.pendingUserMessage !== undefined
-            ? { pendingUserMessage: existing.custom.pendingUserMessage }
-            : {}),
-          ...(existing?.custom.selectedTemplate !== undefined
-            ? { selectedTemplate: existing.custom.selectedTemplate }
-            : {}),
-          ...(existing?.custom.canvas !== undefined
-            ? { canvas: existing.custom.canvas }
-            : {}),
-        } satisfies XuluxThreadCustom,
-      }));
-
-      return {
-        remoteId: cloudThreadId,
-        externalId: sessionId,
-      };
+      initializeTasks.set(sessionId, task);
+      return task;
     },
     async rename(remoteId, title) {
       updateXuluxThread(remoteId, (thread) => ({

@@ -71,6 +71,52 @@ function XuluxRuntimeProvider({
   selectedTemplateContext: SelectedTemplateContext | null;
   children: ReactNode;
 }) {
+  const cloudBaseUrl =
+    process.env.NEXT_PUBLIC_XULUX_ASSISTANT_BASE_URL ??
+    process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL;
+
+  if (!cloudBaseUrl) {
+    return <XuluxMissingCloudConfig />;
+  }
+
+  return (
+    <XuluxRuntimeProviderInner
+      sessionId={sessionId}
+      selectedTemplateContext={selectedTemplateContext}
+      cloudBaseUrl={cloudBaseUrl}
+    >
+      {children}
+    </XuluxRuntimeProviderInner>
+  );
+}
+
+function XuluxMissingCloudConfig() {
+  return (
+    <div className="text-muted-foreground flex min-h-[320px] items-center justify-center p-6 text-center text-sm">
+      <p>
+        Xulux playground requires{" "}
+        <code className="text-foreground">NEXT_PUBLIC_ASSISTANT_BASE_URL</code>{" "}
+        (or{" "}
+        <code className="text-foreground">
+          NEXT_PUBLIC_XULUX_ASSISTANT_BASE_URL
+        </code>
+        ) to be set for Assistant Cloud message history.
+      </p>
+    </div>
+  );
+}
+
+function XuluxRuntimeProviderInner({
+  sessionId,
+  selectedTemplateContext,
+  cloudBaseUrl,
+  children,
+}: {
+  sessionId: string;
+  selectedTemplateContext: SelectedTemplateContext | null;
+  cloudBaseUrl: string;
+  children: ReactNode;
+}) {
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
   const selectedTemplateContextRef = useRef(selectedTemplateContext);
@@ -81,29 +127,23 @@ function XuluxRuntimeProvider({
     setLimitBlock(null);
   }, [sessionId]);
 
-  const assistantCloud = useMemo(() => {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_XULUX_ASSISTANT_BASE_URL ??
-      process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL;
-    if (!baseUrl) {
-      throw new Error(
-        "NEXT_PUBLIC_XULUX_ASSISTANT_BASE_URL or NEXT_PUBLIC_ASSISTANT_BASE_URL must be set",
-      );
-    }
-    return new AssistantCloud({
-      baseUrl,
-      anonymous: true,
-      telemetry: {
-        beforeReport: (report) => ({
-          ...report,
-          metadata: {
-            ...(report.metadata ?? {}),
-            app: "xulux_playground",
-          },
-        }),
-      },
-    });
-  }, []);
+  const assistantCloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: cloudBaseUrl,
+        anonymous: true,
+        telemetry: {
+          beforeReport: (report) => ({
+            ...report,
+            metadata: {
+              ...(report.metadata ?? {}),
+              app: "xulux_playground",
+            },
+          }),
+        },
+      }),
+    [cloudBaseUrl],
+  );
 
   const adapter = useMemo(
     () =>

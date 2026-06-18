@@ -163,6 +163,16 @@ export function XuluxShell({
     return getLatestUserTextFromMessages(runtimeMessages);
   }, [activeStoredThread, currentRemoteId, isInterrupted, runtimeMessages]);
 
+  useEffect(() => {
+    if (!isInterrupted || !currentRemoteId) return;
+    if (activeStoredThread?.custom.pendingUserMessage?.trim()) return;
+
+    const latestUserText = getLatestUserTextFromMessages(runtimeMessages);
+    if (latestUserText) {
+      updateXuluxPendingUserMessage(currentRemoteId, latestUserText);
+    }
+  }, [activeStoredThread, currentRemoteId, isInterrupted, runtimeMessages]);
+
   const handleRetryInterrupted = useCallback(() => {
     if (!interruptedUserMessage) return;
     updateXuluxPendingUserMessage(

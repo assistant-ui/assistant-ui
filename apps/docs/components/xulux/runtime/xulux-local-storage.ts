@@ -94,6 +94,18 @@ export function findXuluxThread(remoteId: string): XuluxStoredThread | null {
   );
 }
 
+export function findXuluxThreadBySessionId(
+  sessionId: string,
+): XuluxStoredThread | null {
+  return (
+    readXuluxThreads().find(
+      (thread) =>
+        thread.custom.sessionId === sessionId ||
+        thread.externalId === sessionId,
+    ) ?? null
+  );
+}
+
 export function updateXuluxThread(
   remoteId: string,
   updater: (thread: XuluxStoredThread) => XuluxStoredThread,
