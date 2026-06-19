@@ -160,7 +160,7 @@ export const fromThreadMessageLike = (
             switch (type) {
               case "text":
               case "reasoning":
-                if (part.text.trim().length === 0) return null;
+                if (!part.text?.trim()) return null;
                 return part;
 
               case "file":

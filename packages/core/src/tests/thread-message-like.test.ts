@@ -110,4 +110,45 @@ describe("fromThreadMessageLike", () => {
       ).toThrow("Unsupported user message part type: tool-call");
     });
   });
+
+  describe("reasoning parts", () => {
+    it("drops a reasoning part with undefined text without throwing", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "reasoning" } as any],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([]);
+    });
+
+    it("drops a reasoning part with empty text", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "reasoning", text: "   " }],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([]);
+    });
+
+    it("keeps a reasoning part with text", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "reasoning", text: "thinking" }],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([{ type: "reasoning", text: "thinking" }]);
+    });
+  });
 });
