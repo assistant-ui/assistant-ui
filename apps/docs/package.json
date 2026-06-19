@@ -52,6 +52,7 @@
     "dotenv": "^17.4.2",
     "embla-carousel-react": "^8.6.0",
     "fast-glob": "^3.3.3",
+    "fflate": "^0.8.3",
     "fumadocs-core": "^16.10.2",
     "fumadocs-mdx": "^15.0.12",
     "fumadocs-ui": "^16.10.2",
