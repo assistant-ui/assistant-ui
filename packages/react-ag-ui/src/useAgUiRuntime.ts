@@ -144,6 +144,7 @@ export function useAgUiRuntime(
             core.getPendingInterrupts()?.interrupts ?? EMPTY_INTERRUPTS,
           submitInterruptResponses: (responses) =>
             core.submitInterruptResponses(responses),
+          steerAway: (message) => core.steerAway(message),
         }),
         unstable_enableToolInvocations: true,
         setToolStatuses,

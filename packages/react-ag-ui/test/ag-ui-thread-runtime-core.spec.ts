@@ -1446,6 +1446,196 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(assistant.metadata.custom.agui).toBeUndefined();
   });
 
+  it("steerAway cancels the open interrupt and resumes with the new user message", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                { id: "int-1", reason: "tool_call", toolCallId: "call-1" },
+              ],
+            },
+          },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onTextMessageContentEvent?.({
+        event: { type: "TEXT_MESSAGE_CONTENT", delta: "Done." },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    const pending = core.getPendingInterrupts();
+    expect(pending).toBeTruthy();
+
+    const steerMessage: AppendMessage = {
+      role: "user",
+      content: [{ type: "text", text: "changed my mind" }],
+      attachments: [],
+      metadata: { custom: {} },
+      createdAt: new Date(),
+      parentId: pending!.messageId,
+      sourceId: null,
+      runConfig: {},
+      startRun: true,
+    };
+    await core.steerAway(steerMessage);
+
+    expect(runCount).toBe(2);
+    expect(runInputs[1].resume).toEqual([
+      { interruptId: "int-1", status: "cancelled" },
+    ]);
+    const run2Messages = runInputs[1]?.messages ?? [];
+    expect(
+      run2Messages.some(
+        (m: { role: string; content: unknown }) =>
+          m.role === "user" && m.content === "changed my mind",
+      ),
+    ).toBe(true);
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({ type: "complete" });
+    expect(assistant.metadata.custom.agui).toBeUndefined();
+  });
+
+  it("steerAway cancels every open interrupt", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                { id: "int-1", reason: "tool_call" },
+                { id: "int-2", reason: "confirmation" },
+              ],
+            },
+          },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    const pending = core.getPendingInterrupts();
+    expect(pending?.interrupts).toHaveLength(2);
+
+    await core.steerAway(createAppendMessage({ parentId: pending!.messageId }));
+
+    expect(runCount).toBe(2);
+    expect(runInputs[1].resume).toEqual([
+      { interruptId: "int-1", status: "cancelled" },
+      { interruptId: "int-2", status: "cancelled" },
+    ]);
+  });
+
+  it("steerAway behaves like append when no interrupts are pending", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    expect(core.getPendingInterrupts()).toBeNull();
+
+    await core.steerAway(createAppendMessage());
+
+    expect(runCount).toBe(2);
+    expect(runInputs[1].resume).toBeUndefined();
+    expect(core.getMessages().filter((m) => m.role === "user")).toHaveLength(1);
+  });
+
+  it("steerAway from a root parentId clears interrupts without leaving a stale pending state", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [{ id: "int-1", reason: "tool_call" }],
+            },
+          },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    expect(core.getPendingInterrupts()).toBeTruthy();
+
+    await core.steerAway(createAppendMessage({ parentId: null }));
+
+    expect(runCount).toBe(2);
+    expect(runInputs[1].resume).toEqual([
+      { interruptId: "int-1", status: "cancelled" },
+    ]);
+    expect(core.getPendingInterrupts()).toBeNull();
+  });
+
   it("attaches a TOOL_CALL_RESULT for a prior run's tool call to its owning message", async () => {
     let runCount = 0;
     const runAgent = vi.fn(async (input: any, subscriber: any) => {

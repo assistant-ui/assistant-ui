@@ -14,14 +14,27 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   useAui: (() => mockUseAui()) as typeof import("@assistant-ui/store").useAui,
 }));
 
+import type { AppendMessage } from "@assistant-ui/core";
 import { agUiExtras } from "../src/agUiExtras";
 import {
   useAgUiInterrupts,
   useAgUiSubmitInterruptResponses,
+  useAgUiSteerAway,
 } from "../src/hooks";
 import type { AgUiInterrupt, AgUiResumeEntry } from "../src/runtime/types";
 
 const interrupt: AgUiInterrupt = { id: "int-1", reason: "confirmation" };
+
+const userMessage: AppendMessage = {
+  role: "user",
+  content: [{ type: "text", text: "hi" }],
+  attachments: [],
+  metadata: { custom: {} },
+  createdAt: new Date(),
+  parentId: null,
+  sourceId: null,
+  runConfig: {},
+};
 
 const againstState = (extras: unknown) =>
   mockUseAuiState.mockImplementationOnce((selector: (s: unknown) => unknown) =>
@@ -35,6 +48,7 @@ describe("useAgUiInterrupts", () => {
       agUiExtras.provide({
         interrupts: [interrupt],
         submitInterruptResponses,
+        steerAway: vi.fn(),
       }),
     );
     expect(useAgUiInterrupts()).toEqual([interrupt]);
@@ -52,6 +66,7 @@ describe("useAgUiSubmitInterruptResponses", () => {
     const extras = agUiExtras.provide({
       interrupts: [interrupt],
       submitInterruptResponses,
+      steerAway: vi.fn(),
     });
     mockUseAui.mockReturnValue({
       thread: () => ({ getState: () => ({ extras }) }),
@@ -72,5 +87,30 @@ describe("useAgUiSubmitInterruptResponses", () => {
     expect(() => useAgUiSubmitInterruptResponses()([])).toThrow(
       "useAgUiRuntime",
     );
+  });
+});
+
+describe("useAgUiSteerAway", () => {
+  it("delegates to the extras steerAway with the given message", () => {
+    const steerAway = vi.fn().mockResolvedValue(undefined);
+    const extras = agUiExtras.provide({
+      interrupts: [interrupt],
+      submitInterruptResponses: vi.fn(),
+      steerAway,
+    });
+    mockUseAui.mockReturnValue({
+      thread: () => ({ getState: () => ({ extras }) }),
+    });
+
+    useAgUiSteerAway()(userMessage);
+
+    expect(steerAway).toHaveBeenCalledWith(userMessage);
+  });
+
+  it("throws when the thread is not backed by ag-ui", () => {
+    mockUseAui.mockReturnValue({
+      thread: () => ({ getState: () => ({ extras: undefined }) }),
+    });
+    expect(() => useAgUiSteerAway()(userMessage)).toThrow("useAgUiRuntime");
   });
 });

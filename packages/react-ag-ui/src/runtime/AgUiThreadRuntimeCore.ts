@@ -348,6 +348,42 @@ export class AgUiThreadRuntimeCore {
     await this.startRun(pending.messageId, this.lastRunConfig, resume);
   }
 
+  async steerAway(message: AppendMessage): Promise<void> {
+    const pending = this.getPendingInterrupts();
+    if (!pending) {
+      await this.append({ ...message, startRun: true });
+      return;
+    }
+
+    if (this.isRunningFlag) {
+      throw new Error("[agui] steerAway: a run is already in progress");
+    }
+
+    const resume: AgUiResumeEntry[] = pending.interrupts.map((interrupt) => ({
+      interruptId: interrupt.id,
+      status: "cancelled" as const,
+    }));
+
+    // Clear before resetHead so the interrupted assistant is still in
+    // this.messages when its status is flipped; a parentId that points at an
+    // ancestor would otherwise truncate it away before it can be cleared.
+    this.clearPendingInterrupts(pending.messageId);
+
+    if (message.sourceId) {
+      this.messages = this.messages.filter(
+        (entry) => entry.id !== message.sourceId,
+      );
+    }
+    this.resetHead(message.parentId);
+
+    const threadMessage = this.toThreadMessage(message);
+    this.messages = [...this.messages, threadMessage];
+    this.notifyUpdate();
+    this.recordHistoryEntry(message.parentId ?? null, threadMessage);
+
+    await this.startRun(threadMessage.id, message.runConfig, resume);
+  }
+
   private clearPendingInterrupts(messageId: string): void {
     let touched = false;
     this.messages = this.messages.map((message) => {

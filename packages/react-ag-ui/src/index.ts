@@ -1,6 +1,10 @@
 export { useAgUiRuntime } from "./useAgUiRuntime";
 export type { AgUiAssistantRuntime } from "./useAgUiRuntime";
-export { useAgUiInterrupts, useAgUiSubmitInterruptResponses } from "./hooks";
+export {
+  useAgUiInterrupts,
+  useAgUiSubmitInterruptResponses,
+  useAgUiSteerAway,
+} from "./hooks";
 export { fromAgUiMessages } from "./runtime/adapter/conversions";
 export type { FromAgUiMessagesOptions } from "./runtime/adapter/conversions";
 export type {
