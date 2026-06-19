@@ -11,13 +11,13 @@ import { LangGraphIcon } from "@/components/icons/langgraph";
 
 Pick `react-langchain` over `react-langgraph` when:
 
+- You are scaffolding via `npx create-assistant-ui -t langchain` (the official template uses it).
 - Your app already depends on `@langchain/react` and uses `useStream` elsewhere.
 - You want to read custom state keys (`todos`, `files`, plans) reactively with `useLangChainState<T>(key)`.
 - You prefer a thin wrapper that stays pinned to upstream behavior.
 
 Pick `react-langgraph` instead when:
 
-- You are scaffolding via `npx create-assistant-ui -t langgraph` (the template uses it).
 - You need subgraph events, generative UI messages, message metadata, or end-to-end cancellation today.
 
 Both adapters are first-class. `react-langchain` is newer and thinner; some features have not been ported yet (the [comparison](#comparison-with-react-langgraph) below has the full table).
@@ -661,7 +661,7 @@ const runtime = useStreamRuntime({
 
 ## Comparison with `react-langgraph`
 
-Both packages connect assistant-ui to LangGraph backends. They are independent adapters for different upstream libraries; one is not a successor to the other.
+Both packages connect assistant-ui to LangGraph backends. They are independent adapters for different upstream libraries; one is not a successor to the other. The official `create-assistant-ui` template (`-t langchain`) ships `react-langchain`; `react-langgraph` remains available for subgraph events, generative UI, per-message metadata, and end-to-end cancellation.
 
 | Aspect | `react-langgraph` | `react-langchain` |
 | --- | --- | --- |
@@ -670,7 +670,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Version | `0.13.x` | `0.0.x` |
 | Lines of source | ~7,500 | ~600 |
 | Built on | `useExternalStoreRuntime` | `useExternalStoreRuntime` |
-| `create-assistant-ui` template | `-t langgraph` | No template yet |
+| `create-assistant-ui` template | No template | `-t langchain` |
 
 ### Feature coverage
 
