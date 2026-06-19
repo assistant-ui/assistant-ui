@@ -10,6 +10,7 @@ import type { ToolExecutionStatus } from "@assistant-ui/core";
 import type {
   AssistantRuntime,
   AppendMessage,
+  CreateAppendMessage,
   ExternalStoreAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
@@ -26,6 +27,10 @@ export type AgUiAssistantRuntime = AssistantRuntime & {
   unstable_getPendingInterrupts: () => readonly AgUiInterrupt[];
   unstable_submitInterruptResponses: (
     responses: readonly AgUiResumeEntry[],
+  ) => Promise<void>;
+  unstable_cancelPendingInterruptsAndAppend: (
+    message: CreateAppendMessage,
+    responses?: readonly AgUiResumeEntry[],
   ) => Promise<void>;
 };
 
@@ -160,6 +165,8 @@ export function useAgUiRuntime(
       core.getPendingInterrupts()?.interrupts ?? [];
     wrapper.unstable_submitInterruptResponses = (responses) =>
       core.submitInterruptResponses(responses);
+    wrapper.unstable_cancelPendingInterruptsAndAppend = (message, responses) =>
+      core.cancelPendingInterruptsAndAppend(message, responses);
     return wrapper;
   }, [baseRuntime, core]);
 

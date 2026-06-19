@@ -1921,6 +1921,252 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runCount).toBe(2);
   });
 
+  it("cancels pending interrupts and appends a user message, resuming with cancelled statuses", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [{ id: "int-1", reason: "tool_call" }],
+            },
+          },
+        });
+      } else {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "Sure." },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success" },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const interruptMessageId = core.getPendingInterrupts()!.messageId;
+    await core.cancelPendingInterruptsAndAppend(
+      createAppendMessage({ parentId: interruptMessageId }),
+    );
+
+    expect(runCount).toBe(2);
+    expect(runInputs[1].resume).toEqual([
+      { interruptId: "int-1", status: "cancelled" },
+    ]);
+    expect(core.getPendingInterrupts()).toBeNull();
+
+    const roles = core.getMessages().map((m) => m.role);
+    expect(roles).toEqual(["user", "assistant", "user", "assistant"]);
+    const firstAssistant = core.getMessages()[1] as ThreadAssistantMessage;
+    expect(firstAssistant.status).toMatchObject({ type: "complete" });
+    expect(firstAssistant.metadata.custom.agui).toBeUndefined();
+  });
+
+  it("honors explicit resume responses when cancelling and appending", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                { id: "int-1", reason: "tool_call" },
+                { id: "int-2", reason: "input_required" },
+              ],
+            },
+          },
+        });
+      } else {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success" },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const interruptMessageId = core.getPendingInterrupts()!.messageId;
+    await core.cancelPendingInterruptsAndAppend(
+      createAppendMessage({ parentId: interruptMessageId }),
+      [{ interruptId: "int-1", status: "resolved", payload: { ok: true } }],
+    );
+
+    expect(runInputs[1].resume).toEqual([
+      { interruptId: "int-1", status: "resolved", payload: { ok: true } },
+      { interruptId: "int-2", status: "cancelled" },
+    ]);
+  });
+
+  it("appends without a resume payload when no interrupts are pending", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.cancelPendingInterruptsAndAppend(createAppendMessage());
+
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(runInputs[0].resume).toBeUndefined();
+  });
+
+  it("rejects cancel-and-append with unknown interrupt ids", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.cancelPendingInterruptsAndAppend(createAppendMessage(), [
+        { interruptId: "int-unknown", status: "cancelled" },
+      ]),
+    ).rejects.toThrow(/unknown interrupt id/);
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(core.getPendingInterrupts()).not.toBeNull();
+  });
+
+  it("rejects cancel-and-append responses when no interrupts are pending", async () => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await expect(
+      core.cancelPendingInterruptsAndAppend(createAppendMessage(), [
+        { interruptId: "int-1", status: "cancelled" },
+      ]),
+    ).rejects.toThrow(/no pending interrupts/);
+    expect(runAgent).not.toHaveBeenCalled();
+  });
+
+  it("rejects cancel-and-append while the interrupting run is still draining", async () => {
+    let releaseRun!: () => void;
+    const released = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      await released;
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const appendPromise = core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(core.getPendingInterrupts()?.interrupts).toHaveLength(1);
+    expect(core.isRunning()).toBe(true);
+
+    await expect(
+      core.cancelPendingInterruptsAndAppend(createAppendMessage()),
+    ).rejects.toThrow(/a run is already in progress/);
+
+    releaseRun();
+    await appendPromise;
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("defaults parentId to the thread head so a minimal call preserves the thread", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [{ id: "int-1", reason: "tool_call" }],
+            },
+          },
+        });
+      } else {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success" },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await core.cancelPendingInterruptsAndAppend({
+      role: "user",
+      content: [{ type: "text", text: "do something else" }],
+    });
+
+    expect(core.getMessages().map((m) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+    ]);
+    expect(runInputs[1].resume).toEqual([
+      { interruptId: "int-1", status: "cancelled" },
+    ]);
+  });
+
   it("syncs runtime state snapshot onto the agent before runAgent", async () => {
     let stateAtRun: unknown;
     const agent = {

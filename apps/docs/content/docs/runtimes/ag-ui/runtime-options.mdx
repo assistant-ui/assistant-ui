@@ -109,14 +109,15 @@ The interrupt API is experimental and may change without notice.
 
 When the agent emits `RUN_FINISHED` with `outcome = { type: "interrupt", interrupts: [...] }`, the active assistant message is marked `requires-action` with `reason: "interrupt"` and the `Interrupt[]` payload is written to `metadata.custom.agui.interrupts`. Render an approval / input UI from there.
 
-`useAgUiRuntime` returns an `AgUiAssistantRuntime` with two extra methods:
+`useAgUiRuntime` returns an `AgUiAssistantRuntime` with these extra methods:
 
 | Method | Description |
 | --- | --- |
 | `unstable_getPendingInterrupts(): readonly AgUiInterrupt[]` | Snapshot of the open interrupts on the most recent assistant message. |
 | `unstable_submitInterruptResponses(responses: ResumeEntry[]): Promise<void>` | Submits one `ResumeEntry` per open interrupt and resumes the run. |
+| `unstable_cancelPendingInterruptsAndAppend(message: CreateAppendMessage, responses?: ResumeEntry[]): Promise<void>` | Cancels the open interrupts and appends a new message, resuming the run. Lets the user steer away from the interrupt UI by just typing. |
 
-`responses` must address every open interrupt; missing entries, unknown ids, or expired interrupts (`expiresAt`) reject before any network call. Each entry is `{ interruptId, status: "resolved" | "cancelled", payload? }`. The next `RunAgentInput` carries `resume: ResumeEntry[]`.
+For `unstable_submitInterruptResponses`, `responses` must address every open interrupt; missing entries, unknown ids, or expired interrupts (`expiresAt`) reject before any network call. Each entry is `{ interruptId, status: "resolved" | "cancelled", payload? }`. The next `RunAgentInput` carries `resume: ResumeEntry[]`. (`unstable_cancelPendingInterruptsAndAppend` is looser: missing entries default to `cancelled` and expiry is ignored.)
 
 ```tsx
 const runtime = useAgUiRuntime({ agent });
@@ -129,6 +130,17 @@ await runtime.unstable_submitInterruptResponses(
     payload: { approved: true },
   })),
 );
+```
+
+### Steering away from an interrupt
+
+When the user ignores the interrupt UI and just sends a new message, use `unstable_cancelPendingInterruptsAndAppend`. Every open interrupt defaults to `status: "cancelled"`, the new message is appended, and the run resumes with `resume: ResumeEntry[]`. Pass `responses` to override the status for specific interrupts; the rest still default to cancelled. With no pending interrupts it behaves like a normal append.
+
+```tsx
+await runtime.unstable_cancelPendingInterruptsAndAppend({
+  role: "user",
+  content: [{ type: "text", text: "actually, let's do something else" }],
+});
 ```
 
 ## Supported events
