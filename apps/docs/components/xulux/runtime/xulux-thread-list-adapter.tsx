@@ -10,8 +10,10 @@ import {
 } from "@assistant-ui/react";
 import { useAssistantCloudThreadHistoryAdapter } from "@assistant-ui/core/react";
 import {
+  findXuluxSessionStub,
   findXuluxThread,
   findXuluxThreadBySessionId,
+  isAssistantCloudThreadId,
   readXuluxThreads,
   updateXuluxThread,
   writeXuluxThreads,
@@ -86,6 +88,7 @@ export function createXuluxLocalThreadListAdapter({
     sessionId: string,
   ): Promise<InitializeResult> => {
     const now = Date.now();
+    const sessionStub = findXuluxSessionStub(sessionId);
     let cloudThreadId: string;
 
     try {
@@ -101,24 +104,48 @@ export function createXuluxLocalThreadListAdapter({
       );
     }
 
+    // Drop pre-init local stubs (remoteId was sessionId) now that we have a cloud id.
+    const threadsWithoutStub = readXuluxThreads().filter(
+      (thread) =>
+        thread.remoteId !== sessionId &&
+        !(
+          !isAssistantCloudThreadId(thread.remoteId) &&
+          thread.custom.sessionId === sessionId
+        ),
+    );
+    writeXuluxThreads(threadsWithoutStub);
+
     upsertThread(cloudThreadId, (existing) => ({
       remoteId: cloudThreadId,
       externalId: sessionId,
-      status: existing?.status ?? "regular",
-      ...(existing?.title !== undefined ? { title: existing.title } : {}),
+      status: existing?.status ?? sessionStub?.status ?? "regular",
+      ...(existing?.title !== undefined
+        ? { title: existing.title }
+        : sessionStub?.title !== undefined
+          ? { title: sessionStub.title }
+          : {}),
       custom: {
-        xuluxStatus: existing?.custom.xuluxStatus ?? "idle",
+        xuluxStatus:
+          existing?.custom.xuluxStatus ??
+          sessionStub?.custom.xuluxStatus ??
+          "idle",
         sessionId,
         updatedAt: now,
         ...(existing?.custom.pendingUserMessage !== undefined
           ? { pendingUserMessage: existing.custom.pendingUserMessage }
-          : {}),
+          : sessionStub?.custom.pendingUserMessage !== undefined
+            ? { pendingUserMessage: sessionStub.custom.pendingUserMessage }
+            : {}),
         ...(existing?.custom.selectedTemplate !== undefined
           ? { selectedTemplate: existing.custom.selectedTemplate }
-          : {}),
+          : sessionStub?.custom.selectedTemplate !== undefined
+            ? { selectedTemplate: sessionStub.custom.selectedTemplate }
+            : {}),
         ...(existing?.custom.canvas !== undefined
           ? { canvas: existing.custom.canvas }
-          : {}),
+          : sessionStub?.custom.canvas !== undefined
+            ? { canvas: sessionStub.custom.canvas }
+            : {}),
       } satisfies XuluxThreadCustom,
     }));
 
@@ -142,7 +169,7 @@ export function createXuluxLocalThreadListAdapter({
         })),
       };
     },
-    async initialize() {
+    async initialize(_threadId: string) {
       const sessionId = getCurrentSessionId();
       const existing = findXuluxThreadBySessionId(sessionId);
       if (existing?.remoteId) {

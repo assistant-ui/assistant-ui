@@ -88,6 +88,10 @@ export function writeXuluxThreads(threads: XuluxStoredThread[]) {
   writeJson(THREADS_KEY, threads);
 }
 
+export function isAssistantCloudThreadId(remoteId: string): boolean {
+  return remoteId.startsWith("thread_");
+}
+
 export function findXuluxThread(remoteId: string): XuluxStoredThread | null {
   return (
     readXuluxThreads().find((thread) => thread.remoteId === remoteId) ?? null
@@ -100,8 +104,21 @@ export function findXuluxThreadBySessionId(
   return (
     readXuluxThreads().find(
       (thread) =>
-        thread.custom.sessionId === sessionId ||
-        thread.externalId === sessionId,
+        isAssistantCloudThreadId(thread.remoteId) &&
+        (thread.custom.sessionId === sessionId ||
+          thread.externalId === sessionId),
+    ) ?? null
+  );
+}
+
+export function findXuluxSessionStub(
+  sessionId: string,
+): XuluxStoredThread | null {
+  return (
+    readXuluxThreads().find(
+      (thread) =>
+        !isAssistantCloudThreadId(thread.remoteId) &&
+        thread.custom.sessionId === sessionId,
     ) ?? null
   );
 }
