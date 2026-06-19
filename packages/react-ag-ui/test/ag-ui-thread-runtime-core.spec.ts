@@ -1484,21 +1484,10 @@ describe("AGUIThreadRuntimeCore", () => {
     const core = createCore({ runAgent } as unknown as HttpAgent);
     await core.append(createAppendMessage());
 
-    const pending = core.getPendingInterrupts();
-    expect(pending).toBeTruthy();
+    expect(core.getPendingInterrupts()).toBeTruthy();
 
-    const steerMessage: AppendMessage = {
-      role: "user",
-      content: [{ type: "text", text: "changed my mind" }],
-      attachments: [],
-      metadata: { custom: {} },
-      createdAt: new Date(),
-      parentId: pending!.messageId,
-      sourceId: null,
-      runConfig: {},
-      startRun: true,
-    };
-    await core.steerAway(steerMessage);
+    // string input: parentId defaults to the head (the interrupted assistant)
+    await core.steerAway("changed my mind");
 
     expect(runCount).toBe(2);
     expect(runInputs[1].resume).toEqual([
@@ -1590,7 +1579,9 @@ describe("AGUIThreadRuntimeCore", () => {
 
     expect(runCount).toBe(2);
     expect(runInputs[1].resume).toBeUndefined();
-    expect(core.getMessages().filter((m) => m.role === "user")).toHaveLength(1);
+    // no-pending steerAway is a normal append onto the head, so the new user
+    // message joins the conversation (the first user turn plus this one).
+    expect(core.getMessages().filter((m) => m.role === "user")).toHaveLength(2);
   });
 
   it("steerAway from a root parentId clears interrupts without leaving a stale pending state", async () => {
@@ -1634,6 +1625,108 @@ describe("AGUIThreadRuntimeCore", () => {
       { interruptId: "int-1", status: "cancelled" },
     ]);
     expect(core.getPendingInterrupts()).toBeNull();
+  });
+
+  it("steerAway honors an explicit resume override and cancels the rest", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                { id: "int-1", reason: "tool_call" },
+                { id: "int-2", reason: "confirmation" },
+              ],
+            },
+          },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    await core.steerAway("never mind", [
+      { interruptId: "int-2", status: "resolved", payload: { ok: true } },
+    ]);
+
+    expect(runInputs[1].resume).toEqual([
+      { interruptId: "int-1", status: "cancelled" },
+      { interruptId: "int-2", status: "resolved", payload: { ok: true } },
+    ]);
+  });
+
+  it("steerAway rejects responses when no interrupts are pending", async () => {
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runCount++;
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    expect(core.getPendingInterrupts()).toBeNull();
+
+    await expect(
+      core.steerAway("hi", [{ interruptId: "int-1", status: "cancelled" }]),
+    ).rejects.toThrow("no pending interrupts");
+    expect(runCount).toBe(1);
+  });
+
+  it("steerAway rejects unknown or duplicate interrupt ids", async () => {
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runCount++;
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.steerAway("x", [{ interruptId: "int-9", status: "cancelled" }]),
+    ).rejects.toThrow("unknown interrupt id");
+    await expect(
+      core.steerAway("x", [
+        { interruptId: "int-1", status: "cancelled" },
+        { interruptId: "int-1", status: "resolved" },
+      ]),
+    ).rejects.toThrow("duplicate response");
+    expect(runCount).toBe(1);
   });
 
   it("attaches a TOOL_CALL_RESULT for a prior run's tool call to its owning message", async () => {

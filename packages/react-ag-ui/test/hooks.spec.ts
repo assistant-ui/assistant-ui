@@ -91,7 +91,26 @@ describe("useAgUiSubmitInterruptResponses", () => {
 });
 
 describe("useAgUiSteerAway", () => {
-  it("delegates to the extras steerAway with the given message", () => {
+  it("forwards the message and responses to extras.steerAway", () => {
+    const steerAway = vi.fn().mockResolvedValue(undefined);
+    const extras = agUiExtras.provide({
+      interrupts: [interrupt],
+      submitInterruptResponses: vi.fn(),
+      steerAway,
+    });
+    mockUseAui.mockReturnValue({
+      thread: () => ({ getState: () => ({ extras }) }),
+    });
+    const responses: AgUiResumeEntry[] = [
+      { interruptId: "int-1", status: "cancelled" },
+    ];
+
+    useAgUiSteerAway()("changed my mind", responses);
+
+    expect(steerAway).toHaveBeenCalledWith("changed my mind", responses);
+  });
+
+  it("forwards a bare message with no responses", () => {
     const steerAway = vi.fn().mockResolvedValue(undefined);
     const extras = agUiExtras.provide({
       interrupts: [interrupt],
@@ -104,7 +123,7 @@ describe("useAgUiSteerAway", () => {
 
     useAgUiSteerAway()(userMessage);
 
-    expect(steerAway).toHaveBeenCalledWith(userMessage);
+    expect(steerAway).toHaveBeenCalledWith(userMessage, undefined);
   });
 
   it("throws when the thread is not backed by ag-ui", () => {

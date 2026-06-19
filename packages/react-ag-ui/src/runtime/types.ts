@@ -1,5 +1,5 @@
 import type {
-  AppendMessage,
+  CreateAppendMessage,
   AttachmentAdapter,
   DictationAdapter,
   ExternalStoreSharedOptions,
@@ -91,7 +91,10 @@ export type AgUiRuntimeExtras = {
   submitInterruptResponses: (
     responses: readonly AgUiResumeEntry[],
   ) => Promise<void>;
-  steerAway: (message: AppendMessage) => Promise<void>;
+  steerAway: (
+    message: CreateAppendMessage,
+    responses?: readonly AgUiResumeEntry[],
+  ) => Promise<void>;
 };
 
 export type AgUiRunFinishedOutcome =

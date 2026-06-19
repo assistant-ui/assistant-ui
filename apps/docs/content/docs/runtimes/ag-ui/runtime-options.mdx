@@ -131,6 +131,25 @@ await runtime.unstable_submitInterruptResponses(
 );
 ```
 
+### Steering away from an interrupt
+
+When the user ignores the interrupt UI and just sends a new message, use the `useAgUiSteerAway` hook. Every open interrupt defaults to `status: "cancelled"`, the new message is appended, and the run resumes with `resume: ResumeEntry[]` on the wire. With no pending interrupts it behaves like a normal append.
+
+```tsx
+const steerAway = useAgUiSteerAway();
+
+// the user typed a new message instead of answering the interrupt
+await steerAway("actually, let's do something else");
+```
+
+The message accepts a plain string or a partial `AppendMessage` (the parent defaults to the current head, which is the interrupted assistant message). Pass `responses` to override the status of specific interrupts; the rest still default to cancelled.
+
+```tsx
+await steerAway("continue without the file", [
+  { interruptId: "tool-1", status: "resolved", payload: { approved: true } },
+]);
+```
+
 ## Supported events
 
 The runtime parses the AG-UI event stream and maps each event type to assistant-ui state.
