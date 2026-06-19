@@ -1,4 +1,11 @@
 import chalk from "chalk";
+import createDebug from "debug";
+
+/**
+ * single debug instance, gated by the DEBUG env var. enabled when DEBUG matches
+ * the "aui" namespace — i.e. DEBUG=aui, DEBUG=aui*, or DEBUG=*.
+ */
+const debugLog = createDebug("aui");
 
 export const logger = {
   info: (message: string) => {
@@ -19,4 +26,10 @@ export const logger = {
   break: () => {
     console.log("");
   },
+};
+
+export const debug = (message: string) => {
+  if (debugLog.enabled) {
+    console.log(chalk.gray(`DEBUG: ${message}`));
+  }
 };
