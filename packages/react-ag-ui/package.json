@@ -36,6 +36,7 @@
   "dependencies": {
     "@ag-ui/client": "^0.0.57",
     "@assistant-ui/core": "^0.2.18",
+    "@assistant-ui/store": "^0.2.18",
     "assistant-stream": "^0.3.23",
     "fast-json-patch": "^3.1.1"
   },

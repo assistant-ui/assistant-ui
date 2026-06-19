@@ -85,6 +85,13 @@ export type AgUiResumeEntry = {
   payload?: unknown;
 };
 
+export type AgUiRuntimeExtras = {
+  interrupts: readonly AgUiInterrupt[];
+  submitInterruptResponses: (
+    responses: readonly AgUiResumeEntry[],
+  ) => Promise<void>;
+};
+
 export type AgUiRunFinishedOutcome =
   | { type: "success" }
   | { type: "interrupt"; interrupts: AgUiInterrupt[] };
