@@ -19,7 +19,8 @@ export type LangChainContentBlock =
   | { type: "thinking"; thinking: string }
   | {
       type: "reasoning";
-      summary: Array<{ type: "summary_text"; text: string }>;
+      summary?: Array<{ type: "summary_text"; text: string }>;
+      reasoning?: string;
     }
   | {
       type: "file";
