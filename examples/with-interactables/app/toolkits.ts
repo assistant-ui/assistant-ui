@@ -1,5 +1,6 @@
 "use generative";
 
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { defineToolkit, stubTool } from "@assistant-ui/react";
 import { manageNotesParameters, manageTasksParameters } from "./state";
 
@@ -8,22 +9,14 @@ export default defineToolkit({
     description:
       'Manage tasks on the task board. Actions: "add" (requires title), "toggle" (requires id), "remove" (requires id), "clear" (no extra fields).',
     parameters: manageTasksParameters,
-    // The generative compiler strips this stub; TaskBoardToolOverrides provides the real executor.
     execute: stubTool(),
-    renderText: {
-      running: ({ args }) => `Updating tasks: ${args.action}`,
-      complete: "Tasks updated",
-    },
+    render: ToolFallback,
   },
   manage_notes: {
     description:
-      'Manage sticky notes. Actions: "add" (creates a new note, returns its id), "remove" (requires noteId), "clear" (removes all notes). After adding, use the update_note tool with the returned id to set its content.',
+      'Manage the sticky-note collection. Actions: "add" (optionally pass initial title/content/color/select; returns noteId), "select" (requires noteId), "remove" (requires noteId), "clear" (removes all notes). To edit an existing note\'s title, content, or color, use the auto-generated update_note tool with that note\'s id.',
     parameters: manageNotesParameters,
-    // The generative compiler strips this stub; NotesToolOverrides provides the real executor.
     execute: stubTool(),
-    renderText: {
-      running: ({ args }) => `Updating notes: ${args.action}`,
-      complete: "Notes updated",
-    },
+    render: ToolFallback,
   },
 });

@@ -9,10 +9,12 @@ Demonstrates **interactable components** — persistent UI components whose stat
 - `Tools({ toolkit })` — custom tool for incremental add/toggle/remove/clear
 - Auto-generated `update_taskBoard` tool with **partial updates** (AI only sends changed fields)
 
-### Sticky Notes (multi-instance + selection + partial updates)
+### Sticky Notes (collection actions + multi-instance updates)
+- The notes panel registers a small `notes` index interactable for note IDs and the selected note ID
 - Multiple `<NoteCard>` components each call `unstable_useInteractable("note", { id: noteId, ... })`
+- **Collection actions**: `manage_notes` adds/selects/removes/clears notes and can update an existing note by `noteId`
 - **Multi-instance**: all notes share one `update_note` tool; the AI addresses a note by its `id`
-- **Selection**: click a note to select it; the `selected` flag rides the note's state snapshot so the AI prioritizes it
+- **Selection**: click a note to select it; the parent updates `selectedId`, and each note syncs its own `selected` field so the AI sees focus in message metadata
 - **Partial updates**: AI can change just `{ id, color: "pink" }` without resending title and content
 
 ## Getting Started
@@ -37,6 +39,6 @@ Open [http://localhost:3000](http://localhost:3000) to see the example.
 - **`unstable_useInteractable(name, config)`** — returns `[state, { id, setState, isPending, error, flush }]`
 - **Partial updates** — auto-generated tools use partial schemas; AI only sends changed fields
 - **Multi-instance** — same `name`, different `id`; one stable `update_{name}` tool addressed by `id`
-- **Selection** — a `selected` field in the note's own state marks it as focused for the AI
-- **`Tools({ toolkit })`** — custom frontend tools for fine-grained control
+- **Selection** — the parent owns `selectedId`; each note mirrors it into a `selected` state field that is stamped into message metadata
+- **`Tools({ toolkit })`** — custom frontend tools for collection-level actions
 - **`sendAutomaticallyWhen`** — auto-sends follow-up messages when tool calls complete

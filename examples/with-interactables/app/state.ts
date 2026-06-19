@@ -15,18 +15,32 @@ export const taskBoardSchema = z.object({
 
 export const taskBoardInitialState: TaskBoardState = { tasks: [] };
 
-export const manageTasksParameters = z.object({
-  action: z.enum(["add", "toggle", "remove", "clear"]),
-  title: z.string().optional(),
-  id: z.string().optional(),
-});
+export const manageTasksParameters = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("add"),
+    title: z.string(),
+  }),
+  z.object({
+    action: z.literal("toggle"),
+    id: z.string(),
+  }),
+  z.object({
+    action: z.literal("remove"),
+    id: z.string(),
+  }),
+  z.object({
+    action: z.literal("clear"),
+  }),
+]);
 
 export type ManageTasksArgs = z.infer<typeof manageTasksParameters>;
+
+export const noteColorSchema = z.enum(["yellow", "blue", "green", "pink"]);
 
 export const noteSchema = z.object({
   title: z.string(),
   content: z.string(),
-  color: z.enum(["yellow", "blue", "green", "pink"]),
+  color: noteColorSchema,
   selected: z.boolean(),
 });
 
@@ -39,9 +53,37 @@ export const noteInitialState: NoteState = {
   selected: false,
 };
 
-export const manageNotesParameters = z.object({
-  action: z.enum(["add", "remove", "clear"]),
-  noteId: z.string().optional(),
+export const notesIndexSchema = z.object({
+  ids: z.array(z.string()),
+  selectedId: z.string().nullable(),
 });
+
+export type NotesIndexState = z.infer<typeof notesIndexSchema>;
+
+export const notesIndexInitialState: NotesIndexState = {
+  ids: [],
+  selectedId: null,
+};
+
+export const manageNotesParameters = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("add"),
+    title: z.string().optional(),
+    content: z.string().optional(),
+    color: noteColorSchema.optional(),
+    select: z.boolean().optional(),
+  }),
+  z.object({
+    action: z.literal("select"),
+    noteId: z.string(),
+  }),
+  z.object({
+    action: z.literal("remove"),
+    noteId: z.string(),
+  }),
+  z.object({
+    action: z.literal("clear"),
+  }),
+]);
 
 export type ManageNotesArgs = z.infer<typeof manageNotesParameters>;
