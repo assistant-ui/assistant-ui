@@ -1,0 +1,7 @@
+{
+  "extends": "@assistant-ui/x-buildutils/ts/base-node",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true
+  },
+  "include": ["**/*.mts"]
+}

@@ -47,11 +47,11 @@ export type ExportInfo = {
   kind: ExportKind;
   page: string;
   pageRole: "primary" | "related" | "supporting-type";
-  sourcePath?: string;
-  jsDoc?: string;
-  jsDocExamples?: string[];
-  deprecated?: string;
-  signature?: string;
+  sourcePath?: string | undefined;
+  jsDoc?: string | undefined;
+  jsDocExamples?: string[] | undefined;
+  deprecated?: string | undefined;
+  signature?: string | undefined;
   classificationRule: string;
   classificationConfidence: "strong" | "medium" | "fallback";
   classificationReason: string;
@@ -166,11 +166,11 @@ function relativeToRepo(filePath: string | undefined): string | undefined {
 type DiscoveredExportInput = {
   name: string;
   resolved: TsNode | undefined;
-  deprecated?: string;
+  deprecated?: string | undefined;
 };
 
 type ClassifiedExportInput = DiscoveredExportInput & {
-  sourcePath?: string;
+  sourcePath?: string | undefined;
   kind: ExportKind;
   placement: ReturnType<typeof classifyExport>;
 };

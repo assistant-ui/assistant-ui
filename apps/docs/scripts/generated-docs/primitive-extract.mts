@@ -143,7 +143,7 @@ function getPrimitiveComponentMeta(
   sourceFile: SourceFile,
   localName: string,
   options?: JsDocRenderOptions,
-): { description?: string; deprecated?: string } {
+): { description?: string | undefined; deprecated?: string | undefined } {
   for (const varDecl of sourceFile.getVariableDeclarations()) {
     if (varDecl.getName() !== localName) continue;
     const statement = varDecl.getVariableStatement();
@@ -469,7 +469,7 @@ export function extractPrimitivePartsFor(
 }
 
 /** Extract every primitive part across every primitive. Used by
- *  generate-primitive-docs.mts. Pass the react api render options so {@link}
+ *  generate-type-docs.mts. Pass the react api render options so {@link}
  *  references in primitive prop JSDoc resolve to anchors (and only genuinely
  *  broken links warn), matching the api-reference pass. */
 export function extractPrimitiveParts(

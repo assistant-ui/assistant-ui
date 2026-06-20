@@ -351,8 +351,8 @@ function cleanJsDocTagText(text: string | undefined): string | undefined {
 }
 
 function deprecatedTagParts(doc: JSDoc | undefined): {
-  deprecated?: string;
-  trailingDescription?: string;
+  deprecated?: string | undefined;
+  trailingDescription?: string | undefined;
 } {
   const tag = doc?.getTags().find((tag) => tag.getTagName() === "deprecated");
   const cleaned = cleanJsDocTagText(tag?.getCommentText());
@@ -456,9 +456,9 @@ export function extractJsDoc(
   node: TsNode | undefined,
   options?: JsDocRenderOptions,
 ): {
-  jsDoc?: string;
-  deprecated?: string;
-  examples?: string[];
+  jsDoc?: string | undefined;
+  deprecated?: string | undefined;
+  examples?: string[] | undefined;
 } {
   const doc = getJsDocs(node)[0];
   const source = jsDocSourceLabel(node);
@@ -479,9 +479,9 @@ function propertyJsDocMeta(
   node: TsNode | undefined,
   options?: JsDocRenderOptions,
 ): {
-  description?: string;
-  default?: string;
-  deprecated?: string;
+  description?: string | undefined;
+  default?: string | undefined;
+  deprecated?: string | undefined;
 } {
   if (!node || !hasJsDocs(node)) return {};
   const doc = node.getJsDocs()[0];
@@ -498,14 +498,14 @@ function propertyDeclarationsJsDocMeta(
   declarations: TsNode[],
   options?: JsDocRenderOptions,
 ): {
-  description?: string;
-  default?: string;
-  deprecated?: string;
+  description?: string | undefined;
+  default?: string | undefined;
+  deprecated?: string | undefined;
 } {
   return declarations.reduce<{
-    description?: string;
-    default?: string;
-    deprecated?: string;
+    description?: string | undefined;
+    default?: string | undefined;
+    deprecated?: string | undefined;
   }>((meta, declaration) => {
     const declarationMeta = propertyJsDocMeta(declaration, options);
     return {
@@ -579,7 +579,7 @@ function localTypeSignature(node: TsNode): string | undefined {
     return cleanSignatureText(node.getText()).replace(/^export\s+/, "");
   }
   if (Node.isTypeAliasDeclaration(node)) {
-    return `type ${node.getName()} = ${cleanSignatureText(node.getTypeNode().getText())};`;
+    return `type ${node.getName()} = ${cleanSignatureText(node.getTypeNodeOrThrow().getText())};`;
   }
   return undefined;
 }
@@ -686,7 +686,7 @@ function typeSignature(node: TsNode, name: string): string | undefined {
     return cleanSignatureText(node.getText());
   }
   if (Node.isTypeAliasDeclaration(node)) {
-    return `type ${name} = ${cleanSignatureText(node.getTypeNode().getText())};`;
+    return `type ${name} = ${cleanSignatureText(node.getTypeNodeOrThrow().getText())};`;
   }
   return undefined;
 }
@@ -1007,13 +1007,14 @@ function parameterFromSignatureParameter(
   if (jsDoc.deprecated) model.deprecated = jsDoc.deprecated;
 
   if (shouldExpandChildType(parameterType, declaredType)) {
-    model.children = processTypeChildren(
+    const children = processTypeChildren(
       parameterType,
       typeDisplayName(parameterType, declaredType),
       decl ?? location,
       depth,
       options,
     );
+    if (children) model.children = children;
   }
 
   return model;

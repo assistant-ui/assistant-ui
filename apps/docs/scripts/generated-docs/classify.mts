@@ -12,7 +12,7 @@ export type Classification = {
 export type ClassificationInput = {
   name: string;
   kind: ExportKind;
-  sourcePath?: string;
+  sourcePath?: string | undefined;
 };
 
 type ClassificationRule = (
@@ -162,6 +162,7 @@ function toolsRule(input: ClassificationInput): Classification | undefined {
       "tool definition, toolkit, component registration, rendering, or status export",
     );
   }
+  return undefined;
 }
 
 function transportRule(input: ClassificationInput): Classification | undefined {
@@ -188,6 +189,7 @@ function transportRule(input: ClassificationInput): Classification | undefined {
       "assistant transport, frame, or protocol export",
     );
   }
+  return undefined;
 }
 
 function externalStoreRule(
@@ -215,6 +217,7 @@ function externalStoreRule(
       "external store runtime or message conversion export",
     );
   }
+  return undefined;
 }
 
 function modelContextRule(
@@ -238,6 +241,7 @@ function modelContextRule(
       "model context, instructions, context, or registry export",
     );
   }
+  return undefined;
 }
 
 function voiceRule(input: ClassificationInput): Classification | undefined {
@@ -259,6 +263,7 @@ function voiceRule(input: ClassificationInput): Classification | undefined {
       "voice, speech, or dictation export",
     );
   }
+  return undefined;
 }
 
 const GENERATIVE_UI_SPEC_TYPES = new Set([
@@ -285,6 +290,55 @@ function generativeUIRule(
     "strong",
     "generative UI spec, renderer, or component registry export",
   );
+}
+
+const LEGACY_INTERACTABLE_EXPORTS = new Set([
+  "useAssistantInteractable",
+  "AssistantInteractableProps",
+  "useInteractableState",
+  "Interactables",
+  "InteractableStateSchema",
+  "InteractablesState",
+  "InteractableDefinition",
+  "InteractableRegistration",
+  "InteractablesMethods",
+  "InteractablePersistedState",
+  "InteractablePersistenceAdapter",
+  "InteractablePersistenceStatus",
+  "InteractablesClientSchema",
+]);
+
+function interactablesRule(
+  input: ClassificationInput,
+): Classification | undefined {
+  const { name, kind } = input;
+  const isUnstableInteractable =
+    name.startsWith("unstable_") && name.toLowerCase().includes("interactable");
+  const isUnstableInteractableType =
+    name.startsWith("Unstable_") && name.includes("Interactable");
+
+  if (isUnstableInteractable || isUnstableInteractableType) {
+    return classification(
+      "tools",
+      "interactables",
+      supportingTypeRole(kind),
+      "feature:interactables",
+      "strong",
+      "unstable interactables API export",
+    );
+  }
+
+  if (LEGACY_INTERACTABLE_EXPORTS.has(name)) {
+    return classification(
+      "tools",
+      "interactables-legacy",
+      supportingTypeRole(kind),
+      "feature:interactables-legacy",
+      "strong",
+      "legacy interactables API export",
+    );
+  }
+  return undefined;
 }
 
 function kindRule(input: ClassificationInput): Classification | undefined {
@@ -363,6 +417,7 @@ const CLASSIFICATION_RULES: ClassificationRule[] = [
   modelContextRule,
   voiceRule,
   generativeUIRule,
+  interactablesRule,
   kindRule,
 ];
 

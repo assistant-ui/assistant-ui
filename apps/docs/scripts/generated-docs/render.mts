@@ -33,7 +33,7 @@ type AuthoredSlot = {
 };
 
 type PageSlots = {
-  manual?: string;
+  manual?: string | undefined;
   namedManual: Map<string, string>;
   examples: Map<string, string>;
   explicit: AuthoredSlot[];
@@ -344,9 +344,32 @@ function isUnstableName(name: string): boolean {
   return name.startsWith("unstable_") || name.startsWith("Unstable_");
 }
 
+const EXPORT_ORDER_BY_PAGE: Record<string, readonly string[]> = {
+  "tools/interactables": [
+    "unstable_Interactables",
+    "unstable_useInteractable",
+    "unstable_useInteractableState",
+    "unstable_useInteractableVersions",
+    "unstable_interactableTool",
+    "unstable_getInteractableSnapshots",
+    "unstable_formatInteractableSnapshot",
+    "unstable_getInteractableVersions",
+  ],
+  "tools/interactables-legacy": [
+    "Interactables",
+    "useAssistantInteractable",
+    "useInteractableState",
+  ],
+};
+
 function exportSortKey(item: ExportInfo): [number, string] {
-  if (isUnstableName(item.name)) return [1, item.name];
-  return [0, item.name];
+  const pageOrder = EXPORT_ORDER_BY_PAGE[`${item.section}/${item.page}`];
+  const pageIndex = pageOrder?.indexOf(item.name) ?? -1;
+  if (pageIndex !== -1) return [pageIndex, item.name];
+
+  const fallbackGroup = pageOrder ? pageOrder.length : 0;
+  if (isUnstableName(item.name)) return [fallbackGroup + 1, item.name];
+  return [fallbackGroup, item.name];
 }
 
 function sortExportsForPage(items: ExportInfo[]): ExportInfo[] {
@@ -576,7 +599,7 @@ function generateApiPage({
   title: string;
   description: string;
   imports: string;
-  guideLine?: string;
+  guideLine?: string | undefined;
   slots: PageSlots;
   reference: string;
 }): string {
@@ -651,7 +674,14 @@ function generatedImports({
 }
 
 const PAGE_ORDER_BY_SECTION: Partial<Record<ApiSection, readonly string[]>> = {
-  tools: ["toolkits", "component-tools", "rendering", "status"],
+  tools: [
+    "toolkits",
+    "component-tools",
+    "rendering",
+    "status",
+    "interactables",
+    "interactables-legacy",
+  ],
   "generative-ui": ["spec", "rendering"],
 };
 
@@ -856,7 +886,9 @@ export function writeApiReferencePages(
     const sectionDir = path.join(API_REFERENCE_DIR, section);
     fs.mkdirSync(sectionDir, { recursive: true });
 
-    const pages = [...(grouped.get(section) ?? new Map()).entries()]
+    const pages = [
+      ...(grouped.get(section) ?? new Map<string, ExportInfo[]>()).entries(),
+    ]
       .filter(([, items]) => items.some((item) => item.pageRole === "primary"))
       .sort(([a], [b]) => comparePageSlugs(section, a, b));
 
@@ -940,9 +972,10 @@ function writeIntegrationPages(
   const sectionDir = path.join(API_REFERENCE_DIR, section);
   fs.mkdirSync(sectionDir, { recursive: true });
 
-  const integrationBySlug = new Map(
-    INTEGRATION_PACKAGES.map((p) => [p.slug, p]),
-  );
+  const integrationBySlug = new Map<
+    string,
+    (typeof INTEGRATION_PACKAGES)[number]
+  >(INTEGRATION_PACKAGES.map((p) => [p.slug, p]));
 
   const pageSummaries: PageSummary[] = [];
 
