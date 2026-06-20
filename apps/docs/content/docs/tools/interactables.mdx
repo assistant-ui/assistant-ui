@@ -228,6 +228,63 @@ EDIT NOTE: This should be in it's own section: Each snapshot reads as `[Current 
 </Step>
 </Steps>
 
+## Artifacts
+
+Artifacts are usually read-only: the model produces a document, and the user can only view it. An interactable artifact goes a step further, since the user can edit it too and the model sees those edits. It is the same pattern with the rendering split in two: the inline tool UI renders a **button**, and the full interactable lives in a panel (sidebar, dialog) in your layout.
+
+```
+inline messages                         artifact panel (layout)
+───────────────────────────            ─────────────────────────────
+render: a button per version           unstable_useInteractable(name, {id})
+  "📝 Meeting notes" → onOpen(id)        → live, editable, full height
+```
+
+```tsx
+const toolkit = defineToolkit({
+  document: unstable_interactableTool({
+    description: "A document the user can open and edit.",
+    stateSchema: documentSchema,
+    render: ({ state, version, id }) => (
+      <ArtifactButton
+        title={(version?.state ?? state).title}
+        onClick={() => openArtifact(id)}
+      />
+    ),
+  }),
+});
+
+function ArtifactPanel({ id }: { id: string }) {
+  const [state, { setState }] = unstable_useInteractable("document", {
+    id,
+    description: "A document the user can open and edit.",
+    stateSchema: documentSchema,
+    initialState: emptyDocument,
+  });
+  const versions = unstable_useInteractableVersions<Document>(id, "document");
+
+  return (
+    <aside>
+      <VersionDropdown>
+        {versions.map((v, i) => (
+          <DropdownItem key={i} onSelect={v.restore}>
+            v{i + 1}: {v.origin === "user-edit" ? "you" : "assistant"}
+          </DropdownItem>
+        ))}
+      </VersionDropdown>
+      <Editor value={state} onChange={setState} />
+    </aside>
+  );
+}
+```
+
+Outside message parts the hook always returns the live state (`version` is `undefined`), so the panel is plainly editable. Both the panel and the inline tool UIs can register the same `id`; registration is shared.
+
+<Callout type="warn">
+  Keep the artifact panel mounted (hidden is fine) whenever its instance should
+  stay available. If every component registering the instance unmounts (panel
+  closed and inline buttons virtualized out of the thread), the instance and
+  its `update_{name}` tool unregister, and the tool list churns.
+</Callout>
 ## Companion tools
 
 The generated `update_{name}` tool covers everything that lives in the state: editing fields, and adding, updating, removing, or clearing items in a list. Reach for a separate frontend tool only for what state can't express — a side effect, or mounting and unmounting separate component instances (see [Multiple Instances](#multiple-instances)).
@@ -236,33 +293,6 @@ How you wire one depends on what its executor touches:
 
 - **Closes over React state**: declare the contract with `stubTool()` in your `"use generative"` toolkit and supply the executor with `useAuiToolOverrides` in the component that owns the state. See [Dynamic Tools](/docs/tools/dynamic-tools).
 - **Self-contained**: put a real `execute` with an inner `"use client"` directly in the toolkit; see [Defining Tools](/docs/tools/defining-tools#frontend-tools).
-
-## Scope
-EDIT NOTE: Does the API still accept scope: "app" or "thread"? I don't think it even needs to since both are defined differently right?
-
-Each interactable has a `scope` that decides where its state lives and how it is re-seeded after a reload. It defaults to `"app"`, which is what the Quick Start uses.
-
-- **`"app"`** (default): state is owned by the [persistence adapter](#persistence) and shared across every thread. It's included in `exportState`/`save`, and on reload it re-seeds from the saved adapter blob. Use this for app-wide UI the assistant manipulates regardless of which conversation is open (a settings panel, a shared dashboard).
-- **`"thread"`**: state rides the thread's own message history instead. The snapshot stamped onto each sent message _is_ the persisted copy, so thread-scoped interactables are skipped by the persistence adapter (`save` and `exportState` ignore them) and re-seed from the latest snapshot in the current thread on reload. Use this for state that belongs to one conversation (a per-thread canvas or draft).
-
-```tsx
-unstable_useInteractable("draft", {
-  description: "The draft being edited in this conversation",
-  stateSchema: draftSchema,
-  initialState: draftInitialState,
-  scope: "thread",
-});
-```
-
-<Callout type="info">
-  For `scope: "thread"`, only **sent** state reaches history. A live edit the
-  user makes but never sends survives in-session remounts (scrolling, list
-  virtualization) but is **lost on a full page reload**: the interactable
-  re-seeds from the model-known thread record (its creating tool call's args,
-  sent snapshots, and the model's own `update_*` calls), or from `initialState`
-  if none exists. If an edit must outlive a reload before the next message,
-  send it or use `scope: "app"` with a persistence adapter.
-</Callout>
 
 ## Interactables in Messages
 EDIT NOTE: I think this section is redundant, thread-scoped in quick start covers this.
@@ -296,7 +326,7 @@ const toolkit = defineToolkit({
 });
 ```
 
-That's the whole setup. When the model later calls the auto-generated `update_notepad`, the same `render` appears at the message that made the edit. In-message interactables are thread-scoped: state rides the thread's history (see [Scope](#scope)).
+That's the whole setup. When the model later calls the auto-generated `update_notepad`, the same `render` appears at the message that made the edit. In-message interactables are thread-scoped: state rides the thread's history.
 
 ### Versions
 EDIT NOTE: Redundancy risk with #version-history
@@ -336,67 +366,6 @@ EDIT NOTE: Redundancy risk with #streaming-updates
 
 While a tool call's arguments are still streaming, `render` is called with `streaming: true`: at the creating call `state` is the partially generated draft (fields may be missing), and at an `update_{name}` call it is the live state updating as the edit streams in. Render a preview; edits made during a create stream are dropped.
 
-### Artifacts
-EDIT NOTE: This belongs in it's own section, not part of thread-scoped.
-
-Artifacts are usually read-only: the model produces a document, and the user can only view it. An interactable artifact goes a step further, since the user can edit it too and the model sees those edits. It is the same pattern with the rendering split in two: the inline tool UI renders a **button**, and the full interactable lives in a panel (sidebar, dialog) in your layout.
-
-```
-inline messages                         artifact panel (layout)
-───────────────────────────            ─────────────────────────────
-render: a button per version           unstable_useInteractable(name, {id,
-  "📝 Meeting notes" → onOpen(id)        scope: "thread"}) → live,
-                                         editable, full height
-```
-
-```tsx
-const toolkit = defineToolkit({
-  document: unstable_interactableTool({
-    description: "A document the user can open and edit.",
-    stateSchema: documentSchema,
-    render: ({ state, version, id }) => (
-      <ArtifactButton
-        title={(version?.state ?? state).title}
-        onClick={() => openArtifact(id)}
-      />
-    ),
-  }),
-});
-
-function ArtifactPanel({ id }: { id: string }) {
-  const [state, { setState }] = unstable_useInteractable("document", {
-    id,
-    description: "A document the user can open and edit.",
-    stateSchema: documentSchema,
-    initialState: emptyDocument,
-    scope: "thread",
-  });
-  const versions = unstable_useInteractableVersions<Document>(id, "document");
-
-  return (
-    <aside>
-      <VersionDropdown>
-        {versions.map((v, i) => (
-          <DropdownItem key={i} onSelect={v.restore}>
-            v{i + 1}: {v.origin === "user-edit" ? "you" : "assistant"}
-          </DropdownItem>
-        ))}
-      </VersionDropdown>
-      <Editor value={state} onChange={setState} />
-    </aside>
-  );
-}
-```
-
-Outside message parts the hook always returns the live state (`version` is `undefined`), so the panel is plainly editable. Both the panel and the inline tool UIs can register the same `id`; registration is shared.
-
-<Callout type="warn">
-  Keep the artifact panel mounted (hidden is fine) whenever its instance should
-  stay available. If every component registering the instance unmounts (panel
-  closed and inline buttons virtualized out of the thread), the instance and
-  its `update_{name}` tool unregister, and the tool list churns.
-</Callout>
-
 ### Escape hatch
 
 `unstable_interactableTool` is built on two low-level pieces. You rarely touch them — reach for them only when you want to render the create and update calls yourself:
@@ -420,7 +389,6 @@ function Notepad({ id, initial }: { id?: string; initial: NotepadArgs }) {
     description: "A notepad the user can read and edit.",
     stateSchema: notepadSchema,
     initialState: initial,
-    scope: "thread",
     updateRender: NotepadUpdateToolUI, // gate on `result` before mounting this
   });
   // ...
@@ -470,7 +438,7 @@ Versions are read from the current thread's messages, so an app-scoped item's hi
 
 ## Persistence
 
-By default, `scope: "app"` interactable state is in-memory and lost on page refresh. You can add persistence by passing an adapter to `unstable_Interactables`:
+By default, app-scoped interactable state is in-memory and lost on page refresh. You can add persistence by passing an adapter to `unstable_Interactables`:
 
 ```tsx
 import { useAui, unstable_Interactables } from "@assistant-ui/react";
@@ -495,7 +463,7 @@ function MyRuntimeProvider({ children }) {
 }
 ```
 
-`load` is called when the adapter is attached and may be async. Loaded state seeds interactables as they register; a local edit made while a slow `load` is still in flight wins over the loaded value. Thread-scoped interactables are not touched by the adapter; they persist via thread history (see [Scope](#scope)).
+`load` is called when the adapter is attached and may be async. Loaded state seeds interactables as they register; a local edit made while a slow `load` is still in flight wins over the loaded value. Thread-scoped interactables are not touched by the adapter; they persist via thread history.
 
 For dynamic setups (an adapter that depends on auth), call `aui.interactables().setPersistenceAdapter(adapter)` imperatively instead.
 
@@ -723,17 +691,6 @@ const [state, { id, setState, isPending, error, flush }] = unstable_useInteracta
               description:
                 "Unique instance ID, used to address this instance when multiple interactables share a name. Auto-generated if omitted.",
             },
-            {
-              name: "scope",
-              type: '"app" | "thread"',
-              required: false,
-              default: '"app"',
-              description: (
-                <>
-                  Where state persists and re-seeds from. See <a href="#scope">Scope</a>.
-                </>
-              ),
-            },
           ],
         },
       ],
@@ -783,7 +740,7 @@ const [state, { id, setState, isPending, error, flush }] = unstable_useInteracta
       description: (
         <>
           This message's version of the instance, when rendered inside a
-          tool-call part with <code>scope: "thread"</code>; see{" "}
+          tool-call part; see{" "}
           <a href="#interactables-in-messages">Interactables in Messages</a>.{" "}
           <code>undefined</code> outside messages and for app scope.
         </>

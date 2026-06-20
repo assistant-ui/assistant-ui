@@ -290,7 +290,7 @@ export function unstable_getInteractableVersions(
     for (const part of msg.content ?? []) {
       const p = asToolCallPart(part);
       if (!p) continue;
-      if (p.toolCallId === id) {
+      if (p.toolCallId === id && p.toolName === name) {
         if (p.args && typeof p.args === "object") {
           versions.push({ state: p.args, origin: "create", toolCallId: id });
         }

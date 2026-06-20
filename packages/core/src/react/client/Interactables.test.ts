@@ -97,6 +97,24 @@ const reg = (
 const stateOf = (root: ReturnType<typeof mount>, id: string) =>
   root.getValue().getState().definitions[id]?.state;
 
+const createCall = (
+  id: string,
+  args: Record<string, unknown> = { v: 0 },
+  name = "note",
+) =>
+  ({
+    role: "assistant",
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: id,
+        toolName: name,
+        args,
+        result: { success: true },
+      },
+    ],
+  }) as unknown as ThreadMessage;
+
 const flushMicrotasks = () => vi.advanceTimersByTimeAsync(0);
 
 let root: ReturnType<typeof mount> | undefined;
@@ -132,7 +150,21 @@ describe("Interactables registration", () => {
     expect(stateOf(root, "n1")).toEqual({ v: 5 });
   });
 
-  it("restores a thread-scoped registration from the model-known thread state", () => {
+  it("restores a tool-created registration from the model-known thread state", () => {
+    const snapshot = {
+      role: "user",
+      metadata: {
+        custom: {
+          interactables: [{ id: "n1", name: "note", state: { v: 42 } }],
+        },
+      },
+    } as unknown as ThreadMessage;
+    root = mount({ threadMessages: [createCall("n1"), snapshot] });
+    root.getValue().register(reg("n1"));
+    expect(stateOf(root, "n1")).toEqual({ v: 42 });
+  });
+
+  it("does not infer thread ownership from snapshots alone", () => {
     const snapshot = {
       role: "user",
       metadata: {
@@ -142,47 +174,40 @@ describe("Interactables registration", () => {
       },
     } as unknown as ThreadMessage;
     root = mount({ threadMessages: [snapshot] });
-    root.getValue().register(reg("n1", { scope: "thread" }));
-    expect(stateOf(root, "n1")).toEqual({ v: 42 });
+    root.getValue().register(reg("n1"));
+    expect(stateOf(root, "n1")).toEqual({ v: 0 });
   });
 
-  it("only restores detached thread-scoped state in the same thread", async () => {
-    root = mount({ threadId: "thread-a" });
-    const unregister = root
-      .getValue()
-      .register(reg("shared", { scope: "thread" }));
+  it("only restores detached tool-created state in the same thread", async () => {
+    root = mount({
+      threadId: "thread-a",
+      threadMessages: [createCall("shared")],
+    });
+    const unregister = root.getValue().register(reg("shared"));
     await flushMicrotasks();
     root.getValue().setState("shared", () => ({ v: 5 }));
     unregister();
     await flushMicrotasks();
 
-    clientHolder.client = makeClient(undefined, undefined, "thread-b");
-    root.getValue().register(reg("shared", { scope: "thread" }));
+    clientHolder.client = makeClient(
+      [createCall("shared")],
+      undefined,
+      "thread-b",
+    );
+    root.getValue().register(reg("shared"));
     expect(stateOf(root, "shared")).toEqual({ v: 0 });
   });
 
-  it("restores a thread-scoped registration from its creating call's args", () => {
-    const createCall = {
-      role: "assistant",
-      content: [
-        {
-          type: "tool-call",
-          toolCallId: "n1",
-          toolName: "notepad",
-          args: { v: 7 },
-          result: { success: true },
-        },
-      ],
-    } as unknown as ThreadMessage;
-    root = mount({ threadMessages: [createCall] });
-    root.getValue().register(reg("n1", { scope: "thread" }));
+  it("restores a tool-created registration from its creating call's args", () => {
+    root = mount({ threadMessages: [createCall("n1", { v: 7 })] });
+    root.getValue().register(reg("n1"));
     expect(stateOf(root, "n1")).toEqual({ v: 7 });
   });
 
   it("keeps the definition alive until the last of several anchors unregisters", async () => {
-    root = mount();
-    const first = root.getValue().register(reg("n1", { scope: "thread" }));
-    const second = root.getValue().register(reg("n1", { scope: "thread" }));
+    root = mount({ threadMessages: [createCall("n1")] });
+    const first = root.getValue().register(reg("n1"));
+    const second = root.getValue().register(reg("n1"));
     await flushMicrotasks();
     root.getValue().setState("n1", () => ({ v: 5 }));
 
@@ -201,12 +226,10 @@ describe("Interactables registration", () => {
     root = mount({ setToolUI });
 
     const render = () => null;
-    const first = root
-      .getValue()
-      .register(reg("n1", { scope: "thread", updateRender: render }));
+    const first = root.getValue().register(reg("n1", { updateRender: render }));
     const second = root
       .getValue()
-      .register(reg("n2", { scope: "thread", updateRender: render }));
+      .register(reg("n2", { updateRender: render }));
 
     expect(setToolUI).toHaveBeenCalledTimes(1);
     expect(setToolUI).toHaveBeenCalledWith("update_note", render, {
@@ -221,12 +244,15 @@ describe("Interactables registration", () => {
 });
 
 describe("Interactables persistence save", () => {
-  it("debounces saves and excludes thread-scoped items from the payload", async () => {
+  it("debounces saves and excludes tool-created items from the payload", async () => {
     const save = vi.fn();
-    root = mount({ persistence: { save } });
+    root = mount({
+      persistence: { save },
+      threadMessages: [createCall("t1")],
+    });
     await flushMicrotasks();
     root.getValue().register(reg("n1"));
-    root.getValue().register(reg("t1", { scope: "thread" }));
+    root.getValue().register(reg("t1"));
 
     root.getValue().setState("n1", () => ({ v: 1 }));
     root.getValue().setState("t1", () => ({ v: 9 }));
@@ -300,7 +326,7 @@ describe("Interactables persistence load", () => {
     expect(stateOf(root, "n1")).toEqual({ v: 3 });
   });
 
-  it("applies loaded state to already-registered app items but never to thread-scoped ones", async () => {
+  it("applies loaded state to already-registered app items but never to tool-created ones", async () => {
     root = mount({
       persistence: adapter(
         {
@@ -309,9 +335,10 @@ describe("Interactables persistence load", () => {
         },
         100,
       ),
+      threadMessages: [createCall("t1")],
     });
     root.getValue().register(reg("n1"));
-    root.getValue().register(reg("t1", { scope: "thread" }));
+    root.getValue().register(reg("t1"));
 
     await vi.advanceTimersByTimeAsync(100);
     expect(stateOf(root, "n1")).toEqual({ v: 3 });

@@ -5,7 +5,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 
 type StateUpdater<TState> = TState | ((prev: TState) => TState);
 
-const useUnstableInteractableState = <TState>(
+const useInteractableState = <TState>(
   id: string,
 ): [
   TState | undefined,
@@ -68,4 +68,4 @@ export const unstable_useInteractableState: <TState>(id: string) => [
     error: unknown;
     flush: () => Promise<void>;
   },
-] = useUnstableInteractableState;
+] = useInteractableState;

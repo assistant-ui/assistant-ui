@@ -34,7 +34,39 @@ type RestorePersistedStateOptions = {
   ) => boolean;
 };
 
-const useUnstableInteractables = ({
+type ToolCallLikePart = {
+  type?: string;
+  toolCallId?: string;
+  toolName?: string;
+};
+
+type MessageLike = {
+  role?: string;
+  content?: readonly unknown[] | undefined;
+};
+
+type InternalInteractableRegistration = Unstable_InteractableRegistration & {
+  scope?: "thread" | undefined;
+};
+
+const hasInteractableCreateCall = (
+  messages: readonly MessageLike[],
+  id: string,
+  name: string,
+) =>
+  messages.some(
+    (message) =>
+      message.role === "assistant" &&
+      message.content?.some((part) => {
+        if (!part || typeof part !== "object") return false;
+        const p = part as ToolCallLikePart;
+        return (
+          p.type === "tool-call" && p.toolCallId === id && p.toolName === name
+        );
+      }),
+  );
+
+const useInteractablesResource = ({
   persistence,
 }: Unstable_InteractablesConfig = {}): ClientOutput<"unstable_interactables"> => {
   const [state, setState] = useState<Unstable_InteractablesState>(() => ({
@@ -321,7 +353,9 @@ const useUnstableInteractables = ({
           },
         };
       });
-      if (stateRef.current.definitions[id]) schedulePersistence(id);
+      if (stateRef.current.definitions[id]?.scope !== "thread") {
+        schedulePersistence(id);
+      }
     },
     [schedulePersistence, setStateAndRef],
   );
@@ -358,11 +392,22 @@ const useUnstableInteractables = ({
   }, [clientRef, provider]);
 
   const register = useCallback(
-    (def: Unstable_InteractableRegistration) => {
+    (def: InternalInteractableRegistration) => {
+      const threadAccessor = clientRef.current?.thread;
+      const threadMessages =
+        threadAccessor && threadAccessor.source != null
+          ? (threadAccessor().getState().messages ?? [])
+          : [];
+      const scope =
+        def.scope ??
+        (hasInteractableCreateCall(threadMessages, def.id, def.name)
+          ? "thread"
+          : "app");
+
       if (
         process.env.NODE_ENV !== "production" &&
         stateRef.current.definitions[def.id] &&
-        def.scope !== "thread"
+        scope !== "thread"
       ) {
         console.warn(
           `[Interactables] "${def.name}" (${def.id}) is already registered. ` +
@@ -426,38 +471,29 @@ const useUnstableInteractables = ({
         }
       }
 
-      const threadId =
-        def.scope === "thread" ? getCurrentThreadId() : undefined;
+      const threadId = scope === "thread" ? getCurrentThreadId() : undefined;
       const detached =
-        def.scope === "thread"
+        scope === "thread"
           ? threadId
             ? detachedThreadStateRef.current.get(threadId)?.get(def.id)
             : undefined
           : detachedAppStateRef.current.get(def.id);
-      if (def.scope === "thread") {
+      if (scope === "thread") {
         if (threadId)
           detachedThreadStateRef.current.get(threadId)?.delete(def.id);
       } else {
         detachedAppStateRef.current.delete(def.id);
       }
       const loaded =
-        def.scope === "thread" ? undefined : loadedStateRef.current.get(def.id);
+        scope === "thread" ? undefined : loadedStateRef.current.get(def.id);
 
-      // Thread-scoped items restore from what the model already knows in this
-      // thread (latest snapshot + the model's own update_* calls) on a fresh
-      // reload; detached (in-session remount) still wins so an unsent edit
-      // survives a scroll/virtualization cycle. The thread accessor throws
-      // when no thread scope is in context, so guard it.
-      const threadAccessor = clientRef.current?.thread;
+      // Tool-created items restore from what the model already knows in this
+      // thread (the creating call's args, sent snapshots, and the model's own
+      // update_* calls) on a fresh reload; detached (in-session remount) still
+      // wins so an unsent edit survives a scroll/virtualization cycle.
       const known =
-        def.scope === "thread" &&
-        threadAccessor &&
-        threadAccessor.source != null
-          ? findModelKnownState(
-              threadAccessor().getState().messages ?? [],
-              def.id,
-              def.name,
-            )
+        scope === "thread"
+          ? findModelKnownState(threadMessages, def.id, def.name)
           : undefined;
 
       setStateAndRef((prev) => ({
@@ -470,7 +506,7 @@ const useUnstableInteractables = ({
             description: def.description,
             stateSchema: def.stateSchema,
             initialState: def.initialState,
-            scope: def.scope,
+            scope,
             state:
               prev.definitions[def.id]?.state ??
               detached ??
@@ -535,9 +571,9 @@ const useUnstableInteractables = ({
  *
  * @deprecated Unstable / Experimental (not actually removed).
  */
-export const unstable_Interactables = resource(useUnstableInteractables);
+export const unstable_Interactables = resource(useInteractablesResource);
 
-attachTransformScopes(useUnstableInteractables, (scopes, parent) => {
+attachTransformScopes(useInteractablesResource, (scopes, parent) => {
   if (!scopes.modelContext && parent.modelContext.source === null) {
     scopes.modelContext = ModelContext();
   }

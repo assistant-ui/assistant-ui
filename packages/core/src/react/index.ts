@@ -168,7 +168,6 @@ export type {
 } from "./interactables-legacy/scopes";
 export type {
   Unstable_InteractableStateSchema,
-  Unstable_InteractableScope,
   Unstable_InteractablesState,
   Unstable_InteractableDefinition,
   Unstable_InteractableRegistration,

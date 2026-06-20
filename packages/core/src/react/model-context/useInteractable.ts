@@ -2,16 +2,13 @@
 
 import { useEffect, useId, useMemo, useRef } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import type {
-  Unstable_InteractableScope,
-  Unstable_InteractableStateSchema,
-} from "../types/scopes/interactables";
+import type { Unstable_InteractableStateSchema } from "../types/scopes/interactables";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import {
-  unstable_getInteractableVersions,
+  unstable_getInteractableVersions as getInteractableVersions,
   interactableToolName,
 } from "../../model-context/interactable-composer-metadata";
-import { unstable_useInteractableState } from "./useInteractableState";
+import { unstable_useInteractableState as useInteractableState } from "./useInteractableState";
 import { useJSONEqual } from "../utils/useJSONEqual";
 
 /**
@@ -52,11 +49,6 @@ export type Unstable_InteractableConfig<
   /** Unique instance ID; required to address this instance when multiple interactables share a name. Auto-generated if omitted. */
   id?: string | undefined;
   /**
-   * Persistence + reload-seed source. `"app"` (default) participates in the BYO
-   * adapter; `"thread"` persists via the per-send snapshot in thread history.
-   */
-  scope?: Unstable_InteractableScope | undefined;
-  /**
    * Component installed as the tool UI for this interactable's `update_{name}`
    * tool calls, so a model edit re-renders the interactable at the message
    * that made it instead of only mutating an earlier one. Prefer
@@ -66,9 +58,7 @@ export type Unstable_InteractableConfig<
   updateRender?: ToolCallMessagePartComponent | undefined;
 };
 
-const useUnstableInteractable = <
-  TSchema extends Unstable_InteractableStateSchema,
->(
+const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
   name: string,
   config: Unstable_InteractableConfig<TSchema>,
 ): readonly [
@@ -77,8 +67,7 @@ const useUnstableInteractable = <
     id: string;
     /**
      * This message's version of the instance, when rendered inside a
-     * tool-call part with `scope: "thread"`; `undefined` outside messages and
-     * for app scope.
+     * tool-created interactable message part; `undefined` elsewhere.
      */
     version:
       | Unstable_InteractableVersionInfo<
@@ -104,8 +93,6 @@ const useUnstableInteractable = <
   // Whether this component renders inside a message part is fixed for its
   // lifetime, so conditioning the selectors on it is safe.
   const inPart = aui.part.source != null;
-  const isThreadAnchor = inPart && config.scope === "thread";
-
   const updateToolName = interactableToolName(name);
   const part = useAuiState((s) => {
     if (!inPart) return undefined;
@@ -126,6 +113,10 @@ const useUnstableInteractable = <
   }
 
   const id = config.id ?? inferredId ?? autoId;
+  const internalScope =
+    part?.toolName === name || part?.toolName === updateToolName
+      ? "thread"
+      : undefined;
 
   const stateSchemaRef = useRef(config.stateSchema);
   stateSchemaRef.current = config.stateSchema;
@@ -141,32 +132,33 @@ const useUnstableInteractable = <
       description: config.description,
       stateSchema: stateSchemaRef.current,
       initialState: initialStateRef.current,
-      scope: config.scope,
       updateRender: config.updateRender,
+      ...(internalScope ? { scope: internalScope } : {}),
+    } as Parameters<typeof interactables.register>[0] & {
+      scope?: "thread" | undefined;
     });
   }, [
     interactables,
     id,
     name,
     config.description,
-    config.scope,
+    internalScope,
     config.updateRender,
   ]);
 
   const myToolCallId = part?.toolCallId;
 
   const [registeredState, methods] =
-    unstable_useInteractableState<Unstable_InferInteractableState<TSchema>>(id);
+    useInteractableState<Unstable_InferInteractableState<TSchema>>(id);
   const { setState } = methods;
 
   const versionValue = useAuiState(
     useJSONEqual((s) => {
-      if (!isThreadAnchor || !myToolCallId) return undefined;
-      const versions = unstable_getInteractableVersions(
-        s.thread.messages,
-        id,
-        name,
-      );
+      if (!internalScope || !myToolCallId) return undefined;
+      const versions = getInteractableVersions(s.thread.messages, id, name);
+      if (!versions.some((v) => v.origin === "create" && v.toolCallId === id)) {
+        return undefined;
+      }
       const mine = versions.find((v) => v.toolCallId === myToolCallId);
       if (!mine) return undefined;
       const latestToolCallId = versions.findLast(
@@ -203,7 +195,7 @@ const useUnstableInteractable = <
  * read and write the same instance by passing its `id` to
  * `unstable_useInteractableState`.
  *
- * For `scope: "thread"` interactables rendered inside tool-call message parts,
+ * For tool-created interactables rendered inside tool-call message parts,
  * `version` carries this message's version of the instance — its state as of
  * that point in the conversation, whether it is the most recent tool-driven
  * version, and a `restore()` back to it. Whether older messages render frozen history or stay
@@ -238,4 +230,4 @@ export const unstable_useInteractable: <
     error: unknown;
     flush: () => Promise<void>;
   },
-] = useUnstableInteractable;
+] = useInteractable;

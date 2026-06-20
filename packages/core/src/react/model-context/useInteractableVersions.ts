@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import {
-  unstable_getInteractableVersions,
+  unstable_getInteractableVersions as getInteractableVersions,
   type Unstable_InteractableVersion,
 } from "../../model-context/interactable-composer-metadata";
-import { unstable_useInteractableState } from "./useInteractableState";
+import { unstable_useInteractableState as useInteractableState } from "./useInteractableState";
 import { useJSONEqual } from "../utils/useJSONEqual";
 
-const useUnstableInteractableVersions = <TState = unknown>(
+const useInteractableVersions = <TState = unknown>(
   id: string,
   name: string,
 ): (Omit<Unstable_InteractableVersion, "state"> & {
@@ -15,11 +15,9 @@ const useUnstableInteractableVersions = <TState = unknown>(
   restore: () => void;
 })[] => {
   const versions = useAuiState(
-    useJSONEqual((s) =>
-      unstable_getInteractableVersions(s.thread.messages, id, name),
-    ),
+    useJSONEqual((s) => getInteractableVersions(s.thread.messages, id, name)),
   );
-  const [, { setState }] = unstable_useInteractableState<TState>(id);
+  const [, { setState }] = useInteractableState<TState>(id);
 
   return useMemo(
     () =>
@@ -33,7 +31,7 @@ const useUnstableInteractableVersions = <TState = unknown>(
 };
 
 /**
- * Every version of a thread-scoped interactable recorded in the current
+ * Every version of a tool-created interactable recorded in the current
  * thread, oldest first: the creating tool call, each user edit, and each
  * `update_*` call. Each entry carries the full state as of that version and a
  * `restore()` that sets the live instance back to it — enough for a version
@@ -47,4 +45,4 @@ export const unstable_useInteractableVersions: <TState = unknown>(
 ) => (Omit<Unstable_InteractableVersion, "state"> & {
   state: TState;
   restore: () => void;
-})[] = useUnstableInteractableVersions;
+})[] = useInteractableVersions;

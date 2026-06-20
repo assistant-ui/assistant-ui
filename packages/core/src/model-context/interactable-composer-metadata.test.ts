@@ -45,7 +45,7 @@ const assistantToolCall = (
 
 /** The assistant message that created instance `id` via a tool call. */
 const assistantCreateCall = (id: string, args: Record<string, unknown>) =>
-  assistantToolCall("notepad", args, { success: true }, id);
+  assistantToolCall("note", args, { success: true }, id);
 
 const entry = (
   id: string,
@@ -377,7 +377,9 @@ describe("gateInteractableComposerMetadata", () => {
   });
 
   it("omits an unedited tool-created interactable (the model authored its args)", () => {
-    const meta = { interactables: [entry("a", { v: 1, title: "draft" })] };
+    const meta = {
+      interactables: [entry("a", { v: 1, title: "draft" }, "note")],
+    };
     const history = [assistantCreateCall("a", { v: 1, title: "draft" })];
     expect(gateInteractableComposerMetadata(meta, history)).toBeUndefined();
   });

@@ -10,7 +10,7 @@ export type Unstable_InteractableStateSchema = NonNullable<
   Extract<Tool, { parameters: unknown }>["parameters"]
 >;
 
-export type Unstable_InteractableScope = "app" | "thread";
+type InteractableScope = "app" | "thread";
 
 export type Unstable_InteractableDefinition = {
   id: string;
@@ -19,7 +19,7 @@ export type Unstable_InteractableDefinition = {
   stateSchema: Unstable_InteractableStateSchema;
   state: unknown;
   initialState: unknown;
-  scope?: Unstable_InteractableScope | undefined;
+  scope?: InteractableScope | undefined;
 };
 
 export type Unstable_InteractableRegistration = {
@@ -28,7 +28,6 @@ export type Unstable_InteractableRegistration = {
   description: string;
   stateSchema: Unstable_InteractableStateSchema;
   initialState: unknown;
-  scope?: Unstable_InteractableScope | undefined;
   /**
    * Component installed as the tool UI for this interactable's `update_{name}`
    * tool calls, so a model edit re-renders the interactable at the message

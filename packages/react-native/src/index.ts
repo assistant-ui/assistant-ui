@@ -196,7 +196,6 @@ export {
   type Unstable_InteractableToolConfig,
   type Unstable_InteractableToolRenderProps,
   type Unstable_InteractableStateSchema,
-  type Unstable_InteractableScope,
   type Unstable_InteractablesState,
   type Unstable_InteractableDefinition,
   type Unstable_InteractableRegistration,
