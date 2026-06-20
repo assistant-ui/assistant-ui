@@ -694,7 +694,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 
 `react-langchain` is the newer, thinner wrapper. It delegates to upstream `useStream` rather than re-implementing the stream plumbing, which is why its footprint is smaller. Features absent today have not been ported, not deprecated.
 
-Regenerate works without configuration: clicking regenerate auto-resolves the server checkpoint whose persisted messages match the messages up to that point via `stream.client.threads.getHistory(threadId)`, then re-runs with `submit(null, { forkFrom })`. This works on checkpoint-enabled backends (e.g. LangGraph Cloud) and degrades gracefully — no resolvable checkpoint means the regenerate is a no-op — where `react-langgraph` instead requires a user-supplied `getCheckpointId` callback.
+Regenerate works without configuration. Clicking regenerate resolves the server checkpoint to fork from (the checkpoint each message records as it streams in, falling back to a `stream.client.threads.getHistory(threadId)` id match for older turns), then re-runs with `submit(null, { forkFrom })`. It works on checkpoint-enabled backends (for example LangGraph Cloud) and degrades gracefully; when no checkpoint resolves the regenerate is a no-op. `react-langgraph` instead requires a user-supplied `getCheckpointId` callback.
 
 ### Hook name mapping
 
