@@ -251,13 +251,14 @@ Follow the [Ink setup](/docs/ink).
 
 ## `useStreamRuntime` options
 
-`useStreamRuntime` accepts every option upstream `useStream` does, plus three assistant-ui-specific fields:
+`useStreamRuntime` accepts every option upstream `useStream` does, plus these assistant-ui-specific fields:
 
 | Option | Type | Description |
 | --- | --- | --- |
 | `cloud` | `AssistantCloud` | Optional. Persists threads via assistant-cloud. |
 | `adapters` | `{ attachments?, speech?, feedback? }` | Optional. Attachment, speech, and feedback adapters. |
 | `messagesKey` | `string` | The state key that holds messages. Defaults to `"messages"`. |
+| `uiStateKey` | `string` | The state key that holds generative `UIMessage`s. Defaults to `"ui"`. |
 
 ### Forwarding per-run config
 
@@ -612,6 +613,42 @@ function PendingToolCalls() {
 </Tab>
 </PlatformTabs>
 
+## Generative UI
+
+Graphs can accumulate UI components in their state and attach each one to the assistant message that produced it. The runtime reads these from `stream.values[uiStateKey]` (default `"ui"`) and, for every `UIMessage` whose `metadata.message_id` matches an assistant message, emits a `data` part on that message. Pass `uiStateKey` if your graph stores them elsewhere.
+
+Register the components with `makeAssistantDataUI`, keyed by the `UIMessage`'s `name`, and mount the returned element once inside the runtime provider:
+
+```tsx
+import {
+  AssistantRuntimeProvider,
+  makeAssistantDataUI,
+  Thread,
+} from "@assistant-ui/react";
+import { useStreamRuntime } from "@assistant-ui/react-langchain";
+
+const ChartUI = makeAssistantDataUI({
+  name: "chart",
+  render: ({ data }) => <Chart points={data.points} />,
+});
+
+function App() {
+  const runtime = useStreamRuntime({
+    assistantId: "agent",
+    apiUrl: "http://localhost:2024",
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ChartUI />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+This is the state-snapshot path: it renders whatever UI the graph has committed to its state. Streaming a component live over the `push_ui_message` custom channel before it lands in state is a separate path that will arrive in a follow-up.
+
 ## Errors
 
 `useLangChainError` exposes the last run or hydration error from upstream `useStream().error`. It is untyped (`unknown`), so narrow it at the use site before rendering.
@@ -685,7 +722,8 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Root tool-calls projection | Via message parts | Yes (`useLangChainToolCalls`) |
 | File content parts in messages | Yes | Yes |
 | Per-message metadata (`messages-tuple`) | Yes | Not exposed |
-| Generative UI messages (LangSmith) | Yes | Not exposed |
+| Generative UI (state snapshot) | Yes | Yes (`uiStateKey`) |
+| Generative UI (live `push_ui_message`) | Yes | Not yet |
 | Subgraph / namespaced stream events | Yes (via `eventHandlers`) | Not exposed |
 | End-to-end cancellation primitive | Yes (`unstable_createLangGraphStream`) | Not exposed |
 | Message accumulator utility | Yes (`LangGraphMessageAccumulator`) | Not exposed |

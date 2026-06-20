@@ -38,6 +38,30 @@ export type LangChainToolCall = {
 };
 
 /**
+ * A generative UI component the graph accumulates in its state. Read from
+ * `stream.values[uiStateKey]` and rendered via `makeAssistantDataUI`.
+ *
+ * `metadata.message_id` ties the UI to the assistant message it belongs to.
+ */
+export type UIMessage<
+  TName extends string = string,
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> = {
+  type: "ui";
+  id: string;
+  name: TName;
+  props: TProps;
+  metadata?: {
+    merge?: boolean;
+    run_id?: string;
+    name?: string;
+    tags?: string[];
+    message_id?: string;
+    [key: string]: unknown;
+  };
+};
+
+/**
  * Minimal duck-typed interface for BaseMessage class instances returned by
  * `useStream`. Used internally by the message converter.
  *
@@ -113,6 +137,12 @@ export type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
   create?: (() => Promise<{ externalId: string | undefined }>) | undefined;
   /** Custom thread-deletion hook, forwarded to the cloud adapter. */
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  /**
+   * State key the graph accumulates generative `UIMessage`s under. Each UI
+   * is attached to the assistant message named by its `metadata.message_id`
+   * and emitted as a `data` part. Defaults to `"ui"`.
+   */
+  uiStateKey?: string | undefined;
 };
 
 // Distribute the intersection through the union arms of `UseStreamOptions`

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { convertLangChainBaseMessage } from "./convertMessages";
-import type { LangChainBaseMessage } from "./types";
+import type { LangChainBaseMessage, UIMessage } from "./types";
 
 const humanMessage = (content: unknown): LangChainBaseMessage => ({
   _getType: () => "human",
@@ -110,6 +110,55 @@ describe("convertLangChainBaseMessage reasoning content parts", () => {
     );
 
     expect(result.content).toEqual([{ type: "reasoning", text: "\n\n\nkept" }]);
+  });
+});
+
+describe("convertLangChainBaseMessage generative UI from graph state", () => {
+  const uiMessage = (messageId: string): UIMessage => ({
+    type: "ui",
+    id: "ui-1",
+    name: "chart",
+    props: { points: [1, 2, 3] },
+    metadata: { message_id: messageId },
+  });
+
+  it("appends a data part for UI attached to the assistant message", () => {
+    const result = convertLangChainBaseMessage(aiMessage("hello"), {
+      uiMessagesByParent: new Map([["msg-2", [uiMessage("msg-2")]]]),
+    });
+
+    expect(result.content).toEqual([
+      { type: "text", text: "hello" },
+      { type: "data", name: "chart", data: { points: [1, 2, 3] } },
+    ]);
+  });
+
+  it("leaves the message unchanged when no UI targets it", () => {
+    const result = convertLangChainBaseMessage(aiMessage("hello"), {
+      uiMessagesByParent: new Map([["other-id", [uiMessage("other-id")]]]),
+    });
+
+    expect(result.content).toEqual([{ type: "text", text: "hello" }]);
+  });
+
+  it("appends a data part per UI when several target the same message", () => {
+    const result = convertLangChainBaseMessage(aiMessage("hello"), {
+      uiMessagesByParent: new Map([
+        [
+          "msg-2",
+          [
+            { ...uiMessage("msg-2"), name: "chart", props: { a: 1 } },
+            { ...uiMessage("msg-2"), name: "table", props: { b: 2 } },
+          ],
+        ],
+      ]),
+    });
+
+    expect(result.content).toEqual([
+      { type: "text", text: "hello" },
+      { type: "data", name: "chart", data: { a: 1 } },
+      { type: "data", name: "table", data: { b: 2 } },
+    ]);
   });
 });
 

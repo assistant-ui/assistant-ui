@@ -15,6 +15,7 @@ import { useStream } from "@langchain/react";
 import type {
   LangChainBaseMessage,
   LangChainToolCall,
+  UIMessage,
   UseStreamRuntimeOptions,
 } from "./types";
 import {
@@ -59,6 +60,7 @@ const useStreamThreadRuntime = (
   const { adapters, autoCancelPendingToolCalls, unstable_allowCancellation } =
     options;
   const messagesKey = options.messagesKey ?? "messages";
+  const uiStateKey = options.uiStateKey ?? "ui";
 
   const externalId = useAuiState((s) => s.threadListItem.externalId) as
     | string
@@ -78,10 +80,35 @@ const useStreamThreadRuntime = (
   );
   const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
+  const uiMessages = Array.isArray(stream.values[uiStateKey])
+    ? (stream.values[uiStateKey] as UIMessage[])
+    : undefined;
+
+  const uiMessagesByParent = useMemo(() => {
+    const map = new Map<string, UIMessage[]>();
+    for (const ui of uiMessages ?? []) {
+      const parentId = ui.metadata?.message_id;
+      if (!parentId) continue;
+      const existing = map.get(parentId);
+      if (existing) {
+        existing.push(ui);
+      } else {
+        map.set(parentId, [ui]);
+      }
+    }
+    return map;
+  }, [uiMessages]);
+
+  const converterMetadata = useMemo(
+    () => ({ uiMessagesByParent }),
+    [uiMessagesByParent],
+  );
+
   const threadMessages = useExternalMessageConverter({
     callback: convertLangChainBaseMessage,
     messages: stream.messages as LangChainBaseMessage[],
     isRunning: effectiveIsRunning,
+    metadata: converterMetadata,
   });
 
   const streamRef = useRef(stream);
