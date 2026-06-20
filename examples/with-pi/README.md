@@ -7,8 +7,10 @@ in-process.
 It demonstrates the MVP surface: a thread list, new sessions, a composer with
 steer / follow-up / stop, streaming assistant responses (text + reasoning), tool
 cards with streaming output, the blocking host-UI dialogs (confirm / input /
-select / editor), a model + credential readiness banner, and a context-usage
-indicator. It proves the adapter surface, not a full desktop app shell.
+select / editor), a model + credential readiness banner, a context-usage
+indicator, and a read-only workspace browser (`components/workspace-browser.tsx`
+backed by `/api/pi/fs`) for inspecting the agent's working directory. It proves
+the adapter surface, not a full desktop app shell.
 
 ## How it fits together
 
@@ -26,7 +28,7 @@ the process-singleton supervisor.
 
 ## Model resolution
 
-Resolution mirrors Pi's own `createAgentSession` (PI_MVP_PLAN §5): if you set
+Resolution mirrors Pi's own `createAgentSession`: if you set
 `PI_PROVIDER` + `PI_MODEL_ID` they win; otherwise the server falls back to Pi's
 configured default (`settings.json`'s `defaultProvider`/`defaultModel`). So if
 you're authenticated with `pi` and have a default model picked, **no env is
