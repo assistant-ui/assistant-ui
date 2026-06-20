@@ -86,11 +86,7 @@ function assertSnapshotFile(snapshot: SourceSnapshot, snapshotKey: string) {
 
 function targetPathForSourceFile(sourceFile: string) {
   if (sourceFile.startsWith("packages/ui/src/")) {
-    return sourceFile
-      .replace(/^packages\/ui\/src\//, "")
-      .replace(/^components\/ui\//, "components/ui/")
-      .replace(/^components\/assistant-ui\//, "components/assistant-ui/")
-      .replace(/^lib\//, "lib/");
+    return sourceFile.replace(/^packages\/ui\/src\//, "");
   }
 
   if (sourceFile.startsWith("apps/docs/")) {
