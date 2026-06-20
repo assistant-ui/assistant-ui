@@ -1,15 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
   AuiProvider,
   unstable_Interactables,
   Suggestions,
-  Tools,
   useAui,
-  useAuiToolOverrides,
   unstable_useInteractable,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
@@ -26,80 +24,24 @@ import {
 import {
   type NoteState,
   noteInitialState,
-  noteSchema,
-  notesIndexInitialState,
-  notesIndexSchema,
+  notesInitialState,
+  notesSchema,
   taskBoardInitialState,
   taskBoardSchema,
 } from "./state";
-import toolkit from "./toolkits";
 
 function TaskBoard() {
   const [state, { setState, isPending }] = unstable_useInteractable(
     "taskBoard",
     {
       description:
-        "A task board showing the user's tasks. Use the manage_tasks tool to add/toggle/remove/clear tasks.",
+        "A task board showing the user's tasks. Use update_taskBoard with tasks.add/update/remove/clear to manage tasks. New tasks need a title and done=false.",
       stateSchema: taskBoardSchema,
       initialState: taskBoardInitialState,
     },
   );
 
-  useEffect(() => {
-    let dirty = false;
-    const seen = new Set<string>();
-    const tasks = state.tasks.map((task) => {
-      if (task.id && !seen.has(task.id)) {
-        seen.add(task.id);
-        return task;
-      }
-
-      dirty = true;
-      const id = crypto.randomUUID();
-      seen.add(id);
-      return { ...task, id, title: task.title || "Untitled" };
-    });
-
-    if (dirty) setState({ tasks });
-  }, [state.tasks, setState]);
-
   const doneCount = state.tasks.filter((t) => t.done).length;
-
-  useAuiToolOverrides({
-    manage_tasks: {
-      execute: async (args) => {
-        switch (args.action) {
-          case "add": {
-            const id = crypto.randomUUID();
-            setState((prev) => ({
-              tasks: [...prev.tasks, { id, title: args.title, done: false }],
-            }));
-            return { success: true, id };
-          }
-          case "toggle": {
-            setState((prev) => ({
-              tasks: prev.tasks.map((t) =>
-                t.id === args.id ? { ...t, done: !t.done } : t,
-              ),
-            }));
-            return { success: true };
-          }
-          case "remove": {
-            setState((prev) => ({
-              tasks: prev.tasks.filter((t) => t.id !== args.id),
-            }));
-            return { success: true };
-          }
-          case "clear": {
-            setState({ tasks: [] });
-            return { success: true };
-          }
-          default:
-            return { success: false, error: "Unknown action" };
-        }
-      },
-    },
-  });
 
   return (
     <>
@@ -123,9 +65,9 @@ function TaskBoard() {
             </p>
           ) : (
             <ul className="space-y-1">
-              {state.tasks.map((task) => (
+              {state.tasks.map((task, index) => (
                 <li
-                  key={task.id}
+                  key={task.id ?? `streaming-${index}`}
                   className="group hover:bg-muted flex items-center gap-2 rounded-lg px-3 py-2 transition-colors"
                 >
                   <button
@@ -182,64 +124,42 @@ const COLORS: Record<NoteState["color"], string> = {
   pink: "bg-pink-100 border-pink-300",
 };
 
-type InitialNoteStates = Record<string, NoteState>;
-
 function NoteCard({
-  noteId,
-  selectedId,
-  initialState,
+  note,
+  selected,
   onSelect,
   onRemove,
 }: {
-  noteId: string;
-  selectedId: string | null;
-  initialState?: NoteState | undefined;
+  note: NoteState;
+  selected: boolean;
   onSelect: (id: string) => void;
   onRemove: (id: string) => void;
 }) {
-  const [state, { setState }] = unstable_useInteractable("note", {
-    id: noteId,
-    description:
-      "A sticky note. Use manage_notes to add/remove/select notes; use update_note to change a note's title, content, or color.",
-    stateSchema: noteSchema,
-    initialState: initialState ?? noteInitialState,
-  });
-
-  const isSelected = selectedId === noteId;
-
-  useEffect(() => {
-    if (state.selected !== isSelected) {
-      setState((prev) =>
-        prev.selected === isSelected ? prev : { ...prev, selected: isSelected },
-      );
-    }
-  }, [isSelected, state.selected, setState]);
-
   return (
     <div className="group relative">
       <button
         type="button"
-        onClick={() => onSelect(noteId)}
-        className={`flex w-full cursor-pointer flex-col gap-1 rounded-lg border-2 p-3 text-left transition-all ${COLORS[state.color] ?? COLORS.yellow} ${isSelected ? "ring-primary ring-2 ring-offset-1" : "hover:shadow-sm"}`}
-        aria-pressed={isSelected}
+        onClick={() => onSelect(note.id)}
+        className={`flex w-full cursor-pointer flex-col gap-1 rounded-lg border-2 p-3 text-left transition-all ${COLORS[note.color] ?? COLORS.yellow} ${selected ? "ring-primary ring-2 ring-offset-1" : "hover:shadow-sm"}`}
+        aria-pressed={selected}
       >
-        {isSelected && (
+        {selected && (
           <span className="bg-primary text-primary-foreground absolute top-1.5 right-2 rounded px-1.5 py-0.5 text-[10px] leading-none font-medium">
             SELECTED
           </span>
         )}
         <span className="pr-16 text-sm font-semibold text-zinc-800">
-          {state.title}
+          {note.title}
         </span>
         <span className="line-clamp-3 text-xs text-zinc-600">
-          {state.content || "Empty note"}
+          {note.content || "Empty note"}
         </span>
       </button>
       <button
         type="button"
-        onClick={() => onRemove(noteId)}
+        onClick={() => onRemove(note.id)}
         className="absolute right-2 bottom-2 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/10"
-        aria-label={`Remove note ${state.title}`}
+        aria-label={`Remove note ${note.title}`}
       >
         <Trash2Icon className="size-3 text-zinc-500" />
       </button>
@@ -248,92 +168,37 @@ function NoteCard({
 }
 
 function NotesPanel() {
-  const [notes, { setState: setNotes }] = unstable_useInteractable("notes", {
+  const [state, { setState }] = unstable_useInteractable("notes", {
     description:
-      "The sticky-note collection: note ids and the currently selected note id. Use manage_notes to add, remove, clear, or select notes.",
-    stateSchema: notesIndexSchema,
-    initialState: notesIndexInitialState,
+      "The sticky-note collection and selected note id. Use update_notes with notes.add/update/remove/clear to manage notes, and set selectedId to change focus. New notes need a title, content, and color.",
+    stateSchema: notesSchema,
+    initialState: notesInitialState,
   });
-  const [initialNoteStates, setInitialNoteStates] = useState<InitialNoteStates>(
-    {},
-  );
 
   const handleAdd = useCallback(() => {
     const id = `note-${crypto.randomUUID()}`;
-    setInitialNoteStates((prev) => ({ ...prev, [id]: noteInitialState }));
-    setNotes((prev) => ({
-      ids: [...prev.ids, id],
+    setState((prev) => ({
+      notes: [...prev.notes, { id, ...noteInitialState }],
       selectedId: id,
     }));
-  }, [setNotes]);
+  }, [setState]);
 
   const handleSelect = useCallback(
     (id: string) => {
-      setNotes((prev) => ({ ...prev, selectedId: id }));
+      setState((prev) => ({ ...prev, selectedId: id }));
     },
-    [setNotes],
+    [setState],
   );
 
   const handleRemove = useCallback(
     (id: string) => {
-      setNotes((prev) => ({
-        ids: prev.ids.filter((n) => n !== id),
+      setState((prev) => ({
+        notes: prev.notes.filter((note) => note.id !== id),
         selectedId: prev.selectedId === id ? null : prev.selectedId,
       }));
-      setInitialNoteStates((prev) => {
-        const { [id]: _, ...rest } = prev;
-        return rest;
-      });
     },
-    [setNotes],
+    [setState],
   );
-
-  useAuiToolOverrides({
-    manage_notes: {
-      execute: async (args) => {
-        switch (args.action) {
-          case "add": {
-            const id = `note-${crypto.randomUUID()}`;
-            const initialState: NoteState = {
-              title: args.title ?? noteInitialState.title,
-              content: args.content ?? noteInitialState.content,
-              color: args.color ?? noteInitialState.color,
-              selected: args.select ?? true,
-            };
-            setInitialNoteStates((prev) => ({ ...prev, [id]: initialState }));
-            setNotes((prev) => ({
-              ids: [...prev.ids, id],
-              selectedId: initialState.selected ? id : prev.selectedId,
-            }));
-            return { success: true, noteId: id };
-          }
-          case "select": {
-            setNotes((prev) => ({ ...prev, selectedId: args.noteId }));
-            return { success: true, noteId: args.noteId };
-          }
-          case "remove": {
-            setNotes((prev) => ({
-              ids: prev.ids.filter((id) => id !== args.noteId),
-              selectedId:
-                prev.selectedId === args.noteId ? null : prev.selectedId,
-            }));
-            setInitialNoteStates((prev) => {
-              const { [args.noteId]: _, ...rest } = prev;
-              return rest;
-            });
-            return { success: true, noteId: args.noteId };
-          }
-          case "clear": {
-            setNotes({ ids: [], selectedId: null });
-            setInitialNoteStates({});
-            return { success: true };
-          }
-          default:
-            return { success: false, error: "Unknown action" };
-        }
-      },
-    },
-  });
 
   return (
     <>
@@ -342,7 +207,7 @@ function NotesPanel() {
           <StickyNoteIcon className="text-muted-foreground size-4" />
           <span className="text-sm font-semibold">Notes</span>
           <span className="text-muted-foreground ml-auto text-xs">
-            {notes.ids.length}
+            {state.notes.length}
           </span>
           <button
             type="button"
@@ -354,18 +219,17 @@ function NotesPanel() {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
-          {notes.ids.length === 0 ? (
+          {state.notes.length === 0 ? (
             <p className="text-muted-foreground py-6 text-center text-xs">
               No notes yet. Ask the assistant!
             </p>
           ) : (
             <div className="grid gap-2">
-              {notes.ids.map((noteId) => (
+              {state.notes.map((note, index) => (
                 <NoteCard
-                  key={noteId}
-                  noteId={noteId}
-                  selectedId={notes.selectedId}
-                  initialState={initialNoteStates[noteId]}
+                  key={note.id ?? `streaming-${index}`}
+                  note={note}
+                  selected={state.selectedId === note.id}
                   onSelect={handleSelect}
                   onRemove={handleRemove}
                 />
@@ -400,7 +264,6 @@ function InteractablesExample() {
     unstable_interactables: unstable_Interactables({
       persistence: persistenceAdapter,
     }),
-    tools: Tools({ toolkit }),
     suggestions: Suggestions([
       {
         title: "Add 3 tasks",

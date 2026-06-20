@@ -4,18 +4,16 @@ Demonstrates **interactable components** — persistent UI components whose stat
 
 ## Features Demonstrated
 
-### Task Board (single instance + custom tool)
+### Task Board
 - `unstable_useInteractable("taskBoard", config)` — registers a single interactable
-- `Tools({ toolkit })` — custom tool for incremental add/toggle/remove/clear
-- Auto-generated `update_taskBoard` tool with **partial updates** (AI only sends changed fields)
+- Auto-generated `update_taskBoard` tool with partial scalar updates and array operations
+- Collection edits go through `tasks.add`, `tasks.update`, `tasks.remove`, and `tasks.clear` on the generated update tool
 
-### Sticky Notes (collection actions + multi-instance updates)
-- The notes panel registers a small `notes` index interactable for note IDs and the selected note ID
-- Multiple `<NoteCard>` components each call `unstable_useInteractable("note", { id: noteId, ... })`
-- **Collection actions**: `manage_notes` adds/selects/removes/clears notes and can update an existing note by `noteId`
-- **Multi-instance**: all notes share one `update_note` tool; the AI addresses a note by its `id`
-- **Selection**: click a note to select it; the parent updates `selectedId`, and each note syncs its own `selected` field so the AI sees focus in message metadata
-- **Partial updates**: AI can change just `{ id, color: "pink" }` without resending title and content
+### Sticky Notes
+- `unstable_useInteractable("notes", config)` — registers the sticky-note collection and `selectedId` as one state object
+- Auto-generated `update_notes` manages both note collection edits and selected-note focus
+- **Selection**: click a note to set `selectedId`; the AI can change focus by updating the same normal state field
+- **Partial updates**: AI can change just one note field with `notes.update: [{ id, color: "pink" }]`
 
 ## Getting Started
 
@@ -38,7 +36,6 @@ Open [http://localhost:3000](http://localhost:3000) to see the example.
 - **`unstable_Interactables({ persistence })`** — scope resource registered via `useAui`, with a `load`/`save` adapter
 - **`unstable_useInteractable(name, config)`** — returns `[state, { id, setState, isPending, error, flush }]`
 - **Partial updates** — auto-generated tools use partial schemas; AI only sends changed fields
-- **Multi-instance** — same `name`, different `id`; one stable `update_{name}` tool addressed by `id`
-- **Selection** — the parent owns `selectedId`; each note mirrors it into a `selected` state field that is stamped into message metadata
-- **`Tools({ toolkit })`** — custom frontend tools for collection-level actions
+- **Array operations** — array fields support generated `add`, `update`, `remove`, `clear`, and `set` operations on the same `update_{name}` tool
+- **Selection as state** — focused UI state lives in the interactable's normal schema (`selectedId`), not in a separate manage tool
 - **`sendAutomaticallyWhen`** — auto-sends follow-up messages when tool calls complete

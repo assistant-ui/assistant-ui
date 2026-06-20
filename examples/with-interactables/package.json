@@ -24,7 +24,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@assistant-ui/next": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/node": "^26.0.0",

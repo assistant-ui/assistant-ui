@@ -2,17 +2,13 @@ import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import type { UIMessage } from "ai";
 import {
-  AISDKToolkit,
-  type AISDKToolkitToolsOptions,
+  frontendTools,
   unstable_injectInteractableContext,
 } from "@assistant-ui/react-ai-sdk";
-import toolkit from "../../toolkits";
 
 export const maxDuration = 30;
 
-const aiToolkit = new AISDKToolkit({ toolkit });
-
-type FrontendTools = NonNullable<AISDKToolkitToolsOptions["frontend"]>;
+type FrontendTools = Parameters<typeof frontendTools>[0];
 
 export async function POST(req: Request) {
   const {
@@ -34,9 +30,7 @@ export async function POST(req: Request) {
     messages: modelMessages,
     stopWhen: stepCountIs(10),
     ...(system ? { system } : {}),
-    tools: await aiToolkit.tools({
-      ...(clientTools && { frontend: clientTools }),
-    }),
+    ...(clientTools ? { tools: frontendTools(clientTools) } : {}),
   } as Parameters<typeof streamText>[0]);
 
   return result.toUIMessageStreamResponse();
