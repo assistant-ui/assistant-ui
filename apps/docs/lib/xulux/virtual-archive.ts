@@ -65,7 +65,7 @@ export function createVirtualArchive(zipBytes: Uint8Array): VirtualArchive {
 
   for (const [rawPath, data] of Object.entries(unzipped)) {
     const path = rawPath.replace(/^\/+/, "");
-    if (path.endsWith("/") || data.length === 0) continue;
+    if (path.endsWith("/")) continue;
     const name = path.split("/").pop()!;
     const text = isTextFile(name);
     fileMap.set(path, data);

@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { XuluxCanvasTabBar, type CanvasTab } from "./XuluxCanvasTabBar";
 import { XuluxFileBrowser } from "./XuluxFileBrowser";
-import { useVirtualArchive } from "@/hooks/useVirtualArchive";
+import { useVirtualArchive } from "./useVirtualArchive";
 
 function toAbsoluteUrl(url: string | null): string | null {
   if (!url) return null;

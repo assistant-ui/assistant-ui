@@ -23,6 +23,13 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function mergeHeaders(headers?: HeadersInit): Headers {
+  const merged = new Headers(SANDBOX_FETCH_HEADERS);
+  if (!headers) return merged;
+  new Headers(headers).forEach((value, key) => merged.set(key, value));
+  return merged;
+}
+
 export async function fetchSandboxResource(
   url: string,
   init?: RequestInit,
@@ -34,10 +41,7 @@ export async function fetchSandboxResource(
       return await fetch(url, {
         ...init,
         cache: "no-store",
-        headers: {
-          ...SANDBOX_FETCH_HEADERS,
-          ...init?.headers,
-        },
+        headers: mergeHeaders(init?.headers),
       });
     } catch (error) {
       lastError = error;
