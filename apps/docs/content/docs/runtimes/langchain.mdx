@@ -680,7 +680,9 @@ function App() {
 }
 ```
 
-This is the state-snapshot path: it renders whatever UI the graph has committed to its state. Streaming a component live over the `push_ui_message` custom channel before it lands in state is a separate path that will arrive in a follow-up.
+This covers two paths transparently. The **state-snapshot** path renders whatever UI the graph has committed to its state. The **live** path renders UI streamed over the `custom` channel by `push_ui_message` / `remove_ui_message` before (or instead of) it lands in state, so components appear as the graph emits them. The runtime accumulates the live events and merges them with the state snapshot, with the snapshot authoritative once a UI lands in state. Both feed the same `makeAssistantDataUI` renderers.
+
+The live path requires the graph's `streamMode` to include `"custom"` so the UI events reach the client.
 
 ## Errors
 
@@ -758,7 +760,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Edit message (checkpoint fork) | Yes | Yes (auto-resolved) |
 | Per-message metadata (`messages-tuple`) | Yes | Not exposed |
 | Generative UI (state snapshot) | Yes | Yes (`uiStateKey`) |
-| Generative UI (live `push_ui_message`) | Yes | Not yet |
+| Generative UI (live `push_ui_message`) | Yes | Yes (`streamMode: ["custom"]`) |
 | Subgraph / namespaced stream events | Yes (via `eventHandlers`) | Not exposed |
 | Subagent discovery | Via `eventHandlers` | Yes (`useLangChainSubagents`) |
 | Subgraph discovery | Via `eventHandlers` | Yes (`useLangChainSubgraphs`) |
