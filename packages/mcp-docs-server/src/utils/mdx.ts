@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import matter from "gray-matter";
+import yaml from "js-yaml";
 import { logger } from "./logger.js";
 
 interface MDXContent {
@@ -8,12 +8,36 @@ interface MDXContent {
   excerpt?: string;
 }
 
+const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+
+function parseMDXContent(fileContent: string): MDXContent {
+  const match = fileContent.match(FRONTMATTER_PATTERN);
+
+  if (!match) {
+    return {
+      content: fileContent,
+      frontmatter: {},
+    };
+  }
+
+  const parsed = yaml.load(match[1] ?? "") ?? {};
+  const frontmatter =
+    typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, any>)
+      : {};
+
+  return {
+    content: fileContent.slice(match[0].length),
+    frontmatter,
+  };
+}
+
 export async function readMDXFile(
   filePath: string,
 ): Promise<MDXContent | null> {
   try {
     const fileContent = await readFile(filePath, "utf-8");
-    const { content, data } = matter(fileContent);
+    const { content, frontmatter } = parseMDXContent(fileContent);
 
     const excerptMatch = content.match(/^(.+?)(?:\n\n|$)/);
     const excerpt =
@@ -23,7 +47,7 @@ export async function readMDXFile(
 
     return {
       content,
-      frontmatter: data,
+      frontmatter,
       ...(excerpt !== undefined && { excerpt }),
     };
   } catch (error) {
@@ -35,5 +59,9 @@ export async function readMDXFile(
 export function formatMDXContent(mdxContent: MDXContent): string {
   const { content, frontmatter } = mdxContent;
 
-  return matter.stringify(content, frontmatter);
+  if (Object.keys(frontmatter).length === 0) {
+    return content;
+  }
+
+  return `---\n${yaml.dump(frontmatter)}---\n\n${content}`;
 }

@@ -41,11 +41,12 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "gray-matter": "^4.0.3",
+    "js-yaml": "^4.2.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.3",
     "tsx": "^4.22.4",
     "vitest": "^4.1.8"

@@ -9,6 +9,16 @@ preferWorkspacePackages: true
 publicHoistPattern:
   - '@types/*'
 
+overrides:
+  '@opentelemetry/core': 2.8.0
+  '@tootallnate/once': 2.0.1
+  dompurify: 3.4.11
+  js-yaml: 4.2.0
+  postcss: 8.5.15
+  tar: 7.5.16
+  '@earendil-works/pi-coding-agent>undici': 8.5.0
+  uuid: 11.1.1
+
 strictDepBuilds: true
 
 verifyDepsBeforeRun: install
