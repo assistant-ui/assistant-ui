@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildInteractableModelContext } from "./interactable-model-context";
+import {
+  buildInteractableModelContext,
+  type PartialJSONSchema,
+} from "./interactable-model-context";
 import type { Unstable_InteractableDefinition } from "../types/scopes/interactables";
 
 const def = (
@@ -20,9 +23,27 @@ const partialNoteSchema = {
   properties: { title: { type: "string" as const } },
 };
 
+const partialTaskBoardSchema = {
+  type: "object" as const,
+  properties: {
+    tasks: {
+      type: "array" as const,
+      items: {
+        type: "object" as const,
+        properties: {
+          id: { type: "string" as const },
+          title: { type: "string" as const },
+          done: { type: "boolean" as const },
+        },
+        required: ["id", "title", "done"],
+      },
+    },
+  },
+};
+
 const build = (
   definitions: Record<string, Unstable_InteractableDefinition>,
-  cache = new Map([["n1", partialNoteSchema]]),
+  cache: Map<string, PartialJSONSchema> = new Map([["n1", partialNoteSchema]]),
 ) => {
   const setDefState = vi.fn(
     (id: string, updater: (prev: unknown) => unknown) => {
@@ -111,6 +132,52 @@ describe("buildInteractableModelContext", () => {
     expect(params.additionalProperties).toBe(true);
   });
 
+  it("exposes operation schemas for array fields", () => {
+    const { ctx } = build(
+      { b1: def("b1", "taskBoard") },
+      new Map([["b1", partialTaskBoardSchema]]),
+    );
+    const params = ctx!.tools["update_taskBoard"]!.parameters as {
+      properties: {
+        tasks: {
+          type: string;
+          properties: Record<string, unknown>;
+        };
+      };
+    };
+
+    expect(params.properties.tasks.type).toBe("object");
+    expect(Object.keys(params.properties.tasks.properties).sort()).toEqual([
+      "add",
+      "clear",
+      "remove",
+      "update",
+    ]);
+  });
+
+  it("omits id from add items but keeps it for update", () => {
+    const { ctx } = build(
+      { b1: def("b1", "taskBoard") },
+      new Map([["b1", partialTaskBoardSchema]]),
+    );
+    const tasks = (
+      ctx!.tools["update_taskBoard"]!.parameters as {
+        properties: {
+          tasks: {
+            properties: {
+              add: { items: { properties: object; required?: string[] } };
+              update: { items: { required?: string[] } };
+            };
+          };
+        };
+      }
+    ).properties.tasks.properties;
+
+    expect(Object.keys(tasks.add.items.properties)).not.toContain("id");
+    expect(tasks.add.items.required ?? []).not.toContain("id");
+    expect(tasks.update.items.required).toEqual(["id"]);
+  });
+
   describe("execute", () => {
     it("routes the partial update to the instance with the given id", async () => {
       const defs = {
@@ -136,6 +203,22 @@ describe("buildInteractableModelContext", () => {
       );
       expect(result).toEqual({ success: true, id: "n1" });
       expect(defs.n1.state).toEqual({ title: "B" });
+    });
+
+    it("mints an id for an added item that has none", async () => {
+      const defs = { b1: def("b1", "taskBoard", { tasks: [] }) };
+      const { ctx } = build(defs, new Map([["b1", partialTaskBoardSchema]]));
+      const result = await ctx!.tools["update_taskBoard"]!.execute!(
+        { id: "b1", tasks: { add: [{ title: "Write tests", done: false }] } },
+        {} as never,
+      );
+      expect(result).toEqual({ success: true, id: "b1" });
+      const tasks = (defs.b1.state as { tasks: Record<string, unknown>[] })
+        .tasks;
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0]).toMatchObject({ title: "Write tests", done: false });
+      expect(typeof tasks[0]!.id).toBe("string");
+      expect((tasks[0]!.id as string).length).toBeGreaterThan(0);
     });
 
     it("rejects an unknown id and lists valid ids", async () => {
@@ -170,6 +253,37 @@ describe("buildInteractableModelContext", () => {
         {} as never,
       )) as { success: boolean };
       expect(result.success).toBe(false);
+    });
+
+    it("applies array operations", async () => {
+      const defs = {
+        b1: def("b1", "taskBoard", {
+          tasks: [
+            { id: "a", title: "A", done: false },
+            { id: "b", title: "B", done: false },
+          ],
+        }),
+      };
+      const { ctx } = build(defs, new Map([["b1", partialTaskBoardSchema]]));
+
+      await ctx!.tools["update_taskBoard"]!.execute!(
+        {
+          id: "b1",
+          tasks: {
+            update: [{ id: "a", done: true }],
+            remove: ["b"],
+            add: [{ id: "c", title: "C", done: false }],
+          },
+        },
+        {} as never,
+      );
+
+      expect(defs.b1.state).toEqual({
+        tasks: [
+          { id: "a", title: "A", done: true },
+          { id: "c", title: "C", done: false },
+        ],
+      });
     });
   });
 
@@ -236,6 +350,49 @@ describe("buildInteractableModelContext", () => {
         {} as never,
       );
       expect(defs.n1.state).toEqual({ title: "B" });
+    });
+
+    it("streams array operations from the call baseline", async () => {
+      const defs = {
+        b1: def("b1", "taskBoard", {
+          tasks: [{ id: "a", title: "A", done: false }],
+        }),
+      };
+      const { ctx } = build(defs, new Map([["b1", partialTaskBoardSchema]]));
+      const context = { toolCallId: "call-1" } as never;
+
+      await ctx!.tools["update_taskBoard"]!.streamCall!(
+        makeReader([
+          { id: "b1", tasks: { add: [{ id: "b", title: "B" }] } },
+          {
+            id: "b1",
+            tasks: { add: [{ id: "b", title: "B", done: false }] },
+          },
+        ]),
+        context,
+      );
+
+      expect(defs.b1.state).toEqual({
+        tasks: [
+          { id: "a", title: "A", done: false },
+          { id: "b", title: "B", done: false },
+        ],
+      });
+
+      await ctx!.tools["update_taskBoard"]!.execute!(
+        {
+          id: "b1",
+          tasks: { add: [{ id: "b", title: "B", done: false }] },
+        },
+        context,
+      );
+
+      expect(defs.b1.state).toEqual({
+        tasks: [
+          { id: "a", title: "A", done: false },
+          { id: "b", title: "B", done: false },
+        ],
+      });
     });
   });
 });

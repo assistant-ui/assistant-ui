@@ -72,13 +72,91 @@ export function interactableToolName(name: string): string {
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** The merge `update_*` tools apply: top-level keys replace, rest preserved. */
+const getArrayItemId = (item: unknown): string | number | undefined => {
+  if (!isPlainObject(item)) return undefined;
+  const id = item.id;
+  return typeof id === "string" || typeof id === "number" ? id : undefined;
+};
+
+function applyArrayUpdate(
+  prev: unknown[],
+  update: Record<string, unknown>,
+  mintId?: () => string,
+) {
+  let next = Array.isArray(update.set) ? [...update.set] : [...prev];
+
+  if (update.clear === true) next = [];
+
+  if (Array.isArray(update.remove) && update.remove.length > 0) {
+    const ids = new Set(update.remove);
+    next = next.filter((item) => {
+      const id = getArrayItemId(item);
+      return id !== undefined ? !ids.has(id) : !ids.has(item);
+    });
+  }
+
+  const patches = update.update;
+  if (Array.isArray(patches) && patches.length > 0) {
+    next = next.map((item) => {
+      const id = getArrayItemId(item);
+      if (id === undefined || !isPlainObject(item)) return item;
+      const patch = patches.find(
+        (candidate) => isPlainObject(candidate) && candidate.id === id,
+      );
+      return patch ? { ...item, ...patch } : item;
+    });
+  }
+
+  if (Array.isArray(update.add) && update.add.length > 0) {
+    const added = mintId
+      ? update.add.map((item) =>
+          isPlainObject(item) && item.id === undefined
+            ? { ...item, id: mintId() }
+            : item,
+        )
+      : update.add;
+    next = [...next, ...added];
+  }
+
+  return next;
+}
+
+/**
+ * The merge `update_*` tools apply: top-level keys replace, rest preserved.
+ * Array fields also accept operation objects (`add`, `update`, `remove`,
+ * `clear`, `set`) so collection edits do not need a companion manage_* tool.
+ */
 export function shallowMergeInteractableState(
   prev: unknown,
   partial: unknown,
+  options?:
+    | {
+        arrayBaseline?: unknown;
+        /** Mints ids for added items in `idKeyedFields`. Only the final
+         * (execute) merge passes this, so ids are assigned once. */
+        idFactory?: () => string;
+        idKeyedFields?: ReadonlySet<string>;
+      }
+    | undefined,
 ): unknown {
   if (!isPlainObject(prev) || !isPlainObject(partial)) return partial;
-  return { ...prev, ...partial };
+  const baseline = isPlainObject(options?.arrayBaseline)
+    ? options.arrayBaseline
+    : prev;
+  const next = { ...prev };
+  for (const [key, value] of Object.entries(partial)) {
+    const baseValue = baseline[key];
+    if (Array.isArray(baseValue) && isPlainObject(value)) {
+      const mintId =
+        options?.idFactory && options.idKeyedFields?.has(key)
+          ? options.idFactory
+          : undefined;
+      next[key] = applyArrayUpdate(baseValue, value, mintId);
+    } else {
+      next[key] = value;
+    }
+  }
+  return next;
 }
 
 /**

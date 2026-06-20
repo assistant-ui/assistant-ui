@@ -6,6 +6,7 @@ import {
   unstable_getInteractableSnapshots,
   unstable_getInteractableVersions,
   interactableToolName,
+  shallowMergeInteractableState,
   type Unstable_InteractableSnapshotEntry,
 } from "./interactable-composer-metadata";
 
@@ -99,6 +100,60 @@ describe("interactableToolName", () => {
   it("sanitizes the name", () => {
     expect(interactableToolName("note")).toBe("update_note");
     expect(interactableToolName("my notes!")).toBe("update_my_notes_");
+  });
+});
+
+describe("shallowMergeInteractableState", () => {
+  it("applies array operations from a baseline", () => {
+    const prev = {
+      tasks: [
+        { id: "a", title: "A", done: false },
+        { id: "b", title: "B", done: false },
+      ],
+      selectedId: "a",
+    };
+
+    expect(
+      shallowMergeInteractableState(prev, {
+        tasks: {
+          update: [{ id: "a", done: true }],
+          remove: ["b"],
+          add: [{ id: "c", title: "C", done: false }],
+        },
+        selectedId: "c",
+      }),
+    ).toEqual({
+      tasks: [
+        { id: "a", title: "A", done: true },
+        { id: "c", title: "C", done: false },
+      ],
+      selectedId: "c",
+    });
+  });
+
+  it("keeps raw array replacement semantics", () => {
+    expect(
+      shallowMergeInteractableState(
+        { tasks: [{ id: "a", title: "A" }] },
+        { tasks: [{ id: "b", title: "B" }] },
+      ),
+    ).toEqual({ tasks: [{ id: "b", title: "B" }] });
+  });
+
+  it("uses the array baseline only for array operation fields", () => {
+    expect(
+      shallowMergeInteractableState(
+        { tasks: [{ id: "stream", title: "streamed" }], title: "live" },
+        { tasks: { add: [{ id: "final", title: "final" }] }, title: "final" },
+        { arrayBaseline: { tasks: [{ id: "base", title: "base" }] } },
+      ),
+    ).toEqual({
+      tasks: [
+        { id: "base", title: "base" },
+        { id: "final", title: "final" },
+      ],
+      title: "final",
+    });
   });
 });
 

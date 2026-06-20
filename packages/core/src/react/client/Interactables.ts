@@ -48,6 +48,9 @@ const useUnstableInteractables = ({
 
   const subscribersRef = useRef(new Set<() => void>());
   const partialSchemaCacheRef = useRef(new Map<string, PartialJSONSchema>());
+  const streamBaselinesRef = useRef(
+    new Map<string, { targetId: string; state: unknown }>(),
+  );
   const detachedAppStateRef = useRef(new Map<string, unknown>());
   const detachedThreadStateRef = useRef(
     new Map<string, Map<string, unknown>>(),
@@ -332,6 +335,7 @@ const useUnstableInteractables = ({
             defs,
             partialSchemaCacheRef.current,
             setDefState,
+            streamBaselinesRef.current,
           ) ?? {}
         );
       },
