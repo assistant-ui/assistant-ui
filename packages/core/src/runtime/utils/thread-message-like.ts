@@ -127,6 +127,7 @@ export const fromThreadMessageLike = (
     image,
     ...rest
   }: ImageMessagePart): ImageMessagePart | null => {
+    if (typeof image !== "string") return null;
     const dataUri = image.match(
       /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,(.*)$/,
     );
@@ -160,7 +161,7 @@ export const fromThreadMessageLike = (
             switch (type) {
               case "text":
               case "reasoning":
-                if (part.text.trim().length === 0) return null;
+                if (!part.text?.trim()) return null;
                 return part;
 
               case "file":

@@ -40,7 +40,7 @@ export type MessageContentText = {
 
 export type MessageContentImageUrl = {
   type: "image_url";
-  image_url: string | { url: string };
+  image_url: string | { url?: string };
 };
 
 export type MessageContentThinking = {
@@ -50,7 +50,7 @@ export type MessageContentThinking = {
 
 export type MessageContentReasoningSummaryText = {
   type: "summary_text";
-  text: string;
+  text?: string;
 };
 
 export type MessageContentReasoning = {

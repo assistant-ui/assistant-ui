@@ -15,11 +15,12 @@ import type { UseStreamOptions, AssembledToolCall } from "@langchain/react";
 export type LangChainContentBlock =
   | { type: "text"; text: string }
   | { type: "text_delta"; text: string }
-  | { type: "image_url"; image_url: string | { url: string } }
+  | { type: "image_url"; image_url: string | { url?: string } }
   | { type: "thinking"; thinking: string }
   | {
       type: "reasoning";
-      summary: Array<{ type: "summary_text"; text: string }>;
+      summary?: Array<{ type: "summary_text"; text?: string }>;
+      reasoning?: string;
     }
   | {
       type: "file";

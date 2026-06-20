@@ -188,7 +188,7 @@ const contentToParts = (
             } else {
               return {
                 type: "image",
-                image: part.image_url.url,
+                image: part.image_url?.url,
               };
             }
           case "file":
@@ -206,7 +206,7 @@ const contentToParts = (
             return {
               type: "reasoning",
               text:
-                part.summary?.map((s) => s.text).join("\n\n\n") ??
+                part.summary?.map((s) => s?.text ?? "").join("\n\n\n") ??
                 part.reasoning ??
                 "",
             };

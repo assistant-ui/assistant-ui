@@ -28,7 +28,7 @@ const contentToParts = (content: unknown) => {
           if (typeof part.image_url === "string") {
             return { type: "image" as const, image: part.image_url };
           }
-          return { type: "image" as const, image: part.image_url.url };
+          return { type: "image" as const, image: part.image_url?.url };
         case "file":
           return {
             type: "file" as const,
@@ -41,7 +41,10 @@ const contentToParts = (content: unknown) => {
         case "reasoning":
           return {
             type: "reasoning" as const,
-            text: part.summary.map((s) => s.text).join("\n\n\n"),
+            text:
+              part.summary?.map((s) => s?.text ?? "").join("\n\n\n") ??
+              part.reasoning ??
+              "",
           };
         case "tool_use":
         case "input_json_delta":

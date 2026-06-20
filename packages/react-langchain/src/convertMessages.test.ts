@@ -8,6 +8,12 @@ const humanMessage = (content: unknown): LangChainBaseMessage => ({
   content,
 });
 
+const aiMessage = (content: unknown): LangChainBaseMessage => ({
+  _getType: () => "ai",
+  id: "msg-2",
+  content,
+});
+
 describe("convertLangChainBaseMessage file content parts", () => {
   it("converts a base64 file block", () => {
     const result = convertLangChainBaseMessage(
@@ -49,5 +55,81 @@ describe("convertLangChainBaseMessage file content parts", () => {
         mimeType: "application/pdf",
       },
     ]);
+  });
+});
+
+describe("convertLangChainBaseMessage reasoning content parts", () => {
+  it("joins summary parts into a single reasoning part", () => {
+    const result = convertLangChainBaseMessage(
+      aiMessage([
+        {
+          type: "reasoning",
+          summary: [
+            { type: "summary_text", text: "first" },
+            { type: "summary_text", text: "second" },
+          ],
+        },
+      ]),
+      {},
+    );
+
+    expect(result.content).toEqual([
+      { type: "reasoning", text: "first\n\n\nsecond" },
+    ]);
+  });
+
+  it("falls back to the reasoning string when summary is absent", () => {
+    const result = convertLangChainBaseMessage(
+      aiMessage([{ type: "reasoning", reasoning: "thinking out loud" }]),
+      {},
+    );
+
+    expect(result.content).toEqual([
+      { type: "reasoning", text: "thinking out loud" },
+    ]);
+  });
+
+  it("does not throw when a reasoning block omits both summary and reasoning", () => {
+    const result = convertLangChainBaseMessage(
+      aiMessage([{ type: "reasoning" }]),
+      {},
+    );
+
+    expect(result.content).toEqual([{ type: "reasoning", text: "" }]);
+  });
+
+  it("tolerates null entries inside the summary array", () => {
+    const result = convertLangChainBaseMessage(
+      aiMessage([
+        {
+          type: "reasoning",
+          summary: [null, { type: "summary_text", text: "kept" }],
+        },
+      ]),
+      {},
+    );
+
+    expect(result.content).toEqual([{ type: "reasoning", text: "\n\n\nkept" }]);
+  });
+});
+
+describe("convertLangChainBaseMessage image content parts", () => {
+  it("reads the url from an image_url object", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([
+        { type: "image_url", image_url: { url: "https://example.com/a.png" } },
+      ]),
+      {},
+    );
+
+    expect(result.content).toEqual([
+      { type: "image", image: "https://example.com/a.png" },
+    ]);
+  });
+
+  it("does not throw when image_url is undefined", () => {
+    expect(() =>
+      convertLangChainBaseMessage(humanMessage([{ type: "image_url" }]), {}),
+    ).not.toThrow();
   });
 });
