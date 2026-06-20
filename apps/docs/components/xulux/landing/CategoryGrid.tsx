@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { analytics } from "@/lib/analytics";
+import {
+  getXuluxTemplateAnalyticsId,
+  useXuluxAnalytics,
+  withXuluxContext,
+} from "@/lib/xulux/analytics-context";
 import { cn } from "@/lib/utils";
 import type { XuluxTemplate } from "../templates/types";
 import { useXuluxTemplateCatalog } from "../templates/useXuluxTemplateCatalog";
@@ -14,6 +20,7 @@ type Props = {
 };
 
 export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
+  const analyticsCtx = useXuluxAnalytics();
   const { templates, isLoading, error } = useXuluxTemplateCatalog();
   const [selected, setSelected] = useState<XuluxTemplate | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -106,7 +113,17 @@ export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
               <button
                 key={template.id}
                 type="button"
-                onClick={() => setSelected(template)}
+                onClick={() => {
+                  analytics.xulux.templateSelected(
+                    withXuluxContext(analyticsCtx, {
+                      template_id: getXuluxTemplateAnalyticsId(template),
+                      template_kind: template.kind,
+                      surface: "landing_carousel",
+                      action: "open_detail",
+                    }),
+                  );
+                  setSelected(template);
+                }}
                 style={{
                   scrollSnapAlign: "start",
                   flexShrink: 0,

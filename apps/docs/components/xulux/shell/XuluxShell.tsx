@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -25,6 +26,12 @@ function useIsSmallScreen(): boolean {
 import { useAui, useAuiState, type ThreadMessage } from "@assistant-ui/react";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { Button } from "@/components/ui/button";
+import { analytics } from "@/lib/analytics";
+import {
+  getXuluxTemplateAnalyticsId,
+  useXuluxAnalytics,
+  withXuluxContext,
+} from "@/lib/xulux/analytics-context";
 import { XuluxThread } from "../chat/XuluxThread";
 import { XuluxTemplateProvider } from "../chat/XuluxTemplateContext";
 import type { XuluxTemplate } from "../templates/types";
@@ -49,12 +56,17 @@ type XuluxViewMode = "landing" | "chat" | "preview";
 type CanvasState = {
   status: "empty" | "loading" | "ready" | "error";
   url: string | null;
-  source: "template" | "refresh" | null;
+  source: "template" | "agent_template" | "refresh" | null;
   error: string | null;
   downloadUrl?: string;
   templateId?: string;
   versionId?: string;
   title?: string;
+};
+type PromptStart = {
+  source: "typed_prompt" | "suggestion";
+  suggestionGroup?: string;
+  suggestionLabel?: string;
 };
 
 export function XuluxShell({
@@ -72,6 +84,7 @@ export function XuluxShell({
 }) {
   const { askAI } = useAssistantPanel();
   const aui = useAui();
+  const analyticsCtx = useXuluxAnalytics();
   const isSmallScreen = useIsSmallScreen();
   const currentRemoteId = useAuiState((state) => state.threadListItem.remoteId);
   const storedThreads = useXuluxStoredThreads();
@@ -87,9 +100,33 @@ export function XuluxShell({
     source: null,
     error: null,
   });
+  const viewedRef = useRef(false);
+  const previewTrackedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (viewedRef.current) return;
+    viewedRef.current = true;
+    analytics.xulux.playgroundViewed(withXuluxContext(analyticsCtx, {}));
+  }, [analyticsCtx]);
+
+  useEffect(() => {
+    previewTrackedRef.current = null;
+  }, [sessionId]);
 
   const handleStartChat = useCallback(
-    (prompt: string) => {
+    (prompt: string, start: PromptStart = { source: "typed_prompt" }) => {
+      analytics.xulux.promptSubmitted(
+        withXuluxContext(analyticsCtx, {
+          source: start.source,
+          message_length: prompt.length,
+          ...(start.suggestionGroup
+            ? { suggestion_group: start.suggestionGroup }
+            : {}),
+          ...(start.suggestionLabel
+            ? { suggestion_label: start.suggestionLabel }
+            : {}),
+        }),
+      );
       updateXuluxPendingUserMessage(currentRemoteId ?? sessionId, prompt);
       setSelectedTemplate(null);
       setSelectedTemplateContext(null);
@@ -99,7 +136,13 @@ export function XuluxShell({
       setTemplatesOpen(false);
       askAI(prompt);
     },
-    [askAI, currentRemoteId, onSetSelectedTemplateContext, sessionId],
+    [
+      analyticsCtx,
+      askAI,
+      currentRemoteId,
+      onSetSelectedTemplateContext,
+      sessionId,
+    ],
   );
 
   const handleSelectTemplate = useCallback(
@@ -115,7 +158,7 @@ export function XuluxShell({
         source: template.previewUrl ? "template" : null,
         error: null,
         ...(template.downloadUrl ? { downloadUrl: template.downloadUrl } : {}),
-        ...(template.templateId ? { templateId: template.templateId } : {}),
+        templateId: getXuluxTemplateAnalyticsId(template),
         ...(template.versionId ? { versionId: template.versionId } : {}),
         title: template.title,
       });
@@ -131,6 +174,7 @@ export function XuluxShell({
     setSelectedTemplate(null);
     setSelectedTemplateContext(null);
     setCanvas({ status: "empty", url: null, source: null, error: null });
+    previewTrackedRef.current = null;
     setTemplatesOpen(false);
     setViewMode("landing");
     onResetSession();
@@ -175,6 +219,12 @@ export function XuluxShell({
 
   const handleRetryInterrupted = useCallback(() => {
     if (!interruptedUserMessage) return;
+    analytics.xulux.promptSubmitted(
+      withXuluxContext(analyticsCtx, {
+        source: "retry",
+        message_length: interruptedUserMessage.length,
+      }),
+    );
     updateXuluxPendingUserMessage(
       currentRemoteId ?? sessionId,
       interruptedUserMessage,
@@ -192,7 +242,14 @@ export function XuluxShell({
     }
 
     askAI(interruptedUserMessage);
-  }, [askAI, aui, currentRemoteId, interruptedUserMessage, sessionId]);
+  }, [
+    analyticsCtx,
+    askAI,
+    aui,
+    currentRemoteId,
+    interruptedUserMessage,
+    sessionId,
+  ]);
 
   useEffect(() => {
     if (!currentRemoteId) return;
@@ -204,6 +261,27 @@ export function XuluxShell({
       ),
     });
   }, [canvas, currentRemoteId, selectedTemplate, selectedTemplateContext]);
+
+  useEffect(() => {
+    if (canvas.status !== "ready" || !canvas.url || !canvas.source) return;
+    const source =
+      canvas.source === "refresh" ? "agent_sandbox" : canvas.source;
+    const key = `${source}:${canvas.url}`;
+    if (previewTrackedRef.current === key) return;
+    previewTrackedRef.current = key;
+    analytics.xulux.previewShown(
+      withXuluxContext(analyticsCtx, {
+        source,
+        ...(canvas.templateId ? { template_id: canvas.templateId } : {}),
+      }),
+    );
+  }, [
+    analyticsCtx,
+    canvas.source,
+    canvas.status,
+    canvas.templateId,
+    canvas.url,
+  ]);
 
   const sourceUrl =
     canvas.source === "template" &&
@@ -235,7 +313,7 @@ export function XuluxShell({
             setCanvas({
               status: "ready",
               url: preview.previewUrl,
-              source: "template",
+              source: "agent_template",
               error: null,
               downloadUrl: preview.downloadUrl,
               templateId: preview.templateId,
@@ -275,6 +353,9 @@ export function XuluxShell({
                   previewUrl={canvas.url}
                   source={canvas.source}
                   error={canvas.error}
+                  {...(canvas.templateId
+                    ? { templateId: canvas.templateId }
+                    : {})}
                   {...(canvas.downloadUrl
                     ? { downloadUrl: canvas.downloadUrl }
                     : {})}
@@ -319,6 +400,9 @@ export function XuluxShell({
                   previewUrl={canvas.url}
                   source={canvas.source}
                   error={canvas.error}
+                  {...(canvas.templateId
+                    ? { templateId: canvas.templateId }
+                    : {})}
                   {...(canvas.downloadUrl
                     ? { downloadUrl: canvas.downloadUrl }
                     : {})}
@@ -346,6 +430,7 @@ export function XuluxShell({
           open={templatesOpen}
           onOpenChange={setTemplatesOpen}
           onSelect={handleSelectTemplate}
+          openSurface="header"
         />
       </div>
     </XuluxTemplateProvider>

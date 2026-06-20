@@ -5,7 +5,7 @@ export type XuluxThreadStatus = "idle" | "running" | "interrupted";
 export type XuluxCanvasSnapshot = {
   status: "empty" | "ready" | "error";
   url: string | null;
-  source: "template" | "refresh" | null;
+  source: "template" | "agent_template" | "refresh" | null;
   error: string | null;
   downloadUrl?: string;
   templateId?: string;

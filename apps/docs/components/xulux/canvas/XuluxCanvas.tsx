@@ -12,6 +12,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { GitHubIcon } from "@/components/icons/github";
 import { Tabs } from "@/components/assistant-ui/tabs";
+import {
+  trackXuluxDownload,
+  useXuluxAnalytics,
+} from "@/lib/xulux/analytics-context";
 import { cn } from "@/lib/utils";
 import { XuluxCanvasTabBar, type CanvasTab } from "./XuluxCanvasTabBar";
 import { XuluxFileBrowser } from "./XuluxFileBrowser";
@@ -50,18 +54,21 @@ export function XuluxCanvas({
   source,
   error,
   downloadUrl,
+  templateId,
   sourceUrl,
   title,
 }: {
   sessionId: string;
   status: "empty" | "loading" | "ready" | "error";
   previewUrl: string | null;
-  source: "template" | "refresh" | null;
+  source: "template" | "agent_template" | "refresh" | null;
   error: string | null;
   downloadUrl?: string;
+  templateId?: string;
   sourceUrl?: string;
   title?: string;
 }) {
+  const analyticsCtx = useXuluxAnalytics();
   const [activeTab, setActiveTab] = useState("preview");
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -124,6 +131,11 @@ export function XuluxCanvas({
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      trackXuluxDownload(analyticsCtx, {
+        surface: "canvas",
+        download_type: "sandbox",
+        ...(templateId ? { template_id: templateId } : {}),
+      });
     } catch (downloadErr) {
       setDownloadError(
         downloadErr instanceof Error
@@ -133,9 +145,12 @@ export function XuluxCanvas({
     } finally {
       setIsDownloading(false);
     }
-  }, [sessionId]);
+  }, [analyticsCtx, sessionId, templateId]);
 
   const hasPreview = !!resolvedPreviewUrl;
+  const resolvedDownloadUrl = downloadUrl
+    ? toAbsoluteUrl(downloadUrl)
+    : undefined;
 
   const tabs: CanvasTab[] = TABS.map((tab) => {
     if (tab.id === "preview") {
@@ -196,7 +211,18 @@ export function XuluxCanvas({
           className="text-muted-foreground hover:text-foreground size-7"
           asChild
         >
-          <a href={downloadUrl} target="_blank" rel="noreferrer">
+          <a
+            href={resolvedDownloadUrl ?? downloadUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() =>
+              trackXuluxDownload(analyticsCtx, {
+                surface: "canvas",
+                download_type: "template",
+                ...(templateId ? { template_id: templateId } : {}),
+              })
+            }
+          >
             <Download className="size-3.5" />
             <span className="sr-only">Download</span>
           </a>

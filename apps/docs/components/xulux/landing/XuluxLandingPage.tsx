@@ -11,7 +11,14 @@ import { TemplatesModal } from "./TemplatesModal";
 type Props = {
   headline?: string | undefined;
   placeholder?: string | undefined;
-  onStartChat: (prompt: string) => void;
+  onStartChat: (
+    prompt: string,
+    start?: {
+      source: "typed_prompt" | "suggestion";
+      suggestionGroup?: string;
+      suggestionLabel?: string;
+    },
+  ) => void;
   onSelectTemplate: (template: XuluxTemplate) => void;
 };
 
@@ -42,9 +49,13 @@ export function XuluxLandingPage({
           placeholder={placeholder}
         />
         <LandingSuggestions
-          onSelectPrompt={(nextPrompt) => {
+          onSelectPrompt={(nextPrompt, suggestion) => {
             setPrompt(nextPrompt);
-            onStartChat(nextPrompt);
+            onStartChat(nextPrompt, {
+              source: "suggestion",
+              suggestionGroup: suggestion.group,
+              suggestionLabel: suggestion.label,
+            });
           }}
         />
       </div>
@@ -61,6 +72,7 @@ export function XuluxLandingPage({
         open={templatesOpen}
         onOpenChange={setTemplatesOpen}
         onSelect={handleTemplate}
+        openSurface="landing_carousel"
       />
     </main>
   );

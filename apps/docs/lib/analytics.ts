@@ -276,4 +276,67 @@ export const analytics = {
       trackEvent("assistant_feedback_submitted", props);
     },
   },
+
+  xulux: {
+    playgroundViewed: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+    }) => trackEvent("xulux_playground_viewed", props),
+
+    promptSubmitted: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      source: "typed_prompt" | "suggestion" | "composer" | "retry";
+      message_length: number;
+      suggestion_group?: string;
+      suggestion_label?: string;
+    }) => trackEvent("xulux_prompt_submitted", props),
+
+    suggestionSelected: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      group: "New app" | "Templates" | "Learn" | "Cloud";
+      label: string;
+      message_length: number;
+    }) => trackEvent("xulux_suggestion_selected", props),
+
+    templatesOpened: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      surface: "landing_carousel" | "header";
+    }) => trackEvent("xulux_templates_opened", props),
+
+    templateSelected: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      template_id: string;
+      template_kind: "template" | "example";
+      surface: "landing_carousel" | "templates_modal" | "detail_modal";
+      action: "open_detail" | "start" | "other_template";
+      other_template_id?: string;
+    }) => trackEvent("xulux_template_selected", props),
+
+    previewShown: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      source: "template" | "agent_template" | "agent_sandbox";
+      template_id?: string;
+    }) => trackEvent("xulux_preview_shown", props),
+
+    converted: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      action: "copy_prompt" | "download";
+      surface: "open_in_card" | "canvas" | "detail_modal";
+      download_type?: "template" | "sandbox" | "demo";
+      template_id?: string;
+    }) => trackEvent("xulux_converted", props),
+  },
 };

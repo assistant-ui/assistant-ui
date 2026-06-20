@@ -15,6 +15,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { analytics } from "@/lib/analytics";
+import {
+  getXuluxTemplateAnalyticsId,
+  trackXuluxDownload,
+  useXuluxAnalytics,
+  withXuluxContext,
+} from "@/lib/xulux/analytics-context";
 import type { XuluxTemplate } from "../templates/types";
 import { Thumbnail } from "./Thumbnail";
 
@@ -31,6 +38,7 @@ export function TemplateDetailModal({
   onClose,
   onSelect,
 }: Props) {
+  const analyticsCtx = useXuluxAnalytics();
   const [current, setCurrent] = useState<XuluxTemplate | null>(template);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -45,6 +53,17 @@ export function TemplateDetailModal({
     .slice(0, 4);
 
   const handleOther = (nextTemplate: XuluxTemplate) => {
+    if (current) {
+      analytics.xulux.templateSelected(
+        withXuluxContext(analyticsCtx, {
+          template_id: getXuluxTemplateAnalyticsId(current),
+          template_kind: current.kind,
+          surface: "detail_modal",
+          action: "other_template",
+          other_template_id: getXuluxTemplateAnalyticsId(nextTemplate),
+        }),
+      );
+    }
     setCurrent(nextTemplate);
     setIframeLoaded(false);
     scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
@@ -217,7 +236,18 @@ export function TemplateDetailModal({
             <div className="mt-6 space-y-2">
               <button
                 type="button"
-                onClick={() => current.canStart && onSelect(current)}
+                onClick={() => {
+                  if (!current.canStart) return;
+                  analytics.xulux.templateSelected(
+                    withXuluxContext(analyticsCtx, {
+                      template_id: getXuluxTemplateAnalyticsId(current),
+                      template_kind: current.kind,
+                      surface: "detail_modal",
+                      action: "start",
+                    }),
+                  );
+                  onSelect(current);
+                }}
                 disabled={!current.canStart}
                 className="bg-foreground text-background w-full rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
               >
@@ -228,6 +258,13 @@ export function TemplateDetailModal({
                   href={current.downloadUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() =>
+                    trackXuluxDownload(analyticsCtx, {
+                      surface: "detail_modal",
+                      download_type: "template",
+                      template_id: getXuluxTemplateAnalyticsId(current),
+                    })
+                  }
                   className="border-border text-muted-foreground hover:text-foreground flex w-full items-center justify-center gap-2 rounded-lg border px-5 py-2.5 text-sm font-medium transition-colors"
                 >
                   <Download className="size-4" />

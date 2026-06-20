@@ -3,6 +3,12 @@
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-streamdown";
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import { useCopyToClipboard } from "@assistant-ui/ui/hooks/use-copy-to-clipboard";
+import { analytics } from "@/lib/analytics";
+import {
+  trackXuluxDownload,
+  useXuluxAnalytics,
+  withXuluxContext,
+} from "@/lib/xulux/analytics-context";
 
 export type OpenInData = {
   title: string;
@@ -138,13 +144,17 @@ export function OpenInCard({
   downloadUrl,
   prompt: agentPrompt,
 }: OpenInData) {
+  const analyticsCtx = useXuluxAnalytics();
   const prompt = buildPrompt({
     title,
     ...(downloadUrl ? { downloadUrl } : {}),
     ...(agentPrompt ? { prompt: agentPrompt } : {}),
   });
   const { isCopied, copyToClipboard } = useCopyToClipboard();
-  const hasDownload = Boolean(downloadUrl);
+  const validDownloadUrl = isValidOpenInUrl(downloadUrl)
+    ? downloadUrl
+    : undefined;
+  const hasDownload = Boolean(validDownloadUrl);
 
   return (
     <div className="border-border bg-muted/30 my-4 rounded-lg border px-4 py-3 text-sm shadow-sm">
@@ -172,9 +182,15 @@ export function OpenInCard({
         {hasDownload && (
           <>
             <a
-              href={downloadUrl}
+              href={toAbsoluteDownloadUrl(validDownloadUrl!)}
               download
               aria-label="Download starter"
+              onClick={() =>
+                trackXuluxDownload(analyticsCtx, {
+                  surface: "open_in_card",
+                  download_type: "demo",
+                })
+              }
               className="border-border bg-background hover:bg-muted inline-flex size-8 items-center justify-center rounded-md border transition-colors"
             >
               <DownloadIcon className="size-4" />
@@ -184,7 +200,15 @@ export function OpenInCard({
         )}
         <button
           type="button"
-          onClick={() => copyToClipboard(prompt)}
+          onClick={() => {
+            copyToClipboard(prompt);
+            analytics.xulux.converted(
+              withXuluxContext(analyticsCtx, {
+                action: "copy_prompt",
+                surface: "open_in_card",
+              }),
+            );
+          }}
           className="bg-foreground text-background hover:bg-foreground/90 inline-flex h-8 items-center gap-1.5 rounded-md px-3.5 text-xs font-medium transition-colors"
         >
           {isCopied ? (
