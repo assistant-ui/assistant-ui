@@ -6,32 +6,33 @@ export const runtime = "nodejs";
 
 const MAX_ZIP_BYTES = 50 * 1024 * 1024; // 50 MB ceiling
 
-async function readLimitedBody(
+function limitBodySize(
   body: ReadableStream<Uint8Array>,
-): Promise<Uint8Array | null> {
+): ReadableStream<Uint8Array> {
   const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
   let total = 0;
 
-  try {
-    while (true) {
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
       const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > MAX_ZIP_BYTES) return null;
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
+      if (done) {
+        controller.close();
+        return;
+      }
 
-  const result = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return result;
+      total += value.byteLength;
+      if (total > MAX_ZIP_BYTES) {
+        await reader.cancel("Archive too large.");
+        controller.error(new Error("Archive too large."));
+        return;
+      }
+
+      controller.enqueue(value);
+    },
+    async cancel(reason) {
+      await reader.cancel(reason);
+    },
+  });
 }
 
 export async function GET(req: Request) {
@@ -114,18 +115,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const buffer = await readLimitedBody(body);
-    if (!buffer) {
-      return NextResponse.json(
-        { error: "Archive too large." },
-        { status: 413 },
-      );
-    }
-
-    const responseBody = new ArrayBuffer(buffer.byteLength);
-    new Uint8Array(responseBody).set(buffer);
-
-    return new NextResponse(responseBody, {
+    return new NextResponse(limitBodySize(body), {
       status: 200,
       headers: {
         "Content-Type":
