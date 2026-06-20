@@ -127,9 +127,12 @@ describe("convertLangChainBaseMessage image content parts", () => {
     ]);
   });
 
-  it("does not throw when image_url is undefined", () => {
-    expect(() =>
-      convertLangChainBaseMessage(humanMessage([{ type: "image_url" }]), {}),
-    ).not.toThrow();
+  it("drops the image part when image_url is undefined", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([{ type: "image_url" }]),
+      {},
+    );
+
+    expect(result.content).toEqual([]);
   });
 });

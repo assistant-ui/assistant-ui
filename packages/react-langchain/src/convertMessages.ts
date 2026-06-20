@@ -24,11 +24,14 @@ const contentToParts = (content: unknown) => {
         case "text":
         case "text_delta":
           return { type: "text" as const, text: part.text };
-        case "image_url":
-          if (typeof part.image_url === "string") {
-            return { type: "image" as const, image: part.image_url };
-          }
-          return { type: "image" as const, image: part.image_url?.url };
+        case "image_url": {
+          const image =
+            typeof part.image_url === "string"
+              ? part.image_url
+              : part.image_url?.url;
+          if (!image) return null;
+          return { type: "image" as const, image };
+        }
         case "file":
           return {
             type: "file" as const,

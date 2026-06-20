@@ -449,14 +449,14 @@ describe("convertLangChainMessages image content", () => {
     });
   });
 
-  it("does not throw when image_url is undefined", () => {
-    expect(() =>
-      convertLangChainMessages({
-        type: "human",
-        id: "human-image-undefined",
-        content: [{ type: "image_url" } as any],
-      }),
-    ).not.toThrow();
+  it("drops the image part when image_url is undefined", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-image-undefined",
+      content: [{ type: "image_url" } as any],
+    });
+
+    expect(result.content).toEqual([]);
   });
 });
 
