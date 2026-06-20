@@ -105,14 +105,9 @@ const useStreamThreadRuntime = (
   const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
   const uiStateValue = stream.values[uiStateKey];
-  const uiMessagesByParent = useMemo(
-    () => groupUIMessagesByParent(uiStateValue),
-    [uiStateValue],
-  );
-
   const converterMetadata = useMemo(
-    () => ({ uiMessagesByParent }),
-    [uiMessagesByParent],
+    () => ({ uiMessagesByParent: groupUIMessagesByParent(uiStateValue) }),
+    [uiStateValue],
   );
 
   const threadMessages = useExternalMessageConverter({
