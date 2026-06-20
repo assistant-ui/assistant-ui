@@ -160,6 +160,21 @@ describe("convertLangChainBaseMessage generative UI from graph state", () => {
       { type: "data", name: "table", data: { b: 2 } },
     ]);
   });
+
+  it("does not attach UI to an assistant message without an id", () => {
+    const result = convertLangChainBaseMessage(
+      { ...aiMessage("hello"), id: undefined },
+      { uiMessagesByParent: new Map([["", [uiMessage("")]]]) },
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: "hello" }]);
+  });
+
+  it("leaves the message unchanged when no converter metadata is passed", () => {
+    const result = convertLangChainBaseMessage(aiMessage("hello"));
+
+    expect(result.content).toEqual([{ type: "text", text: "hello" }]);
+  });
 });
 
 describe("convertLangChainBaseMessage image content parts", () => {

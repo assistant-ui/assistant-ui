@@ -41,7 +41,8 @@ export type LangChainToolCall = {
  * A generative UI component the graph accumulates in its state. Read from
  * `stream.values[uiStateKey]` and rendered via `makeAssistantDataUI`.
  *
- * `metadata.message_id` ties the UI to the assistant message it belongs to.
+ * The parent assistant message is carried in `metadata.message_id` by the
+ * Python SDK and in `metadata.id` by the JS SDK; the runtime reads either.
  */
 export type UIMessage<
   TName extends string = string,
@@ -57,6 +58,7 @@ export type UIMessage<
     name?: string;
     tags?: string[];
     message_id?: string;
+    id?: string;
     [key: string]: unknown;
   };
 };
@@ -139,8 +141,9 @@ export type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
   delete?: ((threadId: string) => Promise<void>) | undefined;
   /**
    * State key the graph accumulates generative `UIMessage`s under. Each UI
-   * is attached to the assistant message named by its `metadata.message_id`
-   * and emitted as a `data` part. Defaults to `"ui"`.
+   * is attached to the assistant message identified by its `metadata.message_id`
+   * (Python SDK) or `metadata.id` (JS SDK) and emitted as a `data` part.
+   * Defaults to `"ui"`.
    */
   uiStateKey?: string | undefined;
 };

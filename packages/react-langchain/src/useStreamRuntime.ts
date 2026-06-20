@@ -32,6 +32,30 @@ export const runConfigToSubmitOptions = (
     ? { config: { configurable: runConfig.custom } }
     : undefined;
 
+/**
+ * Group the graph's accumulated `UIMessage`s by the assistant message they
+ * belong to. Non-array state and entries without a parent link are dropped.
+ * The parent id comes from `metadata.message_id` (Python SDK) or
+ * `metadata.id` (JS SDK).
+ */
+export const groupUIMessagesByParent = (
+  value: unknown,
+): Map<string, UIMessage[]> => {
+  const map = new Map<string, UIMessage[]>();
+  if (!Array.isArray(value)) return map;
+  for (const ui of value as UIMessage[]) {
+    const parentId = ui.metadata?.message_id ?? ui.metadata?.id;
+    if (!parentId) continue;
+    const existing = map.get(parentId);
+    if (existing) {
+      existing.push(ui);
+    } else {
+      map.set(parentId, [ui]);
+    }
+  }
+  return map;
+};
+
 const getPendingToolCalls = (
   messages: readonly LangChainBaseMessage[],
 ): LangChainToolCall[] => {
@@ -80,24 +104,11 @@ const useStreamThreadRuntime = (
   );
   const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
-  const uiMessages = Array.isArray(stream.values[uiStateKey])
-    ? (stream.values[uiStateKey] as UIMessage[])
-    : undefined;
-
-  const uiMessagesByParent = useMemo(() => {
-    const map = new Map<string, UIMessage[]>();
-    for (const ui of uiMessages ?? []) {
-      const parentId = ui.metadata?.message_id;
-      if (!parentId) continue;
-      const existing = map.get(parentId);
-      if (existing) {
-        existing.push(ui);
-      } else {
-        map.set(parentId, [ui]);
-      }
-    }
-    return map;
-  }, [uiMessages]);
+  const uiStateValue = stream.values[uiStateKey];
+  const uiMessagesByParent = useMemo(
+    () => groupUIMessagesByParent(uiStateValue),
+    [uiStateValue],
+  );
 
   const converterMetadata = useMemo(
     () => ({ uiMessagesByParent }),

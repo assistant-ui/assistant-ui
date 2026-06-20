@@ -615,7 +615,7 @@ function PendingToolCalls() {
 
 ## Generative UI
 
-Graphs can accumulate UI components in their state and attach each one to the assistant message that produced it. The runtime reads these from `stream.values[uiStateKey]` (default `"ui"`) and, for every `UIMessage` whose `metadata.message_id` matches an assistant message, emits a `data` part on that message. Pass `uiStateKey` if your graph stores them elsewhere.
+Graphs can accumulate UI components in their state and attach each one to the assistant message that produced it. The runtime reads these from `stream.values[uiStateKey]` (default `"ui"`) and, for every `UIMessage` whose parent id matches an assistant message, emits a `data` part on that message. The parent id is read from `metadata.message_id` (Python SDK) or `metadata.id` (JS SDK). Pass `uiStateKey` if your graph stores them elsewhere.
 
 Register the components with `makeAssistantDataUI`, keyed by the `UIMessage`'s `name`, and mount the returned element once inside the runtime provider:
 

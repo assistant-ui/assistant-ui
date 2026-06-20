@@ -1,7 +1,7 @@
 "use client";
 
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
-import type { AppendMessage } from "@assistant-ui/core";
+import type { AppendMessage, DataMessagePart } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type {
   LangChainBaseMessage,
@@ -13,6 +13,12 @@ type LangChainMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     uiMessagesByParent?: Map<string, UIMessage[]>;
   };
+
+const uiMessageToDataPart = (ui: UIMessage): DataMessagePart => ({
+  type: "data",
+  name: ui.name,
+  data: ui.props,
+});
 
 export const getMessageType = (message: LangChainBaseMessage): string => {
   if (typeof message._getType === "function") return message._getType();
@@ -122,11 +128,11 @@ export const convertLangChainBaseMessage: useExternalMessageConverter.Callback<
         typeof message.status === "object" ? message.status : undefined;
 
       const uiDataParts =
-        metadata.uiMessagesByParent?.get(message.id ?? "")?.map((ui) => ({
-          type: "data" as const,
-          name: ui.name,
-          data: ui.props,
-        })) ?? [];
+        (message.id
+          ? metadata.uiMessagesByParent
+              ?.get(message.id)
+              ?.map(uiMessageToDataPart)
+          : undefined) ?? [];
 
       return {
         role: "assistant",
