@@ -405,8 +405,32 @@ export class ExternalStoreThreadRuntimeCore
       return;
     }
 
+    const previousHeadId = this.repository.export().headId ?? null;
+
     this.repository.switchToBranch(branchId);
     this.updateMessages(this.repository.getMessages());
+    this._notifyBranchChange(previousHeadId);
+  }
+
+  /**
+   * Emit `unstable_onBranchChange` for an explicit branch switch. Reads the
+   * canonical head from `repository.export()` (which skips optimistic/transient
+   * messages) and de-dupes switches that leave the canonical head unchanged.
+   * Comparing against the head observed just before the switch — rather than the
+   * last emitted head — keeps a switch firing after an adapter resync moved the
+   * head elsewhere in the meantime.
+   */
+  private _notifyBranchChange(previousHeadId: string | null): void {
+    const onBranchChange = this._store.unstable_onBranchChange;
+    if (!onBranchChange) return;
+
+    const headId = this.repository.export().headId ?? null;
+    if (headId === previousHeadId) return;
+
+    onBranchChange({
+      headId,
+      visibleMessageIds: this.repository.getMessages().map((m) => m.id),
+    });
   }
 
   public async append(message: AppendMessage): Promise<void> {

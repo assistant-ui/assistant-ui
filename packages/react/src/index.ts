@@ -136,6 +136,7 @@ export type {
   ExternalStoreSharedOptions,
   ExternalStoreThreadListAdapter,
   ExternalStoreThreadData,
+  ExternalStoreBranchChange,
 } from "@assistant-ui/core";
 export {
   createMessageQueue,
