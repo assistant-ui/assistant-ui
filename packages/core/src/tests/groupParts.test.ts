@@ -190,6 +190,38 @@ describe("groupPartByType", () => {
     expect(fn(standalone, inlineCtx)).toEqual(["group-tool"]);
   });
 
+  it("leaves regular and standalone tool calls ungrouped when both map to []", () => {
+    const fn = groupPartByType({
+      reasoning: ["group-chainOfThought", "group-reasoning"],
+      "tool-call": [],
+      "standalone-tool-call": [],
+    });
+    const regularTool = part({
+      type: "tool-call",
+      toolName: "search",
+    } as Partial<PartState>);
+    const standaloneTool = part({
+      type: "tool-call",
+      toolName: "ask_user",
+    } as Partial<PartState>);
+
+    const paths = [
+      fn(part({ type: "reasoning" })),
+      fn(regularTool),
+      fn(standaloneTool, standaloneContext("ask_user")),
+    ];
+
+    // reasoning groups into the chain-of-thought; both tool kinds stay flat.
+    expect(paths).toEqual([
+      ["group-chainOfThought", "group-reasoning"],
+      [],
+      [],
+    ]);
+    expect(dump(buildGroupTree(paths))).toBe(
+      "G:group-chainOfThought#0[0]{G:group-reasoning#0.0[0]{P:#0.0.0(0)}},P:#1(1),P:#2(2)",
+    );
+  });
+
   it("routes MCP-app parts through 'standalone-tool-call' from the part alone", () => {
     const fn = groupPartByType({
       "tool-call": ["group-tool"],
