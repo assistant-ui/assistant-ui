@@ -184,6 +184,7 @@ export {
   ThreadPrimitiveMessages,
   ThreadPrimitiveMessagesImpl,
   ThreadPrimitiveMessageByIndex,
+  ThreadPrimitiveUnstable_MessageById,
 } from "./primitives/thread/ThreadMessages";
 export {
   MessagePrimitiveParts,
@@ -234,6 +235,7 @@ export { getMessageQuote } from "./utils/getMessageQuote";
 
 // Primitive hooks (shared behavior logic)
 export { useThreadMessages } from "./primitive-hooks/useThreadMessages";
+export { unstable_useThreadMessageIds } from "./primitive-hooks/useThreadMessageIds";
 export { useThreadIsRunning } from "./primitive-hooks/useThreadIsRunning";
 export { useThreadIsEmpty } from "./primitive-hooks/useThreadIsEmpty";
 export { useComposerSend } from "./primitive-hooks/useComposerSend";

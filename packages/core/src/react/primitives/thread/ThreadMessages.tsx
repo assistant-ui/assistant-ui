@@ -7,6 +7,7 @@ import {
 } from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "../../providers/MessageByIndexProvider";
+import { MessageByIdProvider } from "../../providers/MessageByIdProvider";
 import type { MessageState } from "../../../store";
 
 type MessagesComponentConfig =
@@ -169,6 +170,58 @@ export const ThreadPrimitiveMessageByIndex: FC<ThreadPrimitiveMessageByIndex.Pro
   );
 
 ThreadPrimitiveMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
+
+export namespace ThreadPrimitiveUnstable_MessageById {
+  export type Props = {
+    messageId: string;
+    components: MessagesComponentConfig;
+  };
+}
+
+/**
+ * Renders the message with the given id in the current thread.
+ *
+ * Unlike {@link ThreadPrimitiveMessageByIndex}, this keys off the message id,
+ * so it stays attached to the same message across reordering and windowing -
+ * the shape needed to drive a virtualized or custom message list together with
+ * `unstable_useThreadMessageIds`. A missing or removed id renders `null` rather
+ * than throwing.
+ *
+ * @deprecated Unstable / Experimental - may change in any release.
+ *
+ * @example
+ * ```tsx
+ * const messageIds = unstable_useThreadMessageIds();
+ * return messageIds.map((messageId) => (
+ *   <ThreadPrimitive.Unstable_MessageById
+ *     key={messageId}
+ *     messageId={messageId}
+ *     components={MESSAGE_COMPONENTS}
+ *   />
+ * ));
+ * ```
+ */
+export const ThreadPrimitiveUnstable_MessageById: FC<ThreadPrimitiveUnstable_MessageById.Props> =
+  memo(
+    ({ messageId, components }) => {
+      const exists = useAuiState((s) =>
+        s.thread.messages.some((m) => m.id === messageId),
+      );
+      if (!exists) return null;
+
+      return (
+        <MessageByIdProvider id={messageId}>
+          <ThreadMessageComponent components={components} />
+        </MessageByIdProvider>
+      );
+    },
+    (prev, next) =>
+      prev.messageId === next.messageId &&
+      isComponentsSame(prev.components, next.components),
+  );
+
+ThreadPrimitiveUnstable_MessageById.displayName =
+  "ThreadPrimitive.Unstable_MessageById";
 
 const ThreadPrimitiveMessagesInner: FC<{
   children: (value: { message: MessageState }) => ReactNode;

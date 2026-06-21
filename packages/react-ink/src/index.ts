@@ -174,6 +174,8 @@ export {
   SuggestionByIndexProvider,
 } from "@assistant-ui/core/react";
 
+export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
+
 // Model context, tools & clients
 export {
   makeAssistantTool,
