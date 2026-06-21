@@ -39,7 +39,7 @@ export function Composer() {
 
   const aui = useAui();
   const attachmentsCount = useAuiState((s) => s.composer.attachments.length);
-  const canCancel = useAuiState((s) => s.composer.canCancel);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   const canSend = useAuiState(
     (s) => !s.thread.isRunning && s.composer.isEditing && !s.composer.isEmpty,
   );
@@ -97,7 +97,7 @@ export function Composer() {
         <Pressable
           style={styles.attachButton}
           onPress={pickImage}
-          disabled={canCancel}
+          disabled={isRunning}
         >
           <Ionicons
             name="add-circle-outline"
@@ -111,9 +111,9 @@ export function Composer() {
           placeholderTextColor="#8e8e93"
           multiline
           maxLength={4000}
-          editable={!canCancel}
+          editable={!isRunning}
         />
-        {canCancel ? (
+        {isRunning ? (
           <ComposerPrimitive.Cancel style={[styles.button, styles.stopButton]}>
             <View style={styles.stopIcon} />
           </ComposerPrimitive.Cancel>
