@@ -14,7 +14,7 @@ pnpm --filter with-virtualized-thread dev
 | Concern | File |
 | --- | --- |
 | Virtualizer over user turns, padding spacers, `measureElement` | `app/VirtualizedThread.tsx` |
-| Per-message rendering through `ThreadPrimitive.MessageByIndex` | `app/VirtualizedThread.tsx` |
+| Id-keyed per-message rendering through `ThreadPrimitive.Unstable_MessageById` | `app/VirtualizedThread.tsx` |
 | Sticky-bottom auto-follow with a user-scroll disarm guard | `app/VirtualizedThread.tsx` |
 | External store runtime with seeded messages and a streaming tail | `app/MyRuntimeProvider.tsx` |
 | Deterministic synthetic thread content | `app/seed-messages.ts` |

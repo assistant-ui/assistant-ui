@@ -1,6 +1,6 @@
 ---
 title: Thread Virtualization
-description: Render very long threads with @tanstack/react-virtual and ThreadPrimitive.MessageByIndex.
+description: Render very long threads with @tanstack/react-virtual, preferably with id-keyed message rows.
 platforms: ["react"]
 ---
 
@@ -10,9 +10,35 @@ Virtualization mounts only the messages near the viewport and represents the res
 
 Probably not. The default kit already renders message bodies with `content-visibility: auto` and `contain-intrinsic-size`, which skips paint work for off-screen messages, and `ThreadPrimitive.Viewport` handles auto-scroll. That covers typical threads. Reach for virtualization when React mount and update cost itself becomes the bottleneck: threads with hundreds to thousands of messages, or very heavy per-message content, where typing latency degrades because every message stays mounted.
 
-## Rendering messages by index
+## Rendering Messages By Id
 
-`ThreadPrimitive.MessageByIndex` renders a single message at a given index and memoizes on the index plus per-field `components` identity. Pass a module-level components object so the memo holds and a streaming delta only re-renders the message it belongs to:
+For virtualized rows, use message ids as the row identity. `unstable_useThreadMessageIds` returns the thread's ids with stable array identity across content-only updates, and `ThreadPrimitive.Unstable_MessageById` renders one message with the same `components` surface as `MessageByIndex`. Unknown ids render `null`, which is useful when a virtual row unmounts after a message was removed.
+
+```tsx
+const MESSAGE_COMPONENTS = { UserMessage, AssistantMessage };
+
+const messageIds = unstable_useThreadMessageIds();
+
+return messageIds.map((messageId) => (
+  <ThreadPrimitive.Unstable_MessageById
+    key={messageId}
+    messageId={messageId}
+    components={MESSAGE_COMPONENTS}
+  />
+));
+```
+
+<Callout type="warn">
+  `unstable_useThreadMessageIds` and `ThreadPrimitive.Unstable_MessageById` are
+  experimental and may change in any release.
+</Callout>
+
+## Rendering Messages By Index
+
+`ThreadPrimitive.MessageByIndex` is still supported and is the smaller API when
+you already have a stable index from a fixed-order list. It renders a single
+message at that index and memoizes on the index plus the per-field `components`
+identity:
 
 ```tsx
 const MESSAGE_COMPONENTS = { UserMessage, AssistantMessage };
@@ -20,15 +46,36 @@ const MESSAGE_COMPONENTS = { UserMessage, AssistantMessage };
 <ThreadPrimitive.MessageByIndex index={index} components={MESSAGE_COMPONENTS} />;
 ```
 
+For virtualizers, prefer the id-based API above when you can. Index rows are more
+fragile when messages are inserted, removed, reordered, or when a virtual row
+briefly outlives the item it was created for.
+
 ## Grouping into turns
 
-Virtualizing per user turn (a user message plus the responses that follow it) gives the virtualizer stable, meaningfully sized items. Subscribe to a single signature string so the selector returns a primitive and the turn array only rebuilds when membership actually changes:
+The example virtualizes per user turn (a user message plus the responses that follow it), which gives the virtualizer stable, meaningfully sized items. Use `unstable_useThreadMessageIds` as the source of message identity, and subscribe only to the role sequence needed to decide where turns begin:
 
 ```tsx
-const signature = useAuiState((s) =>
-  s.thread.messages.map((m, i) => `${i}:${m.role}:${m.id}`).join("\n"),
+const messageIds = unstable_useThreadMessageIds();
+const roleSignature = useAuiState((s) =>
+  s.thread.messages.map((m) => m.role).join("\n"),
 );
-const turns = useMemo(() => buildTurns(signature), [signature]);
+
+const turns = useMemo(
+  () => buildTurns(messageIds, roleSignature),
+  [messageIds, roleSignature],
+);
+```
+
+Then each virtual turn renders the ids it owns:
+
+```tsx
+{turn.messageIds.map((messageId) => (
+  <ThreadPrimitive.Unstable_MessageById
+    key={messageId}
+    messageId={messageId}
+    components={MESSAGE_COMPONENTS}
+  />
+))}
 ```
 
 ## Padding spacers, not absolute positioning

@@ -5,6 +5,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  unstable_useThreadMessageIds,
   useAuiState,
 } from "@assistant-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -24,23 +25,22 @@ const ESTIMATED_TURN_HEIGHT = 200;
 const AT_BOTTOM_THRESHOLD = 4;
 
 type MessageComponents = ComponentProps<
-  typeof ThreadPrimitive.MessageByIndex
+  typeof ThreadPrimitive.Unstable_MessageById
 >["components"];
 
-type Turn = { id: string; indices: number[] };
+type Turn = { id: string; messageIds: string[] };
 
-const buildTurns = (signature: string): Turn[] => {
-  if (!signature) return [];
+const buildTurns = (
+  messageIds: readonly string[],
+  roleSignature: string,
+): Turn[] => {
+  if (messageIds.length === 0) return [];
+  const roles = roleSignature ? roleSignature.split("\n") : [];
   const turns: Turn[] = [];
-  for (const row of signature.split("\n")) {
-    const firstColon = row.indexOf(":");
-    const secondColon = row.indexOf(":", firstColon + 1);
-    const index = Number(row.slice(0, firstColon));
-    const role = row.slice(firstColon + 1, secondColon);
-    const id = row.slice(secondColon + 1);
+  for (const [index, id] of messageIds.entries()) {
     const last = turns.at(-1);
-    if (role === "user" || !last) turns.push({ id, indices: [index] });
-    else last.indices.push(index);
+    if (roles[index] === "user" || !last) turns.push({ id, messageIds: [id] });
+    else last.messageIds.push(id);
   }
   return turns;
 };
@@ -83,11 +83,15 @@ const Composer: FC = () => (
 );
 
 export const VirtualizedThread: FC = () => {
-  const signature = useAuiState((s) =>
-    s.thread.messages.map((m, i) => `${i}:${m.role}:${m.id}`).join("\n"),
+  const messageIds = unstable_useThreadMessageIds();
+  const roleSignature = useAuiState((s) =>
+    s.thread.messages.map((m) => m.role).join("\n"),
   );
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const turns = useMemo(() => buildTurns(signature), [signature]);
+  const turns = useMemo(
+    () => buildTurns(messageIds, roleSignature),
+    [messageIds, roleSignature],
+  );
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -211,10 +215,10 @@ export const VirtualizedThread: FC = () => {
                 ref={virtualizer.measureElement}
                 className="flex flex-col gap-4 py-3"
               >
-                {turns[item.index]!.indices.map((index) => (
-                  <ThreadPrimitive.MessageByIndex
-                    key={index}
-                    index={index}
+                {turns[item.index]!.messageIds.map((messageId) => (
+                  <ThreadPrimitive.Unstable_MessageById
+                    key={messageId}
+                    messageId={messageId}
                     components={MESSAGE_COMPONENTS}
                   />
                 ))}
