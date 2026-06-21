@@ -1,54 +1,78 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Design tokens for the assistant-ui Expo example.
+ *
+ * These mirror the canonical web kit (`packages/ui`): a neutral zinc palette,
+ * a clean ChatGPT-grade look with subtle hairline borders and no heavy glass or
+ * shadow. Values are the sRGB equivalents of the web `oklch` tokens.
  */
 
-import { Platform } from "react-native";
+export type Palette = {
+  background: string;
+  foreground: string;
+  card: string;
+  cardForeground: string;
+  muted: string;
+  mutedForeground: string;
+  accent: string;
+  border: string;
+  primary: string;
+  primaryForeground: string;
+  composer: string;
+  destructive: string;
+  destructiveForeground: string;
+  destructiveSurface: string;
+  ring: string;
+};
 
-const tintColorLight = "#0a7ea4";
-const tintColorDark = "#fff";
-
-export const Colors = {
+export const Colors: { light: Palette; dark: Palette } = {
   light: {
-    text: "#11181C",
-    background: "#fff",
-    tint: tintColorLight,
-    icon: "#687076",
-    tabIconDefault: "#687076",
-    tabIconSelected: tintColorLight,
+    background: "#ffffff",
+    foreground: "#18181b",
+    card: "#ffffff",
+    cardForeground: "#18181b",
+    muted: "#f4f4f5",
+    mutedForeground: "#71717a",
+    accent: "#f4f4f5",
+    border: "#e4e4e7",
+    primary: "#18181b",
+    primaryForeground: "#fafafa",
+    composer: "#fafafa",
+    destructive: "#dc2626",
+    destructiveForeground: "#ffffff",
+    destructiveSurface: "rgba(220, 38, 38, 0.08)",
+    ring: "#a1a1aa",
   },
   dark: {
-    text: "#ECEDEE",
-    background: "#151718",
-    tint: tintColorDark,
-    icon: "#9BA1A6",
-    tabIconDefault: "#9BA1A6",
-    tabIconSelected: tintColorDark,
+    background: "#18181b",
+    foreground: "#fafafa",
+    card: "#27272a",
+    cardForeground: "#fafafa",
+    muted: "#3f3f46",
+    mutedForeground: "#a1a1aa",
+    accent: "#3f3f46",
+    border: "rgba(255, 255, 255, 0.1)",
+    primary: "#e4e4e7",
+    primaryForeground: "#18181b",
+    composer: "#232326",
+    destructive: "#f87171",
+    destructiveForeground: "#18181b",
+    destructiveSurface: "rgba(248, 113, 113, 0.12)",
+    ring: "#52525b",
   },
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: "system-ui",
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: "ui-serif",
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: "ui-rounded",
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: "ui-monospace",
-  },
-  default: {
-    sans: "normal",
-    serif: "serif",
-    rounded: "normal",
-    mono: "monospace",
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded:
-      "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+export const Radius = {
+  sm: 6,
+  md: 8,
+  lg: 10,
+  card: 16,
+  bubble: 18,
+  composer: 24,
+  attachment: 14,
+  pill: 999,
+} as const;
+
+export const Spacing = {
+  threadMaxWidth: 768,
+  gutter: 16,
+} as const;
