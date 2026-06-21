@@ -1,98 +1,68 @@
+import { useRef } from "react";
 import {
   View,
   Text,
-  Pressable,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  useColorScheme,
+  type FlatList,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MessageBubble } from "./message";
 import { Composer } from "./composer";
-import { ThreadPrimitive, useAui } from "@assistant-ui/react-native";
+import { ThreadPrimitive } from "@assistant-ui/react-native";
+import { useTheme } from "@/hooks/use-theme";
+import { Radius, Spacing } from "@/constants/theme";
+import { haptics } from "@/lib/haptics";
 
-function SuggestionChip({ title, prompt }: { title: string; prompt: string }) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const aui = useAui();
+const suggestions = [
+  "What's the weather in Tokyo?",
+  "Tell me a joke",
+  "Help me write an email",
+];
 
+function SuggestionChip({ prompt }: { prompt: string }) {
+  const { colors } = useTheme();
   return (
-    <Pressable
-      onPress={() => aui.thread().append(prompt)}
-      style={[
-        styles.suggestionChip,
+    <ThreadPrimitive.Suggestion
+      prompt={prompt}
+      send
+      onPressIn={haptics.selection}
+      style={({ pressed }: { pressed: boolean }) => [
+        styles.chip,
         {
-          backgroundColor: isDark
-            ? "rgba(44, 44, 46, 0.8)"
-            : "rgba(229, 229, 234, 0.8)",
+          borderColor: colors.border,
+          backgroundColor: pressed ? colors.muted : colors.background,
         },
       ]}
     >
-      <Text
-        style={[
-          styles.suggestionText,
-          { color: isDark ? "#ffffff" : "#000000" },
-        ]}
-      >
-        {title}
+      <Text style={[styles.chipText, { color: colors.foreground }]}>
+        {prompt}
       </Text>
-    </Pressable>
-  );
-}
-
-const defaultSuggestions = [
-  {
-    title: "What's the weather in Tokyo?",
-    prompt: "What's the weather in Tokyo?",
-  },
-  { title: "Tell me a joke", prompt: "Tell me a joke" },
-  { title: "Help me write an email", prompt: "Help me write an email" },
-];
-
-function Suggestions() {
-  return (
-    <View style={styles.suggestionsContainer}>
-      {defaultSuggestions.map((s, i) => (
-        <SuggestionChip key={i} title={s.title} prompt={s.prompt} />
-      ))}
-    </View>
+    </ThreadPrimitive.Suggestion>
   );
 }
 
 function EmptyState() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
+  const { colors } = useTheme();
   return (
-    <View
-      style={[
-        styles.emptyContainer,
-        { backgroundColor: isDark ? "#000000" : "#ffffff" },
-      ]}
-    >
-      <View style={styles.emptyIconContainer}>
-        <Text style={styles.emptyIcon}>💭</Text>
+    <View style={styles.empty}>
+      <Text style={[styles.welcome, { color: colors.foreground }]}>
+        How can I help you today?
+      </Text>
+      <View style={styles.chips}>
+        {suggestions.map((prompt) => (
+          <SuggestionChip key={prompt} prompt={prompt} />
+        ))}
       </View>
-      <Text
-        style={[styles.emptyTitle, { color: isDark ? "#ffffff" : "#000000" }]}
-      >
-        How can I help?
-      </Text>
-      <Text
-        style={[
-          styles.emptySubtitle,
-          { color: isDark ? "#8e8e93" : "#6e6e73" },
-        ]}
-      >
-        Send a message to start chatting
-      </Text>
-      <Suggestions />
     </View>
   );
 }
 
 function ChatMessages() {
+  const listRef = useRef<FlatList>(null);
+  const nearBottom = useRef(true);
+
   return (
     <>
       <ThreadPrimitive.Empty>
@@ -100,8 +70,24 @@ function ChatMessages() {
       </ThreadPrimitive.Empty>
       <ThreadPrimitive.If empty={false}>
         <ThreadPrimitive.Messages
+          // Messages isn't a forwardRef component, but it spreads extra props
+          // onto its FlatList, so React 19 still forwards this ref to the list.
+          {...({ ref: listRef } as object)}
+          style={styles.flex}
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={32}
+          onScroll={(e) => {
+            const { contentOffset, contentSize, layoutMeasurement } =
+              e.nativeEvent;
+            nearBottom.current =
+              contentOffset.y + layoutMeasurement.height >=
+              contentSize.height - 48;
+          }}
+          onContentSizeChange={() => {
+            if (nearBottom.current)
+              listRef.current?.scrollToEnd({ animated: true });
+          }}
         >
           {() => <MessageBubble />}
         </ThreadPrimitive.Messages>
@@ -112,23 +98,18 @@ function ChatMessages() {
 
 export function Thread() {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { colors } = useTheme();
+
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: isDark ? "#000000" : "#ffffff" },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
-        style={styles.keyboardAvoid}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.messagesContainer}>
+        <View style={styles.flex}>
           <ChatMessages />
         </View>
-        <View style={{ paddingBottom: insets.bottom }}>
+        <View style={{ paddingBottom: insets.bottom + 8 }}>
           <Composer />
         </View>
       </KeyboardAvoidingView>
@@ -140,59 +121,43 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  keyboardAvoid: {
-    flex: 1,
-  },
-  messagesContainer: {
+  flex: {
     flex: 1,
   },
   messageList: {
+    width: "100%",
+    maxWidth: Spacing.threadMaxWidth,
+    marginHorizontal: "auto",
     paddingVertical: 20,
-    paddingHorizontal: 4,
+    paddingHorizontal: 12,
+    gap: 18,
   },
-  emptyContainer: {
+  empty: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 40,
+    paddingHorizontal: 24,
   },
-  emptyIconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "rgba(0, 122, 255, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  emptyIcon: {
-    fontSize: 32,
-  },
-  emptyTitle: {
-    fontSize: 22,
+  welcome: {
+    fontSize: 24,
     fontWeight: "600",
-    marginBottom: 8,
     letterSpacing: -0.4,
-  },
-  emptySubtitle: {
-    fontSize: 15,
     textAlign: "center",
-    letterSpacing: -0.2,
+    marginBottom: 24,
   },
-  suggestionsContainer: {
+  chips: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
     gap: 8,
-    marginTop: 20,
-    paddingHorizontal: 16,
   },
-  suggestionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 18,
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  suggestionText: {
+  chipText: {
     fontSize: 14,
     letterSpacing: -0.2,
   },
