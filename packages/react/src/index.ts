@@ -447,6 +447,15 @@ export {
   type Unstable_ComposerInputHistory,
 } from "./unstable/useComposerInputHistory";
 
+// Unstable - headless composer input bridge (value/send without ComposerPrimitive.Input)
+export {
+  unstable_useComposerInput,
+  unstable_useTriggerPopoverAriaProps,
+  type Unstable_UseComposerInputOptions,
+  type Unstable_ComposerInput,
+  type Unstable_TriggerPopoverAriaProps,
+} from "./unstable/useComposerInput";
+
 export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
