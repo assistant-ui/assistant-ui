@@ -107,24 +107,52 @@ function allPages() {
   ];
 }
 
-function normalizePath(rawPath: string, requestUrl: string) {
-  let value = rawPath.trim();
-  if (!value) return { kind: "docs" as const, slugs: [] };
+function hasHttpScheme(value: string) {
+  const prefix = value.slice(0, "https://".length).toLowerCase();
+  return prefix.startsWith("http://") || prefix.startsWith("https://");
+}
 
-  if (/^https?:\/\//i.test(value)) {
-    const request = new URL(requestUrl);
+function stripLeadingSlashes(value: string) {
+  let start = 0;
+  while (start < value.length && value.charCodeAt(start) === 47) start += 1;
+  return value.slice(start);
+}
+
+function stripTrailingSlashes(value: string) {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
+}
+
+function stripMarkdownSuffix(value: string) {
+  const lower = value.toLowerCase();
+  if (lower.endsWith("/index.mdx")) return value.slice(0, -"/index.mdx".length);
+  if (lower.endsWith("/index.md")) return value.slice(0, -"/index.md".length);
+  if (lower.endsWith(".mdx")) return value.slice(0, -".mdx".length);
+  if (lower.endsWith(".md")) return value.slice(0, -".md".length);
+  return value;
+}
+
+function normalizePathname(rawPath: string, requestUrl?: string) {
+  let value = rawPath.trim();
+
+  if (hasHttpScheme(value)) {
     const parsed = new URL(value);
-    if (parsed.origin !== request.origin) {
-      throw new Error("Only same-origin docs URLs are supported");
+    if (requestUrl) {
+      const request = new URL(requestUrl);
+      if (parsed.origin !== request.origin) {
+        throw new Error("Only same-origin docs URLs are supported");
+      }
     }
     value = parsed.pathname;
   }
 
-  value = value
-    .replace(/^\/+/, "")
-    .replace(/\/index\.mdx?$/i, "")
-    .replace(/\.mdx?$/i, "")
-    .replace(/\/+$/, "");
+  return stripMarkdownSuffix(stripTrailingSlashes(stripLeadingSlashes(value)));
+}
+
+function normalizePath(rawPath: string, requestUrl: string) {
+  const value = normalizePathname(rawPath, requestUrl);
+  if (!value) return { kind: "docs" as const, slugs: [] };
 
   if (value.includes("..")) {
     throw new Error("Parent directory segments are not supported");
@@ -148,11 +176,7 @@ function normalizePath(rawPath: string, requestUrl: string) {
 }
 
 function listPages(path: string | undefined) {
-  const normalizedPrefix = path
-    ?.trim()
-    .replace(/^https?:\/\/[^/]+/i, "")
-    .replace(/\.mdx?$/i, "")
-    .replace(/\/+$/, "");
+  const normalizedPrefix = path ? normalizePathname(path) : undefined;
 
   return allPages()
     .map(({ page }) => pageSummary(page))
@@ -319,7 +343,7 @@ async function handleJsonRpcMessage(
               mimeType: "application/json",
             },
             ...allPages().map(({ page }) => ({
-              uri: `assistant-ui://${page.url.replace(/^\//, "")}`,
+              uri: `assistant-ui://${stripLeadingSlashes(page.url)}`,
               name: page.data.title,
               mimeType: "text/markdown",
             })),
