@@ -1,0 +1,43 @@
+---
+title: Separate Server Integration
+description: Connect assistant-ui to a Mastra server endpoint.
+---
+
+Use this setup when Mastra runs outside the frontend application.
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const runtime = useMastraRuntime({
+    agentId: "chefAgent",
+    api: "http://localhost:4111/api/agents/chefAgent/stream",
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The endpoint must stream Mastra events as Server-Sent Events:
+
+```txt
+data: {"event":"message/partial","data":{"id":"msg_1","type":"assistant","content":"Hello","status":"running"}}
+
+data: {"event":"message/complete","data":{"id":"msg_1","type":"assistant","content":[],"status":"complete"}}
+
+data: [DONE]
+```
+
+For cross-origin servers, configure CORS on the Mastra service and prefer HTTPS
+outside local development.

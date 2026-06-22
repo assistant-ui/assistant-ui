@@ -1,0 +1,53 @@
+---
+title: Mastra
+description: API reference for @assistant-ui/react-mastra.
+---
+
+# Mastra Integration
+
+## useMastraRuntime
+
+```tsx
+const runtime = useMastraRuntime({
+  agentId: "chefAgent",
+  api: "/api/chat",
+  memory: { userId: "default-user" },
+  workflow: { workflowId: "hiringWorkflow", apiUrl: "/api/workflow" },
+});
+```
+
+Options:
+
+- `agentId`: Mastra agent ID sent to your API route.
+- `api`: HTTP endpoint used by the default fetch stream.
+- `stream`: Custom `MastraStreamCallback` for non-HTTP integrations.
+- `memory`: `false` to disable, or `{ apiUrl?, threadId?, userId?, maxResults?, similarityThreshold? }`.
+- `workflow`: `false` to disable, or `{ workflowId, apiUrl?, eventsUrl?, initialState?, context? }`.
+- `eventHandlers`: handlers for metadata, errors, interrupts, custom events, tool calls, and tool results.
+- `adapters`: assistant-ui attachment, feedback, speech, dictation, and voice adapters.
+
+## useMastraMemory
+
+```tsx
+const memory = useMastraMemory({
+  apiUrl: "/api/memory",
+  userId: "default-user",
+});
+```
+
+Returns `threads`, `currentThread`, `isSearching`, `searchMemory`,
+`getThreadContext`, `createThread`, `deleteThread`, `updateThreadMetadata`, and
+`setCurrentThread`.
+
+## useMastraWorkflows
+
+```tsx
+const workflow = useMastraWorkflows({
+  workflowId: "hiringWorkflow",
+  apiUrl: "/api/workflow",
+  eventsUrl: "/api/workflow/events",
+});
+```
+
+Returns `workflowState`, `isRunning`, `isSuspended`, `startWorkflow`,
+`suspendWorkflow`, `resumeWorkflow`, `sendCommand`, and `transitionTo`.

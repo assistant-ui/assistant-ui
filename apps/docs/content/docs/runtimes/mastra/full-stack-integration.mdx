@@ -1,0 +1,136 @@
+---
+title: Full-Stack Integration
+description: Run Mastra inside your Next.js app and connect it to assistant-ui.
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+
+<Steps>
+
+<Step>
+
+### Install packages
+
+```bash npm2yarn
+npm install @assistant-ui/react @assistant-ui/react-mastra @mastra/core @ai-sdk/openai
+```
+
+Add memory packages if you want persisted threads:
+
+```bash npm2yarn
+npm install @mastra/memory @mastra/libsql
+```
+
+</Step>
+
+<Step>
+
+### Create a Mastra agent
+
+```ts title="mastra/agents/chefAgent.ts"
+import { openai } from "@ai-sdk/openai";
+import { Agent } from "@mastra/core/agent";
+
+export const chefAgent = new Agent({
+  id: "chefAgent",
+  name: "chef-agent",
+  instructions:
+    "You are Michel, a practical home chef. Help users cook with ingredients they have.",
+  model: openai("gpt-4o-mini"),
+});
+```
+
+</Step>
+
+<Step>
+
+### Register Mastra
+
+```ts title="mastra/index.ts"
+import { Mastra } from "@mastra/core";
+import { LibSQLStore } from "@mastra/libsql";
+
+import { chefAgent } from "./agents/chefAgent";
+
+export const mastra = new Mastra({
+  agents: { chefAgent },
+  storage: new LibSQLStore({
+    id: "mastra-store",
+    url: process.env["LIBSQL_URL"] || "file:./mastra.db",
+  }),
+});
+```
+
+</Step>
+
+<Step>
+
+### Add a chat route
+
+Your route should accept `messages`, `agentId`, `threadId`, and `resourceId`.
+Return Server-Sent Events where each `data:` payload is a Mastra event:
+
+```ts title="app/api/chat/route.ts"
+import { mastra } from "@/mastra";
+
+export async function POST(req: Request) {
+  const {
+    messages,
+    agentId = "chefAgent",
+    threadId,
+    resourceId,
+  } = await req.json();
+
+  const agent = mastra.getAgent(agentId);
+  const result = await agent.stream(messages, {
+    ...(threadId &&
+      resourceId && {
+        memory: {
+          thread: threadId,
+          resource: resourceId,
+        },
+      }),
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+If your Mastra response shape is not already compatible with assistant-ui, map it
+to `message/partial`, `message/complete`, `tool/call`, `tool/result`, and
+`error` events. The `examples/with-mastra` route shows that mapping.
+
+</Step>
+
+<Step>
+
+### Create the runtime
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const runtime = useMastraRuntime({
+    api: "/api/chat",
+    agentId: "chefAgent",
+    memory: { userId: "default-user" },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Step>
+
+</Steps>

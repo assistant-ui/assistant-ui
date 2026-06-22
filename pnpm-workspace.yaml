@@ -44,3 +44,4 @@ allowBuilds:
   react-grab: false
   sharp@0.34.5: true
   sqlite3@5.1.7: true
+  unrs-resolver@1.12.2: true
