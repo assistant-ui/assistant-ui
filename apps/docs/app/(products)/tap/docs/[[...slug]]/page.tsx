@@ -38,7 +38,7 @@ export default async function Page(props: {
   });
 
   const path = `apps/docs/content/tap-docs/${page.path}`;
-  const markdownUrl = `${page.url}.mdx`;
+  const markdownUrl = `${page.url}.md`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
 
   const neighbours = findNeighbour(tapDocs.pageTree, page.url);

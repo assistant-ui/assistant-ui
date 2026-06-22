@@ -10,6 +10,9 @@ const processor = remark().use(remarkMdx).use(remarkInclude).use(remarkGfm);
 
 export const revalidate = false;
 
+const AGENT_MARKDOWN_DIRECTIVE =
+  "> For AI agents: a documentation index is available at [llms.txt](/llms.txt). Use `.md` for canonical markdown pages; `.mdx` is kept as a backwards-compatible alias on supported URL paths.";
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
@@ -26,11 +29,14 @@ export async function GET(
   const text = `# ${page.data.title}
 URL: ${page.url}
 ${page.data.description ? `\n${page.data.description}\n` : ""}
+${AGENT_MARKDOWN_DIRECTIVE}
+
 ${processed.value}`;
 
   return new NextResponse(text, {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
+      "Cache-Control": "no-cache, must-revalidate",
       "X-Robots-Tag": "noindex, follow",
     },
   });

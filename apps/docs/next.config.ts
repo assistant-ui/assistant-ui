@@ -36,25 +36,72 @@ const config: NextConfig = {
       ],
     },
   ],
-  redirects: async () => [
-    {
-      source: "/docs/:path*.md",
-      destination: "/docs/:path*.mdx",
-      permanent: true,
-    },
-    {
-      source: "/examples.md",
-      destination: "/examples.mdx",
-      permanent: true,
-    },
-    {
-      source: "/examples/:path*.md",
-      destination: "/examples/:path*.mdx",
-      permanent: true,
-    },
-  ],
   rewrites: async () => ({
     beforeFiles: [
+      {
+        source: "/mcp",
+        destination: "/api/mcp",
+      },
+      {
+        source: "/.well-known/mcp",
+        destination: "/api/mcp",
+      },
+      {
+        source: "/docs/mcp",
+        destination: "/api/mcp",
+      },
+      {
+        source: "/docs/.well-known/mcp",
+        destination: "/api/mcp",
+      },
+      {
+        source: "/docs.md",
+        destination: "/llms.mdx",
+      },
+      {
+        source: "/docs.mdx",
+        destination: "/llms.mdx",
+      },
+      {
+        source: "/docs/:path*.md",
+        destination: "/llms.mdx/:path*",
+      },
+      {
+        source: "/docs/:path*.mdx",
+        destination: "/llms.mdx/:path*",
+      },
+      {
+        source: "/examples.md",
+        destination: "/llms.mdx/examples",
+      },
+      {
+        source: "/examples.mdx",
+        destination: "/llms.mdx/examples",
+      },
+      {
+        source: "/examples/:path*.md",
+        destination: "/llms.mdx/examples/:path*",
+      },
+      {
+        source: "/examples/:path*.mdx",
+        destination: "/llms.mdx/examples/:path*",
+      },
+      {
+        source: "/tap/docs.md",
+        destination: "/tap-llms.mdx",
+      },
+      {
+        source: "/tap/docs.mdx",
+        destination: "/tap-llms.mdx",
+      },
+      {
+        source: "/tap/docs/:path*.md",
+        destination: "/tap-llms.mdx/:path*",
+      },
+      {
+        source: "/tap/docs/:path*.mdx",
+        destination: "/tap-llms.mdx/:path*",
+      },
       {
         source: "/",
         has: [
@@ -67,6 +114,10 @@ const config: NextConfig = {
         has: [
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
+        destination: "/pricing.md",
+      },
+      {
+        source: "/pricing.mdx",
         destination: "/pricing.md",
       },
       {
@@ -88,19 +139,11 @@ const config: NextConfig = {
         destination: "https://assistant-ui-umami.vercel.app/:path*",
       },
       {
-        source: "/docs/:path*.mdx",
-        destination: "/llms.mdx/:path*",
-      },
-      {
-        source: "/examples.mdx",
-        destination: "/llms.mdx/examples",
-      },
-      {
-        source: "/examples/:path*.mdx",
-        destination: "/llms.mdx/examples/:path*",
-      },
-      {
         source: "/blog/:path.md",
+        destination: "/blog/llms.md/:path",
+      },
+      {
+        source: "/blog/:path.mdx",
         destination: "/blog/llms.md/:path",
       },
       {
