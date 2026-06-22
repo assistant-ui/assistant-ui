@@ -618,6 +618,34 @@ function PendingToolCalls() {
 </Tab>
 </PlatformTabs>
 
+## Subagent and subgraph discovery
+
+For multi-agent graphs, `useStream` tracks which subagents and subgraphs it has seen on the current run as cheap discovery maps. `useLangChainSubagents` and `useLangChainSubgraphs` surface those maps — keyed by namespace, each value a `SubagentDiscoverySnapshot` / `SubgraphDiscoverySnapshot`. Both default to a stable empty map, so you can iterate without a guard.
+
+These replace `react-langgraph`'s subgraph `eventHandlers`: v1 surfaces discovery as maps you read reactively rather than per-event callbacks.
+
+```tsx
+import {
+  useLangChainSubagents,
+  useLangChainSubgraphs,
+} from "@assistant-ui/react-langchain";
+
+function Discovered() {
+  const subagents = useLangChainSubagents();
+  const subgraphs = useLangChainSubgraphs();
+  return (
+    <ul>
+      {[...subagents.keys()].map((ns) => (
+        <li key={ns}>subagent: {ns}</li>
+      ))}
+      {[...subgraphs.keys()].map((ns) => (
+        <li key={ns}>subgraph: {ns}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
 ## Generative UI
 
 Graphs can accumulate UI components in their state and attach each one to the assistant message that produced it. The runtime reads these from `stream.values[uiStateKey]` (default `"ui"`) and, for every `UIMessage` whose parent id matches an assistant message, emits a `data` part on that message. The parent id is read from `metadata.message_id` (Python SDK) or `metadata.id` (JS SDK). Pass `uiStateKey` if your graph stores them elsewhere.
@@ -731,6 +759,8 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Generative UI (state snapshot) | Yes | Yes (`uiStateKey`) |
 | Generative UI (live `push_ui_message`) | Yes | Not yet |
 | Subgraph / namespaced stream events | Yes (via `eventHandlers`) | Not exposed |
+| Subagent discovery | Via `eventHandlers` | Yes (`useLangChainSubagents`) |
+| Subgraph discovery | Via `eventHandlers` | Yes (`useLangChainSubgraphs`) |
 | End-to-end cancellation primitive | Yes (`unstable_createLangGraphStream`) | Not exposed |
 | Message accumulator utility | Yes (`LangGraphMessageAccumulator`) | Not exposed |
 | Cloud thread persistence | Yes | Yes |
@@ -754,6 +784,8 @@ Regenerate works without configuration. Clicking regenerate resolves the server 
 | _(none)_ | `useLangChainError()` | New — reads the last run/hydration error reactively. |
 | _(none)_ | `useLangChainRespondAll` | Resume multiple interrupts at one checkpoint (`stream.respondAll`). |
 | _(none)_ | `useLangChainInterrupts` | New — every interrupt pending at the checkpoint, each with `id` and `value`. |
+| _(via `eventHandlers`)_ | `useLangChainSubagents` | New — subagents discovered on the current run; replaces subgraph event handlers. |
+| _(via `eventHandlers`)_ | `useLangChainSubgraphs` | New — subgraphs discovered on the current run; replaces subgraph event handlers. |
 
 ## Related
 

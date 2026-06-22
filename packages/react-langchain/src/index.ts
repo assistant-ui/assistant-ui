@@ -9,11 +9,18 @@ export {
   useLangChainSend,
   useLangChainSendCommand,
   useLangChainState,
+  useLangChainSubagents,
+  useLangChainSubgraphs,
   useLangChainSubmit,
   useLangChainToolCalls,
 } from "./hooks";
 
 export { convertLangChainBaseMessage } from "./convertMessages";
+
+export type {
+  SubagentDiscoverySnapshot,
+  SubgraphDiscoverySnapshot,
+} from "@langchain/react";
 
 export type {
   LangChainBaseMessage,

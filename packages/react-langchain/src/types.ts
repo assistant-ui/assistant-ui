@@ -9,7 +9,12 @@ import type {
   SpeechSynthesisAdapter,
 } from "@assistant-ui/core";
 import type { AssistantCloud } from "assistant-cloud";
-import type { UseStreamOptions, AssembledToolCall } from "@langchain/react";
+import type {
+  UseStreamOptions,
+  AssembledToolCall,
+  SubagentDiscoverySnapshot,
+  SubgraphDiscoverySnapshot,
+} from "@langchain/react";
 
 /** Known content block types from @langchain/core messages. */
 export type LangChainContentBlock =
@@ -90,6 +95,8 @@ export type LangChainRuntimeExtras = {
   interrupt: { value?: unknown } | undefined;
   interrupts: readonly { id?: string; value?: unknown }[];
   toolCalls: readonly AssembledToolCall[];
+  subagents: ReadonlyMap<string, SubagentDiscoverySnapshot>;
+  subgraphs: ReadonlyMap<string, SubgraphDiscoverySnapshot>;
   error: unknown;
   submit: (
     values: Record<string, unknown> | null | undefined,

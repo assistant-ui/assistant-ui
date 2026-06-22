@@ -1,13 +1,23 @@
 "use client";
 
 import { useAui } from "@assistant-ui/store";
-import type { AssembledToolCall } from "@langchain/react";
+import type {
+  AssembledToolCall,
+  SubagentDiscoverySnapshot,
+  SubgraphDiscoverySnapshot,
+} from "@langchain/react";
 import { langChainExtras } from "./runtimeExtras";
 import type { LangChainBaseMessage } from "./types";
 
 const EMPTY_TOOL_CALLS: readonly AssembledToolCall[] = [];
 
 const EMPTY_INTERRUPTS: readonly { id?: string; value?: unknown }[] = [];
+
+const EMPTY_SUBAGENTS: ReadonlyMap<string, SubagentDiscoverySnapshot> =
+  new Map();
+
+const EMPTY_SUBGRAPHS: ReadonlyMap<string, SubgraphDiscoverySnapshot> =
+  new Map();
 
 /**
  * Read the current LangGraph interrupt state from the runtime extras.
@@ -38,6 +48,14 @@ export const useLangChainError = () =>
  */
 export const useLangChainToolCalls = () =>
   langChainExtras.use((e) => e.toolCalls ?? EMPTY_TOOL_CALLS, EMPTY_TOOL_CALLS);
+
+/** Subagents discovered on the current run (multi-agent graphs). */
+export const useLangChainSubagents = () =>
+  langChainExtras.use((e) => e.subagents ?? EMPTY_SUBAGENTS, EMPTY_SUBAGENTS);
+
+/** Subgraphs discovered on the current run. */
+export const useLangChainSubgraphs = () =>
+  langChainExtras.use((e) => e.subgraphs ?? EMPTY_SUBGRAPHS, EMPTY_SUBGRAPHS);
 
 /**
  * Returns a function to submit raw state updates to the LangGraph agent,
