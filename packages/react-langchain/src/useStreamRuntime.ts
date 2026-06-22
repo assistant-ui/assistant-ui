@@ -274,6 +274,7 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
     unstable_threadListAdapter,
     create,
     delete: deleteFn,
+    onThreadIdChange,
     ...options
   } = rawOptions;
 
@@ -293,5 +294,6 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
     },
     adapter,
     allowNesting: true,
+    onThreadIdChange,
   });
 };

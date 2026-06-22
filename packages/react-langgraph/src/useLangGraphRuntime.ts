@@ -415,6 +415,7 @@ export const useLangGraphRuntime = ({
   unstable_threadListAdapter,
   create,
   delete: deleteFn,
+  onThreadIdChange,
   ...options
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
@@ -442,5 +443,6 @@ export const useLangGraphRuntime = ({
     },
     adapter,
     allowNesting: true,
+    onThreadIdChange,
   });
 };

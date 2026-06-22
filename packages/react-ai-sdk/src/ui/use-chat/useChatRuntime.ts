@@ -30,6 +30,7 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
       joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
+      onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
     };
 
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -137,6 +138,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
 export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
   cloud,
+  onThreadIdChange,
   ...options
 }: UseChatRuntimeOptions<UI_MESSAGE> = {}): AssistantRuntime => {
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
@@ -146,5 +148,6 @@ export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
     },
     adapter: cloudAdapter,
     allowNesting: true,
+    onThreadIdChange,
   });
 };

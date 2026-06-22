@@ -556,6 +556,9 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
       ? { initialThreadId: options.initialThreadId }
       : {}),
     ...(options.threadId !== undefined ? { threadId: options.threadId } : {}),
+    ...(options.onThreadIdChange !== undefined
+      ? { onThreadIdChange: options.onThreadIdChange }
+      : {}),
     runtimeHook: () => {
       // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook is invoked by useRemoteThreadListRuntime at the correct hook position
       return useRuntimeHook(registry, options, pendingInitialMessageRef);

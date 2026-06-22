@@ -241,6 +241,7 @@ export const useOpenCodeRuntime = (
     allowNesting: true,
     adapter,
     initialThreadId: options.initialSessionId,
+    onThreadIdChange: options.onThreadIdChange,
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook callback is invoked by useRemoteThreadListRuntime at the appropriate hook position
     runtimeHook: () => useRuntimeHook(client, registry, options),
   });
