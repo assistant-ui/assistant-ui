@@ -8,8 +8,6 @@ import { WorkflowStatus } from "@/components/assistant-ui/workflow-status";
 import { useAgentContext, useWorkflowContext } from "./MyRuntimeProvider";
 import { UserCheck, MessageSquare } from "lucide-react";
 
-export const dynamic = "force-dynamic";
-
 export default function Home() {
   const { selectedAgent, setSelectedAgent } = useAgentContext();
   const {
