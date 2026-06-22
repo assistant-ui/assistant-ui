@@ -90,7 +90,7 @@ describe("MessageContent", () => {
     });
     const el = container.querySelector('[data-testid="text-0"]');
     expect(el?.textContent).toBe("custom:raw");
-    expect(container.textContent).not.toContain(">raw<");
+    expect(container.innerHTML).not.toContain(">raw<");
   });
 
   it("renders nothing for an unknown part type", async () => {
