@@ -1399,8 +1399,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       eve:
-        specifier: ^0.11.4
-        version: 0.11.4(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.0-beta.178(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.1)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.0))(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(sqlite3@5.1.7)(vite@8.0.16(@types/node@26.0.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+        specifier: ^0.12.0
+        version: 0.12.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.0-beta.178(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.1)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.0))(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(sqlite3@5.1.7)(vite@8.0.16(@types/node@26.0.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
       lucide-react:
         specifier: ^1.21.0
         version: 1.21.0(react@19.2.7)
@@ -3333,8 +3333,8 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       eve:
-        specifier: ^0.11.4
-        version: 0.11.4(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.0-beta.178(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.1)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.0))(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(sqlite3@5.1.7)(vite@8.0.16(@types/node@26.0.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+        specifier: ^0.12.0
+        version: 0.12.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.0-beta.178(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.1)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.0))(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(sqlite3@5.1.7)(vite@8.0.16(@types/node@26.0.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -4950,8 +4950,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       eve:
-        specifier: ^0.11.4
-        version: 0.11.4(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.0-beta.178(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.1)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.0))(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(sqlite3@5.1.7)(vite@8.0.16(@types/node@26.0.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+        specifier: ^0.12.0
+        version: 0.12.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.0-beta.178(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.1)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.0))(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(sqlite3@5.1.7)(vite@8.0.16(@types/node@26.0.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
       lucide-react:
         specifier: ^1.21.0
         version: 1.21.0(react@19.2.7)
@@ -11990,8 +11990,8 @@ packages:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
 
-  eve@0.11.4:
-    resolution: {integrity: sha512-gwJO+mIFj/LQL+D4WJTshPMUkK6cYXIA6ff1RML8I3rFOeIm1x/Mw6U8C+1Mx4o5HhWda38DnnlK84Bewqo/+Q==}
+  eve@0.12.0:
+    resolution: {integrity: sha512-SKlO6mqY4Eo24QGBAnxNkKORFALQhBQefU58k9kqHnmKkD5QXvaHiaxaJFet1Pu646mMtW3VxbcxU9fQt/dkPg==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -25429,7 +25429,7 @@ snapshots:
 
   etag@1.8.1: {}
 
-  eve@0.11.4(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.0-beta.178(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.1)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.0))(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(sqlite3@5.1.7)(vite@8.0.16(@types/node@26.0.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)):
+  eve@0.12.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.0-beta.178(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.1)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.0))(next@16.2.9(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(sqlite3@5.1.7)(vite@8.0.16(@types/node@26.0.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)):
     dependencies:
       ai: 7.0.0-beta.178(zod@4.4.3)
       nitro: 3.0.260610-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.0))(sqlite3@5.1.7)(vite@8.0.16(@types/node@26.0.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))

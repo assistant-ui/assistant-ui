@@ -106,7 +106,7 @@ describe("convertEveMessages", () => {
     });
   });
 
-  it("handles denied tool parts without approval metadata", () => {
+  it("handles denied tool parts without an approval reason", () => {
     const data = {
       messages: [
         {
@@ -119,6 +119,7 @@ describe("convertEveMessages", () => {
               toolCallId: "call_1",
               toolName: "send_email",
               input: { to: "dev@example.com" },
+              approval: { id: "req_1", approved: false },
             },
           ],
         },
@@ -164,6 +165,7 @@ describe("getEveMessageContent", () => {
   it("returns plain text for text-only messages", () => {
     const message = {
       role: "user",
+      createdAt: new Date(),
       parentId: null,
       sourceId: null,
       runConfig: undefined,
