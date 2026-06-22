@@ -169,7 +169,7 @@ export function XuluxToolCall({
   }
 
   if (error) {
-    return <ToolErrorCard signature={signature} error={error} />;
+    return <ToolErrorCard signature={signature} error={error} args={args} />;
   }
 
   return (
@@ -177,6 +177,7 @@ export function XuluxToolCall({
       icon={icon}
       signature={signature}
       description={summarizeXuluxResult(toolName, result)}
+      args={args}
       result={result}
     />
   );
