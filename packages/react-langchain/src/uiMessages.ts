@@ -5,11 +5,22 @@ export type UIUpdate = UIMessage | RemoveUIMessage;
 export const isUIUpdate = (
   value: unknown,
 ): value is UIUpdate | readonly UIUpdate[] => {
-  if (Array.isArray(value)) return value.every(isUIUpdate);
+  if (Array.isArray(value)) return value.length > 0 && value.every(isUIUpdate);
   if (value == null || typeof value !== "object") return false;
-  const v = value as { type?: unknown; id?: unknown };
+  const v = value as {
+    type?: unknown;
+    id?: unknown;
+    name?: unknown;
+    props?: unknown;
+  };
   if (typeof v.id !== "string") return false;
-  return v.type === "ui" || v.type === "remove-ui";
+  if (v.type === "remove-ui") return true;
+  return (
+    v.type === "ui" &&
+    typeof v.name === "string" &&
+    typeof v.props === "object" &&
+    v.props !== null
+  );
 };
 
 export const applyUIUpdate = (
@@ -55,7 +66,9 @@ export const extractUIUpdate = (
 /**
  * Merges live-streamed UI with the state snapshot. The snapshot is
  * authoritative by id: once a UI lands in graph state it supersedes its live
- * copy. Non-array snapshots are ignored.
+ * copy. A consequence is that a live `remove-ui` is overridden while the
+ * snapshot still contains that id — the removal only takes visible effect once
+ * the snapshot catches up. Non-array snapshots are ignored.
  */
 export const mergeUIMessages = (
   live: readonly UIMessage[],

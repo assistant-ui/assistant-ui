@@ -40,6 +40,19 @@ describe("isUIUpdate", () => {
       false,
     );
   });
+
+  it("rejects a ui update missing name or props", () => {
+    expect(isUIUpdate({ type: "ui", id: "a" })).toBe(false);
+    expect(isUIUpdate({ type: "ui", id: "a", name: "x" })).toBe(false);
+    expect(isUIUpdate({ type: "ui", id: "a", props: {} })).toBe(false);
+    expect(isUIUpdate({ type: "ui", id: "a", name: "x", props: null })).toBe(
+      false,
+    );
+  });
+
+  it("rejects an empty array", () => {
+    expect(isUIUpdate([])).toBe(false);
+  });
 });
 
 describe("applyUIUpdate", () => {
