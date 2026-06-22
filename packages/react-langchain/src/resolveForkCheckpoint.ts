@@ -9,8 +9,6 @@ type MessageMetadataSnapshot =
   | undefined;
 
 /**
- * Resolve the checkpoint a fork (regenerate or edit) should branch from.
- *
  * Hydration seeds every message with the head's parent checkpoint, so only the
  * head's recorded fork checkpoint is reliable; older turns reverse-map through
  * `getHistory`. A `null` `parentId` edits the first human message and forks

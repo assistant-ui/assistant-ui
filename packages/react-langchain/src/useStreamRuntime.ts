@@ -147,6 +147,22 @@ const useStreamThreadRuntime = (
     ],
   );
 
+  const resolveCheckpoint = (
+    s: typeof stream,
+    threadId: string,
+    parentId: string | null,
+    sourceId: string | null | undefined,
+  ) =>
+    resolveForkCheckpoint(
+      s.client,
+      threadId,
+      s.messages as readonly LangChainBaseMessage[],
+      parentId,
+      sourceId,
+      s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
+      messagesKey,
+    );
+
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
@@ -199,14 +215,11 @@ const useStreamThreadRuntime = (
       const threadId = externalId;
       if (!threadId || parentId == null) return;
       const s = streamRef.current;
-      const checkpointId = await resolveForkCheckpoint(
-        s.client,
+      const checkpointId = await resolveCheckpoint(
+        s,
         threadId,
-        s.messages as readonly LangChainBaseMessage[],
         parentId,
         config.sourceId,
-        s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
-        messagesKey,
       );
       if (!checkpointId) return;
       await s.submit(null, {
@@ -214,20 +227,15 @@ const useStreamThreadRuntime = (
         ...runConfigToSubmitOptions(config.runConfig),
       });
     },
-    // `parentId == null` edits the first human message; resolveForkCheckpoint
-    // forks from the thread's initial checkpoint to restart it.
     onEdit: async (message) => {
       const threadId = externalId;
       if (!threadId) return;
       const s = streamRef.current;
-      const checkpointId = await resolveForkCheckpoint(
-        s.client,
+      const checkpointId = await resolveCheckpoint(
+        s,
         threadId,
-        s.messages as readonly LangChainBaseMessage[],
         message.parentId,
         message.sourceId,
-        s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
-        messagesKey,
       );
       if (!checkpointId) return;
       const content = getMessageContent(message);
