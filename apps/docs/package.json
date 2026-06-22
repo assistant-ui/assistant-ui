@@ -58,7 +58,7 @@
     "geist": "^1.7.2",
     "heat-graph": "workspace:*",
     "input-otp": "^1.4.2",
-    "just-bash": "^3.0.1",
+    "just-bash": "^3.0.2",
     "leva": "^0.10.1",
     "lucide-react": "^1.21.0",
     "motion": "^12.40.0",

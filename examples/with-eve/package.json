@@ -15,7 +15,7 @@
     "@assistant-ui/ui": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "eve": "^0.12.0",
+    "eve": "^0.12.1",
     "lucide-react": "^1.21.0",
     "next": "^16.2.9",
     "react": "^19.2.7",
