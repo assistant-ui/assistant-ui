@@ -82,12 +82,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Stream with Mastra's native format
+    // Stream with Mastra's native format. Only pass the memory option when a
+    // threadId is present so memory-disabled clients still work.
     const result = await agent.stream(normalizeMessages(messages), {
-      memory: {
-        thread: threadId,
-        resource: resourceId,
-      },
+      ...(threadId && {
+        memory: {
+          thread: threadId,
+          resource: resourceId,
+        },
+      }),
     });
 
     // Create a custom stream that converts Mastra format to our expected format
