@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LangChainBaseMessage } from "./types";
-import { resolveForkCheckpointId } from "./resolveForkCheckpointId";
+import { findForkCheckpointInHistory } from "./findForkCheckpointInHistory";
 
 const msg = (id: string | undefined): LangChainBaseMessage => ({
   _getType: () => "human",
@@ -40,7 +40,7 @@ const makePaginatedClient = (states: HistoryState[]) => ({
   },
 });
 
-describe("resolveForkCheckpointId", () => {
+describe("findForkCheckpointInHistory", () => {
   it("returns the checkpoint_id of the state whose messages match by id", async () => {
     const client = makeClient([
       {
@@ -57,7 +57,7 @@ describe("resolveForkCheckpointId", () => {
       },
     ]);
 
-    const result = await resolveForkCheckpointId(
+    const result = await findForkCheckpointInHistory(
       client,
       "thread-1",
       [msg("a"), msg("b")],
@@ -78,7 +78,7 @@ describe("resolveForkCheckpointId", () => {
       },
     ]);
 
-    const result = await resolveForkCheckpointId(
+    const result = await findForkCheckpointInHistory(
       client,
       "thread-1",
       [msg("a"), msg("b")],
@@ -96,7 +96,7 @@ describe("resolveForkCheckpointId", () => {
       },
     ]);
 
-    const result = await resolveForkCheckpointId(
+    const result = await findForkCheckpointInHistory(
       client,
       "thread-1",
       [msg("a"), msg(undefined)],
@@ -114,7 +114,7 @@ describe("resolveForkCheckpointId", () => {
       },
     ]);
 
-    const result = await resolveForkCheckpointId(
+    const result = await findForkCheckpointInHistory(
       client,
       "thread-1",
       [msg("a")],
@@ -132,7 +132,7 @@ describe("resolveForkCheckpointId", () => {
       },
     ]);
 
-    const result = await resolveForkCheckpointId(
+    const result = await findForkCheckpointInHistory(
       client,
       "thread-1",
       [msg("a")],
@@ -154,7 +154,7 @@ describe("resolveForkCheckpointId", () => {
       },
     ]);
 
-    const result = await resolveForkCheckpointId(
+    const result = await findForkCheckpointInHistory(
       client,
       "thread-1",
       [msg("a")],
@@ -172,7 +172,7 @@ describe("resolveForkCheckpointId", () => {
       },
     ]);
 
-    const result = await resolveForkCheckpointId(
+    const result = await findForkCheckpointInHistory(
       client,
       "thread-1",
       [msg("a"), msg("b")],
@@ -185,7 +185,7 @@ describe("resolveForkCheckpointId", () => {
   it("forwards a custom history limit to getHistory", async () => {
     const client = makeClient([]);
 
-    await resolveForkCheckpointId(
+    await findForkCheckpointInHistory(
       client,
       "thread-1",
       [msg("a")],
@@ -218,7 +218,7 @@ describe("resolveForkCheckpointId", () => {
       },
     ]);
 
-    const result = await resolveForkCheckpointId(
+    const result = await findForkCheckpointInHistory(
       client,
       "thread-1",
       [msg("a")],
@@ -249,7 +249,7 @@ describe("resolveForkCheckpointId", () => {
       threads: { getHistory: vi.fn(async () => page as never) },
     };
 
-    const result = await resolveForkCheckpointId(
+    const result = await findForkCheckpointInHistory(
       client,
       "thread-1",
       [msg("a")],

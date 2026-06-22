@@ -755,6 +755,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Root tool-calls projection | Via message parts | Yes (`useLangChainToolCalls`) |
 | File content parts in messages | Yes | Yes |
 | Regenerate (checkpoint fork) | Yes (`getCheckpointId`) | Yes (auto-resolved) |
+| Edit message (checkpoint fork) | Yes | Yes (auto-resolved) |
 | Per-message metadata (`messages-tuple`) | Yes | Not exposed |
 | Generative UI (state snapshot) | Yes | Yes (`uiStateKey`) |
 | Generative UI (live `push_ui_message`) | Yes | Not yet |
@@ -767,7 +768,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 
 `react-langchain` is the newer, thinner wrapper. It delegates to upstream `useStream` rather than re-implementing the stream plumbing, which is why its footprint is smaller. Features absent today have not been ported, not deprecated.
 
-Regenerate works without configuration. Clicking regenerate resolves the server checkpoint to fork from (the checkpoint each message records as it streams in, falling back to a `stream.client.threads.getHistory(threadId)` id match for older turns), then re-runs with `submit(null, { forkFrom })`. It works on checkpoint-enabled backends (for example LangGraph Cloud) and degrades gracefully; when no checkpoint resolves the regenerate is a no-op. `react-langgraph` instead requires a user-supplied `getCheckpointId` callback.
+Regenerate works without configuration. Clicking regenerate resolves the server checkpoint to fork from (the checkpoint each message records as it streams in, falling back to a `stream.client.threads.getHistory(threadId)` id match for older turns), then re-runs with `submit(null, { forkFrom })`. It works on checkpoint-enabled backends (for example LangGraph Cloud) and degrades gracefully; when no checkpoint resolves the regenerate is a no-op. `react-langgraph` instead requires a user-supplied `getCheckpointId` callback. Editing a message forks from the same checkpoint and submits the edited human content instead of re-running the prior turn; editing the first message forks from the thread's initial checkpoint to restart it.
 
 ### Hook name mapping
 

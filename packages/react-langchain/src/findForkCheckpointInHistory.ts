@@ -16,7 +16,7 @@ export type ForkCheckpointClient = {
   };
 };
 
-export const resolveForkCheckpointId = async (
+export const findForkCheckpointInHistory = async (
   client: ForkCheckpointClient,
   threadId: string,
   messagesUpToParent: readonly LangChainBaseMessage[],
