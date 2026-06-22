@@ -310,6 +310,13 @@ A `<div>` that positions the current span within the nearest `SpanPrimitive.Time
 </SpanPrimitive.Timeline>
 ```
 
+Running spans use the timeline range max when `now` is omitted, keeping SSR and hydration deterministic. Pass `now` when you want live ticking.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `now` | `number` | `undefined` | Explicit timestamp used as the end of running spans. |
+| `timeRange` | `{ min: number; max: number }` | nearest `Timeline` range | Override the range used for this bar. |
+
 Exposes `data-span-status`, `data-span-type`, `data-span-running`, and these CSS variables:
 
 | Variable | Description |

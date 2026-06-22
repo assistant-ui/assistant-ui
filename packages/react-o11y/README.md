@@ -37,6 +37,6 @@ export function Waterfall() {
 }
 ```
 
-`SpanPrimitive.*` components rendered inside `<AuiProvider>` cover rows, indentation, names, status, collapse controls, and timeline bars. `SpanPrimitive.Timeline` provides the time range for its children; `SpanPrimitive.TimelineBar` positions each current span with CSS variables such as `--span-timeline-left` and `--span-timeline-width`.
+`SpanPrimitive.*` components rendered inside `<AuiProvider>` cover rows, indentation, names, status, collapse controls, and timeline bars. `SpanPrimitive.Timeline` provides the time range for its children; `SpanPrimitive.TimelineBar` positions each current span with CSS variables such as `--span-timeline-left` and `--span-timeline-width`. Running bars use the timeline range max unless you pass an explicit `now` timestamp for live ticking.
 
 See [`examples/waterfall`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/waterfall) for a complete waterfall implementation.

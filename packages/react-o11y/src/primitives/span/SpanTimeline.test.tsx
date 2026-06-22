@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
 import * as SpanPrimitive from "../span";
 import { SpanResource, type SpanData } from "../../resources/SpanResource";
@@ -70,6 +70,27 @@ describe("SpanPrimitive.Timeline", () => {
       durationMs: 0,
       effectiveEnd: 80,
     });
+  });
+
+  it("uses the range boundary for running spans when now is omitted", () => {
+    const dateNow = vi.spyOn(Date, "now").mockReturnValue(1_000);
+
+    expect(
+      getSpanTimelineBarVars({
+        startedAt: 25,
+        endedAt: null,
+        timeRange: { min: 0, max: 100 },
+      }),
+    ).toMatchObject({
+      leftPercent: 25,
+      endPercent: 100,
+      widthPercent: 75,
+      durationMs: 75,
+      effectiveEnd: 100,
+    });
+    expect(dateNow).not.toHaveBeenCalled();
+
+    dateNow.mockRestore();
   });
 
   it("provides the padded timeline range to child bars", () => {

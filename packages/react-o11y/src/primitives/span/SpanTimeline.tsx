@@ -91,7 +91,7 @@ export const getSpanTimelineBarVars = ({
   startedAt,
   endedAt,
   timeRange,
-  now = Date.now(),
+  now,
 }: {
   startedAt: number;
   endedAt: number | null;
@@ -99,7 +99,7 @@ export const getSpanTimelineBarVars = ({
   now?: number | undefined;
 }) => {
   const rangeMs = Math.max(1, timeRange.max - timeRange.min);
-  const effectiveEnd = endedAt ?? now;
+  const effectiveEnd = endedAt ?? now ?? timeRange.max;
   const leftPercent = ((startedAt - timeRange.min) / rangeMs) * 100;
   const endPercent = ((effectiveEnd - timeRange.min) / rangeMs) * 100;
   const widthPercent = Math.max(0, endPercent - leftPercent);
