@@ -1798,7 +1798,7 @@ importers:
         version: link:../../packages/ui
       '@google/adk':
         specifier: ^1.2.0
-        version: 1.2.0(@bufbuild/protobuf@2.12.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(@mikro-orm/mariadb@6.6.14(@mikro-orm/core@6.6.14))(@mikro-orm/mssql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@mikro-orm/mysql@6.6.14(@mikro-orm/core@6.6.14)(@types/node@25.9.3)(mariadb@3.4.5))(@mikro-orm/postgresql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))(encoding@0.1.13)
+        version: 1.2.0(@bufbuild/protobuf@2.12.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(@mikro-orm/mariadb@6.6.14(@mikro-orm/core@6.6.14)(pg@8.20.0))(@mikro-orm/mssql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/mysql@6.6.14(@mikro-orm/core@6.6.14)(@types/node@25.9.3)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/postgresql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5)(pg@8.20.0))(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3759,7 +3759,7 @@ importers:
         version: link:../store
       '@google/adk':
         specifier: '>=0.5.0'
-        version: 1.2.0(@bufbuild/protobuf@2.12.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(@mikro-orm/mariadb@6.6.14(@mikro-orm/core@6.6.14)(pg@8.20.0))(@mikro-orm/mssql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/mysql@6.6.14(@mikro-orm/core@6.6.14)(@types/node@25.9.3)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/postgresql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5)(pg@8.20.0))(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)
+        version: 1.2.0(@bufbuild/protobuf@2.12.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(@mikro-orm/mariadb@6.6.14(@mikro-orm/core@6.6.14))(@mikro-orm/mssql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@mikro-orm/mysql@6.6.14(@mikro-orm/core@6.6.14)(@types/node@25.9.3)(mariadb@3.4.5))(@mikro-orm/postgresql@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.14(@mikro-orm/core@6.6.14)(mariadb@3.4.5))(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))(encoding@0.1.13)
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
@@ -4118,15 +4118,33 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@testing-library/dom':
+        specifier: ^10.4.1
+        version: 10.4.1
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
       react:
         specifier: ^19.2.7
         version: 19.2.7
+      react-dom:
+        specifier: ^19.2.7
+        version: 19.2.7(react@19.2.7)
       react-native:
         specifier: ^0.86.0
         version: 0.86.0(@babel/core@7.29.7)(@types/react@19.2.17)(react@19.2.7)
+      react-native-web:
+        specifier: ~0.21.2
+        version: 0.21.2(encoding@0.1.13)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       vitest:
         specifier: ^4.1.8
         version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@29.1.1)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
@@ -30180,6 +30198,21 @@ snapshots:
       postcss-value-parser: 4.2.0
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
+      styleq: 0.1.3
+    transitivePeerDependencies:
+      - encoding
+
+  react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+    dependencies:
+      '@babel/runtime': 7.29.7
+      '@react-native/normalize-colors': 0.74.89
+      fbjs: 3.0.5(encoding@0.1.13)
+      inline-style-prefixer: 7.0.1
+      memoize-one: 6.0.0
+      nullthrows: 1.1.1
+      postcss-value-parser: 4.2.0
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
       styleq: 0.1.3
     transitivePeerDependencies:
       - encoding
