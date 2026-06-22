@@ -101,13 +101,14 @@ export const getSpanTimelineBarVars = ({
   const rangeMs = Math.max(1, timeRange.max - timeRange.min);
   const effectiveEnd = endedAt ?? now ?? timeRange.max;
   const leftPercent = ((startedAt - timeRange.min) / rangeMs) * 100;
-  const endPercent = ((effectiveEnd - timeRange.min) / rangeMs) * 100;
-  const widthPercent = Math.max(0, endPercent - leftPercent);
+  const rawEndPercent = ((effectiveEnd - timeRange.min) / rangeMs) * 100;
+  const endPercent = Math.max(leftPercent, rawEndPercent);
+  const widthPercent = endPercent - leftPercent;
   const durationMs = Math.max(0, effectiveEnd - startedAt);
 
   return {
     leftPercent,
-    endPercent: Math.max(leftPercent, endPercent),
+    endPercent,
     widthPercent,
     durationMs,
     effectiveEnd,

@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { SpanPrimitive, type SpanItemState } from "@assistant-ui/react-o11y";
 import {
@@ -16,15 +16,39 @@ const STATUS_OPACITY: Record<SpanItemState["status"], number> = {
   skipped: 0.5,
 };
 
+function useRunningNow(enabled: boolean) {
+  const [now, setNow] = useState<number>();
+
+  useEffect(() => {
+    if (!enabled) {
+      setNow(undefined);
+      return;
+    }
+
+    let frameId: number;
+    const tick = () => {
+      setNow(Date.now());
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
+  }, [enabled]);
+
+  return now;
+}
+
 export function WaterfallBar() {
   const { barHeight } = useWaterfallLayout();
   const status = useAuiState((s) => s.span.status) as SpanItemState["status"];
   const type = useAuiState((s) => s.span.type);
   const fill = TYPE_COLORS[type] ?? FALLBACK_COLOR;
   const opacity = STATUS_OPACITY[status];
+  const now = useRunningNow(status === "running");
 
   return (
     <SpanPrimitive.TimelineBar
+      now={now}
       className={status === "running" ? "animate-pulse" : ""}
       style={
         {

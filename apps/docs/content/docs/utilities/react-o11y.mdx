@@ -310,7 +310,7 @@ A `<div>` that positions the current span within the nearest `SpanPrimitive.Time
 </SpanPrimitive.Timeline>
 ```
 
-Running spans use the timeline range max when `now` is omitted, keeping SSR and hydration deterministic. Pass `now` when you want live ticking.
+Running spans use the timeline range max when `now` is omitted, keeping SSR and hydration deterministic. For live ticking, update a timestamp from an effect or animation loop and pass it as `now`.
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |

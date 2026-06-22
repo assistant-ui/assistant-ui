@@ -231,7 +231,7 @@ export function WaterfallTimeline() {
 
         <WaterfallLayoutContext.Provider value={layoutValue}>
           <SpanPrimitive.Timeline
-            paddingEnd={RIGHT_PADDING_RATIO}
+            timeRange={renderTimeRange}
             style={{ width: contentWidth }}
           >
             <SpanPrimitive.Children>
