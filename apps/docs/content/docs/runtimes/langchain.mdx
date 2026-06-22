@@ -646,6 +646,43 @@ function Discovered() {
 }
 ```
 
+## Subagent and subgraph views
+
+The discovery maps above pair with v1's scoped selector hooks to render a subagent's or subgraph's own messages and tool calls. `useLangChainStream` exposes the underlying `useStream` handle; feed it to `useMessages(stream, target)` / `useToolCalls(stream, target)` from `@langchain/react`, with a `SubagentDiscoverySnapshot` / `SubgraphDiscoverySnapshot` from `useLangChainSubagents` / `useLangChainSubgraphs` as the target. `useLangChainStream` returns `undefined` outside the runtime provider.
+
+```tsx
+import {
+  useLangChainStream,
+  useLangChainSubagents,
+} from "@assistant-ui/react-langchain";
+import { useMessages, useToolCalls } from "@langchain/react";
+
+function SubagentCard({ stream, subagent }) {
+  const messages = useMessages(stream, subagent);
+  const toolCalls = useToolCalls(stream, subagent);
+  return (
+    <div>
+      <strong>{subagent.namespace.join("/")}</strong>
+      <pre>{messages.map((m) => m.content).join("\n")}</pre>
+      <ul>
+        {toolCalls.map((tc) => (
+          <li key={tc.id}>{tc.name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Subagents() {
+  const stream = useLangChainStream();
+  const subagents = useLangChainSubagents();
+  if (!stream) return null;
+  return [...subagents.values()].map((s) => (
+    <SubagentCard key={s.namespace.join("/")} stream={stream} subagent={s} />
+  ));
+}
+```
+
 ## Generative UI
 
 Graphs can accumulate UI components in their state and attach each one to the assistant message that produced it. The runtime reads these from `stream.values[uiStateKey]` (default `"ui"`) and, for every `UIMessage` whose parent id matches an assistant message, emits a `data` part on that message. The parent id is read from `metadata.message_id` (Python SDK) or `metadata.id` (JS SDK). Pass `uiStateKey` if your graph stores them elsewhere.
@@ -762,6 +799,7 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Subgraph / namespaced stream events | Yes (via `eventHandlers`) | Not exposed |
 | Subagent discovery | Via `eventHandlers` | Yes (`useLangChainSubagents`) |
 | Subgraph discovery | Via `eventHandlers` | Yes (`useLangChainSubgraphs`) |
+| Subagent/subgraph message views | Via `eventHandlers` | Yes (via `useLangChainStream` + v1 selector hooks) |
 | End-to-end cancellation primitive | Yes (`unstable_createLangGraphStream`) | Not exposed |
 | Message accumulator utility | Yes (`LangGraphMessageAccumulator`) | Not exposed |
 | Cloud thread persistence | Yes | Yes |
@@ -787,6 +825,7 @@ Regenerate works without configuration. Clicking regenerate resolves the server 
 | _(none)_ | `useLangChainInterrupts` | New — every interrupt pending at the checkpoint, each with `id` and `value`. |
 | _(via `eventHandlers`)_ | `useLangChainSubagents` | New — subagents discovered on the current run; replaces subgraph event handlers. |
 | _(via `eventHandlers`)_ | `useLangChainSubgraphs` | New — subgraphs discovered on the current run; replaces subgraph event handlers. |
+| _(none)_ | `useLangChainStream` | New — the raw `useStream` handle for v1's scoped `useMessages` / `useToolCalls` selector hooks. |
 
 ## Related
 

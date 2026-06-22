@@ -131,6 +131,7 @@ const useStreamThreadRuntime = (
         toolCalls: stream.toolCalls,
         subagents: stream.subagents,
         subgraphs: stream.subgraphs,
+        stream,
         error: stream.error,
         submit: stream.submit,
         respond: stream.respond,
@@ -138,19 +139,7 @@ const useStreamThreadRuntime = (
         values: stream.values,
         messagesKey,
       }),
-    [
-      stream.interrupt,
-      stream.interrupts,
-      stream.toolCalls,
-      stream.subagents,
-      stream.subgraphs,
-      stream.error,
-      stream.submit,
-      stream.respond,
-      stream.respondAll,
-      stream.values,
-      messagesKey,
-    ],
+    [stream, messagesKey],
   );
 
   const runtime = useExternalStoreRuntime({

@@ -9,6 +9,7 @@ export {
   useLangChainSend,
   useLangChainSendCommand,
   useLangChainState,
+  useLangChainStream,
   useLangChainSubagents,
   useLangChainSubgraphs,
   useLangChainSubmit,

@@ -12,6 +12,7 @@ import type { AssistantCloud } from "assistant-cloud";
 import type {
   UseStreamOptions,
   AssembledToolCall,
+  AnyStream,
   SubagentDiscoverySnapshot,
   SubgraphDiscoverySnapshot,
 } from "@langchain/react";
@@ -97,6 +98,7 @@ export type LangChainRuntimeExtras = {
   toolCalls: readonly AssembledToolCall[];
   subagents: ReadonlyMap<string, SubagentDiscoverySnapshot>;
   subgraphs: ReadonlyMap<string, SubgraphDiscoverySnapshot>;
+  stream: AnyStream;
   error: unknown;
   submit: (
     values: Record<string, unknown> | null | undefined,
