@@ -52,7 +52,7 @@
     "@types/react-dom": "^19.2.3",
     "jsdom": "^29.1.1",
     "react": "^19.2.7",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.9"
   },
   "publishConfig": {
     "access": "public",

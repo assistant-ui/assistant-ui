@@ -7,10 +7,10 @@
     "build": "tsx ./scripts/build-registry.ts"
   },
   "dependencies": {
-    "radix-ui": "^1.5.0"
+    "radix-ui": "^1.6.0"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^3.0.71",
+    "@ai-sdk/openai": "^3.0.73",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
@@ -18,14 +18,14 @@
     "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.3.1",
-    "@types/node": "^25.9.3",
+    "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "ai": "^6.0.205",
+    "ai": "^6.0.208",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.18.0",
+    "lucide-react": "^1.21.0",
     "postcss": "^8.5.15",
     "react": "^19.2.7",
     "react-resizable-panels": "^4.11.2",

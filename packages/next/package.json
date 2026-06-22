@@ -49,8 +49,8 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.9.3",
-    "vitest": "^4.1.8"
+    "@types/node": "^26.0.0",
+    "vitest": "^4.1.9"
   },
   "publishConfig": {
     "access": "public",
