@@ -68,10 +68,18 @@ export const mastra = new Mastra({
 ### Add a chat route
 
 Your route should accept `messages`, `agentId`, `threadId`, and `resourceId`.
-Return Server-Sent Events where each `data:` payload is a Mastra event:
+The `react-mastra` client parses Server-Sent Events where each `data:` payload is a
+JSON object with an `event` name (`message/partial`, `message/complete`, `error`)
+and a `data` body. The client renders assistant content — text **and** tool
+invocations — from the accumulated `message/partial` data, so tool calls and their
+results are sent as `tool_call` content parts on the message rather than as separate
+events. Mastra's native stream does not emit that envelope, so map
+`result.textStream` into these events yourself rather than returning
+`result.toDataStreamResponse()`:
 
 ```ts title="app/api/chat/route.ts"
 import { mastra } from "@/mastra";
+import { v4 as uuidv4 } from "uuid";
 
 export async function POST(req: Request) {
   const {
@@ -92,13 +100,122 @@ export async function POST(req: Request) {
       }),
   });
 
-  return result.toDataStreamResponse();
+  const encoder = new TextEncoder();
+  const messageId = uuidv4();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event: unknown) =>
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+
+      try {
+        // Stream each delta as a message/partial event.
+        // The client accumulates the deltas into the assistant message.
+        for await (const chunk of result.textStream) {
+          send({
+            id: uuidv4(),
+            event: "message/partial",
+            data: {
+              id: messageId,
+              type: "assistant",
+              content: [{ type: "text", text: chunk }],
+              timestamp: new Date().toISOString(),
+              status: "running",
+            },
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        // Emit tool calls (joined with their results) as `tool_call`
+        // content parts on the assistant message. The client only renders a
+        // tool invocation — and marks it complete — from accumulated message
+        // content, so a `tool_call` part must carry the `result`. Standalone
+        // `tool/call` / `tool/result` events fire callbacks but never reach
+        // the accumulator, leaving the tool stuck in its executing state.
+        const toolCalls = await result.toolCalls;
+        const toolResults = await result.toolResults;
+        const resultByCallId = new Map<
+          string | undefined,
+          { result?: unknown; isError?: boolean; toolName?: string }
+        >();
+        for (const tr of toolResults ?? []) {
+          if (tr.payload) resultByCallId.set(tr.payload.toolCallId, tr.payload);
+        }
+
+        for (const toolCall of toolCalls ?? []) {
+          const callId = toolCall.payload?.toolCallId;
+          const toolResult = resultByCallId.get(callId);
+          const isError = Boolean(toolResult?.isError);
+          send({
+            id: uuidv4(),
+            event: "message/partial",
+            data: {
+              id: messageId,
+              type: "assistant",
+              content: [
+                {
+                  type: "tool_call",
+                  tool_call: {
+                    id: callId,
+                    name: toolCall.payload?.toolName,
+                    arguments: toolCall.payload?.args ?? {},
+                    ...(toolResult && { result: toolResult.result }),
+                    status: toolResult
+                      ? isError
+                        ? "output-error"
+                        : "complete"
+                      : "input-available",
+                    ...(isError && { error: String(toolResult?.result) }),
+                  },
+                },
+              ],
+              timestamp: new Date().toISOString(),
+              status: "running",
+            },
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        // Content already accumulated client-side, so only update status.
+        send({
+          id: uuidv4(),
+          event: "message/complete",
+          data: {
+            id: messageId,
+            type: "assistant",
+            content: [],
+            timestamp: new Date().toISOString(),
+            status: "complete",
+          },
+          timestamp: new Date().toISOString(),
+        });
+
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      } catch (error) {
+        send({
+          id: uuidv4(),
+          event: "error",
+          data: error instanceof Error ? error.message : "Unknown error",
+          timestamp: new Date().toISOString(),
+        });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }
 ```
 
-If your Mastra response shape is not already compatible with assistant-ui, map it
-to `message/partial`, `message/complete`, `tool/call`, `tool/result`, and
-`error` events. The `examples/with-mastra` route shows that mapping.
+The `examples/with-mastra` route shows this mapping in full, including input
+normalization and safe stream-close handling.
 
 </Step>
 

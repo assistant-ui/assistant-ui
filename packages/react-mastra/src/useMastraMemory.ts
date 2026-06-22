@@ -25,17 +25,17 @@ export const useMastraMemory = (config: MastraMemoryConfig) => {
     new Map(),
   );
   const [currentThread, setCurrentThread] = useState<string | null>(
-    config.threadId || null,
+    config.threadId ?? null,
   );
   const [isSearching, setIsSearching] = useState(false);
 
   // API base URL - can be configured
   const apiBase = useMemo(
-    () => config.apiUrl || "/api/memory",
+    () => config.apiUrl ?? "/api/memory",
     [config.apiUrl],
   );
   const resourceId = useMemo(
-    () => config.userId || "default-user",
+    () => config.userId ?? "default-user",
     [config.userId],
   );
 

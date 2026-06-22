@@ -152,27 +152,68 @@ export async function POST(req: NextRequest) {
 
           if (isClosed) return;
 
-          // Get tool calls after streaming completes
+          // Get tool calls and results after streaming completes.
+          // The client renders tool invocations from accumulated message
+          // content, so emit each call (joined with its result) as a
+          // `tool_call` content part on the assistant message. Standalone
+          // tool/call and tool/result events only fire side-effect callbacks
+          // and never reach the accumulator, so the tool would otherwise stay
+          // stuck in its executing state.
           const toolCalls = await result.toolCalls;
+          const toolResults = await result.toolResults;
+          const resultByCallId = new Map<
+            string | undefined,
+            { result?: unknown; isError?: boolean; toolName?: string }
+          >();
+          for (const tr of toolResults ?? []) {
+            if (tr.payload)
+              resultByCallId.set(tr.payload.toolCallId, tr.payload);
+          }
 
-          // Send tool call events if any tools were called
           if (toolCalls && toolCalls.length > 0) {
             for (const toolCall of toolCalls) {
-              const toolEvent = {
+              if (isClosed) break;
+
+              const callId = toolCall.payload?.toolCallId;
+              const toolResult = resultByCallId.get(callId);
+              const isError = Boolean(toolResult?.isError);
+              const toolCallEvent = {
                 id: uuidv4(),
-                event: "tool/call",
+                event: "message/partial",
                 data: {
-                  toolCallId: toolCall.payload?.toolCallId,
-                  toolName: toolCall.payload?.toolName,
-                  args: toolCall.payload?.args,
+                  id: messageId,
+                  type: "assistant",
+                  content: [
+                    {
+                      type: "tool_call",
+                      tool_call: {
+                        id: callId,
+                        name: toolCall.payload?.toolName,
+                        arguments: toolCall.payload?.args ?? {},
+                        ...(toolResult && { result: toolResult.result }),
+                        status: toolResult
+                          ? isError
+                            ? "output-error"
+                            : "complete"
+                          : "input-available",
+                        ...(isError && {
+                          error: String(toolResult?.result),
+                        }),
+                      },
+                    },
+                  ],
+                  timestamp: new Date().toISOString(),
+                  status: "running",
                 },
                 timestamp: new Date().toISOString(),
               };
               safeEnqueue(
-                encoder.encode(`data: ${JSON.stringify(toolEvent)}\n\n`),
+                encoder.encode(`data: ${JSON.stringify(toolCallEvent)}\n\n`),
               );
             }
           }
+
+          if (isClosed) return;
 
           // Send completion event - only update status, no content
           // The client has already accumulated all the text from deltas

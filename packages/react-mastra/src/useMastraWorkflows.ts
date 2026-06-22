@@ -237,6 +237,15 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
 
   const workflowStateId = workflowState?.id;
 
+  const eventHandlersRef = useRef({
+    onStateChange: config.onStateChange,
+    onError: config.onError,
+  });
+  eventHandlersRef.current = {
+    onStateChange: config.onStateChange,
+    onError: config.onError,
+  };
+
   useEffect(() => {
     if (!workflowStateId) return;
 
@@ -281,7 +290,7 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
                 };
                 setIsRunning(false);
                 setIsSuspended(false);
-                config.onStateChange?.(completed);
+                eventHandlersRef.current.onStateChange?.(completed);
                 return completed;
               }
 
@@ -293,7 +302,7 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
                 };
                 setIsRunning(false);
                 setIsSuspended(false);
-                config.onStateChange?.(errorState);
+                eventHandlersRef.current.onStateChange?.(errorState);
                 return errorState;
               }
 
@@ -314,14 +323,14 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
               };
               setIsRunning(status === "running");
               setIsSuspended(status === "suspended");
-              config.onStateChange?.(updated);
+              eventHandlersRef.current.onStateChange?.(updated);
               return updated;
             });
           }
         }
       } catch (error) {
         if (abortController.signal.aborted || !active) return;
-        config.onError?.(
+        eventHandlersRef.current.onError?.(
           error instanceof Error
             ? error
             : new Error("Workflow event subscription failed"),
@@ -335,7 +344,7 @@ export const useMastraWorkflows = (config: MastraWorkflowConfig) => {
       active = false;
       abortController.abort();
     };
-  }, [config, eventsBase, workflowStateId]);
+  }, [eventsBase, workflowStateId]);
 
   return {
     workflowState,

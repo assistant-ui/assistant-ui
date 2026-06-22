@@ -81,6 +81,9 @@ htmlcov/
 
 # Claude
 **/.claude/scheduled_tasks.lock
+
+# oh-my-claudecode local state
+.omc/
 apps/docs/app/api/xulux/README.md
 apps/docs/app/api/xulux/CLAUDE.md
 

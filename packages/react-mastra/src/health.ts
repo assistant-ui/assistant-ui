@@ -102,10 +102,14 @@ export const performHealthCheck = async (
       };
     }
 
-    // Adjust status based on response time and error rate
+    // Adjust status based on response time and error rate.
+    // This may only escalate severity, never reduce an already-"unhealthy" status.
     if (averageResponseTime > 1000 || errorRate > 0.1) {
       status = "unhealthy";
-    } else if (averageResponseTime > 500 || errorRate > 0.05) {
+    } else if (
+      status !== "unhealthy" &&
+      (averageResponseTime > 500 || errorRate > 0.05)
+    ) {
       status = "degraded";
     }
 
