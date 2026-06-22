@@ -1,6 +1,6 @@
 # React Router Integration
 
-This example demonstrates how to use assistant-ui with React Router (v7) and Vite.
+This example demonstrates how to use assistant-ui with React Router (v8) and Vite.
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ npm run dev
 
 ## Features
 
-- React Router v7 integration
+- React Router v8 integration
 - Vite-based development server
 - OpenAI streaming chat
 - Zustand for state management
