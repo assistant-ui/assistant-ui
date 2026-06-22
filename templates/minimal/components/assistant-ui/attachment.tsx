@@ -154,14 +154,13 @@ const AttachmentUI: FC = () => {
       >
         <AttachmentPreviewDialog>
           <TooltipTrigger asChild>
-            <div
+            <button
+              type="button"
               className="aui-attachment-tile bg-muted size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius)-var(--composer-padding))] border transition-opacity hover:opacity-75"
-              role="button"
-              tabIndex={0}
               aria-label={`${typeLabel} attachment`}
             >
               <AttachmentThumb />
-            </div>
+            </button>
           </TooltipTrigger>
         </AttachmentPreviewDialog>
         {isComposer && <AttachmentRemove />}

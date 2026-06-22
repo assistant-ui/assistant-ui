@@ -448,6 +448,48 @@ describe("transformProject — hasLocalComponents: false", () => {
   });
 });
 
+describe("default local component template regressions", () => {
+  function readTemplateSource(relativePath: string) {
+    return fs.readFileSync(
+      new URL(`../../../../${relativePath}`, import.meta.url),
+      "utf-8",
+    );
+  }
+
+  it("ships a tooltip root that does not shadow the app provider", () => {
+    const tooltip = readTemplateSource(
+      "templates/default/components/ui/tooltip.tsx",
+    );
+
+    expect(tooltip).toContain(
+      'return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;',
+    );
+    expect(tooltip).not.toContain("<TooltipProvider>");
+  });
+
+  it("ships an accessible attachment preview trigger", () => {
+    const attachment = readTemplateSource(
+      "templates/default/components/assistant-ui/attachment.tsx",
+    );
+
+    expect(attachment).toContain("<button");
+    expect(attachment).toContain('type="button"');
+    expect(attachment).not.toContain('role="button"');
+    expect(attachment).not.toContain("tabIndex={0}");
+  });
+
+  it("ships the streaming-aware reasoning disclosure", () => {
+    const reasoning = readTemplateSource(
+      "templates/default/components/assistant-ui/reasoning.tsx",
+    );
+
+    expect(reasoning).toContain("streaming?: boolean;");
+    expect(reasoning).toContain(
+      "<ReasoningRoot streaming={isReasoningStreaming}>",
+    );
+  });
+});
+
 describe("transformProject — install behavior", () => {
   it("spawns the correct package manager install command", async () => {
     writeJSON("package.json", { name: "test", dependencies: {} });
