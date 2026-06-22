@@ -14,7 +14,7 @@ npm install @assistant-ui/react-o11y
 "use client";
 
 import { AuiProvider, useAui } from "@assistant-ui/store";
-import { SpanResource } from "@assistant-ui/react-o11y";
+import { SpanPrimitive, SpanResource } from "@assistant-ui/react-o11y";
 
 const spans = [
   { id: "a", parentSpanId: null, name: "request", type: "http", status: "completed", startedAt: 0, endedAt: 120, latencyMs: 120 },
@@ -25,12 +25,18 @@ export function Waterfall() {
   const aui = useAui({ span: SpanResource({ spans }) });
   return (
     <AuiProvider value={aui}>
-      {/* compose SpanPrimitive.* components here — see examples/waterfall for a full layout */}
+      <SpanPrimitive.Timeline className="relative h-8">
+        <SpanPrimitive.Children>
+          {() => (
+            <SpanPrimitive.TimelineBar className="top-1 h-6 rounded bg-blue-500" />
+          )}
+        </SpanPrimitive.Children>
+      </SpanPrimitive.Timeline>
     </AuiProvider>
   );
 }
 ```
 
-`SpanPrimitive.*` components rendered inside `<AuiProvider>` cover rows, indentation, names, status, and the collapse toggle.
+`SpanPrimitive.*` components rendered inside `<AuiProvider>` cover rows, indentation, names, status, collapse controls, and timeline bars. `SpanPrimitive.Timeline` provides the time range for its children; `SpanPrimitive.TimelineBar` positions each current span with CSS variables such as `--span-timeline-left` and `--span-timeline-width`.
 
 See [`examples/waterfall`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/waterfall) for a complete waterfall implementation.
