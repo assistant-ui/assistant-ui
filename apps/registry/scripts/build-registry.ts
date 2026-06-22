@@ -18,6 +18,37 @@ function transformImports(content: string): string {
     .replace(/@assistant-ui\/react-ui\/hooks\//g, "@/hooks/");
 }
 
+const getShadcnUiImports = (content: string) => {
+  return [
+    ...content.matchAll(/from\s+["']@\/components\/ui\/([^"']+)["']/g),
+  ].map((match) => match[1]!.replace(/\.(?:tsx?|jsx?)$/, "").split("/")[0]!);
+};
+
+function validateRegistryDependencies(
+  item: RegistryItem,
+  files: NonNullable<RegistryItem["files"]>,
+) {
+  const registryDependencies = new Set(item.registryDependencies ?? []);
+  const missing = new Set<string>();
+
+  for (const file of files) {
+    const content = "content" in file ? file.content : undefined;
+    if (!content) continue;
+
+    for (const dependency of getShadcnUiImports(content)) {
+      if (!registryDependencies.has(dependency)) missing.add(dependency);
+    }
+  }
+
+  if (missing.size > 0) {
+    throw new Error(
+      `Registry item "${item.name}" imports shadcn UI component(s) without registryDependencies: ${[
+        ...missing,
+      ].join(", ")}`,
+    );
+  }
+}
+
 async function buildRegistry(registry: RegistryItem[]) {
   await fs.mkdir(REGISTRY_PATH, { recursive: true });
 
@@ -37,6 +68,10 @@ async function buildRegistry(registry: RegistryItem[]) {
         ...fileOutput,
       };
     });
+
+    if (files) {
+      validateRegistryDependencies(item, files);
+    }
 
     const payload = {
       $schema: "https://ui.shadcn.com/schema/registry-item.json",
