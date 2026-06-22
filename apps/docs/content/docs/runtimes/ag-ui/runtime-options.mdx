@@ -66,6 +66,11 @@ messages are gone on the next page load.
 `showThinking: false`, so imported reasoning messages are dropped at conversion
 time, the same way a live run never stores them.
 
+By default `fromAgUiMessages` also restores `requires-action` status on assistant
+messages that still have unresolved tool calls, so a reloaded thread surfaces
+pending human-in-the-loop calls as actionable instead of stuck running, matching
+the live run. Pass `{ inferPendingToolCallStatus: false }` to opt out.
+
 `fromAgUiMessages` reconstructs the text, reasoning, and tool calls of each message. Multimodal user input (`image`, `audio`, `video`, and `document` parts, as well as legacy `binary` parts) is restored as attachments on the user message, so a backend that persists multimodal messages shows them again on reload and re-sends them on the next run. Legacy `binary` parts that only reference a file id are not restored.
 
 ## Thread list (experimental)

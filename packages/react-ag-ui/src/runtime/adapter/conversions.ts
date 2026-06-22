@@ -479,6 +479,12 @@ export type FromAgUiMessagesOptions = {
    * Matches the `showThinking` option of `useAgUiRuntime`. Defaults to `true`.
    */
   showThinking?: boolean;
+  /**
+   * Whether to restore `requires-action` status on assistant messages that
+   * still have unresolved tool calls, matching what `RunAggregator` produces
+   * during a live run so a cold reload looks identical. Defaults to `true`.
+   */
+  inferPendingToolCallStatus?: boolean;
 };
 
 export function fromAgUiMessages(
@@ -486,6 +492,8 @@ export function fromAgUiMessages(
   options?: FromAgUiMessagesOptions,
 ): CoreThreadMessageLike[] {
   const showThinking = options?.showThinking ?? true;
+  const inferPendingToolCallStatus =
+    options?.inferPendingToolCallStatus ?? true;
   const converted: CoreThreadMessageLike[] = [];
 
   for (const rawMessage of messages) {
@@ -602,6 +610,33 @@ export function fromAgUiMessages(
 
     if (role === "user" || role === "system") {
       converted.push(toUserOrSystemSnapshotMessage(role, rawMessage));
+    }
+  }
+
+  // Tool results merge into their call parts above, so a still-pending tool
+  // call is only knowable once every message is converted. Mirror the live
+  // RunAggregator, which ends an unresolved run as requires-action/tool-calls.
+  if (inferPendingToolCallStatus) {
+    for (let i = 0; i < converted.length; i++) {
+      const message = converted[i]!;
+      if (
+        message.role !== "assistant" ||
+        message.status !== undefined ||
+        !Array.isArray(message.content)
+      )
+        continue;
+      const hasPendingToolCall = message.content.some(
+        (part) =>
+          isObject(part) &&
+          part.type === "tool-call" &&
+          part.result === undefined,
+      );
+      if (hasPendingToolCall) {
+        converted[i] = {
+          ...message,
+          status: { type: "requires-action", reason: "tool-calls" },
+        };
+      }
     }
   }
 
