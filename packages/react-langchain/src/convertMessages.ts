@@ -88,9 +88,10 @@ const getStringContent = (content: unknown): string => {
     .join("");
 };
 
-export const convertLangChainBaseMessage: useExternalMessageConverter.Callback<
-  LangChainBaseMessage
-> = (message, metadata: LangChainMessageConverterMetadata = {}) => {
+export const convertLangChainBaseMessage = (
+  message: LangChainBaseMessage,
+  metadata: LangChainMessageConverterMetadata = {},
+): useExternalMessageConverter.Message => {
   const type = getMessageType(message);
 
   switch (type) {

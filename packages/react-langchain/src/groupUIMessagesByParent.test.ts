@@ -10,7 +10,7 @@ const uiMessage = (
   id: "ui-1",
   name,
   props: { points: [1, 2, 3] },
-  metadata,
+  ...(metadata !== undefined && { metadata }),
 });
 
 describe("groupUIMessagesByParent", () => {

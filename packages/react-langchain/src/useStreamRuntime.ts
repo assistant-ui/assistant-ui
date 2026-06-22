@@ -106,16 +106,18 @@ const useStreamThreadRuntime = (
   const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
   const uiStateValue = stream.values[uiStateKey];
-  const converterMetadata = useMemo(
-    () => ({ uiMessagesByParent: groupUIMessagesByParent(uiStateValue) }),
-    [uiStateValue],
-  );
+  const convertWithUI = useMemo<
+    useExternalMessageConverter.Callback<LangChainBaseMessage>
+  >(() => {
+    const uiMessagesByParent = groupUIMessagesByParent(uiStateValue);
+    return (message, metadata) =>
+      convertLangChainBaseMessage(message, { ...metadata, uiMessagesByParent });
+  }, [uiStateValue]);
 
   const threadMessages = useExternalMessageConverter({
-    callback: convertLangChainBaseMessage,
+    callback: convertWithUI,
     messages: stream.messages as LangChainBaseMessage[],
     isRunning: effectiveIsRunning,
-    metadata: converterMetadata,
   });
 
   const streamRef = useRef(stream);

@@ -14,6 +14,12 @@ const aiMessage = (content: unknown): LangChainBaseMessage => ({
   content,
 });
 
+const contentOf = (result: ReturnType<typeof convertLangChainBaseMessage>) => {
+  if (result.role === "tool")
+    throw new Error("expected a content-bearing message");
+  return result.content;
+};
+
 describe("convertLangChainBaseMessage file content parts", () => {
   it("converts a base64 file block", () => {
     const result = convertLangChainBaseMessage(
@@ -29,7 +35,7 @@ describe("convertLangChainBaseMessage file content parts", () => {
       {},
     );
 
-    expect(result.content).toEqual([
+    expect(contentOf(result)).toEqual([
       {
         type: "file",
         filename: "a.pdf",
@@ -47,7 +53,7 @@ describe("convertLangChainBaseMessage file content parts", () => {
       {},
     );
 
-    expect(result.content).toEqual([
+    expect(contentOf(result)).toEqual([
       {
         type: "file",
         filename: "file",
@@ -73,7 +79,7 @@ describe("convertLangChainBaseMessage reasoning content parts", () => {
       {},
     );
 
-    expect(result.content).toEqual([
+    expect(contentOf(result)).toEqual([
       { type: "reasoning", text: "first\n\n\nsecond" },
     ]);
   });
@@ -84,7 +90,7 @@ describe("convertLangChainBaseMessage reasoning content parts", () => {
       {},
     );
 
-    expect(result.content).toEqual([
+    expect(contentOf(result)).toEqual([
       { type: "reasoning", text: "thinking out loud" },
     ]);
   });
@@ -95,7 +101,7 @@ describe("convertLangChainBaseMessage reasoning content parts", () => {
       {},
     );
 
-    expect(result.content).toEqual([{ type: "reasoning", text: "" }]);
+    expect(contentOf(result)).toEqual([{ type: "reasoning", text: "" }]);
   });
 
   it("tolerates null entries inside the summary array", () => {
@@ -109,7 +115,9 @@ describe("convertLangChainBaseMessage reasoning content parts", () => {
       {},
     );
 
-    expect(result.content).toEqual([{ type: "reasoning", text: "\n\n\nkept" }]);
+    expect(contentOf(result)).toEqual([
+      { type: "reasoning", text: "\n\n\nkept" },
+    ]);
   });
 });
 
@@ -127,7 +135,7 @@ describe("convertLangChainBaseMessage generative UI from graph state", () => {
       uiMessagesByParent: new Map([["msg-2", [uiMessage("msg-2")]]]),
     });
 
-    expect(result.content).toEqual([
+    expect(contentOf(result)).toEqual([
       { type: "text", text: "hello" },
       { type: "data", name: "chart", data: { points: [1, 2, 3] } },
     ]);
@@ -138,7 +146,7 @@ describe("convertLangChainBaseMessage generative UI from graph state", () => {
       uiMessagesByParent: new Map([["other-id", [uiMessage("other-id")]]]),
     });
 
-    expect(result.content).toEqual([{ type: "text", text: "hello" }]);
+    expect(contentOf(result)).toEqual([{ type: "text", text: "hello" }]);
   });
 
   it("appends a data part per UI when several target the same message", () => {
@@ -154,7 +162,7 @@ describe("convertLangChainBaseMessage generative UI from graph state", () => {
       ]),
     });
 
-    expect(result.content).toEqual([
+    expect(contentOf(result)).toEqual([
       { type: "text", text: "hello" },
       { type: "data", name: "chart", data: { a: 1 } },
       { type: "data", name: "table", data: { b: 2 } },
@@ -167,13 +175,13 @@ describe("convertLangChainBaseMessage generative UI from graph state", () => {
       { uiMessagesByParent: new Map([["", [uiMessage("")]]]) },
     );
 
-    expect(result.content).toEqual([{ type: "text", text: "hello" }]);
+    expect(contentOf(result)).toEqual([{ type: "text", text: "hello" }]);
   });
 
   it("leaves the message unchanged when no converter metadata is passed", () => {
     const result = convertLangChainBaseMessage(aiMessage("hello"));
 
-    expect(result.content).toEqual([{ type: "text", text: "hello" }]);
+    expect(contentOf(result)).toEqual([{ type: "text", text: "hello" }]);
   });
 });
 
@@ -186,7 +194,7 @@ describe("convertLangChainBaseMessage image content parts", () => {
       {},
     );
 
-    expect(result.content).toEqual([
+    expect(contentOf(result)).toEqual([
       { type: "image", image: "https://example.com/a.png" },
     ]);
   });
@@ -197,6 +205,6 @@ describe("convertLangChainBaseMessage image content parts", () => {
       {},
     );
 
-    expect(result.content).toEqual([]);
+    expect(contentOf(result)).toEqual([]);
   });
 });
