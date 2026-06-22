@@ -12,17 +12,17 @@ import {
 
 const TRACE_ANIMATION_DURATION = 200;
 
-/** Renders a tool call as a readable signature, e.g. `get_weather({ location: "SF" })`. */
-export function formatToolCall(
-  toolName: string,
-  args: Record<string, unknown> | undefined,
-): string {
-  const entries = Object.entries(args ?? {});
-  if (entries.length === 0) return `${toolName}()`;
-  const body = entries
-    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-    .join(", ");
-  return `${toolName}({ ${body} })`;
+function ToolJsonBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-muted-foreground/60 text-[10px] font-medium tracking-wide uppercase">
+        {label}
+      </p>
+      <pre className="text-muted-foreground bg-muted/50 max-h-60 overflow-auto rounded-md p-2.5 text-[11px] leading-relaxed">
+        {value}
+      </pre>
+    </div>
+  );
 }
 
 export function ToolTraceCard({
@@ -79,22 +79,14 @@ export function ToolTraceCard({
         )}
       >
         <div className="my-1 ml-6 space-y-2">
-          <div className="space-y-1">
-            <p className="text-muted-foreground/60 text-[10px] font-medium tracking-wide uppercase">
-              Parameters
-            </p>
-            <pre className="text-muted-foreground bg-muted/50 max-h-60 overflow-auto rounded-md p-2.5 text-[11px] leading-relaxed">
-              {hasArgs ? JSON.stringify(args, null, 2) : "{}"}
-            </pre>
-          </div>
-          <div className="space-y-1">
-            <p className="text-muted-foreground/60 text-[10px] font-medium tracking-wide uppercase">
-              Result
-            </p>
-            <pre className="text-muted-foreground bg-muted/50 max-h-60 overflow-auto rounded-md p-2.5 text-[11px] leading-relaxed">
-              {JSON.stringify(result, null, 2)}
-            </pre>
-          </div>
+          <ToolJsonBlock
+            label="Parameters"
+            value={hasArgs ? JSON.stringify(args, null, 2) : "{}"}
+          />
+          <ToolJsonBlock
+            label="Result"
+            value={JSON.stringify(result, null, 2)}
+          />
         </div>
       </CollapsibleContent>
     </Collapsible>
@@ -169,6 +161,7 @@ export function ToolErrorCard({
         <span className="min-w-0 truncate font-mono text-[13px]">
           {signature}
         </span>
+        <span className="text-destructive/70 truncate text-xs">{message}</span>
         <ChevronRight className="size-3.5 shrink-0 transition-transform group-data-[state=open]/tool-error:rotate-90" />
       </CollapsibleTrigger>
       <CollapsibleContent
@@ -180,14 +173,10 @@ export function ToolErrorCard({
         )}
       >
         <div className="my-1 ml-6 space-y-2">
-          <div className="space-y-1">
-            <p className="text-muted-foreground/60 text-[10px] font-medium tracking-wide uppercase">
-              Parameters
-            </p>
-            <pre className="text-muted-foreground bg-muted/50 max-h-60 overflow-auto rounded-md p-2.5 text-[11px] leading-relaxed">
-              {hasArgs ? JSON.stringify(args, null, 2) : "{}"}
-            </pre>
-          </div>
+          <ToolJsonBlock
+            label="Parameters"
+            value={hasArgs ? JSON.stringify(args, null, 2) : "{}"}
+          />
           <div className="bg-destructive/20 rounded-md p-2.5">
             <p className="text-destructive text-xs leading-relaxed break-words">
               {message}

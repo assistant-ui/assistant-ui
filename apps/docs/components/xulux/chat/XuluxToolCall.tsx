@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  formatToolCall,
-  ToolErrorCard,
-  ToolStatusCard,
-  ToolTraceCard,
-} from "@/lib/tool-trace";
+import { ToolErrorCard, ToolStatusCard, ToolTraceCard } from "@/lib/tool-trace";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import {
   BookOpenIcon,
@@ -152,7 +147,7 @@ export function XuluxToolCall({
   result,
   status,
 }: ToolCallMessagePartProps): ReactNode {
-  const signature = formatToolCall(toolName, args);
+  const signature = toolName;
   const icon = getToolIcon(toolName);
   const isRunning = status?.type === "running";
   const error = !isRunning ? extractToolError(result) : null;
