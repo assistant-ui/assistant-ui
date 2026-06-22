@@ -73,14 +73,6 @@ export async function POST(req: NextRequest) {
       agentId = "screeningAgent",
     } = await req.json();
 
-    // Validate required memory parameters
-    if (!threadId) {
-      return new Response(
-        JSON.stringify({ error: "threadId is required for memory" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
-    }
-
     // Get the specified agent
     const agent = mastra.getAgent(agentId);
     if (!agent) {
