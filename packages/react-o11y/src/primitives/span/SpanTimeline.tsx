@@ -23,6 +23,8 @@ type TimelineCssProperties = CSSProperties & {
   "--span-timeline-min-width"?: string | number;
 };
 
+const clampPercent = (value: number) => Math.min(100, Math.max(0, value));
+
 const normalizeRange = (
   range: SpanTimelineRange,
   paddingEnd = 0,
@@ -100,9 +102,11 @@ export const getSpanTimelineBarVars = ({
 }) => {
   const rangeMs = Math.max(1, timeRange.max - timeRange.min);
   const effectiveEnd = endedAt ?? now ?? timeRange.max;
-  const leftPercent = ((startedAt - timeRange.min) / rangeMs) * 100;
+  const leftPercent = clampPercent(
+    ((startedAt - timeRange.min) / rangeMs) * 100,
+  );
   const rawEndPercent = ((effectiveEnd - timeRange.min) / rangeMs) * 100;
-  const endPercent = Math.max(leftPercent, rawEndPercent);
+  const endPercent = clampPercent(Math.max(leftPercent, rawEndPercent));
   const widthPercent = endPercent - leftPercent;
   const durationMs = Math.max(0, effectiveEnd - startedAt);
 
