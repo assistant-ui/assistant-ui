@@ -102,7 +102,7 @@ const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
             tooltip="Add photos & files"
             side="top"
             aria-label="Add attachment"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full text-[#5d5d5d] transition-colors hover:bg-black/[0.07] hover:text-[#5d5d5d] dark:text-[#cdcdcd] dark:hover:bg-white/15 dark:hover:text-[#cdcdcd]"
           >
             <PlusIcon size={20} />
           </TooltipIconButton>
@@ -167,7 +167,7 @@ const ComposerPrimaryAction: FC = () => {
             tooltip="Dictate"
             side="top"
             aria-label="Dictate"
-            className="flex size-9 items-center justify-center rounded-full text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white"
+            className="flex size-9 items-center justify-center rounded-full text-[#5d5d5d] transition-colors hover:bg-black/[0.07] hover:text-[#5d5d5d] dark:text-[#cdcdcd] dark:hover:bg-white/15 dark:hover:text-[#cdcdcd]"
           >
             <Mic className="size-5" />
           </TooltipIconButton>
@@ -219,19 +219,26 @@ const UserMessage: FC = () => {
           hideWhenRunning
           autohide="always"
           autohideFloat="single-branch"
-          className="flex items-center gap-0.5"
+          className="flex items-center"
         >
-          <ActionBarPrimitive.Copy className={assistantActionClassName}>
-            <AuiIf condition={(s) => s.message.isCopied}>
-              <CheckIcon className="size-5" />
-            </AuiIf>
-            <AuiIf condition={(s) => !s.message.isCopied}>
-              <CopyIcon className="size-5" />
-            </AuiIf>
+          <ActionBarPrimitive.Copy asChild>
+            <TooltipIconButton
+              tooltip="Copy"
+              side="top"
+              className={assistantActionClassName}
+            >
+              <AuiIf condition={(s) => s.message.isCopied}>
+                <CheckIcon className="size-5" />
+              </AuiIf>
+              <AuiIf condition={(s) => !s.message.isCopied}>
+                <CopyIcon className="size-5" />
+              </AuiIf>
+            </TooltipIconButton>
           </ActionBarPrimitive.Copy>
           <ActionBarPrimitive.Edit asChild>
             <TooltipIconButton
               tooltip="Edit"
+              side="top"
               className={assistantActionClassName}
             >
               <Pencil1Icon className="size-5" />
@@ -263,7 +270,7 @@ const EditComposer: FC = () => {
 };
 
 const assistantActionClassName =
-  "flex size-8 items-center justify-center rounded-md text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#afafaf] dark:hover:bg-white/10 dark:hover:text-white";
+  "flex size-8 items-center justify-center rounded-lg text-[#5d5d5d] transition-colors hover:bg-black/[0.07] hover:text-[#5d5d5d] dark:text-[#cdcdcd] dark:hover:bg-white/15 dark:hover:text-[#cdcdcd]";
 
 const AssistantMessage: FC = () => {
   return (
@@ -280,36 +287,63 @@ const AssistantMessage: FC = () => {
       </div>
 
       <div className="-ml-2 flex items-center pt-1">
-        <ActionBarPrimitive.Root
-          hideWhenRunning
-          className="flex items-center gap-0.5"
-        >
-          <ActionBarPrimitive.Copy className={assistantActionClassName}>
-            <AuiIf condition={(s) => s.message.isCopied}>
-              <CheckIcon className="size-5" />
-            </AuiIf>
-            <AuiIf condition={(s) => !s.message.isCopied}>
-              <CopyIcon className="size-5" />
-            </AuiIf>
+        <ActionBarPrimitive.Root hideWhenRunning className="flex items-center">
+          <ActionBarPrimitive.Copy asChild>
+            <TooltipIconButton
+              tooltip="Copy"
+              side="top"
+              className={assistantActionClassName}
+            >
+              <AuiIf condition={(s) => s.message.isCopied}>
+                <CheckIcon className="size-5" />
+              </AuiIf>
+              <AuiIf condition={(s) => !s.message.isCopied}>
+                <CopyIcon className="size-5" />
+              </AuiIf>
+            </TooltipIconButton>
           </ActionBarPrimitive.Copy>
-          <ActionBarPrimitive.FeedbackPositive
-            className={assistantActionClassName}
-          >
-            <ThumbsUp className="size-5" />
+          <ActionBarPrimitive.FeedbackPositive asChild>
+            <TooltipIconButton
+              tooltip="Good response"
+              side="top"
+              className={assistantActionClassName}
+            >
+              <ThumbsUp className="size-5" />
+            </TooltipIconButton>
           </ActionBarPrimitive.FeedbackPositive>
-          <ActionBarPrimitive.FeedbackNegative
+          <ActionBarPrimitive.FeedbackNegative asChild>
+            <TooltipIconButton
+              tooltip="Bad response"
+              side="top"
+              className={assistantActionClassName}
+            >
+              <ThumbsDown className="size-5" />
+            </TooltipIconButton>
+          </ActionBarPrimitive.FeedbackNegative>
+          <ActionBarPrimitive.Speak asChild>
+            <TooltipIconButton
+              tooltip="Read aloud"
+              side="top"
+              className={assistantActionClassName}
+            >
+              <Volume2 className="size-5" />
+            </TooltipIconButton>
+          </ActionBarPrimitive.Speak>
+          <TooltipIconButton
+            tooltip="Share"
+            side="top"
             className={assistantActionClassName}
           >
-            <ThumbsDown className="size-5" />
-          </ActionBarPrimitive.FeedbackNegative>
-          <ActionBarPrimitive.Speak className={assistantActionClassName}>
-            <Volume2 className="size-5" />
-          </ActionBarPrimitive.Speak>
-          <button type="button" className={assistantActionClassName}>
             <Share className="size-5" />
-          </button>
-          <ActionBarPrimitive.Reload className={assistantActionClassName}>
-            <ReloadIcon className="size-5" />
+          </TooltipIconButton>
+          <ActionBarPrimitive.Reload asChild>
+            <TooltipIconButton
+              tooltip="Regenerate"
+              side="top"
+              className={assistantActionClassName}
+            >
+              <ReloadIcon className="size-5" />
+            </TooltipIconButton>
           </ActionBarPrimitive.Reload>
           <ActionBarMorePrimitive.Root>
             <ActionBarMorePrimitive.Trigger asChild>
@@ -318,7 +352,7 @@ const AssistantMessage: FC = () => {
                 aria-label="More"
                 className={cn(
                   assistantActionClassName,
-                  "data-[state=open]:bg-[#0d0d0d]/5 dark:data-[state=open]:bg-white/10",
+                  "data-[state=open]:bg-black/[0.07] dark:data-[state=open]:bg-white/15",
                 )}
               >
                 <MoreHorizontal className="size-5" />
