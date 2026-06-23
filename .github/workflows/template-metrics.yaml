@@ -93,13 +93,14 @@ jobs:
 
       - name: Build report
         run: |
-          base=install-footprint/branch/main/data.json
-          [ -f "$base" ] || base=""
-          node scripts/template-metrics.mjs report "$base" metrics-head.json metrics-report.md metrics-gate.txt
+          node scripts/template-metrics.mjs report install-footprint/branch/main/data.json metrics-head.json metrics-report.md metrics-gate.txt
           cat metrics-report.md
 
+      # continue-on-error: a fork PR's read-only token makes commenting 403; that
+      # must not fail the check or skip the gate below.
       - name: Post / update PR comment
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |
@@ -128,10 +129,10 @@ jobs:
               });
             }
 
-      # Runs after the comment is posted so reviewers see the table even when the
-      # gate fails. Only blocks PRs; pushes to main always refresh the baseline.
+      # always(): run even if the comment step failed (e.g. fork 403), so the
+      # gate verdict is never lost. Only blocks PRs; pushes refresh the baseline.
       - name: Enforce regression gate
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         run: |
           if [ "$(cat metrics-gate.txt 2>/dev/null)" = "fail" ]; then
             echo "::error::Template metrics regressed past the configured limits. See the PR comment."
