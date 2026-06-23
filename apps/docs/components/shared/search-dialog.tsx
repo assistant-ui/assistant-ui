@@ -99,7 +99,43 @@ function getResultTitle(item: SearchResult): string {
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   }
-  return item.content;
+  return item.content.replace(/<\/?mark>/g, "");
+}
+
+function parseHighlightedContent(content: string): HighlightSegment[] {
+  const segments: HighlightSegment[] = [];
+  const regex = /<mark>([\s\S]*?)<\/mark>/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({
+        type: "text",
+        content: content.slice(lastIndex, match.index),
+      });
+    }
+    segments.push({
+      type: "text",
+      content: match[1] ?? "",
+      styles: { highlight: true },
+    });
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < content.length) {
+    segments.push({ type: "text", content: content.slice(lastIndex) });
+  }
+
+  return segments;
+}
+
+function getResultSegments(item: SearchResult): HighlightSegment[] | undefined {
+  if (item.contentWithHighlights && item.contentWithHighlights.length > 0) {
+    return item.contentWithHighlights;
+  }
+  if (item.type === "page") return undefined;
+  return parseHighlightedContent(item.content);
 }
 
 function ResultIcon({ type }: { type: string }) {
@@ -378,7 +414,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                             <div className="flex min-w-0 flex-1 flex-col">
                               <span className="text-foreground truncate text-sm font-medium">
                                 <HighlightedText
-                                  segments={item.contentWithHighlights}
+                                  segments={getResultSegments(item)}
                                   fallback={title}
                                 />
                               </span>
