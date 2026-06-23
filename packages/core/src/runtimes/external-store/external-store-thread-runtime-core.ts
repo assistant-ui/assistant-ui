@@ -410,7 +410,7 @@ export class ExternalStoreThreadRuntimeCore
 
     const onBranchChange = this._store.unstable_onBranchChange;
     const previousHeadId = onBranchChange
-      ? (this.repository.export().headId ?? null)
+      ? this.repository.canonicalHeadId
       : null;
 
     this.repository.switchToBranch(branchId);
@@ -422,7 +422,7 @@ export class ExternalStoreThreadRuntimeCore
 
   /**
    * Emit `unstable_onBranchChange` for an explicit branch switch. Reads the
-   * canonical head from `repository.export()` (which skips optimistic/transient
+   * canonical head from the repository (which skips optimistic/transient
    * messages) and de-dupes switches that leave the canonical head unchanged.
    * Comparing against the head observed just before the switch — rather than the
    * last emitted head — keeps a switch firing after an adapter resync moved the
@@ -432,7 +432,7 @@ export class ExternalStoreThreadRuntimeCore
     previousHeadId: string | null,
     onBranchChange: (event: ExternalStoreBranchChange) => void,
   ): void {
-    const headId = this.repository.export().headId ?? null;
+    const headId = this.repository.canonicalHeadId;
     if (headId === previousHeadId) return;
 
     onBranchChange({

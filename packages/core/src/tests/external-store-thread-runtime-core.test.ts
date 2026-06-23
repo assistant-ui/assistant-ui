@@ -619,8 +619,21 @@ describe("ExternalStoreThreadRuntimeCore - branch change callback", () => {
     expect(() => runtime.switchToBranch("a1")).not.toThrow();
   });
 
-  it("does not export canonical heads when no callback is provided", () => {
+  it("does not read canonical heads when no callback is provided", () => {
     const runtime = makeBranched();
+    const repository = (
+      runtime as unknown as { repository: { canonicalHeadId: string | null } }
+    ).repository;
+    const canonicalHeadIdSpy = vi.spyOn(repository, "canonicalHeadId", "get");
+
+    runtime.switchToBranch("a1");
+
+    expect(canonicalHeadIdSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not export snapshots when emitting branch changes", () => {
+    const onBranchChange = vi.fn();
+    const runtime = makeBranched({ unstable_onBranchChange: onBranchChange });
     const repository = (
       runtime as unknown as { repository: { export: () => unknown } }
     ).repository;
@@ -628,6 +641,7 @@ describe("ExternalStoreThreadRuntimeCore - branch change callback", () => {
 
     runtime.switchToBranch("a1");
 
+    expect(onBranchChange).toHaveBeenCalledTimes(1);
     expect(exportSpy).not.toHaveBeenCalled();
   });
 

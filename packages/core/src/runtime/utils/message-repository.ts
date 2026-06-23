@@ -189,6 +189,16 @@ export class MessageRepository {
     return this.head?.current.id ?? null;
   }
 
+  get canonicalHeadId() {
+    // Optimistic messages are ephemeral, so persisted callers need the nearest
+    // non-optimistic ancestor rather than the raw head.
+    let head = this.head;
+    while (head?.current.metadata?.isOptimistic) {
+      head = head.prev;
+    }
+    return head?.current.id ?? null;
+  }
+
   getMessages(headId?: string) {
     if (headId === undefined || headId === this.head?.current.id) {
       return this._messages.value;
@@ -436,14 +446,8 @@ export class MessageRepository {
       });
     }
 
-    // The head may itself be optimistic; walk up to the nearest persisted ancestor.
-    let head = this.head;
-    while (head?.current.metadata?.isOptimistic) {
-      head = head.prev;
-    }
-
     return {
-      headId: head?.current.id ?? null,
+      headId: this.canonicalHeadId,
       messages: exportItems,
     };
   }
