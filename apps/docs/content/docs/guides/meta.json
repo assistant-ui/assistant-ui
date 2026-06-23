@@ -11,6 +11,7 @@
     "mentions",
     "slash-commands",
     "input-history",
+    "headless-composer-input",
     "quoting",
     "dictation",
     "---Messages---",
