@@ -97,9 +97,9 @@ export function unstable_useComposerInput(
   const { send: rawSend, disabled: sendDisabled } = useComposerSend();
   const canSend = !sendDisabled && !isDisabled;
   const send = useCallback(
-    (options?: ComposerSendOptions) => {
+    (sendOptions?: ComposerSendOptions) => {
       if (!canSend) return;
-      rawSend(options);
+      rawSend(sendOptions);
     },
     [canSend, rawSend],
   );
