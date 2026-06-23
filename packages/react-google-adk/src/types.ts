@@ -274,3 +274,16 @@ export type OnAdkCustomEventCallback = (
 export type OnAdkAgentTransferCallback = (
   toAgent: string,
 ) => void | Promise<void>;
+
+/** Private state and actions `useAdkRuntime` exposes through `thread.extras`. */
+export type AdkRuntimeExtras = {
+  send: (messages: AdkMessage[], config: AdkSendMessageConfig) => Promise<void>;
+  agentInfo: { name?: string | undefined; branch?: string | undefined };
+  stateDelta: Record<string, unknown>;
+  artifactDelta: Record<string, number>;
+  longRunningToolIds: string[];
+  toolConfirmations: AdkToolConfirmation[];
+  authRequests: AdkAuthRequest[];
+  escalated: boolean;
+  messageMetadata: Map<string, AdkMessageMetadata>;
+};

@@ -373,6 +373,202 @@ describe("RunAggregator", () => {
     expect(types).toEqual(["tool-call", "text"]);
   });
 
+  it("anchors a tool call under its parent message when its START arrives after later text", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "mA",
+      role: "assistant",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "mA",
+      delta: "Let me look. ",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_END",
+      messageId: "mA",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "mB",
+      role: "assistant",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "mB",
+      delta: "Here it is.",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tc1",
+      toolCallName: "search",
+      parentMessageId: "mA",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_ARGS",
+      toolCallId: "tc1",
+      delta: '{"q":"x"}',
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_END",
+      toolCallId: "tc1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_END",
+      messageId: "mB",
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    const types = (last?.content ?? []).map((part) => part.type);
+    expect(types).toEqual(["text", "tool-call", "text"]);
+  });
+
+  it("leaves an already in-order tool call under its parent untouched", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "mA",
+      role: "assistant",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "mA",
+      delta: "Let me look. ",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_END",
+      messageId: "mA",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tc1",
+      toolCallName: "search",
+      parentMessageId: "mA",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_END",
+      toolCallId: "tc1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "mB",
+      role: "assistant",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "mB",
+      delta: "Here it is.",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_END",
+      messageId: "mB",
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    const types = (last?.content ?? []).map((part) => part.type);
+    expect(types).toEqual(["text", "tool-call", "text"]);
+  });
+
+  it("keeps sibling tool calls of the same parent grouped and in arrival order", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "mA",
+      role: "assistant",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "mA",
+      delta: "Working. ",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_END",
+      messageId: "mA",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "mB",
+      role: "assistant",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "mB",
+      delta: "Done.",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tcA",
+      toolCallName: "search",
+      parentMessageId: "mA",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_END",
+      toolCallId: "tcA",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tcB",
+      toolCallName: "fetch",
+      parentMessageId: "mA",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_END",
+      toolCallId: "tcB",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_END",
+      messageId: "mB",
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    const types = (last?.content ?? []).map((part) => part.type);
+    expect(types).toEqual(["text", "tool-call", "tool-call", "text"]);
+    const toolIds = (last?.content ?? [])
+      .filter((part) => part.type === "tool-call")
+      .map((part) => (part as { toolCallId: string }).toolCallId);
+    expect(toolIds).toEqual(["tcA", "tcB"]);
+  });
+
+  it("appends a tool call with no parentMessageId in arrival order", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "mA",
+      role: "assistant",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "mA",
+      delta: "Hi.",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_END",
+      messageId: "mA",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tc1",
+      toolCallName: "search",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_END",
+      toolCallId: "tc1",
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    const types = (last?.content ?? []).map((part) => part.type);
+    expect(types).toEqual(["text", "tool-call"]);
+  });
+
   it("creates additional text parts for subsequent assistant messages", () => {
     const aggregator = createAggregator(false);
 

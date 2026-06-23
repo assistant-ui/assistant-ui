@@ -2,8 +2,12 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
+import {
+  createRunSelectorAgainst,
+  makeExtras,
+  type Selector,
+} from "./__tests__/langChainTestUtils";
 
-type Selector = (state: unknown) => unknown;
 const { mockUseAuiState } = vi.hoisted(() => ({
   mockUseAuiState: vi.fn(),
 }));
@@ -18,27 +22,9 @@ vi.mock(import("@assistant-ui/store"), async (importOriginal) => {
   };
 });
 
-import { useLangChainState } from "./useStreamRuntime";
+import { useLangChainState } from "./hooks";
 
-// The real guard symbol in useStreamRuntime is module-private. To stand in for
-// runtime-produced extras, we use a Proxy whose `has` trap claims any symbol
-// with the description "langchain-runtime-extras" is present.
-const makeExtras = (values: Record<string, unknown>) =>
-  new Proxy(
-    { values },
-    {
-      has: (target, key) =>
-        (typeof key === "symbol" &&
-          key.description === "langchain-runtime-extras") ||
-        Reflect.has(target, key),
-    },
-  );
-
-const runSelectorAgainst = (extras: unknown) => {
-  mockUseAuiState.mockImplementationOnce((selector: Selector) =>
-    selector({ thread: { extras } }),
-  );
-};
+const runSelectorAgainst = createRunSelectorAgainst(mockUseAuiState);
 
 describe("useLangChainState", () => {
   it("returns undefined when extras are absent", () => {
@@ -54,7 +40,9 @@ describe("useLangChainState", () => {
   });
 
   it("reads the value for the given key from extras.values", () => {
-    runSelectorAgainst(makeExtras({ todos: [{ id: "a" }], count: 7 }));
+    runSelectorAgainst(
+      makeExtras({ values: { todos: [{ id: "a" }], count: 7 } }),
+    );
     const { result } = renderHook(() =>
       useLangChainState<Array<{ id: string }>>("todos"),
     );
@@ -62,26 +50,26 @@ describe("useLangChainState", () => {
   });
 
   it("falls back to defaultValue when the key is missing from values", () => {
-    runSelectorAgainst(makeExtras({ unrelated: "x" }));
+    runSelectorAgainst(makeExtras({ values: { unrelated: "x" } }));
     const { result } = renderHook(() => useLangChainState<number>("count", 99));
     expect(result.current).toBe(99);
   });
 
   it("returns undefined when the key is missing and no default is given", () => {
-    runSelectorAgainst(makeExtras({ unrelated: "x" }));
+    runSelectorAgainst(makeExtras({ values: { unrelated: "x" } }));
     const { result } = renderHook(() => useLangChainState<number>("count"));
     expect(result.current).toBeUndefined();
   });
 
   it("returns the stored value (not default) when both are present", () => {
-    runSelectorAgainst(makeExtras({ count: 0 }));
+    runSelectorAgainst(makeExtras({ values: { count: 0 } }));
     const { result } = renderHook(() => useLangChainState<number>("count", 99));
     // 0 is a valid value; must be preserved over the default.
     expect(result.current).toBe(0);
   });
 
   it("preserves explicit null over defaultValue", () => {
-    runSelectorAgainst(makeExtras({ flag: null }));
+    runSelectorAgainst(makeExtras({ values: { flag: null } }));
     const { result } = renderHook(() =>
       useLangChainState<string | null>("flag", "default"),
     );

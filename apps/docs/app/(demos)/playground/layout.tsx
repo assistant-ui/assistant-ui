@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { type ReactNode, Suspense } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
-import { PlaygroundRuntimeProvider } from "@/contexts/PlaygroundRuntimeProvider";
 import { createOgMetadata } from "@/lib/og";
 
 const title = "Playground";
@@ -26,9 +25,7 @@ export default function PlaygroundLayout({
       fullHeight
       hideFooter
     >
-      <Suspense>
-        <PlaygroundRuntimeProvider>{children}</PlaygroundRuntimeProvider>
-      </Suspense>
+      <Suspense>{children}</Suspense>
     </SubProjectLayout>
   );
 }

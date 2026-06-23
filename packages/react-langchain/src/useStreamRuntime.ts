@@ -2,17 +2,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import type {
-  AppendMessage,
-  AttachmentAdapter,
-  DictationAdapter,
-  ExternalStoreSharedOptions,
-  FeedbackAdapter,
-  RealtimeVoiceAdapter,
-  RemoteThreadListAdapter,
-  SpeechSynthesisAdapter,
-  ToolExecutionStatus,
-} from "@assistant-ui/core";
+import type { AppendMessage, ToolExecutionStatus } from "@assistant-ui/core";
 import { pickExternalStoreSharedOptions } from "@assistant-ui/core";
 import {
   useCloudThreadListAdapter,
@@ -20,70 +10,55 @@ import {
   useExternalMessageConverter,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
-import { useAui, useAuiState } from "@assistant-ui/store";
-import type { AssistantCloud } from "assistant-cloud";
-import { useStream, type UseStreamOptions } from "@langchain/react";
-import type { LangChainBaseMessage, LangChainToolCall } from "./types";
-import { convertLangChainBaseMessage, getMessageType } from "./convertMessages";
+import { useAuiState } from "@assistant-ui/store";
+import { STREAM_CONTROLLER, useChannel, useStream } from "@langchain/react";
+import type { Channel } from "@langchain/react";
+import type {
+  LangChainBaseMessage,
+  LangChainToolCall,
+  UIMessage,
+  UseStreamRuntimeOptions,
+} from "./types";
+import {
+  convertLangChainBaseMessage,
+  getMessageContent,
+  getMessageType,
+} from "./convertMessages";
+import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
+import { langChainExtras } from "./runtimeExtras";
+import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
 
-const symbolLangChainRuntimeExtras = Symbol("langchain-runtime-extras");
+const UI_CUSTOM_CHANNELS: readonly Channel[] = ["custom"];
 
-type LangChainRuntimeExtras = {
-  [symbolLangChainRuntimeExtras]: true;
-  interrupt: { value?: unknown } | undefined;
-  interrupts: readonly { value?: unknown }[];
-  submit: (
-    values: Record<string, unknown> | null | undefined,
-    options?: Record<string, unknown>,
-  ) => Promise<void>;
-  values: Record<string, unknown>;
-  messagesKey: string;
-};
+export const runConfigToSubmitOptions = (
+  runConfig: AppendMessage["runConfig"],
+) =>
+  runConfig?.custom
+    ? { config: { configurable: runConfig.custom } }
+    : undefined;
 
-const asLangChainRuntimeExtras = (extras: unknown): LangChainRuntimeExtras => {
-  if (
-    typeof extras !== "object" ||
-    extras == null ||
-    !(symbolLangChainRuntimeExtras in extras)
-  )
-    throw new Error(
-      "This method can only be called when you are using useStreamRuntime",
-    );
-  return extras as LangChainRuntimeExtras;
-};
-
-type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
-  cloud?: AssistantCloud | undefined;
-  adapters?:
-    | {
-        attachments?: AttachmentAdapter | undefined;
-        speech?: SpeechSynthesisAdapter | undefined;
-        dictation?: DictationAdapter | undefined;
-        voice?: RealtimeVoiceAdapter | undefined;
-        feedback?: FeedbackAdapter | undefined;
-      }
-    | undefined;
-  /**
-   * When the user sends a new message while previous tool calls are
-   * still pending, automatically submit `tool` messages that cancel
-   * them so the agent's tool-call accounting stays consistent.
-   * Defaults to `true`.
-   */
-  autoCancelPendingToolCalls?: boolean | undefined;
-  /**
-   * Routes the Cancel button's click to `useStream().stop()`. On by
-   * default. Pass `false` to disable the Cancel button.
-   */
-  unstable_allowCancellation?: boolean | undefined;
-  /**
-   * Custom `RemoteThreadListAdapter`. When provided, replaces the
-   * cloud-backed thread list adapter.
-   */
-  unstable_threadListAdapter?: RemoteThreadListAdapter | undefined;
-  /** Custom thread-creation hook, forwarded to the cloud adapter. */
-  create?: (() => Promise<{ externalId: string | undefined }>) | undefined;
-  /** Custom thread-deletion hook, forwarded to the cloud adapter. */
-  delete?: ((threadId: string) => Promise<void>) | undefined;
+/**
+ * Group the graph's accumulated `UIMessage`s by the assistant message they
+ * belong to. Non-array state and entries without a parent link are dropped.
+ * The parent id comes from `metadata.message_id` (Python SDK) or
+ * `metadata.id` (JS SDK).
+ */
+export const groupUIMessagesByParent = (
+  value: unknown,
+): Map<string, UIMessage[]> => {
+  const map = new Map<string, UIMessage[]>();
+  if (!Array.isArray(value)) return map;
+  for (const ui of value as UIMessage[]) {
+    const parentId = ui.metadata?.message_id ?? ui.metadata?.id;
+    if (!parentId) continue;
+    const existing = map.get(parentId);
+    if (existing) {
+      existing.push(ui);
+    } else {
+      map.set(parentId, [ui]);
+    }
+  }
+  return map;
 };
 
 const getPendingToolCalls = (
@@ -101,67 +76,6 @@ const getPendingToolCalls = (
   return [...pending.values()];
 };
 
-// Distribute the intersection through the union arms of `UseStreamOptions`
-// (`AgentServerOptions | CustomAdapterOptions`). Writing `UseStreamOptions & X`
-// directly collapses arm tracking, so `Omit<…, "cloud">` and the like would
-// produce a flattened structural type that no longer matches either arm.
-export type UseStreamRuntimeOptions = UseStreamOptions extends infer O
-  ? O extends UseStreamOptions
-    ? O & LangChainRuntimeExtraOptions
-    : never
-  : never;
-
-const getMessageContent = (msg: AppendMessage) => {
-  const allContent = [
-    ...msg.content,
-    ...(msg.attachments?.flatMap((a) => a.content) ?? []),
-  ];
-
-  const hasNonText = allContent.some(
-    (part) => part.type === "file" || part.type === "image",
-  );
-  const hasText = allContent.some((part) => part.type === "text");
-  if (hasNonText && !hasText) {
-    allContent.unshift({ type: "text", text: " " });
-  }
-
-  const content = allContent.map((part) => {
-    const type = part.type;
-    switch (type) {
-      case "text":
-        return { type: "text" as const, text: part.text };
-      case "image":
-        return { type: "image_url" as const, image_url: { url: part.image } };
-      case "file":
-        return {
-          type: "file" as const,
-          data: part.data,
-          mime_type: part.mimeType,
-          metadata: { filename: part.filename ?? "file" },
-          source_type: "base64" as const,
-        };
-      case "tool-call":
-        throw new Error("Tool call appends are not supported.");
-      default: {
-        const _exhaustiveCheck:
-          | "reasoning"
-          | "source"
-          | "audio"
-          | "data"
-          | "generative-ui" = type;
-        throw new Error(
-          `Unsupported append message part type: ${_exhaustiveCheck}`,
-        );
-      }
-    }
-  });
-
-  if (content.length === 1 && content[0]?.type === "text") {
-    return content[0].text ?? "";
-  }
-  return content;
-};
-
 type DistributiveOmit<T, K extends keyof any> = T extends unknown
   ? Omit<T, K>
   : never;
@@ -175,6 +89,7 @@ const useStreamThreadRuntime = (
   const { adapters, autoCancelPendingToolCalls, unstable_allowCancellation } =
     options;
   const messagesKey = options.messagesKey ?? "messages";
+  const uiStateKey = options.uiStateKey ?? "ui";
 
   const externalId = useAuiState((s) => s.threadListItem.externalId) as
     | string
@@ -194,8 +109,29 @@ const useStreamThreadRuntime = (
   );
   const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
+  const uiStateValue = stream.values[uiStateKey];
+
+  const customEvents = useChannel(stream, UI_CUSTOM_CHANNELS);
+  const liveUiMessages = useMemo(
+    () => foldUIUpdates(customEvents),
+    [customEvents],
+  );
+
+  const mergedUiMessages = useMemo(
+    () => mergeUIMessages(liveUiMessages, uiStateValue),
+    [liveUiMessages, uiStateValue],
+  );
+
+  const convertWithUI = useMemo<
+    useExternalMessageConverter.Callback<LangChainBaseMessage>
+  >(() => {
+    const uiMessagesByParent = groupUIMessagesByParent(mergedUiMessages);
+    return (message, metadata) =>
+      convertLangChainBaseMessage(message, { ...metadata, uiMessagesByParent });
+  }, [mergedUiMessages]);
+
   const threadMessages = useExternalMessageConverter({
-    callback: convertLangChainBaseMessage,
+    callback: convertWithUI,
     messages: stream.messages as LangChainBaseMessage[],
     isRunning: effectiveIsRunning,
   });
@@ -204,18 +140,30 @@ const useStreamThreadRuntime = (
   streamRef.current = stream;
 
   const extras = useMemo(
-    (): LangChainRuntimeExtras => ({
-      [symbolLangChainRuntimeExtras]: true,
-      interrupt: stream.interrupt,
-      interrupts: stream.interrupts,
-      submit: stream.submit,
-      values: stream.values,
-      messagesKey,
-    }),
+    () =>
+      langChainExtras.provide({
+        interrupt: stream.interrupt,
+        interrupts: stream.interrupts,
+        toolCalls: stream.toolCalls,
+        subagents: stream.subagents,
+        subgraphs: stream.subgraphs,
+        error: stream.error,
+        submit: stream.submit,
+        respond: stream.respond,
+        respondAll: stream.respondAll,
+        values: stream.values,
+        messagesKey,
+      }),
     [
       stream.interrupt,
       stream.interrupts,
+      stream.toolCalls,
+      stream.subagents,
+      stream.subgraphs,
+      stream.error,
       stream.submit,
+      stream.respond,
+      stream.respondAll,
       stream.values,
       messagesKey,
     ],
@@ -224,6 +172,7 @@ const useStreamThreadRuntime = (
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
+    isLoading: stream.isThreadLoading,
     messages: threadMessages,
     adapters,
     extras,
@@ -243,9 +192,10 @@ const useStreamThreadRuntime = (
               status: "error" as const,
             }))
           : [];
-      await stream.submit({
-        [messagesKey]: [...cancellations, { type: "human", content }],
-      });
+      await stream.submit(
+        { [messagesKey]: [...cancellations, { type: "human", content }] },
+        runConfigToSubmitOptions(msg.runConfig),
+      );
     },
     onAddToolResult: async ({
       toolCallId,
@@ -266,6 +216,48 @@ const useStreamThreadRuntime = (
           },
         ],
       });
+    },
+    onReload: async (parentId, config) => {
+      const threadId = externalId;
+      if (!threadId || parentId == null) return;
+      const s = streamRef.current;
+      const checkpointId = await resolveForkCheckpoint(
+        s.client,
+        threadId,
+        s.messages as readonly LangChainBaseMessage[],
+        parentId,
+        config.sourceId,
+        s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
+        messagesKey,
+      );
+      if (!checkpointId) return;
+      await s.submit(null, {
+        forkFrom: checkpointId,
+        ...runConfigToSubmitOptions(config.runConfig),
+      });
+    },
+    onEdit: async (message) => {
+      const threadId = externalId;
+      if (!threadId) return;
+      const s = streamRef.current;
+      const checkpointId = await resolveForkCheckpoint(
+        s.client,
+        threadId,
+        s.messages as readonly LangChainBaseMessage[],
+        message.parentId,
+        message.sourceId,
+        s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
+        messagesKey,
+      );
+      if (!checkpointId) return;
+      const content = getMessageContent(message);
+      await s.submit(
+        { [messagesKey]: [{ type: "human", content }] },
+        {
+          forkFrom: checkpointId,
+          ...runConfigToSubmitOptions(message.runConfig),
+        },
+      );
     },
     onCancel:
       unstable_allowCancellation !== false
@@ -308,6 +300,7 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
     unstable_threadListAdapter,
     create,
     delete: deleteFn,
+    onThreadIdChange,
     ...options
   } = rawOptions;
 
@@ -327,88 +320,6 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
     },
     adapter,
     allowNesting: true,
+    onThreadIdChange,
   });
 };
-
-/**
- * Read the current LangGraph interrupt state from the runtime extras.
- */
-export const useLangChainInterruptState = () => {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return undefined;
-    return asLangChainRuntimeExtras(extras).interrupt;
-  });
-};
-
-/**
- * Returns a function to submit raw state updates to the LangGraph agent,
- * bypassing the normal message flow. Useful for sending interrupt resume
- * commands.
- */
-export const useLangChainSubmit = () => {
-  const aui = useAui();
-  return (
-    values: Record<string, unknown> | null | undefined,
-    options?: Record<string, unknown>,
-  ) => {
-    const extras = aui.thread().getState().extras;
-    const { submit } = asLangChainRuntimeExtras(extras);
-    return submit(values, options);
-  };
-};
-
-/**
- * Submit a list of LangChain-shaped messages on the current thread.
- * Parity helper for migrating from `useLangGraphSend`. Routes to
- * `useStream().submit({ [messagesKey]: messages }, options)`.
- */
-export const useLangChainSend = () => {
-  const aui = useAui();
-  return (
-    messages: readonly LangChainBaseMessage[],
-    options?: Record<string, unknown>,
-  ) => {
-    const { submit, messagesKey } = asLangChainRuntimeExtras(
-      aui.thread().getState().extras,
-    );
-    return submit({ [messagesKey]: messages }, options);
-  };
-};
-
-/**
- * Submit a `useStream` command (e.g. interrupt resume). Parity helper
- * for migrating from `useLangGraphSendCommand`. Note that v1's command
- * shape (`{ resume?, goto?, update? }`) differs from the legacy
- * `{ resume: string }` form — to carry a payload, use the input or
- * `stream.respond` instead.
- */
-export const useLangChainSendCommand = () => {
-  const submit = useLangChainSubmit();
-  return (command: Record<string, unknown>) => submit(null, { command });
-};
-
-/**
- * Read a custom LangGraph state key from the current thread. Mirrors
- * `useStream().values[key]` from `@langchain/react` and updates when the
- * stream emits new state.
- *
- * @example
- * ```tsx
- * const todos = useLangChainState<Todo[]>("todos");
- * const files = useLangChainState<Record<string, string>>("files", {});
- * ```
- */
-export function useLangChainState<T>(key: string): T | undefined;
-export function useLangChainState<T>(key: string, defaultValue: T): T;
-export function useLangChainState<T>(
-  key: string,
-  defaultValue?: T,
-): T | undefined {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return defaultValue;
-    const value = asLangChainRuntimeExtras(extras).values[key] as T | undefined;
-    return value !== undefined ? value : defaultValue;
-  });
-}

@@ -21,12 +21,19 @@ export function useXuluxTemplateCatalog(): XuluxTemplateCatalog & {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch("/api/xulux/examples");
-        if (!response.ok) {
-          throw new Error(`Examples API failed with ${response.status}`);
+        const templatesResponse = await fetch("/api/xulux/templates");
+        if (!templatesResponse.ok) {
+          throw new Error(
+            `Templates API failed with ${templatesResponse.status}`,
+          );
         }
-        const nextCatalog = (await response.json()) as XuluxTemplateCatalog;
-        if (!cancelled) setCatalog(nextCatalog);
+
+        const templatesCatalog =
+          (await templatesResponse.json()) as XuluxTemplateCatalog;
+
+        if (!cancelled) {
+          setCatalog(templatesCatalog);
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : String(err));

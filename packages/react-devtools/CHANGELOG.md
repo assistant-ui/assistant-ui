@@ -1,5 +1,21 @@
 # @assistant-ui/react-devtools
 
+## 1.2.7
+
+### Patch Changes
+
+- [#4433](https://github.com/assistant-ui/assistant-ui/pull/4433) [`7b550df`](https://github.com/assistant-ui/assistant-ui/commit/7b550dfd19df2235d48cde07781fbe5d4f5b1975) - render devtools inline instead of in a hosted iframe. the devtools UI now ships inside the package and renders in an isolated shadow root, so it no longer loads the deployed `devtools-frame` web app. `DevToolsModal` is unchanged at the call site and gains an extensible tab registry via the `plugins` prop (`createDevToolsPlugin`, `DevToolsPanel`). ([@okisdev](https://github.com/okisdev))
+
+  removes the iframe/extension transport exports that are no longer used: `DevToolsFrame`, `FrameHost`, `FrameClient`, `ExtensionHost`, `DevToolsHost`, `sanitizeForMessage`, the stale `TabType`/`ViewMode` types, and the `*_FRAME_URL` constants.
+
+- [#4443](https://github.com/assistant-ui/assistant-ui/pull/4443) [`8dee2b3`](https://github.com/assistant-ui/assistant-ui/commit/8dee2b370b8546287843e7d91fb659249858c75a) - redesign the devtools panel and add new inspection capabilities. visually the panel becomes a borderless, flatter floating window (lighter dim backdrop, smaller spring-animated launcher) with a single consolidated top nav bar (underline-pill tabs, multi-instance select, a live status pill, close), a refreshed ChatGPT-style light/dark token theme (bumped --radius, retuned surfaces/borders, new --shadow-window and --shadow-launcher elevation tokens, prefers-reduced-motion handling), and an interactive collapsible JSONTree with copy-to-clipboard replacing the old static JSON dumps throughout. ([@okisdev](https://github.com/okisdev))
+
+  beyond the reskin, every tab is restructured from a single scrolling stack into a master/detail layout with stable-id selection persisted per instance and per tab. Thread becomes a transcript-driven spine (ConversationList plus Transcript rail plus message detail) with status dots, trend sparklines, true interleaved tool/text rendering, a TTFT timing bar, richer tool-call and attachment previews, and a copy-message export. Context, Activity, and Raw each gain grouped left rails with dedicated detail panes; Activity adds per-run timelines, scope/text filtering, and opt-in payload diffs. the panel also defaults to the built-in inProcessClient when no client is passed.
+
+  this is not visual only; it adds public API. ApiInfo gains an optional threadSnapshots field (cached per-thread states keyed by thread id, populated for threads mounted in the app and feeding the Thread tab), DevToolsClient gains an optional switchToThread(apiId, threadId) method (wired by inProcessClient to api.threads().switchToThread and surfaced as a per-thread switch and a "load conversation" action for unloaded threads), and DevToolsTabContext gains selection, setSelection, and switchToThread so custom tab plugins receive the new selection state and thread-switch callback. projectApi now emits threadSnapshots when at least one thread runtime is mounted. the new master/detail chassis and view components remain internal building blocks (not added to the package exports), and the internal projectApi helper has been dropped from the public exports (it was an in-process-client implementation detail; DevToolsModal, the plugin API, and the DevToolsClient surface are unchanged).
+
+- [#4430](https://github.com/assistant-ui/assistant-ui/pull/4430) [`82f8709`](https://github.com/assistant-ui/assistant-ui/commit/82f870964335ac69719366da7e173ab95b39c824) - fix(devtools): stop reporting shared (non-cyclic) references as `[Circular]` when serializing model context ([@JSap0914](https://github.com/JSap0914))
+
 ## 1.2.6
 
 ### Patch Changes

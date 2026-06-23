@@ -1,17 +1,32 @@
+export { useStreamRuntime } from "./useStreamRuntime";
+
 export {
-  useStreamRuntime,
+  useLangChainError,
+  useLangChainInterrupts,
   useLangChainInterruptState,
+  useLangChainRespond,
+  useLangChainRespondAll,
   useLangChainSend,
   useLangChainSendCommand,
   useLangChainState,
+  useLangChainSubagents,
+  useLangChainSubgraphs,
   useLangChainSubmit,
-} from "./useStreamRuntime";
-export type { UseStreamRuntimeOptions } from "./useStreamRuntime";
+  useLangChainToolCalls,
+} from "./hooks";
 
 export { convertLangChainBaseMessage } from "./convertMessages";
+
+export type {
+  SubagentDiscoverySnapshot,
+  SubgraphDiscoverySnapshot,
+} from "@langchain/react";
 
 export type {
   LangChainBaseMessage,
   LangChainContentBlock,
   LangChainToolCall,
+  RemoveUIMessage,
+  UIMessage,
+  UseStreamRuntimeOptions,
 } from "./types";

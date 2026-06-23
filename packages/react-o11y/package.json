@@ -33,7 +33,7 @@
   "dependencies": {
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "@radix-ui/react-primitive": "^2.1.5"
+    "@radix-ui/react-primitive": "^2.1.6"
   },
   "peerDependencies": {
     "@types/react": "*",

@@ -44,6 +44,7 @@ import {
   type ViewportPreset,
 } from "@/lib/playground-url-state";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
+import { PlaygroundRuntimeProvider } from "@/contexts/PlaygroundRuntimeProvider";
 
 const XuluxApp = isAiPlaygroundEnabled
   ? dynamic(() =>
@@ -360,9 +361,11 @@ function BuilderPlayground() {
   );
 
   return (
-    <PlaygroundChatProvider config={config} setConfig={setConfig}>
-      {content}
-    </PlaygroundChatProvider>
+    <PlaygroundRuntimeProvider>
+      <PlaygroundChatProvider config={config} setConfig={setConfig}>
+        {content}
+      </PlaygroundChatProvider>
+    </PlaygroundRuntimeProvider>
   );
 }
 
@@ -383,6 +386,18 @@ export default function PlaygroundPage() {
   const [mode, setMode] = useState<"agent" | "builder">(
     isAiPlaygroundEnabled ? "agent" : "builder",
   );
+  const [visitedModes, setVisitedModes] = useState({
+    agent: isAiPlaygroundEnabled,
+    builder: !isAiPlaygroundEnabled,
+  });
+
+  const handleModeChange = useCallback((nextMode: "agent" | "builder") => {
+    setMode(nextMode);
+    setVisitedModes((current) => ({
+      ...current,
+      [nextMode]: true,
+    }));
+  }, []);
 
   return (
     <>
@@ -391,7 +406,7 @@ export default function PlaygroundPage() {
           <div className="bg-muted/40 grid grid-cols-2 rounded-md border p-0.5 text-xs">
             <button
               type="button"
-              onClick={() => setMode("agent")}
+              onClick={() => handleModeChange("agent")}
               className={cn(
                 "rounded px-2.5 py-1 font-medium transition-colors",
                 mode === "agent"
@@ -403,7 +418,7 @@ export default function PlaygroundPage() {
             </button>
             <button
               type="button"
-              onClick={() => setMode("builder")}
+              onClick={() => handleModeChange("builder")}
               className={cn(
                 "rounded px-2.5 py-1 font-medium transition-colors",
                 mode === "builder"
@@ -418,7 +433,28 @@ export default function PlaygroundPage() {
       )}
 
       <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-        {XuluxApp && mode === "agent" ? <XuluxApp /> : <BuilderPlayground />}
+        {XuluxApp && visitedModes.agent && (
+          <div
+            className={cn(
+              "h-full min-h-0 w-full flex-col overflow-hidden",
+              mode === "agent" ? "flex" : "hidden",
+            )}
+            aria-hidden={mode !== "agent"}
+          >
+            <XuluxApp />
+          </div>
+        )}
+        {visitedModes.builder && (
+          <div
+            className={cn(
+              "h-full min-h-0 w-full flex-col overflow-hidden",
+              mode === "builder" ? "flex" : "hidden",
+            )}
+            aria-hidden={mode !== "builder"}
+          >
+            <BuilderPlayground />
+          </div>
+        )}
       </div>
     </>
   );

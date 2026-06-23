@@ -78,6 +78,19 @@ export type RemoteThreadListOptions = {
   threadId?: string | undefined;
 
   /**
+   * Called whenever the active thread's canonical (remote) ID changes, so the
+   * value can be treated as a managed/controlled variable (e.g. synced to a
+   * URL query param). Together with `threadId` this forms the controlled
+   * pattern: `threadId` in, `onThreadIdChange` out.
+   *
+   * Only the settled remote ID is emitted: while a freshly created thread is
+   * still optimistic (no remote ID yet) the value is `undefined`, and the real
+   * ID is emitted once the thread is initialized. The transient local ID is
+   * never surfaced.
+   */
+  onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
+
+  /**
    * When true, if this runtime is used inside another RemoteThreadListRuntime,
    * it becomes a no-op and simply calls the runtimeHook directly.
    * This allows wrapping runtimes that internally use RemoteThreadListRuntime.

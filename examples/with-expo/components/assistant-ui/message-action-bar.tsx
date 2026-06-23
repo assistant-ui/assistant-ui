@@ -1,25 +1,43 @@
-import { View, StyleSheet, useColorScheme } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, StyleSheet } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { Icon } from "@/components/ui/icon";
 import { ActionBarPrimitive } from "@assistant-ui/react-native";
+import { useTheme } from "@/hooks/use-theme";
+import { haptics } from "@/lib/haptics";
+import { Radius } from "@/constants/theme";
+
+const copyToClipboard = async (text: string) => {
+  await Clipboard.setStringAsync(text);
+};
 
 export function MessageActionBar() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const iconColor = isDark ? "#8e8e93" : "#6e6e73";
+  const { colors } = useTheme();
+
+  const buttonStyle = ({ pressed }: { pressed: boolean }) => [
+    styles.button,
+    pressed && { backgroundColor: colors.muted },
+  ];
 
   return (
     <View style={styles.container}>
-      <ActionBarPrimitive.Copy style={styles.button}>
+      <ActionBarPrimitive.Copy
+        copyToClipboard={copyToClipboard}
+        onPressIn={haptics.selection}
+        style={buttonStyle}
+      >
         {({ isCopied }) => (
-          <Ionicons
-            name={isCopied ? "checkmark" : "copy-outline"}
+          <Icon
+            name={isCopied ? "check" : "copy"}
             size={16}
-            color={isCopied ? "#34c759" : iconColor}
+            color={isCopied ? colors.foreground : colors.mutedForeground}
           />
         )}
       </ActionBarPrimitive.Copy>
-      <ActionBarPrimitive.Reload style={styles.button}>
-        <Ionicons name="refresh-outline" size={16} color={iconColor} />
+      <ActionBarPrimitive.Reload
+        onPressIn={haptics.selection}
+        style={buttonStyle}
+      >
+        <Icon name="reload" size={16} color={colors.mutedForeground} />
       </ActionBarPrimitive.Reload>
     </View>
   );
@@ -28,11 +46,11 @@ export function MessageActionBar() {
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    gap: 4,
-    marginTop: 4,
+    alignItems: "center",
+    gap: 2,
   },
   button: {
     padding: 6,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
   },
 });

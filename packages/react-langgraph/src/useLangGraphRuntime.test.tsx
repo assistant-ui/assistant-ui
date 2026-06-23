@@ -7,7 +7,8 @@ import type {
 } from "@assistant-ui/core";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import { useLangGraphRuntime, useLangGraphSend } from "./useLangGraphRuntime";
+import { useLangGraphRuntime } from "./useLangGraphRuntime";
+import { useLangGraphSend } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
 import type { LangChainMessage } from "./types";
 import type { LangGraphInterruptState } from "./useLangGraphMessages";
@@ -582,6 +583,32 @@ describe("useLangGraphRuntime", () => {
     unmount();
 
     expect(signal?.aborted).toBe(true);
+  });
+
+  it("forwards onThreadIdChange so the settled remote thread id reaches the consumer", async () => {
+    const onThreadIdChange = vi.fn();
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+        onThreadIdChange,
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.threads.mainThreadId), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+
+    await waitFor(() =>
+      expect(onThreadIdChange).toHaveBeenLastCalledWith("lg-thread-1"),
+    );
   });
 
   it("invokes user-provided create when stream calls initialize without cloud", async () => {

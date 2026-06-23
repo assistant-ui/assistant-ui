@@ -31,7 +31,7 @@ import type {
 } from "./types";
 import { useAdkMessages } from "./useAdkMessages";
 import { convertAdkMessage } from "./convertAdkMessages";
-import { symbolAdkRuntimeExtras, type AdkRuntimeExtras } from "./hooks";
+import { adkExtras } from "./adkExtras";
 import { v4 as uuidv4 } from "uuid";
 
 /** @internal — exported for unit tests. */
@@ -140,6 +140,15 @@ const truncateAdkMessages = (
 
 export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
+  /**
+   * Called whenever the active thread's canonical (remote) ID changes, so the
+   * value can be treated as a managed/controlled variable (e.g. synced to a URL
+   * query param). Only the settled remote ID is emitted: while a freshly created
+   * thread is still optimistic the value is `undefined`, and the real ID is
+   * emitted once the thread is initialized; the transient local ID is never
+   * surfaced.
+   */
+  onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
   getCheckpointId?: (
@@ -239,8 +248,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     unstable_enableToolInvocations: true,
     setToolStatuses,
     adapters: { attachments, dictation, feedback, speech, voice },
-    extras: {
-      [symbolAdkRuntimeExtras]: true,
+    extras: adkExtras.provide({
       agentInfo,
       stateDelta,
       artifactDelta,
@@ -250,7 +258,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       escalated,
       messageMetadata,
       send: handleSendMessage,
-    } satisfies AdkRuntimeExtras,
+    }),
     onNew: async (msg) => {
       const cancellations =
         autoCancelPendingToolCalls !== false
@@ -373,6 +381,7 @@ export const useAdkRuntime = ({
   sessionAdapter,
   create,
   delete: deleteFn,
+  onThreadIdChange,
   ...options
 }: UseAdkRuntimeOptions) => {
   const aui = useAui();
@@ -394,5 +403,6 @@ export const useAdkRuntime = ({
     },
     adapter,
     allowNesting: true,
+    onThreadIdChange,
   });
 };

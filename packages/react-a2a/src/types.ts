@@ -2,6 +2,18 @@
 // Enum values use lowercase internally; normalized from ProtoJSON SCREAMING_SNAKE_CASE on read.
 // Wire format uses ROLE_USER/ROLE_AGENT and TASK_STATE_* per ADR-001.
 
+import type {
+  AttachmentAdapter,
+  DictationAdapter,
+  ExternalStoreSharedOptions,
+  FeedbackAdapter,
+  RealtimeVoiceAdapter,
+  SpeechSynthesisAdapter,
+  ThreadHistoryAdapter,
+  ThreadMessage,
+} from "@assistant-ui/core";
+import type { A2AClient, A2AClientOptions } from "./A2AClient";
+
 export const A2A_PROTOCOL_VERSION = "1.0";
 
 export type A2ARole = "unspecified" | "user" | "agent";
@@ -280,4 +292,58 @@ export type A2AAgentCard = {
   skills: A2AAgentSkill[];
   signatures?: A2AAgentCardSignature[] | undefined;
   iconUrl?: string | undefined;
+};
+
+/** Private state `useA2ARuntime` exposes through `thread.extras`. */
+export type A2AExtras = {
+  task: A2ATask | undefined;
+  artifacts: readonly A2AArtifact[];
+  agentCard: A2AAgentCard | undefined;
+};
+
+export type UseA2AThreadListAdapter = {
+  threadId?: string;
+  onSwitchToNewThread?: () => Promise<void> | void;
+  onSwitchToThread?: (threadId: string) => Promise<{
+    messages: readonly ThreadMessage[];
+  }>;
+};
+
+export type UseA2ARuntimeOptions = ExternalStoreSharedOptions & {
+  /** Pre-built A2A client instance. Provide this OR baseUrl. */
+  client?: A2AClient;
+  /** Base URL of the A2A server. Used to create a client if `client` is not provided. */
+  baseUrl?: string;
+  /** Optional path prefix for all API endpoints (e.g. "/v1"). Does not affect agent card discovery. Only used with baseUrl. */
+  basePath?: string;
+  /** Optional tenant ID for multi-tenant servers. Only used with baseUrl. */
+  tenant?: string;
+  /** Headers for the A2A client (only used with baseUrl). */
+  headers?: A2AClientOptions["headers"];
+  /** A2A extension URIs to negotiate. Only used with baseUrl. */
+  extensions?: string[];
+  /** Extra fetch options (e.g. `{ credentials: 'include' }`). Only used with `baseUrl`. */
+  fetchOptions?: A2AClientOptions["fetchOptions"];
+
+  /** Initial context ID for the conversation. */
+  contextId?: string;
+  /** Default send message configuration. */
+  configuration?: A2ASendMessageConfiguration;
+
+  /** Called when an error occurs. */
+  onError?: (error: Error) => void;
+  /** Called when a run is cancelled. */
+  onCancel?: () => void;
+  /** Called when an artifact is fully received (lastChunk). */
+  onArtifactComplete?: (artifact: A2AArtifact) => void;
+
+  adapters?: {
+    attachments?: AttachmentAdapter;
+    speech?: SpeechSynthesisAdapter;
+    dictation?: DictationAdapter;
+    voice?: RealtimeVoiceAdapter;
+    feedback?: FeedbackAdapter;
+    history?: ThreadHistoryAdapter;
+    threadList?: UseA2AThreadListAdapter;
+  };
 };

@@ -1,108 +1,60 @@
+import { Text, Pressable, StyleSheet } from "react-native";
 import {
-  Pressable,
-  Text,
-  View,
-  StyleSheet,
-  useColorScheme,
-} from "react-native";
+  ThreadListItemPrimitive,
+  useAui,
+  useAuiState,
+} from "@assistant-ui/react-native";
+import { useTheme } from "@/hooks/use-theme";
+import { Radius } from "@/constants/theme";
+import { haptics } from "@/lib/haptics";
 
-type ThreadListItemProps = {
-  title: string;
-  isActive: boolean;
-  onPress: () => void;
-};
-
-export function ThreadListItem({
-  title,
-  isActive,
-  onPress,
-}: ThreadListItemProps) {
-  const isDark = useColorScheme() === "dark";
-
-  const content = (
-    <View style={styles.row}>
-      {isActive && (
-        <View style={[styles.indicator, { backgroundColor: "#007AFF" }]} />
-      )}
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.title,
-          { color: isDark ? "#ffffff" : "#000000" },
-          isActive && styles.titleActive,
-        ]}
-      >
-        {title}
-      </Text>
-    </View>
+export function ThreadListItem({ onSelect }: { onSelect: () => void }) {
+  const { colors } = useTheme();
+  const aui = useAui();
+  const isActive = useAuiState(
+    (s) => s.threads.mainThreadId === s.threadListItem.id,
   );
 
-  if (isActive) {
-    return (
-      <Pressable onPress={onPress} style={styles.itemOuter}>
-        <View
+  return (
+    <ThreadListItemPrimitive.Root>
+      <Pressable
+        onPressIn={haptics.selection}
+        onPress={() => {
+          aui.threadListItem().switchTo();
+          onSelect();
+        }}
+        style={({ pressed }) => [
+          styles.item,
+          (isActive || pressed) && { backgroundColor: colors.muted },
+        ]}
+      >
+        <Text
+          numberOfLines={1}
           style={[
-            styles.glassItem,
+            styles.title,
             {
-              backgroundColor: isDark
-                ? "rgba(44, 44, 46, 0.6)"
-                : "rgba(209, 209, 214, 0.6)",
+              color: colors.foreground,
+              fontWeight: isActive ? "600" : "400",
             },
           ]}
         >
-          {content}
-        </View>
+          <ThreadListItemPrimitive.Title fallback="New chat" />
+        </Text>
       </Pressable>
-    );
-  }
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.itemOuter,
-        styles.itemPadding,
-        pressed && {
-          backgroundColor: isDark ? "#3a3a3c" : "#d1d1d6",
-          borderRadius: 10,
-        },
-      ]}
-    >
-      {content}
-    </Pressable>
+    </ThreadListItemPrimitive.Root>
   );
 }
 
 const styles = StyleSheet.create({
-  itemOuter: {
+  item: {
+    height: 38,
+    justifyContent: "center",
+    paddingHorizontal: 12,
     marginHorizontal: 8,
-    marginVertical: 2,
-  },
-  itemPadding: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  glassItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    overflow: "hidden",
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  indicator: {
-    width: 4,
-    height: 20,
-    borderRadius: 2,
-    marginRight: 10,
+    borderRadius: Radius.md,
   },
   title: {
     fontSize: 15,
-    flex: 1,
-  },
-  titleActive: {
-    fontWeight: "600",
+    letterSpacing: -0.2,
   },
 });

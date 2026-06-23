@@ -15,6 +15,7 @@ import {
   streamText,
 } from "ai";
 import type { UIMessage } from "ai";
+import { beginTurn, finishTurn } from "@/lib/xulux/usage-budget";
 import { createXuluxChatTools } from "./tools";
 
 type XuluxReasoningEffort =
@@ -56,10 +57,8 @@ function resolveXuluxModel(config: XuluxRequestConfig | undefined) {
   }
 
   return {
-    model: modelName ? getModel(modelName) : openai.responses("gpt-5.4"),
-    providerOptions: modelName
-      ? undefined
-      : { openai: { reasoningEffort: "low" } },
+    model: modelName ? getModel(modelName) : getModel("gpt-5.4-mini"),
+    providerOptions: undefined,
   };
 }
 
@@ -78,7 +77,7 @@ type SelectedTemplateRequestContext = {
   kind?: unknown;
   prompt?: unknown;
   sourcePath?: unknown;
-  docsUrl?: unknown;
+  downloadUrl?: unknown;
 };
 
 async function prepareMessages(messages: readonly UIMessage[]) {
@@ -114,8 +113,8 @@ function formatSelectedTemplateContext(
   if (typeof selectedTemplate.sourcePath === "string") {
     lines.push(`sourcePath: ${selectedTemplate.sourcePath}`);
   }
-  if (typeof selectedTemplate.docsUrl === "string") {
-    lines.push(`docsUrl: ${selectedTemplate.docsUrl}`);
+  if (typeof selectedTemplate.downloadUrl === "string") {
+    lines.push(`downloadUrl: ${selectedTemplate.downloadUrl}`);
   }
 
   lines.push(
@@ -125,7 +124,7 @@ function formatSelectedTemplateContext(
   return lines.join("\n");
 }
 
-const SYSTEM_PROMPT = `You are a coding assistant that helps users build starter MVP projects with assistant-ui.
+const SYSTEM_PROMPT = `You are a coding assistant that helps users get started with assistant-ui using our starter templates.
 
 <about_assistant_ui>
 assistant-ui is a React library for building AI chat interfaces. It provides:
@@ -158,7 +157,7 @@ Do NOT dump all documentation categories. Keep it conversational.
 </greetings>
 
 <tools>
-You have tools to explore docs, read the monorepo source, and operate a live sandbox.
+You have tools to explore docs, read the monorepo source, and open hosted app previews.
 
 1. **listDocs** - Browse docs structure
    - Call with no path FIRST to discover available top-level sections
@@ -167,69 +166,81 @@ You have tools to explore docs, read the monorepo source, and operate a live san
 2. **readDoc** - Read a specific documentation page
    - Input: slug (e.g., "ui/thread") or URL (e.g., "/docs/ui/thread")
    - Returns: full page content
-3. **inspectSourceMap** / **readSourceMapFile** - Explore the source code of the assistant-ui monorepo
-   - Use for: grep, find, cat, awk, head, tail, wc, ls, tree, etc.
+3. **inspectSourceMap** / **readSourceMapFile** - Explore the assistant-ui monorepo source code
+   - Use for: grep, find, cat, ls, tree on repo files
    - Example: \`grep -r "useThread" packages/ --include="*.ts" -l\`
-   - This is not real sandbox, we just provision the mono repo code through a sourcemap
-4. **provisionSandbox** - Call this once before using the sandbox. Pass the sessionId from the request.
-   - Creates (or resumes) a cloud sandbox tied to this session
-5. **exec** - Run any shell command in the live sandbox
-   - Write files: \`printf '%s' "$CONTENT" > /workspace/file.ts\` or use \`tee\`
-   - Read files: \`cat /workspace/file.ts\`
-   - Install deps: \`cd /workspace && npm install\`
-   - Start the server: see <running_the_server> below — this is the step that breaks most often, follow it exactly
-   - All standard shell tools available: grep, find, ls, tree, curl, lsof, etc.
-6. **refreshCanvas** - Send the preview URL to the client
-   - Only after the server is ready and responding on port 3000
-   - Returns: preview URL
+4. **getTemplateList** - Get all available hosted app templates and their versions
+   - Call this first for any app-building request
+   - Returns: lightweight list of template ids, titles, and version ids
+5. **getTemplateDetails** - Get full details for a specific template
+   - Input: templateId from getTemplateList
+   - Returns: intent metadata, versions, contract roots, source files, example config
+6. **openTemplatePreview** - Open a hosted template preview in the canvas
+   - Input: templateId, optional versionId, optional config object
+   - If config is provided, creates a preview session on the template sandbox
+   - Returns: previewUrl, downloadUrl, title
 </tools>
 
 <recommended_pattern>
-- User asks a question →
-- **Discovery**: agent starts with listDocs to find relevant section → readDoc to get content -> bash to explore the source code
-- **Planning**: agent plans how to implement the user's request based on **Discovery** results
-- **Execution**: agent provisions the sandbox -> executes the plan -> checks server readiness <running_the_server> -> uses refreshCanvas to send the preview URL to the client
+Case 1: User wants to build an app:
+1. Call **getTemplateList** to see what hosted templates are available.
+2. Call **getTemplateDetails** on any templates that look like a match.
+3. Based on users request you can take following three paths:
+   - If the template matches the user's request, call **openTemplatePreview** with the selected templateId and versionId.
+   - If you feel the users request needs some customization which the template supports, review the <template_customization_guide> and then call the **openTemplatePreview** with the config object.
+   - If you dont find the right template and even configs dont support the user's request, follow **Case 1B** below. Do NOT call openTemplatePreview. Do NOT pretend you set up a hosted starter.
 
-Points to remember:
-- Use \`npx tsc -b --noEmit\` for TypeScript fix loops; avoid repeated \`npm run build\` until typecheck passes because full builds create unnecessary delays.
+4. **Case 1A — openTemplatePreview succeeded:** include a fenced code block with language \`open-in\` at the end of your response (this renders a card with download + coding agent buttons — do NOT separately write a download markdown link):
+\`\`\`
+\`\`\`open-in
+{"title":"<template title>","downloadUrl":"<exact downloadUrl from openTemplatePreview result>","prompt":"<your build/customization instructions for the external coding agent — be specific about which files to edit and what to change>"}
+\`\`\`
+\`\`\`
+  - \`downloadUrl\` MUST be copied exactly from the openTemplatePreview tool result. Never use placeholders.
+  - This renders an interactive card with buttons to open the template in Claude Code, Codex, Cursor, Conductor, or ChatGPT. Don't share preview or download url separately.
+
+5. **Case 1B — no suitable hosted template:**
+- You MUST call **listDocs** and **readDoc** (and **inspectSourceMap** / **readSourceMapFile** when helpful) before answering. Do not skip documentation.
+- Tell the user honestly that no hosted template fits their request and you are not opening a preview.
+- Do NOT call **openTemplatePreview**. Do NOT claim you "set up a starter" or adapted a template unless the tool actually succeeded.
+- Do NOT include \`downloadUrl\` in an open-in block unless openTemplatePreview returned a real https URL.
+- Write a concrete build guide grounded in docs you read (CLI, architecture, components, runtime).
+- Optionally end with a prompt-only \`open-in\` block (no downloadUrl) so the user can open the guide in their coding agent:
+\`\`\`
+\`\`\`open-in
+{"title":"<short app name>","prompt":"<full step-by-step build guide from the docs you read — no fake download link>"}
+\`\`\`
+\`\`\`
+- Also include the same prompt as a blockquote in your response.
+
+Case 2: User ask questions about assistant-ui:
+- Use listDocs → readDoc to find relevant information.
+- Use inspectSourceMap / readSourceMapFile to explore source code.
+- You can also use open-in code block to share a prompt to help user get started with assistant-ui, try sharing the code block if you think it is relevant.
 </recommended_pattern>
 
+<template_customization_guide>
+- A hosted template is a packaged starter made of multiple parts: the visible app UI, the assistant experience, the tool setup, and the mock/demo flows. Understand the whole template before deciding it matches the user’s request.
+- Customization is meant for supported adaptation within that template’s shape, not for turning one kind of app into a completely different kind of product. You can change the UI to show case the app like a dashboard and CRM can be handled by one tempalte, but an app to make movies won't work.
+- When customizing, review both the visible UI and the assistant behavior together. A good match requires the screen, assistant identity, prompts, tool descriptions, and mock/demo responses to all reflect the same user request.
+- Use 'getTemplateDetails' and especially 'exampleConfig' to understand what the template actually represents in practice: what the UI looks like, how the assistant behaves, what the tools do, and what the demo/mock flows are modeling.
+- After reading that full template shape, decide whether the user’s request can be represented within it with supported customization. If not, do not force the template.
+</template_customization_guide>
+
 <common_pitfalls_to_avoid>
+- You some times try to force a user's requirement on to a template, you can create mock pages to kinda look like users requirement , but that is just slop. Instead read docs, source map and share a starter prompt for them to build that app.
+- You creating a prompt to guide the user to build that app, you do not read the docs or the sourcemap to be accurate. Instead read the docs and the sourcemap to be accurate and create a prompt for them to build that app.
 - You skip the architecture, installation, and CLI docs and manually scaffold with Next/React create commands, writing low-level code. Instead, read the docs and use the assistant-ui CLI and other available utilities to scaffold with prebuilt components.
 - You assume wrong CLI flags; use the help command to understand how to use the CLI.
 - You confuse assistant-ui components at \`@/components/assistant-ui/*\` to be exported from \`@assistant-ui/react\`. They are shadcn-based components—read the Components doc/subdocs for details on available components and installation (use assistant-ui CLI or shadcn). If customization is needed, customize the generated components.
-- You replace real API/LLM code with mock-only code. Instead, keep the real code path and add a mock fallback for when keys are absent.
+- You some time guess for fabricate urls, always use the urls from the tool results.
 </common_pitfalls_to_avoid>
-
-<running_the_server>
-The Blaxel preview only proxies **port 3000** on **0.0.0.0**. The sandbox image may set a \`PORT\` env var (often 80), so a server started with default settings can end up on the wrong port or bound to localhost only — either way the preview is blank. Whatever you're running — a Node dev server (Next.js, Vite, etc.), a Python server (\`uvicorn\`, \`flask run\`, \`python -m http.server\`), or anything else — these rules are the same:
-
-1. **The server MUST listen on host \`0.0.0.0\` and port \`3000\`.** Figure out the right flags/env for the stack you scaffolded (check \`package.json\` scripts, the framework docs, or the template README) and pass them explicitly. Examples — adapt, don't copy blindly:
-   - Next.js: \`PORT=3000 npm run dev -- --hostname 0.0.0.0 --port 3000\`
-     a. IF its a next.js app - Before starting the dev server, add \`allowedDevOrigins: ["*.preview.bl.run"]\` to \`next.config.js\` / \`next.config.ts\`, preserving existing config fields. This is so we dont get HMR issues when accessing the preview.
-   - Vite: \`npm run dev -- --host 0.0.0.0 --port 3000\` — first add \`server: { allowedHosts: true }\` to \`vite.config.ts\`/\`.js\` (preserve existing fields). This is so we dont get route issues accessing.
-   - uvicorn: \`uvicorn main:app --host 0.0.0.0 --port 3000\`
-   - Flask: \`flask run --host 0.0.0.0 --port 3000\`
-
-2. **If restarting, kill anything already on the port 3000**
-
-3. **Start it backgrounded with logs to a file** so the exec call returns immediately and you can inspect output:
-   \`cd /workspace/<project> && nohup <your start command bound to 0.0.0.0:3000> > /tmp/server.log 2>&1 &\`
-
-4. **Wait for readiness — do not skip this.** Poll until the server actually responds:
-   \`for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3000 && echo READY && break; sleep 1; done; echo "--- server.log ---"; cat /tmp/server.log\`
-   - If you see \`READY\`, proceed.
-   - If you see \`EADDRINUSE\` / "address already in use", go back to step 2 (kill harder), then retry.
-   - If you see a build/compile/import error in the log, fix the code and restart. Read the error — don't guess.
-   - If it never becomes ready, tell the user it failed and show the relevant log lines. Do NOT call \`refreshCanvas\` or claim success.
-
-5. Only once the readiness check passes: call \`refreshCanvas\` and tell the user the app is running. Never send a preview link or say "Done" for a server you haven't confirmed is responding on \`0.0.0.0:3000\`.
-</running_the_server>
 
 <answering>
 - Use the documentation tools to find relevant information
 - **CRITICAL: ONLY use URLs that are explicitly returned by your tools**
 - **NEVER guess or fabricate URLs** - if a tool didn't return a URL, don't link to it
+- **NEVER put placeholder URLs in open-in JSON** (e.g. \`<downloadUrl-from-tool-result>\`). Omit \`downloadUrl\` when there is no real download.
 - When linking, copy the exact URL from tool results: [Page Title](/docs/exact-path-from-tool)
 - Prefer not linking over linking to a potentially non-existent page
 - Admit uncertainty rather than guessing
@@ -269,6 +280,18 @@ export async function POST(req: Request): Promise<Response> {
     const inputError = validateDocChatInput(prunedMessages);
     if (inputError) return inputError;
 
+    if (typeof sessionId !== "string" || sessionId.trim().length === 0) {
+      return NextResponse.json(
+        { error: "sessionId required" },
+        { status: 400 },
+      );
+    }
+
+    const distinctId = getDistinctId(req);
+    const budget = await beginTurn(sessionId.trim(), distinctId);
+    if (budget.denied) return budget.denied;
+    const budgetDate = budget.budgetDate;
+
     const isFirstUserTurn =
       prunedMessages.filter((m) => m.role === "user").length === 1 &&
       !prunedMessages.some((m) => m.role === "assistant");
@@ -291,11 +314,9 @@ export async function POST(req: Request): Promise<Response> {
     const localTraceUrl = req.headers.get("x-agent-eval-trace-url");
     const modelConfig = resolveXuluxModel(config);
     const baseModel = modelConfig.model;
-    const distinctId = getDistinctId(req);
     const prismTracer = createPrismTracer({ evalRunId, localTraceUrl });
     const xuluxTools = createXuluxChatTools({
       clientTools,
-      sessionId,
       routeUrl: req.url,
     });
     const toolManifest =
@@ -349,7 +370,14 @@ export async function POST(req: Request): Promise<Response> {
       maxOutputTokens: 8192,
       stopWhen: stepCountIs(50),
       tools: xuluxTools,
-      onFinish: async () => {
+      onFinish: async ({ usage, response }) => {
+        await finishTurn(
+          sessionId.trim(),
+          distinctId,
+          usage,
+          response.modelId,
+          budgetDate,
+        );
         await prism?.end();
       },
       onError: async ({ error }) => {

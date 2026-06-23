@@ -1,12 +1,13 @@
+export { useLangGraphRuntime } from "./useLangGraphRuntime";
+
 export {
-  useLangGraphRuntime,
   useLangGraphSend,
   useLangGraphSendCommand,
   useLangGraphInterruptState,
   useLangGraphMessageMetadata,
   useLangGraphUIMessages,
-} from "./useLangGraphRuntime";
-export type { UseLangGraphRuntimeOptions } from "./useLangGraphRuntime";
+} from "./hooks";
+export type { UseLangGraphRuntimeOptions } from "./types";
 
 export { useLangGraphStreamingTiming } from "./useLangGraphStreamingTiming";
 

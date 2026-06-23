@@ -39,14 +39,14 @@ export type {
   PiSendOptions,
 } from "./runtime/ThreadController";
 
+export { usePiRuntime } from "./runtime/usePiRuntime";
 export {
-  usePiRuntime,
   usePiRuntimeExtras,
   usePiSession,
   usePiThreadState,
   usePiHostUiRequests,
-} from "./runtime/usePiRuntime";
-export type { PiRuntimeOptions, PiRuntimeExtras } from "./runtime/usePiRuntime";
+} from "./runtime/hooks";
+export type { PiRuntimeOptions, PiRuntimeExtras } from "./runtime/runtimeTypes";
 
 export { createPiHttpClient } from "./client/httpClient";
 export type { PiHttpClientOptions } from "./client/httpClient";

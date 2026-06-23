@@ -10,11 +10,12 @@ dependencies = [
     "assistant-stream>=0.0.28",
     "pydantic>=2.0.0",
     "python-dotenv>=1.0.0",
-    "langgraph>=0.2.0",
+    "langgraph>=1.2.0",
     "langchain>=0.2.0",
     "langchain-core>=0.2.0",
     "langchain-openai>=0.1.0",
     "httpx>=0.24.0",
+    "langgraph-checkpoint-postgres>=3.0.0",
 ]
 
 [project.optional-dependencies]

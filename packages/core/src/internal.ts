@@ -37,5 +37,12 @@ export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApproval
 // Composite context provider
 export { CompositeContextProvider } from "./utils/composite-context-provider";
 
+// Runtime extras helper for external-store adapters. Internal because the
+// tap-native runtime path replaces the `thread.extras` side-channel it wraps.
+export {
+  createRuntimeExtras,
+  type RuntimeExtras,
+} from "./react/runtimes/createRuntimeExtras";
+
 export * from "./runtime/internal";
 export * from "./runtimes/internal";

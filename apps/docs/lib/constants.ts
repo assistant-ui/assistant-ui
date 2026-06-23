@@ -1,4 +1,5 @@
 export const BASE_URL = "https://www.assistant-ui.com";
+export const CLOUD_URL = "https://cloud.assistant-ui.com";
 
 export const PLATFORMS = ["react", "rn", "ink"] as const;
 export type Platform = (typeof PLATFORMS)[number];
@@ -102,6 +103,7 @@ export type NavItem =
 
 export const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Docs", href: "/docs" },
+  { type: "link", label: "Playground", href: "/playground" },
   {
     type: "mega",
     label: "Resources",
@@ -119,12 +121,6 @@ export const NAV_ITEMS: NavItem[] = [
             label: "Showcase",
             href: "/showcase",
             description: "Apps built with assistant-ui",
-            external: false,
-          },
-          {
-            label: "Playground",
-            href: "/playground",
-            description: "Experiment in the browser",
             external: false,
           },
           {
@@ -195,6 +191,5 @@ export const NAV_ITEMS: NavItem[] = [
       },
     ],
   },
-  { type: "link", label: "Cloud", href: "https://cloud.assistant-ui.com" },
   { type: "link", label: "Pricing", href: "/pricing" },
 ];

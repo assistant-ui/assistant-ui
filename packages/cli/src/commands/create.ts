@@ -63,11 +63,11 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
-    name: "langgraph",
-    label: "LangGraph",
-    description: "LangGraph starter template",
+    name: "langchain",
+    label: "LangChain",
+    description: "LangGraph starter with the react-langchain adapter",
     category: "template",
-    path: "templates/langgraph",
+    path: "templates/langchain",
     hasLocalComponents: false,
   },
   {
@@ -76,6 +76,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "MCP tools + MCP Apps renderer starter",
     category: "template",
     path: "templates/mcp",
+    hasLocalComponents: false,
+  },
+  {
+    name: "eve",
+    label: "Eve",
+    description: "Eve agent + Next.js starter",
+    category: "template",
+    path: "templates/eve",
     hasLocalComponents: false,
   },
   // Examples
@@ -101,6 +109,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Vercel AI SDK v6",
     category: "example",
     path: "examples/with-ai-sdk-v6",
+    hasLocalComponents: false,
+  },
+  {
+    name: "with-eve",
+    label: "Eve",
+    description: "Eve agent integration",
+    category: "example",
+    path: "examples/with-eve",
     hasLocalComponents: false,
   },
   {

@@ -61,10 +61,25 @@ export function resolvePackageManager(opts: {
   return undefined;
 }
 
+function resolveGitHubAuthToken(): string | undefined {
+  const token =
+    process.env.GIGET_AUTH ?? process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
+  const trimmed = token?.trim();
+  return trimmed || undefined;
+}
+
+function toBearerAuthHeader(token: string): string {
+  return token.toLowerCase().startsWith("bearer ") ? token : `Bearer ${token}`;
+}
+
 export async function resolveLatestReleaseRef(): Promise<string | undefined> {
   try {
+    const authToken = resolveGitHubAuthToken();
     const res = await fetch(
       "https://api.github.com/repos/assistant-ui/assistant-ui/releases/latest",
+      authToken
+        ? { headers: { Authorization: toBearerAuthHeader(authToken) } }
+        : undefined,
     );
     if (!res.ok) return undefined;
     const release = (await res.json()) as { tag_name: string };
@@ -92,10 +107,12 @@ export async function downloadProject(
   const origDebug = process.env.DEBUG;
   delete process.env.DEBUG;
   try {
+    const authToken = resolveGitHubAuthToken();
     const downloadPromise = downloadTemplate(source, {
       dir: destDir,
       force: true,
       silent: true,
+      ...(authToken ? { auth: authToken } : {}),
     });
 
     let timer: ReturnType<typeof setTimeout>;

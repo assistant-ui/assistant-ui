@@ -1,5 +1,14 @@
 # @assistant-ui/react-langgraph
 
+## 0.14.9
+
+### Patch Changes
+
+- [#4445](https://github.com/assistant-ui/assistant-ui/pull/4445) [`15b1738`](https://github.com/assistant-ui/assistant-ui/commit/15b173835d988dbbfe9e5c4e0a9779f08e460891) - refactor(react-langgraph): collapse file content conversion to the single flat block langgraph emits, dropping the nested and top-level base64 shapes that no upstream produces ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`68dfbaa`](https://github.com/assistant-ui/assistant-ui/commit/68dfbaa348fba7ccec251c63d0c5cc8765e42a64), [`fe24ad6`](https://github.com/assistant-ui/assistant-ui/commit/fe24ad645e292cc77d9bdda6b0c18ccd8be23096)]:
+  - @assistant-ui/core@0.2.18
+
 ## 0.14.8
 
 ### Patch Changes

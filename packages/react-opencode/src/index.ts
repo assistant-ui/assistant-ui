@@ -1,14 +1,17 @@
+export { useOpenCodeRuntime } from "./useOpenCodeRuntime";
+
 export {
   useOpenCodePermissions,
   useOpenCodeQuestions,
-  useOpenCodeRuntime,
   useOpenCodeRuntimeExtras,
   useOpenCodeSession,
   useOpenCodeThreadState,
-} from "./useOpenCodeRuntime";
+} from "./hooks";
 
 export { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
+// Lower-level building blocks, deliberately public as advanced API and
+// documented in the docs site's OpenCode "lower-level building blocks" table.
 export {
   OpenCodeEventSource,
   STREAM_RECONNECTED_EVENT_TYPE,

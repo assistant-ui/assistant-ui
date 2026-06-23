@@ -183,6 +183,15 @@ export type OpenCodeUserMessageOptions = {
 };
 
 export type OpenCodeRuntimeOptions = ExternalStoreSharedOptions & {
+  /**
+   * Called whenever the active thread's canonical (remote) ID changes, so the
+   * value can be treated as a managed/controlled variable (e.g. synced to a URL
+   * query param). Only the settled remote ID is emitted: while a freshly created
+   * thread is still optimistic the value is `undefined`, and the real ID is
+   * emitted once the thread is initialized; the transient local ID is never
+   * surfaced.
+   */
+  onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   client?: OpencodeClient;
   baseUrl?: string | undefined;
   initialSessionId?: string | undefined;

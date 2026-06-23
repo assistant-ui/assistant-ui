@@ -7,14 +7,14 @@ import {
   useExternalStoreRuntime,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/react";
-import type { AssistantRuntime, ThreadMessage } from "@assistant-ui/react";
-import {
-  createOpencodeClient,
-  type GlobalSession,
-} from "@opencode-ai/sdk/v2/client";
+import type {
+  AppendMessage,
+  AssistantRuntime,
+  ThreadMessage,
+} from "@assistant-ui/react";
+import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 import { useEffect, useEffectEvent, useMemo } from "react";
 import type {
-  OpenCodeRuntimeExtras,
   OpenCodeRuntimeOptions,
   OpenCodeThreadControllerLike,
   OpenCodeThreadState,
@@ -22,7 +22,9 @@ import type {
 import { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
-import { createOpenCodeThreadState } from "./openCodeThreadState";
+import { EMPTY_OPENCODE_THREAD_STATE } from "./openCodeThreadState";
+import { openCodeExtras } from "./openCodeExtras";
+import { createOpenCodeThreadListAdapter } from "./openCodeThreadListAdapter";
 import { useOpenCodeControllerState } from "./useOpenCodeControllerState";
 import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
@@ -31,38 +33,6 @@ type OpenCodeControllerRegistry = {
   controllers: Map<string, OpenCodeThreadController>;
   dispose(): void;
 };
-
-const symbolOpenCodeRuntimeExtras = Symbol("opencode-runtime-extras");
-
-type OpenCodeRuntimeExtrasInternal = OpenCodeRuntimeExtras & {
-  [symbolOpenCodeRuntimeExtras]: true;
-};
-
-const isOpenCodeRuntimeExtras = (
-  extras: unknown,
-): extras is OpenCodeRuntimeExtrasInternal => {
-  return (
-    typeof extras === "object" &&
-    extras != null &&
-    symbolOpenCodeRuntimeExtras in extras
-  );
-};
-
-const asOpenCodeRuntimeExtras = (extras: unknown) => {
-  if (!isOpenCodeRuntimeExtras(extras)) {
-    throw new Error(
-      "This hook can only be used inside an OpenCode runtime context",
-    );
-  }
-
-  return extras;
-};
-
-const tryGetOpenCodeRuntimeExtras = (extras: unknown) => {
-  return isOpenCodeRuntimeExtras(extras) ? extras : undefined;
-};
-
-const EMPTY_THREAD_STATE = createOpenCodeThreadState("__pending__");
 
 const createRegistry = (
   client: ReturnType<typeof createOpencodeClient>,
@@ -108,7 +78,7 @@ const getController = (
 };
 
 const NOOP_CONTROLLER: OpenCodeThreadControllerLike = {
-  getState: () => EMPTY_THREAD_STATE,
+  getState: () => EMPTY_OPENCODE_THREAD_STATE,
   subscribe: () => () => {},
   load: async () => {},
   refresh: async () => {},
@@ -157,8 +127,7 @@ const useOpenCodeThreadRuntime = (
 
   const extras = useMemo(
     () =>
-      ({
-        [symbolOpenCodeRuntimeExtras]: true,
+      openCodeExtras.provide({
         session: state.session,
         state,
         permissions: state.interactions.permissions.pending,
@@ -178,7 +147,7 @@ const useOpenCodeThreadRuntime = (
         ) => controller.replyToQuestion(questionId, answers),
         rejectQuestion: (questionId: string) =>
           controller.rejectQuestion(questionId),
-      }) satisfies OpenCodeRuntimeExtrasInternal,
+      }),
     [controller, state],
   );
 
@@ -189,7 +158,7 @@ const useOpenCodeThreadRuntime = (
     messageRepository,
     extras,
     ...(options.adapters && { adapters: options.adapters }),
-    onNew: async (message: any) => {
+    onNew: async (message: AppendMessage) => {
       try {
         const sendOptions = {
           model: options.defaultModel,
@@ -227,8 +196,7 @@ const useRuntimeHook = (
   options: OpenCodeRuntimeOptions,
 ) => {
   const sessionId = useAuiState(
-    (state: any) =>
-      state.threadListItem.externalId ?? state.threadListItem.remoteId,
+    (state) => state.threadListItem.externalId ?? state.threadListItem.remoteId,
   );
 
   const controller = sessionId
@@ -248,23 +216,6 @@ const useRuntimeHook = (
   return threadRuntime;
 };
 
-const isArchivedSession = (session: Pick<GlobalSession, "time">) => {
-  return typeof session.time.archived === "number";
-};
-
-const mapThreadMetadata = (session: {
-  id: string;
-  title: string;
-  time: { archived?: number };
-}) => ({
-  status: isArchivedSession(session as GlobalSession)
-    ? ("archived" as const)
-    : ("regular" as const),
-  remoteId: session.id,
-  externalId: session.id,
-  title: session.title,
-});
-
 export const useOpenCodeRuntime = (
   options: OpenCodeRuntimeOptions = {},
 ): AssistantRuntime => {
@@ -282,80 +233,7 @@ export const useOpenCodeRuntime = (
   }, [registry]);
 
   const adapter = useMemo(
-    () => ({
-      list: async () => {
-        const response = await client.experimental.session.list({
-          roots: true,
-          archived: true,
-        });
-        const sessions = new Map<string, GlobalSession>();
-
-        for (const session of response.data ?? []) {
-          if (session.parentID) continue;
-          sessions.set(session.id, session);
-        }
-
-        return {
-          threads: [...sessions.values()].map(mapThreadMetadata),
-        };
-      },
-      rename: async (remoteId: string, newTitle: string) => {
-        await client.session.update({
-          sessionID: remoteId,
-          title: newTitle,
-        });
-      },
-      archive: async (remoteId: string) => {
-        await client.session.update({
-          sessionID: remoteId,
-          time: { archived: Date.now() },
-        });
-      },
-      unarchive: async (remoteId: string) => {
-        await client.session.update({
-          sessionID: remoteId,
-          // The SDK models archived timestamps as numbers, but OpenCode uses
-          // `null` here to clear the archived flag when unarchiving.
-          time: { archived: null as never } as never,
-        });
-      },
-      delete: async (remoteId: string) => {
-        await client.session.delete({
-          sessionID: remoteId,
-        });
-      },
-      initialize: async () => {
-        const response = await client.session.create({});
-        if (!response.data?.id) {
-          throw new Error("Failed to create OpenCode session");
-        }
-        return {
-          remoteId: response.data.id,
-          externalId: response.data.id,
-        };
-      },
-      generateTitle: async (remoteId: string) => {
-        await client.session.summarize({
-          sessionID: remoteId,
-        });
-        // Title updates arrive through the OpenCode event stream, so this
-        // placeholder stream only satisfies the remote thread list contract.
-        return new ReadableStream({
-          start(controller) {
-            controller.close();
-          },
-        }) as never;
-      },
-      fetch: async (threadId: string) => {
-        const response = await client.session.get({
-          sessionID: threadId,
-        });
-        if (!response.data?.id) {
-          throw new Error("OpenCode session not found");
-        }
-        return mapThreadMetadata(response.data as GlobalSession);
-      },
-    }),
+    () => createOpenCodeThreadListAdapter(client),
     [client],
   );
 
@@ -363,71 +241,8 @@ export const useOpenCodeRuntime = (
     allowNesting: true,
     adapter,
     initialThreadId: options.initialSessionId,
+    onThreadIdChange: options.onThreadIdChange,
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook callback is invoked by useRemoteThreadListRuntime at the appropriate hook position
     runtimeHook: () => useRuntimeHook(client, registry, options),
   });
-};
-
-export const useOpenCodeRuntimeExtras = (): OpenCodeRuntimeExtras => {
-  return useAuiState((state: any) =>
-    asOpenCodeRuntimeExtras(state.thread.extras),
-  );
-};
-
-export const useOpenCodeSession = () => {
-  return useAuiState((state: any) => {
-    return tryGetOpenCodeRuntimeExtras(state.thread.extras)?.session ?? null;
-  });
-};
-
-export function useOpenCodeThreadState(): OpenCodeThreadState;
-export function useOpenCodeThreadState<T>(
-  selector: (state: OpenCodeThreadState) => T,
-): T;
-export function useOpenCodeThreadState<T>(
-  selector?: (state: OpenCodeThreadState) => T,
-) {
-  return useAuiState((state: any) => {
-    const extras = tryGetOpenCodeRuntimeExtras(state.thread.extras);
-    const threadState = extras?.state ?? EMPTY_THREAD_STATE;
-    return selector ? selector(threadState) : threadState;
-  });
-}
-
-export const useOpenCodePermissions = () => {
-  const extras = useAuiState((state: any) =>
-    tryGetOpenCodeRuntimeExtras(state.thread.extras),
-  );
-
-  return useMemo(
-    () => ({
-      pending: extras
-        ? (Object.values(extras.permissions) as Array<
-            OpenCodeRuntimeExtras["permissions"][string]
-          >)
-        : [],
-      reply:
-        extras?.replyToPermission ??
-        (async () => {
-          throw new Error("OpenCode runtime is not ready yet");
-        }),
-    }),
-    [extras],
-  );
-};
-
-export const useOpenCodeQuestions = () => {
-  const extras = useAuiState((state: any) =>
-    tryGetOpenCodeRuntimeExtras(state.thread.extras),
-  );
-
-  return useMemo(
-    () =>
-      extras
-        ? (Object.values(extras.questions) as Array<
-            OpenCodeRuntimeExtras["questions"][string]
-          >)
-        : [],
-    [extras],
-  );
 };

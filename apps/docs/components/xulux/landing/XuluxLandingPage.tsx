@@ -4,13 +4,21 @@ import { useState } from "react";
 import type { XuluxTemplate } from "../templates/types";
 import { XuluxPoweredBy } from "../XuluxPoweredBy";
 import { CategoryGrid } from "./CategoryGrid";
+import { LandingSuggestions } from "./LandingSuggestions";
 import { PromptInput } from "./PromptInput";
 import { TemplatesModal } from "./TemplatesModal";
 
 type Props = {
   headline?: string | undefined;
   placeholder?: string | undefined;
-  onStartChat: (prompt: string) => void;
+  onStartChat: (
+    prompt: string,
+    start?: {
+      source: "typed_prompt" | "suggestion";
+      suggestionGroup?: string;
+      suggestionLabel?: string;
+    },
+  ) => void;
   onSelectTemplate: (template: XuluxTemplate) => void;
 };
 
@@ -40,6 +48,16 @@ export function XuluxLandingPage({
           onSubmit={onStartChat}
           placeholder={placeholder}
         />
+        <LandingSuggestions
+          onSelectPrompt={(nextPrompt, suggestion) => {
+            setPrompt(nextPrompt);
+            onStartChat(nextPrompt, {
+              source: "suggestion",
+              suggestionGroup: suggestion.group,
+              suggestionLabel: suggestion.label,
+            });
+          }}
+        />
       </div>
 
       <div className="mt-16 flex w-full max-w-5xl flex-col gap-12">
@@ -54,6 +72,7 @@ export function XuluxLandingPage({
         open={templatesOpen}
         onOpenChange={setTemplatesOpen}
         onSelect={handleTemplate}
+        openSurface="landing_carousel"
       />
     </main>
   );

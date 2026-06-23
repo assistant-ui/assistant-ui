@@ -20,6 +20,7 @@ import {
 } from "@/components/docs/platform/mdx";
 import { PrimitivesTypeTable } from "@/components/docs/primitives-type-table";
 import { SourceLink } from "@/components/docs/source-link";
+import { DemoIframe } from "@/components/docs/demo-iframe";
 import { Flow } from "@/components/assistant-ui/flow";
 import { MermaidDiagram } from "@/components/docs/mermaid-diagram";
 import { Code } from "@radix-ui/themes";
@@ -61,6 +62,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     ParametersTable,
     PrimitivesTypeTable,
     SourceLink,
+    DemoIframe,
     Flow,
     MermaidDiagram,
     Code,

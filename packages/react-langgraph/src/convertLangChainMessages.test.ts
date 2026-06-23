@@ -302,35 +302,6 @@ describe("convertLangChainMessages metadata", () => {
 });
 
 describe("convertLangChainMessages file content", () => {
-  it("converts legacy nested file content blocks", () => {
-    const result = convertLangChainMessages({
-      type: "human",
-      id: "human-legacy-file",
-      content: [
-        {
-          type: "file",
-          file: {
-            filename: "legacy.pdf",
-            file_data: "bGVnYWN5",
-            mime_type: "application/pdf",
-          },
-        },
-      ],
-    });
-
-    expect(result).toMatchObject({
-      role: "user",
-      content: [
-        {
-          type: "file",
-          filename: "legacy.pdf",
-          data: "bGVnYWN5",
-          mimeType: "application/pdf",
-        },
-      ],
-    });
-  });
-
   it("converts flat base64-style file content blocks", () => {
     const result = convertLangChainMessages({
       type: "human",
@@ -361,15 +332,14 @@ describe("convertLangChainMessages file content", () => {
     });
   });
 
-  it("converts file blocks with top-level base64 field", () => {
+  it("falls back to a default filename when metadata is absent", () => {
     const result = convertLangChainMessages({
       type: "human",
-      id: "human-top-level-base64-file",
+      id: "human-file-no-filename",
       content: [
         {
           type: "file",
-          filename: "top-level.pdf",
-          base64: "dG9wLWxldmVs",
+          data: "ZmxhdA==",
           mime_type: "application/pdf",
         },
       ],
@@ -380,8 +350,8 @@ describe("convertLangChainMessages file content", () => {
       content: [
         {
           type: "file",
-          filename: "top-level.pdf",
-          data: "dG9wLWxldmVs",
+          filename: "file",
+          data: "ZmxhdA==",
           mimeType: "application/pdf",
         },
       ],
@@ -432,6 +402,61 @@ describe("convertLangChainMessages reasoning content", () => {
         },
       ],
     });
+  });
+
+  it("tolerates null entries inside the summary array", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-reasoning-null-summary",
+      content: [
+        {
+          type: "reasoning",
+          summary: [null, { type: "summary_text", text: "kept" }],
+        } as any,
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [{ type: "reasoning", text: "\n\n\nkept" }],
+    });
+  });
+
+  it("does not throw when a reasoning block omits summary and reasoning", () => {
+    expect(() =>
+      convertLangChainMessages({
+        type: "ai",
+        id: "ai-reasoning-empty",
+        content: [{ type: "reasoning" } as any],
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe("convertLangChainMessages image content", () => {
+  it("reads the url from an image_url object", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-image",
+      content: [
+        { type: "image_url", image_url: { url: "https://example.com/a.png" } },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [{ type: "image", image: "https://example.com/a.png" }],
+    });
+  });
+
+  it("drops the image part when image_url is undefined", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-image-undefined",
+      content: [{ type: "image_url" } as any],
+    });
+
+    expect(result.content).toEqual([]);
   });
 });
 

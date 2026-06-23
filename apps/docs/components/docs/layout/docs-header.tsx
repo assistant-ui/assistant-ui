@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
 import { NAV_ITEMS, type NavItem } from "@/lib/constants";
+import { CloudButton } from "@/components/shared/cloud-button";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
@@ -77,7 +78,7 @@ function HeaderSearch() {
   );
 }
 
-const CONDENSED_HIDDEN = new Set(["Showcase", "Playground", "Pricing"]);
+const CONDENSED_HIDDEN = new Set(["Showcase", "Pricing"]);
 
 function MobileSectionBreadcrumb({
   tree,
@@ -252,6 +253,7 @@ export function DocsHeader({
             <NavItems items={condensedItems} megaAlign="end" />
             {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
           </nav>
+          <CloudButton variant="docs" />
           <ThemeToggle />
         </div>
 
@@ -262,6 +264,7 @@ export function DocsHeader({
           <nav className="flex shrink-0 items-center">
             <NavItems items={filteredItems} megaAlign="end" />
           </nav>
+          <CloudButton variant="docs" />
           <ThemeToggle />
         </div>
       </div>
@@ -337,6 +340,13 @@ export function DocsHeader({
               </div>
             );
           })}
+          <div className="mt-auto border-t py-6">
+            <CloudButton
+              variant="mobile"
+              className="w-auto"
+              onClick={() => setNavMenuOpen(false)}
+            />
+          </div>
         </nav>
       </div>
     </header>

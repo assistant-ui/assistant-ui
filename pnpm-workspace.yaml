@@ -20,6 +20,7 @@ minimumReleaseAgeExclude:
   - assistant-stream
   - assistant-ui
   - create-assistant-ui
+  - eve
   - heat-graph
   - safe-content-frame
   - tw-glass
@@ -30,6 +31,7 @@ allowBuilds:
   '@google/genai': false
   '@modelcontextprotocol/ext-apps': false
   '@mongodb-js/zstd': false
+  '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false
   esbuild@0.25.12: true

@@ -21,9 +21,21 @@ import type {
   UseAgUiRuntimeOptions,
 } from "./runtime/types";
 import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
+import { agUiExtras } from "./agUiExtras";
+
+const EMPTY_INTERRUPTS: readonly AgUiInterrupt[] = [];
 
 export type AgUiAssistantRuntime = AssistantRuntime & {
+  /**
+   * @deprecated Use the `useAgUiInterrupts()` hook instead. This method is kept
+   * for backward compatibility and will be removed in a future major release.
+   */
   unstable_getPendingInterrupts: () => readonly AgUiInterrupt[];
+  /**
+   * @deprecated Use the `useAgUiSubmitInterruptResponses()` hook instead. This
+   * method is kept for backward compatibility and will be removed in a future
+   * major release.
+   */
   unstable_submitInterruptResponses: (
     responses: readonly AgUiResumeEntry[],
   ) => Promise<void>;
@@ -92,7 +104,7 @@ export function useAgUiRuntime(
             core.applyExternalMessages([]);
             const result = await onSwitchToThread(threadId);
             core.applyExternalMessages(result.messages);
-            if (result.state) {
+            if (result.state !== undefined) {
               core.loadExternalState(result.state);
             }
             if (result.unstable_resume) {
@@ -127,6 +139,13 @@ export function useAgUiRuntime(
         messages: core.getMessages(),
         state: core.getState(),
         isRunning: core.isRunning() || hasExecutingTools,
+        extras: agUiExtras.provide({
+          interrupts:
+            core.getPendingInterrupts()?.interrupts ?? EMPTY_INTERRUPTS,
+          submitInterruptResponses: (responses) =>
+            core.submitInterruptResponses(responses),
+          steerAway: (message, responses) => core.steerAway(message, responses),
+        }),
         unstable_enableToolInvocations: true,
         setToolStatuses,
         onNew: (message: AppendMessage) => core.append(message),

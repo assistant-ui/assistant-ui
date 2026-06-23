@@ -1,5 +1,16 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.42
+
+### Patch Changes
+
+- [#4420](https://github.com/assistant-ui/assistant-ui/pull/4420) [`fe24ad6`](https://github.com/assistant-ui/assistant-ui/commit/fe24ad645e292cc77d9bdda6b0c18ccd8be23096) - feat(react-ag-ui): apply external state from `ThreadHistoryAdapter.load()` ([@dkachur1](https://github.com/dkachur1))
+
+  `onSwitchToThread` already applies returned `state` via `loadExternalState`, but the history `load()` path did not, so state restored on a fresh page load was dropped. `ThreadHistoryAdapter.load()` may now return an optional `state`, and `AgUiThreadRuntimeCore` applies it — making both load paths symmetric.
+
+- Updated dependencies [[`68dfbaa`](https://github.com/assistant-ui/assistant-ui/commit/68dfbaa348fba7ccec251c63d0c5cc8765e42a64), [`fe24ad6`](https://github.com/assistant-ui/assistant-ui/commit/fe24ad645e292cc77d9bdda6b0c18ccd8be23096)]:
+  - @assistant-ui/core@0.2.18
+
 ## 0.0.41
 
 ### Patch Changes

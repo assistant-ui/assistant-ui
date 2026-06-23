@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-devtools",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "description": "React development tools for assistant-ui components",
   "keywords": [
     "assistant-ui",
@@ -27,10 +27,12 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build",
+    "build:css": "node scripts/build-styles.mjs",
+    "build": "pnpm build:css && aui-build",
     "test": "vitest run"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
@@ -53,12 +55,14 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.9.3",
+    "@tailwindcss/cli": "^4.3.1",
+    "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "vitest": "^4.1.8"
+    "tailwindcss": "^4.3.1",
+    "vitest": "^4.1.9"
   },
   "publishConfig": {
     "access": "public",

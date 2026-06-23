@@ -1,6 +1,7 @@
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import { v4 as uuidv4 } from "uuid";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import { adkExtras } from "./adkExtras";
 import type {
   AdkMessage,
   AdkSendMessageConfig,
@@ -10,115 +11,50 @@ import type {
   AdkMessageMetadata,
 } from "./types";
 
-export const symbolAdkRuntimeExtras = Symbol("adk-runtime-extras");
-
-export type AdkRuntimeExtras = {
-  [symbolAdkRuntimeExtras]: true;
-  send: (messages: AdkMessage[], config: AdkSendMessageConfig) => Promise<void>;
-  agentInfo: { name?: string | undefined; branch?: string | undefined };
-  stateDelta: Record<string, unknown>;
-  artifactDelta: Record<string, number>;
-  longRunningToolIds: string[];
-  toolConfirmations: AdkToolConfirmation[];
-  authRequests: AdkAuthRequest[];
-  escalated: boolean;
-  messageMetadata: Map<string, AdkMessageMetadata>;
-};
-
-const asAdkRuntimeExtras = (extras: unknown): AdkRuntimeExtras => {
-  if (
-    typeof extras !== "object" ||
-    extras == null ||
-    !(symbolAdkRuntimeExtras in extras)
-  )
-    throw new Error(
-      "This method can only be called when you are using useAdkRuntime",
-    );
-
-  return extras as AdkRuntimeExtras;
-};
+const EMPTY_STATE_DELTA: Record<string, unknown> = {};
+const EMPTY_ARTIFACT_DELTA: Record<string, number> = {};
+const EMPTY_LONG_RUNNING_TOOL_IDS: string[] = [];
+const EMPTY_TOOL_CONFIRMATIONS: AdkToolConfirmation[] = [];
+const EMPTY_AUTH_REQUESTS: AdkAuthRequest[] = [];
+const EMPTY_MESSAGE_METADATA = new Map<string, AdkMessageMetadata>();
 
 /** Returns the name and branch of the currently active ADK agent. */
-export const useAdkAgentInfo = () => {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return undefined;
-    return asAdkRuntimeExtras(extras).agentInfo;
-  });
-};
+export const useAdkAgentInfo = () =>
+  adkExtras.use((e) => e.agentInfo, undefined);
 
 /** Returns the accumulated session state delta from ADK events. */
-export const useAdkSessionState = () => {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return {};
-    return asAdkRuntimeExtras(extras).stateDelta;
-  });
-};
+export const useAdkSessionState = () =>
+  adkExtras.use((e) => e.stateDelta, EMPTY_STATE_DELTA);
 
 /** Returns a function to send raw ADK messages. */
 export const useAdkSend = () => {
   const aui = useAui();
-  return (messages: AdkMessage[], config: AdkSendMessageConfig) => {
-    const extras = aui.thread().getState().extras;
-    const { send } = asAdkRuntimeExtras(extras);
-    return send(messages, config);
-  };
+  return (messages: AdkMessage[], config: AdkSendMessageConfig) =>
+    adkExtras.get(aui).send(messages, config);
 };
 
 /** Returns the IDs of long-running tools awaiting external input. */
-export const useAdkLongRunningToolIds = () => {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return [];
-    return asAdkRuntimeExtras(extras).longRunningToolIds;
-  });
-};
+export const useAdkLongRunningToolIds = () =>
+  adkExtras.use((e) => e.longRunningToolIds, EMPTY_LONG_RUNNING_TOOL_IDS);
 
 /** Returns pending tool confirmation requests (from SecurityPlugin etc). */
-export const useAdkToolConfirmations = () => {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return [];
-    return asAdkRuntimeExtras(extras).toolConfirmations;
-  });
-};
+export const useAdkToolConfirmations = () =>
+  adkExtras.use((e) => e.toolConfirmations, EMPTY_TOOL_CONFIRMATIONS);
 
 /** Returns pending auth credential requests from tools. */
-export const useAdkAuthRequests = () => {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return [];
-    return asAdkRuntimeExtras(extras).authRequests;
-  });
-};
+export const useAdkAuthRequests = () =>
+  adkExtras.use((e) => e.authRequests, EMPTY_AUTH_REQUESTS);
 
 /** Returns the accumulated artifact delta (filename → version). */
-export const useAdkArtifacts = () => {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return {};
-    return asAdkRuntimeExtras(extras).artifactDelta;
-  });
-};
+export const useAdkArtifacts = () =>
+  adkExtras.use((e) => e.artifactDelta, EMPTY_ARTIFACT_DELTA);
 
 /** Returns whether any agent has escalated (requested human handoff). */
-export const useAdkEscalation = () => {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return false;
-    return asAdkRuntimeExtras(extras).escalated;
-  });
-};
+export const useAdkEscalation = () => adkExtras.use((e) => e.escalated, false);
 
 /** Returns per-message metadata (grounding, citation, usage). Keyed by message ID. */
-export const useAdkMessageMetadata = () => {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return new Map<string, AdkMessageMetadata>();
-    return asAdkRuntimeExtras(extras).messageMetadata;
-  });
-};
+export const useAdkMessageMetadata = () =>
+  adkExtras.use((e) => e.messageMetadata, EMPTY_MESSAGE_METADATA);
 
 // ── Convenience helpers for interactive flows ──
 
@@ -129,10 +65,8 @@ export const useAdkConfirmTool = () => {
     toolCallId: string,
     confirmed: boolean,
     payload?: ReadonlyJSONValue,
-  ) => {
-    const extras = aui.thread().getState().extras;
-    const { send } = asAdkRuntimeExtras(extras);
-    return send(
+  ) =>
+    adkExtras.get(aui).send(
       [
         {
           id: uuidv4(),
@@ -148,16 +82,13 @@ export const useAdkConfirmTool = () => {
       ],
       {},
     );
-  };
 };
 
 /** Returns a function to submit auth credentials for a pending auth request. */
 export const useAdkSubmitAuth = () => {
   const aui = useAui();
-  return (toolCallId: string, credential: AdkAuthCredential) => {
-    const extras = aui.thread().getState().extras;
-    const { send } = asAdkRuntimeExtras(extras);
-    return send(
+  return (toolCallId: string, credential: AdkAuthCredential) =>
+    adkExtras.get(aui).send(
       [
         {
           id: uuidv4(),
@@ -170,16 +101,13 @@ export const useAdkSubmitAuth = () => {
       ],
       {},
     );
-  };
 };
 
 /** Returns a function to submit the user's answer for a pending `adk_request_input` HITL interrupt. */
 export const useAdkSubmitInput = () => {
   const aui = useAui();
-  return (toolCallId: string, result: ReadonlyJSONValue) => {
-    const extras = aui.thread().getState().extras;
-    const { send } = asAdkRuntimeExtras(extras);
-    return send(
+  return (toolCallId: string, result: ReadonlyJSONValue) =>
+    adkExtras.get(aui).send(
       [
         {
           id: uuidv4(),
@@ -192,7 +120,6 @@ export const useAdkSubmitInput = () => {
       ],
       {},
     );
-  };
 };
 
 // ── State prefix helpers ──
@@ -215,28 +142,22 @@ const filterByPrefix = (
 };
 
 /** Returns app-level state (keys prefixed with `app:`, prefix stripped). */
-export const useAdkAppState = () => {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return {};
-    return filterByPrefix(asAdkRuntimeExtras(extras).stateDelta, APP_PREFIX);
-  });
-};
+export const useAdkAppState = () =>
+  adkExtras.use(
+    (e) => filterByPrefix(e.stateDelta, APP_PREFIX),
+    EMPTY_STATE_DELTA,
+  );
 
 /** Returns user-level state (keys prefixed with `user:`, prefix stripped). */
-export const useAdkUserState = () => {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return {};
-    return filterByPrefix(asAdkRuntimeExtras(extras).stateDelta, USER_PREFIX);
-  });
-};
+export const useAdkUserState = () =>
+  adkExtras.use(
+    (e) => filterByPrefix(e.stateDelta, USER_PREFIX),
+    EMPTY_STATE_DELTA,
+  );
 
 /** Returns temp state (keys prefixed with `temp:`, prefix stripped). Not persisted. */
-export const useAdkTempState = () => {
-  return useAuiState((s) => {
-    const extras = s.thread.extras;
-    if (!extras) return {};
-    return filterByPrefix(asAdkRuntimeExtras(extras).stateDelta, TEMP_PREFIX);
-  });
-};
+export const useAdkTempState = () =>
+  adkExtras.use(
+    (e) => filterByPrefix(e.stateDelta, TEMP_PREFIX),
+    EMPTY_STATE_DELTA,
+  );

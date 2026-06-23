@@ -1,5 +1,16 @@
 # @assistant-ui/react-native
 
+## 0.1.27
+
+### Patch Changes
+
+- [#4426](https://github.com/assistant-ui/assistant-ui/pull/4426) [`68dfbaa`](https://github.com/assistant-ui/assistant-ui/commit/68dfbaa348fba7ccec251c63d0c5cc8765e42a64) - chore: mark `generateId` and `fromThreadMessageLike` as experimental ([@okisdev](https://github.com/okisdev))
+
+  these two utilities became public in [#4414](https://github.com/assistant-ui/assistant-ui/issues/4414). they now carry an `@deprecated` JSDoc noting the API is experimental and may change without notice, matching how the other unstable public utilities (e.g. `bindExternalStoreMessage`) are flagged. the distribution packages (`@assistant-ui/react`, `@assistant-ui/react-native`, `@assistant-ui/react-ink`) re-export them, so the annotation lands in their published types too.
+
+- Updated dependencies [[`68dfbaa`](https://github.com/assistant-ui/assistant-ui/commit/68dfbaa348fba7ccec251c63d0c5cc8765e42a64), [`fe24ad6`](https://github.com/assistant-ui/assistant-ui/commit/fe24ad645e292cc77d9bdda6b0c18ccd8be23096)]:
+  - @assistant-ui/core@0.2.18
+
 ## 0.1.26
 
 ### Patch Changes

@@ -277,19 +277,18 @@ describe("resolveProject error handling", () => {
 });
 
 describe("PROJECT_METADATA", () => {
-  it("contains all 6 templates", () => {
+  it("contains all 7 templates", () => {
     const templates = PROJECT_METADATA.filter((m) => m.category === "template");
-    expect(templates).toHaveLength(6);
-    expect(templates.map((t) => t.name)).toEqual(
-      expect.arrayContaining([
-        "default",
-        "minimal",
-        "cloud",
-        "cloud-clerk",
-        "langgraph",
-        "mcp",
-      ]),
-    );
+    expect(templates).toHaveLength(7);
+    expect(templates.map((t) => t.name)).toEqual([
+      "default",
+      "minimal",
+      "cloud",
+      "cloud-clerk",
+      "langchain",
+      "mcp",
+      "eve",
+    ]);
   });
 
   it("only the minimal template ships local components", () => {

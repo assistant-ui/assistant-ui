@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  AppendMessage,
   DataMessagePart,
   MessageTiming,
   ThreadAssistantMessage,
@@ -161,58 +162,6 @@ const warnForUnknownMessagePartType = (type: string) => {
   console.warn(`Unknown message part type: ${type}`);
 };
 
-const warnedFilePartShapes = new Set<string>();
-const warnForUnsupportedFilePartShape = (part: FileContentPart) => {
-  if (
-    typeof process === "undefined" ||
-    process?.env?.NODE_ENV !== "development"
-  )
-    return;
-  const shape = Object.keys(part).sort().join(",");
-  if (warnedFilePartShapes.has(shape)) return;
-  warnedFilePartShapes.add(shape);
-  console.warn(`Unsupported file content block shape: ${shape}`);
-};
-
-type FileContentPart = Extract<
-  Exclude<LangChainMessage["content"], string>[number],
-  { type: "file" }
->;
-
-const contentFilePartToThreadPart = (
-  part: FileContentPart,
-): Extract<ThreadUserMessage["content"][number], { type: "file" }> | null => {
-  if ("file" in part) {
-    return {
-      type: "file",
-      filename: part.file.filename,
-      data: part.file.file_data,
-      mimeType: part.file.mime_type,
-    };
-  }
-
-  if ("data" in part && typeof part.data === "string") {
-    return {
-      type: "file",
-      filename: part.metadata?.filename ?? "file",
-      data: part.data,
-      mimeType: part.mime_type,
-    };
-  }
-
-  if ("base64" in part && typeof part.base64 === "string") {
-    return {
-      type: "file",
-      filename: part.filename ?? "file",
-      data: part.base64,
-      mimeType: part.mime_type,
-    };
-  }
-
-  warnForUnsupportedFilePartShape(part);
-  return null;
-};
-
 const contentToParts = (
   content: LangChainMessage["content"],
   metadata: LangGraphMessageConverterMetadata,
@@ -233,17 +182,21 @@ const contentToParts = (
             return { type: "text", text: part.text };
           case "text_delta":
             return { type: "text", text: part.text };
-          case "image_url":
-            if (typeof part.image_url === "string") {
-              return { type: "image", image: part.image_url };
-            } else {
-              return {
-                type: "image",
-                image: part.image_url.url,
-              };
-            }
+          case "image_url": {
+            const image =
+              typeof part.image_url === "string"
+                ? part.image_url
+                : part.image_url?.url;
+            if (!image) return null;
+            return { type: "image", image };
+          }
           case "file":
-            return contentFilePartToThreadPart(part);
+            return {
+              type: "file",
+              filename: part.metadata?.filename ?? "file",
+              data: part.data,
+              mimeType: part.mime_type,
+            };
 
           case "thinking":
             return { type: "reasoning", text: part.thinking };
@@ -252,7 +205,7 @@ const contentToParts = (
             return {
               type: "reasoning",
               text:
-                part.summary?.map((s) => s.text).join("\n\n\n") ??
+                part.summary?.map((s) => s?.text ?? "").join("\n\n\n") ??
                 part.reasoning ??
                 "",
             };
@@ -383,4 +336,60 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         isError: message.status === "error",
       };
   }
+};
+
+export const getMessageContent = (msg: AppendMessage) => {
+  const allContent = [
+    ...msg.content,
+    ...(msg.attachments?.flatMap((a) => a.content) ?? []),
+  ];
+
+  const hasNonText = allContent.some(
+    (part) => part.type === "file" || part.type === "image",
+  );
+  const hasText = allContent.some((part) => part.type === "text");
+  if (hasNonText && !hasText) {
+    allContent.unshift({ type: "text", text: " " });
+  }
+
+  const content = allContent.map((part) => {
+    const type = part.type;
+    switch (type) {
+      case "text":
+        return { type: "text" as const, text: part.text };
+      case "image":
+        return { type: "image_url" as const, image_url: { url: part.image } };
+      case "file":
+        return {
+          type: "file" as const,
+          data: part.data,
+          mime_type: part.mimeType,
+          metadata: {
+            filename: part.filename ?? "file",
+          },
+          source_type: "base64" as const,
+        };
+
+      case "tool-call":
+        throw new Error("Tool call appends are not supported.");
+
+      default: {
+        const _exhaustiveCheck:
+          | "reasoning"
+          | "source"
+          | "audio"
+          | "data"
+          | "generative-ui" = type;
+        throw new Error(
+          `Unsupported append message part type: ${_exhaustiveCheck}`,
+        );
+      }
+    }
+  });
+
+  if (content.length === 1 && content[0]?.type === "text") {
+    return content[0].text ?? "";
+  }
+
+  return content;
 };

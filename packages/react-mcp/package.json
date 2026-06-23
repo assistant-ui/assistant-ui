@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-mcp",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "MCP server configuration and connection primitives for @assistant-ui",
   "keywords": [
     "mcp",
@@ -34,7 +34,7 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@radix-ui/react-primitive": "^2.1.5",
+    "@radix-ui/react-primitive": "^2.1.6",
     "assistant-stream": "workspace:*"
   },
   "peerDependencies": {

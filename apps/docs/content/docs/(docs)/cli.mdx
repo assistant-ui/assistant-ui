@@ -56,8 +56,9 @@ This command scaffolds a project from assistant-ui starter templates or examples
 | `minimal` | Bare-bones starting point | `npx assistant-ui create -t minimal` |
 | `cloud` | Cloud-backed persistence starter | `npx assistant-ui create -t cloud` |
 | `cloud-clerk` | Cloud-backed starter with Clerk auth | `npx assistant-ui create -t cloud-clerk` |
-| `langgraph` | LangGraph starter template | `npx assistant-ui create -t langgraph` |
+| `langchain` | LangGraph starter with the react-langchain adapter | `npx assistant-ui create -t langchain` |
 | `mcp` | MCP starter template | `npx assistant-ui create -t mcp` |
+| `eve` | Eve agent + Next.js starter | `npx assistant-ui create -t eve` |
 
 **Available Examples**
 
@@ -66,6 +67,7 @@ Use `--example` to create a project from one of the monorepo examples with full 
 | Example | Description | Command |
 |---------|-------------|---------|
 | `with-ai-sdk-v6` | Vercel AI SDK v6 integration | `npx assistant-ui create my-app -e with-ai-sdk-v6` |
+| `with-eve` | Eve agent integration | `npx assistant-ui create my-app -e with-eve` |
 | `with-artifacts` | HTML artifact rendering with live preview | `npx assistant-ui create my-app -e with-artifacts` |
 | `with-langgraph` | LangGraph agent with custom tools | `npx assistant-ui create my-app -e with-langgraph` |
 | `with-cloud` | Assistant Cloud persistence | `npx assistant-ui create my-app -e with-cloud` |
@@ -116,7 +118,7 @@ Arguments:
   project-directory         name of the project directory
 
 Options:
-  -t, --template <template>      template to use (default, minimal, cloud, cloud-clerk, langgraph, mcp)
+  -t, --template <template>      template to use (default, minimal, cloud, cloud-clerk, langchain, mcp, eve)
   -e, --example <example>        create from an example (e.g., with-langgraph)
   -p, --preset <name-or-url>     preset name or URL (e.g., chatgpt)
   --native                       create an Expo / React Native project

@@ -5,7 +5,7 @@ import { ArrowUpRight } from "lucide-react";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { PRODUCTS } from "@/lib/constants";
+import { CLOUD_URL, PRODUCTS } from "@/lib/constants";
 
 type FooterLinkItem = {
   label: string;
@@ -17,7 +17,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
   Products: [
     {
       label: "Cloud",
-      href: "https://cloud.assistant-ui.com/",
+      href: CLOUD_URL,
       external: true,
     },
     { label: "Playground", href: "/playground" },

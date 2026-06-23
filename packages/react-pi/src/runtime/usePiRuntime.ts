@@ -10,7 +10,6 @@ import {
 import type {
   AssistantRuntime,
   ExternalStoreAdapter,
-  ExternalStoreSharedOptions,
   ExternalThreadQueueAdapter,
   ThreadMessage,
   ThreadMessageLike,
@@ -35,90 +34,9 @@ import {
 import { piQueueItemId } from "../queueIds";
 import { splitHostUiRequests, type PiInterruptAnswer } from "./hostUi";
 import { createPiThreadState, type PiThreadState } from "./threadState";
-import type {
-  PiClient,
-  PiContextUsage,
-  PiHostUiRequest,
-  PiHostUiResponse,
-  PiRuntimeReadiness,
-  PiSendMessageInput,
-  PiThinkingLevel,
-  PiThreadMetadata,
-  PiThreadStatus,
-} from "../types";
-
-// ---------------------------------------------------------------------------
-// Options & extras.
-// ---------------------------------------------------------------------------
-
-export type PiRuntimeOptions = ExternalStoreSharedOptions & {
-  /** The transport-agnostic Pi client (HTTP/SSE, RPC, IPC). */
-  client: PiClient;
-  /** Workspace scoping for the thread list. */
-  workspacePath?: string;
-  includeArchived?: boolean;
-  initialThreadId?: string;
-  threadId?: string;
-  onError?: (error: unknown) => void;
-  adapters?: ExternalStoreAdapter<ThreadMessageLike>["adapters"];
-};
-
-export interface PiRuntimeExtras {
-  state: PiThreadState;
-  metadata: PiThreadMetadata;
-  status: PiThreadStatus;
-  readiness: PiRuntimeReadiness | undefined;
-  contextUsage: PiContextUsage | undefined;
-  /** Pending side-channel (free-standing) host-UI requests — those not attached
-   * to a tool call. Tool-associated requests render as native approval/interrupt
-   * on the message instead. */
-  hostUiRequests: readonly PiHostUiRequest[];
-  /** All pending host-UI requests, including tool-associated ones. */
-  allHostUiRequests: readonly PiHostUiRequest[];
-  queue: PiThreadState["queue"];
-  compaction: PiThreadState["compaction"];
-  retry: PiThreadState["retry"];
-  lastError: string | undefined;
-  cancel: () => Promise<void>;
-  refresh: () => Promise<void>;
-  /** Clear Pi's queued (steering + follow-up) messages; resolves with the
-   * cleared text so it can be restored into the composer. */
-  clearQueue: () => Promise<{ steering: string[]; followUp: string[] }>;
-  setModel: (input: { provider: string; modelId: string }) => Promise<void>;
-  setThinkingLevel: (level: PiThinkingLevel) => Promise<void>;
-  respondToHostUiRequest: (response: PiHostUiResponse) => Promise<void>;
-  respondToToolApproval: (id: string, approved: boolean) => Promise<void>;
-  resumeToolCall: (
-    toolCallId: string,
-    payload: PiInterruptAnswer,
-  ) => Promise<void>;
-}
-
-export type { PiInterruptAnswer } from "./hostUi";
-
-// ---------------------------------------------------------------------------
-// Symbol-tagged extras (so the selector hooks can validate context).
-// ---------------------------------------------------------------------------
-
-const symbolPiRuntimeExtras = Symbol("pi-runtime-extras");
-
-type PiRuntimeExtrasInternal = PiRuntimeExtras & {
-  [symbolPiRuntimeExtras]: true;
-  controller: PiThreadControllerLike;
-};
-
-const isPiRuntimeExtras = (
-  extras: unknown,
-): extras is PiRuntimeExtrasInternal =>
-  typeof extras === "object" &&
-  extras != null &&
-  symbolPiRuntimeExtras in extras;
-
-const tryGetPiRuntimeExtras = (extras: unknown) =>
-  isPiRuntimeExtras(extras) ? extras : undefined;
-
-const asPiRuntimeExtras = (extras: unknown) =>
-  tryGetPiRuntimeExtras(extras) ?? EMPTY_RUNTIME_EXTRAS;
+import type { PiClient, PiSendMessageInput, PiThreadMetadata } from "../types";
+import { piExtras } from "./piExtras";
+import type { PiRuntimeExtrasInternal, PiRuntimeOptions } from "./runtimeTypes";
 
 const EMPTY_THREAD_STATE = createPiThreadState("__pending__");
 const EMPTY_PROJECTED_MESSAGES: readonly ThreadMessageLike[] = [];
@@ -156,7 +74,7 @@ const getController = (registry: PiControllerRegistry, threadId: string) => {
   return controller;
 };
 
-const NOOP_CONTROLLER: PiThreadControllerLike = {
+export const NOOP_CONTROLLER: PiThreadControllerLike = {
   getState: () => EMPTY_THREAD_STATE,
   getProjectedMessages: () => EMPTY_PROJECTED_MESSAGES,
   getMessageRepository: () => EMPTY_MESSAGE_REPOSITORY,
@@ -186,8 +104,7 @@ const buildExtras = (
   state: PiThreadState,
 ): PiRuntimeExtrasInternal => {
   const { freeStanding } = splitHostUiRequests(state.hostUiRequests);
-  return {
-    [symbolPiRuntimeExtras]: true,
+  return piExtras.provide({
     controller,
     state,
     metadata: state.metadata,
@@ -211,10 +128,13 @@ const buildExtras = (
       controller.respondToToolApproval(id, approved),
     resumeToolCall: (toolCallId, payload) =>
       controller.resumeToolCall(toolCallId, payload),
-  };
+  });
 };
 
-const EMPTY_RUNTIME_EXTRAS = buildExtras(NOOP_CONTROLLER, EMPTY_THREAD_STATE);
+export const EMPTY_RUNTIME_EXTRAS = buildExtras(
+  NOOP_CONTROLLER,
+  EMPTY_THREAD_STATE,
+);
 
 // ---------------------------------------------------------------------------
 // Per-thread runtime.
@@ -254,7 +174,7 @@ const usePiControllerMessageRepository = (
   return controller.getMessageRepository();
 };
 
-const usePiControllerStateSelector = <T>(
+export const usePiControllerStateSelector = <T>(
   controller: PiThreadControllerLike,
   selector: (state: PiThreadState) => T,
 ): T =>
@@ -502,9 +422,9 @@ const useRuntimeHook = (
   options: PiRuntimeOptions,
   pendingInitialMessageRef: { current: PiSendMessageInput | undefined },
 ) => {
-  const threadListItem = useAuiState((state: any) => state.threadListItem);
+  const threadListItem = useAuiState((state) => state.threadListItem);
   const isMainThread = useAuiState(
-    (state: any) => state.threads.mainThreadId === state.threadListItem.id,
+    (state) => state.threads.mainThreadId === state.threadListItem.id,
   );
   const threadId = threadListItem.externalId ?? threadListItem.remoteId;
 
@@ -636,55 +556,12 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
       ? { initialThreadId: options.initialThreadId }
       : {}),
     ...(options.threadId !== undefined ? { threadId: options.threadId } : {}),
+    ...(options.onThreadIdChange !== undefined
+      ? { onThreadIdChange: options.onThreadIdChange }
+      : {}),
     runtimeHook: () => {
       // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook is invoked by useRemoteThreadListRuntime at the correct hook position
       return useRuntimeHook(registry, options, pendingInitialMessageRef);
     },
   });
-};
-
-// ---------------------------------------------------------------------------
-// Selector hooks.
-// ---------------------------------------------------------------------------
-
-export const usePiRuntimeExtras = (): PiRuntimeExtras =>
-  useAuiState((state: any) => asPiRuntimeExtras(state.thread.extras));
-
-export const usePiSession = (): PiThreadMetadata | null =>
-  useAuiState(
-    (state: any) =>
-      tryGetPiRuntimeExtras(state.thread.extras)?.metadata ?? null,
-  );
-
-export function usePiThreadState(): PiThreadState;
-export function usePiThreadState<T>(selector: (state: PiThreadState) => T): T;
-export function usePiThreadState<T>(selector?: (state: PiThreadState) => T) {
-  const extras = useAuiState((state: any) =>
-    tryGetPiRuntimeExtras(state.thread.extras),
-  );
-  const controller = extras?.controller ?? NOOP_CONTROLLER;
-  const selected = usePiControllerStateSelector(
-    controller,
-    selector ?? ((state) => state as T),
-  );
-
-  return selected;
-}
-
-export const usePiHostUiRequests = () => {
-  const extras = useAuiState((state: any) =>
-    tryGetPiRuntimeExtras(state.thread.extras),
-  );
-
-  return useMemo(
-    () => ({
-      requests: extras?.hostUiRequests ?? [],
-      respond:
-        extras?.respondToHostUiRequest ??
-        (async () => {
-          throw new Error("Pi runtime is not ready yet");
-        }),
-    }),
-    [extras],
-  );
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Search } from "lucide-react";
 import {
   Dialog,
@@ -9,6 +9,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { analytics } from "@/lib/analytics";
+import {
+  getXuluxTemplateAnalyticsId,
+  useXuluxAnalytics,
+  withXuluxContext,
+} from "@/lib/xulux/analytics-context";
 import { cn } from "@/lib/utils";
 import type { XuluxTemplate } from "../templates/types";
 import { useXuluxTemplateCatalog } from "../templates/useXuluxTemplateCatalog";
@@ -18,6 +24,7 @@ import { Thumbnail } from "./Thumbnail";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  openSurface: "landing_carousel" | "header";
   initialCategoryId?: string | null | undefined;
   onSelect: (template: XuluxTemplate) => void;
 };
@@ -25,15 +32,18 @@ type Props = {
 export function TemplatesModal({
   open,
   onOpenChange,
+  openSurface,
   initialCategoryId,
   onSelect,
 }: Props) {
+  const analyticsCtx = useXuluxAnalytics();
   const { categories, templates, isLoading, error } = useXuluxTemplateCatalog();
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [detailTemplate, setDetailTemplate] = useState<XuluxTemplate | null>(
     null,
   );
+  const openTrackedRef = useRef(false);
 
   useEffect(() => {
     if (open) {
@@ -41,6 +51,18 @@ export function TemplatesModal({
       setQuery("");
     }
   }, [open, initialCategoryId]);
+
+  useEffect(() => {
+    if (!open) {
+      openTrackedRef.current = false;
+      return;
+    }
+    if (openTrackedRef.current) return;
+    openTrackedRef.current = true;
+    analytics.xulux.templatesOpened(
+      withXuluxContext(analyticsCtx, { surface: openSurface }),
+    );
+  }, [analyticsCtx, open, openSurface]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -119,12 +141,23 @@ export function TemplatesModal({
                   <button
                     key={template.id}
                     type="button"
-                    onClick={() => setDetailTemplate(template)}
+                    onClick={() => {
+                      analytics.xulux.templateSelected(
+                        withXuluxContext(analyticsCtx, {
+                          template_id: getXuluxTemplateAnalyticsId(template),
+                          template_kind: template.kind,
+                          surface: "templates_modal",
+                          action: "open_detail",
+                        }),
+                      );
+                      setDetailTemplate(template);
+                    }}
                     className="group border-border bg-card/40 hover:border-border/80 hover:bg-card/60 flex flex-col gap-2 rounded-lg border p-2 text-left transition-colors"
                   >
                     <Thumbnail
                       gradient={template.gradient}
                       src={template.screenshotUrl}
+                      previewUrl={template.previewUrl}
                       label={template.title}
                       className="aspect-video w-full"
                     />

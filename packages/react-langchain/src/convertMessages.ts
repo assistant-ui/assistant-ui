@@ -1,8 +1,24 @@
 "use client";
 
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
+import type { AppendMessage, DataMessagePart } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import type { LangChainBaseMessage, LangChainContentBlock } from "./types";
+import type {
+  LangChainBaseMessage,
+  LangChainContentBlock,
+  UIMessage,
+} from "./types";
+
+type LangChainMessageConverterMetadata =
+  useExternalMessageConverter.Metadata & {
+    uiMessagesByParent?: Map<string, UIMessage[]>;
+  };
+
+const uiMessageToDataPart = (ui: UIMessage): DataMessagePart => ({
+  type: "data",
+  name: ui.name,
+  data: ui.props,
+});
 
 export const getMessageType = (message: LangChainBaseMessage): string => {
   if (typeof message._getType === "function") return message._getType();
@@ -23,17 +39,30 @@ const contentToParts = (content: unknown) => {
         case "text":
         case "text_delta":
           return { type: "text" as const, text: part.text };
-        case "image_url":
-          if (typeof part.image_url === "string") {
-            return { type: "image" as const, image: part.image_url };
-          }
-          return { type: "image" as const, image: part.image_url.url };
+        case "image_url": {
+          const image =
+            typeof part.image_url === "string"
+              ? part.image_url
+              : part.image_url?.url;
+          if (!image) return null;
+          return { type: "image" as const, image };
+        }
+        case "file":
+          return {
+            type: "file" as const,
+            filename: part.metadata?.filename ?? "file",
+            data: part.data,
+            mimeType: part.mime_type,
+          };
         case "thinking":
           return { type: "reasoning" as const, text: part.thinking };
         case "reasoning":
           return {
             type: "reasoning" as const,
-            text: part.summary.map((s) => s.text).join("\n\n\n"),
+            text:
+              part.summary?.map((s) => s?.text ?? "").join("\n\n\n") ??
+              part.reasoning ??
+              "",
           };
         case "tool_use":
         case "input_json_delta":
@@ -59,9 +88,10 @@ const getStringContent = (content: unknown): string => {
     .join("");
 };
 
-export const convertLangChainBaseMessage: useExternalMessageConverter.Callback<
-  LangChainBaseMessage
-> = (message) => {
+export const convertLangChainBaseMessage = (
+  message: LangChainBaseMessage,
+  metadata: LangChainMessageConverterMetadata = {},
+): useExternalMessageConverter.Message => {
   const type = getMessageType(message);
 
   switch (type) {
@@ -98,10 +128,21 @@ export const convertLangChainBaseMessage: useExternalMessageConverter.Callback<
       const assistantStatus =
         typeof message.status === "object" ? message.status : undefined;
 
+      const uiDataParts =
+        (message.id
+          ? metadata.uiMessagesByParent
+              ?.get(message.id)
+              ?.map(uiMessageToDataPart)
+          : undefined) ?? [];
+
       return {
         role: "assistant",
         id: message.id,
-        content: [...contentToParts(message.content), ...toolCallParts],
+        content: [
+          ...contentToParts(message.content),
+          ...toolCallParts,
+          ...uiDataParts,
+        ],
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
         },
@@ -134,4 +175,55 @@ export const convertLangChainBaseMessage: useExternalMessageConverter.Callback<
         ],
       };
   }
+};
+
+export const getMessageContent = (msg: AppendMessage) => {
+  const allContent = [
+    ...msg.content,
+    ...(msg.attachments?.flatMap((a) => a.content) ?? []),
+  ];
+
+  const hasNonText = allContent.some(
+    (part) => part.type === "file" || part.type === "image",
+  );
+  const hasText = allContent.some((part) => part.type === "text");
+  if (hasNonText && !hasText) {
+    allContent.unshift({ type: "text", text: " " });
+  }
+
+  const content = allContent.map((part) => {
+    const type = part.type;
+    switch (type) {
+      case "text":
+        return { type: "text" as const, text: part.text };
+      case "image":
+        return { type: "image_url" as const, image_url: { url: part.image } };
+      case "file":
+        return {
+          type: "file" as const,
+          data: part.data,
+          mime_type: part.mimeType,
+          metadata: { filename: part.filename ?? "file" },
+          source_type: "base64" as const,
+        };
+      case "tool-call":
+        throw new Error("Tool call appends are not supported.");
+      default: {
+        const _exhaustiveCheck:
+          | "reasoning"
+          | "source"
+          | "audio"
+          | "data"
+          | "generative-ui" = type;
+        throw new Error(
+          `Unsupported append message part type: ${_exhaustiveCheck}`,
+        );
+      }
+    }
+  });
+
+  if (content.length === 1 && content[0]?.type === "text") {
+    return content[0].text ?? "";
+  }
+  return content;
 };

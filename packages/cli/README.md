@@ -58,7 +58,7 @@ npx assistant-ui info
 
 ## Templates
 
-`create` scaffolds from named templates: `default` (AI SDK), `minimal`, `cloud`, `cloud-clerk`, `langgraph`, `mcp`. Pass `-t <name>`, pass `--example <name>` for examples such as `with-ai-sdk-v6`, use `--native` for Expo / React Native, use `--ink` for React Ink, or pass `--preset <url>` to scaffold from an `assistant-ui.com` playground link.
+`create` scaffolds from named templates: `default` (AI SDK), `minimal`, `cloud`, `cloud-clerk`, `langgraph`, `mcp`, `eve`. Pass `-t <name>`, pass `--example <name>` for examples such as `with-ai-sdk-v6`, use `--native` for Expo / React Native, use `--ink` for React Ink, or pass `--preset <url>` to scaffold from an `assistant-ui.com` playground link.
 
 ## Documentation
 

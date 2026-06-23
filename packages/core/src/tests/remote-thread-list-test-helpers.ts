@@ -52,9 +52,10 @@ export function makeAdapter(
 export function createCore(
   adapter: RemoteThreadListAdapter,
   threadId?: string,
+  onThreadIdChange?: (threadId: string | undefined) => void,
 ): RemoteThreadListThreadListRuntimeCore {
   const core = new RemoteThreadListThreadListRuntimeCore(
-    { adapter, runtimeHook: () => ({}) as never, threadId },
+    { adapter, runtimeHook: () => ({}) as never, threadId, onThreadIdChange },
     contextProvider,
   );
   // `startThreadRuntime` blocks until a React component attaches a runtime;

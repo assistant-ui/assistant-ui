@@ -10,8 +10,3 @@
 @utility animate-marquee {
   animation: marquee var(--duration) linear infinite;
 }
-
-::view-transition-group(example-demo) {
-  animation-duration: 350ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}

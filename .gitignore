@@ -2,6 +2,7 @@
 node_modules
 /.pnp
 .pnp.*
+.pnpm-store/
 
 # misc
 .DS_Store
@@ -33,6 +34,8 @@ reports/mutation/
 # next.js
 .next/
 out/
+.workflow-data
+.eve
 
 # nitro
 .output/
@@ -47,6 +50,9 @@ build/
 dist
 apps/docs/generated
 packages/*/generated
+
+# compiled by packages/react-devtools build:css, regenerated on install/build
+packages/react-devtools/src/styles/panel.generated.ts
 
 # turbo
 .turbo

@@ -44,3 +44,31 @@ Assume other coding agents are working alongside you. Before editing, check the 
 `@assistant-ui/ui` contains shadcn-style components that get copied into user projects. We use them directly in the monorepo to avoid duplication.
 
 There is an ongoing migration from the legacy runtime architecture to a tap-only architecture.
+
+## Adapter orchestration
+
+A framework adapter (`@assistant-ui/react-*`) maps a provider onto a core runtime through one `use<Name>Runtime` entry hook, accessor hooks in `hooks.ts`, and pure converters. The rule of thumb: the runtime file orchestrates, pure modules convert, the controller (if any) reduces, hooks read.
+
+- **Core runtime.** Build on `useExternalStoreRuntime` (messages derived from an external source) or `useLocalRuntime` plus a `ChatModelAdapter` (no provider-side thread state, like `react-data-stream`), and wrap it in `useRemoteThreadListRuntime` for multi-thread support.
+- **State exposure.** Expose runtime state to accessor hooks with `createRuntimeExtras` from `@assistant-ui/core/internal`, not a hand-rolled `Symbol` brand and guard.
+- **Standard files.** `use<Name>Runtime.ts` (orchestration only), `hooks.ts` (accessor and action hooks), a pure `convertMessages.ts` (both directions), and `types.ts`; add a `<Name>ThreadController.ts` plus a pure `reduce<Name>ThreadState` reducer when the adapter owns thread state, and a `./server` or `./node` subpath entry when the protocol owns the wire.
+- **Public surface.** A new adapter's `index.ts` should re-export only the entry hook, accessor hooks, converters, and public types. For an already-published package, treat the barrel as append-only: re-point moved exports to their new files, but never remove an export that has shipped (a breaking change for npm consumers the in-repo audit cannot see), even an unused-looking type.
+- **Tests.** Colocate them beside each module, covering the converter both ways, the reducer or controller, and each accessor hook.
+- **Don't introduce.** A `*ThreadRuntimeCore` state holder, a `notifyUpdate` plus version-counter re-render hack (bridge non-React state with `useSyncExternalStore`), `Object.create` method grafting, or monkeypatching the caller's objects. Keep server-only or provider-SDK code in the `./server` or `./node` subpath, out of the default and React Native entries.
+
+Keep provider-driven choices flexible: the core-primitive choice, thin wrapper vs accumulator vs controller, bespoke transports, HITL richness, and thread-list depth. `@assistant-ui/react-langchain` is the reference for the external-store plus converter plus `createRuntimeExtras` shape.
+
+## Do's and don'ts
+
+Do:
+
+- **One concern per PR.** A PR should do one thing. Break a large or multi-purpose change into separate PRs so each is small enough to review carefully, can be approved on its own merits, and reverts cleanly when it regresses.
+- **Write a clear PR title and description.** Say what the change is, why it is needed, and how you did it, so a reviewer has the context to judge it without reverse-engineering the diff. The title names the change in one line; trade-offs and divergences belong in the body.
+- **Justify any divergence from how the repo already does it.** If the codebase already solves a problem one way, follow it; someone chose that approach deliberately, so a different one needs a real reason written down, not personal preference. When you catch yourself doing something novel but unrelated to your task, pause and reconsider.
+- **Keep unrelated changes out of the diff.** Drive-by deletions, refactors, formatting, and "while I'm here" additions bury the real change and slow review. Open a separate PR, or an issue when you only want to flag something.
+
+Don't:
+
+- **Break the published contract.** A shipped export is a promise to npm consumers we cannot see, so the public surface is append-only and refactors stay behavior-preserving; ship a real behavior change as its own deliberate PR.
+- **Reinvent what the framework already provides.** Build on the shared primitives instead of re-implementing runtime state, reactivity, or other plumbing; a parallel mechanism drifts from the rest of the codebase and costs everyone to maintain.
+- **Add heavy or non-OSS dependencies casually.** assistant-ui is built on open source, so commercial-licensed libraries are off-limits; heavy dependencies and new build steps affect every contributor and need justification and maintainer sign-off.

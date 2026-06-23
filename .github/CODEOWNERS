@@ -1,0 +1,4 @@
+# CI and repository policy changes require maintainer review.
+/.github/CODEOWNERS @assistant-ui/maintainers
+/.github/actions/ @assistant-ui/maintainers
+/.github/workflows/ @assistant-ui/maintainers
