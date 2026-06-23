@@ -7,6 +7,15 @@ import {
   type StreamingTimingAccessors,
 } from "@assistant-ui/core/react";
 
+const reasoningTextLength = (part: {
+  readonly summary?: ReadonlyArray<{ readonly text?: string }>;
+  readonly reasoning?: string;
+}): number => {
+  if (part.summary && part.summary.length > 0)
+    return part.summary.map((s) => s?.text ?? "").join("\n\n\n").length;
+  return part.reasoning?.length ?? 0;
+};
+
 const getMessageTextLength = (
   messages: readonly LangChainMessage[],
   messageId: string,
@@ -18,10 +27,18 @@ const getMessageTextLength = (
   if (!Array.isArray(content)) return 0;
   let len = 0;
   for (const part of content) {
-    if ("text" in part && typeof part.text === "string")
-      len += part.text.length;
-    if ("thinking" in part && typeof part.thinking === "string")
-      len += part.thinking.length;
+    switch (part.type) {
+      case "text":
+      case "text_delta":
+        if (typeof part.text === "string") len += part.text.length;
+        break;
+      case "thinking":
+        if (typeof part.thinking === "string") len += part.thinking.length;
+        break;
+      case "reasoning":
+        len += reasoningTextLength(part);
+        break;
+    }
   }
   return len;
 };
