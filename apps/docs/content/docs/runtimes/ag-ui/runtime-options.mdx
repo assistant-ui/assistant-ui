@@ -68,6 +68,8 @@ time, the same way a live run never stores them.
 
 `fromAgUiMessages` reconstructs the text, reasoning, and tool calls of each message. Multimodal user input (`image`, `audio`, `video`, and `document` parts, as well as legacy `binary` parts) is restored as attachments on the user message, so a backend that persists multimodal messages shows them again on reload and re-sends them on the next run. Legacy `binary` parts that only reference a file id are not restored.
 
+An assistant message whose tool call has no matching tool result is reconstructed with `requires-action` status, the same status the runtime derives for a pending tool call, so a reloaded human-in-the-loop call (for example an `ask_user` tool) is actionable rather than stuck. This matches how every other external-store runtime surfaces a pending tool call on reload. The AG-UI wire snapshot carries no run outcome, so a tool call that a successful run intentionally left without a result is also surfaced as actionable.
+
 ## Thread list (experimental)
 
 <Callout type="warn">
