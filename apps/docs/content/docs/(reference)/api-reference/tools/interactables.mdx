@@ -16,8 +16,8 @@ import { unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots,
 
 ### unstable_Interactables
 
-<Callout type="warn">
-<strong>Deprecated.</strong> Unstable / Experimental (not actually removed).
+<Callout type="tip">
+<strong>Experimental.</strong> Unstable / Experimental (not actually removed).
 </Callout>
 
 Registers the unstable interactables store scope.
@@ -28,8 +28,8 @@ const unstable_Interactables: Resource<ClientOutput<"unstable_interactables">, [
 
 ### unstable_useInteractable
 
-<Callout type="warn">
-<strong>Deprecated.</strong> Unstable / Experimental (not actually removed).
+<Callout type="tip">
+<strong>Experimental.</strong> Unstable / Experimental (not actually removed).
 </Callout>
 
 Registers an interactable with the AI assistant and returns its live state,
@@ -39,7 +39,7 @@ Call this once per place that shows the interactable. Other components can
 read and write the same instance by passing its `id` to
 `unstable_useInteractableState`.
 
-For `scope: "thread"` interactables rendered inside tool-call message parts,
+For tool-created interactables rendered inside tool-call message parts,
 `version` carries this message's version of the instance — its state as of
 that point in the conversation, whether it is the most recent tool-driven
 version, and a `restore()` back to it. Whether older messages render frozen history or stay
@@ -51,8 +51,8 @@ creating call and at update calls.
 
 ### unstable_useInteractableState
 
-<Callout type="warn">
-<strong>Deprecated.</strong> Unstable / Experimental (not actually removed).
+<Callout type="tip">
+<strong>Experimental.</strong> Unstable / Experimental (not actually removed).
 </Callout>
 
 Reads and writes the state of an interactable registered elsewhere, by id.
@@ -65,11 +65,11 @@ registers with `unstable_useInteractable`, which returns state directly. Returns
 
 ### unstable_useInteractableVersions
 
-<Callout type="warn">
-<strong>Deprecated.</strong> Unstable / Experimental (not actually removed).
+<Callout type="tip">
+<strong>Experimental.</strong> Unstable / Experimental (not actually removed).
 </Callout>
 
-Every version of a thread-scoped interactable recorded in the current
+Every version of a tool-created interactable recorded in the current
 thread, oldest first: the creating tool call, each user edit, and each
 `update_*` call. Each entry carries the full state as of that version and a
 `restore()` that sets the live instance back to it — enough for a version
@@ -79,8 +79,8 @@ picker like an artifact's history dropdown.
 
 ### unstable_interactableTool
 
-<Callout type="warn">
-<strong>Deprecated.</strong> Unstable / Experimental (not actually removed).
+<Callout type="tip">
+<strong>Experimental.</strong> Unstable / Experimental (not actually removed).
 </Callout>
 
 Defines a tool that creates a thread-scoped interactable from its arguments,
@@ -106,8 +106,8 @@ const unstable_interactableTool: <TSchema extends Unstable_InteractableStateSche
 
 ### unstable_getInteractableSnapshots
 
-<Callout type="warn">
-<strong>Deprecated.</strong> Unstable / Experimental (not actually removed).
+<Callout type="tip">
+<strong>Experimental.</strong> Unstable / Experimental (not actually removed).
 </Callout>
 
 Reads the interactable snapshots stamped on a message's
@@ -120,8 +120,8 @@ state to the model (see `unstable_injectInteractableContext` in
 
 ### unstable_formatInteractableSnapshot
 
-<Callout type="warn">
-<strong>Deprecated.</strong> Unstable / Experimental (not actually removed).
+<Callout type="tip">
+<strong>Experimental.</strong> Unstable / Experimental (not actually removed).
 </Callout>
 
 Canonical model-facing wording for one snapshot entry.
@@ -130,8 +130,8 @@ Canonical model-facing wording for one snapshot entry.
 
 ### unstable_getInteractableVersions
 
-<Callout type="warn">
-<strong>Deprecated.</strong> Unstable / Experimental (not actually removed).
+<Callout type="tip">
+<strong>Experimental.</strong> Unstable / Experimental (not actually removed).
 </Callout>
 
 Every version of interactable `id` recorded in the thread, oldest first,
