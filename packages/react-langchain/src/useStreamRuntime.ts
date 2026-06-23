@@ -24,7 +24,7 @@ import {
   getMessageContent,
   getMessageType,
 } from "./convertMessages";
-import { applyUIUpdate, extractUIUpdate, mergeUIMessages } from "./uiMessages";
+import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
 import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
 
@@ -112,14 +112,10 @@ const useStreamThreadRuntime = (
   const uiStateValue = stream.values[uiStateKey];
 
   const customEvents = useChannel(stream, UI_CUSTOM_CHANNELS);
-  const liveUiMessages = useMemo(() => {
-    let acc: UIMessage[] = [];
-    for (const event of customEvents) {
-      const update = extractUIUpdate(event);
-      if (update) acc = applyUIUpdate(acc, update);
-    }
-    return acc;
-  }, [customEvents]);
+  const liveUiMessages = useMemo(
+    () => foldUIUpdates(customEvents),
+    [customEvents],
+  );
 
   const mergedUiMessages = useMemo(
     () => mergeUIMessages(liveUiMessages, uiStateValue),

@@ -69,8 +69,8 @@ export type UIMessage<
 };
 
 /**
- * Removes a previously emitted `UIMessage` by id. Emitted on the live
- * `custom` channel by the graph's `remove_ui_message` helper.
+ * Emitted on the live `custom` channel by the graph's `remove_ui_message`
+ * helper to drop a pushed `UIMessage` by id.
  */
 export type RemoveUIMessage = {
   type: "remove-ui";

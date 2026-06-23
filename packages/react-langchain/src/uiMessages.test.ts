@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyUIUpdate,
   extractUIUpdate,
+  foldUIUpdates,
   isUIUpdate,
   mergeUIMessages,
 } from "./uiMessages";
@@ -152,5 +153,38 @@ describe("mergeUIMessages", () => {
 
   it("keeps live and snapshot entries with distinct ids", () => {
     expect(mergeUIMessages([ui("a")], [ui("b")])).toEqual([ui("a"), ui("b")]);
+  });
+});
+
+describe("foldUIUpdates", () => {
+  const evt = (data: unknown) => ({ params: { data } });
+
+  it("folds a sequence of custom events into a UI list", () => {
+    expect(foldUIUpdates([evt(ui("a")), evt(ui("b"))])).toEqual([
+      ui("a"),
+      ui("b"),
+    ]);
+  });
+
+  it("reads updates nested under params.data.payload", () => {
+    expect(foldUIUpdates([evt({ payload: ui("a") })])).toEqual([ui("a")]);
+  });
+
+  it("applies a remove across events", () => {
+    const result = foldUIUpdates([
+      evt(ui("a")),
+      evt(ui("b")),
+      evt({ type: "remove-ui", id: "a" }),
+    ]);
+    expect(result).toEqual([ui("b")]);
+  });
+
+  it("ignores non-UI custom events", () => {
+    const result = foldUIUpdates([evt(ui("a")), evt({ foo: 1 }), evt(ui("b"))]);
+    expect(result).toEqual([ui("a"), ui("b")]);
+  });
+
+  it("returns an empty list for no events", () => {
+    expect(foldUIUpdates([])).toEqual([]);
   });
 });

@@ -50,8 +50,7 @@ export const applyUIUpdate = (
 /**
  * Pulls a UI update out of a raw `custom`-channel event. The graph writes the
  * `UIMessage` straight to the channel, so it lands at `params.data`; some
- * transports wrap it one level deeper at `params.data.payload`. Non-UI custom
- * events are ignored.
+ * transports wrap it one level deeper at `params.data.payload`.
  */
 export const extractUIUpdate = (
   event: unknown,
@@ -63,12 +62,21 @@ export const extractUIUpdate = (
   return undefined;
 };
 
+export const foldUIUpdates = (events: readonly unknown[]): UIMessage[] => {
+  let acc: UIMessage[] = [];
+  for (const event of events) {
+    const update = extractUIUpdate(event);
+    if (update) acc = applyUIUpdate(acc, update);
+  }
+  return acc;
+};
+
 /**
  * Merges live-streamed UI with the state snapshot. The snapshot is
  * authoritative by id: once a UI lands in graph state it supersedes its live
  * copy. A consequence is that a live `remove-ui` is overridden while the
- * snapshot still contains that id — the removal only takes visible effect once
- * the snapshot catches up. Non-array snapshots are ignored.
+ * snapshot still contains that id; the removal only takes visible effect once
+ * the snapshot catches up.
  */
 export const mergeUIMessages = (
   live: readonly UIMessage[],
