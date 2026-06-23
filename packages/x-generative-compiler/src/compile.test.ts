@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import * as nodePath from "node:path";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   compileGenerative,
   isGenerativeModule,
@@ -84,6 +84,19 @@ function createMergeFixture(childSource: string): string {
   mkdirSync(toolsRoot, { recursive: true });
   writeFileSync(nodePath.join(toolsRoot, "weather.tsx"), childSource);
   return nodePath.join(appRoot, "src", "toolkit.tsx");
+}
+
+function createMultiMergeFixture(files: Record<string, string>): string {
+  const appRoot = mkdtempSync(
+    nodePath.join(tmpdir(), "aui-generative-merge-many-"),
+  );
+  const srcRoot = nodePath.join(appRoot, "src");
+  for (const [relativePath, source] of Object.entries(files)) {
+    const file = nodePath.join(srcRoot, relativePath);
+    mkdirSync(nodePath.dirname(file), { recursive: true });
+    writeFileSync(file, source);
+  }
+  return nodePath.join(srcRoot, "toolkit.tsx");
 }
 
 /**
@@ -557,6 +570,291 @@ export default defineToolkit({
     const client = compileGenerative(src, { target: "client", filename }).code;
     expect(client).toContain("...weatherTools");
     expect(client).toContain('from "./tools/weather"');
+  });
+
+  it("allows unique tool names across more than two imported generative spreads", () => {
+    const filename = createMultiMergeFixture({
+      "tools/weather.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  get_weather: { execute: async () => 1, render: () => null },
+});`,
+      "tools/database.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  query_db: { execute: async () => 1, render: () => null },
+});`,
+      "tools/calendar.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  create_event: { execute: async () => 1, render: () => null },
+});`,
+      "tools/email.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  send_email: { execute: async () => 1, render: () => null },
+});`,
+    });
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "./tools/weather";
+import databaseTools from "./tools/database";
+import calendarTools from "./tools/calendar";
+import emailTools from "./tools/email";
+export default defineToolkit({
+  ...weatherTools,
+  ...databaseTools,
+  ...calendarTools,
+  ...emailTools,
+});`;
+
+    const client = compileGenerative(src, { target: "client", filename }).code;
+    expect(client).toContain("...weatherTools");
+    expect(client).toContain("...databaseTools");
+    expect(client).toContain("...calendarTools");
+    expect(client).toContain("...emailTools");
+  });
+
+  it("warns about duplicate tool names across more than two imported generative spreads", () => {
+    const filename = createMultiMergeFixture({
+      "tools/weather.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  get_weather: { execute: async () => 1, render: () => null },
+  search: { execute: async () => 1, render: () => null },
+});`,
+      "tools/database.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  query_db: { execute: async () => 1, render: () => null },
+});`,
+      "tools/calendar.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});`,
+      "tools/email.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  send_email: { execute: async () => 1, render: () => null },
+});`,
+    });
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "./tools/weather";
+import databaseTools from "./tools/database";
+import calendarTools from "./tools/calendar";
+import emailTools from "./tools/email";
+export default defineToolkit({
+  ...weatherTools,
+  ...databaseTools,
+  ...calendarTools,
+  ...emailTools,
+});`;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const client = compileGenerative(src, {
+        target: "client",
+        filename,
+      }).code;
+
+      expect(client).toContain("...weatherTools");
+      expect(client).toContain("...databaseTools");
+      expect(client).toContain("...calendarTools");
+      expect(client).toContain("...emailTools");
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("[assistant-ui/use-generative]"),
+      );
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Duplicate tool name "search" while composing toolkits. ' +
+            "JavaScript object spread keeps the last definition.",
+        ),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("does not reuse imported toolkit names across compile calls", () => {
+    const filename = createMultiMergeFixture({
+      "tools/weather.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  get_weather: { execute: async () => 1, render: () => null },
+});`,
+      "tools/calendar.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});`,
+    });
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "./tools/weather";
+import calendarTools from "./tools/calendar";
+export default defineToolkit({
+  ...weatherTools,
+  ...calendarTools,
+});`;
+
+    compileGenerative(src, { target: "client", filename });
+    writeFileSync(
+      nodePath.join(nodePath.dirname(filename), "tools", "weather.tsx"),
+      `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});`,
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      compileGenerative(src, { target: "client", filename });
+
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Duplicate tool name "search" while composing toolkits. ' +
+            "JavaScript object spread keeps the last definition.",
+        ),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("warns about duplicate tool names between local toolkit spreads", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+const weatherTools = defineToolkit({
+  get_weather: { execute: async () => 1, render: () => null },
+  search: { execute: async () => 1, render: () => null },
+});
+const databaseTools = defineToolkit({
+  query_db: { execute: async () => 1, render: () => null },
+});
+const calendarTools = defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});
+const emailTools = defineToolkit({
+  send_email: { execute: async () => 1, render: () => null },
+});
+export default defineToolkit({
+  ...weatherTools,
+  ...databaseTools,
+  ...calendarTools,
+  ...emailTools,
+});`;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const client = compileGenerative(src, { target: "client" }).code;
+
+      expect(client).toContain("...weatherTools");
+      expect(client).toContain("...databaseTools");
+      expect(client).toContain("...calendarTools");
+      expect(client).toContain("...emailTools");
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '[assistant-ui/use-generative] Duplicate tool name "search" while composing toolkits. ' +
+            "JavaScript object spread keeps the last definition.",
+        ),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("warns once across server and client compiles", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+const weatherTools = defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});
+const calendarTools = defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});
+export default defineToolkit({
+  ...weatherTools,
+  ...calendarTools,
+});`;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      compileGenerative(src, { target: "server" });
+      compileGenerative(src, { target: "client" });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Duplicate tool name "search" while composing toolkits. ' +
+            "JavaScript object spread keeps the last definition.",
+        ),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("warns about duplicate names through nested local toolkit spreads", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+const baseTools = defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});
+const weatherTools = defineToolkit({
+  ...baseTools,
+  get_weather: { execute: async () => 1, render: () => null },
+});
+const calendarTools = defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});
+export default defineToolkit({
+  ...weatherTools,
+  ...calendarTools,
+});`;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      compileGenerative(src, { target: "client" });
+
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Duplicate tool name "search" while composing toolkits. ' +
+            "JavaScript object spread keeps the last definition.",
+        ),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("does not warn again when spreading a fragment with an internal duplicate", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+const baseTools = defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+  search: { execute: async () => 2, render: () => null },
+});
+export default defineToolkit({
+  ...baseTools,
+});`;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      compileGenerative(src, { target: "client" });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Duplicate tool name "search" while composing toolkits. ' +
+            "JavaScript object spread keeps the last definition.",
+        ),
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("rejects spreading the default import of a non-generative module", () => {
