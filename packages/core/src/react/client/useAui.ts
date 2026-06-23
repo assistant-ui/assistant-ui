@@ -31,18 +31,6 @@ const isResourceElement = (
   );
 };
 
-const normalizeUseAuiProps = (
-  clients: useAui.Props | undefined,
-): StoreUseAuiProps | undefined => {
-  const tools = clients?.tools;
-  if (!tools || isResourceElement(tools)) return clients as StoreUseAuiProps;
-
-  return {
-    ...clients,
-    tools: Tools({ toolkit: tools }),
-  } as StoreUseAuiProps;
-};
-
 export namespace useAui {
   export type Props = Omit<StoreUseAuiProps, "tools"> & {
     tools?: StoreUseAuiProps["tools"] | Toolkit | undefined;
@@ -59,9 +47,21 @@ export function useAui(
   clients?: useAui.Props,
   config?: { parent: null | AssistantClient },
 ): AssistantClient {
+  const tools = clients?.tools;
+  const toolsResource = useMemo(() => {
+    if (!tools || isResourceElement(tools)) return tools;
+    return Tools({ toolkit: tools });
+  }, [tools]);
+
   const normalizedClients = useMemo(
-    () => normalizeUseAuiProps(clients),
-    [clients],
+    (): StoreUseAuiProps | undefined =>
+      clients && toolsResource !== tools
+        ? ({
+            ...clients,
+            tools: toolsResource,
+          } as StoreUseAuiProps)
+        : (clients as StoreUseAuiProps | undefined),
+    [clients, tools, toolsResource],
   );
 
   return useStoreAuiOptional(normalizedClients, config);

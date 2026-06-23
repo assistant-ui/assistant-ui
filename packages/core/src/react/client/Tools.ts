@@ -1,15 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   useResources,
   resource,
   withKey,
   type ResourceElement,
 } from "@assistant-ui/tap";
-import {
-  useAssistantClientRef,
-  type ClientOutput,
-  attachTransformScopes,
-} from "@assistant-ui/store";
+import { type ClientOutput, attachTransformScopes } from "@assistant-ui/store";
 import type { McpAppResourceOutput, ToolsState } from "../types/scopes/tools";
 import type { Tool } from "assistant-stream";
 import {
@@ -18,9 +14,175 @@ import {
   type Toolkit,
 } from "../model-context/toolbox";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
-import { ModelContext } from "../../store";
+import type {
+  ModelContext as ModelContextValue,
+  ModelContextProvider,
+} from "../../model-context/types";
+import { mergeModelContexts } from "../../model-context/types";
+import type { ModelContextState } from "../../store";
 
 export type { McpAppResourceOutput };
+
+const EMPTY_TOOL_NAMES: readonly string[] = [];
+const toolsWithoutRenderCache = new WeakMap<
+  Toolkit,
+  Record<string, Tool<any, any>>
+>();
+
+const getToolsWithoutRender = (
+  toolkit: Toolkit | undefined,
+): Record<string, Tool<any, any>> | undefined => {
+  if (!toolkit) return undefined;
+  const cached = toolsWithoutRenderCache.get(toolkit);
+  if (cached) return cached;
+
+  const tools = Object.entries(toolkit).reduce(
+    (acc, [name, tool]) => {
+      if (tool.type === "mcp") return acc;
+      const {
+        display: _display,
+        render: _render,
+        renderText: _renderText,
+        ...rest
+      } = tool as typeof tool & { renderText?: unknown };
+      acc[name] = rest as Tool<any, any>;
+      return acc;
+    },
+    {} as Record<string, Tool<any, any>>,
+  );
+  toolsWithoutRenderCache.set(toolkit, tools);
+  return tools;
+};
+
+const getModelContextForToolkit = (toolkit: Toolkit | undefined) => ({
+  tools: getToolsWithoutRender(toolkit),
+});
+
+const toolNamesEqual = (a: readonly string[], b: readonly string[]): boolean =>
+  a === b || (a.length === b.length && a.every((v, i) => v === b[i]));
+
+const deriveModelContextState = (
+  provider: ModelContextProvider,
+  prev: ModelContextState,
+): ModelContextState => {
+  const ctx = provider.getModelContext();
+  const modelName = ctx.config?.modelName;
+  const keys = ctx.tools ? Object.keys(ctx.tools).sort() : EMPTY_TOOL_NAMES;
+  const toolNames = keys.length ? keys : EMPTY_TOOL_NAMES;
+
+  if (modelName === prev.modelName && toolNamesEqual(toolNames, prev.toolNames))
+    return prev;
+
+  return { modelName, toolNames };
+};
+
+const INITIAL_MODEL_CONTEXT_STATE: ModelContextState = {
+  modelName: undefined,
+  toolNames: EMPTY_TOOL_NAMES,
+};
+
+const useToolkitModelContext = ({
+  toolkit,
+  parent,
+}: {
+  toolkit?: Toolkit | undefined;
+  parent?: ModelContextProvider | undefined;
+}): ClientOutput<"modelContext"> => {
+  const modelContextRef = useRef<ModelContextValue>(
+    getModelContextForToolkit(toolkit),
+  );
+  const subscribersRef = useRef(new Set<() => void>());
+  const providersRef = useRef(new Set<ModelContextProvider>());
+
+  const toolkitProvider = useMemo<ModelContextProvider>(
+    () => ({
+      getModelContext: () => modelContextRef.current,
+      subscribe: (callback: () => void) => {
+        subscribersRef.current.add(callback);
+        return () => {
+          subscribersRef.current.delete(callback);
+        };
+      },
+    }),
+    [],
+  );
+
+  const getModelContext = useCallback(
+    () =>
+      mergeModelContexts(
+        new Set([
+          toolkitProvider,
+          ...(parent ? [parent] : []),
+          ...providersRef.current,
+        ]),
+      ),
+    [parent, toolkitProvider],
+  );
+
+  const modelContextProvider = useMemo<ModelContextProvider>(
+    () => ({
+      getModelContext,
+      subscribe: (callback: () => void) => {
+        subscribersRef.current.add(callback);
+        return () => {
+          subscribersRef.current.delete(callback);
+        };
+      },
+    }),
+    [getModelContext],
+  );
+
+  const [state, setState] = useState<ModelContextState>(() =>
+    deriveModelContextState(modelContextProvider, INITIAL_MODEL_CONTEXT_STATE),
+  );
+
+  const notifySubscribers = useCallback(() => {
+    for (const callback of subscribersRef.current) callback();
+  }, []);
+
+  useEffect(() => {
+    modelContextRef.current = getModelContextForToolkit(toolkit);
+    notifySubscribers();
+  }, [toolkit, notifySubscribers]);
+
+  useEffect(() => {
+    if (!parent) return undefined;
+    return parent.subscribe?.(notifySubscribers);
+  }, [notifySubscribers, parent]);
+
+  useEffect(() => {
+    setState((prev) => deriveModelContextState(modelContextProvider, prev));
+    return modelContextProvider.subscribe?.(() => {
+      setState((prev) => deriveModelContextState(modelContextProvider, prev));
+    });
+  }, [modelContextProvider]);
+
+  const register = useCallback(
+    (provider: ModelContextProvider) => {
+      providersRef.current.add(provider);
+      const unsubscribe = provider.subscribe?.(notifySubscribers);
+      notifySubscribers();
+      return () => {
+        providersRef.current.delete(provider);
+        unsubscribe?.();
+        notifySubscribers();
+      };
+    },
+    [notifySubscribers],
+  );
+
+  return useMemo(
+    (): ClientOutput<"modelContext"> => ({
+      getState: () => deriveModelContextState(modelContextProvider, state),
+      getModelContext,
+      subscribe: (callback) => modelContextProvider.subscribe!(callback),
+      register,
+    }),
+    [getModelContext, modelContextProvider, register, state],
+  );
+};
+
+const ToolkitModelContext = resource(useToolkitModelContext);
 
 /**
  * Registers tools with model context and installs tool-call renderers.
@@ -58,8 +220,6 @@ const useTools = ({
     }),
     [toolUIs, mcpAppOutput],
   );
-
-  const clientRef = useAssistantClientRef();
 
   const setToolUI = useCallback(
     (
@@ -116,38 +276,10 @@ const useTools = ({
       }
     }
 
-    // Register tools with model context (exclude symbols). `render`,
-    // `renderText`, and `display` are client-only presentation concerns and
-    // never reach the model.
-    const toolsWithoutRender = Object.entries(toolkit).reduce(
-      (acc, [name, tool]) => {
-        if (tool.type === "mcp") return acc;
-        const {
-          display: _display,
-          render: _render,
-          renderText: _renderText,
-          ...rest
-        } = tool as typeof tool & { renderText?: unknown };
-        acc[name] = rest as Tool<any, any>;
-        return acc;
-      },
-      {} as Record<string, Tool<any, any>>,
-    );
-
-    const modelContextProvider = {
-      getModelContext: () => ({
-        tools: toolsWithoutRender,
-      }),
-    };
-
-    unsubscribes.push(
-      clientRef.current!.modelContext().register(modelContextProvider),
-    );
-
     return () => {
       unsubscribes.forEach((fn) => fn());
     };
-  }, [toolkit, setToolUI, clientRef]);
+  }, [toolkit, setToolUI]);
 
   return {
     getState: () => state,
@@ -158,7 +290,16 @@ const useTools = ({
 export const Tools = resource(useTools);
 
 attachTransformScopes(useTools, (scopes, parent) => {
-  if (!scopes.modelContext && parent.modelContext.source === null) {
-    scopes.modelContext = ModelContext();
+  if (!scopes.modelContext && scopes.tools?.hook === useTools) {
+    const [{ toolkit }] = scopes.tools.args as [
+      {
+        toolkit?: Toolkit | undefined;
+      },
+    ];
+    scopes.modelContext = ToolkitModelContext({
+      toolkit,
+      parent:
+        parent.modelContext.source === null ? undefined : parent.modelContext(),
+    });
   }
 });

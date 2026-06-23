@@ -148,13 +148,27 @@ Import the composed toolkit in your runtime provider and pass it directly to `us
 ```tsx title="app/MyRuntimeProvider.tsx"
 "use client";
 
-import { AssistantRuntimeProvider, useAui } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  AuiProvider,
+  useAui,
+} from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { appToolkit } from "./toolkits";
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
-  const runtime = useChatRuntime({ api: "/api/chat" });
   const aui = useAui({ tools: appToolkit });
+
+  return (
+    <AuiProvider value={aui}>
+      <RuntimeProvider>{children}</RuntimeProvider>
+    </AuiProvider>
+  );
+}
+
+function RuntimeProvider({ children }: { children: React.ReactNode }) {
+  const aui = useAui();
+  const runtime = useChatRuntime({ api: "/api/chat" });
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
