@@ -334,6 +334,7 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react",
       "lucide-react",
       "class-variance-authority",
+      "tw-shimmer",
     ],
     registryDependencies: ["collapsible"],
     css: {
