@@ -683,6 +683,42 @@ function Subagents() {
 }
 ```
 
+## Per-message metadata
+
+`useMessageMetadata` (from `@langchain/react`) reads per-message metadata (e.g. `parentCheckpointId`) for a given message id; pair it with `useLangChainStream`. It returns `undefined` outside the runtime provider.
+
+```tsx
+import { useLangChainStream } from "@assistant-ui/react-langchain";
+import { useMessageMetadata } from "@langchain/react";
+
+function MessageInfo({ messageId }: { messageId: string }) {
+  const stream = useLangChainStream();
+  const { parentCheckpointId } = useMessageMetadata(stream, messageId) ?? {};
+  // …render per-message metadata…
+}
+```
+
+## Media
+
+The v1 media hooks surface multimodal media streamed by the agent. Feed the `useLangChainStream` handle to them — the same pattern as the views and metadata sections above.
+
+```tsx
+import { useLangChainStream } from "@assistant-ui/react-langchain";
+import { useImages, useAudio } from "@langchain/react";
+
+function MediaView({ stream }) {
+  const images = useImages(stream);
+  // useAudio / useVideo / useFiles likewise
+  return <>{/* …render media… */}</>;
+}
+
+function Media() {
+  const stream = useLangChainStream();
+  if (!stream) return null;
+  return <MediaView stream={stream} />;
+}
+```
+
 ## Generative UI
 
 Graphs can accumulate UI components in their state and attach each one to the assistant message that produced it. The runtime reads these from `stream.values[uiStateKey]` (default `"ui"`) and, for every `UIMessage` whose parent id matches an assistant message, emits a `data` part on that message. The parent id is read from `metadata.message_id` (Python SDK) or `metadata.id` (JS SDK). Pass `uiStateKey` if your graph stores them elsewhere.
@@ -795,7 +831,8 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | File content parts in messages | Yes | Yes |
 | Regenerate (checkpoint fork) | Yes (`getCheckpointId`) | Yes (auto-resolved) |
 | Edit message (checkpoint fork) | Yes | Yes (auto-resolved) |
-| Per-message metadata (`messages-tuple`) | Yes | Not exposed |
+| Per-message metadata (`messages-tuple`) | Yes | Yes (`useMessageMetadata` via `useLangChainStream`) |
+| Multimodal media (audio/image/video/file) | Via parts | Yes (v1 media hooks via `useLangChainStream`) |
 | Generative UI (state snapshot) | Yes | Yes (`uiStateKey`) |
 | Generative UI (live `push_ui_message`) | Yes | Yes (`streamMode: ["custom"]`) |
 | Subgraph / namespaced stream events | Yes (via `eventHandlers`) | Not exposed |
@@ -818,8 +855,8 @@ Regenerate works without configuration. Clicking regenerate resolves the server 
 | `useLangGraphInterruptState` | `useLangChainInterruptState` | Same return shape. |
 | `useLangGraphSendCommand` | `useLangChainRespond` | Preferred resume; carries a payload via `stream.respond`. For a raw `Command`, use `useLangChainSubmit(null, { command })`. |
 | `useLangGraphSend` | _(use `runtime.thread.append`)_ | No direct equivalent; send turns through the runtime. |
-| `useLangGraphMessageMetadata` | _(not available)_ | Open an issue if you rely on this. |
-| `useLangGraphUIMessages` | _(not available)_ | Open an issue if you rely on this. |
+| `useLangGraphMessageMetadata` | _(use `useMessageMetadata(useLangChainStream(), id)`)_ | Per-message metadata via the upstream selector hook. |
+| `useLangGraphUIMessages` | _(UI renders as data parts; register with `makeAssistantDataUI`)_ | See [Generative UI](#generative-ui). |
 | _(none)_ | `useLangChainState<T>(key)` | New — reads any custom state key reactively. |
 | _(none)_ | `useLangChainToolCalls` | New — root tool calls assembled by `useStream`. |
 | _(none)_ | `useLangChainError()` | New — reads the last run/hydration error reactively. |
