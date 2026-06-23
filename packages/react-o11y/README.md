@@ -25,10 +25,12 @@ export function Waterfall() {
   const aui = useAui({ span: SpanResource({ spans }) });
   return (
     <AuiProvider value={aui}>
-      <SpanPrimitive.Timeline className="relative h-8">
+      <SpanPrimitive.Timeline>
         <SpanPrimitive.Children>
           {() => (
-            <SpanPrimitive.TimelineBar className="top-1 h-6 rounded bg-blue-500" />
+            <div className="relative h-8">
+              <SpanPrimitive.TimelineBar className="top-1 h-6 rounded bg-blue-500" />
+            </div>
           )}
         </SpanPrimitive.Children>
       </SpanPrimitive.Timeline>
