@@ -8,7 +8,10 @@ import type {
   ThreadSuggestion,
 } from "../../runtime/interfaces/thread-runtime-core";
 
-import type { ExternalStoreAdapter } from "./external-store-adapter";
+import type {
+  ExternalStoreAdapter,
+  ExternalStoreBranchChange,
+} from "./external-store-adapter";
 import {
   getExternalStoreMessages,
   bindExternalStoreMessage,
@@ -405,11 +408,16 @@ export class ExternalStoreThreadRuntimeCore
       return;
     }
 
-    const previousHeadId = this.repository.export().headId ?? null;
+    const onBranchChange = this._store.unstable_onBranchChange;
+    const previousHeadId = onBranchChange
+      ? (this.repository.export().headId ?? null)
+      : null;
 
     this.repository.switchToBranch(branchId);
     this.updateMessages(this.repository.getMessages());
-    this._notifyBranchChange(previousHeadId);
+    if (onBranchChange) {
+      this._notifyBranchChange(previousHeadId, onBranchChange);
+    }
   }
 
   /**
@@ -420,10 +428,10 @@ export class ExternalStoreThreadRuntimeCore
    * last emitted head — keeps a switch firing after an adapter resync moved the
    * head elsewhere in the meantime.
    */
-  private _notifyBranchChange(previousHeadId: string | null): void {
-    const onBranchChange = this._store.unstable_onBranchChange;
-    if (!onBranchChange) return;
-
+  private _notifyBranchChange(
+    previousHeadId: string | null,
+    onBranchChange: (event: ExternalStoreBranchChange) => void,
+  ): void {
     const headId = this.repository.export().headId ?? null;
     if (headId === previousHeadId) return;
 

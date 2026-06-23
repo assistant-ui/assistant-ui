@@ -619,6 +619,49 @@ describe("ExternalStoreThreadRuntimeCore - branch change callback", () => {
     expect(() => runtime.switchToBranch("a1")).not.toThrow();
   });
 
+  it("does not export canonical heads when no callback is provided", () => {
+    const runtime = makeBranched();
+    const repository = (
+      runtime as unknown as { repository: { export: () => unknown } }
+    ).repository;
+    const exportSpy = vi.spyOn(repository, "export");
+
+    runtime.switchToBranch("a1");
+
+    expect(exportSpy).not.toHaveBeenCalled();
+  });
+
+  it("uses the initiating adapter callback if setMessages swaps adapters synchronously", () => {
+    const initialOnBranchChange = vi.fn();
+    const swappedOnBranchChange = vi.fn();
+    let runtime!: ExternalStoreThreadRuntimeCore;
+    const setMessages = vi.fn(() => {
+      runtime.__internal_setAdapter(
+        makeStore({
+          messages: [u, { id: "a1", role: "assistant", text: "first" }],
+          convertMessage,
+          setMessages: vi.fn(),
+          unstable_onBranchChange: swappedOnBranchChange,
+        }),
+      );
+    });
+
+    runtime = makeBranched({
+      setMessages,
+      unstable_onBranchChange: initialOnBranchChange,
+    });
+
+    runtime.switchToBranch("a1");
+
+    expect(setMessages).toHaveBeenCalledTimes(1);
+    expect(initialOnBranchChange).toHaveBeenCalledTimes(1);
+    expect(initialOnBranchChange).toHaveBeenCalledWith({
+      headId: "a1",
+      visibleMessageIds: ["u", "a1"],
+    });
+    expect(swappedOnBranchChange).not.toHaveBeenCalled();
+  });
+
   it("still calls setMessages on branch switch", () => {
     const setMessages = vi.fn();
     const runtime = makeBranched({
