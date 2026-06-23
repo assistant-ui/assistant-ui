@@ -3331,6 +3331,98 @@ describe("useLangGraphMessages", {}, () => {
     ]);
   });
 
+  it("surfaces the tool-call message and interrupt from a subgraph interrupt", async () => {
+    const onSubgraphUpdates = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      // AIMessage with tool_calls emitted by the subgraph LLM node
+      {
+        event: "updates|weatherAgent:model:abc",
+        data: {
+          "weatherAgent:model:abc": {
+            messages: [
+              {
+                id: "ai-1",
+                type: "ai",
+                content: "",
+                tool_calls: [{ name: "ask_location", id: "tc-1", args: {} }],
+              },
+            ],
+          },
+        },
+      },
+      // interrupt raised by the subgraph tool node
+      {
+        event: "updates|weatherAgent:tools:def",
+        data: {
+          __interrupt__: [{ id: "int-1", value: { awaiting: "location" } }],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: { onSubgraphUpdates },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "weather?" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.interrupt).toEqual({
+        id: "int-1",
+        value: { awaiting: "location" },
+      });
+    });
+
+    const aiMessage = result.current.messages.find((m) => m.id === "ai-1") as
+      | { tool_calls?: { name: string }[] }
+      | undefined;
+    expect(aiMessage).toBeDefined();
+    expect(aiMessage!.tool_calls?.[0]!.name).toEqual("ask_location");
+    // existing subgraph callback still fires for both events
+    expect(onSubgraphUpdates).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let a later subgraph update clear an active interrupt", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "updates|sub:tools:1",
+        data: {
+          __interrupt__: [{ id: "int-1", value: { awaiting: "location" } }],
+        },
+      },
+      // a subsequent non-interrupt subgraph update must not wipe it
+      {
+        event: "updates|sub:model:2",
+        data: { "sub:model:2": { messages: [] } },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.interrupt).toEqual({
+        id: "int-1",
+        value: { awaiting: "location" },
+      });
+    });
+  });
+
   it("fires onSubgraphValues when onValues is not registered", async () => {
     const onSubgraphValues = vi.fn();
     const mockStreamCallback = mockStreamCallbackFactory([
