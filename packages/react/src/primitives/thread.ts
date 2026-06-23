@@ -6,6 +6,7 @@ export { ThreadPrimitiveViewportProvider as ViewportProvider } from "../context/
 export { ThreadPrimitiveViewportFooter as ViewportFooter } from "./thread/ThreadViewportFooter";
 export { ThreadPrimitiveMessages as Messages } from "./thread/ThreadMessages";
 export { ThreadPrimitiveMessageByIndex as MessageByIndex } from "./thread/ThreadMessages";
+export { ThreadPrimitiveUnstable_MessageById as Unstable_MessageById } from "./thread/ThreadMessages";
 export { ThreadPrimitiveScrollToBottom as ScrollToBottom } from "./thread/ThreadScrollToBottom";
 export { ThreadPrimitiveSuggestion as Suggestion } from "./thread/ThreadSuggestion";
 export {

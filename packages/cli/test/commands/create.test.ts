@@ -285,7 +285,7 @@ describe("PROJECT_METADATA", () => {
       "minimal",
       "cloud",
       "cloud-clerk",
-      "langgraph",
+      "langchain",
       "mcp",
       "eve",
     ]);

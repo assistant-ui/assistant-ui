@@ -4,6 +4,7 @@ import { generateId, fromThreadMessageLike } from "@assistant-ui/core";
 import type {
   AddToolResultOptions,
   AppendMessage,
+  CreateAppendMessage,
   AssistantRuntime,
   ChatModelRunOptions,
   ChatModelRunResult,
@@ -174,6 +175,12 @@ export class AgUiThreadRuntimeCore {
   async append(message: AppendMessage): Promise<void> {
     const startRun = message.startRun ?? message.role === "user";
     if (startRun) this.assertNoPendingInterrupts();
+    const threadMessageId = this.appendEntry(message);
+    if (!startRun) return;
+    await this.startRun(threadMessageId, message.runConfig);
+  }
+
+  private appendEntry(message: AppendMessage): string {
     if (message.sourceId) {
       this.messages = this.messages.filter(
         (entry) => entry.id !== message.sourceId,
@@ -185,9 +192,7 @@ export class AgUiThreadRuntimeCore {
     this.messages = [...this.messages, threadMessage];
     this.notifyUpdate();
     this.recordHistoryEntry(message.parentId ?? null, threadMessage);
-
-    if (!startRun) return;
-    await this.startRun(threadMessage.id, message.runConfig);
+    return threadMessage.id;
   }
 
   async edit(message: AppendMessage): Promise<void> {
@@ -346,6 +351,97 @@ export class AgUiThreadRuntimeCore {
 
     this.clearPendingInterrupts(pending.messageId);
     await this.startRun(pending.messageId, this.lastRunConfig, resume);
+  }
+
+  async steerAway(
+    message: CreateAppendMessage,
+    responses?: readonly AgUiResumeEntry[],
+  ): Promise<void> {
+    const pending = this.getPendingInterrupts();
+    if (!pending) {
+      if (responses?.length) {
+        throw new Error(
+          "[agui] steerAway: no pending interrupts on this thread",
+        );
+      }
+      await this.append(this.toAppendMessage(message));
+      return;
+    }
+
+    const resume = this.resolveSteerAwayResume(pending.interrupts, responses);
+
+    if (this.isRunningFlag) {
+      throw new Error("[agui] steerAway: a run is already in progress");
+    }
+
+    const normalized = this.toAppendMessage(message);
+    // Clear before appendEntry so the interrupted assistant is still in
+    // this.messages when its status is flipped; a parentId that points at an
+    // ancestor would otherwise truncate it away before it can be cleared.
+    this.clearPendingInterrupts(pending.messageId);
+    const threadMessageId = this.appendEntry(normalized);
+    await this.startRun(threadMessageId, normalized.runConfig, resume);
+  }
+
+  private resolveSteerAwayResume(
+    interrupts: readonly AgUiInterrupt[],
+    responses: readonly AgUiResumeEntry[] | undefined,
+  ): AgUiResumeEntry[] {
+    const openIds = interrupts.map((interrupt) => interrupt.id);
+    const known = new Set(openIds);
+    const responsesById = new Map<string, AgUiResumeEntry>();
+    for (const entry of responses ?? []) {
+      if (!entry || typeof entry.interruptId !== "string") {
+        throw new Error(
+          "[agui] steerAway: every response must have an interruptId",
+        );
+      }
+      if (entry.status !== "resolved" && entry.status !== "cancelled") {
+        throw new Error(
+          `[agui] steerAway: invalid status "${entry.status}" for interrupt ${entry.interruptId}`,
+        );
+      }
+      if (!known.has(entry.interruptId)) {
+        throw new Error(
+          `[agui] steerAway: unknown interrupt id ${entry.interruptId}`,
+        );
+      }
+      if (responsesById.has(entry.interruptId)) {
+        throw new Error(
+          `[agui] steerAway: duplicate response for interrupt ${entry.interruptId}`,
+        );
+      }
+      responsesById.set(entry.interruptId, entry);
+    }
+    return openIds.map(
+      (id) => responsesById.get(id) ?? { interruptId: id, status: "cancelled" },
+    );
+  }
+
+  private toAppendMessage(message: CreateAppendMessage): AppendMessage {
+    if (typeof message === "string") {
+      return {
+        createdAt: new Date(),
+        parentId: this.messages.at(-1)?.id ?? null,
+        sourceId: null,
+        runConfig: {},
+        role: "user",
+        content: [{ type: "text", text: message }],
+        attachments: [],
+        metadata: { custom: {} },
+      };
+    }
+    return {
+      createdAt: message.createdAt ?? new Date(),
+      parentId: message.parentId ?? this.messages.at(-1)?.id ?? null,
+      sourceId: message.sourceId ?? null,
+      role: message.role ?? "user",
+      content: message.content,
+      attachments: message.attachments ?? [],
+      metadata: message.metadata ?? { custom: {} },
+      runConfig: message.runConfig ?? {},
+      startRun: message.startRun,
+    } as AppendMessage;
   }
 
   private clearPendingInterrupts(messageId: string): void {

@@ -40,7 +40,7 @@ export type MessageContentText = {
 
 export type MessageContentImageUrl = {
   type: "image_url";
-  image_url: string | { url: string };
+  image_url: string | { url?: string };
 };
 
 export type MessageContentThinking = {
@@ -50,7 +50,7 @@ export type MessageContentThinking = {
 
 export type MessageContentReasoningSummaryText = {
   type: "summary_text";
-  text: string;
+  text?: string;
 };
 
 export type MessageContentReasoning = {
@@ -248,6 +248,15 @@ export type LangGraphRuntimeExtras = {
 };
 
 export type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
+  /**
+   * Called whenever the active thread's canonical (remote) ID changes, so the
+   * value can be treated as a managed/controlled variable (e.g. synced to a URL
+   * query param). Only the settled remote ID is emitted: while a freshly created
+   * thread is still optimistic the value is `undefined`, and the real ID is
+   * emitted once the thread is initialized; the transient local ID is never
+   * surfaced.
+   */
+  onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   /**
    * When true, renders the Cancel button in the composer and aborts the

@@ -355,6 +355,343 @@ describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", (
   });
 });
 
+describe("ExternalStoreThreadRuntimeCore - branch change callback", () => {
+  type Raw = {
+    id: string;
+    role: "user" | "assistant";
+    text: string;
+    optimistic?: boolean;
+  };
+
+  const convertMessage = (m: Raw): ThreadMessageLike => ({
+    id: m.id,
+    role: m.role,
+    content: [{ type: "text", text: m.text }],
+    ...(m.optimistic && { metadata: { isOptimistic: true } }),
+  });
+
+  const u: Raw = { id: "u", role: "user", text: "hi" };
+
+  // Build a runtime whose repository holds two sibling assistant branches
+  // (a1, a2) under the user message, with a2 the currently visible head.
+  const makeBranched = (extra?: Record<string, unknown>) => {
+    const base = { convertMessage, setMessages: vi.fn(), ...extra };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        ...base,
+        messages: [u, { id: "a1", role: "assistant", text: "first" }],
+      }),
+    );
+    runtime.__internal_setAdapter(
+      makeStore({
+        ...base,
+        messages: [u, { id: "a2", role: "assistant", text: "second" }],
+      }),
+    );
+    return runtime;
+  };
+
+  it("fires on explicit switchToBranch with head and visible path", () => {
+    const onBranchChange = vi.fn();
+    const runtime = makeBranched({
+      unstable_onBranchChange: onBranchChange,
+    });
+
+    runtime.switchToBranch("a1");
+
+    expect(onBranchChange).toHaveBeenCalledTimes(1);
+    expect(onBranchChange).toHaveBeenCalledWith({
+      headId: "a1",
+      visibleMessageIds: ["u", "a1"],
+    });
+  });
+
+  it("dedupes consecutive switches that resolve to the same head", () => {
+    const onBranchChange = vi.fn();
+    const runtime = makeBranched({
+      unstable_onBranchChange: onBranchChange,
+    });
+
+    runtime.switchToBranch("a1");
+    runtime.switchToBranch("a1");
+    expect(onBranchChange).toHaveBeenCalledTimes(1);
+
+    runtime.switchToBranch("a2");
+    expect(onBranchChange).toHaveBeenCalledTimes(2);
+    expect(onBranchChange).toHaveBeenLastCalledWith({
+      headId: "a2",
+      visibleMessageIds: ["u", "a2"],
+    });
+  });
+
+  it("does not fire on adapter resync", () => {
+    const onBranchChange = vi.fn();
+    // makeBranched performs construction + one resync via __internal_setAdapter.
+    makeBranched({ unstable_onBranchChange: onBranchChange });
+    expect(onBranchChange).not.toHaveBeenCalled();
+  });
+
+  it("does not fire on messageRepository resync (resetHead)", () => {
+    const onBranchChange = vi.fn();
+    const source = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [u, { id: "a", role: "assistant", text: "x" }],
+        convertMessage,
+      }),
+    );
+    const exported = source.export();
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messageRepository: exported,
+        unstable_onBranchChange: onBranchChange,
+      }),
+    );
+    runtime.__internal_setAdapter(
+      makeStore({
+        messageRepository: { ...exported },
+        unstable_onBranchChange: onBranchChange,
+      }),
+    );
+
+    expect(onBranchChange).not.toHaveBeenCalled();
+  });
+
+  it("does not fire on append, edit, or content-only resync", async () => {
+    const onBranchChange = vi.fn();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [u, { id: "a1", role: "assistant", text: "first" }],
+        convertMessage,
+        onNew: vi.fn(),
+        onEdit: vi.fn(),
+        setMessages: vi.fn(),
+        unstable_onBranchChange: onBranchChange,
+      }),
+    );
+
+    // append to the tail (onNew)
+    await runtime.append({
+      role: "user",
+      content: [{ type: "text", text: "again" }],
+      attachments: [],
+      createdAt: new Date(0),
+      parentId: "a1",
+      sourceId: null,
+      runConfig: {},
+      metadata: { custom: {} },
+    });
+
+    // edit a non-tail message (onEdit)
+    await runtime.append({
+      role: "user",
+      content: [{ type: "text", text: "edited" }],
+      attachments: [],
+      createdAt: new Date(0),
+      parentId: null,
+      sourceId: null,
+      runConfig: {},
+      metadata: { custom: {} },
+    });
+
+    // content-only resync of the same structure
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [u, { id: "a1", role: "assistant", text: "first edited" }],
+        convertMessage,
+        onNew: vi.fn(),
+        onEdit: vi.fn(),
+        setMessages: vi.fn(),
+        unstable_onBranchChange: onBranchChange,
+      }),
+    );
+
+    expect(onBranchChange).not.toHaveBeenCalled();
+  });
+
+  it("fires again when a resync moved the head away before switching back", () => {
+    const onBranchChange = vi.fn();
+    const runtime = makeBranched({
+      unstable_onBranchChange: onBranchChange,
+    });
+
+    runtime.switchToBranch("a1");
+    expect(onBranchChange).toHaveBeenCalledTimes(1);
+
+    // Adapter resync moves the visible head back to a2 (does not fire).
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [u, { id: "a2", role: "assistant", text: "second" }],
+        convertMessage,
+        setMessages: vi.fn(),
+        unstable_onBranchChange: onBranchChange,
+      }),
+    );
+    expect(onBranchChange).toHaveBeenCalledTimes(1);
+
+    // Switching back to a1 must fire — the dedupe compares the head observed
+    // just before the switch, not the last emitted head.
+    runtime.switchToBranch("a1");
+    expect(onBranchChange).toHaveBeenCalledTimes(2);
+    expect(onBranchChange).toHaveBeenLastCalledWith({
+      headId: "a1",
+      visibleMessageIds: ["u", "a1"],
+    });
+  });
+
+  it("does not fire while the thread is running", () => {
+    const onBranchChange = vi.fn();
+    const runtime = makeBranched({
+      unstable_onBranchChange: onBranchChange,
+    });
+
+    // Flip into a running state without adding a trailing placeholder.
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [u, { id: "a2", role: "assistant", text: "second" }],
+        convertMessage,
+        setMessages: vi.fn(),
+        isRunning: true,
+        unstable_onBranchChange: onBranchChange,
+      }),
+    );
+
+    runtime.switchToBranch("a1");
+
+    expect(onBranchChange).not.toHaveBeenCalled();
+  });
+
+  it("emits the persisted canonical head, not an optimistic id", () => {
+    const onBranchChange = vi.fn();
+
+    // Build a repository whose visible head is the persisted a1, with an
+    // optimistic sibling a2 also present under the user message.
+    const source = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [u, { id: "a1", role: "assistant", text: "first" }],
+        convertMessage,
+      }),
+    );
+    const exported = source.export();
+    const a1Item = exported.messages.find((m) => m.message.id === "a1")!;
+    const optimisticRepo = {
+      headId: "a1",
+      messages: [
+        ...exported.messages,
+        {
+          parentId: "u",
+          message: {
+            ...a1Item.message,
+            id: "a2",
+            metadata: { ...a1Item.message.metadata, isOptimistic: true },
+          },
+        },
+      ],
+    };
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messageRepository: optimisticRepo,
+        setMessages: vi.fn(),
+        unstable_onBranchChange: onBranchChange,
+      }),
+    );
+
+    // Switch onto the optimistic leaf: the canonical head changes (a1 -> the
+    // persisted ancestor) so the callback fires.
+    runtime.switchToBranch("a2");
+
+    const event = onBranchChange.mock.calls.at(-1)![0];
+    // export() walks up from the optimistic a2 to its persisted ancestor.
+    expect(event.headId).toBe("u");
+    // The visible path still reflects the optimistic leaf.
+    expect(event.visibleMessageIds).toEqual(["u", "a2"]);
+  });
+
+  it("is a no-op when no callback is provided", () => {
+    const runtime = makeBranched();
+    expect(() => runtime.switchToBranch("a1")).not.toThrow();
+  });
+
+  it("does not read canonical heads when no callback is provided", () => {
+    const runtime = makeBranched();
+    const repository = (
+      runtime as unknown as { repository: { canonicalHeadId: string | null } }
+    ).repository;
+    const canonicalHeadIdSpy = vi.spyOn(repository, "canonicalHeadId", "get");
+
+    runtime.switchToBranch("a1");
+
+    expect(canonicalHeadIdSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not export snapshots when emitting branch changes", () => {
+    const onBranchChange = vi.fn();
+    const runtime = makeBranched({ unstable_onBranchChange: onBranchChange });
+    const repository = (
+      runtime as unknown as { repository: { export: () => unknown } }
+    ).repository;
+    const exportSpy = vi.spyOn(repository, "export");
+
+    runtime.switchToBranch("a1");
+
+    expect(onBranchChange).toHaveBeenCalledTimes(1);
+    expect(exportSpy).not.toHaveBeenCalled();
+  });
+
+  it("uses the initiating adapter callback if setMessages swaps adapters synchronously", () => {
+    const initialOnBranchChange = vi.fn();
+    const swappedOnBranchChange = vi.fn();
+    let runtime!: ExternalStoreThreadRuntimeCore;
+    const setMessages = vi.fn(() => {
+      runtime.__internal_setAdapter(
+        makeStore({
+          messages: [u, { id: "a1", role: "assistant", text: "first" }],
+          convertMessage,
+          setMessages: vi.fn(),
+          unstable_onBranchChange: swappedOnBranchChange,
+        }),
+      );
+    });
+
+    runtime = makeBranched({
+      setMessages,
+      unstable_onBranchChange: initialOnBranchChange,
+    });
+
+    runtime.switchToBranch("a1");
+
+    expect(setMessages).toHaveBeenCalledTimes(1);
+    expect(initialOnBranchChange).toHaveBeenCalledTimes(1);
+    expect(initialOnBranchChange).toHaveBeenCalledWith({
+      headId: "a1",
+      visibleMessageIds: ["u", "a1"],
+    });
+    expect(swappedOnBranchChange).not.toHaveBeenCalled();
+  });
+
+  it("still calls setMessages on branch switch", () => {
+    const setMessages = vi.fn();
+    const runtime = makeBranched({
+      setMessages,
+      unstable_onBranchChange: vi.fn(),
+    });
+
+    runtime.switchToBranch("a1");
+
+    expect(setMessages).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "u" }),
+      expect.objectContaining({ id: "a1" }),
+    ]);
+  });
+});
+
 describe("ExternalStoreThreadRuntimeCore - initialize event replay", () => {
   const message = { id: "m", role: "assistant" as const, content: [] };
   const flushMicrotasks = () => Promise.resolve();

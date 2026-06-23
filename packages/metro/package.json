@@ -36,17 +36,17 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@babel/generator": "^7.29.7",
-    "@babel/parser": "^7.29.7",
-    "@babel/traverse": "^7.29.7",
-    "@babel/types": "^7.29.7"
+    "@babel/generator": "^8.0.0",
+    "@babel/parser": "^8.0.0",
+    "@babel/traverse": "^8.0.0",
+    "@babel/types": "^8.0.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-generative-compiler": "workspace:^",
-    "@types/node": "^25.9.3",
-    "tsdown": "^0.22.2",
-    "vitest": "^4.1.8"
+    "@types/node": "^26.0.0",
+    "tsdown": "^0.22.3",
+    "vitest": "^4.1.9"
   },
   "publishConfig": {
     "access": "public",

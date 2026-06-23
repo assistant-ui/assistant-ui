@@ -15,6 +15,7 @@ export async function GET(
 
   return new NextResponse(await getLLMText(page), {
     headers: {
+      "Cache-Control": "no-cache, must-revalidate",
       "Content-Type": "text/markdown; charset=utf-8",
       "X-Robots-Tag": "noindex, follow",
     },

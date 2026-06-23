@@ -13,11 +13,9 @@ Pick Langfuse when you want to see the agent's full call tree inside a single tu
 
 ## How it works
 
-```
-your route  ──►  AI SDK streamText (with experimental_telemetry)
-                  │
-                  ▼
-                  OpenTelemetry SDK  ──►  LangfuseSpanProcessor  ──►  Langfuse
+```mermaid
+flowchart LR
+    route["your route"] --> stream["AI SDK streamText<br/>(experimental_telemetry)"] --> otel["OpenTelemetry SDK"] --> proc["LangfuseSpanProcessor"] --> langfuse["Langfuse"]
 ```
 
 Langfuse subscribes to OpenTelemetry spans the AI SDK already emits when telemetry is enabled. No proxy, no wrapping; the SDK ships spans and Langfuse renders them.

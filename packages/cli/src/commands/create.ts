@@ -63,11 +63,11 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
-    name: "langgraph",
-    label: "LangGraph",
-    description: "LangGraph starter template",
+    name: "langchain",
+    label: "LangChain",
+    description: "LangGraph starter with the react-langchain adapter",
     category: "template",
-    path: "templates/langgraph",
+    path: "templates/langchain",
     hasLocalComponents: false,
   },
   {

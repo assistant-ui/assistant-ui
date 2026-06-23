@@ -9,18 +9,10 @@ For the adapter contract itself, see [adapters](/docs/runtimes/concepts/adapters
 
 ## How it works
 
-```
-composer add  ──►  POST /api/upload (presign)  ──►  PUT to object storage
-                                                    │
-                                                    ▼
-                                    PendingAttachment with the public URL
-                                                    │
-composer send  ◄────────────────────────────────────┘
-                   │
-                   └─►  send() emits a content part with the URL
-                                                    │
-                                                    ▼
-                                                AI SDK passes URL to the model
+```mermaid
+flowchart LR
+    add["composer add"] --> presign["POST /api/upload<br/>(presign)"] --> put["PUT to object storage"] --> pending["PendingAttachment<br/>with the public URL"]
+    pending --> send["composer send"] --> part["send() emits a<br/>content part with the URL"] --> model["AI SDK passes<br/>URL to the model"]
 ```
 
 Three ideas to internalize before reading the code:

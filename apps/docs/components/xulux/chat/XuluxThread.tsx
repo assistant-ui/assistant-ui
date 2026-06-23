@@ -8,6 +8,12 @@ import { AssistantFooter } from "@/components/docs/assistant/footer";
 import { AssistantThread } from "@/components/docs/assistant/thread";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
 import { DotMatrix } from "@/components/assistant-ui/dot-matrix";
+import { analytics } from "@/lib/analytics";
+import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
+import {
+  useXuluxAnalytics,
+  withXuluxContext,
+} from "@/lib/xulux/analytics-context";
 import { getXuluxThreadWelcome } from "@/lib/xulux/thread-welcome";
 import {
   AuiIf,
@@ -73,12 +79,25 @@ function XuluxComposer({
   onNewThread: () => void;
   placeholder: string;
 }): ReactNode {
+  const aui = useAui();
+  const analyticsCtx = useXuluxAnalytics();
+
   return (
     <div>
       <XuluxUsageLimitBanner onNewThread={onNewThread} />
       <AssistantComposer
         placeholder={placeholder}
         modelSelector={<XuluxModelSelector />}
+        onSubmit={() => {
+          const metrics = getComposerMessageMetrics(aui.composer().getState());
+          if (!metrics) return;
+          analytics.xulux.promptSubmitted(
+            withXuluxContext(analyticsCtx, {
+              source: "composer",
+              message_length: metrics.messageLength,
+            }),
+          );
+        }}
       />
     </div>
   );

@@ -314,6 +314,39 @@ runtime.thread.import(repo);
 
 The exported shape round-trips through `thread.import()` directly, so the same value is both your persistence format and what you load back.
 
+### Persisting branch selection
+
+If you store the full branch tree outside assistant-ui, persist the selected branch head too and pass it back as `messageRepository.headId`. `setMessages` still performs the branch switch; `unstable_onBranchChange` is an additional signal that fires after an explicit `switchToBranch` action, such as a BranchPicker click.
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  messageRepository: {
+    messages: storedMessages,
+    headId: selectedHeadId,
+  },
+  setMessages: (messages) => {
+    setVisibleMessages(messages);
+  },
+  unstable_onBranchChange: ({ headId, visibleMessageIds }) => {
+    saveSelectedBranch({
+      headId,
+      visibleMessageIds,
+    });
+  },
+  onNew,
+});
+```
+
+`headId` is the canonical persisted head of the visible branch. Optimistic or transient message ids are not surfaced there. `visibleMessageIds` is the currently visible path in order, which can include an optimistic leaf while `headId` points to its persisted ancestor.
+
+The callback only fires for explicit branch switches, and consecutive switches that resolve to the same canonical head are de-duped. It does not fire on adapter resync, `messageRepository` reset, append, edit/regenerate, content-only updates, or while the thread is running.
+
+<Callout type="warn">
+  `unstable_onBranchChange` is under active development and may change without
+  notice. It complements `setMessages`; it does not enable branch switching by
+  itself.
+</Callout>
+
 ## Tool calling
 
 Handle tool results by updating the matching tool-call entry:
@@ -731,6 +764,12 @@ useExternalStoreRuntime({
       name: "setMessages",
       type: "(messages: readonly T[]) => void",
       description: "Update messages (required for branch switching).",
+    },
+    {
+      name: "unstable_onBranchChange",
+      type: "(event: ExternalStoreBranchChange) => void",
+      description:
+        "Called after an explicit branch switch with the canonical persisted head id and visible message path. Complements setMessages and is unstable.",
     },
     {
       name: "onEdit",

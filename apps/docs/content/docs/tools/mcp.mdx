@@ -7,10 +7,10 @@ description: Connect MCP servers as a tool catalog in your assistant-ui app.
 
 ## How it works
 
-```
-client  ──►  /api/chat  ──►  MCP client  ──►  MCP server (HTTP, SSE, stdio)
-                            │
-                            └─ tools()  ──►  passed to streamText({ tools })
+```mermaid
+flowchart LR
+    client["client"] --> api["/api/chat"] --> mcp["MCP client"] --> server["MCP server<br/>(HTTP, SSE, stdio)"]
+    mcp --> tools["tools()"] --> stream["passed to<br/>streamText({ tools })"]
 ```
 
 The MCP client lives on the server inside your AI SDK route handler. It connects to one or more MCP servers, calls `tools()` to get a tool map, and hands that map to `streamText`. assistant-ui's existing tool-call UI (`ToolFallback`, or toolkit entries with `render`) renders the results.

@@ -267,6 +267,14 @@ export type {
 export type { ThreadMessageLike } from "./runtime/utils/thread-message-like";
 export { fromThreadMessageLike } from "./runtime/utils/thread-message-like";
 
+// Streaming timing (client-side)
+export type {
+  StreamingTimingAccessors,
+  StreamingTimingOptions,
+  StreamingTimingState,
+} from "./runtime/utils/streaming-timing";
+export { stepStreamingTiming } from "./runtime/utils/streaming-timing";
+
 // ID generation
 export { generateId } from "./utils/id";
 
@@ -289,6 +297,7 @@ export type {
   ExternalStoreMessageConverter,
   ExternalStoreThreadListAdapter,
   ExternalStoreThreadData,
+  ExternalStoreBranchChange,
 } from "./runtimes/external-store/external-store-adapter";
 export type { ExternalStoreSharedOptions } from "./runtimes/external-store/external-store-shared-options";
 export { pickExternalStoreSharedOptions } from "./runtimes/external-store/external-store-shared-options";

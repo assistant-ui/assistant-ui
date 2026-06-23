@@ -5,3 +5,8 @@ export { SpanPrimitiveStatusIndicator as StatusIndicator } from "./span/SpanStat
 export { SpanPrimitiveCollapseToggle as CollapseToggle } from "./span/SpanCollapseToggle";
 export { SpanPrimitiveIndent as Indent } from "./span/SpanIndent";
 export { SpanPrimitiveChildren as Children } from "./span/SpanChildren";
+export {
+  SpanPrimitiveTimeline as Timeline,
+  SpanPrimitiveTimelineBar as TimelineBar,
+  type SpanTimelineRange,
+} from "./span/SpanTimeline";

@@ -21,10 +21,14 @@ import TextareaAutosize, {
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
-import { useAuiState, useAui } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
-import { useTriggerPopoverActiveAriaOptional } from "./trigger/TriggerPopoverRootContext";
+import {
+  useComposerInputDisabled,
+  useComposerInputValue,
+  useTriggerPopoverAriaProps,
+} from "./useComposerInputState";
 
 const TOUCH_PRIMARY_QUERY = "(pointer: coarse) and (not (any-pointer: fine))";
 
@@ -167,7 +171,6 @@ export const ComposerPrimitiveInput = forwardRef<
   ) => {
     const aui = useAui();
     const pluginRegistry = useComposerInputPluginRegistryOptional();
-    const activeAria = useTriggerPopoverActiveAriaOptional();
 
     const declaredSubmitMode =
       submitMode ?? (submitOnEnter === false ? "none" : "enter");
@@ -181,15 +184,8 @@ export const ComposerPrimitiveInput = forwardRef<
         ? "none"
         : declaredSubmitMode;
 
-    const value = useAuiState((s) => {
-      if (!s.composer.isEditing) return "";
-      return s.composer.text;
-    });
-
-    const isDisabled =
-      useAuiState(
-        (s) => s.thread.isDisabled || s.composer.dictation?.inputDisabled,
-      ) || disabledProp;
+    const value = useComposerInputValue();
+    const isDisabled = useComposerInputDisabled(disabledProp);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);
     // suppress text/cursor broadcasts during IME composition
@@ -322,14 +318,7 @@ export const ComposerPrimitiveInput = forwardRef<
       return aui.on("threadListItem.switchedTo", focus);
     }, [unstable_focusOnThreadSwitched, focus, aui]);
 
-    const ariaComboboxProps = activeAria
-      ? {
-          "aria-controls": activeAria.popoverId,
-          "aria-expanded": true as const,
-          "aria-haspopup": "listbox" as const,
-          "aria-activedescendant": activeAria.highlightedItemId,
-        }
-      : {};
+    const ariaComboboxProps = useTriggerPopoverAriaProps();
 
     const inputProps = {
       name: "input" as const,

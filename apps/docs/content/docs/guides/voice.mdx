@@ -156,8 +156,9 @@ class MyVoiceAdapter implements RealtimeVoiceAdapter {
 
 The session status follows the same pattern as other adapters:
 
-```
-starting → running → ended
+```mermaid
+flowchart LR
+    starting["starting"] --> running["running"] --> ended["ended"]
 ```
 
 The `ended` status includes a `reason`:

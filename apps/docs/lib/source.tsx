@@ -51,6 +51,14 @@ export const tapDocs = loader({
   source: tapDocsCollection.toFumadocsSource(),
 });
 
+const TAP_DOCS_INDEX_SLUG = ["overview", "introduction"];
+
+export function getTapDocsPage(slugs: string[] | undefined) {
+  return tapDocs.getPage(
+    slugs && slugs.length > 0 ? slugs : TAP_DOCS_INDEX_SLUG,
+  );
+}
+
 export const examples = loader({
   baseUrl: "/examples",
   source: toFumadocsSource(examplePages, []),

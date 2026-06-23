@@ -15,9 +15,8 @@ import type {
   EveMessageData,
   EveMessageInputRequest,
   EveMessagePart,
-  InputResponse,
-  SendTurnPayload,
 } from "eve/react";
+import type { InputResponse, SendTurnPayload } from "eve/client";
 
 const ASSISTANT_COMPLETE_STATUS = {
   type: "complete",
@@ -45,10 +44,10 @@ export type ConvertEveMessagesOptions = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const toJsonObject = (value: unknown): Record<string, unknown> => {
-  if (isRecord(value)) return value;
+const toJsonObject = (value: unknown): ToolCallMessagePart["args"] => {
+  if (isRecord(value)) return value as ToolCallMessagePart["args"];
   if (value === undefined) return {};
-  return { value };
+  return { value } as ToolCallMessagePart["args"];
 };
 
 const stringifyArgs = (value: unknown): string => {

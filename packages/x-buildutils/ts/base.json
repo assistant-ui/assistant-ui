@@ -4,8 +4,13 @@
   "compilerOptions": {
     "typeRoots": [
       "${configDir}/node_modules/@types",
+      "${configDir}/../node_modules/@types",
       "${configDir}/../../node_modules/@types",
+      "${configDir}/../../../node_modules/@types",
       "${configDir}/node_modules/@assistant-ui/x-buildutils/types",
+      "${configDir}/../node_modules/@assistant-ui/x-buildutils/types",
+      "${configDir}/../../node_modules/@assistant-ui/x-buildutils/types",
+      "${configDir}/../../../node_modules/@assistant-ui/x-buildutils/types",
       "${configDir}/types"
     ],
     "types": ["browser-process"],

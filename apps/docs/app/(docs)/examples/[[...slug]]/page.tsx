@@ -38,7 +38,7 @@ export default async function Page(props: {
     ? getDemo(EXAMPLE_TO_DEMO_SLUG[exampleSlug] ?? exampleSlug)
     : undefined;
 
-  const markdownUrl = `${page.url}.mdx`;
+  const markdownUrl = `${page.url}.md`;
 
   const neighbours = findNeighbour(examples.pageTree, page.url);
   const footerPrevious = neighbours.previous

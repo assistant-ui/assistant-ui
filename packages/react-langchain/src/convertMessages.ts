@@ -1,9 +1,29 @@
 "use client";
 
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
-import type { AppendMessage } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  DataMessagePart,
+  MessageTiming,
+} from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import type { LangChainBaseMessage, LangChainContentBlock } from "./types";
+import type {
+  LangChainBaseMessage,
+  LangChainContentBlock,
+  UIMessage,
+} from "./types";
+
+type LangChainMessageConverterMetadata =
+  useExternalMessageConverter.Metadata & {
+    uiMessagesByParent?: Map<string, UIMessage[]>;
+    messageTiming?: Record<string, MessageTiming>;
+  };
+
+const uiMessageToDataPart = (ui: UIMessage): DataMessagePart => ({
+  type: "data",
+  name: ui.name,
+  data: ui.props,
+});
 
 export const getMessageType = (message: LangChainBaseMessage): string => {
   if (typeof message._getType === "function") return message._getType();
@@ -24,11 +44,14 @@ const contentToParts = (content: unknown) => {
         case "text":
         case "text_delta":
           return { type: "text" as const, text: part.text };
-        case "image_url":
-          if (typeof part.image_url === "string") {
-            return { type: "image" as const, image: part.image_url };
-          }
-          return { type: "image" as const, image: part.image_url.url };
+        case "image_url": {
+          const image =
+            typeof part.image_url === "string"
+              ? part.image_url
+              : part.image_url?.url;
+          if (!image) return null;
+          return { type: "image" as const, image };
+        }
         case "file":
           return {
             type: "file" as const,
@@ -41,7 +64,10 @@ const contentToParts = (content: unknown) => {
         case "reasoning":
           return {
             type: "reasoning" as const,
-            text: part.summary.map((s) => s.text).join("\n\n\n"),
+            text:
+              part.summary?.map((s) => s?.text ?? "").join("\n\n\n") ??
+              part.reasoning ??
+              "",
           };
         case "tool_use":
         case "input_json_delta":
@@ -67,9 +93,10 @@ const getStringContent = (content: unknown): string => {
     .join("");
 };
 
-export const convertLangChainBaseMessage: useExternalMessageConverter.Callback<
-  LangChainBaseMessage
-> = (message) => {
+export const convertLangChainBaseMessage = (
+  message: LangChainBaseMessage,
+  metadata: LangChainMessageConverterMetadata = {},
+): useExternalMessageConverter.Message => {
   const type = getMessageType(message);
 
   switch (type) {
@@ -106,12 +133,26 @@ export const convertLangChainBaseMessage: useExternalMessageConverter.Callback<
       const assistantStatus =
         typeof message.status === "object" ? message.status : undefined;
 
+      const uiDataParts =
+        (message.id
+          ? metadata.uiMessagesByParent
+              ?.get(message.id)
+              ?.map(uiMessageToDataPart)
+          : undefined) ?? [];
+
+      const timing = metadata.messageTiming?.[message.id ?? ""];
+
       return {
         role: "assistant",
         id: message.id,
-        content: [...contentToParts(message.content), ...toolCallParts],
+        content: [
+          ...contentToParts(message.content),
+          ...toolCallParts,
+          ...uiDataParts,
+        ],
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
+          ...(timing && { timing }),
         },
         ...(assistantStatus && { status: assistantStatus }),
       };

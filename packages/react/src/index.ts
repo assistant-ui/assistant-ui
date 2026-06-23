@@ -136,6 +136,7 @@ export type {
   ExternalStoreSharedOptions,
   ExternalStoreThreadListAdapter,
   ExternalStoreThreadData,
+  ExternalStoreBranchChange,
 } from "@assistant-ui/core";
 export {
   createMessageQueue,
@@ -280,6 +281,7 @@ export * as ThreadListItemMorePrimitive from "./primitives/threadListItemMore";
 export * as SelectionToolbarPrimitive from "./primitives/selectionToolbar";
 
 export { groupPartByType, type GroupByContext } from "@assistant-ui/core/react";
+export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
 export { useMessagePartText } from "./primitives/messagePart/useMessagePartText";
 export { useMessagePartReasoning } from "./primitives/messagePart/useMessagePartReasoning";
 export { useMessagePartSource } from "./primitives/messagePart/useMessagePartSource";
@@ -446,6 +448,15 @@ export {
   unstable_useComposerInputHistory,
   type Unstable_ComposerInputHistory,
 } from "./unstable/useComposerInputHistory";
+
+// Unstable - headless composer input bridge (value/send without ComposerPrimitive.Input)
+export {
+  unstable_useComposerInput,
+  unstable_useTriggerPopoverAriaProps,
+  type Unstable_UseComposerInputOptions,
+  type Unstable_ComposerInput,
+  type Unstable_TriggerPopoverAriaProps,
+} from "./unstable/useComposerInput";
 
 export type { Assistant } from "./augmentations";
 

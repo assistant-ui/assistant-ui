@@ -28,12 +28,13 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "test": "vitest run"
   },
   "dependencies": {
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "@radix-ui/react-primitive": "^2.1.5"
+    "@radix-ui/react-primitive": "^2.1.6"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -47,7 +48,10 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.17",
-    "react": "^19.2.7"
+    "@types/react-dom": "^19.2.3",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "vitest": "^4.1.9"
   },
   "publishConfig": {
     "access": "public",

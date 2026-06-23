@@ -1,11 +1,14 @@
 "use generative";
 
-import { View, Text, StyleSheet, useColorScheme } from "react-native";
+import type { ReactNode } from "react";
+import { View, Text, StyleSheet } from "react-native";
 import {
   defineToolkit,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react-native";
 import { z } from "zod";
+import { useTheme } from "@/hooks/use-theme";
+import { Radius } from "@/constants/theme";
 
 // Open-Meteo API adapters (free, no API key needed)
 
@@ -42,16 +45,16 @@ const mapWeatherCode = (code: number): string => {
 };
 
 const mapWeatherEmoji = (code: number): string => {
-  if (code === 0) return "\u2600\uFE0F";
-  if (code <= 3) return "\u26C5";
-  if (code <= 48) return "\uD83C\uDF2B\uFE0F";
-  if (code <= 57) return "\uD83C\uDF26\uFE0F";
-  if (code <= 67) return "\uD83C\uDF27\uFE0F";
-  if (code <= 77) return "\u2744\uFE0F";
-  if (code <= 82) return "\uD83C\uDF26\uFE0F";
-  if (code <= 86) return "\uD83C\uDF28\uFE0F";
-  if (code === 95) return "\u26C8\uFE0F";
-  return "\uD83C\uDF29\uFE0F";
+  if (code === 0) return "☀️";
+  if (code <= 3) return "⛅";
+  if (code <= 48) return "🌫️";
+  if (code <= 57) return "🌦️";
+  if (code <= 67) return "🌧️";
+  if (code <= 77) return "❄️";
+  if (code <= 82) return "🌦️";
+  if (code <= 86) return "🌨️";
+  if (code === 95) return "⛈️";
+  return "🌩️";
 };
 
 const fetchWeatherFromOpenMeteo = async ({
@@ -108,6 +111,50 @@ const fetchWeatherFromOpenMeteo = async ({
 
 // Tool UI Components
 
+function ToolCard({ children }: { children: ReactNode }) {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: colors.muted, borderColor: colors.border },
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+function ToolStatus({ label }: { label: string }) {
+  const { colors } = useTheme();
+  return (
+    <ToolCard>
+      <Text style={[styles.statusText, { color: colors.mutedForeground }]}>
+        {label}
+      </Text>
+    </ToolCard>
+  );
+}
+
+function ToolError({ label }: { label: string }) {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.destructiveSurface,
+          borderColor: colors.destructive,
+        },
+      ]}
+    >
+      <Text style={[styles.statusText, { color: colors.destructive }]}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 function GeocodeToolUI(
   props: ToolCallMessagePartProps<
     { query: string },
@@ -118,70 +165,38 @@ function GeocodeToolUI(
     }
   >,
 ) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { colors } = useTheme();
 
   if (props.status?.type === "running") {
-    return (
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: isDark ? "#1c1c1e" : "#f2f2f7" },
-        ]}
-      >
-        <Text style={[styles.label, { color: isDark ? "#8e8e93" : "#6e6e73" }]}>
-          Finding location...
-        </Text>
-      </View>
-    );
+    return <ToolStatus label="Finding location…" />;
   }
 
   if (props.result?.error) {
-    return (
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: isDark ? "#3a1c1c" : "#fff0f0" },
-        ]}
-      >
-        <Text style={[styles.label, { color: "#ff453a" }]}>
-          Geocoding failed: {props.result.error}
-        </Text>
-      </View>
-    );
+    return <ToolError label={`Geocoding failed: ${props.result.error}`} />;
   }
 
   const result = props.result?.result;
   if (!result) return null;
 
   return (
-    <View
-      style={[styles.card, { backgroundColor: isDark ? "#1c1c1e" : "#f2f2f7" }]}
-    >
+    <ToolCard>
       <View style={styles.row}>
-        <Text style={styles.pin}>{"\uD83D\uDCCD"}</Text>
+        <Text style={styles.pin}>{"📍"}</Text>
         <View>
-          <Text
-            style={[
-              styles.locationName,
-              { color: isDark ? "#ffffff" : "#000000" },
-            ]}
-          >
+          <Text style={[styles.locationName, { color: colors.foreground }]}>
             {result.name}
           </Text>
-          <Text
-            style={[styles.coords, { color: isDark ? "#8e8e93" : "#6e6e73" }]}
-          >
+          <Text style={[styles.coords, { color: colors.mutedForeground }]}>
             {Math.abs(result.latitude).toFixed(2)}
-            {"\u00B0"}
+            {"°"}
             {result.latitude >= 0 ? "N" : "S"},{" "}
             {Math.abs(result.longitude).toFixed(2)}
-            {"\u00B0"}
+            {"°"}
             {result.longitude >= 0 ? "E" : "W"}
           </Text>
         </View>
       </View>
-    </View>
+    </ToolCard>
   );
 }
 
@@ -204,36 +219,17 @@ function WeatherToolUI(
     }
   >,
 ) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { colors } = useTheme();
 
   if (props.status?.type === "running") {
-    return (
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: isDark ? "#1c1c1e" : "#f2f2f7" },
-        ]}
-      >
-        <Text style={[styles.label, { color: isDark ? "#8e8e93" : "#6e6e73" }]}>
-          Fetching weather for {props.args.query}...
-        </Text>
-      </View>
-    );
+    return <ToolStatus label={`Fetching weather for ${props.args.query}…`} />;
   }
 
   if (!props.result?.success) {
     return (
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: isDark ? "#3a1c1c" : "#fff0f0" },
-        ]}
-      >
-        <Text style={[styles.label, { color: "#ff453a" }]}>
-          Weather unavailable: {props.result?.error ?? "Unknown error"}
-        </Text>
-      </View>
+      <ToolError
+        label={`Weather unavailable: ${props.result?.error ?? "Unknown error"}`}
+      />
     );
   }
 
@@ -241,64 +237,40 @@ function WeatherToolUI(
     props.result;
 
   return (
-    <View
-      style={[
-        styles.weatherCard,
-        { backgroundColor: isDark ? "#1c1c1e" : "#f2f2f7" },
-      ]}
-    >
+    <ToolCard>
       <View style={styles.weatherHeader}>
         <Text style={styles.weatherEmoji}>
           {mapWeatherEmoji(weatherCode ?? 0)}
         </Text>
         <View>
-          <Text
-            style={[
-              styles.locationName,
-              { color: isDark ? "#ffffff" : "#000000" },
-            ]}
-          >
+          <Text style={[styles.locationName, { color: colors.foreground }]}>
             {location}
           </Text>
-          <Text
-            style={[
-              styles.condition,
-              { color: isDark ? "#8e8e93" : "#6e6e73" },
-            ]}
-          >
+          <Text style={[styles.condition, { color: colors.mutedForeground }]}>
             {mapWeatherCode(weatherCode ?? 0)}
           </Text>
         </View>
       </View>
 
-      <Text style={styles.tempLarge}>
+      <Text style={[styles.tempLarge, { color: colors.foreground }]}>
         {temperature ?? "--"}
-        {"\u00B0"}F
+        {"°"}F
       </Text>
 
       {windSpeed != null && (
-        <Text style={[styles.wind, { color: isDark ? "#8e8e93" : "#6e6e73" }]}>
+        <Text style={[styles.wind, { color: colors.mutedForeground }]}>
           Wind: {windSpeed} mph
         </Text>
       )}
 
       {forecast && forecast.length > 0 && (
-        <View
-          style={[
-            styles.forecastRow,
-            {
-              borderTopColor: isDark
-                ? "rgba(255,255,255,0.1)"
-                : "rgba(0,0,0,0.1)",
-            },
-          ]}
-        >
+        <View style={[styles.forecastRow, { borderTopColor: colors.border }]}>
           {forecast.map((day, i) => (
             <View key={i} style={styles.forecastDay}>
               <Text
                 style={[
                   styles.forecastLabel,
-                  { color: isDark ? "#8e8e93" : "#6e6e73" },
+                  { color: colors.mutedForeground },
                 ]}
               >
                 {day.label}
@@ -306,29 +278,24 @@ function WeatherToolUI(
               <Text style={styles.forecastEmoji}>
                 {mapWeatherEmoji(day.code)}
               </Text>
-              <Text
-                style={[
-                  styles.forecastTemp,
-                  { color: isDark ? "#ffffff" : "#000000" },
-                ]}
-              >
+              <Text style={[styles.forecastTemp, { color: colors.foreground }]}>
                 {day.max}
-                {"\u00B0"}
+                {"°"}
               </Text>
               <Text
                 style={[
                   styles.forecastTempLow,
-                  { color: isDark ? "#8e8e93" : "#6e6e73" },
+                  { color: colors.mutedForeground },
                 ]}
               >
                 {day.min}
-                {"\u00B0"}
+                {"°"}
               </Text>
             </View>
           ))}
         </View>
       )}
-    </View>
+    </ToolCard>
   );
 }
 
@@ -368,15 +335,14 @@ export default defineToolkit({
 
 const styles = StyleSheet.create({
   card: {
-    padding: 12,
-    borderRadius: 12,
-    marginVertical: 4,
-  },
-  weatherCard: {
-    padding: 16,
-    borderRadius: 12,
+    padding: 14,
+    borderRadius: Radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
     marginVertical: 4,
     gap: 4,
+  },
+  statusText: {
+    fontSize: 13,
   },
   row: {
     flexDirection: "row",
@@ -394,9 +360,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  label: {
-    fontSize: 13,
-  },
   weatherHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -413,7 +376,7 @@ const styles = StyleSheet.create({
   tempLarge: {
     fontSize: 40,
     fontWeight: "700",
-    color: "#007aff",
+    letterSpacing: -1,
   },
   wind: {
     fontSize: 13,

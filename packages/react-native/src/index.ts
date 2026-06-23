@@ -132,6 +132,7 @@ export * as SuggestionPrimitive from "./primitives/suggestion";
 export * as ErrorPrimitive from "./primitives/error";
 
 export { groupPartByType, type GroupByContext } from "@assistant-ui/core/react";
+export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
 
 // Re-export shared providers from core/react
 export {

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { blog, type BlogPage } from "@/lib/source";
 import { notFound } from "next/navigation";
 import { remark } from "remark";
@@ -26,11 +27,14 @@ export async function GET(
   const text = `# ${page.data.title}
 URL: ${page.url}
 ${page.data.description ? `\n${page.data.description}\n` : ""}
+${AGENT_DOCS_DIRECTIVE_MARKDOWN}
+
 ${processed.value}`;
 
   return new NextResponse(text, {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
+      "Cache-Control": "no-cache, must-revalidate",
       "X-Robots-Tag": "noindex, follow",
     },
   });

@@ -11,10 +11,12 @@ import {
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
-import { useStream } from "@langchain/react";
+import { STREAM_CONTROLLER, useChannel, useStream } from "@langchain/react";
+import type { Channel } from "@langchain/react";
 import type {
   LangChainBaseMessage,
   LangChainToolCall,
+  UIMessage,
   UseStreamRuntimeOptions,
 } from "./types";
 import {
@@ -22,7 +24,12 @@ import {
   getMessageContent,
   getMessageType,
 } from "./convertMessages";
+import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
+import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
+import { useLangChainStreamingTiming } from "./streamingTiming";
+
+const UI_CUSTOM_CHANNELS: readonly Channel[] = ["custom"];
 
 export const runConfigToSubmitOptions = (
   runConfig: AppendMessage["runConfig"],
@@ -30,6 +37,30 @@ export const runConfigToSubmitOptions = (
   runConfig?.custom
     ? { config: { configurable: runConfig.custom } }
     : undefined;
+
+/**
+ * Group the graph's accumulated `UIMessage`s by the assistant message they
+ * belong to. Non-array state and entries without a parent link are dropped.
+ * The parent id comes from `metadata.message_id` (Python SDK) or
+ * `metadata.id` (JS SDK).
+ */
+export const groupUIMessagesByParent = (
+  value: unknown,
+): Map<string, UIMessage[]> => {
+  const map = new Map<string, UIMessage[]>();
+  if (!Array.isArray(value)) return map;
+  for (const ui of value as UIMessage[]) {
+    const parentId = ui.metadata?.message_id ?? ui.metadata?.id;
+    if (!parentId) continue;
+    const existing = map.get(parentId);
+    if (existing) {
+      existing.push(ui);
+    } else {
+      map.set(parentId, [ui]);
+    }
+  }
+  return map;
+};
 
 const getPendingToolCalls = (
   messages: readonly LangChainBaseMessage[],
@@ -59,6 +90,7 @@ const useStreamThreadRuntime = (
   const { adapters, autoCancelPendingToolCalls, unstable_allowCancellation } =
     options;
   const messagesKey = options.messagesKey ?? "messages";
+  const uiStateKey = options.uiStateKey ?? "ui";
 
   const externalId = useAuiState((s) => s.threadListItem.externalId) as
     | string
@@ -78,8 +110,38 @@ const useStreamThreadRuntime = (
   );
   const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
+  const uiStateValue = stream.values[uiStateKey];
+
+  const customEvents = useChannel(stream, UI_CUSTOM_CHANNELS);
+  const liveUiMessages = useMemo(
+    () => foldUIUpdates(customEvents),
+    [customEvents],
+  );
+
+  const mergedUiMessages = useMemo(
+    () => mergeUIMessages(liveUiMessages, uiStateValue),
+    [liveUiMessages, uiStateValue],
+  );
+
+  const messageTiming = useLangChainStreamingTiming(
+    stream.messages as LangChainBaseMessage[],
+    effectiveIsRunning,
+  );
+
+  const convertWithUI = useMemo<
+    useExternalMessageConverter.Callback<LangChainBaseMessage>
+  >(() => {
+    const uiMessagesByParent = groupUIMessagesByParent(mergedUiMessages);
+    return (message, metadata) =>
+      convertLangChainBaseMessage(message, {
+        ...metadata,
+        uiMessagesByParent,
+        messageTiming,
+      });
+  }, [mergedUiMessages, messageTiming]);
+
   const threadMessages = useExternalMessageConverter({
-    callback: convertLangChainBaseMessage,
+    callback: convertWithUI,
     messages: stream.messages as LangChainBaseMessage[],
     isRunning: effectiveIsRunning,
   });
@@ -93,6 +155,9 @@ const useStreamThreadRuntime = (
         interrupt: stream.interrupt,
         interrupts: stream.interrupts,
         toolCalls: stream.toolCalls,
+        subagents: stream.subagents,
+        subgraphs: stream.subgraphs,
+        stream,
         error: stream.error,
         submit: stream.submit,
         respond: stream.respond,
@@ -100,17 +165,7 @@ const useStreamThreadRuntime = (
         values: stream.values,
         messagesKey,
       }),
-    [
-      stream.interrupt,
-      stream.interrupts,
-      stream.toolCalls,
-      stream.error,
-      stream.submit,
-      stream.respond,
-      stream.respondAll,
-      stream.values,
-      messagesKey,
-    ],
+    [stream, messagesKey],
   );
 
   const runtime = useExternalStoreRuntime({
@@ -161,6 +216,48 @@ const useStreamThreadRuntime = (
         ],
       });
     },
+    onReload: async (parentId, config) => {
+      const threadId = externalId;
+      if (!threadId || parentId == null) return;
+      const s = streamRef.current;
+      const checkpointId = await resolveForkCheckpoint(
+        s.client,
+        threadId,
+        s.messages as readonly LangChainBaseMessage[],
+        parentId,
+        config.sourceId,
+        s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
+        messagesKey,
+      );
+      if (!checkpointId) return;
+      await s.submit(null, {
+        forkFrom: checkpointId,
+        ...runConfigToSubmitOptions(config.runConfig),
+      });
+    },
+    onEdit: async (message) => {
+      const threadId = externalId;
+      if (!threadId) return;
+      const s = streamRef.current;
+      const checkpointId = await resolveForkCheckpoint(
+        s.client,
+        threadId,
+        s.messages as readonly LangChainBaseMessage[],
+        message.parentId,
+        message.sourceId,
+        s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
+        messagesKey,
+      );
+      if (!checkpointId) return;
+      const content = getMessageContent(message);
+      await s.submit(
+        { [messagesKey]: [{ type: "human", content }] },
+        {
+          forkFrom: checkpointId,
+          ...runConfigToSubmitOptions(message.runConfig),
+        },
+      );
+    },
     onCancel:
       unstable_allowCancellation !== false
         ? async () => {
@@ -202,6 +299,7 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
     unstable_threadListAdapter,
     create,
     delete: deleteFn,
+    onThreadIdChange,
     ...options
   } = rawOptions;
 
@@ -221,5 +319,6 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
     },
     adapter,
     allowNesting: true,
+    onThreadIdChange,
   });
 };

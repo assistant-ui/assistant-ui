@@ -585,6 +585,32 @@ describe("useLangGraphRuntime", () => {
     expect(signal?.aborted).toBe(true);
   });
 
+  it("forwards onThreadIdChange so the settled remote thread id reaches the consumer", async () => {
+    const onThreadIdChange = vi.fn();
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+        onThreadIdChange,
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.threads.mainThreadId), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+
+    await waitFor(() =>
+      expect(onThreadIdChange).toHaveBeenLastCalledWith("lg-thread-1"),
+    );
+  });
+
   it("invokes user-provided create when stream calls initialize without cloud", async () => {
     const userCreate = vi.fn(async () => ({ externalId: "lg-thread-xyz" }));
 

@@ -36,6 +36,7 @@
   "dependencies": {
     "@ag-ui/client": "^0.0.57",
     "@assistant-ui/core": "^0.2.18",
+    "@assistant-ui/store": "^0.2.18",
     "assistant-stream": "^0.3.23",
     "fast-json-patch": "^3.1.1"
   },
@@ -52,7 +53,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.17",
     "react": "^19.2.7",
-    "vitest": "^4.1.8",
+    "vitest": "^4.1.9",
     "zod": "^4.4.3"
   },
   "publishConfig": {

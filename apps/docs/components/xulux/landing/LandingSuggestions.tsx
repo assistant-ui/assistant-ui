@@ -8,10 +8,17 @@ import {
   SparklesIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { analytics } from "@/lib/analytics";
+import {
+  useXuluxAnalytics,
+  withXuluxContext,
+} from "@/lib/xulux/analytics-context";
 import { cn } from "@/lib/utils";
 
+type SuggestionGroupLabel = "New app" | "Templates" | "Learn" | "Cloud";
+
 type SuggestionGroup = {
-  label: string;
+  label: SuggestionGroupLabel;
   icon: ReactNode;
   options: { label: string; prompt: string }[];
 };
@@ -104,11 +111,15 @@ const suggestionChipClass =
   "aui-thread-welcome-suggestion text-foreground hover:bg-muted border-border/60 h-auto gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors [&_svg]:size-4";
 
 type Props = {
-  onSelectPrompt: (prompt: string) => void;
+  onSelectPrompt: (
+    prompt: string,
+    suggestion: { group: SuggestionGroupLabel; label: string },
+  ) => void;
   disabled?: boolean;
 };
 
 export function LandingSuggestions({ onSelectPrompt, disabled }: Props) {
+  const analyticsCtx = useXuluxAnalytics();
   const [expandedLabel, setExpandedLabel] = useState<string | null>(null);
   const expandedGroup = SUGGESTION_GROUPS.find(
     (group) => group.label === expandedLabel,
@@ -153,7 +164,19 @@ export function LandingSuggestions({ onSelectPrompt, disabled }: Props) {
                 variant="ghost"
                 disabled={disabled}
                 className={suggestionChipClass}
-                onClick={() => onSelectPrompt(option.prompt)}
+                onClick={() => {
+                  analytics.xulux.suggestionSelected(
+                    withXuluxContext(analyticsCtx, {
+                      group: expandedGroup.label,
+                      label: option.label,
+                      message_length: option.prompt.length,
+                    }),
+                  );
+                  onSelectPrompt(option.prompt, {
+                    group: expandedGroup.label,
+                    label: option.label,
+                  });
+                }}
               >
                 {option.label}
               </Button>

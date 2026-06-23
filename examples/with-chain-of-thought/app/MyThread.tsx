@@ -1,10 +1,23 @@
 "use client";
 
-import { type FC, type PropsWithChildren, useState } from "react";
+import { type FC, type PropsWithChildren } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { Sources } from "@/components/assistant-ui/sources";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningRoot,
+  ReasoningText,
+  ReasoningTrigger,
+} from "@/components/assistant-ui/reasoning";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import {
+  ToolGroupContent,
+  ToolGroupRoot,
+  ToolGroupTrigger,
+} from "@/components/assistant-ui/tool-group";
 import {
   ComposerPrimitive,
   groupPartByType,
@@ -13,13 +26,7 @@ import {
   ThreadPrimitive,
   useThread,
 } from "@assistant-ui/react";
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  SquareIcon,
-} from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, SquareIcon } from "lucide-react";
 
 export const MyThread: FC = () => {
   return (
@@ -117,19 +124,35 @@ const AssistantMessage: FC = () => {
           groupBy={groupPartByType({
             reasoning: ["group-chainOfThought", "group-reasoning"],
             "tool-call": ["group-chainOfThought", "group-tool"],
+            "standalone-tool-call": [],
             source: ["group-sources"],
           })}
         >
           {({ part, children }) => {
             switch (part.type) {
               case "group-chainOfThought":
-                return <ChainOfThoughtGroup>{children}</ChainOfThoughtGroup>;
-              case "group-reasoning":
-                return <PartLayout label="Thinking">{children}</PartLayout>;
+                return <div data-slot="aui_chain-of-thought">{children}</div>;
               case "group-tool":
                 return (
-                  <PartLayout label="Taking action">{children}</PartLayout>
+                  <ToolGroupRoot variant="ghost">
+                    <ToolGroupTrigger
+                      count={part.indices.length}
+                      active={part.status.type === "running"}
+                    />
+                    <ToolGroupContent>{children}</ToolGroupContent>
+                  </ToolGroupRoot>
                 );
+              case "group-reasoning": {
+                const running = part.status.type === "running";
+                return (
+                  <ReasoningRoot streaming={running}>
+                    <ReasoningTrigger active={running} />
+                    <ReasoningContent aria-busy={running}>
+                      <ReasoningText>{children}</ReasoningText>
+                    </ReasoningContent>
+                  </ReasoningRoot>
+                );
+              }
               case "group-sources":
                 return <SourcesLayout>{children}</SourcesLayout>;
               case "text":
@@ -137,7 +160,7 @@ const AssistantMessage: FC = () => {
               case "reasoning":
                 return <Reasoning {...part} />;
               case "tool-call":
-                return <ToolCall {...part} />;
+                return part.toolUI ?? <ToolFallback {...part} />;
               case "source":
                 return <Sources {...part} />;
               default:
@@ -150,83 +173,11 @@ const AssistantMessage: FC = () => {
   );
 };
 
-const ChainOfThoughtGroup: FC<PropsWithChildren> = ({ children }) => {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="my-2 rounded-lg border">
-      <button
-        type="button"
-        className="hover:bg-muted/50 flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-sm font-medium"
-        onClick={() => setOpen((o) => !o)}
-      >
-        {open ? (
-          <ChevronDownIcon className="size-4 shrink-0" />
-        ) : (
-          <ChevronRightIcon className="size-4 shrink-0" />
-        )}
-        Thinking
-      </button>
-      {open && children}
-    </div>
-  );
-};
-
 const SourcesLayout: FC<PropsWithChildren> = ({ children }) => {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <span className="text-muted-foreground mr-1 text-xs">Sources</span>
       {children}
-    </div>
-  );
-};
-
-const PartLayout: FC<PropsWithChildren<{ label: string }>> = ({
-  children,
-  label,
-}) => {
-  const [open, setOpen] = useState(true);
-
-  return (
-    <div className="border-t">
-      <button
-        type="button"
-        className="text-muted-foreground hover:bg-muted/50 flex w-full cursor-pointer items-center gap-2 px-4 py-1.5 text-xs"
-        onClick={() => setOpen((o) => !o)}
-      >
-        {open ? (
-          <ChevronDownIcon className="size-3" />
-        ) : (
-          <ChevronRightIcon className="size-3" />
-        )}
-        {label}
-      </button>
-      {open && children}
-    </div>
-  );
-};
-
-const Reasoning: FC<{ text: string }> = ({ text }) => {
-  return (
-    <p className="text-muted-foreground px-4 py-2 text-sm whitespace-pre-wrap italic">
-      {text}
-    </p>
-  );
-};
-
-const ToolCall: FC<{ toolName: string; status: { type: string } }> = ({
-  toolName,
-  status,
-}) => {
-  return (
-    <div className="px-4 py-2 text-sm">
-      {status.type === "running"
-        ? `Running ${toolName}...`
-        : status.type === "complete"
-          ? `${toolName} completed`
-          : status.type === "incomplete"
-            ? `${toolName} failed`
-            : `${toolName} requires action`}
     </div>
   );
 };

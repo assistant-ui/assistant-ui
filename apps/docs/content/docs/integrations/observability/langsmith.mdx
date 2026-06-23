@@ -15,8 +15,9 @@ This page covers the **AI SDK** path. If you use [`@assistant-ui/react-langgraph
 
 LangSmith provides a wrapper around the `ai` namespace. You call `wrapAISDK(ai)`, get back the same exports (`generateText`, `streamText`, `generateObject`, `streamObject`), and use those in place of the originals. Every call is then traced.
 
-```
-your route  ──►  wrapped streamText  ──►  LangSmith client  ──►  LangSmith
+```mermaid
+flowchart LR
+    route["your route"] --> stream["wrapped streamText"] --> client["LangSmith client"] --> langsmith["LangSmith"]
 ```
 
 ## Setup

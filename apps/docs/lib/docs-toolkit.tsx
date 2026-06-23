@@ -22,12 +22,7 @@ import {
   defineGenerativeComponents,
   generativeUIToJSX,
 } from "@assistant-ui/react-generative-ui";
-import {
-  formatToolCall,
-  ToolErrorCard,
-  ToolStatusCard,
-  ToolTraceCard,
-} from "@/lib/tool-trace";
+import { ToolErrorCard, ToolStatusCard, ToolTraceCard } from "@/lib/tool-trace";
 
 const weatherFormatSchema = z.enum(["fahrenheit", "celsius"]);
 
@@ -61,16 +56,18 @@ const GeocodeLocationToolUI: ToolCallMessagePartComponent<
   GeocodeLocationArgs,
   GeocodeLocationResult
 > = ({ toolName, args, result }) => {
-  const signature = formatToolCall(toolName, args);
   const icon = <MapPin className="size-4" />;
 
   if (result?.success === false) {
-    return <ToolErrorCard signature={signature} error={result.error} />;
+    return (
+      <ToolErrorCard signature={toolName} error={result.error} args={args} />
+    );
   }
+
   if (!result) {
     return (
       <ToolStatusCard
-        signature={signature}
+        signature={toolName}
         icon={icon}
         message="Finding location..."
         loading
@@ -79,11 +76,13 @@ const GeocodeLocationToolUI: ToolCallMessagePartComponent<
   }
 
   const { name, latitude, longitude } = result.result;
+
   return (
     <ToolTraceCard
       icon={icon}
-      signature={signature}
+      signature={toolName}
       description={`${name} · ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`}
+      args={args}
       result={result}
     />
   );
@@ -93,16 +92,18 @@ const GetWeatherToolUI: ToolCallMessagePartComponent<
   GetWeatherArgs,
   GetWeatherResult
 > = ({ toolName, args, result }) => {
-  const signature = formatToolCall(toolName, args);
   const icon = <CloudSun className="size-4" />;
 
   if (result?.success === false) {
-    return <ToolErrorCard signature={signature} error={result.error} />;
+    return (
+      <ToolErrorCard signature={toolName} error={result.error} args={args} />
+    );
   }
+
   if (!result) {
     return (
       <ToolStatusCard
-        signature={signature}
+        signature={toolName}
         icon={icon}
         message="Fetching weather..."
         loading
@@ -112,15 +113,17 @@ const GetWeatherToolUI: ToolCallMessagePartComponent<
 
   const current = result.widget?.current;
   const unitSymbol = result.widget?.units.temperature === "celsius" ? "C" : "F";
+
   return (
     <ToolTraceCard
       icon={icon}
-      signature={signature}
+      signature={toolName}
       description={
         current
           ? `${Math.round(current.temperature)}°${unitSymbol} · ${current.conditionCode} in ${result.location}`
           : "Weather ready"
       }
+      args={args}
       result={result}
     />
   );

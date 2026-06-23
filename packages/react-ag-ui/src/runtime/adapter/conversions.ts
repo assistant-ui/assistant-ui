@@ -2,6 +2,7 @@
 
 import type { InputContent } from "@ag-ui/client";
 import type { ThreadMessageLike as CoreThreadMessageLike } from "@assistant-ui/core";
+import { getAutoStatus } from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
@@ -602,6 +603,25 @@ export function fromAgUiMessages(
 
     if (role === "user" || role === "system") {
       converted.push(toUserOrSystemSnapshotMessage(role, rawMessage));
+    }
+  }
+
+  for (let i = 0; i < converted.length; i++) {
+    const message = converted[i]!;
+    if (message.role !== "assistant" || !Array.isArray(message.content)) {
+      continue;
+    }
+    const hasPendingToolCall = message.content.some(
+      (part) =>
+        isObject(part) &&
+        part.type === "tool-call" &&
+        part.result === undefined,
+    );
+    if (hasPendingToolCall) {
+      converted[i] = {
+        ...message,
+        status: getAutoStatus(false, false, false, true, undefined),
+      };
     }
   }
 

@@ -110,4 +110,54 @@ describe("fromThreadMessageLike", () => {
       ).toThrow("Unsupported user message part type: tool-call");
     });
   });
+
+  describe("reasoning and image robustness", () => {
+    it("drops a reasoning part whose text is undefined", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [
+            { type: "reasoning", text: undefined as unknown as string },
+          ],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([]);
+    });
+
+    it("drops a whitespace-only text part", () => {
+      const result = fromThreadMessageLike(
+        { role: "assistant", content: [{ type: "text", text: "   " }] },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([]);
+    });
+
+    it("keeps a reasoning part with real text", () => {
+      const result = fromThreadMessageLike(
+        { role: "assistant", content: [{ type: "reasoning", text: "hi" }] },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([{ type: "reasoning", text: "hi" }]);
+    });
+
+    it("drops an assistant image part whose image is undefined", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "image", image: undefined as unknown as string }],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([]);
+    });
+  });
 });

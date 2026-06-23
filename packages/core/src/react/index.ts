@@ -157,6 +157,12 @@ export {
 } from "./runtimes/external-message-converter";
 export type { JoinStrategy } from "./runtimes/external-message-converter";
 export { createMessageConverter } from "./runtimes/createMessageConverter";
+export {
+  useStreamingTiming,
+  type StreamingTimingAccessors,
+  type StreamingTimingOptions,
+  type StreamingTimingState,
+} from "./runtimes/useStreamingTiming";
 export { RemoteThreadListHookInstanceManager } from "./runtimes/RemoteThreadListHookInstanceManager";
 export { RemoteThreadListThreadListRuntimeCore } from "./runtimes/RemoteThreadListThreadListRuntimeCore";
 export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
@@ -184,6 +190,7 @@ export {
   ThreadPrimitiveMessages,
   ThreadPrimitiveMessagesImpl,
   ThreadPrimitiveMessageByIndex,
+  ThreadPrimitiveUnstable_MessageById,
 } from "./primitives/thread/ThreadMessages";
 export {
   MessagePrimitiveParts,
@@ -234,6 +241,7 @@ export { getMessageQuote } from "./utils/getMessageQuote";
 
 // Primitive hooks (shared behavior logic)
 export { useThreadMessages } from "./primitive-hooks/useThreadMessages";
+export { unstable_useThreadMessageIds } from "./primitive-hooks/useThreadMessageIds";
 export { useThreadIsRunning } from "./primitive-hooks/useThreadIsRunning";
 export { useThreadIsEmpty } from "./primitive-hooks/useThreadIsEmpty";
 export { useComposerSend } from "./primitive-hooks/useComposerSend";

@@ -1,48 +1,62 @@
-import { FlatList, View, StyleSheet, useColorScheme } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAui, useAuiState } from "@assistant-ui/react-native";
-import { ThreadListItem } from "./ThreadListItem";
+import {
+  ThreadListPrimitive,
+  ThreadListItemByIndexProvider,
+  useAui,
+} from "@assistant-ui/react-native";
 import type { DrawerContentComponentProps } from "expo-router/build/react-navigation/drawer/types";
+import { ThreadListItem } from "./ThreadListItem";
+import { Icon } from "@/components/ui/icon";
+import { useTheme } from "@/hooks/use-theme";
+import { Radius } from "@/constants/theme";
+import { haptics } from "@/lib/haptics";
 
 export function ThreadListDrawer({ navigation }: DrawerContentComponentProps) {
+  const { colors } = useTheme();
   const aui = useAui();
-  const threadIds = useAuiState((s) => s.threads.threadIds);
-  const mainThreadId = useAuiState((s) => s.threads.mainThreadId);
-  const threadItems = useAuiState((s) => s.threads.threadItems);
   const insets = useSafeAreaInsets();
-  const isDark = useColorScheme() === "dark";
 
   return (
     <View
       style={[
         styles.container,
-        {
-          backgroundColor: isDark
-            ? "rgba(28, 28, 30, 0.85)"
-            : "rgba(242, 242, 247, 0.85)",
-          paddingTop: insets.top,
-        },
+        { backgroundColor: colors.background, paddingTop: insets.top + 12 },
       ]}
     >
-      <FlatList
-        data={threadIds}
-        keyExtractor={(item) => item}
-        renderItem={({ item: threadId }) => {
-          const threadItem = threadItems.find((t) => t.id === threadId);
-          return (
-            <ThreadListItem
-              title={threadItem?.title ?? "New Chat"}
-              isActive={threadId === mainThreadId}
-              onPress={() => {
-                aui.threads().switchToThread(threadId);
-                navigation.closeDrawer();
-              }}
-            />
-          );
-        }}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-      />
+      <ThreadListPrimitive.Root style={styles.root}>
+        <Pressable
+          onPressIn={haptics.selection}
+          onPress={() => {
+            aui.threads().switchToNewThread();
+            navigation.closeDrawer();
+          }}
+          style={({ pressed }) => [
+            styles.newButton,
+            { backgroundColor: pressed ? colors.muted : "transparent" },
+          ]}
+        >
+          <Icon name="compose" size={18} color={colors.foreground} />
+          <Text style={[styles.newLabel, { color: colors.foreground }]}>
+            New chat
+          </Text>
+        </Pressable>
+
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+          Recent
+        </Text>
+
+        <ThreadListPrimitive.Items
+          renderItem={({ index }) => (
+            <ThreadListItemByIndexProvider index={index} archived={false}>
+              <ThreadListItem onSelect={() => navigation.closeDrawer()} />
+            </ThreadListItemByIndexProvider>
+          )}
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      </ThreadListPrimitive.Root>
     </View>
   );
 }
@@ -51,7 +65,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  root: {
+    flex: 1,
+  },
+  newButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    height: 40,
+    paddingHorizontal: 12,
+    marginHorizontal: 8,
+    marginBottom: 4,
+    borderRadius: Radius.md,
+  },
+  newLabel: {
+    fontSize: 15,
+    fontWeight: "500",
+    letterSpacing: -0.2,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
   list: {
-    paddingVertical: 8,
+    flex: 1,
+  },
+  listContent: {
+    paddingBottom: 8,
   },
 });

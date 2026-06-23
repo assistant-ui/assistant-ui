@@ -1,0 +1,113 @@
+---
+title: Headless Composer Input
+description: Build a custom composer input while keeping assistant-ui composer state and send gating.
+platforms: ["react"]
+---
+
+`ComposerPrimitive.Input` is still the recommended composer input for most apps. It owns autosize, keyboard shortcuts, IME handling, paste-to-attachment, focus behavior, and trigger-popover keyboard integration.
+
+Use `unstable_useComposerInput` when you already own the input surface, such as a custom editor, a `contentEditable` surface, or a textarea wrapper whose behavior cannot be expressed through `ComposerPrimitive.Input`'s props, `asChild`, or `render` APIs.
+
+<Callout type="warn">
+  This API is marked unstable and may change without notice. It is a thin bridge
+  to composer text and send state, not a replacement implementation of
+  `ComposerPrimitive.Input`.
+</Callout>
+
+## Usage
+
+Render the custom input inside a composer and mirror text changes into the assistant-ui composer state:
+
+```tsx
+"use client";
+
+import {
+  ComposerPrimitive,
+  unstable_useComposerInput,
+  unstable_useTriggerPopoverAriaProps,
+} from "@assistant-ui/react";
+
+function HeadlessComposer() {
+  const composer = unstable_useComposerInput();
+  const popoverAria = unstable_useTriggerPopoverAriaProps();
+
+  return (
+    <ComposerPrimitive.Root>
+      <textarea
+        aria-label="Message"
+        value={composer.value}
+        disabled={composer.isDisabled}
+        onChange={(event) => {
+          composer.setText(event.currentTarget.value);
+        }}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing) return;
+
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+
+            if (composer.canSend) {
+              composer.send();
+            }
+          }
+        }}
+        {...popoverAria}
+      />
+      <ComposerPrimitive.Send />
+    </ComposerPrimitive.Root>
+  );
+}
+```
+
+`composer.send()` exposes the same send action used by `ComposerPrimitive.Send`, including send options such as `composer.send({ steer: true })`. It is a no-op unless `composer.canSend` is `true`; check `canSend` in custom keyboard handlers to keep your event handling explicit.
+
+## Hook Result
+
+| Field | Description |
+| --- | --- |
+| `value` | Current composer text. Returns `""` when the composer is not editing. |
+| `setText(text)` | Writes text into the composer while it is editing. |
+| `send(options?)` | Sends the current composer message when `canSend` is `true`; otherwise a no-op. |
+| `isDisabled` | Combines the hook's `disabled` option with assistant-ui disabled sources, such as thread disabled state and active dictation input lock. |
+| `canSend` | Matches `ComposerPrimitive.Send` gating, then also respects `isDisabled`. |
+
+Pass `disabled` when your editor has an additional read-only state:
+
+```tsx
+const composer = unstable_useComposerInput({
+  disabled: editorReadOnly,
+});
+```
+
+## What You Still Own
+
+The hook does not recreate the behavior of `ComposerPrimitive.Input`. Your input or editor remains responsible for:
+
+- Enter/newline shortcuts, steer shortcuts, escape/cancel behavior, and any other keyboard behavior.
+- IME and composition handling.
+- Cursor and selection tracking.
+- Autosize and focus management.
+- Paste/drop attachment behavior.
+- Rich text state, serialization, and DOM synchronization for `contentEditable` or editor-library integrations.
+
+For styled textareas, prefer `ComposerPrimitive.Input`. Reach for the headless hook when the editor has its own model or DOM lifecycle and assistant-ui should only supply composer state and send gating.
+
+## Trigger Popovers
+
+`unstable_useTriggerPopoverAriaProps` returns the combobox ARIA attributes for the currently open trigger popover:
+
+```tsx
+const popoverAria = unstable_useTriggerPopoverAriaProps();
+
+<textarea {...popoverAria} />;
+```
+
+Spread these props last so they can mirror `ComposerPrimitive.Input` when a popover is open.
+
+This helper only describes the open popover to assistive technology. It does not wire a custom editor into mention or slash-command keyboard handling, cursor tracking, or item insertion. For the full built-in trigger-popover experience, use `ComposerPrimitive.Input`; for richer editors, integrate the trigger UI with the editor's own selection and keyboard model.
+
+## Related
+
+- [Composer primitives](/docs/primitives/composer)
+- [Composer Trigger Popover](/docs/ui/composer-trigger-popover)
+- [Input History](/docs/guides/input-history)

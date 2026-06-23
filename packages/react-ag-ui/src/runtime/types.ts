@@ -1,4 +1,5 @@
 import type {
+  CreateAppendMessage,
   AttachmentAdapter,
   DictationAdapter,
   ExternalStoreSharedOptions,
@@ -83,6 +84,17 @@ export type AgUiResumeEntry = {
   interruptId: string;
   status: "resolved" | "cancelled";
   payload?: unknown;
+};
+
+export type AgUiRuntimeExtras = {
+  interrupts: readonly AgUiInterrupt[];
+  submitInterruptResponses: (
+    responses: readonly AgUiResumeEntry[],
+  ) => Promise<void>;
+  steerAway: (
+    message: CreateAppendMessage,
+    responses?: readonly AgUiResumeEntry[],
+  ) => Promise<void>;
 };
 
 export type AgUiRunFinishedOutcome =
