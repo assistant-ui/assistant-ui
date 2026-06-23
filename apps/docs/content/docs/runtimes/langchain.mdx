@@ -804,7 +804,10 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | Subagent/subgraph message views | Via `eventHandlers` | Yes (via `useLangChainStream` + v1 selector hooks) |
 | End-to-end cancellation primitive | Yes (`unstable_createLangGraphStream`) | Not exposed |
 | Message accumulator utility | Yes (`LangGraphMessageAccumulator`) | Not exposed |
+| Streaming timing (per-message) | Yes | Yes |
 | Cloud thread persistence | Yes | Yes |
+
+Per-message streaming timing is attached automatically to `message.metadata.timing` (no setup), matching `react-langgraph`. It captures time-to-first-token, total stream time, chunk count, and tokens/sec, computed from message growth while the run is in flight.
 
 `react-langchain` is the newer, thinner wrapper. It delegates to upstream `useStream` rather than re-implementing the stream plumbing, which is why its footprint is smaller. Features absent today have not been ported, not deprecated.
 

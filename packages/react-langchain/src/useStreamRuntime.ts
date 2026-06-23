@@ -9,6 +9,7 @@ import {
   useExternalStoreRuntime,
   useExternalMessageConverter,
   useRemoteThreadListRuntime,
+  useStreamingTiming,
 } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
 import { STREAM_CONTROLLER, useChannel, useStream } from "@langchain/react";
@@ -27,6 +28,7 @@ import {
 import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
 import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
+import { langChainStreamingTimingAccessors } from "./streamingTiming";
 
 const UI_CUSTOM_CHANNELS: readonly Channel[] = ["custom"];
 
@@ -122,13 +124,23 @@ const useStreamThreadRuntime = (
     [liveUiMessages, uiStateValue],
   );
 
+  const messageTiming = useStreamingTiming(
+    stream.messages as LangChainBaseMessage[],
+    effectiveIsRunning,
+    langChainStreamingTimingAccessors,
+  );
+
   const convertWithUI = useMemo<
     useExternalMessageConverter.Callback<LangChainBaseMessage>
   >(() => {
     const uiMessagesByParent = groupUIMessagesByParent(mergedUiMessages);
     return (message, metadata) =>
-      convertLangChainBaseMessage(message, { ...metadata, uiMessagesByParent });
-  }, [mergedUiMessages]);
+      convertLangChainBaseMessage(message, {
+        ...metadata,
+        uiMessagesByParent,
+        messageTiming,
+      });
+  }, [mergedUiMessages, messageTiming]);
 
   const threadMessages = useExternalMessageConverter({
     callback: convertWithUI,

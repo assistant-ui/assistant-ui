@@ -1,7 +1,11 @@
 "use client";
 
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
-import type { AppendMessage, DataMessagePart } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  DataMessagePart,
+  MessageTiming,
+} from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type {
   LangChainBaseMessage,
@@ -12,6 +16,7 @@ import type {
 type LangChainMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     uiMessagesByParent?: Map<string, UIMessage[]>;
+    messageTiming?: Record<string, MessageTiming>;
   };
 
 const uiMessageToDataPart = (ui: UIMessage): DataMessagePart => ({
@@ -135,6 +140,8 @@ export const convertLangChainBaseMessage = (
               ?.map(uiMessageToDataPart)
           : undefined) ?? [];
 
+      const timing = metadata.messageTiming?.[message.id ?? ""];
+
       return {
         role: "assistant",
         id: message.id,
@@ -145,6 +152,7 @@ export const convertLangChainBaseMessage = (
         ],
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
+          ...(timing && { timing }),
         },
         ...(assistantStatus && { status: assistantStatus }),
       };
