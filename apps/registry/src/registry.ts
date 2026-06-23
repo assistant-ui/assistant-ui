@@ -317,7 +317,7 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
-    registryDependencies: ["collapsible"],
+    registryDependencies: ["button", "collapsible"],
   },
   {
     name: "tool-group",
