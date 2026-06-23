@@ -11,7 +11,8 @@ import {
 const findAssistant = (
   messages: readonly UIMessage[],
   messageId: string,
-): UIMessage | undefined => messages.find((m) => m.id === messageId);
+): UIMessage | undefined =>
+  messages.find((m) => m.role === "assistant" && m.id === messageId);
 
 const getTextLength = (
   messages: readonly UIMessage[],
