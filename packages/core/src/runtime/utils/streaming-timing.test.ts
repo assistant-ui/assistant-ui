@@ -106,12 +106,40 @@ describe("stepStreamingTiming", () => {
     expect(r3.state).toBeNull();
     const timing = r3.timings["m1"]!;
     expect(timing).toBeDefined();
-    expect(timing.totalChunks).toBe(2);
+    // The final delta ("abc", arrived with the stop signal) is reconciled,
+    // so totalChunks and tokenCount count the same three-character content.
+    expect(timing.totalChunks).toBe(3);
     expect(timing.tokenCount).toBe(Math.ceil(3 / 4));
     expect(timing.toolCallCount).toBe(0);
     expect(timing.tokensPerSecond).toBeCloseTo(
       timing.tokenCount! / (timing.totalStreamTime! / 1000),
     );
+  });
+
+  it("reconciles totalChunks and tokenCount when the only growth lands at finalize", () => {
+    const now = makeClock();
+    // Running the whole time with empty content; the text arrives only with
+    // the stop signal.
+    const r1 = stepStreamingTiming(
+      null,
+      [msg("m1", "")],
+      true,
+      accessors,
+      undefined,
+      now,
+    );
+    const r2 = stepStreamingTiming(
+      r1.state,
+      [msg("m1", "done")],
+      false,
+      accessors,
+      undefined,
+      now,
+    );
+    const timing = r2.timings["m1"]!;
+    expect(timing.totalChunks).toBe(1);
+    expect(timing.tokenCount).toBe(Math.ceil(4 / 4));
+    expect(timing.firstTokenTime).toBe(timing.totalStreamTime);
   });
 
   it("does not finalize while still running", () => {

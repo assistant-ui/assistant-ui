@@ -35,6 +35,11 @@ export type StreamingTimingOptions = {
  * Mutable tracking state for a single in-flight assistant message. Kept
  * between updates by the caller (a ref in the React hook); `null` means no
  * message is being tracked.
+ *
+ * `totalChunks` counts content growth deltas observed while streaming. The
+ * final delta that lands in the same update as the `isRunning -> false`
+ * transition is reconciled at finalize, so `totalChunks` and the token
+ * estimate (derived from final length) count the same content.
  */
 export type StreamingTimingState = {
   readonly messageId: string;
@@ -48,6 +53,25 @@ const defaultEstimateTokens = (textLength: number): number =>
   Math.ceil(textLength / 4);
 
 /**
+ * Apply one content growth delta to `state`, recording the first-token time
+ * on the first growth and bumping the chunk count. Returns `state` unchanged
+ * when `len` has not grown.
+ */
+const applyGrowth = (
+  state: StreamingTimingState,
+  len: number,
+  now: () => number,
+): StreamingTimingState => {
+  if (len <= state.lastContentLength) return state;
+  return {
+    ...state,
+    firstTokenTime: state.firstTokenTime ?? now() - state.startTime,
+    lastContentLength: len,
+    totalChunks: state.totalChunks + 1,
+  };
+};
+
+/**
  * Advance the client-side streaming timing tracker by one update.
  *
  * Pure: given the previous state and the current `(messages, isRunning)`
@@ -55,10 +79,11 @@ const defaultEstimateTokens = (textLength: number): number =>
  * update (empty when streaming is still in flight). The caller owns the
  * state (e.g. a ref) and merges finalized timings into its store.
  *
- * Unlike the per-adapter hooks this replaces, the token estimate at finalize
- * is recomputed from the final messages rather than the last observed growth
- * delta, so the final content chunk (which often lands in the same render as
- * the `isRunning -> false` transition) is counted.
+ * At finalize the text length is recomputed from the final messages, and any
+ * final growth delta that landed in the same update as the
+ * `isRunning -> false` transition is reconciled, so the token estimate and
+ * `totalChunks` count the same content (the per-adapter hooks this replaces
+ * reuse a stale growth delta and miss that last chunk).
  */
 export const stepStreamingTiming = <TMessage>(
   state: StreamingTimingState | null,
@@ -87,37 +112,40 @@ export const stepStreamingTiming = <TMessage>(
       next = state;
     }
 
-    const len = accessors.getTextLength(messages, next.messageId);
-    if (len > next.lastContentLength) {
-      return {
-        state: {
-          ...next,
-          firstTokenTime: next.firstTokenTime ?? now() - next.startTime,
-          lastContentLength: len,
-          totalChunks: next.totalChunks + 1,
-        },
-        timings: {},
-      };
-    }
-    return { state: next, timings: {} };
+    return {
+      state: applyGrowth(
+        next,
+        accessors.getTextLength(messages, next.messageId),
+        now,
+      ),
+      timings: {},
+    };
   }
 
   if (!isRunning && state !== null) {
-    const totalStreamTime = now() - state.startTime;
-    // Recompute text length from the final messages rather than reusing the
-    // last growth delta, so the final chunk that lands with the
-    // `isRunning -> false` transition is included in the token estimate.
-    const finalLength = accessors.getTextLength(messages, state.messageId);
-    const tokenCount = estimateTokens(finalLength);
-    const toolCallCount = accessors.getToolCallCount(messages, state.messageId);
+    const nowMs = now();
+    // Reconcile any final growth that landed with the stop signal so the
+    // token estimate (derived from final length) and totalChunks agree.
+    const reconciled = applyGrowth(
+      state,
+      accessors.getTextLength(messages, state.messageId),
+      () => nowMs,
+    );
+
+    const totalStreamTime = nowMs - reconciled.startTime;
+    const tokenCount = estimateTokens(reconciled.lastContentLength);
+    const toolCallCount = accessors.getToolCallCount(
+      messages,
+      reconciled.messageId,
+    );
 
     const timing: MessageTiming = {
-      streamStartTime: state.startTime,
+      streamStartTime: reconciled.startTime,
       totalStreamTime,
-      totalChunks: state.totalChunks,
+      totalChunks: reconciled.totalChunks,
       toolCallCount,
-      ...(state.firstTokenTime !== undefined && {
-        firstTokenTime: state.firstTokenTime,
+      ...(reconciled.firstTokenTime !== undefined && {
+        firstTokenTime: reconciled.firstTokenTime,
       }),
       ...(tokenCount > 0 && { tokenCount }),
       ...(totalStreamTime > 0 &&
@@ -126,7 +154,7 @@ export const stepStreamingTiming = <TMessage>(
         }),
     };
 
-    return { state: null, timings: { [state.messageId]: timing } };
+    return { state: null, timings: { [reconciled.messageId]: timing } };
   }
 
   return { state, timings: {} };
