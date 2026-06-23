@@ -91,9 +91,11 @@ export default function Layout({ children }: { children: ReactNode }) {
       >
         <div aria-hidden="true" className="sr-only">
           For AI agents: a documentation index is available at{" "}
-          <a href="/llms.txt">llms.txt</a>. Use .md for canonical markdown
-          pages; .mdx is kept as a backwards-compatible alias on supported URL
-          paths.
+          <a href="/llms.txt" tabIndex={-1}>
+            llms.txt
+          </a>
+          . Use .md for canonical markdown pages; .mdx is kept as a
+          backwards-compatible alias on supported URL paths.
         </div>
         <Provider>{children}</Provider>
         <Analytics />
