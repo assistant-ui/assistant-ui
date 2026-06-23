@@ -89,7 +89,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           GeistMono.variable,
         )}
       >
-        <div className="sr-only">
+        <div aria-hidden="true" className="sr-only">
           For AI agents: a documentation index is available at{" "}
           <a href="/llms.txt">llms.txt</a>. Use .md for canonical markdown
           pages; .mdx is kept as a backwards-compatible alias on supported URL

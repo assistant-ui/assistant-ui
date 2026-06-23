@@ -1,9 +1,7 @@
+import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { pricingPlans } from "../pricing/pricing-data";
 
 export const revalidate = false;
-
-const AGENT_MARKDOWN_DIRECTIVE =
-  "> For AI agents: a documentation index is available at [llms.txt](/llms.txt). Use `.md` for canonical markdown pages; `.mdx` is kept as a backwards-compatible alias on supported URL paths.";
 
 const formatPlan = (plan: (typeof pricingPlans)[number]) => {
   const price = plan.period ? `${plan.price}${plan.period}` : plan.price;
@@ -26,7 +24,7 @@ export function GET() {
   const markdown = [
     "# assistant-ui pricing",
     "",
-    AGENT_MARKDOWN_DIRECTIVE,
+    AGENT_DOCS_DIRECTIVE_MARKDOWN,
     "",
     "assistant-ui is a free, MIT-licensed TypeScript/React library for AI chat. The commercial pricing below is for assistant-cloud, the fully managed backend for AI chat applications.",
     "",

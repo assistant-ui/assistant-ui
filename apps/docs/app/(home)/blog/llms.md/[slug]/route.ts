@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { blog, type BlogPage } from "@/lib/source";
 import { notFound } from "next/navigation";
 import { remark } from "remark";
@@ -9,9 +10,6 @@ import { remarkInclude } from "fumadocs-mdx/config";
 const processor = remark().use(remarkMdx).use(remarkInclude).use(remarkGfm);
 
 export const revalidate = false;
-
-const AGENT_MARKDOWN_DIRECTIVE =
-  "> For AI agents: a documentation index is available at [llms.txt](/llms.txt). Use `.md` for canonical markdown pages; `.mdx` is kept as a backwards-compatible alias on supported URL paths.";
 
 export async function GET(
   _req: NextRequest,
@@ -29,7 +27,7 @@ export async function GET(
   const text = `# ${page.data.title}
 URL: ${page.url}
 ${page.data.description ? `\n${page.data.description}\n` : ""}
-${AGENT_MARKDOWN_DIRECTIVE}
+${AGENT_DOCS_DIRECTIVE_MARKDOWN}
 
 ${processed.value}`;
 

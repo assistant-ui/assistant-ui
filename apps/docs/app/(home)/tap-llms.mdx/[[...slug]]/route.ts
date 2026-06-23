@@ -10,6 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ slug?: string[] }> },
 ) {
   const { slug } = await params;
+  // The Tap index MDX redirects; markdown should return content directly.
   const effectiveSlug =
     slug && slug.length > 0 ? slug : ["overview", "introduction"];
   const page = tapDocs.getPage(effectiveSlug);

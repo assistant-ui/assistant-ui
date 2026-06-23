@@ -1,7 +1,7 @@
 import type * as PageTree from "fumadocs-core/page-tree";
 import { NextResponse, type NextRequest } from "next/server";
 import { getLLMText } from "@/lib/get-llm-text";
-import { examples, source } from "@/lib/source";
+import { examples, source, tapDocs } from "@/lib/source";
 
 export const revalidate = false;
 
@@ -18,7 +18,7 @@ const toolDefinitions = [
   {
     name: "list_pages",
     description:
-      "List assistant-ui documentation pages. Optionally filter by a URL path prefix such as /docs/tools or /examples.",
+      "List assistant-ui documentation pages. Optionally filter by a URL path prefix such as /docs/tools, /examples, or /tap/docs.",
     inputSchema: {
       type: "object",
       properties: {
@@ -42,7 +42,7 @@ const toolDefinitions = [
   {
     name: "search_docs",
     description:
-      "Search assistant-ui docs and examples by title, description, or URL.",
+      "Search assistant-ui docs, examples, and Tap docs by title, description, or URL.",
     inputSchema: {
       type: "object",
       properties: {
@@ -58,14 +58,14 @@ const toolDefinitions = [
   {
     name: "read_page",
     description:
-      "Read one assistant-ui docs or examples page as markdown. Accepts a slug, path, .md URL, or same-origin URL.",
+      "Read one assistant-ui docs, examples, or Tap docs page as markdown. Accepts a slug, path, .md URL, or same-origin URL.",
     inputSchema: {
       type: "object",
       properties: {
         path: {
           type: "string",
           description:
-            "Page path such as /docs/installation, /docs/installation.md, examples/ai-sdk, or a same-origin URL.",
+            "Page path such as /docs/installation, /docs/installation.md, examples/ai-sdk, tap/docs/store/state, or a same-origin URL.",
         },
       },
       required: ["path"],
@@ -102,6 +102,10 @@ function allPages() {
     ...source.getPages().map((page) => ({ kind: "docs" as const, page })),
     ...examples.getPages().map((page) => ({
       kind: "examples" as const,
+      page,
+    })),
+    ...tapDocs.getPages().map((page) => ({
+      kind: "tap" as const,
       page,
     })),
   ];
@@ -150,6 +154,11 @@ function normalizePathname(rawPath: string, requestUrl?: string) {
   return stripMarkdownSuffix(stripTrailingSlashes(stripLeadingSlashes(value)));
 }
 
+function normalizePageUrlPrefix(rawPath: string) {
+  const pathname = normalizePathname(rawPath);
+  return pathname ? `/${pathname}` : "";
+}
+
 function normalizePath(rawPath: string, requestUrl: string) {
   const value = normalizePathname(rawPath, requestUrl);
   if (!value) return { kind: "docs" as const, slugs: [] };
@@ -160,6 +169,7 @@ function normalizePath(rawPath: string, requestUrl: string) {
 
   if (value === "docs") return { kind: "docs" as const, slugs: [] };
   if (value === "examples") return { kind: "examples" as const, slugs: [] };
+  if (value === "tap/docs") return { kind: "tap" as const, slugs: [] };
   if (value.startsWith("docs/")) {
     return {
       kind: "docs" as const,
@@ -172,11 +182,17 @@ function normalizePath(rawPath: string, requestUrl: string) {
       slugs: value.slice("examples/".length).split("/").filter(Boolean),
     };
   }
+  if (value.startsWith("tap/docs/")) {
+    return {
+      kind: "tap" as const,
+      slugs: value.slice("tap/docs/".length).split("/").filter(Boolean),
+    };
+  }
   return { kind: "docs" as const, slugs: value.split("/").filter(Boolean) };
 }
 
 function listPages(path: string | undefined) {
-  const normalizedPrefix = path ? normalizePathname(path) : undefined;
+  const normalizedPrefix = path ? normalizePageUrlPrefix(path) : undefined;
 
   return allPages()
     .map(({ page }) => pageSummary(page))
@@ -225,6 +241,7 @@ function getNavigation() {
   return {
     docs: source.pageTree.children.map(serializeNode),
     examples: examples.pageTree.children.map(serializeNode),
+    tapDocs: tapDocs.pageTree.children.map(serializeNode),
   };
 }
 
@@ -242,6 +259,12 @@ function searchDocs(query: string) {
     .slice(0, 20);
 }
 
+function getTapDocsPage(slugs: string[]) {
+  return tapDocs.getPage(
+    slugs.length > 0 ? slugs : ["overview", "introduction"],
+  );
+}
+
 async function readPage(path: string | undefined, requestUrl: string) {
   if (!path) throw new Error("path is required");
 
@@ -249,7 +272,9 @@ async function readPage(path: string | undefined, requestUrl: string) {
   const page =
     normalized.kind === "examples"
       ? examples.getPage(normalized.slugs)
-      : source.getPage(normalized.slugs);
+      : normalized.kind === "tap"
+        ? getTapDocsPage(normalized.slugs)
+        : source.getPage(normalized.slugs);
 
   if (!page) throw new Error(`Page not found: ${path}`);
 
@@ -301,12 +326,8 @@ async function handleJsonRpcMessage(
   try {
     switch (message.method) {
       case "initialize": {
-        const requestedVersion = getStringParam(
-          message.params,
-          "protocolVersion",
-        );
         return jsonRpcResult(message.id, {
-          protocolVersion: requestedVersion ?? PROTOCOL_VERSION,
+          protocolVersion: PROTOCOL_VERSION,
           capabilities: {
             tools: { listChanged: false },
             resources: { subscribe: false, listChanged: false },
@@ -426,6 +447,12 @@ export async function POST(request: NextRequest) {
   }
 
   if (Array.isArray(payload)) {
+    if (payload.length === 0) {
+      return jsonResponse(jsonRpcError(null, -32600, "Invalid Request"), {
+        status: 400,
+      });
+    }
+
     const results = (
       await Promise.all(
         payload.map((message) =>
