@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 
 const ANIMATION_DURATION = 200;
 
-const pressable = "active:scale-[0.97]";
+const pressable = "active:scale-[0.98]";
 
 export type ToolFallbackRootProps = Omit<
   React.ComponentProps<typeof Collapsible>,
