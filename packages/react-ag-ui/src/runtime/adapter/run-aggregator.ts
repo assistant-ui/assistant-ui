@@ -350,13 +350,8 @@ export class RunAggregator {
     this.toolCalls.set(id, state);
   }
 
-  // Place a tool-call part next to its parent message's text part rather than
-  // at wire-arrival position. The messages and tool-call channels are not
-  // ordered relative to each other on the wire, so a tool whose
-  // TOOL_CALL_START arrives after a *later* message's text would otherwise be
-  // appended below it and render out of order. Anchoring by parentMessageId
-  // keeps the call under the message that spawned it. Falls back to append
-  // when the parent is unknown or its text part has not arrived yet.
+  // The message and tool-call channels are unordered on the wire, so anchor a
+  // tool call under its parentMessageId text part instead of appending it.
   private insertToolPart(id: string, parentMessageId?: string) {
     const entry = { kind: "tool-call", toolCallId: id } as const;
     if (parentMessageId) {
@@ -364,8 +359,6 @@ export class RunAggregator {
         (part) => part.kind === "text" && part.key === parentMessageId,
       );
       if (parentIndex !== -1) {
-        // Insert after the parent's text and any sibling tool calls already
-        // anchored to the same parent, preserving their relative order.
         let insertAt = parentIndex + 1;
         while (insertAt < this.partOrder.length) {
           const part = this.partOrder[insertAt];
