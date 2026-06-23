@@ -1,4 +1,10 @@
-import type { StreamingTimingAccessors } from "@assistant-ui/core/react";
+"use client";
+
+import type { MessageTiming } from "@assistant-ui/core";
+import {
+  useStreamingTiming,
+  type StreamingTimingAccessors,
+} from "@assistant-ui/core/react";
 import type { LangChainBaseMessage, LangChainContentBlock } from "./types";
 import { getMessageType } from "./convertMessages";
 
@@ -7,6 +13,15 @@ const findAiMessage = (
   messageId: string,
 ): LangChainBaseMessage | undefined =>
   messages.find((m) => getMessageType(m) === "ai" && m.id === messageId);
+
+const reasoningTextLength = (part: {
+  readonly summary?: ReadonlyArray<{ readonly text?: string }>;
+  readonly reasoning?: string;
+}): number => {
+  if (part.summary && part.summary.length > 0)
+    return part.summary.map((s) => s?.text ?? "").join("\n\n\n").length;
+  return part.reasoning?.length ?? 0;
+};
 
 const getTextLength = (
   messages: readonly LangChainBaseMessage[],
@@ -19,10 +34,18 @@ const getTextLength = (
   if (!Array.isArray(content)) return 0;
   let len = 0;
   for (const part of content as readonly LangChainContentBlock[]) {
-    if ("text" in part && typeof part.text === "string")
-      len += part.text.length;
-    if ("thinking" in part && typeof part.thinking === "string")
-      len += part.thinking.length;
+    switch (part.type) {
+      case "text":
+      case "text_delta":
+        if (typeof part.text === "string") len += part.text.length;
+        break;
+      case "thinking":
+        if (typeof part.thinking === "string") len += part.thinking.length;
+        break;
+      case "reasoning":
+        len += reasoningTextLength(part);
+        break;
+    }
   }
   return len;
 };
@@ -42,14 +65,21 @@ const getAssistantMessageId = (
   return undefined;
 };
 
-/**
- * Adapts the shared `useStreamingTiming` primitive to the LangChain
- * `LangChainBaseMessage` shape (`_getType()` -> "ai", duck-typed content
- * blocks, `tool_calls`). The timing state machine itself lives in core.
- */
 export const langChainStreamingTimingAccessors: StreamingTimingAccessors<LangChainBaseMessage> =
   {
     getAssistantMessageId,
     getTextLength,
     getToolCallCount,
   };
+
+/**
+ * Tracks per-message streaming timing for LangChain messages. Delegates to
+ * the shared `useStreamingTiming` primitive in `@assistant-ui/core/react`,
+ * adapted to the `LangChainBaseMessage` shape (`_getType() -> "ai"`, content
+ * blocks including text/thinking/reasoning, `tool_calls`).
+ */
+export const useLangChainStreamingTiming = (
+  messages: readonly LangChainBaseMessage[],
+  isRunning: boolean,
+): Record<string, MessageTiming> =>
+  useStreamingTiming(messages, isRunning, langChainStreamingTimingAccessors);

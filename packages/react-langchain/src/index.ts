@@ -17,6 +17,7 @@ export {
 } from "./hooks";
 
 export { convertLangChainBaseMessage } from "./convertMessages";
+export { useLangChainStreamingTiming } from "./streamingTiming";
 
 export type {
   SubagentDiscoverySnapshot,

@@ -57,6 +57,42 @@ describe("langChainStreamingTimingAccessors", () => {
     ).toBe("hmm".length + "answer".length);
   });
 
+  it("measures reasoning blocks (summary and reasoning fields)", () => {
+    // reasoning via summary_text entries, joined like contentToParts does.
+    expect(
+      getTextLength(
+        [
+          ai({
+            id: "a1",
+            content: [
+              {
+                type: "reasoning",
+                summary: [
+                  { type: "summary_text", text: "step one" },
+                  { type: "summary_text", text: "step two" },
+                ],
+              },
+            ],
+          }),
+        ],
+        "a1",
+      ),
+    ).toBe("step one\n\n\nstep two".length);
+
+    // reasoning via the bare `reasoning` field when no summary is present.
+    expect(
+      getTextLength(
+        [
+          ai({
+            id: "a2",
+            content: [{ type: "reasoning", reasoning: "deduced" }],
+          }),
+        ],
+        "a2",
+      ),
+    ).toBe("deduced".length);
+  });
+
   it("counts tool_calls on the assistant message", () => {
     expect(
       getToolCallCount(
