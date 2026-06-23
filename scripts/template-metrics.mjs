@@ -211,7 +211,9 @@ const MAX_LOC_INCREASE = Number(process.env.MAX_LOC_INCREASE ?? 50);
 const MAX_BUNDLE_INCREASE_KB = Number(process.env.MAX_BUNDLE_INCREASE_KB ?? 10);
 
 function regression(t, base) {
-  if (!base) return null;
+  // base.ownLoc missing => incompatible/legacy baseline schema; treat as no
+  // baseline so the LOC gate can't silently fail open on a NaN comparison.
+  if (!base || base.ownLoc == null) return null;
   const reasons = [];
   const locDelta = totalLoc(t) - totalLoc(base);
   if (locDelta > MAX_LOC_INCREASE) {
@@ -245,7 +247,7 @@ function report(baseJson, headJson, outMd, gateFile) {
       t.name,
       locCell(t.ownLoc, b?.ownLoc),
       locCell(t.uiLoc, b?.uiLoc),
-      locCell(totalLoc(t), b ? totalLoc(b) : null),
+      locCell(totalLoc(t), b && b.ownLoc != null ? totalLoc(b) : null),
       bundleCell(t.bundleGzip, b?.bundleGzip ?? null),
       reasons ? "⚠️" : "✅",
     ];
