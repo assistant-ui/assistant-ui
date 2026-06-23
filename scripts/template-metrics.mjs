@@ -35,7 +35,7 @@ const CODE_EXT = new Set([
   ".cjs",
   ".css",
 ]);
-const RESOLVE_EXT = ["", ".tsx", ".ts", ".jsx", ".js"];
+const RESOLVE_EXT = [".tsx", ".ts", ".jsx", ".js"];
 
 function listTemplates(root) {
   return readdirSync(join(root, "templates"), { withFileTypes: true })
@@ -89,6 +89,10 @@ function loadAliases(tplDir) {
     .sort((a, b) => b.prefix.length - a.prefix.length);
 }
 
+function isFile(p) {
+  return existsSync(p) && statSync(p).isFile();
+}
+
 function resolveModule(fromFile, spec, tplDir, aliases) {
   let target;
   if (spec.startsWith("@/")) {
@@ -102,11 +106,11 @@ function resolveModule(fromFile, spec, tplDir, aliases) {
   }
   for (const ext of RESOLVE_EXT) {
     const direct = target + ext;
-    if (ext && existsSync(direct) && statSync(direct).isFile()) return direct;
+    if (isFile(direct)) return direct;
     const index = join(target, `index${ext}`);
-    if (ext && existsSync(index) && statSync(index).isFile()) return index;
+    if (isFile(index)) return index;
   }
-  return existsSync(target) && statSync(target).isFile() ? target : null;
+  return isFile(target) ? target : null;
 }
 
 function importsOf(file) {
@@ -188,7 +192,7 @@ function kb(bytes) {
 }
 
 function signedKb(bytes) {
-  return `${bytes > 0 ? "+" : "-"}${kb(Math.abs(bytes))}`;
+  return `${bytes >= 0 ? "+" : "-"}${kb(Math.abs(bytes))}`;
 }
 
 function locCell(cur, base) {
