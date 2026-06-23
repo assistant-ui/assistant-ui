@@ -717,7 +717,11 @@ The v1 media hooks surface multimodal media streamed by the agent. Feed the `use
 import { useLangChainStream } from "@assistant-ui/react-langchain";
 import { useImages, useAudio } from "@langchain/react";
 
-function MediaView({ stream }) {
+function MediaView({
+  stream,
+}: {
+  stream: NonNullable<ReturnType<typeof useLangChainStream>>;
+}) {
   const images = useImages(stream);
   // useAudio / useVideo / useFiles likewise
   return <>{/* …render media… */}</>;
