@@ -1,11 +1,16 @@
 "use client";
 
 import { useCallback } from "react";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerSend } from "@assistant-ui/core/react";
 import type { ComposerSendOptions } from "@assistant-ui/core/store";
-import { useTriggerPopoverActiveAriaOptional } from "../primitives/composer/trigger/TriggerPopoverRootContext";
+import {
+  type TriggerPopoverAriaProps,
+  useComposerInputDisabled,
+  useComposerInputValue,
+  useTriggerPopoverAriaProps,
+} from "../primitives/composer/useComposerInputState";
 
 export type Unstable_UseComposerInputOptions = {
   /**
@@ -73,16 +78,8 @@ export function unstable_useComposerInput(
   options?: Unstable_UseComposerInputOptions,
 ): Unstable_ComposerInput {
   const aui = useAui();
-  const optionDisabled = options?.disabled ?? false;
-
-  const value = useAuiState((s) =>
-    s.composer.isEditing ? s.composer.text : "",
-  );
-
-  const composerDisabled = useAuiState(
-    (s) => s.thread.isDisabled || s.composer.dictation?.inputDisabled,
-  );
-  const isDisabled = Boolean(composerDisabled) || optionDisabled;
+  const value = useComposerInputValue();
+  const isDisabled = useComposerInputDisabled(options?.disabled);
 
   const setText = useCallback(
     (text: string) => {
@@ -107,12 +104,7 @@ export function unstable_useComposerInput(
   return { value, setText, send, isDisabled, canSend };
 }
 
-export type Unstable_TriggerPopoverAriaProps = {
-  "aria-controls"?: string;
-  "aria-expanded"?: true;
-  "aria-haspopup"?: "listbox";
-  "aria-activedescendant"?: string | undefined;
-};
+export type Unstable_TriggerPopoverAriaProps = TriggerPopoverAriaProps;
 
 /**
  * @deprecated Under active development and might change without notice.
@@ -130,14 +122,5 @@ export type Unstable_TriggerPopoverAriaProps = {
  * ```
  */
 export function unstable_useTriggerPopoverAriaProps(): Unstable_TriggerPopoverAriaProps {
-  const activeAria = useTriggerPopoverActiveAriaOptional();
-  if (!activeAria) return {};
-  // Mirror ComposerPrimitive.Input: emit `aria-activedescendant` even when
-  // there is no highlighted item so spreading these last clears a stale value.
-  return {
-    "aria-controls": activeAria.popoverId,
-    "aria-expanded": true,
-    "aria-haspopup": "listbox",
-    "aria-activedescendant": activeAria.highlightedItemId,
-  };
+  return useTriggerPopoverAriaProps();
 }
