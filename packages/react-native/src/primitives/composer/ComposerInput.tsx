@@ -7,6 +7,7 @@ import {
   type TextInputProps,
 } from "react-native";
 import { useAui, useAuiState } from "@assistant-ui/store";
+import { flushTapSync } from "@assistant-ui/tap";
 
 export type ComposerInputProps = Omit<
   TextInputProps,
@@ -46,6 +47,13 @@ export const ComposerInput = ({
 
   const onChangeText = useCallback(
     (value: string) => {
+      if (Platform.OS === "web") {
+        // Keep the controlled value in sync mid-IME so react-dom does not reset the textarea to a stale value
+        flushTapSync(() => {
+          aui.composer().setText(value);
+        });
+        return;
+      }
       aui.composer().setText(value);
     },
     [aui],
@@ -66,7 +74,11 @@ export const ComposerInput = ({
 
       const nativeEvent = e.nativeEvent as TextInputKeyPressEventData & {
         shiftKey?: boolean;
+        isComposing?: boolean;
+        keyCode?: number;
       };
+      // react-native-web forwards the raw DOM keydown before its own composition guard, so re-check it here (mirrors isEventComposing)
+      if (nativeEvent.isComposing || nativeEvent.keyCode === 229) return;
       if (nativeEvent.key === "Enter" && !nativeEvent.shiftKey) {
         (e as unknown as Event).preventDefault?.();
         aui.composer().send();

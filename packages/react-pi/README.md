@@ -266,6 +266,3 @@ metadata, so metadata controls don't rerender on every token:
   provider/auth/credential or default-model/settings methods on the client — manage
   those with Pi's own SDK on the server. Skills/extensions/slash-commands aren't
   surfaced.
-
-See `docs-internal/pi-integration/PI_MVP_PLAN.md` for the full design and the
-`PI_EXTENDED_*` docs for the deferred surfaces.

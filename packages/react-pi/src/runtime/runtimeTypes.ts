@@ -25,6 +25,8 @@ export type PiRuntimeOptions = ExternalStoreSharedOptions & {
   includeArchived?: boolean;
   initialThreadId?: string;
   threadId?: string;
+  /** Notified when the active thread's settled remote ID changes; `undefined` while still optimistic. */
+  onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   onError?: (error: unknown) => void;
   adapters?: ExternalStoreAdapter<ThreadMessageLike>["adapters"];
 };

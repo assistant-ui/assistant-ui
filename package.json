@@ -18,7 +18,7 @@
     "sync-templates": "bash scripts/sync-templates.sh",
     "test": "turbo test && pnpm test:types",
     "test:types": "pnpm -r --parallel exec sh -c '! test -f tsconfig.json || tsc --noEmit'",
-    "prepare": "husky",
+    "prepare": "husky && pnpm --filter @assistant-ui/react-devtools run build:css",
     "deps:check": "npx taze major -f -r",
     "deps:update": "npx taze major -f -w -r && cd examples/with-expo && npx expo install --fix && cd ../.. && find . -name node_modules -prune -exec rm -rf {} + && rm -f pnpm-lock.yaml && pnpm install && pnpm dedupe && bash scripts/generate-deps-changeset.sh"
   },
@@ -26,13 +26,13 @@
     "@assistant-ui/x-changelog": "workspace:*",
     "@changesets/cli": "^2.31.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.0.7",
-    "oxfmt": "^0.54.0",
-    "oxlint": "^1.69.0",
+    "lint-staged": "^17.0.8",
+    "oxfmt": "^0.55.0",
+    "oxlint": "^1.70.0",
     "turbo": "^2.9.18",
     "typescript": "^6.0.3"
   },
-  "packageManager": "pnpm@11.6.0",
+  "packageManager": "pnpm@11.8.0",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,cjs,mjs,cts,mts,json,jsonc}": [
       "oxlint --fix --no-error-on-unmatched-pattern",

@@ -51,6 +51,9 @@ dist
 apps/docs/generated
 packages/*/generated
 
+# compiled by packages/react-devtools build:css, regenerated on install/build
+packages/react-devtools/src/styles/panel.generated.ts
+
 # turbo
 .turbo
 

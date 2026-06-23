@@ -182,15 +182,14 @@ const contentToParts = (
             return { type: "text", text: part.text };
           case "text_delta":
             return { type: "text", text: part.text };
-          case "image_url":
-            if (typeof part.image_url === "string") {
-              return { type: "image", image: part.image_url };
-            } else {
-              return {
-                type: "image",
-                image: part.image_url.url,
-              };
-            }
+          case "image_url": {
+            const image =
+              typeof part.image_url === "string"
+                ? part.image_url
+                : part.image_url?.url;
+            if (!image) return null;
+            return { type: "image", image };
+          }
           case "file":
             return {
               type: "file",
@@ -206,7 +205,7 @@ const contentToParts = (
             return {
               type: "reasoning",
               text:
-                part.summary?.map((s) => s.text).join("\n\n\n") ??
+                part.summary?.map((s) => s?.text ?? "").join("\n\n\n") ??
                 part.reasoning ??
                 "",
             };

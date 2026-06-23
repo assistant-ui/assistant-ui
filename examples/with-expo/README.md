@@ -1,50 +1,51 @@
-# Welcome to your Expo app 👋
+# assistant-ui + Expo
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A native chat app built with [assistant-ui](https://www.assistant-ui.com) and [Expo](https://expo.dev). It runs on iOS, Android, and the web from a single codebase, and is styled to match the assistant-ui web kit: a clean, neutral, ChatGPT-grade look with subtle hairline borders.
+
+The chat is powered by `@assistant-ui/react-native` with the AI SDK runtime (`@assistant-ui/react-ai-sdk`). The example leans on native Expo APIs throughout:
+
+- **SF Symbols** (`expo-symbols`) for native iconography on iOS, with a Material Icons fallback on Android and the web.
+- **Haptics** (`expo-haptics`) for tactile feedback on send, stop, and selection.
+- **Image picker** (`expo-image-picker`) and **expo-image** for attachments.
+- **Clipboard** (`expo-clipboard`) so the copy action works natively.
+- A native **drawer** (`@react-navigation/drawer`) for the thread list, with a swipe gesture to switch conversations.
+
+It follows the assistant-ui component conventions: `MessagePrimitive.Parts` for message rendering, `AuiIf` for declarative state-driven UI, the `ThreadList` / `ThreadListItem` primitives for the drawer, and a `"use generative"` toolkit (`components/assistant-ui/tools.tsx`) that renders weather cards inline.
 
 ## Get started
 
-1. Install dependencies
+1. Install dependencies from the repository root:
 
    ```bash
-   npm install
+   pnpm install
    ```
 
-2. Start the app
+2. Configure the chat backend. Copy `.env.example` to `.env` and set your key:
 
    ```bash
-   npx expo start
+   cp .env.example .env
    ```
 
-In the output, you'll find options to open the app in a
+   The bundled API route (`app/api/chat+api.ts`) needs `OPENAI_API_KEY`. To point the app at a separately hosted backend instead, set `EXPO_PUBLIC_CHAT_ENDPOINT_URL`.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+3. Start the app:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+   ```bash
+   pnpm --filter with-expo start
+   ```
 
-## Get a fresh project
+   From there you can open it in the iOS simulator, an Android emulator, or the browser.
 
-When you're ready, run:
+## Project structure
 
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+- `app/_layout.tsx` wires the runtime, the toolkit, and the drawer navigation.
+- `app/index.tsx` renders the `Thread`.
+- `components/assistant-ui/` holds the composer, message, action bar, branch picker, and tool UIs.
+- `components/thread-list/` holds the drawer thread list.
+- `constants/theme.ts` and `hooks/use-theme.ts` define the shared design tokens.
+- `components/ui/icon.tsx` is the cross-platform icon (SF Symbols on iOS, Material Icons elsewhere).
 
 ## Learn more
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [assistant-ui documentation](https://www.assistant-ui.com/docs)
+- [Expo documentation](https://docs.expo.dev)

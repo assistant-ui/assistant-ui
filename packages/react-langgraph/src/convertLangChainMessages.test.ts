@@ -403,6 +403,61 @@ describe("convertLangChainMessages reasoning content", () => {
       ],
     });
   });
+
+  it("tolerates null entries inside the summary array", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-reasoning-null-summary",
+      content: [
+        {
+          type: "reasoning",
+          summary: [null, { type: "summary_text", text: "kept" }],
+        } as any,
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [{ type: "reasoning", text: "\n\n\nkept" }],
+    });
+  });
+
+  it("does not throw when a reasoning block omits summary and reasoning", () => {
+    expect(() =>
+      convertLangChainMessages({
+        type: "ai",
+        id: "ai-reasoning-empty",
+        content: [{ type: "reasoning" } as any],
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe("convertLangChainMessages image content", () => {
+  it("reads the url from an image_url object", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-image",
+      content: [
+        { type: "image_url", image_url: { url: "https://example.com/a.png" } },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [{ type: "image", image: "https://example.com/a.png" }],
+    });
+  });
+
+  it("drops the image part when image_url is undefined", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-image-undefined",
+      content: [{ type: "image_url" } as any],
+    });
+
+    expect(result.content).toEqual([]);
+  });
 });
 
 describe("convertLangChainMessages UI messages", () => {
