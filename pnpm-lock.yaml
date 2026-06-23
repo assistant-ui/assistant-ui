@@ -2010,9 +2010,6 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
-      '@assistant-ui/next':
-        specifier: workspace:*
-        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
