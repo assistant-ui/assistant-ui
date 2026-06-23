@@ -26,8 +26,8 @@ export type Unstable_ComposerInput = {
    */
   setText(text: string): void;
   /**
-   * Sends the current message. Exposes the raw composer action; gating is
-   * reported via `canSend` (consumers should check it before calling).
+   * Sends the current message when `canSend` is `true`; otherwise a no-op.
+   * Accepts the same options as the composer send action.
    */
   send(options?: ComposerSendOptions): void;
   /**
@@ -94,8 +94,15 @@ export function unstable_useComposerInput(
     [aui],
   );
 
-  const { send, disabled: sendDisabled } = useComposerSend();
+  const { send: rawSend, disabled: sendDisabled } = useComposerSend();
   const canSend = !sendDisabled && !isDisabled;
+  const send = useCallback(
+    (options?: ComposerSendOptions) => {
+      if (!canSend) return;
+      rawSend(options);
+    },
+    [canSend, rawSend],
+  );
 
   return { value, setText, send, isDisabled, canSend };
 }

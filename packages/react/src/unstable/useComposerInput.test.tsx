@@ -142,6 +142,25 @@ describe("unstable_useComposerInput", () => {
     renderInput()().send({ steer: true });
     expect(composerSend).toHaveBeenCalledWith({ steer: true });
   });
+
+  it("does not send while send is unavailable or the input is disabled", () => {
+    fixture.sendDisabled = true;
+    renderInput()().send();
+    expect(composerSend).not.toHaveBeenCalled();
+
+    fixture.sendDisabled = false;
+    renderInput({ disabled: true })().send();
+    expect(composerSend).not.toHaveBeenCalled();
+
+    fixture.threadDisabled = true;
+    renderInput()().send();
+    expect(composerSend).not.toHaveBeenCalled();
+
+    fixture.threadDisabled = false;
+    fixture.dictationInputDisabled = true;
+    renderInput()().send();
+    expect(composerSend).not.toHaveBeenCalled();
+  });
 });
 
 describe("unstable_useTriggerPopoverAriaProps", () => {

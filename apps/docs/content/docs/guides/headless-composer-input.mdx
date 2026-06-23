@@ -59,7 +59,7 @@ function HeadlessComposer() {
 }
 ```
 
-`composer.send()` exposes the same send action used by `ComposerPrimitive.Send`, including send options such as `composer.send({ steer: true })`. Check `composer.canSend` before calling it from custom keyboard handlers.
+`composer.send()` exposes the same send action used by `ComposerPrimitive.Send`, including send options such as `composer.send({ steer: true })`. It is a no-op unless `composer.canSend` is `true`; check `canSend` in custom keyboard handlers to keep your event handling explicit.
 
 ## Hook Result
 
@@ -67,7 +67,7 @@ function HeadlessComposer() {
 | --- | --- |
 | `value` | Current composer text. Returns `""` when the composer is not editing. |
 | `setText(text)` | Writes text into the composer while it is editing. |
-| `send(options?)` | Sends the current composer message. Consumers should check `canSend` first. |
+| `send(options?)` | Sends the current composer message when `canSend` is `true`; otherwise a no-op. |
 | `isDisabled` | Combines the hook's `disabled` option with assistant-ui disabled sources, such as thread disabled state and active dictation input lock. |
 | `canSend` | Matches `ComposerPrimitive.Send` gating, then also respects `isDisabled`. |
 
