@@ -242,15 +242,15 @@ function report(baseJson, headJson, outMd, gateFile) {
       locCell(t.uiLoc, b?.uiLoc),
       locCell(totalLoc(t), b ? totalLoc(b) : null),
       bundleCell(t.bundleGzip, b?.bundleGzip ?? null),
-      reasons ? "regression" : "ok",
+      reasons ? "⚠️" : "✅",
     ];
   });
 
   const lines = [
     "<!-- template-metrics -->",
-    "## Template install footprint",
+    "## 📦 Template install footprint",
     "",
-    "Lines copied into your project on scaffold: **Own** (template glue) + **/ui** (shared `packages/ui` components it imports). Bundle = gzipped client JS from `next build`. Each cell shows `current (delta vs main)`.",
+    "Lines copied into your project on scaffold: **Own** (template glue) + **/ui** (shared `packages/ui` components it imports). Bundle = gzipped client JS from `next build`. Each cell shows `current (Δ vs main)`.",
     "",
     "| Template | Own LOC | /ui LOC | Total LOC | Bundle (gz) | Status |",
     "| --- | ---: | ---: | ---: | ---: | --- |",
