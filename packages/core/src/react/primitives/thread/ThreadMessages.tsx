@@ -80,6 +80,20 @@ const isComponentsSame = (
 
 const DEFAULT_SYSTEM_MESSAGE = () => null;
 
+const messageIdSetCache = new WeakMap<
+  readonly MessageState[],
+  ReadonlySet<string>
+>();
+
+const hasMessageId = (messages: readonly MessageState[], messageId: string) => {
+  let ids = messageIdSetCache.get(messages);
+  if (!ids) {
+    ids = new Set(messages.map((m) => m.id));
+    messageIdSetCache.set(messages, ids);
+  }
+  return ids.has(messageId);
+};
+
 const getComponent = (
   components: MessagesComponentConfig,
   role: MessageState["role"],
@@ -205,7 +219,7 @@ export const ThreadPrimitiveUnstable_MessageById: FC<ThreadPrimitiveUnstable_Mes
   memo(
     ({ messageId, components }) => {
       const exists = useAuiState((s) =>
-        s.thread.messages.some((m) => m.id === messageId),
+        hasMessageId(s.thread.messages, messageId),
       );
       if (!exists) return null;
 
