@@ -332,7 +332,20 @@ async function handleJsonRpcMessage(
         return jsonRpcResult(message.id, { tools: toolDefinitions });
       case "tools/call": {
         const name = getStringParam(message.params, "name");
-        const result = await callTool(name, message.params, requestUrl);
+        let result: unknown;
+        try {
+          result = await callTool(name, message.params, requestUrl);
+        } catch (error) {
+          return jsonRpcResult(message.id, {
+            content: [
+              {
+                type: "text",
+                text: error instanceof Error ? error.message : String(error),
+              },
+            ],
+            isError: true,
+          });
+        }
         return jsonRpcResult(message.id, {
           content: [
             {
