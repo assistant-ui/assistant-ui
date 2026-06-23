@@ -39,6 +39,23 @@ const runningState = (text: string) =>
     status: { type: "running" },
   }) as MessagePartState & TextMessagePart;
 
+const setReducedMotion = (matches: boolean) => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+};
+
 const driveAndCount = (minCommitMs: number) => {
   const raf: FrameRequestCallback[] = [];
   const rafSpy = vi
@@ -85,6 +102,7 @@ const driveAndCount = (minCommitMs: number) => {
 describe("useSmooth", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    Reflect.deleteProperty(window, "matchMedia");
   });
 
   it("returns the input state unchanged when disabled", () => {
@@ -113,6 +131,14 @@ describe("useSmooth", () => {
       useSmooth(state, null as unknown as boolean),
     );
     expect(result.current).toBe(state);
+  });
+
+  it("disables the reveal under prefers-reduced-motion", () => {
+    setReducedMotion(true);
+    const state = runningState("streaming");
+    const { result } = renderHook(() => useSmooth(state, true));
+    expect(result.current).toBe(state);
+    expect(result.current.text).toBe("streaming");
   });
 
   it("starts from an empty reveal for running parts when enabled", () => {
