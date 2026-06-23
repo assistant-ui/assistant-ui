@@ -58,15 +58,20 @@ function trackedFiles(root, dir) {
 }
 
 function lineCount(file) {
-  return readFileSync(file, "utf8").split("\n").length;
+  const text = readFileSync(file, "utf8");
+  // A trailing newline yields a phantom empty element; strip one so a new
+  // N-line file counts as N, not N+1 (which would skew new-file deltas).
+  return text === "" ? 0 : text.replace(/\n$/, "").split("\n").length;
 }
 
 // tsconfig `paths` -> longest-prefix alias matchers, resolved against the
 // template dir so "@/components/ui/*" can point into ../../packages/ui/src.
 function loadAliases(tplDir) {
+  const tsconfig = join(tplDir, "tsconfig.json");
+  if (!existsSync(tsconfig)) return [];
   // tsconfig values contain "/*" (e.g. "./*"), so strip only full-line "//"
   // comments and trailing commas; never block comments. Parse raw first.
-  const raw = readFileSync(join(tplDir, "tsconfig.json"), "utf8");
+  const raw = readFileSync(tsconfig, "utf8");
   let parsed;
   try {
     parsed = JSON.parse(raw);
