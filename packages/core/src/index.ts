@@ -267,6 +267,14 @@ export type {
 export type { ThreadMessageLike } from "./runtime/utils/thread-message-like";
 export { fromThreadMessageLike } from "./runtime/utils/thread-message-like";
 
+// Streaming timing (client-side)
+export type {
+  StreamingTimingAccessors,
+  StreamingTimingOptions,
+  StreamingTimingState,
+} from "./runtime/utils/streaming-timing";
+export { stepStreamingTiming } from "./runtime/utils/streaming-timing";
+
 // ID generation
 export { generateId } from "./utils/id";
 
