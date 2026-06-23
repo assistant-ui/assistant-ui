@@ -8,11 +8,16 @@ import {
 } from "../thread/ThreadMessages";
 
 export namespace PartPrimitiveMessages {
-  export type Props = {
-    components?: ThreadPrimitiveMessages.Props["components"];
-    /** Render function called for each message. Receives the message. */
-    children?: (value: { message: ThreadMessage }) => ReactNode;
-  };
+  export type Props =
+    | {
+        components: NonNullable<ThreadPrimitiveMessages.Props["components"]>;
+        children?: never;
+      }
+    | {
+        /** Render function called for each message. Receives the message. */
+        children: (value: { message: ThreadMessage }) => ReactNode;
+        components?: never;
+      };
 }
 
 const usePartMessages = (): readonly ThreadMessage[] | undefined => {
@@ -57,17 +62,17 @@ export const PartPrimitiveMessagesImpl: FC<PartPrimitiveMessages.Props> = ({
 
   if (!messages?.length) return null;
 
-  if (children) {
+  if (components) {
     return (
       <ReadonlyThreadProvider messages={messages}>
-        <ThreadPrimitiveMessagesImpl>{children}</ThreadPrimitiveMessagesImpl>
+        <ThreadPrimitiveMessagesImpl components={components} />
       </ReadonlyThreadProvider>
     );
   }
 
   return (
     <ReadonlyThreadProvider messages={messages}>
-      <ThreadPrimitiveMessagesImpl components={components!} />
+      <ThreadPrimitiveMessagesImpl>{children}</ThreadPrimitiveMessagesImpl>
     </ReadonlyThreadProvider>
   );
 };
