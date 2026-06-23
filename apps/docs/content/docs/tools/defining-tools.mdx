@@ -71,11 +71,11 @@ For a bare React Native app, import `getDefaultConfig` from `@react-native/metro
 </Step>
 <Step>
 
-### Write the toolkit
+### Write a feature toolkit
 
 The file's first line is `"use generative"`, and its default export is `defineToolkit({ ... })`. Each tool is an inline object literal with a `parameters` schema, an `execute`, and a `render` (or `renderText`):
 
-```tsx title="app/toolkit.tsx"
+```tsx title="app/toolkits/files.tsx"
 "use generative";
 
 import { defineToolkit } from "@assistant-ui/react";
@@ -113,20 +113,48 @@ The inner `"use client"` inside `execute` marks this as a **frontend** tool — 
 </Step>
 <Step>
 
+### Compose feature toolkits
+
+For larger apps, keep each product area in its own `"use generative"` file and compose them from a plain index file:
+
+```tsx title="app/toolkits/index.tsx"
+import { mergeToolkits } from "@assistant-ui/react";
+import filesToolkit from "./files";
+import tasksToolkit from "./tasks";
+import calendarToolkit from "./calendar";
+import crmToolkit from "./crm";
+import approvalsToolkit from "./approvals";
+
+export const appToolkit = mergeToolkits(
+  filesToolkit,
+  tasksToolkit,
+  calendarToolkit,
+  crmToolkit,
+  approvalsToolkit,
+);
+
+export default appToolkit;
+```
+
+`mergeToolkits` keeps the first definition when two feature files use the same tool name and logs a warning so duplicate model-facing names do not silently override each other.
+
+</Step>
+<Step>
+
 ### Register the toolkit
 
-Import the toolkit in your runtime provider and pass it to `useAui` via `Tools`:
+Import the composed toolkit in your runtime provider and pass it directly to `useAui`:
 
 ```tsx title="app/MyRuntimeProvider.tsx"
 "use client";
 
-import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, useAui } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import toolkit from "./toolkit";
+import { appToolkit } from "./toolkits";
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime({ api: "/api/chat" });
-  const aui = useAui({ tools: Tools({ toolkit }) });
+  const aui = useAui({ tools: appToolkit });
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
@@ -147,9 +175,9 @@ The same import resolves to the **server build** inside a route handler. Wrap it
 import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
 import { streamText, convertToModelMessages } from "ai";
 import { openai } from "@ai-sdk/openai";
-import toolkit from "../../toolkit";
+import { appToolkit } from "../../toolkits";
 
-const aiToolkit = new AISDKToolkit({ toolkit });
+const aiToolkit = new AISDKToolkit({ toolkit: appToolkit });
 
 export async function POST(req: Request) {
   const { messages, tools } = await req.json();

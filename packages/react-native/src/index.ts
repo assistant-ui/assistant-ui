@@ -89,7 +89,6 @@ export type {
 
 // Store hooks and components
 export {
-  useAui,
   useAuiState,
   useAuiEvent,
   AuiProvider,
@@ -102,6 +101,7 @@ export {
   type AssistantEventPayload,
   type AssistantEventCallback,
 } from "@assistant-ui/store";
+export { useAui } from "@assistant-ui/core/react";
 
 // Context providers and hooks
 export { AssistantRuntimeProvider } from "./context/AssistantContext";
@@ -169,6 +169,8 @@ export {
   type ToolkitDefinitionEntry,
   type ToolCallText,
   defineToolkit,
+  mergeToolkits,
+  type MergedToolkit,
   stubTool,
   externalTool,
   useAuiToolOverrides,
