@@ -13,6 +13,7 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/code-quality.yaml"
+      - ".github/scripts/**"
   pull_request:
     branches: [main]
     paths:
@@ -25,6 +26,7 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/code-quality.yaml"
+      - ".github/scripts/**"
 
 permissions:
   contents: read
@@ -74,6 +76,32 @@ jobs:
 
       - name: Verify templates match packages/ui source
         run: bash scripts/sync-templates.sh
+
+  api-surface-review:
+    name: API Surface Review
+    if: github.event_name == 'pull_request'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Require maintainer approval for public API changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUIRED_REVIEWER: Yonom
+        run: node .github/scripts/check-api-surface-review.mjs
 
   build:
     name: Build Changed Packages
