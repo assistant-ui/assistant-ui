@@ -1,11 +1,13 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 import {
   collectPublicApiMatchers,
   derivePublicApiMatchers,
   findApiSurfaceChanges,
   flattenExportTargets,
   listPackageJsonsFromTree,
+  latestReviewStateByUser,
+  mergePublicApiMatchers,
 } from "./check-api-surface-review.mjs";
 
 test("listPackageJsonsFromTree keeps package manifests only", () => {
@@ -130,4 +132,68 @@ test("collectPublicApiMatchers merges package-level matchers", () => {
     "packages/ui/package.json",
   ]);
   assert.deepEqual(matchers.directories, ["packages/ui/src/components/ui/"]);
+});
+
+test("mergePublicApiMatchers keeps base-only API entries for deletions", () => {
+  const baseMatchers = {
+    files: ["packages/react/package.json", "packages/react/src/index.ts"],
+    directories: [],
+  };
+  const headMatchers = {
+    files: ["packages/ui/package.json"],
+    directories: ["packages/ui/src/components/ui/"],
+  };
+
+  const mergedMatchers = mergePublicApiMatchers(baseMatchers, headMatchers);
+  const changes = findApiSurfaceChanges(
+    ["packages/react/src/index.ts", "packages/ui/src/components/ui/button.tsx"],
+    mergedMatchers,
+  );
+
+  assert.deepEqual(changes, [
+    "packages/react/src/index.ts",
+    "packages/ui/src/components/ui/button.tsx",
+  ]);
+});
+
+test("latestReviewStateByUser paginates and keeps the latest non-comment state", async () => {
+  const responses = [
+    {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers({
+        link: '<https://api.github.com/repositories/1/pulls/2/reviews?per_page=100&page=2>; rel="next"',
+      }),
+      json: async () => [
+        { user: { login: "Yonom" }, state: "CHANGES_REQUESTED" },
+        { user: { login: "Other" }, state: "COMMENTED" },
+      ],
+    },
+    {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers(),
+      json: async () => [{ user: { login: "Yonom" }, state: "APPROVED" }],
+    },
+  ];
+  const seenUrls = [];
+
+  const latest = await latestReviewStateByUser({
+    repo: "assistant-ui/assistant-ui",
+    prNumber: "4539",
+    token: "token",
+    fetchImpl: async (url) => {
+      seenUrls.push(url);
+      return responses.shift();
+    },
+  });
+
+  assert.deepEqual(seenUrls, [
+    "https://api.github.com/repos/assistant-ui/assistant-ui/pulls/4539/reviews?per_page=100&page=1",
+    "https://api.github.com/repositories/1/pulls/2/reviews?per_page=100&page=2",
+  ]);
+  assert.equal(latest.get("yonom"), "APPROVED");
+  assert.equal(latest.has("other"), false);
 });

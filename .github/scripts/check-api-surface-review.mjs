@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -79,10 +79,6 @@ export function derivePublicApiMatchers(
         dirPrefixes.add(candidate.replace(/\*.*$/, ""));
         continue;
       }
-      if (candidate.endsWith("/")) {
-        dirPrefixes.add(candidate);
-        continue;
-      }
       if (
         candidate.includes("/src/") &&
         !candidate.endsWith(".ts") &&
@@ -127,6 +123,21 @@ export function collectPublicApiMatchers(
   };
 }
 
+export function mergePublicApiMatchers(...matcherSets) {
+  const files = new Set();
+  const directories = new Set();
+
+  for (const matchers of matcherSets) {
+    for (const file of matchers.files) files.add(file);
+    for (const directory of matchers.directories) directories.add(directory);
+  }
+
+  return {
+    files: [...files].sort(),
+    directories: [...directories].sort(),
+  };
+}
+
 export function findApiSurfaceChanges(changedFiles, matchers) {
   return changedFiles.filter((file) => {
     if (matchers.files.includes(file)) return true;
@@ -134,48 +145,79 @@ export function findApiSurfaceChanges(changedFiles, matchers) {
   });
 }
 
-export async function latestReviewStateByUser({ repo, prNumber, token }) {
-  const response = await fetch(
-    `https://api.github.com/repos/${repo}/pulls/${prNumber}/reviews?per_page=100`,
-    {
+function parseNextPageUrl(linkHeader) {
+  if (!linkHeader) return null;
+
+  for (const part of linkHeader.split(",")) {
+    const [rawUrl, rawRel] = part.split(";").map((value) => value.trim());
+    if (rawRel !== 'rel="next"') continue;
+    return rawUrl?.startsWith("<") && rawUrl.endsWith(">")
+      ? rawUrl.slice(1, -1)
+      : null;
+  }
+
+  return null;
+}
+
+export async function latestReviewStateByUser({
+  repo,
+  prNumber,
+  token,
+  fetchImpl = fetch,
+}) {
+  let nextUrl = `https://api.github.com/repos/${repo}/pulls/${prNumber}/reviews?per_page=100&page=1`;
+  const latestByUser = new Map();
+
+  while (nextUrl) {
+    const response = await fetchImpl(nextUrl, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/vnd.github+json",
         "User-Agent": "assistant-ui-api-surface-check",
       },
-    },
-  );
-  if (!response.ok) {
-    throw new Error(
-      `Failed to load PR reviews: ${response.status} ${response.statusText}`,
-    );
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to load PR reviews: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const reviews = await response.json();
+    for (const review of reviews) {
+      if (!review?.user?.login || review.state === "COMMENTED") continue;
+      latestByUser.set(String(review.user.login).toLowerCase(), review.state);
+    }
+
+    nextUrl = parseNextPageUrl(response.headers.get("link"));
   }
-  const reviews = await response.json();
-  const latestByUser = new Map();
-  for (const review of reviews) {
-    if (!review?.user?.login || review.state === "COMMENTED") continue;
-    latestByUser.set(String(review.user.login).toLowerCase(), review.state);
-  }
+
   return latestByUser;
 }
 
-async function runGit(args) {
-  const { spawnSync } = await import("node:child_process");
+function runGitSync(args, { allowFailure = false } = {}) {
   const result = spawnSync("git", args, { cwd: REPO_ROOT, encoding: "utf8" });
-  if (result.status !== 0) {
+  if (!allowFailure && result.status !== 0) {
     throw new Error(
       `git ${args.join(" ")} failed\n${result.stdout}\n${result.stderr}`,
     );
   }
-  return result.stdout;
+  return result;
 }
 
-function repoRelativeExists(relativePath) {
-  return existsSync(path.join(REPO_ROOT, relativePath));
+async function runGit(args) {
+  return runGitSync(args).stdout;
 }
 
-function loadPackageJson(relativePath) {
-  return JSON.parse(readFileSync(path.join(REPO_ROOT, relativePath), "utf8"));
+function repoRelativeExistsAtRevision(revision, relativePath) {
+  return (
+    runGitSync(["cat-file", "-e", `${revision}:${relativePath}`], {
+      allowFailure: true,
+    }).status === 0
+  );
+}
+
+function loadPackageJsonAtRevision(revision, relativePath) {
+  return JSON.parse(runGitSync(["show", `${revision}:${relativePath}`]).stdout);
 }
 
 async function main() {
@@ -197,14 +239,26 @@ async function main() {
     throw new Error("Missing required environment for API surface check");
   }
 
-  const packageJsonEntries = listPackageJsonsFromTree(
+  const basePackageJsonEntries = listPackageJsonsFromTree(
+    await runGit(["ls-tree", "-r", "--name-only", BASE_SHA, "packages"]),
+  );
+  const headPackageJsonEntries = listPackageJsonsFromTree(
     await runGit(["ls-tree", "-r", "--name-only", HEAD_SHA, "packages"]),
   );
-  const matchers = collectPublicApiMatchers(
-    packageJsonEntries,
-    loadPackageJson,
-    repoRelativeExists,
+
+  const matchers = mergePublicApiMatchers(
+    collectPublicApiMatchers(
+      basePackageJsonEntries,
+      (relativePath) => loadPackageJsonAtRevision(BASE_SHA, relativePath),
+      (relativePath) => repoRelativeExistsAtRevision(BASE_SHA, relativePath),
+    ),
+    collectPublicApiMatchers(
+      headPackageJsonEntries,
+      (relativePath) => loadPackageJsonAtRevision(HEAD_SHA, relativePath),
+      (relativePath) => repoRelativeExistsAtRevision(HEAD_SHA, relativePath),
+    ),
   );
+
   const changedFiles = (
     await runGit(["diff", "--name-only", `${BASE_SHA}...${HEAD_SHA}`])
   )
