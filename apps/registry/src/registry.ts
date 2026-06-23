@@ -334,6 +334,7 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react",
       "lucide-react",
       "class-variance-authority",
+      "tw-shimmer",
     ],
     registryDependencies: ["collapsible"],
     css: {
@@ -438,7 +439,7 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/sources.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react"],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: ["https://r.assistant-ui.com/badge.json"],
   },
   {
