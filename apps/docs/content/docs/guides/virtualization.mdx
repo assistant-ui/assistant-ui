@@ -1,6 +1,6 @@
 ---
 title: Thread Virtualization
-description: Render very long threads with @tanstack/react-virtual, preferably with id-keyed message rows.
+description: Render very long threads with @tanstack/react-virtual, with ThreadPrimitive.Unstable_MessageById and ThreadPrimitive.MessageByIndex.
 platforms: ["react"]
 ---
 
@@ -52,17 +52,40 @@ briefly outlives the item it was created for.
 
 ## Grouping into turns
 
-The example virtualizes per user turn (a user message plus the responses that follow it), which gives the virtualizer stable, meaningfully sized items. Use `unstable_useThreadMessageIds` as the source of message identity, and subscribe only to the role sequence needed to decide where turns begin:
+The example virtualizes per user turn (a user message plus the responses that follow it), which gives the virtualizer stable, meaningfully sized items. Keep the id and role together in a stable row shape so the turn array only rebuilds when message membership or roles change:
 
 ```tsx
-const messageIds = unstable_useThreadMessageIds();
-const roleSignature = useAuiState((s) =>
-  s.thread.messages.map((m) => m.role).join("\n"),
-);
+type MessageRow = {
+  id: string;
+  role: "user" | "assistant" | "system";
+};
 
+const useThreadMessageRows = (): readonly MessageRow[] => {
+  const prevRowsRef = useRef<readonly MessageRow[]>([]);
+
+  return useAuiState((s) => {
+    const messages = s.thread.messages;
+    const prev = prevRowsRef.current;
+    if (
+      prev.length === messages.length &&
+      prev.every((row, index) => {
+        const message = messages[index]!;
+        return row.id === message.id && row.role === message.role;
+      })
+    ) {
+      return prev;
+    }
+
+    const next = messages.map(({ id, role }) => ({ id, role }));
+    prevRowsRef.current = next;
+    return next;
+  });
+};
+
+const messageRows = useThreadMessageRows();
 const turns = useMemo(
-  () => buildTurns(messageIds, roleSignature),
-  [messageIds, roleSignature],
+  () => buildTurns(messageRows),
+  [messageRows],
 );
 ```
 

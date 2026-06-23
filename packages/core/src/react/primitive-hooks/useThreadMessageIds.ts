@@ -1,19 +1,17 @@
-import { useMemo, useRef } from "react";
+import { useRef } from "react";
 import { useAuiState } from "@assistant-ui/store";
 
 const useThreadMessageIds = (): readonly string[] => {
   const messages = useAuiState((s) => s.thread.messages);
   const prevIdsRef = useRef<readonly string[]>([]);
 
-  return useMemo(() => {
-    const ids = messages.map((m) => m.id);
-    const prev = prevIdsRef.current;
-    if (prev.length === ids.length && prev.every((id, i) => id === ids[i])) {
-      return prev;
-    }
+  const ids = messages.map((m) => m.id);
+  const prev = prevIdsRef.current;
+  if (prev.length !== ids.length || prev.some((id, i) => id !== ids[i])) {
     prevIdsRef.current = ids;
-    return ids;
-  }, [messages]);
+  }
+
+  return prevIdsRef.current;
 };
 
 /**

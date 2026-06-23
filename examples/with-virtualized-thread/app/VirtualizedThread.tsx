@@ -5,7 +5,6 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  unstable_useThreadMessageIds,
   useAuiState,
 } from "@assistant-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -28,18 +27,41 @@ type MessageComponents = ComponentProps<
   typeof ThreadPrimitive.Unstable_MessageById
 >["components"];
 
+type MessageRow = {
+  id: string;
+  role: "user" | "assistant" | "system";
+};
+
 type Turn = { id: string; messageIds: string[] };
 
-const buildTurns = (
-  messageIds: readonly string[],
-  roleSignature: string,
-): Turn[] => {
-  if (messageIds.length === 0) return [];
-  const roles = roleSignature ? roleSignature.split("\n") : [];
+const useThreadMessageRows = (): readonly MessageRow[] => {
+  const prevRowsRef = useRef<readonly MessageRow[]>([]);
+
+  return useAuiState((s) => {
+    const messages = s.thread.messages;
+    const prev = prevRowsRef.current;
+    if (
+      prev.length === messages.length &&
+      prev.every((row, index) => {
+        const message = messages[index]!;
+        return row.id === message.id && row.role === message.role;
+      })
+    ) {
+      return prev;
+    }
+
+    const next = messages.map(({ id, role }) => ({ id, role }));
+    prevRowsRef.current = next;
+    return next;
+  });
+};
+
+const buildTurns = (messages: readonly MessageRow[]): Turn[] => {
+  if (messages.length === 0) return [];
   const turns: Turn[] = [];
-  for (const [index, id] of messageIds.entries()) {
+  for (const { id, role } of messages) {
     const last = turns.at(-1);
-    if (roles[index] === "user" || !last) turns.push({ id, messageIds: [id] });
+    if (role === "user" || !last) turns.push({ id, messageIds: [id] });
     else last.messageIds.push(id);
   }
   return turns;
@@ -83,15 +105,9 @@ const Composer: FC = () => (
 );
 
 export const VirtualizedThread: FC = () => {
-  const messageIds = unstable_useThreadMessageIds();
-  const roleSignature = useAuiState((s) =>
-    s.thread.messages.map((m) => m.role).join("\n"),
-  );
+  const messages = useThreadMessageRows();
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const turns = useMemo(
-    () => buildTurns(messageIds, roleSignature),
-    [messageIds, roleSignature],
-  );
+  const turns = useMemo(() => buildTurns(messages), [messages]);
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
