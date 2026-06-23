@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getLLMText } from "@/lib/get-llm-text";
-import { tapDocs } from "@/lib/source";
+import { getTapDocsPage, tapDocs } from "@/lib/source";
 import { notFound } from "next/navigation";
 
 export const revalidate = false;
@@ -11,9 +11,7 @@ export async function GET(
 ) {
   const { slug } = await params;
   // The Tap index MDX redirects; markdown should return content directly.
-  const effectiveSlug =
-    slug && slug.length > 0 ? slug : ["overview", "introduction"];
-  const page = tapDocs.getPage(effectiveSlug);
+  const page = getTapDocsPage(slug);
   if (!page) notFound();
 
   return new NextResponse(await getLLMText(page), {

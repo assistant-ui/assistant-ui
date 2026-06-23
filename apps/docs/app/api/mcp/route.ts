@@ -1,7 +1,7 @@
 import type * as PageTree from "fumadocs-core/page-tree";
 import { NextResponse, type NextRequest } from "next/server";
 import { getLLMText } from "@/lib/get-llm-text";
-import { examples, source, tapDocs } from "@/lib/source";
+import { examples, getTapDocsPage, source, tapDocs } from "@/lib/source";
 
 export const revalidate = false;
 
@@ -82,16 +82,12 @@ function getStringParam(params: unknown, key: string) {
   return undefined;
 }
 
-function pageTitle(page: { data: { title: string } }) {
-  return page.data.title;
-}
-
 function pageSummary(page: {
   url: string;
   data: { title: string; description?: string | undefined };
 }) {
   return {
-    title: pageTitle(page),
+    title: page.data.title,
     url: page.url,
     ...(page.data.description ? { description: page.data.description } : {}),
   };
@@ -257,12 +253,6 @@ function searchDocs(query: string) {
       ),
     )
     .slice(0, 20);
-}
-
-function getTapDocsPage(slugs: string[]) {
-  return tapDocs.getPage(
-    slugs.length > 0 ? slugs : ["overview", "introduction"],
-  );
 }
 
 async function readPage(path: string | undefined, requestUrl: string) {
