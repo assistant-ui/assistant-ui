@@ -62,14 +62,14 @@ jobs:
             ${{ runner.os }}-turbo-${{ github.ref }}-
             ${{ runner.os }}-turbo-
 
-      # Baseline is the metrics snapshot saved by the last run on main. PRs read
-      # the newest one via the restore-keys prefix to compute deltas.
-      - name: Restore baseline metrics
+      # Baseline is main's metrics, cached by the last run on main. PRs restore
+      # the newest one via the restore-keys prefix to compute deltas against main.
+      - name: Restore main baseline
         uses: actions/cache/restore@v4
         with:
-          path: metrics-baseline.json
-          key: template-metrics-${{ github.sha }}
-          restore-keys: template-metrics-
+          path: install-footprint/branch/main/data.json
+          key: install-footprint-main-${{ github.sha }}
+          restore-keys: install-footprint-main-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -93,7 +93,7 @@ jobs:
 
       - name: Build report
         run: |
-          base=metrics-baseline.json
+          base=install-footprint/branch/main/data.json
           [ -f "$base" ] || base=""
           node scripts/template-metrics.mjs report "$base" metrics-head.json metrics-report.md metrics-gate.txt
           cat metrics-report.md
@@ -141,11 +141,13 @@ jobs:
 
       - name: Persist baseline (main only)
         if: github.event_name == 'push'
-        run: cp metrics-head.json metrics-baseline.json
+        run: |
+          mkdir -p install-footprint/branch/main
+          cp metrics-head.json install-footprint/branch/main/data.json
 
       - name: Save baseline cache (main only)
         if: github.event_name == 'push'
         uses: actions/cache/save@v4
         with:
-          path: metrics-baseline.json
-          key: template-metrics-${{ github.sha }}
+          path: install-footprint/branch/main/data.json
+          key: install-footprint-main-${{ github.sha }}
