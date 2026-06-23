@@ -685,16 +685,27 @@ function Subagents() {
 
 ## Per-message metadata
 
-`useMessageMetadata` (from `@langchain/react`) reads per-message metadata (e.g. `parentCheckpointId`) for a given message id; pair it with `useLangChainStream`. It returns `undefined` outside the runtime provider.
+`useMessageMetadata` (from `@langchain/react`) reads per-message metadata (e.g. `parentCheckpointId`) for a given message id. Pair it with `useLangChainStream`, which returns `undefined` outside the runtime provider; guard the stream before calling the selector, since `useMessageMetadata` throws on an undefined stream.
 
 ```tsx
 import { useLangChainStream } from "@assistant-ui/react-langchain";
 import { useMessageMetadata } from "@langchain/react";
 
-function MessageInfo({ messageId }: { messageId: string }) {
-  const stream = useLangChainStream();
+function MessageInfoView({
+  stream,
+  messageId,
+}: {
+  stream: NonNullable<ReturnType<typeof useLangChainStream>>;
+  messageId: string;
+}) {
   const { parentCheckpointId } = useMessageMetadata(stream, messageId) ?? {};
   // …render per-message metadata…
+}
+
+function MessageInfo({ messageId }: { messageId: string }) {
+  const stream = useLangChainStream();
+  if (!stream) return null;
+  return <MessageInfoView stream={stream} messageId={messageId} />;
 }
 ```
 
