@@ -8,3 +8,11 @@ export {
   type AISDKToolkitToolsOptions,
   type GenerativeToolsOptions,
 } from "./generativeTools";
+export {
+  createAISDKRoute,
+  type AISDKRouteBody,
+  type AISDKRouteCallSettings,
+  type AISDKRouteResponseOptions,
+  type CreateAISDKRouteOptions,
+  type CreateAISDKRouteResult,
+} from "./createAISDKRoute";
