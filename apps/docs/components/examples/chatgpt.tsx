@@ -61,7 +61,7 @@ export const ChatGPT: FC = () => {
           <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-3xl flex-col gap-2 overflow-visible rounded-t-3xl bg-white pb-2 dark:bg-black">
             <ThreadScrollToBottom />
             <Composer placeholder="Ask anything" />
-            <p className="text-center text-xs text-[#5d5d5d] dark:text-[#a8a8a8]">
+            <p className="text-center text-xs text-[#5d5d5d] dark:text-[#afafaf]">
               ChatGPT can make mistakes. Check important info.
             </p>
           </ThreadPrimitive.ViewportFooter>
@@ -73,9 +73,9 @@ export const ChatGPT: FC = () => {
 
 const EmptyState: FC = () => {
   return (
-    <div className="flex grow flex-col items-center justify-center px-4">
+    <div className="flex grow flex-col items-center justify-center px-4 pb-[16vh]">
       <div className="mx-auto flex w-full max-w-3xl flex-col items-stretch gap-6">
-        <h1 className="text-center text-2xl font-medium text-[#0d0d0d] sm:text-3xl dark:text-[#ececec]">
+        <h1 className="text-center text-2xl leading-7 font-normal text-[#0d0d0d] dark:text-[#ececec]">
           Where should we begin?
         </h1>
         <Composer placeholder="Ask anything" />
@@ -86,7 +86,7 @@ const EmptyState: FC = () => {
 
 const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
   return (
-    <ComposerPrimitive.Root className="group/composer flex w-full flex-col rounded-[28px] border border-[#e5e5e5] bg-white px-2 py-2 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.05)] focus-within:border-[#d0d0d0] dark:border-transparent dark:bg-[#212121] dark:shadow-none dark:focus-within:border-transparent">
+    <ComposerPrimitive.Root className="group/composer flex w-full flex-col rounded-[28px] border border-[#e5e5e5] bg-white px-2 py-2 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.05)] focus-within:border-[#d0d0d0] dark:border-transparent dark:bg-[#212121] dark:shadow-[inset_0_0_1px_0_rgba(255,255,255,0.2)] dark:focus-within:border-transparent">
       <AuiIf condition={(s) => s.composer.attachments.length > 0}>
         <div className="flex flex-row flex-wrap gap-2 px-1 pt-1 pb-2">
           <ComposerPrimitive.Attachments
@@ -97,19 +97,22 @@ const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
 
       <div className="flex items-end gap-1">
         <ComposerPrimitive.AddAttachment asChild>
-          <button
+          <TooltipIconButton
             type="button"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white"
+            tooltip="Add photos & files"
+            side="top"
             aria-label="Add attachment"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white"
           >
             <PlusIcon size={20} />
-          </button>
+          </TooltipIconButton>
         </ComposerPrimitive.AddAttachment>
 
         <ComposerPrimitive.Input
+          autoFocus
           placeholder={placeholder}
           rows={1}
-          className="max-h-52 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-base text-[#0d0d0d] outline-none placeholder:text-[#8e8e8e] dark:text-[#ececec] dark:placeholder:text-[#8e8e8e]"
+          className="max-h-52 min-h-9 flex-1 resize-none bg-transparent py-1.5 pr-2 pl-1 text-base text-[#0d0d0d] outline-none placeholder:text-[#8e8e8e] dark:text-[#ececec] dark:placeholder:text-[#8e8e8e]"
         />
 
         <div className="flex shrink-0 items-center gap-1">
@@ -159,21 +162,27 @@ const ComposerPrimaryAction: FC = () => {
           s.composer.isEmpty
         }
       >
-        <ComposerPrimitive.Dictate
-          className="flex size-9 items-center justify-center rounded-full text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white"
-          aria-label="Dictate"
-        >
-          <Mic className="size-5" />
+        <ComposerPrimitive.Dictate asChild>
+          <TooltipIconButton
+            tooltip="Dictate"
+            side="top"
+            aria-label="Dictate"
+            className="flex size-9 items-center justify-center rounded-full text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white"
+          >
+            <Mic className="size-5" />
+          </TooltipIconButton>
         </ComposerPrimitive.Dictate>
 
-        <button
+        <TooltipIconButton
           type="button"
+          tooltip="Use voice mode"
+          side="top"
           aria-hidden="true"
           tabIndex={-1}
-          className="flex size-9 items-center justify-center rounded-full bg-[#0d0d0d] text-white dark:bg-white dark:text-black"
+          className="flex size-9 items-center justify-center rounded-full bg-[#0d0d0d] text-white hover:bg-[#0d0d0d] dark:bg-white dark:text-black dark:hover:bg-white"
         >
           <AudioLines className="size-5" />
-        </button>
+        </TooltipIconButton>
       </AuiIf>
     </div>
   );
@@ -201,33 +210,44 @@ const UserMessage: FC = () => {
         />
       </div>
 
-      <div className="flex items-start gap-4">
+      <div className="max-w-[70%] rounded-[22px] bg-[#0d0d0d] px-4 py-2.5 leading-6 text-white dark:bg-[#ececec] dark:text-[#0d0d0d]">
+        <MessagePrimitive.Parts />
+      </div>
+
+      <div className="flex items-center gap-0.5">
         <ActionBarPrimitive.Root
           hideWhenRunning
-          autohide="not-last"
+          autohide="always"
           autohideFloat="single-branch"
-          className="mt-2"
+          className="flex items-center gap-0.5"
         >
+          <ActionBarPrimitive.Copy className={assistantActionClassName}>
+            <AuiIf condition={(s) => s.message.isCopied}>
+              <CheckIcon className="size-5" />
+            </AuiIf>
+            <AuiIf condition={(s) => !s.message.isCopied}>
+              <CopyIcon className="size-5" />
+            </AuiIf>
+          </ActionBarPrimitive.Copy>
           <ActionBarPrimitive.Edit asChild>
-            <TooltipIconButton tooltip="Edit" className="text-[#b4b4b4]">
+            <TooltipIconButton
+              tooltip="Edit"
+              className={assistantActionClassName}
+            >
               <Pencil1Icon className="size-5" />
             </TooltipIconButton>
           </ActionBarPrimitive.Edit>
         </ActionBarPrimitive.Root>
 
-        <div className="bg-secondary text-foreground rounded-3xl px-5 py-2 dark:bg-white/5 dark:text-[#eee]">
-          <MessagePrimitive.Parts />
-        </div>
+        <BranchPicker />
       </div>
-
-      <BranchPicker className="mt-2 mr-3" />
     </MessagePrimitive.Root>
   );
 };
 
 const EditComposer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="bg-secondary mx-auto flex w-full max-w-3xl flex-col justify-end gap-1 rounded-3xl dark:bg-white/15">
+    <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl flex-col justify-end gap-1 rounded-3xl bg-[#e9e9e9]/50 dark:bg-[#323232]">
       <ComposerPrimitive.Input className="text-foreground flex h-8 w-full resize-none bg-transparent p-5 pb-0 outline-none dark:text-white" />
 
       <div className="m-3 mt-2 flex items-center justify-center gap-2 self-end">
