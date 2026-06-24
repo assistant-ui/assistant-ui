@@ -80,22 +80,34 @@ const CopyButton: FC<{ content: string }> = ({ content }) => {
   );
 };
 
-/**
- * Frozen-history notepad: the message with the most recent edit is the live,
- * editable note; older messages show their own version read-only.
- */
-export const Notepad: FC<InteractableToolRenderProps<NotepadArgs>> = ({
-  state,
-  setState,
-  version,
-  streaming,
-}) => {
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const editable = !streaming && (!version || version.isLatest);
-  const note = version && !version.isLatest ? version.state : state;
+type NotepadVersion = NonNullable<
+  InteractableToolRenderProps<NotepadArgs>["version"]
+>;
 
-  // contentEditable is uncontrolled; mirror external (model) updates into the
-  // DOM, but never while the user is typing in it.
+type UpdateNote = (updater: (prev: NotepadArgs) => NotepadArgs) => void;
+
+const sameNote = (a: NotepadArgs, b: NotepadArgs) =>
+  a.title === b.title && a.content === b.content;
+
+const StreamingNotepad: FC<{ state: NotepadArgs }> = ({ state }) => (
+  <NotepadCard
+    title={
+      <span className={cn(titleClass, "animate-pulse")}>
+        {state.title || "Drafting note..."}
+      </span>
+    }
+  >
+    <div className="wrap-break-word whitespace-pre-wrap">{state.content}</div>
+  </NotepadCard>
+);
+
+const NotepadEditor: FC<{
+  note: NotepadArgs;
+  setNote: UpdateNote;
+  onRestore?: () => void;
+}> = ({ note, setNote, onRestore }) => {
+  const bodyRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const node = bodyRef.current;
     if (!node) return;
@@ -103,59 +115,28 @@ export const Notepad: FC<InteractableToolRenderProps<NotepadArgs>> = ({
     if (node.innerText !== note.content) node.innerText = note.content;
   }, [note.content]);
 
-  if (streaming) {
-    return (
-      <NotepadCard
-        title={
-          <span className={cn(titleClass, "animate-pulse")}>
-            {note.title || "Drafting note..."}
-          </span>
-        }
-      >
-        <div className="wrap-break-word whitespace-pre-wrap">
-          {note.content}
-        </div>
-      </NotepadCard>
-    );
-  }
-
-  const edited =
-    editable &&
-    version !== undefined &&
-    (state.title !== version.state.title ||
-      state.content !== version.state.content);
-
-  const revert = () => {
-    version?.restore();
-    if (bodyRef.current && version) {
-      bodyRef.current.innerText = version.state.content;
-    }
-  };
-
   return (
     <NotepadCard
-      muted={!editable}
       title={
         <input
           className={titleClass}
           value={note.title ?? ""}
-          readOnly={!editable}
           spellCheck={false}
           aria-label="Note title"
           onChange={(e) =>
-            setState((prev) => ({ ...prev, title: e.target.value }))
+            setNote((prev) => ({ ...prev, title: e.target.value }))
           }
         />
       }
       actions={
         <>
-          {edited && (
+          {onRestore && (
             <>
               <span className="relative inline-flex">
                 <TooltipIconButton
-                  tooltip="Revert to original"
+                  tooltip="Restore this version"
                   className="text-muted-foreground hover:text-foreground size-8 rounded-md"
-                  onClick={revert}
+                  onClick={onRestore}
                 >
                   <RotateCcwIcon className="size-4" />
                 </TooltipIconButton>
@@ -171,28 +152,63 @@ export const Notepad: FC<InteractableToolRenderProps<NotepadArgs>> = ({
         </>
       }
     >
-      {editable ? (
-        <div
-          ref={bodyRef}
-          contentEditable
-          suppressContentEditableWarning
-          spellCheck={false}
-          role="textbox"
-          aria-multiline="true"
-          aria-label="Note text"
-          className="caret-foreground wrap-break-word whitespace-pre-wrap outline-none"
-          onInput={() =>
-            setState((prev) => ({
-              ...prev,
-              content: bodyRef.current?.innerText ?? prev.content,
-            }))
-          }
-        />
-      ) : (
-        <div className="wrap-break-word whitespace-pre-wrap">
-          {note.content}
-        </div>
-      )}
+      <div
+        ref={bodyRef}
+        contentEditable
+        suppressContentEditableWarning
+        spellCheck={false}
+        role="textbox"
+        aria-multiline="true"
+        aria-label="Note text"
+        className="caret-foreground wrap-break-word whitespace-pre-wrap outline-none"
+        onInput={() =>
+          setNote((prev) => ({
+            ...prev,
+            content: bodyRef.current?.innerText ?? prev.content,
+          }))
+        }
+      />
     </NotepadCard>
   );
+};
+
+const HistoricalNotepad: FC<{ version: NotepadVersion }> = ({ version }) => {
+  const [note, setNote] = useState(version.state);
+  const canRestore = !sameNote(note, version.state);
+
+  return (
+    <NotepadEditor
+      note={note}
+      setNote={(updater) => setNote(updater)}
+      {...(canRestore ? { onRestore: () => setNote(version.state) } : {})}
+    />
+  );
+};
+
+const LiveNotepad: FC<{
+  state: NotepadArgs;
+  setState: InteractableToolRenderProps<NotepadArgs>["setState"];
+  version: InteractableToolRenderProps<NotepadArgs>["version"];
+}> = ({ state, setState, version }) => {
+  const canRestore = version && !sameNote(state, version.state);
+
+  return (
+    <NotepadEditor
+      note={state}
+      setNote={(updater) => setState(updater)}
+      {...(canRestore ? { onRestore: version.restore } : {})}
+    />
+  );
+};
+
+export const Notepad: FC<InteractableToolRenderProps<NotepadArgs>> = ({
+  state,
+  setState,
+  version,
+  streaming,
+}) => {
+  if (streaming) return <StreamingNotepad state={state} />;
+  if (version && !version.isLatest)
+    return <HistoricalNotepad version={version} />;
+  return <LiveNotepad state={state} setState={setState} version={version} />;
 };
