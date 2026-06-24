@@ -1444,11 +1444,27 @@ export default defineToolkit({
       isGenerativeModule(`"use generative" + suffix;\nexport default {};`),
     ).toBe(false);
     expect(
+      isGenerativeModule(`"use generative"\n+ suffix;\nexport default {};`),
+    ).toBe(false);
+    expect(
       isGenerativeModule(`"use generative".toString();\nexport default {};`),
+    ).toBe(false);
+    expect(
+      isGenerativeModule(`"use generative"\n.toString();\nexport default {};`),
+    ).toBe(false);
+    expect(
+      isGenerativeModule(
+        `"use generative" // comment\n+ suffix;\nexport default {};`,
+      ),
     ).toBe(false);
     expect(
       isGenerativeModule(
         `"use generative" /* no line break */ + suffix;\nexport default {};`,
+      ),
+    ).toBe(false);
+    expect(
+      isGenerativeModule(
+        `"use generative" /* first line\nsecond line */ + suffix;\nexport default {};`,
       ),
     ).toBe(false);
   });
