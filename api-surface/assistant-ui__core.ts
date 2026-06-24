@@ -1080,7 +1080,7 @@ declare class MessageRepository {
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
-  import(_param: ExportedMessageRepository): void;
+  import(_param0: ExportedMessageRepository): void;
 }
 
 type QuoteInfo = {
@@ -1755,10 +1755,10 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param: {
+  submitFeedback(_param1: {
     type: "positive" | "negative";
   }): void;
-  switchToBranch(_param: {
+  switchToBranch(_param2: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -1791,10 +1791,10 @@ declare class MessageRuntimeImpl implements MessageRuntime {
   reload(reloadConfig?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param: {
+  submitFeedback(_param3: {
     type: "positive" | "negative";
   }): void;
-  switchToBranch(_param: {
+  switchToBranch(_param4: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -3362,7 +3362,7 @@ declare class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
       attachments?: AttachmentAdapter | undefined;
       dictation?: DictationAdapter | undefined;
     } | undefined;
-  }, endEditCallback: () => void, _param: {
+  }, endEditCallback: () => void, _param5: {
     parentId: string | null;
     message: ThreadMessage;
   });
@@ -3426,7 +3426,7 @@ declare abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   protected _notifySubscribers(): void;
   _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): void;
   subscribe(callback: () => void): Unsubscribe$1;
-  submitFeedback(_param: SubmitFeedbackOptions): void;
+  submitFeedback(_param6: SubmitFeedbackOptions): void;
   private _stopSpeaking;
   speech: SpeechState | undefined;
   speak(messageId: string): void;
@@ -3510,17 +3510,17 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   removeQueueItem(queueItemId: string): void;
   private _runAppend;
   deleteMessage(messageId: string): Promise<void>;
-  resumeRun(_param: ResumeRunConfig): Promise<void>;
+  resumeRun(_param7: ResumeRunConfig): Promise<void>;
   exportExternalState(): any;
   importExternalState(): void;
-  startRun(_param: StartRunConfig, runCallback?: ChatModelAdapter["run"]): Promise<void>;
+  startRun(_param8: StartRunConfig, runCallback?: ChatModelAdapter["run"]): Promise<void>;
   private _runLoop;
   private performRoundtrip;
   detach(): void;
   cancelRun(): void;
-  addToolResult(_param: AddToolResultOptions): void;
+  addToolResult(_param9: AddToolResultOptions): void;
   resumeToolCall(_options: ResumeToolCallOptions): void;
-  respondToToolApproval(_param: RespondToToolApprovalOptions): void;
+  respondToToolApproval(_param10: RespondToToolApprovalOptions): void;
 }
 
 type LocalThreadFactory = () => LocalThreadRuntimeCore;
@@ -4097,7 +4097,7 @@ type AssistantProviderBaseProps = PropsWithChildren<{
 
 declare const AssistantProviderBase: FC<AssistantProviderBaseProps>;
 
-declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_param: {
+declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_param11: {
   runtime: AssistantRuntime;
   aui?: AssistantClient | null;
   children: ReactNode;
@@ -4518,7 +4518,7 @@ declare namespace useExternalMessageConverter {
 
 declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callback<T>, isRunning: boolean, metadata: useExternalMessageConverter.Metadata) => ThreadMessage[];
 
-declare const useExternalMessageConverter: <T extends WeakKey>(_param: {
+declare const useExternalMessageConverter: <T extends WeakKey>(_param12: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
@@ -4527,7 +4527,7 @@ declare const useExternalMessageConverter: <T extends WeakKey>(_param: {
 }) => ThreadMessage[];
 
 declare const createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => {
-  useThreadMessages: (_param: {
+  useThreadMessages: (_param13: {
     messages: T[];
     isRunning: boolean;
     joinStrategy?: JoinStrategy | undefined;
@@ -5085,7 +5085,7 @@ declare class CloudFileAttachmentAdapter implements AttachmentAdapter {
   accept: string;
   constructor(cloud: AssistantCloud);
   private uploadedUrls;
-  add(_param: {
+  add(_param14: {
     file: File;
   }): AsyncGenerator<PendingAttachment, void>;
   remove(attachment: Attachment): Promise<void>;
@@ -5212,8 +5212,8 @@ declare const defaultComponents: {
   Image: () => null;
   File: () => null;
   Unstable_Audio: () => null;
-  ToolGroup: (_param: PropsWithChildren) => ReactNode;
-  ReasoningGroup: (_param: PropsWithChildren) => ReactNode;
+  ToolGroup: (_param15: PropsWithChildren) => ReactNode;
+  ReasoningGroup: (_param16: PropsWithChildren) => ReactNode;
 };
 
 type MessagePartComponentProps = {
@@ -5280,7 +5280,7 @@ declare namespace MessagePrimitiveGroupedParts {
 }
 
 declare const MessagePrimitiveGroupedParts: {
-  <TKey extends `group-${string}`>(_param: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
+  <TKey extends `group-${string}`>(_param17: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
   displayName: string;
 };
 
@@ -5567,7 +5567,7 @@ type UseActionBarCopyOptions = {
   copyToClipboard?: ((text: string) => void | Promise<void>) | undefined;
 };
 
-declare const useActionBarCopy: (_param?: UseActionBarCopyOptions) => {
+declare const useActionBarCopy: (_param18?: UseActionBarCopyOptions) => {
   copy: () => void;
   disabled: boolean;
   isCopied: boolean;
@@ -5630,7 +5630,7 @@ type UseSuggestionTriggerOptions = {
   clearComposer?: boolean | undefined;
 };
 
-declare const useSuggestionTrigger: (_param: UseSuggestionTriggerOptions) => {
+declare const useSuggestionTrigger: (_param19: UseSuggestionTriggerOptions) => {
   trigger: () => void;
   disabled: boolean;
 };
@@ -5698,7 +5698,7 @@ declare const splitLocalRuntimeOptions: <T extends LocalRuntimeOptions>(options:
   otherOptions: Omit<T, "adapters" | "maxSteps" | "unstable_humanToolNames" | "unstable_enableMessageQueue" | "cloud" | "initialMessages">;
 };
 
-declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param?: LocalRuntimeOptions) => AssistantRuntime;
+declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param20?: LocalRuntimeOptions) => AssistantRuntime;
 
 declare namespace entry_react_exports {
   export { AssistantContextConfig, AssistantDataUI, AssistantDataUIProps, AssistantInteractableProps, AssistantProviderBase, AssistantProviderBaseProps, AssistantRuntimeProvider, AssistantTool, AssistantToolProps, AssistantToolUI, AssistantToolUIProps, AsyncStorageLike, ChainOfThoughtByIndicesProvider, ChainOfThoughtPartByIndexProvider, ChainOfThoughtPrimitiveParts, CloudFileAttachmentAdapter, ComposerAttachmentByIndexProvider, ComposerPrimitiveAttachmentByIndex, ComposerPrimitiveAttachments, ComposerPrimitiveIf, ComposerPrimitiveQueue, DataMessagePartComponent, DataMessagePartProps, DataRenderers, DataRenderersClientSchema, DataRenderersMethods, DataRenderersState, EmptyMessagePartComponent, EmptyMessagePartProps, EnrichedPartState, FileMessagePartComponent, FileMessagePartProps, GenerativeUIComponentRegistry, GenerativeUIMessagePartComponent, GenerativeUIMessagePartProps, GenerativeUIRender, GenerativeUIRenderError, GenerativeUIRenderProps, GroupByContext, ImageMessagePartComponent, ImageMessagePartProps, InteractableDefinition, InteractablePersistedState, InteractablePersistenceAdapter, InteractablePersistenceStatus, InteractableRegistration, InteractableStateSchema, Interactables, InteractablesClientSchema, InteractablesMethods, InteractablesState, JoinStrategy, LocalRuntimeOptions, McpAppResourceOutput, McpToolkitDefinition, MessageAttachmentByIndexProvider, MessageByIndexProvider, MessagePartComponent, MessagePartPrimitiveInProgress, MessagePrimitiveAttachmentByIndex, MessagePrimitiveAttachments, MessagePrimitiveGenerativeUI, MessagePrimitiveGroupedParts, MessagePrimitivePartByIndex, MessagePrimitiveParts, MessagePrimitiveQuote, PartByIndexProvider, PartPrimitiveMessages, PartPrimitiveMessagesImpl, PartState, ProviderToolConfig, QueueItemByIndexProvider, QueueItemByIndexProviderProps, QuoteMessagePartComponent, QuoteMessagePartProps, ReadonlyThreadProvider, ReasoningGroupComponent, ReasoningGroupProps, ReasoningMessagePartComponent, ReasoningMessagePartProps, RemoteThreadListHookInstanceManager, RemoteThreadListThreadListRuntimeCore, RuntimeAdapter, RuntimeAdapterProvider, RuntimeAdapters, SourceMessagePartComponent, SourceMessagePartProps, StreamingTimingAccessors, StreamingTimingOptions, StreamingTimingState, SuggestionByIndexProvider, SuggestionByIndexProviderProps, TextMessagePartComponent, TextMessagePartProps, TextMessagePartProvider, ThreadListItemByIndexProvider, ThreadListItemPrimitiveTitle, ThreadListItemRuntimeProvider, ThreadListPrimitiveItemByIndex, ThreadListPrimitiveItems, ThreadPrimitiveMessageByIndex, ThreadPrimitiveMessages, ThreadPrimitiveMessagesImpl, ThreadPrimitiveSuggestionByIndex, ThreadPrimitiveSuggestions, ThreadPrimitiveSuggestionsImpl, ThreadPrimitiveUnstable_MessageById, TitleGenerationAdapter, ToolArgsStatus, ToolCallMessagePartComponent, ToolCallMessagePartProps, ToolCallText, ToolDefinition, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, Tools, ToolsClientSchema, ToolsMethods, ToolsState, Unstable_AudioMessagePartComponent, Unstable_AudioMessagePartProps, Unstable_InferInteractableState, Unstable_InteractableConfig, Unstable_InteractableDefinition, Unstable_InteractablePersistedState, Unstable_InteractablePersistenceAdapter, Unstable_InteractablePersistenceStatus, Unstable_InteractableRegistration, Unstable_InteractableStateSchema, Unstable_InteractableToolConfig, Unstable_InteractableToolRenderProps, Unstable_InteractableVersionInfo, Unstable_InteractablesClientSchema, Unstable_InteractablesConfig, Unstable_InteractablesMethods, Unstable_InteractablesState, UseActionBarCopyOptions, UseComposerIfProps, UseSuggestionTriggerOptions, convertExternalMessages, createLocalStorageAdapter, createMessageConverter, createSimpleTitleAdapter, defineMcpToolkit, defineToolkit, externalTool, getMessageQuote, getRenderComponent, groupPartByType, hitl, hitlTool, humanTool, makeAssistantDataUI, makeAssistantTool, makeAssistantToolUI, defaultComponents as messagePartsDefaultComponents, providerTool, splitLocalRuntimeOptions, stubTool, unstable_Interactables, unstable_interactableTool, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions, unstable_useThreadMessageIds, useActionBarCopy, useActionBarEdit, useActionBarFeedbackNegative, useActionBarFeedbackPositive, useActionBarReload, useActionBarSpeak, useActionBarStopSpeaking, useAssistantCloudThreadHistoryAdapter, useAssistantContext, useAssistantDataUI, useAssistantInstructions, useAssistantInteractable, useAssistantTool, useAssistantToolUI, useAuiToolOverrides, useBranchPickerNext, useBranchPickerPrevious, useCloudThreadListAdapter, useComposerAddAttachment, useComposerCancel, useComposerDictate, useComposerSend, useEditComposerCancel, useEditComposerSend, useExternalMessageConverter, useExternalStoreRuntime, useExternalStoreSharedOptions, useInlineRender, useInteractableState, useLocalRuntime, useMessageBranching, useMessageError, useMessageReload, useRemoteThreadListRuntime, useRuntimeAdapters, useStreamingTiming, useSuggestionTrigger, useThreadIsEmpty, useThreadIsRunning, useThreadListItemArchive, useThreadListItemDelete, useThreadListItemTrigger, useThreadListItemUnarchive, useThreadListLoadMore, useThreadListNew, useThreadMessages, useToolArgsStatus, useVoiceControls, useVoiceState, useVoiceVolume };

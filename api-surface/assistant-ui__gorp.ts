@@ -33,7 +33,7 @@ declare class GorpClient<T extends Record<string, unknown>, C> {
   constructor(config: GorpClient.Config<T, C>);
   get state(): DeepReadonly<T>;
   get firstPendingSeq(): number;
-  apply(_param: GorpMessage): void;
+  apply(_param0: GorpMessage): void;
   send(command: C): void;
   onChange(callback: () => void): () => void;
   resync(): void;

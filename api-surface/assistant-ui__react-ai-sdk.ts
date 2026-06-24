@@ -1269,10 +1269,10 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param: {
+  submitFeedback(_param0: {
     type: "positive" | "negative";
   }): void;
-  switchToBranch(_param: {
+  switchToBranch(_param1: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -1930,7 +1930,7 @@ type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatI
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
 };
 
-declare const useChatRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(_param?: UseChatRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
+declare const useChatRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(_param2?: UseChatRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
 
 declare const RESUMABLE_STREAM_ID_HEADER = "x-resumable-stream-id";
 

@@ -1296,10 +1296,10 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param: {
+  submitFeedback(_param0: {
     type: "positive" | "negative";
   }): void;
-  switchToBranch(_param: {
+  switchToBranch(_param1: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -1599,7 +1599,7 @@ declare namespace useExternalMessageConverter {
   type Callback<T> = (message: T, metadata: Metadata) => Message | Message[];
 }
 
-declare const useExternalMessageConverter: <T extends WeakKey>(_param: {
+declare const useExternalMessageConverter: <T extends WeakKey>(_param2: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
@@ -2116,7 +2116,7 @@ type LangGraphInterruptState = {
 
 declare const useLangGraphMessages: <TMessage extends {
   id?: string;
-}>(_param: {
+}>(_param3: {
   stream: LangGraphStreamCallback<TMessage>;
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
   uiStateKey?: string;
@@ -2157,7 +2157,7 @@ declare class LangGraphMessageAccumulator<TMessage extends {
   private metadataMap;
   private uiMessages;
   private appendMessage;
-  constructor(_param?: LangGraphStateAccumulatorConfig<TMessage>);
+  constructor(_param4?: LangGraphStateAccumulatorConfig<TMessage>);
   private ensureMessageId;
   addMessages(newMessages: TMessage[]): TMessage[];
   addMessageWithMetadata(message: TMessage, metadata: LangGraphTupleMetadata): TMessage[];
@@ -2188,7 +2188,7 @@ type CreateLangGraphStreamOptions = {
   onDisconnect?: StreamPayload["onDisconnect"];
 };
 
-declare const unstable_createLangGraphStream: (_param: CreateLangGraphStreamOptions) => LangGraphStreamCallback<LangChainMessage>;
+declare const unstable_createLangGraphStream: (_param5: CreateLangGraphStreamOptions) => LangGraphStreamCallback<LangChainMessage>;
 
 declare const useLangGraphInterruptState: () => LangGraphInterruptState | undefined;
 
@@ -2200,7 +2200,7 @@ declare const useLangGraphMessageMetadata: () => Map<string, LangGraphTupleMetad
 
 declare const useLangGraphUIMessages: () => readonly UIMessage<string, Record<string, unknown>>[];
 
-declare const useLangGraphRuntime: (_param: UseLangGraphRuntimeOptions) => AssistantRuntime;
+declare const useLangGraphRuntime: (_param6: UseLangGraphRuntimeOptions) => AssistantRuntime;
 
 declare const useLangGraphStreamingTiming: (messages: readonly LangChainMessage[], isRunning: boolean) => Record<string, MessageTiming>;
 

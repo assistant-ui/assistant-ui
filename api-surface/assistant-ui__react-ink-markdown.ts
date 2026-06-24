@@ -18,7 +18,7 @@ type MarkdownTextProps = {
 };
 
 declare const MarkdownText: {
-  (_param: MarkdownTextProps): import("react").JSX.Element;
+  (_param0: MarkdownTextProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -27,7 +27,7 @@ type MarkdownTextPrimitiveProps = Omit<MarkdownTextProps, "text"> & {
 };
 
 declare const MarkdownTextPrimitive: {
-  (_param: MarkdownTextPrimitiveProps): import("react").JSX.Element;
+  (_param1: MarkdownTextPrimitiveProps): import("react").JSX.Element;
   displayName: string;
 };
 

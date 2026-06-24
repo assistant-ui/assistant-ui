@@ -95,7 +95,7 @@ interface DevToolsPanelProps {
   client?: DevToolsClient | undefined;
 }
 
-declare const DevToolsPanel: (_param: DevToolsPanelProps) => import("react").JSX.Element;
+declare const DevToolsPanel: (_param0: DevToolsPanelProps) => import("react").JSX.Element;
 
 interface ShadowRootProps {
   theme: "light" | "dark";
@@ -104,7 +104,7 @@ interface ShadowRootProps {
   children: ReactNode;
 }
 
-declare const ShadowRoot: (_param: ShadowRootProps) => import("react").JSX.Element;
+declare const ShadowRoot: (_param1: ShadowRootProps) => import("react").JSX.Element;
 
 interface ClientMethods {
   [key: string | symbol]: (...args: any[]) => any;

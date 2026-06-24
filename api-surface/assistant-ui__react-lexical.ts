@@ -105,7 +105,7 @@ type DirectivePluginProps = {
   onDirectiveSelect?: ((item: Unstable_TriggerItem) => void) | undefined;
 };
 
-declare function DirectivePlugin(_param?: DirectivePluginProps): null;
+declare function DirectivePlugin(_param0?: DirectivePluginProps): null;
 
 type LexicalComposerInputProps = Omit<ComponentPropsWithoutRef<"div">, "autoFocus"> & {
   submitMode?: "enter" | "ctrlEnter" | "none" | undefined;

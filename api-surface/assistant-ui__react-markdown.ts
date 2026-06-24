@@ -305,7 +305,7 @@ type Components = {
 };
 
 declare const memoizeMarkdownComponents: (components?: Components) => {
-  [k: string]: import("react").MemoExoticComponent<(_param: {
+  [k: string]: import("react").MemoExoticComponent<(_param0: {
     node?: Element;
   }) => import("react").JSX.Element> | undefined;
 };

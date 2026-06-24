@@ -620,12 +620,12 @@ declare class AssistantMessageStream {
   ];
 }
 
-declare const createInitialMessage: (_param?: {
+declare const createInitialMessage: (_param0?: {
   unstable_state?: ReadonlyJSONValue;
 }) => AssistantMessage;
 
 declare class AssistantMessageAccumulator extends TransformStream<AssistantStreamChunk, AssistantMessage> {
-  constructor(_param?: {
+  constructor(_param1?: {
     initialMessage?: AssistantMessage;
     throttle?: boolean;
     onError?: (error: string) => void;
@@ -725,7 +725,7 @@ type CreateObjectStreamOptions = {
   defaultValue?: ReadonlyJSONValue;
 };
 
-declare const createObjectStream: (_param: CreateObjectStreamOptions) => ReadableStream<ObjectStreamChunk>;
+declare const createObjectStream: (_param2: CreateObjectStreamOptions) => ReadableStream<ObjectStreamChunk>;
 
 declare class PlainTextEncoder extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>> implements AssistantStreamEncoder {
   headers: Headers;

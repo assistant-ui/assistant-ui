@@ -292,6 +292,7 @@ function normalizeBundledDeclaration(content) {
   );
   const result = ts.transform(sourceFile, [
     (context) => {
+      let bindingParameterIndex = 0;
       const visit = (node) => {
         if (
           ts.isParameter(node) &&
@@ -302,7 +303,9 @@ function normalizeBundledDeclaration(content) {
             node,
             node.modifiers,
             node.dotDotDotToken,
-            context.factory.createIdentifier("_param"),
+            context.factory.createIdentifier(
+              `_param${bindingParameterIndex++}`,
+            ),
             node.questionToken,
             node.type,
             node.initializer,
@@ -335,7 +338,6 @@ async function bundlePackageSurface(packageInfo) {
   const entryFile = path.join(tempSrc, `${entryName}.ts`);
 
   mkdirSync(tempSrc, { recursive: true });
-  mkdirSync(tempOut, { recursive: true });
 
   const source = entries
     .flatMap((entry) => {

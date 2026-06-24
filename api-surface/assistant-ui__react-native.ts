@@ -1190,7 +1190,7 @@ declare class MessageRepository {
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
-  import(_param: ExportedMessageRepository): void;
+  import(_param0: ExportedMessageRepository): void;
 }
 
 type RuntimeCapabilities = {
@@ -1612,10 +1612,10 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param: {
+  submitFeedback(_param1: {
     type: "positive" | "negative";
   }): void;
-  switchToBranch(_param: {
+  switchToBranch(_param2: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -1648,10 +1648,10 @@ declare class MessageRuntimeImpl implements MessageRuntime {
   reload(reloadConfig?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param: {
+  submitFeedback(_param3: {
     type: "positive" | "negative";
   }): void;
-  switchToBranch(_param: {
+  switchToBranch(_param4: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -2186,12 +2186,12 @@ declare const useAuiState: <T>(selector: (state: AssistantState) => T) => T;
 
 declare const useAuiEvent: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>) => void;
 
-declare const AuiProvider: (_param: {
+declare const AuiProvider: (_param5: {
   value: AssistantClient;
   children: React.ReactNode;
 }) => React.ReactElement;
 
-declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_param: {
+declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_param6: {
   runtime: AssistantRuntime;
   aui?: AssistantClient | null;
   children: ReactNode;
@@ -3280,7 +3280,7 @@ declare namespace MessagePrimitiveGroupedParts {
 }
 
 declare const MessagePrimitiveGroupedParts: {
-  <TKey extends `group-${string}`>(_param: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
+  <TKey extends `group-${string}`>(_param7: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
   displayName: string;
 };
 
@@ -3482,13 +3482,13 @@ type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
 
-declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param?: LocalRuntimeOptions) => AssistantRuntime;
+declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param8?: LocalRuntimeOptions) => AssistantRuntime;
 
 type ThreadRootProps = ViewProps & {
   children: ReactNode;
 };
 
-declare const ThreadRoot: (_param: ThreadRootProps) => import("react").JSX.Element;
+declare const ThreadRoot: (_param9: ThreadRootProps) => import("react").JSX.Element;
 
 declare function tool<TArgs extends Record<string, unknown>, TResult = any>(tool: Tool<TArgs, TResult>): Tool<TArgs, TResult>;
 
@@ -3567,7 +3567,7 @@ type MessagesContent = {
 type ThreadMessagesProps = Omit<FlatListProps<ThreadMessage>, "data" | "renderItem" | "children"> & MessagesContent;
 
 declare const ThreadMessages: {
-  (_param: ThreadMessagesProps): import("react").JSX.Element;
+  (_param10: ThreadMessagesProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -3575,7 +3575,7 @@ type ThreadEmptyProps = {
   children: ReactNode;
 };
 
-declare const ThreadEmpty: (_param: ThreadEmptyProps) => import("react").JSX.Element | null;
+declare const ThreadEmpty: (_param11: ThreadEmptyProps) => import("react").JSX.Element | null;
 
 type ThreadIfProps = {
   children: ReactNode;
@@ -3583,7 +3583,7 @@ type ThreadIfProps = {
   running?: boolean | undefined;
 };
 
-declare const ThreadIf: (_param: ThreadIfProps) => import("react").JSX.Element | null;
+declare const ThreadIf: (_param12: ThreadIfProps) => import("react").JSX.Element | null;
 
 type ThreadSuggestionProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
@@ -3592,7 +3592,7 @@ type ThreadSuggestionProps = Omit<PressableProps, "onPress"> & {
   clearComposer?: boolean | undefined;
 };
 
-declare const ThreadSuggestion: (_param: ThreadSuggestionProps) => import("react").JSX.Element;
+declare const ThreadSuggestion: (_param13: ThreadSuggestionProps) => import("react").JSX.Element;
 
 declare namespace thread_d_exports {
   export { ThreadEmpty as Empty, ThreadEmptyProps as EmptyProps, ThreadIf as If, ThreadIfProps as IfProps, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadMessages as Messages, ThreadMessagesProps as MessagesProps, ThreadRoot as Root, ThreadRootProps as RootProps, ThreadSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadSuggestionProps as SuggestionProps, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById };
@@ -3602,7 +3602,7 @@ type ComposerRootProps = ViewProps & {
   children: ReactNode;
 };
 
-declare const ComposerRoot: (_param: ComposerRootProps) => import("react").JSX.Element;
+declare const ComposerRoot: (_param14: ComposerRootProps) => import("react").JSX.Element;
 
 declare const ComposerAttachmentByIndex: import("react").FC<ComposerPrimitiveAttachmentByIndex.Props>;
 
@@ -3612,25 +3612,25 @@ type ComposerInputProps = Omit<TextInputProps, "value" | "onChangeText"> & {
   submitMode?: "enter" | "none";
 };
 
-declare const ComposerInput: (_param: ComposerInputProps) => import("react").JSX.Element;
+declare const ComposerInput: (_param15: ComposerInputProps) => import("react").JSX.Element;
 
 type ComposerSendProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const ComposerSend: (_param: ComposerSendProps) => import("react").JSX.Element;
+declare const ComposerSend: (_param16: ComposerSendProps) => import("react").JSX.Element;
 
 type ComposerCancelProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const ComposerCancel: (_param: ComposerCancelProps) => import("react").JSX.Element;
+declare const ComposerCancel: (_param17: ComposerCancelProps) => import("react").JSX.Element;
 
 type ComposerAddAttachmentProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const ComposerAddAttachment: (_param: ComposerAddAttachmentProps) => import("react").JSX.Element;
+declare const ComposerAddAttachment: (_param18: ComposerAddAttachmentProps) => import("react").JSX.Element;
 
 declare namespace composer_d_exports {
   export { ComposerAddAttachment as AddAttachment, ComposerAddAttachmentProps as AddAttachmentProps, ComposerAttachmentByIndex as AttachmentByIndex, ComposerAttachments as Attachments, ComposerCancel as Cancel, ComposerCancelProps as CancelProps, ComposerPrimitiveIf as If, ComposerInput as Input, ComposerInputProps as InputProps, ComposerRoot as Root, ComposerRootProps as RootProps, ComposerSend as Send, ComposerSendProps as SendProps };
@@ -3640,7 +3640,7 @@ type MessageRootProps = ViewProps & {
   children: ReactNode;
 };
 
-declare const MessageRoot: (_param: MessageRootProps) => import("react").JSX.Element;
+declare const MessageRoot: (_param19: MessageRootProps) => import("react").JSX.Element;
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 
@@ -3689,7 +3689,7 @@ type MessageContentProps = {
   }) => ReactElement;
 };
 
-declare const MessageContent: (_param: MessageContentProps) => import("react").JSX.Element;
+declare const MessageContent: (_param20: MessageContentProps) => import("react").JSX.Element;
 
 declare namespace MessagePrimitiveParts {
   type Props = MessagePrimitiveParts$1.Props;
@@ -3705,7 +3705,7 @@ type MessageIfProps = {
   last?: boolean | undefined;
 };
 
-declare const MessageIf: (_param: MessageIfProps) => import("react").JSX.Element | null;
+declare const MessageIf: (_param21: MessageIfProps) => import("react").JSX.Element | null;
 
 declare const MessageAttachmentByIndex: import("react").FC<MessagePrimitiveAttachmentByIndex.Props>;
 
@@ -3719,7 +3719,7 @@ type ThreadListRootProps = ViewProps & {
   children: ReactNode;
 };
 
-declare const ThreadListRoot: (_param: ThreadListRootProps) => import("react").JSX.Element;
+declare const ThreadListRoot: (_param22: ThreadListRootProps) => import("react").JSX.Element;
 
 type ThreadListItemsProps = Omit<FlatListProps<string>, "data" | "renderItem"> & {
   renderItem: (props: {
@@ -3728,13 +3728,13 @@ type ThreadListItemsProps = Omit<FlatListProps<string>, "data" | "renderItem"> &
   }) => ReactElement;
 };
 
-declare const ThreadListItems: (_param: ThreadListItemsProps) => import("react").JSX.Element;
+declare const ThreadListItems: (_param23: ThreadListItemsProps) => import("react").JSX.Element;
 
 type ThreadListNewProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const ThreadListNew: (_param: ThreadListNewProps) => import("react").JSX.Element;
+declare const ThreadListNew: (_param24: ThreadListNewProps) => import("react").JSX.Element;
 
 declare namespace threadList_d_exports {
   export { ThreadListItems as Items, ThreadListItemsProps as ItemsProps, ThreadListNew as New, ThreadListNewProps as NewProps, ThreadListRoot as Root, ThreadListRootProps as RootProps };
@@ -3746,19 +3746,19 @@ type ActionBarCopyProps = Omit<PressableProps, "onPress" | "children"> & UseActi
   }) => ReactNode);
 };
 
-declare const ActionBarCopy: (_param: ActionBarCopyProps) => import("react").JSX.Element;
+declare const ActionBarCopy: (_param25: ActionBarCopyProps) => import("react").JSX.Element;
 
 type ActionBarEditProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const ActionBarEdit: (_param: ActionBarEditProps) => import("react").JSX.Element;
+declare const ActionBarEdit: (_param26: ActionBarEditProps) => import("react").JSX.Element;
 
 type ActionBarReloadProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const ActionBarReload: (_param: ActionBarReloadProps) => import("react").JSX.Element;
+declare const ActionBarReload: (_param27: ActionBarReloadProps) => import("react").JSX.Element;
 
 type ActionBarFeedbackPositiveProps = Omit<PressableProps, "onPress" | "children"> & {
   children: ReactNode | ((props: {
@@ -3766,7 +3766,7 @@ type ActionBarFeedbackPositiveProps = Omit<PressableProps, "onPress" | "children
   }) => ReactNode);
 };
 
-declare const ActionBarFeedbackPositive: (_param: ActionBarFeedbackPositiveProps) => import("react").JSX.Element;
+declare const ActionBarFeedbackPositive: (_param28: ActionBarFeedbackPositiveProps) => import("react").JSX.Element;
 
 type ActionBarFeedbackNegativeProps = Omit<PressableProps, "onPress" | "children"> & {
   children: ReactNode | ((props: {
@@ -3774,7 +3774,7 @@ type ActionBarFeedbackNegativeProps = Omit<PressableProps, "onPress" | "children
   }) => ReactNode);
 };
 
-declare const ActionBarFeedbackNegative: (_param: ActionBarFeedbackNegativeProps) => import("react").JSX.Element;
+declare const ActionBarFeedbackNegative: (_param29: ActionBarFeedbackNegativeProps) => import("react").JSX.Element;
 
 declare namespace actionBar_d_exports {
   export { ActionBarCopy as Copy, ActionBarCopyProps as CopyProps, ActionBarEdit as Edit, ActionBarEditProps as EditProps, ActionBarFeedbackNegative as FeedbackNegative, ActionBarFeedbackNegativeProps as FeedbackNegativeProps, ActionBarFeedbackPositive as FeedbackPositive, ActionBarFeedbackPositiveProps as FeedbackPositiveProps, ActionBarReload as Reload, ActionBarReloadProps as ReloadProps };
@@ -3784,13 +3784,13 @@ type BranchPickerPreviousProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const BranchPickerPrevious: (_param: BranchPickerPreviousProps) => import("react").JSX.Element;
+declare const BranchPickerPrevious: (_param30: BranchPickerPreviousProps) => import("react").JSX.Element;
 
 type BranchPickerNextProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const BranchPickerNext: (_param: BranchPickerNextProps) => import("react").JSX.Element;
+declare const BranchPickerNext: (_param31: BranchPickerNextProps) => import("react").JSX.Element;
 
 type BranchPickerNumberProps = TextProps;
 
@@ -3808,7 +3808,7 @@ type AttachmentRootProps = ViewProps & {
   children: ReactNode;
 };
 
-declare const AttachmentRoot: (_param: AttachmentRootProps) => import("react").JSX.Element;
+declare const AttachmentRoot: (_param32: AttachmentRootProps) => import("react").JSX.Element;
 
 type AttachmentNameProps = TextProps;
 
@@ -3822,7 +3822,7 @@ type AttachmentRemoveProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const AttachmentRemove: (_param: AttachmentRemoveProps) => import("react").JSX.Element;
+declare const AttachmentRemove: (_param33: AttachmentRemoveProps) => import("react").JSX.Element;
 
 declare namespace attachment_d_exports {
   export { AttachmentName as Name, AttachmentNameProps as NameProps, AttachmentRemove as Remove, AttachmentRemoveProps as RemoveProps, AttachmentRoot as Root, AttachmentRootProps as RootProps, AttachmentThumb as Thumb, AttachmentThumbProps as ThumbProps };
@@ -3832,31 +3832,31 @@ type ThreadListItemRootProps = ViewProps & {
   children: ReactNode;
 };
 
-declare const ThreadListItemRoot: (_param: ThreadListItemRootProps) => import("react").JSX.Element;
+declare const ThreadListItemRoot: (_param34: ThreadListItemRootProps) => import("react").JSX.Element;
 
 type ThreadListItemTriggerProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const ThreadListItemTrigger: (_param: ThreadListItemTriggerProps) => import("react").JSX.Element;
+declare const ThreadListItemTrigger: (_param35: ThreadListItemTriggerProps) => import("react").JSX.Element;
 
 type ThreadListItemDeleteProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const ThreadListItemDelete: (_param: ThreadListItemDeleteProps) => import("react").JSX.Element;
+declare const ThreadListItemDelete: (_param36: ThreadListItemDeleteProps) => import("react").JSX.Element;
 
 type ThreadListItemArchiveProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const ThreadListItemArchive: (_param: ThreadListItemArchiveProps) => import("react").JSX.Element;
+declare const ThreadListItemArchive: (_param37: ThreadListItemArchiveProps) => import("react").JSX.Element;
 
 type ThreadListItemUnarchiveProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const ThreadListItemUnarchive: (_param: ThreadListItemUnarchiveProps) => import("react").JSX.Element;
+declare const ThreadListItemUnarchive: (_param38: ThreadListItemUnarchiveProps) => import("react").JSX.Element;
 
 declare namespace threadListItem_d_exports {
   export { ThreadListItemArchive as Archive, ThreadListItemArchiveProps as ArchiveProps, ThreadListItemDelete as Delete, ThreadListItemDeleteProps as DeleteProps, ThreadListItemRoot as Root, ThreadListItemRootProps as RootProps, ThreadListItemPrimitiveTitle as Title, ThreadListItemTrigger as Trigger, ThreadListItemTriggerProps as TriggerProps, ThreadListItemUnarchive as Unarchive, ThreadListItemUnarchiveProps as UnarchiveProps };
@@ -3866,13 +3866,13 @@ type ChainOfThoughtRootProps = ViewProps & {
   children: ReactNode;
 };
 
-declare const ChainOfThoughtRoot: (_param: ChainOfThoughtRootProps) => import("react").JSX.Element;
+declare const ChainOfThoughtRoot: (_param39: ChainOfThoughtRootProps) => import("react").JSX.Element;
 
 type ChainOfThoughtAccordionTriggerProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
 };
 
-declare const ChainOfThoughtAccordionTrigger: (_param: ChainOfThoughtAccordionTriggerProps) => import("react").JSX.Element;
+declare const ChainOfThoughtAccordionTrigger: (_param40: ChainOfThoughtAccordionTriggerProps) => import("react").JSX.Element;
 
 declare namespace chainOfThought_d_exports {
   export { ChainOfThoughtAccordionTrigger as AccordionTrigger, ChainOfThoughtAccordionTriggerProps as AccordionTriggerProps, ChainOfThoughtPrimitiveParts as Parts, ChainOfThoughtRoot as Root, ChainOfThoughtRootProps as RootProps };
@@ -3882,13 +3882,13 @@ type SuggestionTitleProps = TextProps & {
   children?: ReactNode;
 };
 
-declare const SuggestionTitle: (_param: SuggestionTitleProps) => import("react").JSX.Element;
+declare const SuggestionTitle: (_param41: SuggestionTitleProps) => import("react").JSX.Element;
 
 type SuggestionDescriptionProps = TextProps & {
   children?: ReactNode;
 };
 
-declare const SuggestionDescription: (_param: SuggestionDescriptionProps) => import("react").JSX.Element;
+declare const SuggestionDescription: (_param42: SuggestionDescriptionProps) => import("react").JSX.Element;
 
 type SuggestionTriggerProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
@@ -3896,7 +3896,7 @@ type SuggestionTriggerProps = Omit<PressableProps, "onPress"> & {
   clearComposer?: boolean | undefined;
 };
 
-declare const SuggestionTrigger: (_param: SuggestionTriggerProps) => import("react").JSX.Element;
+declare const SuggestionTrigger: (_param43: SuggestionTriggerProps) => import("react").JSX.Element;
 
 declare namespace suggestion_d_exports {
   export { SuggestionDescription as Description, SuggestionDescriptionProps as DescriptionProps, SuggestionTitle as Title, SuggestionTitleProps as TitleProps, SuggestionTrigger as Trigger, SuggestionTriggerProps as TriggerProps };
@@ -3907,7 +3907,7 @@ type ErrorRootProps = ViewProps & {
 };
 
 declare const ErrorRoot: {
-  (_param: ErrorRootProps): import("react").JSX.Element | null;
+  (_param44: ErrorRootProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -3916,7 +3916,7 @@ type ErrorMessageProps = TextProps & {
 };
 
 declare const ErrorMessage: {
-  (_param: ErrorMessageProps): import("react").JSX.Element | null;
+  (_param45: ErrorMessageProps): import("react").JSX.Element | null;
   displayName: string;
 };
 

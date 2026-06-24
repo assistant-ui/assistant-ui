@@ -1292,10 +1292,10 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param: {
+  submitFeedback(_param0: {
     type: "positive" | "negative";
   }): void;
-  switchToBranch(_param: {
+  switchToBranch(_param1: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;

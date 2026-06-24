@@ -1294,10 +1294,10 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param: {
+  submitFeedback(_param0: {
     type: "positive" | "negative";
   }): void;
-  switchToBranch(_param: {
+  switchToBranch(_param1: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -1944,7 +1944,7 @@ declare namespace useExternalMessageConverter {
   type Callback<T> = (message: T, metadata: Metadata) => Message | Message[];
 }
 
-declare const useExternalMessageConverter: <T extends WeakKey>(_param: {
+declare const useExternalMessageConverter: <T extends WeakKey>(_param2: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
@@ -2271,7 +2271,7 @@ type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   sessionAdapter?: RemoteThreadListAdapter | undefined;
 };
 
-declare const useAdkRuntime: (_param: UseAdkRuntimeOptions) => AssistantRuntime;
+declare const useAdkRuntime: (_param3: UseAdkRuntimeOptions) => AssistantRuntime;
 
 type UseAdkMessagesOptions = {
   stream: AdkStreamCallback;
@@ -2282,7 +2282,7 @@ type UseAdkMessagesOptions = {
   };
 };
 
-declare const useAdkMessages: (_param: UseAdkMessagesOptions) => {
+declare const useAdkMessages: (_param4: UseAdkMessagesOptions) => {
   messages: AdkMessage[];
   stateDelta: Record<string, unknown>;
   agentInfo: {

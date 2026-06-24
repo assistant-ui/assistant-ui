@@ -52,7 +52,7 @@ type DayLabelsProps = {
   }) => ReactNode;
 };
 
-declare const DayLabels: (_param: DayLabelsProps) => import("react").JSX.Element[];
+declare const DayLabels: (_param0: DayLabelsProps) => import("react").JSX.Element[];
 
 type GridProps = Omit<ComponentPropsWithoutRef<"div">, "children"> & {
   children: (props: {
@@ -77,7 +77,7 @@ type LegendProps = {
   }) => ReactNode;
 };
 
-declare const Legend: (_param: LegendProps) => import("react").JSX.Element[];
+declare const Legend: (_param1: LegendProps) => import("react").JSX.Element[];
 
 type LegendLevelProps = ComponentPropsWithoutRef<"div">;
 
@@ -90,7 +90,7 @@ type MonthLabelsProps = {
   }) => ReactNode;
 };
 
-declare const MonthLabels: (_param: MonthLabelsProps) => import("react").JSX.Element[];
+declare const MonthLabels: (_param2: MonthLabelsProps) => import("react").JSX.Element[];
 
 type ComputeGridOptions = {
   data: DataPoint[];

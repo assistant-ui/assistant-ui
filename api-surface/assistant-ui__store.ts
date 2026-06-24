@@ -148,7 +148,7 @@ declare namespace Derived {
   } & ClientMeta<K>;
 }
 
-declare function RenderChildrenWithAccessor<T>(_param: {
+declare function RenderChildrenWithAccessor<T>(_param0: {
   getItemState: (aui: AssistantClient) => T;
   children: (getItem: () => T) => ReactNode;
 }): ReactNode;
@@ -183,7 +183,7 @@ declare const useAuiState: <T>(selector: (state: AssistantState) => T) => T;
 
 declare const useAuiEvent: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>) => void;
 
-declare const AuiProvider: (_param: {
+declare const AuiProvider: (_param1: {
   value: AssistantClient;
   children: React.ReactNode;
 }) => React.ReactElement;
