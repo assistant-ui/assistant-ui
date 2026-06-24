@@ -283,6 +283,17 @@ function applyKnownDeclarationFixups(content) {
   );
 }
 
+function typeMemberName(member, sourceFile) {
+  if (!member.name) return "";
+  if (ts.isIdentifier(member.name) || ts.isPrivateIdentifier(member.name)) {
+    return member.name.text;
+  }
+  if (ts.isStringLiteral(member.name) || ts.isNumericLiteral(member.name)) {
+    return member.name.text;
+  }
+  return member.name.getText(sourceFile);
+}
+
 function normalizeBundledDeclaration(content) {
   const stripped = content
     .replaceAll("\r\n", "\n")
@@ -301,6 +312,29 @@ function normalizeBundledDeclaration(content) {
     (context) => {
       let bindingParameterIndex = 0;
       const visit = (node) => {
+        if (
+          ts.isVariableDeclaration(node) &&
+          ts.isIdentifier(node.name) &&
+          /^Primitive(?:\$\d+)?$/.test(node.name.text) &&
+          node.type &&
+          ts.isTypeLiteralNode(node.type)
+        ) {
+          return context.factory.updateVariableDeclaration(
+            node,
+            node.name,
+            node.exclamationToken,
+            context.factory.updateTypeLiteralNode(
+              node.type,
+              [...node.type.members].sort((a, b) =>
+                compareStrings(
+                  typeMemberName(a, sourceFile),
+                  typeMemberName(b, sourceFile),
+                ),
+              ),
+            ),
+            node.initializer,
+          );
+        }
         if (
           ts.isParameter(node) &&
           (ts.isObjectBindingPattern(node.name) ||

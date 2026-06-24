@@ -5841,16 +5841,16 @@ declare const Primitive$1: {
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<HTMLSpanElement>>;
-  ul: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLUListElement> & import("react").HTMLAttributes<HTMLUListElement> & {
-    asChild?: boolean;
-  }, "ref"> & {
-    render?: ReactElement | undefined;
-  } & RefAttributes<HTMLUListElement>>;
   svg: ForwardRefExoticComponent<Omit<import("react").SVGProps<SVGSVGElement> & {
     asChild?: boolean;
   }, "ref"> & {
     render?: ReactElement | undefined;
   } & RefAttributes<SVGSVGElement>>;
+  ul: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLUListElement> & import("react").HTMLAttributes<HTMLUListElement> & {
+    asChild?: boolean;
+  }, "ref"> & {
+    render?: ReactElement | undefined;
+  } & RefAttributes<HTMLUListElement>>;
 };
 
 type PrimitiveDivProps$5 = ComponentPropsWithoutRef<typeof Primitive$1.div>;
