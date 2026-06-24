@@ -73,6 +73,16 @@ describe("MCP Protocol Integration", () => {
     expect(examplesTool.inputSchema).toBeDefined();
     expect(examplesTool.inputSchema.type).toBe("object");
     expect(examplesTool.inputSchema.properties).toBeDefined();
+
+    // registerTool metadata is surfaced on tools/list
+    expect(docsTool.annotations?.readOnlyHint).toBe(true);
+    expect(docsTool.annotations?.title ?? docsTool.title).toBe(
+      "assistant-ui Documentation",
+    );
+    expect(examplesTool.annotations?.readOnlyHint).toBe(true);
+    expect(examplesTool.annotations?.title ?? examplesTool.title).toBe(
+      "assistant-ui Examples",
+    );
   });
 
   it("should handle CallTool request for assistantUIDocs", async () => {
