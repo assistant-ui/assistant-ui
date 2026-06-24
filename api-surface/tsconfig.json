@@ -10,7 +10,7 @@
     "noEmit": true,
     "noErrorTruncation": true,
     "skipLibCheck": true,
-    "strict": false,
+    "strict": true,
     "target": "ES2022",
     "types": ["node", "react"]
   },

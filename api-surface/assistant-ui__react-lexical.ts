@@ -127,8 +127,8 @@ declare const LexicalComposerInput: import("react").ForwardRefExoticComponent<Om
   formatter?: Unstable_DirectiveFormatter | undefined;
 } & import("react").RefAttributes<HTMLDivElement>>;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { $createDirectiveNode, $createDirectiveNodeWithFormatter, $isDirectiveNode, DirectiveChipProps, DirectiveChipProvider, DirectiveNode, DirectivePlugin, DirectivePluginProps, LexicalComposerInput, LexicalComposerInputProps };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

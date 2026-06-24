@@ -15,7 +15,6 @@
     "@langchain/react": "^1.0.24",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@opencode-ai/sdk": "^1.17.9",
-    "@opentelemetry/api": "^1.9.1",
     "@radix-ui/react-popper": "^1.3.1",
     "@radix-ui/react-primitive": "^2.1.6",
     "@standard-schema/spec": "^1.1.0",

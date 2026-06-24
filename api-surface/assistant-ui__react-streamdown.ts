@@ -1,4 +1,4 @@
-import React, { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
+import { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
 
 import { RemendOptions } from "remend";
 
@@ -433,8 +433,8 @@ declare function findRemendWindowStart(text: string): number;
 
 declare function tailBoundedRemend(text: string, options?: RemendOptions): string;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { AllowedTags, BlockProps, BundledLanguage, BundledTheme$1 as BundledTheme, CaretStyle, CjkPlugin, CodeHeaderProps, CodeHighlighterPlugin, ComponentsByLanguage, ControlsConfig, DEFAULT_SHIKI_THEME, DiagramPlugin, HighlightOptions, LinkSafetyConfig, LinkSafetyModalProps, MathPlugin, MermaidErrorComponentProps, MermaidOptions, PluginConfig, RemarkRehypeOptions, RemendConfig, RemendHandler, ResolvedPluginConfig, SecurityConfig, StreamdownContext, StreamdownProps$1 as StreamdownProps, StreamdownTextComponents, StreamdownTextPrimitive, StreamdownTextPrimitiveProps, SyntaxHighlighterProps, escapeCurrencyDollars, findRemendWindowStart, memoCompareNodes, normalizeMathDelimiters, parseMarkdownIntoBlocks, rewriteCustomMathTags, rewriteLatexBracketDelimiters, tailBoundedRemend, useIsStreamdownCodeBlock, useStreamdownPreProps };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

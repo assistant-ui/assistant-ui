@@ -463,8 +463,8 @@ declare const createFormattedPersistence: <TMessage, TStorageFormat>(persistence
   isPersisted: (messageId: string) => boolean;
 };
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { AssistantCloud, AssistantCloudRunReport, AssistantCloudTelemetryConfig, CloudMessage, CloudMessagePersistence, McpSamplingHandler, MessageFormatAdapter, SamplingCallData, createFormattedPersistence, createSamplingCollector, wrapSamplingHandler };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

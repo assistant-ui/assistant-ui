@@ -1,9 +1,9 @@
 import { Plugin } from "vite";
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { aui };
 }
 
 declare function aui(): Plugin[];
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

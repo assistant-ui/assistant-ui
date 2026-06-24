@@ -1858,8 +1858,8 @@ declare const useA2AAgentCard: () => A2AAgentCard | undefined;
 
 declare function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { A2AAgentCapabilities, A2AAgentCard, A2AAgentCardSignature, A2AAgentInterface, A2AAgentSkill, A2AApiKeySecurityScheme, A2AArtifact, A2AAuthenticationInfo, A2AAuthorizationCodeOAuthFlow, A2AClient, A2AClientCredentialsOAuthFlow, A2AClientOptions, A2ADeviceCodeOAuthFlow, A2AError, A2AErrorInfo, A2AHttpAuthSecurityScheme, A2AImplicitOAuthFlow, A2AListTaskPushNotificationConfigsResponse, A2AListTasksRequest, A2AListTasksResponse, A2AMessage, A2AMutualTlsSecurityScheme, A2AOAuth2SecurityScheme, A2AOAuthFlows, A2AOpenIdConnectSecurityScheme, A2APart, A2APasswordOAuthFlow, A2ARole, A2ASecurityRequirement, A2ASecurityScheme, A2ASendMessageConfiguration, A2AStreamEvent, A2ATask, A2ATaskArtifactUpdateEvent, A2ATaskPushNotificationConfig, A2ATaskState, A2ATaskStatus, A2ATaskStatusUpdateEvent, A2A_PROTOCOL_VERSION, UseA2ARuntimeOptions, UseA2AThreadListAdapter, a2aMessageToContent, a2aPartToContent, a2aPartsToContent, contentPartsToA2AParts, isInterruptedTaskState, isTerminalTaskState, taskStateToMessageStatus, useA2AAgentCard, useA2AArtifacts, useA2ARuntime, useA2ATask };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

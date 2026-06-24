@@ -1457,8 +1457,8 @@ type UseEveAgentRuntimeOptions = Omit<UseEveAgentOptions<EveMessageData>, "reduc
 
 declare const useEveAgentRuntime: (options?: UseEveAgentRuntimeOptions) => AssistantRuntime;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { ConvertEveMessagesOptions, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, useEveAgentRuntime };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

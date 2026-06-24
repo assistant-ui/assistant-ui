@@ -149,8 +149,8 @@ declare const DAY_SHORT: readonly [
   "Sat"
 ];
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { Cell, CellData, CellProps, ClassifyFn, DAY_SHORT, DataPoint, DayLabel, DayLabels, DayLabelsProps, Grid, GridProps, HeatGraphState, Legend, LegendLevel, LegendLevelProps, LegendProps, MONTH_SHORT, MonthLabel, MonthLabels, MonthLabelsProps, Root, RootProps, Tooltip, TooltipProps, WeekStart, autoLevels };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

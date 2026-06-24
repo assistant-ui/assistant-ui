@@ -427,8 +427,8 @@ declare function useCloudChat(options?: UseCloudChatOptions): UseCloudChatResult
 
 declare function useThreads(options: UseThreadsOptions): UseThreadsResult;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { CloudThread, ThreadStatus, UseCloudChatOptions, UseCloudChatResult, UseThreadsOptions, UseThreadsResult, useCloudChat, useThreads };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

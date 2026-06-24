@@ -191,8 +191,8 @@ declare namespace GorpWebSocket {
   };
 }
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { GorpClient, GorpMessage, GorpRelay, GorpServer, GorpSessions, GorpSessionsState, GorpWebSocket, GorpWebSocketConnectionState, RelaySerializedState, appendText };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

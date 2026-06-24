@@ -906,7 +906,7 @@ declare function generativeUIToJSX(node: unknown): string;
 
 declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
 
-declare namespace JSONGenerativeUI_client_d_exports {
+declare namespace entry_internal_json_default_exports {
   export { JSONGenerativeUI$1 as JSONGenerativeUI };
 }
 
@@ -919,11 +919,11 @@ declare class JSONGenerativeUI$1 {
   promptUser(): PromptUserTool;
 }
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, PresentTool, PresentToolOptions, PromptUserTool, TYPE_KEY, buildPresentParameters, defineGenerativeComponents, generativeUIToJSX, renderGenerativeUI };
 }
 
-declare namespace JSONGenerativeUI_server_d_exports {
+declare namespace entry_internal_json_react_server_exports {
   export { JSONGenerativeUI };
 }
 
@@ -934,4 +934,4 @@ declare class JSONGenerativeUI {
   promptUser(): PromptUserTool;
 }
 
-export { index_d_exports as entry_0_root, JSONGenerativeUI_client_d_exports as entry_1_internal_json_default, JSONGenerativeUI_server_d_exports as entry_2_internal_json_react_server };
+export { entry_internal_json_default_exports as entry_internal_json_default, entry_internal_json_react_server_exports as entry_internal_json_react_server, entry_root_exports as entry_root };

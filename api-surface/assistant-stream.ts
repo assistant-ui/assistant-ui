@@ -895,7 +895,7 @@ type ToolResultStreamOptions = {
 
 declare function toolResultStream(tools: Record<string, Tool> | (() => Record<string, Tool> | undefined) | undefined, abortSignal: AbortSignal | (() => AbortSignal), human: (toolCallId: string, payload: unknown) => Promise<unknown>, options?: ToolResultStreamOptions): ToolExecutionStream;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, AssistantTransportEncoder, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
 }
 
@@ -1020,7 +1020,7 @@ type RedisResumableStreamStoreOptions = {
   readonly maxChunkBytes?: number;
 };
 
-declare namespace index_d_exports$1 {
+declare namespace entry_resumable_exports {
   export { CreateResumableAssistantStreamResponseOptions, CreateResumeAssistantStreamResponseOptions, InMemoryResumableStreamStoreOptions, RESUMABLE_STREAM_ID_HEADER, RedisLikeClient, RedisResumableStreamStoreOptions, ResumableStreamAcquireOptions, ResumableStreamContext, ResumableStreamContextOptions, ResumableStreamEntry, ResumableStreamError, ResumableStreamErrorCode, ResumableStreamRole, ResumableStreamStatus, ResumableStreamStore, createInMemoryResumableStreamStore, createResumableAssistantStreamResponse, createResumableStreamContext, createResumeAssistantStreamResponse };
 }
 
@@ -11851,7 +11851,7 @@ interface Redis extends EventEmitter {
 interface Redis extends Transaction {
 }
 
-declare namespace ioredis_d_exports {
+declare namespace entry_resumable_ioredis_exports {
   export { IoRedisLike, createIoredisResumableStreamStore };
 }
 
@@ -11859,7 +11859,7 @@ type IoRedisLike = Redis | Cluster;
 
 declare function createIoredisResumableStreamStore(client: IoRedisLike, options?: RedisResumableStreamStoreOptions): ResumableStreamStore;
 
-declare namespace redis_d_exports {
+declare namespace entry_resumable_redis_exports {
   export { NodeRedisLike, createRedisResumableStreamStore };
 }
 
@@ -11945,8 +11945,8 @@ declare class AssistantMetaTransformStream extends TransformStream<AssistantStre
   constructor();
 }
 
-declare namespace utils_d_exports {
+declare namespace entry_utils_exports {
   export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
 }
 
-export { index_d_exports as entry_0_root, index_d_exports$1 as entry_1_resumable, ioredis_d_exports as entry_2_resumable_ioredis, redis_d_exports as entry_3_resumable_redis, utils_d_exports as entry_4_utils };
+export { entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };

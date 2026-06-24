@@ -1,5 +1,3 @@
-import React from "react";
-
 import { AssistantMessage, Event, FilePart, GlobalSession, Message as Message$1, Message as Message$2, Model, OpencodeClient, OpencodeClient as OpencodeClient$1, OpencodeClientConfig, Part, Part as Part$1, PermissionRequest, PermissionRequest as PermissionRequest$1, Provider, QuestionAnswer, QuestionAnswer as QuestionAnswer$1, QuestionRequest, QuestionRequest as QuestionRequest$1, ReasoningPart, Session, Session as Session$1, SessionStatus, SessionStatus as SessionStatus$1, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpencodeClient as createOpencodeClient$1 } from "@opencode-ai/sdk/v2/client";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
@@ -1910,8 +1908,8 @@ declare const reduceOpenCodeThreadState: (state: OpenCodeThreadState, event: Ope
 
 declare const projectOpenCodeThreadMessages: (state: OpenCodeThreadState, messageTiming?: Record<string, MessageTiming>) => OpenCodeProjectedThreadMessage[];
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { AssistantMessage, Event, FilePart, GlobalSession, Message$2 as Message, MessageWithParts, Model, OpenCodeEventSource, OpenCodeLoadState, OpenCodePartPayload, OpenCodePermissionRequest, OpenCodePermissionResponse, OpenCodeProjectedThreadMessage, OpenCodeQuestionRequest, OpenCodeRunState, OpenCodeRuntime, OpenCodeRuntimeExtras, OpenCodeRuntimeOptions, OpenCodeServerEvent, OpenCodeServerMessage, OpenCodeStateEvent, OpenCodeThreadController, OpenCodeThreadControllerLike, OpenCodeThreadControllerSnapshot, OpenCodeThreadState, OpenCodeThreadStateSelector, OpenCodeUnhandledEvent, OpenCodeUserMessageOptions, OpencodeClient$1 as OpencodeClient, OpencodeClientConfig, Part$1 as Part, PendingUserMessage, PermissionRequest$1 as PermissionRequest, Provider, QuestionAnswer$1 as QuestionAnswer, QuestionRequest$1 as QuestionRequest, ReasoningPart, STREAM_RECONNECTED_EVENT_TYPE, Session$1 as Session, SessionStatus$1 as SessionStatus, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpenCodeThreadState, createOpencodeClient$1 as createOpencodeClient, projectOpenCodeThreadMessages, reduceOpenCodeThreadState, useOpenCodePermissions, useOpenCodeQuestions, useOpenCodeRuntime, useOpenCodeRuntimeExtras, useOpenCodeSession, useOpenCodeStreamingTiming, useOpenCodeThreadState };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

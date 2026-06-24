@@ -1,4 +1,4 @@
-import React, { CSSProperties, ComponentType, ReactNode } from "react";
+import { CSSProperties, ComponentType, ReactNode } from "react";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -548,8 +548,8 @@ declare global {
 
 declare const serializeModelContext: (context: ModelContext | undefined) => SerializedModelContext | undefined;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { ApiInfo, DevToolsClient, DevToolsModal, DevToolsModalProps, DevToolsPanel, DevToolsPanelPlugin, DevToolsPanelProps, DevToolsSnapshot, DevToolsTabContext, NormalizedTool, SerializedModelContext, ShadowRoot, builtinPlugins, createDevToolsPlugin, createInProcessClient, inProcessClient, normalizeToolList, serializeModelContext };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

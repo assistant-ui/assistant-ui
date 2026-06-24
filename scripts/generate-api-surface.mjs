@@ -76,6 +76,12 @@ function declarationFilesForTarget(packageDir, typePath) {
     return [absolute];
   }
 
+  if (typePath.split("*").length !== 2) {
+    throw new Error(
+      `API surface generation supports a single wildcard in declaration paths, but found ${typePath}.`,
+    );
+  }
+
   const [prefix, suffix] = typePath.split("*");
   const files = readdirSync(packageDir, {
     recursive: true,
@@ -167,12 +173,12 @@ function sanitizeIdentifier(value) {
   return /^[A-Za-z_$]/.test(sanitized) ? sanitized : `entry_${sanitized}`;
 }
 
-function entryNamespace(entry, index) {
+function entryNamespace(entry) {
   const conditions =
     entry.conditions.length > 0 ? `_${entry.conditions.join("_")}` : "";
   const exportPath =
     entry.exportPath === "." ? "root" : entry.exportPath.replace(/^\.\//, "");
-  return sanitizeIdentifier(`entry_${index}_${exportPath}${conditions}`);
+  return sanitizeIdentifier(`entry_${exportPath}${conditions}`);
 }
 
 function stripComments(content) {
@@ -265,6 +271,45 @@ function printSurfaceFile(sourceFile) {
     .join("\n\n");
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeReactImports(content) {
+  if (/\bReact\./.test(content)) return content;
+
+  return content
+    .replace(
+      /^import React, \{([^}]+)\} from "react";$/m,
+      (_, specifiers) => `import {${specifiers}} from "react";`,
+    )
+    .replace(/^import React from "react";\n?/m, "");
+}
+
+function normalizeBundlerNamespaceNames(content) {
+  const exportMatch = content.match(/\nexport \{ ([^}]+) \};?$/);
+  if (!exportMatch) return content;
+
+  const replacements = exportMatch[1]
+    .split(",")
+    .map((part) => part.trim().match(/^([A-Za-z_$][\w$]*) as (entry_[\w$]+)$/))
+    .filter(Boolean)
+    .map(([, from, to]) => [from, `${to}_exports`])
+    .sort((a, b) => b[0].length - a[0].length);
+
+  let normalized = content;
+  for (const [from, to] of replacements) {
+    normalized = normalized.replace(
+      new RegExp(
+        `(^|[^A-Za-z0-9_$])${escapeRegExp(from)}(?![A-Za-z0-9_$])`,
+        "g",
+      ),
+      `$1${to}`,
+    );
+  }
+  return normalized;
+}
+
 function applyTwoSpaceIndent(content) {
   return content
     .split("\n")
@@ -313,7 +358,11 @@ function normalizeBundledDeclaration(content) {
       return (node) => ts.visitNode(node, visit);
     },
   ]);
-  const printed = applyTwoSpaceIndent(printSurfaceFile(result.transformed[0]))
+  const printed = normalizeBundlerNamespaceNames(
+    normalizeReactImports(
+      applyTwoSpaceIndent(printSurfaceFile(result.transformed[0])),
+    ),
+  )
     .replace(
       /declare module "@assistant-ui\/store" {\n\s*interface ScopeRegistry {([\s\S]*?)\n\s*}\n}/g,
       "interface ScopeRegistry {$1\n}",
@@ -348,8 +397,8 @@ async function bundlePackageSurface(packageInfo) {
   mkdirSync(tempOut, { recursive: true });
 
   const source = entries
-    .flatMap((entry, index) => {
-      const namespace = entryNamespace(entry, index);
+    .flatMap((entry) => {
+      const namespace = entryNamespace(entry);
       const runtimePath = runtimePathForDeclaration(entry.file);
       const referenceImports = collectReferenceFiles(entry.file).map(
         (reference) =>
@@ -449,69 +498,56 @@ async function buildCliSurface() {
     );
   }
 
-  const add = await loadCliCommand(
-    path.join(cliDist, "commands/add.js"),
+  const commandNames = [
     "add",
-  );
-  const create = await loadCliCommand(
-    path.join(cliDist, "commands/create.js"),
     "create",
-  );
-  const init = await loadCliCommand(
-    path.join(cliDist, "commands/init.js"),
     "init",
-  );
-  const mcp = await loadCliCommand(
-    path.join(cliDist, "commands/mcp.js"),
     "mcp",
+    "update",
+    "agent",
+    "info",
+    "doctor",
+  ];
+  const commands = Object.fromEntries(
+    await Promise.all(
+      commandNames.map(async (name) => [
+        name,
+        await loadCliCommand(path.join(cliDist, `commands/${name}.js`), name),
+      ]),
+    ),
   );
   const { codemodCommand, upgradeCommand } = await import(
     pathToFileURL(path.join(cliDist, "commands/upgrade.js"))
   );
-  const update = await loadCliCommand(
-    path.join(cliDist, "commands/update.js"),
-    "update",
-  );
-  const agent = await loadCliCommand(
-    path.join(cliDist, "commands/agent.js"),
-    "agent",
-  );
-  const info = await loadCliCommand(
-    path.join(cliDist, "commands/info.js"),
-    "info",
-  );
-  const doctor = await loadCliCommand(
-    path.join(cliDist, "commands/doctor.js"),
-    "doctor",
-  );
 
-  const program = new add.constructor()
+  const program = new commands.add.constructor()
     .name("assistant-ui")
     .description("add components and dependencies to your project");
 
   for (const command of [
-    add,
-    create,
-    init,
-    mcp,
+    commands.add,
+    commands.create,
+    commands.init,
+    commands.mcp,
     codemodCommand,
     upgradeCommand,
-    update,
-    agent,
-    info,
-    doctor,
+    commands.update,
+    commands.agent,
+    commands.info,
+    commands.doctor,
   ]) {
     program.addCommand(command);
   }
 
+  const createSurface = formatCommand(commands.create);
   return {
     "assistant-ui": formatCommand(program),
     "create-assistant-ui": {
       name: "create-assistant-ui",
       description: "create assistant-ui apps with one command",
       forwardsTo: "assistant-ui create",
-      arguments: formatCommand(create).arguments,
-      options: formatCommand(create).options,
+      arguments: createSurface.arguments,
+      options: createSurface.options,
     },
   };
 }

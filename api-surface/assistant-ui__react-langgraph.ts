@@ -1,4 +1,4 @@
-import React, { ComponentType, PropsWithChildren } from "react";
+import { ComponentType, PropsWithChildren } from "react";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -2204,8 +2204,8 @@ declare const useLangGraphRuntime: (_param: UseLangGraphRuntimeOptions) => Assis
 
 declare const useLangGraphStreamingTiming: (messages: readonly LangChainMessage[], isRunning: boolean) => Record<string, MessageTiming>;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { CreateLangGraphStreamOptions, LangChainEvent, LangChainMessage, LangChainMessageChunk, LangChainToolCall, LangChainToolCallChunk, LangGraphCommand, LangGraphInterruptState, LangGraphMessageAccumulator, LangGraphMessagesEvent, LangGraphSendMessageConfig, LangGraphStreamCallback, LangGraphStreamClient, LangGraphTupleMetadata, OnCustomEventCallback, OnErrorEventCallback, OnInfoEventCallback, OnMessageChunkCallback, OnMetadataEventCallback, OnSubgraphErrorEventCallback, OnSubgraphUpdatesEventCallback, OnSubgraphValuesEventCallback, OnUpdatesEventCallback, OnValuesEventCallback, RemoveUIMessage, UIMessage, UseLangGraphRuntimeOptions, appendLangChainChunk, convertLangChainMessages, unstable_createLangGraphStream, useLangGraphInterruptState, useLangGraphMessageMetadata, useLangGraphMessages, useLangGraphRuntime, useLangGraphSend, useLangGraphSendCommand, useLangGraphStreamingTiming, useLangGraphUIMessages };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

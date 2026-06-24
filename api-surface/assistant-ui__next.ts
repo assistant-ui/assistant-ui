@@ -11,11 +11,11 @@ type NextConfigLike = {
 
 declare function withAui<T extends NextConfigLike>(nextConfig?: T, options?: WithAuiOptions): T;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { WithAuiOptions, withAui };
 }
 
-declare namespace loader_d_exports {
+declare namespace entry_loader_exports {
   export { generativeLoader as default };
 }
 
@@ -31,4 +31,4 @@ interface GenerativeLoaderContext {
 
 declare function generativeLoader(this: GenerativeLoaderContext, source: string): void;
 
-export { index_d_exports as entry_0_root, loader_d_exports as entry_1_loader };
+export { entry_loader_exports as entry_loader, entry_root_exports as entry_root };

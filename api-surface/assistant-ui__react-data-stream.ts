@@ -1,5 +1,3 @@
-import React from "react";
-
 import { LanguageModelV2Message } from "@ai-sdk/provider";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
@@ -1786,8 +1784,8 @@ type UseCloudRuntimeOptions = Omit<UseDataStreamRuntimeOptions, "api"> & {
 
 declare const useCloudRuntime: (options: UseCloudRuntimeOptions) => AssistantRuntime;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { DataStreamProtocol, UseDataStreamRuntimeOptions, toLanguageModelMessages, useCloudRuntime, useDataStreamRuntime };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

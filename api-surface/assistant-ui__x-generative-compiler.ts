@@ -24,8 +24,8 @@ declare function isGenerativeModule(code: string): boolean;
 
 declare function compileGenerative(code: string, options: CompileOptions): CompileResult;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { CompileOptions, CompileResult, DIRECTIVE, GenerativeCompileError, Target, ToolType, compileGenerative, isGenerativeModule };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

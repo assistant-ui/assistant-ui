@@ -7,8 +7,8 @@ interface LaunchOptions {
 
 declare function launch(options: LaunchOptions): void;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { LaunchOptions, launch };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

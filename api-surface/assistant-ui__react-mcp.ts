@@ -1,4 +1,4 @@
-import React, { ComponentPropsWithoutRef, ComponentRef, FC, PropsWithChildren, ReactNode } from "react";
+import { ComponentPropsWithoutRef, ComponentRef, FC, PropsWithChildren, ReactNode } from "react";
 
 import { Primitive } from "@radix-ui/react-primitive";
 
@@ -491,8 +491,8 @@ declare namespace addForm_d_exports {
   export { McpAddFormPrimitiveAuthFields as AuthFields, McpAddFormPrimitiveAuthSelect as AuthSelect, McpAddFormPrimitiveCancel as Cancel, McpAddFormPrimitiveError as Error, McpAddFormPrimitiveNameField as NameField, McpAddFormPrimitiveRoot as Root, McpAddFormPrimitiveSubmit as Submit, McpAddFormPrimitiveUrlField as UrlField };
 }
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { MCPAuthConfig, MCPConnectionState, MCPConnector, MCPCustomServerRecord, MCPManagerMethods, MCPManagerState, MCPPersistedAuthState, MCPServerKind, MCPServerMethods, MCPServerQuery, MCPServerState, MCPStorage, MCPStorageElement, MCPToolInfo, addForm_d_exports as McpAddFormPrimitive, McpConnectorByIndexProvider, McpCustomServerByIndexProvider, McpCustomStorage, McpLocalStorage, McpLocalStorageOptions, manager_d_exports as McpManagerPrimitive, McpManagerResource, McpManagerResourceProps, McpMemoryStorage, McpOAuthCallback, McpServerByIdProvider, server_d_exports as McpServerPrimitive, McpServerResource, McpServerResourceProps, UseMcpOAuthCallbackOptions, UseMcpOAuthCallbackResult, defineConnector, useMcpOAuthCallback };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import React, { ComponentType } from "react";
+import { ComponentType } from "react";
 
 import { FieldValues, UseFormProps, UseFormReturn } from "react-hook-form";
 
@@ -406,8 +406,8 @@ type UseAssistantFormProps<TFieldValues extends FieldValues, TContext, TTransfor
 
 declare const useAssistantForm: <TFieldValues extends FieldValues = FieldValues, TContext = any, TTransformedValues = TFieldValues>(props?: UseAssistantFormProps<TFieldValues, TContext, TTransformedValues>) => UseFormReturn<TFieldValues, TContext, TTransformedValues>;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { UseAssistantFormProps, formTools, useAssistantForm };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

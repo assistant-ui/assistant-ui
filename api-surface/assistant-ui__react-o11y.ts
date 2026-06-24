@@ -1,4 +1,4 @@
-import React, { ComponentPropsWithoutRef, ComponentRef, ComponentType, FC, PropsWithChildren, ReactNode } from "react";
+import { ComponentPropsWithoutRef, ComponentRef, ComponentType, FC, PropsWithChildren, ReactNode } from "react";
 
 import { Primitive } from "@radix-ui/react-primitive";
 
@@ -231,8 +231,8 @@ declare const SpanResource: Resource<ClientOutput<"span">, [
   }
 ]>;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { SpanByIndexProvider, SpanData, SpanItemState, span_d_exports as SpanPrimitive, SpanResource, SpanState };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

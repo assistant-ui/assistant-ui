@@ -265,7 +265,7 @@ declare const makeLightSyntaxHighlighter: (config: Omit<import("react-syntax-hig
 
 declare const makeLightAsyncSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { makeLightAsyncSyntaxHighlighter, makeLightSyntaxHighlighter, makePrismAsyncLightSyntaxHighlighter, makePrismLightSyntaxHighlighter };
 }
 
@@ -275,8 +275,8 @@ declare const makePrismSyntaxHighlighter: (config: Omit<import("react-syntax-hig
 
 declare const makePrismAsyncSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
 
-declare namespace full_d_exports {
+declare namespace entry_full_exports {
   export { makePrismAsyncSyntaxHighlighter, makePrismSyntaxHighlighter, makeSyntaxHighlighter };
 }
 
-export { index_d_exports as entry_0_root, full_d_exports as entry_1_full };
+export { entry_full_exports as entry_full, entry_root_exports as entry_root };

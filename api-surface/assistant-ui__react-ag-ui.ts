@@ -1565,8 +1565,8 @@ type FromAgUiMessagesOptions = {
 
 declare function fromAgUiMessages(messages: readonly unknown[], options?: FromAgUiMessagesOptions): ThreadMessageLike[];
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiResumeEntry, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

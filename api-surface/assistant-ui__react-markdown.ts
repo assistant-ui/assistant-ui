@@ -1,4 +1,4 @@
-import React, { ComponentProps, ComponentPropsWithoutRef, ComponentType, ElementType, ForwardRefExoticComponent, RefAttributes } from "react";
+import { ComponentProps, ComponentPropsWithoutRef, ComponentType, ElementType, ForwardRefExoticComponent, RefAttributes } from "react";
 
 import { Options } from "react-markdown";
 
@@ -318,8 +318,8 @@ declare function normalizeMathDelimiters(text: string): string;
 
 declare function escapeCurrencyDollars(text: string): string;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { CodeHeaderProps, MarkdownTextPrimitive, MarkdownTextPrimitiveProps, SyntaxHighlighterProps, escapeCurrencyDollars, normalizeMathDelimiters, rewriteCustomMathTags, rewriteLatexBracketDelimiters, memoizeMarkdownComponents as unstable_memoizeMarkdownComponents, useIsMarkdownCodeBlock };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

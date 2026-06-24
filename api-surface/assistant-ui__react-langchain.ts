@@ -1,4 +1,4 @@
-import React, { ComponentType, PropsWithChildren } from "react";
+import { ComponentType, PropsWithChildren } from "react";
 
 import { AssembledToolCall, SubagentDiscoverySnapshot, SubagentDiscoverySnapshot as SubagentDiscoverySnapshot$1, SubgraphDiscoverySnapshot, SubgraphDiscoverySnapshot as SubgraphDiscoverySnapshot$1, UseStreamOptions } from "@langchain/react";
 
@@ -1996,8 +1996,8 @@ declare const useStreamRuntime: (rawOptions: UseStreamRuntimeOptions) => Assista
 
 declare const useLangChainStreamingTiming: (messages: readonly LangChainBaseMessage[], isRunning: boolean) => Record<string, MessageTiming>;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { LangChainBaseMessage, LangChainContentBlock, LangChainToolCall, RemoveUIMessage, SubagentDiscoverySnapshot$1 as SubagentDiscoverySnapshot, SubgraphDiscoverySnapshot$1 as SubgraphDiscoverySnapshot, UIMessage, UseStreamRuntimeOptions, convertLangChainBaseMessage, useLangChainError, useLangChainInterruptState, useLangChainInterrupts, useLangChainRespond, useLangChainRespondAll, useLangChainSend, useLangChainSendCommand, useLangChainState, useLangChainStream, useLangChainStreamingTiming, useLangChainSubagents, useLangChainSubgraphs, useLangChainSubmit, useLangChainToolCalls, useStreamRuntime };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

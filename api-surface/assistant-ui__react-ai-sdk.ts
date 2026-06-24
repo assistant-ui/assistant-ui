@@ -1,6 +1,6 @@
 import { ChatInit, DefaultChatTransport, HttpChatTransportInitOptions, ToolSet, UIMessage } from "ai";
 
-import React, { ComponentType, ReactNode } from "react";
+import { ComponentType, ReactNode } from "react";
 
 import { CreateUIMessage, UIMessage as UIMessage$1, useChat } from "@ai-sdk/react";
 
@@ -2011,8 +2011,8 @@ declare class AISDKToolkit {
   close(): Promise<void>;
 }
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, AssistantChatResumableOptions, AssistantChatTransport, GenerativeToolsOptions, RESUMABLE_STREAM_ID_HEADER, ResumableClientStorage, ThreadTokenUsage, TokenUsageExtractableMessage, UseChatRuntimeOptions, createResumableSessionStorage, frontendTools, generativeTools, getThreadMessageTokenUsage, injectQuoteContext, unstable_injectInteractableContext, useAISDKRuntime, useChatRuntime, useThreadTokenUsage };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

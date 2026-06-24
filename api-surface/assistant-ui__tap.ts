@@ -48,8 +48,8 @@ declare namespace useTapHost {
 
 declare const useTapHost: <R>(callback: () => R) => useTapHost.Result<R>;
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { ContravariantResource, Resource, ResourceElement, createTapRoot, flushTapSync, resource, useContextProvider, useResource, useResources, useTapHost, useTapRoot, withKey };
 }
 
-export { index_d_exports as entry_0_root };
+export { entry_root_exports as entry_root };

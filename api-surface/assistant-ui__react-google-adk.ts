@@ -1,4 +1,4 @@
-import React, { ComponentType, PropsWithChildren } from "react";
+import { ComponentType, PropsWithChildren } from "react";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -2303,7 +2303,7 @@ declare const useAdkMessages: (_param: UseAdkMessagesOptions) => {
 
 declare function toAdkStructuredEvents(event: AdkEvent): AdkStructuredEvent[];
 
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { AdkArtifactData, AdkAuthCredential, AdkAuthCredentialType, AdkAuthRequest, AdkEvent, AdkEventAccumulator, AdkEventActions, AdkEventPart, AdkEventType, AdkMessage, AdkMessageContentPart, AdkMessageMetadata, AdkRunConfig, AdkSendMessageConfig, AdkSessionAdapterOptions, AdkStreamCallback, AdkStructuredEvent, AdkToolCall, AdkToolConfirmation, CreateAdkStreamOptions, OnAdkAgentTransferCallback, OnAdkCustomEventCallback, OnAdkErrorCallback, UseAdkMessagesOptions, UseAdkRuntimeOptions, convertAdkMessage, createAdkSessionAdapter, createAdkStream, toAdkStructuredEvents, useAdkAgentInfo, useAdkAppState, useAdkArtifacts, useAdkAuthRequests, useAdkConfirmTool, useAdkEscalation, useAdkLongRunningToolIds, useAdkMessageMetadata, useAdkMessages, useAdkRuntime, useAdkSend, useAdkSessionState, useAdkSubmitAuth, useAdkSubmitInput, useAdkTempState, useAdkToolConfirmations, useAdkUserState };
 }
 
@@ -2373,8 +2373,8 @@ declare const toAdkContent: (parsed: ParsedAdkRequest) => {
   parts: Array<Record<string, unknown>>;
 };
 
-declare namespace index_d_exports$1 {
+declare namespace entry_server_exports {
   export { AdkEventStreamOptions, CreateAdkApiRouteOptions, adkEventStream, createAdkApiRoute, parseAdkRequest, toAdkContent };
 }
 
-export { index_d_exports as entry_0_root, index_d_exports$1 as entry_1_server };
+export { entry_root_exports as entry_root, entry_server_exports as entry_server };

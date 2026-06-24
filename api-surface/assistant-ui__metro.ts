@@ -1,4 +1,4 @@
-declare namespace index_d_exports {
+declare namespace entry_root_exports {
   export { MetroConfigLike, UPSTREAM_TRANSFORMER_ENV, withAui };
 }
 
@@ -14,7 +14,7 @@ declare const UPSTREAM_TRANSFORMER_ENV = "AUI_METRO_UPSTREAM_TRANSFORMER";
 
 declare function withAui<T extends MetroConfigLike>(config: T): T;
 
-declare namespace transformer_d_exports {
+declare namespace entry_transformer_exports {
   export { getCacheKey, transform };
 }
 
@@ -37,4 +37,4 @@ declare function transform(props: Parameters<BabelTransformer["transform"]>[0]):
 
 declare function getCacheKey(): string;
 
-export { index_d_exports as entry_0_root, transformer_d_exports as entry_1_transformer };
+export { entry_root_exports as entry_root, entry_transformer_exports as entry_transformer };
