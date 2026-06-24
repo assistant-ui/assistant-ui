@@ -20,6 +20,16 @@ export type {
   GenerativeUIMessagePart,
   GenerativeUINode,
   GenerativeUISpec,
+  GenerativeUIAction,
+  GenerativeUIComponentNode,
+  GenerativeUITypeNode,
+  GenerativeUITextSize,
+  GenerativeUIImageSize,
+  GenerativeUIWeight,
+  GenerativeUIColor,
+  GenerativeUIAlign,
+  GenerativeUIJustify,
+  GenerativeUIButtonStyle,
   Unstable_AudioMessagePart,
   ToolApprovalOption,
   ToolApprovalOptionKind,
@@ -49,6 +59,12 @@ export type {
 } from "./types/message";
 
 export { MCP_APP_URI_SCHEME, isMcpAppUri } from "./types/message";
+
+export { normalizeUINode, normalizeSpec } from "./utils/generative-ui";
+export type {
+  NormalizedUINode,
+  NormalizedUIElement,
+} from "./utils/generative-ui";
 
 export type {
   Attachment,

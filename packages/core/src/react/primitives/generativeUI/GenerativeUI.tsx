@@ -8,10 +8,11 @@ import {
   useMemo,
 } from "react";
 import { useAuiState } from "@assistant-ui/store";
-import type {
-  GenerativeUINode,
-  GenerativeUISpec,
-} from "../../../types/message";
+import type { GenerativeUISpec } from "../../../types/message";
+import {
+  normalizeUINode,
+  type NormalizedUINode,
+} from "../../../utils/generative-ui";
 import type {
   GenerativeUIComponentRegistry,
   GenerativeUIRenderProps,
@@ -20,8 +21,8 @@ import type {
 /**
  * Thrown when a generative-ui spec references a component name that is not
  * present in the consumer-provided allowlist. The allowlist is the security
- * boundary in the same-realm rendering path — there is no fallback by
- * default. Pass `Fallback` to opt into a soft-fail UX.
+ * boundary in the same-realm rendering path. Pass `Fallback` to opt into a
+ * soft-fail UX.
  */
 export class GenerativeUIRenderError extends Error {
   public readonly componentName: string;
@@ -36,39 +37,23 @@ export class GenerativeUIRenderError extends Error {
   }
 }
 
-const isObjectNode = (
-  node: GenerativeUINode,
-): node is Exclude<GenerativeUINode, string> =>
-  typeof node === "object" && node !== null;
-
 const renderNode = (
-  node: GenerativeUINode | undefined,
+  node: NormalizedUINode,
   components: GenerativeUIComponentRegistry,
   Fallback: GenerativeUIRenderProps["Fallback"],
   path: string,
 ): ReactNode => {
-  if (node === undefined || node === null) return null;
-
+  if (node === null) return null;
   if (typeof node === "string") return node;
 
-  if (!isObjectNode(node) || !("component" in node)) {
-    if (
-      typeof process !== "undefined" &&
-      process.env?.NODE_ENV !== "production"
-    ) {
-      console.warn(`[generative-ui] Skipping malformed node at ${path}:`, node);
-    }
-    return null;
-  }
+  const { type, props, children, key } = node;
 
-  const { component, props, children, key } = node;
-
-  const Resolved = components[component];
+  const Resolved = components[type];
   if (!Resolved) {
     if (Fallback) {
-      return <Fallback key={key ?? path} component={component} props={props} />;
+      return <Fallback key={key ?? path} component={type} props={props} />;
     }
-    throw new GenerativeUIRenderError(component);
+    throw new GenerativeUIRenderError(type);
   }
 
   const renderedChildren = children?.length
@@ -79,19 +64,21 @@ const renderNode = (
 
   return createElement(
     Resolved,
-    { ...(props ?? {}), key: key ?? path },
+    { ...(props as Record<string, unknown>), key: key ?? path },
     ...(renderedChildren ?? []),
   );
 };
 
 const normalizeRoot = (
   spec: GenerativeUISpec | undefined,
-): readonly GenerativeUINode[] => {
+): readonly NormalizedUINode[] => {
   if (!spec || spec.root === undefined || spec.root === null) return [];
-  const root = spec.root;
-  return Array.isArray(root)
-    ? (root as readonly GenerativeUINode[])
-    : [root as GenerativeUINode];
+  const { root } = spec;
+  if (Array.isArray(root)) {
+    const nodes = root as readonly Parameters<typeof normalizeUINode>[0][];
+    return nodes.map((node) => normalizeUINode(node));
+  }
+  return [normalizeUINode(root as Parameters<typeof normalizeUINode>[0])];
 };
 
 /**
@@ -121,7 +108,7 @@ export namespace MessagePrimitiveGenerativeUI {
      * The component allowlist. Keys are the names referenced in the spec
      * (e.g. `"Card"`, `"Button"`), values are the React components.
      *
-     * This is the security boundary — any name not in the allowlist is
+     * This is the security boundary; any name not in the allowlist is
      * rejected with {@link GenerativeUIRenderError}.
      */
     components: GenerativeUIComponentRegistry;
@@ -142,9 +129,11 @@ export namespace MessagePrimitiveGenerativeUI {
  * Renders a generative-ui message part using a consumer-provided allowlist.
  *
  * The agent emits a `generative-ui` message part containing a JSON spec
- * (see {@link GenerativeUISpec}). This primitive walks the spec and resolves
- * each `component` name against the allowlist. Names not in the allowlist
- * throw {@link GenerativeUIRenderError} unless a `Fallback` is provided.
+ * (see {@link GenerativeUISpec}). This primitive walks the spec, normalizing
+ * both the flat `$type` shape and the legacy `component` shape to one canonical
+ * form, and resolves each component name against the allowlist. Names not in
+ * the allowlist throw {@link GenerativeUIRenderError} unless a `Fallback` is
+ * provided.
  *
  * Stream-friendly: a partial spec renders progressively as it is filled in.
  *
@@ -158,10 +147,9 @@ export namespace MessagePrimitiveGenerativeUI {
 export const MessagePrimitiveGenerativeUI: FC<
   MessagePrimitiveGenerativeUI.Props
 > = ({ components, spec, Fallback }) => {
-  // Selector reads store state only — combining with the `spec` prop inside
-  // the selector closes over a value that may change identity per render and
-  // would trigger spurious tearing-detection re-renders in
-  // `useSyncExternalStore`.
+  // The selector reads store state only. Combining the `spec` prop inside the
+  // selector would close over a value whose identity may change per render and
+  // trigger spurious tearing-detection re-renders in `useSyncExternalStore`.
   const storeSpec = useAuiState((s) => {
     const part = s.part as { type?: string; spec?: GenerativeUISpec };
     return part?.type === "generative-ui" ? part.spec : undefined;

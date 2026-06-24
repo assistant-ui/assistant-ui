@@ -74,26 +74,109 @@ export type DataMessagePart<T = any> = {
 };
 
 /**
+ * A behavior payload carried by an interactive node. `type` is resolved by the
+ * host's action registry, not by the renderer. It rides on the reserved
+ * `$action` key (see {@link GenerativeUITypeNode}). Keeping behavior as data
+ * keeps the tree serializable so the same node renders on web and converts to
+ * a native action id on Slack.
+ */
+export type GenerativeUIAction = {
+  readonly type: string;
+  readonly [payload: string]: unknown;
+};
+
+/** Text size token shared by `Text` and `Title`-style nodes. */
+export type GenerativeUITextSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
+
+/** Image size token, or a pixel value. */
+export type GenerativeUIImageSize = "sm" | "md" | "lg" | number;
+
+/** Font weight token. */
+export type GenerativeUIWeight = "normal" | "medium" | "semibold" | "bold";
+
+/** Foreground color token. */
+export type GenerativeUIColor =
+  | "emphasis"
+  | "secondary"
+  | "alpha-70"
+  | "white"
+  | "white-70"
+  | "white-50";
+
+/** Cross-axis alignment token. */
+export type GenerativeUIAlign = "start" | "center" | "end";
+
+/** Main-axis distribution token. */
+export type GenerativeUIJustify = "start" | "center" | "end" | "between";
+
+/** Button style token. */
+export type GenerativeUIButtonStyle =
+  | "primary"
+  | "secondary"
+  | "outline"
+  | "ghost"
+  | "danger";
+
+/**
+ * The original node shape: a `component` name plus a nested `props` bag. Kept
+ * for backward compatibility. New code should author the flat
+ * {@link GenerativeUITypeNode} shape instead.
+ */
+export type GenerativeUIComponentNode = {
+  /** Allowlisted component name (resolved against the consumer registry). */
+  readonly component: string;
+  /** Props passed to the resolved component (must be JSON-serializable). */
+  readonly props?: Record<string, unknown>;
+  /** Optional children; strings render as text, objects recurse. */
+  readonly children?: readonly GenerativeUINode[];
+  /** Optional stable key for React reconciliation. */
+  readonly key?: string;
+};
+
+/**
+ * The flat node shape. Inline props keep the tree compact and natural for a
+ * model to emit. Reserved keys are partitioned off from component props so the
+ * component prop namespace stays fully free:
+ *
+ * - `$`-prefixed keys are framework-reserved (`$type`, `$key`, `$action`,
+ *   `$status`). Components never declare `$`-prefixed props, so a component
+ *   can use `type`, `status`, `variant`, etc. as ordinary props without
+ *   colliding with the framework.
+ * - `children` is additionally reserved (the JSX convention).
+ * - every other key is an inline prop passed straight to the component.
+ *
+ * `$type` selects the component; `$key` carries list identity; `$action`
+ * carries behavior as data; `children` nests. The renderer strips the
+ * reserved keys before handing props to the component.
+ */
+export type GenerativeUITypeNode = {
+  /** Component name, resolved against the consumer registry. Reserved. */
+  readonly $type: string;
+  /** Optional stable key for React reconciliation and streaming re-orders. */
+  readonly $key?: string | number;
+  /** Optional children; strings render as text, objects recurse. */
+  readonly children?: readonly GenerativeUINode[];
+  /** Optional behavior payload (see {@link GenerativeUIAction}). Reserved. */
+  readonly $action?: GenerativeUIAction;
+  /** Inline props passed to the resolved component (never `$`-prefixed). */
+  readonly [prop: string]: unknown;
+};
+
+/**
  * A JSON spec describing a tree of UI components to render.
  *
  * The agent emits a {@link GenerativeUIMessagePart} containing this spec, and
- * the consumer-provided component allowlist is used to resolve `component`
- * names. Any component referenced that is not present in the allowlist is
- * rejected with a typed error — the allowlist is the security boundary in the
- * default same-realm rendering path.
+ * the consumer-provided component allowlist resolves each node's `$type`
+ * (or legacy `component`) name. Any name not in the allowlist is rejected with
+ * a typed error; the allowlist is the security boundary in the default
+ * same-realm rendering path. The flat {@link GenerativeUITypeNode} shape is
+ * preferred; the {@link GenerativeUIComponentNode} shape is kept as a
+ * backward-compatible alias.
  */
 export type GenerativeUINode =
   | string
-  | {
-      /** Allowlisted component name (resolved against the consumer registry). */
-      readonly component: string;
-      /** Props passed to the resolved component (must be JSON-serializable). */
-      readonly props?: Record<string, unknown>;
-      /** Optional children — strings render as text, objects recurse. */
-      readonly children?: readonly GenerativeUINode[];
-      /** Optional stable key for React reconciliation. */
-      readonly key?: string;
-    };
+  | GenerativeUIComponentNode
+  | GenerativeUITypeNode;
 
 /**
  * The root spec for a generative UI tree.
