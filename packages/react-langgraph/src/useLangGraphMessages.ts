@@ -256,23 +256,15 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               } else {
                 onUpdates?.(chunk.data);
               }
-              // A subgraph interrupt() pauses the whole run, so the tool-call
-              // AIMessage and __interrupt__ payload it emits under a namespace
-              // must still reach the store and interrupt state. addMessages
-              // dedupes by id and the final values snapshot reconciles, so
-              // extracting from subgraph updates is safe.
               const extracted = extractMessagesFromUpdates<TMessage>(
                 chunk.data,
               );
               if (extracted.length > 0) {
                 setMessagesImmediate(accumulator.addMessages(extracted));
               }
+              // A subgraph update may set an interrupt but never clear one; the parent's top-level update clears it when the subgraph ends.
               const updateInterrupt = chunk.data.__interrupt__?.[0];
-              if (!eventNamespace) {
-                setInterrupt(updateInterrupt);
-              } else if (updateInterrupt !== undefined) {
-                // Never clear from a subgraph update: a later non-interrupt
-                // subgraph event must not wipe an interrupt raised earlier.
+              if (!eventNamespace || updateInterrupt !== undefined) {
                 setInterrupt(updateInterrupt);
               }
               break;

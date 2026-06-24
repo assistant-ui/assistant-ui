@@ -3165,7 +3165,7 @@ describe("useLangGraphMessages", {}, () => {
     });
   });
 
-  it("ignores subgraph updates events (namespaced)", async () => {
+  it("routes namespaced updates to onSubgraphUpdates, not onUpdates", async () => {
     const onUpdates = vi.fn();
     const mockStreamCallback = mockStreamCallbackFactory([
       metadataEvent,
@@ -3192,7 +3192,6 @@ describe("useLangGraphMessages", {}, () => {
     });
 
     await waitFor(() => {
-      // only the root-level updates event fires the handler
       expect(onUpdates).toHaveBeenCalledTimes(1);
     });
   });
