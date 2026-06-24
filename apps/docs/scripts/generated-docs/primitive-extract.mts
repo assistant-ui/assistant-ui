@@ -13,6 +13,7 @@ import {
   getProject,
   getJsDocCommentText,
   jsDocTag,
+  jsDocTags,
   processComponentDeclaration,
   processTypeOrInterface,
   type JsDocRenderOptions,
@@ -32,6 +33,7 @@ export type PrimitivePartModel = {
   element?: string;
   description?: string;
   deprecated?: string;
+  examples?: string[];
   supportsAsChild: boolean;
   isActionButton: boolean;
   isRequireAtLeastOne: boolean;
@@ -143,7 +145,11 @@ function getPrimitiveComponentMeta(
   sourceFile: SourceFile,
   localName: string,
   options?: JsDocRenderOptions,
-): { description?: string | undefined; deprecated?: string | undefined } {
+): {
+  description?: string | undefined;
+  deprecated?: string | undefined;
+  examples?: string[] | undefined;
+} {
   for (const varDecl of sourceFile.getVariableDeclarations()) {
     if (varDecl.getName() !== localName) continue;
     const statement = varDecl.getVariableStatement();
@@ -162,7 +168,13 @@ function getPrimitiveComponentMeta(
       `${localName} primitive`,
       options,
     );
-    return { description, deprecated };
+    const examples = jsDocTags(
+      doc,
+      "example",
+      `${localName} primitive`,
+      options,
+    );
+    return { description, deprecated, examples };
   }
   return {};
 }
@@ -345,7 +357,7 @@ function extractPrimitivePart(
   const ns = findNamespace(sourceFile, localName);
   const propsAlias = ns?.getTypeAliases().find((t) => t.getName() === "Props");
   const element = ns ? extractElementType(ns) : undefined;
-  const { description, deprecated } = getPrimitiveComponentMeta(
+  const { description, deprecated, examples } = getPrimitiveComponentMeta(
     sourceFile,
     localName,
     options,
@@ -423,6 +435,7 @@ function extractPrimitivePart(
   if (element) model.element = element;
   if (description) model.description = description;
   if (deprecated) model.deprecated = deprecated;
+  if (examples) model.examples = examples;
   return model;
 }
 

@@ -41,6 +41,14 @@ const TextMessagePart = () => {
   <p>This primitive renders a <code>{`<${MessagePartPrimitiveDocs.Text?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<MessagePartPrimitive.Text
+  smooth={true}
+  component="p"
+  className="message-text"
+/>
+```
+
 <ParametersTable {...MessagePartPrimitiveTextProps} />
 
 {/* api-manual:MessagePartPrimitive.Text:start */}
@@ -62,6 +70,14 @@ const TextMessagePart = () => {
 {MessagePartPrimitiveDocs.Image?.element && (
   <p>This primitive renders a <code>{`<${MessagePartPrimitiveDocs.Image?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<MessagePartPrimitive.Image
+  alt="Generated image"
+  className="message-image"
+  style={{ maxWidth: '100%' }}
+/>
+```
 
 <ParametersTable {...MessagePartPrimitiveImageProps} />
 

@@ -29,6 +29,10 @@ import { QueueItemPrimitive as QueueItemPrimitiveDocs } from "@/generated/primit
   <p>This primitive renders a <code>{`<${QueueItemPrimitiveDocs.Text?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<QueueItemPrimitive.Text />
+```
+
 <ParametersTable {...QueueItemPrimitiveTextProps} />
 
 ### Steer
@@ -45,6 +49,10 @@ import { QueueItemPrimitive as QueueItemPrimitiveDocs } from "@/generated/primit
   <p>This primitive renders a <code>{`<${QueueItemPrimitiveDocs.Steer?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<QueueItemPrimitive.Steer>Run Now</QueueItemPrimitive.Steer>
+```
+
 <ParametersTable {...QueueItemPrimitiveSteerProps} />
 
 ### Remove
@@ -60,6 +68,10 @@ import { QueueItemPrimitive as QueueItemPrimitiveDocs } from "@/generated/primit
 {QueueItemPrimitiveDocs.Remove?.element && (
   <p>This primitive renders a <code>{`<${QueueItemPrimitiveDocs.Remove?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<QueueItemPrimitive.Remove>×</QueueItemPrimitive.Remove>
+```
 
 <ParametersTable {...QueueItemPrimitiveRemoveProps} />
 {/* api-reference:end */}

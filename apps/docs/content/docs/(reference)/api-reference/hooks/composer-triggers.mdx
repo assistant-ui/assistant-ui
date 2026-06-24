@@ -14,78 +14,6 @@ import { unstable_useLiveCompletionAdapter, unstable_useMentionAdapter, unstable
 
 ## API Reference
 
-### unstable_useLiveCompletionAdapter
-
-<Callout type="warn">
-<strong>Deprecated.</strong> Under active development and may change without notice.
-</Callout>
-
-Bridges an async completion source (a server search, a gateway RPC) into the
-synchronous `Unstable_TriggerAdapter` that `ComposerTriggerPopover` consumes.
-`search(query)` returns the last fetched items synchronously and schedules a
-debounced fetch when the query changes; when results arrive the returned
-`adapter` identity changes, which re-runs the popover's lookup so the fresh
-items render. This is a search-only adapter (`categories` are empty).
-
-`isLoading` is `true` while a fetch is in flight. Pass it to the popover's
-`isLoading` prop to render a loading state.
-
-```tsx
-const mentions = unstable_useLiveCompletionAdapter({
-  fetcher: (query) => searchUsers(query),
-});
-
-<ComposerTriggerPopover
-  char="@"
-  adapter={mentions.adapter}
-  isLoading={mentions.isLoading}
-  directive={{ onInserted }}
-/>
-```
-
-<ParametersTable {...unstable_useLiveCompletionAdapter} />
-
-### unstable_useMentionAdapter
-
-<Callout type="warn">
-<strong>Deprecated.</strong> Under active development and might change without notice.
-</Callout>
-
-Creates a spreadable `{ adapter, directive }` bundle for `@` mentions.
-Supports tools registered in model context, explicit items, or both —
-flat or categorized.
-
-```tsx
-const mention = unstable_useMentionAdapter();
-<ComposerTriggerPopover char="@" {...mention} />
-```
-
-<ParametersTable {...unstable_useMentionAdapter} />
-
-### unstable_useSlashCommandAdapter
-
-<Callout type="warn">
-<strong>Deprecated.</strong> Under active development and may change without notice.
-</Callout>
-
-Bundles slash command definitions (with inline `execute` callbacks) into
-`{adapter, action}` that plug directly into `ComposerTriggerPopover`.
-`execute` stays in the hook closure and is never attached to the returned
-`TriggerItem`, keeping items serializable.
-
-```tsx
-const slash = unstable_useSlashCommandAdapter({
-  commands: [
-    { id: "summarize", execute: () => runSummarize(), icon: "FileText" },
-    { id: "translate", execute: () => runTranslate(), icon: "Languages" },
-  ],
-});
-
-<ComposerTriggerPopover char="/" {...slash} />
-```
-
-<ParametersTable {...unstable_useSlashCommandAdapter} />
-
 ### unstable_useTriggerPopoverRootContext
 
 ```ts
@@ -126,4 +54,76 @@ Like `useTriggerPopoverTriggers` but returns an empty map outside a root.
 ```ts
 const unstable_useTriggerPopoverTriggersOptional: () => ReadonlyMap<string, RegisteredTrigger>;
 ```
+
+### unstable_useLiveCompletionAdapter
+
+<Callout type="tip">
+<strong>Experimental.</strong> Under active development and may change without notice.
+</Callout>
+
+Bridges an async completion source (a server search, a gateway RPC) into the
+synchronous `Unstable_TriggerAdapter` that `ComposerTriggerPopover` consumes.
+`search(query)` returns the last fetched items synchronously and schedules a
+debounced fetch when the query changes; when results arrive the returned
+`adapter` identity changes, which re-runs the popover's lookup so the fresh
+items render. This is a search-only adapter (`categories` are empty).
+
+`isLoading` is `true` while a fetch is in flight. Pass it to the popover's
+`isLoading` prop to render a loading state.
+
+```tsx
+const mentions = unstable_useLiveCompletionAdapter({
+  fetcher: (query) => searchUsers(query),
+});
+
+<ComposerTriggerPopover
+  char="@"
+  adapter={mentions.adapter}
+  isLoading={mentions.isLoading}
+  directive={{ onInserted }}
+/>
+```
+
+<ParametersTable {...unstable_useLiveCompletionAdapter} />
+
+### unstable_useMentionAdapter
+
+<Callout type="tip">
+<strong>Experimental.</strong> Under active development and might change without notice.
+</Callout>
+
+Creates a spreadable `{ adapter, directive }` bundle for `@` mentions.
+Supports tools registered in model context, explicit items, or both —
+flat or categorized.
+
+```tsx
+const mention = unstable_useMentionAdapter();
+<ComposerTriggerPopover char="@" {...mention} />
+```
+
+<ParametersTable {...unstable_useMentionAdapter} />
+
+### unstable_useSlashCommandAdapter
+
+<Callout type="tip">
+<strong>Experimental.</strong> Under active development and may change without notice.
+</Callout>
+
+Bundles slash command definitions (with inline `execute` callbacks) into
+`{adapter, action}` that plug directly into `ComposerTriggerPopover`.
+`execute` stays in the hook closure and is never attached to the returned
+`TriggerItem`, keeping items serializable.
+
+```tsx
+const slash = unstable_useSlashCommandAdapter({
+  commands: [
+    { id: "summarize", execute: () => runSummarize(), icon: "FileText" },
+    { id: "translate", execute: () => runTranslate(), icon: "Languages" },
+  ],
+});
+
+<ComposerTriggerPopover char="/" {...slash} />
+```
+
+<ParametersTable {...unstable_useSlashCommandAdapter} />
 {/* api-reference:end */}

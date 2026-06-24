@@ -115,26 +115,6 @@ client build.
 function externalTool(): never;
 ```
 
-### hitl
-
-<Callout type="warn">
-<strong>Deprecated.</strong> Use [humanTool](/docs/api-reference/tools/toolkits#humantool).
-</Callout>
-
-```ts
-const hitl: typeof humanTool;
-```
-
-### hitlTool
-
-<Callout type="warn">
-<strong>Deprecated.</strong> Use [humanTool](/docs/api-reference/tools/toolkits#humantool).
-</Callout>
-
-```ts
-const hitlTool: typeof humanTool;
-```
-
 ### humanTool
 
 Marks a tool as **human-in-the-loop**: the agent pauses and the UI (`render`)
@@ -171,5 +151,25 @@ supplied by `useAuiToolOverrides(...)`.
 
 ```ts
 function stubTool(): never;
+```
+
+### hitl
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [humanTool](/docs/api-reference/tools/toolkits#humantool).
+</Callout>
+
+```ts
+const hitl: typeof humanTool;
+```
+
+### hitlTool
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [humanTool](/docs/api-reference/tools/toolkits#humantool).
+</Callout>
+
+```ts
+const hitlTool: typeof humanTool;
 ```
 {/* api-reference:end */}

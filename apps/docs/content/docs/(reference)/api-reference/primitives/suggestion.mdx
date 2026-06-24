@@ -31,6 +31,10 @@ For examples and usage patterns, see [Suggestion](/docs/primitives/suggestion).
   <p>This primitive renders a <code>{`<${SuggestionPrimitiveDocs.Title?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<SuggestionPrimitive.Title />
+```
+
 <ParametersTable {...SuggestionPrimitiveTitleProps} />
 
 ### Description
@@ -47,6 +51,10 @@ For examples and usage patterns, see [Suggestion](/docs/primitives/suggestion).
   <p>This primitive renders a <code>{`<${SuggestionPrimitiveDocs.Description?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<SuggestionPrimitive.Description />
+```
+
 <ParametersTable {...SuggestionPrimitiveDescriptionProps} />
 
 ### Trigger
@@ -62,6 +70,12 @@ For examples and usage patterns, see [Suggestion](/docs/primitives/suggestion).
 {SuggestionPrimitiveDocs.Trigger?.element && (
   <p>This primitive renders a <code>{`<${SuggestionPrimitiveDocs.Trigger?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<SuggestionPrimitive.Trigger send>
+  Click me
+</SuggestionPrimitive.Trigger>
+```
 
 <ParametersTable {...SuggestionPrimitiveTriggerProps} />
 {/* api-reference:end */}

@@ -53,6 +53,18 @@ const AssistantMessageBar = () => (
   <p>This primitive renders a <code>{`<${ActionBarPrimitiveDocs.Root?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<ActionBarPrimitive.Root
+  hideWhenRunning={true}
+  autohide="not-last"
+  autohideFloat="single-branch"
+>
+  <ActionBarPrimitive.Copy />
+  <ActionBarPrimitive.Edit />
+  <ActionBarPrimitive.Reload />
+</ActionBarPrimitive.Root>
+```
+
 <ParametersTable {...ActionBarPrimitiveRootProps} />
 
 {/* api-manual:ActionBarPrimitive.Root:start */}
@@ -74,6 +86,12 @@ const AssistantMessageBar = () => (
 {ActionBarPrimitiveDocs.Copy?.element && (
   <p>This primitive renders a <code>{`<${ActionBarPrimitiveDocs.Copy?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<ActionBarPrimitive.Copy copiedDuration={2000}>
+  Copy Message
+</ActionBarPrimitive.Copy>
+```
 
 <ParametersTable {...ActionBarPrimitiveCopyProps} />
 
@@ -97,6 +115,12 @@ const AssistantMessageBar = () => (
   <p>This primitive renders a <code>{`<${ActionBarPrimitiveDocs.Reload?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<ActionBarPrimitive.Reload>
+  Reload Message
+</ActionBarPrimitive.Reload>
+```
+
 <ParametersTable {...ActionBarPrimitiveReloadProps} />
 
 ### Edit
@@ -112,6 +136,12 @@ const AssistantMessageBar = () => (
 {ActionBarPrimitiveDocs.Edit?.element && (
   <p>This primitive renders a <code>{`<${ActionBarPrimitiveDocs.Edit?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<ActionBarPrimitive.Edit>
+  Edit Message
+</ActionBarPrimitive.Edit>
+```
 
 <ParametersTable {...ActionBarPrimitiveEditProps} />
 

@@ -32,26 +32,6 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 
 <ParametersTable {...DevToolsHooks} />
 
-### fromThreadMessageLike
-
-<Callout type="warn">
-<strong>Deprecated.</strong> This API is experimental and may change without notice.
-</Callout>
-
-```ts
-const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallbackStatus: MessageStatus) => ThreadMessage;
-```
-
-### generateId
-
-<Callout type="warn">
-<strong>Deprecated.</strong> This API is experimental and may change without notice.
-</Callout>
-
-```ts
-const generateId: (size?: number) => string;
-```
-
 ### InMemoryThreadList
 
 <ParametersTable {...InMemoryThreadList} />
@@ -67,6 +47,16 @@ const generateId: (size?: number) => string;
 ### Suggestions
 
 <ParametersTable {...Suggestions} />
+
+### unstable_defaultDirectiveFormatter
+
+Default directive formatter using the `:type[label]{name=id}` syntax.
+
+When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
+
+```ts
+const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
+```
 
 ### useSmooth
 
@@ -86,13 +76,23 @@ const { text, status } = useSmooth(useMessagePartText(), {
 
 <ParametersTable {...useSmooth} />
 
-### unstable_defaultDirectiveFormatter
+### fromThreadMessageLike
 
-Default directive formatter using the `:type[label]{name=id}` syntax.
-
-When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
+<Callout type="tip">
+<strong>Experimental.</strong> This API is experimental and may change without notice.
+</Callout>
 
 ```ts
-const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
+const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallbackStatus: MessageStatus) => ThreadMessage;
+```
+
+### generateId
+
+<Callout type="tip">
+<strong>Experimental.</strong> This API is experimental and may change without notice.
+</Callout>
+
+```ts
+const generateId: (size?: number) => string;
 ```
 {/* api-reference:end */}
