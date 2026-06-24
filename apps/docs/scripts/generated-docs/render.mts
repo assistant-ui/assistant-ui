@@ -15,6 +15,7 @@ import {
   extractPrimitivePartsFor,
   primitivePartTypeDocName,
   readPrimitiveParts,
+  type PrimitivePartModel,
 } from "./primitive-extract.mts";
 import type { TypeDoc, TypeDocBindings } from "./type-docs.mts";
 
@@ -147,7 +148,7 @@ function renderJsDocExample(value: string): string {
 type ApiStatus = "stable" | "experimental" | "deprecated";
 
 function isExperimentalDeprecation(deprecated?: string): boolean {
-  return /^(unstable \/ experimental|experimental\b|this (api|feature) is experimental\b|this api is (still )?under active development\b|under active development\b)|\bapi may change\b|\bmay change (without notice|in any release)\b/i.test(
+  return /^(unstable \/ experimental|experimental\b|this (api|feature) is experimental\b|this api is (still )?under active development\b|under active development\b)/i.test(
     deprecated ?? "",
   );
 }
@@ -396,17 +397,22 @@ const API_STATUS_ORDER = {
   deprecated: 2,
 } satisfies Record<ApiStatus, number>;
 
+const PAGE_ROLE_ORDER = {
+  primary: 0,
+  related: 1,
+  "supporting-type": 2,
+} satisfies Record<ExportInfo["pageRole"], number>;
+
 function exportSortKey(
   item: ExportInfo,
 ): [number, number, number, number, string] {
   const pageOrder = EXPORT_ORDER_BY_PAGE[`${item.section}/${item.page}`];
   const pageIndex = pageOrder?.indexOf(item.name) ?? -1;
   const orderIndex = pageIndex === -1 ? (pageOrder?.length ?? 0) : pageIndex;
-  const roleOrder = { primary: 0, related: 1, "supporting-type": 2 };
   return [
     item.pageRole === "supporting-type" ? 1 : 0,
     API_STATUS_ORDER[apiStatusForDeprecatedTag(item.deprecated)],
-    roleOrder[item.pageRole],
+    PAGE_ROLE_ORDER[item.pageRole],
     orderIndex,
     item.name,
   ];
@@ -533,18 +539,21 @@ function generatePrimitiveReferenceRegion(
     for (const part of parts) {
       lines.push(`### ${part}`, "");
       const partName = `${item.name}.${part}`;
+      const primitivePart = primitivePartFor(
+        item.name,
+        part,
+        item.jsDocRenderOptions,
+      );
       const example = slots.examples.get(partName);
       const examples = example
         ? [example]
-        : primitiveJsDocExamples(item.name, part, item.jsDocRenderOptions).map(
-            renderJsDocExample,
-          );
+        : (primitivePart?.examples ?? []).map(renderJsDocExample);
       lines.push(
         primitiveParametersTable(
           item.name,
           part,
           typeDocNames,
-          item.jsDocRenderOptions,
+          primitivePart,
           examples,
         ),
         "",
@@ -576,14 +585,6 @@ function generatePrimitiveReferenceRegion(
   return lines.join("\n").trimEnd();
 }
 
-function primitiveJsDocExamples(
-  primitiveName: string,
-  part: string,
-  options: ExportInfo["jsDocRenderOptions"],
-): string[] {
-  return primitivePartFor(primitiveName, part, options)?.examples ?? [];
-}
-
 function primitivePartFor(
   primitiveName: string,
   part: string,
@@ -598,15 +599,13 @@ function primitiveParametersTable(
   primitiveName: string,
   part: string,
   typeDocNames: Set<string>,
-  options: ExportInfo["jsDocRenderOptions"],
+  primitivePart: PrimitivePartModel | undefined,
   examples: string[],
 ): string {
   const binding = `${primitiveName}Docs.${part}`;
   const typeDocName = primitivePartTypeDocName(primitiveName, part);
   const statusCallout =
-    apiStatusForDeprecatedTag(
-      primitivePartFor(primitiveName, part, options)?.deprecated,
-    ) === "experimental"
+    apiStatusForDeprecatedTag(primitivePart?.deprecated) === "experimental"
       ? [
           `{${binding}?.deprecated && (`,
           `  <Callout type="tip">`,
