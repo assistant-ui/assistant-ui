@@ -10,7 +10,7 @@
     "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
     "build": "turbo build",
-    "api-surface": "turbo build --filter='./packages/*' && node scripts/generate-api-surface.mjs",
+    "api-surface": "pnpm exec turbo build --filter='./packages/*' --force && node scripts/generate-api-surface.mjs",
     "api-surface:check": "node scripts/generate-api-surface.mjs --check && pnpm --filter @assistant-ui/api-surface check",
     "lint": "pnpm exec oxlint && pnpm exec oxfmt --check",
     "check:resource-memo": "node packages/x-buildutils/check-resource-memoization.mjs",
