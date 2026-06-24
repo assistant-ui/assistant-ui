@@ -236,9 +236,14 @@ function applyTwoSpaceIndent(content) {
   return content
     .split("\n")
     .map((line) =>
-      line.replace(/^ +/, (spaces) =>
-        " ".repeat(Math.floor(spaces.length / 2)),
-      ),
+      line.replace(/^ +/, (spaces) => {
+        if (spaces.length % 4 !== 0) {
+          throw new Error(
+            `Unexpected generated declaration indentation: ${spaces.length} spaces.`,
+          );
+        }
+        return " ".repeat(spaces.length / 2);
+      }),
     )
     .join("\n");
 }
@@ -528,10 +533,17 @@ async function main() {
       writeOrCheck(outputFile, content, changedFiles);
     }
 
-    if (!checkMode && existsSync(apiSurfaceRoot)) {
+    if (existsSync(apiSurfaceRoot)) {
       for (const entry of readdirSync(apiSurfaceRoot)) {
         const file = path.join(apiSurfaceRoot, entry);
-        if (entry.endsWith(".ts") && !generatedFiles.has(file)) rmSync(file);
+        if (!entry.endsWith(".ts") || generatedFiles.has(file)) continue;
+        if (checkMode) {
+          changedFiles.push(
+            path.relative(repoRoot, file).replaceAll("\\", "/"),
+          );
+        } else {
+          rmSync(file);
+        }
       }
     }
 
