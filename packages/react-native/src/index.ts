@@ -137,8 +137,11 @@ export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
 // Re-export shared providers from core/react
 export {
   ThreadListItemByIndexProvider,
+  ThreadListItemRuntimeProvider,
   ChainOfThoughtByIndicesProvider,
   MessageByIndexProvider,
+  MessageAttachmentByIndexProvider,
+  ComposerAttachmentByIndexProvider,
   PartByIndexProvider,
   TextMessagePartProvider,
   ChainOfThoughtPartByIndexProvider,
