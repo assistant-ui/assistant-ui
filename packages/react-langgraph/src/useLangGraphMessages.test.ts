@@ -3543,4 +3543,28 @@ describe("useLangGraphMessages", {}, () => {
       });
     });
   });
+
+  it("setMessages replaces the list and supports a functional updater", () => {
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallbackFactory([]),
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.setMessages([{ id: "b", type: "human", content: "two" }]);
+    });
+    expect(result.current.messages.map((m) => m.id)).toEqual(["b"]);
+
+    // Functional updater receives the current list — e.g. prepend an older
+    // history page without having to read state separately.
+    act(() => {
+      result.current.setMessages((prev) => [
+        { id: "a", type: "human", content: "one" },
+        ...prev,
+      ]);
+    });
+    expect(result.current.messages.map((m) => m.id)).toEqual(["a", "b"]);
+  });
 });

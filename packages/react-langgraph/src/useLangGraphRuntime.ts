@@ -283,6 +283,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       messageMetadata,
       uiMessages,
       send: handleSendMessage,
+      setMessages,
     }),
     onNew: runUserMessage,
     ...(queueController && { queue: queueController.adapter }),

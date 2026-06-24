@@ -176,10 +176,15 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
-  const setMessagesImmediate = useCallback((msgs: TMessage[]) => {
-    messagesRef.current = msgs;
-    _setMessages(msgs);
-  }, []);
+  const setMessagesImmediate = useCallback(
+    (msgs: TMessage[] | ((prev: TMessage[]) => TMessage[])) => {
+      const next =
+        typeof msgs === "function" ? msgs(messagesRef.current) : msgs;
+      messagesRef.current = next;
+      _setMessages(next);
+    },
+    [],
+  );
 
   const [uiMessages, _setUIMessages] = useState<UIMessage[]>([]);
   const uiMessagesRef = useRef(uiMessages);

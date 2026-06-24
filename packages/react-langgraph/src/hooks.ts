@@ -32,6 +32,22 @@ export const useLangGraphSendCommand = () => {
   return (command: LangGraphCommand) => send([], { command });
 };
 
+/**
+ * Replace the active thread's LangChain message list directly, bypassing the
+ * stream. Accepts an array or a functional updater. Useful for history
+ * pagination (prepend an older page: `setMessages((prev) => [...older, ...prev])`)
+ * or optimistic edits. The runtime merges later stream events onto whatever is
+ * set here, keyed by message id.
+ */
+export const useLangGraphSetMessages = () => {
+  const aui = useAui();
+  return (
+    messages:
+      | LangChainMessage[]
+      | ((prev: LangChainMessage[]) => LangChainMessage[]),
+  ) => langGraphExtras.get(aui).setMessages(messages);
+};
+
 /** Read the per-message LangGraph tuple metadata, keyed by message ID. */
 export const useLangGraphMessageMetadata = () =>
   langGraphExtras.use((e) => e.messageMetadata, EMPTY_MESSAGE_METADATA);

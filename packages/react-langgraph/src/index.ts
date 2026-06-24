@@ -3,6 +3,7 @@ export { useLangGraphRuntime } from "./useLangGraphRuntime";
 export {
   useLangGraphSend,
   useLangGraphSendCommand,
+  useLangGraphSetMessages,
   useLangGraphInterruptState,
   useLangGraphMessageMetadata,
   useLangGraphUIMessages,

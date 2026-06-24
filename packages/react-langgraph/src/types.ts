@@ -242,6 +242,17 @@ export type LangGraphRuntimeExtras = {
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
   ) => Promise<void>;
+  /**
+   * Replace the runtime's LangChain message list directly, bypassing the
+   * stream. Accepts an array or a functional updater. Use for history
+   * pagination (prepend older pages) or optimistic edits; the next stream
+   * event continues to merge onto whatever is set here.
+   */
+  setMessages: (
+    messages:
+      | LangChainMessage[]
+      | ((prev: LangChainMessage[]) => LangChainMessage[]),
+  ) => void;
   interrupt: LangGraphInterruptState | undefined;
   messageMetadata: Map<string, LangGraphTupleMetadata>;
   uiMessages: readonly UIMessage[];
