@@ -224,6 +224,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-mastra",
+    label: "Mastra",
+    description: "Mastra agents, memory, and workflows",
+    category: "example",
+    path: "examples/with-mastra",
+    hasLocalComponents: false,
+  },
+  {
     name: "with-react-hook-form",
     label: "React Hook Form",
     description: "Form integration",

@@ -1,0 +1,78 @@
+---
+title: Migration Guide
+description: Migrate from a generic custom runtime to @assistant-ui/react-mastra.
+---
+
+## Replace the runtime
+
+```tsx title="Before"
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+
+const runtime = useDataStreamRuntime({
+  api: "http://localhost:4111/api/agents/chefAgent/stream",
+});
+```
+
+```tsx title="After"
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
+
+const runtime = useMastraRuntime({
+  agentId: "chefAgent",
+  api: "http://localhost:4111/api/agents/chefAgent/stream",
+});
+```
+
+## Add memory
+
+```tsx
+const runtime = useMastraRuntime({
+  agentId: "chefAgent",
+  api: "/api/chat",
+  memory: {
+    userId: "default-user",
+  },
+});
+```
+
+If `memory.threadId` is omitted, the runtime creates a thread before the first
+message.
+
+## Add workflows
+
+```tsx
+import { useMastraWorkflows } from "@assistant-ui/react-mastra";
+
+const workflow = useMastraWorkflows({
+  workflowId: "hiringWorkflow",
+  apiUrl: "/api/workflow",
+  initialState: "screening-step",
+});
+
+await workflow.startWorkflow({
+  candidateName: "Ada Lovelace",
+  candidateEmail: "ada@example.com",
+  resume: "...",
+  position: "Engineer",
+});
+
+await workflow.resumeWorkflow({
+  approved: true,
+});
+```
+
+## Update your server route
+
+`useMastraRuntime` sends this JSON shape to your `api` endpoint:
+
+```json
+{
+  "agentId": "chefAgent",
+  "messages": [],
+  "threadId": "thread-id",
+  "resourceId": "default-user",
+  "runConfig": {}
+}
+```
+
+Map the response to Mastra events if your server does not already return that
+shape.

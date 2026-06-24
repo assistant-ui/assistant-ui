@@ -1,0 +1,72 @@
+---
+title: Overview
+description: Use Mastra agents, memory, and workflows with assistant-ui.
+---
+
+`@assistant-ui/react-mastra` connects assistant-ui's external-store runtime to
+Mastra agents. It accepts either a streaming HTTP endpoint or a custom stream
+callback and exposes optional helpers for Mastra memory and workflows.
+
+## Install
+
+```bash npm2yarn
+npm install @assistant-ui/react-mastra @mastra/core @mastra/memory
+```
+
+For persistent memory with LibSQL, also install:
+
+```bash npm2yarn
+npm install @mastra/libsql
+```
+
+## Runtime
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const runtime = useMastraRuntime({
+    api: "/api/chat",
+    agentId: "chefAgent",
+    memory: {
+      userId: "default-user",
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+When `memory` is enabled, the runtime creates a Mastra thread before the first
+send if you did not provide `memory.threadId`.
+
+## Hooks
+
+- `useMastraRuntime` creates the assistant-ui runtime.
+- `useMastraExtras` reads Mastra-specific extras from the runtime.
+- `useMastraMemory` manages Mastra threads and memory search through your API
+  routes.
+- `useMastraWorkflows` starts, resumes, and tracks Mastra workflow runs.
+
+## Example
+
+Use the complete example as a starting point:
+
+```bash
+npx assistant-ui@latest create my-mastra-app --example with-mastra
+```
+
+The example includes a Next.js API route, Mastra agents with memory, a
+suspend/resume hiring workflow, and assistant-ui components for selecting
+agents and reviewing workflow state.
