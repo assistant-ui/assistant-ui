@@ -35,6 +35,7 @@ function ComboboxTrigger({
         data-slot="combobox-trigger-icon"
         className="text-muted-foreground pointer-events-none size-4"
       />
+      {!children && <span className="sr-only">Open</span>}
     </ComboboxPrimitive.Trigger>
   );
 }
@@ -48,6 +49,7 @@ function ComboboxClear({ className, ...props }: ComboboxPrimitive.Clear.Props) {
       {...props}
     >
       <XIcon className="pointer-events-none" />
+      <span className="sr-only">Clear</span>
     </ComboboxPrimitive.Clear>
   );
 }
@@ -266,6 +268,7 @@ function ComboboxChip({
           data-slot="combobox-chip-remove"
         >
           <XIcon className="pointer-events-none" />
+          <span className="sr-only">Remove</span>
         </ComboboxPrimitive.ChipRemove>
       )}
     </ComboboxPrimitive.Chip>
