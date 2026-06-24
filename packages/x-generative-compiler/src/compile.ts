@@ -112,9 +112,59 @@ export function isGenerativeModule(code: string): boolean {
       break;
     }
   }
-  return (
-    code.startsWith(`"${DIRECTIVE}"`, i) || code.startsWith(`'${DIRECTIVE}'`, i)
-  );
+
+  const quote = code[i];
+  if (quote !== '"' && quote !== "'") return false;
+
+  const directiveStart = i + 1;
+  if (!code.startsWith(DIRECTIVE, directiveStart)) return false;
+
+  const directiveEnd = directiveStart + DIRECTIVE.length;
+  if (code[directiveEnd] !== quote) return false;
+
+  return hasDirectiveTerminator(code, directiveEnd + 1);
+}
+
+function hasDirectiveTerminator(code: string, start: number): boolean {
+  let i = start;
+  for (;;) {
+    if (i >= code.length) return true;
+
+    const char = code.charCodeAt(i);
+    if (char === 59 || isLineTerminator(char)) return true;
+
+    if (code.startsWith("//", i)) return true;
+
+    if (code.startsWith("/*", i)) {
+      const end = code.indexOf("*/", i + 2);
+      if (end === -1) return false;
+      if (containsLineTerminator(code, i + 2, end)) return true;
+      i = end + 2;
+      continue;
+    }
+
+    if (/\s/.test(code[i]!)) {
+      i++;
+      continue;
+    }
+
+    return false;
+  }
+}
+
+function containsLineTerminator(
+  code: string,
+  start: number,
+  end: number,
+): boolean {
+  for (let i = start; i < end; i++) {
+    if (isLineTerminator(code.charCodeAt(i))) return true;
+  }
+  return false;
+}
+
+function isLineTerminator(char: number): boolean {
+  return char === 10 || char === 13 || char === 0x2028 || char === 0x2029;
 }
 
 /**

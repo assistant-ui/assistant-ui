@@ -1430,6 +1430,26 @@ export default defineToolkit({
       true,
     );
     expect(isGenerativeModule(`// a comment\n"use generative";\n`)).toBe(true);
+    expect(isGenerativeModule(`"use generative"\nexport default {};`)).toBe(
+      true,
+    );
+    expect(
+      isGenerativeModule(`"use generative" // comment\nexport default {};`),
+    ).toBe(true);
+    expect(
+      isGenerativeModule(`"use generative" /* comment */;\nexport default {};`),
+    ).toBe(true);
     expect(isGenerativeModule(`export default {};`)).toBe(false);
+    expect(
+      isGenerativeModule(`"use generative" + suffix;\nexport default {};`),
+    ).toBe(false);
+    expect(
+      isGenerativeModule(`"use generative".toString();\nexport default {};`),
+    ).toBe(false);
+    expect(
+      isGenerativeModule(
+        `"use generative" /* no line break */ + suffix;\nexport default {};`,
+      ),
+    ).toBe(false);
   });
 });
