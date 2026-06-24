@@ -4,50 +4,6 @@ import { ZodType } from "zod";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-type GenerativeUIStatus = "streaming" | "done";
-
-type GenerativeUIRenderContext = {
-  status: GenerativeUIStatus;
-};
-
-type StreamingRenderProps<P> = (Partial<P> & {
-  children?: ReactNode;
-  $status: "streaming";
-}) | (P & {
-  children?: ReactNode;
-  $status: "done";
-});
-
-type StaticRenderProps<P> = P & {
-  children?: ReactNode;
-  $status: "done";
-};
-
-type GenerativeUIComponent<P = any> = {
-  description: string;
-  properties: ZodType<P>;
-  streamProperties: boolean | undefined;
-  render: (props: StreamingRenderProps<P>) => ReactNode;
-} | {
-  description: string;
-  properties: ZodType<P>;
-  streamProperties?: false | undefined;
-  render: (props: StaticRenderProps<P>) => ReactNode;
-};
-
-type GenerativeUILibrary = Record<string, GenerativeUIComponent>;
-
-type GenerativeUIElement = {
-  type: string;
-  props: GenerativeUIProps;
-};
-
-type GenerativeUIProps = {
-  children?: GenerativeUINode$1;
-} & Record<string, unknown>;
-
-type GenerativeUINode$1 = GenerativeUIElement | string | number | boolean | null | undefined | GenerativeUINode$1[];
-
 type JSONSchema7TypeName$1 = "string" | "number" | "integer" | "boolean" | "object" | "array" | "null";
 
 type JSONSchema7Type$1 = string | number | boolean | JSONSchema7Object$1 | JSONSchema7Array$1 | null;
@@ -122,6 +78,50 @@ interface JSONSchema7$1 {
   writeOnly?: boolean | undefined;
   examples?: JSONSchema7Type$1 | undefined;
 }
+
+type GenerativeUIStatus = "streaming" | "done";
+
+type GenerativeUIRenderContext = {
+  status: GenerativeUIStatus;
+};
+
+type StreamingRenderProps<P> = (Partial<P> & {
+  children?: ReactNode;
+  $status: "streaming";
+}) | (P & {
+  children?: ReactNode;
+  $status: "done";
+});
+
+type StaticRenderProps<P> = P & {
+  children?: ReactNode;
+  $status: "done";
+};
+
+type GenerativeUIComponent<P = any> = {
+  description: string;
+  properties: ZodType<P>;
+  streamProperties: boolean | undefined;
+  render: (props: StreamingRenderProps<P>) => ReactNode;
+} | {
+  description: string;
+  properties: ZodType<P>;
+  streamProperties?: false | undefined;
+  render: (props: StaticRenderProps<P>) => ReactNode;
+};
+
+type GenerativeUILibrary = Record<string, GenerativeUIComponent>;
+
+type GenerativeUIElement = {
+  type: string;
+  props: GenerativeUIProps;
+};
+
+type GenerativeUIProps = {
+  children?: GenerativeUINode$1;
+} & Record<string, unknown>;
+
+type GenerativeUINode$1 = GenerativeUIElement | string | number | boolean | null | undefined | GenerativeUINode$1[];
 
 interface ClientMethods {
   [key: string | symbol]: (...args: any[]) => any;
@@ -896,16 +896,6 @@ type PresentTool = ToolDefinition<Record<string, unknown>, Record<string, never>
 
 type PromptUserTool = ToolDefinition<Record<string, unknown>, unknown> & BackendDefaultMetadata;
 
-declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7$1;
-
-declare const TYPE_KEY = "$type";
-
-declare function defineGenerativeComponents(_library: GenerativeUILibrary): GenerativeUILibrary;
-
-declare function generativeUIToJSX(node: unknown): string;
-
-declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
-
 declare namespace entry_internal_json_default_exports {
   export { JSONGenerativeUI$1 as JSONGenerativeUI };
 }
@@ -919,10 +909,6 @@ declare class JSONGenerativeUI$1 {
   promptUser(): PromptUserTool;
 }
 
-declare namespace entry_root_exports {
-  export { GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, PresentTool, PresentToolOptions, PromptUserTool, TYPE_KEY, buildPresentParameters, defineGenerativeComponents, generativeUIToJSX, renderGenerativeUI };
-}
-
 declare namespace entry_internal_json_react_server_exports {
   export { JSONGenerativeUI };
 }
@@ -932,6 +918,20 @@ declare class JSONGenerativeUI {
   constructor(options: JSONGenerativeUIOptions);
   present(options?: PresentToolOptions): PresentTool;
   promptUser(): PromptUserTool;
+}
+
+declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7$1;
+
+declare const TYPE_KEY = "$type";
+
+declare function defineGenerativeComponents(_library: GenerativeUILibrary): GenerativeUILibrary;
+
+declare function generativeUIToJSX(node: unknown): string;
+
+declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
+
+declare namespace entry_root_exports {
+  export { GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, PresentTool, PresentToolOptions, PromptUserTool, TYPE_KEY, buildPresentParameters, defineGenerativeComponents, generativeUIToJSX, renderGenerativeUI };
 }
 
 export { entry_internal_json_default_exports as entry_internal_json_default, entry_internal_json_react_server_exports as entry_internal_json_react_server, entry_root_exports as entry_root };

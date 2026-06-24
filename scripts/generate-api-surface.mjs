@@ -45,6 +45,12 @@ function relativeImport(fromDir, toFile) {
   return relative.startsWith(".") ? relative : `./${relative}`;
 }
 
+function compareStrings(a, b) {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 function collectTypeTargets(value, conditions = []) {
   if (!value || typeof value !== "object") return [];
 
@@ -118,7 +124,7 @@ function collectPackages() {
       };
     })
     .filter(({ pkg }) => !pkg.private)
-    .sort((a, b) => a.pkg.name.localeCompare(b.pkg.name));
+    .sort((a, b) => compareStrings(a.pkg.name, b.pkg.name));
 }
 
 function collectDeclarationEntries(packageDir, pkg) {
@@ -146,7 +152,7 @@ function collectDeclarationEntries(packageDir, pkg) {
   return entries.sort((a, b) => {
     const aKey = `${a.exportPath}:${a.conditions.join("/")}:${a.file}`;
     const bKey = `${b.exportPath}:${b.conditions.join("/")}:${b.file}`;
-    return aKey.localeCompare(bKey);
+    return compareStrings(aKey, bKey);
   });
 }
 

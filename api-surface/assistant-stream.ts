@@ -1,5 +1,3 @@
-import { StandardSchemaV1 } from "@standard-schema/spec";
-
 import { EventEmitter } from "events";
 
 import { IpcNetConnectOpts, Socket, TcpNetConnectOpts } from "net";
@@ -12,892 +10,7 @@ import { SrvRecord } from "dns";
 
 import Deque from "denque";
 
-type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray;
-
-type ReadonlyJSONObject = {
-  readonly [key: string]: ReadonlyJSONValue;
-};
-
-type ReadonlyJSONArray = readonly ReadonlyJSONValue[];
-
-type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
-
-declare function asAsyncIterableStream<T>(source: ReadableStream<T>): AsyncIterableStream<T>;
-
-type JSONSchema7TypeName = "string" | "number" | "integer" | "boolean" | "object" | "array" | "null";
-
-type JSONSchema7Type = string | number | boolean | JSONSchema7Object | JSONSchema7Array | null;
-
-interface JSONSchema7Object {
-  [key: string]: JSONSchema7Type;
-}
-
-interface JSONSchema7Array extends Array<JSONSchema7Type> {
-}
-
-type JSONSchema7Version = string;
-
-type JSONSchema7Definition = JSONSchema7 | boolean;
-
-interface JSONSchema7 {
-  $id?: string | undefined;
-  $ref?: string | undefined;
-  $schema?: JSONSchema7Version | undefined;
-  $comment?: string | undefined;
-  $defs?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  type?: JSONSchema7TypeName | JSONSchema7TypeName[] | undefined;
-  enum?: JSONSchema7Type[] | undefined;
-  const?: JSONSchema7Type | undefined;
-  multipleOf?: number | undefined;
-  maximum?: number | undefined;
-  exclusiveMaximum?: number | undefined;
-  minimum?: number | undefined;
-  exclusiveMinimum?: number | undefined;
-  maxLength?: number | undefined;
-  minLength?: number | undefined;
-  pattern?: string | undefined;
-  items?: JSONSchema7Definition | JSONSchema7Definition[] | undefined;
-  additionalItems?: JSONSchema7Definition | undefined;
-  maxItems?: number | undefined;
-  minItems?: number | undefined;
-  uniqueItems?: boolean | undefined;
-  contains?: JSONSchema7Definition | undefined;
-  maxProperties?: number | undefined;
-  minProperties?: number | undefined;
-  required?: string[] | undefined;
-  properties?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  patternProperties?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  additionalProperties?: JSONSchema7Definition | undefined;
-  dependencies?: {
-    [key: string]: JSONSchema7Definition | string[];
-  } | undefined;
-  propertyNames?: JSONSchema7Definition | undefined;
-  if?: JSONSchema7Definition | undefined;
-  then?: JSONSchema7Definition | undefined;
-  else?: JSONSchema7Definition | undefined;
-  allOf?: JSONSchema7Definition[] | undefined;
-  anyOf?: JSONSchema7Definition[] | undefined;
-  oneOf?: JSONSchema7Definition[] | undefined;
-  not?: JSONSchema7Definition | undefined;
-  format?: string | undefined;
-  contentMediaType?: string | undefined;
-  contentEncoding?: string | undefined;
-  definitions?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  title?: string | undefined;
-  description?: string | undefined;
-  default?: JSONSchema7Type | undefined;
-  readOnly?: boolean | undefined;
-  writeOnly?: boolean | undefined;
-  examples?: JSONSchema7Type | undefined;
-}
-
-type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
-
-type TupleIndex<T extends readonly any[]> = Exclude<keyof T, keyof any[]>;
-
-type ObjectKey<T> = keyof T & (string | number);
-
-type TypePath<T> = [
-] | (0 extends 1 & T ? any[] : T extends object ? T extends readonly any[] ? number extends T["length"] ? {
-  [K in TupleIndex<T>]: [
-    AsNumber<K>,
-    ...TypePath<T[K]>
-  ];
-}[TupleIndex<T>] : [
-  number,
-  ...TypePath<T[number]>
-] : {
-  [K in ObjectKey<T>]: [
-    K,
-    ...TypePath<T[K]>
-  ];
-}[ObjectKey<T>] : [
-]);
-
-type TypeAtPath<T, P extends readonly any[]> = P extends [
-  infer Head,
-  ...infer Rest
-] ? Head extends keyof T ? TypeAtPath<T[Head], Rest> : never : T;
-
-type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>[] : T extends {
-  [key: string]: any;
-} ? {
-  readonly [K in keyof T]?: DeepPartial<T[K]>;
-} : T;
-
-declare const TOOL_RESPONSE_SYMBOL: unique symbol;
-
-type ToolResponseLike<TResult> = {
-  result: TResult;
-  artifact?: ReadonlyJSONValue | undefined;
-  isError?: boolean | undefined;
-  modelContent?: readonly ToolModelContentPart[] | undefined;
-  messages?: ReadonlyJSONValue | undefined;
-};
-
-declare class ToolResponse<TResult> {
-  get [TOOL_RESPONSE_SYMBOL](): boolean;
-  readonly artifact?: ReadonlyJSONValue;
-  readonly result: TResult;
-  readonly isError: boolean;
-  readonly modelContent?: readonly ToolModelContentPart[];
-  readonly messages?: ReadonlyJSONValue;
-  constructor(options: ToolResponseLike<TResult>);
-  static [Symbol.hasInstance](obj: unknown): obj is ToolResponse<ReadonlyJSONValue>;
-  static toResponse(result: any | ToolResponse<any>): ToolResponse<any>;
-}
-
-type ToolModelContentPart = {
-  readonly type: "text";
-  readonly text: string;
-} | {
-  readonly type: "file";
-  readonly data: string;
-  readonly mediaType: string;
-  readonly filename?: string;
-};
-
-type ToolModelOutputFunction<TArgs, TResult> = (options: {
-  toolCallId: string;
-  input: TArgs;
-  output: TResult;
-}) => readonly ToolModelContentPart[] | Promise<readonly ToolModelContentPart[]>;
-
-interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
-  get<PathT extends TypePath<TArgs>>(...fieldPath: PathT): Promise<TypeAtPath<TArgs, PathT>>;
-  streamValues<PathT extends TypePath<TArgs>>(...fieldPath: PathT): AsyncIterableStream<DeepPartial<TypeAtPath<TArgs, PathT>>>;
-  streamText<PathT extends TypePath<TArgs>>(...fieldPath: PathT): TypeAtPath<TArgs, PathT> extends string & (infer U) ? AsyncIterableStream<U> : never;
-  forEach<PathT extends TypePath<TArgs>>(...fieldPath: PathT): NonNullable<TypeAtPath<TArgs, PathT>> extends Array<infer U> ? AsyncIterableStream<U> : never;
-}
-
-interface ToolCallResponseReader<TResult> {
-  get: () => Promise<ToolResponse<TResult>>;
-}
-
-interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
-  args: ToolCallArgsReader<TArgs>;
-  response: ToolCallResponseReader<TResult>;
-  result: {
-    get: () => Promise<TResult>;
-  };
-}
-
-type ToolExecutionContext = {
-  toolCallId: string;
-  abortSignal: AbortSignal;
-  human: (payload: unknown) => Promise<unknown>;
-};
-
-type ToolExecuteFunction<TArgs, TResult> = (args: TArgs, context: ToolExecutionContext) => TResult | Promise<TResult>;
-
-type ToolStreamCallFunction<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = (reader: ToolCallReader<TArgs, TResult>, context: ToolExecutionContext) => void;
-
-type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
-
-type ProviderOptions = Record<string, Record<string, unknown>>;
-
-type ToolDisplay = "standalone" | "inline";
-
-type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
-  streamCall?: ToolStreamCallFunction<TArgs, TResult>;
-  display?: ToolDisplay;
-};
-
-type BackendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
-  type: "backend";
-  description?: undefined;
-  parameters?: undefined;
-  disabled?: undefined;
-  execute?: undefined;
-  toModelOutput?: undefined;
-  experimental_onSchemaValidationError?: undefined;
-  providerOptions?: undefined;
-};
-
-type BackendToolDeclaration<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
-  type: "backend";
-  description?: string | undefined;
-  parameters?: StandardSchemaV1<TArgs> | JSONSchema7 | undefined;
-  disabled?: boolean;
-  execute?: ToolExecuteFunction<TArgs, TResult>;
-  toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
-  experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
-  providerOptions?: ProviderOptions;
-};
-
-type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
-  type: "frontend";
-  description?: string | undefined;
-  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
-  disabled?: boolean;
-  execute?: ToolExecuteFunction<TArgs, TResult>;
-  toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
-  experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
-  providerOptions?: ProviderOptions;
-};
-
-type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
-  type: "human";
-  description?: string | undefined;
-  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
-  disabled?: boolean;
-  display?: "standalone";
-  execute?: undefined;
-  toModelOutput?: undefined;
-  experimental_onSchemaValidationError?: undefined;
-  providerOptions?: ProviderOptions;
-};
-
-type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
-  type: "provider";
-  providerId: `${string}.${string}`;
-  parameters?: StandardSchemaV1<TArgs> | JSONSchema7 | undefined;
-  args: Record<string, unknown>;
-  supportsDeferredResults?: boolean;
-  description?: undefined;
-  disabled?: boolean;
-  execute?: undefined;
-  toModelOutput?: undefined;
-  experimental_onSchemaValidationError?: undefined;
-  providerOptions?: ProviderOptions;
-};
-
-type McpServerConfig = {
-  type: "http" | "sse";
-  url: string;
-  headers?: Record<string, string>;
-  redirect?: "follow" | "error";
-} | {
-  type: "stdio";
-  command: string;
-  args?: readonly string[];
-  env?: Record<string, string>;
-  cwd?: string;
-};
-
-type McpTool = ToolBase<Record<string, unknown>, unknown> & {
-  type: "mcp";
-  server: McpServerConfig;
-  description?: undefined;
-  parameters?: undefined;
-  disabled?: boolean;
-  execute?: undefined;
-  toModelOutput?: undefined;
-  experimental_onSchemaValidationError?: undefined;
-  providerOptions?: undefined;
-};
-
-type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
-
-type ToolDeclaration<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendToolDeclaration<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
-
-type ToolWithoutType<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = (Omit<FrontendTool<TArgs, TResult>, "type"> | Omit<BackendTool<TArgs, TResult>, "type"> | Omit<HumanTool<TArgs, TResult>, "type"> | Omit<ProviderTool<TArgs, TResult>, "type">) & {
-  type?: undefined;
-};
-
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
-};
-
-type ObjectStreamChunk = {
-  readonly snapshot: ReadonlyJSONValue;
-  readonly operations: readonly ObjectStreamOperation[];
-};
-
-type PartInit = {
-  readonly type: "text" | "reasoning";
-  readonly parentId?: string;
-} | {
-  readonly type: "tool-call";
-  readonly toolCallId: string;
-  readonly toolName: string;
-  readonly parentId?: string;
-} | {
-  readonly type: "source";
-  readonly sourceType: "url";
-  readonly id: string;
-  readonly url: string;
-  readonly title?: string;
-  readonly parentId?: string;
-} | {
-  readonly type: "file";
-  readonly data: string;
-  readonly mimeType: string;
-  readonly parentId?: string;
-} | {
-  readonly type: "data";
-  readonly name: string;
-  readonly data: ReadonlyJSONValue;
-  readonly parentId?: string;
-};
-
-type AssistantStreamChunk = {
-  readonly path: readonly number[];
-} & ({
-  readonly type: "part-start";
-  readonly part: PartInit;
-} | {
-  readonly type: "part-finish";
-} | {
-  readonly type: "tool-call-args-text-finish";
-} | {
-  readonly type: "text-delta";
-  readonly textDelta: string;
-} | {
-  readonly type: "annotations";
-  readonly annotations: ReadonlyJSONValue[];
-} | {
-  readonly type: "data";
-  readonly data: ReadonlyJSONValue[];
-} | {
-  readonly type: "step-start";
-  readonly messageId: string;
-} | {
-  readonly type: "step-finish";
-  readonly finishReason: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
-  readonly usage: {
-    readonly inputTokens: number;
-    readonly outputTokens: number;
-  };
-  readonly isContinued: boolean;
-} | {
-  readonly type: "message-finish";
-  readonly finishReason: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
-  readonly usage: {
-    readonly inputTokens: number;
-    readonly outputTokens: number;
-  };
-} | {
-  readonly type: "result";
-  readonly artifact?: ReadonlyJSONValue;
-  readonly result: ReadonlyJSONValue;
-  readonly isError: boolean;
-  readonly modelContent?: readonly ToolModelContentPart[];
-  readonly messages?: ReadonlyJSONValue;
-} | {
-  readonly type: "error";
-  readonly error: string;
-} | {
-  readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
-});
-
-type AssistantStream = ReadableStream<AssistantStreamChunk>;
-
-type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
-  headers?: Headers;
-};
-
-declare const AssistantStream: {
-  toResponse(stream: AssistantStream, transformer: AssistantStreamEncoder): Response;
-  fromResponse(response: Response, transformer: ReadableWritablePair<AssistantStreamChunk, Uint8Array<ArrayBuffer>>): ReadableStream<AssistantStreamChunk>;
-  toByteStream(stream: AssistantStream, transformer: ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk>): ReadableStream<Uint8Array<ArrayBuffer>>;
-  fromByteStream(readable: ReadableStream<Uint8Array<ArrayBuffer>>, transformer: ReadableWritablePair<AssistantStreamChunk, Uint8Array<ArrayBuffer>>): ReadableStream<AssistantStreamChunk>;
-};
-
-type TextStreamController = {
-  append(textDelta: string): void;
-  close(): void;
-};
-
-type ToolCallStreamController = {
-  argsText: TextStreamController;
-  setResponse(response: ToolResponseLike<ReadonlyJSONValue>): void;
-  close(): void;
-};
-
-type TextStatus = {
-  type: "running";
-} | {
-  type: "complete";
-  reason: "stop" | "unknown";
-} | {
-  type: "incomplete";
-  reason: "cancelled" | "length" | "content-filter" | "other";
-};
-
-type TextPart = {
-  type: "text";
-  text: string;
-  status: TextStatus;
-  parentId?: string;
-};
-
-type ReasoningPart = {
-  type: "reasoning";
-  text: string;
-  status: TextStatus;
-  parentId?: string;
-};
-
-type ToolCallStatus = {
-  type: "running";
-  isArgsComplete: boolean;
-} | {
-  type: "requires-action";
-  reason: "tool-call-result";
-} | {
-  type: "complete";
-  reason: "stop" | "unknown";
-} | {
-  type: "incomplete";
-  reason: "cancelled" | "length" | "content-filter" | "other";
-};
-
-type ToolCallTiming = {
-  readonly startedAt: number;
-  readonly completedAt?: number;
-};
-
-type ToolCallPartBase = {
-  type: "tool-call";
-  status: ToolCallStatus;
-  toolCallId: string;
-  toolName: string;
-  argsText: string;
-  args: ReadonlyJSONObject;
-  timing?: ToolCallTiming;
-  artifact?: ReadonlyJSONValue;
-  result?: ReadonlyJSONValue;
-  modelContent?: readonly ToolModelContentPart[];
-  isError?: boolean;
-  parentId?: string;
-};
-
-type ToolCallPartWithoutResult = ToolCallPartBase & {
-  state: "partial-call" | "call";
-  result?: undefined;
-  modelContent?: undefined;
-};
-
-type ToolCallPartWithResult = ToolCallPartBase & {
-  state: "result";
-  result: ReadonlyJSONValue;
-  artifact?: ReadonlyJSONValue;
-  modelContent?: readonly ToolModelContentPart[];
-  isError?: boolean;
-};
-
-type ToolCallPart = ToolCallPartWithoutResult | ToolCallPartWithResult;
-
-type SourcePart = {
-  type: "source";
-  sourceType: "url";
-  id: string;
-  url: string;
-  title?: string;
-  parentId?: string;
-};
-
-type FilePart = {
-  type: "file";
-  data: string;
-  mimeType: string;
-  parentId?: string;
-};
-
-type DataPart = {
-  type: "data";
-  name: string;
-  data: ReadonlyJSONValue;
-  parentId?: string;
-};
-
-type AssistantMessagePart = TextPart | ReasoningPart | ToolCallPart | SourcePart | FilePart | DataPart;
-
-type AssistantMessageStepUsage = {
-  inputTokens: number;
-  outputTokens: number;
-};
-
-type AssistantMessageStepMetadata = {
-  state: "started";
-  messageId: string;
-} | {
-  state: "finished";
-  messageId: string;
-  finishReason: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
-  usage?: AssistantMessageStepUsage;
-  isContinued: boolean;
-};
-
-type AssistantMessageStatus = {
-  type: "running";
-} | {
-  type: "requires-action";
-  reason: "tool-calls";
-} | {
-  type: "complete";
-  reason: "stop" | "unknown";
-} | {
-  type: "incomplete";
-  reason: "cancelled" | "tool-calls" | "length" | "content-filter" | "other" | "error";
-  error?: ReadonlyJSONValue;
-};
-
-type AssistantMessageTiming = {
-  streamStartTime: number;
-  firstTokenTime?: number;
-  totalStreamTime?: number;
-  tokenCount?: number;
-  tokensPerSecond?: number;
-  totalChunks: number;
-  toolCallCount: number;
-};
-
-type AssistantMessage = {
-  role: "assistant";
-  status: AssistantMessageStatus;
-  parts: AssistantMessagePart[];
-  content: AssistantMessagePart[];
-  metadata: {
-    unstable_state: ReadonlyJSONValue;
-    unstable_data: ReadonlyJSONValue[];
-    unstable_annotations: ReadonlyJSONValue[];
-    steps: AssistantMessageStepMetadata[];
-    custom: Record<string, unknown>;
-    timing?: AssistantMessageTiming;
-  };
-};
-
-type ToolCallPartInit = {
-  toolCallId?: string;
-  toolName: string;
-  argsText?: string;
-  args?: ReadonlyJSONObject;
-  response?: ToolResponseLike<ReadonlyJSONValue>;
-};
-
-type AssistantStreamController = {
-  appendText(textDelta: string): void;
-  appendReasoning(reasoningDelta: string): void;
-  appendSource(options: SourcePart): void;
-  appendFile(options: FilePart): void;
-  appendData(options: DataPart): void;
-  addTextPart(): TextStreamController;
-  addToolCallPart(options: string): ToolCallStreamController;
-  addToolCallPart(options: ToolCallPartInit): ToolCallStreamController;
-  enqueue(chunk: AssistantStreamChunk): void;
-  merge(stream: AssistantStream): void;
-  close(): void;
-  withParentId(parentId: string): AssistantStreamController;
-};
-
-declare function createAssistantStream(callback: (controller: AssistantStreamController) => PromiseLike<void> | void): AssistantStream;
-
-declare function createAssistantStreamController(): readonly [
-  AssistantStream,
-  AssistantStreamController
-];
-
-declare function createAssistantStreamResponse(callback: (controller: AssistantStreamController) => PromiseLike<void> | void): Response;
-
-declare class AssistantMessageStream {
-  readonly readable: ReadableStream<AssistantMessage>;
-  constructor(readable: ReadableStream<AssistantMessage>);
-  static fromAssistantStream(stream: AssistantStream): AssistantMessageStream;
-  unstable_result(): Promise<AssistantMessage>;
-  [Symbol.asyncIterator](): {
-    next(): Promise<IteratorResult<AssistantMessage, undefined>>;
-  };
-  tee(): [
-    AssistantMessageStream,
-    AssistantMessageStream
-  ];
-}
-
-declare const createInitialMessage: (_param0?: {
-  unstable_state?: ReadonlyJSONValue;
-}) => AssistantMessage;
-
-declare class AssistantMessageAccumulator extends TransformStream<AssistantStreamChunk, AssistantMessage> {
-  constructor(_param1?: {
-    initialMessage?: AssistantMessage;
-    throttle?: boolean;
-    onError?: (error: string) => void;
-  });
-}
-
-type GenericTextPart = {
-  type: "text";
-  text: string;
-};
-
-type GenericFilePart = {
-  type: "file";
-  data: string | URL;
-  mediaType: string;
-};
-
-type GenericToolCallPart = {
-  type: "tool-call";
-  toolCallId: string;
-  toolName: string;
-  args: Record<string, unknown>;
-};
-
-type GenericToolResultPart = {
-  type: "tool-result";
-  toolCallId: string;
-  toolName: string;
-  result: unknown;
-  isError?: boolean;
-};
-
-type GenericSystemMessage = {
-  role: "system";
-  content: string;
-};
-
-type GenericUserMessage = {
-  role: "user";
-  content: (GenericTextPart | GenericFilePart)[];
-};
-
-type GenericAssistantMessage = {
-  role: "assistant";
-  content: (GenericTextPart | GenericToolCallPart)[];
-};
-
-type GenericToolMessage = {
-  role: "tool";
-  content: GenericToolResultPart[];
-};
-
-type GenericMessage = GenericSystemMessage | GenericUserMessage | GenericAssistantMessage | GenericToolMessage;
-
-type MessagePartLike = {
-  type: string;
-  text?: string;
-  image?: string;
-  data?: string;
-  mimeType?: string;
-  toolCallId?: string;
-  toolName?: string;
-  args?: Record<string, unknown>;
-  result?: unknown;
-  isError?: boolean;
-};
-
-type AttachmentLike = {
-  content: readonly MessagePartLike[];
-};
-
-type ThreadMessageLike = {
-  role: "system" | "user" | "assistant";
-  content: readonly MessagePartLike[];
-  attachments?: readonly AttachmentLike[];
-};
-
-declare function toGenericMessages(messages: readonly ThreadMessageLike[]): GenericMessage[];
-
-declare class PipeableTransformStream<I, O> extends TransformStream<I, O> {
-  constructor(transform: (readable: ReadableStream<I>) => ReadableStream<O>);
-}
-
-declare class ObjectStreamResponse extends Response {
-  constructor(body: ReadableStream<ObjectStreamChunk>);
-}
-
-declare const fromObjectStreamResponse: (response: Response) => ReadableStream<ObjectStreamChunk>;
-
-type ObjectStreamController = {
-  readonly abortSignal: AbortSignal;
-  enqueue(operations: readonly ObjectStreamOperation[]): void;
-};
-
-type CreateObjectStreamOptions = {
-  execute: (controller: ObjectStreamController) => void | PromiseLike<void>;
-  defaultValue?: ReadonlyJSONValue;
-};
-
-declare const createObjectStream: (_param2: CreateObjectStreamOptions) => ReadableStream<ObjectStreamChunk>;
-
-declare class PlainTextEncoder extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>> implements AssistantStreamEncoder {
-  headers: Headers;
-  constructor();
-}
-
-declare class PlainTextDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
-  constructor();
-}
-
-declare class AssistantTransportEncoder extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>> implements AssistantStreamEncoder {
-  headers: Headers;
-  constructor();
-}
-
-declare class AssistantTransportDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
-  constructor();
-}
-
-declare class DataStreamEncoder extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>> implements AssistantStreamEncoder {
-  headers: Headers;
-  constructor();
-}
-
-declare class DataStreamDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
-  constructor();
-}
-
-type FinishReason = "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
-
-type Usage = {
-  inputTokens: number;
-  outputTokens: number;
-};
-
-type UIMessageStreamChunk = {
-  type: "start";
-  messageId: string;
-} | {
-  type: "text-start";
-  id: string;
-} | {
-  type: "text-delta";
-  textDelta: string;
-} | {
-  type: "text-end";
-} | {
-  type: "reasoning-start";
-  id: string;
-} | {
-  type: "reasoning-delta";
-  delta: string;
-} | {
-  type: "reasoning-end";
-} | {
-  type: "source";
-  source: {
-    sourceType: "url";
-    id: string;
-    url: string;
-    title?: string;
-  };
-} | {
-  type: "file";
-  file: {
-    mimeType: string;
-    data: string;
-  };
-} | {
-  type: "tool-call-start";
-  id: string;
-  toolCallId: string;
-  toolName: string;
-} | {
-  type: "tool-call-delta";
-  argsText: string;
-} | {
-  type: "tool-call-end";
-} | {
-  type: "tool-result";
-  toolCallId: string;
-  result: ReadonlyJSONValue;
-  isError?: boolean;
-  messages?: ReadonlyJSONValue;
-} | {
-  type: "start-step";
-  messageId?: string;
-} | {
-  type: "finish-step";
-  finishReason: FinishReason;
-  usage: Usage;
-  isContinued: boolean;
-} | {
-  type: "finish";
-  finishReason: FinishReason;
-  usage: Usage;
-} | {
-  type: "error";
-  errorText: string;
-} | UIMessageStreamDataChunk;
-
-type UIMessageStreamDataChunk = {
-  type: `data-${string}`;
-  id?: string;
-  data: ReadonlyJSONValue;
-  transient?: boolean;
-};
-
-type UIMessageStreamDecoderOptions = {
-  onData?: (data: {
-    type: string;
-    name: string;
-    data: unknown;
-    transient?: boolean;
-  }) => void;
-};
-
-declare class UIMessageStreamDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
-  constructor(options?: UIMessageStreamDecoderOptions);
-}
-
-type ToolCallback = (toolCall: {
-  toolCallId: string;
-  toolName: string;
-  args: ReadonlyJSONObject;
-}) => Promise<ToolResponse<ReadonlyJSONValue>> | ToolResponse<ReadonlyJSONValue> | undefined;
-
-type ToolStreamCallback = <TArgs extends ReadonlyJSONObject = ReadonlyJSONObject, TResult extends ReadonlyJSONValue = ReadonlyJSONValue>(toolCall: {
-  reader: ToolCallReader<TArgs, TResult>;
-  toolCallId: string;
-  toolName: string;
-}) => void;
-
-type ToolExecutionOptions = {
-  execute: ToolCallback;
-  streamCall: ToolStreamCallback;
-  onExecutionStart?: ((toolCallId: string, toolName: string) => void) | undefined;
-  onExecutionEnd?: ((toolCallId: string, toolName: string) => void) | undefined;
-};
-
-declare class ToolExecutionStream extends PipeableTransformStream<AssistantStreamChunk, AssistantStreamChunk> {
-  constructor(options: ToolExecutionOptions);
-}
-
-type ToolJSONSchema = {
-  description?: string;
-  parameters: JSONSchema7;
-  providerOptions?: ProviderOptions;
-};
-
-type ToToolsJSONSchemaOptions = {
-  filter?: (name: string, tool: Tool) => boolean;
-};
-
-declare function toJSONSchema(schema: StandardSchemaV1 | JSONSchema7): JSONSchema7;
-
-declare function toPartialJSONSchema(schema: JSONSchema7): JSONSchema7;
-
-declare function toToolsJSONSchema(tools: Record<string, Tool> | undefined, options?: ToToolsJSONSchemaOptions): Record<string, ToolJSONSchema>;
-
-declare function unstable_runPendingTools(message: AssistantMessage, tools: Record<string, Tool> | undefined, abortSignal: AbortSignal, human: (toolCallId: string, payload: unknown) => Promise<unknown>): Promise<AssistantMessage>;
-
-type ToolResultStreamOptions = {
-  onExecutionStart?: (toolCallId: string, toolName: string) => void;
-  onExecutionEnd?: (toolCallId: string, toolName: string) => void;
-};
-
-declare function toolResultStream(tools: Record<string, Tool> | (() => Record<string, Tool> | undefined) | undefined, abortSignal: AbortSignal | (() => AbortSignal), human: (toolCallId: string, payload: unknown) => Promise<unknown>, options?: ToolResultStreamOptions): ToolExecutionStream;
-
-declare namespace entry_root_exports {
-  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, AssistantTransportEncoder, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
-}
+import { StandardSchemaV1 } from "@standard-schema/spec";
 
 type ResumableStreamRole = "producer" | "consumer";
 
@@ -920,68 +33,6 @@ interface ResumableStreamStore {
   status(streamId: string): Promise<ResumableStreamStatus>;
   delete(streamId: string): Promise<void>;
 }
-
-type ResumableStreamContextOptions = {
-  readonly store: ResumableStreamStore;
-  readonly ttlMs?: number;
-  readonly waitUntil?: (promise: Promise<unknown>) => void;
-  readonly onAcquire?: (streamId: string, role: ResumableStreamRole) => void;
-  readonly onAppend?: (streamId: string, byteLength: number) => void;
-  readonly onFinalize?: (streamId: string, status: "done" | "error", error?: string) => void;
-  readonly onError?: (streamId: string, error: unknown) => void;
-};
-
-interface ResumableStreamContext {
-  run(streamId: string, makeStream: () => ReadableStream<Uint8Array>): Promise<ReadableStream<Uint8Array>>;
-  resume(streamId: string): Promise<ReadableStream<Uint8Array> | null>;
-  requireResume(streamId: string): Promise<ReadableStream<Uint8Array>>;
-  status(streamId: string): Promise<ResumableStreamStatus>;
-  delete(streamId: string): Promise<void>;
-}
-
-declare function createResumableStreamContext(options: ResumableStreamContextOptions): ResumableStreamContext;
-
-declare const RESUMABLE_STREAM_ID_HEADER = "x-resumable-stream-id";
-
-type CreateResumableAssistantStreamResponseOptions = {
-  readonly context: ResumableStreamContext;
-  readonly streamId: string;
-  readonly callback: (controller: AssistantStreamController) => PromiseLike<void> | void;
-  readonly encoder?: () => AssistantStreamEncoder;
-  readonly headers?: HeadersInit;
-};
-
-declare function createResumableAssistantStreamResponse(options: CreateResumableAssistantStreamResponseOptions): Promise<Response>;
-
-type CreateResumeAssistantStreamResponseOptions = {
-  readonly context: ResumableStreamContext;
-  readonly streamId: string;
-  readonly encoder?: () => AssistantStreamEncoder;
-  readonly headers?: HeadersInit;
-  readonly missingResponse?: () => Response;
-};
-
-declare function createResumeAssistantStreamResponse(options: CreateResumeAssistantStreamResponseOptions): Promise<Response>;
-
-type ResumableStreamErrorCode = "missing" | "exists" | "finalized" | "invalid-id";
-
-declare class ResumableStreamError extends Error {
-  readonly code: ResumableStreamErrorCode;
-  constructor(code: ResumableStreamErrorCode, message: string);
-}
-
-type InMemoryResumableStreamStoreOptions = {
-  readonly defaultTtlMs?: number;
-  readonly now?: () => number;
-  readonly maxChunkBytes?: number;
-  readonly maxEntriesPerStream?: number;
-  readonly maxStreams?: number;
-  readonly gcIntervalMs?: number;
-};
-
-declare function createInMemoryResumableStreamStore(options?: InMemoryResumableStreamStoreOptions): ResumableStreamStore & {
-  dispose: () => void;
-};
 
 type PipelineCommand = {
   readonly type: "xAdd";
@@ -1019,10 +70,6 @@ type RedisResumableStreamStoreOptions = {
   readonly pollIntervalMs?: number;
   readonly maxChunkBytes?: number;
 };
-
-declare namespace entry_resumable_exports {
-  export { CreateResumableAssistantStreamResponseOptions, CreateResumeAssistantStreamResponseOptions, InMemoryResumableStreamStoreOptions, RESUMABLE_STREAM_ID_HEADER, RedisLikeClient, RedisResumableStreamStoreOptions, ResumableStreamAcquireOptions, ResumableStreamContext, ResumableStreamContextOptions, ResumableStreamEntry, ResumableStreamError, ResumableStreamErrorCode, ResumableStreamRole, ResumableStreamStatus, ResumableStreamStore, createInMemoryResumableStreamStore, createResumableAssistantStreamResponse, createResumableStreamContext, createResumeAssistantStreamResponse };
-}
 
 declare type Callback<T = any> = (err?: Error | null, result?: T) => void;
 
@@ -11896,6 +10943,666 @@ interface NodeRedisLike {
 
 declare function createRedisResumableStreamStore(client: NodeRedisLike, options?: RedisResumableStreamStoreOptions): ResumableStreamStore;
 
+type ResumableStreamContextOptions = {
+  readonly store: ResumableStreamStore;
+  readonly ttlMs?: number;
+  readonly waitUntil?: (promise: Promise<unknown>) => void;
+  readonly onAcquire?: (streamId: string, role: ResumableStreamRole) => void;
+  readonly onAppend?: (streamId: string, byteLength: number) => void;
+  readonly onFinalize?: (streamId: string, status: "done" | "error", error?: string) => void;
+  readonly onError?: (streamId: string, error: unknown) => void;
+};
+
+interface ResumableStreamContext {
+  run(streamId: string, makeStream: () => ReadableStream<Uint8Array>): Promise<ReadableStream<Uint8Array>>;
+  resume(streamId: string): Promise<ReadableStream<Uint8Array> | null>;
+  requireResume(streamId: string): Promise<ReadableStream<Uint8Array>>;
+  status(streamId: string): Promise<ResumableStreamStatus>;
+  delete(streamId: string): Promise<void>;
+}
+
+declare function createResumableStreamContext(options: ResumableStreamContextOptions): ResumableStreamContext;
+
+type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray;
+
+type ReadonlyJSONObject = {
+  readonly [key: string]: ReadonlyJSONValue;
+};
+
+type ReadonlyJSONArray = readonly ReadonlyJSONValue[];
+
+type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
+
+declare function asAsyncIterableStream<T>(source: ReadableStream<T>): AsyncIterableStream<T>;
+
+type JSONSchema7TypeName = "string" | "number" | "integer" | "boolean" | "object" | "array" | "null";
+
+type JSONSchema7Type = string | number | boolean | JSONSchema7Object | JSONSchema7Array | null;
+
+interface JSONSchema7Object {
+  [key: string]: JSONSchema7Type;
+}
+
+interface JSONSchema7Array extends Array<JSONSchema7Type> {
+}
+
+type JSONSchema7Version = string;
+
+type JSONSchema7Definition = JSONSchema7 | boolean;
+
+interface JSONSchema7 {
+  $id?: string | undefined;
+  $ref?: string | undefined;
+  $schema?: JSONSchema7Version | undefined;
+  $comment?: string | undefined;
+  $defs?: {
+    [key: string]: JSONSchema7Definition;
+  } | undefined;
+  type?: JSONSchema7TypeName | JSONSchema7TypeName[] | undefined;
+  enum?: JSONSchema7Type[] | undefined;
+  const?: JSONSchema7Type | undefined;
+  multipleOf?: number | undefined;
+  maximum?: number | undefined;
+  exclusiveMaximum?: number | undefined;
+  minimum?: number | undefined;
+  exclusiveMinimum?: number | undefined;
+  maxLength?: number | undefined;
+  minLength?: number | undefined;
+  pattern?: string | undefined;
+  items?: JSONSchema7Definition | JSONSchema7Definition[] | undefined;
+  additionalItems?: JSONSchema7Definition | undefined;
+  maxItems?: number | undefined;
+  minItems?: number | undefined;
+  uniqueItems?: boolean | undefined;
+  contains?: JSONSchema7Definition | undefined;
+  maxProperties?: number | undefined;
+  minProperties?: number | undefined;
+  required?: string[] | undefined;
+  properties?: {
+    [key: string]: JSONSchema7Definition;
+  } | undefined;
+  patternProperties?: {
+    [key: string]: JSONSchema7Definition;
+  } | undefined;
+  additionalProperties?: JSONSchema7Definition | undefined;
+  dependencies?: {
+    [key: string]: JSONSchema7Definition | string[];
+  } | undefined;
+  propertyNames?: JSONSchema7Definition | undefined;
+  if?: JSONSchema7Definition | undefined;
+  then?: JSONSchema7Definition | undefined;
+  else?: JSONSchema7Definition | undefined;
+  allOf?: JSONSchema7Definition[] | undefined;
+  anyOf?: JSONSchema7Definition[] | undefined;
+  oneOf?: JSONSchema7Definition[] | undefined;
+  not?: JSONSchema7Definition | undefined;
+  format?: string | undefined;
+  contentMediaType?: string | undefined;
+  contentEncoding?: string | undefined;
+  definitions?: {
+    [key: string]: JSONSchema7Definition;
+  } | undefined;
+  title?: string | undefined;
+  description?: string | undefined;
+  default?: JSONSchema7Type | undefined;
+  readOnly?: boolean | undefined;
+  writeOnly?: boolean | undefined;
+  examples?: JSONSchema7Type | undefined;
+}
+
+type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
+
+type TupleIndex<T extends readonly any[]> = Exclude<keyof T, keyof any[]>;
+
+type ObjectKey<T> = keyof T & (string | number);
+
+type TypePath<T> = [
+] | (0 extends 1 & T ? any[] : T extends object ? T extends readonly any[] ? number extends T["length"] ? {
+  [K in TupleIndex<T>]: [
+    AsNumber<K>,
+    ...TypePath<T[K]>
+  ];
+}[TupleIndex<T>] : [
+  number,
+  ...TypePath<T[number]>
+] : {
+  [K in ObjectKey<T>]: [
+    K,
+    ...TypePath<T[K]>
+  ];
+}[ObjectKey<T>] : [
+]);
+
+type TypeAtPath<T, P extends readonly any[]> = P extends [
+  infer Head,
+  ...infer Rest
+] ? Head extends keyof T ? TypeAtPath<T[Head], Rest> : never : T;
+
+type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>[] : T extends {
+  [key: string]: any;
+} ? {
+  readonly [K in keyof T]?: DeepPartial<T[K]>;
+} : T;
+
+declare const TOOL_RESPONSE_SYMBOL: unique symbol;
+
+type ToolResponseLike<TResult> = {
+  result: TResult;
+  artifact?: ReadonlyJSONValue | undefined;
+  isError?: boolean | undefined;
+  modelContent?: readonly ToolModelContentPart[] | undefined;
+  messages?: ReadonlyJSONValue | undefined;
+};
+
+declare class ToolResponse<TResult> {
+  get [TOOL_RESPONSE_SYMBOL](): boolean;
+  readonly artifact?: ReadonlyJSONValue;
+  readonly result: TResult;
+  readonly isError: boolean;
+  readonly modelContent?: readonly ToolModelContentPart[];
+  readonly messages?: ReadonlyJSONValue;
+  constructor(options: ToolResponseLike<TResult>);
+  static [Symbol.hasInstance](obj: unknown): obj is ToolResponse<ReadonlyJSONValue>;
+  static toResponse(result: any | ToolResponse<any>): ToolResponse<any>;
+}
+
+type ToolModelContentPart = {
+  readonly type: "text";
+  readonly text: string;
+} | {
+  readonly type: "file";
+  readonly data: string;
+  readonly mediaType: string;
+  readonly filename?: string;
+};
+
+type ToolModelOutputFunction<TArgs, TResult> = (options: {
+  toolCallId: string;
+  input: TArgs;
+  output: TResult;
+}) => readonly ToolModelContentPart[] | Promise<readonly ToolModelContentPart[]>;
+
+interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
+  get<PathT extends TypePath<TArgs>>(...fieldPath: PathT): Promise<TypeAtPath<TArgs, PathT>>;
+  streamValues<PathT extends TypePath<TArgs>>(...fieldPath: PathT): AsyncIterableStream<DeepPartial<TypeAtPath<TArgs, PathT>>>;
+  streamText<PathT extends TypePath<TArgs>>(...fieldPath: PathT): TypeAtPath<TArgs, PathT> extends string & (infer U) ? AsyncIterableStream<U> : never;
+  forEach<PathT extends TypePath<TArgs>>(...fieldPath: PathT): NonNullable<TypeAtPath<TArgs, PathT>> extends Array<infer U> ? AsyncIterableStream<U> : never;
+}
+
+interface ToolCallResponseReader<TResult> {
+  get: () => Promise<ToolResponse<TResult>>;
+}
+
+interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
+  args: ToolCallArgsReader<TArgs>;
+  response: ToolCallResponseReader<TResult>;
+  result: {
+    get: () => Promise<TResult>;
+  };
+}
+
+type ToolExecutionContext = {
+  toolCallId: string;
+  abortSignal: AbortSignal;
+  human: (payload: unknown) => Promise<unknown>;
+};
+
+type ToolExecuteFunction<TArgs, TResult> = (args: TArgs, context: ToolExecutionContext) => TResult | Promise<TResult>;
+
+type ToolStreamCallFunction<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = (reader: ToolCallReader<TArgs, TResult>, context: ToolExecutionContext) => void;
+
+type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
+
+type ProviderOptions = Record<string, Record<string, unknown>>;
+
+type ToolDisplay = "standalone" | "inline";
+
+type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
+  streamCall?: ToolStreamCallFunction<TArgs, TResult>;
+  display?: ToolDisplay;
+};
+
+type BackendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
+  type: "backend";
+  description?: undefined;
+  parameters?: undefined;
+  disabled?: undefined;
+  execute?: undefined;
+  toModelOutput?: undefined;
+  experimental_onSchemaValidationError?: undefined;
+  providerOptions?: undefined;
+};
+
+type BackendToolDeclaration<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
+  type: "backend";
+  description?: string | undefined;
+  parameters?: StandardSchemaV1<TArgs> | JSONSchema7 | undefined;
+  disabled?: boolean;
+  execute?: ToolExecuteFunction<TArgs, TResult>;
+  toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
+  experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
+  providerOptions?: ProviderOptions;
+};
+
+type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
+  type: "frontend";
+  description?: string | undefined;
+  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  disabled?: boolean;
+  execute?: ToolExecuteFunction<TArgs, TResult>;
+  toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
+  experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
+  providerOptions?: ProviderOptions;
+};
+
+type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
+  type: "human";
+  description?: string | undefined;
+  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  disabled?: boolean;
+  display?: "standalone";
+  execute?: undefined;
+  toModelOutput?: undefined;
+  experimental_onSchemaValidationError?: undefined;
+  providerOptions?: ProviderOptions;
+};
+
+type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
+  type: "provider";
+  providerId: `${string}.${string}`;
+  parameters?: StandardSchemaV1<TArgs> | JSONSchema7 | undefined;
+  args: Record<string, unknown>;
+  supportsDeferredResults?: boolean;
+  description?: undefined;
+  disabled?: boolean;
+  execute?: undefined;
+  toModelOutput?: undefined;
+  experimental_onSchemaValidationError?: undefined;
+  providerOptions?: ProviderOptions;
+};
+
+type McpServerConfig = {
+  type: "http" | "sse";
+  url: string;
+  headers?: Record<string, string>;
+  redirect?: "follow" | "error";
+} | {
+  type: "stdio";
+  command: string;
+  args?: readonly string[];
+  env?: Record<string, string>;
+  cwd?: string;
+};
+
+type McpTool = ToolBase<Record<string, unknown>, unknown> & {
+  type: "mcp";
+  server: McpServerConfig;
+  description?: undefined;
+  parameters?: undefined;
+  disabled?: boolean;
+  execute?: undefined;
+  toModelOutput?: undefined;
+  experimental_onSchemaValidationError?: undefined;
+  providerOptions?: undefined;
+};
+
+type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
+
+type ToolDeclaration<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendToolDeclaration<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
+
+type ToolWithoutType<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = (Omit<FrontendTool<TArgs, TResult>, "type"> | Omit<BackendTool<TArgs, TResult>, "type"> | Omit<HumanTool<TArgs, TResult>, "type"> | Omit<ProviderTool<TArgs, TResult>, "type">) & {
+  type?: undefined;
+};
+
+type ObjectStreamOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
+};
+
+type ObjectStreamChunk = {
+  readonly snapshot: ReadonlyJSONValue;
+  readonly operations: readonly ObjectStreamOperation[];
+};
+
+type PartInit = {
+  readonly type: "text" | "reasoning";
+  readonly parentId?: string;
+} | {
+  readonly type: "tool-call";
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly parentId?: string;
+} | {
+  readonly type: "source";
+  readonly sourceType: "url";
+  readonly id: string;
+  readonly url: string;
+  readonly title?: string;
+  readonly parentId?: string;
+} | {
+  readonly type: "file";
+  readonly data: string;
+  readonly mimeType: string;
+  readonly parentId?: string;
+} | {
+  readonly type: "data";
+  readonly name: string;
+  readonly data: ReadonlyJSONValue;
+  readonly parentId?: string;
+};
+
+type AssistantStreamChunk = {
+  readonly path: readonly number[];
+} & ({
+  readonly type: "part-start";
+  readonly part: PartInit;
+} | {
+  readonly type: "part-finish";
+} | {
+  readonly type: "tool-call-args-text-finish";
+} | {
+  readonly type: "text-delta";
+  readonly textDelta: string;
+} | {
+  readonly type: "annotations";
+  readonly annotations: ReadonlyJSONValue[];
+} | {
+  readonly type: "data";
+  readonly data: ReadonlyJSONValue[];
+} | {
+  readonly type: "step-start";
+  readonly messageId: string;
+} | {
+  readonly type: "step-finish";
+  readonly finishReason: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
+  readonly usage: {
+    readonly inputTokens: number;
+    readonly outputTokens: number;
+  };
+  readonly isContinued: boolean;
+} | {
+  readonly type: "message-finish";
+  readonly finishReason: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
+  readonly usage: {
+    readonly inputTokens: number;
+    readonly outputTokens: number;
+  };
+} | {
+  readonly type: "result";
+  readonly artifact?: ReadonlyJSONValue;
+  readonly result: ReadonlyJSONValue;
+  readonly isError: boolean;
+  readonly modelContent?: readonly ToolModelContentPart[];
+  readonly messages?: ReadonlyJSONValue;
+} | {
+  readonly type: "error";
+  readonly error: string;
+} | {
+  readonly type: "update-state";
+  readonly operations: ObjectStreamOperation[];
+});
+
+type AssistantStream = ReadableStream<AssistantStreamChunk>;
+
+type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
+  headers?: Headers;
+};
+
+declare const AssistantStream: {
+  toResponse(stream: AssistantStream, transformer: AssistantStreamEncoder): Response;
+  fromResponse(response: Response, transformer: ReadableWritablePair<AssistantStreamChunk, Uint8Array<ArrayBuffer>>): ReadableStream<AssistantStreamChunk>;
+  toByteStream(stream: AssistantStream, transformer: ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk>): ReadableStream<Uint8Array<ArrayBuffer>>;
+  fromByteStream(readable: ReadableStream<Uint8Array<ArrayBuffer>>, transformer: ReadableWritablePair<AssistantStreamChunk, Uint8Array<ArrayBuffer>>): ReadableStream<AssistantStreamChunk>;
+};
+
+type TextStreamController = {
+  append(textDelta: string): void;
+  close(): void;
+};
+
+type ToolCallStreamController = {
+  argsText: TextStreamController;
+  setResponse(response: ToolResponseLike<ReadonlyJSONValue>): void;
+  close(): void;
+};
+
+type TextStatus = {
+  type: "running";
+} | {
+  type: "complete";
+  reason: "stop" | "unknown";
+} | {
+  type: "incomplete";
+  reason: "cancelled" | "length" | "content-filter" | "other";
+};
+
+type TextPart = {
+  type: "text";
+  text: string;
+  status: TextStatus;
+  parentId?: string;
+};
+
+type ReasoningPart = {
+  type: "reasoning";
+  text: string;
+  status: TextStatus;
+  parentId?: string;
+};
+
+type ToolCallStatus = {
+  type: "running";
+  isArgsComplete: boolean;
+} | {
+  type: "requires-action";
+  reason: "tool-call-result";
+} | {
+  type: "complete";
+  reason: "stop" | "unknown";
+} | {
+  type: "incomplete";
+  reason: "cancelled" | "length" | "content-filter" | "other";
+};
+
+type ToolCallTiming = {
+  readonly startedAt: number;
+  readonly completedAt?: number;
+};
+
+type ToolCallPartBase = {
+  type: "tool-call";
+  status: ToolCallStatus;
+  toolCallId: string;
+  toolName: string;
+  argsText: string;
+  args: ReadonlyJSONObject;
+  timing?: ToolCallTiming;
+  artifact?: ReadonlyJSONValue;
+  result?: ReadonlyJSONValue;
+  modelContent?: readonly ToolModelContentPart[];
+  isError?: boolean;
+  parentId?: string;
+};
+
+type ToolCallPartWithoutResult = ToolCallPartBase & {
+  state: "partial-call" | "call";
+  result?: undefined;
+  modelContent?: undefined;
+};
+
+type ToolCallPartWithResult = ToolCallPartBase & {
+  state: "result";
+  result: ReadonlyJSONValue;
+  artifact?: ReadonlyJSONValue;
+  modelContent?: readonly ToolModelContentPart[];
+  isError?: boolean;
+};
+
+type ToolCallPart = ToolCallPartWithoutResult | ToolCallPartWithResult;
+
+type SourcePart = {
+  type: "source";
+  sourceType: "url";
+  id: string;
+  url: string;
+  title?: string;
+  parentId?: string;
+};
+
+type FilePart = {
+  type: "file";
+  data: string;
+  mimeType: string;
+  parentId?: string;
+};
+
+type DataPart = {
+  type: "data";
+  name: string;
+  data: ReadonlyJSONValue;
+  parentId?: string;
+};
+
+type AssistantMessagePart = TextPart | ReasoningPart | ToolCallPart | SourcePart | FilePart | DataPart;
+
+type AssistantMessageStepUsage = {
+  inputTokens: number;
+  outputTokens: number;
+};
+
+type AssistantMessageStepMetadata = {
+  state: "started";
+  messageId: string;
+} | {
+  state: "finished";
+  messageId: string;
+  finishReason: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
+  usage?: AssistantMessageStepUsage;
+  isContinued: boolean;
+};
+
+type AssistantMessageStatus = {
+  type: "running";
+} | {
+  type: "requires-action";
+  reason: "tool-calls";
+} | {
+  type: "complete";
+  reason: "stop" | "unknown";
+} | {
+  type: "incomplete";
+  reason: "cancelled" | "tool-calls" | "length" | "content-filter" | "other" | "error";
+  error?: ReadonlyJSONValue;
+};
+
+type AssistantMessageTiming = {
+  streamStartTime: number;
+  firstTokenTime?: number;
+  totalStreamTime?: number;
+  tokenCount?: number;
+  tokensPerSecond?: number;
+  totalChunks: number;
+  toolCallCount: number;
+};
+
+type AssistantMessage = {
+  role: "assistant";
+  status: AssistantMessageStatus;
+  parts: AssistantMessagePart[];
+  content: AssistantMessagePart[];
+  metadata: {
+    unstable_state: ReadonlyJSONValue;
+    unstable_data: ReadonlyJSONValue[];
+    unstable_annotations: ReadonlyJSONValue[];
+    steps: AssistantMessageStepMetadata[];
+    custom: Record<string, unknown>;
+    timing?: AssistantMessageTiming;
+  };
+};
+
+type ToolCallPartInit = {
+  toolCallId?: string;
+  toolName: string;
+  argsText?: string;
+  args?: ReadonlyJSONObject;
+  response?: ToolResponseLike<ReadonlyJSONValue>;
+};
+
+type AssistantStreamController = {
+  appendText(textDelta: string): void;
+  appendReasoning(reasoningDelta: string): void;
+  appendSource(options: SourcePart): void;
+  appendFile(options: FilePart): void;
+  appendData(options: DataPart): void;
+  addTextPart(): TextStreamController;
+  addToolCallPart(options: string): ToolCallStreamController;
+  addToolCallPart(options: ToolCallPartInit): ToolCallStreamController;
+  enqueue(chunk: AssistantStreamChunk): void;
+  merge(stream: AssistantStream): void;
+  close(): void;
+  withParentId(parentId: string): AssistantStreamController;
+};
+
+declare function createAssistantStream(callback: (controller: AssistantStreamController) => PromiseLike<void> | void): AssistantStream;
+
+declare function createAssistantStreamController(): readonly [
+  AssistantStream,
+  AssistantStreamController
+];
+
+declare function createAssistantStreamResponse(callback: (controller: AssistantStreamController) => PromiseLike<void> | void): Response;
+
+declare const RESUMABLE_STREAM_ID_HEADER = "x-resumable-stream-id";
+
+type CreateResumableAssistantStreamResponseOptions = {
+  readonly context: ResumableStreamContext;
+  readonly streamId: string;
+  readonly callback: (controller: AssistantStreamController) => PromiseLike<void> | void;
+  readonly encoder?: () => AssistantStreamEncoder;
+  readonly headers?: HeadersInit;
+};
+
+declare function createResumableAssistantStreamResponse(options: CreateResumableAssistantStreamResponseOptions): Promise<Response>;
+
+type CreateResumeAssistantStreamResponseOptions = {
+  readonly context: ResumableStreamContext;
+  readonly streamId: string;
+  readonly encoder?: () => AssistantStreamEncoder;
+  readonly headers?: HeadersInit;
+  readonly missingResponse?: () => Response;
+};
+
+declare function createResumeAssistantStreamResponse(options: CreateResumeAssistantStreamResponseOptions): Promise<Response>;
+
+type ResumableStreamErrorCode = "missing" | "exists" | "finalized" | "invalid-id";
+
+declare class ResumableStreamError extends Error {
+  readonly code: ResumableStreamErrorCode;
+  constructor(code: ResumableStreamErrorCode, message: string);
+}
+
+type InMemoryResumableStreamStoreOptions = {
+  readonly defaultTtlMs?: number;
+  readonly now?: () => number;
+  readonly maxChunkBytes?: number;
+  readonly maxEntriesPerStream?: number;
+  readonly maxStreams?: number;
+  readonly gcIntervalMs?: number;
+};
+
+declare function createInMemoryResumableStreamStore(options?: InMemoryResumableStreamStoreOptions): ResumableStreamStore & {
+  dispose: () => void;
+};
+
+declare namespace entry_resumable_exports {
+  export { CreateResumableAssistantStreamResponseOptions, CreateResumeAssistantStreamResponseOptions, InMemoryResumableStreamStoreOptions, RESUMABLE_STREAM_ID_HEADER, RedisLikeClient, RedisResumableStreamStoreOptions, ResumableStreamAcquireOptions, ResumableStreamContext, ResumableStreamContextOptions, ResumableStreamEntry, ResumableStreamError, ResumableStreamErrorCode, ResumableStreamRole, ResumableStreamStatus, ResumableStreamStore, createInMemoryResumableStreamStore, createResumableAssistantStreamResponse, createResumableStreamContext, createResumeAssistantStreamResponse };
+}
+
 declare const PARTIAL_JSON_OBJECT_META_SYMBOL: unique symbol;
 
 type FieldState = "complete" | "partial";
@@ -11947,6 +11654,299 @@ declare class AssistantMetaTransformStream extends TransformStream<AssistantStre
 
 declare namespace entry_utils_exports {
   export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
+}
+
+declare class AssistantMessageStream {
+  readonly readable: ReadableStream<AssistantMessage>;
+  constructor(readable: ReadableStream<AssistantMessage>);
+  static fromAssistantStream(stream: AssistantStream): AssistantMessageStream;
+  unstable_result(): Promise<AssistantMessage>;
+  [Symbol.asyncIterator](): {
+    next(): Promise<IteratorResult<AssistantMessage, undefined>>;
+  };
+  tee(): [
+    AssistantMessageStream,
+    AssistantMessageStream
+  ];
+}
+
+declare const createInitialMessage: (_param0?: {
+  unstable_state?: ReadonlyJSONValue;
+}) => AssistantMessage;
+
+declare class AssistantMessageAccumulator extends TransformStream<AssistantStreamChunk, AssistantMessage> {
+  constructor(_param1?: {
+    initialMessage?: AssistantMessage;
+    throttle?: boolean;
+    onError?: (error: string) => void;
+  });
+}
+
+type GenericTextPart = {
+  type: "text";
+  text: string;
+};
+
+type GenericFilePart = {
+  type: "file";
+  data: string | URL;
+  mediaType: string;
+};
+
+type GenericToolCallPart = {
+  type: "tool-call";
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+};
+
+type GenericToolResultPart = {
+  type: "tool-result";
+  toolCallId: string;
+  toolName: string;
+  result: unknown;
+  isError?: boolean;
+};
+
+type GenericSystemMessage = {
+  role: "system";
+  content: string;
+};
+
+type GenericUserMessage = {
+  role: "user";
+  content: (GenericTextPart | GenericFilePart)[];
+};
+
+type GenericAssistantMessage = {
+  role: "assistant";
+  content: (GenericTextPart | GenericToolCallPart)[];
+};
+
+type GenericToolMessage = {
+  role: "tool";
+  content: GenericToolResultPart[];
+};
+
+type GenericMessage = GenericSystemMessage | GenericUserMessage | GenericAssistantMessage | GenericToolMessage;
+
+type MessagePartLike = {
+  type: string;
+  text?: string;
+  image?: string;
+  data?: string;
+  mimeType?: string;
+  toolCallId?: string;
+  toolName?: string;
+  args?: Record<string, unknown>;
+  result?: unknown;
+  isError?: boolean;
+};
+
+type AttachmentLike = {
+  content: readonly MessagePartLike[];
+};
+
+type ThreadMessageLike = {
+  role: "system" | "user" | "assistant";
+  content: readonly MessagePartLike[];
+  attachments?: readonly AttachmentLike[];
+};
+
+declare function toGenericMessages(messages: readonly ThreadMessageLike[]): GenericMessage[];
+
+declare class PipeableTransformStream<I, O> extends TransformStream<I, O> {
+  constructor(transform: (readable: ReadableStream<I>) => ReadableStream<O>);
+}
+
+declare class ObjectStreamResponse extends Response {
+  constructor(body: ReadableStream<ObjectStreamChunk>);
+}
+
+declare const fromObjectStreamResponse: (response: Response) => ReadableStream<ObjectStreamChunk>;
+
+type ObjectStreamController = {
+  readonly abortSignal: AbortSignal;
+  enqueue(operations: readonly ObjectStreamOperation[]): void;
+};
+
+type CreateObjectStreamOptions = {
+  execute: (controller: ObjectStreamController) => void | PromiseLike<void>;
+  defaultValue?: ReadonlyJSONValue;
+};
+
+declare const createObjectStream: (_param2: CreateObjectStreamOptions) => ReadableStream<ObjectStreamChunk>;
+
+declare class PlainTextEncoder extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>> implements AssistantStreamEncoder {
+  headers: Headers;
+  constructor();
+}
+
+declare class PlainTextDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
+  constructor();
+}
+
+declare class AssistantTransportEncoder extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>> implements AssistantStreamEncoder {
+  headers: Headers;
+  constructor();
+}
+
+declare class AssistantTransportDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
+  constructor();
+}
+
+declare class DataStreamEncoder extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>> implements AssistantStreamEncoder {
+  headers: Headers;
+  constructor();
+}
+
+declare class DataStreamDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
+  constructor();
+}
+
+type FinishReason = "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
+
+type Usage = {
+  inputTokens: number;
+  outputTokens: number;
+};
+
+type UIMessageStreamChunk = {
+  type: "start";
+  messageId: string;
+} | {
+  type: "text-start";
+  id: string;
+} | {
+  type: "text-delta";
+  textDelta: string;
+} | {
+  type: "text-end";
+} | {
+  type: "reasoning-start";
+  id: string;
+} | {
+  type: "reasoning-delta";
+  delta: string;
+} | {
+  type: "reasoning-end";
+} | {
+  type: "source";
+  source: {
+    sourceType: "url";
+    id: string;
+    url: string;
+    title?: string;
+  };
+} | {
+  type: "file";
+  file: {
+    mimeType: string;
+    data: string;
+  };
+} | {
+  type: "tool-call-start";
+  id: string;
+  toolCallId: string;
+  toolName: string;
+} | {
+  type: "tool-call-delta";
+  argsText: string;
+} | {
+  type: "tool-call-end";
+} | {
+  type: "tool-result";
+  toolCallId: string;
+  result: ReadonlyJSONValue;
+  isError?: boolean;
+  messages?: ReadonlyJSONValue;
+} | {
+  type: "start-step";
+  messageId?: string;
+} | {
+  type: "finish-step";
+  finishReason: FinishReason;
+  usage: Usage;
+  isContinued: boolean;
+} | {
+  type: "finish";
+  finishReason: FinishReason;
+  usage: Usage;
+} | {
+  type: "error";
+  errorText: string;
+} | UIMessageStreamDataChunk;
+
+type UIMessageStreamDataChunk = {
+  type: `data-${string}`;
+  id?: string;
+  data: ReadonlyJSONValue;
+  transient?: boolean;
+};
+
+type UIMessageStreamDecoderOptions = {
+  onData?: (data: {
+    type: string;
+    name: string;
+    data: unknown;
+    transient?: boolean;
+  }) => void;
+};
+
+declare class UIMessageStreamDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
+  constructor(options?: UIMessageStreamDecoderOptions);
+}
+
+type ToolCallback = (toolCall: {
+  toolCallId: string;
+  toolName: string;
+  args: ReadonlyJSONObject;
+}) => Promise<ToolResponse<ReadonlyJSONValue>> | ToolResponse<ReadonlyJSONValue> | undefined;
+
+type ToolStreamCallback = <TArgs extends ReadonlyJSONObject = ReadonlyJSONObject, TResult extends ReadonlyJSONValue = ReadonlyJSONValue>(toolCall: {
+  reader: ToolCallReader<TArgs, TResult>;
+  toolCallId: string;
+  toolName: string;
+}) => void;
+
+type ToolExecutionOptions = {
+  execute: ToolCallback;
+  streamCall: ToolStreamCallback;
+  onExecutionStart?: ((toolCallId: string, toolName: string) => void) | undefined;
+  onExecutionEnd?: ((toolCallId: string, toolName: string) => void) | undefined;
+};
+
+declare class ToolExecutionStream extends PipeableTransformStream<AssistantStreamChunk, AssistantStreamChunk> {
+  constructor(options: ToolExecutionOptions);
+}
+
+type ToolJSONSchema = {
+  description?: string;
+  parameters: JSONSchema7;
+  providerOptions?: ProviderOptions;
+};
+
+type ToToolsJSONSchemaOptions = {
+  filter?: (name: string, tool: Tool) => boolean;
+};
+
+declare function toJSONSchema(schema: StandardSchemaV1 | JSONSchema7): JSONSchema7;
+
+declare function toPartialJSONSchema(schema: JSONSchema7): JSONSchema7;
+
+declare function toToolsJSONSchema(tools: Record<string, Tool> | undefined, options?: ToToolsJSONSchemaOptions): Record<string, ToolJSONSchema>;
+
+declare function unstable_runPendingTools(message: AssistantMessage, tools: Record<string, Tool> | undefined, abortSignal: AbortSignal, human: (toolCallId: string, payload: unknown) => Promise<unknown>): Promise<AssistantMessage>;
+
+type ToolResultStreamOptions = {
+  onExecutionStart?: (toolCallId: string, toolName: string) => void;
+  onExecutionEnd?: (toolCallId: string, toolName: string) => void;
+};
+
+declare function toolResultStream(tools: Record<string, Tool> | (() => Record<string, Tool> | undefined) | undefined, abortSignal: AbortSignal | (() => AbortSignal), human: (toolCallId: string, payload: unknown) => Promise<unknown>, options?: ToolResultStreamOptions): ToolExecutionStream;
+
+declare namespace entry_root_exports {
+  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, AssistantTransportEncoder, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
 }
 
 export { entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };

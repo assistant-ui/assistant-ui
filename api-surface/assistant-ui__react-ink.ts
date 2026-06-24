@@ -2257,17 +2257,14 @@ declare class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
   fetch(_threadId: string): Promise<RemoteThreadMetadata>;
 }
 
-type PartState = (ThreadUserMessagePart | ThreadAssistantMessagePart) & {
-  readonly status: MessagePartStatus | ToolCallMessagePartStatus;
-};
-
-type PartMethods = {
-  getState(): PartState;
-  addToolResult(result: unknown | ToolResponse<unknown>): void;
-  resumeToolCall(payload: unknown): void;
-  respondToToolApproval(response: ToolApprovalResponse): void;
-  __internal_getRuntime?(): MessagePartRuntime;
-};
+declare class CompositeContextProvider implements ModelContextProvider {
+  private _providers;
+  getModelContext(): ModelContext$1;
+  registerModelContextProvider(provider: ModelContextProvider): () => void;
+  private _subscribers;
+  notifySubscribers(): void;
+  subscribe(callback: () => void): () => void;
+}
 
 type ResourceElement<R, A extends readonly unknown[] = any[]> = {
   readonly hook: (...args: A) => R;
@@ -2428,6 +2425,112 @@ declare const AuiProvider: (_param5: {
   value: AssistantClient;
   children: React.ReactNode;
 }) => React.ReactElement;
+
+declare abstract class BaseAssistantRuntimeCore implements AssistantRuntimeCore {
+  protected readonly _contextProvider: CompositeContextProvider;
+  abstract get threads(): ThreadListRuntimeCore;
+  registerModelContextProvider(provider: ModelContextProvider): Unsubscribe$1;
+  getModelContextProvider(): ModelContextProvider;
+}
+
+declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implements ComposerRuntimeCore {
+  readonly isEditing = true;
+  protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
+  protected abstract getDictationAdapter(): DictationAdapter | undefined;
+  protected enrichWithComposerMetadata<T extends {
+    metadata?: {
+      custom?: Record<string, unknown>;
+    };
+  }>(message: T, composerMetadata: Record<string, unknown> | undefined): T;
+  get attachmentAccept(): string;
+  private _attachments;
+  get attachments(): readonly Attachment[];
+  protected setAttachments(value: readonly Attachment[]): void;
+  abstract get canCancel(): boolean;
+  abstract get canSend(): boolean;
+  get isEmpty(): boolean;
+  private _text;
+  get text(): string;
+  private _role;
+  get role(): "system" | "user" | "assistant";
+  private _runConfig;
+  get runConfig(): RunConfig;
+  private _quote;
+  get quote(): QuoteInfo | undefined;
+  setQuote(quote: QuoteInfo | undefined): void;
+  setText(value: string): void;
+  setRole(role: MessageRole): void;
+  setRunConfig(runConfig: RunConfig): void;
+  private _emptyTextAndAttachments;
+  private _onClearAttachments;
+  reset(): Promise<void>;
+  clearAttachments(): Promise<void>;
+  send(options?: SendOptions): Promise<void>;
+  cancel(): void;
+  get queue(): readonly QueueItemState[];
+  steerQueueItem(_queueItemId: string): void;
+  removeQueueItem(_queueItemId: string): void;
+  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void;
+  protected abstract handleCancel(): void;
+  addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
+  private _safeEmitAttachmentAddError;
+  removeAttachment(attachmentId: string): Promise<void>;
+  private _dictation;
+  private _dictationSession;
+  private _dictationUnsubscribes;
+  private _dictationBaseText;
+  private _currentInterimText;
+  private _dictationSessionIdCounter;
+  private _activeDictationSessionId;
+  private _isCleaningDictation;
+  get dictation(): DictationState | undefined;
+  private _isActiveSession;
+  startDictation(): void;
+  stopDictation(): void;
+  private _cleanupDictation;
+  private _eventSubscribers;
+  protected _notifyEventSubscribers<E extends ComposerRuntimeEventType>(event: E, payload: ComposerRuntimeEventPayload[E]): void;
+  unstable_on<E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>): () => void;
+}
+
+declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore implements ThreadComposerRuntimeCore {
+  private runtime;
+  private _canCancel;
+  get canCancel(): boolean;
+  get canSend(): boolean;
+  get queue(): readonly QueueItemState[];
+  steerQueueItem(queueItemId: string): void;
+  removeQueueItem(queueItemId: string): void;
+  protected getAttachmentAdapter(): AttachmentAdapter | undefined;
+  protected getDictationAdapter(): DictationAdapter | undefined;
+  constructor(runtime: Omit<ThreadRuntimeCore, "composer"> & {
+    adapters?: {
+      attachments?: AttachmentAdapter | undefined;
+      dictation?: DictationAdapter | undefined;
+    } | undefined;
+  });
+  connect(): Unsubscribe$1;
+  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): Promise<void>;
+  handleCancel(): Promise<void>;
+}
+
+declare const getAutoStatus: (isLast: boolean, isRunning: boolean, hasInterruptedToolCalls: boolean, hasPendingToolCalls: boolean, error?: ReadonlyJSONValue) => MessageStatus;
+
+declare namespace entry_internal_exports {
+  export { AssistantRuntimeImpl, BaseAssistantRuntimeCore, CompositeContextProvider, DefaultThreadComposerRuntimeCore, MessageRepository, ThreadListItemRuntimeBinding, ThreadListRuntimeCore, ThreadRuntimeCore, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, getAutoStatus };
+}
+
+type PartState = (ThreadUserMessagePart | ThreadAssistantMessagePart) & {
+  readonly status: MessagePartStatus | ToolCallMessagePartStatus;
+};
+
+type PartMethods = {
+  getState(): PartState;
+  addToolResult(result: unknown | ToolResponse<unknown>): void;
+  resumeToolCall(payload: unknown): void;
+  respondToToolApproval(response: ToolApprovalResponse): void;
+  __internal_getRuntime?(): MessagePartRuntime;
+};
 
 declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_param6: {
   runtime: AssistantRuntime;
@@ -4529,109 +4632,6 @@ declare const ModelContext: Resource<ClientOutput<"modelContext">, [
 
 declare namespace entry_root_exports {
   export { actionBar_d_exports as ActionBarPrimitive, AppendMessage, AssistantClient, AssistantContextConfig, AssistantDataUI, AssistantDataUIProps, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantInteractableProps, AssistantRuntime, AssistantRuntimeProvider, AssistantState, AssistantTool, AssistantToolProps, AssistantToolUI, AssistantToolUIProps, Attachment, AttachmentAdapter, attachment_d_exports as AttachmentPrimitive, AttachmentRuntime, AttachmentState, AuiIf, AuiProvider, branchPicker_d_exports as BranchPickerPrimitive, ChainOfThoughtByIndicesProvider, ChainOfThoughtClient, ChainOfThoughtPartByIndexProvider, chainOfThought_d_exports as ChainOfThoughtPrimitive, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChecklistItemData, ChecklistItemStatus, checklist_d_exports as ChecklistPrimitive, CompleteAttachment, composer_d_exports as ComposerPrimitive, ComposerRuntime, ComposerState, CompositeAttachmentAdapter, CreateAttachment, CreateFileStorageAdapterOptions, DataMessagePart, DataMessagePartComponent, DataMessagePartProps, DataRenderers, diff_d_exports as DiffPrimitive, DiffView, DiffViewProps, EditComposerRuntime, EmptyMessagePartComponent, EmptyMessagePartProps, index_d_exports$2 as ErrorPrimitive, FeedbackAdapter, FileMessagePart, FileMessagePartComponent, FileMessagePartProps, ImageMessagePart, ImageMessagePartComponent, ImageMessagePartProps, InMemoryThreadListAdapter, Interactables, LanguageModelConfig, LanguageModelV1CallSettings, LiveChecklist, LiveChecklistProps, index_d_exports$1 as LoadingPrimitive, LocalRuntimeOptions, McpToolkitDefinition, MessageByIndexProvider, messagePart_d_exports as MessagePartPrimitive, message_d_exports as MessagePrimitive, MessageRole, MessageRuntime, MessageState, MessageStatus, ModelContext$1 as ModelContext, ModelContext as ModelContextClient, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, NotificationConfig, NotificationEvent, NotificationHandler, OSCVariant, PartByIndexProvider, PendingAttachment, ProviderToolConfig, queueItem_d_exports as QueueItemPrimitive, QueueItemState, RealtimeVoiceAdapter, ReasoningGroupComponent, ReasoningGroupProps, ReasoningMessagePart, ReasoningMessagePartComponent, ReasoningMessagePartProps, RemoteThreadListAdapter, RemoteThreadListOptions, RunConfig, RuntimeAdapterProvider, RuntimeAdapters, RuntimeCapabilities, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SourceMessagePart, SourceMessagePartComponent, SourceMessagePartProps, statusBar_d_exports as StatusBarPrimitive, SuggestionAdapter, SuggestionByIndexProvider, SuggestionConfig, suggestion_d_exports as SuggestionPrimitive, Suggestions, TextMessagePart, TextMessagePartComponent, TextMessagePartProps, TextMessagePartProvider, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadHistoryAdapter, ThreadListItemByIndexProvider, threadListItem_d_exports as ThreadListItemPrimitive, ThreadListItemRuntime, ThreadListItemState, threadList_d_exports as ThreadListPrimitive, ThreadListRuntime, ThreadMessage, ThreadMessageLike, thread_d_exports as ThreadPrimitive, ThreadRuntime, ThreadState, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ThreadsState, TitleGenerationAdapter, Tool, ToolArgsStatus, ToolCallMessagePart, ToolCallMessagePartComponent, ToolCallMessagePartProps, toolCall_d_exports as ToolCallPrimitive, ToolCallText, ToolDefinition, ToolModelContentPart, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, Tools, Unstable_AudioMessagePart, Unstable_AudioMessagePartComponent, Unstable_AudioMessagePartProps, Unstable_InferInteractableState, Unstable_InteractableConfig, Unstable_InteractableDefinition, Unstable_InteractablePersistedState, Unstable_InteractablePersistenceAdapter, Unstable_InteractablePersistenceStatus, Unstable_InteractableRegistration, Unstable_InteractableSnapshotEntry, Unstable_InteractableStateSchema, Unstable_InteractableToolConfig, Unstable_InteractableToolRenderProps, Unstable_InteractableVersion, Unstable_InteractableVersionInfo, Unstable_InteractablesClientSchema, Unstable_InteractablesConfig, Unstable_InteractablesMethods, Unstable_InteractablesState, Unsubscribe$1 as Unsubscribe, UseToolCallChecklistOptions, VoiceSessionControls, VoiceSessionHelpers, createFileStorageAdapter, createSimpleTitleAdapter, createVoiceSession, defineMcpToolkit, defineToolkit, fromThreadMessageLike, generateId, hitl, hitlTool, humanTool, makeAssistantDataUI, makeAssistantTool, makeAssistantToolUI, mergeModelContexts, providerTool, ringBell, sendOSCNotification, stubTool, tool, unstable_Interactables, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions, unstable_interactableTool, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions, unstable_useThreadMessageIds, useAssistantContext, useAssistantDataUI, useAssistantInstructions, useAssistantInteractable, useAssistantTool, useAssistantToolUI, useAui, useAuiEvent, useAuiState, useAuiToolOverrides, useInlineRender, useInteractableState, useLocalRuntime, useNotification, useRemoteThreadListRuntime, useRuntimeAdapters, useToolArgsStatus, useToolCallChecklist, useVoiceControls, useVoiceState, useVoiceVolume };
-}
-
-declare class CompositeContextProvider implements ModelContextProvider {
-  private _providers;
-  getModelContext(): ModelContext$1;
-  registerModelContextProvider(provider: ModelContextProvider): () => void;
-  private _subscribers;
-  notifySubscribers(): void;
-  subscribe(callback: () => void): () => void;
-}
-
-declare abstract class BaseAssistantRuntimeCore implements AssistantRuntimeCore {
-  protected readonly _contextProvider: CompositeContextProvider;
-  abstract get threads(): ThreadListRuntimeCore;
-  registerModelContextProvider(provider: ModelContextProvider): Unsubscribe$1;
-  getModelContextProvider(): ModelContextProvider;
-}
-
-declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implements ComposerRuntimeCore {
-  readonly isEditing = true;
-  protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
-  protected abstract getDictationAdapter(): DictationAdapter | undefined;
-  protected enrichWithComposerMetadata<T extends {
-    metadata?: {
-      custom?: Record<string, unknown>;
-    };
-  }>(message: T, composerMetadata: Record<string, unknown> | undefined): T;
-  get attachmentAccept(): string;
-  private _attachments;
-  get attachments(): readonly Attachment[];
-  protected setAttachments(value: readonly Attachment[]): void;
-  abstract get canCancel(): boolean;
-  abstract get canSend(): boolean;
-  get isEmpty(): boolean;
-  private _text;
-  get text(): string;
-  private _role;
-  get role(): "system" | "user" | "assistant";
-  private _runConfig;
-  get runConfig(): RunConfig;
-  private _quote;
-  get quote(): QuoteInfo | undefined;
-  setQuote(quote: QuoteInfo | undefined): void;
-  setText(value: string): void;
-  setRole(role: MessageRole): void;
-  setRunConfig(runConfig: RunConfig): void;
-  private _emptyTextAndAttachments;
-  private _onClearAttachments;
-  reset(): Promise<void>;
-  clearAttachments(): Promise<void>;
-  send(options?: SendOptions): Promise<void>;
-  cancel(): void;
-  get queue(): readonly QueueItemState[];
-  steerQueueItem(_queueItemId: string): void;
-  removeQueueItem(_queueItemId: string): void;
-  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void;
-  protected abstract handleCancel(): void;
-  addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
-  private _safeEmitAttachmentAddError;
-  removeAttachment(attachmentId: string): Promise<void>;
-  private _dictation;
-  private _dictationSession;
-  private _dictationUnsubscribes;
-  private _dictationBaseText;
-  private _currentInterimText;
-  private _dictationSessionIdCounter;
-  private _activeDictationSessionId;
-  private _isCleaningDictation;
-  get dictation(): DictationState | undefined;
-  private _isActiveSession;
-  startDictation(): void;
-  stopDictation(): void;
-  private _cleanupDictation;
-  private _eventSubscribers;
-  protected _notifyEventSubscribers<E extends ComposerRuntimeEventType>(event: E, payload: ComposerRuntimeEventPayload[E]): void;
-  unstable_on<E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>): () => void;
-}
-
-declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore implements ThreadComposerRuntimeCore {
-  private runtime;
-  private _canCancel;
-  get canCancel(): boolean;
-  get canSend(): boolean;
-  get queue(): readonly QueueItemState[];
-  steerQueueItem(queueItemId: string): void;
-  removeQueueItem(queueItemId: string): void;
-  protected getAttachmentAdapter(): AttachmentAdapter | undefined;
-  protected getDictationAdapter(): DictationAdapter | undefined;
-  constructor(runtime: Omit<ThreadRuntimeCore, "composer"> & {
-    adapters?: {
-      attachments?: AttachmentAdapter | undefined;
-      dictation?: DictationAdapter | undefined;
-    } | undefined;
-  });
-  connect(): Unsubscribe$1;
-  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): Promise<void>;
-  handleCancel(): Promise<void>;
-}
-
-declare const getAutoStatus: (isLast: boolean, isRunning: boolean, hasInterruptedToolCalls: boolean, hasPendingToolCalls: boolean, error?: ReadonlyJSONValue) => MessageStatus;
-
-declare namespace entry_internal_exports {
-  export { AssistantRuntimeImpl, BaseAssistantRuntimeCore, CompositeContextProvider, DefaultThreadComposerRuntimeCore, MessageRepository, ThreadListItemRuntimeBinding, ThreadListRuntimeCore, ThreadRuntimeCore, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, getAutoStatus };
 }
 
 export { entry_internal_exports as entry_internal, entry_root_exports as entry_root };

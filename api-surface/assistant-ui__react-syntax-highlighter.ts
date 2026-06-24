@@ -257,6 +257,16 @@ declare global {
   }
 }
 
+declare const makeSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
+
+declare const makePrismSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
+
+declare const makePrismAsyncSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
+
+declare namespace entry_full_exports {
+  export { makePrismAsyncSyntaxHighlighter, makePrismSyntaxHighlighter, makeSyntaxHighlighter };
+}
+
 declare const makePrismAsyncLightSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
 
 declare const makePrismLightSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
@@ -267,16 +277,6 @@ declare const makeLightAsyncSyntaxHighlighter: (config: Omit<import("react-synta
 
 declare namespace entry_root_exports {
   export { makeLightAsyncSyntaxHighlighter, makeLightSyntaxHighlighter, makePrismAsyncLightSyntaxHighlighter, makePrismLightSyntaxHighlighter };
-}
-
-declare const makeSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
-
-declare const makePrismSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
-
-declare const makePrismAsyncSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
-
-declare namespace entry_full_exports {
-  export { makePrismAsyncSyntaxHighlighter, makePrismSyntaxHighlighter, makeSyntaxHighlighter };
 }
 
 export { entry_full_exports as entry_full, entry_root_exports as entry_root };

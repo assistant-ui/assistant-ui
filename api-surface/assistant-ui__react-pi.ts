@@ -1,5 +1,6 @@
 import { createAgentSession } from "@earendil-works/pi-coding-agent";
 
+
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
 interface PiTextContent {
@@ -435,6 +436,92 @@ interface PiClient {
   subscribe(threadId: string, listener: (event: PiClientEvent) => void, options?: {
     includeSnapshot?: boolean;
   }): () => void;
+}
+
+type PiSessionModel = NonNullable<Parameters<typeof createAgentSession>[0]>["model"];
+
+interface PiThreadSupervisorOptions {
+  workspacePath?: string;
+  agentDir?: string;
+  model?: PiSessionModel;
+}
+
+declare class PiThreadSupervisor {
+  private readonly records;
+  private readonly pendingOpens;
+  private readonly recordsBySessionFile;
+  private readonly workspacePath;
+  private readonly agentDir;
+  private readonly model;
+  private readonly modelRegistry;
+  private readonly archivedSessionFiles;
+  private readonly catalogCache;
+  private readonly catalogInfoByThreadId;
+  constructor(options?: PiThreadSupervisorOptions);
+  listThreads(input?: {
+    workspacePath?: string;
+    includeArchived?: boolean;
+  }): Promise<PiThreadMetadata[]>;
+  createThread(input?: {
+    workspacePath?: string;
+    title?: string;
+    initialMessage?: PiSendMessageInput;
+  }): Promise<PiThreadSnapshot>;
+  getThread(threadId: string): Promise<PiThreadSnapshot>;
+  sendMessage(threadId: string, input: PiSendMessageInput): Promise<void>;
+  cancelRun(threadId: string): Promise<void>;
+  clearQueue(threadId: string): Promise<{
+    steering: string[];
+    followUp: string[];
+  }>;
+  getAvailableModels(): Promise<PiModelInfo[]>;
+  setModel(threadId: string, input: {
+    provider: string;
+    modelId: string;
+  }): Promise<void>;
+  setThinkingLevel(threadId: string, level: PiThinkingLevel): Promise<void>;
+  renameThread(threadId: string, title: string): Promise<void>;
+  archiveThread(threadId: string): Promise<void>;
+  unarchiveThread(threadId: string): Promise<void>;
+  deleteThread(threadId: string): Promise<void>;
+  respondToHostUiRequest(threadId: string, response: PiHostUiResponse): Promise<void>;
+  subscribe(threadId: string, listener: (event: PiClientEvent) => void, options?: {
+    includeSnapshot?: boolean;
+  }): () => void;
+  dispose(): Promise<void>;
+  private openSession;
+  private ensureOpen;
+  private openCold;
+  private listSessionInfos;
+  private invalidateCatalog;
+  private findSessionInfo;
+  private rememberSessionInfos;
+  private send;
+  private onSessionEvent;
+  private emitContextUsage;
+  private emit;
+  private liveStatusFor;
+  private runStatus;
+  private readinessOf;
+  private queuedMessagesOf;
+  private metadataOf;
+  private snapshotOf;
+  private snapshotFromSessionFile;
+}
+
+type PiNodeClientOptions = PiThreadSupervisorOptions;
+
+declare const getPiThreadSupervisor: (options?: PiNodeClientOptions) => PiThreadSupervisor;
+
+declare const createPiNodeClient: (options?: PiNodeClientOptions) => PiClient;
+
+declare class PiUnsupportedHostUiError extends Error {
+  readonly method: string;
+  constructor(method: string);
+}
+
+declare namespace entry_node_exports {
+  export { PiAgentMessage, PiAnyClientEvent, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiImageContent, PiInputAttachment, PiKnownAgentMessage, PiModelInfo, PiNodeClientOptions, PiQueuedMessage, PiRuntimeReadiness, PiSendMessageInput, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadMetadata, PiThreadSnapshot, PiThreadStatus, PiThreadSupervisor, PiThreadSupervisorOptions, PiToolCall, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUnsupportedHostUiError, PiUsage, PiUserContent, PiUserMessage, createPiNodeClient, getPiThreadSupervisor };
 }
 
 interface SseFrame {
@@ -2263,92 +2350,6 @@ declare const usePiHostUiRequests: () => {
 
 declare namespace entry_root_exports {
   export { PiAgentMessage, PiAnyClientEvent, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiEventStreamOptions, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiHttpClientOptions, PiImageContent, PiInputAttachment, PiInterruptAnswer, PiKnownAgentMessage, PiLoadState, PiModelInfo, ContentPart as PiProjectedContentPart, PiProjectionInput, PiQueueMode, PiQueuedMessage, PiRunStatus, PiRuntimeExtras, PiRuntimeOptions, PiRuntimeReadiness, PiSendMessageInput, PiSendOptions, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadController, PiThreadControllerLike, PiThreadMetadata, PiThreadSnapshot, PiThreadState, PiThreadStatus, PiToolCall, PiToolExecutionState, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUsage, PiUserContent, PiUserMessage, SplitHostUiRequests, SseFrame, createPiHttpClient, createPiThreadState, createSseDecoder, isPiSteerQueueItemId, openPiEventStream, piQueueItemId, projectPiThreadMessages, projectPiThreadRepository, reducePiThreadState, responseForApproval, responseForInterrupt, responseForRequest, splitHostUiRequests, usePiHostUiRequests, usePiRuntime, usePiRuntimeExtras, usePiSession, usePiThreadState };
-}
-
-type PiSessionModel = NonNullable<Parameters<typeof createAgentSession>[0]>["model"];
-
-interface PiThreadSupervisorOptions {
-  workspacePath?: string;
-  agentDir?: string;
-  model?: PiSessionModel;
-}
-
-declare class PiThreadSupervisor {
-  private readonly records;
-  private readonly pendingOpens;
-  private readonly recordsBySessionFile;
-  private readonly workspacePath;
-  private readonly agentDir;
-  private readonly model;
-  private readonly modelRegistry;
-  private readonly archivedSessionFiles;
-  private readonly catalogCache;
-  private readonly catalogInfoByThreadId;
-  constructor(options?: PiThreadSupervisorOptions);
-  listThreads(input?: {
-    workspacePath?: string;
-    includeArchived?: boolean;
-  }): Promise<PiThreadMetadata[]>;
-  createThread(input?: {
-    workspacePath?: string;
-    title?: string;
-    initialMessage?: PiSendMessageInput;
-  }): Promise<PiThreadSnapshot>;
-  getThread(threadId: string): Promise<PiThreadSnapshot>;
-  sendMessage(threadId: string, input: PiSendMessageInput): Promise<void>;
-  cancelRun(threadId: string): Promise<void>;
-  clearQueue(threadId: string): Promise<{
-    steering: string[];
-    followUp: string[];
-  }>;
-  getAvailableModels(): Promise<PiModelInfo[]>;
-  setModel(threadId: string, input: {
-    provider: string;
-    modelId: string;
-  }): Promise<void>;
-  setThinkingLevel(threadId: string, level: PiThinkingLevel): Promise<void>;
-  renameThread(threadId: string, title: string): Promise<void>;
-  archiveThread(threadId: string): Promise<void>;
-  unarchiveThread(threadId: string): Promise<void>;
-  deleteThread(threadId: string): Promise<void>;
-  respondToHostUiRequest(threadId: string, response: PiHostUiResponse): Promise<void>;
-  subscribe(threadId: string, listener: (event: PiClientEvent) => void, options?: {
-    includeSnapshot?: boolean;
-  }): () => void;
-  dispose(): Promise<void>;
-  private openSession;
-  private ensureOpen;
-  private openCold;
-  private listSessionInfos;
-  private invalidateCatalog;
-  private findSessionInfo;
-  private rememberSessionInfos;
-  private send;
-  private onSessionEvent;
-  private emitContextUsage;
-  private emit;
-  private liveStatusFor;
-  private runStatus;
-  private readinessOf;
-  private queuedMessagesOf;
-  private metadataOf;
-  private snapshotOf;
-  private snapshotFromSessionFile;
-}
-
-type PiNodeClientOptions = PiThreadSupervisorOptions;
-
-declare const getPiThreadSupervisor: (options?: PiNodeClientOptions) => PiThreadSupervisor;
-
-declare const createPiNodeClient: (options?: PiNodeClientOptions) => PiClient;
-
-declare class PiUnsupportedHostUiError extends Error {
-  readonly method: string;
-  constructor(method: string);
-}
-
-declare namespace entry_node_exports {
-  export { PiAgentMessage, PiAnyClientEvent, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiImageContent, PiInputAttachment, PiKnownAgentMessage, PiModelInfo, PiNodeClientOptions, PiQueuedMessage, PiRuntimeReadiness, PiSendMessageInput, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadMetadata, PiThreadSnapshot, PiThreadStatus, PiThreadSupervisor, PiThreadSupervisorOptions, PiToolCall, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUnsupportedHostUiError, PiUsage, PiUserContent, PiUserMessage, createPiNodeClient, getPiThreadSupervisor };
 }
 
 export { entry_node_exports as entry_node, entry_root_exports as entry_root };

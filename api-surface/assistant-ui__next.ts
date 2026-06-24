@@ -1,3 +1,19 @@
+declare namespace entry_loader_exports {
+  export { generativeLoader as default };
+}
+
+interface GenerativeLoaderContext {
+  resourcePath?: string;
+  resourceQuery?: string;
+  sourceMap?: boolean;
+  getOptions?(): {
+    path?: string;
+  } | undefined;
+  async(): (err: unknown, code?: string, map?: object | null) => void;
+}
+
+declare function generativeLoader(this: GenerativeLoaderContext, source: string): void;
+
 interface WithAuiOptions {
   rules?: string[];
 }
@@ -14,21 +30,5 @@ declare function withAui<T extends NextConfigLike>(nextConfig?: T, options?: Wit
 declare namespace entry_root_exports {
   export { WithAuiOptions, withAui };
 }
-
-declare namespace entry_loader_exports {
-  export { generativeLoader as default };
-}
-
-interface GenerativeLoaderContext {
-  resourcePath?: string;
-  resourceQuery?: string;
-  sourceMap?: boolean;
-  getOptions?(): {
-    path?: string;
-  } | undefined;
-  async(): (err: unknown, code?: string, map?: object | null) => void;
-}
-
-declare function generativeLoader(this: GenerativeLoaderContext, source: string): void;
 
 export { entry_loader_exports as entry_loader, entry_root_exports as entry_root };

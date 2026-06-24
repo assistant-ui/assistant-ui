@@ -1,3 +1,11 @@
+declare namespace entry_shadow_dom_exports {
+  export { enableShadowDom, unsafeDisableShadowDom };
+}
+
+declare const enableShadowDom: () => boolean;
+
+declare const unsafeDisableShadowDom: () => boolean;
+
 declare namespace entry_root_exports {
   export { RenderedFrame, SafeContentFrame, SafeContentFrameOptions, SandboxOption };
 }
@@ -31,13 +39,5 @@ declare class SafeContentFrame {
   private render;
   private getSandbox;
 }
-
-declare namespace entry_shadow_dom_exports {
-  export { enableShadowDom, unsafeDisableShadowDom };
-}
-
-declare const enableShadowDom: () => boolean;
-
-declare const unsafeDisableShadowDom: () => boolean;
 
 export { entry_root_exports as entry_root, entry_shadow_dom_exports as entry_shadow_dom };

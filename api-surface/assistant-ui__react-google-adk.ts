@@ -2,6 +2,49 @@ import { ComponentType, PropsWithChildren } from "react";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
+type AdkSdkEvent = {
+  id?: string;
+  invocationId?: string;
+  author?: string;
+  branch?: string;
+  partial?: boolean;
+  turnComplete?: boolean;
+  interrupted?: boolean;
+  finishReason?: string;
+  timestamp?: number;
+  content?: {
+    role?: string;
+    parts?: Array<Record<string, unknown>>;
+  };
+  actions?: Record<string, unknown>;
+  longRunningToolIds?: string[];
+  errorCode?: string;
+  errorMessage?: string;
+  groundingMetadata?: unknown;
+  citationMetadata?: unknown;
+  usageMetadata?: unknown;
+  customMetadata?: Record<string, unknown>;
+};
+
+type AdkEventStreamOptions = {
+  onError?: (error: unknown) => void;
+};
+
+declare const adkEventStream: (events: AsyncGenerator<AdkSdkEvent, void, undefined>, options?: AdkEventStreamOptions) => Response;
+
+type AdkRunner = {
+  runAsync(options: Record<string, unknown>): AsyncGenerator<any, void, undefined>;
+};
+
+type CreateAdkApiRouteOptions = {
+  runner: AdkRunner;
+  userId: string | ((req: Request) => string | Promise<string>);
+  sessionId: string | ((req: Request) => string | Promise<string>);
+  onError?: AdkEventStreamOptions["onError"];
+};
+
+declare function createAdkApiRoute(options: CreateAdkApiRouteOptions): (req: Request) => Promise<Response>;
+
 type PendingAttachmentStatus = {
   type: "running";
   reason: "uploading";
@@ -1842,6 +1885,33 @@ type OnAdkCustomEventCallback = (type: string, data: unknown) => void | Promise<
 
 type OnAdkAgentTransferCallback = (toAgent: string) => void | Promise<void>;
 
+type ParsedAdkRequest = {
+  type: "message";
+  text: string;
+  parts?: Array<Record<string, unknown>> | undefined;
+  config: AdkSendMessageConfig;
+  stateDelta?: Record<string, unknown> | undefined;
+} | {
+  type: "tool-result";
+  toolCallId: string;
+  toolName: string;
+  result: unknown;
+  isError: boolean;
+  config: AdkSendMessageConfig;
+  stateDelta?: Record<string, unknown> | undefined;
+};
+
+declare const parseAdkRequest: (request: Request) => Promise<ParsedAdkRequest>;
+
+declare const toAdkContent: (parsed: ParsedAdkRequest) => {
+  role: string;
+  parts: Array<Record<string, unknown>>;
+};
+
+declare namespace entry_server_exports {
+  export { AdkEventStreamOptions, CreateAdkApiRouteOptions, adkEventStream, createAdkApiRoute, parseAdkRequest, toAdkContent };
+}
+
 type CreateAdkStreamOptions = {
   api: string;
   appName?: string | undefined;
@@ -2305,76 +2375,6 @@ declare function toAdkStructuredEvents(event: AdkEvent): AdkStructuredEvent[];
 
 declare namespace entry_root_exports {
   export { AdkArtifactData, AdkAuthCredential, AdkAuthCredentialType, AdkAuthRequest, AdkEvent, AdkEventAccumulator, AdkEventActions, AdkEventPart, AdkEventType, AdkMessage, AdkMessageContentPart, AdkMessageMetadata, AdkRunConfig, AdkSendMessageConfig, AdkSessionAdapterOptions, AdkStreamCallback, AdkStructuredEvent, AdkToolCall, AdkToolConfirmation, CreateAdkStreamOptions, OnAdkAgentTransferCallback, OnAdkCustomEventCallback, OnAdkErrorCallback, UseAdkMessagesOptions, UseAdkRuntimeOptions, convertAdkMessage, createAdkSessionAdapter, createAdkStream, toAdkStructuredEvents, useAdkAgentInfo, useAdkAppState, useAdkArtifacts, useAdkAuthRequests, useAdkConfirmTool, useAdkEscalation, useAdkLongRunningToolIds, useAdkMessageMetadata, useAdkMessages, useAdkRuntime, useAdkSend, useAdkSessionState, useAdkSubmitAuth, useAdkSubmitInput, useAdkTempState, useAdkToolConfirmations, useAdkUserState };
-}
-
-type AdkSdkEvent = {
-  id?: string;
-  invocationId?: string;
-  author?: string;
-  branch?: string;
-  partial?: boolean;
-  turnComplete?: boolean;
-  interrupted?: boolean;
-  finishReason?: string;
-  timestamp?: number;
-  content?: {
-    role?: string;
-    parts?: Array<Record<string, unknown>>;
-  };
-  actions?: Record<string, unknown>;
-  longRunningToolIds?: string[];
-  errorCode?: string;
-  errorMessage?: string;
-  groundingMetadata?: unknown;
-  citationMetadata?: unknown;
-  usageMetadata?: unknown;
-  customMetadata?: Record<string, unknown>;
-};
-
-type AdkEventStreamOptions = {
-  onError?: (error: unknown) => void;
-};
-
-declare const adkEventStream: (events: AsyncGenerator<AdkSdkEvent, void, undefined>, options?: AdkEventStreamOptions) => Response;
-
-type AdkRunner = {
-  runAsync(options: Record<string, unknown>): AsyncGenerator<any, void, undefined>;
-};
-
-type CreateAdkApiRouteOptions = {
-  runner: AdkRunner;
-  userId: string | ((req: Request) => string | Promise<string>);
-  sessionId: string | ((req: Request) => string | Promise<string>);
-  onError?: AdkEventStreamOptions["onError"];
-};
-
-declare function createAdkApiRoute(options: CreateAdkApiRouteOptions): (req: Request) => Promise<Response>;
-
-type ParsedAdkRequest = {
-  type: "message";
-  text: string;
-  parts?: Array<Record<string, unknown>> | undefined;
-  config: AdkSendMessageConfig;
-  stateDelta?: Record<string, unknown> | undefined;
-} | {
-  type: "tool-result";
-  toolCallId: string;
-  toolName: string;
-  result: unknown;
-  isError: boolean;
-  config: AdkSendMessageConfig;
-  stateDelta?: Record<string, unknown> | undefined;
-};
-
-declare const parseAdkRequest: (request: Request) => Promise<ParsedAdkRequest>;
-
-declare const toAdkContent: (parsed: ParsedAdkRequest) => {
-  role: string;
-  parts: Array<Record<string, unknown>>;
-};
-
-declare namespace entry_server_exports {
-  export { AdkEventStreamOptions, CreateAdkApiRouteOptions, adkEventStream, createAdkApiRoute, parseAdkRequest, toAdkContent };
 }
 
 export { entry_root_exports as entry_root, entry_server_exports as entry_server };
