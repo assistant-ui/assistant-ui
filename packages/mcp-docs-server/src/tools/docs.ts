@@ -1,7 +1,12 @@
 import { z } from "zod/v3";
 import { stat, lstat } from "node:fs/promises";
 import { join, extname } from "node:path";
-import { DOCS_PATH, MDX_EXTENSION, MAX_FILE_SIZE } from "../constants.js";
+import {
+  DOCS_PATH,
+  MDX_EXTENSION,
+  MAX_FILE_SIZE,
+  MAX_DIRECTORY_CONTENT_SIZE,
+} from "../constants.js";
 import { logger } from "../utils/logger.js";
 import {
   listDirContents,
@@ -30,6 +35,7 @@ interface DocResult {
   files?: string[];
   directories?: string[];
   suggestions?: string[];
+  hint?: string;
   error?: string;
 }
 
@@ -79,16 +85,24 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
         const { directories, files } = await listDirContents(fullPath);
 
         const contents: Record<string, string> = {};
+        let aggregateSize = 0;
+        let truncated = false;
         for (const file of files) {
           const mdxContent = await readMDXFile(join(fullPath, file));
           if (mdxContent) {
+            const formatted = formatMDXContent(mdxContent);
+            aggregateSize += Buffer.byteLength(formatted, "utf-8");
+            if (aggregateSize > MAX_DIRECTORY_CONTENT_SIZE) {
+              truncated = true;
+              break;
+            }
             const fileName = file.replace(MDX_EXTENSION, "");
-            contents[fileName] = formatMDXContent(mdxContent);
+            contents[fileName] = formatted;
           }
         }
 
         const content =
-          Object.keys(contents).length > 0
+          !truncated && Object.keys(contents).length > 0
             ? JSON.stringify(contents, null, 2)
             : undefined;
         return {
@@ -98,6 +112,9 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
           directories,
           files: files.map((f) => f.replace(MDX_EXTENSION, "")),
           ...(content !== undefined && { content }),
+          ...(truncated && {
+            hint: `Directory content exceeds ${MAX_DIRECTORY_CONTENT_SIZE} bytes and was omitted; request individual files by path to retrieve their content.`,
+          }),
         };
       }
     }
