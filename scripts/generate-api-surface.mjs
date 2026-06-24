@@ -181,89 +181,11 @@ function entryNamespace(entry) {
   return sanitizeIdentifier(`entry_${exportPath}${conditions}`);
 }
 
-function stripComments(content) {
-  let output = "";
-  let index = 0;
-  let state = "normal";
-
-  while (index < content.length) {
-    const char = content[index];
-    const next = content[index + 1];
-
-    if (state === "lineComment") {
-      if (char === "\n") {
-        output += char;
-        state = "normal";
-      }
-      index++;
-      continue;
-    }
-
-    if (state === "blockComment") {
-      if (char === "\n") output += char;
-      if (char === "*" && next === "/") {
-        index += 2;
-        state = "normal";
-      } else {
-        index++;
-      }
-      continue;
-    }
-
-    if (state === "singleQuote" || state === "doubleQuote") {
-      output += char;
-      if (char === "\\") {
-        output += next ?? "";
-        index += 2;
-        continue;
-      }
-      if (
-        (state === "singleQuote" && char === "'") ||
-        (state === "doubleQuote" && char === '"')
-      ) {
-        state = "normal";
-      }
-      index++;
-      continue;
-    }
-
-    if (state === "template") {
-      output += char;
-      if (char === "\\") {
-        output += next ?? "";
-        index += 2;
-        continue;
-      }
-      if (char === "`") state = "normal";
-      index++;
-      continue;
-    }
-
-    if (char === "/" && next === "/") {
-      state = "lineComment";
-      index += 2;
-      continue;
-    }
-
-    if (char === "/" && next === "*") {
-      state = "blockComment";
-      index += 2;
-      continue;
-    }
-
-    if (char === "'") state = "singleQuote";
-    if (char === '"') state = "doubleQuote";
-    if (char === "`") state = "template";
-
-    output += char;
-    index++;
-  }
-
-  return output;
-}
-
 function printSurfaceFile(sourceFile) {
-  const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+  const printer = ts.createPrinter({
+    newLine: ts.NewLineKind.LineFeed,
+    removeComments: true,
+  });
   return sourceFile.statements
     .map((statement) =>
       printer.printNode(ts.EmitHint.Unspecified, statement, sourceFile),
@@ -321,8 +243,36 @@ function applyTwoSpaceIndent(content) {
     .join("\n");
 }
 
+const KNOWN_DECLARATION_FIXUPS = [
+  {
+    pattern:
+      /declare module "@assistant-ui\/store" {\n\s*interface ScopeRegistry {([\s\S]*?)\n\s*}\n}/g,
+    replacement: "interface ScopeRegistry {$1\n}",
+  },
+  {
+    pattern: /interface ScopeRegistry {\n}/g,
+    replacement:
+      "interface ScopeRegistry {\n  [key: string]: { methods: any; meta?: any; events?: any };\n}",
+  },
+  {
+    pattern: /}\[keyof ClientEventMap\]/g,
+    replacement: "}[Extract<keyof ClientEventMap, string>]",
+  },
+  {
+    pattern: /__ASSISTANT_UI_DEVTOOLS_HOOK__\?: DevToolsHook;/g,
+    replacement: "__ASSISTANT_UI_DEVTOOLS_HOOK__?: any;",
+  },
+];
+
+function applyKnownDeclarationFixups(content) {
+  return KNOWN_DECLARATION_FIXUPS.reduce(
+    (output, fixup) => output.replace(fixup.pattern, fixup.replacement),
+    content,
+  );
+}
+
 function normalizeBundledDeclaration(content) {
-  const stripped = stripComments(content)
+  const stripped = content
     .replaceAll("\r\n", "\n")
     .replace(/ ?\/\/# sourceMappingURL=.*$/gm, "")
     .replace(/[ \t]+$/gm, "")
@@ -358,27 +308,13 @@ function normalizeBundledDeclaration(content) {
       return (node) => ts.visitNode(node, visit);
     },
   ]);
-  const printed = normalizeBundlerNamespaceNames(
-    normalizeReactImports(
-      applyTwoSpaceIndent(printSurfaceFile(result.transformed[0])),
+  const printed = applyKnownDeclarationFixups(
+    normalizeBundlerNamespaceNames(
+      normalizeReactImports(
+        applyTwoSpaceIndent(printSurfaceFile(result.transformed[0])),
+      ),
     ),
-  )
-    .replace(
-      /declare module "@assistant-ui\/store" {\n\s*interface ScopeRegistry {([\s\S]*?)\n\s*}\n}/g,
-      "interface ScopeRegistry {$1\n}",
-    )
-    .replace(
-      /interface ScopeRegistry {\n}/g,
-      "interface ScopeRegistry {\n  [key: string]: { methods: any; meta?: any; events?: any };\n}",
-    )
-    .replace(
-      /}\[keyof ClientEventMap\]/g,
-      "}[Extract<keyof ClientEventMap, string>]",
-    )
-    .replace(
-      /__ASSISTANT_UI_DEVTOOLS_HOOK__\?: DevToolsHook;/g,
-      "__ASSISTANT_UI_DEVTOOLS_HOOK__?: any;",
-    );
+  );
   result.dispose();
   return `${printed.trim()}\n`;
 }
