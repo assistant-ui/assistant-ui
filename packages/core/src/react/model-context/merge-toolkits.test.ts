@@ -32,7 +32,7 @@ describe("mergeToolkits", () => {
 
     const appToolkit = mergeToolkits(filesToolkit, calendarToolkit);
 
-    expect(appToolkit).toEqual({
+    expect({ ...appToolkit }).toEqual({
       search_files: filesTool,
       create_event: calendarTool,
     });
@@ -87,5 +87,21 @@ describe("mergeToolkits", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+
+  it("keeps prototype-like tool names as own entries", () => {
+    const protoTool = tool("Prototype-safe tool.");
+    const protoToolkit = defineToolkit(
+      Object.defineProperty({}, "__proto__", {
+        value: protoTool,
+        enumerable: true,
+      }) as { __proto__: typeof protoTool },
+    );
+
+    const appToolkit = mergeToolkits(protoToolkit);
+
+    expect(Object.getPrototypeOf(appToolkit)).toBeNull();
+    expect(Object.hasOwn(appToolkit, "__proto__")).toBe(true);
+    expect(appToolkit["__proto__"]).toBe(protoTool);
   });
 });

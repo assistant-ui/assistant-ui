@@ -59,4 +59,37 @@ describe("useAui toolkit shorthand", () => {
     expect(observed.modelToolNames).toBe("search_files");
     expect(observed.rendererToolNames).toBe("search_files");
   });
+
+  it("keeps the client stable when shorthand props are inline", async () => {
+    const toolkit = defineToolkit({
+      search_files: {
+        type: "backend",
+        description: "Search files.",
+        parameters: { type: "object", properties: {} },
+      } as never,
+    });
+    const clients: ReturnType<typeof useAui>[] = [];
+
+    const App: FC<{ label: string }> = ({ label }) => {
+      const aui = useAui({ tools: toolkit });
+      clients.push(aui);
+      return (
+        <AuiProvider value={aui}>
+          <div>{label}</div>
+        </AuiProvider>
+      );
+    };
+
+    const { rerender } = render(<App label="before" />);
+    await act(async () => {
+      await flush();
+    });
+
+    rerender(<App label="after" />);
+    await act(async () => {
+      await flush();
+    });
+
+    expect(clients[1]).toBe(clients[0]);
+  });
 });

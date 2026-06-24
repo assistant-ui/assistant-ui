@@ -31,6 +31,14 @@ const isResourceElement = (
   );
 };
 
+const useShallowMemoClients = (
+  clients: StoreUseAuiProps | undefined,
+): StoreUseAuiProps | undefined => {
+  const deps = clients ? Object.entries(clients).flat() : [clients];
+  // oxlint-disable-next-line react/exhaustive-deps -- shallow memo over the flattened client entries
+  return useMemo(() => clients, deps);
+};
+
 export namespace useAui {
   export type Props = Omit<StoreUseAuiProps, "tools"> & {
     tools?: StoreUseAuiProps["tools"] | Toolkit | undefined;
@@ -53,15 +61,13 @@ export function useAui(
     return Tools({ toolkit: tools });
   }, [tools]);
 
-  const normalizedClients = useMemo(
-    (): StoreUseAuiProps | undefined =>
-      clients && toolsResource !== tools
-        ? ({
-            ...clients,
-            tools: toolsResource,
-          } as StoreUseAuiProps)
-        : (clients as StoreUseAuiProps | undefined),
-    [clients, tools, toolsResource],
+  const normalizedClients = useShallowMemoClients(
+    clients && toolsResource !== tools
+      ? ({
+          ...clients,
+          tools: toolsResource,
+        } as StoreUseAuiProps)
+      : (clients as StoreUseAuiProps | undefined),
   );
 
   return useStoreAuiOptional(normalizedClients, config);

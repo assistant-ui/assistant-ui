@@ -33,7 +33,7 @@ export type MergedToolkit<TToolkits extends readonly Toolkit[]> = Toolkit &
 export function mergeToolkits<const TToolkits extends readonly Toolkit[]>(
   ...toolkits: TToolkits
 ): MergedToolkit<TToolkits> {
-  const merged: Toolkit = {};
+  const merged = Object.create(null) as Toolkit;
   const warned = new Set<string>();
 
   for (const toolkit of toolkits) {
