@@ -55,7 +55,7 @@ describe("MCP Protocol Integration", () => {
 
     expect(result).toBeDefined();
     expect(result.tools).toBeInstanceOf(Array);
-    expect(result.tools).toHaveLength(2);
+    expect(result.tools).toHaveLength(3);
 
     // Check the tools have proper JSON schemas
     const docsTool = result.tools.find(
@@ -74,6 +74,14 @@ describe("MCP Protocol Integration", () => {
     expect(examplesTool.inputSchema.type).toBe("object");
     expect(examplesTool.inputSchema.properties).toBeDefined();
 
+    const searchTool = result.tools.find(
+      (t: any) => t.name === "assistantUISearch",
+    );
+    expect(searchTool).toBeDefined();
+    expect(searchTool.inputSchema).toBeDefined();
+    expect(searchTool.inputSchema.type).toBe("object");
+    expect(searchTool.inputSchema.properties).toBeDefined();
+
     // registerTool metadata is surfaced on tools/list: `title` is a
     // top-level field, `annotations` carries only the hint flags.
     expect(docsTool.title).toBe("assistant-ui Documentation");
@@ -82,6 +90,9 @@ describe("MCP Protocol Integration", () => {
     expect(examplesTool.title).toBe("assistant-ui Examples");
     expect(examplesTool.annotations?.readOnlyHint).toBe(true);
     expect(examplesTool.annotations?.openWorldHint).toBe(false);
+    expect(searchTool.title).toBe("Search assistant-ui Documentation");
+    expect(searchTool.annotations?.readOnlyHint).toBe(true);
+    expect(searchTool.annotations?.openWorldHint).toBe(false);
   });
 
   it("should handle CallTool request for assistantUIDocs", async () => {

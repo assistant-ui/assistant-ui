@@ -1,6 +1,6 @@
 # `@assistant-ui/mcp-docs-server`
 
-Model Context Protocol (MCP) server that gives AI assistants direct access to assistant-ui's documentation and example projects. Exposes `assistantUIDocs` (retrieve documentation by path) and `assistantUIExamples` (access complete example projects).
+Model Context Protocol (MCP) server that gives AI assistants direct access to assistant-ui's documentation and example projects. Exposes `assistantUIDocs` (retrieve documentation by path), `assistantUIExamples` (access complete example projects), and `assistantUISearch` (keyword search across the bundled docs).
 
 > [!NOTE]
 > Detailed installation, troubleshooting, and advanced usage at [assistant-ui.com/docs/llm#mcp](https://www.assistant-ui.com/docs/llm#mcp).
