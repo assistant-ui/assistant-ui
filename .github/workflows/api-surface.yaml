@@ -53,7 +53,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build packages
-        run: pnpm exec turbo build --filter="./packages/*" --force
+        # Force fresh dist declarations so snapshot checks cannot use stale turbo outputs.
+        run: pnpm api-surface:build
 
       - name: Verify API surface snapshots
         run: pnpm api-surface:check
