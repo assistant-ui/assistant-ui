@@ -579,8 +579,14 @@ function collectToolkitSpreadNames(
   const localToolkitCalls = new Map<string, t.CallExpression>();
 
   for (const statement of ast.program.body) {
-    if (t.isVariableDeclaration(statement)) {
-      for (const declaration of statement.declarations) {
+    const localDeclaration = t.isVariableDeclaration(statement)
+      ? statement
+      : t.isExportNamedDeclaration(statement) &&
+          t.isVariableDeclaration(statement.declaration)
+        ? statement.declaration
+        : null;
+    if (localDeclaration) {
+      for (const declaration of localDeclaration.declarations) {
         const { id, init } = declaration;
         if (t.isIdentifier(id) && init) {
           const toolkitCall = unwrapToToolkitCall(init);
