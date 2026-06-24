@@ -433,62 +433,26 @@ function formatCommand(command) {
   });
 }
 
-async function loadCliCommand(modulePath, exportName) {
-  const module = await import(pathToFileURL(modulePath));
-  return module[exportName];
-}
-
 async function buildCliSurface() {
   const cliDist = path.join(packagesRoot, "cli", "dist");
-  const requiredFile = path.join(cliDist, "commands", "add.js");
+  const programFile = path.join(cliDist, "program.js");
+  const requiredFile = path.join(cliDist, "commands", "create.js");
   if (!existsSync(requiredFile)) {
     throw new Error(
       "Missing built CLI files. Run pnpm build before generating API surface files.",
     );
   }
 
-  const commandNames = [
-    "add",
-    "create",
-    "init",
-    "mcp",
-    "update",
-    "agent",
-    "info",
-    "doctor",
-  ];
-  const commands = Object.fromEntries(
-    await Promise.all(
-      commandNames.map(async (name) => [
-        name,
-        await loadCliCommand(path.join(cliDist, `commands/${name}.js`), name),
-      ]),
-    ),
+  const { buildProgram } = await import(pathToFileURL(programFile));
+  const program = buildProgram();
+  const create = program.commands.find(
+    (command) => command.name() === "create",
   );
-  const { codemodCommand, upgradeCommand } = await import(
-    pathToFileURL(path.join(cliDist, "commands/upgrade.js"))
-  );
-
-  const program = new commands.add.constructor()
-    .name("assistant-ui")
-    .description("add components and dependencies to your project");
-
-  for (const command of [
-    commands.add,
-    commands.create,
-    commands.init,
-    commands.mcp,
-    codemodCommand,
-    upgradeCommand,
-    commands.update,
-    commands.agent,
-    commands.info,
-    commands.doctor,
-  ]) {
-    program.addCommand(command);
+  if (!create) {
+    throw new Error("CLI program is missing the create command.");
   }
 
-  const createSurface = formatCommand(commands.create);
+  const createSurface = formatCommand(create);
   return {
     "assistant-ui": formatCommand(program),
     "create-assistant-ui": {
