@@ -218,6 +218,14 @@ export type {
 
 export { mergeModelContexts } from "@assistant-ui/core";
 
+export {
+  unstable_getInteractableSnapshots,
+  unstable_formatInteractableSnapshot,
+  unstable_getInteractableVersions,
+  type Unstable_InteractableSnapshotEntry,
+  type Unstable_InteractableVersion,
+} from "@assistant-ui/core";
+
 export type { ExportedMessageRepositoryItem } from "@assistant-ui/core";
 export { ExportedMessageRepository } from "@assistant-ui/core";
 
