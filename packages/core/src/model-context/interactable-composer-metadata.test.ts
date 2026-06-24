@@ -257,6 +257,24 @@ describe("findModelKnownState", () => {
     ];
     expect(findModelKnownState(history, "a", "note")?.state).toEqual({ v: 2 });
   });
+
+  it("replays assigned ids from array add update results", () => {
+    const history = [
+      userMsg([entry("board", { tasks: [] }, "taskBoard")]),
+      assistantToolCall(
+        "update_taskBoard",
+        { id: "board", tasks: { add: [{ title: "Write tests" }] } },
+        {
+          success: true,
+          id: "board",
+          addedItemIds: { tasks: ["task-1"] },
+        },
+      ),
+    ];
+    expect(findModelKnownState(history, "board", "taskBoard")?.state).toEqual({
+      tasks: [{ title: "Write tests", id: "task-1" }],
+    });
+  });
 });
 
 describe("unstable_getInteractableVersions", () => {
@@ -412,6 +430,31 @@ describe("gateInteractableComposerMetadata", () => {
     const history = [
       userMsg([entry("a", { v: 1 }, "note")]),
       assistantToolCall("update_note", { id: "a", v: 2 }, { success: true }),
+    ];
+    expect(gateInteractableComposerMetadata(meta, history)).toBeUndefined();
+  });
+
+  it("omits array add state when update results include assigned ids", () => {
+    const meta = {
+      interactables: [
+        entry(
+          "board",
+          { tasks: [{ title: "Write tests", id: "task-1" }] },
+          "taskBoard",
+        ),
+      ],
+    };
+    const history = [
+      userMsg([entry("board", { tasks: [] }, "taskBoard")]),
+      assistantToolCall(
+        "update_taskBoard",
+        { id: "board", tasks: { add: [{ title: "Write tests" }] } },
+        {
+          success: true,
+          id: "board",
+          addedItemIds: { tasks: ["task-1"] },
+        },
+      ),
     ];
     expect(gateInteractableComposerMetadata(meta, history)).toBeUndefined();
   });

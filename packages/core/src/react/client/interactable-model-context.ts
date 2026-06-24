@@ -1,11 +1,13 @@
 import type { Tool } from "assistant-stream";
-import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
+import { toJSONSchema } from "assistant-stream";
 import type { Unstable_InteractableDefinition } from "../types/scopes/interactables";
 import {
   interactableToolName,
   shallowMergeInteractableState,
   type Unstable_InteractableSnapshotEntry,
 } from "../../model-context/interactable-composer-metadata";
+import { generateId } from "../../utils/id";
+import { isRecord } from "../../utils/json/is-json";
 
 export type PartialJSONSchema = ReturnType<typeof toJSONSchema>;
 
@@ -15,28 +17,20 @@ const ID_PROPERTY = {
     "The id of the instance to update, as shown in its state snapshot in the conversation.",
 };
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 const hasIdProperty = (schema: Record<string, unknown>) => {
   const properties = schema.properties;
-  return isPlainObject(properties) && properties.id !== undefined;
+  return isRecord(properties) && properties.id !== undefined;
 };
 
-const withRequiredItemId = (schema: Record<string, unknown>) => {
-  const partial = toPartialJSONSchema(
-    schema as Parameters<typeof toPartialJSONSchema>[0],
-  ) as Record<string, unknown>;
-  return {
-    ...partial,
-    required: ["id"],
-  };
-};
+const withRequiredItemId = (schema: Record<string, unknown>) => ({
+  ...schema,
+  required: ["id"],
+});
 
 // The framework assigns ids to new items, so the model never sees the `id`
 // field when adding (it can't address an item that doesn't exist yet).
 const withoutItemId = (schema: Record<string, unknown>) => {
-  const { id: _omitted, ...properties } = isPlainObject(schema.properties)
+  const { id: _omitted, ...properties } = isRecord(schema.properties)
     ? schema.properties
     : {};
   const required = Array.isArray(schema.required)
@@ -46,9 +40,9 @@ const withoutItemId = (schema: Record<string, unknown>) => {
 };
 
 const toArrayUpdateSchema = (schema: unknown, field: string) => {
-  if (!isPlainObject(schema) || schema.type !== "array") return schema;
+  if (!isRecord(schema) || schema.type !== "array") return schema;
   const itemSchema = schema.items;
-  if (Array.isArray(itemSchema) || !isPlainObject(itemSchema)) return schema;
+  if (Array.isArray(itemSchema) || !isRecord(itemSchema)) return schema;
 
   const idKeyed = hasIdProperty(itemSchema);
   const properties: Record<string, unknown> = {
@@ -90,9 +84,9 @@ const idKeyedArrayFieldNames = (
   const names = new Set<string>();
   for (const [key, value] of Object.entries(properties)) {
     if (
-      isPlainObject(value) &&
+      isRecord(value) &&
       value.type === "array" &&
-      isPlainObject(value.items) &&
+      isRecord(value.items) &&
       hasIdProperty(value.items)
     ) {
       names.add(key);
@@ -176,7 +170,7 @@ export function buildInteractableModelContext(
     const first = instances[0]!;
     const partialSchema = partialSchemaCache.get(first.id);
     const idKeyedFields =
-      partialSchema && isPlainObject(partialSchema.properties)
+      partialSchema && isRecord(partialSchema.properties)
         ? idKeyedArrayFieldNames(partialSchema.properties)
         : new Set<string>();
 
@@ -244,17 +238,30 @@ export function buildInteractableModelContext(
         }
         const baseline = streamBaselines.get(toolCallId);
         streamBaselines.delete(toolCallId);
+        const addedItemIds: Record<string, string[]> = {};
         setDefState(target.id, (prev) =>
           shallowMergeInteractableState(prev, partial, {
             arrayBaseline:
               baseline?.targetId === target.id ? baseline.state : undefined,
-            idFactory: () => crypto.randomUUID(),
+            idFactory: (field) => {
+              const itemId = generateId();
+              (addedItemIds[field] ??= []).push(itemId);
+              return itemId;
+            },
             idKeyedFields,
           }),
         );
         // The resolved id lets an id-less call's UI (and the model) address
         // the instance that was actually updated.
-        return { success: true, id: target.id };
+        const result: {
+          success: true;
+          id: string;
+          addedItemIds?: Record<string, string[]>;
+        } = { success: true, id: target.id };
+        if (Object.keys(addedItemIds).length > 0) {
+          result.addedItemIds = addedItemIds;
+        }
+        return result;
       },
     };
   }

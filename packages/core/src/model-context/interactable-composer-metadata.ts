@@ -1,5 +1,5 @@
 import { isJSONValueEqual } from "../utils/json/is-json-equal";
-import { isJSONValue } from "../utils/json/is-json";
+import { isJSONValue, isRecord } from "../utils/json/is-json";
 
 /**
  * Unstable / Experimental — the interactables API is still evolving and may change in any release.
@@ -69,11 +69,8 @@ export function interactableToolName(name: string): string {
   return `update_${name.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 const getArrayItemId = (item: unknown): string | number | undefined => {
-  if (!isPlainObject(item)) return undefined;
+  if (!isRecord(item)) return undefined;
   const id = item.id;
   return typeof id === "string" || typeof id === "number" ? id : undefined;
 };
@@ -81,7 +78,7 @@ const getArrayItemId = (item: unknown): string | number | undefined => {
 function applyArrayUpdate(
   prev: unknown[],
   update: Record<string, unknown>,
-  mintId?: () => string,
+  mintId?: () => string | undefined,
 ) {
   let next = Array.isArray(update.set) ? [...update.set] : [...prev];
 
@@ -99,9 +96,9 @@ function applyArrayUpdate(
   if (Array.isArray(patches) && patches.length > 0) {
     next = next.map((item) => {
       const id = getArrayItemId(item);
-      if (id === undefined || !isPlainObject(item)) return item;
+      if (id === undefined || !isRecord(item)) return item;
       const patch = patches.find(
-        (candidate) => isPlainObject(candidate) && candidate.id === id,
+        (candidate) => isRecord(candidate) && candidate.id === id,
       );
       return patch ? { ...item, ...patch } : item;
     });
@@ -109,11 +106,11 @@ function applyArrayUpdate(
 
   if (Array.isArray(update.add) && update.add.length > 0) {
     const added = mintId
-      ? update.add.map((item) =>
-          isPlainObject(item) && item.id === undefined
-            ? { ...item, id: mintId() }
-            : item,
-        )
+      ? update.add.map((item) => {
+          if (!isRecord(item) || item.id !== undefined) return item;
+          const id = mintId();
+          return id === undefined ? item : { ...item, id };
+        })
       : update.add;
     next = [...next, ...added];
   }
@@ -132,24 +129,28 @@ export function shallowMergeInteractableState(
   options?:
     | {
         arrayBaseline?: unknown;
-        /** Mints ids for added items in `idKeyedFields`. Only the final
-         * (execute) merge passes this, so ids are assigned once. */
-        idFactory?: () => string;
+        /**
+         * Supplies ids for added items in id-keyed array fields. The live
+         * execute path mints fresh ids; history folds replay ids previously
+         * returned by execute.
+         */
+        idFactory?: (field: string) => string | undefined;
         idKeyedFields?: ReadonlySet<string>;
       }
     | undefined,
 ): unknown {
-  if (!isPlainObject(prev) || !isPlainObject(partial)) return partial;
-  const baseline = isPlainObject(options?.arrayBaseline)
+  if (!isRecord(prev) || !isRecord(partial)) return partial;
+  const baseline = isRecord(options?.arrayBaseline)
     ? options.arrayBaseline
     : prev;
   const next = { ...prev };
   for (const [key, value] of Object.entries(partial)) {
     const baseValue = baseline[key];
-    if (Array.isArray(baseValue) && isPlainObject(value)) {
+    if (Array.isArray(baseValue) && isRecord(value)) {
       const mintId =
-        options?.idFactory && options.idKeyedFields?.has(key)
-          ? options.idFactory
+        options?.idFactory &&
+        (options.idKeyedFields === undefined || options.idKeyedFields.has(key))
+          ? () => options.idFactory?.(key)
           : undefined;
       next[key] = applyArrayUpdate(baseValue, value, mintId);
     } else {
@@ -170,7 +171,7 @@ function shallowDiffInteractableState(
   known: unknown,
   next: unknown,
 ): Record<string, unknown> | undefined {
-  if (!isPlainObject(known) || !isPlainObject(next)) return undefined;
+  if (!isRecord(known) || !isRecord(next)) return undefined;
   for (const key of Object.keys(known)) {
     if (!(key in next)) return undefined;
   }
@@ -202,11 +203,28 @@ const asToolCallPart = (part: unknown): ToolCallLikePart | undefined => {
 /** Whether an accepted `update_*` call addressed instance `id`. */
 const updateCallTargets = (p: ToolCallLikePart, id: string): boolean => {
   if (!p.args || typeof p.args !== "object") return false;
-  const result = isPlainObject(p.result) ? p.result : undefined;
+  const result = isRecord(p.result) ? p.result : undefined;
   if (result?.success === false) return false;
   if (typeof result?.id === "string") return result.id === id;
   const argsId = (p.args as Record<string, unknown>).id;
   return argsId === id || argsId === undefined;
+};
+
+const createAddedItemIdFactory = (result: unknown) => {
+  const value = isRecord(result) ? result.addedItemIds : undefined;
+  if (!isRecord(value)) return undefined;
+
+  const idsByField = new Map<string, string[]>();
+  for (const [field, ids] of Object.entries(value)) {
+    if (!Array.isArray(ids)) continue;
+    const stringIds = ids.filter(
+      (item): item is string => typeof item === "string",
+    );
+    if (stringIds.length > 0) idsByField.set(field, stringIds);
+  }
+  if (idsByField.size === 0) return undefined;
+
+  return (field: string) => idsByField.get(field)?.shift();
 };
 
 /**
@@ -298,8 +316,13 @@ export function unstable_getInteractableVersions(
         const prev = current();
         if (prev) {
           const { id: _id, ...partial } = p.args as Record<string, unknown>;
+          const idFactory = createAddedItemIdFactory(p.result);
           versions.push({
-            state: shallowMergeInteractableState(prev.state, partial),
+            state: idFactory
+              ? shallowMergeInteractableState(prev.state, partial, {
+                  idFactory,
+                })
+              : shallowMergeInteractableState(prev.state, partial),
             origin: "update",
             toolCallId: p.toolCallId,
           });

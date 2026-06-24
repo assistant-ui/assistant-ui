@@ -1,4 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mockGenerateId = vi.hoisted(() => vi.fn(() => "generated-id"));
+
+vi.mock("../../utils/id", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/id")>()),
+  generateId: mockGenerateId,
+}));
+
 import {
   buildInteractableModelContext,
   type PartialJSONSchema,
@@ -54,6 +62,11 @@ const build = (
   const ctx = buildInteractableModelContext(definitions, cache, setDefState);
   return { ctx, setDefState };
 };
+
+beforeEach(() => {
+  mockGenerateId.mockReset();
+  mockGenerateId.mockReturnValue("generated-id");
+});
 
 describe("buildInteractableModelContext", () => {
   it("returns undefined with no definitions", () => {
@@ -212,13 +225,20 @@ describe("buildInteractableModelContext", () => {
         { id: "b1", tasks: { add: [{ title: "Write tests", done: false }] } },
         {} as never,
       );
-      expect(result).toEqual({ success: true, id: "b1" });
+      expect(result).toEqual({
+        success: true,
+        id: "b1",
+        addedItemIds: { tasks: ["generated-id"] },
+      });
       const tasks = (defs.b1.state as { tasks: Record<string, unknown>[] })
         .tasks;
       expect(tasks).toHaveLength(1);
-      expect(tasks[0]).toMatchObject({ title: "Write tests", done: false });
-      expect(typeof tasks[0]!.id).toBe("string");
-      expect((tasks[0]!.id as string).length).toBeGreaterThan(0);
+      expect(tasks[0]).toEqual({
+        title: "Write tests",
+        done: false,
+        id: "generated-id",
+      });
+      expect(mockGenerateId).toHaveBeenCalledOnce();
     });
 
     it("rejects an unknown id and lists valid ids", async () => {
