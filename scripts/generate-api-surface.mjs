@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -474,11 +475,29 @@ function renderCliSurface(cliSurface) {
   ].join("\n");
 }
 
+function diffContent(file, content) {
+  const diffFile = path.join(
+    tempRoot,
+    "diff",
+    path.relative(repoRoot, file).replaceAll(path.sep, "__"),
+  );
+  mkdirSync(path.dirname(diffFile), { recursive: true });
+  writeFileSync(diffFile, content);
+
+  const diff = spawnSync("git", ["diff", "--no-index", "--", file, diffFile], {
+    encoding: "utf8",
+  });
+  return `${diff.stdout}${diff.stderr}`.split("\n").slice(0, 200).join("\n");
+}
+
 function writeOrCheck(file, content, changedFiles) {
   const previous = existsSync(file) ? readFileSync(file, "utf8") : undefined;
   if (previous === content) return;
 
-  changedFiles.push(path.relative(repoRoot, file).replaceAll("\\", "/"));
+  changedFiles.push({
+    file: path.relative(repoRoot, file).replaceAll("\\", "/"),
+    content,
+  });
   if (!checkMode) writeFileSync(file, content);
 }
 
@@ -510,9 +529,9 @@ async function main() {
         const file = path.join(apiSurfaceRoot, entry);
         if (!entry.endsWith(".ts") || generatedFiles.has(file)) continue;
         if (checkMode) {
-          changedFiles.push(
-            path.relative(repoRoot, file).replaceAll("\\", "/"),
-          );
+          changedFiles.push({
+            file: path.relative(repoRoot, file).replaceAll("\\", "/"),
+          });
         } else {
           rmSync(file);
         }
@@ -521,7 +540,12 @@ async function main() {
 
     if (checkMode && changedFiles.length > 0) {
       console.error("API surface files are out of date:");
-      for (const file of changedFiles) console.error(`  ${file}`);
+      for (const { file } of changedFiles) console.error(`  ${file}`);
+      for (const { file, content } of changedFiles) {
+        if (!content) continue;
+        console.error(`\nDiff for ${file}:`);
+        console.error(diffContent(path.join(repoRoot, file), content));
+      }
       console.error("Run `pnpm api-surface` and commit the updated files.");
       process.exit(1);
     }
