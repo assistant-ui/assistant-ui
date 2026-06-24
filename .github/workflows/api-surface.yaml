@@ -53,7 +53,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build packages
-        run: turbo build --filter="./packages/*"
+        run: pnpm exec turbo build --filter="./packages/*"
 
       - name: Verify API surface snapshots
         run: pnpm api-surface:check

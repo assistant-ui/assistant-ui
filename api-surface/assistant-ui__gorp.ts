@@ -10,9 +10,6 @@ type GorpOperation = {
   type: "append-text";
   path: string[];
   value: string;
-} | {
-  type: "delete";
-  path: string[];
 };
 
 type GorpMessage = {
@@ -140,59 +137,8 @@ declare namespace GorpSessions {
   }
 }
 
-type GorpWebSocketConnectionState = "connecting" | "connected" | "disconnected";
-
-type WebSocketLike = {
-  onopen: (() => void) | null;
-  onmessage: ((event: {
-    data: unknown;
-  }) => void) | null;
-  onerror: (() => void) | null;
-  onclose: (() => void) | null;
-  send(data: string): void;
-  close(): void;
-};
-
-type WebSocketConstructor = new (url: string) => WebSocketLike;
-
-declare class GorpWebSocket<C> {
-  private readonly url;
-  private readonly sessionId;
-  private readonly getFromSeq;
-  private readonly WebSocketImpl;
-  private readonly messageListeners;
-  private readonly connectListeners;
-  private readonly connectionListeners;
-  private socket;
-  private reconnectAttempts;
-  private reconnectStartedAt;
-  private reconnectTimer;
-  private _connection;
-  private closed;
-  constructor(config: GorpWebSocket.Config);
-  get connection(): GorpWebSocketConnectionState;
-  onMessage(callback: (message: GorpMessage) => void): () => void;
-  onConnect(callback: () => void): () => void;
-  onConnectionChange(callback: (state: GorpWebSocketConnectionState) => void): () => void;
-  send(command: C): void;
-  close(): void;
-  private connect;
-  private scheduleReconnect;
-  private setConnection;
-  private buildUrl;
-}
-
-declare namespace GorpWebSocket {
-  type Config = {
-    url: string;
-    sessionId: string;
-    getFromSeq: () => number;
-    WebSocket?: WebSocketConstructor;
-  };
-}
-
 declare namespace entry_root_exports {
-  export { GorpClient, GorpMessage, GorpRelay, GorpServer, GorpSessions, GorpSessionsState, GorpWebSocket, GorpWebSocketConnectionState, RelaySerializedState, appendText };
+  export { GorpClient, GorpMessage, GorpRelay, GorpServer, GorpSessions, GorpSessionsState, RelaySerializedState, appendText };
 }
 
 export { entry_root_exports as entry_root };
