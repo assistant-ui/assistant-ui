@@ -378,17 +378,14 @@ function attachmentUnionMemberInfo(type, sourceFile) {
 
   const statusRank = status === "CompleteAttachmentStatus" ? 0 : 1;
 
-  const payload =
-    properties.has("content") &&
-    !properties.get("content").optional &&
-    statusRank === 0
-      ? "content"
-      : properties.has("file") &&
-          !properties.get("file").optional &&
-          statusRank === 1
-        ? "file"
-        : undefined;
-  if (!payload) return { recognized: true, key: undefined };
+  const hasMatchingPayload =
+    (statusRank === 0 &&
+      properties.has("content") &&
+      !properties.get("content").optional) ||
+    (statusRank === 1 &&
+      properties.has("file") &&
+      !properties.get("file").optional);
+  if (!hasMatchingPayload) return { recognized: true, key: undefined };
 
   return {
     recognized: true,
