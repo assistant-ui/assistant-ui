@@ -5,24 +5,8 @@ import { ZodType } from "zod";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
 declare namespace entry_ir_exports {
-  export { Action, AlertTone, Align, ButtonStyle, Color, ImageSize, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, TextSize, UIChildren, UIElement, UINode, UISpec, Weight, normalizeSpec, normalizeUINode };
+  export { Action, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, UIChildren, UIElement, UINode, UISpec, normalizeSpec, normalizeUINode };
 }
-
-type TextSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
-
-type ImageSize = "sm" | "md" | "lg" | number;
-
-type Weight = "normal" | "medium" | "semibold" | "bold";
-
-type Color = "emphasis" | "secondary" | "alpha-70" | "white" | "white-70" | "white-50";
-
-type Align = "start" | "center" | "end";
-
-type Justify = "start" | "center" | "end" | "between";
-
-type ButtonStyle = "primary" | "secondary" | "outline" | "ghost" | "danger";
-
-type AlertTone = "info" | "success" | "warning" | "danger";
 
 interface Action {
   readonly type: string;
@@ -975,7 +959,7 @@ declare function generativeUIToJSX(node: unknown): string;
 declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
 
 declare namespace entry_root_default_exports {
-  export { Action, AlertTone, Align, ButtonStyle, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, Weight, buildPresentParameters, defineGenerativeComponents, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
+  export { Action, GenerativeUIAction, GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TYPE_KEY, UIChildren, UIElement, UINode, UISpec, buildPresentParameters, defineGenerativeComponents, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
 }
 
 declare class JSONGenerativeUI {
@@ -986,7 +970,7 @@ declare class JSONGenerativeUI {
 }
 
 declare namespace entry_root_react_server_exports {
-  export { Action, AlertTone, Align, ButtonStyle, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, Weight, buildPresentParameters, defineGenerativeComponents, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
+  export { Action, GenerativeUIAction, GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, JSONGenerativeUI, JSONGenerativeUIOptions, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TYPE_KEY, UIChildren, UIElement, UINode, UISpec, buildPresentParameters, defineGenerativeComponents, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
 }
 
 export { entry_ir_exports as entry_ir, entry_root_default_exports as entry_root_default, entry_root_react_server_exports as entry_root_react_server };

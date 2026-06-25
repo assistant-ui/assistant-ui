@@ -29,12 +29,4 @@ export type {
   UISpec,
   NormalizedUINode,
   NormalizedUIElement,
-  TextSize,
-  ImageSize,
-  Weight,
-  Color,
-  Align,
-  Justify,
-  ButtonStyle,
-  AlertTone,
 } from "./ir";
