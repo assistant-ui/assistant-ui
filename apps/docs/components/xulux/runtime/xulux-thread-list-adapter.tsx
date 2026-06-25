@@ -146,6 +146,11 @@ export function createXuluxLocalThreadListAdapter({
           : sessionStub?.custom.canvas !== undefined
             ? { canvas: sessionStub.custom.canvas }
             : {}),
+        ...(existing?.custom.activePreviewContext !== undefined
+          ? { activePreviewContext: existing.custom.activePreviewContext }
+          : sessionStub?.custom.activePreviewContext !== undefined
+            ? { activePreviewContext: sessionStub.custom.activePreviewContext }
+            : {}),
       } satisfies XuluxThreadCustom,
     }));
 

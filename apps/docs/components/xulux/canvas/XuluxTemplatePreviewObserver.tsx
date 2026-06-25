@@ -12,6 +12,8 @@ type OpenTemplatePreviewResult =
       downloadUrl: string;
       title: string;
       summary?: string;
+      customized?: boolean;
+      config?: Record<string, unknown>;
     }
   | {
       success: false;
@@ -24,6 +26,8 @@ type TemplatePreviewReady = {
   templateId: string;
   versionId?: string;
   title: string;
+  customized: boolean;
+  config?: Record<string, unknown>;
 };
 
 function isOpenTemplatePreviewCall(part: unknown): part is ToolCallMessagePart {
@@ -85,6 +89,8 @@ export function XuluxTemplatePreviewObserver({
           ? { versionId: payload.versionId }
           : {}),
         title: payload.title,
+        customized: payload.customized ?? false,
+        ...(payload.config ? { config: payload.config } : {}),
       });
     } else {
       onCanvasError(payload.error);

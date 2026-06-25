@@ -1110,6 +1110,7 @@ export function createTemplateTools() {
             downloadUrl:
               entry.downloadUrl ?? `/api/xulux/demo-download?slug=${entry.id}`,
             title: entry.title,
+            customized: false,
             summary: `Opened ${entry.title} as a fixed demo.`,
           };
         }
@@ -1167,6 +1168,8 @@ export function createTemplateTools() {
                 withVersion(data.downloadUrl ?? "/api/download", versionId),
               ),
               title: entry.title,
+              customized: true,
+              config,
               summary: `Opened ${entry.title} with custom configuration.`,
               validationWarnings: data.validationWarnings ?? [],
             };
@@ -1185,6 +1188,7 @@ export function createTemplateTools() {
           previewUrl: entry.previewUrl ?? baseUrl,
           downloadUrl: entry.downloadUrl ?? `${baseUrl}/api/download`,
           title: entry.title,
+          customized: false,
           summary: `Opened ${entry.title}.`,
         };
       },

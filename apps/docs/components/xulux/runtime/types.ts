@@ -13,6 +13,14 @@ export type XuluxCanvasSnapshot = {
   title?: string;
 };
 
+export type XuluxActivePreviewContext = {
+  source: "template_modal" | "agent_tool";
+  templateId: string;
+  versionId?: string | null;
+  customized: boolean;
+  config?: Record<string, unknown>;
+};
+
 export type XuluxThreadCustom = {
   xuluxStatus: XuluxThreadStatus;
   sessionId: string;
@@ -20,6 +28,7 @@ export type XuluxThreadCustom = {
   pendingUserMessage?: string | null;
   selectedTemplate?: SelectedTemplateContext | null;
   canvas?: XuluxCanvasSnapshot;
+  activePreviewContext?: XuluxActivePreviewContext | null;
 };
 
 export type XuluxStoredThread = {
