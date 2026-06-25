@@ -88,8 +88,17 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
         let aggregateSize = 0;
         let truncated = false;
         for (const file of files) {
-          const fileStats = await stat(join(fullPath, file));
-          aggregateSize += fileStats.size;
+          let fileSize: number;
+          try {
+            fileSize = (await stat(join(fullPath, file))).size;
+          } catch (error) {
+            logger.warn(
+              `Failed to stat MDX file: ${join(fullPath, file)}`,
+              error,
+            );
+            continue;
+          }
+          aggregateSize += fileSize;
           if (aggregateSize > MAX_DIRECTORY_CONTENT_SIZE) {
             truncated = true;
             break;
