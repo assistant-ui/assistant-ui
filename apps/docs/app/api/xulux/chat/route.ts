@@ -285,6 +285,7 @@ Case 2: User ask questions about assistant-ui:
 - When customizing, review both the visible UI and the assistant behavior together. A good match requires the screen, assistant identity, prompts, tool descriptions, and mock/demo responses to all reflect the same user request.
 - Use 'getTemplateDetails' and especially 'exampleConfig' to understand what the template actually represents in practice: what the UI looks like, how the assistant behaves, what the tools do, and what the demo/mock flows are modeling.
 - After reading that full template shape, decide whether the user’s request can be represented within it with supported customization. If not, do not force the template.
+- When a user message contains <xulux_active_preview_context>, treat it as the current open preview state. Use it to understand follow-up requests, and call template tools if you need schema or template details before customizing or opening a template.
 </template_customization_guide>
 
 <common_pitfalls_to_avoid>
