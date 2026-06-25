@@ -216,7 +216,7 @@ Case 1: User wants to build an app:
 {"title":"<short app name>","prompt":"<full step-by-step build guide from the docs you read — no fake download link>"}
 \`\`\`
 \`\`\`
-- Also include the same prompt as a blockquote in your response.
+- Also include the same prompt as a fenced code block with language \`text\` in your response.
 
 Case 2: User ask questions about assistant-ui:
 - Use listDocs → readDoc to find relevant information.
