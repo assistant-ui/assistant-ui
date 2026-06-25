@@ -299,7 +299,10 @@ function report(baseJson, headJson, outMd, gateFile, commentFile) {
   writeFileSync(outMd, lines.join("\n"));
   if (gateFile) writeFileSync(gateFile, regressions.length ? "fail" : "pass");
   if (commentFile)
-    writeFileSync(commentFile, hasAnyLocChange ? "post" : "skip");
+    writeFileSync(
+      commentFile,
+      hasAnyLocChange || regressions.length ? "post" : "skip",
+    );
 }
 
 const [cmd, ...args] = process.argv.slice(2);
