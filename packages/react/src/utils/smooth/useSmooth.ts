@@ -135,8 +135,9 @@ const positiveOr = (value: number | undefined, fallback: number): number =>
  * the reveal. Returns the part state with `text` replaced by the revealed
  * prefix and `status` reporting `running` until the reveal catches up.
  *
- * The reveal auto-disables when the user requests reduced motion
- * (`prefers-reduced-motion: reduce`), committing the full text immediately.
+ * The reveal auto-disables under `prefers-reduced-motion: reduce`,
+ * committing the full text immediately; this takes precedence over an
+ * explicit `smooth={true}`.
  *
  * @example
  * ```tsx

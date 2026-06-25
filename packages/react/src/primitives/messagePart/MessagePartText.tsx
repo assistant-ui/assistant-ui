@@ -20,8 +20,7 @@ export namespace MessagePartPrimitiveText {
      * Whether to enable smooth text streaming animation.
      * When enabled, text appears with a typing effect as it streams in.
      * Pass a `SmoothOptions` object to tune the reveal rate.
-     * Auto-disables when the user requests reduced motion
-     * (`prefers-reduced-motion: reduce`).
+     * Auto-disables under `prefers-reduced-motion: reduce`.
      * @default true
      */
     smooth?: boolean | SmoothOptions;
