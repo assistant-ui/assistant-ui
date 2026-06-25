@@ -34,10 +34,7 @@ const dependsOnTap = ["dependencies", "peerDependencies"].some(
 );
 const isTapPackage = pkg.name === "@assistant-ui/tap";
 const remapReactToShim = dependsOnTap || isTapPackage;
-const packageImportExternals =
-  typeof pkg.imports === "object" && pkg.imports !== null
-    ? Object.keys(pkg.imports)
-    : [];
+const packageImportExternals = Object.keys(pkg.imports ?? {});
 
 await build({
   entry: [
