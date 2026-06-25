@@ -1889,6 +1889,7 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   rejectQuestion(questionId: string): Promise<void>;
   private refreshInBackground;
   private handleServerEvent;
+  private notify;
   private dispatch;
 }
 

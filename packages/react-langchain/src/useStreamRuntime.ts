@@ -1,7 +1,7 @@
 /// <reference types="@assistant-ui/core/store" />
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppendMessage, ToolExecutionStatus } from "@assistant-ui/core";
 import {
   generateId,
@@ -200,6 +200,29 @@ const useStreamThreadRuntime = (
       }
     >(),
   );
+
+  useEffect(() => {
+    if (stagedMessagesRef.current.size === 0) return;
+
+    const baseMessages = stream.messages as LangChainBaseMessage[];
+    const baseMessageIds = new Set(
+      baseMessages.flatMap((message) => (message.id ? [message.id] : [])),
+    );
+    const remainingStagedMessages: LangChainBaseMessage[] = [];
+    const seenStagedIds = new Set<string>();
+    for (const message of visibleMessagesRef.current) {
+      if (!message.id || seenStagedIds.has(message.id)) continue;
+      if (baseMessageIds.has(message.id)) continue;
+      const staged = stagedMessagesRef.current.get(message.id);
+      if (!staged) continue;
+      remainingStagedMessages.push(staged.message);
+      seenStagedIds.add(message.id);
+    }
+
+    const nextMessages = [...baseMessages, ...remainingStagedMessages];
+    visibleMessagesRef.current = nextMessages;
+    setStagedMessages(nextMessages);
+  }, [stream.messages]);
 
   const getStagedRun = (parentId: string | null) => {
     if (!parentId || !stagedMessagesRef.current.has(parentId)) return null;

@@ -415,9 +415,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       options ?? staged.options,
     );
     this.stagedMessages.delete(parentId);
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.notify();
     return true;
   }
 
@@ -705,12 +703,16 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     });
   }
 
+  private notify() {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+
   private dispatch(event: Parameters<typeof reduceOpenCodeThreadState>[1]) {
     const nextState = reduceOpenCodeThreadState(this.state, event);
     if (nextState === this.state) return;
     this.state = nextState;
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.notify();
   }
 }
