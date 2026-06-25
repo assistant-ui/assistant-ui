@@ -1,4 +1,4 @@
-export { JSONGenerativeUI } from "./JSONGenerativeUI.client";
+export { JSONGenerativeUI } from "./JSONGenerativeUI.server";
 export { renderGenerativeUI } from "./renderGenerativeUI";
 export { generativeUIToJSX } from "./generativeUIToJSX";
 export { buildPresentParameters } from "./buildPresentParameters";

@@ -15,8 +15,14 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "react-server": {
+        "types": "./dist/index.server.d.ts",
+        "default": "./dist/index.server.js"
+      },
+      "default": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
     },
     "./internal-json": {
       "react-server": {
