@@ -376,12 +376,7 @@ function attachmentUnionMemberInfo(type, sourceFile) {
   const status = attachmentUnionMemberStatus(properties);
   if (!status) return { recognized: false, key: undefined };
 
-  const statusRank =
-    status === "CompleteAttachmentStatus"
-      ? 0
-      : status === "PendingAttachmentStatus"
-        ? 1
-        : undefined;
+  const statusRank = status === "CompleteAttachmentStatus" ? 0 : 1;
 
   const payload =
     properties.has("content") &&
@@ -397,7 +392,7 @@ function attachmentUnionMemberInfo(type, sourceFile) {
 
   return {
     recognized: true,
-    key: `${properties.get("source").value}:${statusRank}:${payload}`,
+    key: `${properties.get("source").value}:${statusRank}`,
   };
 }
 
