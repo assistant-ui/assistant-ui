@@ -41,17 +41,25 @@ export type GenerativeUIRenderContext = {
 
 /**
  * Props a component's `render` receives: its model props, rendered `children`,
- * and the injected `$status`. `$status` is the discriminant — when it is
- * `"done"`, `P` is complete; while `"streaming"`, `P` is partial. It is named
- * `$status` (not `status`) so it never collides with a real `status` prop, the
- * same reservation as `$type`.
+ * and the injected framework keys. `$status` is the discriminant — when it is
+ * `"done"`, `P` is complete; while `"streaming"`, `P` is partial. `$action` is
+ * the node's behavior payload, present only on interactive nodes. Both are
+ * `$`-prefixed so they never collide with a real `status`/`action` prop.
  */
 type StreamingRenderProps<P> =
-  | (Partial<P> & { children?: ReactNode; $status: "streaming" })
-  | (P & { children?: ReactNode; $status: "done" });
+  | (Partial<P> & {
+      children?: ReactNode;
+      $status: "streaming";
+      $action?: Action;
+    })
+  | (P & { children?: ReactNode; $status: "done"; $action?: Action });
 
 /** Props for a component that only renders once complete — `$status` is always `"done"`. */
-type StaticRenderProps<P> = P & { children?: ReactNode; $status: "done" };
+type StaticRenderProps<P> = P & {
+  children?: ReactNode;
+  $status: "done";
+  $action?: Action;
+};
 
 /**
  * A component the model is allowed to render, with the schema for its props.

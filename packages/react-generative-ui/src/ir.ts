@@ -17,6 +17,34 @@
 
 import { TYPE_KEY } from "./constants";
 
+export type TextSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
+
+export type ImageSize = "sm" | "md" | "lg" | number;
+
+export type Weight = "normal" | "medium" | "semibold" | "bold";
+
+export type Color =
+  | "emphasis"
+  | "secondary"
+  | "alpha-70"
+  | "white"
+  | "white-70"
+  | "white-50";
+
+export type Align = "start" | "center" | "end";
+
+export type Justify = "start" | "center" | "end" | "between";
+
+export type ButtonStyle =
+  | "primary"
+  | "secondary"
+  | "outline"
+  | "ghost"
+  | "danger";
+
+/** Maps to ChatKit `alert` severity levels. */
+export type AlertTone = "info" | "success" | "warning" | "danger";
+
 /**
  * Behavior payload carried by an interactive node. `type` is resolved by the
  * host's action registry, not the renderer; keeping behavior as data keeps the
