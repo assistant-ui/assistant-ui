@@ -272,7 +272,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
     const staged: AdkMessage[] = [];
     for (const message of adkMessagesRef.current) {
-      if (stagedMessagesRef.current.has(message.id)) {
+      if (message.id && stagedMessagesRef.current.has(message.id)) {
         staged.push(stagedMessagesRef.current.get(message.id)!.message);
       }
       if (message.id === parentId) break;

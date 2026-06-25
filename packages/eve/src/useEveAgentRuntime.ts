@@ -41,7 +41,7 @@ const truncateThreadMessages = (
 ) => {
   if (parentId === null) return [];
   const parentIndex = messages.findIndex((message) => message.id === parentId);
-  if (parentIndex === -1) return messages;
+  if (parentIndex === -1) return [];
   return messages.slice(0, parentIndex + 1);
 };
 
