@@ -218,9 +218,14 @@ export function normalizeUINode(
     // A node whose `$type` has not arrived yet (or whose `$type` string is
     // still mid-arrival) is not an error, it just isn't renderable.
     if (partialPath?.length === 1 && partialPath[0] === TYPE_KEY) return null;
-    const { $type, $key, $action, children, ...props } = node;
+    const { [TYPE_KEY]: type, $key, $action, children, ...rest } = node;
+    // The `$`-prefixed namespace is framework-reserved (see the module header),
+    // so any model-supplied `$`-prefixed key is stripped from the prop bag the
+    // component sees. `$type`/`$key`/`$action` are pulled above; sweep the rest
+    // (e.g. a stray `$status`) so it never leaks to converters or components.
+    const props = stripReservedProps(rest);
     return {
-      type: $type,
+      type,
       props,
       children: normalizeChildren(children, partialPath, depth),
       key: $key,
@@ -229,6 +234,21 @@ export function normalizeUINode(
   }
 
   return null;
+}
+
+/** Drops any remaining `$`-prefixed keys so the reserved namespace never leaks
+ * into the component prop bag. */
+function stripReservedProps(
+  props: Record<string, unknown>,
+): Record<string, unknown> {
+  let out: Record<string, unknown> | undefined;
+  for (const key of Object.keys(props)) {
+    if (key.startsWith("$")) {
+      out ??= { ...props };
+      delete out[key];
+    }
+  }
+  return out ?? props;
 }
 
 function normalizeChildren(

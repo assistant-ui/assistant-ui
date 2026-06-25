@@ -99,6 +99,21 @@ describe("normalizeUINode", () => {
       expect(node.action).toEqual({ type: "purchase", itemId: "sku-1" });
       expect(node.props).toEqual({ label: "Purchase" });
     });
+
+    it("strips the whole $-prefixed namespace from props (not just the named keys)", () => {
+      const node = asElement(
+        normalizeUINode({
+          $type: "Card",
+          $status: "done",
+          $custom: 1,
+          title: "hi",
+        }),
+      );
+
+      expect(node.props).toEqual({ title: "hi" });
+      expect("$status" in node.props).toBe(false);
+      expect("$custom" in node.props).toBe(false);
+    });
   });
 
   describe("nesting", () => {
