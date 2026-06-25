@@ -91,6 +91,24 @@ describe("assistantUIDocs", () => {
     expect(result.content).toContain("assistant-ui");
   });
 
+  it("includes title and excerpt on a file response", async () => {
+    const result = await testContext.callTool("assistantUIDocs", {
+      paths: ["(docs)/index"],
+    });
+    expect(result.type).toBe("file");
+    expect(result.title ?? result.excerpt).toBeDefined();
+  });
+
+  it("includes per-file summaries on a directory listing", async () => {
+    const result = await testContext.callTool("assistantUIDocs", {
+      paths: ["(reference)/api-reference/primitives"],
+    });
+    expect(result.type).toBe("directory");
+    expect(Array.isArray(result.summaries)).toBe(true);
+    expect(result.summaries.length).toBeGreaterThan(0);
+    expect(result.summaries[0].name).toBeDefined();
+  });
+
   it("should skip symlinks and large files", async () => {
     const mockedLstat = vi.mocked(fs.lstat);
 
