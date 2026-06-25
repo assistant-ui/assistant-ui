@@ -34,10 +34,12 @@ export const useLangGraphSendCommand = () => {
 
 /**
  * Replace the active thread's LangChain message list directly, bypassing the
- * stream. Accepts an array or a functional updater. Useful for history
- * pagination (prepend an older page: `setMessages((prev) => [...older, ...prev])`)
- * or optimistic edits. The runtime merges later stream events onto whatever is
- * set here, keyed by message id.
+ * stream. Accepts an array or a functional updater. Use for history pagination
+ * (prepend an older page: `setMessages((prev) => [...older, ...prev])`) or
+ * optimistic edits while the thread is idle. Throws if called while a run is in
+ * progress, because the running stream owns the list during a turn; the next
+ * run re-seeds from the current list, so an idle-time replacement becomes the
+ * base for the next run.
  */
 export const useLangGraphSetMessages = () => {
   const aui = useAui();

@@ -189,6 +189,22 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     return sendMessage(messages, config, () => setIsRunning(false));
   };
 
+  // The active stream's accumulator owns the list while isRunning; an external
+  // setMessages would be dropped by the next chunk. Idle replacements stick
+  // because the next sendMessage re-seeds a fresh accumulator from messagesRef.
+  const handleSetMessages = (
+    next:
+      | LangChainMessage[]
+      | ((prev: LangChainMessage[]) => LangChainMessage[]),
+  ) => {
+    if (isRunning) {
+      throw new Error(
+        "useLangGraphRuntime: setMessages was called while a run is in progress. Replace the message list only when the thread is idle.",
+      );
+    }
+    setMessages(next);
+  };
+
   const runUserMessage = async (msg: AppendMessage) => {
     // A new turn abandons any half-collected parallel tool batch.
     toolResultBufferRef.current.clear();
@@ -283,7 +299,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       messageMetadata,
       uiMessages,
       send: handleSendMessage,
-      setMessages,
+      setMessages: handleSetMessages,
     }),
     onNew: runUserMessage,
     ...(queueController && { queue: queueController.adapter }),

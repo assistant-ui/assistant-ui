@@ -873,6 +873,7 @@ Regenerate works without configuration. Clicking regenerate resolves the server 
 | `useLangGraphInterruptState` | `useLangChainInterruptState` | Same return shape. |
 | `useLangGraphSendCommand` | `useLangChainRespond` | Preferred resume; carries a payload via `stream.respond`. For a raw `Command`, use `useLangChainSubmit(null, { command })`. |
 | `useLangGraphSend` | _(use `runtime.thread.append`)_ | No direct equivalent; send turns through the runtime. |
+| `useLangGraphSetMessages` | _(none)_ | Replace the message list while the thread is idle (history pagination, optimistic edits). Throws while a run is in progress; the next run re-seeds from the current list. |
 | `useLangGraphMessageMetadata` | _(use `useMessageMetadata(useLangChainStream(), id)`)_ | Per-message metadata via the upstream selector hook. |
 | `useLangGraphUIMessages` | _(UI renders as data parts; register with `makeAssistantDataUI`)_ | See [Generative UI](#generative-ui). |
 | _(none)_ | `useLangChainState<T>(key)` | New — reads any custom state key reactively. |

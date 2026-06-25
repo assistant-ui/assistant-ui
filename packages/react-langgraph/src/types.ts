@@ -245,8 +245,9 @@ export type LangGraphRuntimeExtras = {
   /**
    * Replace the runtime's LangChain message list directly, bypassing the
    * stream. Accepts an array or a functional updater. Use for history
-   * pagination (prepend older pages) or optimistic edits; the next stream
-   * event continues to merge onto whatever is set here.
+   * pagination (prepend older pages) or optimistic edits while the thread is
+   * idle; throws if called while a run is in progress. The next run re-seeds
+   * from the current list.
    */
   setMessages: (
     messages:

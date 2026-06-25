@@ -33,6 +33,20 @@ const runtime = useLangGraphRuntime({
 });
 ```
 
+## Windowed history loading
+
+`load` seeds the message list when a thread opens, and it can return a partial list (for example only the last N messages from the checkpoint), so opening a long thread stays fast. Prepending older pages while staying on the same thread is a separate concern: `load` only fires on thread switch, not on scroll. For in-thread pagination use `useLangGraphSetMessages`:
+
+```ts
+const setMessages = useLangGraphSetMessages();
+
+// prepend an older page fetched on scroll, without re-reading state
+const older = await fetchOlderPage();
+setMessages((prev) => [...older, ...prev]);
+```
+
+`useLangGraphSetMessages` replaces the list while the thread is idle. It throws if called while a run is in progress, because the running stream owns the list during a turn; the next run re-seeds from whatever the list is at that point, so an idle-time replacement becomes the base for the next run.
+
 ## Cloud persistence
 
 For managed multi-thread support, persistence, sync, and titles, pass an `AssistantCloud` instance:

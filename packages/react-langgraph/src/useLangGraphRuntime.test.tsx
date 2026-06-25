@@ -8,7 +8,7 @@ import type {
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
-import { useLangGraphSend } from "./hooks";
+import { useLangGraphSend, useLangGraphSetMessages } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
 import type { LangChainMessage } from "./types";
 import type { LangGraphInterruptState } from "./useLangGraphMessages";
@@ -799,6 +799,108 @@ describe("useLangGraphRuntime", () => {
 
       expect(auiResult.current.thread().getState().capabilities.queue).toBe(
         false,
+      );
+    });
+  });
+
+  describe("useLangGraphSetMessages", () => {
+    it("throws when called while a run is in progress, and applies when idle", async () => {
+      const gate = deferred<void>();
+      let firstRun = true;
+      const streamMock = vi.fn(async function* (messages: LangChainMessage[]) {
+        // hold the first run open so isRunning stays true
+        if (firstRun) {
+          firstRun = false;
+          yield {
+            event: "messages",
+            data: [
+              {
+                id: "run-1",
+                content: "streaming",
+                additional_kwargs: {},
+                response_metadata: {},
+                type: "AIMessageChunk",
+                name: null,
+                tool_calls: [],
+                invalid_tool_calls: [],
+                tool_call_chunks: [],
+              },
+              { run_attempt: 1 },
+            ],
+          };
+          await gate.promise;
+        }
+        void messages;
+      });
+
+      const { result: runtimeResult } = renderHook(
+        () => useLangGraphRuntime({ stream: streamMock }),
+        {},
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+      const { result: setMessagesResult } = renderHook(
+        () => useLangGraphSetMessages(),
+        { wrapper },
+      );
+
+      await act(async () => {
+        auiResult.current.composer().setText("hello");
+        auiResult.current.composer().send();
+      });
+
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(true),
+      );
+
+      const runningIds = auiResult
+        .current!.thread()
+        .getState()
+        .messages.map((m) => m.id);
+
+      expect(() =>
+        setMessagesResult.current((prev) => [
+          { id: "old-1", type: "human", content: "older page" },
+          ...prev.map((m) => ({
+            id: m.id!,
+            type: "human" as const,
+            content: "",
+          })),
+        ]),
+      ).toThrow(/setMessages was called while a run is in progress/);
+
+      // the rejected call leaves the in-flight run untouched
+      expect(auiResult.current.thread().getState().isRunning).toBe(true);
+      expect(
+        auiResult.current
+          .thread()
+          .getState()
+          .messages.map((m) => m.id),
+      ).toEqual(runningIds);
+
+      await act(async () => {
+        gate.resolve();
+        await new Promise((r) => setTimeout(r, 0));
+        await new Promise((r) => setTimeout(r, 0));
+      });
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+
+      act(() => {
+        setMessagesResult.current([
+          { id: "page-1", type: "human", content: "first page" },
+          { id: "page-2", type: "human", content: "second page" },
+        ]);
+      });
+
+      await waitFor(() =>
+        expect(
+          auiResult.current
+            .thread()
+            .getState()
+            .messages.map((m) => m.id),
+        ).toEqual(["page-1", "page-2"]),
       );
     });
   });
