@@ -6,15 +6,11 @@ on:
     paths:
       - "templates/**"
       - "packages/ui/**"
-      - "scripts/template-metrics.mjs"
-      - ".github/workflows/template-metrics.yaml"
   pull_request:
     branches: [main]
     paths:
       - "templates/**"
       - "packages/ui/**"
-      - "scripts/template-metrics.mjs"
-      - ".github/workflows/template-metrics.yaml"
 
 permissions:
   contents: read
@@ -93,7 +89,7 @@ jobs:
 
       - name: Build report
         run: |
-          node scripts/template-metrics.mjs report install-footprint/branch/main/data.json metrics-head.json metrics-report.md metrics-gate.txt
+          node scripts/template-metrics.mjs report install-footprint/branch/main/data.json metrics-head.json metrics-report.md metrics-gate.txt metrics-comment.txt
           cat metrics-report.md
 
       # continue-on-error: a fork PR's read-only token makes commenting 403; that
@@ -115,6 +111,11 @@ jobs:
               issue_number: context.issue.number,
             });
             const existing = comments.find((c) => c.body.includes(marker));
+            const shouldCreate = fs.readFileSync('metrics-comment.txt', 'utf8').trim() === 'post';
+            if (!existing && !shouldCreate) {
+              console.log('No LOC changes; skipping template metrics comment.');
+              return;
+            }
             if (existing) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,

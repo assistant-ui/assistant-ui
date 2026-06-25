@@ -10,7 +10,7 @@
 //
 // Usage:
 //   node scripts/template-metrics.mjs measure <rootDir> <outJson>
-//   node scripts/template-metrics.mjs report <baseJson|""> <headJson> <outMd> [gateFile]
+//   node scripts/template-metrics.mjs report <baseJson|""> <headJson> <outMd> [gateFile] [commentFile]
 //
 // report writes "pass"/"fail" to gateFile based on the regression thresholds
 // (env: MAX_LOC_INCREASE applied to total LOC, MAX_BUNDLE_INCREASE_KB).
@@ -208,6 +208,12 @@ function bundleCell(cur, base) {
   return `${kb(cur)} (${d === 0 ? "0" : signedKb(d)})`;
 }
 
+function hasLocChange(t, base, hasBaseline) {
+  if (!hasBaseline) return false;
+  if (!base || base.ownLoc == null) return true;
+  return t.ownLoc !== base.ownLoc || t.uiLoc !== base.uiLoc;
+}
+
 // Per-template thresholds (env-overridable). A template "regresses" when it
 // already existed on the baseline and grows past either limit. The LOC limit
 // applies to total footprint (own + /ui).
@@ -234,19 +240,25 @@ function regression(t, base) {
   return reasons.length ? reasons : null;
 }
 
-function report(baseJson, headJson, outMd, gateFile) {
+function report(baseJson, headJson, outMd, gateFile, commentFile) {
   const head = JSON.parse(readFileSync(headJson, "utf8"));
   const base =
     baseJson && existsSync(baseJson)
       ? JSON.parse(readFileSync(baseJson, "utf8"))
       : [];
   const baseByName = new Map(base.map((t) => [t.name, t]));
+  const headByName = new Map(head.map((t) => [t.name, t]));
+  const hasBaseline = base.length > 0;
 
   const regressions = [];
+  let hasAnyLocChange = base.some(
+    (t) => t.ownLoc != null && !headByName.has(t.name),
+  );
   const rows = head.map((t) => {
     const b = baseByName.get(t.name);
     const reasons = regression(t, b);
     if (reasons) regressions.push({ name: t.name, reasons });
+    if (hasLocChange(t, b, hasBaseline)) hasAnyLocChange = true;
     return [
       t.name,
       locCell(t.ownLoc, b?.ownLoc),
@@ -286,11 +298,14 @@ function report(baseJson, headJson, outMd, gateFile) {
 
   writeFileSync(outMd, lines.join("\n"));
   if (gateFile) writeFileSync(gateFile, regressions.length ? "fail" : "pass");
+  if (commentFile)
+    writeFileSync(commentFile, hasAnyLocChange ? "post" : "skip");
 }
 
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "measure") measure(args[0], args[1]);
-else if (cmd === "report") report(args[0] || "", args[1], args[2], args[3]);
+else if (cmd === "report")
+  report(args[0] || "", args[1], args[2], args[3], args[4]);
 else {
   console.error("usage: template-metrics.mjs measure|report ...");
   process.exit(1);
