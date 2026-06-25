@@ -1538,7 +1538,9 @@ function toolSubject(toolName: string | undefined): string {
 }
 
 function typedToolSubject(type: string, toolName: string | undefined): string {
-  return toolName ? `${type} tool "${toolName}"` : `a ${type} tool`;
+  if (toolName) return `${type} tool "${toolName}"`;
+  const article = /^[aeiou]/i.test(type) ? "an" : "a";
+  return `${article} ${type} tool`;
 }
 
 function stripExternalToolMetadata(object: t.ObjectExpression): void {

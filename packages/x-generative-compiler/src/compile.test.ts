@@ -1165,6 +1165,15 @@ export default defineToolkit({
       ),
     ).toThrow(/external tool "search" must declare a `render` or `renderText`/);
   });
+
+  it("falls back to an unnamed external tool diagnostic for computed keys", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit, externalTool } from "@assistant-ui/react";\nconst search = "search";\nexport default defineToolkit({ [search]: { execute: externalTool() } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/an external tool must declare a `render` or `renderText`/);
+  });
 });
 
 describe("compileGenerative — local dead-code elimination", () => {
@@ -1317,6 +1326,15 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
         { target: "client" },
       ),
     ).toThrow(/tool "ask" must declare an `execute`/);
+  });
+
+  it("falls back to an unnamed execute diagnostic for computed keys", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nconst ask = "ask";\nexport default defineToolkit({ [ask]: { render: () => null } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/every tool must declare an `execute`/);
   });
 
   it("infers `human` from execute: humanTool() and drops it on both builds", () => {
