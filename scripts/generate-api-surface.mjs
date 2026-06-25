@@ -16,8 +16,9 @@ import { pathToFileURL } from "node:url";
 const repoRoot = process.cwd();
 const packagesRoot = path.join(repoRoot, "packages");
 const apiSurfaceRoot = path.join(repoRoot, "api-surface");
-const tempRoot = path.join(repoRoot, ".turbo", "api-surface");
+const tempRoot = path.join(repoRoot, ".api-surface-tmp");
 const checkMode = process.argv.includes("--check");
+const turboFilters = optionValues("--filter");
 
 const requireFromBuildUtils = createRequire(
   path.join(repoRoot, "packages/x-buildutils/package.json"),
@@ -27,6 +28,25 @@ const ts = requireFromBuildUtils("typescript");
 
 function readJson(file) {
   return JSON.parse(readFileSync(file, "utf8"));
+}
+
+function optionValues(name) {
+  const values = [];
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === name) {
+      const value = args[i + 1];
+      if (value === undefined) {
+        throw new Error(`Missing value for ${name}.`);
+      }
+      values.push(value);
+      i++;
+    } else if (arg.startsWith(`${name}=`)) {
+      values.push(arg.slice(name.length + 1));
+    }
+  }
+  return values;
 }
 
 function packageFileName(packageName) {
@@ -113,6 +133,10 @@ function declarationFilesForTarget(packageDir, typePath) {
 }
 
 function collectPackages() {
+  const filteredPackageNames = turboFilters.length
+    ? collectTurboFilteredPackageNames(turboFilters)
+    : undefined;
+
   return readdirSync(packagesRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(packagesRoot, entry.name, "package.json"))
@@ -125,7 +149,47 @@ function collectPackages() {
       };
     })
     .filter(({ pkg }) => !pkg.private)
+    .filter(
+      ({ pkg }) => !filteredPackageNames || filteredPackageNames.has(pkg.name),
+    )
     .sort((a, b) => compareStrings(a.pkg.name, b.pkg.name));
+}
+
+function collectTurboFilteredPackageNames(filters) {
+  const result = spawnSync(
+    "pnpm",
+    [
+      "exec",
+      "turbo",
+      "ls",
+      ...filters.flatMap((filter) => ["--filter", filter]),
+      "--output=json",
+    ],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
+  if (result.status !== 0) {
+    throw new Error(
+      `Failed to list packages for API surface filter:\n${result.stdout}${result.stderr}`,
+    );
+  }
+
+  const jsonStart = result.stdout.indexOf("{");
+  if (jsonStart === -1) {
+    throw new Error(`Turbo did not return JSON output:\n${result.stdout}`);
+  }
+
+  const output = JSON.parse(result.stdout.slice(jsonStart));
+  return new Set(
+    output.packages.items.map((item) => {
+      if (typeof item.name !== "string") {
+        throw new Error("Turbo package list included an item without a name.");
+      }
+      return item.name;
+    }),
+  );
 }
 
 function collectDeclarationEntries(packageDir, pkg) {
@@ -688,7 +752,11 @@ async function main() {
   if (!checkMode) mkdirSync(apiSurfaceRoot, { recursive: true });
 
   try {
-    const cliSurface = await buildCliSurface();
+    const needsCliSurface = packages.some(
+      ({ pkg }) =>
+        pkg.name === "assistant-ui" || pkg.name === "create-assistant-ui",
+    );
+    const cliSurface = needsCliSurface ? await buildCliSurface() : {};
 
     for (const packageInfo of packages) {
       const { pkg } = packageInfo;
@@ -702,7 +770,7 @@ async function main() {
       writeOrCheck(outputFile, content, changedFiles);
     }
 
-    if (existsSync(apiSurfaceRoot)) {
+    if (turboFilters.length === 0 && existsSync(apiSurfaceRoot)) {
       for (const entry of readdirSync(apiSurfaceRoot)) {
         const file = path.join(apiSurfaceRoot, entry);
         if (!entry.endsWith(".ts") || generatedFiles.has(file)) continue;
