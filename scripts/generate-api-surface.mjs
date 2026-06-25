@@ -281,39 +281,11 @@ const KNOWN_DECLARATION_FIXUPS = [
   },
 ];
 
-function normalizeThreadComposerAttachmentUnions(content) {
-  // The declaration bundler emits this expanded discriminated union in OS-dependent order.
-  const marker = "declare const useThreadComposerAttachment: {";
-  const start = content.indexOf(marker);
-  if (start === -1) return content;
-  const end = content.indexOf("\n};", start);
-  if (end === -1) return content;
-
-  const section = content.slice(start, end);
-  const normalizedSection = section.replace(
-    /(\(\{\n\s+id: string;\n\s+type: "image" \| "document" \| "file" \| \(string & \{\}\);\n\s+name: string;\n\s+contentType\?: string \| undefined;\n\s+file\?: File;\n\s+content\?: ThreadUserMessagePart\[\];\n\s+\} & \{\n\s+status: PendingAttachmentStatus;\n\s+file: File;\n\s+\} & \{\n\s+readonly source: "thread-composer";\n\s+\} & \{\n\s+source: "thread-composer";\n\s+\}\)) \| (\(\{\n\s+id: string;\n\s+type: "image" \| "document" \| "file" \| \(string & \{\}\);\n\s+name: string;\n\s+contentType\?: string \| undefined;\n\s+file\?: File;\n\s+content\?: ThreadUserMessagePart\[\];\n\s+\} & \{\n\s+status: CompleteAttachmentStatus;\n\s+content: ThreadUserMessagePart\[\];\n\s+\} & \{\n\s+readonly source: "thread-composer";\n\s+\} & \{\n\s+source: "thread-composer";\n\s+\}\))/g,
-    "$2 | $1",
-  );
-  if (
-    normalizedSection === section &&
-    !/status: CompleteAttachmentStatus;\n\s+content: ThreadUserMessagePart\[\];[\s\S]*?\}\) \| \(\{[\s\S]*?status: PendingAttachmentStatus;\n\s+file: File;/.test(
-      section,
-    )
-  ) {
-    throw new Error(
-      "normalizeThreadComposerAttachmentUnions matched no known union pairs; update the pattern.",
-    );
-  }
-
-  return `${content.slice(0, start)}${normalizedSection}${content.slice(end)}`;
-}
-
 function applyKnownDeclarationFixups(content) {
-  const fixed = KNOWN_DECLARATION_FIXUPS.reduce(
+  return KNOWN_DECLARATION_FIXUPS.reduce(
     (output, fixup) => output.replace(fixup.pattern, fixup.replacement),
     content,
   );
-  return normalizeThreadComposerAttachmentUnions(fixed);
 }
 
 function typeMemberName(member, sourceFile) {
@@ -325,6 +297,103 @@ function typeMemberName(member, sourceFile) {
     return member.name.text;
   }
   return member.name.getText(sourceFile);
+}
+
+function unwrapParenthesizedType(node) {
+  let current = node;
+  while (ts.isParenthesizedTypeNode(current)) current = current.type;
+  return current;
+}
+
+function literalPropertyValue(member) {
+  if (!member.type) return undefined;
+  const type = unwrapParenthesizedType(member.type);
+  if (
+    ts.isLiteralTypeNode(type) &&
+    (ts.isStringLiteral(type.literal) || ts.isNumericLiteral(type.literal))
+  ) {
+    return type.literal.text;
+  }
+  if (ts.isTypeReferenceNode(type) && ts.isIdentifier(type.typeName)) {
+    return type.typeName.text;
+  }
+  return undefined;
+}
+
+function collectTypeLiteralProperties(typeLiteral, sourceFile) {
+  const properties = new Map();
+  for (const member of typeLiteral.members) {
+    if (!ts.isPropertySignature(member)) continue;
+    const name = typeMemberName(member, sourceFile);
+    if (!name) continue;
+    properties.set(name, {
+      optional: Boolean(member.questionToken),
+      value: literalPropertyValue(member),
+    });
+  }
+  return properties;
+}
+
+function attachmentUnionMemberSortKey(type, sourceFile) {
+  const unwrapped = unwrapParenthesizedType(type);
+  if (!ts.isIntersectionTypeNode(unwrapped)) return undefined;
+
+  const properties = new Map();
+  for (const part of unwrapped.types) {
+    const partType = unwrapParenthesizedType(part);
+    if (!ts.isTypeLiteralNode(partType)) continue;
+    for (const [name, value] of collectTypeLiteralProperties(
+      partType,
+      sourceFile,
+    )) {
+      properties.set(name, value);
+    }
+  }
+
+  const source = properties.get("source")?.value;
+  if (source !== "thread-composer" && source !== "edit-composer") {
+    return undefined;
+  }
+
+  const status = properties.get("status")?.value;
+  const statusRank =
+    status === "CompleteAttachmentStatus"
+      ? 0
+      : status === "PendingAttachmentStatus"
+        ? 1
+        : undefined;
+  if (statusRank === undefined) return undefined;
+
+  const payload =
+    !properties.get("content")?.optional && statusRank === 0
+      ? "content"
+      : !properties.get("file")?.optional && statusRank === 1
+        ? "file"
+        : undefined;
+  if (!payload) return undefined;
+
+  return `${source}:${statusRank}:${payload}`;
+}
+
+function normalizeAttachmentUnionType(node, sourceFile, factory) {
+  const keyedTypes = node.types.map((type, index) => ({
+    index,
+    key: attachmentUnionMemberSortKey(type, sourceFile),
+    type,
+  }));
+  if (keyedTypes.some(({ key }) => key === undefined)) return node;
+
+  const sortedTypes = [...keyedTypes].sort(
+    (a, b) => compareStrings(a.key, b.key) || a.index - b.index,
+  );
+  if (sortedTypes.every(({ index }, sortedIndex) => index === sortedIndex)) {
+    return node;
+  }
+
+  return factory.updateUnionTypeNode(
+    node,
+    sortedTypes.map(({ type }) => type),
+  );
 }
 
 function normalizeBundledDeclaration(content) {
@@ -345,6 +414,13 @@ function normalizeBundledDeclaration(content) {
     (context) => {
       let bindingParameterIndex = 0;
       const visit = (node) => {
+        if (ts.isUnionTypeNode(node)) {
+          return normalizeAttachmentUnionType(
+            ts.visitEachChild(node, visit, context),
+            sourceFile,
+            context.factory,
+          );
+        }
         if (
           ts.isVariableDeclaration(node) &&
           ts.isIdentifier(node.name) &&
