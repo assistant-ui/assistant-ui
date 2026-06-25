@@ -197,9 +197,12 @@ export default defineToolkit({
   present: generative.present({ display: "standalone" }),
   notepad: unstable_interactableTool({
     description:
-      "A notepad with drafted text that the user can read and edit. Open one " +
-      "when the user asks for help writing something; revise it later via " +
-      "`update_notepad` instead of opening a new one.",
+      "A live notepad whose drafted text the user sees and can edit. Open one " +
+      "whenever you write or draft prose for the user — a note, message, post, " +
+      "release notes, a description — and revise it with `update_notepad` " +
+      "rather than opening a new one. Opening the notepad and every " +
+      "`update_notepad` call display the latest draft to the user directly, so " +
+      "keep the text in the notepad and never repeat it in your reply.",
     stateSchema: notepadSchema,
     render: (props) => <Notepad {...props} />,
   }),
