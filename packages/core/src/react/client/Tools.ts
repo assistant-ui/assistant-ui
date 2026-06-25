@@ -22,6 +22,36 @@ import { ModelContext } from "../../store";
 
 export type { McpAppResourceOutput };
 
+const toolsWithoutRenderCache = new WeakMap<
+  Toolkit,
+  Record<string, Tool<any, any>>
+>();
+
+const getToolsWithoutRender = (
+  toolkit: Toolkit | undefined,
+): Record<string, Tool<any, any>> | undefined => {
+  if (!toolkit) return undefined;
+  const cached = toolsWithoutRenderCache.get(toolkit);
+  if (cached) return cached;
+
+  const tools = Object.entries(toolkit).reduce(
+    (acc, [name, tool]) => {
+      if (tool.type === "mcp") return acc;
+      const {
+        display: _display,
+        render: _render,
+        renderText: _renderText,
+        ...rest
+      } = tool as typeof tool & { renderText?: unknown };
+      acc[name] = rest as Tool<any, any>;
+      return acc;
+    },
+    {} as Record<string, Tool<any, any>>,
+  );
+  toolsWithoutRenderCache.set(toolkit, tools);
+  return tools;
+};
+
 /**
  * Registers tools with model context and installs tool-call renderers.
  *
@@ -43,6 +73,7 @@ const useTools = ({
   const mcpAppOutput = mcpAppOutputs[0];
 
   const [toolUIs, setToolUIs] = useState<ToolsState["toolUIs"]>(() => ({}));
+  const clientRef = useAssistantClientRef();
 
   const state = useMemo(
     (): ToolsState => ({
@@ -58,8 +89,6 @@ const useTools = ({
     }),
     [toolUIs, mcpAppOutput],
   );
-
-  const clientRef = useAssistantClientRef();
 
   const setToolUI = useCallback(
     (
@@ -116,32 +145,13 @@ const useTools = ({
       }
     }
 
-    // Register tools with model context (exclude symbols). `render`,
-    // `renderText`, and `display` are client-only presentation concerns and
-    // never reach the model.
-    const toolsWithoutRender = Object.entries(toolkit).reduce(
-      (acc, [name, tool]) => {
-        if (tool.type === "mcp") return acc;
-        const {
-          display: _display,
-          render: _render,
-          renderText: _renderText,
-          ...rest
-        } = tool as typeof tool & { renderText?: unknown };
-        acc[name] = rest as Tool<any, any>;
-        return acc;
-      },
-      {} as Record<string, Tool<any, any>>,
-    );
-
-    const modelContextProvider = {
-      getModelContext: () => ({
-        tools: toolsWithoutRender,
-      }),
-    };
-
+    const toolsWithoutRender = getToolsWithoutRender(toolkit);
     unsubscribes.push(
-      clientRef.current!.modelContext().register(modelContextProvider),
+      clientRef.current!.modelContext().register({
+        getModelContext: () => ({
+          tools: toolsWithoutRender,
+        }),
+      }),
     );
 
     return () => {
