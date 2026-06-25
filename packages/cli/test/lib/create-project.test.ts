@@ -400,7 +400,11 @@ describe("transformProject — hasLocalComponents: false", () => {
         'import { Thread } from "@/components/assistant-ui/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
       );
 
-      await run();
+      await transformProject(testDir, {
+        ...defaultOpts,
+        skipInstall: false,
+        hasLocalComponents: false,
+      });
 
       const addCalls = (spawn as Mock).mock.calls.filter(
         ([cmd, args]: [string, string[]]) =>
@@ -415,6 +419,21 @@ describe("transformProject — hasLocalComponents: false", () => {
       expect(args).toContain("@assistant-ui/thread");
       expect(args).not.toContain("button.tsx");
       expect(args).not.toContain("@assistant-ui/thread.tsx");
+    });
+
+    it("skips shadcn when skipInstall is true even without local components", async () => {
+      writeFile(
+        "app/page.tsx",
+        'import { Thread } from "@/components/assistant-ui/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
+      );
+
+      await run();
+
+      const shadcnCalls = (spawn as Mock).mock.calls.filter(
+        ([cmd, args]: [string, string[]]) =>
+          cmd === TEST_DLX_CMD && args.includes("shadcn@latest"),
+      );
+      expect(shadcnCalls).toHaveLength(0);
     });
   });
 });
@@ -439,7 +458,13 @@ describe("transformProject — install behavior", () => {
 
 describe("installShadcnRegistry behavior", () => {
   it("resolves with a warning when shadcn exits non-zero", async () => {
-    // Override spawn mock to emit non-zero exit
+    // First spawn call is `pm install` (skipInstall: false); let it succeed.
+    (spawn as Mock).mockImplementationOnce(() => {
+      const ee = new EventEmitter();
+      setTimeout(() => ee.emit("close", 0), 0);
+      return ee;
+    });
+    // Second spawn call is `shadcn add`; emit non-zero exit.
     (spawn as Mock).mockImplementationOnce(() => {
       const ee = new EventEmitter();
       setTimeout(() => ee.emit("close", 1), 0);
@@ -455,6 +480,7 @@ describe("installShadcnRegistry behavior", () => {
     // Should NOT throw — warn-and-continue behavior
     await transformProject(testDir, {
       ...defaultOpts,
+      skipInstall: false,
       hasLocalComponents: false,
     });
   });
