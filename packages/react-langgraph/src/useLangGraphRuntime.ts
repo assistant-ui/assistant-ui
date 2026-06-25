@@ -234,6 +234,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       }
     >(),
   );
+  const [stagedMessageCount, setStagedMessageCount] = useState(0);
+  const hasStagedMessages = stagedMessageCount > 0;
 
   const getStagedRun = (parentId: string | null) => {
     if (!parentId || !stagedMessagesRef.current.has(parentId)) return null;
@@ -258,6 +260,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       message: stagedMessage,
       runConfig: msg.runConfig,
     });
+    setStagedMessageCount(stagedMessagesRef.current.size);
     setMessages([...messages, stagedMessage]);
   };
 
@@ -386,6 +389,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
               message: stagedMessage,
               runConfig: msg.runConfig,
             });
+            setStagedMessageCount(stagedMessagesRef.current.size);
             setMessages([...truncated, stagedMessage]);
             return;
           }
@@ -402,39 +406,44 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           );
         }
       : undefined,
-    onReload: async (parentId, config) => {
-      const stagedRun = getStagedRun(parentId);
-      if (stagedRun) {
-        for (const message of stagedRun.messages) {
-          if (message.id) stagedMessagesRef.current.delete(message.id);
+    ...(getCheckpointId || hasStagedMessages
+      ? {
+          onReload: async (parentId, config) => {
+            const stagedRun = getStagedRun(parentId);
+            if (stagedRun) {
+              for (const message of stagedRun.messages) {
+                if (message.id) stagedMessagesRef.current.delete(message.id);
+              }
+              setStagedMessageCount(stagedMessagesRef.current.size);
+              return handleSendMessage(stagedRun.messages, {
+                runConfig: config.runConfig ?? stagedRun.runConfig,
+              });
+            }
+
+            if (!getCheckpointId)
+              throw new Error("Runtime does not support reloading messages.");
+
+            toolResultBufferRef.current.clear();
+            const truncated = truncateLangChainMessages(
+              threadMessagesRef.current,
+              parentId,
+            );
+            setMessages(truncated);
+            setUIMessages(
+              filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
+            );
+            setInterrupt(undefined);
+            const externalId = aui.threadListItem().getState().externalId;
+            const checkpointId = externalId
+              ? await getCheckpointId(externalId, truncated)
+              : null;
+            return handleSendMessage([], {
+              runConfig: config.runConfig,
+              ...(checkpointId && { checkpointId }),
+            });
+          },
         }
-        return handleSendMessage(stagedRun.messages, {
-          runConfig: config.runConfig ?? stagedRun.runConfig,
-        });
-      }
-
-      if (!getCheckpointId)
-        throw new Error("Runtime does not support reloading messages.");
-
-      toolResultBufferRef.current.clear();
-      const truncated = truncateLangChainMessages(
-        threadMessagesRef.current,
-        parentId,
-      );
-      setMessages(truncated);
-      setUIMessages(
-        filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
-      );
-      setInterrupt(undefined);
-      const externalId = aui.threadListItem().getState().externalId;
-      const checkpointId = externalId
-        ? await getCheckpointId(externalId, truncated)
-        : null;
-      return handleSendMessage([], {
-        runConfig: config.runConfig,
-        ...(checkpointId && { checkpointId }),
-      });
-    },
+      : {}),
     onCancel: unstable_allowCancellation
       ? async () => {
           cancel();

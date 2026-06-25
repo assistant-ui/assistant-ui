@@ -168,14 +168,20 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       }
       await agent.send({ message: getEveMessageContent(message) });
     },
-    onReload: async (parentId) => {
-      const staged = parentId ? stagedInputsRef.current.get(parentId) : null;
-      if (!staged)
-        throw new Error("Runtime does not support reloading messages.");
-      stagedInputsRef.current.delete(parentId!);
-      setStagedMessages(null);
-      await agent.send({ message: getEveMessageContent(staged.message) });
-    },
+    ...(stagedMessages
+      ? {
+          onReload: async (parentId: string | null) => {
+            const staged = parentId
+              ? stagedInputsRef.current.get(parentId)
+              : null;
+            if (!staged)
+              throw new Error("Runtime does not support reloading messages.");
+            stagedInputsRef.current.delete(parentId!);
+            setStagedMessages(null);
+            await agent.send({ message: getEveMessageContent(staged.message) });
+          },
+        }
+      : {}),
     onCancel: () => {
       agent.stop();
       return Promise.resolve();

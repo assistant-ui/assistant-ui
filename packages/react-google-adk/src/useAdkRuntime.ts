@@ -264,6 +264,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       }
     >(),
   );
+  const [stagedMessageCount, setStagedMessageCount] = useState(0);
+  const hasStagedMessages = stagedMessageCount > 0;
 
   const getStagedRun = (parentId: string | null) => {
     if (!parentId || !stagedMessagesRef.current.has(parentId)) return null;
@@ -288,6 +290,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       message: stagedMessage,
       runConfig: msg.runConfig,
     });
+    setStagedMessageCount(stagedMessagesRef.current.size);
     setMessages([...messages, stagedMessage]);
   };
 
@@ -345,6 +348,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
               message: stagedMessage,
               runConfig: msg.runConfig,
             });
+            setStagedMessageCount(stagedMessagesRef.current.size);
             setMessages([...truncated, stagedMessage]);
             return;
           }
@@ -367,34 +371,39 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           );
         }
       : undefined,
-    onReload: async (parentId, config) => {
-      const stagedRun = getStagedRun(parentId);
-      if (stagedRun) {
-        for (const message of stagedRun.messages) {
-          stagedMessagesRef.current.delete(message.id);
+    ...(getCheckpointId || hasStagedMessages
+      ? {
+          onReload: async (parentId, config) => {
+            const stagedRun = getStagedRun(parentId);
+            if (stagedRun) {
+              for (const message of stagedRun.messages) {
+                stagedMessagesRef.current.delete(message.id);
+              }
+              setStagedMessageCount(stagedMessagesRef.current.size);
+              return handleSendMessage(stagedRun.messages, {
+                runConfig: config.runConfig ?? stagedRun.runConfig,
+              });
+            }
+
+            if (!getCheckpointId)
+              throw new Error("Runtime does not support reloading messages.");
+
+            const truncated = truncateAdkMessages(
+              threadMessagesRef.current,
+              parentId,
+            );
+            replaceMessages(truncated);
+            const externalId = aui.threadListItem().getState().externalId;
+            const checkpointId = externalId
+              ? await getCheckpointId(externalId, truncated)
+              : null;
+            return handleSendMessage([], {
+              runConfig: config.runConfig,
+              ...(checkpointId && { checkpointId }),
+            });
+          },
         }
-        return handleSendMessage(stagedRun.messages, {
-          runConfig: config.runConfig ?? stagedRun.runConfig,
-        });
-      }
-
-      if (!getCheckpointId)
-        throw new Error("Runtime does not support reloading messages.");
-
-      const truncated = truncateAdkMessages(
-        threadMessagesRef.current,
-        parentId,
-      );
-      replaceMessages(truncated);
-      const externalId = aui.threadListItem().getState().externalId;
-      const checkpointId = externalId
-        ? await getCheckpointId(externalId, truncated)
-        : null;
-      return handleSendMessage([], {
-        runConfig: config.runConfig,
-        ...(checkpointId && { checkpointId }),
-      });
-    },
+      : {}),
     onAddToolResult: async ({
       toolCallId,
       toolName,
