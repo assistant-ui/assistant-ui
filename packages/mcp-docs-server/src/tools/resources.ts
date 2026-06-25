@@ -4,7 +4,7 @@ import {
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { join } from "node:path";
 import { DOCS_PATH, MDX_EXTENSION } from "../constants.js";
-import { getAvailablePaths, pathExists } from "../utils/paths.js";
+import { getAvailableDocFiles } from "../utils/paths.js";
 import { readMDXFileSafe, formatMDXContent } from "../utils/mdx.js";
 import { sanitizePath } from "../utils/security.js";
 import { listCodeExamples, readCodeExample } from "./examples.js";
@@ -25,6 +25,7 @@ interface MarkdownResourceConfig {
   variable: string;
   title: string;
   description: string;
+  notFoundLabel: string;
   list: () => Promise<string[]>;
   read: (key: string) => Promise<string | null>;
 }
@@ -33,7 +34,16 @@ function registerMarkdownResource(
   server: McpServer,
   config: MarkdownResourceConfig,
 ): void {
-  const { name, scheme, variable, title, description, list, read } = config;
+  const {
+    name,
+    scheme,
+    variable,
+    title,
+    description,
+    notFoundLabel,
+    list,
+    read,
+  } = config;
   server.registerResource(
     name,
     new ResourceTemplate(`${scheme}:///{+${variable}}`, {
@@ -50,24 +60,13 @@ function registerMarkdownResource(
       const key = templateVarToPath(variables[variable]);
       const text = await read(key);
       if (text === null) {
-        throw new Error(`Resource not found: ${scheme}:///${key}`);
+        throw new Error(`${notFoundLabel} not found: ${key}`);
       }
       return {
         contents: [{ uri: uri.href, mimeType: MARKDOWN_MIME_TYPE, text }],
       };
     },
   );
-}
-
-async function listDocPaths(): Promise<string[]> {
-  const paths = await getAvailablePaths();
-  const docPaths: string[] = [];
-  for (const path of paths) {
-    if (await pathExists(join(DOCS_PATH, `${path}${MDX_EXTENSION}`))) {
-      docPaths.push(path);
-    }
-  }
-  return docPaths;
 }
 
 async function readDocResource(path: string): Promise<string | null> {
@@ -86,7 +85,8 @@ export function registerResources(server: McpServer): void {
     title: "assistant-ui Documentation",
     description:
       "Individual assistant-ui documentation pages, readable as markdown by path.",
-    list: listDocPaths,
+    notFoundLabel: "Documentation",
+    list: getAvailableDocFiles,
     read: readDocResource,
   });
 
@@ -97,6 +97,7 @@ export function registerResources(server: McpServer): void {
     title: "assistant-ui Examples",
     description:
       "Complete assistant-ui example projects, readable as markdown.",
+    notFoundLabel: "Example",
     list: listCodeExamples,
     read: readCodeExample,
   });
