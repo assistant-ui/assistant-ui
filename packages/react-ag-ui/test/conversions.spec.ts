@@ -266,7 +266,11 @@ describe("adapter conversions", () => {
         role: "assistant",
         content: "done",
         metadata: {
-          custom: { agui: { interrupts: [{ reason: "no-id" }, 42] } },
+          custom: {
+            agui: {
+              interrupts: [{ reason: "no-id" }, { id: "no-reason" }, 42],
+            },
+          },
         },
       },
     ] as any);

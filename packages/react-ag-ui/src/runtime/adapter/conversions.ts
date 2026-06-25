@@ -449,7 +449,9 @@ function validateInterrupts(value: unknown): AgUiInterrupt[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const valid = value.filter(
     (entry): entry is AgUiInterrupt =>
-      isObject(entry) && typeof entry.id === "string",
+      isObject(entry) &&
+      typeof entry.id === "string" &&
+      typeof entry.reason === "string",
   );
   return valid.length > 0 ? valid : undefined;
 }
