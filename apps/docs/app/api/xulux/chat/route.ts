@@ -16,6 +16,11 @@ import {
 } from "ai";
 import type { UIMessage } from "ai";
 import { beginTurn, finishTurn } from "@/lib/xulux/usage-budget";
+import {
+  createXuluxDiagnosticMessageResponse,
+  createXuluxTurnOutcome,
+  getLatestUserMessageId,
+} from "@/lib/xulux/turn-outcome";
 import { createXuluxChatTools } from "./tools";
 
 type XuluxReasoningEffort =
@@ -257,6 +262,7 @@ Use inline code (\`backticks\`) for:
 `;
 
 export async function POST(req: Request): Promise<Response> {
+  const requestId = crypto.randomUUID();
   if (!isAiPlaygroundEnabled) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
@@ -289,7 +295,30 @@ export async function POST(req: Request): Promise<Response> {
 
     const distinctId = getDistinctId(req);
     const budget = await beginTurn(sessionId.trim(), distinctId);
-    if (budget.denied) return budget.denied;
+    if (budget.denied) {
+      const payload = await budget.denied
+        .clone()
+        .json()
+        .catch(() => null);
+      const userVisibleMessage =
+        typeof payload?.error === "string"
+          ? payload.error
+          : "This request could not run because a usage limit was reached.";
+      return createXuluxDiagnosticMessageResponse({
+        messages,
+        text: userVisibleMessage,
+        outcome: createXuluxTurnOutcome({
+          type: "budget_denied",
+          requestId,
+          sessionId: sessionId.trim(),
+          distinctId,
+          userMessageId: getLatestUserMessageId(messages),
+          statusCode: budget.denied.status,
+          code: typeof payload?.code === "string" ? payload.code : undefined,
+          userVisibleMessage,
+        }),
+      });
+    }
     const budgetDate = budget.budgetDate;
 
     const isFirstUserTurn =
@@ -396,7 +425,20 @@ export async function POST(req: Request): Promise<Response> {
           return { modelId: part.response.modelId };
         }
         if (part.type === "finish") {
-          return { custom: { usage: part.totalUsage } };
+          return {
+            usage: part.totalUsage,
+            custom: {
+              xulux: {
+                outcome: createXuluxTurnOutcome({
+                  type: "assistant_response_completed",
+                  requestId,
+                  sessionId: sessionId.trim(),
+                  distinctId,
+                  userMessageId: getLatestUserMessageId(messages),
+                }),
+              },
+            },
+          };
         }
         return undefined;
       },
