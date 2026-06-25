@@ -334,7 +334,7 @@ function collectTypeLiteralProperties(typeLiteral, sourceFile) {
   return properties;
 }
 
-function attachmentUnionMemberSortKey(type, sourceFile) {
+function collectIntersectionTypeProperties(type, sourceFile) {
   const unwrapped = unwrapParenthesizedType(type);
   if (!ts.isIntersectionTypeNode(unwrapped)) return undefined;
 
@@ -349,13 +349,33 @@ function attachmentUnionMemberSortKey(type, sourceFile) {
       properties.set(name, value);
     }
   }
+  return properties;
+}
 
+function attachmentUnionMemberStatus(properties) {
   const source = properties.get("source")?.value;
   if (source !== "thread-composer" && source !== "edit-composer") {
     return undefined;
   }
 
   const status = properties.get("status")?.value;
+  if (
+    status !== "CompleteAttachmentStatus" &&
+    status !== "PendingAttachmentStatus"
+  ) {
+    return undefined;
+  }
+
+  return status;
+}
+
+function attachmentUnionMemberSortKey(type, sourceFile) {
+  const properties = collectIntersectionTypeProperties(type, sourceFile);
+  if (!properties) return undefined;
+
+  const status = attachmentUnionMemberStatus(properties);
+  if (!status) return undefined;
+
   const statusRank =
     status === "CompleteAttachmentStatus"
       ? 0
@@ -365,35 +385,58 @@ function attachmentUnionMemberSortKey(type, sourceFile) {
   if (statusRank === undefined) return undefined;
 
   const payload =
-    !properties.get("content")?.optional && statusRank === 0
+    properties.has("content") &&
+    !properties.get("content").optional &&
+    statusRank === 0
       ? "content"
-      : !properties.get("file")?.optional && statusRank === 1
+      : properties.has("file") &&
+          !properties.get("file").optional &&
+          statusRank === 1
         ? "file"
         : undefined;
   if (!payload) return undefined;
 
-  return `${source}:${statusRank}:${payload}`;
+  return `${properties.get("source").value}:${statusRank}:${payload}`;
 }
 
 function normalizeAttachmentUnionType(node, sourceFile, factory) {
   const keyedTypes = node.types.map((type, index) => ({
     index,
+    recognized: Boolean(
+      attachmentUnionMemberStatus(
+        collectIntersectionTypeProperties(type, sourceFile) ?? new Map(),
+      ),
+    ),
     key: attachmentUnionMemberSortKey(type, sourceFile),
     type,
   }));
-  if (keyedTypes.some(({ key }) => key === undefined)) return node;
+  const recognizedTypes = keyedTypes.filter(({ recognized }) => recognized);
+  if (recognizedTypes.length < 2) return node;
 
-  const sortedTypes = [...keyedTypes].sort(
+  if (recognizedTypes.some(({ key }) => key === undefined)) {
+    throw new Error(
+      "Found a composer attachment union with an unsupported shape; update normalizeAttachmentUnionType.",
+    );
+  }
+
+  const sortedRecognizedTypes = recognizedTypes.toSorted(
     (a, b) => compareStrings(a.key, b.key) || a.index - b.index,
   );
-  if (sortedTypes.every(({ index }, sortedIndex) => index === sortedIndex)) {
+  if (
+    recognizedTypes.every(
+      ({ index }, sortedIndex) =>
+        index === sortedRecognizedTypes[sortedIndex].index,
+    )
+  ) {
     return node;
   }
 
-  return factory.updateUnionTypeNode(
-    node,
-    sortedTypes.map(({ type }) => type),
+  let sortedIndex = 0;
+  const types = keyedTypes.map(({ recognized, type }) =>
+    recognized ? sortedRecognizedTypes[sortedIndex++].type : type,
   );
+
+  return factory.updateUnionTypeNode(node, types);
 }
 
 function normalizeBundledDeclaration(content) {

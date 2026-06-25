@@ -4510,8 +4510,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4524,8 +4524,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4572,8 +4572,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4586,8 +4586,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4664,8 +4664,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4678,8 +4678,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4756,8 +4756,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4770,8 +4770,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4874,8 +4874,8 @@ declare const useEditComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "edit-composer";
   } & {
@@ -4888,8 +4888,8 @@ declare const useEditComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "edit-composer";
   } & {
@@ -4936,8 +4936,8 @@ declare const useEditComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "edit-composer";
   } & {
@@ -4950,8 +4950,8 @@ declare const useEditComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "edit-composer";
   } & {
@@ -5028,8 +5028,8 @@ declare const useEditComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "edit-composer";
   } & {
@@ -5042,8 +5042,8 @@ declare const useEditComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "edit-composer";
   } & {
@@ -5120,8 +5120,8 @@ declare const useEditComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "edit-composer";
   } & {
@@ -5134,8 +5134,8 @@ declare const useEditComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "edit-composer";
   } & {
