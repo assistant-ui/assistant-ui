@@ -1401,17 +1401,34 @@ export default defineToolkit({
 import { defineToolkit, providerTool } from "@assistant-ui/react";
 export default defineToolkit({
   web_search: {
-    render: () => null,
+    providerId: "openai.web_search_preview",
     execute: providerTool({
       providerId: "openai.web_search_preview",
       args: {},
-      render: "duplicate",
     }),
   },
 });`;
 
     expect(() => compileGenerative(src, { target: "server" })).toThrow(
-      /cannot duplicate tool properties/,
+      /`providerTool\(\.\.\.\)` config for "web_search" duplicates "providerId"/,
+    );
+  });
+
+  it("rejects duplicate providerTool config properties with the duplicated key", () => {
+    const src = `"use generative";
+import { defineToolkit, providerTool } from "@assistant-ui/react";
+export default defineToolkit({
+  web_search: {
+    execute: providerTool({
+      providerId: "openai.web_search_preview",
+      providerId: "openai.web_search_preview_2",
+      args: {},
+    }),
+  },
+});`;
+
+    expect(() => compileGenerative(src, { target: "server" })).toThrow(
+      /`providerTool\(\.\.\.\)` config for "web_search" duplicates "providerId"/,
     );
   });
 

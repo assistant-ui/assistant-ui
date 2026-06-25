@@ -1286,7 +1286,10 @@ function compileToolkit(
     }
 
     if (type === "provider" && execute) {
-      applyProviderToolConfig(value, execute, filename);
+      const toolName = t.isObjectProperty(entry)
+        ? memberName(entry.key, entry.computed)
+        : undefined;
+      applyProviderToolConfig(value, execute, toolName, filename);
     }
 
     if (isExternal) {
@@ -1328,6 +1331,7 @@ function compileToolkit(
 function applyProviderToolConfig(
   object: t.ObjectExpression,
   execute: t.ObjectProperty | t.ObjectMethod,
+  toolName: string | undefined,
   filename: string | undefined,
 ): void {
   if (
@@ -1375,8 +1379,9 @@ function applyProviderToolConfig(
       );
     }
     if (existingNames.has(name) || configNames.has(name)) {
+      const toolLabel = toolName ? ` for "${toolName}"` : "";
       throw new GenerativeCompileError(
-        "`providerTool(...)` config cannot duplicate tool properties",
+        `\`providerTool(...)\` config${toolLabel} duplicates "${name}"`,
         filename,
       );
     }
