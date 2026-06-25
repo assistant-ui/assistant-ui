@@ -34,6 +34,10 @@ const dependsOnTap = ["dependencies", "peerDependencies"].some(
 );
 const isTapPackage = pkg.name === "@assistant-ui/tap";
 const remapReactToShim = dependsOnTap || isTapPackage;
+const packageImportExternals =
+  typeof pkg.imports === "object" && pkg.imports !== null
+    ? Object.keys(pkg.imports)
+    : [];
 
 await build({
   entry: [
@@ -56,7 +60,10 @@ await build({
     : {}),
   platform: "neutral",
   unbundle: true,
-  deps: { neverBundle: /^node:/, skipNodeModulesBundle: true },
+  deps: {
+    neverBundle: [/^node:/, ...packageImportExternals],
+    skipNodeModulesBundle: true,
+  },
   // Skip declaration files in dev for faster reloads.
   dts: isDev ? false : { sourcemap: true },
   sourcemap: true,
