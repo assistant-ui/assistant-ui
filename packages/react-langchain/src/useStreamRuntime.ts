@@ -200,11 +200,14 @@ const useStreamThreadRuntime = (
       }
     >(),
   );
+  const stagedBaseMessagesRef = useRef<LangChainBaseMessage[] | null>(null);
 
   useEffect(() => {
     if (stagedMessagesRef.current.size === 0) return;
 
-    const baseMessages = stream.messages as LangChainBaseMessage[];
+    const baseMessages =
+      stagedBaseMessagesRef.current ??
+      (stream.messages as LangChainBaseMessage[]);
     const baseMessageIds = new Set(
       baseMessages.flatMap((message) => (message.id ? [message.id] : [])),
     );
@@ -217,6 +220,13 @@ const useStreamThreadRuntime = (
       if (!staged) continue;
       remainingStagedMessages.push(staged.message);
       seenStagedIds.add(message.id);
+    }
+
+    if (remainingStagedMessages.length === 0) {
+      stagedBaseMessagesRef.current = null;
+      visibleMessagesRef.current = baseMessages;
+      setStagedMessages(null);
+      return;
     }
 
     const nextMessages = [...baseMessages, ...remainingStagedMessages];
@@ -333,6 +343,7 @@ const useStreamThreadRuntime = (
           promotedIds.add(message.id);
           stagedMessagesRef.current.delete(message.id);
         }
+        stagedBaseMessagesRef.current = null;
         if (stagedMessagesRef.current.size > 0) {
           const nextMessages = visibleMessagesRef.current.filter(
             (message) => !message.id || !promotedIds.has(message.id),
@@ -384,6 +395,7 @@ const useStreamThreadRuntime = (
           message: stagedMessage,
           runConfig: message.runConfig,
         });
+        stagedBaseMessagesRef.current = truncated;
         const nextMessages = [...truncated, stagedMessage];
         visibleMessagesRef.current = nextMessages;
         setStagedMessages(nextMessages);
