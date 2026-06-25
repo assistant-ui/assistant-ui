@@ -84,7 +84,6 @@ const NOOP_CONTROLLER: OpenCodeThreadControllerLike = {
   refresh: async () => {},
   sendMessage: async () => {},
   stageMessage: async () => {},
-  hasStagedMessages: () => false,
   sendStagedMessage: async () => false,
   cancel: async () => {},
   revert: async () => {},
@@ -185,20 +184,21 @@ const useOpenCodeThreadRuntime = (
         throw error;
       }
     },
-    ...(controller.hasStagedMessages() && {
-      onReload: async (parentId: string | null) => {
-        if (!parentId) return;
-        try {
-          await controller.sendStagedMessage(parentId, {
-            model: options.defaultModel,
-            agent: options.defaultAgent,
-          });
-        } catch (error) {
-          options.onError?.(error);
-          throw error;
-        }
-      },
-    }),
+    onReload: async (parentId: string | null) => {
+      if (!parentId) return;
+      try {
+        const sentStagedMessage = await controller.sendStagedMessage(parentId, {
+          model: options.defaultModel,
+          agent: options.defaultAgent,
+        });
+        if (sentStagedMessage) return;
+
+        await controller.revert(parentId);
+      } catch (error) {
+        options.onError?.(error);
+        throw error;
+      }
+    },
   });
 };
 

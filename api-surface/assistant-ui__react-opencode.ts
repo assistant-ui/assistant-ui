@@ -1813,7 +1813,6 @@ type OpenCodeThreadControllerLike = {
   refresh(): Promise<void>;
   sendMessage(message: AppendMessage, options?: OpenCodeUserMessageOptions): Promise<void>;
   stageMessage(message: AppendMessage, options?: OpenCodeUserMessageOptions): Promise<void>;
-  hasStagedMessages(): boolean;
   sendStagedMessage(parentId: string, options?: OpenCodeUserMessageOptions): Promise<boolean>;
   cancel(): Promise<void>;
   revert(messageId: string): Promise<void>;
@@ -1878,7 +1877,6 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private promptMessage;
   sendMessage(message: AppendMessage, options?: OpenCodeUserMessageOptions): Promise<void>;
   stageMessage(message: AppendMessage, options?: OpenCodeUserMessageOptions): Promise<void>;
-  hasStagedMessages(): boolean;
   sendStagedMessage(parentId: string, options?: OpenCodeUserMessageOptions): Promise<boolean>;
   cancel(): Promise<void>;
   revert(messageId: string): Promise<void>;
@@ -1889,7 +1887,6 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   rejectQuestion(questionId: string): Promise<void>;
   private refreshInBackground;
   private handleServerEvent;
-  private notify;
   private dispatch;
 }
 

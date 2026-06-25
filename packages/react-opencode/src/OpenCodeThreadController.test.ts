@@ -82,14 +82,7 @@ describe("OpenCodeThreadController", () => {
     );
 
     const pendingId = Object.keys(controller.getState().pendingUserMessages)[0];
-    const stagedStates: boolean[] = [];
-    const listener = vi.fn(() => {
-      stagedStates.push(controller.hasStagedMessages());
-    });
-    controller.subscribe(listener);
-    listener.mockClear();
     expect(pendingId).toBeDefined();
-    expect(controller.hasStagedMessages()).toBe(true);
     expect(client.session.promptAsync).not.toHaveBeenCalled();
 
     await expect(
@@ -101,14 +94,18 @@ describe("OpenCodeThreadController", () => {
       parts: [{ type: "text", text: "hello" }],
       model: "claude",
     });
-    expect(controller.hasStagedMessages()).toBe(false);
-    expect(stagedStates.at(-1)).toBe(false);
+    await expect(
+      controller.sendStagedMessage(`local:${pendingId}`),
+    ).resolves.toBe(false);
   });
 
   it("keeps a staged message when sending it fails", async () => {
     const client = {
       session: {
-        promptAsync: vi.fn().mockRejectedValue(new Error("boom")),
+        promptAsync: vi
+          .fn()
+          .mockRejectedValueOnce(new Error("boom"))
+          .mockResolvedValueOnce({}),
       },
     };
     const controller = new OpenCodeThreadController(
@@ -133,7 +130,9 @@ describe("OpenCodeThreadController", () => {
       controller.sendStagedMessage(`local:${pendingId}`),
     ).rejects.toThrow("boom");
 
-    expect(controller.hasStagedMessages()).toBe(true);
+    await expect(
+      controller.sendStagedMessage(`local:${pendingId}`),
+    ).resolves.toBe(true);
   });
 
   it("re-subscribes through the provider after dispose", () => {

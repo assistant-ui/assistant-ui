@@ -398,10 +398,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.dispatch({ type: "local.message.queued", pending });
   }
 
-  public hasStagedMessages() {
-    return this.stagedMessages.size > 0;
-  }
-
   public async sendStagedMessage(
     parentId: string,
     options?: OpenCodeUserMessageOptions,
@@ -415,7 +411,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       options ?? staged.options,
     );
     this.stagedMessages.delete(parentId);
-    this.notify();
     return true;
   }
 
@@ -703,16 +698,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     });
   }
 
-  private notify() {
-    for (const listener of this.listeners) {
-      listener();
-    }
-  }
-
   private dispatch(event: Parameters<typeof reduceOpenCodeThreadState>[1]) {
     const nextState = reduceOpenCodeThreadState(this.state, event);
     if (nextState === this.state) return;
     this.state = nextState;
-    this.notify();
+    for (const listener of this.listeners) {
+      listener();
+    }
   }
 }
