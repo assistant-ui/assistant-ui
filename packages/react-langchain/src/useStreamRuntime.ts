@@ -224,7 +224,9 @@ const useStreamThreadRuntime = (
       message: stagedMessage,
       runConfig: msg.runConfig,
     });
-    setStagedMessages([...visibleMessagesRef.current, stagedMessage]);
+    const nextMessages = [...visibleMessagesRef.current, stagedMessage];
+    visibleMessagesRef.current = nextMessages;
+    setStagedMessages(nextMessages);
   };
 
   const extras = useMemo(
@@ -348,7 +350,9 @@ const useStreamThreadRuntime = (
           message: stagedMessage,
           runConfig: message.runConfig,
         });
-        setStagedMessages([...truncated, stagedMessage]);
+        const nextMessages = [...truncated, stagedMessage];
+        visibleMessagesRef.current = nextMessages;
+        setStagedMessages(nextMessages);
         return;
       }
 

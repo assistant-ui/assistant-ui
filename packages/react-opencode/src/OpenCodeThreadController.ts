@@ -398,6 +398,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.dispatch({ type: "local.message.queued", pending });
   }
 
+  public hasStagedMessages() {
+    return this.stagedMessages.size > 0;
+  }
+
   public async sendStagedMessage(
     parentId: string,
     options?: OpenCodeUserMessageOptions,
@@ -405,12 +409,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     const staged = this.stagedMessages.get(parentId);
     if (!staged) return false;
 
-    this.stagedMessages.delete(parentId);
     await this.promptMessage(
       staged.message,
       staged.pending,
       options ?? staged.options,
     );
+    this.stagedMessages.delete(parentId);
     return true;
   }
 

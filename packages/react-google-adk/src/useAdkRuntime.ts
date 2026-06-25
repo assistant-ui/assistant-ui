@@ -291,7 +291,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       runConfig: msg.runConfig,
     });
     setStagedMessageCount(stagedMessagesRef.current.size);
-    setMessages([...messages, stagedMessage]);
+    const nextMessages = [...adkMessagesRef.current, stagedMessage];
+    adkMessagesRef.current = nextMessages;
+    setMessages(nextMessages);
   };
 
   const runtime = useExternalStoreRuntime({
@@ -349,7 +351,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
               runConfig: msg.runConfig,
             });
             setStagedMessageCount(stagedMessagesRef.current.size);
-            setMessages([...truncated, stagedMessage]);
+            const nextMessages = [...truncated, stagedMessage];
+            adkMessagesRef.current = nextMessages;
+            setMessages(nextMessages);
             return;
           }
           const externalId = aui.threadListItem().getState().externalId;

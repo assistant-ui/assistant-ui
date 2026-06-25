@@ -316,6 +316,7 @@ export type OpenCodeThreadControllerLike = {
     message: AppendMessage,
     options?: OpenCodeUserMessageOptions,
   ): Promise<void>;
+  hasStagedMessages(): boolean;
   sendStagedMessage(
     parentId: string,
     options?: OpenCodeUserMessageOptions,

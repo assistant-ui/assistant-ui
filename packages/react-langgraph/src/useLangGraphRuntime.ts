@@ -261,7 +261,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       runConfig: msg.runConfig,
     });
     setStagedMessageCount(stagedMessagesRef.current.size);
-    setMessages([...messages, stagedMessage]);
+    const nextMessages = [...langGraphMessagesRef.current, stagedMessage];
+    langGraphMessagesRef.current = nextMessages;
+    setMessages(nextMessages);
   };
 
   // The controller is created once; route through a ref so its driver runs the
@@ -390,7 +392,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
               runConfig: msg.runConfig,
             });
             setStagedMessageCount(stagedMessagesRef.current.size);
-            setMessages([...truncated, stagedMessage]);
+            const nextMessages = [...truncated, stagedMessage];
+            langGraphMessagesRef.current = nextMessages;
+            setMessages(nextMessages);
             return;
           }
           const externalId = aui.threadListItem().getState().externalId;
