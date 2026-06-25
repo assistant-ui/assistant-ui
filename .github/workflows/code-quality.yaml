@@ -5,9 +5,11 @@ on:
     branches: [main]
     paths:
       - "packages/**"
+      - "api-surface/**"
       - "apps/**"
       - "examples/**"
       - "templates/**"
+      - "scripts/generate-api-surface.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
       - "package.json"
@@ -17,9 +19,11 @@ on:
     branches: [main]
     paths:
       - "packages/**"
+      - "api-surface/**"
       - "apps/**"
       - "examples/**"
       - "templates/**"
+      - "scripts/generate-api-surface.mjs"
       - "scripts/sync-templates.sh"
       - "turbo.json"
       - "package.json"
@@ -157,3 +161,6 @@ jobs:
             # Push to main: Test packages changed in last commit
             pnpm turbo test --filter="...[HEAD^1]"
           fi
+
+      - name: Check API surface
+        run: pnpm api-surface:check
