@@ -95,7 +95,7 @@ jobs:
           cache: "pnpm"
 
       - name: Cache turbo build setup
-        uses: actions/cache@v6
+        uses: actions/cache@v5
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
@@ -137,7 +137,7 @@ jobs:
           cache: "pnpm"
 
       - name: Cache turbo build setup
-        uses: actions/cache@v6
+        uses: actions/cache@v5
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
