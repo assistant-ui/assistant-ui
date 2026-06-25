@@ -329,10 +329,12 @@ const useAssistantTransportThreadRuntime = <T>(
         });
       },
     }),
-    onReload: async (parentId: string | null) => {
-      parentIdRef.current = parentId;
-      runManager.schedule();
-    },
+    ...(commandQueue.state.queued.length > 0 && {
+      onReload: async (parentId: string | null) => {
+        parentIdRef.current = parentId;
+        runManager.schedule();
+      },
+    }),
     onCancel: async () => {
       runManager.cancel();
     },
