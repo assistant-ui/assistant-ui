@@ -930,8 +930,12 @@ declare function generativeUIToJSX(node: unknown): string;
 
 declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
 
-declare namespace entry_root_exports {
+declare namespace entry_root_default_exports {
   export { GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, PresentTool, PresentToolOptions, PromptUserTool, TYPE_KEY, buildPresentParameters, defineGenerativeComponents, generativeUIToJSX, renderGenerativeUI };
 }
 
-export { entry_internal_json_default_exports as entry_internal_json_default, entry_internal_json_react_server_exports as entry_internal_json_react_server, entry_root_exports as entry_root };
+declare namespace entry_root_react_server_exports {
+  export { GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, JSONGenerativeUI, JSONGenerativeUIOptions, PresentTool, PresentToolOptions, PromptUserTool, TYPE_KEY, buildPresentParameters, defineGenerativeComponents, generativeUIToJSX, renderGenerativeUI };
+}
+
+export { entry_internal_json_default_exports as entry_internal_json_default, entry_internal_json_react_server_exports as entry_internal_json_react_server, entry_root_default_exports as entry_root_default, entry_root_react_server_exports as entry_root_react_server };
