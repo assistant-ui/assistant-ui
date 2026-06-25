@@ -16,7 +16,7 @@ import { pathToFileURL } from "node:url";
 const repoRoot = process.cwd();
 const packagesRoot = path.join(repoRoot, "packages");
 const apiSurfaceRoot = path.join(repoRoot, "api-surface");
-const tempRoot = path.join(repoRoot, ".api-surface-tmp");
+const tempRoot = path.join(repoRoot, ".turbo", "api-surface");
 const checkMode = process.argv.includes("--check");
 
 const requireFromBuildUtils = createRequire(
