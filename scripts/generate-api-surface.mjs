@@ -382,7 +382,6 @@ function attachmentUnionMemberInfo(type, sourceFile) {
       : status === "PendingAttachmentStatus"
         ? 1
         : undefined;
-  if (statusRank === undefined) return undefined;
 
   const payload =
     properties.has("content") &&
