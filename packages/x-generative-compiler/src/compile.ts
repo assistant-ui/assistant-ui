@@ -265,6 +265,7 @@ export function compileGenerative(
   ensureDefaultExport(ast, filename);
   const generativeInstances = collectGenerativeInstances(ast);
   const interactableToolImports = collectInteractableToolImports(ast);
+  const importBindings = collectImportBindings(ast);
   const toolkitSpreadNames = collectToolkitSpreadNames(
     ast,
     filename,
@@ -308,6 +309,7 @@ export function compileGenerative(
           generativeInstances,
           interactableToolImports,
           toolkitSpreadNames,
+          importBindings,
           flags,
           filename,
         );
@@ -624,6 +626,11 @@ interface ToolkitNameContext {
   resolvingImportedToolkitNames: Set<string>;
 }
 
+type ImportBinding =
+  | { kind: "default"; source: string }
+  | { kind: "named"; imported: string; source: string }
+  | { kind: "namespace"; source: string };
+
 /**
  * Collects the local names `unstable_interactableTool` is imported under from a
  * distribution package, so toolkit entries calling it can be recognized
@@ -644,6 +651,38 @@ function collectInteractableToolImports(ast: t.File): Set<string> {
     }
   }
   return names;
+}
+
+function collectImportBindings(ast: t.File): Map<string, ImportBinding> {
+  const bindings = new Map<string, ImportBinding>();
+
+  for (const statement of ast.program.body) {
+    if (!t.isImportDeclaration(statement)) continue;
+
+    for (const specifier of statement.specifiers) {
+      if (t.isImportDefaultSpecifier(specifier)) {
+        bindings.set(specifier.local.name, {
+          kind: "default",
+          source: statement.source.value,
+        });
+      } else if (t.isImportSpecifier(specifier)) {
+        bindings.set(specifier.local.name, {
+          kind: "named",
+          imported: t.isIdentifier(specifier.imported)
+            ? specifier.imported.name
+            : specifier.imported.value,
+          source: statement.source.value,
+        });
+      } else if (t.isImportNamespaceSpecifier(specifier)) {
+        bindings.set(specifier.local.name, {
+          kind: "namespace",
+          source: statement.source.value,
+        });
+      }
+    }
+  }
+
+  return bindings;
 }
 
 function createToolkitNameContext(): ToolkitNameContext {
@@ -819,16 +858,16 @@ function getDefaultExportToolkitNames(
   ast: t.File,
   filename: string | undefined,
   context: ToolkitNameContext,
-): ToolkitStaticNames {
+): ToolkitStaticNames | undefined {
   const def = ast.program.body.find(
     (stmt): stmt is t.ExportDefaultDeclaration =>
       t.isExportDefaultDeclaration(stmt),
   );
-  if (!def) return null;
+  if (!def) return undefined;
 
   const toolkitCall = unwrapToToolkitCall(def.declaration);
   if (!toolkitCall || !t.isObjectExpression(toolkitCall.arguments[0])) {
-    return null;
+    return toolkitCall ? null : undefined;
   }
 
   const spreadNames = collectToolkitSpreadNames(ast, filename, context);
@@ -1151,6 +1190,183 @@ function isSafeToolkitSpread(
   );
 }
 
+function genericUnsafeToolkitSpreadMessage(): string {
+  return (
+    "each tool must be an inline object literal (`name: { ... }`) or a " +
+    "compiler-visible toolkit spread / generative tool (e.g. " +
+    "`...defineMcpToolkit(...)`, `...baseToolkit`, " +
+    "`generative.present()`, or `unstable_interactableTool(...)`) so its " +
+    "`execute` can be routed"
+  );
+}
+
+function describeUnsafeToolkitSpread(
+  entry: t.ObjectExpression["properties"][number],
+  importBindings: Map<string, ImportBinding>,
+  filename: string | undefined,
+): string {
+  if (!t.isSpreadElement(entry)) return genericUnsafeToolkitSpreadMessage();
+
+  const argument = entry.argument;
+  if (t.isIdentifier(argument)) {
+    const binding = importBindings.get(argument.name);
+    if (binding) {
+      return describeUnsafeImportedToolkitSpread(
+        argument.name,
+        binding,
+        filename,
+      );
+    }
+
+    return (
+      `cannot spread "${argument.name}" into ${TOOLKIT_WRAPPER}(). ` +
+      "Toolkit spread variables must be declared at module scope with " +
+      `${TOOLKIT_WRAPPER}({ ... }) or ${MCP_TOOLKIT_WRAPPER}({ ... }). ` +
+      "Nested variables and factory results cannot be analyzed safely."
+    );
+  }
+
+  if (t.isCallExpression(argument)) {
+    return (
+      `cannot spread the result of \`${generate(argument).code}\` into ` +
+      `${TOOLKIT_WRAPPER}(). The compiler can only split inline tool objects, ` +
+      `module-scope ${TOOLKIT_WRAPPER}({ ... }) variables, default imports ` +
+      `from "${DIRECTIVE}" modules, ${MCP_TOOLKIT_WRAPPER}({ ... }), ` +
+      "`generative.present()`, and `unstable_interactableTool(...)`."
+    );
+  }
+
+  return (
+    `cannot spread \`${generate(argument).code}\` into ${TOOLKIT_WRAPPER}(). ` +
+    "Only compiler-visible toolkit spreads can be routed safely."
+  );
+}
+
+function describeUnsafeImportedToolkitSpread(
+  localName: string,
+  binding: ImportBinding,
+  filename: string | undefined,
+): string {
+  if (binding.kind === "namespace") {
+    return (
+      `cannot spread namespace import "${localName}" from ` +
+      `"${binding.source}" into ${TOOLKIT_WRAPPER}(). Import the toolkit as ` +
+      `the module's default export instead: \`import ${localName} from ` +
+      `"${binding.source}"\`.`
+    );
+  }
+
+  const moduleInfo = inspectImportedModule(binding.source, filename);
+  if (binding.kind === "named") {
+    const importName =
+      binding.imported === localName
+        ? `"${localName}"`
+        : `"${binding.imported}" as "${localName}"`;
+
+    if (moduleInfo.kind === "generative") {
+      return (
+        `cannot spread named import ${importName} from "${binding.source}" ` +
+        `into ${TOOLKIT_WRAPPER}(). A "${DIRECTIVE}" module only exposes a ` +
+        "compiler-visible toolkit through its default export. Use " +
+        `\`import ${localName} from "${binding.source}"\` instead.`
+      );
+    }
+
+    return (
+      `cannot spread named import ${importName} from "${binding.source}" ` +
+      `into ${TOOLKIT_WRAPPER}(). Toolkit spreads must be module-scope ` +
+      `${TOOLKIT_WRAPPER}({ ... }) variables or default imports from ` +
+      `"${DIRECTIVE}" modules.`
+    );
+  }
+
+  if (moduleInfo.kind === "unresolved") {
+    return (
+      `cannot spread default import "${localName}" from "${binding.source}" ` +
+      `because the compiler could not resolve that module from this file. ` +
+      `Point it at a "${DIRECTIVE}" module that default-exports ` +
+      `${TOOLKIT_WRAPPER}({ ... }), or inline the tools here.`
+    );
+  }
+
+  if (moduleInfo.kind === "non-generative") {
+    return (
+      `cannot spread default import "${localName}" from "${binding.source}" ` +
+      `because that module is not marked "${DIRECTIVE}". Add the directive and ` +
+      `default-export ${TOOLKIT_WRAPPER}({ ... }), or inline the tools here.`
+    );
+  }
+
+  const defaultIssue = toolkitDefaultExportIssue(moduleInfo.ast);
+  if (defaultIssue === "missing") {
+    return (
+      `cannot spread default import "${localName}" from "${binding.source}" ` +
+      `because that "${DIRECTIVE}" module has no default export. Default-export ` +
+      `${TOOLKIT_WRAPPER}({ ... }) so the toolkit can be split for client and ` +
+      "server builds."
+    );
+  }
+
+  if (defaultIssue === "not-toolkit") {
+    return (
+      `cannot spread default import "${localName}" from "${binding.source}" ` +
+      `because that "${DIRECTIVE}" module does not default-export ` +
+      `${TOOLKIT_WRAPPER}({ ... }) or ${MCP_TOOLKIT_WRAPPER}({ ... }). ` +
+      "The default toolkit export is the compiler boundary for routing `execute`."
+    );
+  }
+
+  return genericUnsafeToolkitSpreadMessage();
+}
+
+type ImportedModuleInfo =
+  | { kind: "unresolved" }
+  | { kind: "non-generative" }
+  | { kind: "generative"; ast: t.File };
+
+function inspectImportedModule(
+  source: string,
+  filename: string | undefined,
+): ImportedModuleInfo {
+  const cleanFilename = cleanAbsoluteFilename(filename);
+  if (!cleanFilename) return { kind: "unresolved" };
+
+  const resolved = resolveImportedModuleFile(source, cleanFilename);
+  if (!resolved) return { kind: "unresolved" };
+
+  let code: string;
+  try {
+    code = readFileSync(resolved, "utf8");
+  } catch {
+    return { kind: "unresolved" };
+  }
+
+  if (!isGenerativeModule(code)) return { kind: "non-generative" };
+
+  try {
+    return {
+      kind: "generative",
+      ast: parse(code, {
+        sourceType: "module",
+        plugins: ["typescript", "jsx", "explicitResourceManagement"],
+      }),
+    };
+  } catch {
+    return { kind: "unresolved" };
+  }
+}
+
+function toolkitDefaultExportIssue(
+  ast: t.File,
+): "missing" | "not-toolkit" | null {
+  const def = ast.program.body.find(
+    (stmt): stmt is t.ExportDefaultDeclaration =>
+      t.isExportDefaultDeclaration(stmt),
+  );
+  if (!def) return "missing";
+  return unwrapToToolkitCall(def.declaration) ? null : "not-toolkit";
+}
+
 /** The `JSONGenerativeUI` methods that produce a split-by-condition tool. */
 const GENERATIVE_TOOL_METHODS = new Set(["present", "promptUser"]);
 
@@ -1213,6 +1429,7 @@ function compileToolkit(
   instances: Set<string>,
   interactableToolImports: Set<string>,
   toolkitSpreadNames: ToolkitSpreadNames,
+  importBindings: Map<string, ImportBinding>,
   flags: TargetFlags,
   filename: string | undefined,
 ): void {
@@ -1252,11 +1469,7 @@ function compileToolkit(
         continue;
       }
       throw new GenerativeCompileError(
-        "each tool must be an inline object literal (`name: { ... }`) or a " +
-          "compiler-visible toolkit spread / generative tool (e.g. " +
-          "`...defineMcpToolkit(...)`, `...baseToolkit`, " +
-          "`generative.present()`, or `unstable_interactableTool(...)`) so its " +
-          "`execute` can be routed",
+        describeUnsafeToolkitSpread(entry, importBindings, filename),
         filename,
       );
     }
