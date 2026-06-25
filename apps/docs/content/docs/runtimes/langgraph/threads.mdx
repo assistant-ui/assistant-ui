@@ -40,9 +40,11 @@ const runtime = useLangGraphRuntime({
 ```ts
 const setMessages = useLangGraphSetMessages();
 
-// prepend an older page fetched on scroll, without re-reading state
-const older = await fetchOlderPage();
-setMessages((prev) => [...older, ...prev]);
+// prepend an older page inside the scroll/load-more handler, not at render
+async function onLoadMore() {
+  const older = await fetchOlderPage();
+  setMessages((prev) => [...older, ...prev]);
+}
 ```
 
 `useLangGraphSetMessages` replaces the list while the thread is idle. It throws if called while a run is in progress, because the running stream owns the list during a turn; the next run re-seeds from whatever the list is at that point, so an idle-time replacement becomes the base for the next run.
