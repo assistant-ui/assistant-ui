@@ -369,12 +369,12 @@ function attachmentUnionMemberStatus(properties) {
   return status;
 }
 
-function attachmentUnionMemberSortKey(type, sourceFile) {
+function attachmentUnionMemberInfo(type, sourceFile) {
   const properties = collectIntersectionTypeProperties(type, sourceFile);
-  if (!properties) return undefined;
+  if (!properties) return { recognized: false, key: undefined };
 
   const status = attachmentUnionMemberStatus(properties);
-  if (!status) return undefined;
+  if (!status) return { recognized: false, key: undefined };
 
   const statusRank =
     status === "CompleteAttachmentStatus"
@@ -394,22 +394,23 @@ function attachmentUnionMemberSortKey(type, sourceFile) {
           statusRank === 1
         ? "file"
         : undefined;
-  if (!payload) return undefined;
+  if (!payload) return { recognized: true, key: undefined };
 
-  return `${properties.get("source").value}:${statusRank}:${payload}`;
+  return {
+    recognized: true,
+    key: `${properties.get("source").value}:${statusRank}:${payload}`,
+  };
 }
 
 function normalizeAttachmentUnionType(node, sourceFile, factory) {
-  const keyedTypes = node.types.map((type, index) => ({
-    index,
-    recognized: Boolean(
-      attachmentUnionMemberStatus(
-        collectIntersectionTypeProperties(type, sourceFile) ?? new Map(),
-      ),
-    ),
-    key: attachmentUnionMemberSortKey(type, sourceFile),
-    type,
-  }));
+  const keyedTypes = node.types.map((type, index) => {
+    const info = attachmentUnionMemberInfo(type, sourceFile);
+    return {
+      index,
+      ...info,
+      type,
+    };
+  });
   const recognizedTypes = keyedTypes.filter(({ recognized }) => recognized);
   if (recognizedTypes.length < 2) return node;
 
