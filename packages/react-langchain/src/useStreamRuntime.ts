@@ -3,7 +3,12 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { AppendMessage, ToolExecutionStatus } from "@assistant-ui/core";
-import { pickExternalStoreSharedOptions } from "@assistant-ui/core";
+import {
+  generateId,
+  getExternalStoreMessages,
+  pickExternalStoreSharedOptions,
+} from "@assistant-ui/core";
+import type { ThreadMessage } from "@assistant-ui/core";
 import {
   useCloudThreadListAdapter,
   useExternalStoreRuntime,
@@ -77,6 +82,31 @@ const getPendingToolCalls = (
   return [...pending.values()];
 };
 
+const toStagedHumanMessage = (
+  msg: AppendMessage,
+  id = generateId(),
+): LangChainBaseMessage & { id: string } => ({
+  id,
+  _getType: () => "human",
+  content: getMessageContent(msg),
+});
+
+const truncateLangChainBaseMessages = (
+  threadMessages: readonly ThreadMessage[],
+  parentId: string | null,
+): LangChainBaseMessage[] => {
+  if (parentId === null) return [];
+  const parentIndex = threadMessages.findIndex((m) => m.id === parentId);
+  if (parentIndex === -1) return [];
+  const truncated: LangChainBaseMessage[] = [];
+  for (let i = 0; i <= parentIndex && i < threadMessages.length; i++) {
+    truncated.push(
+      ...getExternalStoreMessages<LangChainBaseMessage>(threadMessages[i]!),
+    );
+  }
+  return truncated;
+};
+
 type DistributiveOmit<T, K extends keyof any> = T extends unknown
   ? Omit<T, K>
   : never;
@@ -101,6 +131,9 @@ const useStreamThreadRuntime = (
   options.threadId = externalId;
 
   const stream = useStream(options);
+  const [stagedMessages, setStagedMessages] = useState<
+    LangChainBaseMessage[] | null
+  >(null);
 
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -123,8 +156,11 @@ const useStreamThreadRuntime = (
     [liveUiMessages, uiStateValue],
   );
 
+  const visibleMessages =
+    stagedMessages ?? (stream.messages as LangChainBaseMessage[]);
+
   const messageTiming = useLangChainStreamingTiming(
-    stream.messages as LangChainBaseMessage[],
+    visibleMessages,
     effectiveIsRunning,
   );
 
@@ -142,12 +178,54 @@ const useStreamThreadRuntime = (
 
   const threadMessages = useExternalMessageConverter({
     callback: convertWithUI,
-    messages: stream.messages as LangChainBaseMessage[],
+    messages: visibleMessages,
     isRunning: effectiveIsRunning,
   });
 
   const streamRef = useRef(stream);
   streamRef.current = stream;
+
+  const visibleMessagesRef = useRef(visibleMessages);
+  visibleMessagesRef.current = visibleMessages;
+
+  const threadMessagesRef = useRef(threadMessages);
+  threadMessagesRef.current = threadMessages;
+
+  const stagedMessagesRef = useRef(
+    new Map<
+      string,
+      {
+        message: LangChainBaseMessage & { id: string };
+        runConfig: AppendMessage["runConfig"];
+      }
+    >(),
+  );
+
+  const getStagedRun = (parentId: string | null) => {
+    if (!parentId || !stagedMessagesRef.current.has(parentId)) return null;
+
+    const staged: LangChainBaseMessage[] = [];
+    for (const message of visibleMessagesRef.current) {
+      if (message.id && stagedMessagesRef.current.has(message.id)) {
+        staged.push(stagedMessagesRef.current.get(message.id)!.message);
+      }
+      if (message.id === parentId) break;
+    }
+
+    return {
+      messages: staged,
+      runConfig: stagedMessagesRef.current.get(parentId)!.runConfig,
+    };
+  };
+
+  const stageUserMessage = (msg: AppendMessage) => {
+    const stagedMessage = toStagedHumanMessage(msg);
+    stagedMessagesRef.current.set(stagedMessage.id, {
+      message: stagedMessage,
+      runConfig: msg.runConfig,
+    });
+    setStagedMessages([...visibleMessagesRef.current, stagedMessage]);
+  };
 
   const extras = useMemo(
     () =>
@@ -178,6 +256,11 @@ const useStreamThreadRuntime = (
     unstable_enableToolInvocations: true,
     setToolStatuses,
     onNew: async (msg) => {
+      if (!(msg.startRun ?? msg.role === "user")) {
+        stageUserMessage(msg);
+        return;
+      }
+
       const content = getMessageContent(msg);
       const cancellations =
         autoCancelPendingToolCalls !== false
@@ -217,6 +300,25 @@ const useStreamThreadRuntime = (
       });
     },
     onReload: async (parentId, config) => {
+      const stagedRun = getStagedRun(parentId);
+      if (stagedRun) {
+        for (const message of stagedRun.messages) {
+          if (message.id) stagedMessagesRef.current.delete(message.id);
+        }
+        setStagedMessages(null);
+        await stream.submit(
+          {
+            [messagesKey]: stagedRun.messages.map((message) => ({
+              id: message.id,
+              type: "human",
+              content: message.content,
+            })),
+          },
+          runConfigToSubmitOptions(config.runConfig ?? stagedRun.runConfig),
+        );
+        return;
+      }
+
       const threadId = externalId;
       if (!threadId || parentId == null) return;
       const s = streamRef.current;
@@ -236,6 +338,20 @@ const useStreamThreadRuntime = (
       });
     },
     onEdit: async (message) => {
+      if (!(message.startRun ?? message.role === "user")) {
+        const truncated = truncateLangChainBaseMessages(
+          threadMessagesRef.current,
+          message.parentId,
+        );
+        const stagedMessage = toStagedHumanMessage(message);
+        stagedMessagesRef.current.set(stagedMessage.id, {
+          message: stagedMessage,
+          runConfig: message.runConfig,
+        });
+        setStagedMessages([...truncated, stagedMessage]);
+        return;
+      }
+
       const threadId = externalId;
       if (!threadId) return;
       const s = streamRef.current;

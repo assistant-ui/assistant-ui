@@ -316,15 +316,23 @@ const useAssistantTransportThreadRuntime = <T>(
     onNew: async (message: AppendMessage): Promise<void> => {
       parentIdRef.current = message.parentId;
       const command = convertAppendMessageToCommand(message);
-      commandQueue.enqueue(command);
+      commandQueue.enqueue(command, {
+        schedule: message.startRun ?? message.role === "user",
+      });
     },
     ...(options.capabilities?.edit && {
       onEdit: async (message: AppendMessage): Promise<void> => {
         parentIdRef.current = message.parentId;
         const command = convertAppendMessageToCommand(message);
-        commandQueue.enqueue(command);
+        commandQueue.enqueue(command, {
+          schedule: message.startRun ?? message.role === "user",
+        });
       },
     }),
+    onReload: async (parentId: string | null) => {
+      parentIdRef.current = parentId;
+      runManager.schedule();
+    },
     onCancel: async () => {
       runManager.cancel();
     },

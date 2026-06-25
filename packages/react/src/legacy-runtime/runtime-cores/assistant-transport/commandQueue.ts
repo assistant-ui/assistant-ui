@@ -19,14 +19,17 @@ export const useCommandQueue = (opts: { onQueue: () => void }) => {
   const [, rerender] = useState(0);
   const queueStateRef = useRef<CommandQueueState>(createInitialQueueState());
 
-  const enqueue = (command: AssistantTransportCommand) => {
+  const enqueue = (
+    command: AssistantTransportCommand,
+    options?: { schedule?: boolean },
+  ) => {
     queueStateRef.current = {
       queued: [...queueStateRef.current.queued, command],
       inTransit: queueStateRef.current.inTransit,
     };
     rerender((prev) => prev + 1);
 
-    onQueueRef.current();
+    if (options?.schedule !== false) onQueueRef.current();
   };
 
   const flush = (): QueuedCommand[] => {

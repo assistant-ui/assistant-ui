@@ -179,6 +179,14 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private unsubscribeFromEvents: (() => void) | null = null;
   private loadPromise: Promise<void> | null = null;
   private reconnectSyncToken = 0;
+  private readonly stagedMessages = new Map<
+    string,
+    {
+      message: AppendMessage;
+      options: OpenCodeUserMessageOptions | undefined;
+      pending: PendingUserMessage;
+    }
+  >();
 
   constructor(
     private readonly client: OpencodeClient,
@@ -311,14 +319,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     return this.load(true);
   }
 
-  public async sendMessage(
-    message: AppendMessage,
-    options?: OpenCodeUserMessageOptions,
-  ) {
-    if (message.role !== "user") {
-      throw new Error("OpenCode only supports sending user messages");
-    }
-
+  private createPendingMessage(message: AppendMessage): PendingUserMessage {
     const parts = [
       ...message.content,
       ...(message.attachments?.flatMap(
@@ -326,7 +327,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       ) ?? []),
     ] as readonly ThreadUserMessagePart[];
 
-    const pending: PendingUserMessage = {
+    return {
       clientId: createLocalId("local"),
       sessionId: this.sessionId,
       createdAt: Date.now(),
@@ -337,8 +338,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       contentText: getTextContent(parts),
       status: "pending",
     };
+  }
 
-    this.dispatch({ type: "local.message.queued", pending });
+  private async promptMessage(
+    message: AppendMessage,
+    pending: PendingUserMessage,
+    options?: OpenCodeUserMessageOptions,
+  ) {
     this.dispatch({ type: "run.started" });
 
     try {
@@ -360,6 +366,52 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       });
       throw error;
     }
+  }
+
+  public async sendMessage(
+    message: AppendMessage,
+    options?: OpenCodeUserMessageOptions,
+  ) {
+    if (message.role !== "user") {
+      throw new Error("OpenCode only supports sending user messages");
+    }
+
+    const pending = this.createPendingMessage(message);
+    this.dispatch({ type: "local.message.queued", pending });
+    await this.promptMessage(message, pending, options);
+  }
+
+  public async stageMessage(
+    message: AppendMessage,
+    options?: OpenCodeUserMessageOptions,
+  ) {
+    if (message.role !== "user") {
+      throw new Error("OpenCode only supports sending user messages");
+    }
+
+    const pending = this.createPendingMessage(message);
+    this.stagedMessages.set(`local:${pending.clientId}`, {
+      message,
+      options,
+      pending,
+    });
+    this.dispatch({ type: "local.message.queued", pending });
+  }
+
+  public async sendStagedMessage(
+    parentId: string,
+    options?: OpenCodeUserMessageOptions,
+  ) {
+    const staged = this.stagedMessages.get(parentId);
+    if (!staged) return false;
+
+    this.stagedMessages.delete(parentId);
+    await this.promptMessage(
+      staged.message,
+      staged.pending,
+      options ?? staged.options,
+    );
+    return true;
   }
 
   public async cancel() {
