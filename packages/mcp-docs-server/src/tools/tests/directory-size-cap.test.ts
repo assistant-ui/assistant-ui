@@ -1,5 +1,25 @@
 import { describe, it, expect, vi } from "vitest";
 
+vi.mock("../../utils/paths.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../utils/paths.js")>()),
+  listDirContents: vi.fn(async () => ({
+    directories: [],
+    files: ["first.mdx", "second.mdx"],
+  })),
+}));
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...actual,
+    stat: vi.fn(async (path: string) => ({
+      isFile: () => path.endsWith(".mdx"),
+      isDirectory: () => !path.endsWith(".mdx"),
+      size: 600 * 1024,
+    })),
+  };
+});
+
 vi.mock("../../utils/mdx.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../utils/mdx.js")>()),
   readMDXFile: vi.fn(async () => ({
@@ -23,7 +43,7 @@ describe("assistantUIDocs directory aggregate size cap", () => {
     const parsed = parse(result);
 
     expect(parsed.type).toBe("directory");
-    expect(parsed.files.length).toBeGreaterThan(1);
+    expect(parsed.files).toEqual(["first", "second"]);
     expect(parsed.content).toBeUndefined();
     expect(parsed.hint).toContain("exceeds");
   });

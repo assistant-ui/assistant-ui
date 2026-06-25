@@ -88,16 +88,16 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
         let aggregateSize = 0;
         let truncated = false;
         for (const file of files) {
+          const fileStats = await stat(join(fullPath, file));
+          aggregateSize += fileStats.size;
+          if (aggregateSize > MAX_DIRECTORY_CONTENT_SIZE) {
+            truncated = true;
+            break;
+          }
           const mdxContent = await readMDXFile(join(fullPath, file));
           if (mdxContent) {
-            const formatted = formatMDXContent(mdxContent);
-            aggregateSize += Buffer.byteLength(formatted, "utf-8");
-            if (aggregateSize > MAX_DIRECTORY_CONTENT_SIZE) {
-              truncated = true;
-              break;
-            }
-            const fileName = file.replace(MDX_EXTENSION, "");
-            contents[fileName] = formatted;
+            contents[file.replace(MDX_EXTENSION, "")] =
+              formatMDXContent(mdxContent);
           }
         }
 
