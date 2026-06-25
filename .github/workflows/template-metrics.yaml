@@ -110,7 +110,7 @@ jobs:
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
-            const existing = comments.find((c) => c.body.includes(marker));
+            const existing = comments.find((c) => c.body?.includes(marker));
             const shouldCreate = fs.readFileSync('metrics-comment.txt', 'utf8').trim() === 'post';
             if (!existing && !shouldCreate) {
               console.log('No LOC changes; skipping template metrics comment.');
