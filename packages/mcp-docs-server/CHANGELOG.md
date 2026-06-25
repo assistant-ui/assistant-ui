@@ -1,5 +1,13 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.36
+
+### Patch Changes
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#4574](https://github.com/assistant-ui/assistant-ui/pull/4574) [`d130d38`](https://github.com/assistant-ui/assistant-ui/commit/d130d38df851533e6a06d63ded4982db83a8b546) - feat: adopt registerTool API and advertise read-only tool annotations ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.1.35
 
 ### Patch Changes

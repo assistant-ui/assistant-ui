@@ -15,6 +15,7 @@ import {
   createMessageQueue,
   type MessageQueueController,
   type AppendMessage,
+  generateId,
 } from "@assistant-ui/core";
 import type { ToolExecutionStatus } from "@assistant-ui/core";
 import type { QueueItemState } from "@assistant-ui/core/store";
@@ -46,6 +47,15 @@ import {
 
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 const subscribeNoop = () => () => {};
+
+const toLangGraphUserMessage = (
+  msg: AppendMessage,
+  id = generateId(),
+): LangChainMessage & { type: "human"; id: string } => ({
+  id,
+  type: "human",
+  content: getMessageContent(msg),
+});
 
 const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const {
@@ -228,6 +238,50 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     );
   };
 
+  const langGraphMessagesRef = useRef(messages);
+  langGraphMessagesRef.current = messages;
+
+  const stagedMessagesRef = useRef(
+    new Map<
+      string,
+      {
+        message: LangChainMessage & { id: string };
+        runConfig: AppendMessage["runConfig"];
+      }
+    >(),
+  );
+  const [stagedMessageCount, setStagedMessageCount] = useState(0);
+  const hasStagedMessages = stagedMessageCount > 0;
+
+  const getStagedRun = (parentId: string | null) => {
+    if (!parentId || !stagedMessagesRef.current.has(parentId)) return null;
+
+    const staged: LangChainMessage[] = [];
+    for (const message of langGraphMessagesRef.current) {
+      if (message.id && stagedMessagesRef.current.has(message.id)) {
+        staged.push(stagedMessagesRef.current.get(message.id)!.message);
+      }
+      if (message.id === parentId) break;
+    }
+
+    return {
+      messages: staged,
+      runConfig: stagedMessagesRef.current.get(parentId)!.runConfig,
+    };
+  };
+
+  const stageUserMessage = (msg: AppendMessage) => {
+    const stagedMessage = toLangGraphUserMessage(msg);
+    stagedMessagesRef.current.set(stagedMessage.id, {
+      message: stagedMessage,
+      runConfig: msg.runConfig,
+    });
+    setStagedMessageCount(stagedMessagesRef.current.size);
+    const nextMessages = [...langGraphMessagesRef.current, stagedMessage];
+    langGraphMessagesRef.current = nextMessages;
+    setMessages(nextMessages);
+  };
+
   // The controller is created once; route through a ref so its driver runs the
   // latest runUserMessage (which closes over the current `messages`).
   const runUserMessageRef = useRef(runUserMessage);
@@ -301,7 +355,13 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       send: handleSendMessage,
       setMessages: handleSetMessages,
     }),
-    onNew: runUserMessage,
+    onNew: async (msg) => {
+      if (!(msg.startRun ?? msg.role === "user")) {
+        stageUserMessage(msg);
+        return;
+      }
+      await runUserMessage(msg);
+    },
     ...(queueController && { queue: queueController.adapter }),
     onAddToolResult: async ({
       toolCallId,
@@ -342,6 +402,18 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
           );
           setInterrupt(undefined);
+          if (!(msg.startRun ?? msg.role === "user")) {
+            const stagedMessage = toLangGraphUserMessage(msg);
+            stagedMessagesRef.current.set(stagedMessage.id, {
+              message: stagedMessage,
+              runConfig: msg.runConfig,
+            });
+            setStagedMessageCount(stagedMessagesRef.current.size);
+            const nextMessages = [...truncated, stagedMessage];
+            langGraphMessagesRef.current = nextMessages;
+            setMessages(nextMessages);
+            return;
+          }
           const externalId = aui.threadListItem().getState().externalId;
           const checkpointId = externalId
             ? await getCheckpointId(externalId, truncated)
@@ -355,28 +427,44 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           );
         }
       : undefined,
-    onReload: getCheckpointId
-      ? async (parentId, config) => {
-          toolResultBufferRef.current.clear();
-          const truncated = truncateLangChainMessages(
-            threadMessagesRef.current,
-            parentId,
-          );
-          setMessages(truncated);
-          setUIMessages(
-            filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
-          );
-          setInterrupt(undefined);
-          const externalId = aui.threadListItem().getState().externalId;
-          const checkpointId = externalId
-            ? await getCheckpointId(externalId, truncated)
-            : null;
-          return handleSendMessage([], {
-            runConfig: config.runConfig,
-            ...(checkpointId && { checkpointId }),
-          });
+    ...(getCheckpointId || hasStagedMessages
+      ? {
+          onReload: async (parentId, config) => {
+            const stagedRun = getStagedRun(parentId);
+            if (stagedRun) {
+              for (const message of stagedRun.messages) {
+                if (message.id) stagedMessagesRef.current.delete(message.id);
+              }
+              setStagedMessageCount(stagedMessagesRef.current.size);
+              return handleSendMessage(stagedRun.messages, {
+                runConfig: config.runConfig ?? stagedRun.runConfig,
+              });
+            }
+
+            if (!getCheckpointId)
+              throw new Error("Runtime does not support reloading messages.");
+
+            toolResultBufferRef.current.clear();
+            const truncated = truncateLangChainMessages(
+              threadMessagesRef.current,
+              parentId,
+            );
+            setMessages(truncated);
+            setUIMessages(
+              filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
+            );
+            setInterrupt(undefined);
+            const externalId = aui.threadListItem().getState().externalId;
+            const checkpointId = externalId
+              ? await getCheckpointId(externalId, truncated)
+              : null;
+            return handleSendMessage([], {
+              runConfig: config.runConfig,
+              ...(checkpointId && { checkpointId }),
+            });
+          },
         }
-      : undefined,
+      : {}),
     onCancel: unstable_allowCancellation
       ? async () => {
           cancel();

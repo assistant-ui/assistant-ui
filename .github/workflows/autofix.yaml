@@ -14,12 +14,12 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6.0.9
 
       - name: Setup node.js
         uses: actions/setup-node@v6
@@ -33,4 +33,7 @@ jobs:
       - name: Lint fix
         run: pnpm lint:fix
 
-      - uses: autofix-ci/action@ff86a557419858bb967097bfc916833f5647fa8c
+      - name: Update API surface snapshots
+        run: pnpm api-surface
+
+      - uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a # v1.3.4

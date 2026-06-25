@@ -1,5 +1,14 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.6
+
+### Patch Changes
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff)]:
+  - assistant-stream@0.3.24
+
 ## 0.0.5
 
 ### Patch Changes

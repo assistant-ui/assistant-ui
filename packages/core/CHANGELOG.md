@@ -1,5 +1,55 @@
 # @assistant-ui/core
 
+## 0.2.19
+
+### Patch Changes
+
+- [#4497](https://github.com/assistant-ui/assistant-ui/pull/4497) [`ddc40b7`](https://github.com/assistant-ui/assistant-ui/commit/ddc40b7791563057749ecf1121e15d19574479ff) - fix: tolerate reasoning and image content blocks that omit their declared fields ([@okisdev](https://github.com/okisdev))
+
+- [#4466](https://github.com/assistant-ui/assistant-ui/pull/4466) [`ea52de0`](https://github.com/assistant-ui/assistant-ui/commit/ea52de06368853b7af7ac6755b157ec5305a8494) - refactor: add an internal createRuntimeExtras helper shared by external-store adapter authors ([@okisdev](https://github.com/okisdev))
+
+- [#4548](https://github.com/assistant-ui/assistant-ui/pull/4548) [`29c6fdb`](https://github.com/assistant-ui/assistant-ui/commit/29c6fdbc8ede04fb2647b0a47184003ee3c2f090) - feat(core): add shared client-side streaming timing primitive (`useStreamingTiming` + pure `stepStreamingTiming`) ([@okisdev](https://github.com/okisdev))
+
+- [#4543](https://github.com/assistant-ui/assistant-ui/pull/4543) [`d0987a3`](https://github.com/assistant-ui/assistant-ui/commit/d0987a32540880e5058ee529fd52a3efb4298706) - external-store: add `unstable_onBranchChange` adapter callback that fires on explicit `switchToBranch`, emitting the canonical (persisted) head and visible message ids, deduped by head ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#4310](https://github.com/assistant-ui/assistant-ui/pull/4310) [`0c51b90`](https://github.com/assistant-ui/assistant-ui/commit/0c51b905d22418b93532636b1028c080ecc819e0) - feat: add `unstable_` interactables API; restore and deprecate the previous interactables API ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+  The redesigned interactables API is now available as an additive `unstable_*` surface for building editable, in-message UI while preserving the existing stable API for compatibility.
+
+  - `unstable_useInteractable(name, config)` registers an interactable and returns its state plus methods in one hook.
+  - Each unstable interactable name gets one stable `update_{name}` tool. When multiple instances share a name, the tool targets an instance by `id`.
+  - Thread-scoped interactables rendered inside message parts expose `version`, including the state for that message, whether it is the latest tool-driven version, and `restore()`.
+  - Added `unstable_interactableTool(...)` for defining a creating tool and its in-message render UI together.
+  - Added `unstable_useInteractableVersions(id, name)` for version history UIs.
+  - Persistence adapters can now provide `load()` and be passed directly to `unstable_Interactables({ persistence })`.
+
+  The previous `useAssistantInteractable` / `useInteractableState` / `Interactables` API remains available unchanged and is marked deprecated. Existing apps do not need to migrate immediately.
+
+  Migration notes for the unstable API:
+
+  ```diff
+  - const id = useAssistantInteractable("taskBoard", config);
+  - const [state, { setState }] = useInteractableState(id, initialState);
+  + const [state, { id, setState }] = unstable_useInteractable("taskBoard", config);
+  ```
+
+  - Use `unstable_interactables: unstable_Interactables()` when registering the unstable scope.
+  - `unstable_useInteractableState(id)` is intended for secondary readers and returns `undefined` until the owner registers.
+  - The unstable API uses per-name update tools (`update_{name}`) with an `id` parameter instead of legacy per-instance tools (`update_{name}_{id}`).
+  - A top-level `id` field in `stateSchema` is reserved for instance addressing. Rename domain state fields to `itemId`, `recordId`, etc. if the model should edit them.
+  - Model selection should be represented as ordinary state in the unstable API; the legacy `selected` registration prop and `setSelected` method remain available on the deprecated stable API.
+
+- [#4482](https://github.com/assistant-ui/assistant-ui/pull/4482) [`3a8f685`](https://github.com/assistant-ui/assistant-ui/commit/3a8f685e23a3e7ad76ac41e3ce6fff05714e04d3) - feat: add `onThreadIdChange` to the remote thread list runtime so `threadId` can be used as a managed/controlled value (e.g. synced to a URL). Only the settled remote ID is emitted; the transient optimistic local ID is never surfaced. ([@Yonom](https://github.com/Yonom))
+
+- [#4567](https://github.com/assistant-ui/assistant-ui/pull/4567) [`ec6adf4`](https://github.com/assistant-ui/assistant-ui/commit/ec6adf4adc91fe12c7de47fc93adcc347ece8245) - fix: make PartPrimitive.Messages props a discriminated union so rendering with neither components nor children is a compile error ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#4542](https://github.com/assistant-ui/assistant-ui/pull/4542) [`4acd4c0`](https://github.com/assistant-ui/assistant-ui/commit/4acd4c0f608da1c62bf23a666bc0fec870a27dca) - add unstable id-keyed thread message rendering APIs for virtualized and custom message lists. `unstable_useThreadMessageIds()` returns the thread's message ids (stable array identity across content-only updates), and `ThreadPrimitive.Unstable_MessageById` renders a single message by id with the same component surface as `MessageByIndex`. A missing or removed id renders `null` instead of throwing. ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- Updated dependencies [[`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff)]:
+  - assistant-stream@0.3.24
+
 ## 0.2.18
 
 ### Patch Changes

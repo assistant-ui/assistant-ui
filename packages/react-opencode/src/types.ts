@@ -312,6 +312,14 @@ export type OpenCodeThreadControllerLike = {
     message: AppendMessage,
     options?: OpenCodeUserMessageOptions,
   ): Promise<void>;
+  stageMessage(
+    message: AppendMessage,
+    options?: OpenCodeUserMessageOptions,
+  ): Promise<void>;
+  sendStagedMessage(
+    parentId: string,
+    options?: OpenCodeUserMessageOptions,
+  ): Promise<boolean>;
   cancel(): Promise<void>;
   revert(messageId: string): Promise<void>;
   unrevert(): Promise<void>;

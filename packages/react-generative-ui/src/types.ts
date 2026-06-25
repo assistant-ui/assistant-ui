@@ -1,5 +1,34 @@
 import type { ReactNode } from "react";
 import type { ZodType } from "zod";
+import type { Action, NormalizedUIElement } from "./ir";
+
+/**
+ * The canonical generative-ui element, normalized from the flat `$type` shape
+ * or the legacy `component` shape (see {@link normalizeUINode}). `children` is
+ * a reserved top-level key, not a prop, so it lives here rather than inside
+ * `props`. Alias of {@link NormalizedUIElement}; kept under its old name so the
+ * package's public surface stays append-only.
+ */
+export type GenerativeUIElement = NormalizedUIElement;
+
+export type GenerativeUIProps = NormalizedUIElement["props"];
+
+/**
+ * Anything renderable as generative UI — mirrors React's `ReactNode`: an
+ * element, primitive text, a list of nodes, or nothing. Widened beyond the
+ * model payload (a {@link GenerativeUIElement}) with the renderer's
+ * null/boolean/undefined inputs.
+ */
+export type GenerativeUINode =
+  | GenerativeUIElement
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | GenerativeUINode[];
+
+export type GenerativeUIAction = Action;
 
 /** Whether a node's props are still streaming in or have fully arrived. */
 export type GenerativeUIStatus = "streaming" | "done";
@@ -67,38 +96,3 @@ export type GenerativeUIComponent<P = any> =
  * This registry is the security boundary — any `type` not present is rejected.
  */
 export type GenerativeUILibrary = Record<string, GenerativeUIComponent>;
-
-/**
- * A component invocation — mirrors React's `ReactElement`.
- *
- * `type` selects a component from the {@link GenerativeUILibrary}; `props` are
- * passed to it. The `children` prop is special: it is itself a renderable
- * {@link GenerativeUINode}, drawn as generative UI rather than passed as data.
- *
- * On the wire the model emits the flattened form `{ $type, ...props }`, where
- * `$type` names the component so a real `type` prop never collides. This is the
- * normalized shape the renderer works with, the same way React normalizes
- * `createElement` arguments into an element.
- */
-export type GenerativeUIElement = {
-  type: string;
-  props: GenerativeUIProps;
-};
-
-/** Props passed to a component — mirrors a React component's props. */
-export type GenerativeUIProps = {
-  children?: GenerativeUINode;
-} & Record<string, unknown>;
-
-/**
- * Anything renderable as generative UI — mirrors React's `ReactNode`: an
- * element, primitive text, or a list of nodes.
- */
-export type GenerativeUINode =
-  | GenerativeUIElement
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | GenerativeUINode[];

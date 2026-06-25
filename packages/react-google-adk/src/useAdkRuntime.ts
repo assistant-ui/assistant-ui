@@ -11,6 +11,7 @@ import {
   type AppendMessage,
   type ThreadMessage,
   type ToolExecutionStatus,
+  generateId,
 } from "@assistant-ui/core";
 import {
   useCloudThreadListAdapter,
@@ -138,6 +139,15 @@ const truncateAdkMessages = (
   return truncated;
 };
 
+const toAdkUserMessage = (
+  msg: AppendMessage,
+  id = generateId(),
+): AdkMessage & { type: "human"; id: string } => ({
+  id,
+  type: "human",
+  content: getMessageContent(msg),
+});
+
 export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
   /**
@@ -205,6 +215,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     messageMetadata,
     sendMessage,
     cancel,
+    setMessages,
     replaceMessages,
   } = useAdkMessages({
     stream,
@@ -241,6 +252,50 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   const threadMessagesRef = useRef(threadMessages);
   threadMessagesRef.current = threadMessages;
 
+  const adkMessagesRef = useRef(messages);
+  adkMessagesRef.current = messages;
+
+  const stagedMessagesRef = useRef(
+    new Map<
+      string,
+      {
+        message: AdkMessage & { id: string };
+        runConfig: AppendMessage["runConfig"];
+      }
+    >(),
+  );
+  const [stagedMessageCount, setStagedMessageCount] = useState(0);
+  const hasStagedMessages = stagedMessageCount > 0;
+
+  const getStagedRun = (parentId: string | null) => {
+    if (!parentId || !stagedMessagesRef.current.has(parentId)) return null;
+
+    const staged: AdkMessage[] = [];
+    for (const message of adkMessagesRef.current) {
+      if (message.id && stagedMessagesRef.current.has(message.id)) {
+        staged.push(stagedMessagesRef.current.get(message.id)!.message);
+      }
+      if (message.id === parentId) break;
+    }
+
+    return {
+      messages: staged,
+      runConfig: stagedMessagesRef.current.get(parentId)!.runConfig,
+    };
+  };
+
+  const stageUserMessage = (msg: AppendMessage) => {
+    const stagedMessage = toAdkUserMessage(msg);
+    stagedMessagesRef.current.set(stagedMessage.id, {
+      message: stagedMessage,
+      runConfig: msg.runConfig,
+    });
+    setStagedMessageCount(stagedMessagesRef.current.size);
+    const nextMessages = [...adkMessagesRef.current, stagedMessage];
+    adkMessagesRef.current = nextMessages;
+    setMessages(nextMessages);
+  };
+
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
@@ -260,6 +315,11 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       send: handleSendMessage,
     }),
     onNew: async (msg) => {
+      if (!(msg.startRun ?? msg.role === "user")) {
+        stageUserMessage(msg);
+        return;
+      }
+
       const cancellations =
         autoCancelPendingToolCalls !== false
           ? getPendingCancellations(messages, longRunningToolIds)
@@ -284,6 +344,18 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             msg.parentId,
           );
           replaceMessages(truncated);
+          if (!(msg.startRun ?? msg.role === "user")) {
+            const stagedMessage = toAdkUserMessage(msg);
+            stagedMessagesRef.current.set(stagedMessage.id, {
+              message: stagedMessage,
+              runConfig: msg.runConfig,
+            });
+            setStagedMessageCount(stagedMessagesRef.current.size);
+            const nextMessages = [...truncated, stagedMessage];
+            adkMessagesRef.current = nextMessages;
+            setMessages(nextMessages);
+            return;
+          }
           const externalId = aui.threadListItem().getState().externalId;
           const checkpointId = externalId
             ? await getCheckpointId(externalId, truncated)
@@ -303,23 +375,39 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           );
         }
       : undefined,
-    onReload: getCheckpointId
-      ? async (parentId, config) => {
-          const truncated = truncateAdkMessages(
-            threadMessagesRef.current,
-            parentId,
-          );
-          replaceMessages(truncated);
-          const externalId = aui.threadListItem().getState().externalId;
-          const checkpointId = externalId
-            ? await getCheckpointId(externalId, truncated)
-            : null;
-          return handleSendMessage([], {
-            runConfig: config.runConfig,
-            ...(checkpointId && { checkpointId }),
-          });
+    ...(getCheckpointId || hasStagedMessages
+      ? {
+          onReload: async (parentId, config) => {
+            const stagedRun = getStagedRun(parentId);
+            if (stagedRun) {
+              for (const message of stagedRun.messages) {
+                stagedMessagesRef.current.delete(message.id);
+              }
+              setStagedMessageCount(stagedMessagesRef.current.size);
+              return handleSendMessage(stagedRun.messages, {
+                runConfig: config.runConfig ?? stagedRun.runConfig,
+              });
+            }
+
+            if (!getCheckpointId)
+              throw new Error("Runtime does not support reloading messages.");
+
+            const truncated = truncateAdkMessages(
+              threadMessagesRef.current,
+              parentId,
+            );
+            replaceMessages(truncated);
+            const externalId = aui.threadListItem().getState().externalId;
+            const checkpointId = externalId
+              ? await getCheckpointId(externalId, truncated)
+              : null;
+            return handleSendMessage([], {
+              runConfig: config.runConfig,
+              ...(checkpointId && { checkpointId }),
+            });
+          },
         }
-      : undefined,
+      : {}),
     onAddToolResult: async ({
       toolCallId,
       toolName,

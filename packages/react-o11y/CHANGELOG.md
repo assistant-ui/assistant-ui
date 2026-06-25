@@ -1,5 +1,17 @@
 # @assistant-ui/react-o11y
 
+## 0.0.25
+
+### Patch Changes
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#4535](https://github.com/assistant-ui/assistant-ui/pull/4535) [`d7c42fa`](https://github.com/assistant-ui/assistant-ui/commit/d7c42faf169c92bc6f343d865e06f5707fe1fab0) - feat: add headless span timeline primitives for rendering waterfall bars ([@samdickson22](https://github.com/samdickson22))
+
+- Updated dependencies [[`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff)]:
+  - @assistant-ui/store@0.2.19
+  - @assistant-ui/tap@0.9.3
+
 ## 0.0.24
 
 ### Patch Changes
