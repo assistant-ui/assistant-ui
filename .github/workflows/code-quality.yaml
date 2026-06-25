@@ -40,12 +40,12 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6.0.9
 
       - name: Setup node.js
         uses: actions/setup-node@v6
@@ -68,7 +68,7 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -81,12 +81,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6.0.9
 
       - name: Setup node.js
         uses: actions/setup-node@v6
@@ -95,7 +95,7 @@ jobs:
           cache: "pnpm"
 
       - name: Cache turbo build setup
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
@@ -123,12 +123,12 @@ jobs:
     # Note: No dependency on 'build' job - Turbo handles test->build dependencies internally via dependsOn
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6.0.9
 
       - name: Setup node.js
         uses: actions/setup-node@v6
@@ -137,7 +137,7 @@ jobs:
           cache: "pnpm"
 
       - name: Cache turbo build setup
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
