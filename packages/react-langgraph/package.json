@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langgraph",
-  "version": "0.14.10",
+  "version": "0.14.11",
   "description": "LangGraph adapter for assistant-ui",
   "keywords": [
     "langgraph",

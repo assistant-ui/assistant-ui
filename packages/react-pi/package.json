@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-pi",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Pi coding-agent runtime adapter for assistant-ui",
   "keywords": [
     "pi",

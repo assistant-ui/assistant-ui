@@ -1,5 +1,11 @@
 # @assistant-ui/x-generative-compiler
 
+## 0.0.7
+
+### Patch Changes
+
+- [#4617](https://github.com/assistant-ui/assistant-ui/pull/4617) [`d162f44`](https://github.com/assistant-ui/assistant-ui/commit/d162f440502c29e4293e33c0c081e87c36d67bba) - fix: name opaque toolkit entries in compiler diagnostics ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.6
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langchain",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "LangChain useStream adapter for assistant-ui",
   "keywords": [
     "langchain",

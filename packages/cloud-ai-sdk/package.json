@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/cloud-ai-sdk",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "description": "Standalone Vercel AI SDK hooks backed by Assistant Cloud persistence",
   "keywords": [
     "assistant",

@@ -1,5 +1,11 @@
 # @assistant-ui/react-langgraph
 
+## 0.14.11
+
+### Patch Changes
+
+- [#4608](https://github.com/assistant-ui/assistant-ui/pull/4608) [`a7b06f7`](https://github.com/assistant-ui/assistant-ui/commit/a7b06f76876078fc2fcbb92a86fa0e1530fde782) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.14.10
 
 ### Patch Changes

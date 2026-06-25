@@ -1,5 +1,11 @@
 # @assistant-ui/react-native
 
+## 0.1.29
+
+### Patch Changes
+
+- [#4580](https://github.com/assistant-ui/assistant-ui/pull/4580) [`2220136`](https://github.com/assistant-ui/assistant-ui/commit/222013629f8c4bd3fc8c8c1de641bab799041515) - fix: re-export documented context providers from platform barrels ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.1.28
 
 ### Patch Changes

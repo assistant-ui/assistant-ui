@@ -3611,7 +3611,7 @@ importers:
         specifier: ^8.5.9
         version: 8.5.9(@types/react@19.2.17)(react@19.2.7)
       safe-content-frame:
-        specifier: ^0.0.21
+        specifier: ^0.0.22
         version: link:../safe-content-frame
       zod:
         specifier: ^4.4.3
