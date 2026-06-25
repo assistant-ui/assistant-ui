@@ -85,6 +85,19 @@ describe("normalizeUINode", () => {
       expect(node.props).toEqual({ type: "submit", label: "Go" });
     });
 
+    it("routes a flat `$type` node with a `component` prop to the flat branch, not the legacy one", () => {
+      const node = asElement(
+        normalizeUINode({
+          $type: "Schema",
+          component: "display-name",
+          label: "Go",
+        }),
+      );
+
+      expect(node.type).toBe("Schema");
+      expect(node.props).toEqual({ component: "display-name", label: "Go" });
+    });
+
     it("threads $action and $key through as action/key", () => {
       const node = asElement(
         normalizeUINode({

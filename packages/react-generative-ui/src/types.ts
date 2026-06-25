@@ -11,7 +11,6 @@ import type { Action, NormalizedUIElement } from "./ir";
  */
 export type GenerativeUIElement = NormalizedUIElement;
 
-/** The inline prop bag of a {@link GenerativeUIElement}. */
 export type GenerativeUIProps = NormalizedUIElement["props"];
 
 /**
@@ -29,7 +28,6 @@ export type GenerativeUINode =
   | undefined
   | GenerativeUINode[];
 
-/** A behavior payload carried by an interactive node. Alias of {@link Action}. */
 export type GenerativeUIAction = Action;
 
 /** Whether a node's props are still streaming in or have fully arrived. */
