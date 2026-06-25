@@ -20,3 +20,7 @@ export function optionValues(args, name) {
 export function hasOption(args, name) {
   return args.includes(name);
 }
+
+export function optionArgs(name, values) {
+  return values.flatMap((value) => [name, value]);
+}

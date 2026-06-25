@@ -12,7 +12,7 @@ import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { optionValues } from "./lib/script-options.mjs";
+import { optionArgs, optionValues } from "./lib/script-options.mjs";
 
 const repoRoot = process.cwd();
 const packagesRoot = path.join(repoRoot, "packages");
@@ -144,7 +144,7 @@ function collectTurboFilteredPackageNames(filters) {
       "exec",
       "turbo",
       "ls",
-      ...filters.flatMap((filter) => ["--filter", filter]),
+      ...optionArgs("--filter", filters),
       "--output=json",
     ],
     {

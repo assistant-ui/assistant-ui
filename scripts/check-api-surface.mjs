@@ -2,7 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { hasOption, optionValues } from "./lib/script-options.mjs";
+import { hasOption, optionArgs, optionValues } from "./lib/script-options.mjs";
 
 const repoRoot = process.cwd();
 const scriptArgs = process.argv.slice(2);
@@ -20,7 +20,7 @@ function run(command, args) {
 }
 
 const buildFilterArgs = filters.length
-  ? filters.flatMap((filter) => ["--filter", filter])
+  ? optionArgs("--filter", filters)
   : ["--filter", "./packages/*"];
 
 if (!skipBuild) {
@@ -29,6 +29,6 @@ if (!skipBuild) {
 run("node", [
   path.join("scripts", "generate-api-surface.mjs"),
   "--check",
-  ...filters.flatMap((filter) => ["--filter", filter]),
+  ...optionArgs("--filter", filters),
 ]);
 run("pnpm", ["--filter", "@assistant-ui/api-surface", "check"]);
