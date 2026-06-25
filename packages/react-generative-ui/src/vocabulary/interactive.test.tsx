@@ -20,6 +20,33 @@ describe("interactiveVocabulary", () => {
     );
   });
 
+  it("Button omits data-aui-block when block is false or omitted", () => {
+    expect(render({ $type: "Button", label: "Go", block: false })).toBe(
+      '<button data-aui="button">Go</button>',
+    );
+  });
+
+  it("Select renders an aria-label when label is provided", () => {
+    const html = render({
+      $type: "Select",
+      label: "Choose",
+      options: [{ label: "A", value: "a" }],
+    });
+    expect(html).toContain('aria-label="Choose"');
+  });
+
+  it("Select keys options by index so duplicate values do not collide", () => {
+    const html = render({
+      $type: "Select",
+      options: [
+        { label: "A", value: "x" },
+        { label: "B", value: "x" },
+      ],
+    });
+    expect(html).toContain('<option value="x">A</option>');
+    expect(html).toContain('<option value="x">B</option>');
+  });
+
   it("Button stashes $action on a data-aui-action attribute", () => {
     const html = render({
       $type: "Button",

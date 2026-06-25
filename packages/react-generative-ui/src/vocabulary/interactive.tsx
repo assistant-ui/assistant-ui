@@ -27,7 +27,7 @@ export const interactiveVocabulary = {
       <button
         data-aui="button"
         data-aui-style={buttonStyle}
-        data-aui-block={block}
+        data-aui-block={block || undefined}
         data-aui-action={actionAttr($action)}
       >
         {label}
@@ -44,11 +44,16 @@ export const interactiveVocabulary = {
         .string()
         .optional()
         .describe("Placeholder shown when nothing is selected."),
+      label: z
+        .string()
+        .optional()
+        .describe("Accessible label for the control."),
     }),
-    render: ({ options, placeholder, $action, children }) => (
+    render: ({ options, placeholder, label, $action, children }) => (
       <select
         data-aui="select"
         data-aui-action={actionAttr($action)}
+        aria-label={label}
         defaultValue=""
       >
         {placeholder ? (
@@ -56,8 +61,8 @@ export const interactiveVocabulary = {
             {placeholder}
           </option>
         ) : null}
-        {options.map((o: { label: string; value: string }) => (
-          <option key={o.value} value={o.value}>
+        {options.map((o: { label: string; value: string }, i: number) => (
+          <option key={i} value={o.value}>
             {o.label}
           </option>
         ))}
@@ -74,19 +79,25 @@ export const interactiveVocabulary = {
         .boolean()
         .optional()
         .describe("Render a textarea instead of a single-line input."),
+      label: z
+        .string()
+        .optional()
+        .describe("Accessible label for the control."),
     }),
-    render: ({ placeholder, multiline, $action }) =>
+    render: ({ placeholder, multiline, label, $action }) =>
       multiline ? (
         <textarea
           data-aui="input"
           data-aui-multiline
           data-aui-action={actionAttr($action)}
+          aria-label={label}
           placeholder={placeholder}
         />
       ) : (
         <input
           data-aui="input"
           data-aui-action={actionAttr($action)}
+          aria-label={label}
           placeholder={placeholder}
         />
       ),
@@ -98,12 +109,17 @@ export const interactiveVocabulary = {
       value: z.string().optional().describe("Initial date (YYYY-MM-DD)."),
       min: z.string().optional().describe("Minimum date (YYYY-MM-DD)."),
       max: z.string().optional().describe("Maximum date (YYYY-MM-DD)."),
+      label: z
+        .string()
+        .optional()
+        .describe("Accessible label for the control."),
     }),
-    render: ({ value, min, max, $action }) => (
+    render: ({ value, min, max, label, $action }) => (
       <input
         type="date"
         data-aui="datepicker"
         data-aui-action={actionAttr($action)}
+        aria-label={label}
         defaultValue={value}
         min={min}
         max={max}

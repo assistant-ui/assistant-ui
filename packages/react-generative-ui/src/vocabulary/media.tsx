@@ -7,7 +7,7 @@ export const mediaVocabulary = {
     description: "An image. Provide `src` and `alt` for accessibility.",
     properties: z.object({
       src: z.string().describe("Image URL."),
-      alt: z.string().optional().describe("Alt text for accessibility."),
+      alt: z.string().describe("Alt text for accessibility."),
       size: z
         .union([z.enum(IMAGE_SIZE_TOKENS), z.number()])
         .optional()
@@ -30,6 +30,8 @@ export const mediaVocabulary = {
         .optional()
         .describe("Whether the divider spans the full width with no inset."),
     }),
-    render: ({ flush }) => <hr data-aui="divider" data-aui-flush={flush} />,
+    render: ({ flush }) => (
+      <hr data-aui="divider" data-aui-flush={flush || undefined} />
+    ),
   },
 } satisfies GenerativeUILibrary;

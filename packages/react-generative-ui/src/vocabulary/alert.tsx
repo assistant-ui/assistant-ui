@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Children } from "react";
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
 import { ALERT_TONES } from "../ir";
@@ -32,11 +32,7 @@ export const alertVocabulary = {
     description: "A horizontally scrollable group of `Card` children (max 10).",
     properties: z.object({}),
     render: ({ children }) => {
-      const cards: ReactNode[] = Array.isArray(children)
-        ? children.slice(0, MAX_CARDS)
-        : children == null || children === false
-          ? []
-          : [children];
+      const cards = Children.toArray(children).slice(0, MAX_CARDS);
       return (
         <div data-aui="carousel">
           {cards.map((card, i) => (
