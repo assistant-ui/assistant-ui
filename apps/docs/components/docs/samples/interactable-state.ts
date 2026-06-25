@@ -14,9 +14,3 @@ export const taskBoardSchema = z.object({
 });
 
 export const taskBoardInitialState: TaskBoardState = { tasks: [] };
-
-export const manageTasksParameters = z.object({
-  action: z.enum(["add", "toggle", "remove", "clear"]),
-  title: z.string().optional(),
-  id: z.string().optional(),
-});

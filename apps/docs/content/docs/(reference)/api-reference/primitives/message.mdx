@@ -55,6 +55,16 @@ const AssistantMessage = () => (
   <p>This primitive renders a <code>{`<${MessagePrimitiveDocs.Root?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<MessagePrimitive.Root>
+  <MessagePrimitive.Content />
+  <ActionBarPrimitive.Root>
+    <ActionBarPrimitive.Copy />
+    <ActionBarPrimitive.Edit />
+  </ActionBarPrimitive.Root>
+</MessagePrimitive.Root>
+```
+
 <ParametersTable {...MessagePrimitiveRootProps} />
 
 ### Parts
@@ -201,6 +211,27 @@ const AssistantMessage = () => (
   <p>This primitive renders a <code>{`<${MessagePrimitiveDocs.GroupedParts?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<MessagePrimitive.GroupedParts
+  groupBy={groupPartByType({
+    reasoning: ["group-thought", "group-reasoning"],
+    "tool-call": ["group-thought", "group-tool"],
+  })}
+>
+  {({ part, children }) => {
+    switch (part.type) {
+      case "group-thought":   return <Thought>{children}</Thought>;
+      case "group-reasoning": return <Reasoning>{children}</Reasoning>;
+      case "group-tool":      return <ToolStack>{children}</ToolStack>;
+      case "text":            return <MarkdownText />;
+      case "tool-call":       return part.toolUI ?? <ToolFallback {...part} />;
+      case "indicator":       return <LoadingDots />;
+      default:                return null;
+    }
+  }}
+</MessagePrimitive.GroupedParts>
+```
+
 <ParametersTable {...MessagePrimitiveGroupedPartsProps} />
 
 ### GenerativeUI
@@ -217,6 +248,12 @@ const AssistantMessage = () => (
   <p>This primitive renders a <code>{`<${MessagePrimitiveDocs.GenerativeUI?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<MessagePrimitive.GenerativeUI
+  components={{ Card: MyCard, Button: MyButton }}
+/>
+```
+
 <ParametersTable {...MessagePrimitiveGenerativeUIProps} />
 
 ### Unstable_PartsGrouped
@@ -232,6 +269,25 @@ const AssistantMessage = () => (
 {MessagePrimitiveDocs.Unstable_PartsGrouped?.element && (
   <p>This primitive renders a <code>{`<${MessagePrimitiveDocs.Unstable_PartsGrouped?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+// Group by parent ID (default behavior)
+<MessagePrimitive.Unstable_PartsGrouped
+  components={{
+    Text: ({ text }) => <p className="message-text">{text}</p>,
+    Image: ({ image }) => <img src={image} alt="Message image" />,
+    Group: ({ groupKey, indices, children }) => {
+      if (!groupKey) return <>{children}</>;
+      return (
+        <div className="parent-group border rounded p-4">
+          <h4>Parent ID: {groupKey}</h4>
+          {children}
+        </div>
+      );
+    }
+  }}
+/>
+```
 
 <ParametersTable {...MessagePrimitiveUnstable_PartsGroupedProps} />
 

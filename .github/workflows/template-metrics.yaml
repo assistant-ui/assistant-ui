@@ -1,0 +1,157 @@
+name: Template Metrics
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "templates/**"
+      - "packages/ui/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "templates/**"
+      - "packages/ui/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Templates to build for bundle-size measurement. LOC is measured for all
+  # templates regardless; only these are built (next build is the expensive part).
+  BUNDLE_TEMPLATES: "default minimal"
+  # Per-template regression limits. A template that already exists on the main
+  # baseline fails the gate if it grows past either limit.
+  MAX_LOC_INCREASE: "50"
+  MAX_BUNDLE_INCREASE_KB: "10"
+
+jobs:
+  metrics:
+    name: LOC + Bundle Size
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Cache turbo build setup
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.ref }}-
+            ${{ runner.os }}-turbo-
+
+      # Baseline is main's metrics, cached by the last run on main. PRs restore
+      # the newest one via the restore-keys prefix to compute deltas against main.
+      - name: Restore main baseline
+        uses: actions/cache/restore@v4
+        with:
+          path: install-footprint/branch/main/data.json
+          key: install-footprint-main-${{ github.sha }}
+          restore-keys: install-footprint-main-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build templates (bundle subset)
+        env:
+          # next build needs these public vars defined; values are placeholders.
+          NEXT_PUBLIC_ASSISTANT_BASE_URL: "https://example.com"
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_placeholder"
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          filters=""
+          for t in $BUNDLE_TEMPLATES; do
+            filters="$filters --filter=./templates/$t"
+          done
+          # turbo pulls in the @assistant-ui/* workspace deps each template needs.
+          pnpm turbo build $filters
+
+      - name: Measure metrics
+        run: node scripts/template-metrics.mjs measure . metrics-head.json
+
+      - name: Build report
+        run: |
+          node scripts/template-metrics.mjs report install-footprint/branch/main/data.json metrics-head.json metrics-report.md metrics-gate.txt metrics-comment.txt
+          cat metrics-report.md
+
+      # continue-on-error: a fork PR's read-only token makes commenting 403; that
+      # must not fail the check or skip the gate below.
+      - name: Post / update PR comment
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('metrics-report.md', 'utf8');
+            const marker = '<!-- template-metrics -->';
+            // paginate: a long PR thread can push the sticky comment past the
+            // first 30, and missing it would post a duplicate on every re-run.
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            const shouldCreate = fs.readFileSync('metrics-comment.txt', 'utf8').trim() === 'post';
+            if (!existing && !shouldCreate) {
+              console.log('No LOC changes; skipping template metrics comment.');
+              return;
+            }
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      # always(): run even if the comment step failed (e.g. fork 403), so the
+      # gate verdict is never lost. Only blocks PRs; pushes refresh the baseline.
+      - name: Enforce regression gate
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          if [ "$(cat metrics-gate.txt 2>/dev/null)" = "fail" ]; then
+            echo "::error::Template metrics regressed past the configured limits. See the PR comment."
+            exit 1
+          fi
+          echo "Template metrics within limits."
+
+      - name: Persist baseline (main only)
+        if: github.event_name == 'push'
+        run: |
+          mkdir -p install-footprint/branch/main
+          cp metrics-head.json install-footprint/branch/main/data.json
+
+      - name: Save baseline cache (main only)
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: install-footprint/branch/main/data.json
+          key: install-footprint-main-${{ github.sha }}

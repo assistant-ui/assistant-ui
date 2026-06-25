@@ -1,5 +1,25 @@
 # @assistant-ui/react-opencode
 
+## 0.2.10
+
+### Patch Changes
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#4515](https://github.com/assistant-ui/assistant-ui/pull/4515) [`f5e94b7`](https://github.com/assistant-ui/assistant-ui/commit/f5e94b767ab23fdae4739fbf73cf4d75c6ce4778) - feat: forward `onThreadIdChange` through the adapter entry hooks (`useLangGraphRuntime`, `useStreamRuntime`, `useChatRuntime`, `useAdkRuntime`, `useOpenCodeRuntime`, `usePiRuntime`). the option already existed on `useRemoteThreadListRuntime` but every wrapper dropped it, so routing/persistence built on the settled remote thread id never fired from these hooks. only the settled remote id is emitted; the transient `__LOCALID_*` placeholder is never surfaced. ([@okisdev](https://github.com/okisdev))
+
+- [#4472](https://github.com/assistant-ui/assistant-ui/pull/4472) [`ff16a47`](https://github.com/assistant-ui/assistant-ui/commit/ff16a473419c567cf53226b8869f6fa7e6ad1e10) - fix: restore the type exports that the previous refactor trimmed from the public barrel; removing a shipped export is a breaking change for npm consumers, even when no in-repo consumer imports it ([@okisdev](https://github.com/okisdev))
+
+- [#4470](https://github.com/assistant-ui/assistant-ui/pull/4470) [`d98cfef`](https://github.com/assistant-ui/assistant-ui/commit/d98cfef9d0e65e1282ce789fbca90559c063acdb) - refactor: adopt the shared createRuntimeExtras helper, move the accessor hooks into hooks.ts, extract the thread-list adapter, and trim unused internal type and SDK re-exports from the public barrel ([@okisdev](https://github.com/okisdev))
+
+- [#4553](https://github.com/assistant-ui/assistant-ui/pull/4553) [`fbc33d3`](https://github.com/assistant-ui/assistant-ui/commit/fbc33d3fbff1f7195caffa285bf33a212daf758d) - refactor: delegate useOpenCodeStreamingTiming to the shared core primitive, with no public API change ([@okisdev](https://github.com/okisdev))
+
+- [#4591](https://github.com/assistant-ui/assistant-ui/pull/4591) [`f582f09`](https://github.com/assistant-ui/assistant-ui/commit/f582f0991258c96a15d542fc9e55a93866340eca) - feat: honor startRun false across staged-message-capable runtimes ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`ddc40b7`](https://github.com/assistant-ui/assistant-ui/commit/ddc40b7791563057749ecf1121e15d19574479ff), [`ea52de0`](https://github.com/assistant-ui/assistant-ui/commit/ea52de06368853b7af7ac6755b157ec5305a8494), [`29c6fdb`](https://github.com/assistant-ui/assistant-ui/commit/29c6fdbc8ede04fb2647b0a47184003ee3c2f090), [`d0987a3`](https://github.com/assistant-ui/assistant-ui/commit/d0987a32540880e5058ee529fd52a3efb4298706), [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff), [`0c51b90`](https://github.com/assistant-ui/assistant-ui/commit/0c51b905d22418b93532636b1028c080ecc819e0), [`3a8f685`](https://github.com/assistant-ui/assistant-ui/commit/3a8f685e23a3e7ad76ac41e3ce6fff05714e04d3), [`ec6adf4`](https://github.com/assistant-ui/assistant-ui/commit/ec6adf4adc91fe12c7de47fc93adcc347ece8245), [`4acd4c0`](https://github.com/assistant-ui/assistant-ui/commit/4acd4c0f608da1c62bf23a666bc0fec870a27dca)]:
+  - @assistant-ui/core@0.2.19
+  - @assistant-ui/store@0.2.19
+
 ## 0.2.9
 
 ### Patch Changes

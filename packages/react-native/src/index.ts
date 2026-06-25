@@ -137,8 +137,11 @@ export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
 // Re-export shared providers from core/react
 export {
   ThreadListItemByIndexProvider,
+  ThreadListItemRuntimeProvider,
   ChainOfThoughtByIndicesProvider,
   MessageByIndexProvider,
+  MessageAttachmentByIndexProvider,
+  ComposerAttachmentByIndexProvider,
   PartByIndexProvider,
   TextMessagePartProvider,
   ChainOfThoughtPartByIndexProvider,
@@ -185,6 +188,26 @@ export {
   useAssistantInteractable,
   type AssistantInteractableProps,
   useInteractableState,
+  unstable_Interactables,
+  unstable_useInteractable,
+  type Unstable_InteractableConfig,
+  type Unstable_InferInteractableState,
+  type Unstable_InteractableVersionInfo,
+  unstable_useInteractableState,
+  unstable_useInteractableVersions,
+  unstable_interactableTool,
+  type Unstable_InteractableToolConfig,
+  type Unstable_InteractableToolRenderProps,
+  type Unstable_InteractableStateSchema,
+  type Unstable_InteractablesState,
+  type Unstable_InteractableDefinition,
+  type Unstable_InteractableRegistration,
+  type Unstable_InteractablesMethods,
+  type Unstable_InteractablePersistedState,
+  type Unstable_InteractablePersistenceAdapter,
+  type Unstable_InteractablePersistenceStatus,
+  type Unstable_InteractablesClientSchema,
+  type Unstable_InteractablesConfig,
   useToolArgsStatus,
   type ToolArgsStatus,
 } from "@assistant-ui/core/react";
@@ -197,6 +220,14 @@ export type {
 } from "@assistant-ui/core";
 
 export { mergeModelContexts } from "@assistant-ui/core";
+
+export {
+  unstable_getInteractableSnapshots,
+  unstable_formatInteractableSnapshot,
+  unstable_getInteractableVersions,
+  type Unstable_InteractableSnapshotEntry,
+  type Unstable_InteractableVersion,
+} from "@assistant-ui/core";
 
 export type { ExportedMessageRepositoryItem } from "@assistant-ui/core";
 export { ExportedMessageRepository } from "@assistant-ui/core";

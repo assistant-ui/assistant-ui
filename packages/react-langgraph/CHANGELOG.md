@@ -1,5 +1,33 @@
 # @assistant-ui/react-langgraph
 
+## 0.14.10
+
+### Patch Changes
+
+- [#4497](https://github.com/assistant-ui/assistant-ui/pull/4497) [`ddc40b7`](https://github.com/assistant-ui/assistant-ui/commit/ddc40b7791563057749ecf1121e15d19574479ff) - fix: tolerate reasoning and image content blocks that omit their declared fields ([@okisdev](https://github.com/okisdev))
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#4515](https://github.com/assistant-ui/assistant-ui/pull/4515) [`f5e94b7`](https://github.com/assistant-ui/assistant-ui/commit/f5e94b767ab23fdae4739fbf73cf4d75c6ce4778) - feat: forward `onThreadIdChange` through the adapter entry hooks (`useLangGraphRuntime`, `useStreamRuntime`, `useChatRuntime`, `useAdkRuntime`, `useOpenCodeRuntime`, `usePiRuntime`). the option already existed on `useRemoteThreadListRuntime` but every wrapper dropped it, so routing/persistence built on the settled remote thread id never fired from these hooks. only the settled remote id is emitted; the transient `__LOCALID_*` placeholder is never surfaced. ([@okisdev](https://github.com/okisdev))
+
+- [#4554](https://github.com/assistant-ui/assistant-ui/pull/4554) [`140b5c4`](https://github.com/assistant-ui/assistant-ui/commit/140b5c4d15b177dc884d36fe4d09c4473b4b7531) - fix(react-langgraph): count reasoning content blocks in the streaming timing text length ([@okisdev](https://github.com/okisdev))
+
+- [#4471](https://github.com/assistant-ui/assistant-ui/pull/4471) [`f806f73`](https://github.com/assistant-ui/assistant-ui/commit/f806f7338adefd395ddab6717e73f5004e7b90e8) - refactor: adopt the shared createRuntimeExtras helper and split useLangGraphRuntime.ts into hooks/types/converter/helper modules, with no public API or behavior change ([@okisdev](https://github.com/okisdev))
+
+- [#4549](https://github.com/assistant-ui/assistant-ui/pull/4549) [`0e94445`](https://github.com/assistant-ui/assistant-ui/commit/0e94445c63c05fcc88ea73a03b986ae17759c314) - refactor: delegate useLangGraphStreamingTiming to the shared useStreamingTiming primitive in core, with no public API change ([@okisdev](https://github.com/okisdev))
+
+- [#4569](https://github.com/assistant-ui/assistant-ui/pull/4569) [`86adce1`](https://github.com/assistant-ui/assistant-ui/commit/86adce18177b0dffdc538a96065e25f931dc7f45) - fix: surface tool-call messages and interrupts raised inside a subgraph ([@serhiizghama](https://github.com/serhiizghama))
+
+  A subgraph `interrupt()` emits both the tool-call `AIMessage` and the `__interrupt__` payload under a namespaced `updates` event, which the runtime dropped early. The toolkit therefore never rendered the tool UI and `useLangGraphInterruptState` stayed `undefined`. Namespaced `updates` now extract messages and set the interrupt (never clearing an active interrupt from a later subgraph update), so subgraph HITL flows behave like top-level ones.
+
+- [#4591](https://github.com/assistant-ui/assistant-ui/pull/4591) [`f582f09`](https://github.com/assistant-ui/assistant-ui/commit/f582f0991258c96a15d542fc9e55a93866340eca) - feat: honor startRun false across staged-message-capable runtimes ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`ddc40b7`](https://github.com/assistant-ui/assistant-ui/commit/ddc40b7791563057749ecf1121e15d19574479ff), [`ea52de0`](https://github.com/assistant-ui/assistant-ui/commit/ea52de06368853b7af7ac6755b157ec5305a8494), [`29c6fdb`](https://github.com/assistant-ui/assistant-ui/commit/29c6fdbc8ede04fb2647b0a47184003ee3c2f090), [`d0987a3`](https://github.com/assistant-ui/assistant-ui/commit/d0987a32540880e5058ee529fd52a3efb4298706), [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff), [`0c51b90`](https://github.com/assistant-ui/assistant-ui/commit/0c51b905d22418b93532636b1028c080ecc819e0), [`3a8f685`](https://github.com/assistant-ui/assistant-ui/commit/3a8f685e23a3e7ad76ac41e3ce6fff05714e04d3), [`ec6adf4`](https://github.com/assistant-ui/assistant-ui/commit/ec6adf4adc91fe12c7de47fc93adcc347ece8245), [`4acd4c0`](https://github.com/assistant-ui/assistant-ui/commit/4acd4c0f608da1c62bf23a666bc0fec870a27dca)]:
+  - @assistant-ui/core@0.2.19
+  - assistant-stream@0.3.24
+  - assistant-cloud@0.1.34
+  - @assistant-ui/store@0.2.19
+
 ## 0.14.9
 
 ### Patch Changes

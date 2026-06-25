@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/metro",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Metro / Expo integration for assistant-ui: the \"use generative\" directive compiler that colocates a tool's schema, server execute, and client render in one file. Works with Expo and bare React Native.",
   "keywords": [
     "assistant-ui",

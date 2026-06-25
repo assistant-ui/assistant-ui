@@ -47,6 +47,14 @@ const BranchPicker = () => (
   <p>This primitive renders a <code>{`<${BranchPickerPrimitiveDocs.Root?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<BranchPickerPrimitive.Root hideWhenSingleBranch={true}>
+  <BranchPickerPrimitive.Previous />
+  <BranchPickerPrimitive.Count />
+  <BranchPickerPrimitive.Next />
+</BranchPickerPrimitive.Root>
+```
+
 <ParametersTable {...BranchPickerPrimitiveRootProps} />
 
 ### Next
@@ -62,6 +70,12 @@ const BranchPicker = () => (
 {BranchPickerPrimitiveDocs.Next?.element && (
   <p>This primitive renders a <code>{`<${BranchPickerPrimitiveDocs.Next?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<BranchPickerPrimitive.Next>
+  Next →
+</BranchPickerPrimitive.Next>
+```
 
 <ParametersTable {...BranchPickerPrimitiveNextProps} />
 
@@ -79,6 +93,12 @@ const BranchPicker = () => (
   <p>This primitive renders a <code>{`<${BranchPickerPrimitiveDocs.Previous?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<BranchPickerPrimitive.Previous>
+  ← Previous
+</BranchPickerPrimitive.Previous>
+```
+
 <ParametersTable {...BranchPickerPrimitivePreviousProps} />
 
 ### Count
@@ -94,6 +114,12 @@ const BranchPicker = () => (
 {BranchPickerPrimitiveDocs.Count?.element && (
   <p>This primitive renders a <code>{`<${BranchPickerPrimitiveDocs.Count?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<div>
+  Branch <BranchPickerPrimitive.Count /> of {totalBranches}
+</div>
+```
 
 {BranchPickerPrimitiveDocs.Count?.props && (
   <ParametersTable type={BranchPickerPrimitiveDocs.Count?.element} parameters={BranchPickerPrimitiveDocs.Count.props} />

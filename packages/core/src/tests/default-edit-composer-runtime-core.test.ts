@@ -4,11 +4,20 @@ import type { AppendMessage, ThreadMessage } from "../types/message";
 import type { CompleteAttachment } from "../types/attachment";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
 
-const makeRuntime = () => {
+const makeRuntime = (options?: {
+  messages?: ThreadMessage[];
+  composerMetadata?: Record<string, unknown>;
+}) => {
   const append = vi.fn();
   const runtime = {
     append,
     composer: { runConfig: {} },
+    messages: options?.messages ?? [],
+    getModelContext: () => ({
+      ...(options?.composerMetadata
+        ? { unstable_composerMetadata: options.composerMetadata }
+        : {}),
+    }),
   } as unknown as ThreadRuntimeCore & { adapters?: undefined };
   return { runtime, append };
 };
@@ -211,6 +220,74 @@ describe("DefaultEditComposerRuntimeCore", () => {
       expect(append).toHaveBeenCalledTimes(1);
       const appended = append.mock.calls[0]![0] as AppendMessage;
       expect(appended.startRun).toBe(true);
+    });
+  });
+
+  describe("interactables snapshot gating", () => {
+    const live = (state: unknown) => ({
+      interactables: [{ id: "n1", name: "note", state }],
+    });
+    const snapshotMessage = (id: string, state: unknown): ThreadMessage =>
+      makeUserMessage({
+        id,
+        metadata: {
+          custom: { interactables: [{ id: "n1", name: "note", state }] },
+        },
+      } as Partial<ThreadMessage>);
+
+    it("re-stamps the baseline when the edited message carried the only snapshot", async () => {
+      // The new branch's prefix (before the edited message) has no snapshot,
+      // so the live (unchanged) state becomes the branch's baseline.
+      const edited = snapshotMessage("msg-1", { v: 1 });
+      const { runtime, append } = makeRuntime({
+        messages: [edited],
+        composerMetadata: live({ v: 1 }),
+      });
+      const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {
+        parentId: null,
+        message: edited,
+      });
+      composer.setText("new");
+      await composer.send();
+      const appended = append.mock.calls[0]![0] as AppendMessage;
+      expect(appended.metadata?.custom?.interactables).toEqual([
+        { id: "n1", name: "note", state: { v: 1 } },
+      ]);
+    });
+
+    it("stamps the newest live state when the interactable was edited after the original message", async () => {
+      const edited = snapshotMessage("msg-1", { v: 1 });
+      const { runtime, append } = makeRuntime({
+        messages: [edited],
+        composerMetadata: live({ v: 2 }),
+      });
+      const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {
+        parentId: null,
+        message: edited,
+      });
+      composer.setText("new");
+      await composer.send();
+      const appended = append.mock.calls[0]![0] as AppendMessage;
+      expect(appended.metadata?.custom?.interactables).toEqual([
+        { id: "n1", name: "note", state: { v: 2 } },
+      ]);
+    });
+
+    it("stamps nothing when the branch prefix already carries the live state", async () => {
+      const parent = snapshotMessage("parent-1", { v: 1 });
+      const edited = makeUserMessage({ id: "msg-1" });
+      const { runtime, append } = makeRuntime({
+        messages: [parent, edited],
+        composerMetadata: live({ v: 1 }),
+      });
+      const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {
+        parentId: "parent-1",
+        message: edited,
+      });
+      composer.setText("new");
+      await composer.send();
+      const appended = append.mock.calls[0]![0] as AppendMessage;
+      expect(appended.metadata?.custom?.interactables).toBeUndefined();
     });
   });
 

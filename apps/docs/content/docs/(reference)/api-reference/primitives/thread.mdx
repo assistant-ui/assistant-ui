@@ -3,7 +3,7 @@ title: ThreadPrimitive
 description: Thread primitives for rendering chat transcripts, message lists, viewport state, suggestions, and composers in assistant-ui.
 ---
 
-import { ThreadPrimitiveIfProps, ThreadPrimitiveMessageByIndexProps, ThreadPrimitiveMessagesProps, ThreadPrimitiveRootProps, ThreadPrimitiveScrollToBottomProps, ThreadPrimitiveSuggestionByIndexProps, ThreadPrimitiveSuggestionProps, ThreadPrimitiveSuggestionsProps, ThreadPrimitiveViewportFooterProps, ThreadPrimitiveViewportProps, ThreadPrimitiveViewportProviderProps } from "@/generated/typeDocs";
+import { ThreadPrimitiveIfProps, ThreadPrimitiveMessageByIndexProps, ThreadPrimitiveMessagesProps, ThreadPrimitiveRootProps, ThreadPrimitiveScrollToBottomProps, ThreadPrimitiveSuggestionByIndexProps, ThreadPrimitiveSuggestionProps, ThreadPrimitiveSuggestionsProps, ThreadPrimitiveUnstable_MessageByIdProps, ThreadPrimitiveViewportFooterProps, ThreadPrimitiveViewportProps, ThreadPrimitiveViewportProviderProps } from "@/generated/typeDocs";
 import { ThreadPrimitive as ThreadPrimitiveDocs } from "@/generated/primitiveDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
@@ -50,6 +50,16 @@ const Thread = () => (
 {ThreadPrimitiveDocs.Root?.element && (
   <p>This primitive renders a <code>{`<${ThreadPrimitiveDocs.Root?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<ThreadPrimitive.Root>
+  <ThreadPrimitive.Viewport>
+    <ThreadPrimitive.Messages>
+      {() => <MyMessage />}
+    </ThreadPrimitive.Messages>
+  </ThreadPrimitive.Viewport>
+</ThreadPrimitive.Root>
+```
 
 <ParametersTable {...ThreadPrimitiveRootProps} />
 
@@ -101,6 +111,14 @@ const Thread = () => (
   <p>This primitive renders a <code>{`<${ThreadPrimitiveDocs.Viewport?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<ThreadPrimitive.Viewport turnAnchor="top">
+  <ThreadPrimitive.Messages>
+    {() => <MyMessage />}
+  </ThreadPrimitive.Messages>
+</ThreadPrimitive.Viewport>
+```
+
 <ParametersTable {...ThreadPrimitiveViewportProps} />
 
 ### ViewportProvider
@@ -132,6 +150,17 @@ const Thread = () => (
 {ThreadPrimitiveDocs.ViewportFooter?.element && (
   <p>This primitive renders a <code>{`<${ThreadPrimitiveDocs.ViewportFooter?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<ThreadPrimitive.Viewport>
+  <ThreadPrimitive.Messages>
+    {() => <MyMessage />}
+  </ThreadPrimitive.Messages>
+  <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
+    <Composer />
+  </ThreadPrimitive.ViewportFooter>
+</ThreadPrimitive.Viewport>
+```
 
 <ParametersTable {...ThreadPrimitiveViewportFooterProps} />
 
@@ -166,6 +195,33 @@ const Thread = () => (
 )}
 
 <ParametersTable {...ThreadPrimitiveMessageByIndexProps} />
+
+### Unstable_MessageById
+
+{ThreadPrimitiveDocs.Unstable_MessageById?.deprecated && (
+  <Callout type="tip">
+    <strong>Experimental.</strong> {ThreadPrimitiveDocs.Unstable_MessageById.deprecated}
+  </Callout>
+)}
+
+{ThreadPrimitiveDocs.Unstable_MessageById?.description}
+
+{ThreadPrimitiveDocs.Unstable_MessageById?.element && (
+  <p>This primitive renders a <code>{`<${ThreadPrimitiveDocs.Unstable_MessageById?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+```tsx
+const messageIds = unstable_useThreadMessageIds();
+return messageIds.map((messageId) => (
+  <ThreadPrimitive.Unstable_MessageById
+    key={messageId}
+    messageId={messageId}
+    components={MESSAGE_COMPONENTS}
+  />
+));
+```
+
+<ParametersTable {...ThreadPrimitiveUnstable_MessageByIdProps} />
 
 ### ScrollToBottom
 

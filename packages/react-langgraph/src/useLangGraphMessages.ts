@@ -253,16 +253,20 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             case LangGraphKnownEventTypes.Updates: {
               if (eventNamespace) {
                 onSubgraphUpdates?.(eventNamespace, chunk.data);
-                break;
+              } else {
+                onUpdates?.(chunk.data);
               }
-              onUpdates?.(chunk.data);
               const extracted = extractMessagesFromUpdates<TMessage>(
                 chunk.data,
               );
               if (extracted.length > 0) {
                 setMessagesImmediate(accumulator.addMessages(extracted));
               }
-              setInterrupt(chunk.data.__interrupt__?.[0]);
+              // A subgraph update may set an interrupt but never clear one; the parent's top-level update clears it when the subgraph ends.
+              const updateInterrupt = chunk.data.__interrupt__?.[0];
+              if (!eventNamespace || updateInterrupt !== undefined) {
+                setInterrupt(updateInterrupt);
+              }
               break;
             }
             case LangGraphKnownEventTypes.Values:

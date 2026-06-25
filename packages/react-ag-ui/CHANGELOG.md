@@ -1,5 +1,26 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.43
+
+### Patch Changes
+
+- [#4538](https://github.com/assistant-ui/assistant-ui/pull/4538) [`13df77b`](https://github.com/assistant-ui/assistant-ui/commit/13df77b146e7b17fa95e2094d09b78e9bd88257b) - feat(react-ag-ui): restore requires-action status for pending tool calls in fromAgUiMessages so reloaded human-in-the-loop calls are actionable ([@okisdev](https://github.com/okisdev))
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#4533](https://github.com/assistant-ui/assistant-ui/pull/4533) [`fa4c23d`](https://github.com/assistant-ui/assistant-ui/commit/fa4c23d961a6758f8f39feffc5afe1c823132ca5) - fix: order tool-call parts by parentMessageId ([@dkachur1](https://github.com/dkachur1))
+
+  The run aggregator appended tool-call parts in wire-arrival order. Because the messages and tool-call channels are not ordered relative to each other on the wire, a tool whose `TOOL_CALL_START` arrived after a later message's text was rendered below that text instead of under the message that spawned it. Tool-call parts are now placed adjacent to their `parentMessageId` text part (falling back to append when the parent is unknown), matching the message association the canonical `@ag-ui/client` already performs.
+
+- [#4485](https://github.com/assistant-ui/assistant-ui/pull/4485) [`3a405b4`](https://github.com/assistant-ui/assistant-ui/commit/3a405b47e2dc965a5571ac7a33901cc7b826fff0) - feat(react-ag-ui): expose pending interrupts through the shared createRuntimeExtras + hooks.ts surface (`useAgUiInterrupts`, `useAgUiSubmitInterruptResponses`); the equivalent `unstable_getPendingInterrupts` / `unstable_submitInterruptResponses` runtime methods are now deprecated but keep working ([@okisdev](https://github.com/okisdev))
+
+- [#4493](https://github.com/assistant-ui/assistant-ui/pull/4493) [`2303d0f`](https://github.com/assistant-ui/assistant-ui/commit/2303d0f4cbad1f2c483ae78967c6bb84352888ea) - feat(react-ag-ui): add `useAgUiSteerAway` to send a new message while an AG-UI interrupt is pending; it accepts a string or partial message (the parent defaults to the head), cancels every open interrupt as `{status:"cancelled"}` on the wire (honoring the AG-UI interrupts spec), and resumes the run instead of throwing. pass `responses` to resolve specific interrupts while cancelling the rest ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`ddc40b7`](https://github.com/assistant-ui/assistant-ui/commit/ddc40b7791563057749ecf1121e15d19574479ff), [`ea52de0`](https://github.com/assistant-ui/assistant-ui/commit/ea52de06368853b7af7ac6755b157ec5305a8494), [`29c6fdb`](https://github.com/assistant-ui/assistant-ui/commit/29c6fdbc8ede04fb2647b0a47184003ee3c2f090), [`d0987a3`](https://github.com/assistant-ui/assistant-ui/commit/d0987a32540880e5058ee529fd52a3efb4298706), [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff), [`0c51b90`](https://github.com/assistant-ui/assistant-ui/commit/0c51b905d22418b93532636b1028c080ecc819e0), [`3a8f685`](https://github.com/assistant-ui/assistant-ui/commit/3a8f685e23a3e7ad76ac41e3ce6fff05714e04d3), [`ec6adf4`](https://github.com/assistant-ui/assistant-ui/commit/ec6adf4adc91fe12c7de47fc93adcc347ece8245), [`4acd4c0`](https://github.com/assistant-ui/assistant-ui/commit/4acd4c0f608da1c62bf23a666bc0fec870a27dca)]:
+  - @assistant-ui/core@0.2.19
+  - assistant-stream@0.3.24
+  - @assistant-ui/store@0.2.19
+
 ## 0.0.42
 
 ### Patch Changes

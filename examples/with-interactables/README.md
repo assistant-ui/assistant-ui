@@ -4,16 +4,16 @@ Demonstrates **interactable components** — persistent UI components whose stat
 
 ## Features Demonstrated
 
-### Task Board (single instance + custom tool)
-- `useInteractable("taskBoard", config)` — registers a single interactable
-- `Tools({ toolkit })` — custom tool for incremental add/toggle/remove/clear
-- Auto-generated `update_taskBoard` tool with **partial updates** (AI only sends changed fields)
+### Task Board
+- `unstable_useInteractable("taskBoard", config)` — registers a single interactable
+- Auto-generated `update_taskBoard` tool with partial scalar updates and array operations
+- Collection edits go through `tasks.add`, `tasks.update`, `tasks.remove`, and `tasks.clear` on the generated update tool
 
-### Sticky Notes (multi-instance + selection + partial updates)
-- Multiple `<NoteCard>` components each call `useInteractable("note", { id: noteId, ... })`
-- **Multi-instance**: each note gets its own `update_note_{id}` tool automatically
-- **Selection**: click a note to select it; AI sees `(SELECTED)` in system prompt and prioritizes it
-- **Partial updates**: AI can change just `{ color: "pink" }` without resending title and content
+### Sticky Notes
+- `unstable_useInteractable("notes", config)` — registers the sticky-note collection and `selectedId` as one state object
+- Auto-generated `update_notes` manages both note collection edits and selected-note focus
+- **Selection**: click a note to set `selectedId`; the AI can change focus by updating the same normal state field
+- **Partial updates**: AI can change just one note field with `notes.update: [{ id, color: "pink" }]`
 
 ## Getting Started
 
@@ -33,10 +33,9 @@ Open [http://localhost:3000](http://localhost:3000) to see the example.
 
 ## Key Concepts
 
-- **`Interactables()`** — scope resource registered via `useAui`
-- **`useInteractable(name, config)`** — returns `[state, setState, { id, setSelected }]`
+- **`unstable_Interactables({ persistence })`** — scope resource registered via `useAui`, with a `load`/`save` adapter
+- **`unstable_useInteractable(name, config)`** — returns `[state, { id, setState, isPending, error, flush }]`
 - **Partial updates** — auto-generated tools use partial schemas; AI only sends changed fields
-- **Multi-instance** — same `name`, different `id`; tools named `update_{name}_{id}`
-- **Selection** — `setSelected(true)` marks a component as focused for the AI
-- **`Tools({ toolkit })`** — custom frontend tools for fine-grained control
+- **Array operations** — array fields support generated `add`, `update`, `remove`, `clear`, and `set` operations on the same `update_{name}` tool
+- **Selection as state** — focused UI state lives in the interactable's normal schema (`selectedId`), not in a separate manage tool
 - **`sendAutomaticallyWhen`** — auto-sends follow-up messages when tool calls complete

@@ -12,8 +12,10 @@ import {
   type ExportInfo,
 } from "./discover.mts";
 import {
+  extractPrimitivePartsFor,
   primitivePartTypeDocName,
   readPrimitiveParts,
+  type PrimitivePartModel,
 } from "./primitive-extract.mts";
 import type { TypeDoc, TypeDocBindings } from "./type-docs.mts";
 
@@ -141,6 +143,37 @@ function renderJsDocExample(value: string): string {
     ? trimmed
     : ["```tsx", trimmed, "```"].join("\n");
   return mdxEscape(example);
+}
+
+type ApiStatus = "stable" | "experimental" | "deprecated";
+
+function isExperimentalDeprecation(deprecated?: string): boolean {
+  return /^(unstable \/ experimental|experimental\b|this (api|feature) is experimental\b|this api is (still )?under active development\b|under active development\b)/i.test(
+    deprecated ?? "",
+  );
+}
+
+function apiStatusForDeprecatedTag(deprecated?: string): ApiStatus {
+  if (!deprecated) return "stable";
+  return isExperimentalDeprecation(deprecated) ? "experimental" : "deprecated";
+}
+
+function apiStatusCallout(deprecated?: string): string[] {
+  if (!deprecated) return [];
+  if (apiStatusForDeprecatedTag(deprecated) === "experimental") {
+    return [
+      `<Callout type="tip">`,
+      `<strong>Experimental.</strong> ${mdxEscape(deprecated)}`,
+      `</Callout>`,
+      "",
+    ];
+  }
+  return [
+    `<Callout type="warn">`,
+    `<strong>Deprecated.</strong> ${mdxEscape(deprecated)}`,
+    `</Callout>`,
+    "",
+  ];
 }
 
 function mdxCommentMarker(name: string, boundary: "start" | "end"): string {
@@ -340,10 +373,6 @@ function assertPreservedSlots(
   );
 }
 
-function isUnstableName(name: string): boolean {
-  return name.startsWith("unstable_") || name.startsWith("Unstable_");
-}
-
 const EXPORT_ORDER_BY_PAGE: Record<string, readonly string[]> = {
   "tools/interactables": [
     "unstable_Interactables",
@@ -362,25 +391,45 @@ const EXPORT_ORDER_BY_PAGE: Record<string, readonly string[]> = {
   ],
 };
 
-function exportSortKey(item: ExportInfo): [number, string] {
+const API_STATUS_ORDER = {
+  stable: 0,
+  experimental: 1,
+  deprecated: 2,
+} satisfies Record<ApiStatus, number>;
+
+const PAGE_ROLE_ORDER = {
+  primary: 0,
+  related: 1,
+  "supporting-type": 2,
+} satisfies Record<ExportInfo["pageRole"], number>;
+
+function exportSortKey(
+  item: ExportInfo,
+): [number, number, number, number, string] {
   const pageOrder = EXPORT_ORDER_BY_PAGE[`${item.section}/${item.page}`];
   const pageIndex = pageOrder?.indexOf(item.name) ?? -1;
-  if (pageIndex !== -1) return [pageIndex, item.name];
-
-  const fallbackGroup = pageOrder ? pageOrder.length : 0;
-  if (isUnstableName(item.name)) return [fallbackGroup + 1, item.name];
-  return [fallbackGroup, item.name];
+  const orderIndex = pageIndex === -1 ? (pageOrder?.length ?? 0) : pageIndex;
+  return [
+    item.pageRole === "supporting-type" ? 1 : 0,
+    API_STATUS_ORDER[apiStatusForDeprecatedTag(item.deprecated)],
+    PAGE_ROLE_ORDER[item.pageRole],
+    orderIndex,
+    item.name,
+  ];
 }
 
 function sortExportsForPage(items: ExportInfo[]): ExportInfo[] {
   return [...items].sort((a, b) => {
-    if (a.pageRole !== b.pageRole) {
-      const roleOrder = { primary: 0, related: 1, "supporting-type": 2 };
-      return roleOrder[a.pageRole] - roleOrder[b.pageRole];
+    const [aSupportingGroup, aStatusGroup, aRoleGroup, aOrderIndex, aName] =
+      exportSortKey(a);
+    const [bSupportingGroup, bStatusGroup, bRoleGroup, bOrderIndex, bName] =
+      exportSortKey(b);
+    if (aSupportingGroup !== bSupportingGroup) {
+      return aSupportingGroup - bSupportingGroup;
     }
-    const [aGroup, aName] = exportSortKey(a);
-    const [bGroup, bName] = exportSortKey(b);
-    if (aGroup !== bGroup) return aGroup - bGroup;
+    if (aStatusGroup !== bStatusGroup) return aStatusGroup - bStatusGroup;
+    if (aRoleGroup !== bRoleGroup) return aRoleGroup - bRoleGroup;
+    if (aOrderIndex !== bOrderIndex) return aOrderIndex - bOrderIndex;
     return aName.localeCompare(bName);
   });
 }
@@ -395,14 +444,7 @@ function exportSection(
   if (!hasGeneratedEntryContent(item, typeDocNames, slots)) return [];
   const heading = "#".repeat(headingLevel);
   const lines = [`${heading} ${item.name}`, ""];
-  if (item.deprecated) {
-    lines.push(
-      `<Callout type="warn">`,
-      `<strong>Deprecated.</strong> ${mdxEscape(item.deprecated)}`,
-      `</Callout>`,
-      "",
-    );
-  }
+  lines.push(...apiStatusCallout(item.deprecated));
   if (item.jsDoc) {
     lines.push(mdxEscape(item.jsDoc), "");
   }
@@ -497,9 +539,25 @@ function generatePrimitiveReferenceRegion(
     for (const part of parts) {
       lines.push(`### ${part}`, "");
       const partName = `${item.name}.${part}`;
+      const primitivePart = primitivePartFor(
+        item.name,
+        part,
+        item.jsDocRenderOptions,
+      );
       const example = slots.examples.get(partName);
-      if (example) lines.push(example, "");
-      lines.push(primitiveParametersTable(item.name, part, typeDocNames), "");
+      const examples = example
+        ? [example]
+        : (primitivePart?.examples ?? []).map(renderJsDocExample);
+      lines.push(
+        primitiveParametersTable(
+          item.name,
+          part,
+          typeDocNames,
+          primitivePart,
+          examples,
+        ),
+        "",
+      );
       const manual = slots.namedManual.get(partName);
       if (manual) lines.push(manual, "");
     }
@@ -527,13 +585,41 @@ function generatePrimitiveReferenceRegion(
   return lines.join("\n").trimEnd();
 }
 
+function primitivePartFor(
+  primitiveName: string,
+  part: string,
+  options: ExportInfo["jsDocRenderOptions"],
+) {
+  return extractPrimitivePartsFor(primitiveName, options).find(
+    (primitivePart) => primitivePart.partName === part,
+  );
+}
+
 function primitiveParametersTable(
   primitiveName: string,
   part: string,
   typeDocNames: Set<string>,
+  primitivePart: PrimitivePartModel | undefined,
+  examples: string[],
 ): string {
   const binding = `${primitiveName}Docs.${part}`;
   const typeDocName = primitivePartTypeDocName(primitiveName, part);
+  const statusCallout =
+    apiStatusForDeprecatedTag(primitivePart?.deprecated) === "experimental"
+      ? [
+          `{${binding}?.deprecated && (`,
+          `  <Callout type="tip">`,
+          `    <strong>Experimental.</strong> {${binding}.deprecated}`,
+          `  </Callout>`,
+          `)}`,
+        ]
+      : [
+          `{${binding}?.deprecated && (`,
+          `  <Callout type="warn">`,
+          `    <strong>Deprecated.</strong> {${binding}.deprecated}`,
+          `  </Callout>`,
+          `)}`,
+        ];
   const table = typeDocNames.has(typeDocName)
     ? `<ParametersTable {...${typeDocName}} />`
     : [
@@ -542,11 +628,7 @@ function primitiveParametersTable(
         `)}`,
       ].join("\n");
   return [
-    `{${binding}?.deprecated && (`,
-    `  <Callout type="warn">`,
-    `    <strong>Deprecated.</strong> {${binding}.deprecated}`,
-    `  </Callout>`,
-    `)}`,
+    ...statusCallout,
     "",
     `{${binding}?.description}`,
     "",
@@ -554,6 +636,7 @@ function primitiveParametersTable(
     `  <p>This primitive renders a <code>{\`<\${${binding}?.element}>\`}</code> element unless <code>asChild</code> is set.</p>`,
     `)}`,
     "",
+    ...examples.flatMap((example) => [example, ""]),
     table,
   ].join("\n");
 }

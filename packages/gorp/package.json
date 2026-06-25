@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/gorp",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "State-sync primitive: client/server replicas with optimistic updates over a tiny wire protocol",
   "keywords": [
     "state-sync",

@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, Interactables, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
+import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -32,33 +32,9 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 
 <ParametersTable {...DevToolsHooks} />
 
-### fromThreadMessageLike
-
-<Callout type="warn">
-<strong>Deprecated.</strong> This API is experimental and may change without notice.
-</Callout>
-
-```ts
-const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallbackStatus: MessageStatus) => ThreadMessage;
-```
-
-### generateId
-
-<Callout type="warn">
-<strong>Deprecated.</strong> This API is experimental and may change without notice.
-</Callout>
-
-```ts
-const generateId: (size?: number) => string;
-```
-
 ### InMemoryThreadList
 
 <ParametersTable {...InMemoryThreadList} />
-
-### Interactables
-
-<ParametersTable {...Interactables} />
 
 ### SingleThreadList
 
@@ -67,6 +43,16 @@ const generateId: (size?: number) => string;
 ### Suggestions
 
 <ParametersTable {...Suggestions} />
+
+### unstable_defaultDirectiveFormatter
+
+Default directive formatter using the `:type[label]{name=id}` syntax.
+
+When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
+
+```ts
+const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
+```
 
 ### useSmooth
 
@@ -86,13 +72,23 @@ const { text, status } = useSmooth(useMessagePartText(), {
 
 <ParametersTable {...useSmooth} />
 
-### unstable_defaultDirectiveFormatter
+### fromThreadMessageLike
 
-Default directive formatter using the `:type[label]{name=id}` syntax.
-
-When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
+<Callout type="tip">
+<strong>Experimental.</strong> This API is experimental and may change without notice.
+</Callout>
 
 ```ts
-const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
+const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallbackStatus: MessageStatus) => ThreadMessage;
+```
+
+### generateId
+
+<Callout type="tip">
+<strong>Experimental.</strong> This API is experimental and may change without notice.
+</Callout>
+
+```ts
+const generateId: (size?: number) => string;
 ```
 {/* api-reference:end */}

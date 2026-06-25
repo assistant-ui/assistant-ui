@@ -15,18 +15,18 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./internal-json": {
       "react-server": {
-        "types": "./dist/JSONGenerativeUI.server.d.ts",
-        "default": "./dist/JSONGenerativeUI.server.js"
+        "types": "./dist/index.server.d.ts",
+        "default": "./dist/index.server.js"
       },
       "default": {
-        "types": "./dist/JSONGenerativeUI.client.d.ts",
-        "default": "./dist/JSONGenerativeUI.client.js"
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
       }
+    },
+    "./ir": {
+      "types": "./dist/ir.d.ts",
+      "default": "./dist/ir.js"
     }
   },
   "main": "./dist/index.js",
@@ -43,7 +43,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.23"
+    "assistant-stream": "^0.3.24"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.14.14",

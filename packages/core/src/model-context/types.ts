@@ -24,6 +24,12 @@ export type ModelContext = {
   tools?: Record<string, Tool<any, any>> | undefined;
   callSettings?: LanguageModelV1CallSettings | undefined;
   config?: LanguageModelConfig | undefined;
+  /**
+   * Persisted message metadata pulled at send time and merged into the outgoing
+   * user message's `metadata.custom` (not forwarded to the model directly).
+   * Ignored by the transport, which only reads system/tools/callSettings/config.
+   */
+  unstable_composerMetadata?: Record<string, unknown> | undefined;
 };
 
 export type ModelContextProvider = {
@@ -105,6 +111,12 @@ export const mergeModelContexts = (
       acc.callSettings = {
         ...acc.callSettings,
         ...config.callSettings,
+      };
+    }
+    if (config.unstable_composerMetadata) {
+      acc.unstable_composerMetadata = {
+        ...acc.unstable_composerMetadata,
+        ...config.unstable_composerMetadata,
       };
     }
     return acc;

@@ -54,6 +54,12 @@ Place this component inside `ThreadPrimitive.Root`:
   <p>This primitive renders a <code>{`<${SelectionToolbarPrimitiveDocs.Root?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<SelectionToolbarPrimitive.Root>
+  <SelectionToolbarPrimitive.Quote>Quote</SelectionToolbarPrimitive.Quote>
+</SelectionToolbarPrimitive.Root>
+```
+
 <ParametersTable {...SelectionToolbarPrimitiveRootProps} />
 
 ### Quote
@@ -69,6 +75,12 @@ Place this component inside `ThreadPrimitive.Root`:
 {SelectionToolbarPrimitiveDocs.Quote?.element && (
   <p>This primitive renders a <code>{`<${SelectionToolbarPrimitiveDocs.Quote?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<SelectionToolbarPrimitive.Quote>
+  <QuoteIcon /> Quote
+</SelectionToolbarPrimitive.Quote>
+```
 
 <ParametersTable {...SelectionToolbarPrimitiveQuoteProps} />
 {/* api-reference:end */}

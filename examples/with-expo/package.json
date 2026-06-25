@@ -45,6 +45,7 @@
   },
   "devDependencies": {
     "@assistant-ui/metro": "workspace:*",
+    "@babel/core": "^7.29.7",
     "@types/react": "~19.2.17",
     "typescript": "~6.0.3"
   },

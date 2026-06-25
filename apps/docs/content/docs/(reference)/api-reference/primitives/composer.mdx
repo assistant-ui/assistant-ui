@@ -78,6 +78,13 @@ const ComposerWithDictation = () => (
   <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.Root?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Input placeholder="Type your message..." />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
 <ParametersTable {...ComposerPrimitiveRootProps} />
 
 ### Input
@@ -93,6 +100,26 @@ const ComposerWithDictation = () => (
 {ComposerPrimitiveDocs.Input?.element && (
   <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.Input?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+// Ctrl/Cmd+Enter to submit (plain Enter inserts newline)
+<ComposerPrimitive.Input
+  placeholder="Type your message..."
+  submitMode="ctrlEnter"
+/>
+
+// Insert a newline on Enter on touch-primary devices.
+<ComposerPrimitive.Input
+  placeholder="Type your message..."
+  unstable_insertNewlineOnTouchEnter
+/>
+
+// Old API (deprecated, still supported)
+<ComposerPrimitive.Input
+  placeholder="Type your message..."
+  submitOnEnter={true}
+/>
+```
 
 <ParametersTable {...ComposerPrimitiveInputProps} />
 
@@ -150,6 +177,12 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
   <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.Send?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<ComposerPrimitive.Send>
+  Send Message
+</ComposerPrimitive.Send>
+```
+
 <ParametersTable {...ComposerPrimitiveSendProps} />
 
 ### Cancel
@@ -165,6 +198,12 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 {ComposerPrimitiveDocs.Cancel?.element && (
   <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.Cancel?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<ComposerPrimitive.Cancel>
+  Cancel
+</ComposerPrimitive.Cancel>
+```
 
 <ParametersTable {...ComposerPrimitiveCancelProps} />
 
@@ -252,6 +291,12 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
   <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.Dictate?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<ComposerPrimitive.Dictate>
+  <MicIcon />
+</ComposerPrimitive.Dictate>
+```
+
 <ParametersTable {...ComposerPrimitiveDictateProps} />
 
 ### StopDictation
@@ -268,6 +313,12 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
   <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.StopDictation?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<ComposerPrimitive.StopDictation>
+  <StopIcon />
+</ComposerPrimitive.StopDictation>
+```
+
 <ParametersTable {...ComposerPrimitiveStopDictationProps} />
 
 ### DictationTranscript
@@ -283,6 +334,14 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 {ComposerPrimitiveDocs.DictationTranscript?.element && (
   <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.DictationTranscript?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<ComposerPrimitive.If dictation>
+  <div className="dictation-preview">
+    <ComposerPrimitive.DictationTranscript />
+  </div>
+</ComposerPrimitive.If>
+```
 
 <ParametersTable {...ComposerPrimitiveDictationTranscriptProps} />
 
@@ -316,6 +375,13 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
   <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.Quote?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<ComposerPrimitive.Quote>
+  <ComposerPrimitive.QuoteText />
+  <ComposerPrimitive.QuoteDismiss>×</ComposerPrimitive.QuoteDismiss>
+</ComposerPrimitive.Quote>
+```
+
 <ParametersTable {...ComposerPrimitiveQuoteProps} />
 
 ### QuoteText
@@ -331,6 +397,10 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 {ComposerPrimitiveDocs.QuoteText?.element && (
   <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.QuoteText?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<ComposerPrimitive.QuoteText />
+```
 
 <ParametersTable {...ComposerPrimitiveQuoteTextProps} />
 
@@ -348,6 +418,10 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
   <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.QuoteDismiss?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<ComposerPrimitive.QuoteDismiss>×</ComposerPrimitive.QuoteDismiss>
+```
+
 <ParametersTable {...ComposerPrimitiveQuoteDismissProps} />
 
 ### Queue
@@ -363,6 +437,17 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 {ComposerPrimitiveDocs.Queue?.element && (
   <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.Queue?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<ComposerPrimitive.Queue>
+  {({ queueItem }) => (
+    <div>
+      <QueueItemPrimitive.Text />
+      <QueueItemPrimitive.Steer>Run Now</QueueItemPrimitive.Steer>
+    </div>
+  )}
+</ComposerPrimitive.Queue>
+```
 
 <ParametersTable {...ComposerPrimitiveQueueProps} />
 
@@ -401,6 +486,24 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 {ComposerPrimitiveDocs.Unstable_TriggerPopoverRoot?.element && (
   <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.Unstable_TriggerPopoverRoot?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<ComposerPrimitive.Unstable_TriggerPopoverRoot>
+  <ComposerPrimitive.Unstable_TriggerPopover char="@" adapter={mentionAdapter}>
+    <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
+    ...
+  </ComposerPrimitive.Unstable_TriggerPopover>
+
+  <ComposerPrimitive.Unstable_TriggerPopover char="/" adapter={slashAdapter}>
+    <ComposerPrimitive.Unstable_TriggerPopover.Action onExecute={handler} />
+    ...
+  </ComposerPrimitive.Unstable_TriggerPopover>
+
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input />
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.Unstable_TriggerPopoverRoot>
+```
 
 <ParametersTable {...ComposerPrimitiveUnstable_TriggerPopoverRootProps} />
 

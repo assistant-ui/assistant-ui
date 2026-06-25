@@ -17,16 +17,24 @@ export const server = new McpServer({
   version: packageJson.version,
 });
 
-server.tool(
+server.registerTool(
   docsTools.name,
-  docsTools.description,
-  docsTools.parameters,
+  {
+    title: "assistant-ui Documentation",
+    description: docsTools.description,
+    inputSchema: docsTools.parameters,
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
   docsTools.execute,
 );
-server.tool(
+server.registerTool(
   examplesTools.name,
-  examplesTools.description,
-  examplesTools.parameters,
+  {
+    title: "assistant-ui Examples",
+    description: examplesTools.description,
+    inputSchema: examplesTools.parameters,
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
   examplesTools.execute,
 );
 

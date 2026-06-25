@@ -1,15 +1,14 @@
 import { openai } from "@ai-sdk/openai";
-import {
-  streamText,
-  convertToModelMessages,
-  stepCountIs,
-  jsonSchema,
-} from "ai";
+import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import type { UIMessage } from "ai";
+import {
+  frontendTools,
+  unstable_injectInteractableContext,
+} from "@assistant-ui/react-ai-sdk";
 
 export const maxDuration = 30;
 
-type ToolDef = { description?: string; parameters: Record<string, unknown> };
+type FrontendTools = Parameters<typeof frontendTools>[0];
 
 export async function POST(req: Request) {
   const {
@@ -19,30 +18,19 @@ export async function POST(req: Request) {
   }: {
     messages: UIMessage[];
     system?: string;
-    tools?: Record<string, ToolDef>;
+    tools?: FrontendTools;
   } = await req.json();
 
-  // Convert client-defined tools (forwarded from model context) to AI SDK format.
-  // These have no `execute` — they are frontend tools executed on the client
-  // via Tools({ toolkit }) / useAssistantInteractable.
-  const tools = clientTools
-    ? Object.fromEntries(
-        Object.entries(clientTools).map(([name, def]) => [
-          name,
-          {
-            description: def.description ?? "",
-            inputSchema: jsonSchema(def.parameters),
-          },
-        ]),
-      )
-    : undefined;
+  const modelMessages = await convertToModelMessages(
+    unstable_injectInteractableContext(messages),
+  );
 
   const result = streamText({
     model: openai("gpt-5.4-nano"),
-    messages: await convertToModelMessages(messages),
+    messages: modelMessages,
     stopWhen: stepCountIs(10),
     ...(system ? { system } : {}),
-    ...(tools ? { tools } : {}),
+    ...(clientTools ? { tools: frontendTools(clientTools) } : {}),
   } as Parameters<typeof streamText>[0]);
 
   return result.toUIMessageStreamResponse();

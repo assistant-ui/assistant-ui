@@ -232,7 +232,12 @@ export async function transformProject(
     await installDependencies(projectDir, pm);
   }
 
-  if (!opts.hasLocalComponents && shadcnUI && assistantUI) {
+  if (
+    !opts.skipInstall &&
+    !opts.hasLocalComponents &&
+    shadcnUI &&
+    assistantUI
+  ) {
     const allShadcn = shadcnUI.includes("utils")
       ? shadcnUI
       : [...shadcnUI, "utils"];
