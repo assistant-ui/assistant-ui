@@ -12,13 +12,14 @@ import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { optionValues } from "./lib/script-options.mjs";
 
 const repoRoot = process.cwd();
 const packagesRoot = path.join(repoRoot, "packages");
 const apiSurfaceRoot = path.join(repoRoot, "api-surface");
 const tempRoot = path.join(repoRoot, ".api-surface-tmp");
 const checkMode = process.argv.includes("--check");
-const turboFilters = optionValues("--filter");
+const turboFilters = optionValues(process.argv.slice(2), "--filter");
 
 const requireFromBuildUtils = createRequire(
   path.join(repoRoot, "packages/x-buildutils/package.json"),
@@ -28,25 +29,6 @@ const ts = requireFromBuildUtils("typescript");
 
 function readJson(file) {
   return JSON.parse(readFileSync(file, "utf8"));
-}
-
-function optionValues(name) {
-  const values = [];
-  const args = process.argv.slice(2);
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === name) {
-      const value = args[i + 1];
-      if (value === undefined) {
-        throw new Error(`Missing value for ${name}.`);
-      }
-      values.push(value);
-      i++;
-    } else if (arg.startsWith(`${name}=`)) {
-      values.push(arg.slice(name.length + 1));
-    }
-  }
-  return values;
 }
 
 function packageFileName(packageName) {
@@ -770,6 +752,7 @@ async function main() {
       writeOrCheck(outputFile, content, changedFiles);
     }
 
+    // Filtered checks only know about selected packages; stale cleanup needs the full package set.
     if (turboFilters.length === 0 && existsSync(apiSurfaceRoot)) {
       for (const entry of readdirSync(apiSurfaceRoot)) {
         const file = path.join(apiSurfaceRoot, entry);

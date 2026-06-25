@@ -2,29 +2,12 @@
 
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { hasOption, optionValues } from "./lib/script-options.mjs";
 
 const repoRoot = process.cwd();
-const filters = optionValues("--filter");
-const skipBuild = process.argv.includes("--skip-build");
-
-function optionValues(name) {
-  const values = [];
-  const args = process.argv.slice(2);
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === name) {
-      const value = args[i + 1];
-      if (value === undefined) {
-        throw new Error(`Missing value for ${name}.`);
-      }
-      values.push(value);
-      i++;
-    } else if (arg.startsWith(`${name}=`)) {
-      values.push(arg.slice(name.length + 1));
-    }
-  }
-  return values;
-}
+const scriptArgs = process.argv.slice(2);
+const filters = optionValues(scriptArgs, "--filter");
+const skipBuild = hasOption(scriptArgs, "--skip-build");
 
 function run(command, args) {
   const result = spawnSync(command, args, {
