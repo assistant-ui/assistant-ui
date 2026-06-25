@@ -205,6 +205,7 @@ const useStreamThreadRuntime = (
   useEffect(() => {
     if (stagedMessagesRef.current.size === 0) return;
 
+    // Staged edits must keep their truncated base while stream updates arrive before promotion.
     const baseMessages =
       stagedBaseMessagesRef.current ??
       (stream.messages as LangChainBaseMessage[]);
