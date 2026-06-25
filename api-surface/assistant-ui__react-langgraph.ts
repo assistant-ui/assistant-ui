@@ -2140,7 +2140,7 @@ declare const useLangGraphMessages: <TMessage extends {
   sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: () => void) => Promise<void>;
   cancel: () => void;
   setInterrupt: import("react").Dispatch<import("react").SetStateAction<LangGraphInterruptState | undefined>>;
-  setMessages: (msgs: TMessage[]) => void;
+  setMessages: (msgs: TMessage[] | ((prev: TMessage[]) => TMessage[])) => void;
   setUIMessages: (next: UIMessage[]) => void;
 };
 
@@ -2196,6 +2196,8 @@ declare const useLangGraphSend: () => (messages: LangChainMessage[], config: Lan
 
 declare const useLangGraphSendCommand: () => (command: LangGraphCommand) => Promise<void>;
 
+declare const useLangGraphSetMessages: () => (messages: LangChainMessage[] | ((prev: LangChainMessage[]) => LangChainMessage[])) => void;
+
 declare const useLangGraphMessageMetadata: () => Map<string, LangGraphTupleMetadata>;
 
 declare const useLangGraphUIMessages: () => readonly UIMessage<string, Record<string, unknown>>[];
@@ -2205,7 +2207,7 @@ declare const useLangGraphRuntime: (_param6: UseLangGraphRuntimeOptions) => Assi
 declare const useLangGraphStreamingTiming: (messages: readonly LangChainMessage[], isRunning: boolean) => Record<string, MessageTiming>;
 
 declare namespace entry_root_exports {
-  export { CreateLangGraphStreamOptions, LangChainEvent, LangChainMessage, LangChainMessageChunk, LangChainToolCall, LangChainToolCallChunk, LangGraphCommand, LangGraphInterruptState, LangGraphMessageAccumulator, LangGraphMessagesEvent, LangGraphSendMessageConfig, LangGraphStreamCallback, LangGraphStreamClient, LangGraphTupleMetadata, OnCustomEventCallback, OnErrorEventCallback, OnInfoEventCallback, OnMessageChunkCallback, OnMetadataEventCallback, OnSubgraphErrorEventCallback, OnSubgraphUpdatesEventCallback, OnSubgraphValuesEventCallback, OnUpdatesEventCallback, OnValuesEventCallback, RemoveUIMessage, UIMessage, UseLangGraphRuntimeOptions, appendLangChainChunk, convertLangChainMessages, unstable_createLangGraphStream, useLangGraphInterruptState, useLangGraphMessageMetadata, useLangGraphMessages, useLangGraphRuntime, useLangGraphSend, useLangGraphSendCommand, useLangGraphStreamingTiming, useLangGraphUIMessages };
+  export { CreateLangGraphStreamOptions, LangChainEvent, LangChainMessage, LangChainMessageChunk, LangChainToolCall, LangChainToolCallChunk, LangGraphCommand, LangGraphInterruptState, LangGraphMessageAccumulator, LangGraphMessagesEvent, LangGraphSendMessageConfig, LangGraphStreamCallback, LangGraphStreamClient, LangGraphTupleMetadata, OnCustomEventCallback, OnErrorEventCallback, OnInfoEventCallback, OnMessageChunkCallback, OnMetadataEventCallback, OnSubgraphErrorEventCallback, OnSubgraphUpdatesEventCallback, OnSubgraphValuesEventCallback, OnUpdatesEventCallback, OnValuesEventCallback, RemoveUIMessage, UIMessage, UseLangGraphRuntimeOptions, appendLangChainChunk, convertLangChainMessages, unstable_createLangGraphStream, useLangGraphInterruptState, useLangGraphMessageMetadata, useLangGraphMessages, useLangGraphRuntime, useLangGraphSend, useLangGraphSendCommand, useLangGraphSetMessages, useLangGraphStreamingTiming, useLangGraphUIMessages };
 }
 
 export { entry_root_exports as entry_root };
