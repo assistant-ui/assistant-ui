@@ -10,13 +10,13 @@ export const factVocabulary = {
       value: z.string().describe("The fact value."),
     }),
     render: ({ label, value, children }) => (
-      <div data-aui="fact">
+      <dl data-aui="fact">
         <dt data-aui="fact-label">{label}</dt>
         <dd data-aui="fact-value">
           {value}
           {children}
         </dd>
-      </div>
+      </dl>
     ),
   },
 } satisfies GenerativeUILibrary;

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
+import { ALIGNS, JUSTIFIES } from "../ir";
 
 export const layoutVocabulary = {
   Card: {
@@ -28,10 +29,7 @@ export const layoutVocabulary = {
     description: "A vertical stack; children laid out top to bottom.",
     properties: z.object({
       gap: z.number().optional().describe("Gap between children in 4px units."),
-      align: z
-        .enum(["start", "center", "end"])
-        .optional()
-        .describe("Cross-axis alignment."),
+      align: z.enum(ALIGNS).optional().describe("Cross-axis alignment."),
     }),
     render: ({ gap, align, children }) => (
       <div data-aui="col" data-aui-gap={gap} data-aui-align={align}>
@@ -43,14 +41,8 @@ export const layoutVocabulary = {
     description: "A horizontal row; children laid out left to right.",
     properties: z.object({
       gap: z.number().optional().describe("Gap between children in 4px units."),
-      align: z
-        .enum(["start", "center", "end"])
-        .optional()
-        .describe("Cross-axis alignment."),
-      justify: z
-        .enum(["start", "center", "end", "between"])
-        .optional()
-        .describe("Main-axis distribution."),
+      align: z.enum(ALIGNS).optional().describe("Cross-axis alignment."),
+      justify: z.enum(JUSTIFIES).optional().describe("Main-axis distribution."),
     }),
     render: ({ gap, align, justify, children }) => (
       <div

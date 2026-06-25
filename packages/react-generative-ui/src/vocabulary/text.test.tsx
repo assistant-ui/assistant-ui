@@ -19,7 +19,7 @@ describe("textVocabulary", () => {
     );
   });
 
-  it("Text renders a p with size/weight/color hooks and the value", () => {
+  it("Text renders a span with size/weight/color hooks and the value", () => {
     expect(
       render({
         $type: "Text",
@@ -29,13 +29,13 @@ describe("textVocabulary", () => {
         color: "secondary",
       }),
     ).toBe(
-      '<p data-aui="text" data-aui-size="sm" data-aui-weight="bold" data-aui-color="secondary">hi</p>',
+      '<span data-aui="text" data-aui-size="sm" data-aui-weight="bold" data-aui-color="secondary">hi</span>',
     );
   });
 
   it("Text defaults size to md and leaves weight/color undefined", () => {
     expect(render({ $type: "Text", value: "hi" })).toBe(
-      '<p data-aui="text" data-aui-size="md">hi</p>',
+      '<span data-aui="text" data-aui-size="md">hi</span>',
     );
   });
 
@@ -50,10 +50,10 @@ describe("textVocabulary", () => {
           )}
         </>,
       ),
-    ).toBe('<p data-aui="text" data-aui-size="md">partial</p>');
+    ).toBe('<span data-aui="text" data-aui-size="md">partial</span>');
   });
 
-  it("Text renders nested children", () => {
+  it("Text renders nested children (span-in-span, valid HTML)", () => {
     expect(
       render({
         $type: "Text",
@@ -61,7 +61,7 @@ describe("textVocabulary", () => {
         children: { $type: "Text", value: "after" },
       }),
     ).toBe(
-      '<p data-aui="text" data-aui-size="md">before<p data-aui="text" data-aui-size="md">after</p></p>',
+      '<span data-aui="text" data-aui-size="md">before<span data-aui="text" data-aui-size="md">after</span></span>',
     );
   });
 

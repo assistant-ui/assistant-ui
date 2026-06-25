@@ -7,9 +7,9 @@ const render = (node: unknown) =>
   renderToStaticMarkup(<>{renderGenerativeUI(node, factVocabulary)}</>);
 
 describe("factVocabulary", () => {
-  it("Fact renders a label/value pair", () => {
+  it("Fact renders a label/value pair inside a dl", () => {
     expect(render({ $type: "Fact", label: "Status", value: "open" })).toBe(
-      '<div data-aui="fact"><dt data-aui="fact-label">Status</dt><dd data-aui="fact-value">open</dd></div>',
+      '<dl data-aui="fact"><dt data-aui="fact-label">Status</dt><dd data-aui="fact-value">open</dd></dl>',
     );
   });
 });

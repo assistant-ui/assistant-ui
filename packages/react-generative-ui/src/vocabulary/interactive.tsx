@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { Action } from "../ir";
+import { BUTTON_STYLES } from "../ir";
 import type { GenerativeUILibrary } from "../types";
 
 const optionSchema = z.object({
@@ -6,16 +8,16 @@ const optionSchema = z.object({
   value: z.string(),
 });
 
+const actionAttr = (a: Action | undefined): string | undefined =>
+  a ? JSON.stringify(a) : undefined;
+
 export const interactiveVocabulary = {
   Button: {
     description:
       "A clickable button. Carries `$action` describing the side effect or resume value.",
     properties: z.object({
       label: z.string().describe("Button label."),
-      buttonStyle: z
-        .enum(["primary", "secondary", "outline", "ghost", "danger"])
-        .optional()
-        .describe("Visual style."),
+      buttonStyle: z.enum(BUTTON_STYLES).optional().describe("Visual style."),
       block: z
         .boolean()
         .optional()
@@ -26,7 +28,7 @@ export const interactiveVocabulary = {
         data-aui="button"
         data-aui-style={buttonStyle}
         data-aui-block={block}
-        data-aui-action={$action ? JSON.stringify($action) : undefined}
+        data-aui-action={actionAttr($action)}
       >
         {label}
         {children}
@@ -46,7 +48,7 @@ export const interactiveVocabulary = {
     render: ({ options, placeholder, $action, children }) => (
       <select
         data-aui="select"
-        data-aui-action={$action ? JSON.stringify($action) : undefined}
+        data-aui-action={actionAttr($action)}
         defaultValue=""
       >
         {placeholder ? (
@@ -78,13 +80,13 @@ export const interactiveVocabulary = {
         <textarea
           data-aui="input"
           data-aui-multiline
-          data-aui-action={$action ? JSON.stringify($action) : undefined}
+          data-aui-action={actionAttr($action)}
           placeholder={placeholder}
         />
       ) : (
         <input
           data-aui="input"
-          data-aui-action={$action ? JSON.stringify($action) : undefined}
+          data-aui-action={actionAttr($action)}
           placeholder={placeholder}
         />
       ),
@@ -101,7 +103,7 @@ export const interactiveVocabulary = {
       <input
         type="date"
         data-aui="datepicker"
-        data-aui-action={$action ? JSON.stringify($action) : undefined}
+        data-aui-action={actionAttr($action)}
         defaultValue={value}
         min={min}
         max={max}

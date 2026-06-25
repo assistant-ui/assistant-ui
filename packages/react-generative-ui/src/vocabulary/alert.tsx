@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
+import { ALERT_TONES } from "../ir";
 
 const MAX_CARDS = 10;
 
@@ -15,7 +16,7 @@ export const alertVocabulary = {
         .optional()
         .describe("Supporting description text."),
       tone: z
-        .enum(["info", "success", "warning", "danger"])
+        .enum(ALERT_TONES)
         .optional()
         .describe("Severity tone; defaults to `info`."),
     }),

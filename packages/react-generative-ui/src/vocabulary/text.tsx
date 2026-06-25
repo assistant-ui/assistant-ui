@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
+import { COLORS, TEXT_SIZES, WEIGHTS } from "../ir";
 
 export const textVocabulary = {
   Header: {
@@ -7,7 +8,7 @@ export const textVocabulary = {
     properties: z.object({
       text: z.string().describe("The heading text."),
       size: z
-        .enum(["sm", "md", "lg", "xl", "2xl", "3xl"])
+        .enum(TEXT_SIZES)
         .optional()
         .describe("Heading size; defaults to `lg`."),
     }),
@@ -23,28 +24,15 @@ export const textVocabulary = {
     properties: z.object({
       value: z.string().describe("The text content."),
       size: z
-        .enum(["sm", "md", "lg", "xl", "2xl", "3xl"])
+        .enum(TEXT_SIZES)
         .optional()
         .describe("Text size; defaults to `md`."),
-      weight: z
-        .enum(["normal", "medium", "semibold", "bold"])
-        .optional()
-        .describe("Font weight."),
-      color: z
-        .enum([
-          "emphasis",
-          "secondary",
-          "alpha-70",
-          "white",
-          "white-70",
-          "white-50",
-        ])
-        .optional()
-        .describe("Foreground color token."),
+      weight: z.enum(WEIGHTS).optional().describe("Font weight."),
+      color: z.enum(COLORS).optional().describe("Foreground color token."),
     }),
     streamProperties: true,
     render: ({ value, size, weight, color, children }) => (
-      <p
+      <span
         data-aui="text"
         data-aui-size={size ?? "md"}
         data-aui-weight={weight}
@@ -52,7 +40,7 @@ export const textVocabulary = {
       >
         {value}
         {children}
-      </p>
+      </span>
     ),
   },
   Caption: {

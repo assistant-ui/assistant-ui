@@ -36,6 +36,10 @@ describe("defaultGenerativeUILibrary", () => {
     for (const [name, entry] of Object.entries(defaultGenerativeUILibrary)) {
       expect(typeof entry.description, `${name}.description`).toBe("string");
       expect(typeof entry.render, `${name}.render`).toBe("function");
+      expect(
+        typeof (entry.properties as { safeParse?: unknown }).safeParse,
+        `${name}.properties is a zod schema`,
+      ).toBe("function");
     }
   });
 

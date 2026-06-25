@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
+import { IMAGE_SIZE_TOKENS } from "../ir";
 
 export const mediaVocabulary = {
   Image: {
@@ -8,7 +9,7 @@ export const mediaVocabulary = {
       src: z.string().describe("Image URL."),
       alt: z.string().optional().describe("Alt text for accessibility."),
       size: z
-        .union([z.enum(["sm", "md", "lg"]), z.number()])
+        .union([z.enum(IMAGE_SIZE_TOKENS), z.number()])
         .optional()
         .describe("Size token or pixel value."),
     }),

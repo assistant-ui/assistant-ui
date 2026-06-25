@@ -4,6 +4,16 @@ export { buildPresentParameters } from "./buildPresentParameters";
 export { defineGenerativeComponents } from "./defineGenerativeComponents";
 export { TYPE_KEY } from "./constants";
 export { normalizeUINode, normalizeSpec } from "./ir";
+export {
+  TEXT_SIZES,
+  IMAGE_SIZE_TOKENS,
+  WEIGHTS,
+  COLORS,
+  ALIGNS,
+  JUSTIFIES,
+  BUTTON_STYLES,
+  ALERT_TONES,
+} from "./ir";
 export { defaultGenerativeUILibrary } from "./vocabulary";
 export type {
   JSONGenerativeUIOptions,
