@@ -1263,16 +1263,20 @@ function compileToolkit(
 
     // Nature is inferred from `execute` (see inferToolType), not an authored
     // `type`. The resolved type is written back below so the runtime keeps it.
+    const toolName = t.isObjectProperty(entry)
+      ? memberName(entry.key, entry.computed)
+      : undefined;
     const execute = findMember(value, "execute");
     const isStub = execute ? executeIsStubTool(execute) : false;
     const isExternal = execute ? executeIsExternalTool(execute) : false;
-    const type = inferToolType(value, filename);
+    const type = inferToolType(value, toolName, filename);
     const hasRender = !!findMember(value, "render");
     const hasRenderText = !!findMember(value, "renderText");
 
     if (type === "frontend" && !hasRender && !hasRenderText) {
       throw new GenerativeCompileError(
-        "a frontend tool must declare a `render` or `renderText` " +
+        `${typedToolSubject("frontend", toolName)} must declare a ` +
+          "`render` or `renderText` " +
           "(it has no server execute to show otherwise)",
         filename,
       );
@@ -1280,22 +1284,21 @@ function compileToolkit(
 
     if (type === "human" && !hasRender) {
       throw new GenerativeCompileError(
-        "a human tool must declare a `render` so it can collect input",
+        `${typedToolSubject("human", toolName)} must declare a ` +
+          "`render` so it can collect input",
         filename,
       );
     }
 
     if (type === "provider" && execute) {
-      const toolName = t.isObjectProperty(entry)
-        ? memberName(entry.key, entry.computed)
-        : undefined;
       applyProviderToolConfig(value, execute, toolName, filename);
     }
 
     if (isExternal) {
       if (!hasRender && !hasRenderText) {
         throw new GenerativeCompileError(
-          "an external tool must declare a `render` or `renderText` " +
+          `${typedToolSubject("external", toolName)} must declare a ` +
+            "`render` or `renderText` " +
             "(assistant-ui only renders calls for tools defined elsewhere)",
           filename,
         );
@@ -1512,13 +1515,14 @@ function stripUseClient(member: t.ObjectProperty | t.ObjectMethod): void {
  */
 function inferToolType(
   object: t.ObjectExpression,
+  toolName: string | undefined,
   filename: string | undefined,
 ): ToolType {
   const execute = findMember(object, "execute");
   if (!execute) {
     throw new GenerativeCompileError(
-      "every tool must declare an `execute`; use `humanTool()` for a " +
-        "human-in-the-loop tool",
+      `${toolSubject(toolName)} must declare an \`execute\`; use ` +
+        "`humanTool()` for a human-in-the-loop tool",
       filename,
     );
   }
@@ -1527,6 +1531,14 @@ function inferToolType(
   if (executeIsStubTool(execute)) return "frontend";
   if (executeIsExternalTool(execute)) return "backend";
   return executeIsClient(execute) ? "frontend" : "backend";
+}
+
+function toolSubject(toolName: string | undefined): string {
+  return toolName ? `tool "${toolName}"` : "every tool";
+}
+
+function typedToolSubject(type: string, toolName: string | undefined): string {
+  return toolName ? `${type} tool "${toolName}"` : `a ${type} tool`;
 }
 
 function stripExternalToolMetadata(object: t.ObjectExpression): void {
