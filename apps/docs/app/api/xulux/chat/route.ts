@@ -304,6 +304,8 @@ export async function POST(req: Request): Promise<Response> {
         typeof payload?.error === "string"
           ? payload.error
           : "This request could not run because a usage limit was reached.";
+      const userMessageId = getLatestUserMessageId(messages);
+      const code = typeof payload?.code === "string" ? payload.code : undefined;
       return createXuluxDiagnosticMessageResponse({
         messages,
         text: userVisibleMessage,
@@ -312,10 +314,10 @@ export async function POST(req: Request): Promise<Response> {
           requestId,
           sessionId: sessionId.trim(),
           distinctId,
-          userMessageId: getLatestUserMessageId(messages),
           statusCode: budget.denied.status,
-          code: typeof payload?.code === "string" ? payload.code : undefined,
           userVisibleMessage,
+          ...(userMessageId ? { userMessageId } : {}),
+          ...(code ? { code } : {}),
         }),
       });
     }
@@ -425,6 +427,7 @@ export async function POST(req: Request): Promise<Response> {
           return { modelId: part.response.modelId };
         }
         if (part.type === "finish") {
+          const userMessageId = getLatestUserMessageId(messages);
           return {
             usage: part.totalUsage,
             custom: {
@@ -434,7 +437,7 @@ export async function POST(req: Request): Promise<Response> {
                   requestId,
                   sessionId: sessionId.trim(),
                   distinctId,
-                  userMessageId: getLatestUserMessageId(messages),
+                  ...(userMessageId ? { userMessageId } : {}),
                 }),
               },
             },
