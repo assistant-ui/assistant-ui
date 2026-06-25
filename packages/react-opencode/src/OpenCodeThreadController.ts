@@ -415,6 +415,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       options ?? staged.options,
     );
     this.stagedMessages.delete(parentId);
+    for (const listener of this.listeners) {
+      listener();
+    }
     return true;
   }
 

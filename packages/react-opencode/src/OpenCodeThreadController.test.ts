@@ -82,6 +82,12 @@ describe("OpenCodeThreadController", () => {
     );
 
     const pendingId = Object.keys(controller.getState().pendingUserMessages)[0];
+    const stagedStates: boolean[] = [];
+    const listener = vi.fn(() => {
+      stagedStates.push(controller.hasStagedMessages());
+    });
+    controller.subscribe(listener);
+    listener.mockClear();
     expect(pendingId).toBeDefined();
     expect(controller.hasStagedMessages()).toBe(true);
     expect(client.session.promptAsync).not.toHaveBeenCalled();
@@ -96,6 +102,7 @@ describe("OpenCodeThreadController", () => {
       model: "claude",
     });
     expect(controller.hasStagedMessages()).toBe(false);
+    expect(stagedStates.at(-1)).toBe(false);
   });
 
   it("keeps a staged message when sending it fails", async () => {

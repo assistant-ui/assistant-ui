@@ -304,10 +304,21 @@ const useStreamThreadRuntime = (
     onReload: async (parentId, config) => {
       const stagedRun = getStagedRun(parentId);
       if (stagedRun) {
+        const promotedIds = new Set<string>();
         for (const message of stagedRun.messages) {
-          if (message.id) stagedMessagesRef.current.delete(message.id);
+          if (!message.id) continue;
+          promotedIds.add(message.id);
+          stagedMessagesRef.current.delete(message.id);
         }
-        setStagedMessages(null);
+        if (stagedMessagesRef.current.size > 0) {
+          const nextMessages = visibleMessagesRef.current.filter(
+            (message) => !message.id || !promotedIds.has(message.id),
+          );
+          visibleMessagesRef.current = nextMessages;
+          setStagedMessages(nextMessages);
+        } else {
+          setStagedMessages(null);
+        }
         await stream.submit(
           {
             [messagesKey]: stagedRun.messages.map((message) => ({
