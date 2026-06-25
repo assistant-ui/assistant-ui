@@ -42,14 +42,16 @@ export function createXuluxTurnOutcome({
   };
 }
 
-export function getLatestUserMessageId(messages: readonly UIMessage[]): string {
+export function getLatestUserMessageId(
+  messages: readonly UIMessage[],
+): string | undefined {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
     if (message?.role === "user" && typeof message.id === "string") {
       return message.id;
     }
   }
-  return "";
+  return undefined;
 }
 
 export function createXuluxDiagnosticMessageResponse({
