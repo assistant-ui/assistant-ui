@@ -167,6 +167,7 @@ const Sidebar: FC<{ collapsed?: boolean }> = ({ collapsed }) => {
         </Tooltip>
         <ThreadListItems
           aria-hidden={collapsed}
+          inert={collapsed}
           className={cn(
             "transition-[opacity,transform] duration-150",
             collapsed

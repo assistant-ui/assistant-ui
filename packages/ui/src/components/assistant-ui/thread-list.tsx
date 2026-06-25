@@ -205,7 +205,7 @@ export const ThreadListItem: FC = () => {
     >
       <ThreadListItemPrimitive.Trigger
         data-slot="aui_thread-list-item-trigger"
-        className="flex h-full min-w-0 flex-1 items-center px-2.5 text-start text-sm group-hover:pe-9 group-has-data-[state=open]:pe-9 group-data-active:pe-9"
+        className="flex h-full min-w-0 flex-1 items-center px-2.5 text-start text-sm group-hover:pe-9 group-has-data-[state=open]:pe-9 group-has-[:focus-visible]:pe-9 group-data-active:pe-9"
       >
         <span
           data-slot="aui_thread-list-item-title"
