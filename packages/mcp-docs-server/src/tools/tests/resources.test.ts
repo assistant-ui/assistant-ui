@@ -40,6 +40,25 @@ describe("MCP resources", () => {
     expect(read.contents[0].text.length).toBeGreaterThan(0);
   });
 
+  it("reads a slash-containing documentation resource", async () => {
+    const list = await handler("resources/list")(
+      { method: "resources/list", params: {} },
+      {},
+    );
+    const prefix = "aui-docs:///";
+    const nested = list.resources.find(
+      (r: any) =>
+        r.uri.startsWith(prefix) && r.uri.slice(prefix.length).includes("/"),
+    );
+    expect(nested).toBeDefined();
+    const read = await handler("resources/read")(
+      { method: "resources/read", params: { uri: nested.uri } },
+      {},
+    );
+    expect(read.contents[0].mimeType).toBe("text/markdown");
+    expect(read.contents[0].text.length).toBeGreaterThan(0);
+  });
+
   it("errors on an unknown documentation resource", async () => {
     await expect(
       handler("resources/read")(
