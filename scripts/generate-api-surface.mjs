@@ -274,13 +274,46 @@ const KNOWN_DECLARATION_FIXUPS = [
     pattern: /__ASSISTANT_UI_DEVTOOLS_HOOK__\?: DevToolsHook;/g,
     replacement: "__ASSISTANT_UI_DEVTOOLS_HOOK__?: any;",
   },
+  {
+    pattern:
+      /(declare const MessagePartPrimitiveText:[\s\S]*?import\("react"\)\.RefAttributes<HTMLSpanElement>, "ref">, )"children" \| "asChild"/g,
+    replacement: '$1"asChild" | "children"',
+  },
 ];
 
+function normalizeThreadComposerAttachmentUnions(content) {
+  // The declaration bundler emits this expanded discriminated union in OS-dependent order.
+  const marker = "declare const useThreadComposerAttachment: {";
+  const start = content.indexOf(marker);
+  if (start === -1) return content;
+  const end = content.indexOf("\n};", start);
+  if (end === -1) return content;
+
+  const section = content.slice(start, end);
+  const normalizedSection = section.replace(
+    /(\(\{\n\s+id: string;\n\s+type: "image" \| "document" \| "file" \| \(string & \{\}\);\n\s+name: string;\n\s+contentType\?: string \| undefined;\n\s+file\?: File;\n\s+content\?: ThreadUserMessagePart\[\];\n\s+\} & \{\n\s+status: PendingAttachmentStatus;\n\s+file: File;\n\s+\} & \{\n\s+readonly source: "thread-composer";\n\s+\} & \{\n\s+source: "thread-composer";\n\s+\}\)) \| (\(\{\n\s+id: string;\n\s+type: "image" \| "document" \| "file" \| \(string & \{\}\);\n\s+name: string;\n\s+contentType\?: string \| undefined;\n\s+file\?: File;\n\s+content\?: ThreadUserMessagePart\[\];\n\s+\} & \{\n\s+status: CompleteAttachmentStatus;\n\s+content: ThreadUserMessagePart\[\];\n\s+\} & \{\n\s+readonly source: "thread-composer";\n\s+\} & \{\n\s+source: "thread-composer";\n\s+\}\))/g,
+    "$2 | $1",
+  );
+  if (
+    normalizedSection === section &&
+    !/status: CompleteAttachmentStatus;\n\s+content: ThreadUserMessagePart\[\];[\s\S]*?\}\) \| \(\{[\s\S]*?status: PendingAttachmentStatus;\n\s+file: File;/.test(
+      section,
+    )
+  ) {
+    throw new Error(
+      "normalizeThreadComposerAttachmentUnions matched no known union pairs; update the pattern.",
+    );
+  }
+
+  return `${content.slice(0, start)}${normalizedSection}${content.slice(end)}`;
+}
+
 function applyKnownDeclarationFixups(content) {
-  return KNOWN_DECLARATION_FIXUPS.reduce(
+  const fixed = KNOWN_DECLARATION_FIXUPS.reduce(
     (output, fixup) => output.replace(fixup.pattern, fixup.replacement),
     content,
   );
+  return normalizeThreadComposerAttachmentUnions(fixed);
 }
 
 function typeMemberName(member, sourceFile) {

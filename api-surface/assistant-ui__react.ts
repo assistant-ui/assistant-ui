@@ -4424,8 +4424,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4438,8 +4438,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4453,8 +4453,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4467,8 +4467,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4482,8 +4482,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4496,8 +4496,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4510,8 +4510,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4524,8 +4524,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4541,8 +4541,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4555,8 +4555,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4572,8 +4572,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4586,8 +4586,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4603,8 +4603,8 @@ declare const useThreadComposerAttachment: {
       file?: File;
       content?: ThreadUserMessagePart[];
     } & {
-      status: PendingAttachmentStatus;
-      file: File;
+      status: CompleteAttachmentStatus;
+      content: ThreadUserMessagePart[];
     } & {
       readonly source: "thread-composer";
     } & {
@@ -4617,8 +4617,8 @@ declare const useThreadComposerAttachment: {
       file?: File;
       content?: ThreadUserMessagePart[];
     } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
+      status: PendingAttachmentStatus;
+      file: File;
     } & {
       readonly source: "thread-composer";
     } & {
@@ -4635,8 +4635,8 @@ declare const useThreadComposerAttachment: {
       file?: File;
       content?: ThreadUserMessagePart[];
     } & {
-      status: PendingAttachmentStatus;
-      file: File;
+      status: CompleteAttachmentStatus;
+      content: ThreadUserMessagePart[];
     } & {
       readonly source: "thread-composer";
     } & {
@@ -4649,8 +4649,8 @@ declare const useThreadComposerAttachment: {
       file?: File;
       content?: ThreadUserMessagePart[];
     } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
+      status: PendingAttachmentStatus;
+      file: File;
     } & {
       readonly source: "thread-composer";
     } & {
@@ -4664,8 +4664,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4678,8 +4678,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4695,8 +4695,8 @@ declare const useThreadComposerAttachment: {
       file?: File;
       content?: ThreadUserMessagePart[];
     } & {
-      status: PendingAttachmentStatus;
-      file: File;
+      status: CompleteAttachmentStatus;
+      content: ThreadUserMessagePart[];
     } & {
       readonly source: "thread-composer";
     } & {
@@ -4709,8 +4709,8 @@ declare const useThreadComposerAttachment: {
       file?: File;
       content?: ThreadUserMessagePart[];
     } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
+      status: PendingAttachmentStatus;
+      file: File;
     } & {
       readonly source: "thread-composer";
     } & {
@@ -4727,8 +4727,8 @@ declare const useThreadComposerAttachment: {
       file?: File;
       content?: ThreadUserMessagePart[];
     } & {
-      status: PendingAttachmentStatus;
-      file: File;
+      status: CompleteAttachmentStatus;
+      content: ThreadUserMessagePart[];
     } & {
       readonly source: "thread-composer";
     } & {
@@ -4741,8 +4741,8 @@ declare const useThreadComposerAttachment: {
       file?: File;
       content?: ThreadUserMessagePart[];
     } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
+      status: PendingAttachmentStatus;
+      file: File;
     } & {
       readonly source: "thread-composer";
     } & {
@@ -4756,8 +4756,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: PendingAttachmentStatus;
-    file: File;
+    status: CompleteAttachmentStatus;
+    content: ThreadUserMessagePart[];
   } & {
     readonly source: "thread-composer";
   } & {
@@ -4770,8 +4770,8 @@ declare const useThreadComposerAttachment: {
     file?: File;
     content?: ThreadUserMessagePart[];
   } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
+    status: PendingAttachmentStatus;
+    file: File;
   } & {
     readonly source: "thread-composer";
   } & {
@@ -6641,7 +6641,7 @@ declare const MessagePartPrimitiveText: import("react").ForwardRefExoticComponen
   asChild?: boolean;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
-} & import("react").RefAttributes<HTMLSpanElement>, "ref">, "children" | "asChild"> & {
+} & import("react").RefAttributes<HTMLSpanElement>, "ref">, "asChild" | "children"> & {
   smooth?: boolean | SmoothOptions;
   component?: ElementType;
 } & import("react").RefAttributes<HTMLSpanElement>>;
