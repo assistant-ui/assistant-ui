@@ -326,7 +326,14 @@ export async function POST(req: Request): Promise<Response> {
     const rateLimitResponse = await checkRateLimit(req);
     if (rateLimitResponse) return rateLimitResponse;
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!isRecord(body)) {
+      return NextResponse.json(
+        { error: "Invalid JSON request body." },
+        { status: 400 },
+      );
+    }
+
     const {
       messages,
       tools: clientTools,
