@@ -17,6 +17,7 @@ import {
   TrashIcon,
 } from "lucide-react";
 import {
+  forwardRef,
   Fragment,
   useMemo,
   type ComponentPropsWithoutRef,
@@ -138,12 +139,14 @@ const ThreadListItemGroups: FC = () => {
   ));
 };
 
-export const ThreadListNew: FC<
+export const ThreadListNew = forwardRef<
+  HTMLButtonElement,
   ComponentPropsWithoutRef<typeof Button> & { labelClassName?: string }
-> = ({ className, labelClassName, children, ...props }) => {
+>(({ className, labelClassName, children, ...props }, ref) => {
   return (
     <ThreadListPrimitive.New asChild>
       <Button
+        ref={ref}
         variant="ghost"
         data-slot="aui_thread-list-new"
         className={cn(
@@ -169,7 +172,9 @@ export const ThreadListNew: FC<
       </Button>
     </ThreadListPrimitive.New>
   );
-};
+});
+
+ThreadListNew.displayName = "ThreadListNew";
 
 const ThreadListSkeleton: FC = () => {
   return (

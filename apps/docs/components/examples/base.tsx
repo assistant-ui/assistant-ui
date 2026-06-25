@@ -90,6 +90,11 @@ import {
 import Image from "next/image";
 import { useState, type FC, type ReactNode } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
 import { DEFAULT_MODEL_ID } from "@/constants/model";
@@ -141,18 +146,25 @@ const Sidebar: FC<{ collapsed?: boolean }> = ({ collapsed }) => {
           collapsed ? "w-12 px-2 pt-1" : "w-65 p-3",
         )}
       >
-        <ThreadListNew
-          className={cn(
-            "overflow-hidden transition-all duration-200",
-            collapsed
-              ? "w-8 gap-0 px-2 has-[>svg]:px-2"
-              : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ThreadListNew
+              className={cn(
+                "overflow-hidden transition-all duration-200",
+                collapsed
+                  ? "w-8 gap-0 px-2 has-[>svg]:px-2"
+                  : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
+              )}
+              labelClassName={cn(
+                "overflow-hidden transition-all duration-200",
+                collapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
+              )}
+            />
+          </TooltipTrigger>
+          {collapsed && (
+            <TooltipContent side="right">New Thread</TooltipContent>
           )}
-          labelClassName={cn(
-            "overflow-hidden transition-all duration-200",
-            collapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
-          )}
-        />
+        </Tooltip>
         <ThreadListItems
           aria-hidden={collapsed}
           className={cn(
