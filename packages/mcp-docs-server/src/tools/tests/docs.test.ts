@@ -106,7 +106,9 @@ describe("assistantUIDocs", () => {
     expect(result.type).toBe("directory");
     expect(Array.isArray(result.summaries)).toBe(true);
     expect(result.summaries.length).toBeGreaterThan(0);
-    expect(result.summaries[0].name).toBeDefined();
+    const summary = result.summaries[0];
+    expect(summary.name).toBeDefined();
+    expect(summary.title ?? summary.excerpt).toBeDefined();
   });
 
   it("should skip symlinks and large files", async () => {
