@@ -34,7 +34,7 @@ import {
 } from "@/lib/xulux/analytics-context";
 import { XuluxThread } from "../chat/XuluxThread";
 import { XuluxTemplateProvider } from "../chat/XuluxTemplateContext";
-import type { XuluxTemplate } from "../templates/types";
+import type { XuluxPreviewFrame, XuluxTemplate } from "../templates/types";
 import type { SelectedTemplateContext } from "../XuluxApp";
 import { XuluxCanvas } from "../canvas/XuluxCanvas";
 import { XuluxCanvasObserver } from "../canvas/XuluxCanvasObserver";
@@ -59,6 +59,7 @@ type CanvasState = {
   source: "template" | "agent_template" | "refresh" | null;
   error: string | null;
   downloadUrl?: string;
+  previewFrame?: XuluxPreviewFrame;
   templateId?: string;
   versionId?: string;
   title?: string;
@@ -158,6 +159,9 @@ export function XuluxShell({
         source: template.previewUrl ? "template" : null,
         error: null,
         ...(template.downloadUrl ? { downloadUrl: template.downloadUrl } : {}),
+        ...(template.previewFrame
+          ? { previewFrame: template.previewFrame }
+          : {}),
         templateId: getXuluxTemplateAnalyticsId(template),
         ...(template.versionId ? { versionId: template.versionId } : {}),
         title: template.title,
@@ -315,7 +319,12 @@ export function XuluxShell({
               url: preview.previewUrl,
               source: "agent_template",
               error: null,
-              downloadUrl: preview.downloadUrl,
+              ...(preview.downloadUrl
+                ? { downloadUrl: preview.downloadUrl }
+                : {}),
+              ...(preview.previewFrame
+                ? { previewFrame: preview.previewFrame }
+                : {}),
               templateId: preview.templateId,
               ...(preview.versionId !== undefined
                 ? { versionId: preview.versionId }
@@ -360,6 +369,9 @@ export function XuluxShell({
                     ? { downloadUrl: canvas.downloadUrl }
                     : {})}
                   {...(canvas.versionId ? { versionId: canvas.versionId } : {})}
+                  {...(canvas.previewFrame
+                    ? { previewFrame: canvas.previewFrame }
+                    : {})}
                   {...(sourceUrl ? { sourceUrl } : {})}
                   {...(canvasTitle ? { title: canvasTitle } : {})}
                 />
@@ -408,6 +420,9 @@ export function XuluxShell({
                     ? { downloadUrl: canvas.downloadUrl }
                     : {})}
                   {...(canvas.versionId ? { versionId: canvas.versionId } : {})}
+                  {...(canvas.previewFrame
+                    ? { previewFrame: canvas.previewFrame }
+                    : {})}
                   {...(sourceUrl ? { sourceUrl } : {})}
                   {...(canvasTitle ? { title: canvasTitle } : {})}
                 />
@@ -475,6 +490,7 @@ function toCanvasSnapshot(
     source: canvas.source,
     error: canvas.error,
     ...(canvas.downloadUrl ? { downloadUrl: canvas.downloadUrl } : {}),
+    ...(canvas.previewFrame ? { previewFrame: canvas.previewFrame } : {}),
     ...(canvas.templateId ? { templateId: canvas.templateId } : {}),
     ...(canvas.versionId ? { versionId: canvas.versionId } : {}),
     ...(title ? { title } : {}),
@@ -493,6 +509,7 @@ function fromCanvasSnapshot(
     source: snapshot.source,
     error: snapshot.error,
     ...(snapshot.downloadUrl ? { downloadUrl: snapshot.downloadUrl } : {}),
+    ...(snapshot.previewFrame ? { previewFrame: snapshot.previewFrame } : {}),
     ...(snapshot.templateId ? { templateId: snapshot.templateId } : {}),
     ...(snapshot.versionId ? { versionId: snapshot.versionId } : {}),
     ...(snapshot.title ? { title: snapshot.title } : {}),

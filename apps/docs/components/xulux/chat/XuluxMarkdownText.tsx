@@ -11,7 +11,7 @@ import {
 } from "@assistant-ui/react-streamdown";
 import { type CodeHeaderProps } from "@assistant-ui/react-markdown";
 import { OpenInSyntaxHighlighter } from "@/components/xulux/chat/OpenInCard";
-import { XuluxSuggestionOptions } from "@/components/xulux/chat/XuluxSuggestionOptions";
+import { XuluxAskQuestion } from "@/components/xulux/chat/XuluxAskQuestion";
 import {
   type ComponentPropsWithoutRef,
   type CSSProperties,
@@ -34,8 +34,8 @@ const XuluxMarkdownTextImpl = () => {
           SyntaxHighlighter: OpenInSyntaxHighlighter,
           CodeHeader: () => null,
         },
-        "suggestion-options": {
-          SyntaxHighlighter: XuluxSuggestionOptions,
+        "ask-question": {
+          SyntaxHighlighter: XuluxAskQuestion,
           CodeHeader: () => null,
         },
         text: {

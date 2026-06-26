@@ -1,21 +1,22 @@
 "use client";
 
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-streamdown";
-import { ThreadPrimitive } from "@assistant-ui/react";
+import { ThreadPrimitive, useAuiState } from "@assistant-ui/react";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
 
-type XuluxSuggestionOption = {
+type XuluxAskQuestionOption = {
   label: string;
   prompt: string;
+  preferred?: boolean;
 };
 
-type XuluxSuggestionOptionsData = {
+type XuluxAskQuestionData = {
   question?: string;
-  options: XuluxSuggestionOption[];
+  options: XuluxAskQuestionOption[];
 };
 
-function parseSuggestionOptions(
-  code: string,
-): XuluxSuggestionOptionsData | null {
+function parseAskQuestion(code: string): XuluxAskQuestionData | null {
   let value: unknown;
   try {
     value = JSON.parse(code);
@@ -31,7 +32,7 @@ function parseSuggestionOptions(
   const rawOptions = record.options;
   if (!Array.isArray(rawOptions)) return null;
 
-  const options = rawOptions.flatMap((rawOption): XuluxSuggestionOption[] => {
+  const options = rawOptions.flatMap((rawOption): XuluxAskQuestionOption[] => {
     if (!rawOption || typeof rawOption !== "object") return [];
     if (Array.isArray(rawOption)) return [];
 
@@ -44,23 +45,29 @@ function parseSuggestionOptions(
     const prompt = option.prompt.trim();
     if (!label || !prompt) return [];
 
-    return [{ label, prompt }];
+    return [{ label, prompt, preferred: option.preferred === true }];
   });
 
   if (options.length === 0) return null;
+  const sortedOptions = [...options].sort((a, b) => {
+    if (a.preferred === b.preferred) return 0;
+    return a.preferred ? -1 : 1;
+  });
 
   const question =
     typeof record.question === "string" ? record.question.trim() : "";
 
   return {
     ...(question ? { question } : {}),
-    options,
+    options: sortedOptions,
   };
 }
 
-export function XuluxSuggestionOptions({ code }: SyntaxHighlighterProps) {
-  const data = parseSuggestionOptions(code);
-  if (!data) return null;
+export function XuluxAskQuestion({ code }: SyntaxHighlighterProps) {
+  const [hasSelected, setHasSelected] = useState(false);
+  const isLastMessage = useAuiState((s) => s.message.isLast);
+  const data = parseAskQuestion(code);
+  if (!data || hasSelected || !isLastMessage) return null;
 
   return (
     <div className="border-border/60 bg-muted/20 my-3 rounded-lg border p-3">
@@ -75,9 +82,20 @@ export function XuluxSuggestionOptions({ code }: SyntaxHighlighterProps) {
             key={`${option.label}:${index}`}
             prompt={option.prompt}
             send
-            className="border-border bg-background hover:bg-muted text-foreground inline-flex min-h-8 max-w-full items-center rounded-md border px-3 py-1.5 text-left text-xs leading-snug transition-colors"
+            onClick={() => setHasSelected(true)}
+            className={cn(
+              "inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-md border px-3 py-1.5 text-left text-xs leading-snug transition-colors",
+              option.preferred
+                ? "border-primary/50 bg-primary text-primary-foreground hover:bg-primary/90"
+                : "border-border bg-background hover:bg-muted text-foreground",
+            )}
           >
             {option.label}
+            {option.preferred ? (
+              <span className="text-primary-foreground/80 text-[10px] font-medium">
+                Recommended
+              </span>
+            ) : null}
           </ThreadPrimitive.Suggestion>
         ))}
       </div>

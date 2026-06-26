@@ -1,4 +1,5 @@
 import type { SelectedTemplateContext } from "../XuluxApp";
+import type { XuluxPreviewFrame } from "../templates/types";
 
 export type XuluxThreadStatus = "idle" | "running" | "interrupted";
 
@@ -8,6 +9,7 @@ export type XuluxCanvasSnapshot = {
   source: "template" | "agent_template" | "refresh" | null;
   error: string | null;
   downloadUrl?: string;
+  previewFrame?: XuluxPreviewFrame;
   templateId?: string;
   versionId?: string;
   title?: string;
