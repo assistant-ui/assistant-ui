@@ -37,7 +37,7 @@ type MCPCustomServerRecord = {
 
 type MCPServerKind = "connector" | "custom";
 
-type MCPConnectionState = "disconnected" | "authRequired" | "authPending" | "connecting" | "connected" | "error";
+type MCPConnectionState = "authPending" | "authRequired" | "connected" | "connecting" | "disconnected" | "error";
 
 type MCPToolInfo = {
   name: string;
@@ -163,7 +163,7 @@ type UseMcpOAuthCallbackOptions = {
 };
 
 type UseMcpOAuthCallbackResult = {
-  status: "idle" | "running" | "done" | "error";
+  status: "done" | "error" | "idle" | "running";
   serverId: string | null;
   error: Error | null;
 };
@@ -336,7 +336,7 @@ declare const McpServerPrimitiveError: import("react").ForwardRefExoticComponent
 
 declare namespace McpServerPrimitiveIcon {
   type Element = ComponentRef<typeof Primitive.img>;
-  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.img>, "src" | "alt"> & {
+  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.img>, "alt" | "src"> & {
     src?: string;
     alt?: string;
   };
@@ -429,21 +429,21 @@ declare const McpAddFormPrimitiveRoot: import("react").ForwardRefExoticComponent
 
 declare namespace McpAddFormPrimitiveNameField {
   type Element = ComponentRef<typeof Primitive.input>;
-  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.input>, "value" | "onChange" | "type">;
+  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.input>, "onChange" | "type" | "value">;
 }
 
 declare const McpAddFormPrimitiveNameField: import("react").ForwardRefExoticComponent<McpAddFormPrimitiveNameField.Props & import("react").RefAttributes<HTMLInputElement>>;
 
 declare namespace McpAddFormPrimitiveUrlField {
   type Element = ComponentRef<typeof Primitive.input>;
-  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.input>, "value" | "onChange" | "type">;
+  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.input>, "onChange" | "type" | "value">;
 }
 
 declare const McpAddFormPrimitiveUrlField: import("react").ForwardRefExoticComponent<McpAddFormPrimitiveUrlField.Props & import("react").RefAttributes<HTMLInputElement>>;
 
 declare namespace McpAddFormPrimitiveAuthSelect {
   type Element = ComponentRef<typeof Primitive.select>;
-  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.select>, "value" | "onChange">;
+  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.select>, "onChange" | "value">;
 }
 
 declare const McpAddFormPrimitiveAuthSelect: import("react").ForwardRefExoticComponent<McpAddFormPrimitiveAuthSelect.Props & import("react").RefAttributes<HTMLSelectElement>>;

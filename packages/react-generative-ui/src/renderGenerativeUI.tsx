@@ -74,11 +74,19 @@ function renderElement(
 
   // `children` is a reserved top-level key on the normalized element, not a
   // prop, so it is not in `props`. Inject the framework props last so the model
-  // can never override them.
+  // can never override them. `$action` is likewise reserved and stripped from
+  // the prop bag during normalization, so it is re-injected here for components
+  // that carry behavior (e.g. `Button`).
   const props: Record<string, unknown> = {
     ...element.props,
     $status: context.status,
   };
+  if (context.dispatch !== undefined) {
+    props["$dispatch"] = context.dispatch;
+  }
+  if (element.action !== undefined) {
+    props["$action"] = element.action;
+  }
   if (element.children !== undefined) {
     props["children"] = renderNode(element.children, library, context);
   }

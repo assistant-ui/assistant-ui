@@ -5,8 +5,83 @@ import { ZodType } from "zod";
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
 declare namespace entry_ir_exports {
-  export { Action, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, UIChildren, UIElement, UINode, UISpec, normalizeSpec, normalizeUINode };
+  export { ALERT_TONES, ALIGNS, Action, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, IMAGE_SIZE_TOKENS, ImageSize, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, TEXT_SIZES, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, normalizeSpec, normalizeUINode };
 }
+
+declare const TEXT_SIZES: readonly [
+  "sm",
+  "md",
+  "lg",
+  "xl",
+  "2xl",
+  "3xl"
+];
+
+type TextSize = (typeof TEXT_SIZES)[number];
+
+declare const IMAGE_SIZE_TOKENS: readonly [
+  "sm",
+  "md",
+  "lg"
+];
+
+type ImageSize = (typeof IMAGE_SIZE_TOKENS)[number] | number;
+
+declare const WEIGHTS: readonly [
+  "normal",
+  "medium",
+  "semibold",
+  "bold"
+];
+
+type Weight = (typeof WEIGHTS)[number];
+
+declare const COLORS: readonly [
+  "emphasis",
+  "secondary",
+  "alpha-70",
+  "white",
+  "white-70",
+  "white-50"
+];
+
+type Color = (typeof COLORS)[number];
+
+declare const ALIGNS: readonly [
+  "start",
+  "center",
+  "end"
+];
+
+type Align = (typeof ALIGNS)[number];
+
+declare const JUSTIFIES: readonly [
+  "start",
+  "center",
+  "end",
+  "between"
+];
+
+type Justify = (typeof JUSTIFIES)[number];
+
+declare const BUTTON_STYLES: readonly [
+  "primary",
+  "secondary",
+  "outline",
+  "ghost",
+  "danger"
+];
+
+type ButtonStyle = (typeof BUTTON_STYLES)[number];
+
+declare const ALERT_TONES: readonly [
+  "info",
+  "success",
+  "warning",
+  "danger"
+];
+
+type AlertTone = (typeof ALERT_TONES)[number];
 
 interface Action {
   readonly type: string;
@@ -50,6 +125,21 @@ declare function normalizeSpec(spec: UISpec): {
   readonly root: NormalizedUINode | readonly NormalizedUINode[];
 };
 
+type ActionDispatchContext = {
+  readonly payload: Action;
+};
+
+type ActionHandler = (ctx: ActionDispatchContext) => unknown | Promise<unknown>;
+
+type ActionRegistry = {
+  dispatch(action: Action): unknown;
+  has(type: string): boolean;
+};
+
+declare function createActionRegistry(handlers: Readonly<Record<string, ActionHandler>>): ActionRegistry;
+
+declare const emptyActionRegistry: ActionRegistry;
+
 type GenerativeUIElement = NormalizedUIElement;
 
 type GenerativeUIProps = NormalizedUIElement["props"];
@@ -58,23 +148,32 @@ type GenerativeUINode$1 = GenerativeUIElement | string | number | boolean | null
 
 type GenerativeUIAction = Action;
 
-type GenerativeUIStatus = "streaming" | "done";
+type GenerativeUIStatus = "done" | "streaming";
+
+type GenerativeUIDispatch = (action: Action) => unknown;
 
 type GenerativeUIRenderContext = {
   status: GenerativeUIStatus;
+  dispatch?: GenerativeUIDispatch;
 };
 
 type StreamingRenderProps<P> = (Partial<P> & {
   children?: ReactNode;
   $status: "streaming";
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
 }) | (P & {
   children?: ReactNode;
   $status: "done";
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
 });
 
 type StaticRenderProps<P> = P & {
   children?: ReactNode;
   $status: "done";
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
 };
 
 type GenerativeUIComponent<P = any> = {
@@ -91,7 +190,7 @@ type GenerativeUIComponent<P = any> = {
 
 type GenerativeUILibrary = Record<string, GenerativeUIComponent>;
 
-type JSONSchema7TypeName$1 = "string" | "number" | "integer" | "boolean" | "object" | "array" | "null";
+type JSONSchema7TypeName$1 = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
 
 type JSONSchema7Type$1 = string | number | boolean | JSONSchema7Object$1 | JSONSchema7Array$1 | null;
 
@@ -204,7 +303,7 @@ type ClientNames = keyof ClientSchemas extends infer U ? U : never;
 
 type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K> ? ClientSchemas[K]["events"] : never : never;
 
-type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "source" | "query"> : never;
+type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "query" | "source"> : never;
 
 type Unsubscribe = () => void;
 
@@ -289,7 +388,7 @@ type ReadonlyJSONArray = readonly ReadonlyJSONValue[];
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
-type JSONSchema7TypeName = "string" | "number" | "integer" | "boolean" | "object" | "array" | "null";
+type JSONSchema7TypeName = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
 
 type JSONSchema7Type = string | number | boolean | JSONSchema7Object | JSONSchema7Array | null;
 
@@ -469,7 +568,7 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TRe
 
 type ProviderOptions = Record<string, Record<string, unknown>>;
 
-type ToolDisplay = "standalone" | "inline";
+type ToolDisplay = "inline" | "standalone";
 
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
@@ -528,7 +627,7 @@ type McpServerConfig = {
   type: "http" | "sse";
   url: string;
   headers?: Record<string, string>;
-  redirect?: "follow" | "error";
+  redirect?: "error" | "follow";
 } | {
   type: "stdio";
   command: string;
@@ -645,14 +744,14 @@ type GenerativeUIMessagePart = {
 type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
-  readonly visibility?: readonly ("model" | "app")[];
+  readonly visibility?: readonly ("app" | "model")[];
 };
 
 type ToolCallMessagePartMcpMetadata = {
   readonly app?: McpAppMetadata;
 };
 
-type ToolApprovalOptionKind = "allow-once" | "allow-always" | "reject-once" | "reject-always";
+type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | "reject-once";
 
 type ToolApprovalOption = {
   readonly id: string;
@@ -717,7 +816,7 @@ type MessagePartStatus = {
   readonly type: "complete";
 } | {
   readonly type: "incomplete";
-  readonly reason: "cancelled" | "length" | "content-filter" | "other" | "error";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
   readonly error?: unknown;
 };
 
@@ -730,13 +829,13 @@ type MessageStatus = {
   readonly type: "running";
 } | {
   readonly type: "requires-action";
-  readonly reason: "tool-calls" | "interrupt";
+  readonly reason: "interrupt" | "tool-calls";
 } | {
   readonly type: "complete";
   readonly reason: "stop" | "unknown";
 } | {
   readonly type: "incomplete";
-  readonly reason: "cancelled" | "tool-calls" | "length" | "content-filter" | "other" | "error";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other" | "tool-calls";
   readonly error?: ReadonlyJSONValue;
 };
 
@@ -804,7 +903,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: {
-      readonly type: "positive" | "negative";
+      readonly type: "negative" | "positive";
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
@@ -820,7 +919,7 @@ type BaseThreadMessage = {
     readonly unstable_data?: readonly ReadonlyJSONValue[];
     readonly steps?: readonly ThreadStep[];
     readonly submittedFeedback?: {
-      readonly type: "positive" | "negative";
+      readonly type: "negative" | "positive";
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
@@ -923,6 +1022,7 @@ declare global {
 
 type JSONGenerativeUIOptions = {
   library: GenerativeUILibrary;
+  actions?: ActionRegistry;
 };
 
 type PresentToolOptions = {
@@ -942,6 +1042,7 @@ type PromptUserTool = ToolDefinition<Record<string, unknown>, unknown> & Backend
 declare class JSONGenerativeUI$1 {
   private readonly library;
   private readonly parameters;
+  private readonly actions;
   constructor(options: JSONGenerativeUIOptions);
   private readonly render;
   present(options?: PresentToolOptions): PresentTool;
@@ -958,8 +1059,10 @@ declare function generativeUIToJSX(node: unknown): string;
 
 declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
 
+declare const defaultGenerativeUILibrary: GenerativeUILibrary;
+
 declare namespace entry_root_default_exports {
-  export { Action, GenerativeUIAction, GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TYPE_KEY, UIChildren, UIElement, UINode, UISpec, buildPresentParameters, defineGenerativeComponents, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, IMAGE_SIZE_TOKENS, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
 }
 
 declare class JSONGenerativeUI {
@@ -970,7 +1073,7 @@ declare class JSONGenerativeUI {
 }
 
 declare namespace entry_root_react_server_exports {
-  export { Action, GenerativeUIAction, GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, JSONGenerativeUI, JSONGenerativeUIOptions, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TYPE_KEY, UIChildren, UIElement, UINode, UISpec, buildPresentParameters, defineGenerativeComponents, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, IMAGE_SIZE_TOKENS, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
 }
 
 export { entry_ir_exports as entry_ir, entry_root_default_exports as entry_root_default, entry_root_react_server_exports as entry_root_react_server };

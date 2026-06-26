@@ -4,10 +4,12 @@ import { join } from "node:path";
 import { PACKAGE_DIR } from "../../constants.js";
 import { docsTools } from "../docs.js";
 import { examplesTools } from "../examples.js";
+import { searchTools } from "../search.js";
 
 const tools = {
   assistantUIDocs: docsTools,
   assistantUIExamples: examplesTools,
+  assistantUISearch: searchTools,
 };
 
 export const testContext = {

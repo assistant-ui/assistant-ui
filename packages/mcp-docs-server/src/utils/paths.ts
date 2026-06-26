@@ -66,6 +66,28 @@ export async function getAvailablePaths(): Promise<string[]> {
   return paths.sort();
 }
 
+export async function getAvailableDocFiles(): Promise<string[]> {
+  const files: string[] = [];
+
+  async function scanDirectory(dir: string, prefix = ""): Promise<void> {
+    const { directories, files: dirFiles } = await listDirContents(dir);
+
+    for (const file of dirFiles) {
+      if (extname(file) !== MDX_EXTENSION) continue;
+      const name = file.replace(MDX_EXTENSION, "");
+      files.push(prefix ? `${prefix}/${name}` : name);
+    }
+
+    for (const subdir of directories) {
+      const newPrefix = prefix ? `${prefix}/${subdir}` : subdir;
+      await scanDirectory(join(dir, subdir), newPrefix);
+    }
+  }
+
+  await scanDirectory(DOCS_PATH);
+  return files.sort();
+}
+
 export function findNearestPaths(
   requestedPath: string,
   availablePaths: string[],

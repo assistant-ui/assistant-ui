@@ -12,9 +12,9 @@ import Deque from "denque";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-type ResumableStreamRole = "producer" | "consumer";
+type ResumableStreamRole = "consumer" | "producer";
 
-type ResumableStreamStatus = "streaming" | "done" | "error" | "missing";
+type ResumableStreamStatus = "done" | "error" | "missing" | "streaming";
 
 type ResumableStreamEntry = {
   readonly cursor: string;
@@ -394,12 +394,12 @@ interface RedisCommander<Context extends ClientContext = {
   argetBuffer(key: RedisKey, index: number | string, callback?: Callback<Buffer | null>): Result<Buffer | null, Context>;
   argetrange(key: RedisKey, start: number | string, end: number | string, callback?: Callback<(string | null)[]>): Result<(string | null)[], Context>;
   argetrangeBuffer(key: RedisKey, start: number | string, end: number | string, callback?: Callback<(Buffer | null)[]>): Result<(Buffer | null)[], Context>;
-  argrep(key: RedisKey, start: number | string, end: number | string, predicate: 'EXACT' | 'MATCH' | 'GLOB' | 'RE', value: RedisValue, callback: Callback<number[]>): Result<number[], Context>;
+  argrep(key: RedisKey, start: number | string, end: number | string, predicate: 'EXACT' | 'GLOB' | 'MATCH' | 'RE', value: RedisValue, callback: Callback<number[]>): Result<number[], Context>;
   argrep(...args: [
     key: RedisKey,
     start: number | string,
     end: number | string,
-    predicate: 'EXACT' | 'MATCH' | 'GLOB' | 'RE',
+    predicate: 'EXACT' | 'GLOB' | 'MATCH' | 'RE',
     value: RedisValue,
     ...args: RedisValue[],
     callback: Callback<number[] | Array<[
@@ -414,19 +414,19 @@ interface RedisCommander<Context extends ClientContext = {
     key: RedisKey,
     start: number | string,
     end: number | string,
-    predicate: 'EXACT' | 'MATCH' | 'GLOB' | 'RE',
+    predicate: 'EXACT' | 'GLOB' | 'MATCH' | 'RE',
     value: RedisValue,
     ...args: T
   ]): Result<'WITHVALUES' extends T[number] ? Array<[
     index: number,
     value: string
   ]> : number[], Context>;
-  argrepBuffer(key: RedisKey, start: number | string, end: number | string, predicate: 'EXACT' | 'MATCH' | 'GLOB' | 'RE', value: RedisValue, callback: Callback<number[]>): Result<number[], Context>;
+  argrepBuffer(key: RedisKey, start: number | string, end: number | string, predicate: 'EXACT' | 'GLOB' | 'MATCH' | 'RE', value: RedisValue, callback: Callback<number[]>): Result<number[], Context>;
   argrepBuffer(...args: [
     key: RedisKey,
     start: number | string,
     end: number | string,
-    predicate: 'EXACT' | 'MATCH' | 'GLOB' | 'RE',
+    predicate: 'EXACT' | 'GLOB' | 'MATCH' | 'RE',
     value: RedisValue,
     ...args: RedisValue[],
     callback: Callback<number[] | Array<[
@@ -441,7 +441,7 @@ interface RedisCommander<Context extends ClientContext = {
     key: RedisKey,
     start: number | string,
     end: number | string,
-    predicate: 'EXACT' | 'MATCH' | 'GLOB' | 'RE',
+    predicate: 'EXACT' | 'GLOB' | 'MATCH' | 'RE',
     value: RedisValue,
     ...args: T
   ]): Result<'WITHVALUES' extends T[number] ? Array<[
@@ -10585,7 +10585,7 @@ interface SentinelConnectionOptions {
   failoverDetector?: boolean | undefined;
 }
 
-declare type TcpOptions = Pick<TcpNetConnectOpts, "port" | "host" | "family">;
+declare type TcpOptions = Pick<TcpNetConnectOpts, "family" | "host" | "port">;
 
 declare type IpcOptions = Pick<IpcNetConnectOpts, "path">;
 
@@ -10640,7 +10640,7 @@ declare type RedisOptions = CommonRedisOptions & SentinelConnectionOptions & Sta
 
 declare type NodeKey = string;
 
-declare type NodeRole = "master" | "slave" | "all";
+declare type NodeRole = "all" | "master" | "slave";
 
 declare type DNSResolveSrvFunction = (hostname: string, callback: (err: NodeJS.ErrnoException | null | undefined, records?: SrvRecord[]) => void) => void;
 
@@ -10674,7 +10674,7 @@ interface ClusterOptions extends CommanderOptions {
   slotsRefreshInterval?: number | undefined;
   shardedSubscribers?: boolean | undefined;
   clusterNodeRetryStrategy?: ClusterNodeRetryStrategy;
-  redisOptions?: Omit<RedisOptions, "port" | "host" | "path" | "sentinels" | "retryStrategy" | "enableOfflineQueue" | "readOnly"> | undefined;
+  redisOptions?: Omit<RedisOptions, "enableOfflineQueue" | "host" | "path" | "port" | "readOnly" | "retryStrategy" | "sentinels"> | undefined;
   lazyConnect?: boolean | undefined;
   useSRVRecords?: boolean | undefined;
   resolveSrv?: DNSResolveSrvFunction | undefined;
@@ -10694,7 +10694,7 @@ declare type ClusterNode = string | number | {
   port?: number | undefined;
 };
 
-declare type ClusterStatus = "end" | "close" | "wait" | "connecting" | "connect" | "ready" | "reconnecting" | "disconnecting";
+declare type ClusterStatus = "close" | "connect" | "connecting" | "disconnecting" | "end" | "ready" | "reconnecting" | "wait";
 
 declare class Cluster extends Commander {
   options: ClusterOptions;
@@ -10809,7 +10809,7 @@ interface BatchOperationContext {
   serverPort: number | undefined;
 }
 
-declare type RedisStatus = "wait" | "reconnecting" | "connecting" | "connect" | "ready" | "close" | "end";
+declare type RedisStatus = "close" | "connect" | "connecting" | "end" | "ready" | "reconnecting" | "wait";
 
 declare class Redis extends Commander implements DataHandledable {
   static Cluster: typeof Cluster;
@@ -10845,7 +10845,7 @@ declare class Redis extends Commander implements DataHandledable {
   disconnect(reconnect?: boolean): void;
   end(): void;
   duplicate(override?: Partial<RedisOptions>): Redis;
-  get mode(): "normal" | "subscriber" | "monitor";
+  get mode(): "monitor" | "normal" | "subscriber";
   monitor(callback?: Callback<Redis>): Promise<Redis>;
   sendCommand(command: Command, stream?: WriteableStream): unknown;
   private getBlockingTimeoutInMs;
@@ -10975,7 +10975,7 @@ type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
 declare function asAsyncIterableStream<T>(source: ReadableStream<T>): AsyncIterableStream<T>;
 
-type JSONSchema7TypeName = "string" | "number" | "integer" | "boolean" | "object" | "array" | "null";
+type JSONSchema7TypeName = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
 
 type JSONSchema7Type = string | number | boolean | JSONSchema7Object | JSONSchema7Array | null;
 
@@ -11155,7 +11155,7 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TRe
 
 type ProviderOptions = Record<string, Record<string, unknown>>;
 
-type ToolDisplay = "standalone" | "inline";
+type ToolDisplay = "inline" | "standalone";
 
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
@@ -11225,7 +11225,7 @@ type McpServerConfig = {
   type: "http" | "sse";
   url: string;
   headers?: Record<string, string>;
-  redirect?: "follow" | "error";
+  redirect?: "error" | "follow";
 } | {
   type: "stdio";
   command: string;
@@ -11270,7 +11270,7 @@ type ObjectStreamChunk = {
 };
 
 type PartInit = {
-  readonly type: "text" | "reasoning";
+  readonly type: "reasoning" | "text";
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -11319,7 +11319,7 @@ type AssistantStreamChunk = {
   readonly messageId: string;
 } | {
   readonly type: "step-finish";
-  readonly finishReason: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
+  readonly finishReason: "content-filter" | "error" | "length" | "other" | "stop" | "tool-calls" | "unknown";
   readonly usage: {
     readonly inputTokens: number;
     readonly outputTokens: number;
@@ -11327,7 +11327,7 @@ type AssistantStreamChunk = {
   readonly isContinued: boolean;
 } | {
   readonly type: "message-finish";
-  readonly finishReason: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
+  readonly finishReason: "content-filter" | "error" | "length" | "other" | "stop" | "tool-calls" | "unknown";
   readonly usage: {
     readonly inputTokens: number;
     readonly outputTokens: number;
@@ -11378,7 +11378,7 @@ type TextStatus = {
   reason: "stop" | "unknown";
 } | {
   type: "incomplete";
-  reason: "cancelled" | "length" | "content-filter" | "other";
+  reason: "cancelled" | "content-filter" | "length" | "other";
 };
 
 type TextPart = {
@@ -11406,7 +11406,7 @@ type ToolCallStatus = {
   reason: "stop" | "unknown";
 } | {
   type: "incomplete";
-  reason: "cancelled" | "length" | "content-filter" | "other";
+  reason: "cancelled" | "content-filter" | "length" | "other";
 };
 
 type ToolCallTiming = {
@@ -11430,7 +11430,7 @@ type ToolCallPartBase = {
 };
 
 type ToolCallPartWithoutResult = ToolCallPartBase & {
-  state: "partial-call" | "call";
+  state: "call" | "partial-call";
   result?: undefined;
   modelContent?: undefined;
 };
@@ -11481,7 +11481,7 @@ type AssistantMessageStepMetadata = {
 } | {
   state: "finished";
   messageId: string;
-  finishReason: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
+  finishReason: "content-filter" | "error" | "length" | "other" | "stop" | "tool-calls" | "unknown";
   usage?: AssistantMessageStepUsage;
   isContinued: boolean;
 };
@@ -11496,7 +11496,7 @@ type AssistantMessageStatus = {
   reason: "stop" | "unknown";
 } | {
   type: "incomplete";
-  reason: "cancelled" | "tool-calls" | "length" | "content-filter" | "other" | "error";
+  reason: "cancelled" | "content-filter" | "error" | "length" | "other" | "tool-calls";
   error?: ReadonlyJSONValue;
 };
 
@@ -11579,7 +11579,7 @@ type CreateResumeAssistantStreamResponseOptions = {
 
 declare function createResumeAssistantStreamResponse(options: CreateResumeAssistantStreamResponseOptions): Promise<Response>;
 
-type ResumableStreamErrorCode = "missing" | "exists" | "finalized" | "invalid-id";
+type ResumableStreamErrorCode = "exists" | "finalized" | "invalid-id" | "missing";
 
 declare class ResumableStreamError extends Error {
   readonly code: ResumableStreamErrorCode;
@@ -11637,7 +11637,7 @@ declare class AssistantTransformStream<I> extends TransformStream<I, AssistantSt
 }
 
 type AssistantMetaStreamChunk = (AssistantStreamChunk & {
-  type: "text-delta" | "part-finish";
+  type: "part-finish" | "text-delta";
   meta: PartInit;
 }) | (AssistantStreamChunk & {
   type: "result" | "tool-call-args-text-finish";
@@ -11645,7 +11645,7 @@ type AssistantMetaStreamChunk = (AssistantStreamChunk & {
     type: "tool-call";
   };
 }) | (AssistantStreamChunk & {
-  type: Exclude<AssistantStreamChunk["type"], "text-delta" | "result" | "tool-call-args-text-finish" | "part-finish">;
+  type: Exclude<AssistantStreamChunk["type"], "part-finish" | "result" | "text-delta" | "tool-call-args-text-finish">;
 });
 
 declare class AssistantMetaTransformStream extends TransformStream<AssistantStreamChunk, AssistantMetaStreamChunk> {
@@ -11748,7 +11748,7 @@ type AttachmentLike = {
 };
 
 type ThreadMessageLike = {
-  role: "system" | "user" | "assistant";
+  role: "assistant" | "system" | "user";
   content: readonly MessagePartLike[];
   attachments?: readonly AttachmentLike[];
 };
@@ -11804,7 +11804,7 @@ declare class DataStreamDecoder extends PipeableTransformStream<Uint8Array<Array
   constructor();
 }
 
-type FinishReason = "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
+type FinishReason = "content-filter" | "error" | "length" | "other" | "stop" | "tool-calls" | "unknown";
 
 type Usage = {
   inputTokens: number;

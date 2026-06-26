@@ -1,5 +1,12 @@
 # @assistant-ui/next
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [[`d162f44`](https://github.com/assistant-ui/assistant-ui/commit/d162f440502c29e4293e33c0c081e87c36d67bba)]:
+  - @assistant-ui/x-generative-compiler@0.0.7
+
 ## 0.0.8
 
 ### Patch Changes

@@ -15,7 +15,7 @@ const examplesInputSchema = z.object({
     ),
 });
 
-async function listCodeExamples(): Promise<string[]> {
+export async function listCodeExamples(): Promise<string[]> {
   try {
     const files = await readdir(CODE_EXAMPLES_PATH);
     return files
@@ -28,7 +28,9 @@ async function listCodeExamples(): Promise<string[]> {
   }
 }
 
-async function readCodeExample(exampleName: string): Promise<string | null> {
+export async function readCodeExample(
+  exampleName: string,
+): Promise<string | null> {
   try {
     const sanitized = sanitizePath(exampleName);
     const filePath = join(CODE_EXAMPLES_PATH, `${sanitized}.md`);

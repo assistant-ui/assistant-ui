@@ -46,7 +46,7 @@ declare function createSamplingCollector(): {
 };
 
 type AssistantCloudAuthStrategy = {
-  readonly strategy: "anon" | "jwt" | "api-key";
+  readonly strategy: "anon" | "api-key" | "jwt";
   getAuthHeaders(): Promise<Record<string, string> | false>;
   readAuthHeaders(headers: Headers): void;
 };
@@ -116,7 +116,7 @@ type ObjectStreamOperation = {
 };
 
 type PartInit = {
-  readonly type: "text" | "reasoning";
+  readonly type: "reasoning" | "text";
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -165,7 +165,7 @@ type AssistantStreamChunk = {
   readonly messageId: string;
 } | {
   readonly type: "step-finish";
-  readonly finishReason: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
+  readonly finishReason: "content-filter" | "error" | "length" | "other" | "stop" | "tool-calls" | "unknown";
   readonly usage: {
     readonly inputTokens: number;
     readonly outputTokens: number;
@@ -173,7 +173,7 @@ type AssistantStreamChunk = {
   readonly isContinued: boolean;
 } | {
   readonly type: "message-finish";
-  readonly finishReason: "stop" | "length" | "content-filter" | "tool-calls" | "error" | "other" | "unknown";
+  readonly finishReason: "content-filter" | "error" | "length" | "other" | "stop" | "tool-calls" | "unknown";
   readonly usage: {
     readonly inputTokens: number;
     readonly outputTokens: number;
@@ -217,7 +217,7 @@ type ReportToolCall = {
   tool_call_id: string;
   tool_args?: string;
   tool_result?: string;
-  tool_source?: "mcp" | "frontend" | "backend";
+  tool_source?: "backend" | "frontend" | "mcp";
   start_ms?: number;
   end_ms?: number;
   sampling_calls?: SamplingCallData[];
@@ -225,7 +225,7 @@ type ReportToolCall = {
 
 type AssistantCloudRunReport = {
   thread_id: string;
-  status: "completed" | "incomplete" | "error";
+  status: "completed" | "error" | "incomplete";
   total_steps?: number;
   tool_calls?: ReportToolCall[];
   steps?: {

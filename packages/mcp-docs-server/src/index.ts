@@ -2,6 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { docsTools } from "./tools/docs.js";
 import { examplesTools } from "./tools/examples.js";
+import { searchTools } from "./tools/search.js";
+import { registerResources } from "./tools/resources.js";
 import { logger } from "./utils/logger.js";
 import { PACKAGE_DIR } from "./constants.js";
 
@@ -37,6 +39,18 @@ server.registerTool(
   },
   examplesTools.execute,
 );
+server.registerTool(
+  searchTools.name,
+  {
+    title: "Search assistant-ui Documentation",
+    description: searchTools.description,
+    inputSchema: searchTools.parameters,
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  searchTools.execute,
+);
+
+registerResources(server);
 
 export async function runServer() {
   try {

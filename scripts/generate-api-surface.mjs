@@ -12,12 +12,14 @@ import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { optionArgs, optionValues } from "./lib/script-options.mjs";
 
 const repoRoot = process.cwd();
 const packagesRoot = path.join(repoRoot, "packages");
 const apiSurfaceRoot = path.join(repoRoot, "api-surface");
 const tempRoot = path.join(repoRoot, ".api-surface-tmp");
 const checkMode = process.argv.includes("--check");
+const turboFilters = optionValues(process.argv.slice(2), "--filter");
 
 const requireFromBuildUtils = createRequire(
   path.join(repoRoot, "packages/x-buildutils/package.json"),
@@ -113,6 +115,10 @@ function declarationFilesForTarget(packageDir, typePath) {
 }
 
 function collectPackages() {
+  const filteredPackageNames = turboFilters.length
+    ? collectTurboFilteredPackageNames(turboFilters)
+    : undefined;
+
   return readdirSync(packagesRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(packagesRoot, entry.name, "package.json"))
@@ -125,7 +131,47 @@ function collectPackages() {
       };
     })
     .filter(({ pkg }) => !pkg.private)
+    .filter(
+      ({ pkg }) => !filteredPackageNames || filteredPackageNames.has(pkg.name),
+    )
     .sort((a, b) => compareStrings(a.pkg.name, b.pkg.name));
+}
+
+function collectTurboFilteredPackageNames(filters) {
+  const result = spawnSync(
+    "pnpm",
+    [
+      "exec",
+      "turbo",
+      "ls",
+      ...optionArgs("--filter", filters),
+      "--output=json",
+    ],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
+  if (result.status !== 0) {
+    throw new Error(
+      `Failed to list packages for API surface filter:\n${result.stdout}${result.stderr}`,
+    );
+  }
+
+  const jsonStart = result.stdout.indexOf("{");
+  if (jsonStart === -1) {
+    throw new Error(`Turbo did not return JSON output:\n${result.stdout}`);
+  }
+
+  const output = JSON.parse(result.stdout.slice(jsonStart));
+  return new Set(
+    output.packages.items.map((item) => {
+      if (typeof item.name !== "string") {
+        throw new Error("Turbo package list included an item without a name.");
+      }
+      return item.name;
+    }),
+  );
 }
 
 function collectDeclarationEntries(packageDir, pkg) {
@@ -431,6 +477,33 @@ function normalizeAttachmentUnionType(node, sourceFile, factory) {
   return factory.updateUnionTypeNode(node, types);
 }
 
+function stringLiteralUnionMemberValue(type) {
+  const unwrapped = unwrapParenthesizedType(type);
+  if (
+    ts.isLiteralTypeNode(unwrapped) &&
+    ts.isStringLiteral(unwrapped.literal)
+  ) {
+    return unwrapped.literal.text;
+  }
+  return undefined;
+}
+
+function normalizeStringLiteralUnionType(node, factory) {
+  const memberValues = node.types.map(stringLiteralUnionMemberValue);
+  if (memberValues.some((value) => value === undefined)) return node;
+  if (memberValues.length < 2) return node;
+
+  const sortedIndices = memberValues
+    .map((value, index) => ({ value, index }))
+    .toSorted((a, b) => compareStrings(a.value, b.value) || a.index - b.index);
+  if (sortedIndices.every(({ index }, sortedIndex) => index === sortedIndex)) {
+    return node;
+  }
+
+  const types = sortedIndices.map(({ index }) => node.types[index]);
+  return factory.updateUnionTypeNode(node, types);
+}
+
 function normalizeBundledDeclaration(content) {
   const stripped = content
     .replaceAll("\r\n", "\n")
@@ -450,9 +523,13 @@ function normalizeBundledDeclaration(content) {
       let bindingParameterIndex = 0;
       const visit = (node) => {
         if (ts.isUnionTypeNode(node)) {
-          return normalizeAttachmentUnionType(
+          const attachmentNormalized = normalizeAttachmentUnionType(
             ts.visitEachChild(node, visit, context),
             sourceFile,
+            context.factory,
+          );
+          return normalizeStringLiteralUnionType(
+            attachmentNormalized,
             context.factory,
           );
         }
@@ -688,7 +765,11 @@ async function main() {
   if (!checkMode) mkdirSync(apiSurfaceRoot, { recursive: true });
 
   try {
-    const cliSurface = await buildCliSurface();
+    const needsCliSurface = packages.some(
+      ({ pkg }) =>
+        pkg.name === "assistant-ui" || pkg.name === "create-assistant-ui",
+    );
+    const cliSurface = needsCliSurface ? await buildCliSurface() : {};
 
     for (const packageInfo of packages) {
       const { pkg } = packageInfo;
@@ -702,7 +783,8 @@ async function main() {
       writeOrCheck(outputFile, content, changedFiles);
     }
 
-    if (existsSync(apiSurfaceRoot)) {
+    // Filtered checks only know about selected packages; stale cleanup needs the full package set.
+    if (turboFilters.length === 0 && existsSync(apiSurfaceRoot)) {
       for (const entry of readdirSync(apiSurfaceRoot)) {
         const file = path.join(apiSurfaceRoot, entry);
         if (!entry.endsWith(".ts") || generatedFiles.has(file)) continue;
