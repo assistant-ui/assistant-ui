@@ -2452,7 +2452,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   private _text;
   get text(): string;
   private _role;
-  get role(): "user" | "system" | "assistant";
+  get role(): "system" | "user" | "assistant";
   private _runConfig;
   get runConfig(): RunConfig;
   private _quote;
