@@ -20,6 +20,7 @@ import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
+import { getPanelWidth } from "@/components/docs/layout/docs-layout";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -140,6 +141,7 @@ export function DocsHeader({
     toggle: toggleSidebar,
   } = useDocsSidebar();
   const [navMenuOpen, setNavMenuOpen] = useState(false);
+  const { open, width, isResizing } = useAssistantPanel();
 
   const sectionFilter = (item: (typeof NAV_ITEMS)[number]) =>
     item.type !== "link" || item.href !== sectionHref;
@@ -163,7 +165,17 @@ export function DocsHeader({
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full">
+    <header
+      className={cn(
+        "sticky top-0 z-50 md:mr-(--chat-panel-width)",
+        !isResizing && "transition-[margin] duration-300 ease-out",
+      )}
+      style={
+        {
+          "--chat-panel-width": getPanelWidth(open, width),
+        } as React.CSSProperties
+      }
+    >
       <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl" />
       <div className="relative flex h-12 w-full items-center px-4">
         <div className="flex min-w-0 flex-1 items-center">

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 export const COLLAPSED_WIDTH = "12px";
 
-function getPanelWidth(open: boolean, width: number): string {
+export function getPanelWidth(open: boolean, width: number): string {
   return open ? `${width}px` : COLLAPSED_WIDTH;
 }
 
@@ -42,7 +42,7 @@ export function DocsAssistantPanel(): ReactNode {
   return (
     <div
       className={cn(
-        "fixed top-12 right-0 bottom-0 hidden w-(--panel-width) md:block",
+        "fixed top-0 right-0 bottom-0 z-50 hidden w-(--panel-width) md:block",
         !isResizing && "transition-[width] duration-300 ease-out",
       )}
       style={
