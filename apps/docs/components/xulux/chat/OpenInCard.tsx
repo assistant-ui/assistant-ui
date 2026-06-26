@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-streamdown";
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import { HoverCard } from "radix-ui";
@@ -165,6 +166,7 @@ export function OpenInCard({
     ? downloadUrl
     : undefined;
   const hasDownload = Boolean(validDownloadUrl);
+  const promptPreviewId = useId();
 
   return (
     <div className="border-border bg-muted/30 my-4 rounded-lg border px-4 py-3 text-sm shadow-sm">
@@ -222,7 +224,7 @@ export function OpenInCard({
                 );
               }}
               className="bg-foreground text-background hover:bg-foreground/90 inline-flex h-8 items-center gap-1.5 rounded-md px-3.5 text-xs font-medium transition-colors"
-              aria-describedby="xulux-open-in-prompt-preview"
+              aria-describedby={promptPreviewId}
             >
               {isCopied ? (
                 <CheckIcon className="size-3.5" />
@@ -234,7 +236,7 @@ export function OpenInCard({
           </HoverCard.Trigger>
           <HoverCard.Portal>
             <HoverCard.Content
-              id="xulux-open-in-prompt-preview"
+              id={promptPreviewId}
               role="tooltip"
               side="bottom"
               align="start"

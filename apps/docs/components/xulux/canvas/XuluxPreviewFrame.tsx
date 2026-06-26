@@ -10,6 +10,19 @@ type Props = {
   className?: string | undefined;
 };
 
+function aspectRatioWidthFactor(aspectRatio: string): number | null {
+  const match = /^\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*$/.exec(
+    aspectRatio,
+  );
+  if (!match) return null;
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || height <= 0) {
+    return null;
+  }
+  return width / height;
+}
+
 export function XuluxPreviewFrame({ frame, children, className }: Props) {
   if (!frame) {
     return <div className={cn("h-full w-full", className)}>{children}</div>;
@@ -59,8 +72,11 @@ export function XuluxPreviewFrame({ frame, children, className }: Props) {
 
   const width = frame.width ?? 320;
   const aspectRatio = frame.aspectRatio ?? "9 / 19.5";
+  const widthFactor = aspectRatioWidthFactor(aspectRatio);
   const phoneStyle = {
-    width: `min(${width}px, calc(100cqw - 2rem), calc((100cqh - 2rem) * 9 / 19.5))`,
+    width: `min(${width}px, calc(100cqw - 2rem)${
+      widthFactor ? `, calc((100cqh - 2rem) * ${widthFactor})` : ""
+    })`,
     aspectRatio,
   } satisfies CSSProperties;
 
