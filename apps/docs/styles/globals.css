@@ -70,6 +70,8 @@
 
 :root {
   --radius: 0.625rem;
+  --theme-toggle-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><filter id="blur"><feGaussianBlur stdDeviation="2"/></filter></defs><circle cx="0" cy="0" r="18" fill="white" filter="url(%23blur)"/></svg>')
+    top left / 0 no-repeat;
   --expo-out: linear(
     0 0%,
     0.1684 2.66%,
@@ -172,16 +174,14 @@
   }
 
   ::view-transition-new(root) {
-    mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><filter id="blur"><feGaussianBlur stdDeviation="2"/></filter></defs><circle cx="0" cy="0" r="18" fill="white" filter="url(%23blur)"/></svg>')
-      top left / 0 no-repeat;
+    mask: var(--theme-toggle-mask);
     mask-origin: content-box;
     animation: theme-toggle-scale 1s;
     animation-fill-mode: both;
     transform-origin: top left;
   }
 
-  ::view-transition-old(root),
-  .dark::view-transition-old(root) {
+  ::view-transition-old(root) {
     animation: theme-toggle-scale 1s;
     animation-fill-mode: both;
     transform-origin: top left;
@@ -197,14 +197,22 @@
   .theme-toggle-fallback-ripple {
     background: var(--theme-toggle-fallback-background);
     inset: 0;
-    mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><filter id="blur"><feGaussianBlur stdDeviation="2"/></filter></defs><circle cx="0" cy="0" r="18" fill="white" filter="url(%23blur)"/></svg>')
-      top left / 0 no-repeat;
+    mask: var(--theme-toggle-mask);
     mask-origin: content-box;
     pointer-events: none;
     position: fixed;
     transform-origin: top left;
     z-index: 2147483647;
     animation: theme-toggle-scale 1s var(--expo-out) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-new(root),
+    ::view-transition-old(root),
+    .theme-toggle-fallback-ripple {
+      animation: none;
+      mask: none;
+    }
   }
 
   @supports not selector(::-webkit-scrollbar) {

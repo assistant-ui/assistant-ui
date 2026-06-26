@@ -1,7 +1,8 @@
 "use client";
 
+import type { MutableRefObject } from "react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
 type DocumentWithViewTransition = Document & {
@@ -10,30 +11,45 @@ type DocumentWithViewTransition = Document & {
 
 type Theme = "dark" | "light";
 
+const FALLBACK_REVEAL_DELAY_MS = 420;
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const themeRef = useRef<Theme>("light");
+  const fallbackTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    themeRef.current = resolvedTheme === "dark" ? "dark" : "light";
+  }, [resolvedTheme]);
+
+  useEffect(() => {
+    return () => clearFallbackTransition(fallbackTimeoutRef);
+  }, []);
 
   const toggleTheme = () => {
     if (!mounted) return;
 
-    const nextTheme: Theme = resolvedTheme === "dark" ? "light" : "dark";
+    const nextTheme: Theme = themeRef.current === "dark" ? "light" : "dark";
+    themeRef.current = nextTheme;
 
     const updateTheme = () => {
       setTheme(nextTheme);
     };
 
-    const startViewTransition = (document as DocumentWithViewTransition)
-      .startViewTransition;
-
-    if (!startViewTransition) {
-      runFallbackTransition(nextTheme, updateTheme);
+    if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
+      clearFallbackTransition(fallbackTimeoutRef);
+      updateTheme();
       return;
     }
 
-    startViewTransition.call(document, updateTheme);
+    const doc = document as DocumentWithViewTransition;
+
+    if (doc.startViewTransition) doc.startViewTransition(updateTheme);
+    else runFallbackTransition(nextTheme, updateTheme, fallbackTimeoutRef);
   };
 
   return (
@@ -60,8 +76,25 @@ export function ThemeToggle() {
   );
 }
 
-const runFallbackTransition = (nextTheme: Theme, updateTheme: () => void) => {
-  if (document.querySelector("[data-theme-toggle-fallback]")) return;
+const clearFallbackTransition = (
+  fallbackTimeoutRef: MutableRefObject<number | null>,
+) => {
+  if (fallbackTimeoutRef.current !== null) {
+    window.clearTimeout(fallbackTimeoutRef.current);
+    fallbackTimeoutRef.current = null;
+  }
+
+  document
+    .querySelectorAll("[data-theme-toggle-fallback]")
+    .forEach((element) => element.remove());
+};
+
+const runFallbackTransition = (
+  nextTheme: Theme,
+  updateTheme: () => void,
+  fallbackTimeoutRef: MutableRefObject<number | null>,
+) => {
+  clearFallbackTransition(fallbackTimeoutRef);
 
   const ripple = document.createElement("div");
   ripple.dataset.themeToggleFallback = "true";
@@ -72,7 +105,10 @@ const runFallbackTransition = (nextTheme: Theme, updateTheme: () => void) => {
   );
 
   document.body.appendChild(ripple);
-  window.setTimeout(updateTheme, 420);
+  fallbackTimeoutRef.current = window.setTimeout(() => {
+    fallbackTimeoutRef.current = null;
+    updateTheme();
+  }, FALLBACK_REVEAL_DELAY_MS);
   ripple.addEventListener("animationend", () => ripple.remove(), {
     once: true,
   });
