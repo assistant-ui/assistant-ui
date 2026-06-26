@@ -1,5 +1,11 @@
 # @assistant-ui/x-generative-compiler
 
+## 0.0.8
+
+### Patch Changes
+
+- [#4610](https://github.com/assistant-ui/assistant-ui/pull/4610) [`ab217e4`](https://github.com/assistant-ui/assistant-ui/commit/ab217e49494d74e570d18ec73c21b7700f53df5a) - fix: name tools in missing toolkit member compiler errors ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.7
 
 ### Patch Changes

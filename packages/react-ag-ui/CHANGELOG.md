@@ -1,5 +1,11 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.44
+
+### Patch Changes
+
+- [#4615](https://github.com/assistant-ui/assistant-ui/pull/4615) [`c4fcb07`](https://github.com/assistant-ui/assistant-ui/commit/c4fcb073016aa1177307c089c57e96e502ba8a0a) - feat(react-ag-ui): restore interrupt status in fromAgUiMessages from persisted metadata ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.0.43
 
 ### Patch Changes

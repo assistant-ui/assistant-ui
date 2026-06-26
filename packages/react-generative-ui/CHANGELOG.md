@@ -1,5 +1,11 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.7
+
+### Patch Changes
+
+- [#4625](https://github.com/assistant-ui/assistant-ui/pull/4625) [`998e585`](https://github.com/assistant-ui/assistant-ui/commit/998e5853a2feeeeb7e1984275cb62991b3d904df) - add `ActionRegistry` and wire `$action` dispatch end to end. `createActionRegistry(handlers)` maps `$action.type` to a handler; omit `actions` for a read-only render where `$dispatch` stays un-injected and interactive clicks are silent. the vocabulary's `Button`/`Select`/`Input`/`DatePicker` attach real event handlers that fire `$dispatch($action)`, merging the user's runtime value into the payload under the reserved `$input` key so a model-supplied `value` is never clobbered; an unknown action type degrades to a no-op with a dev warning rather than throwing. HITL resume-value typing is left as `unknown` (IR doc open question [#2](https://github.com/assistant-ui/assistant-ui/issues/2)); the resume value reaching the runtime is a follow-up. ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.6
 
 ### Patch Changes
