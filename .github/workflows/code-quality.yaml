@@ -134,6 +134,9 @@ jobs:
             pnpm run api-surface:check -- --skip-build --filter="...[HEAD^1]"
           fi
 
+      - name: Test API surface generator
+        run: pnpm run api-surface:test
+
   test:
     name: Test Changed Packages
     runs-on: blacksmith-4vcpu-ubuntu-2404
