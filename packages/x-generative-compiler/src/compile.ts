@@ -1151,6 +1151,30 @@ function isSafeToolkitSpread(
   );
 }
 
+function genericUnsafeToolkitEntryMessage(): string {
+  return (
+    "each tool must be an inline object literal (`name: { ... }`) or a " +
+    "compiler-visible toolkit spread / generative tool (e.g. " +
+    "`...defineMcpToolkit(...)`, `...baseToolkit`, " +
+    "`generative.present()`, or `unstable_interactableTool(...)`) so its " +
+    "`execute` can be routed"
+  );
+}
+
+function describeUnsafeToolkitEntry(entry: Entry): string {
+  if (!t.isObjectProperty(entry)) return genericUnsafeToolkitEntryMessage();
+
+  const toolName = memberName(entry.key, entry.computed);
+  const raw = entryRawValue(entry);
+  if (!toolName || !raw) return genericUnsafeToolkitEntryMessage();
+
+  return (
+    `tool "${toolName}" cannot be \`${generate(raw).code}\`; use an inline ` +
+    `object literal (\`${toolName}: { ... }\`) or a compiler-visible toolkit ` +
+    "spread / generative tool so its `execute` can be routed"
+  );
+}
+
 /** The `JSONGenerativeUI` methods that produce a split-by-condition tool. */
 const GENERATIVE_TOOL_METHODS = new Set(["present", "promptUser"]);
 
@@ -1252,11 +1276,7 @@ function compileToolkit(
         continue;
       }
       throw new GenerativeCompileError(
-        "each tool must be an inline object literal (`name: { ... }`) or a " +
-          "compiler-visible toolkit spread / generative tool (e.g. " +
-          "`...defineMcpToolkit(...)`, `...baseToolkit`, " +
-          "`generative.present()`, or `unstable_interactableTool(...)`) so its " +
-          "`execute` can be routed",
+        describeUnsafeToolkitEntry(entry),
         filename,
       );
     }

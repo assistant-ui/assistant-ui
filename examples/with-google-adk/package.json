@@ -13,7 +13,7 @@
     "@assistant-ui/react-google-adk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "@google/adk": "^1.2.0",
+    "@google/adk": "^1.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.21.0",

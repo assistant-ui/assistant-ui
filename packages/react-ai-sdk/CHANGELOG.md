@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.39
+
+### Patch Changes
+
+- [#4608](https://github.com/assistant-ui/assistant-ui/pull/4608) [`a7b06f7`](https://github.com/assistant-ui/assistant-ui/commit/a7b06f76876078fc2fcbb92a86fa0e1530fde782) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 1.3.38
 
 ### Patch Changes
