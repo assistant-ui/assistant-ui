@@ -358,6 +358,21 @@ export default defineToolkit({
     expect(code).not.toContain("defineGenerativeComponents");
   });
 
+  it("allows an exported module-scope JSONGenerativeUI instance", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
+export const ui = new JSONGenerativeUI({ library: {} });
+export default defineToolkit({ present: ui.present() });`;
+
+    expect(compileGenerative(src, { target: "server" }).code).toContain(
+      "ui.present()",
+    );
+    expect(compileGenerative(src, { target: "client" }).code).toContain(
+      "ui.present()",
+    );
+  });
+
   it("rejects an unknown method on a JSONGenerativeUI instance", () => {
     const src = `"use generative";
 import { defineToolkit } from "@assistant-ui/react";

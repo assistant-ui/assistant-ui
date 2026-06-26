@@ -601,8 +601,14 @@ function unwrapToCall(node: t.Node, name: string): t.CallExpression | null {
 function collectGenerativeInstances(ast: t.File): Set<string> {
   const names = new Set<string>();
   for (const statement of ast.program.body) {
-    if (!t.isVariableDeclaration(statement)) continue;
-    for (const declaration of statement.declarations) {
+    const variableDeclaration = t.isVariableDeclaration(statement)
+      ? statement
+      : t.isExportNamedDeclaration(statement) &&
+          t.isVariableDeclaration(statement.declaration)
+        ? statement.declaration
+        : null;
+    if (!variableDeclaration) continue;
+    for (const declaration of variableDeclaration.declarations) {
       const { id, init } = declaration;
       if (
         t.isIdentifier(id) &&
