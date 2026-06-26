@@ -3,6 +3,11 @@ import { DOCS_PATH, MDX_EXTENSION } from "../constants.js";
 import { getAvailablePaths, pathExists } from "./paths.js";
 import { readMDXFile } from "./mdx.js";
 
+const SCORE_WEIGHTS = {
+  FULL_QUERY: { title: 10, path: 8, description: 5 },
+  TOKEN: { title: 3, path: 2, description: 1, content: 0.5 },
+} as const;
+
 interface IndexEntry {
   path: string;
   title: string;
@@ -90,15 +95,16 @@ function scoreEntry(
   const content = entry.content.toLowerCase();
 
   let score = 0;
-  if (title.includes(query)) score += 10;
-  if (path.includes(query)) score += 8;
-  if (description.includes(query)) score += 5;
+  if (title.includes(query)) score += SCORE_WEIGHTS.FULL_QUERY.title;
+  if (path.includes(query)) score += SCORE_WEIGHTS.FULL_QUERY.path;
+  if (description.includes(query))
+    score += SCORE_WEIGHTS.FULL_QUERY.description;
 
   for (const token of tokens) {
-    if (title.includes(token)) score += 3;
-    if (path.includes(token)) score += 2;
-    if (description.includes(token)) score += 1;
-    if (content.includes(token)) score += 0.5;
+    if (title.includes(token)) score += SCORE_WEIGHTS.TOKEN.title;
+    if (path.includes(token)) score += SCORE_WEIGHTS.TOKEN.path;
+    if (description.includes(token)) score += SCORE_WEIGHTS.TOKEN.description;
+    if (content.includes(token)) score += SCORE_WEIGHTS.TOKEN.content;
   }
   return score;
 }
