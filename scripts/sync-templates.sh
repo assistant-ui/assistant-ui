@@ -1,14 +1,13 @@
 #!/bin/bash
 
-# Verifies that shared assistant-ui components in templates/* are byte-equal
-# with the canonical source in packages/ui/src/components/assistant-ui, and
-# that examples/* don't carry redundant byte-equal copies (examples resolve
-# `@/components/assistant-ui/*` to packages/ui via tsconfig paths, so an
-# identical local copy is dead weight that silently drifts).
+# Templates and examples alias packages/ui via tsconfig and carry no copies,
+# except `minimal`, which ships its own. This keeps minimal's copies byte-equal
+# with packages/ui/src/components/assistant-ui (minus the OVERRIDES divergences)
+# and flags any redundant byte-equal copy under examples/*.
 #
 # Usage:
 #   bash scripts/sync-templates.sh            # check (CI mode), exits 1 on drift
-#   bash scripts/sync-templates.sh --write    # copy source -> templates to fix drift
+#   bash scripts/sync-templates.sh --write    # copy source -> minimal to fix drift
 #
 # To allow an intentional divergence (e.g. minimal/thread.tsx is a slim variant),
 # add `<tpl>/<file>` to the OVERRIDES array below with a comment explaining why.
@@ -21,7 +20,8 @@ SOURCE_DIR="$ROOT_DIR/packages/ui/src/components/assistant-ui"
 TEMPLATES_ROOT="$ROOT_DIR/templates"
 EXAMPLES_ROOT="$ROOT_DIR/examples"
 
-TEMPLATES=(default minimal cloud cloud-clerk langgraph mcp)
+# Only minimal carries copies; every other template aliases packages/ui.
+TEMPLATES=(minimal)
 
 OVERRIDES=(
     # minimal intentionally ships a slim thread.tsx without GroupedParts /
