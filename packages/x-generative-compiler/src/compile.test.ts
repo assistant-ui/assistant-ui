@@ -1310,6 +1310,15 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
     ).toThrow(/human tool "ask" must declare a `render`/);
   });
 
+  it("falls back to an unnamed human tool diagnostic for computed keys", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit, humanTool } from "@assistant-ui/react";\nconst ask = "ask";\nexport default defineToolkit({ [ask]: { execute: humanTool() } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/a human tool must declare a `render`/);
+  });
+
   it("requires a render or renderText for frontend tools", () => {
     expect(() =>
       compileGenerative(
@@ -1317,6 +1326,15 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
         { target: "client" },
       ),
     ).toThrow(/frontend tool "toast" must declare a `render` or `renderText`/);
+  });
+
+  it("falls back to an unnamed frontend tool diagnostic for computed keys", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nconst toast = "toast";\nexport default defineToolkit({ [toast]: { execute: async () => { "use client"; return 1; } } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/a frontend tool must declare a `render` or `renderText`/);
   });
 
   it("requires every tool to declare an execute", () => {
