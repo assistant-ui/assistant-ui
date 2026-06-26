@@ -6,7 +6,13 @@ import type { Action } from "./ir";
  * signal); the handler reads what it needs and ignores the rest.
  */
 export type ActionDispatchContext = {
-  /** The action payload (`$action`), as the model emitted it. */
+  /**
+   * The action payload. For fire-and-forget actions this is the `$action` as
+   * the model emitted it. For interactive components (`Select`/`Input`/
+   * `DatePicker`) the user's runtime input is merged in under the reserved
+   * `$input` key, so the handler sees both the model payload and what the user
+   * did; a model-supplied `value` field is never clobbered.
+   */
   readonly payload: Action;
 };
 

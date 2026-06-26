@@ -46,12 +46,13 @@ describe("createActionRegistry", () => {
 });
 
 describe("emptyActionRegistry", () => {
-  it("dispatch is a no-op for any type", () => {
+  it("dispatch is a no-op for any type and emits the dev warning", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       expect(
         emptyActionRegistry.dispatch({ type: "anything" }),
       ).toBeUndefined();
+      expect(warn).toHaveBeenCalledTimes(1);
     } finally {
       warn.mockRestore();
     }

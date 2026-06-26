@@ -12,15 +12,22 @@ const actionAttr = (a: Action | undefined): string | undefined =>
   a ? JSON.stringify(a) : undefined;
 
 /** Fires `$action` through `$dispatch` when both are present, merging a runtime
- * `value` (the user's input) into the payload so the handler sees both the
- * model-supplied action and what the user did. No-op when no registry is wired. */
+ * value into the payload under the reserved `$input` key (not `value`) so the
+ * user's input never clobbers a model-supplied `value` field. No-op when no
+ * registry is wired. The returned promise from an async handler is caught and
+ * re-thrown on a microtask so rejections surface rather than going unhandled. */
 const fire = (
   $action: Action | undefined,
   $dispatch: GenerativeUIDispatch | undefined,
-  value?: unknown,
+  input?: unknown,
 ) => {
   if (!$action || !$dispatch) return;
-  $dispatch(value === undefined ? $action : { ...$action, value });
+  const payload = input === undefined ? $action : { ...$action, $input: input };
+  void Promise.resolve($dispatch(payload)).catch((error) => {
+    queueMicrotask(() => {
+      throw error;
+    });
+  });
 };
 
 export const interactiveVocabulary = {
@@ -108,7 +115,11 @@ export const interactiveVocabulary = {
           aria-label={label}
           placeholder={placeholder}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.ctrlKey || e.metaKey))
+            if (
+              e.key === "Enter" &&
+              (e.ctrlKey || e.metaKey) &&
+              !e.nativeEvent.isComposing
+            )
               submit((e.currentTarget as HTMLTextAreaElement).value);
           }}
         />
@@ -119,7 +130,7 @@ export const interactiveVocabulary = {
           aria-label={label}
           placeholder={placeholder}
           onKeyDown={(e) => {
-            if (e.key === "Enter")
+            if (e.key === "Enter" && !e.nativeEvent.isComposing)
               submit((e.currentTarget as HTMLInputElement).value);
           }}
         />
