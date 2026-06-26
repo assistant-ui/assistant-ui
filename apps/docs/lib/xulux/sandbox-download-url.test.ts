@@ -51,6 +51,19 @@ it("preserves query parameters from a matching sandbox download URL", () => {
   );
 });
 
+it("adds the selected version when dynamic download params omit it", () => {
+  const url = resolveSandboxDownloadUrl({
+    templates: [template],
+    templateId: "webpage-assistant",
+    versionId: "product-docs",
+    downloadSearch: "?session=abc",
+  });
+
+  expect(url?.href).toBe(
+    "https://0d9e27d14127c0eeadfc34b424cc7ed0.preview.bl.run/api/download?session=abc&v=product-docs",
+  );
+});
+
 it("rejects unsafe query parameter names", () => {
   const url = resolveSandboxDownloadUrl({
     templates: [template],

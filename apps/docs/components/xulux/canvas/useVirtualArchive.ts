@@ -37,32 +37,38 @@ export function useVirtualArchive(
 ): ArchiveState {
   const [state, setState] = useState<ArchiveState>({ status: "idle" });
   const abortRef = useRef<AbortController | null>(null);
-  const cachedUrlRef = useRef<string | null>(null);
+  const cachedFetchUrlRef = useRef<string | null>(null);
   const cachedArchiveRef = useRef<VirtualArchive | null>(null);
 
   const load = useCallback(
     async (url: string) => {
-      if (cachedUrlRef.current === url && cachedArchiveRef.current) {
-        setState({ status: "ready", archive: cachedArchiveRef.current });
-        return;
-      }
+      let controller: AbortController | null = null;
 
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      setState({ status: "loading" });
       try {
         const fetchUrl = resolveDownloadFetchUrl(url, templateId, versionId);
+
+        if (
+          cachedFetchUrlRef.current === fetchUrl &&
+          cachedArchiveRef.current
+        ) {
+          setState({ status: "ready", archive: cachedArchiveRef.current });
+          return;
+        }
+
+        abortRef.current?.abort();
+        controller = new AbortController();
+        abortRef.current = controller;
+
+        setState({ status: "loading" });
         const res = await fetch(fetchUrl, { signal: controller.signal });
         if (!res.ok) throw new Error(`Download failed: ${res.status}`);
         const buffer = await res.arrayBuffer();
         const archive = createVirtualArchive(new Uint8Array(buffer));
-        cachedUrlRef.current = url;
+        cachedFetchUrlRef.current = fetchUrl;
         cachedArchiveRef.current = archive;
         setState({ status: "ready", archive });
       } catch (err) {
-        if (controller.signal.aborted) return;
+        if (controller?.signal.aborted) return;
         setState({
           status: "error",
           error: err instanceof Error ? err.message : String(err),
