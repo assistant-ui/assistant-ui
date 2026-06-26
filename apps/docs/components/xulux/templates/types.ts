@@ -4,6 +4,20 @@ export type XuluxTemplateCategory = {
   description?: string | undefined;
 };
 
+export type XuluxPreviewFrame =
+  | {
+      kind: "phone";
+      width?: number | undefined;
+      aspectRatio?: string | undefined;
+      chrome?: "ios-dark" | undefined;
+    }
+  | {
+      kind: "terminal";
+      title?: string | undefined;
+      width?: number | undefined;
+      height?: number | undefined;
+    };
+
 export type XuluxTemplate = {
   id: string;
   templateId?: string | undefined;
@@ -18,6 +32,7 @@ export type XuluxTemplate = {
   kind: "template" | "example";
   previewStatus: "live" | "stale" | "missing";
   previewUrl?: string | undefined;
+  previewFrame?: XuluxPreviewFrame | undefined;
   downloadUrl?: string | undefined;
   sandboxBaseUrl?: string | undefined;
   screenshotUrl?: string | undefined;
