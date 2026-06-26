@@ -51,6 +51,7 @@ import {
 import type {
   XuluxActivePreviewContext,
   XuluxCanvasSnapshot,
+  XuluxJsonObject,
   XuluxStoredThread,
 } from "../runtime/types";
 
@@ -504,7 +505,7 @@ function toAgentPreviewContext(preview: {
   templateId: string;
   versionId?: string;
   customized: boolean;
-  config?: Record<string, unknown>;
+  config?: XuluxJsonObject;
 }): XuluxActivePreviewContext {
   return {
     source: "agent_tool",

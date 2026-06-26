@@ -13,12 +13,21 @@ export type XuluxCanvasSnapshot = {
   title?: string;
 };
 
+export type XuluxJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | XuluxJsonValue[]
+  | { [key: string]: XuluxJsonValue };
+export type XuluxJsonObject = { [key: string]: XuluxJsonValue };
+
 export type XuluxActivePreviewContext = {
   source: "template_modal" | "agent_tool";
   templateId: string;
   versionId?: string | null;
   customized: boolean;
-  config?: Record<string, unknown>;
+  config?: XuluxJsonObject;
 };
 
 export type XuluxThreadCustom = {

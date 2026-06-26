@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useAuiState, type ToolCallMessagePart } from "@assistant-ui/react";
+import type { XuluxJsonObject } from "../runtime/types";
 
 type OpenTemplatePreviewResult =
   | {
@@ -13,7 +14,7 @@ type OpenTemplatePreviewResult =
       title: string;
       summary?: string;
       customized?: boolean;
-      config?: Record<string, unknown>;
+      config?: XuluxJsonObject;
     }
   | {
       success: false;
@@ -27,7 +28,7 @@ type TemplatePreviewReady = {
   versionId?: string;
   title: string;
   customized: boolean;
-  config?: Record<string, unknown>;
+  config?: XuluxJsonObject;
 };
 
 function isOpenTemplatePreviewCall(part: unknown): part is ToolCallMessagePart {
