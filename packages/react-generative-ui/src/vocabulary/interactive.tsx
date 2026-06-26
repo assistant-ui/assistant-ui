@@ -120,7 +120,7 @@ export const interactiveVocabulary = {
               (e.ctrlKey || e.metaKey) &&
               !e.nativeEvent.isComposing
             )
-              submit((e.currentTarget as HTMLTextAreaElement).value);
+              submit(e.currentTarget.value);
           }}
         />
       ) : (
@@ -131,7 +131,7 @@ export const interactiveVocabulary = {
           placeholder={placeholder}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.nativeEvent.isComposing)
-              submit((e.currentTarget as HTMLInputElement).value);
+              submit(e.currentTarget.value);
           }}
         />
       );
