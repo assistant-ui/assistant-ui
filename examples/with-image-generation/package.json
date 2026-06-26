@@ -9,10 +9,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.73",
+    "@ai-sdk/openai": "^3.0.74",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "ai": "^6.0.208",
+    "ai": "^6.0.209",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.21.0",

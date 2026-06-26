@@ -427,6 +427,11 @@ The compiler checks static tool names across inline entries and compiler-visible
 spreads. If two fragments define the same tool name, the build warns that
 JavaScript object spread will keep the later tool definition.
 
+If the compiler reports that `tool "weather" cannot be makeTool()`, that entry
+came from an opaque factory call. Rewrite it as an inline tool object, or spread
+a compiler-visible `defineToolkit(...)` / `defineMcpToolkit(...)` fragment
+instead.
+
 ### Add MCP server tools
 
 `defineMcpToolkit` exposes tools from an MCP server. For an MCP-only toolkit, export it directly:

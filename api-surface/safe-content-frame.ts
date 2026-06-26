@@ -10,7 +10,7 @@ declare namespace entry_root_exports {
   export { RenderedFrame, SafeContentFrame, SafeContentFrameOptions, SandboxOption };
 }
 
-type SandboxOption = "allow-same-origin" | "allow-scripts" | "allow-forms" | "allow-popups" | "allow-modals" | "allow-downloads" | "allow-popups-to-escape-sandbox";
+type SandboxOption = "allow-downloads" | "allow-forms" | "allow-modals" | "allow-popups" | "allow-popups-to-escape-sandbox" | "allow-same-origin" | "allow-scripts";
 
 interface SafeContentFrameOptions {
   useShadowDom?: boolean;

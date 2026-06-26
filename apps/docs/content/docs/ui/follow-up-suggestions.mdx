@@ -1,0 +1,80 @@
+---
+title: Follow-Up Suggestions
+description: Render runtime-generated follow-up prompt chips after an assistant response.
+platforms: ["react"]
+---
+
+import { FollowUpSuggestionsSample } from "@/components/docs/samples/follow-up-suggestions";
+
+<FollowUpSuggestionsSample />
+
+`ThreadFollowupSuggestions` renders the current thread's runtime suggestions as clickable prompt chips. Use it for follow-up prompts that arrive after a response, such as suggested next questions, refinements, or task shortcuts.
+
+<Callout type="info">
+  This component reads from `thread.suggestions`. For static welcome-screen prompts, use `ThreadPrimitive.Suggestions` instead.
+</Callout>
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `follow-up-suggestions`
+
+<InstallCommand shadcn={["follow-up-suggestions"]} />
+
+This adds a `/components/assistant-ui/follow-up-suggestions.tsx` file to your project.
+
+  </Step>
+  <Step>
+
+### Provide runtime suggestions
+
+Pass suggestions through your runtime. External-store runtimes, AI SDK runtimes, and local runtimes can all surface follow-up prompts through `thread.suggestions`.
+
+```tsx title="/app/assistant.tsx" {7-10}
+const runtime = useExternalStoreRuntime({
+  messages,
+  convertMessage,
+  onNew: async (message) => {
+    // append the message in your store
+  },
+  suggestions: [
+    { prompt: "Summarize this as action items" },
+    { prompt: "Write a shorter version" },
+  ],
+});
+```
+
+  </Step>
+  <Step>
+
+### Render after messages
+
+Place `ThreadFollowupSuggestions` near the bottom of your thread viewport, after the assistant message list and before the composer.
+
+```tsx title="/components/assistant-ui/thread.tsx" {1,10}
+import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
+
+const ThreadViewportFooter = () => {
+  return (
+    <ThreadPrimitive.ViewportFooter>
+      <ThreadPrimitive.ScrollToBottom />
+      <ThreadFollowupSuggestions />
+      <Composer />
+    </ThreadPrimitive.ViewportFooter>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## Behavior
+
+The component only renders when the thread is not empty and not currently running. Each suggestion uses `ThreadPrimitive.Suggestion`, replaces the composer text with the prompt, and sends it immediately.
+
+## Related Components
+
+- [Thread](/docs/ui/thread) - Complete chat interface with message list and composer
+- [Suggestions guide](/docs/guides/suggestions) - Runtime and static suggestion patterns

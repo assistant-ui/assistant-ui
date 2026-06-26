@@ -1,5 +1,14 @@
 # @assistant-ui/react
 
+## 0.14.25
+
+### Patch Changes
+
+- [#4562](https://github.com/assistant-ui/assistant-ui/pull/4562) [`942931d`](https://github.com/assistant-ui/assistant-ui/commit/942931d52ddd34c66ed55a54908beee1cdfbfb6f) - fix: disable smooth text streaming under prefers-reduced-motion ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- Updated dependencies [[`a7b06f7`](https://github.com/assistant-ui/assistant-ui/commit/a7b06f76876078fc2fcbb92a86fa0e1530fde782)]:
+  - safe-content-frame@0.0.22
+
 ## 0.14.24
 
 ### Patch Changes

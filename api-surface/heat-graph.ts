@@ -35,7 +35,7 @@ type DayLabel = {
   row: number;
 };
 
-type WeekStart = "sunday" | "monday";
+type WeekStart = "monday" | "sunday";
 
 type HeatGraphState = {
   cells: CellData[];

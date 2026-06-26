@@ -17,6 +17,44 @@
 
 import { TYPE_KEY } from "./constants";
 
+export const TEXT_SIZES = ["sm", "md", "lg", "xl", "2xl", "3xl"] as const;
+export type TextSize = (typeof TEXT_SIZES)[number];
+
+export const IMAGE_SIZE_TOKENS = ["sm", "md", "lg"] as const;
+export type ImageSize = (typeof IMAGE_SIZE_TOKENS)[number] | number;
+
+export const WEIGHTS = ["normal", "medium", "semibold", "bold"] as const;
+export type Weight = (typeof WEIGHTS)[number];
+
+export const COLORS = [
+  "emphasis",
+  "secondary",
+  "alpha-70",
+  "white",
+  "white-70",
+  "white-50",
+] as const;
+export type Color = (typeof COLORS)[number];
+
+export const ALIGNS = ["start", "center", "end"] as const;
+export type Align = (typeof ALIGNS)[number];
+
+export const JUSTIFIES = ["start", "center", "end", "between"] as const;
+export type Justify = (typeof JUSTIFIES)[number];
+
+export const BUTTON_STYLES = [
+  "primary",
+  "secondary",
+  "outline",
+  "ghost",
+  "danger",
+] as const;
+export type ButtonStyle = (typeof BUTTON_STYLES)[number];
+
+export const ALERT_TONES = ["info", "success", "warning", "danger"] as const;
+/** Maps to ChatKit `alert` severity levels. */
+export type AlertTone = (typeof ALERT_TONES)[number];
+
 /**
  * Behavior payload carried by an interactive node. `type` is resolved by the
  * host's action registry, not the renderer; keeping behavior as data keeps the

@@ -54,6 +54,14 @@ function registerMarkdownResource(
           mimeType: MARKDOWN_MIME_TYPE,
         })),
       }),
+      complete: {
+        [variable]: async (value) => {
+          const needle = value.toLowerCase();
+          return (await list()).filter((key) =>
+            key.toLowerCase().includes(needle),
+          );
+        },
+      },
     }),
     { title, description, mimeType: MARKDOWN_MIME_TYPE },
     async (uri, variables) => {

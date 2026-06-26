@@ -1151,6 +1151,30 @@ function isSafeToolkitSpread(
   );
 }
 
+function genericUnsafeToolkitEntryMessage(): string {
+  return (
+    "each tool must be an inline object literal (`name: { ... }`) or a " +
+    "compiler-visible toolkit spread / generative tool (e.g. " +
+    "`...defineMcpToolkit(...)`, `...baseToolkit`, " +
+    "`generative.present()`, or `unstable_interactableTool(...)`) so its " +
+    "`execute` can be routed"
+  );
+}
+
+function describeUnsafeToolkitEntry(entry: Entry): string {
+  if (!t.isObjectProperty(entry)) return genericUnsafeToolkitEntryMessage();
+
+  const toolName = memberName(entry.key, entry.computed);
+  const raw = entryRawValue(entry);
+  if (!toolName || !raw) return genericUnsafeToolkitEntryMessage();
+
+  return (
+    `tool "${toolName}" cannot be \`${generate(raw).code}\`; use an inline ` +
+    `object literal (\`${toolName}: { ... }\`) or a compiler-visible toolkit ` +
+    "spread / generative tool so its `execute` can be routed"
+  );
+}
+
 /** The `JSONGenerativeUI` methods that produce a split-by-condition tool. */
 const GENERATIVE_TOOL_METHODS = new Set(["present", "promptUser"]);
 
@@ -1252,27 +1276,27 @@ function compileToolkit(
         continue;
       }
       throw new GenerativeCompileError(
-        "each tool must be an inline object literal (`name: { ... }`) or a " +
-          "compiler-visible toolkit spread / generative tool (e.g. " +
-          "`...defineMcpToolkit(...)`, `...baseToolkit`, " +
-          "`generative.present()`, or `unstable_interactableTool(...)`) so its " +
-          "`execute` can be routed",
+        describeUnsafeToolkitEntry(entry),
         filename,
       );
     }
 
     // Nature is inferred from `execute` (see inferToolType), not an authored
     // `type`. The resolved type is written back below so the runtime keeps it.
+    const toolName = t.isObjectProperty(entry)
+      ? memberName(entry.key, entry.computed)
+      : undefined;
     const execute = findMember(value, "execute");
     const isStub = execute ? executeIsStubTool(execute) : false;
     const isExternal = execute ? executeIsExternalTool(execute) : false;
-    const type = inferToolType(value, filename);
+    const type = inferToolType(value, toolName, filename);
     const hasRender = !!findMember(value, "render");
     const hasRenderText = !!findMember(value, "renderText");
 
     if (type === "frontend" && !hasRender && !hasRenderText) {
       throw new GenerativeCompileError(
-        "a frontend tool must declare a `render` or `renderText` " +
+        `${typedToolSubject("frontend", toolName)} must declare a ` +
+          "`render` or `renderText` " +
           "(it has no server execute to show otherwise)",
         filename,
       );
@@ -1280,22 +1304,21 @@ function compileToolkit(
 
     if (type === "human" && !hasRender) {
       throw new GenerativeCompileError(
-        "a human tool must declare a `render` so it can collect input",
+        `${typedToolSubject("human", toolName)} must declare a ` +
+          "`render` so it can collect input",
         filename,
       );
     }
 
     if (type === "provider" && execute) {
-      const toolName = t.isObjectProperty(entry)
-        ? memberName(entry.key, entry.computed)
-        : undefined;
       applyProviderToolConfig(value, execute, toolName, filename);
     }
 
     if (isExternal) {
       if (!hasRender && !hasRenderText) {
         throw new GenerativeCompileError(
-          "an external tool must declare a `render` or `renderText` " +
+          `${typedToolSubject("external", toolName)} must declare a ` +
+            "`render` or `renderText` " +
             "(assistant-ui only renders calls for tools defined elsewhere)",
           filename,
         );
@@ -1512,13 +1535,14 @@ function stripUseClient(member: t.ObjectProperty | t.ObjectMethod): void {
  */
 function inferToolType(
   object: t.ObjectExpression,
+  toolName: string | undefined,
   filename: string | undefined,
 ): ToolType {
   const execute = findMember(object, "execute");
   if (!execute) {
     throw new GenerativeCompileError(
-      "every tool must declare an `execute`; use `humanTool()` for a " +
-        "human-in-the-loop tool",
+      `${toolSubject(toolName)} must declare an \`execute\`; use ` +
+        "`humanTool()` for a human-in-the-loop tool",
       filename,
     );
   }
@@ -1527,6 +1551,16 @@ function inferToolType(
   if (executeIsStubTool(execute)) return "frontend";
   if (executeIsExternalTool(execute)) return "backend";
   return executeIsClient(execute) ? "frontend" : "backend";
+}
+
+function toolSubject(toolName: string | undefined): string {
+  return toolName ? `tool "${toolName}"` : "every tool";
+}
+
+function typedToolSubject(type: string, toolName: string | undefined): string {
+  if (toolName) return `${type} tool "${toolName}"`;
+  const article = /^[aeiou]/i.test(type) ? "an" : "a";
+  return `${article} ${type} tool`;
 }
 
 function stripExternalToolMetadata(object: t.ObjectExpression): void {

@@ -170,14 +170,14 @@ type GenerativeUIMessagePart = {
 type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
-  readonly visibility?: readonly ("model" | "app")[];
+  readonly visibility?: readonly ("app" | "model")[];
 };
 
 type ToolCallMessagePartMcpMetadata = {
   readonly app?: McpAppMetadata;
 };
 
-type ToolApprovalOptionKind = "allow-once" | "allow-always" | "reject-once" | "reject-always";
+type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | "reject-once";
 
 type ToolApprovalOption = {
   readonly id: string;
@@ -242,7 +242,7 @@ type MessagePartStatus = {
   readonly type: "complete";
 } | {
   readonly type: "incomplete";
-  readonly reason: "cancelled" | "length" | "content-filter" | "other" | "error";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
   readonly error?: unknown;
 };
 
@@ -255,13 +255,13 @@ type MessageStatus = {
   readonly type: "running";
 } | {
   readonly type: "requires-action";
-  readonly reason: "tool-calls" | "interrupt";
+  readonly reason: "interrupt" | "tool-calls";
 } | {
   readonly type: "complete";
   readonly reason: "stop" | "unknown";
 } | {
   readonly type: "incomplete";
-  readonly reason: "cancelled" | "tool-calls" | "length" | "content-filter" | "other" | "error";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other" | "tool-calls";
   readonly error?: ReadonlyJSONValue;
 };
 
@@ -329,7 +329,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: {
-      readonly type: "positive" | "negative";
+      readonly type: "negative" | "positive";
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
@@ -345,7 +345,7 @@ type BaseThreadMessage = {
     readonly unstable_data?: readonly ReadonlyJSONValue[];
     readonly steps?: readonly ThreadStep[];
     readonly submittedFeedback?: {
-      readonly type: "positive" | "negative";
+      readonly type: "negative" | "positive";
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
