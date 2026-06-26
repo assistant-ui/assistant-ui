@@ -55,6 +55,7 @@ export function XuluxCanvas({
   error,
   downloadUrl,
   templateId,
+  versionId,
   sourceUrl,
   title,
 }: {
@@ -65,6 +66,7 @@ export function XuluxCanvas({
   error: string | null;
   downloadUrl?: string;
   templateId?: string;
+  versionId?: string;
   sourceUrl?: string;
   title?: string;
 }) {
@@ -86,7 +88,7 @@ export function XuluxCanvas({
     : "empty";
 
   const archiveUrl = canDownloadTemplate ? downloadUrl : undefined;
-  const archiveState = useVirtualArchive(archiveUrl);
+  const archiveState = useVirtualArchive(archiveUrl, templateId, versionId);
 
   useEffect(() => {
     if (!resolvedPreviewUrl) {
