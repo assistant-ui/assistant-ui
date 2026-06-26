@@ -22,7 +22,8 @@ export function DocsContent({ children }: { children: ReactNode }): ReactNode {
     <div
       className={cn(
         "@container md:mr-(--chat-panel-width) md:ml-(--sidebar-width)",
-        !isResizing && "transition-[margin] duration-300 ease-out",
+        !isResizing &&
+          "transition-[margin] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
       )}
       style={
         {
@@ -43,7 +44,8 @@ export function DocsAssistantPanel(): ReactNode {
     <div
       className={cn(
         "fixed top-0 right-0 bottom-0 z-50 hidden w-(--panel-width) md:block",
-        !isResizing && "transition-[width] duration-300 ease-out",
+        !isResizing &&
+          "transition-[width] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
       )}
       style={
         {
