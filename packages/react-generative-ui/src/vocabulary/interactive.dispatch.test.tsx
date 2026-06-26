@@ -54,4 +54,57 @@ describe("interactiveVocabulary $action dispatch", () => {
     (out as { props: { onClick: () => void } }).props.onClick();
     expect(handler).not.toHaveBeenCalled();
   });
+
+  it("Select onChange merges the selected value into $input and preserves a model-supplied $action.value", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ pick: handler });
+    const out = interactiveVocabulary.Select.render({
+      options: [{ label: "A", value: "a" }],
+      $status: "done",
+      $action: { type: "pick", value: "model-supplied" },
+      $dispatch: registry.dispatch,
+    }) as ReactNode;
+    const onChange = (
+      out as {
+        props: { onChange: (e: { currentTarget: { value: string } }) => void };
+      }
+    ).props.onChange;
+    onChange({ currentTarget: { value: "user-picked" } });
+    expect(handler).toHaveBeenCalledWith({
+      payload: {
+        type: "pick",
+        value: "model-supplied",
+        $input: "user-picked",
+      },
+    });
+  });
+
+  it("Input onKeyDown (Enter) merges the entered value into $input", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ submit: handler });
+    const out = interactiveVocabulary.Input.render({
+      $status: "done",
+      $action: { type: "submit" },
+      $dispatch: registry.dispatch,
+    }) as ReactNode;
+    const onKeyDown = (
+      out as {
+        props: {
+          onKeyDown: (e: {
+            key: string;
+            nativeEvent: { isComposing: boolean };
+            currentTarget: { value: string };
+          }) => void;
+        };
+      }
+    ).props.onKeyDown;
+    onKeyDown({
+      key: "Enter",
+      nativeEvent: { isComposing: false },
+      currentTarget: { value: "typed text" },
+    });
+    expect(handler).toHaveBeenCalledWith({
+      payload: { type: "submit", $input: "typed text" },
+    });
+  });
 });

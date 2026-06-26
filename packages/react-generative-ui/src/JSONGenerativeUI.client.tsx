@@ -9,7 +9,7 @@ import {
   type PresentToolOptions,
   type PromptUserTool,
 } from "./JSONGenerativeUI.shared";
-import { emptyActionRegistry, type ActionRegistry } from "./actionRegistry";
+import { type ActionRegistry } from "./actionRegistry";
 import { renderGenerativeUI } from "./renderGenerativeUI";
 import type { GenerativeUILibrary, GenerativeUIStatus } from "./types";
 
@@ -35,12 +35,12 @@ function uiStatus(status: { type: string }): GenerativeUIStatus {
 export class JSONGenerativeUI {
   private readonly library: GenerativeUILibrary;
   private readonly parameters: PresentParameters;
-  private readonly actions: ActionRegistry;
+  private readonly actions: ActionRegistry | undefined;
 
   constructor(options: JSONGenerativeUIOptions) {
     this.library = options.library;
     this.parameters = buildPresentParameters(options.library);
-    this.actions = options.actions ?? emptyActionRegistry;
+    this.actions = options.actions;
   }
 
   private readonly render = ({
@@ -52,7 +52,7 @@ export class JSONGenerativeUI {
   }): ReactNode =>
     renderGenerativeUI(args, this.library, {
       status: uiStatus(status),
-      dispatch: this.actions.dispatch,
+      ...(this.actions ? { dispatch: this.actions.dispatch } : {}),
     });
 
   present(options?: PresentToolOptions): PresentTool {
