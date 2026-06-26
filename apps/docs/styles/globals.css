@@ -178,12 +178,14 @@
     mask-origin: content-box;
     animation: theme-toggle-scale 1s;
     animation-fill-mode: both;
+    animation-timing-function: var(--expo-out);
     transform-origin: top left;
   }
 
   ::view-transition-old(root) {
     animation: theme-toggle-scale 1s;
     animation-fill-mode: both;
+    animation-timing-function: var(--expo-out);
     transform-origin: top left;
     z-index: -1;
   }
