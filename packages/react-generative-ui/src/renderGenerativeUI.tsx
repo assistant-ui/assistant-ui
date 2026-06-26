@@ -76,11 +76,16 @@ function renderElement(
   // prop, so it is not in `props`. Inject the framework props last so the model
   // can never override them. `$action` is likewise reserved and stripped from
   // the prop bag during normalization, so it is re-injected here for components
-  // that carry behavior (e.g. `Button`).
+  // that carry behavior (e.g. `Button`). `$dispatch` is the host-provided
+  // dispatcher from the render context, present only when an ActionRegistry is
+  // wired, so interactive components can fire `$action`.
   const props: Record<string, unknown> = {
     ...element.props,
     $status: context.status,
   };
+  if (context.dispatch !== undefined) {
+    props["$dispatch"] = context.dispatch;
+  }
   if (element.action !== undefined) {
     props["$action"] = element.action;
   }

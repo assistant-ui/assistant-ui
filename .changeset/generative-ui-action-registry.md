@@ -1,0 +1,5 @@
+---
+"@assistant-ui/react-generative-ui": patch
+---
+
+add `ActionRegistry` and wire `$action` dispatch end to end. `createActionRegistry(handlers)` builds the host-provided map from `$action.type` to `({ payload }) => unknown | Promise<unknown>`; `emptyActionRegistry` is the no-op default. the renderer injects a `$dispatch` prop (alongside `$status`/`$action`) into interactive components' `render`, threaded from `JSONGenerativeUIOptions.actions` through the render context. the vocabulary's `Button`/`Select`/`Input`/`DatePicker` now attach real event handlers (`onClick`/`onChange`/`onKeyDown`) that call `$dispatch($action)`, merging the user's runtime value (selected option, entered text, picked date) into the payload as `value`. an unknown action type degrades to a no-op with a dev warning rather than throwing. omit `actions` for a read-only render where model-emitted actions do nothing. HITL resume-value typing is left as `unknown` (IR doc open question #2); the resume value reaching the runtime is a follow-up.

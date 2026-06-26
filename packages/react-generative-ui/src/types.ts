@@ -33,32 +33,46 @@ export type GenerativeUIAction = Action;
 /** Whether a node's props are still streaming in or have fully arrived. */
 export type GenerativeUIStatus = "streaming" | "done";
 
+/** The dispatcher an interactive component calls to fire its `$action`. */
+export type GenerativeUIDispatch = (action: Action) => unknown;
+
 /** The render context threaded through {@link renderGenerativeUI}. */
 export type GenerativeUIRenderContext = {
   /** Whether the tool call's arguments are still streaming or are complete. */
   status: GenerativeUIStatus;
+  /** Resolves `$action.type` via the host's {@link ActionRegistry}. */
+  dispatch?: GenerativeUIDispatch;
 };
 
 /**
  * Props a component's `render` receives: its model props, rendered `children`,
  * and the injected framework keys. `$status` is the discriminant — when it is
  * `"done"`, `P` is complete; while `"streaming"`, `P` is partial. `$action` is
- * the node's behavior payload, present only on interactive nodes. Both are
- * `$`-prefixed so they never collide with a real `status`/`action` prop.
+ * the node's behavior payload, present only on interactive nodes. `$dispatch`
+ * fires that payload through the host's {@link ActionRegistry}; it is present
+ * only when a registry was wired. All three are `$`-prefixed so they never
+ * collide with a real `status`/`action`/`dispatch` prop.
  */
 type StreamingRenderProps<P> =
   | (Partial<P> & {
       children?: ReactNode;
       $status: "streaming";
       $action?: Action;
+      $dispatch?: GenerativeUIDispatch;
     })
-  | (P & { children?: ReactNode; $status: "done"; $action?: Action });
+  | (P & {
+      children?: ReactNode;
+      $status: "done";
+      $action?: Action;
+      $dispatch?: GenerativeUIDispatch;
+    });
 
 /** Props for a component that only renders once complete — `$status` is always `"done"`. */
 type StaticRenderProps<P> = P & {
   children?: ReactNode;
   $status: "done";
   $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
 };
 
 /**

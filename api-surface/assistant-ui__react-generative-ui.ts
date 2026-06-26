@@ -125,6 +125,21 @@ declare function normalizeSpec(spec: UISpec): {
   readonly root: NormalizedUINode | readonly NormalizedUINode[];
 };
 
+type ActionDispatchContext = {
+  readonly payload: Action;
+};
+
+type ActionHandler = (ctx: ActionDispatchContext) => unknown | Promise<unknown>;
+
+type ActionRegistry = {
+  dispatch(action: Action): unknown;
+  has(type: string): boolean;
+};
+
+declare function createActionRegistry(handlers: Readonly<Record<string, ActionHandler>>): ActionRegistry;
+
+declare const emptyActionRegistry: ActionRegistry;
+
 type GenerativeUIElement = NormalizedUIElement;
 
 type GenerativeUIProps = NormalizedUIElement["props"];
@@ -135,24 +150,30 @@ type GenerativeUIAction = Action;
 
 type GenerativeUIStatus = "done" | "streaming";
 
+type GenerativeUIDispatch = (action: Action) => unknown;
+
 type GenerativeUIRenderContext = {
   status: GenerativeUIStatus;
+  dispatch?: GenerativeUIDispatch;
 };
 
 type StreamingRenderProps<P> = (Partial<P> & {
   children?: ReactNode;
   $status: "streaming";
   $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
 }) | (P & {
   children?: ReactNode;
   $status: "done";
   $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
 });
 
 type StaticRenderProps<P> = P & {
   children?: ReactNode;
   $status: "done";
   $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
 };
 
 type GenerativeUIComponent<P = any> = {
@@ -1001,6 +1022,7 @@ declare global {
 
 type JSONGenerativeUIOptions = {
   library: GenerativeUILibrary;
+  actions?: ActionRegistry;
 };
 
 type PresentToolOptions = {
@@ -1020,6 +1042,7 @@ type PromptUserTool = ToolDefinition<Record<string, unknown>, unknown> & Backend
 declare class JSONGenerativeUI$1 {
   private readonly library;
   private readonly parameters;
+  private readonly actions;
   constructor(options: JSONGenerativeUIOptions);
   private readonly render;
   present(options?: PresentToolOptions): PresentTool;
@@ -1039,7 +1062,7 @@ declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary,
 declare const defaultGenerativeUILibrary: GenerativeUILibrary;
 
 declare namespace entry_root_default_exports {
-  export { ALERT_TONES, ALIGNS, Action, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, IMAGE_SIZE_TOKENS, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, defaultGenerativeUILibrary, defineGenerativeComponents, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, IMAGE_SIZE_TOKENS, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
 }
 
 declare class JSONGenerativeUI {
@@ -1050,7 +1073,7 @@ declare class JSONGenerativeUI {
 }
 
 declare namespace entry_root_react_server_exports {
-  export { ALERT_TONES, ALIGNS, Action, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, IMAGE_SIZE_TOKENS, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, defaultGenerativeUILibrary, defineGenerativeComponents, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, IMAGE_SIZE_TOKENS, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
 }
 
 export { entry_ir_exports as entry_ir, entry_root_default_exports as entry_root_default, entry_root_react_server_exports as entry_root_react_server };

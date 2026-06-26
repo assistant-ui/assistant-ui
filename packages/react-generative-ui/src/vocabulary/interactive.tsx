@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Action } from "../ir";
 import { BUTTON_STYLES } from "../ir";
-import type { GenerativeUILibrary } from "../types";
+import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
 
 const optionSchema = z.object({
   label: z.string(),
@@ -10,6 +10,18 @@ const optionSchema = z.object({
 
 const actionAttr = (a: Action | undefined): string | undefined =>
   a ? JSON.stringify(a) : undefined;
+
+/** Fires `$action` through `$dispatch` when both are present, merging a runtime
+ * `value` (the user's input) into the payload so the handler sees both the
+ * model-supplied action and what the user did. No-op when no registry is wired. */
+const fire = (
+  $action: Action | undefined,
+  $dispatch: GenerativeUIDispatch | undefined,
+  value?: unknown,
+) => {
+  if (!$action || !$dispatch) return;
+  $dispatch(value === undefined ? $action : { ...$action, value });
+};
 
 export const interactiveVocabulary = {
   Button: {
@@ -23,12 +35,13 @@ export const interactiveVocabulary = {
         .optional()
         .describe("Whether the button spans the full width."),
     }),
-    render: ({ label, buttonStyle, block, $action, children }) => (
+    render: ({ label, buttonStyle, block, $action, $dispatch, children }) => (
       <button
         data-aui="button"
         data-aui-style={buttonStyle}
         data-aui-block={block || undefined}
         data-aui-action={actionAttr($action)}
+        onClick={() => fire($action, $dispatch)}
       >
         {label}
         {children}
@@ -49,12 +62,13 @@ export const interactiveVocabulary = {
         .optional()
         .describe("Accessible label for the control."),
     }),
-    render: ({ options, placeholder, label, $action, children }) => (
+    render: ({ options, placeholder, label, $action, $dispatch, children }) => (
       <select
         data-aui="select"
         data-aui-action={actionAttr($action)}
         aria-label={label}
         defaultValue=""
+        onChange={(e) => fire($action, $dispatch, e.currentTarget.value)}
       >
         {placeholder ? (
           <option value="" disabled>
@@ -84,14 +98,19 @@ export const interactiveVocabulary = {
         .optional()
         .describe("Accessible label for the control."),
     }),
-    render: ({ placeholder, multiline, label, $action }) =>
-      multiline ? (
+    render: ({ placeholder, multiline, label, $action, $dispatch }) => {
+      const submit = (v: string) => fire($action, $dispatch, v);
+      return multiline ? (
         <textarea
           data-aui="input"
           data-aui-multiline
           data-aui-action={actionAttr($action)}
           aria-label={label}
           placeholder={placeholder}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey))
+              submit((e.currentTarget as HTMLTextAreaElement).value);
+          }}
         />
       ) : (
         <input
@@ -99,8 +118,13 @@ export const interactiveVocabulary = {
           data-aui-action={actionAttr($action)}
           aria-label={label}
           placeholder={placeholder}
+          onKeyDown={(e) => {
+            if (e.key === "Enter")
+              submit((e.currentTarget as HTMLInputElement).value);
+          }}
         />
-      ),
+      );
+    },
   },
   DatePicker: {
     description:
@@ -114,7 +138,7 @@ export const interactiveVocabulary = {
         .optional()
         .describe("Accessible label for the control."),
     }),
-    render: ({ value, min, max, label, $action }) => (
+    render: ({ value, min, max, label, $action, $dispatch }) => (
       <input
         type="date"
         data-aui="datepicker"
@@ -123,6 +147,7 @@ export const interactiveVocabulary = {
         defaultValue={value}
         min={min}
         max={max}
+        onChange={(e) => fire($action, $dispatch, e.currentTarget.value)}
       />
     ),
   },

@@ -15,6 +15,12 @@ export {
   ALERT_TONES,
 } from "./ir";
 export { defaultGenerativeUILibrary } from "./vocabulary";
+export { createActionRegistry, emptyActionRegistry } from "./actionRegistry";
+export type {
+  ActionHandler,
+  ActionRegistry,
+  ActionDispatchContext,
+} from "./actionRegistry";
 export type {
   JSONGenerativeUIOptions,
   PresentTool,
@@ -30,6 +36,7 @@ export type {
   GenerativeUIStatus,
   GenerativeUIRenderContext,
   GenerativeUIAction,
+  GenerativeUIDispatch,
 } from "./types";
 export type {
   UINode,

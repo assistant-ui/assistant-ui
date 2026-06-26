@@ -9,6 +9,7 @@ import {
   type PresentToolOptions,
   type PromptUserTool,
 } from "./JSONGenerativeUI.shared";
+import { emptyActionRegistry, type ActionRegistry } from "./actionRegistry";
 import { renderGenerativeUI } from "./renderGenerativeUI";
 import type { GenerativeUILibrary, GenerativeUIStatus } from "./types";
 
@@ -27,15 +28,19 @@ function uiStatus(status: { type: string }): GenerativeUIStatus {
  * `present` is a frontend tool that renders the model's `{ $type, ...props }`
  * tree against the library and resolves immediately. `prompt_user` is a
  * human-in-the-loop tool: the model pauses and the rendered UI supplies the
- * result. Both draw the tree the same way, so they share one `render`.
+ * result. Both draw the tree the same way, so they share one `render`. The
+ * `actions` registry (if provided) is threaded into the render context so
+ * interactive components can fire `$action` through `$dispatch`.
  */
 export class JSONGenerativeUI {
   private readonly library: GenerativeUILibrary;
   private readonly parameters: PresentParameters;
+  private readonly actions: ActionRegistry;
 
   constructor(options: JSONGenerativeUIOptions) {
     this.library = options.library;
     this.parameters = buildPresentParameters(options.library);
+    this.actions = options.actions ?? emptyActionRegistry;
   }
 
   private readonly render = ({
@@ -45,7 +50,10 @@ export class JSONGenerativeUI {
     args: unknown;
     status: { type: string };
   }): ReactNode =>
-    renderGenerativeUI(args, this.library, { status: uiStatus(status) });
+    renderGenerativeUI(args, this.library, {
+      status: uiStatus(status),
+      dispatch: this.actions.dispatch,
+    });
 
   present(options?: PresentToolOptions): PresentTool {
     return {
