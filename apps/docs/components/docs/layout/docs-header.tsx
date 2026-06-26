@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
@@ -21,6 +20,7 @@ import { NavItems } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/components/docs/platform/context";
@@ -167,18 +167,7 @@ export function DocsHeader({
       <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl" />
       <div className="relative flex h-12 w-full items-center px-4">
         <div className="flex min-w-0 flex-1 items-center">
-          <Link href="/" className="flex shrink-0 items-center gap-2">
-            <Image
-              src="/favicon/icon.svg"
-              alt="assistant-ui logo"
-              width={18}
-              height={18}
-              className="dark:hue-rotate-180 dark:invert"
-            />
-            <span className="hidden font-medium tracking-tight sm:inline">
-              assistant-ui
-            </span>
-          </Link>
+          <HeaderBrandLink labelClassName="hidden sm:inline" />
           <span className="text-muted-foreground/40 mx-3">/</span>
           <Link
             href={sectionHref}
