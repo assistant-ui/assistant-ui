@@ -11,6 +11,7 @@ import {
 } from "@assistant-ui/react-streamdown";
 import { type CodeHeaderProps } from "@assistant-ui/react-markdown";
 import { OpenInSyntaxHighlighter } from "@/components/xulux/chat/OpenInCard";
+import { XuluxSuggestionOptions } from "@/components/xulux/chat/XuluxSuggestionOptions";
 import {
   type ComponentPropsWithoutRef,
   type CSSProperties,
@@ -31,6 +32,10 @@ const XuluxMarkdownTextImpl = () => {
       componentsByLanguage={{
         "open-in": {
           SyntaxHighlighter: OpenInSyntaxHighlighter,
+          CodeHeader: () => null,
+        },
+        "suggestion-options": {
+          SyntaxHighlighter: XuluxSuggestionOptions,
           CodeHeader: () => null,
         },
         text: {

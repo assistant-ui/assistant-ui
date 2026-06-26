@@ -218,6 +218,18 @@ Case 1: User wants to build an app:
 \`\`\`
 - Also include the same prompt as a fenced code block with language \`text\` in your response.
 
+6. **Clarifying choices:** If you cannot proceed because the user needs to choose between a few concrete next actions, ask the question and include a fenced code block with language \`suggestion-options\`. This renders clickable auto-send options:
+\`\`\`
+\`\`\`suggestion-options
+{"question":"Which direction should I take?","options":[{"label":"Customize current preview","prompt":"Customize the current preview for this request."},{"label":"Read docs first","prompt":"Read the relevant assistant-ui docs first, then suggest the implementation path."}]}
+\`\`\`
+\`\`\`
+  - Only use \`question\` and \`options\` at the top level.
+  - Each option MUST have only \`label\` and \`prompt\`.
+  - \`label\` should be short button text.
+  - \`prompt\` should be the full user message to auto-send when clicked.
+  - Do not use suggestions when you can confidently proceed with tools or a direct answer.
+
 Case 2: User ask questions about assistant-ui:
 - Use listDocs → readDoc to find relevant information.
 - Use inspectSourceMap / readSourceMapFile to explore source code.
