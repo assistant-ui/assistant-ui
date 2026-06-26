@@ -1,10 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import {
-  AssistantPanelContent,
-  AssistantPanelToggle,
-} from "@/components/docs/assistant/panel";
+import { AssistantPanelContent } from "@/components/docs/assistant/panel";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { DOCS_SIDEBAR_WIDTH } from "@/components/docs/contexts/sidebar";
 import { cn } from "@/lib/utils";
@@ -54,7 +51,6 @@ export function DocsAssistantPanel(): ReactNode {
         } as React.CSSProperties
       }
     >
-      <AssistantPanelToggle />
       <div className="h-full overflow-hidden">
         <AssistantPanelContent />
       </div>
