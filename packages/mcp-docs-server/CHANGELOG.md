@@ -1,5 +1,15 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.37
+
+### Patch Changes
+
+- [#4578](https://github.com/assistant-ui/assistant-ui/pull/4578) [`e65a982`](https://github.com/assistant-ui/assistant-ui/commit/e65a982bad3f1205b60ed57725c537c3fad4794c) - fix: cap aggregate directory content size in assistantUIDocs ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4575](https://github.com/assistant-ui/assistant-ui/pull/4575) [`42db1f7`](https://github.com/assistant-ui/assistant-ui/commit/42db1f7a9759d3d5ba1c8a17a221ebc389b0fcba) - fix: do not bundle unused blog posts in the docs server ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4596](https://github.com/assistant-ui/assistant-ui/pull/4596) [`4e26f35`](https://github.com/assistant-ui/assistant-ui/commit/4e26f35f7f05979c22b86a958dece18a48ffaecb) - feat: expose docs and examples as MCP resources ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.1.36
 
 ### Patch Changes

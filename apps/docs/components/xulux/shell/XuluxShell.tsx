@@ -359,6 +359,7 @@ export function XuluxShell({
                   {...(canvas.downloadUrl
                     ? { downloadUrl: canvas.downloadUrl }
                     : {})}
+                  {...(canvas.versionId ? { versionId: canvas.versionId } : {})}
                   {...(sourceUrl ? { sourceUrl } : {})}
                   {...(canvasTitle ? { title: canvasTitle } : {})}
                 />
@@ -406,6 +407,7 @@ export function XuluxShell({
                   {...(canvas.downloadUrl
                     ? { downloadUrl: canvas.downloadUrl }
                     : {})}
+                  {...(canvas.versionId ? { versionId: canvas.versionId } : {})}
                   {...(sourceUrl ? { sourceUrl } : {})}
                   {...(canvasTitle ? { title: canvasTitle } : {})}
                 />

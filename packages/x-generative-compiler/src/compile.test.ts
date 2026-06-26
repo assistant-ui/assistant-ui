@@ -1289,7 +1289,7 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
         `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nexport default defineToolkit({ weather: makeTool() });`,
         { target: "server" },
       ),
-    ).toThrow(/inline object literal/);
+    ).toThrow(/tool "weather" cannot be `makeTool\(\)`/);
   });
 
   it("requires a render for human tools", () => {
