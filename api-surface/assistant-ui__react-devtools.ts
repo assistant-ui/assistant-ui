@@ -58,7 +58,7 @@ interface DevToolsTabContext {
   apiId: number;
   data: ApiInfo;
   clearEvents: (apiId: number) => void;
-  theme: "light" | "dark";
+  theme: "dark" | "light";
   selection: string | null;
   setSelection: (nodeId: string | null) => void;
   switchToThread?: ((threadId: string) => void | Promise<void>) | undefined;
@@ -78,7 +78,7 @@ declare const builtinPlugins: DevToolsPanelPlugin[];
 
 interface DevToolsModalProps {
   plugins?: DevToolsPanelPlugin[];
-  theme?: "light" | "dark" | "system";
+  theme?: "dark" | "light" | "system";
   client?: DevToolsClient;
 }
 
@@ -90,7 +90,7 @@ declare const inProcessClient: DevToolsClient;
 
 interface DevToolsPanelProps {
   plugins?: DevToolsPanelPlugin[] | undefined;
-  theme?: "light" | "dark";
+  theme?: "dark" | "light";
   onClose?: (() => void) | undefined;
   client?: DevToolsClient | undefined;
 }
@@ -98,7 +98,7 @@ interface DevToolsPanelProps {
 declare const DevToolsPanel: (_param0: DevToolsPanelProps) => import("react").JSX.Element;
 
 interface ShadowRootProps {
-  theme: "light" | "dark";
+  theme: "dark" | "light";
   className?: string;
   style?: CSSProperties;
   children: ReactNode;
@@ -144,7 +144,7 @@ type ClientNames = keyof ClientSchemas extends infer U ? U : never;
 
 type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K> ? ClientSchemas[K]["events"] : never : never;
 
-type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "source" | "query"> : never;
+type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "query" | "source"> : never;
 
 type Unsubscribe = () => void;
 
@@ -211,7 +211,7 @@ type ReadonlyJSONArray = readonly ReadonlyJSONValue[];
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
-type JSONSchema7TypeName = "string" | "number" | "integer" | "boolean" | "object" | "array" | "null";
+type JSONSchema7TypeName = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
 
 type JSONSchema7Type = string | number | boolean | JSONSchema7Object | JSONSchema7Array | null;
 
@@ -391,7 +391,7 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TRe
 
 type ProviderOptions = Record<string, Record<string, unknown>>;
 
-type ToolDisplay = "standalone" | "inline";
+type ToolDisplay = "inline" | "standalone";
 
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
@@ -450,7 +450,7 @@ type McpServerConfig = {
   type: "http" | "sse";
   url: string;
   headers?: Record<string, string>;
-  redirect?: "follow" | "error";
+  redirect?: "error" | "follow";
 } | {
   type: "stdio";
   command: string;

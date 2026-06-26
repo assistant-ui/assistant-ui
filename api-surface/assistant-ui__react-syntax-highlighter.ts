@@ -157,7 +157,7 @@ type ClientNames = keyof ClientSchemas extends infer U ? U : never;
 
 type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K> ? ClientSchemas[K]["events"] : never : never;
 
-type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "source" | "query"> : never;
+type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "query" | "source"> : never;
 
 type Unsubscribe = () => void;
 
@@ -257,23 +257,23 @@ declare global {
   }
 }
 
-declare const makeSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
+declare const makeSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "children" | "language">) => import("react").FC<SyntaxHighlighterProps>;
 
-declare const makePrismSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
+declare const makePrismSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "children" | "language">) => import("react").FC<SyntaxHighlighterProps>;
 
-declare const makePrismAsyncSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
+declare const makePrismAsyncSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "children" | "language">) => import("react").FC<SyntaxHighlighterProps>;
 
 declare namespace entry_full_exports {
   export { makePrismAsyncSyntaxHighlighter, makePrismSyntaxHighlighter, makeSyntaxHighlighter };
 }
 
-declare const makePrismAsyncLightSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
+declare const makePrismAsyncLightSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "children" | "language">) => import("react").FC<SyntaxHighlighterProps>;
 
-declare const makePrismLightSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
+declare const makePrismLightSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "children" | "language">) => import("react").FC<SyntaxHighlighterProps>;
 
-declare const makeLightSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
+declare const makeLightSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "children" | "language">) => import("react").FC<SyntaxHighlighterProps>;
 
-declare const makeLightAsyncSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "language" | "children">) => import("react").FC<SyntaxHighlighterProps>;
+declare const makeLightAsyncSyntaxHighlighter: (config: Omit<import("react-syntax-highlighter").SyntaxHighlighterProps, "children" | "language">) => import("react").FC<SyntaxHighlighterProps>;
 
 declare namespace entry_root_exports {
   export { makeLightAsyncSyntaxHighlighter, makeLightSyntaxHighlighter, makePrismAsyncLightSyntaxHighlighter, makePrismLightSyntaxHighlighter };

@@ -2,7 +2,7 @@ declare const DIRECTIVE = "use generative";
 
 type Target = "client" | "server";
 
-type ToolType = "frontend" | "backend" | "human" | "provider";
+type ToolType = "backend" | "frontend" | "human" | "provider";
 
 interface CompileOptions {
   target: Target;

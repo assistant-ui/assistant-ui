@@ -477,6 +477,33 @@ function normalizeAttachmentUnionType(node, sourceFile, factory) {
   return factory.updateUnionTypeNode(node, types);
 }
 
+function stringLiteralUnionMemberValue(type) {
+  const unwrapped = unwrapParenthesizedType(type);
+  if (
+    ts.isLiteralTypeNode(unwrapped) &&
+    ts.isStringLiteral(unwrapped.literal)
+  ) {
+    return unwrapped.literal.text;
+  }
+  return undefined;
+}
+
+function normalizeStringLiteralUnionType(node, factory) {
+  const memberValues = node.types.map(stringLiteralUnionMemberValue);
+  if (memberValues.some((value) => value === undefined)) return node;
+  if (memberValues.length < 2) return node;
+
+  const sortedIndices = memberValues
+    .map((value, index) => ({ value, index }))
+    .toSorted((a, b) => compareStrings(a.value, b.value) || a.index - b.index);
+  if (sortedIndices.every(({ index }, sortedIndex) => index === sortedIndex)) {
+    return node;
+  }
+
+  const types = sortedIndices.map(({ index }) => node.types[index]);
+  return factory.updateUnionTypeNode(node, types);
+}
+
 function normalizeBundledDeclaration(content) {
   const stripped = content
     .replaceAll("\r\n", "\n")
@@ -496,9 +523,13 @@ function normalizeBundledDeclaration(content) {
       let bindingParameterIndex = 0;
       const visit = (node) => {
         if (ts.isUnionTypeNode(node)) {
-          return normalizeAttachmentUnionType(
+          const attachmentNormalized = normalizeAttachmentUnionType(
             ts.visitEachChild(node, visit, context),
             sourceFile,
+            context.factory,
+          );
+          return normalizeStringLiteralUnionType(
+            attachmentNormalized,
             context.factory,
           );
         }
