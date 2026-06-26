@@ -1,5 +1,14 @@
 # @assistant-ui/vite
 
+## 0.0.7
+
+### Patch Changes
+
+- [#4608](https://github.com/assistant-ui/assistant-ui/pull/4608) [`a7b06f7`](https://github.com/assistant-ui/assistant-ui/commit/a7b06f76876078fc2fcbb92a86fa0e1530fde782) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`d162f44`](https://github.com/assistant-ui/assistant-ui/commit/d162f440502c29e4293e33c0c081e87c36d67bba)]:
+  - @assistant-ui/x-generative-compiler@0.0.7
+
 ## 0.0.6
 
 ### Patch Changes

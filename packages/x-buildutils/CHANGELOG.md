@@ -1,5 +1,11 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.17
+
+### Patch Changes
+
+- [#4598](https://github.com/assistant-ui/assistant-ui/pull/4598) [`6d947c9`](https://github.com/assistant-ui/assistant-ui/commit/6d947c96658a4156b41a13c89b07f6325a3328fa) - fix: preserve package imports as external build specifiers ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.16
 
 ### Patch Changes

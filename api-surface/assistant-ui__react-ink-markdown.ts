@@ -10,7 +10,7 @@ type MarkdownTextProps = {
   codeGutter?: boolean;
   codeWrap?: boolean;
   hyperlinks?: boolean;
-  tableBorder?: "unicode" | "ascii" | "none";
+  tableBorder?: "ascii" | "none" | "unicode";
   tablePadding?: number;
   tableDense?: boolean;
   quotePrefix?: string;

@@ -36,7 +36,7 @@
     "react-resizable-panels": "^4.11.2",
     "react-shiki": "^0.10.1",
     "react-syntax-highlighter": "^16.1.1",
-    "recharts": "^3.8.1",
+    "recharts": "^3.9.0",
     "remark-gfm": "^4.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",

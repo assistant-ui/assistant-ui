@@ -1163,7 +1163,16 @@ export default defineToolkit({
         `"use generative";\nimport { defineToolkit, externalTool } from "@assistant-ui/react";\nexport default defineToolkit({ search: { execute: externalTool() } });`,
         { target: "client" },
       ),
-    ).toThrow(/external tool must declare a `render` or `renderText`/);
+    ).toThrow(/external tool "search" must declare a `render` or `renderText`/);
+  });
+
+  it("falls back to an unnamed external tool diagnostic for computed keys", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit, externalTool } from "@assistant-ui/react";\nconst search = "search";\nexport default defineToolkit({ [search]: { execute: externalTool() } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/an external tool must declare a `render` or `renderText`/);
   });
 });
 
@@ -1289,7 +1298,7 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
         `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nexport default defineToolkit({ weather: makeTool() });`,
         { target: "server" },
       ),
-    ).toThrow(/inline object literal/);
+    ).toThrow(/tool "weather" cannot be `makeTool\(\)`/);
   });
 
   it("requires a render for human tools", () => {
@@ -1298,7 +1307,16 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
         `"use generative";\nimport { defineToolkit, humanTool } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { execute: humanTool() } });`,
         { target: "client" },
       ),
-    ).toThrow(/must declare a `render`/);
+    ).toThrow(/human tool "ask" must declare a `render`/);
+  });
+
+  it("falls back to an unnamed human tool diagnostic for computed keys", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit, humanTool } from "@assistant-ui/react";\nconst ask = "ask";\nexport default defineToolkit({ [ask]: { execute: humanTool() } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/a human tool must declare a `render`/);
   });
 
   it("requires a render or renderText for frontend tools", () => {
@@ -1307,7 +1325,16 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
         `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nexport default defineToolkit({ toast: { execute: async () => { "use client"; return 1; } } });`,
         { target: "client" },
       ),
-    ).toThrow(/must declare a `render` or `renderText`/);
+    ).toThrow(/frontend tool "toast" must declare a `render` or `renderText`/);
+  });
+
+  it("falls back to an unnamed frontend tool diagnostic for computed keys", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nconst toast = "toast";\nexport default defineToolkit({ [toast]: { execute: async () => { "use client"; return 1; } } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/a frontend tool must declare a `render` or `renderText`/);
   });
 
   it("requires every tool to declare an execute", () => {
@@ -1316,7 +1343,16 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
         `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { render: () => null } });`,
         { target: "client" },
       ),
-    ).toThrow(/must declare an `execute`/);
+    ).toThrow(/tool "ask" must declare an `execute`/);
+  });
+
+  it("falls back to an unnamed execute diagnostic for computed keys", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nconst ask = "ask";\nexport default defineToolkit({ [ask]: { render: () => null } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/every tool must declare an `execute`/);
   });
 
   it("infers `human` from execute: humanTool() and drops it on both builds", () => {

@@ -11,7 +11,7 @@ type SpanItemState = {
   parentSpanId: string | null;
   name: string;
   type: string;
-  status: "running" | "completed" | "failed" | "skipped";
+  status: "completed" | "failed" | "running" | "skipped";
   startedAt: number;
   endedAt: number | null;
   latencyMs: number | null;
@@ -219,7 +219,7 @@ type SpanData = {
   parentSpanId: string | null;
   name: string;
   type: string;
-  status: "running" | "completed" | "failed" | "skipped";
+  status: "completed" | "failed" | "running" | "skipped";
   startedAt: number;
   endedAt: number | null;
   latencyMs: number | null;

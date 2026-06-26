@@ -10,18 +10,18 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.73",
+    "@ai-sdk/openai": "^3.0.74",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "ai": "^6.0.208",
+    "ai": "^6.0.209",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.21.0",
     "next": "^16.2.9",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "recharts": "^3.8.1",
+    "recharts": "^3.9.0",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
   },
