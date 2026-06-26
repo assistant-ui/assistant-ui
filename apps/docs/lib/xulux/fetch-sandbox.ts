@@ -1,12 +1,8 @@
-import { setDefaultResultOrder } from "node:dns";
-
 const SANDBOX_FETCH_HEADERS = {
   Accept: "application/zip, application/octet-stream, */*",
   // Blaxel preview hosts intermittently reset Node's default fetch path.
   "User-Agent": "curl/8.7.1",
 };
-
-setDefaultResultOrder("ipv4first");
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 300;
@@ -35,7 +31,7 @@ function mergeHeaders(headers?: HeadersInit): Headers {
 }
 
 export async function fetchSandboxResource(
-  url: URL,
+  url: string | URL,
   init?: RequestInit,
 ): Promise<Response> {
   let lastError: unknown;

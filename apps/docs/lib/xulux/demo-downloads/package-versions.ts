@@ -63,7 +63,7 @@ export function dependencyVersionsFromPackage(
         pkg.dependencies?.[name] ??
         pkg.devDependencies?.[name] ??
         pkg.peerDependencies?.[name];
-      if (typeof version === "string" && version && version !== "workspace:*") {
+      if (isInstallableVersion(version)) {
         return [name, version];
       }
       return [name, dependencyVersion(snapshot, name)];
@@ -86,11 +86,19 @@ function dependencyVersion(snapshot: Snapshot, name: string) {
     docsPkg.devDependencies?.[name] ??
     docsPkg.peerDependencies?.[name];
 
-  if (typeof version === "string" && version && version !== "workspace:*") {
+  if (isInstallableVersion(version)) {
     return version;
   }
 
   throw new Error(`No installable version found for ${name}.`);
+}
+
+function isInstallableVersion(version: unknown): version is string {
+  return (
+    typeof version === "string" &&
+    version.length > 0 &&
+    !version.startsWith("workspace:")
+  );
 }
 
 function packageJsonFromSnapshot(snapshot: Snapshot, snapshotKey: string) {
