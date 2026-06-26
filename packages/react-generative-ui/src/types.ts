@@ -40,7 +40,6 @@ export type GenerativeUIDispatch = (action: Action) => unknown;
 export type GenerativeUIRenderContext = {
   /** Whether the tool call's arguments are still streaming or are complete. */
   status: GenerativeUIStatus;
-  /** Resolves `$action.type` via the host's {@link ActionRegistry}. */
   dispatch?: GenerativeUIDispatch;
 };
 

@@ -1,10 +1,6 @@
 import type { Action } from "./ir";
 
-/**
- * Context handed to an {@link ActionHandler} when an `$action` fires. Reserved
- * for the dispatch path's runtime needs (e.g. the tool-call id, an abort
- * signal); the handler reads what it needs and ignores the rest.
- */
+/** Context handed to an {@link ActionHandler} when an `$action` fires. */
 export type ActionDispatchContext = {
   /**
    * The action payload. For fire-and-forget actions this is the `$action` as
@@ -35,9 +31,7 @@ export type ActionHandler = (
  * {@link createActionRegistry} and pass it to `JSONGenerativeUI`.
  */
 export type ActionRegistry = {
-  /** Resolves `$action.type` to its handler and calls it, returning its result. */
   dispatch(action: Action): unknown;
-  /** Whether a handler is registered for `type`. */
   has(type: string): boolean;
 };
 
