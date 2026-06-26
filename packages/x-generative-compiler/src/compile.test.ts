@@ -369,6 +369,37 @@ export default defineToolkit({ present: ui.notARealMethod() });`;
     );
   });
 
+  it("allows an aliased JSONGenerativeUI import", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { JSONGenerativeUI as GenUI } from "@assistant-ui/react-generative-ui";
+const ui = new GenUI({ library: {} });
+export default defineToolkit({ present: ui.present() });`;
+
+    expect(compileGenerative(src, { target: "server" }).code).toContain(
+      "ui.present()",
+    );
+    expect(compileGenerative(src, { target: "client" }).code).toContain(
+      "ui.present()",
+    );
+  });
+
+  it("does not trust a local class named JSONGenerativeUI", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+class JSONGenerativeUI {
+  present() {
+    return makeTool();
+  }
+}
+const ui = new JSONGenerativeUI();
+export default defineToolkit({ present: ui.present() });`;
+
+    expect(() => compileGenerative(src, { target: "server" })).toThrow(
+      /tool "present" cannot be `ui\.present\(\)`/,
+    );
+  });
+
   it("rejects a method call on an unknown (non-JSONGenerativeUI) object", () => {
     const src = `"use generative";
 import { defineToolkit } from "@assistant-ui/react";
