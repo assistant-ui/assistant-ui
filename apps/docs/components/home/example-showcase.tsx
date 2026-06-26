@@ -156,6 +156,9 @@ export function ExampleShowcase() {
     if (!isFullscreen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // An open Radix layer (dropdown, popover, dialog) handles Escape in the
+      // capture phase and preventDefaults it; let that close first, don't unzoom.
+      if (e.defaultPrevented) return;
       if (e.key === "Escape") toggleFullscreen();
     };
     document.addEventListener("keydown", handleKeyDown);
