@@ -37,6 +37,8 @@ const DISTRIBUTION_PACKAGES = [
   "@assistant-ui/react-native",
   "@assistant-ui/react-ink",
 ] as const;
+/** Package that exports the generative UI runtime split by export condition. */
+const GENERATIVE_UI_PACKAGE = "@assistant-ui/react-generative-ui";
 /**
  * The class whose instances expose split-by-condition tools (`present()`,
  * `promptUser()`). A toolkit entry that calls a method on one of these passes
@@ -600,6 +602,7 @@ function unwrapToCall(node: t.Node, name: string): t.CallExpression | null {
  */
 function collectGenerativeInstances(ast: t.File): Set<string> {
   const names = new Set<string>();
+  const generativeFactories = collectGenerativeFactoryImports(ast);
   for (const statement of ast.program.body) {
     if (!t.isVariableDeclaration(statement)) continue;
     for (const declaration of statement.declarations) {
@@ -607,9 +610,32 @@ function collectGenerativeInstances(ast: t.File): Set<string> {
       if (
         t.isIdentifier(id) &&
         t.isNewExpression(init) &&
-        t.isIdentifier(init.callee, { name: GENERATIVE_FACTORY })
+        t.isIdentifier(init.callee) &&
+        generativeFactories.has(init.callee.name)
       ) {
         names.add(id.name);
+      }
+    }
+  }
+  return names;
+}
+
+function collectGenerativeFactoryImports(ast: t.File): Set<string> {
+  const names = new Set<string>();
+  for (const statement of ast.program.body) {
+    if (
+      !t.isImportDeclaration(statement) ||
+      statement.source.value !== GENERATIVE_UI_PACKAGE
+    ) {
+      continue;
+    }
+
+    for (const specifier of statement.specifiers) {
+      if (
+        t.isImportSpecifier(specifier) &&
+        t.isIdentifier(specifier.imported, { name: GENERATIVE_FACTORY })
+      ) {
+        names.add(specifier.local.name);
       }
     }
   }
