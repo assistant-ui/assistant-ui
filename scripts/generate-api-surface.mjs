@@ -504,7 +504,7 @@ function normalizeStringLiteralUnionType(node, factory) {
   return factory.updateUnionTypeNode(node, types);
 }
 
-function normalizeBundledDeclaration(content) {
+export function normalizeBundledDeclaration(content) {
   const stripped = content
     .replaceAll("\r\n", "\n")
     .replace(/ ?\/\/# sourceMappingURL=.*$/gm, "")
@@ -817,4 +817,6 @@ async function main() {
   }
 }
 
-await main();
+if (import.meta.main) {
+  await main();
+}

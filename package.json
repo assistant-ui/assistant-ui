@@ -13,6 +13,7 @@
     "api-surface": "pnpm api-surface:build && node scripts/generate-api-surface.mjs",
     "api-surface:build": "pnpm exec turbo build --filter='./packages/*' --force",
     "api-surface:check": "node scripts/check-api-surface.mjs",
+    "api-surface:test": "node --test scripts/generate-api-surface.test.mjs",
     "lint": "pnpm exec oxlint && pnpm exec oxfmt --check",
     "check:resource-memo": "node packages/x-buildutils/check-resource-memoization.mjs",
     "lint:fix": "pnpm exec oxlint --fix && pnpm exec oxfmt",
