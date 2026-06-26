@@ -6,7 +6,7 @@ const MAX_DOWNLOAD_SEARCH_LENGTH = 2048;
 const MAX_DOWNLOAD_SEARCH_VALUE_LENGTH = 512;
 const DOWNLOAD_SEARCH_KEY_PATTERN = /^[a-zA-Z0-9._-]{1,64}$/;
 
-function templateId(template: XuluxTemplate): string {
+function getTemplateId(template: XuluxTemplate): string {
   return template.templateId ?? template.id;
 }
 
@@ -24,12 +24,12 @@ function findTemplate(
   if (versionId) {
     const version = templates.find(
       (template) =>
-        templateId(template) === id && template.versionId === versionId,
+        getTemplateId(template) === id && template.versionId === versionId,
     );
     if (version) return version;
   }
 
-  return templates.find((template) => templateId(template) === id);
+  return templates.find((template) => getTemplateId(template) === id);
 }
 
 export function resolveSandboxDownloadUrl({
