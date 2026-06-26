@@ -1,6 +1,7 @@
 import { getXuluxHostedTemplatesCatalog } from "@/lib/xulux/templates-catalog";
 import type { XuluxTemplate } from "@/components/xulux/templates/types";
 import { getDemoDownloadManifest } from "@/lib/xulux/demo-downloads/manifest";
+import { fetchSandboxResource } from "@/lib/xulux/fetch-sandbox";
 import { tool, zodSchema } from "ai";
 import z from "zod";
 
@@ -37,7 +38,7 @@ function hasConfig(config: Record<string, unknown> | undefined): boolean {
 }
 
 function isFixedDemo(entry: XuluxTemplate): boolean {
-  return entry.kind === "example" && !!getDemoDownloadManifest(entry.id);
+  return entry.kind === "example";
 }
 
 async function fetchTemplateContract(entry: XuluxTemplate, versionId?: string) {
@@ -45,7 +46,7 @@ async function fetchTemplateContract(entry: XuluxTemplate, versionId?: string) {
   try {
     const url = new URL("/api/template/contract", entry.sandboxBaseUrl);
     if (versionId) url.searchParams.set("v", versionId);
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchSandboxResource(url.toString());
     if (!res.ok) return null;
     return (await res.json()) as Record<string, unknown>;
   } catch {
@@ -67,6 +68,27 @@ type TemplateListMeta = {
 };
 
 const TEMPLATE_LIST_META: Record<string, TemplateListMeta> = {
+  "base-assistant-ui": {
+    name: "Configurable Base Assistant UI",
+    summary:
+      "A hosted configurable version of the assistant-ui Base demo with the same full-page chat shell, thread list, composer, model picker, mic input, suggestions, slash commands, and no-key demo flows.",
+    assistantPlacement: "full-page chat shell",
+    features: [
+      "assistant-ui Base demo layout with sidebar thread list and centered composer",
+      "Composer actions including attachments, model picker, send, and mic input",
+      "LocalStorage thread persistence with Assistant Cloud fallback when configured in source",
+      "Controlled suggestion groups and slash commands",
+      "Deterministic demo flows when no model key is present",
+      "Hosted preview sessions and downloadable materialized starter app",
+    ],
+    customizable: [
+      "brandTheme: preset plus accent, background, surface, and text hex overrides",
+      "assistant: appName, welcome headline/body, composer placeholder, new-thread/new-chat labels",
+      "assistant.suggestionGroups: controlled icon ids and prompt options with optional flowId",
+      "assistant.slashCommands: controlled icon ids",
+      "assistant.tools and assistant.demoFlows for no-key mock behavior",
+    ],
+  },
   "webpage-assistant": {
     name: "Webpage with Assistant",
     summary:
@@ -109,7 +131,23 @@ const TEMPLATE_LIST_META: Record<string, TemplateListMeta> = {
 
 function fixedDemoListMeta(entry: XuluxTemplate): TemplateListMeta | undefined {
   const demo = getDemoDownloadManifest(entry.id);
-  if (!demo) return undefined;
+  if (!demo) {
+    if (entry.id === "expo-react-native") {
+      return {
+        name: entry.title,
+        summary: entry.description,
+        assistantPlacement: "hosted Expo web preview",
+        features: [
+          "Expo / React Native mobile chat UI",
+          "Drawer navigation and thread management",
+          "Streaming assistant responses through assistant-ui runtime",
+          "Native mobile UI primitives, with hosted web preview for inspection",
+        ],
+        customizable: [],
+      };
+    }
+    return undefined;
+  }
 
   return {
     name: demo.name,
@@ -121,6 +159,181 @@ function fixedDemoListMeta(entry: XuluxTemplate): TemplateListMeta | undefined {
 }
 
 const CONFIG_ROOTS_SCHEMAS: Record<string, Record<string, unknown>> = {
+  "base-assistant-ui": {
+    brandTheme: {
+      description:
+        "Controls the Base chat visual theme. Use a preset first, then optional 6-digit hex overrides for key surfaces.",
+      schema: {
+        preset: {
+          type: "string",
+          enum: [
+            "assistantDark",
+            "assistantLight",
+            "neutralDark",
+            "neutralLight",
+          ],
+          default: "assistantDark",
+          optional: true,
+        },
+        accent: {
+          type: "string",
+          optional: true,
+          description: "6-digit hex color such as #14b8a6.",
+        },
+        background: {
+          type: "string",
+          optional: true,
+          description: "6-digit hex color for the main background.",
+        },
+        surface: {
+          type: "string",
+          optional: true,
+          description: "6-digit hex color for sidebar and composer surfaces.",
+        },
+        text: {
+          type: "string",
+          optional: true,
+          description: "6-digit hex color for primary foreground text.",
+        },
+      },
+    },
+    assistant: {
+      description:
+        "Controls visible Base chat labels, welcome copy, suggestions, slash commands, generic tools, and deterministic no-key demo flows. Omit fields you do not want to change.",
+      schema: {
+        appName: {
+          type: "string",
+          default: "assistant-ui",
+          description: "Visible app name in the sidebar.",
+        },
+        welcome: {
+          headline: {
+            type: "string",
+            default: "How can I help you today?",
+          },
+          body: {
+            type: "string",
+            optional: true,
+            description: "Optional supporting welcome text.",
+          },
+        },
+        labels: {
+          type: "object",
+          optional: true,
+          fields: {
+            composerPlaceholder: {
+              type: "string",
+              default: "Send a message... (@ to mention, / for commands)",
+            },
+            newThread: { type: "string", default: "New Thread" },
+            newChat: { type: "string", default: "New Chat" },
+          },
+        },
+        suggestionGroups: {
+          type: "array",
+          description:
+            "Suggestion buttons shown under the composer. Use only supported icon ids.",
+          item: {
+            id: { type: "string" },
+            label: { type: "string" },
+            icon: {
+              type: "string",
+              optional: true,
+              enum: [
+                "weather",
+                "code",
+                "write",
+                "analyze",
+                "brainstorm",
+                "search",
+                "document",
+                "help",
+              ],
+            },
+            options: {
+              type: "array",
+              item: {
+                label: { type: "string" },
+                prompt: { type: "string" },
+                flowId: {
+                  type: "string",
+                  optional: true,
+                  description:
+                    "When present, should match a key in assistant.demoFlows.",
+                },
+              },
+            },
+          },
+        },
+        slashCommands: {
+          type: "array",
+          optional: true,
+          description:
+            "Slash-command menu entries. Use only supported icon ids.",
+          item: {
+            id: { type: "string" },
+            description: { type: "string" },
+            icon: {
+              type: "string",
+              optional: true,
+              enum: ["FileText", "Languages", "Globe", "HelpCircle"],
+            },
+          },
+        },
+        tools: {
+          type: "array",
+          optional: true,
+          description:
+            "Generic demo tools available to no-key demo flows. Custom ids are supported and render as generic tool cards.",
+          item: {
+            id: { type: "string" },
+            displayName: { type: "string" },
+            aiDescription: { type: "string" },
+            rendererType: {
+              type: "string",
+              enum: ["generic"],
+              default: "generic",
+              optional: true,
+            },
+          },
+        },
+        demoFlows: {
+          type: "object",
+          optional: true,
+          description:
+            "Keyed by flow id. A suggestion option can trigger a flow through options[].flowId. Each step can call one configured generic tool.",
+          valueSchema: {
+            title: { type: "string", optional: true },
+            triggerPhrases: {
+              type: "array",
+              optional: true,
+              items: "string",
+            },
+            steps: {
+              type: "array",
+              item: {
+                id: { type: "string" },
+                assistantText: { type: "string" },
+                toolId: {
+                  type: "string",
+                  description: "Must match an id in assistant.tools.",
+                },
+                input: { type: "object" },
+                output: { type: "object" },
+              },
+            },
+            finalResponse: { type: "string" },
+          },
+        },
+        demoModeNotice: {
+          type: "string",
+          optional: true,
+          description:
+            "Short notice shown when deterministic demo mode is used.",
+        },
+      },
+    },
+  },
   "webpage-assistant": {
     hostUi: {
       description:
@@ -655,6 +868,89 @@ const TOOLS_META: Record<
     }>;
   }
 > = {
+  "base-assistant-ui": {
+    builtIn: [
+      {
+        id: "getWeather",
+        description: "Demo weather lookup tool used by the default Base flow.",
+        renderer: "generic",
+        input: {
+          city: { type: "string", required: true },
+          units: {
+            type: "string",
+            required: false,
+            enum: ["fahrenheit", "celsius"],
+          },
+        },
+        outputShape: {
+          city: "string",
+          summary: "string",
+          temperature: "string",
+          wind: "string",
+        },
+      },
+      {
+        id: "inspectCode",
+        description: "Demo code helper tool used by the default Base flow.",
+        renderer: "generic",
+        input: {
+          language: { type: "string", required: true },
+          topic: { type: "string", required: true },
+        },
+        outputShape: {
+          language: "string",
+          notes: ["string"],
+        },
+      },
+      {
+        id: "draftContent",
+        description: "Demo writing helper tool used by the default Base flow.",
+        renderer: "generic",
+        input: {
+          format: { type: "string", required: true },
+          tone: { type: "string", required: false },
+        },
+        outputShape: {
+          outline: ["string"],
+        },
+      },
+      {
+        id: "compareItems",
+        description: "Demo analysis helper tool used by the default Base flow.",
+        renderer: "generic",
+        input: {
+          criteria: { type: "array", required: true, items: "string" },
+        },
+        outputShape: {
+          columns: ["string"],
+          rows: "number",
+        },
+      },
+      {
+        id: "brainstormIdeas",
+        description:
+          "Demo brainstorming helper tool used by the default Base flow.",
+        renderer: "generic",
+        input: {
+          count: { type: "number", required: true },
+          grouping: { type: "string", required: false },
+        },
+        outputShape: {
+          themes: ["string"],
+          count: "number",
+        },
+      },
+    ],
+    customToolSupported: true,
+    renderers: [
+      {
+        type: "generic",
+        description:
+          "Fallback assistant-ui tool card rendering configured tool input and output as structured data.",
+        requiredOutputShape: "any JSON-serializable value",
+      },
+    ],
+  },
   "webpage-assistant": {
     builtIn: [
       {
@@ -885,6 +1181,15 @@ const TOOLS_META: Record<
 };
 
 const RULES: Record<string, string[]> = {
+  "base-assistant-ui": [
+    "Top-level config should use only assistant and brandTheme.",
+    "brandTheme color overrides must be 6-digit hex colors such as #14b8a6.",
+    "assistant.suggestionGroups[].icon must be one of weather, code, write, analyze, brainstorm, search, document, or help.",
+    "assistant.slashCommands[].icon must be one of FileText, Languages, Globe, or HelpCircle.",
+    "assistant.suggestionGroups[].options[].flowId should match a key in assistant.demoFlows.",
+    "assistant.demoFlows.*.steps[].toolId must match an id in assistant.tools.",
+    "Configured tools render with the generic renderer unless source code is changed to add a specialized renderer.",
+  ],
   "webpage-assistant": [
     "hostUi.root.props.defaultPageId must be one of the ids in root.props.pages.",
     "hostUi.root.props.navGroups[].pageIds must reference ids that exist in pages.",
@@ -987,15 +1292,18 @@ export function createTemplateTools() {
 
         if (isFixedDemo(entry)) {
           const demo = getDemoDownloadManifest(entry.id);
+          const meta = fixedDemoListMeta(entry);
           return {
             id: tid,
-            name: demo?.name ?? entry.title,
+            name: demo?.name ?? meta?.name ?? entry.title,
             selectedVersionId: null,
-            summary: demo?.description ?? entry.description,
-            assistantPlacement: "full-page demo route",
-            features: demo?.features ?? [],
+            summary: demo?.description ?? meta?.summary ?? entry.description,
+            assistantPlacement:
+              meta?.assistantPlacement ?? "full-page demo route",
+            features: demo?.features ?? meta?.features ?? [],
             customizable: [],
             previewUrl: entry.previewUrl,
+            previewFrame: entry.previewFrame,
             downloadUrl: entry.downloadUrl,
             sourcePath: demo?.entry ?? entry.sourcePath,
             tools: {
@@ -1010,8 +1318,9 @@ export function createTemplateTools() {
                 "If the user needs domain-specific content or behavior changes, choose a configurable hosted template or produce a custom implementation brief instead.",
               ],
             },
-            fixedDemoNote:
-              "This is a fixed assistant-ui demo. It supports preview and download, but not template config.",
+            fixedDemoNote: entry.downloadUrl
+              ? "This is a fixed assistant-ui demo. It supports preview and download, but not template config."
+              : "This is a fixed assistant-ui demo. It supports preview, but download is not wired for this platform yet.",
           };
         }
 
@@ -1107,8 +1416,8 @@ export function createTemplateTools() {
             templateId: tid,
             versionId: null,
             previewUrl: entry.previewUrl ?? `/demos/${entry.id}`,
-            downloadUrl:
-              entry.downloadUrl ?? `/api/xulux/demo-download?slug=${entry.id}`,
+            downloadUrl: entry.downloadUrl,
+            previewFrame: entry.previewFrame,
             title: entry.title,
             summary: `Opened ${entry.title} as a fixed demo.`,
           };
@@ -1126,7 +1435,7 @@ export function createTemplateTools() {
           try {
             const sessionUrl = new URL("/api/preview/session", baseUrl);
             if (versionId) sessionUrl.searchParams.set("v", versionId);
-            const res = await fetch(sessionUrl, {
+            const res = await fetchSandboxResource(sessionUrl.toString(), {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(config),
@@ -1167,6 +1476,11 @@ export function createTemplateTools() {
                 withVersion(data.downloadUrl ?? "/api/download", versionId),
               ),
               title: entry.title,
+              ...(entry.previewFrame
+                ? { previewFrame: entry.previewFrame }
+                : {}),
+              customized: true,
+              config,
               summary: `Opened ${entry.title} with custom configuration.`,
               validationWarnings: data.validationWarnings ?? [],
             };
@@ -1184,6 +1498,7 @@ export function createTemplateTools() {
           versionId: versionId ?? entry.versionId,
           previewUrl: entry.previewUrl ?? baseUrl,
           downloadUrl: entry.downloadUrl ?? `${baseUrl}/api/download`,
+          ...(entry.previewFrame ? { previewFrame: entry.previewFrame } : {}),
           title: entry.title,
           summary: `Opened ${entry.title}.`,
         };

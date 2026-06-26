@@ -3,6 +3,9 @@ type Snapshot = Record<string, string>;
 const WORKSPACE_PACKAGE_JSON: Record<string, string> = {
   "@assistant-ui/react": "packages/react/package.json",
   "@assistant-ui/react-ai-sdk": "packages/react-ai-sdk/package.json",
+  "@assistant-ui/react-ink": "packages/react-ink/package.json",
+  "@assistant-ui/react-ink-markdown":
+    "packages/react-ink-markdown/package.json",
   "@assistant-ui/react-lexical": "packages/react-lexical/package.json",
   "@assistant-ui/react-markdown": "packages/react-markdown/package.json",
 };
@@ -45,6 +48,26 @@ export function dependencyVersions(
 ) {
   return Object.fromEntries(
     names.map((name) => [name, dependencyVersion(snapshot, name)]),
+  );
+}
+
+export function dependencyVersionsFromPackage(
+  snapshot: Snapshot,
+  packagePath: string,
+  names: readonly string[],
+) {
+  const pkg = packageJsonFromSnapshot(snapshot, packagePath);
+  return Object.fromEntries(
+    names.map((name) => {
+      const version =
+        pkg.dependencies?.[name] ??
+        pkg.devDependencies?.[name] ??
+        pkg.peerDependencies?.[name];
+      if (typeof version === "string" && version && version !== "workspace:*") {
+        return [name, version];
+      }
+      return [name, dependencyVersion(snapshot, name)];
+    }),
   );
 }
 
