@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { useAuiState, type ToolCallMessagePart } from "@assistant-ui/react";
 import type { XuluxPreviewFrame } from "../templates/types";
+import { useAuiState, type ToolCallMessagePart } from "@assistant-ui/react";
 
 type OpenTemplatePreviewResult =
   | {

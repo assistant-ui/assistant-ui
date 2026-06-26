@@ -1476,13 +1476,13 @@ export function createTemplateTools() {
                 withVersion(data.downloadUrl ?? "/api/download", versionId),
               ),
               title: entry.title,
-              ...(entry.previewFrame
-                ? { previewFrame: entry.previewFrame }
-                : {}),
               customized: true,
               config,
               summary: `Opened ${entry.title} with custom configuration.`,
               validationWarnings: data.validationWarnings ?? [],
+              ...(entry.previewFrame
+                ? { previewFrame: entry.previewFrame }
+                : {}),
             };
           } catch (err) {
             return {
