@@ -5,8 +5,12 @@ import {
   type Node as TsNode,
 } from "ts-morph";
 import * as path from "node:path";
-import { REACT_INDEX, REPO_ROOT } from "./paths.mts";
-import { classifyExport, relatedOrSupportingRole } from "./classify.mts";
+import { REACT_GENERATIVE_UI_INDEX, REACT_INDEX, REPO_ROOT } from "./paths.mts";
+import {
+  GENERATIVE_UI_PACKAGE_EXPORTS,
+  classifyExport,
+  relatedOrSupportingRole,
+} from "./classify.mts";
 import {
   chooseDeclaration,
   extractJsDoc,
@@ -183,6 +187,14 @@ const MANUAL_API_REFERENCE_LINKS = new Map([
     "/docs/api-reference/integrations/react-ai-sdk#aisdktoolkit",
   ],
   [
+    "JSONGenerativeUI.present",
+    "/docs/api-reference/generative-ui/json-generative-ui#jsongenerativeui",
+  ],
+  [
+    "JSONGenerativeUI.promptUser",
+    "/docs/api-reference/generative-ui/json-generative-ui#jsongenerativeui",
+  ],
+  [
     "AssistantState",
     "/docs/api-reference/primitives/assistant-if#assistantstate",
   ],
@@ -323,7 +335,9 @@ function linkItemsFor(inputs: ClassifiedExportInput[]): ApiReferenceLinkItem[] {
 }
 
 let reactApiInputs: ClassifiedExportInput[] | undefined;
-let reactApiLinkItems: ApiReferenceLinkItem[] | undefined;
+let reactGenerativeUIApiInputs: ClassifiedExportInput[] | undefined;
+let mainApiInputs: ClassifiedExportInput[] | undefined;
+let mainApiLinkItems: ApiReferenceLinkItem[] | undefined;
 let reactApiRenderOptions: JsDocRenderOptions | undefined;
 
 function getReactApiInputs(): ClassifiedExportInput[] {
@@ -331,9 +345,24 @@ function getReactApiInputs(): ClassifiedExportInput[] {
   return reactApiInputs;
 }
 
-function getReactApiLinkItems(): ApiReferenceLinkItem[] {
-  reactApiLinkItems ??= linkItemsFor(getReactApiInputs());
-  return reactApiLinkItems;
+function getReactGenerativeUIApiInputs(): ClassifiedExportInput[] {
+  reactGenerativeUIApiInputs ??= classifyExportInputs(
+    collectExportInputs(REACT_GENERATIVE_UI_INDEX),
+  ).filter((item) => GENERATIVE_UI_PACKAGE_EXPORTS.has(item.name));
+  return reactGenerativeUIApiInputs;
+}
+
+function getMainApiInputs(): ClassifiedExportInput[] {
+  mainApiInputs ??= [
+    ...getReactApiInputs(),
+    ...getReactGenerativeUIApiInputs(),
+  ];
+  return mainApiInputs;
+}
+
+function getMainApiLinkItems(): ApiReferenceLinkItem[] {
+  mainApiLinkItems ??= linkItemsFor(getMainApiInputs());
+  return mainApiLinkItems;
 }
 
 /** Bundled JSDoc render options (link resolver + known-export predicate) for
@@ -342,7 +371,7 @@ function getReactApiLinkItems(): ApiReferenceLinkItem[] {
  *  api-reference pass resolves them. */
 export function getReactApiRenderOptions(): JsDocRenderOptions {
   reactApiRenderOptions ??= {
-    linkResolver: createApiReferenceLinkResolver(getReactApiLinkItems()),
+    linkResolver: createApiReferenceLinkResolver(getMainApiLinkItems()),
     isKnownExport: createKnownExportPredicate(getAllExportedNames()),
   };
   return reactApiRenderOptions;
@@ -395,7 +424,7 @@ function buildExportInfo(
 }
 
 export function discoverExports(): ExportInfo[] {
-  const inputs = getReactApiInputs();
+  const inputs = getMainApiInputs();
   const renderOptions = getReactApiRenderOptions();
   return inputs.map((input) => buildExportInfo(input, renderOptions));
 }
@@ -411,7 +440,7 @@ export function discoverIntegrationExports(
   // to the raw placement buildExportInfo overrides below.
   const renderOptions: JsDocRenderOptions = {
     linkResolver: createApiReferenceLinkResolver([
-      ...getReactApiLinkItems(),
+      ...getMainApiLinkItems(),
       // inputs already excludes interface/type kinds (the only ones that ever
       // get a "supporting-type" role), so every entry here renders on the page.
       ...inputs.map((item) => ({
