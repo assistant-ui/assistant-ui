@@ -13,6 +13,7 @@ import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { NAV_ITEMS } from "@/lib/constants";
 import { CloudButton } from "@/components/shared/cloud-button";
+import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { NavItems } from "@/components/shared/nav-items";
 
 function SearchButton({ onToggle }: { onToggle: () => void }) {
@@ -72,6 +73,7 @@ export function Header() {
   const [mounted, setMounted] = useState(false);
   const [stars, setStars] = useState<number | null>(null);
   const pathname = usePathname();
+  const { toggle } = useAssistantPanel();
   const [dismissed, setDismissed] = usePersistentBoolean(
     "homepage-hiring-banner-dismissed",
   );
@@ -133,6 +135,15 @@ export function Header() {
             </>
           )}
 
+          {isHome && (
+            <button
+              type="button"
+              onClick={toggle}
+              className="border-border hover:bg-muted hidden rounded-md border px-3 py-1.5 text-sm font-medium transition-colors md:inline-flex"
+            >
+              Ask AI
+            </button>
+          )}
           <CloudButton variant="marketing" />
 
           <a
