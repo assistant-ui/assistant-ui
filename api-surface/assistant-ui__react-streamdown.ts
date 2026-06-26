@@ -153,7 +153,7 @@ type ClientNames = keyof ClientSchemas extends infer U ? U : never;
 
 type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K> ? ClientSchemas[K]["events"] : never : never;
 
-type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "source" | "query"> : never;
+type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "query" | "source"> : never;
 
 type Unsubscribe = () => void;
 
@@ -367,7 +367,7 @@ type BlockProps = {
   remarkRehypeOptions?: RemarkRehypeOptions;
 };
 
-type StreamdownTextPrimitiveProps = Omit<StreamdownProps$2, "children" | "components" | "plugins" | "caret" | "controls" | "linkSafety" | "remend" | "mermaid" | "BlockComponent" | "parseMarkdownIntoBlocksFn"> & {
+type StreamdownTextPrimitiveProps = Omit<StreamdownProps$2, "BlockComponent" | "caret" | "children" | "components" | "controls" | "linkSafety" | "mermaid" | "parseMarkdownIntoBlocksFn" | "plugins" | "remend"> & {
   components?: StreamdownTextComponents | undefined;
   componentsByLanguage?: ComponentsByLanguage | undefined;
   plugins?: PluginConfig | undefined;
@@ -394,7 +394,7 @@ declare const DEFAULT_SHIKI_THEME: [
   BundledTheme
 ];
 
-declare const StreamdownTextPrimitive: import("react").ForwardRefExoticComponent<Omit<StreamdownProps, "children" | "components" | "plugins" | "caret" | "controls" | "linkSafety" | "remend" | "mermaid" | "BlockComponent" | "parseMarkdownIntoBlocksFn"> & {
+declare const StreamdownTextPrimitive: import("react").ForwardRefExoticComponent<Omit<StreamdownProps, "BlockComponent" | "caret" | "children" | "components" | "controls" | "linkSafety" | "mermaid" | "parseMarkdownIntoBlocksFn" | "plugins" | "remend"> & {
   components?: StreamdownTextComponents | undefined;
   componentsByLanguage?: ComponentsByLanguage | undefined;
   plugins?: PluginConfig | undefined;

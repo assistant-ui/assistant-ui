@@ -31,7 +31,7 @@ function mergeHeaders(headers?: HeadersInit): Headers {
 }
 
 export async function fetchSandboxResource(
-  url: string,
+  url: URL,
   init?: RequestInit,
 ): Promise<Response> {
   let lastError: unknown;

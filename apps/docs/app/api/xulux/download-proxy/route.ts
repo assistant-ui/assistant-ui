@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { fetchSandboxResource } from "@/lib/xulux/fetch-sandbox";
+import { resolveSandboxDownloadUrl } from "@/lib/xulux/sandbox-download-url";
+import { getXuluxHostedTemplatesCatalog } from "@/lib/xulux/templates-catalog";
 
 export const runtime = "nodejs";
 
@@ -45,37 +47,33 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const targetUrl = searchParams.get("url");
+  const templateId = searchParams.get("templateId");
+  const versionId = searchParams.get("versionId") ?? undefined;
+  const downloadSearch = searchParams.get("downloadSearch") ?? undefined;
 
-  if (!targetUrl) {
+  if (!templateId) {
     return NextResponse.json(
-      { error: "Missing `url` query parameter." },
+      { error: "Missing `templateId` query parameter." },
       { status: 400 },
     );
   }
 
-  let parsed: URL;
-  try {
-    parsed = new URL(targetUrl);
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid `url` parameter." },
-      { status: 400 },
-    );
-  }
+  const upstreamUrl = resolveSandboxDownloadUrl({
+    templates: getXuluxHostedTemplatesCatalog().templates,
+    templateId,
+    versionId,
+    downloadSearch,
+  });
 
-  const allowed =
-    parsed.hostname.endsWith(".bl.run") ||
-    parsed.hostname.endsWith(".blaxel.ai");
-  if (!allowed) {
+  if (!upstreamUrl) {
     return NextResponse.json(
-      { error: "URL host not allowed." },
+      { error: "Template download URL not allowed." },
       { status: 403 },
     );
   }
 
   try {
-    const upstream = await fetchSandboxResource(targetUrl, {
+    const upstream = await fetchSandboxResource(upstreamUrl, {
       redirect: "manual",
     });
 

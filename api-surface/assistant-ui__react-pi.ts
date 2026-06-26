@@ -51,7 +51,7 @@ interface PiUsage {
   };
 }
 
-type PiStopReason = "stop" | "length" | "toolUse" | "error" | "aborted";
+type PiStopReason = "aborted" | "error" | "length" | "stop" | "toolUse";
 
 interface PiUserMessage {
   role: "user";
@@ -177,7 +177,7 @@ type PiAssistantMessageDelta = {
   partial: PiAssistantMessage;
 } | {
   type: "done";
-  reason: "stop" | "length" | "toolUse";
+  reason: "length" | "stop" | "toolUse";
   message: PiAssistantMessage;
 } | {
   type: "error";
@@ -191,7 +191,7 @@ interface PiContextUsage {
   percent: number | null;
 }
 
-type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
+type PiThinkingLevel = "high" | "low" | "medium" | "minimal" | "off" | "xhigh";
 
 type PiModelInfo = {
   provider: string;
@@ -207,7 +207,7 @@ type PiRuntimeReadiness = {
     provider: string;
     modelId: string;
   };
-  source: "env" | "session" | "pi-default";
+  source: "env" | "pi-default" | "session";
 } | {
   state: "missing-model";
   message: string;
@@ -224,7 +224,7 @@ type PiRuntimeReadiness = {
   message: string;
 };
 
-type PiThreadStatus = "idle" | "running" | "failed";
+type PiThreadStatus = "failed" | "idle" | "running";
 
 type PiQueuedMessage = {
   id: string;
@@ -261,7 +261,7 @@ type PiSendMessageInput = {
   streamingBehavior?: "followUp" | "steer";
 };
 
-type PiHostUiRequestKind = "confirm" | "select" | "input" | "editor";
+type PiHostUiRequestKind = "confirm" | "editor" | "input" | "select";
 
 type PiHostUiRequest = {
   id: string;
@@ -349,7 +349,7 @@ type PiClientEventBody = {
   followUp: readonly string[];
 } | {
   type: "compaction_start";
-  reason: "manual" | "threshold" | "overflow";
+  reason: "manual" | "overflow" | "threshold";
 } | {
   type: "compaction_end";
   aborted: boolean;
@@ -566,22 +566,22 @@ interface PiHttpClientOptions {
 
 declare const createPiHttpClient: (options?: PiHttpClientOptions) => PiClient;
 
-type PiQueueMode = "steer" | "followUp";
+type PiQueueMode = "followUp" | "steer";
 
 declare const piQueueItemId: (mode: PiQueueMode, index: number) => string;
 
 declare const isPiSteerQueueItemId: (id: string) => boolean;
 
-type PiRunStatus = "idle" | "running" | "failed";
+type PiRunStatus = "failed" | "idle" | "running";
 
-type PiLoadState = "pending" | "loading" | "loaded";
+type PiLoadState = "loaded" | "loading" | "pending";
 
 interface PiToolExecutionState {
   toolCallId: string;
   toolName?: string;
   args?: unknown;
   partialResult?: unknown;
-  status: "running" | "complete" | "error";
+  status: "complete" | "error" | "running";
 }
 
 interface PiThreadState {
@@ -598,7 +598,7 @@ interface PiThreadState {
   contextUsage: PiContextUsage | undefined;
   compaction: {
     active: boolean;
-    reason?: "manual" | "threshold" | "overflow";
+    reason?: "manual" | "overflow" | "threshold";
   };
   retry: {
     active: boolean;
@@ -653,7 +653,7 @@ type ClientNames = keyof ClientSchemas extends infer U ? U : never;
 
 type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K> ? ClientSchemas[K]["events"] : never : never;
 
-type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "source" | "query"> : never;
+type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "query" | "source"> : never;
 
 type Unsubscribe$1 = () => void;
 
@@ -765,7 +765,7 @@ type ReadonlyJSONArray = readonly ReadonlyJSONValue[];
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
-type JSONSchema7TypeName = "string" | "number" | "integer" | "boolean" | "object" | "array" | "null";
+type JSONSchema7TypeName = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
 
 type JSONSchema7Type = string | number | boolean | JSONSchema7Object | JSONSchema7Array | null;
 
@@ -945,7 +945,7 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TRe
 
 type ProviderOptions = Record<string, Record<string, unknown>>;
 
-type ToolDisplay = "standalone" | "inline";
+type ToolDisplay = "inline" | "standalone";
 
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
@@ -1004,7 +1004,7 @@ type McpServerConfig = {
   type: "http" | "sse";
   url: string;
   headers?: Record<string, string>;
-  redirect?: "follow" | "error";
+  redirect?: "error" | "follow";
 } | {
   type: "stdio";
   command: string;
@@ -1121,14 +1121,14 @@ type GenerativeUIMessagePart = {
 type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
-  readonly visibility?: readonly ("model" | "app")[];
+  readonly visibility?: readonly ("app" | "model")[];
 };
 
 type ToolCallMessagePartMcpMetadata = {
   readonly app?: McpAppMetadata;
 };
 
-type ToolApprovalOptionKind = "allow-once" | "allow-always" | "reject-once" | "reject-always";
+type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | "reject-once";
 
 type ToolApprovalOption = {
   readonly id: string;
@@ -1193,7 +1193,7 @@ type MessagePartStatus = {
   readonly type: "complete";
 } | {
   readonly type: "incomplete";
-  readonly reason: "cancelled" | "length" | "content-filter" | "other" | "error";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
   readonly error?: unknown;
 };
 
@@ -1206,13 +1206,13 @@ type MessageStatus = {
   readonly type: "running";
 } | {
   readonly type: "requires-action";
-  readonly reason: "tool-calls" | "interrupt";
+  readonly reason: "interrupt" | "tool-calls";
 } | {
   readonly type: "complete";
   readonly reason: "stop" | "unknown";
 } | {
   readonly type: "incomplete";
-  readonly reason: "cancelled" | "tool-calls" | "length" | "content-filter" | "other" | "error";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other" | "tool-calls";
   readonly error?: ReadonlyJSONValue;
 };
 
@@ -1280,7 +1280,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: {
-      readonly type: "positive" | "negative";
+      readonly type: "negative" | "positive";
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
@@ -1296,7 +1296,7 @@ type BaseThreadMessage = {
     readonly unstable_data?: readonly ReadonlyJSONValue[];
     readonly steps?: readonly ThreadStep[];
     readonly submittedFeedback?: {
-      readonly type: "positive" | "negative";
+      readonly type: "negative" | "positive";
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
@@ -1332,7 +1332,7 @@ type AttachmentAdapter = {
 
 type FeedbackAdapterFeedback = {
   message: ThreadMessage;
-  type: "positive" | "negative";
+  type: "negative" | "positive";
 };
 
 type FeedbackAdapter = {
@@ -1343,10 +1343,10 @@ type Unsubscribe = () => void;
 
 declare namespace SpeechSynthesisAdapter {
   type Status = {
-    type: "starting" | "running";
+    type: "running" | "starting";
   } | {
     type: "ended";
-    reason: "finished" | "cancelled" | "error";
+    reason: "cancelled" | "error" | "finished";
     error?: unknown;
   };
   type Utterance = {
@@ -1362,10 +1362,10 @@ type SpeechSynthesisAdapter = {
 
 declare namespace DictationAdapter {
   type Status = {
-    type: "starting" | "running";
+    type: "running" | "starting";
   } | {
     type: "ended";
-    reason: "stopped" | "cancelled" | "error";
+    reason: "cancelled" | "error" | "stopped";
   };
   type Result = {
     transcript: string;
@@ -1408,15 +1408,15 @@ declare global {
 
 declare namespace RealtimeVoiceAdapter {
   type Status = {
-    type: "starting" | "running";
+    type: "running" | "starting";
   } | {
     type: "ended";
-    reason: "finished" | "cancelled" | "error";
+    reason: "cancelled" | "error" | "finished";
     error?: unknown;
   };
   type Mode = "listening" | "speaking";
   type TranscriptItem = {
-    role: "user" | "assistant";
+    role: "assistant" | "user";
     text: string;
     isFinal?: boolean;
   };
@@ -1500,7 +1500,7 @@ type DataPrefixedPart = {
 };
 
 type ThreadMessageLike = {
-  readonly role: "assistant" | "user" | "system";
+  readonly role: "assistant" | "system" | "user";
   readonly content: string | readonly (TextMessagePart | ReasoningMessagePart | SourceMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | GenerativeUIMessagePart | Unstable_AudioMessagePart | DataPrefixedPart | {
     readonly type: "tool-call";
     readonly toolCallId?: string;
@@ -1540,7 +1540,7 @@ type ThreadMessageLike = {
     readonly steps?: readonly ThreadStep[] | undefined;
     readonly timing?: MessageTiming | undefined;
     readonly submittedFeedback?: {
-      readonly type: "positive" | "negative";
+      readonly type: "negative" | "positive";
     };
     readonly isOptimistic?: boolean | undefined;
     readonly custom?: Record<string, unknown> | undefined;
@@ -1576,7 +1576,7 @@ type QueueItemState = {
   readonly prompt: string;
 };
 
-type AttachmentAddErrorReason = "no-adapter" | "not-accepted" | "adapter-error";
+type AttachmentAddErrorReason = "adapter-error" | "no-adapter" | "not-accepted";
 
 type AttachmentAddErrorEvent = {
   readonly reason: AttachmentAddErrorReason;
@@ -1732,7 +1732,7 @@ type MessagePartRuntimePath = MessageRuntimePath & {
 };
 
 type AttachmentRuntimePath = ((MessageRuntimePath & {
-  readonly attachmentSource: "message" | "edit-composer";
+  readonly attachmentSource: "edit-composer" | "message";
 }) | (ThreadRuntimePath & {
   readonly attachmentSource: "thread-composer";
 })) & {
@@ -1754,7 +1754,7 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
   readonly composerSource: "edit";
 });
 
-type ThreadListItemStatus = "archived" | "regular" | "new" | "deleted";
+type ThreadListItemStatus = "archived" | "deleted" | "new" | "regular";
 
 type ThreadListItemState = {
   readonly isMain: boolean;
@@ -1844,7 +1844,7 @@ type ComposerRuntime = {
   unstable_on<E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>): Unsubscribe;
 };
 
-type ThreadComposerRuntime = Omit<ComposerRuntime, "getState" | "getAttachmentByIndex"> & {
+type ThreadComposerRuntime = Omit<ComposerRuntime, "getAttachmentByIndex" | "getState"> & {
   readonly path: ComposerRuntimePath & {
     composerSource: "thread";
   };
@@ -1855,7 +1855,7 @@ type ThreadComposerRuntime = Omit<ComposerRuntime, "getState" | "getAttachmentBy
   };
 };
 
-type EditComposerRuntime = Omit<ComposerRuntime, "getState" | "getAttachmentByIndex"> & {
+type EditComposerRuntime = Omit<ComposerRuntime, "getAttachmentByIndex" | "getState"> & {
   readonly path: ComposerRuntimePath & {
     composerSource: "edit";
   };
@@ -2049,10 +2049,10 @@ type ExternalThreadQueueAdapter = {
   }) => void;
   steer: (queueItemId: string) => void;
   remove: (queueItemId: string) => void;
-  clear: (reason: "edit" | "reload" | "cancel-run") => void;
+  clear: (reason: "cancel-run" | "edit" | "reload") => void;
 };
 
-type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
+type ExternalStoreThreadData<TState extends "archived" | "regular"> = {
   status: TState;
   id: string;
   remoteId?: string | undefined;
@@ -2138,7 +2138,7 @@ type AssistantRuntime = {
   registerModelContextProvider(provider: ModelContextProvider): Unsubscribe;
 };
 
-type ExternalStoreSharedOptions = Pick<ExternalStoreAdapter, "isDisabled" | "isSendDisabled" | "unstable_capabilities" | "suggestions">;
+type ExternalStoreSharedOptions = Pick<ExternalStoreAdapter, "isDisabled" | "isSendDisabled" | "suggestions" | "unstable_capabilities">;
 
 interface EventLog {
   time: Date;

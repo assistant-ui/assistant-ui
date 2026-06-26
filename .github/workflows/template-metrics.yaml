@@ -36,21 +36,21 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # ratchet:pnpm/action-setup@v4
 
       - name: Setup node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
         with:
           node-version: 24
           cache: "pnpm"
 
       - name: Cache turbo build setup
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # ratchet:actions/cache@v4
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
@@ -61,7 +61,7 @@ jobs:
       # Baseline is main's metrics, cached by the last run on main. PRs restore
       # the newest one via the restore-keys prefix to compute deltas against main.
       - name: Restore main baseline
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # ratchet:actions/cache/restore@v4
         with:
           path: install-footprint/branch/main/data.json
           key: install-footprint-main-${{ github.sha }}
@@ -97,7 +97,7 @@ jobs:
       - name: Post / update PR comment
         if: github.event_name == 'pull_request'
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # ratchet:actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
@@ -151,7 +151,7 @@ jobs:
 
       - name: Save baseline cache (main only)
         if: github.event_name == 'push'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # ratchet:actions/cache/save@v4
         with:
           path: install-footprint/branch/main/data.json
           key: install-footprint-main-${{ github.sha }}

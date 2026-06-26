@@ -1,5 +1,14 @@
 # assistant-ui
 
+## 0.0.105
+
+### Patch Changes
+
+- [#4609](https://github.com/assistant-ui/assistant-ui/pull/4609) [`a50faac`](https://github.com/assistant-ui/assistant-ui/commit/a50faac5cb62f185a5e6a72cde8fbc550abf8427) - fix(cli): skip shadcn registry install when --skip-install is passed ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies []:
+  - @assistant-ui/agent-launcher@0.1.8
+
 ## 0.0.104
 
 ### Patch Changes
