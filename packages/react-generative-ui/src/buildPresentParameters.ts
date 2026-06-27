@@ -29,6 +29,7 @@ export function buildPresentParameters(
   // first component's schema wins — props are an advisory hint here, not a
   // strict per-component contract.
   const props: Record<string, JSONSchema7Definition> = {};
+  const propOwners = new Map<string, string[]>();
   for (const name of names) {
     const propsSchema = toJSONSchema(library[name]!.properties);
     if (propsSchema.type !== "object") {
@@ -41,14 +42,20 @@ export function buildPresentParameters(
       if (key === TYPE_KEY || key === "children") continue;
       if (!(key in props)) {
         props[key] = schema;
-      } else if (process.env["NODE_ENV"] !== "production") {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[@assistant-ui/react-generative-ui] Prop "${key}" is declared by more ` +
-            "than one component; the first component's schema is kept and the rest " +
-            "are ignored. Rename or align the type to avoid an ambiguous schema.",
-        );
       }
+      propOwners.set(key, [...(propOwners.get(key) ?? []), name]);
+    }
+  }
+
+  if (process.env["NODE_ENV"] !== "production") {
+    for (const [key, owners] of propOwners) {
+      if (owners.length < 2) continue;
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[@assistant-ui/react-generative-ui] Prop "${key}" is declared by ` +
+          `${formatComponentList(owners)}; keeping "${owners[0]}"'s schema. ` +
+          "Rename or align the prop type to avoid an ambiguous schema.",
+      );
     }
   }
 
@@ -87,4 +94,13 @@ export function buildPresentParameters(
     ...node,
     $defs: { node, children },
   };
+}
+
+function formatComponentList(names: string[]) {
+  if (names.length <= 2) return names.map((name) => `"${name}"`).join(" and ");
+
+  return `${names
+    .slice(0, -1)
+    .map((name) => `"${name}"`)
+    .join(", ")}, and "${names[names.length - 1]}"`;
 }
