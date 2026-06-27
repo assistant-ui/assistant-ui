@@ -69,6 +69,32 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.attachments?.[1]?.type).toBe("file");
   });
 
+  it("degrades a user file part missing mediaType instead of throwing", () => {
+    const convert = () =>
+      AISDKMessageConverter.toThreadMessages([
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "https://cdn/file.bin",
+              filename: "file.bin",
+            },
+          ],
+        } as any,
+      ]);
+
+    expect(convert).not.toThrow();
+    const attachment = convert()[0]?.attachments?.[0];
+    expect(attachment?.type).toBe("file");
+    expect(attachment?.contentType).toBe("unknown/unknown");
+    expect(attachment?.content[0]).toMatchObject({
+      type: "file",
+      mimeType: "unknown/unknown",
+    });
+  });
+
   it("converts source-document parts into document sources", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
