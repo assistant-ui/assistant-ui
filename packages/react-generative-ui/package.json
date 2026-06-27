@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/react-generative-ui",
   "version": "0.0.6",
-  "description": "Generative UI components for assistant-ui",
+  "description": "Experimental generative UI components for assistant-ui",
   "keywords": [
     "generative-ui",
     "assistant-ui",

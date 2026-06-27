@@ -3,6 +3,15 @@ title: Generative UI (JSON spec)
 description: Render agent-described React UI from a JSON spec with a consumer-provided component allowlist.
 ---
 
+<Callout type="info">
+  **Looking for the new API?** `@assistant-ui/react-generative-ui` provides a
+  newer, experimental approach using `JSONGenerativeUI` + a `present` tool call
+  + a closed vocabulary (`defaultGenerativeUILibrary`) with `ActionRegistry`
+  dispatch. See [Generative UI — Experimental](/docs/tools/generative-ui-experimental).
+  This page documents the original `MessagePrimitive.GenerativeUI` primitive,
+  which remains supported.
+</Callout>
+
 `MessagePrimitive.GenerativeUI` is a first-class primitive for rendering UI
 described by the agent at runtime as a JSON spec. Instead of hard-coding a
 component per tool, the agent emits a `generative-ui` message part containing

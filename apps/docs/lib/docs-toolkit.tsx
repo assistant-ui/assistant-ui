@@ -21,6 +21,7 @@ import {
 import {
   JSONGenerativeUI,
   defineGenerativeComponents,
+  defaultGenerativeUILibrary,
   generativeUIToJSX,
 } from "@assistant-ui/react-generative-ui";
 import { ToolErrorCard, ToolStatusCard, ToolTraceCard } from "@/lib/tool-trace";
@@ -137,21 +138,26 @@ const GetWeatherToolUI: ToolCallMessagePartComponent<
 };
 
 // The user-facing component library the model renders through the `present`
-// tool. `Weather` shows the rich card for a `get_weather` result by `id`.
+// tool. The default vocabulary (Card, Text, Button, Alert, Table, Chart, ...)
+// gives the model a closed set of intrinsic components to compose. `Weather`
+// is a custom component layered on top for the docs weather demo.
 const generative = new JSONGenerativeUI({
-  library: defineGenerativeComponents({
-    Weather: {
-      description:
-        "Show the user a rich weather card for a `get_weather` result.",
-      properties: z.object({
-        id: z.string().describe("The `id` returned by `get_weather`."),
-        format: weatherFormatSchema
-          .optional()
-          .describe("Temperature format to display in the weather card."),
-      }),
-      render: (props) => <WeatherCard {...props} />,
-    },
-  }),
+  library: {
+    ...defaultGenerativeUILibrary,
+    ...defineGenerativeComponents({
+      Weather: {
+        description:
+          "Show the user a rich weather card for a `get_weather` result.",
+        properties: z.object({
+          id: z.string().describe("The `id` returned by `get_weather`."),
+          format: weatherFormatSchema
+            .optional()
+            .describe("Temperature format to display in the weather card."),
+        }),
+        render: (props) => <WeatherCard {...props} />,
+      },
+    }),
+  },
 });
 
 export default defineToolkit({

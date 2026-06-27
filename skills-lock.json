@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "skills": {
+    "approve-pr": {
+      "source": "okisdev/ai-reference",
+      "sourceType": "github",
+      "skillPath": "skills/approve-pr/SKILL.md",
+      "computedHash": "a8e412e2d505651e3befa0355f2bbb7183276feeedce5686e9e987009568a723"
+    },
+    "commit-changes": {
+      "source": "okisdev/ai-reference",
+      "sourceType": "github",
+      "skillPath": "skills/commit-changes/SKILL.md",
+      "computedHash": "2efbd5dd65475e7ca87fc69d0d9c44e20118fe56cf1ba2a681ec3eb29157ea2c"
+    },
+    "create-branch": {
+      "source": "okisdev/ai-reference",
+      "sourceType": "github",
+      "skillPath": "skills/create-branch/SKILL.md",
+      "computedHash": "b01b6e196abeac44c5a05002294de2ed9f703cbf65278acab81ed50fd98a6cc5"
+    },
+    "create-pr": {
+      "source": "okisdev/ai-reference",
+      "sourceType": "github",
+      "skillPath": "skills/create-pr/SKILL.md",
+      "computedHash": "0d183a65ccb91a570da9214eb7c74d1ba7f07a739e5939b61eec0ea0d0f7a995"
+    },
+    "organize-commits": {
+      "source": "okisdev/ai-reference",
+      "sourceType": "github",
+      "skillPath": "skills/organize-commits/SKILL.md",
+      "computedHash": "fccb0f880910798fcbb1902f5199fff9c4c7544d9e398c610b3f92bb83f4be7f"
+    },
+    "ship-pr": {
+      "source": "okisdev/ai-reference",
+      "sourceType": "github",
+      "skillPath": "skills/ship-pr/SKILL.md",
+      "computedHash": "2fac52e31da3f41d4e51582302767577cc8fdbe3f5411a09508923bde8ccdce8"
+    },
+    "summarize-review": {
+      "source": "okisdev/ai-reference",
+      "sourceType": "github",
+      "skillPath": "skills/summarize-review/SKILL.md",
+      "computedHash": "321452913cb907e76f0a6208ca316bdc218b15adb1d3b42b6529d8429dbe09f7"
+    },
+    "verify-issue": {
+      "source": "okisdev/ai-reference",
+      "sourceType": "github",
+      "skillPath": "skills/verify-issue/SKILL.md",
+      "computedHash": "56d7ca41fe29da192fb36ab8012d5abd51b943a784720ad41f5cca2cbe5ff2d1"
+    },
+    "verify-pr": {
+      "source": "okisdev/ai-reference",
+      "sourceType": "github",
+      "skillPath": "skills/verify-pr/SKILL.md",
+      "computedHash": "14eebf41c47fe4d01961466c7e9d0a2fe30716033430f991e0e8cfa915c72956"
+    },
+    "verify-pr-comments": {
+      "source": "okisdev/ai-reference",
+      "sourceType": "github",
+      "skillPath": "skills/verify-pr-comments/SKILL.md",
+      "computedHash": "f916b89c8dbe4ba1e26eb0e8fcff8ca96f327d2715730fc22bef68304d158df3"
+    }
+  }
+}

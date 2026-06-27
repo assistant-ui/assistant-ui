@@ -1,0 +1,261 @@
+---
+title: Generative UI — Experimental
+description: Render agent-composed React UI from a JSON spec with a consumer-provided component library. The model emits a $type tree; the present tool renders it. This package is experimental; the API may change.
+---
+
+<Callout type="warning">
+  **Experimental.** `@assistant-ui/react-generative-ui` is an experimental
+  package. The API surface (`JSONGenerativeUI`, `defaultGenerativeUILibrary`,
+  `ActionRegistry`, the `./ir` subpath, the closed vocabulary) may change
+  between minor versions without a major bump while it stabilizes. Pin the
+  version if you depend on it in production.
+</Callout>
+
+`@assistant-ui/react-generative-ui` lets the model compose UI from a
+vocabulary of components you control. Instead of hard-coding a component per
+tool, the model calls a `present` tool with a `{ $type, ...props }` JSON tree;
+the tool renders it against a `GenerativeUILibrary` you provide.
+
+> The library controls **which** components the model may render: any `$type`
+> not in it is not rendered. It does not constrain the props passed to those
+> components; treat every component as receiving untrusted input.
+
+## Which generative UI pattern?
+
+assistant-ui uses "generative UI" in three different places. Pick the one that
+matches your integration:
+
+| Pattern | API | Best for | Streaming |
+|---------|-----|----------|-----------|
+| **JSON generative UI** | `JSONGenerativeUI` + `present` tool + library | Composing dashboards, cards, and layouts from a component vocabulary | Tool **args** stream while the model fills them in |
+| **Tool UI** | `Tools({ toolkit })` with `render` | Interactive widgets tied to a known tool (forms, pickers, charts) | Tool args stream during generation |
+| **LangGraph data UI** | `makeAssistantDataUI` + `ui_message` | LangGraph agents emitting UI via the LangGraph stream | UI messages arrive on the LangGraph custom channel |
+
+See also: [Tool UI guide](/docs/tools/tool-ui), [LangGraph generative UI](/docs/runtimes/langgraph/generative-ui).
+
+## Quick start
+
+### 1. Install the package
+
+```bash
+npm install @assistant-ui/react-generative-ui
+```
+
+### 2. Use the default vocabulary
+
+The package ships `defaultGenerativeUILibrary`, a closed set of 20 unstyled
+structural components. Each renders semantic HTML with `data-aui` attributes
+for you to style.
+
+```tsx
+import {
+  JSONGenerativeUI,
+  defaultGenerativeUILibrary,
+} from "@assistant-ui/react-generative-ui";
+import { Thread, Tools } from "@assistant-ui/react";
+
+const generativeUI = new JSONGenerativeUI({
+  library: defaultGenerativeUILibrary,
+});
+
+function App() {
+  return (
+    <Thread>
+      <Tools toolkit={{ present: generativeUI.present() }} />
+    </Thread>
+  );
+}
+```
+
+The model emits nodes like:
+
+```json
+{
+  "$type": "Card",
+  "title": "Welcome",
+  "children": [
+    { "$type": "Text", "value": "Hello, world!" },
+    { "$type": "Button", "label": "Get started" }
+  ]
+}
+```
+
+`$type` selects the component (the `$` prefix reserves it so a component's
+own `type` prop never collides). `children` is reserved for nesting and
+renders recursively.
+
+### 3. Bring your own style
+
+The default library is unstyled. Override individual types with your own
+`render` to match your design system:
+
+```tsx
+import { defaultGenerativeUILibrary } from "@assistant-ui/react-generative-ui";
+
+const myLibrary = {
+  ...defaultGenerativeUILibrary,
+  Card: {
+    ...defaultGenerativeUILibrary.Card!,
+    render: ({ title, children }) => (
+      <div className="rounded-xl border bg-card p-4 shadow-sm">
+        {title && <h3 className="font-semibold">{title}</h3>}
+        {children}
+      </div>
+    ),
+  },
+};
+```
+
+The description and zod schema stay from the default (the contract is
+unchanged); only the `render` is replaced.
+
+## Custom components
+
+Author your own library from scratch, or extend the default with extra types:
+
+```tsx
+import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
+import { z } from "zod";
+
+const generativeUI = new JSONGenerativeUI({
+  library: {
+    Weather: {
+      description: "Show a weather card.",
+      properties: z.object({ city: z.string(), temp: z.number() }),
+      render: ({ city, temp }) => (
+        <div className="rounded-lg border p-4">
+          {city}: {temp}°
+        </div>
+      ),
+    },
+  },
+});
+```
+
+## Actions
+
+Interactive components (`Button`, `Select`, `Input`, `DatePicker`) carry a
+`$action` prop: a serializable payload describing what should happen when the
+user interacts. Wire an `ActionRegistry` to resolve `$action.type` to a
+handler:
+
+```tsx
+import {
+  JSONGenerativeUI,
+  defaultGenerativeUILibrary,
+  createActionRegistry,
+} from "@assistant-ui/react-generative-ui";
+
+const actions = createActionRegistry({
+  purchase: ({ payload }) => {
+    console.log("Purchase:", payload.itemId);
+  },
+  rsvp: ({ payload }) => {
+    console.log("RSVP:", payload.$input);
+  },
+});
+
+const generativeUI = new JSONGenerativeUI({
+  library: defaultGenerativeUILibrary,
+  actions,
+});
+```
+
+When the user clicks a button or selects an option, the renderer fires
+`$dispatch`, which resolves `$action.type` against the registry. For `Select`,
+`Input`, and `DatePicker`, the user's runtime value is merged into the payload
+under the reserved `$input` key so a model-supplied `value` field is never
+clobbered.
+
+Omit `actions` for a read-only render: `$dispatch` is left un-injected and
+interactive clicks stay silent. An unknown action type degrades to a no-op
+with a dev warning rather than throwing.
+
+## Streaming
+
+By default a component renders only once its props have fully arrived. Opt
+into rendering from partial props with `streamProperties`. When you do, `render`
+receives an injected `$status` prop: `"streaming"` for partial props, `"done"`
+for complete:
+
+```tsx
+Weather: {
+  description: "A live weather card.",
+  properties: z.object({ city: z.string(), temp: z.number() }),
+  streamProperties: true,
+  render: (props) => {
+    if (props.$status === "done") {
+      return <Card>{`${props.city}: ${props.temp}°`}</Card>;
+    }
+    return <Card>{props.city ?? "Loading…"}</Card>;
+  },
+},
+```
+
+## `"use generative"` authoring
+
+With the `"use generative"` compiler (`@assistant-ui/next` or
+`@assistant-ui/vite`), colocate a component's `properties` schema with its
+`render` and expose the library as tools. The build splits each half: the
+schema goes to the server (so the model sees the tool), the `render` stays on
+the client.
+
+```tsx
+"use generative";
+
+import { z } from "zod";
+import { defineToolkit } from "@assistant-ui/react";
+import {
+  JSONGenerativeUI,
+  defineGenerativeComponents,
+} from "@assistant-ui/react-generative-ui";
+
+const generative = new JSONGenerativeUI({
+  library: defineGenerativeComponents({
+    Weather: {
+      description: "Show a weather card.",
+      properties: z.object({ city: z.string() }),
+      render: (props) => <Weather {...props} />,
+    },
+  }),
+});
+
+export default defineToolkit({
+  present: generative.present(),
+  prompt_user: generative.promptUser(),
+});
+```
+
+Pass `present({ display: "standalone" })` to render the component on its own
+surface instead of inline.
+
+## The `present` and `prompt_user` tools
+
+`JSONGenerativeUI.present()` returns a frontend tool that renders the tree and
+resolves immediately. `JSONGenerativeUI.promptUser()` returns a
+human-in-the-loop tool: the model pauses, the rendered UI collects input,
+and the `$action` result resumes the run. Both share the same renderer and
+library.
+
+## The `./ir` subpath
+
+The IR types (`UINode`, `UIElement`, `Action`, `NormalizedUINode`,
+`normalizeUINode`) live behind a React-free subpath
+(`@assistant-ui/react-generative-ui/ir`) so converters and non-web runtimes can
+consume the types without pulling React. Use `import type {}` for
+cross-boundary type-only imports.
+
+## Security
+
+The library is the boundary on **which** components render: a `$type` not in
+the library is not rendered (a dev warning in development, silent in
+production). It does **not** constrain the props the agent supplies. Treat
+every library component as receiving untrusted input: never forward
+agent-supplied props into `dangerouslySetInnerHTML`, validate `href` / `src`
+values, and avoid passing props anywhere they become executable.
+
+## Gallery
+
+Browse the live [component gallery](/gallery) to see the vocabulary in
+action, try the [JSON editor](/gallery/editor), or explore the
+[primitives reference](/gallery/primitives).

@@ -13,6 +13,7 @@
     "---Rendering tool calls---",
     "tool-ui",
     "generative-ui",
+    "generative-ui-experimental",
     "interactables",
     "interactables-legacy",
     "---MCP---",
