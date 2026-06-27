@@ -34,6 +34,39 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.metadata.isOptimistic).toBeFalsy();
   });
 
+  it("converts v7 reasoning-file parts to file parts and custom parts to data parts", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "reasoning-file",
+            mediaType: "application/pdf",
+            url: "https://cdn/reasoning.pdf",
+          },
+          {
+            type: "custom",
+            kind: "acme.widget",
+            providerMetadata: { acme: { foo: "bar" } },
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content).toHaveLength(2);
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "file",
+      data: "https://cdn/reasoning.pdf",
+      mimeType: "application/pdf",
+    });
+    expect(converted[0]?.content[1]).toMatchObject({
+      type: "data",
+      name: "acme.widget",
+      data: { acme: { foo: "bar" } },
+    });
+  });
+
   it("converts user files into attachments and keeps text content", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {

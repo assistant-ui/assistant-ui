@@ -347,6 +347,22 @@ function convertParts(
         } satisfies DataMessagePart;
       }
 
+      if (part.type === "reasoning-file") {
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType,
+        } satisfies FileMessagePart;
+      }
+
+      if (part.type === "custom") {
+        return {
+          type: "data",
+          name: part.kind,
+          data: (part.providerMetadata ?? null) as DataMessagePart["data"],
+        } satisfies DataMessagePart;
+      }
+
       console.warn(`Unsupported message part type: ${part.type}`);
       return null;
     })
