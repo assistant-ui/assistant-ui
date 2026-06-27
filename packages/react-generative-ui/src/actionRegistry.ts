@@ -44,11 +44,13 @@ export function createActionRegistry(
       const handler = map.get(action.type);
       if (!handler) {
         if (process.env["NODE_ENV"] !== "production") {
+          const actionTypes = [...map.keys()];
           // eslint-disable-next-line no-console
           console.warn(
-            `[@assistant-ui/react-generative-ui] No handler registered for ` +
-              `action type "${action.type}". Available: ` +
-              `${[...map.keys()].join(", ") || "(none)"}.`,
+            `[@assistant-ui/react-generative-ui] Action "${action.type}" has ` +
+              `no registered handler. ${formatRegisteredActions(actionTypes)} ` +
+              "Register it with createActionRegistry(...) or update the emitted " +
+              "`$action.type`.",
           );
         }
         return undefined;
@@ -65,3 +67,11 @@ export function createActionRegistry(
  * `undefined` and logs a warning in dev for unknown types, so a model-emitted
  * action with no handler degrades to "does nothing" rather than throwing. */
 export const emptyActionRegistry: ActionRegistry = createActionRegistry({});
+
+function formatRegisteredActions(actionTypes: string[]) {
+  if (actionTypes.length === 0) return "No actions are registered.";
+
+  return `Registered actions: ${actionTypes
+    .map((type) => `"${type}"`)
+    .join(", ")}.`;
+}
