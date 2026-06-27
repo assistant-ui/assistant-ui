@@ -217,6 +217,53 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("converts v7 reasoning-file parts into file content", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "reasoning-file",
+            mediaType: "application/json",
+            url: "data:application/json;base64,e30=",
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted).toHaveLength(1);
+    expect(converted[0]?.role).toBe("assistant");
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "file",
+      data: "data:application/json;base64,e30=",
+      mimeType: "application/json",
+    });
+  });
+
+  it("converts v7 custom parts into data content named by kind", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "custom",
+            kind: "acme.widget",
+            providerMetadata: { acme: { widgetId: "w-1" } },
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted).toHaveLength(1);
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "data",
+      name: "acme.widget",
+      data: { acme: { widgetId: "w-1" } },
+    });
+  });
+
   it("deduplicates tool calls by toolCallId and surfaces approval / interrupt state", () => {
     const converted = AISDKMessageConverter.toThreadMessages(
       [

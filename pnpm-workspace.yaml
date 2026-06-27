@@ -14,6 +14,11 @@ strictDepBuilds: true
 
 verifyDepsBeforeRun: install
 
+overrides:
+  '@assistant-ui/react-ai-sdk>ai': '^7'
+  '@assistant-ui/react-ai-sdk>@ai-sdk/react': '^4'
+  '@assistant-ui/react-ai-sdk>@ai-sdk/mcp': '^2'
+
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@assistant-ui/*'
