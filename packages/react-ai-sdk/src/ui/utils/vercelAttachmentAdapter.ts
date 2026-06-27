@@ -1,15 +1,34 @@
 import type { AttachmentAdapter } from "@assistant-ui/core";
 import { generateId } from "ai";
 
-const getFileDataURL = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
+const bytesToBase64 = (bytes: Uint8Array): string => {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+};
 
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
+const getFileDataURL = async (file: File): Promise<string> => {
+  if (typeof FileReader !== "undefined") {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
 
-    reader.readAsDataURL(file);
-  });
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const buffer = await file.arrayBuffer();
+  const base64 =
+    typeof Buffer !== "undefined"
+      ? Buffer.from(buffer).toString("base64")
+      : bytesToBase64(new Uint8Array(buffer));
+  return `data:${file.type || "application/octet-stream"};base64,${base64}`;
+};
 
 export const vercelAttachmentAdapter: AttachmentAdapter = {
   accept: "*",
