@@ -733,6 +733,46 @@ type AppendMessage = Omit<ThreadMessage, "id"> & {
   steer?: boolean | undefined;
 };
 
+type AttachmentAdapter = {
+  accept: string;
+  add(state: {
+    file: File;
+  }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void>;
+  remove(attachment: Attachment): Promise<void>;
+  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+};
+
+declare class SimpleImageAttachmentAdapter implements AttachmentAdapter {
+  accept: string;
+  add(state: {
+    file: File;
+  }): Promise<PendingAttachment>;
+  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  remove(): Promise<void>;
+}
+
+declare const getFileDataURL: (file: File) => Promise<string>;
+
+declare class SimpleTextAttachmentAdapter implements AttachmentAdapter {
+  accept: string;
+  add(state: {
+    file: File;
+  }): Promise<PendingAttachment>;
+  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  remove(): Promise<void>;
+}
+
+declare class CompositeAttachmentAdapter implements AttachmentAdapter {
+  private _adapters;
+  accept: string;
+  constructor(adapters: AttachmentAdapter[]);
+  add(state: {
+    file: File;
+  }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void, any>;
+  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  remove(attachment: Attachment): Promise<void>;
+}
+
 type DataPrefixedPart = {
   readonly type: `data-${string}`;
   readonly data: any;
@@ -1688,44 +1728,6 @@ declare abstract class BaseAssistantRuntimeCore implements AssistantRuntimeCore 
   abstract get threads(): ThreadListRuntimeCore;
   registerModelContextProvider(provider: ModelContextProvider): Unsubscribe$1;
   getModelContextProvider(): ModelContextProvider;
-}
-
-type AttachmentAdapter = {
-  accept: string;
-  add(state: {
-    file: File;
-  }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void>;
-  remove(attachment: Attachment): Promise<void>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
-};
-
-declare class SimpleImageAttachmentAdapter implements AttachmentAdapter {
-  accept: string;
-  add(state: {
-    file: File;
-  }): Promise<PendingAttachment>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
-  remove(): Promise<void>;
-}
-
-declare class SimpleTextAttachmentAdapter implements AttachmentAdapter {
-  accept: string;
-  add(state: {
-    file: File;
-  }): Promise<PendingAttachment>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
-  remove(): Promise<void>;
-}
-
-declare class CompositeAttachmentAdapter implements AttachmentAdapter {
-  private _adapters;
-  accept: string;
-  constructor(adapters: AttachmentAdapter[]);
-  add(state: {
-    file: File;
-  }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void, any>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
-  remove(attachment: Attachment): Promise<void>;
 }
 
 declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implements ComposerRuntimeCore {
@@ -3163,7 +3165,7 @@ declare const getThreadData: (state: RemoteThreadState, threadIdOrRemoteId: stri
 declare const updateStatusReducer: (state: RemoteThreadState, threadIdOrRemoteId: string, newStatus: "archived" | "deleted" | "regular") => RemoteThreadState;
 
 declare namespace entry_internal_exports {
-  export { AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, RuntimeExtras, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, createRuntimeExtras, createThreadMappingId, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, isAutoStatus, isErrorMessageId, resolveToolApprovalResponse, shouldContinue, symbolInnerMessage, updateStatusReducer };
+  export { AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, RuntimeExtras, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, createRuntimeExtras, createThreadMappingId, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, isAutoStatus, isErrorMessageId, resolveToolApprovalResponse, shouldContinue, symbolInnerMessage, updateStatusReducer };
 }
 
 type ThreadListItemState = {
