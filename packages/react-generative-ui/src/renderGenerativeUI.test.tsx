@@ -226,6 +226,36 @@ describe("buildPresentParameters", () => {
     expect(schema.required).toEqual(["$type"]);
   });
 
+  it("names every component that declares the same prop in the dev warning", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      buildPresentParameters({
+        Select: {
+          description: "Selects an option.",
+          properties: z.object({ value: z.string() }),
+          render: () => null,
+        },
+        DatePicker: {
+          description: "Picks a date.",
+          properties: z.object({ value: z.string() }),
+          render: () => null,
+        },
+        Combobox: {
+          description: "Chooses from filtered options.",
+          properties: z.object({ value: z.string() }),
+          render: () => null,
+        },
+      });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        '[@assistant-ui/react-generative-ui] Prop "value" is declared by "Select", "DatePicker", and "Combobox"; keeping "Select"\'s schema. Rename or align the prop type to avoid an ambiguous schema.',
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("throws when a component's properties is not an object schema", () => {
     expect(() =>
       buildPresentParameters({
