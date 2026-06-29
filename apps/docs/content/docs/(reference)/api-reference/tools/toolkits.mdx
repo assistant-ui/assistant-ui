@@ -27,18 +27,16 @@ optional model-output conversion.
 
 This helper keeps reusable tool definitions type-checked and convenient to
 export for a [Toolkit](/docs/api-reference/tools/toolkits#toolkit) registered with [Tools](/docs/api-reference/tools/toolkits#tools).
-Inference from parameter schemas is currently limited, so provide generic
-arguments when you need precise args or result types.
+When `parameters` is a Standard Schema (for example Zod v4), its input type
+is inferred for `execute`, `streamCall`, and model-output callbacks. Plain
+JSON Schema objects do not carry TypeScript input types, so provide generic
+arguments or annotate callbacks when you need precise args for JSON Schema.
 
 ```ts
-const getWeather = tool<{ city: string }, string>({
+const getWeather = tool({
   type: "frontend",
   description: "Get the weather for a city.",
-  parameters: {
-    type: "object",
-    properties: { city: { type: "string" } },
-    required: ["city"],
-  },
+  parameters: z.object({ city: z.string() }),
   execute: async ({ city }) => `Sunny in ${city}`,
 });
 ```
