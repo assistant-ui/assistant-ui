@@ -87,6 +87,11 @@ const checkDefineMcpToolkitTypes = () => {
         url: "https://example.com/gated-mcp",
       },
       disabled: true,
+      tools: {
+        privateSearch: {
+          disabled: true,
+        },
+      },
     },
   });
 };
@@ -111,6 +116,11 @@ describe("use-generative markers", () => {
             url: "https://example.com/gated-mcp",
           },
           disabled: true,
+          tools: {
+            privateSearch: {
+              disabled: true,
+            },
+          },
         },
       }),
     ).toEqual({
@@ -128,6 +138,11 @@ describe("use-generative markers", () => {
           url: "https://example.com/gated-mcp",
         },
         disabled: true,
+        tools: {
+          privateSearch: {
+            disabled: true,
+          },
+        },
       },
     });
   });
