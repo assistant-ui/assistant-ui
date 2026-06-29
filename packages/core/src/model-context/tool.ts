@@ -10,13 +10,10 @@ type StandardSchemaInput<TSchema> = TSchema extends {
     : Record<string, unknown>
   : Record<string, unknown>;
 
-type StandardSchemaParameters = {
-  readonly "~standard": {
-    readonly types?:
-      | { readonly input: unknown; readonly output?: unknown }
-      | undefined;
-  };
-};
+type StandardSchemaParameters = Extract<
+  NonNullable<Extract<Tool<any>, { parameters: unknown }>["parameters"]>,
+  { readonly "~standard": unknown }
+>;
 
 /**
  * Defines a model tool with its argument schema, execution behavior, and

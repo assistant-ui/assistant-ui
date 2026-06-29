@@ -1353,14 +1353,11 @@ type StandardSchemaInput<TSchema> = TSchema extends {
   };
 } ? TInput extends Record<string, unknown> ? TInput : Record<string, unknown> : Record<string, unknown>;
 
-type StandardSchemaParameters = {
-  readonly "~standard": {
-    readonly types?: {
-      readonly input: unknown;
-      readonly output?: unknown;
-    } | undefined;
-  };
-};
+type StandardSchemaParameters = Extract<NonNullable<Extract<Tool<any>, {
+  parameters: unknown;
+}>["parameters"]>, {
+  readonly "~standard": unknown;
+}>;
 
 declare function tool<const TSchema extends StandardSchemaParameters, TResult = any>(tool: Tool<StandardSchemaInput<TSchema>, TResult> & {
   parameters: TSchema;
