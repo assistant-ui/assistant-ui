@@ -42,8 +42,8 @@ importers:
         specifier: ^4.0.0
         version: 4.0.0
       '@ai-sdk/react':
-        specifier: ^4.0.5
-        version: 4.0.5(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.210
+        version: 3.0.216(react@19.2.7)(zod@4.4.3)
       '@earendil-works/pi-coding-agent':
         specifier: ^0.80.2
         version: 0.80.2(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.0)(zod@4.4.3)
@@ -69,14 +69,14 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       denque:
         specifier: ^2.1.0
         version: 2.1.0
       eve:
         specifier: ^0.17.1
-        version: 0.17.1(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.0)(ai@7.0.4(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.2)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.1))(next@16.2.9(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(sqlite3@5.1.7)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 0.17.1(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.0)(ai@6.0.214(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.2)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.1))(next@16.2.9(@babel/core@8.0.1)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(sqlite3@5.1.7)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
       ink:
         specifier: ^7.1.0
         version: 7.1.0(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
@@ -145,11 +145,11 @@ importers:
   apps/docs:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.5
-        version: 4.0.5(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.210
+        version: 3.0.216(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/next':
         specifier: workspace:*
         version: link:../../packages/next
@@ -194,7 +194,7 @@ importers:
         version: link:../../packages/ui
       '@aui-x/prism':
         specifier: ^0.0.5
-        version: 0.0.5(ai@7.0.4(zod@4.4.3))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))
+        version: 0.0.5(@ai-sdk/provider@3.0.12)(ai@6.0.214(zod@4.4.3))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))
       '@blaxel/core':
         specifier: ^0.2.94
         version: 0.2.94(@cfworker/json-schema@4.1.1)(@hey-api/openapi-ts@0.99.0(magicast@0.5.3)(typescript@6.0.3))
@@ -206,7 +206,7 @@ importers:
         version: 1.9.25(@langchain/core@1.2.1(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))(ws@8.21.0))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@posthog/ai':
         specifier: ^8.2.2
-        version: 8.2.2(@google/genai@1.52.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)))(@langchain/core@1.2.1(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))(ws@8.21.0))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-http@0.205.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))(posthog-node@5.38.6(rxjs@7.8.2))
+        version: 8.2.2(@ai-sdk/provider@3.0.12)(@google/genai@1.52.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)))(@langchain/core@1.2.1(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))(ws@8.21.0))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-http@0.205.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))(posthog-node@5.38.6(rxjs@7.8.2))
       '@radix-ui/react-icons':
         specifier: ^1.3.2
         version: 1.3.2(react@19.2.7)
@@ -226,14 +226,14 @@ importers:
         specifier: ^2.0.1
         version: 2.0.1(next@16.2.9(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
       bash-tool:
         specifier: ^1.3.17
-        version: 1.3.17(ai@7.0.4(zod@4.4.3))(just-bash@3.0.2)
+        version: 1.3.17(ai@6.0.214(zod@4.4.3))(just-bash@3.0.2)
       beautiful-mermaid:
         specifier: ^1.1.3
         version: 1.1.3
@@ -450,8 +450,8 @@ importers:
         version: 1.6.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
     devDependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -486,8 +486,8 @@ importers:
         specifier: ^15.5.13
         version: 15.5.13
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -748,8 +748,8 @@ importers:
   examples/with-ai-sdk-v6:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -763,8 +763,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -824,8 +824,8 @@ importers:
   examples/with-artifacts:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -839,8 +839,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1031,8 +1031,8 @@ importers:
   examples/with-chain-of-thought:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -1046,8 +1046,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1107,8 +1107,8 @@ importers:
   examples/with-cloud:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -1122,8 +1122,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1180,14 +1180,14 @@ importers:
   examples/with-cloud-standalone:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/cloud-ai-sdk':
         specifier: workspace:*
         version: link:../../packages/cloud-ai-sdk
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1244,8 +1244,8 @@ importers:
   examples/with-custom-thread-list:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -1259,8 +1259,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
@@ -1323,11 +1323,11 @@ importers:
   examples/with-elevenlabs-conversational:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.5
-        version: 4.0.5(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.210
+        version: 3.0.216(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:^
         version: link:../../packages/react
@@ -1347,8 +1347,8 @@ importers:
         specifier: ^4.3.1
         version: 4.3.1
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1408,11 +1408,11 @@ importers:
   examples/with-elevenlabs-scribe:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.5
-        version: 4.0.5(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.210
+        version: 3.0.216(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:^
         version: link:../../packages/react
@@ -1432,8 +1432,8 @@ importers:
         specifier: ^4.3.1
         version: 4.3.1
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1563,11 +1563,11 @@ importers:
   examples/with-expo:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.5
-        version: 4.0.5(react@19.2.3)(zod@4.4.3)
+        specifier: ^3.0.210
+        version: 3.0.216(react@19.2.3)(zod@4.4.3)
       '@assistant-ui/react-ai-sdk':
         specifier: workspace:*
         version: link:../../packages/react-ai-sdk
@@ -1584,8 +1584,8 @@ importers:
         specifier: 7.1.33
         version: 7.1.33(react-native@0.85.3(@babel/core@8.0.1)(@react-native/metro-config@0.85.3(@babel/core@8.0.1))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       expo:
         specifier: ~56.0.12
         version: 56.0.12(@babel/core@8.0.1)(@expo/dom-webview@56.0.5)(@expo/metro-runtime@56.0.15)(expo-router@56.2.11)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-worklets@0.8.3(@babel/core@8.0.1)(@react-native/metro-config@0.85.3(@babel/core@8.0.1))(react-native@0.85.3(@babel/core@8.0.1)(@react-native/metro-config@0.85.3(@babel/core@8.0.1))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.85.3(@babel/core@8.0.1)(@react-native/metro-config@0.85.3(@babel/core@8.0.1))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)(typescript@6.0.3)
@@ -1662,9 +1662,6 @@ importers:
       '@assistant-ui/metro':
         specifier: workspace:*
         version: link:../../packages/metro
-      '@babel/core':
-        specifier: ^8.0.1
-        version: 8.0.1
       '@types/react':
         specifier: ~19.2.17
         version: 19.2.17
@@ -1739,8 +1736,8 @@ importers:
   examples/with-ffmpeg:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -1760,8 +1757,8 @@ importers:
         specifier: ^0.12.2
         version: 0.12.2
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1821,8 +1818,8 @@ importers:
   examples/with-generative-ui:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -1833,8 +1830,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2016,8 +2013,8 @@ importers:
   examples/with-image-generation:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -2025,8 +2022,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2083,8 +2080,8 @@ importers:
   examples/with-interactables:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -2095,8 +2092,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2299,11 +2296,11 @@ importers:
   examples/with-livekit:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.5
-        version: 4.0.5(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.210
+        version: 3.0.216(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:^
         version: link:../../packages/react
@@ -2320,8 +2317,8 @@ importers:
         specifier: ^4.3.1
         version: 4.3.1
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2387,8 +2384,8 @@ importers:
   examples/with-mcp:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -2414,8 +2411,8 @@ importers:
         specifier: ^1.29.0
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
@@ -2639,8 +2636,8 @@ importers:
   examples/with-react-hook-form:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -2657,8 +2654,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2761,8 +2758,8 @@ importers:
         specifier: ^0.3.0
         version: 0.3.0(@wterm/dom@0.3.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       ink:
         specifier: ^7.1.0
         version: 7.1.0(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
@@ -2877,11 +2874,11 @@ importers:
   examples/with-resumable-stream:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.5
-        version: 4.0.5(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.210
+        version: 3.0.216(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -2901,8 +2898,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
@@ -3346,8 +3343,8 @@ importers:
         version: link:../cloud
     devDependencies:
       '@ai-sdk/react':
-        specifier: ^4.0.5
-        version: 4.0.5(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.210
+        version: 3.0.216(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -3364,8 +3361,8 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       assistant-stream:
         specifier: ^0.3.24
         version: link:../assistant-stream
@@ -3713,11 +3710,11 @@ importers:
   packages/react-ai-sdk:
     dependencies:
       '@ai-sdk/mcp':
-        specifier: ^2.0.3
-        version: 2.0.3(zod@4.4.3)
+        specifier: ^1.0.52
+        version: 1.0.55(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.5
-        version: 4.0.5(react@19.2.7)(zod@4.4.3)
+        specifier: ^3.0.210
+        version: 3.0.216(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/core':
         specifier: ^0.2.19
         version: link:../core
@@ -3725,8 +3722,8 @@ importers:
         specifier: ^0.2.19
         version: link:../store
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
@@ -4673,8 +4670,8 @@ importers:
   packages/x-buildutils:
     dependencies:
       '@babel/core':
-        specifier: ^8.0.1
-        version: 8.0.1
+        specifier: ^7.29.7
+        version: 7.29.7
       '@tsconfig/strictest':
         specifier: ^2.0.8
         version: 2.0.8
@@ -4747,8 +4744,8 @@ importers:
   templates/cloud:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -4777,8 +4774,8 @@ importers:
         specifier: ^1.2.10
         version: 1.2.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -4847,8 +4844,8 @@ importers:
   templates/cloud-clerk:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -4883,8 +4880,8 @@ importers:
         specifier: ^1.2.10
         version: 1.2.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -4953,8 +4950,8 @@ importers:
   templates/default:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -4983,8 +4980,8 @@ importers:
         specifier: ^1.2.10
         version: 1.2.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5241,11 +5238,11 @@ importers:
   templates/mcp:
     dependencies:
       '@ai-sdk/mcp':
-        specifier: ^2.0.3
-        version: 2.0.3(zod@4.4.3)
+        specifier: ^1.0.52
+        version: 1.0.55(zod@4.4.3)
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -5274,8 +5271,8 @@ importers:
         specifier: ^1.2.10
         version: 1.2.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5344,8 +5341,8 @@ importers:
   templates/minimal:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.2
-        version: 4.0.2(zod@4.4.3)
+        specifier: ^3.0.73
+        version: 3.0.77(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -5371,8 +5368,8 @@ importers:
         specifier: ^1.2.10
         version: 1.2.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
-        specifier: ^7.0.4
-        version: 7.0.4(zod@4.4.3)
+        specifier: ^6.0.208
+        version: 6.0.214(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5470,21 +5467,33 @@ packages:
   '@ag-ui/proto@0.0.57':
     resolution: {integrity: sha512-pPENOZt0P6ibH8sCTgq05wLYXi5t3P9B5r/1bWYehXjUxtyOdnukSlWM++SsCIwUXsQdm/b3aBgGjEeTF7RenA==}
 
+  '@ai-sdk/gateway@3.0.139':
+    resolution: {integrity: sha512-RFpxyh5j9g7ZMfKxhiwCcF7bGU872o3JvoiIqZbHOM4qkR4RCzeKJF+k+zHomcJYGeUabEbeMXTKNASzz4Toxw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/gateway@4.0.4':
     resolution: {integrity: sha512-xO0e9duft/uZlnDaIeBZmzTMjfdEz1kkDzWnhQNkJZZljsKWVi6IREZW9nAa+Dx6jYJssyxSUggaFYBAV1WZpw==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/mcp@2.0.3':
-    resolution: {integrity: sha512-VlffJutf3KkpjZdmw56yrcUQ0dk6u8LykNLCjIHrsWSgscPdRIHc1DZtPzwEh6FjZAV2+gamTItuu1jcWmmPFQ==}
-    engines: {node: '>=22'}
+  '@ai-sdk/mcp@1.0.55':
+    resolution: {integrity: sha512-G2QSVjEP1Q9kclhdlfw5m/tV5YH0h+b45n2ANx5GGpCTeA1D0enp68773EWJMflGREhybsUXNmkaC+vLbLEzKg==}
+    engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/openai@4.0.2':
-    resolution: {integrity: sha512-/oxY+VpWgTrmqCOho1AD/jF5ZaHizkAEsrEVBhIHEzxSHpbJI0Ws8VSpfJPPBeTF7Ebz6eaNGOvKm2RzN5EcdQ==}
-    engines: {node: '>=22'}
+  '@ai-sdk/openai@3.0.77':
+    resolution: {integrity: sha512-DK0sGy/9j6KhgSrdhSKplTo3qf5frzGjLNYo9DVloH37L6DT42AxR/26UVCCoTEjR+WdsA9svm+5cT3Aye9NTg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@4.0.33':
+    resolution: {integrity: sha512-nJ0bAfegMAIJtrzMJtbzer1cS3nb7c7DsyU1S4nrPm7ZU0Mn6SBBZv5IGZZGTbpWTJwqKTSPeZJTXalbAxt1BA==}
+    engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
@@ -5494,13 +5503,17 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/provider@3.0.12':
+    resolution: {integrity: sha512-sj9DWTJ2Ze0WR9qsiOPqoqzNx3OxL6iMxHImbhvoe9qOspekbzxNDMiJ4TIGfYHYh9w4OmBjz3prvqhzTi96+Q==}
+    engines: {node: '>=18'}
+
   '@ai-sdk/provider@4.0.0':
     resolution: {integrity: sha512-fr9Gs89prDWiuox/T+kCA+i2cJkHpxU5S+tr4megjTzRC27ZsvFhwjU/+XrqqMbvBUlfmXxTOYWy8ng45dsjIg==}
     engines: {node: '>=22'}
 
-  '@ai-sdk/react@4.0.5':
-    resolution: {integrity: sha512-RqScsB409Qqk89Z/Nwjbh/+SfnxkFzjvmeYd0k62MbDt4RVehKxjU5MbnHHjUFuBGKmWdfSWGfMfCDQEqgNvGQ==}
-    engines: {node: '>=22'}
+  '@ai-sdk/react@3.0.216':
+    resolution: {integrity: sha512-fDMKTHRCC3SI/2F3O9d8eYSN6MkV8Z9KY8Xp3asw87am70pGdno2xV2ZDjx/P+9I9ZIIQjPNTmId70MJVtFOWQ==}
+    engines: {node: '>=18'}
     peerDependencies:
       react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
 
@@ -10502,6 +10515,12 @@ packages:
   aggregate-error@3.1.0:
     resolution: {integrity: sha512-4I7Td01quW/RpocfNayFdFVk1qSuoh0E7JrbRJ16nH01HhKFQ88INq9Sd+nd72zqRySlr9BmDA8xlEJ6vJMrYA==}
     engines: {node: '>=8'}
+
+  ai@6.0.214:
+    resolution: {integrity: sha512-9MlePEXT5pXtQv4fXqmiR0RG3DZU4Dbv+kU9ktEJC2COi2RH2WvI2GiyG9MuCqgPII6f1w+5kB5fNIiArqPzaQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
 
   ai@7.0.4:
     resolution: {integrity: sha512-mZub080RWRxpWg8OY56KVnI3AoMVniccSWG+dwVb3nH81+GiNMDYBIdP41RLUivLpmU49pB7ssD7tvfIUaSaCA==}
@@ -17458,6 +17477,13 @@ snapshots:
       '@bufbuild/protobuf': 2.12.1
       '@protobuf-ts/protoc': 2.11.1
 
+  '@ai-sdk/gateway@3.0.139(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.12
+      '@ai-sdk/provider-utils': 4.0.33(zod@4.4.3)
+      '@vercel/oidc': 3.2.0
+      zod: 4.4.3
+
   '@ai-sdk/gateway@4.0.4(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 4.0.0
@@ -17465,17 +17491,24 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.4.3
 
-  '@ai-sdk/mcp@2.0.3(zod@4.4.3)':
+  '@ai-sdk/mcp@1.0.55(zod@4.4.3)':
     dependencies:
-      '@ai-sdk/provider': 4.0.0
-      '@ai-sdk/provider-utils': 5.0.1(zod@4.4.3)
+      '@ai-sdk/provider': 3.0.12
+      '@ai-sdk/provider-utils': 4.0.33(zod@4.4.3)
       pkce-challenge: 5.0.1
       zod: 4.4.3
 
-  '@ai-sdk/openai@4.0.2(zod@4.4.3)':
+  '@ai-sdk/openai@3.0.77(zod@4.4.3)':
     dependencies:
-      '@ai-sdk/provider': 4.0.0
-      '@ai-sdk/provider-utils': 5.0.1(zod@4.4.3)
+      '@ai-sdk/provider': 3.0.12
+      '@ai-sdk/provider-utils': 4.0.33(zod@4.4.3)
+      zod: 4.4.3
+
+  '@ai-sdk/provider-utils@4.0.33(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.12
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.1.0
       zod: 4.4.3
 
   '@ai-sdk/provider-utils@5.0.1(zod@4.4.3)':
@@ -17486,28 +17519,28 @@ snapshots:
       eventsource-parser: 3.1.0
       zod: 4.4.3
 
+  '@ai-sdk/provider@3.0.12':
+    dependencies:
+      json-schema: 0.4.0
+
   '@ai-sdk/provider@4.0.0':
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@4.0.5(react@19.2.3)(zod@4.4.3)':
+  '@ai-sdk/react@3.0.216(react@19.2.3)(zod@4.4.3)':
     dependencies:
-      '@ai-sdk/mcp': 2.0.3(zod@4.4.3)
-      '@ai-sdk/provider': 4.0.0
-      '@ai-sdk/provider-utils': 5.0.1(zod@4.4.3)
-      ai: 7.0.4(zod@4.4.3)
+      '@ai-sdk/provider-utils': 4.0.33(zod@4.4.3)
+      ai: 6.0.214(zod@4.4.3)
       react: 19.2.3
       swr: 2.4.2(react@19.2.3)
       throttleit: 2.1.0
     transitivePeerDependencies:
       - zod
 
-  '@ai-sdk/react@4.0.5(react@19.2.7)(zod@4.4.3)':
+  '@ai-sdk/react@3.0.216(react@19.2.7)(zod@4.4.3)':
     dependencies:
-      '@ai-sdk/mcp': 2.0.3(zod@4.4.3)
-      '@ai-sdk/provider': 4.0.0
-      '@ai-sdk/provider-utils': 5.0.1(zod@4.4.3)
-      ai: 7.0.4(zod@4.4.3)
+      '@ai-sdk/provider-utils': 4.0.33(zod@4.4.3)
+      ai: 6.0.214(zod@4.4.3)
       react: 19.2.7
       swr: 2.4.2(react@19.2.7)
       throttleit: 2.1.0
@@ -17559,10 +17592,11 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
-  '@aui-x/prism@0.0.5(ai@7.0.4(zod@4.4.3))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))':
+  '@aui-x/prism@0.0.5(@ai-sdk/provider@3.0.12)(ai@6.0.214(zod@4.4.3))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))':
     dependencies:
-      ai: 7.0.4(zod@4.4.3)
+      ai: 6.0.214(zod@4.4.3)
     optionalDependencies:
+      '@ai-sdk/provider': 3.0.12
       openai: 6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3)
 
   '@aws-crypto/crc32@5.2.0':
@@ -21123,13 +21157,14 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
-  '@posthog/ai@8.2.2(@google/genai@1.52.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)))(@langchain/core@1.2.1(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))(ws@8.21.0))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-http@0.205.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))(posthog-node@5.38.6(rxjs@7.8.2))':
+  '@posthog/ai@8.2.2(@ai-sdk/provider@3.0.12)(@google/genai@1.52.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)))(@langchain/core@1.2.1(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))(ws@8.21.0))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-http@0.205.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))(posthog-node@5.38.6(rxjs@7.8.2))':
     dependencies:
       '@posthog/core': 1.38.0
       posthog-node: 5.38.6(rxjs@7.8.2)
       uuid: 11.1.1
       zod: 4.4.3
     optionalDependencies:
+      '@ai-sdk/provider': 3.0.12
       '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))
       '@langchain/core': 1.2.1(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.58)(@smithy/signature-v4@5.5.2)(ws@8.21.0)(zod@4.4.3))(ws@8.21.0)
       '@opentelemetry/api': 1.9.0
@@ -23733,6 +23768,14 @@ snapshots:
       indent-string: 4.0.0
     optional: true
 
+  ai@6.0.214(zod@4.4.3):
+    dependencies:
+      '@ai-sdk/gateway': 3.0.139(zod@4.4.3)
+      '@ai-sdk/provider': 3.0.12
+      '@ai-sdk/provider-utils': 4.0.33(zod@4.4.3)
+      '@opentelemetry/api': 1.9.0
+      zod: 4.4.3
+
   ai@7.0.4(zod@4.4.3):
     dependencies:
       '@ai-sdk/gateway': 4.0.4(zod@4.4.3)
@@ -24051,9 +24094,9 @@ snapshots:
 
   baseline-browser-mapping@2.10.40: {}
 
-  bash-tool@1.3.17(ai@7.0.4(zod@4.4.3))(just-bash@3.0.2):
+  bash-tool@1.3.17(ai@6.0.214(zod@4.4.3))(just-bash@3.0.2):
     dependencies:
-      ai: 7.0.4(zod@4.4.3)
+      ai: 6.0.214(zod@4.4.3)
       fast-glob: 3.3.3
       yaml: 2.9.0
       zod: 3.25.76
@@ -25211,6 +25254,55 @@ snapshots:
       '@types/estree': 1.0.9
 
   etag@1.8.1: {}
+
+  eve@0.17.1(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.0)(ai@6.0.214(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.2)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.1))(next@16.2.9(@babel/core@8.0.1)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(sqlite3@5.1.7)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)):
+    dependencies:
+      ai: 6.0.214(zod@4.4.3)
+      nitro: 3.0.260610-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.1))(sqlite3@5.1.7)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+      just-bash: 3.0.2
+      next: 16.2.9(@babel/core@8.0.1)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react: 19.2.7
+      vite: 8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@electric-sql/pglite'
+      - '@libsql/client'
+      - '@netlify/blobs'
+      - '@netlify/runtime'
+      - '@planetscale/database'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - '@vercel/queue'
+      - aws4fetch
+      - better-sqlite3
+      - chokidar
+      - dotenv
+      - drizzle-orm
+      - giget
+      - idb-keyval
+      - ioredis
+      - jiti
+      - lru-cache
+      - miniflare
+      - mongodb
+      - mysql2
+      - rollup
+      - sqlite3
+      - uploadthing
+      - wrangler
+      - xml2js
+      - zephyr-agent
 
   eve@0.17.1(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.0)(ai@7.0.4(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.0.2)(lru-cache@11.5.1)(mysql2@3.20.0(@types/node@26.0.1))(next@16.2.9(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(sqlite3@5.1.7)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)):
     dependencies:

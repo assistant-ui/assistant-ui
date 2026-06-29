@@ -10,14 +10,14 @@
     "export:web": "expo export --platform web && node scripts/flatten-assets.mjs"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.2",
-    "@ai-sdk/react": "^4.0.5",
+    "@ai-sdk/openai": "^3.0.73",
+    "@ai-sdk/react": "^3.0.210",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-native": "workspace:*",
     "@expo/vector-icons": "^15.1.1",
     "@react-navigation/drawer": "7.9.4",
     "@react-navigation/native": "7.1.33",
-    "ai": "^7.0.4",
+    "ai": "^6.0.208",
     "expo": "~56.0.12",
     "expo-clipboard": "~56.0.4",
     "expo-constants": "~56.0.18",
@@ -45,7 +45,6 @@
   },
   "devDependencies": {
     "@assistant-ui/metro": "workspace:*",
-    "@babel/core": "^8.0.1",
     "@types/react": "~19.2.17",
     "typescript": "~6.0.3"
   },

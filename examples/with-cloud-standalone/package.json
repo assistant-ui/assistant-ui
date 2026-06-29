@@ -9,9 +9,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.2",
+    "@ai-sdk/openai": "^3.0.73",
     "@assistant-ui/cloud-ai-sdk": "workspace:*",
-    "ai": "^7.0.4",
+    "ai": "^6.0.208",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.21.0",
