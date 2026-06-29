@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { isValidElement, type ReactElement } from "react";
 import { parsePartialJsonObject } from "assistant-stream/utils";
 import { z } from "zod";
 import { renderGenerativeUI } from "./renderGenerativeUI";
@@ -63,6 +64,26 @@ describe("renderGenerativeUI", () => {
     expect(html).toBe(
       '<section data-title="Hello"><p>first</p><p data-tone="muted">second</p></section>',
     );
+  });
+
+  it("uses stable $key for array items and keeps the positional fallback", () => {
+    const out = renderGenerativeUI(
+      [
+        { $type: "Text", $key: "task-1", children: "first" },
+        { $type: "Text", children: "second" },
+        "plain",
+      ],
+      library,
+    );
+
+    expect(Array.isArray(out)).toBe(true);
+    const elements = out as ReactElement[];
+    expect(elements.every(isValidElement)).toBe(true);
+    expect(elements.map((element) => element.key)).toEqual([
+      "task-1",
+      "1:Text",
+      "2:#text",
+    ]);
   });
 
   it("passes a component's own `type` prop through without collision", () => {

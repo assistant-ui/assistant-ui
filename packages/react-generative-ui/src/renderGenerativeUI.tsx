@@ -43,13 +43,12 @@ function renderNode(
   if (node == null || typeof node === "boolean") return null;
   if (typeof node === "string" || typeof node === "number") return node;
   if (Array.isArray(node)) {
-    // The wire format has no per-node id, so the key is positional. Pairing the
-    // index with the node's kind means that when the model splices or reorders
-    // `children` and the kind at an index changes, the key changes and React
-    // remounts instead of handing a streaming node's hook state to a different
-    // component.
+    // Use a model-provided stable key when present. Otherwise, keep the
+    // positional fallback: pairing the index with the node's kind means that
+    // when the kind at an index changes, React remounts instead of handing a
+    // streaming node's hook state to a different component.
     return node.map((child, index) => (
-      <Fragment key={`${index}:${nodeKind(child)}`}>
+      <Fragment key={nodeKey(child, index)}>
         {renderNode(child, library, context)}
       </Fragment>
     ));
@@ -116,6 +115,13 @@ function nodeKind(node: NormalizedUINode): string {
   if (Array.isArray(node)) return "#array";
   return isElement(node) ? node.type : "";
 }
+
+function nodeKey(node: NormalizedUINode, index: number): string | number {
+  return isElement(node) && node.key !== undefined
+    ? node.key
+    : `${index}:${nodeKind(node)}`;
+}
+
 function reportUnknownComponent(type: string, available: string[]): void {
   if (process.env["NODE_ENV"] !== "production") {
     // eslint-disable-next-line no-console
