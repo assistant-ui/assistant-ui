@@ -790,4 +790,50 @@ describe("AISDKMessageConverter", () => {
     expect(firstApp).toBeDefined();
     expect(firstApp).toBe(secondApp);
   });
+
+  it("converts a reasoning-file part into a file part", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "reasoning-file",
+            mediaType: "image/png",
+            url: "data:image/png;base64,abc",
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content).toHaveLength(1);
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "file",
+      data: "data:image/png;base64,abc",
+      mimeType: "image/png",
+    });
+  });
+
+  it("converts a custom part into a data part named by its kind", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "custom",
+            kind: "acme.widget",
+            providerMetadata: { acme: { foo: "bar" } },
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content).toHaveLength(1);
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "data",
+      name: "acme.widget",
+      data: { acme: { foo: "bar" } },
+    });
+  });
 });

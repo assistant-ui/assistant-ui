@@ -1,13 +1,13 @@
-# AI SDK v6 Example
+# AI SDK v7 Example
 
-This example demonstrates how to use `@assistant-ui/react-ai-sdk` with the Vercel AI SDK v6.
+This example demonstrates how to use `@assistant-ui/react-ai-sdk` with the Vercel AI SDK v7.
 
 ## Quick Start
 
 ### Using CLI (Recommended)
 
 ```bash
-npx assistant-ui@latest create my-app --example with-ai-sdk-v6
+npx assistant-ui@latest create my-app --example with-ai-sdk-v7
 cd my-app
 ```
 
@@ -30,10 +30,10 @@ Open [http://localhost:3000](http://localhost:3000) to see the result.
 
 ## Key Features
 
-- Uses the new AI SDK v6 with `@ai-sdk/openai`
+- Uses the new AI SDK v7 with `@ai-sdk/openai`
 - Integrates with `@assistant-ui/react` using the new `useChatRuntime` hook
 - No RSC support (client-side only)
-- Simplified integration with the `useChatRuntime` hook that wraps AI SDK v6's `useChat`
+- Simplified integration with the `useChatRuntime` hook that wraps AI SDK v7's `useChat`
 - Uses `AssistantChatTransport` to pass system messages and frontend tools to the backend
 
 ## Custom Transport Configuration
@@ -68,7 +68,7 @@ const runtime = useChatRuntime({
 
 ## API Route
 
-The API route at `/api/chat` uses AI SDK v6 `streamText`, forwards `system` and frontend `tools`, and merges them with a server-defined weather tool.
+The API route at `/api/chat` uses AI SDK v7 `streamText`, forwards `system` and frontend `tools`, and merges them with a server-defined weather tool.
 
 ## Related Documentation
 

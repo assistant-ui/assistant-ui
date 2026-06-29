@@ -583,7 +583,7 @@ const toolkit = defineToolkit({
 
 Approval gates require a runtime that implements them: the AI SDK v6 runtime emits them for `needsApproval` tools, and `LocalRuntime` supports gates emitted by your `ChatModelAdapter`; see [LocalRuntime approval gates](/docs/runtimes/custom/local-runtime#approval-gates). For tools where the user supplies the result itself, use `unstable_humanToolNames` with `addResult` instead; see [human-in-the-loop tools](/docs/runtimes/custom/local-runtime#human-in-the-loop-tools).
 
-For the wire-side setup (`needsApproval`, `sendAutomaticallyWhen`), see [AI SDK v6 server-side tool approval](/docs/runtimes/ai-sdk/v6#server-side-tool-approval).
+For the wire-side setup (`needsApproval`, `sendAutomaticallyWhen`), see [AI SDK v7 server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval).
 
 ### Approval options
 

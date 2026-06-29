@@ -1,4 +1,10 @@
-import { isToolUIPart, getToolName, type UIMessage } from "ai";
+import {
+  isToolUIPart,
+  isReasoningFileUIPart,
+  isCustomContentUIPart,
+  getToolName,
+  type UIMessage,
+} from "ai";
 import {
   createMessageConverter as unstable_createMessageConverter,
   type useExternalMessageConverter,
@@ -344,6 +350,22 @@ function convertParts(
           type: "data",
           name: part.type.substring(5),
           data: (part as any).data,
+        } satisfies DataMessagePart;
+      }
+
+      if (isReasoningFileUIPart(part)) {
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType,
+        } satisfies FileMessagePart;
+      }
+
+      if (isCustomContentUIPart(part)) {
+        return {
+          type: "data",
+          name: part.kind,
+          data: part.providerMetadata ?? null,
         } satisfies DataMessagePart;
       }
 
