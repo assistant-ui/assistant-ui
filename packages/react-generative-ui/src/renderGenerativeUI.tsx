@@ -116,9 +116,10 @@ function nodeKind(node: NormalizedUINode): string {
   return isElement(node) ? node.type : "";
 }
 
-function nodeKey(node: NormalizedUINode, index: number): string | number {
-  return isElement(node) && node.key !== undefined
-    ? node.key
+function nodeKey(node: NormalizedUINode, index: number): string {
+  return isElement(node) &&
+    (typeof node.key === "string" || typeof node.key === "number")
+    ? `model:${node.key}`
     : `${index}:${nodeKind(node)}`;
 }
 

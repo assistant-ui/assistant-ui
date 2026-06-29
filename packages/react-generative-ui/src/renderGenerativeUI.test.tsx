@@ -69,9 +69,10 @@ describe("renderGenerativeUI", () => {
   it("uses stable $key for array items and keeps the positional fallback", () => {
     const out = renderGenerativeUI(
       [
-        { $type: "Text", $key: "task-1", children: "first" },
+        { $type: "Text", $key: "1:Text", children: "first" },
         { $type: "Text", children: "second" },
         "plain",
+        { $type: "Text", $key: { id: "bad" }, children: "bad key" },
       ],
       library,
     );
@@ -80,9 +81,10 @@ describe("renderGenerativeUI", () => {
     const elements = out as ReactElement[];
     expect(elements.every(isValidElement)).toBe(true);
     expect(elements.map((element) => element.key)).toEqual([
-      "task-1",
+      "model:1:Text",
       "1:Text",
       "2:#text",
+      "3:Text",
     ]);
   });
 
