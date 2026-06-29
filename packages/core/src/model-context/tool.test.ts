@@ -3,7 +3,7 @@ import type { Tool } from "assistant-stream";
 import type { AsyncIterableStream } from "assistant-stream/utils";
 import { tool } from "./tool";
 
-type TestStandardSchema<TInput extends Record<string, unknown>> = {
+type TestStandardSchema<TInput> = {
   readonly "~standard": {
     readonly version: 1;
     readonly vendor: "test";
@@ -62,6 +62,26 @@ const checkStandardSchemaInference = () => {
   >();
 };
 expectTypeOf(checkStandardSchemaInference).toEqualTypeOf<() => void>();
+
+const checkUnknownStandardSchemaInputFallsBackToRecord = () => {
+  const unknownSchema = {} as TestStandardSchema<unknown>;
+
+  const passthrough = tool({
+    type: "frontend",
+    parameters: unknownSchema,
+    execute: async (args) => {
+      expectTypeOf(args).toEqualTypeOf<Record<string, unknown>>();
+      return args;
+    },
+  });
+
+  expectTypeOf(passthrough).toEqualTypeOf<
+    Tool<Record<string, unknown>, Record<string, unknown>>
+  >();
+};
+expectTypeOf(checkUnknownStandardSchemaInputFallsBackToRecord).toEqualTypeOf<
+  () => void
+>();
 
 const checkExplicitJsonSchemaTypesStillWork = () => {
   const getWeather = tool<{ city: string }, string>({

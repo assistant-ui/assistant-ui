@@ -13,7 +13,7 @@ type StandardSchemaInput<TSchema> = TSchema extends {
 type StandardSchemaParameters = {
   readonly "~standard": {
     readonly types?:
-      | { readonly input: Record<string, unknown>; readonly output?: unknown }
+      | { readonly input: unknown; readonly output?: unknown }
       | undefined;
   };
 };
