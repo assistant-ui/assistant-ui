@@ -30,7 +30,7 @@ const checkStandardSchemaInference = () => {
       expectTypeOf(args.unit).toEqualTypeOf<"c" | "f" | undefined>();
       expectTypeOf(args.tags).toEqualTypeOf<string[]>();
       // @ts-expect-error unknown schema fields should not be accepted
-      args.missing;
+      void args.missing;
 
       return `Weather in ${args.city}`;
     },

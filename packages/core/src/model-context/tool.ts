@@ -33,6 +33,8 @@ type StandardSchemaParameters = {
  *
  * @example
  * ```ts
+ * import { z } from "zod";
+ *
  * const getWeather = tool({
  *   type: "frontend",
  *   description: "Get the weather for a city.",
