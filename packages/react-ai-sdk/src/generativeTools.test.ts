@@ -165,6 +165,23 @@ describe("AISDKToolkit", () => {
     expect(mocks.tools).toHaveBeenCalledTimes(2);
   });
 
+  it("does not connect disabled MCP toolkit entries", async () => {
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        local: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+          disabled: true,
+        },
+      },
+    });
+
+    await expect(toolkit.tools()).resolves.toEqual({});
+
+    expect(mocks.createMCPClient).not.toHaveBeenCalled();
+    expect(mocks.tools).not.toHaveBeenCalled();
+  });
+
   it("closes pooled MCP clients", async () => {
     mocks.tools.mockResolvedValue({});
     mocks.createMCPClient.mockResolvedValue({

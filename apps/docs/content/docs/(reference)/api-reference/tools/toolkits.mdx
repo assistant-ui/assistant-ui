@@ -84,7 +84,9 @@ type Toolkit = Record<string, ToolDefinition<any, any>>;
 
 ### defineMcpToolkit
 
-Defines MCP server tools as a spreadable toolkit fragment.
+Defines MCP server tools as a spreadable toolkit fragment. Pass a raw
+`McpServerConfig` for always-on servers, or `{ server, disabled }` when a
+server should stay configured but not expose tools for the current request.
 
 <ParametersTable {...defineMcpToolkit} />
 

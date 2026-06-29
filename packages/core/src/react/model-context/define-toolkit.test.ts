@@ -1,5 +1,6 @@
 import { describe, it, expect, expectTypeOf } from "vitest";
 import type { AsyncIterableStream } from "assistant-stream/utils";
+import { defineMcpToolkit } from "./define-mcp-toolkit";
 import { defineToolkit } from "./define-toolkit";
 import { hitl, hitlTool, humanTool } from "./human-tool";
 import { providerTool } from "./provider-tool";
@@ -74,10 +75,61 @@ const checkToolkitDefinitionTypes = () => {
 };
 expectTypeOf(checkToolkitDefinitionTypes).toEqualTypeOf<() => void>();
 
+const checkDefineMcpToolkitTypes = () => {
+  defineMcpToolkit({
+    docs: {
+      type: "http",
+      url: "https://example.com/mcp",
+    },
+    gatedDocs: {
+      server: {
+        type: "http",
+        url: "https://example.com/gated-mcp",
+      },
+      disabled: true,
+    },
+  });
+};
+expectTypeOf(checkDefineMcpToolkitTypes).toEqualTypeOf<() => void>();
+
 describe("use-generative markers", () => {
   it("defineToolkit returns the toolkit at runtime", () => {
     const toolkit = {};
     expect(defineToolkit(toolkit)).toBe(toolkit);
+  });
+
+  it("defineMcpToolkit supports disabled server entries", () => {
+    expect(
+      defineMcpToolkit({
+        docs: {
+          type: "http",
+          url: "https://example.com/mcp",
+        },
+        gatedDocs: {
+          server: {
+            type: "http",
+            url: "https://example.com/gated-mcp",
+          },
+          disabled: true,
+        },
+      }),
+    ).toEqual({
+      docs: {
+        type: "mcp",
+        server: {
+          type: "http",
+          url: "https://example.com/mcp",
+        },
+      },
+      gatedDocs: {
+        type: "mcp",
+        server: {
+          type: "http",
+          url: "https://example.com/gated-mcp",
+        },
+        disabled: true,
+      },
+    });
   });
 
   it("humanTool throws at runtime — it must be stripped by the compiler, never called", () => {

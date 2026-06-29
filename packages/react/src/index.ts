@@ -209,6 +209,7 @@ export {
   providerTool,
   type ProviderToolConfig,
   defineMcpToolkit,
+  type McpToolkitEntry,
   type McpToolkitDefinition,
   Tools,
   DataRenderers,
