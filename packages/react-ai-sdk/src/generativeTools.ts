@@ -9,7 +9,11 @@ import {
   type ToolJSONSchema,
   type ToolModelOutputFunction,
 } from "assistant-stream";
-import type { Toolkit, ToolkitDefinition } from "@assistant-ui/core/react";
+import type {
+  McpToolkitToolConfig,
+  Toolkit,
+  ToolkitDefinition,
+} from "@assistant-ui/core/react";
 import { frontendTools } from "./frontendTools";
 import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
 import {
@@ -157,14 +161,15 @@ export class AISDKToolkit {
         )
         .map(async ([name, tool]) => {
           const client = await this.#mcpClient(name, tool.server);
-          return [name, await client.tools()] as const;
+          return [name, tool, await client.tools()] as const;
         }),
     );
 
     const tools: ToolSet = {};
     const toolSources = new Map<string, string>();
-    for (const [serverName, toolSet] of toolSets) {
+    for (const [serverName, mcpTool, toolSet] of toolSets) {
       for (const [toolName, tool] of Object.entries(toolSet)) {
+        if (isDisabledMcpTool(mcpTool.tools?.[toolName])) continue;
         const existingServerName = toolSources.get(toolName);
         if (existingServerName) {
           throw new Error(
@@ -220,10 +225,14 @@ type ToolkitTool = Toolkit[string];
 type McpToolkitTool = ToolkitTool & {
   type: "mcp";
   server: McpServerConfig;
+  tools?: Record<string, McpToolkitToolConfig> | undefined;
 };
 
 const isMcpToolkitTool = (tool: ToolkitTool): tool is McpToolkitTool =>
   tool.type === "mcp" && !tool.disabled;
+
+const isDisabledMcpTool = (config: McpToolkitToolConfig | undefined): boolean =>
+  config?.disabled === true;
 
 const assertNoMcpToolkitTools = (toolkit: Toolkit): void => {
   const mcpToolName = Object.entries(toolkit).find(([, tool]) =>
