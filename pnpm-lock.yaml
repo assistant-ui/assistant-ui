@@ -39,8 +39,8 @@ importers:
         specifier: ^0.0.57
         version: 0.0.57
       '@ai-sdk/provider':
-        specifier: ^4.0.0
-        version: 4.0.0
+        specifier: ^3.0.10
+        version: 3.0.12
       '@ai-sdk/react':
         specifier: ^3.0.210
         version: 3.0.216(react@19.2.7)(zod@4.4.3)
@@ -3759,8 +3759,8 @@ importers:
   packages/react-data-stream:
     dependencies:
       '@ai-sdk/provider':
-        specifier: ^4.0.0
-        version: 4.0.0
+        specifier: ^3.0.10
+        version: 3.0.12
       '@assistant-ui/core':
         specifier: ^0.2.19
         version: link:../core
