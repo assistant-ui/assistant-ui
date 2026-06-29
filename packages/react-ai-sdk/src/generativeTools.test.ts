@@ -182,6 +182,38 @@ describe("AISDKToolkit", () => {
     expect(mocks.tools).not.toHaveBeenCalled();
   });
 
+  it("filters disabled MCP tools from enabled toolkit entries", async () => {
+    mocks.tools.mockResolvedValue({
+      publicSearch: { inputSchema: {} },
+      privateSearch: { inputSchema: {} },
+    });
+    mocks.createMCPClient.mockResolvedValue({
+      tools: mocks.tools,
+      close: mocks.close,
+    });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        local: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+          tools: {
+            privateSearch: {
+              disabled: true,
+            },
+          },
+        },
+      },
+    });
+
+    await expect(toolkit.tools()).resolves.toEqual({
+      publicSearch: { inputSchema: {} },
+    });
+
+    expect(mocks.createMCPClient).toHaveBeenCalledTimes(1);
+    expect(mocks.tools).toHaveBeenCalledTimes(1);
+  });
+
   it("closes pooled MCP clients", async () => {
     mocks.tools.mockResolvedValue({});
     mocks.createMCPClient.mockResolvedValue({
@@ -287,6 +319,40 @@ describe("AISDKToolkit", () => {
     await expect(toolkit.tools()).rejects.toThrow(
       /MCP tool name collision: "echo"/,
     );
+  });
+
+  it("ignores disabled MCP tools during name collision checks", async () => {
+    mocks.createMCPClient
+      .mockResolvedValueOnce({
+        tools: vi.fn().mockResolvedValue({ echo: { inputSchema: {} } }),
+        close: mocks.close,
+      })
+      .mockResolvedValueOnce({
+        tools: vi.fn().mockResolvedValue({ echo: { inputSchema: {} } }),
+        close: mocks.close,
+      });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        first: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+          tools: {
+            echo: {
+              disabled: true,
+            },
+          },
+        },
+        second: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3002/mcp" },
+        },
+      },
+    });
+
+    await expect(toolkit.tools()).resolves.toEqual({
+      echo: { inputSchema: {} },
+    });
   });
 
   it("includes provider tools alongside MCP tools", async () => {
