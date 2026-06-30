@@ -272,6 +272,39 @@ describe("AISDKToolkit", () => {
     );
   });
 
+  it("prefixes MCP tool names when configured", async () => {
+    mocks.createMCPClient
+      .mockResolvedValueOnce({
+        tools: vi.fn().mockResolvedValue({ search: { inputSchema: {} } }),
+        close: mocks.close,
+      })
+      .mockResolvedValueOnce({
+        tools: vi.fn().mockResolvedValue({ search: { inputSchema: {} } }),
+        close: mocks.close,
+      });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+          prefix: "docs_",
+        },
+        github: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3002/mcp" },
+          prefix: "github_",
+        },
+      } as never,
+    });
+
+    const toolSet = await toolkit.tools();
+
+    expect(toolSet).toHaveProperty("docs_search");
+    expect(toolSet).toHaveProperty("github_search");
+    expect(toolSet).not.toHaveProperty("search");
+  });
+
   it("includes provider tools alongside MCP tools", async () => {
     mocks.tools.mockResolvedValue({ echo: { inputSchema: {} } });
     mocks.createMCPClient.mockResolvedValue({

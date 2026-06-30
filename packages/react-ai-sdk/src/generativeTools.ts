@@ -157,22 +157,23 @@ export class AISDKToolkit {
         )
         .map(async ([name, tool]) => {
           const client = await this.#mcpClient(name, tool.server);
-          return [name, await client.tools()] as const;
+          return [name, tool.prefix ?? "", await client.tools()] as const;
         }),
     );
 
     const tools: ToolSet = {};
     const toolSources = new Map<string, string>();
-    for (const [serverName, toolSet] of toolSets) {
+    for (const [serverName, prefix, toolSet] of toolSets) {
       for (const [toolName, tool] of Object.entries(toolSet)) {
-        const existingServerName = toolSources.get(toolName);
+        const exposedName = `${prefix}${toolName}`;
+        const existingServerName = toolSources.get(exposedName);
         if (existingServerName) {
           throw new Error(
-            `MCP tool name collision: "${toolName}" is exposed by both "${existingServerName}" and "${serverName}". Rename one of the toolkit entries or expose distinct MCP tool names.`,
+            `MCP tool name collision: "${exposedName}" is exposed by both "${existingServerName}" and "${serverName}". Rename one of the toolkit entries or expose distinct MCP tool names.`,
           );
         }
-        toolSources.set(toolName, serverName);
-        tools[toolName] = tool;
+        toolSources.set(exposedName, serverName);
+        tools[exposedName] = tool;
       }
     }
     return tools;
@@ -220,6 +221,7 @@ type ToolkitTool = Toolkit[string];
 type McpToolkitTool = ToolkitTool & {
   type: "mcp";
   server: McpServerConfig;
+  prefix?: string | undefined;
 };
 
 const isMcpToolkitTool = (tool: ToolkitTool): tool is McpToolkitTool =>

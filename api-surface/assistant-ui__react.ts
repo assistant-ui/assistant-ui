@@ -3180,7 +3180,12 @@ type ProviderToolConfig<TArgs extends Record<string, unknown> = Record<string, u
 
 declare function providerTool(_config: ProviderToolConfig): never;
 
-type McpToolkitDefinition = Record<string, McpServerConfig>;
+type McpToolkitEntry = McpServerConfig | {
+  server: McpServerConfig;
+  prefix?: string | undefined;
+};
+
+type McpToolkitDefinition = Record<string, McpToolkitEntry>;
 
 declare function defineMcpToolkit(definition: McpToolkitDefinition): Toolkit;
 
