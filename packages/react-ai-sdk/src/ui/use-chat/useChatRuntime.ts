@@ -125,6 +125,10 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   }
 
   const resumeFiredRef = useRef(false);
+  const onResumeErrorRef = useRef(onResumeError);
+  useEffect(() => {
+    onResumeErrorRef.current = onResumeError;
+  });
   useEffect(() => {
     if (resumeFiredRef.current) return;
     const adapter = getResumableAdapter(transport);
@@ -138,12 +142,17 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         err,
       );
       try {
-        onResumeError?.(err);
+        onResumeErrorRef.current?.(err);
+      } catch (callbackError) {
+        console.error(
+          "[assistant-ui] resumable: onResumeError callback failed",
+          callbackError,
+        );
       } finally {
         adapter.storage.clear();
       }
     });
-  }, [transport, chat, onResumeError]);
+  }, [transport, chat]);
 
   return runtime;
 };

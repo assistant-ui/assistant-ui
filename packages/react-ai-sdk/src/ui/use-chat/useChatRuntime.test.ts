@@ -80,10 +80,59 @@ describe("useChatRuntime", () => {
     });
     expect(resumeStream).toHaveBeenCalledTimes(1);
     expect(clear).toHaveBeenCalledTimes(1);
+    expect(onResumeError.mock.invocationCallOrder[0]).toBeLessThan(
+      clear.mock.invocationCallOrder[0]!,
+    );
     expect(warn).toHaveBeenCalledWith(
       "[assistant-ui] resumable: resume failed; clearing stored stream id",
       error,
     );
     warn.mockRestore();
+  });
+
+  it("clears resumable stream storage when onResumeError throws", async () => {
+    const error = new Error("resume failed");
+    const callbackError = new Error("callback failed");
+    const resumeStream = vi.fn().mockRejectedValue(error);
+    const clear = vi.fn();
+    const onResumeError = vi.fn(() => {
+      throw callbackError;
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    mocks.useChat.mockReturnValue({
+      resumeStream,
+    });
+
+    const transport = {
+      getResumableAdapter: () => ({
+        storage: {
+          getStreamId: () => "stream-1",
+          setStreamId: vi.fn(),
+          clear,
+        },
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+
+    renderHook(() =>
+      useChatRuntime({
+        transport: transport as never,
+        onResumeError,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(clear).toHaveBeenCalledTimes(1);
+    });
+    expect(onResumeError).toHaveBeenCalledWith(error);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] resumable: onResumeError callback failed",
+      callbackError,
+    );
+    warn.mockRestore();
+    consoleError.mockRestore();
   });
 });
