@@ -1,4 +1,5 @@
 import { fromThreadMessageLike } from "../../runtime/utils/thread-message-like";
+import { createThreadAssistantMessage } from "../../runtime/utils/create-thread-assistant-message";
 import { generateId } from "../../utils/id";
 import type {
   ChatModelAdapter,
@@ -322,21 +323,11 @@ export class LocalThreadRuntimeCore
     this.ensureInitialized();
 
     // add assistant message
-    const id = generateId();
-    const message: ThreadAssistantMessage = {
-      id,
-      role: "assistant",
-      status: { type: "running" },
-      content: [],
+    const message = createThreadAssistantMessage({
       metadata: {
         unstable_state: this.state,
-        unstable_annotations: [],
-        unstable_data: [],
-        steps: [],
-        custom: {},
       },
-      createdAt: new Date(),
-    };
+    });
 
     return this._runLoop(parentId, message, runConfig, runCallback);
   }
