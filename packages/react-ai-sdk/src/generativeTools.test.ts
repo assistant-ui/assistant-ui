@@ -295,7 +295,7 @@ describe("AISDKToolkit", () => {
           server: { type: "http", url: "http://localhost:3002/mcp" },
           prefix: "github_",
         },
-      } as never,
+      },
     });
 
     const toolSet = await toolkit.tools();

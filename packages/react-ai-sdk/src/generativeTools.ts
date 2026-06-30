@@ -221,7 +221,6 @@ type ToolkitTool = Toolkit[string];
 type McpToolkitTool = ToolkitTool & {
   type: "mcp";
   server: McpServerConfig;
-  prefix?: string | undefined;
 };
 
 const isMcpToolkitTool = (tool: ToolkitTool): tool is McpToolkitTool =>
