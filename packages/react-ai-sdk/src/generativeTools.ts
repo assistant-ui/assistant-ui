@@ -240,11 +240,10 @@ const toMcpToolkitError = (
   action: "connect" | "list tools",
   error: unknown,
 ): Error => {
-  const wrapped = new Error(
+  return new Error(
     `MCP toolkit entry "${entryName}" failed to ${action}: ${getErrorMessage(error)}`,
+    { cause: error },
   );
-  (wrapped as Error & { cause?: unknown }).cause = error;
-  return wrapped;
 };
 
 const assertNoMcpToolkitTools = (toolkit: Toolkit): void => {
