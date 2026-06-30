@@ -142,13 +142,7 @@ const useMcpServerResource = (
     const t = transportRef.current;
     transportRef.current = null;
     clientRef.current = null;
-    if (t) {
-      try {
-        await t.close();
-      } catch {
-        // ignore close errors
-      }
-    }
+    await closeOwnedTransport(t);
   };
 
   const doConnect = useEffectEvent(async () => {
