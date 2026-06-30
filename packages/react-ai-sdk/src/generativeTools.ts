@@ -123,21 +123,33 @@ export class AISDKToolkit {
   }
 
   async close(): Promise<void> {
-    const clientPromises = [...this.#mcpClients.values()];
+    const clientPromises = [...this.#mcpClients.entries()];
     this.#mcpClients.clear();
-    const results = await Promise.allSettled(clientPromises);
-    const clients = results.flatMap((result) =>
-      result.status === "fulfilled" ? [result.value] : [],
+    const results = await Promise.all(
+      clientPromises.map(async ([name, clientPromise]) => {
+        const result = await Promise.allSettled([clientPromise]);
+        return [name, result[0]!] as const;
+      }),
     );
-    const closeResults = await Promise.allSettled(
-      clients.map((client) => client.close()),
+    const clients = results.flatMap(([name, result]) =>
+      result.status === "fulfilled" ? [[name, result.value] as const] : [],
+    );
+    const closeResults = await Promise.all(
+      clients.map(async ([name, client]) => {
+        const result = await Promise.allSettled([client.close()]);
+        return [name, result[0]!] as const;
+      }),
     );
     const errors = [
-      ...results.flatMap((result) =>
-        result.status === "rejected" ? [result.reason] : [],
+      ...results.flatMap(([name, result]) =>
+        result.status === "rejected"
+          ? [toMcpToolkitError(name, "connect", result.reason)]
+          : [],
       ),
-      ...closeResults.flatMap((result) =>
-        result.status === "rejected" ? [result.reason] : [],
+      ...closeResults.flatMap(([name, result]) =>
+        result.status === "rejected"
+          ? [toMcpToolkitError(name, "close", result.reason)]
+          : [],
       ),
     ];
     if (errors.length === 1) throw errors[0];
@@ -237,7 +249,7 @@ const getErrorMessage = (error: unknown): string =>
 
 const toMcpToolkitError = (
   entryName: string,
-  action: "connect" | "list tools",
+  action: "connect" | "list tools" | "close",
   error: unknown,
 ): Error => {
   return new Error(
