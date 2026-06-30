@@ -64,6 +64,26 @@ export const createOpenCodeThreadListAdapter = (
       sessionID: remoteId,
     });
   },
+  fork: async (
+    remoteId: string,
+    options?: { fromMessageId?: string | undefined },
+  ) => {
+    if (!options?.fromMessageId) {
+      throw new Error("OpenCode fork requires a source message id");
+    }
+
+    const response = await client.session.fork({
+      sessionID: remoteId,
+      messageID: options.fromMessageId,
+    });
+    if (!response.data?.id) {
+      throw new Error("Failed to fork OpenCode session");
+    }
+    return {
+      remoteId: response.data.id,
+      externalId: response.data.id,
+    };
+  },
   initialize: async () => {
     const response = await client.session.create({});
     if (!response.data?.id) {

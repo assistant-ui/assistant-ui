@@ -445,17 +445,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     });
   }
 
-  public async fork(messageId: string) {
-    const response = await this.client.session.fork({
-      sessionID: this.sessionId,
-      messageID: messageId,
-    });
-    if (!response.data?.id) {
-      throw new Error("Failed to fork OpenCode session");
-    }
-    return response.data.id;
-  }
-
   public async replyToPermission(
     permissionId: string,
     response: OpenCodePermissionResponse,

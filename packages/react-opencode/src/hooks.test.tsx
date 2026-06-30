@@ -50,7 +50,6 @@ const provideExtras = (over: Record<string, unknown>) =>
     state: EMPTY_OPENCODE_THREAD_STATE,
     permissions: {},
     questions: {},
-    fork: async () => "",
     revert: async () => {},
     unrevert: async () => {},
     cancel: async () => {},

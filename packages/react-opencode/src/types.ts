@@ -219,7 +219,6 @@ export type OpenCodeRuntimeExtras = {
   state: OpenCodeThreadState;
   permissions: OpenCodeThreadState["interactions"]["permissions"]["pending"];
   questions: OpenCodeThreadState["interactions"]["questions"]["pending"];
-  fork: (messageId: string) => Promise<string>;
   revert: (messageId: string) => Promise<void>;
   unrevert: () => Promise<void>;
   cancel: () => Promise<void>;
@@ -323,7 +322,6 @@ export type OpenCodeThreadControllerLike = {
   cancel(): Promise<void>;
   revert(messageId: string): Promise<void>;
   unrevert(): Promise<void>;
-  fork(messageId: string): Promise<string>;
   replyToPermission(
     permissionId: string,
     response: OpenCodePermissionResponse,
