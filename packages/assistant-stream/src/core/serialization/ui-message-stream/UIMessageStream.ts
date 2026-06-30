@@ -150,7 +150,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               break;
 
             case "text-delta":
-              controller.appendText(chunk.textDelta);
+              controller.appendText(chunk.delta);
               break;
 
             case "reasoning-delta":
