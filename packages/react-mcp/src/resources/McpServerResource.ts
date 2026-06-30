@@ -45,16 +45,40 @@ const useMcpServerResource = (
 
   const clientRef = useRef<Client | null>(null);
   const transportRef = useRef<StreamableHTTPClientTransport | null>(null);
+  const connectAttemptRef = useRef(0);
+
+  const isCurrentAttempt = (attempt: number) =>
+    attempt === connectAttemptRef.current;
+
+  const closeOwnedTransport = async (
+    transport: StreamableHTTPClientTransport | null,
+  ) => {
+    if (!transport) return;
+    try {
+      await transport.close();
+    } catch {}
+  };
+
+  const closeStaleTransport = async (
+    transport: StreamableHTTPClientTransport | null,
+  ) => {
+    if (transportRef.current === transport) return;
+    await closeOwnedTransport(transport);
+  };
 
   const buildTransport = useEffectEvent(
-    async (): Promise<StreamableHTTPClientTransport> => {
+    async (attempt: number): Promise<StreamableHTTPClientTransport> => {
       if (props.auth.type === "oauth") {
         const authProvider = createOAuthProvider({
           serverId: props.id,
           config: props.auth,
           storage: props.storage,
           redirectUri: props.redirectUri,
-          onAuthorizationUrl: (url) => setAuthorizationUrl(url.toString()),
+          onAuthorizationUrl: (url) => {
+            if (isCurrentAttempt(attempt)) {
+              setAuthorizationUrl(url.toString());
+            }
+          },
         });
         return new StreamableHTTPClientTransport(new URL(props.url), {
           authProvider,
@@ -75,7 +99,7 @@ const useMcpServerResource = (
   );
 
   const finalizeConnect = useEffectEvent(
-    async (transport: StreamableHTTPClientTransport) => {
+    async (transport: StreamableHTTPClientTransport, attempt: number) => {
       const client = new Client({
         name: "assistant-ui-mcp",
         version: "0.0.0",
@@ -85,11 +109,19 @@ const useMcpServerResource = (
       // exactOptionalPropertyTypes the SDK's own classes don't satisfy its
       // Transport interface. Cast to bridge the gap.
       await client.connect(transport as unknown as Transport);
+      if (!isCurrentAttempt(attempt)) {
+        await closeStaleTransport(transport);
+        return;
+      }
       // Defer ref assignment until listTools() also succeeds — otherwise a
       // post-connect failure leaves stale refs that `callTool()` would
       // happily walk into, producing confusing SDK errors instead of
       // "not connected".
       const list = await client.listTools();
+      if (!isCurrentAttempt(attempt)) {
+        await closeStaleTransport(transport);
+        return;
+      }
       clientRef.current = client;
       transportRef.current = transport;
       setTools(
@@ -120,8 +152,10 @@ const useMcpServerResource = (
   };
 
   const doConnect = useEffectEvent(async () => {
+    const attempt = ++connectAttemptRef.current;
     // Close any prior transport/client so a re-connect doesn't leak.
     await closeTransport();
+    if (!isCurrentAttempt(attempt)) return;
     setConnectionState("connecting");
     setLastError(null);
     setAuthorizationUrl(null);
@@ -130,12 +164,16 @@ const useMcpServerResource = (
     setTools([]);
     let transport: StreamableHTTPClientTransport | null = null;
     try {
-      transport = await buildTransport();
+      transport = await buildTransport(attempt);
       // Don't assign to transportRef until connect succeeds — otherwise a
       // failed `listTools()` leaves an orphaned transport that future
       // doConnect / doDisconnect calls treat as live.
-      await finalizeConnect(transport);
+      await finalizeConnect(transport, attempt);
     } catch (err) {
+      if (!isCurrentAttempt(attempt)) {
+        await closeStaleTransport(transport);
+        return;
+      }
       if (err instanceof UnauthorizedError) {
         // OAuth: keep the transport alive so completeAuth can call
         // finishAuth on it. Closing it before storing would leave a
@@ -143,13 +181,7 @@ const useMcpServerResource = (
         transportRef.current = transport;
         setConnectionState("authRequired");
       } else {
-        if (transport) {
-          try {
-            await transport.close();
-          } catch {
-            // ignore close errors
-          }
-        }
+        await closeOwnedTransport(transport);
         setLastError({
           message: err instanceof Error ? err.message : String(err),
         });
@@ -159,6 +191,7 @@ const useMcpServerResource = (
   });
 
   const doDisconnect = useEffectEvent(async () => {
+    ++connectAttemptRef.current;
     setTools([]);
     setAuthorizationUrl(null);
     setConnectionState("disconnected");
@@ -166,21 +199,35 @@ const useMcpServerResource = (
   });
 
   const doCompleteAuth = useEffectEvent(async (callbackUrl: string) => {
+    const attempt = ++connectAttemptRef.current;
     setConnectionState("authPending");
     setLastError(null);
+    let transport: StreamableHTTPClientTransport | null = null;
     try {
       const url = new URL(callbackUrl);
       const code = url.searchParams.get("code");
       if (!code) throw new Error("missing authorization code in callback URL");
-      let transport = transportRef.current;
+      transport = transportRef.current;
       if (!transport) {
-        transport = await buildTransport();
+        transport = await buildTransport(attempt);
+        if (!isCurrentAttempt(attempt)) {
+          await closeStaleTransport(transport);
+          return;
+        }
         transportRef.current = transport;
       }
       await transport.finishAuth(code);
+      if (!isCurrentAttempt(attempt)) {
+        await closeStaleTransport(transport);
+        return;
+      }
       setAuthorizationUrl(null);
-      await finalizeConnect(transport);
+      await finalizeConnect(transport, attempt);
     } catch (err) {
+      if (!isCurrentAttempt(attempt)) {
+        await closeStaleTransport(transport);
+        return;
+      }
       await closeTransport();
       setLastError({
         message: err instanceof Error ? err.message : String(err),
@@ -218,6 +265,7 @@ const useMcpServerResource = (
     void tryAutoConnect(signal);
     return () => {
       signal.cancelled = true;
+      ++connectAttemptRef.current;
       const t = transportRef.current;
       transportRef.current = null;
       clientRef.current = null;
