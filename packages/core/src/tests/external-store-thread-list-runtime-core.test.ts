@@ -244,3 +244,53 @@ describe("ExternalStoreThreadListRuntimeCore - switchToThread", () => {
     expect(onSwitchToThread).not.toHaveBeenCalled();
   });
 });
+
+describe("ExternalStoreThreadListRuntimeCore - fork", () => {
+  it("rejects with a clear error when unsupported", async () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      makeFactory(),
+    );
+
+    await expect(core.fork("thread-alpha")).rejects.toThrow(
+      "External store adapter does not support forking",
+    );
+  });
+
+  it("delegates to the adapter and returns the forked thread id", async () => {
+    const onFork = vi.fn(async () => ({ threadId: "thread-fork" }));
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha", onFork }),
+      makeFactory(),
+    );
+
+    await expect(
+      core.fork("thread-alpha", { fromMessageId: "msg-1" }),
+    ).resolves.toEqual({ threadId: "thread-fork" });
+    expect(onFork).toHaveBeenCalledWith("thread-alpha", {
+      fromMessageId: "msg-1",
+    });
+  });
+
+  it("is exposed through ThreadListItemRuntime", async () => {
+    class NoopThreadRuntime {}
+    const onFork = vi.fn(async () => ({ threadId: "thread-fork" }));
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha", onFork }),
+      makeFactory(),
+    );
+    const runtime = new ThreadListRuntimeImpl(
+      core,
+      NoopThreadRuntime as unknown as ConstructorParameters<
+        typeof ThreadListRuntimeImpl
+      >[1],
+    );
+
+    await expect(
+      runtime.mainItem.fork({ fromMessageId: "msg-2" }),
+    ).resolves.toEqual({ threadId: "thread-fork" });
+    expect(onFork).toHaveBeenCalledWith("thread-alpha", {
+      fromMessageId: "msg-2",
+    });
+  });
+});

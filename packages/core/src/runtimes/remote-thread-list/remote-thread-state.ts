@@ -8,6 +8,7 @@ export type RemoteThreadData =
       readonly id: string;
       readonly remoteId: undefined;
       readonly externalId: undefined;
+      readonly forkedFrom?: undefined;
       readonly status: "new";
       readonly title: undefined;
       readonly custom: undefined;
@@ -17,6 +18,12 @@ export type RemoteThreadData =
       readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
       readonly remoteId: undefined;
       readonly externalId: undefined;
+      readonly forkedFrom?:
+        | {
+            readonly threadId: string;
+            readonly messageId?: string | undefined;
+          }
+        | undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
       readonly custom: undefined;
@@ -26,6 +33,12 @@ export type RemoteThreadData =
       readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
       readonly remoteId: string;
       readonly externalId: string | undefined;
+      readonly forkedFrom?:
+        | {
+            readonly threadId: string;
+            readonly messageId?: string | undefined;
+          }
+        | undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
       readonly lastMessageAt?: Date | undefined;
@@ -74,6 +87,7 @@ export const classifyThreads = (
       id: thread.remoteId,
       remoteId: thread.remoteId,
       externalId: thread.externalId,
+      forkedFrom: thread.forkedFrom,
       status: thread.status,
       title: thread.title,
       lastMessageAt: thread.lastMessageAt,

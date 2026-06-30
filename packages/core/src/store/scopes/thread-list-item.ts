@@ -5,6 +5,12 @@ export type ThreadListItemState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
+  readonly forkedFrom?:
+    | {
+        readonly threadId: string;
+        readonly messageId?: string | undefined;
+      }
+    | undefined;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
   readonly status: ThreadListItemStatus;
@@ -19,6 +25,9 @@ export type ThreadListItemMethods = {
   archive(): void;
   unarchive(): void;
   delete(): void;
+  fork(options?: {
+    fromMessageId?: string | undefined;
+  }): Promise<{ threadId: string }>;
   generateTitle(): void;
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
   detach(): void;

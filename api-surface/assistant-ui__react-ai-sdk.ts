@@ -1142,6 +1142,10 @@ type ThreadListItemState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
+  readonly forkedFrom?: {
+    readonly threadId: string;
+    readonly messageId?: string | undefined;
+  } | undefined;
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
@@ -1388,6 +1392,11 @@ type ThreadListItemRuntime = {
   archive(): Promise<void>;
   unarchive(): Promise<void>;
   delete(): Promise<void>;
+  fork(options?: {
+    fromMessageId?: string | undefined;
+  }): Promise<{
+    threadId: string;
+  }>;
   detach(): void;
   subscribe(callback: () => void): Unsubscribe;
   unstable_on<E extends ThreadListItemEventType>(event: E, callback: ThreadListItemEventCallback<E>): Unsubscribe;
@@ -1573,6 +1582,10 @@ type ExternalStoreThreadData<TState extends "archived" | "regular"> = {
   id: string;
   remoteId?: string | undefined;
   externalId?: string | undefined;
+  forkedFrom?: {
+    readonly threadId: string;
+    readonly messageId?: string | undefined;
+  } | undefined;
   title?: string | undefined;
   custom?: Record<string, unknown> | undefined;
 };
@@ -1589,6 +1602,13 @@ type ExternalStoreThreadListAdapter = {
   onArchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onUnarchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onDelete?: ((threadId: string) => Promise<void> | void) | undefined;
+  onFork?: ((threadId: string, options?: {
+    fromMessageId?: string | undefined;
+  }) => Promise<{
+    threadId: string;
+  }> | {
+    threadId: string;
+  }) | undefined;
 };
 
 type ExternalStoreMessageConverter<T> = (message: T, idx: number) => ThreadMessageLike;

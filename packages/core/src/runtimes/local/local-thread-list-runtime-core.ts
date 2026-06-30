@@ -69,6 +69,7 @@ export class LocalThreadListRuntimeCore
         id: this.mainThreadId,
         remoteId: this.mainThreadId,
         externalId: undefined,
+        forkedFrom: undefined,
         title: undefined,
         isMain: true,
       };
@@ -102,6 +103,10 @@ export class LocalThreadListRuntimeCore
 
   public delete(): Promise<void> {
     throw new Error("Method not implemented.");
+  }
+
+  public async fork(): Promise<{ threadId: string }> {
+    throw new Error("Thread list runtime does not support forking");
   }
 
   public initialize(
