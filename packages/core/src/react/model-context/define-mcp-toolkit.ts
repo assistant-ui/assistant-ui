@@ -33,6 +33,6 @@ function normalizeMcpToolkitEntry(entry: McpToolkitEntry): {
   server: McpServerConfig;
   prefix?: string | undefined;
 } {
-  if ("server" in entry) return entry;
-  return { server: entry };
+  if ("type" in entry) return { server: entry };
+  return entry;
 }

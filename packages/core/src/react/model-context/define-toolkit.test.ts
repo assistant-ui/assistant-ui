@@ -98,6 +98,19 @@ describe("use-generative markers", () => {
     });
   });
 
+  it("defineMcpToolkit supports raw MCP server configs", () => {
+    expect(
+      defineMcpToolkit({
+        docs: { type: "http", url: "https://example.com/mcp" },
+      }),
+    ).toEqual({
+      docs: {
+        type: "mcp",
+        server: { type: "http", url: "https://example.com/mcp" },
+      },
+    });
+  });
+
   it("humanTool throws at runtime — it must be stripped by the compiler, never called", () => {
     expect(() => humanTool()).toThrow(/no runtime implementation/);
   });
