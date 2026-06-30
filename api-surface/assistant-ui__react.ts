@@ -7059,7 +7059,9 @@ declare namespace threadListItem_d_exports {
 }
 
 declare namespace ThreadListItemMorePrimitiveRoot {
-  type Props = DropdownMenu.DropdownMenuProps;
+  type Props = DropdownMenu.DropdownMenuProps & {
+    sharedFocusGroup?: boolean | undefined;
+  };
 }
 
 declare const ThreadListItemMorePrimitiveRoot: FC<ThreadListItemMorePrimitiveRoot.Props>;

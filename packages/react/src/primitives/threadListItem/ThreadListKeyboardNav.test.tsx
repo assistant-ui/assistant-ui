@@ -36,7 +36,7 @@ const renderItem = (rootProps?: { defaultOpen?: boolean }) => {
     <ThreadListPrimitiveRoot>
       <ThreadListItemPrimitiveRoot>
         <ThreadListItemPrimitiveTrigger>item</ThreadListItemPrimitiveTrigger>
-        <ThreadListItemMorePrimitiveRoot {...rootProps}>
+        <ThreadListItemMorePrimitiveRoot sharedFocusGroup {...rootProps}>
           <ThreadListItemMorePrimitiveTrigger>
             more
           </ThreadListItemMorePrimitiveTrigger>
@@ -113,4 +113,29 @@ describe("thread list keyboard navigation", () => {
       expect(document.activeElement).toBe(more);
     },
   );
+
+  it("leaves the More menu's arrow keys inert without sharedFocusGroup (the default)", () => {
+    const result = render(
+      <ThreadListPrimitiveRoot>
+        <ThreadListItemPrimitiveRoot>
+          <ThreadListItemPrimitiveTrigger>item</ThreadListItemPrimitiveTrigger>
+          <ThreadListItemMorePrimitiveRoot>
+            <ThreadListItemMorePrimitiveTrigger>
+              more
+            </ThreadListItemMorePrimitiveTrigger>
+            <ThreadListItemMorePrimitiveContent>
+              <ThreadListItemMorePrimitiveItem>
+                Archive
+              </ThreadListItemMorePrimitiveItem>
+            </ThreadListItemMorePrimitiveContent>
+          </ThreadListItemMorePrimitiveRoot>
+        </ThreadListItemPrimitiveRoot>
+      </ThreadListPrimitiveRoot>,
+    );
+    const more = moreOf(result.container);
+
+    more.focus();
+    fireEvent.keyDown(more, { key: "ArrowRight" });
+    expect(menu()).toBeNull();
+  });
 });

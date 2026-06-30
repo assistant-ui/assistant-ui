@@ -10,7 +10,10 @@ import { composeEventHandlers } from "@radix-ui/primitive";
 import type { WithRenderPropProps } from "../../utils/Primitive";
 import { DropdownMenuRenderContent } from "../dropdownMenuRenderPrimitives";
 import { useThreadListItemFocus } from "../threadListFocusGroup";
-import { useThreadListItemMoreSetOpen } from "./ThreadListItemMoreRoot";
+import {
+  useThreadListItemMoreSharedFocusGroup,
+  useThreadListItemMoreSetOpen,
+} from "./ThreadListItemMoreRoot";
 import { type ScopedProps, useDropdownMenuScope } from "./scope";
 
 export namespace ThreadListItemMorePrimitiveContent {
@@ -40,6 +43,7 @@ export const ThreadListItemMorePrimitiveContent = forwardRef<
     const scope = useDropdownMenuScope(__scopeThreadListItemMore);
     const setOpen = useThreadListItemMoreSetOpen();
     const focus = useThreadListItemFocus();
+    const sharedFocusGroup = useThreadListItemMoreSharedFocusGroup();
     const direction = Direction.useDirection();
     const closeKey = direction === "rtl" ? "ArrowRight" : "ArrowLeft";
 
@@ -49,12 +53,13 @@ export const ThreadListItemMorePrimitiveContent = forwardRef<
           {...scope}
           {...props}
           onKeyDown={composeEventHandlers(props.onKeyDown, (event) => {
-            if (event.key !== closeKey) return;
+            if (!sharedFocusGroup || event.key !== closeKey) return;
             event.preventDefault();
             setOpen(false);
             focus?.moreRef.current?.focus();
           })}
           onEscapeKeyDown={composeEventHandlers(props.onEscapeKeyDown, () => {
+            if (!sharedFocusGroup) return;
             focus?.moreRef.current?.focus();
           })}
           ref={forwardedRef}

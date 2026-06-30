@@ -19,10 +19,30 @@ export const useThreadListItemMoreSetOpen = (): Dispatch<
   SetStateAction<boolean>
 > => useContext(ThreadListItemMoreSetOpenContext);
 
+const ThreadListItemMoreSharedFocusGroupContext = createContext(false);
+
+export const useThreadListItemMoreSharedFocusGroup = (): boolean =>
+  useContext(ThreadListItemMoreSharedFocusGroupContext);
+
 export namespace ThreadListItemMorePrimitiveRoot {
-  export type Props = DropdownMenuPrimitive.DropdownMenuProps;
+  export type Props = DropdownMenuPrimitive.DropdownMenuProps & {
+    /**
+     * Join the menu to the thread list's focus group: Right opens it, Left/Escape
+     * close it and return focus to the trigger (mirrored in RTL). Forces the menu
+     * non-modal, since a focus trap can't let focus cross the trigger/menu
+     * boundary. Defaults to a standalone modal dropdown.
+     */
+    sharedFocusGroup?: boolean | undefined;
+  };
 }
 
+/**
+ * Root container for the overflow menu, built on Radix DropdownMenu.
+ *
+ * Defaults to a standard, self-contained modal dropdown. Pass
+ * {@link ThreadListItemMorePrimitiveRoot.Props.sharedFocusGroup} to fold it into
+ * the thread list's keyboard navigation instead.
+ */
 export const ThreadListItemMorePrimitiveRoot: FC<
   ThreadListItemMorePrimitiveRoot.Props
 > = ({
@@ -30,9 +50,11 @@ export const ThreadListItemMorePrimitiveRoot: FC<
   open: openProp,
   defaultOpen,
   onOpenChange,
-  modal = false,
+  sharedFocusGroup = false,
+  modal: modalProp,
   ...rest
 }: ScopedProps<ThreadListItemMorePrimitiveRoot.Props>) => {
+  const modal = sharedFocusGroup ? false : (modalProp ?? true);
   const scope = useDropdownMenuScope(__scopeThreadListItemMore);
   const [open, setOpen] = useControllableState({
     prop: openProp,
@@ -42,15 +64,19 @@ export const ThreadListItemMorePrimitiveRoot: FC<
   });
 
   return (
-    <ThreadListItemMoreSetOpenContext.Provider value={setOpen}>
-      <DropdownMenuPrimitive.Root
-        {...scope}
-        {...rest}
-        modal={modal}
-        open={open}
-        onOpenChange={setOpen}
-      />
-    </ThreadListItemMoreSetOpenContext.Provider>
+    <ThreadListItemMoreSharedFocusGroupContext.Provider
+      value={sharedFocusGroup}
+    >
+      <ThreadListItemMoreSetOpenContext.Provider value={setOpen}>
+        <DropdownMenuPrimitive.Root
+          {...scope}
+          {...rest}
+          modal={modal}
+          open={open}
+          onOpenChange={setOpen}
+        />
+      </ThreadListItemMoreSetOpenContext.Provider>
+    </ThreadListItemMoreSharedFocusGroupContext.Provider>
   );
 };
 

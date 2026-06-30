@@ -10,7 +10,10 @@ import { composeEventHandlers } from "@radix-ui/primitive";
 import type { WithRenderPropProps } from "../../utils/Primitive";
 import { DropdownMenuRenderTrigger } from "../dropdownMenuRenderPrimitives";
 import { useThreadListItemFocus } from "../threadListFocusGroup";
-import { useThreadListItemMoreSetOpen } from "./ThreadListItemMoreRoot";
+import {
+  useThreadListItemMoreSharedFocusGroup,
+  useThreadListItemMoreSetOpen,
+} from "./ThreadListItemMoreRoot";
 import { type ScopedProps, useDropdownMenuScope } from "./scope";
 
 export namespace ThreadListItemMorePrimitiveTrigger {
@@ -32,6 +35,7 @@ export const ThreadListItemMorePrimitiveTrigger = forwardRef<
     const scope = useDropdownMenuScope(__scopeThreadListItemMore);
     const focus = useThreadListItemFocus();
     const setOpen = useThreadListItemMoreSetOpen();
+    const sharedFocusGroup = useThreadListItemMoreSharedFocusGroup();
     const composedRef = useComposedRefs(ref, focus?.moreRef);
     const direction = Direction.useDirection();
     const openKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
@@ -41,7 +45,7 @@ export const ThreadListItemMorePrimitiveTrigger = forwardRef<
         {...scope}
         {...rest}
         onKeyDown={composeEventHandlers(rest.onKeyDown, (event) => {
-          if (event.key !== openKey) return;
+          if (!sharedFocusGroup || event.key !== openKey) return;
           event.preventDefault();
           setOpen(true);
         })}
