@@ -4190,6 +4190,7 @@ interface ParsedLine {
   content: string;
   oldLineNumber?: number;
   newLineNumber?: number;
+  hunkIndex?: number;
 }
 
 interface ParsedFile {
