@@ -11,7 +11,7 @@ import {
 } from "./generated-docs/type-docs.mts";
 import { generatePrimitiveDocs } from "./generated-docs/primitive-docs.mts";
 
-console.log("Discovering @assistant-ui/react exports...");
+console.log("Discovering assistant-ui API exports...");
 const exports = discoverExports();
 const { typeDocs, integrationTypeDocs } = buildTypeDocs(exports);
 
