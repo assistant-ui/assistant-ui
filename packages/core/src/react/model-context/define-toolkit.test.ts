@@ -5,6 +5,7 @@ import { hitl, hitlTool, humanTool } from "./human-tool";
 import { providerTool } from "./provider-tool";
 import { stubTool } from "./stub-tool";
 import { externalTool } from "./external-tool";
+import { defineMcpToolkit } from "./define-mcp-toolkit";
 import type { ToolkitDefinition } from "./toolbox";
 
 type TestStandardSchema<T> = {
@@ -78,6 +79,36 @@ describe("use-generative markers", () => {
   it("defineToolkit returns the toolkit at runtime", () => {
     const toolkit = {};
     expect(defineToolkit(toolkit)).toBe(toolkit);
+  });
+
+  it("defineMcpToolkit supports prefixed MCP tool names", () => {
+    expect(
+      defineMcpToolkit({
+        docs: {
+          server: { type: "http", url: "https://example.com/mcp" },
+          prefix: "docs_",
+        },
+      }),
+    ).toEqual({
+      docs: {
+        type: "mcp",
+        server: { type: "http", url: "https://example.com/mcp" },
+        prefix: "docs_",
+      },
+    });
+  });
+
+  it("defineMcpToolkit supports raw MCP server configs", () => {
+    expect(
+      defineMcpToolkit({
+        docs: { type: "http", url: "https://example.com/mcp" },
+      }),
+    ).toEqual({
+      docs: {
+        type: "mcp",
+        server: { type: "http", url: "https://example.com/mcp" },
+      },
+    });
   });
 
   it("humanTool throws at runtime — it must be stripped by the compiler, never called", () => {

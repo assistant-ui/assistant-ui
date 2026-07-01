@@ -321,6 +321,7 @@ type McpServerConfig = {
 type McpTool = ToolBase<Record<string, unknown>, unknown> & {
   type: "mcp";
   server: McpServerConfig;
+  prefix?: string | undefined;
   description?: undefined;
   parameters?: undefined;
   disabled?: boolean;
@@ -4100,7 +4101,12 @@ type ProviderToolConfig<TArgs extends Record<string, unknown> = Record<string, u
 
 declare function providerTool(_config: ProviderToolConfig): never;
 
-type McpToolkitDefinition = Record<string, McpServerConfig>;
+type McpToolkitEntry = McpServerConfig | {
+  server: McpServerConfig;
+  prefix?: string | undefined;
+};
+
+type McpToolkitDefinition = Record<string, McpToolkitEntry>;
 
 declare function defineMcpToolkit(definition: McpToolkitDefinition): Toolkit;
 

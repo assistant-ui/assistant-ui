@@ -272,6 +272,48 @@ describe("AISDKToolkit", () => {
     );
   });
 
+  it("prefixes MCP tool names when configured", async () => {
+    const docsExecute = vi.fn().mockResolvedValue("docs result");
+    mocks.createMCPClient
+      .mockResolvedValueOnce({
+        tools: vi.fn().mockResolvedValue({
+          search: { inputSchema: {}, execute: docsExecute },
+        }),
+        close: mocks.close,
+      })
+      .mockResolvedValueOnce({
+        tools: vi.fn().mockResolvedValue({ search: { inputSchema: {} } }),
+        close: mocks.close,
+      });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+          prefix: "docs_",
+        },
+        github: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3002/mcp" },
+          prefix: "github_",
+        },
+      },
+    });
+
+    const toolSet = await toolkit.tools();
+
+    expect(toolSet).toHaveProperty("docs_search");
+    expect(toolSet).toHaveProperty("github_search");
+    expect(toolSet).not.toHaveProperty("search");
+
+    expect(toolSet.docs_search?.execute).toBeTypeOf("function");
+    await expect(
+      toolSet.docs_search?.execute?.({ query: "assistant-ui" }),
+    ).resolves.toBe("docs result");
+    expect(docsExecute).toHaveBeenCalledWith({ query: "assistant-ui" });
+  });
+
   it("includes provider tools alongside MCP tools", async () => {
     mocks.tools.mockResolvedValue({ echo: { inputSchema: {} } });
     mocks.createMCPClient.mockResolvedValue({
