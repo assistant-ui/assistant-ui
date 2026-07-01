@@ -25,6 +25,8 @@ export type McpManagerResourceProps = {
   oauthRedirectUri?: string | undefined;
   /** Connect on mount when usable auth exists. Default true. */
   autoConnect?: boolean | undefined;
+  /** Optional timeout in milliseconds for connect/listTools calls. Disabled by default. */
+  connectionTimeout?: number | undefined;
 };
 
 function defaultRedirectUri(): string {
@@ -42,6 +44,7 @@ const useMcpManagerResource = (
   const connectors = props.connectors ?? NO_CONNECTORS;
   const autoConnect = props.autoConnect ?? true;
   const redirectUri = props.oauthRedirectUri ?? defaultRedirectUri();
+  const connectionTimeout = props.connectionTimeout;
 
   const storageElement = props.storage ?? McpLocalStorage();
   const storage = useResource(storageElement);
@@ -114,6 +117,7 @@ const useMcpManagerResource = (
           storage,
           redirectUri,
           autoConnect,
+          connectionTimeout: c.connectionTimeout ?? connectionTimeout,
           onRemove: async () => {
             // connectors cannot be removed
           },
@@ -132,6 +136,7 @@ const useMcpManagerResource = (
           storage,
           redirectUri,
           autoConnect,
+          connectionTimeout: s.connectionTimeout ?? connectionTimeout,
           onRemove: async () => {
             setCustomServers((prev) => prev.filter((x) => x.id !== s.id));
           },
@@ -139,7 +144,14 @@ const useMcpManagerResource = (
       ),
     );
     return [...connectorElements, ...customElements];
-  }, [connectors, customServers, storage, redirectUri, autoConnect]);
+  }, [
+    connectors,
+    customServers,
+    storage,
+    redirectUri,
+    autoConnect,
+    connectionTimeout,
+  ]);
 
   const lookup = useClientLookup(serverElements);
 
@@ -208,7 +220,7 @@ const useMcpManagerResource = (
     },
     connector: ({ index }) => serverByKind("connector", index),
     customServer: ({ index }) => serverByKind("custom", index),
-    addCustomServer: async ({ name, url, auth }) => {
+    addCustomServer: async ({ name, url, auth, connectionTimeout }) => {
       const record: MCPCustomServerRecord = {
         id:
           typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -217,6 +229,7 @@ const useMcpManagerResource = (
         name,
         url,
         auth: auth as MCPAuthConfig,
+        connectionTimeout,
         createdAt: Date.now(),
       };
       setCustomServers((prev) => [...prev, record]);
