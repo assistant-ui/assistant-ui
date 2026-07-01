@@ -205,6 +205,7 @@ export {
   useAuiToolOverrides,
   type ProviderToolConfig,
   defineMcpToolkit,
+  type McpToolkitEntry,
   type McpToolkitDefinition,
   Tools,
   DataRenderers,
