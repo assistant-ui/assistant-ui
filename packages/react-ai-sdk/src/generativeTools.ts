@@ -156,8 +156,15 @@ export class AISDKToolkit {
           isMcpToolkitTool(entry[1]),
         )
         .map(async ([name, tool]) => {
-          const client = await this.#mcpClient(name, tool.server);
-          return [name, await client.tools()] as const;
+          const client = await this.#mcpClient(name, tool.server).catch(
+            (error: unknown) => {
+              throw toMcpToolkitError(name, "connect", error);
+            },
+          );
+          const tools = await client.tools().catch((error: unknown) => {
+            throw toMcpToolkitError(name, "list tools", error);
+          });
+          return [name, tools] as const;
         }),
     );
 
@@ -224,6 +231,20 @@ type McpToolkitTool = ToolkitTool & {
 
 const isMcpToolkitTool = (tool: ToolkitTool): tool is McpToolkitTool =>
   tool.type === "mcp" && !tool.disabled;
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message || error.name : String(error);
+
+const toMcpToolkitError = (
+  entryName: string,
+  action: "connect" | "list tools",
+  error: unknown,
+): Error => {
+  return new Error(
+    `MCP toolkit entry "${entryName}" failed to ${action}: ${getErrorMessage(error)}`,
+    { cause: error },
+  );
+};
 
 const assertNoMcpToolkitTools = (toolkit: Toolkit): void => {
   const mcpToolName = Object.entries(toolkit).find(([, tool]) =>
