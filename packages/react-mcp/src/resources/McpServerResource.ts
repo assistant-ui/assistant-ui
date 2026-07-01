@@ -30,7 +30,7 @@ export type McpServerResourceProps = {
   storage: MCPStorage;
   redirectUri: string;
   autoConnect: boolean;
-  connectionTimeoutMs?: number | undefined;
+  connectionTimeout?: number | undefined;
   onRemove: () => Promise<void>;
 };
 
@@ -53,7 +53,7 @@ const useMcpServerResource = (
       phase: "connecting" | "listing tools",
       startedAt: number,
     ): Promise<T> => {
-      const timeoutMs = props.connectionTimeoutMs;
+      const timeoutMs = props.connectionTimeout;
       if (timeoutMs === undefined) return await promise;
       const remainingMs = timeoutMs - (Date.now() - startedAt);
       const timeoutError = () =>

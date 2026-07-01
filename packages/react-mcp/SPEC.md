@@ -85,7 +85,7 @@ type MCPConnector = {
   url: string;
   icon?: string;
   auth: MCPAuthConfig;
-  connectionTimeoutMs?: number;
+  connectionTimeout?: number;
 };
 defineConnector(c: MCPConnector): MCPConnector;
 ```
@@ -98,7 +98,7 @@ type MCPCustomServerRecord = {
   name: string;
   url: string;
   auth: MCPAuthConfig;
-  connectionTimeoutMs?: number;
+  connectionTimeout?: number;
   createdAt: number;
 };
 ```
@@ -146,7 +146,7 @@ declare module "@assistant-ui/store" {
 type MCPManagerMethods = {
   getState: () => MCPManagerState;
   server: (lookup: { id: string }) => MCPServerMethods;
-  addCustomServer: (input: { name: string; url: string; auth: MCPAuthConfig; connectionTimeoutMs?: number }) => Promise<string>;
+  addCustomServer: (input: { name: string; url: string; auth: MCPAuthConfig; connectionTimeout?: number }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };
 
@@ -206,7 +206,7 @@ function App() {
       // optional:
       // storage: McpCustomStorage({ ... }),
       // autoConnect: false,
-      // connectionTimeoutMs: 10_000,
+      // connectionTimeout: 10_000,
       // oauthRedirectUri: "https://app.example.com/mcp/callback",
     }),
   });
@@ -219,7 +219,7 @@ Defaults baked in:
 - `storage` → `McpLocalStorage()`
 - `oauthRedirectUri` → `${window.location.origin}/mcp/callback`
 - `autoConnect` → `true`
-- `connectionTimeoutMs` → disabled by default; set on the manager as a default or on a server entry to bound the MCP readiness flow (`connect()` plus `listTools()`).
+- `connectionTimeout` → optional timeout in milliseconds; disabled by default. Set it on the manager as a default or on a server entry to bound the MCP readiness flow (`connect()` plus `listTools()`).
 
 ## 4. Auth
 

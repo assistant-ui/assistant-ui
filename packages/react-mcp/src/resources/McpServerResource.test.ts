@@ -77,11 +77,9 @@ const createStorage = (): MCPStorage => ({
   clearAuthState: vi.fn(async () => {}),
 });
 
-const mount = (props?: { connectionTimeoutMs?: number | undefined }) => {
-  const connectionTimeoutMs =
-    props && "connectionTimeoutMs" in props
-      ? props.connectionTimeoutMs
-      : 10_000;
+const mount = (props?: { connectionTimeout?: number | undefined }) => {
+  const connectionTimeout =
+    props && "connectionTimeout" in props ? props.connectionTimeout : 10_000;
 
   return createTapRoot(function Root() {
     return useResource(
@@ -94,14 +92,14 @@ const mount = (props?: { connectionTimeoutMs?: number | undefined }) => {
         storage: createStorage(),
         redirectUri: "https://example.com/callback",
         autoConnect: false,
-        connectionTimeoutMs,
+        connectionTimeout,
         onRemove: vi.fn(async () => {}),
       }),
     );
   });
 };
 
-describe("McpServerResource connectionTimeoutMs", () => {
+describe("McpServerResource connectionTimeout", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mocks.clients.length = 0;
@@ -200,9 +198,9 @@ describe("McpServerResource connectionTimeoutMs", () => {
     }
   });
 
-  it("keeps waiting when connectionTimeoutMs is undefined", async () => {
+  it("keeps waiting when connectionTimeout is undefined", async () => {
     mocks.connectResults.push(() => never());
-    const root = mount({ connectionTimeoutMs: undefined });
+    const root = mount({ connectionTimeout: undefined });
 
     try {
       void root.getValue().connect();

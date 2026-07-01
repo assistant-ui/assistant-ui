@@ -25,7 +25,7 @@ type MCPConnector = {
   url: string;
   icon?: string | undefined;
   auth: MCPAuthConfig;
-  connectionTimeoutMs?: number | undefined;
+  connectionTimeout?: number | undefined;
 };
 
 type MCPCustomServerRecord = {
@@ -33,7 +33,7 @@ type MCPCustomServerRecord = {
   name: string;
   url: string;
   auth: MCPAuthConfig;
-  connectionTimeoutMs?: number | undefined;
+  connectionTimeout?: number | undefined;
   createdAt: number;
 };
 
@@ -101,7 +101,7 @@ type MCPManagerMethods = {
     name: string;
     url: string;
     auth: MCPAuthConfig;
-    connectionTimeoutMs?: number | undefined;
+    connectionTimeout?: number | undefined;
   }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };
@@ -220,7 +220,7 @@ type McpManagerResourceProps = {
   storage?: MCPStorageElement | undefined;
   oauthRedirectUri?: string | undefined;
   autoConnect?: boolean | undefined;
-  connectionTimeoutMs?: number | undefined;
+  connectionTimeout?: number | undefined;
 };
 
 declare const McpManagerResource: Resource<ClientOutput<"mcp">, [
@@ -237,7 +237,7 @@ type McpServerResourceProps = {
   storage: MCPStorage;
   redirectUri: string;
   autoConnect: boolean;
-  connectionTimeoutMs?: number | undefined;
+  connectionTimeout?: number | undefined;
   onRemove: () => Promise<void>;
 };
 

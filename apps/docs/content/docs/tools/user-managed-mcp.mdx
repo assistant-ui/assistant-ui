@@ -59,7 +59,7 @@ const connectors = [
     name: "Weather",
     url: "https://mcp.example.com/weather",
     auth: { type: "none" },
-    connectionTimeoutMs: 10_000,
+    connectionTimeout: 10_000,
   }),
 ];
 
@@ -67,7 +67,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const aui = useAui({
     mcp: McpManagerResource({
       connectors,
-      connectionTimeoutMs: 15_000,
+      connectionTimeout: 15_000,
     }),
   });
   return <AuiProvider value={aui}>{children}</AuiProvider>;
@@ -79,7 +79,7 @@ Defaults and useful options:
 - `storage` — `McpLocalStorage()` (override for production; see [Storage](#storage))
 - `oauthRedirectUri` — `${window.location.origin}/mcp/callback`
 - `autoConnect` — `true` (connect on mount when usable auth is persisted)
-- `connectionTimeoutMs` — optional. Set it on the manager as a default or on a connector/custom server to bound the MCP readiness flow (`connect()` plus `listTools()`) with a clear error.
+- `connectionTimeout` — optional timeout in milliseconds. Set it on the manager as a default or on a connector/custom server to bound the MCP readiness flow (`connect()` plus `listTools()`) with a clear error.
 
 </Step>
 <Step>
