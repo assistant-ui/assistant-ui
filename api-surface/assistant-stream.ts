@@ -11819,7 +11819,8 @@ type UIMessageStreamChunk = {
   id: string;
 } | {
   type: "text-delta";
-  textDelta: string;
+  id: string;
+  delta: string;
 } | {
   type: "text-end";
 } | {
