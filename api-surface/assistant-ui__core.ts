@@ -5669,6 +5669,24 @@ type Unstable_TriggerAdapter = {
   search?(query: string): readonly Unstable_TriggerItem[];
 };
 
+type StandardSchemaInput<TSchema> = TSchema extends {
+  readonly "~standard": {
+    readonly types?: {
+      readonly input: infer TInput;
+    } | undefined;
+  };
+} ? TInput extends Record<string, unknown> ? TInput : Record<string, unknown> : Record<string, unknown>;
+
+type StandardSchemaParameters = Extract<NonNullable<Extract<Tool<any>, {
+  parameters: unknown;
+}>["parameters"]>, {
+  readonly "~standard": unknown;
+}>;
+
+declare function tool<const TSchema extends StandardSchemaParameters, TResult = any>(tool: Tool<StandardSchemaInput<TSchema>, TResult> & {
+  parameters: TSchema;
+}): Tool<StandardSchemaInput<TSchema>, TResult>;
+
 declare function tool<TArgs extends Record<string, unknown>, TResult = any>(tool: Tool<TArgs, TResult>): Tool<TArgs, TResult>;
 
 interface ModelContextRegistryToolHandle<TArgs extends Record<string, unknown> = any, TResult = any> {
