@@ -493,6 +493,7 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react",
       "lucide-react",
       "class-variance-authority",
+      "radix-ui",
     ],
     registryDependencies: ["command", "popover"],
   },

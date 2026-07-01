@@ -10,7 +10,6 @@ import {
   createContext,
   useContext,
   type ComponentPropsWithoutRef,
-  type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -31,6 +30,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { RadioGroup } from "radix-ui";
 
 export type ModelSelectorEffortOption = {
   id: string;
@@ -232,7 +232,6 @@ function ModelSelectorRoot({
 
   return (
     <ModelSelectorContext.Provider value={contextValue}>
-      {/* `?? false` narrows away undefined for exactOptionalPropertyTypes consumers. */}
       <Popover open={open ?? false} onOpenChange={setOpen}>
         {children}
       </Popover>
@@ -273,15 +272,28 @@ function ModelSelectorTrigger({
   variant,
   size,
   children,
+  onKeyDown,
   ...props
 }: ModelSelectorTriggerProps) {
+  const { setOpen } = useModelSelectorContext();
+
   return (
     <PopoverTrigger
       data-slot="model-selector-trigger"
       data-variant={variant ?? "outline"}
       data-size={size ?? "default"}
       role="combobox"
+      aria-haspopup="listbox"
       className={cn(modelSelectorTriggerVariants({ variant, size }), className)}
+      onKeyDown={(e) => {
+        // ARIA combobox: arrows open the listbox from a focused trigger.
+        // Popover leaves this to the consumer.
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          setOpen(true);
+        }
+        onKeyDown?.(e);
+      }}
       {...props}
     >
       {children ?? <ModelSelectorValue />}
@@ -344,16 +356,30 @@ function ModelSelectorValue({
 
 export type ModelSelectorContentProps = ComponentPropsWithoutRef<
   typeof PopoverContent
->;
+> & {
+  searchable?: boolean;
+};
+
+// cmdk drives arrow/Enter navigation from a focused input, exposing the active
+// row via aria-activedescendant. Hide input when not searchable to serve as anchor.
+function ModelSelectorFocusAnchor() {
+  return (
+    <div className="sr-only">
+      <CommandInput aria-label="Search models" />
+    </div>
+  );
+}
 
 function ModelSelectorContent({
   className,
   align = "start",
   sideOffset = 6,
+  searchable,
   children,
   ...props
 }: ModelSelectorContentProps) {
   const { value } = useModelSelectorContext();
+  const unfiltered = searchable === false || children === undefined;
 
   return (
     <PopoverContent
@@ -366,14 +392,14 @@ function ModelSelectorContent({
       )}
       {...props}
     >
-      {/* Seeding cmdk with the selected id makes it the active item, which
-          cmdk scrolls into view when the popover opens. */}
       <Command
         className="bg-transparent"
+        {...(unfiltered ? { shouldFilter: false } : {})}
         {...(value !== undefined ? { defaultValue: value } : {})}
       >
         {children ?? (
           <>
+            <ModelSelectorFocusAnchor />
             <ModelSelectorList />
             <ModelSelectorEffort />
           </>
@@ -536,29 +562,28 @@ function ModelSelectorEffort({
         "flex items-center justify-between gap-3 border-t px-3 py-2",
         className,
       )}
-      onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
-        // cmdk's root keydown handler claims Enter to select the highlighted
-        // model; stop it from seeing Enter so the focused toggle activates.
-        if (e.key === "Enter") e.stopPropagation();
+      onKeyDown={(e) => {
+        // cmdk's Command root claims Home/End to jump the model list; stop
+        // them here so only the radiogroup reacts.
+        if (e.key === "Home" || e.key === "End") e.stopPropagation();
         onKeyDown?.(e);
       }}
       {...props}
     >
       <span className="text-muted-foreground text-xs">{label}</span>
-      <div
-        role="group"
+      <RadioGroup.Root
+        value={effort ?? ""}
+        onValueChange={setEffort}
+        orientation="horizontal"
         aria-label={typeof label === "string" ? label : "Reasoning effort"}
         className="flex items-center gap-0.5"
       >
         {efforts.map((option) => {
           const isActive = option.id === effort;
           return (
-            <button
+            <RadioGroup.Item
               key={option.id}
-              type="button"
-              aria-pressed={isActive}
-              data-state={isActive ? "on" : "off"}
-              onClick={() => setEffort(option.id)}
+              value={option.id}
               className={cn(
                 "focus-visible:ring-ring/50 rounded-md px-2 py-1 text-xs transition-colors outline-none focus-visible:ring-2",
                 isActive
@@ -567,10 +592,10 @@ function ModelSelectorEffort({
               )}
             >
               {option.name}
-            </button>
+            </RadioGroup.Item>
           );
         })}
-      </div>
+      </RadioGroup.Root>
     </div>
   );
 }
@@ -621,8 +646,11 @@ const ModelSelectorImpl = ({
         size={size}
         className={className}
       />
-      <ModelSelectorContent className={contentClassName}>
-        {searchable && <ModelSelectorSearch />}
+      <ModelSelectorContent
+        className={contentClassName}
+        searchable={searchable ?? false}
+      >
+        {searchable ? <ModelSelectorSearch /> : <ModelSelectorFocusAnchor />}
         <ModelSelectorList />
         <ModelSelectorEffort />
       </ModelSelectorContent>
