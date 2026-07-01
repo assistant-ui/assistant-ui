@@ -595,7 +595,7 @@ export default defineToolkit({
 });`;
 
     expect(() => compileGenerative(src, { target: "client" })).toThrow(
-      /compiler-visible toolkit spread/,
+      /cannot spread named import "backendTools" from "@\/backend-tools"/,
     );
   });
 
@@ -616,7 +616,25 @@ export default defineToolkit({
 });`;
 
     expect(() => compileGenerative(src, { target: "client" })).toThrow(
-      /compiler-visible toolkit spread/,
+      /cannot spread "base" into defineToolkit\(\)/,
+    );
+  });
+
+  it("rejects spreading an opaque toolkit factory result", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+const makeToolkit = () => defineToolkit({
+  get_weather: {
+    execute: async () => 1,
+    render: () => null,
+  },
+});
+export default defineToolkit({
+  ...makeToolkit(),
+});`;
+
+    expect(() => compileGenerative(src, { target: "client" })).toThrow(
+      /cannot spread the result of `makeToolkit\(\)` into defineToolkit\(\)/,
     );
   });
 
@@ -936,7 +954,58 @@ export default defineToolkit({
 
     expect(() =>
       compileGenerative(src, { target: "client", filename }),
-    ).toThrow(/compiler-visible toolkit spread/);
+    ).toThrow(/module is not marked "use generative"/);
+  });
+
+  it("rejects spreading a default import from an unresolved module", () => {
+    const filename = createMergeFixture(generativeChild);
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "./tools/missing";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+    expect(() =>
+      compileGenerative(src, { target: "client", filename }),
+    ).toThrow(/could not resolve that module/);
+  });
+
+  it("rejects spreading a generative module without a default export", () => {
+    const filename = createMergeFixture(`"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export const weatherTools = defineToolkit({
+  get_weather: { execute: async () => 1, render: () => null },
+});
+`);
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "./tools/weather";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+    expect(() =>
+      compileGenerative(src, { target: "client", filename }),
+    ).toThrow(/has no default export/);
+  });
+
+  it("rejects spreading a generative module whose default export is not a toolkit", () => {
+    const filename = createMergeFixture(`"use generative";
+export default {
+  get_weather: { execute: async () => 1 },
+};
+`);
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "./tools/weather";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+    expect(() =>
+      compileGenerative(src, { target: "client", filename }),
+    ).toThrow(/does not default-export defineToolkit\(\{ \.\.\. \}\)/);
   });
 
   it("rejects spreading a named import even from a generative module", () => {
@@ -950,7 +1019,25 @@ export default defineToolkit({
 
     expect(() =>
       compileGenerative(src, { target: "client", filename }),
-    ).toThrow(/compiler-visible toolkit spread/);
+    ).toThrow(
+      /cannot spread named import "weatherTools" from "\.\/tools\/weather"/,
+    );
+  });
+
+  it("rejects spreading a namespace import from a generative module", () => {
+    const filename = createMergeFixture(generativeChild);
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import * as weatherTools from "./tools/weather";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+    expect(() =>
+      compileGenerative(src, { target: "client", filename }),
+    ).toThrow(
+      /cannot spread namespace import "weatherTools" from "\.\/tools\/weather"/,
+    );
   });
 
   it("resolves a tsconfig path alias when spreading a generative module", () => {
