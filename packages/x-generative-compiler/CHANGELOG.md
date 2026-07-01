@@ -1,5 +1,15 @@
 # @assistant-ui/x-generative-compiler
 
+## 0.0.8
+
+### Patch Changes
+
+- [#4629](https://github.com/assistant-ui/assistant-ui/pull/4629) [`9caecdd`](https://github.com/assistant-ui/assistant-ui/commit/9caecddfc70e3c351ae6e9cc069be37b9f9f386b) - fix: support exported module-scope JSONGenerativeUI instances ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4610](https://github.com/assistant-ui/assistant-ui/pull/4610) [`ab217e4`](https://github.com/assistant-ui/assistant-ui/commit/ab217e49494d74e570d18ec73c21b7700f53df5a) - fix: name tools in missing toolkit member compiler errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4632](https://github.com/assistant-ui/assistant-ui/pull/4632) [`fa083a4`](https://github.com/assistant-ui/assistant-ui/commit/fa083a47d4c4f37553a09b9f577793d363290146) - fix: validate JSONGenerativeUI constructor imports ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.7
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @assistant-ui/core
 
+## 0.2.20
+
+### Patch Changes
+
+- [#4653](https://github.com/assistant-ui/assistant-ui/pull/4653) [`523e0b5`](https://github.com/assistant-ui/assistant-ui/commit/523e0b563a71a656f050473c42c414b26c2d5ab4) - fix: skip malformed generative UI component nodes ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.2.19
 
 ### Patch Changes
