@@ -112,6 +112,29 @@ describe("fromThreadMessageLike", () => {
   });
 
   describe("reasoning and image robustness", () => {
+    it("fills assistant defaults around the fallback status", () => {
+      const result = fromThreadMessageLike(
+        { role: "assistant", content: [{ type: "text", text: "hello" }] },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result).toMatchObject({
+        id: fallbackId,
+        role: "assistant",
+        content: [{ type: "text", text: "hello" }],
+        status: fallbackStatus,
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      });
+      expect(result.createdAt).toBeInstanceOf(Date);
+    });
+
     it("drops a reasoning part whose text is undefined", () => {
       const result = fromThreadMessageLike(
         {

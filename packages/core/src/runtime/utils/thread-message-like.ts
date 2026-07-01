@@ -1,5 +1,6 @@
 import { parsePartialJsonObject } from "assistant-stream/utils";
 import { generateId } from "../../utils/id";
+import { createThreadAssistantMessage } from "./create-thread-assistant-message";
 import type {
   ReasoningMessagePart,
   SourceMessagePart,
@@ -8,7 +9,6 @@ import type {
   ImageMessagePart,
   ThreadMessage,
   ThreadAssistantMessagePart,
-  ThreadAssistantMessage,
   ThreadUserMessagePart,
   ThreadUserMessage,
   ThreadSystemMessage,
@@ -152,9 +152,8 @@ export const fromThreadMessageLike = (
 
   switch (role) {
     case "assistant":
-      return {
+      return createThreadAssistantMessage({
         ...common,
-        role,
         content: content
           .map((part): ThreadAssistantMessagePart | null => {
             const type = part.type;
@@ -214,19 +213,8 @@ export const fromThreadMessageLike = (
           })
           .filter((c) => !!c),
         status: status ?? fallbackStatus,
-        metadata: {
-          unstable_state: metadata?.unstable_state ?? null,
-          unstable_annotations: metadata?.unstable_annotations ?? [],
-          unstable_data: metadata?.unstable_data ?? [],
-          custom: metadata?.custom ?? {},
-          steps: metadata?.steps ?? [],
-          ...(metadata?.timing && { timing: metadata.timing }),
-          ...(metadata?.submittedFeedback && {
-            submittedFeedback: metadata.submittedFeedback,
-          }),
-          ...(metadata?.isOptimistic && { isOptimistic: true }),
-        },
-      } satisfies ThreadAssistantMessage;
+        metadata,
+      });
 
     case "user":
       return {

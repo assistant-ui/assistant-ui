@@ -11,6 +11,7 @@ import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
+import { createThreadAssistantMessage } from "../../runtime/utils/create-thread-assistant-message";
 import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
 import type { ToolExecutionStatus } from "../../runtimes/tool-invocations/ToolInvocationTracker";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -322,20 +323,10 @@ const chunkExternalMessages = <T>(
 function createErrorAssistantMessage(
   error: ReadonlyJSONValue,
 ): ThreadAssistantMessage {
-  const msg: ThreadAssistantMessage = {
+  const msg = createThreadAssistantMessage({
     id: generateErrorMessageId(),
-    role: "assistant",
-    content: [],
     status: { type: "incomplete", reason: "error", error },
-    createdAt: new Date(),
-    metadata: {
-      unstable_state: null,
-      unstable_annotations: [],
-      unstable_data: [],
-      custom: {},
-      steps: [],
-    },
-  };
+  });
   bindExternalStoreMessage(msg, []);
   return msg;
 }
