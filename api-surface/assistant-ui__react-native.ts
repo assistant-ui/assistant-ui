@@ -1475,6 +1475,10 @@ type ThreadListItemCoreState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
+  readonly forkedFrom?: {
+    readonly threadId: string;
+    readonly messageId?: string | undefined;
+  } | undefined;
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
@@ -1507,6 +1511,11 @@ type ThreadListRuntimeCore = {
   archive(threadId: string): Promise<void>;
   unarchive(threadId: string): Promise<void>;
   delete(threadId: string): Promise<void>;
+  fork(threadId: string, options?: {
+    fromMessageId?: string | undefined;
+  }): Promise<{
+    threadId: string;
+  }>;
   initialize(threadId: string): Promise<{
     remoteId: string;
     externalId: string | undefined;
@@ -1564,6 +1573,10 @@ type ThreadListItemState$1 = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
+  readonly forkedFrom?: {
+    readonly threadId: string;
+    readonly messageId?: string | undefined;
+  } | undefined;
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
@@ -2132,6 +2145,11 @@ type ThreadListItemRuntime = {
   archive(): Promise<void>;
   unarchive(): Promise<void>;
   delete(): Promise<void>;
+  fork(options?: {
+    fromMessageId?: string | undefined;
+  }): Promise<{
+    threadId: string;
+  }>;
   detach(): void;
   subscribe(callback: () => void): Unsubscribe$1;
   unstable_on<E extends ThreadListItemEventType>(event: E, callback: ThreadListItemEventCallback<E>): Unsubscribe$1;
@@ -2155,6 +2173,11 @@ declare class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
   archive(): Promise<void>;
   unarchive(): Promise<void>;
   delete(): Promise<void>;
+  fork(options?: {
+    fromMessageId?: string | undefined;
+  }): Promise<{
+    threadId: string;
+  }>;
   initialize(): Promise<{
     remoteId: string;
     externalId: string | undefined;
@@ -2207,6 +2230,10 @@ type RemoteThreadMetadata = {
   readonly status: "archived" | "regular";
   readonly remoteId: string;
   readonly externalId?: string | undefined;
+  readonly forkedFrom?: {
+    readonly threadId: string;
+    readonly messageId?: string | undefined;
+  } | undefined;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
   readonly custom?: Record<string, unknown> | undefined;
@@ -2228,6 +2255,9 @@ type RemoteThreadListAdapter = {
   archive(remoteId: string): Promise<void>;
   unarchive(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
+  fork?(remoteId: string, options?: {
+    fromMessageId?: string | undefined;
+  }): Promise<RemoteThreadInitializeResponse>;
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
@@ -3531,6 +3561,10 @@ type ThreadListItemState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
+  readonly forkedFrom?: {
+    readonly threadId: string;
+    readonly messageId?: string | undefined;
+  } | undefined;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
   readonly status: ThreadListItemStatus;

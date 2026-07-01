@@ -313,6 +313,7 @@ export class RemoteThreadListThreadListRuntimeCore
           }),
           remoteId: remoteMetadata.remoteId,
           externalId: remoteMetadata.externalId,
+          forkedFrom: remoteMetadata.forkedFrom,
           status: remoteMetadata.status,
           title: remoteMetadata.title,
           lastMessageAt: remoteMetadata.lastMessageAt,
@@ -404,6 +405,7 @@ export class RemoteThreadListThreadListRuntimeCore
             id,
             remoteId: undefined,
             externalId: undefined,
+            forkedFrom: undefined,
             title: undefined,
             custom: undefined,
           } satisfies RemoteThreadData,
@@ -639,6 +641,73 @@ export class RemoteThreadListThreadListRuntimeCore
         return updateStatusReducer(state, data.id, "deleted");
       },
     });
+  }
+
+  public async fork(
+    threadIdOrRemoteId: string,
+    options?: { fromMessageId?: string | undefined },
+  ): Promise<{ threadId: string }> {
+    const data = this.getItemById(threadIdOrRemoteId);
+    if (!data) throw new Error("Thread not found");
+    if (data.status === "new") throw new Error("Thread is not yet initialized");
+
+    if (!this._options.adapter.fork) {
+      throw new Error("Remote thread list adapter does not support forking");
+    }
+
+    return this._state
+      .optimisticUpdate({
+        execute: async () => {
+          const adapter = this._options.adapter;
+          if (!adapter.fork) {
+            throw new Error(
+              "Remote thread list adapter does not support forking",
+            );
+          }
+          const { remoteId } = await data.initializeTask;
+          return adapter.fork(remoteId, options);
+        },
+        then: (state, forked) => {
+          const source = getThreadData(state, threadIdOrRemoteId);
+          const forkedRemoteId = forked.remoteId;
+          const mappingId = createThreadMappingId(forkedRemoteId);
+
+          return {
+            ...state,
+            threadIds: [
+              forkedRemoteId,
+              ...state.threadIds.filter((id) => id !== forkedRemoteId),
+            ],
+            archivedThreadIds: state.archivedThreadIds.filter(
+              (id) => id !== forkedRemoteId,
+            ),
+            threadIdMap: {
+              ...state.threadIdMap,
+              [forkedRemoteId]: mappingId,
+            },
+            threadData: {
+              ...state.threadData,
+              [mappingId]: {
+                id: forkedRemoteId,
+                initializeTask: Promise.resolve(forked),
+                remoteId: forkedRemoteId,
+                externalId: forked.externalId,
+                forkedFrom: {
+                  threadId: source?.remoteId ?? data.remoteId ?? data.id,
+                  ...(options?.fromMessageId
+                    ? { messageId: options.fromMessageId }
+                    : {}),
+                },
+                status: "regular",
+                title: undefined,
+                lastMessageAt: undefined,
+                custom: undefined,
+              },
+            },
+          };
+        },
+      })
+      .then(({ remoteId }) => ({ threadId: remoteId }));
   }
 
   public async detach(threadIdOrRemoteId: string): Promise<void> {

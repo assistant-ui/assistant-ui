@@ -7,6 +7,8 @@ import {
 } from "@assistant-ui/store";
 
 const RESOLVED_PROMISE = Promise.resolve();
+const rejectUnsupportedFork = () =>
+  Promise.reject(new Error("Thread list runtime does not support forking"));
 const THREAD_ID = "default";
 
 const useSingleThreadListItem = (): ClientOutput<"threadListItem"> => {
@@ -27,6 +29,7 @@ const useSingleThreadListItem = (): ClientOutput<"threadListItem"> => {
     archive: () => {},
     unarchive: () => {},
     delete: () => {},
+    fork: rejectUnsupportedFork,
     generateTitle: () => {},
     initialize: async () => ({ remoteId: THREAD_ID, externalId: undefined }),
     detach: () => {},

@@ -15,6 +15,7 @@ const DEFAULT_THREAD = Object.freeze({
   id: DEFAULT_THREAD_ID,
   remoteId: undefined,
   externalId: undefined,
+  forkedFrom: undefined,
   status: "regular",
 });
 const RESOLVED_PROMISE = Promise.resolve();
@@ -158,6 +159,7 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
           id: this._mainThreadId,
           remoteId: undefined,
           externalId: undefined,
+          forkedFrom: undefined,
           status: "regular",
         },
       };
@@ -236,6 +238,17 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
       throw new Error("External store adapter does not support deleting");
 
     await onDelete(threadId);
+  }
+
+  public async fork(
+    threadId: string,
+    options?: { fromMessageId?: string | undefined },
+  ): Promise<{ threadId: string }> {
+    const onFork = this.adapter.onFork;
+    if (!onFork)
+      throw new Error("External store adapter does not support forking");
+
+    return await onFork(threadId, options);
   }
 
   public initialize(

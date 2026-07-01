@@ -12,6 +12,12 @@ export type RemoteThreadMetadata = {
   readonly status: "regular" | "archived";
   readonly remoteId: string;
   readonly externalId?: string | undefined;
+  readonly forkedFrom?:
+    | {
+        readonly threadId: string;
+        readonly messageId?: string | undefined;
+      }
+    | undefined;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
   readonly custom?: Record<string, unknown> | undefined;
@@ -37,6 +43,13 @@ export type RemoteThreadListAdapter = {
   archive(remoteId: string): Promise<void>;
   unarchive(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
+  /**
+   * Enables `threadListItem().fork()` for this thread list.
+   */
+  fork?(
+    remoteId: string,
+    options?: { fromMessageId?: string | undefined },
+  ): Promise<RemoteThreadInitializeResponse>;
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(
     remoteId: string,

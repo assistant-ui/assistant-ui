@@ -24,6 +24,12 @@ export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
   id: string;
   remoteId?: string | undefined;
   externalId?: string | undefined;
+  forkedFrom?:
+    | {
+        readonly threadId: string;
+        readonly messageId?: string | undefined;
+      }
+    | undefined;
   title?: string | undefined;
   custom?: Record<string, unknown> | undefined;
 };
@@ -57,6 +63,12 @@ export type ExternalStoreThreadListAdapter = {
   onArchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onUnarchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onDelete?: ((threadId: string) => Promise<void> | void) | undefined;
+  onFork?:
+    | ((
+        threadId: string,
+        options?: { fromMessageId?: string | undefined },
+      ) => Promise<{ threadId: string }> | { threadId: string })
+    | undefined;
 };
 
 export type ExternalStoreMessageConverter<T> = (

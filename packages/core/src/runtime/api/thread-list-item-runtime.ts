@@ -42,6 +42,9 @@ export type ThreadListItemRuntime = {
   archive(): Promise<void>;
   unarchive(): Promise<void>;
   delete(): Promise<void>;
+  fork(options?: {
+    fromMessageId?: string | undefined;
+  }): Promise<{ threadId: string }>;
 
   detach(): void;
 
@@ -79,6 +82,7 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     this.archive = this.archive.bind(this);
     this.unarchive = this.unarchive.bind(this);
     this.delete = this.delete.bind(this);
+    this.fork = this.fork.bind(this);
     this.initialize = this.initialize.bind(this);
     this.generateTitle = this.generateTitle.bind(this);
     this.subscribe = this.subscribe.bind(this);
@@ -131,6 +135,14 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     const state = this._core.getState();
 
     return this._threadListBinding.delete(state.id);
+  }
+
+  public async fork(options?: {
+    fromMessageId?: string | undefined;
+  }): Promise<{ threadId: string }> {
+    const state = this._core.getState();
+
+    return await this._threadListBinding.fork(state.id, options);
   }
 
   public initialize(): Promise<{

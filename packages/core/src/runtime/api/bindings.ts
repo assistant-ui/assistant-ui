@@ -40,6 +40,12 @@ export type ThreadListItemState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
+  readonly forkedFrom?:
+    | {
+        readonly threadId: string;
+        readonly messageId?: string | undefined;
+      }
+    | undefined;
   readonly status: import("../interfaces/thread-list-runtime-core").ThreadListItemStatus;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
