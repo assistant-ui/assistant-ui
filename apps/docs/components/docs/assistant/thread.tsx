@@ -68,7 +68,7 @@ export function AssistantThread({
   return (
     <ThreadPrimitive.Root className="bg-background flex h-full flex-col">
       <PendingMessageHandler />
-      <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col overflow-y-auto px-3 pt-3">
+      <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col overflow-y-auto overscroll-contain px-3 pt-3">
         <AuiIf condition={(s) => s.thread.isEmpty}>{welcome}</AuiIf>
 
         <div className="px-1.5" data-slot="thread-messages">

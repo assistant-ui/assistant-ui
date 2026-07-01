@@ -99,6 +99,28 @@ describe("assistant transport scheduling contracts", () => {
     expect(result.current.runBatchesRef.current[1]).toHaveLength(1);
   });
 
+  it("can enqueue without scheduling until a run is started", async () => {
+    const { result } = renderHook(() => useTransportSchedulingHarness());
+
+    act(() => {
+      result.current.commandQueue.enqueue(createMessageCommand("staged"), {
+        schedule: false,
+      });
+    });
+
+    await Promise.resolve();
+    expect(result.current.runBatchesRef.current).toHaveLength(0);
+
+    act(() => {
+      result.current.runManager.schedule();
+    });
+
+    await waitFor(() => {
+      expect(result.current.runBatchesRef.current).toHaveLength(1);
+    });
+    expect(result.current.runBatchesRef.current[0]).toHaveLength(1);
+  });
+
   it("cancel returns combined in-flight and queued commands", async () => {
     const onCancel = vi.fn();
     const { result } = renderHook(() =>

@@ -1,5 +1,23 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.24
+
+### Patch Changes
+
+- [#4608](https://github.com/assistant-ui/assistant-ui/pull/4608) [`a7b06f7`](https://github.com/assistant-ui/assistant-ui/commit/a7b06f76876078fc2fcbb92a86fa0e1530fde782) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies []:
+  - assistant-cloud@0.1.34
+
+## 0.1.23
+
+### Patch Changes
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff)]:
+  - assistant-cloud@0.1.34
+
 ## 0.1.22
 
 ### Patch Changes

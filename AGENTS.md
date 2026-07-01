@@ -46,7 +46,7 @@ Keep provider-driven choices flexible: core-primitive choice, thin wrapper vs ac
 
 Every publishable package builds with `aui-build` (`@assistant-ui/x-buildutils`). Do not add a per-package build config or use tsup, unbuild, swc, or the tsc CLI. Exports maps are ESM-only and types-first (`"types"` before `"default"`), with `type: module` and `sideEffects: false`.
 
-`packages/ui/src/components/assistant-ui` is the canonical UI source. `templates/*` hold byte-equal copies verified by `pnpm sync-templates`; `examples/*` alias to it through tsconfig and must not carry copies. Declare intentional divergence in the `OVERRIDES` array in `scripts/sync-templates.sh`.
+`packages/ui/src/components/assistant-ui` is the canonical UI source. Templates and examples alias it through tsconfig (`@/components/*`, `@/hooks/*`, `@/lib/utils`) and carry no byte-equal copies of it — except `minimal`, which ships its own (examples may still hold intentional forks). `pnpm sync-templates` keeps minimal's copies byte-equal with the source; declare intentional divergence in the `OVERRIDES` array in `scripts/sync-templates.sh`.
 
 Run `pnpm check:resource-memo` when bumping `@babel/core`, `babel-plugin-react-compiler`, or `react-compiler`; a green build does not prove the compiler toolchain is intact. A package the published dist imports at runtime belongs in `dependencies`, not `devDependencies`, so the bundler externalizes it (a devDep gets inlined and drags unresolvable transitive imports into consumer builds). A registry item must be self-contained: enumerate every `@/components/*` import and CSS `@import` as `registryDependencies`, so `shadcn add` never lands a file with an unresolvable import.
 

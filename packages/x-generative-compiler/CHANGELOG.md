@@ -1,5 +1,25 @@
 # @assistant-ui/x-generative-compiler
 
+## 0.0.7
+
+### Patch Changes
+
+- [#4617](https://github.com/assistant-ui/assistant-ui/pull/4617) [`d162f44`](https://github.com/assistant-ui/assistant-ui/commit/d162f440502c29e4293e33c0c081e87c36d67bba) - fix: name opaque toolkit entries in compiler diagnostics ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.6
+
+### Patch Changes
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#4560](https://github.com/assistant-ui/assistant-ui/pull/4560) [`32f1b05`](https://github.com/assistant-ui/assistant-ui/commit/32f1b0528a080bc247655aac8bae19d8bcfc4cfa) - fix: warn about duplicate tool names across generative toolkit spreads ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4310](https://github.com/assistant-ui/assistant-ui/pull/4310) [`0c51b90`](https://github.com/assistant-ui/assistant-ui/commit/0c51b905d22418b93532636b1028c080ecc819e0) - feat: pass `unstable_interactableTool(...)` toolkit entries through `"use generative"` compilation — the client build keeps the config's `render`, the server build drops it ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- [#4590](https://github.com/assistant-ui/assistant-ui/pull/4590) [`048e20c`](https://github.com/assistant-ui/assistant-ui/commit/048e20ce1b69142f843952b8ce7fb6f6d330fd6a) - fix: name duplicate providerTool config keys in compiler errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4584](https://github.com/assistant-ui/assistant-ui/pull/4584) [`056eea8`](https://github.com/assistant-ui/assistant-ui/commit/056eea856f99172cc222e83c1a4f839fef20bfe8) - fix: avoid false positives when detecting use-generative directives ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.5
 
 ### Patch Changes

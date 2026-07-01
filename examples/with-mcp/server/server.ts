@@ -165,18 +165,27 @@ const provider: OAuthServerProvider = {
 
 function buildMcpServer(): McpServer {
   const server = new McpServer({ name: "aui-mcp-test", version: "0.0.1" });
-  server.tool(
+  server.registerTool(
     "echo",
-    "Echo back the provided text.",
-    { text: z.string().describe("Text to echo back") },
+    {
+      title: "Echo",
+      description: "Echo back the provided text.",
+      inputSchema: { text: z.string().describe("Text to echo back") },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
     async ({ text }) => ({
       content: [{ type: "text" as const, text: `echo: ${text}` }],
     }),
   );
-  server.tool(
+  server.registerTool(
     "fingerprint",
-    "Return a deterministic fingerprint of a string (sha256 hex).",
-    { input: z.string() },
+    {
+      title: "Fingerprint",
+      description:
+        "Return a deterministic fingerprint of a string (sha256 hex).",
+      inputSchema: { input: z.string() },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
     async ({ input }) => ({
       content: [
         {

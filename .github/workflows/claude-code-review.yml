@@ -106,13 +106,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/head
           fetch-depth: 1
 
       - name: Review
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@428971d2ecd6e3a7cb0ee0da2a3a8b33fdb3678d # ratchet:anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ env.REVIEW_PROMPT }}

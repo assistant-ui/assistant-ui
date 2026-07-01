@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/core",
-  "version": "0.2.18",
+  "version": "0.2.19",
   "description": "Framework-agnostic core runtime for assistant-ui",
   "keywords": [
     "assistant",
@@ -64,7 +64,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.23",
+    "assistant-stream": "^0.3.24",
     "nanoid": "^5.1.15"
   },
   "optionalDevDependencies": {

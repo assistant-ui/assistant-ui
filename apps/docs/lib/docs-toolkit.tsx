@@ -14,6 +14,7 @@ import { MapPin, CloudSun, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import {
   defineToolkit,
+  unstable_interactableTool,
   useAuiState,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
@@ -23,8 +24,14 @@ import {
   generativeUIToJSX,
 } from "@assistant-ui/react-generative-ui";
 import { ToolErrorCard, ToolStatusCard, ToolTraceCard } from "@/lib/tool-trace";
+import { Notepad } from "@/components/tool-ui/notepad";
 
 const weatherFormatSchema = z.enum(["fahrenheit", "celsius"]);
+
+const notepadSchema = z.object({
+  title: z.string().describe("A short title for the text."),
+  content: z.string().describe("The full plain text."),
+});
 
 type GeocodeLocationArgs = {
   query: string;
@@ -188,6 +195,17 @@ export default defineToolkit({
     render: GetWeatherToolUI,
   },
   present: generative.present({ display: "standalone" }),
+  notepad: unstable_interactableTool({
+    description:
+      "A live notepad whose drafted text the user sees and can edit. Open one " +
+      "whenever you write or draft prose for the user — a note, message, post, " +
+      "release notes, a description — and revise it with `update_notepad` " +
+      "rather than opening a new one. Opening the notepad and every " +
+      "`update_notepad` call display the latest draft to the user directly, so " +
+      "keep the text in the notepad and never repeat it in your reply.",
+    stateSchema: notepadSchema,
+    render: (props) => <Notepad {...props} />,
+  }),
 });
 
 const WeatherCard = ({

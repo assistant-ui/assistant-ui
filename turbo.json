@@ -7,16 +7,16 @@
       "dependsOn": ["^build"],
       "inputs": [
         "**/*.*",
-        "!.next",
-        "!.turbo",
-        "!dist",
-        "!build",
-        "!generated",
-        "!.output",
-        "!.source"
+        "!.next/**",
+        "!.turbo/**",
+        "!dist/**",
+        "!build/**",
+        "!generated/**",
+        "!.output/**",
+        "!.source/**"
       ],
       "outputs": [
-        "dist",
+        "dist/**",
         ".next/**",
         "!.next/cache/**",
         "!.next/dev/**",

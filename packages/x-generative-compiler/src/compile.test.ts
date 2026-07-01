@@ -369,6 +369,37 @@ export default defineToolkit({ present: ui.notARealMethod() });`;
     );
   });
 
+  it("allows an aliased JSONGenerativeUI import", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { JSONGenerativeUI as GenUI } from "@assistant-ui/react-generative-ui";
+const ui = new GenUI({ library: {} });
+export default defineToolkit({ present: ui.present() });`;
+
+    expect(compileGenerative(src, { target: "server" }).code).toContain(
+      "ui.present()",
+    );
+    expect(compileGenerative(src, { target: "client" }).code).toContain(
+      "ui.present()",
+    );
+  });
+
+  it("does not trust a local class named JSONGenerativeUI", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+class JSONGenerativeUI {
+  present() {
+    return makeTool();
+  }
+}
+const ui = new JSONGenerativeUI();
+export default defineToolkit({ present: ui.present() });`;
+
+    expect(() => compileGenerative(src, { target: "server" })).toThrow(
+      /tool "present" cannot be `ui\.present\(\)`/,
+    );
+  });
+
   it("rejects a method call on an unknown (non-JSONGenerativeUI) object", () => {
     const src = `"use generative";
 import { defineToolkit } from "@assistant-ui/react";
@@ -1250,7 +1281,16 @@ export default defineToolkit({
         `"use generative";\nimport { defineToolkit, externalTool } from "@assistant-ui/react";\nexport default defineToolkit({ search: { execute: externalTool() } });`,
         { target: "client" },
       ),
-    ).toThrow(/external tool must declare a `render` or `renderText`/);
+    ).toThrow(/external tool "search" must declare a `render` or `renderText`/);
+  });
+
+  it("falls back to an unnamed external tool diagnostic for computed keys", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit, externalTool } from "@assistant-ui/react";\nconst search = "search";\nexport default defineToolkit({ [search]: { execute: externalTool() } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/an external tool must declare a `render` or `renderText`/);
   });
 });
 
@@ -1376,7 +1416,7 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
         `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nexport default defineToolkit({ weather: makeTool() });`,
         { target: "server" },
       ),
-    ).toThrow(/inline object literal/);
+    ).toThrow(/tool "weather" cannot be `makeTool\(\)`/);
   });
 
   it("requires a render for human tools", () => {
@@ -1385,7 +1425,16 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
         `"use generative";\nimport { defineToolkit, humanTool } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { execute: humanTool() } });`,
         { target: "client" },
       ),
-    ).toThrow(/must declare a `render`/);
+    ).toThrow(/human tool "ask" must declare a `render`/);
+  });
+
+  it("falls back to an unnamed human tool diagnostic for computed keys", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit, humanTool } from "@assistant-ui/react";\nconst ask = "ask";\nexport default defineToolkit({ [ask]: { execute: humanTool() } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/a human tool must declare a `render`/);
   });
 
   it("requires a render or renderText for frontend tools", () => {
@@ -1394,7 +1443,16 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
         `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nexport default defineToolkit({ toast: { execute: async () => { "use client"; return 1; } } });`,
         { target: "client" },
       ),
-    ).toThrow(/must declare a `render` or `renderText`/);
+    ).toThrow(/frontend tool "toast" must declare a `render` or `renderText`/);
+  });
+
+  it("falls back to an unnamed frontend tool diagnostic for computed keys", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nconst toast = "toast";\nexport default defineToolkit({ [toast]: { execute: async () => { "use client"; return 1; } } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/a frontend tool must declare a `render` or `renderText`/);
   });
 
   it("requires every tool to declare an execute", () => {
@@ -1403,7 +1461,16 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
         `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { render: () => null } });`,
         { target: "client" },
       ),
-    ).toThrow(/must declare an `execute`/);
+    ).toThrow(/tool "ask" must declare an `execute`/);
+  });
+
+  it("falls back to an unnamed execute diagnostic for computed keys", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nconst ask = "ask";\nexport default defineToolkit({ [ask]: { render: () => null } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/every tool must declare an `execute`/);
   });
 
   it("infers `human` from execute: humanTool() and drops it on both builds", () => {
@@ -1488,17 +1555,34 @@ export default defineToolkit({
 import { defineToolkit, providerTool } from "@assistant-ui/react";
 export default defineToolkit({
   web_search: {
-    render: () => null,
+    providerId: "openai.web_search_preview",
     execute: providerTool({
       providerId: "openai.web_search_preview",
       args: {},
-      render: "duplicate",
     }),
   },
 });`;
 
     expect(() => compileGenerative(src, { target: "server" })).toThrow(
-      /cannot duplicate tool properties/,
+      /`providerTool\(\.\.\.\)` config for "web_search" duplicates "providerId"/,
+    );
+  });
+
+  it("rejects duplicate providerTool config properties with the duplicated key", () => {
+    const src = `"use generative";
+import { defineToolkit, providerTool } from "@assistant-ui/react";
+export default defineToolkit({
+  web_search: {
+    execute: providerTool({
+      providerId: "openai.web_search_preview",
+      providerId: "openai.web_search_preview_2",
+      args: {},
+    }),
+  },
+});`;
+
+    expect(() => compileGenerative(src, { target: "server" })).toThrow(
+      /`providerTool\(\.\.\.\)` config for "web_search" duplicates "providerId"/,
     );
   });
 
@@ -1517,6 +1601,42 @@ export default defineToolkit({
       true,
     );
     expect(isGenerativeModule(`// a comment\n"use generative";\n`)).toBe(true);
+    expect(isGenerativeModule(`"use generative"\nexport default {};`)).toBe(
+      true,
+    );
+    expect(
+      isGenerativeModule(`"use generative" // comment\nexport default {};`),
+    ).toBe(true);
+    expect(
+      isGenerativeModule(`"use generative" /* comment */;\nexport default {};`),
+    ).toBe(true);
     expect(isGenerativeModule(`export default {};`)).toBe(false);
+    expect(
+      isGenerativeModule(`"use generative" + suffix;\nexport default {};`),
+    ).toBe(false);
+    expect(
+      isGenerativeModule(`"use generative"\n+ suffix;\nexport default {};`),
+    ).toBe(false);
+    expect(
+      isGenerativeModule(`"use generative".toString();\nexport default {};`),
+    ).toBe(false);
+    expect(
+      isGenerativeModule(`"use generative"\n.toString();\nexport default {};`),
+    ).toBe(false);
+    expect(
+      isGenerativeModule(
+        `"use generative" // comment\n+ suffix;\nexport default {};`,
+      ),
+    ).toBe(false);
+    expect(
+      isGenerativeModule(
+        `"use generative" /* no line break */ + suffix;\nexport default {};`,
+      ),
+    ).toBe(false);
+    expect(
+      isGenerativeModule(
+        `"use generative" /* first line\nsecond line */ + suffix;\nexport default {};`,
+      ),
+    ).toBe(false);
   });
 });

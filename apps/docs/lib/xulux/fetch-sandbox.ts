@@ -1,6 +1,6 @@
 const SANDBOX_FETCH_HEADERS = {
   Accept: "application/zip, application/octet-stream, */*",
-  // Blaxel preview hosts intermittently reset Node's default fetch without a UA.
+  // Blaxel preview hosts intermittently reset Node's default fetch path.
   "User-Agent": "curl/8.7.1",
 };
 
@@ -31,7 +31,7 @@ function mergeHeaders(headers?: HeadersInit): Headers {
 }
 
 export async function fetchSandboxResource(
-  url: string,
+  url: string | URL,
   init?: RequestInit,
 ): Promise<Response> {
   let lastError: unknown;

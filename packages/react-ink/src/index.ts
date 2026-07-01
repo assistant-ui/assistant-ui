@@ -166,8 +166,11 @@ export {
 // Re-export shared providers from core/react
 export {
   ThreadListItemByIndexProvider,
+  ThreadListItemRuntimeProvider,
   ChainOfThoughtByIndicesProvider,
   MessageByIndexProvider,
+  MessageAttachmentByIndexProvider,
+  ComposerAttachmentByIndexProvider,
   PartByIndexProvider,
   TextMessagePartProvider,
   ChainOfThoughtPartByIndexProvider,
@@ -251,6 +254,13 @@ export type {
   LanguageModelV1CallSettings,
 } from "@assistant-ui/core";
 export { mergeModelContexts } from "@assistant-ui/core";
+export {
+  unstable_getInteractableSnapshots,
+  unstable_formatInteractableSnapshot,
+  unstable_getInteractableVersions,
+  type Unstable_InteractableSnapshotEntry,
+  type Unstable_InteractableVersion,
+} from "@assistant-ui/core";
 export type { Tool } from "assistant-stream";
 export { tool } from "@assistant-ui/core";
 export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";

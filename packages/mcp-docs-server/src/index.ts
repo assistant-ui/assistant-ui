@@ -2,6 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { docsTools } from "./tools/docs.js";
 import { examplesTools } from "./tools/examples.js";
+import { searchTools } from "./tools/search.js";
+import { registerResources } from "./tools/resources.js";
 import { logger } from "./utils/logger.js";
 import { PACKAGE_DIR } from "./constants.js";
 
@@ -17,18 +19,38 @@ export const server = new McpServer({
   version: packageJson.version,
 });
 
-server.tool(
+server.registerTool(
   docsTools.name,
-  docsTools.description,
-  docsTools.parameters,
+  {
+    title: "assistant-ui Documentation",
+    description: docsTools.description,
+    inputSchema: docsTools.parameters,
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
   docsTools.execute,
 );
-server.tool(
+server.registerTool(
   examplesTools.name,
-  examplesTools.description,
-  examplesTools.parameters,
+  {
+    title: "assistant-ui Examples",
+    description: examplesTools.description,
+    inputSchema: examplesTools.parameters,
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
   examplesTools.execute,
 );
+server.registerTool(
+  searchTools.name,
+  {
+    title: "Search assistant-ui Documentation",
+    description: searchTools.description,
+    inputSchema: searchTools.parameters,
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  searchTools.execute,
+);
+
+registerResources(server);
 
 export async function runServer() {
   try {

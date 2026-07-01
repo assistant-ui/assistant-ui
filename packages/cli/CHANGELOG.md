@@ -1,5 +1,27 @@
 # assistant-ui
 
+## 0.0.105
+
+### Patch Changes
+
+- [#4609](https://github.com/assistant-ui/assistant-ui/pull/4609) [`a50faac`](https://github.com/assistant-ui/assistant-ui/commit/a50faac5cb62f185a5e6a72cde8fbc550abf8427) - fix(cli): skip shadcn registry install when --skip-install is passed ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies []:
+  - @assistant-ui/agent-launcher@0.1.8
+
+## 0.0.104
+
+### Patch Changes
+
+- [#4588](https://github.com/assistant-ui/assistant-ui/pull/4588) [`cbb5614`](https://github.com/assistant-ui/assistant-ui/commit/cbb561499f64828bb30a8cd416cb5c636cf81d3f) - chore: share CLI program construction with API surface snapshot generation ([@Yonom](https://github.com/Yonom))
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#4494](https://github.com/assistant-ui/assistant-ui/pull/4494) [`5e8a4e2`](https://github.com/assistant-ui/assistant-ui/commit/5e8a4e2a4c4bb4ba2aa963eb2f63da521a29bf78) - cli: rename the langgraph starter template flag to `-t langchain` so it matches the react-langchain adapter it actually scaffolds. `-t langgraph` no longer resolves; use `-t langchain` instead. ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff)]:
+  - @assistant-ui/agent-launcher@0.1.8
+
 ## 0.0.103
 
 ### Patch Changes

@@ -1,5 +1,19 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.17
+
+### Patch Changes
+
+- [#4598](https://github.com/assistant-ui/assistant-ui/pull/4598) [`6d947c9`](https://github.com/assistant-ui/assistant-ui/commit/6d947c96658a4156b41a13c89b07f6325a3328fa) - fix: preserve package imports as external build specifiers ([@Yonom](https://github.com/Yonom))
+
+## 0.0.16
+
+### Patch Changes
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#4484](https://github.com/assistant-ui/assistant-ui/pull/4484) [`10f2009`](https://github.com/assistant-ui/assistant-ui/commit/10f200961afd520eeaf1a339c12f4ca766f959d6) - Resolve bundled ambient types from hoisted monorepo installs. ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.15
 
 ### Patch Changes

@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { readFile, lstat } from "node:fs/promises";
 import matter from "gray-matter";
+import { MAX_FILE_SIZE } from "../constants.js";
 import { logger } from "./logger.js";
 
 interface MDXContent {
@@ -30,6 +31,25 @@ export async function readMDXFile(
     logger.error(`Failed to read MDX file: ${filePath}`, error);
     return null;
   }
+}
+
+export async function readMDXFileSafe(
+  filePath: string,
+): Promise<MDXContent | null> {
+  try {
+    const stats = await lstat(filePath);
+    if (stats.isSymbolicLink()) {
+      logger.warn(`Attempted to read symlink: ${filePath}`);
+      return null;
+    }
+    if (stats.size > MAX_FILE_SIZE) {
+      logger.warn(`File size exceeds limit: ${filePath} (${stats.size} bytes)`);
+      return null;
+    }
+  } catch {
+    return null;
+  }
+  return readMDXFile(filePath);
 }
 
 export function formatMDXContent(mdxContent: MDXContent): string {
