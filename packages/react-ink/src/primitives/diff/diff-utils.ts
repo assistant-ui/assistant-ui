@@ -3,6 +3,7 @@ import parseDiff from "parse-diff";
 import type {
   ParsedLine,
   ParsedFile,
+  DiffFileInput,
   DisplayLine,
   FoldedRegion,
 } from "./types";
@@ -33,6 +34,7 @@ export function parsePatch(patch: string): ParsedFile[] {
     const lines: ParsedLine[] = [];
     let additions = 0;
     let deletions = 0;
+    let hunkIndex = 0;
 
     for (const chunk of file.chunks) {
       let oldLine = chunk.oldStart;
@@ -48,6 +50,7 @@ export function parsePatch(patch: string): ParsedFile[] {
             type: "add",
             content,
             newLineNumber: newLine++,
+            hunkIndex,
           });
         } else if (change.type === "del") {
           deletions++;
@@ -55,6 +58,7 @@ export function parsePatch(patch: string): ParsedFile[] {
             type: "del",
             content,
             oldLineNumber: oldLine++,
+            hunkIndex,
           });
         } else {
           lines.push({
@@ -62,9 +66,12 @@ export function parsePatch(patch: string): ParsedFile[] {
             content,
             oldLineNumber: oldLine++,
             newLineNumber: newLine++,
+            hunkIndex,
           });
         }
       }
+
+      hunkIndex++;
     }
 
     return {
@@ -107,7 +114,61 @@ export function computeDiff(
     }
   }
 
+  assignComputedHunkIndices(lines);
+
   return { lines, additions, deletions };
+}
+
+// computeDiff has no native hunk boundaries, so derive them: a change run
+// (contiguous add/del lines) is one hunk, any normal gap ends it. Context lines
+// adopt the hunk they trail; context before the first change belongs to none.
+function assignComputedHunkIndices(lines: ParsedLine[]) {
+  let hunkIndex = -1;
+  let inChangeRun = false;
+
+  for (const line of lines) {
+    if (line.type === "normal") {
+      inChangeRun = false;
+      if (hunkIndex >= 0) line.hunkIndex = hunkIndex;
+    } else {
+      if (!inChangeRun) hunkIndex++;
+      inChangeRun = true;
+      line.hunkIndex = hunkIndex;
+    }
+  }
+}
+
+export function getDiffFiles({
+  patch,
+  oldFile,
+  newFile,
+}: {
+  patch?: string | undefined;
+  oldFile?: DiffFileInput | undefined;
+  newFile?: DiffFileInput | undefined;
+}): ParsedFile[] {
+  if (patch) {
+    return parsePatch(patch);
+  }
+
+  if (!oldFile || !newFile) {
+    return [];
+  }
+
+  const { lines, additions, deletions } = computeDiff(
+    oldFile.content,
+    newFile.content,
+  );
+
+  return [
+    {
+      oldName: oldFile.name,
+      newName: newFile.name,
+      lines,
+      additions,
+      deletions,
+    },
+  ];
 }
 
 export function foldContext(
