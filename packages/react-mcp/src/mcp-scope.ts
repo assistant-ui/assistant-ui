@@ -19,6 +19,7 @@ export type MCPConnector = {
   url: string;
   icon?: string | undefined;
   auth: MCPAuthConfig;
+  connectionTimeoutMs?: number | undefined;
 };
 
 export type MCPCustomServerRecord = {
@@ -26,6 +27,7 @@ export type MCPCustomServerRecord = {
   name: string;
   url: string;
   auth: MCPAuthConfig;
+  connectionTimeoutMs?: number | undefined;
   createdAt: number;
 };
 
@@ -93,6 +95,7 @@ export type MCPManagerMethods = {
     name: string;
     url: string;
     auth: MCPAuthConfig;
+    connectionTimeoutMs?: number | undefined;
   }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };
