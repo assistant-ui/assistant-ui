@@ -628,12 +628,14 @@ type McpServerConfig = {
   url: string;
   headers?: Record<string, string>;
   redirect?: "error" | "follow";
+  connectionTimeout?: number | undefined;
 } | {
   type: "stdio";
   command: string;
   args?: readonly string[];
   env?: Record<string, string>;
   cwd?: string;
+  connectionTimeout?: number | undefined;
 };
 
 type McpTool = ToolBase<Record<string, unknown>, unknown> & {
