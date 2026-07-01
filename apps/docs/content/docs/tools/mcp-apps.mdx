@@ -61,11 +61,11 @@ The route accepts `POST` requests with `{ method, params }` JSON bodies. Dispatc
 
 ```ts
 // app/api/mcp-apps/route.ts
-import { experimental_createMCPClient } from "ai";
+import { createMCPClient } from "@ai-sdk/mcp";
 
-let clientPromise: ReturnType<typeof experimental_createMCPClient> | undefined;
+let clientPromise: ReturnType<typeof createMCPClient> | undefined;
 const getClient = () => {
-  clientPromise ??= experimental_createMCPClient({
+  clientPromise ??= createMCPClient({
     transport: { type: "sse", url: process.env.MCP_SERVER_URL! },
   });
   return clientPromise;
