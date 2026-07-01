@@ -69,7 +69,7 @@
     "ink": "^7.1.0",
     "ink-testing-library": "^4.0.0",
     "react": "^19.2.7",
-    "shiki": "^4.2.0",
+    "shiki": "^4.3.0",
     "vitest": "^4.1.9"
   },
   "publishConfig": {

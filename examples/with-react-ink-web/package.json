@@ -13,7 +13,7 @@
     "@assistant-ui/react-ink-markdown": "workspace:*",
     "@wterm/dom": "^0.3.0",
     "@wterm/react": "^0.3.0",
-    "ai": "^6.0.209",
+    "ai": "^6.0.208",
     "ink": "^7.1.0",
     "ink-web": "^0.2.0",
     "next": "^16.2.9",
@@ -23,7 +23,7 @@
     "scheduler": "^0.27.0"
   },
   "devDependencies": {
-    "@types/node": "^26.0.0",
+    "@types/node": "^26.0.1",
     "@types/react": "^19.2.17",
     "typescript": "^6.0.3"
   }

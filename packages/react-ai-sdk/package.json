@@ -52,10 +52,10 @@
   },
   "dependencies": {
     "@ai-sdk/mcp": "^1.0.52",
-    "@ai-sdk/react": "^3.0.211",
+    "@ai-sdk/react": "^3.0.210",
     "@assistant-ui/core": "^0.2.19",
     "@assistant-ui/store": "^0.2.19",
-    "ai": "^6.0.209",
+    "ai": "^6.0.208",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.24"
   },

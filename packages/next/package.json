@@ -49,7 +49,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.0.0",
+    "@types/node": "^26.0.1",
     "vitest": "^4.1.9"
   },
   "publishConfig": {
