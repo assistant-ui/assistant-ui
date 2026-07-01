@@ -3569,7 +3569,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.19
@@ -3682,7 +3682,7 @@ importers:
         specifier: ^0.0.57
         version: 0.0.57
       '@assistant-ui/core':
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.19
@@ -3719,7 +3719,7 @@ importers:
         specifier: ^3.0.211
         version: 3.0.211(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/core':
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.19
@@ -3978,7 +3978,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.19
