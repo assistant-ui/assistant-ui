@@ -28,6 +28,48 @@ const humanNotSupported = (): never => {
 // AI SDK leaves `abortSignal` optional; assistant-ui's execute requires one.
 const neverAbort = new AbortController().signal;
 
+type MCPConnectionTimeoutPhase = "connecting" | "listing tools";
+
+class MCPConnectionTimeoutError extends Error {}
+
+const createMcpConnectionTimeoutError = (
+  name: string,
+  phase: MCPConnectionTimeoutPhase,
+  timeoutMs: number,
+) =>
+  new MCPConnectionTimeoutError(
+    `MCP toolkit entry "${name}" timed out while ${phase} after ${timeoutMs}ms.`,
+  );
+
+const withMcpConnectionTimeout = async <T>(
+  promise: Promise<T>,
+  options: {
+    name: string;
+    config: McpServerConfig;
+    phase: MCPConnectionTimeoutPhase;
+    startedAt: number;
+  },
+): Promise<T> => {
+  const timeoutMs = options.config.connectionTimeout;
+  if (timeoutMs === undefined) return await promise;
+  const remainingMs = timeoutMs - (Date.now() - options.startedAt);
+  const timeoutError = () =>
+    createMcpConnectionTimeoutError(options.name, options.phase, timeoutMs);
+  if (remainingMs <= 0) throw timeoutError();
+
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(timeoutError()), remainingMs);
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
+};
+
 const parametersToInputSchema = (parameters: Tool["parameters"] | undefined) =>
   jsonSchema(parameters ? toJSONSchema(parameters) : EMPTY_SCHEMA);
 
@@ -169,8 +211,23 @@ export class AISDKToolkit {
           isMcpToolkitTool(entry[1]),
         )
         .map(async ([name, tool]) => {
-          const client = await this.#mcpClient(name, tool.server);
-          return [name, await client.tools()] as const;
+          const startedAt = Date.now();
+          const client = await this.#mcpClient(name, tool.server, startedAt);
+          try {
+            const tools = await withMcpConnectionTimeout(client.tools(), {
+              name,
+              config: tool.server,
+              phase: "listing tools",
+              startedAt,
+            });
+            return [name, tools] as const;
+          } catch (error) {
+            if (error instanceof MCPConnectionTimeoutError) {
+              this.#mcpClients.delete(name);
+              void client.close().catch(() => {});
+            }
+            throw error;
+          }
         }),
     );
 
@@ -191,11 +248,23 @@ export class AISDKToolkit {
     return { tools, sources: toolSources };
   }
 
-  #mcpClient(name: string, config: McpServerConfig): Promise<MCPClient> {
+  #mcpClient(
+    name: string,
+    config: McpServerConfig,
+    startedAt: number,
+  ): Promise<MCPClient> {
     const existing = this.#mcpClients.get(name);
     if (existing) return existing;
     let next: Promise<MCPClient>;
-    next = createMCPClient(toMCPClientConfig(config)).catch((error) => {
+    next = withMcpConnectionTimeout(
+      createMCPClient(toMCPClientConfig(config)),
+      {
+        name,
+        config,
+        phase: "connecting",
+        startedAt,
+      },
+    ).catch((error) => {
       if (this.#mcpClients.get(name) === next) {
         this.#mcpClients.delete(name);
       }
