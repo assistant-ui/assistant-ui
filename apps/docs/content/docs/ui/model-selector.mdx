@@ -219,8 +219,9 @@ import {
   through the list. Interactive elements composed inside it (filter chips,
   custom effort controls) should stop propagation for the keys they handle in
   their own `onKeyDown` so the focused control responds instead.
-  `ModelSelector.Effort` already does this for <Kbd>Enter</Kbd> and its arrow
-  keys.
+  `ModelSelector.Effort` does this for <Kbd>Home</Kbd> / <Kbd>End</Kbd> (which
+  cmdk would otherwise use to jump to the first / last model) and lets its
+  radiogroup own the arrow keys.
 </Callout>
 
 ## Variants
