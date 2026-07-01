@@ -1,9 +1,13 @@
 ---
-title: AI SDK v6
-description: Integrate Vercel AI SDK v6 with assistant-ui for streaming chat.
+title: AI SDK v6 (legacy)
+description: Reference for projects still on AI SDK v6. New projects should use v7.
 ---
 
-Current-version integration. Requires `ai@^6` and `@ai-sdk/react@^3`. For older versions see the [overview](/docs/runtimes/ai-sdk).
+<Callout type="warn">
+AI SDK v6 is a legacy version. New projects should use [AI SDK v7](/docs/runtimes/ai-sdk/v7). v6 users stay on `@assistant-ui/react-ai-sdk@1.x`; the latest line targets v7+.
+</Callout>
+
+Requires `ai@^6` and `@ai-sdk/react@^3`. For other versions see the [overview](/docs/runtimes/ai-sdk).
 
 ## Quickstart
 
@@ -610,7 +614,7 @@ const runtime = useAISDKRuntime(chat);
 
 ## Example
 
-[`examples/with-ai-sdk-v6`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v6) shows a complete reference implementation.
+[`examples/with-ai-sdk-v7`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v7) shows a complete reference implementation.
 
 For responses that should survive a page reload mid-stream, see [Resumable streams](/docs/guides/resumable-streams), which wraps the same v6 byte stream in `assistant-stream/resumable`.
 

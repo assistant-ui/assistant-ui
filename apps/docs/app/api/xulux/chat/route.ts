@@ -1,12 +1,10 @@
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
-import { createPrismTracer } from "@/lib/prism-server";
+import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
-import { getModel, openai } from "@/lib/ai/provider";
+import { getModel, openai, withTracing } from "@/lib/ai/provider";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
-import { prismAISDK } from "@aui-x/prism";
-import { withTracing } from "@posthog/ai";
 import { NextResponse } from "next/server";
 import {
   convertToModelMessages,

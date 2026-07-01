@@ -79,7 +79,7 @@ export const cliSurface: CliSurfaceSnapshot = {
         },
         {
           "flags": "-e, --example <example>",
-          "description": "create from an example (with-ag-ui, with-google-adk, with-ai-sdk-v6, with-eve, with-artifacts, with-assistant-transport, with-chain-of-thought, with-cloud, with-custom-thread-list, with-elevenlabs-conversational, with-elevenlabs-scribe, with-livekit, with-expo, with-interactables, with-external-store, with-ffmpeg, with-langgraph, with-react-hook-form, with-react-ink, with-react-router, with-tanstack)",
+          "description": "create from an example (with-ag-ui, with-google-adk, with-ai-sdk-v7, with-eve, with-artifacts, with-assistant-transport, with-chain-of-thought, with-cloud, with-custom-thread-list, with-elevenlabs-conversational, with-elevenlabs-scribe, with-livekit, with-expo, with-interactables, with-external-store, with-ffmpeg, with-langgraph, with-react-hook-form, with-react-ink, with-react-router, with-tanstack)",
           "required": true
         },
         {

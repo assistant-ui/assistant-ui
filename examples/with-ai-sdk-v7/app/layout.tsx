@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI SDK v6 Example",
-  description: "Example using @assistant-ui/react with AI SDK v6",
+  title: "AI SDK v7 Example",
+  description: "Example using @assistant-ui/react with AI SDK v7",
 };
 
 export default function RootLayout({
