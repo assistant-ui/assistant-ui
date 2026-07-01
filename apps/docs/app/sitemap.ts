@@ -3,6 +3,13 @@ import { source, tapDocs, blog, examples, careers } from "@/lib/source";
 import { DEMOS } from "@/lib/demos";
 import { BASE_URL } from "@/lib/constants";
 
+type SitemapLastModified = MetadataRoute.Sitemap[number]["lastModified"];
+
+const getLastModified = (data: unknown): SitemapLastModified =>
+  typeof data === "object" && data !== null && "lastModified" in data
+    ? (data as { lastModified?: SitemapLastModified }).lastModified
+    : undefined;
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticPages: MetadataRoute.Sitemap = [
     { url: BASE_URL, changeFrequency: "weekly", priority: 1 },
@@ -30,7 +37,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const docsPages: MetadataRoute.Sitemap = source.getPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,
-    lastModified: page.data.lastModified,
+    lastModified: getLastModified(page.data),
     changeFrequency: "weekly",
     priority: 0.9,
   }));
@@ -39,14 +46,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     .getPages()
     .map((page) => ({
       url: `${BASE_URL}${page.url}`,
-      lastModified: page.data.lastModified,
+      lastModified: getLastModified(page.data),
       changeFrequency: "weekly",
       priority: 0.7,
     }));
 
   const blogPages: MetadataRoute.Sitemap = blog.getPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,
-    lastModified: page.data.lastModified,
+    lastModified: getLastModified(page.data),
     changeFrequency: "monthly",
     priority: 0.7,
   }));
@@ -55,7 +62,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     .getPages()
     .map((page) => ({
       url: `${BASE_URL}${page.url}`,
-      lastModified: page.data.lastModified,
+      lastModified: getLastModified(page.data),
       changeFrequency: "monthly",
       priority: 0.6,
     }));
@@ -68,7 +75,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const careerPages: MetadataRoute.Sitemap = careers.getPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,
-    lastModified: page.data.lastModified,
+    lastModified: getLastModified(page.data),
     changeFrequency: "monthly",
     priority: 0.5,
   }));
