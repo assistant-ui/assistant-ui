@@ -39,7 +39,7 @@ export type ModelSelectorEffortOption = {
 
 export const DEFAULT_EFFORT_OPTIONS: readonly ModelSelectorEffortOption[] = [
   { id: "low", name: "Low" },
-  { id: "medium", name: "Medium" },
+  { id: "medium", name: "Med" },
   { id: "high", name: "High" },
 ];
 
@@ -348,7 +348,7 @@ function ModelSelectorValue({
       {selectedModel.icon && <ModelIcon>{selectedModel.icon}</ModelIcon>}
       <span className="truncate font-medium">{selectedModel.name}</span>
       {effortName && (
-        <span className="text-muted-foreground truncate">{effortName}</span>
+        <span className="text-muted-foreground text-center min-w-7.5 truncate">{effortName}</span>
       )}
     </span>
   );
