@@ -23,7 +23,7 @@ import { FollowUpSuggestionsSample } from "@/components/docs/samples/follow-up-s
 
 <InstallCommand shadcn={["follow-up-suggestions"]} />
 
-This adds a `/components/assistant-ui/follow-up-suggestions.tsx` file to your project.
+This adds a `/components/assistant-ui/follow-up-suggestions.tsx` file to your project. The default `thread` component already renders `ThreadFollowupSuggestions`, so installing it standalone is only needed when you build your own thread layout.
 
   </Step>
   <Step>
@@ -72,7 +72,7 @@ const ThreadViewportFooter = () => {
 
 ## Behavior
 
-The component only renders when the thread is not empty and not currently running. Each suggestion uses `ThreadPrimitive.Suggestion`, replaces the composer text with the prompt, and sends it immediately.
+The component only renders when the thread is not empty, not currently running, and has at least one suggestion. Each suggestion uses `ThreadPrimitive.Suggestion`, replaces the composer text with the prompt, and sends it immediately.
 
 ## Related Components
 
