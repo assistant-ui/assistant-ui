@@ -33,7 +33,18 @@ export type UIMessageStreamChunk =
       toolCallId: string;
       toolName: string;
     }
+  | {
+      type: "tool-input-start";
+      toolCallId: string;
+      toolName: string;
+    }
   | { type: "tool-call-delta"; argsText: string }
+  | { type: "tool-input-delta"; toolCallId?: string; inputTextDelta: string }
+  | {
+      type: "tool-input-available";
+      toolCallId: string;
+      input: ReadonlyJSONValue;
+    }
   | { type: "tool-call-end" }
   | {
       type: "tool-result";
@@ -41,6 +52,11 @@ export type UIMessageStreamChunk =
       result: ReadonlyJSONValue;
       isError?: boolean;
       messages?: ReadonlyJSONValue;
+    }
+  | {
+      type: "tool-output-available";
+      toolCallId: string;
+      output: ReadonlyJSONValue;
     }
   | { type: "start-step"; messageId?: string }
   | {

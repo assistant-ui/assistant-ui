@@ -101,6 +101,8 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
   constructor(options: UIMessageStreamDecoderOptions = {}) {
     super((readable) => {
       const toolCallControllers = new Map<string, ToolCallStreamController>();
+      const toolCallHasArgsText = new Map<string, boolean>();
+      let activeToolCallId: string | undefined;
       let activeToolCallArgsText: TextStreamController | undefined;
       let currentMessageId: string | undefined;
       let receivedDone = false;
@@ -175,9 +177,11 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               });
               break;
 
-            case "tool-call-start": {
+            case "tool-call-start":
+            case "tool-input-start": {
               activeToolCallArgsText?.close();
               activeToolCallArgsText = undefined;
+              activeToolCallId = undefined;
 
               if (toolCallControllers.has(chunk.toolCallId)) {
                 throw new Error(
@@ -190,20 +194,56 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 toolName: chunk.toolName,
               });
               toolCallControllers.set(chunk.toolCallId, toolCallController);
+              toolCallHasArgsText.set(chunk.toolCallId, false);
               activeToolCallArgsText = toolCallController.argsText;
+              activeToolCallId = chunk.toolCallId;
               break;
             }
 
             case "tool-call-delta":
+              if (activeToolCallId) {
+                toolCallHasArgsText.set(activeToolCallId, true);
+              }
               activeToolCallArgsText?.append(chunk.argsText);
               break;
+
+            case "tool-input-delta": {
+              const targetToolCallId = chunk.toolCallId ?? activeToolCallId;
+              if (targetToolCallId) {
+                toolCallHasArgsText.set(targetToolCallId, true);
+              }
+              activeToolCallArgsText?.append(chunk.inputTextDelta);
+              break;
+            }
+
+            case "tool-input-available": {
+              const toolCallController = toolCallControllers.get(
+                chunk.toolCallId,
+              );
+              if (!toolCallController) {
+                throw new Error(
+                  `Encountered tool input with unknown id: ${chunk.toolCallId}`,
+                );
+              }
+              if (!toolCallHasArgsText.get(chunk.toolCallId)) {
+                toolCallController.argsText.append(JSON.stringify(chunk.input));
+              }
+              toolCallController.argsText.close();
+              if (activeToolCallId === chunk.toolCallId) {
+                activeToolCallArgsText = undefined;
+                activeToolCallId = undefined;
+              }
+              break;
+            }
 
             case "tool-call-end":
               activeToolCallArgsText?.close();
               activeToolCallArgsText = undefined;
+              activeToolCallId = undefined;
               break;
 
-            case "tool-result": {
+            case "tool-result":
+            case "tool-output-available": {
               const toolCallController = toolCallControllers.get(
                 chunk.toolCallId,
               );
@@ -213,9 +253,13 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 );
               }
               toolCallController.setResponse({
-                result: chunk.result,
-                isError: chunk.isError ?? false,
-                ...(chunk.messages !== undefined
+                result:
+                  chunk.type === "tool-result" ? chunk.result : chunk.output,
+                isError:
+                  chunk.type === "tool-result"
+                    ? (chunk.isError ?? false)
+                    : false,
+                ...(chunk.type === "tool-result" && chunk.messages !== undefined
                   ? { messages: chunk.messages }
                   : {}),
               });
