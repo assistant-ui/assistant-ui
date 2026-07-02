@@ -1,6 +1,7 @@
 import { resource } from "@assistant-ui/tap";
-import type { MCPCustomServerRecord } from "../../mcp-scope";
+import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
+import { assertValidServerId } from "../../utils/serverId";
 import type { MCPStorage } from "./types";
 
 export type McpLocalStorageOptions = {
@@ -21,6 +22,69 @@ function resolveStorage(opts: McpLocalStorageOptions): Storage | null {
   }
   return null;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isOptionalString = (value: unknown): value is string | undefined =>
+  value === undefined || typeof value === "string";
+
+const isOptionalStringArray = (value: unknown): value is string[] | undefined =>
+  value === undefined ||
+  (Array.isArray(value) && value.every((item) => typeof item === "string"));
+
+const isValidServerId = (id: string): boolean => {
+  try {
+    assertValidServerId(id);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const isMCPAuthConfig = (auth: unknown): auth is MCPAuthConfig => {
+  if (!isRecord(auth)) return false;
+
+  switch (auth.type) {
+    case "none":
+      return true;
+    case "bearer":
+      return isOptionalString(auth.token);
+    case "oauth":
+      return (
+        isOptionalStringArray(auth.scopes) &&
+        isOptionalString(auth.authorizationEndpoint) &&
+        isOptionalString(auth.tokenEndpoint) &&
+        isOptionalString(auth.registrationEndpoint) &&
+        isOptionalString(auth.clientId) &&
+        isOptionalString(auth.clientSecret)
+      );
+    default:
+      return false;
+  }
+};
+
+const isCustomServerRecord = (
+  value: unknown,
+): value is MCPCustomServerRecord => {
+  if (!isRecord(value)) return false;
+  if (typeof value.id !== "string" || !isValidServerId(value.id)) {
+    return false;
+  }
+  return (
+    typeof value.name === "string" &&
+    typeof value.url === "string" &&
+    Number.isFinite(value.createdAt) &&
+    isMCPAuthConfig(value.auth)
+  );
+};
+
+export const normalizeCustomServerRecords = (
+  value: unknown,
+): MCPCustomServerRecord[] => {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isCustomServerRecord);
+};
 
 const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
   const prefix = opts.keyPrefix ?? "aui-mcp";
@@ -59,7 +123,7 @@ const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
 
   return {
     loadCustomServers: async () =>
-      read<MCPCustomServerRecord[]>(customServersKey, []),
+      normalizeCustomServerRecords(read<unknown>(customServersKey, [])),
     saveCustomServers: async (records) => {
       write(customServersKey, records);
     },
