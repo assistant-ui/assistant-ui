@@ -150,7 +150,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               break;
 
             case "text-delta":
-              controller.appendText(chunk.textDelta);
+              controller.appendText(chunk.delta);
               break;
 
             case "reasoning-delta":
@@ -286,7 +286,14 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 return;
               }
 
-              controller.enqueue(JSON.parse(event.data));
+              const chunk = JSON.parse(event.data);
+              if (chunk.type === "text-delta" && chunk.delta === undefined) {
+                const { textDelta, ...rest } = chunk;
+                controller.enqueue({ ...rest, delta: textDelta ?? "" });
+                return;
+              }
+
+              controller.enqueue(chunk);
             },
             flush() {
               if (!receivedDone) {

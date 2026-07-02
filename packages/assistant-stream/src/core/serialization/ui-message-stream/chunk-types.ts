@@ -17,7 +17,7 @@ type Usage = {
 export type UIMessageStreamChunk =
   | { type: "start"; messageId: string }
   | { type: "text-start"; id: string }
-  | { type: "text-delta"; textDelta: string }
+  | { type: "text-delta"; id?: string; delta: string }
   | { type: "text-end" }
   | { type: "reasoning-start"; id: string }
   | { type: "reasoning-delta"; delta: string }
