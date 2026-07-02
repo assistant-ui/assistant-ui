@@ -24,6 +24,7 @@ import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
 import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
+import { useComposerCompactContextOptional } from "./ComposerCompactContext";
 import {
   useComposerInputDisabled,
   useComposerInputValue,
@@ -165,12 +166,14 @@ export const ComposerPrimitiveInput = forwardRef<
       unstable_focusOnThreadSwitched = true,
       unstable_insertNewlineOnTouchEnter = false,
       addAttachmentOnPaste = true,
+      onHeightChange,
       ...rest
     },
     forwardedRef,
   ) => {
     const aui = useAui();
     const pluginRegistry = useComposerInputPluginRegistryOptional();
+    const compactContext = useComposerCompactContextOptional();
 
     const declaredSubmitMode =
       submitMode ?? (submitOnEnter === false ? "none" : "enter");
@@ -278,6 +281,28 @@ export const ComposerPrimitiveInput = forwardRef<
       }
     };
 
+    const handleHeightChange = (
+      height: number,
+      meta: { rowHeight: number },
+    ) => {
+      onHeightChange?.(height, meta);
+      if (!compactContext) return;
+      const el = textareaRef.current;
+      if (!el || el.value === "") return;
+      const cs = getComputedStyle(el);
+      const contentHeight =
+        cs.boxSizing === "border-box"
+          ? height -
+            parseFloat(cs.paddingTop) -
+            parseFloat(cs.paddingBottom) -
+            parseFloat(cs.borderTopWidth) -
+            parseFloat(cs.borderBottomWidth)
+          : height;
+      if (Math.round(contentHeight / meta.rowHeight) > 1) {
+        compactContext.setMultiline(true);
+      }
+    };
+
     const autoFocusEnabled = autoFocus && !isDisabled;
     const focus = useCallback(() => {
       const textarea = textareaRef.current;
@@ -317,6 +342,10 @@ export const ComposerPrimitiveInput = forwardRef<
 
       return aui.on("threadListItem.switchedTo", focus);
     }, [unstable_focusOnThreadSwitched, focus, aui]);
+
+    useEffect(() => {
+      if (value === "") compactContext?.setMultiline(false);
+    }, [value, compactContext]);
 
     const ariaComboboxProps = useTriggerPopoverAriaProps();
 
@@ -391,6 +420,7 @@ export const ComposerPrimitiveInput = forwardRef<
         },
       ),
       onPaste: composeEventHandlers(onPaste, handlePaste),
+      onHeightChange: handleHeightChange,
     };
 
     if (render && isValidElement(render)) {

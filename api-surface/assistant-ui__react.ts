@@ -6310,14 +6310,18 @@ declare const useTriggerPopoverScopeContextOptional: () => TriggerPopoverResourc
 
 declare namespace ComposerPrimitiveRoot {
   type Element = ComponentRef<typeof Primitive$1.form>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.form>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive$1.form> & {
+    compact?: boolean | undefined;
+  };
 }
 
 declare const ComposerPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLFormElement> & import("react").FormHTMLAttributes<HTMLFormElement> & {
   asChild?: boolean;
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
-} & import("react").RefAttributes<HTMLFormElement>, "ref"> & import("react").RefAttributes<HTMLFormElement>>;
+} & import("react").RefAttributes<HTMLFormElement>, "ref"> & {
+  compact?: boolean | undefined;
+} & import("react").RefAttributes<HTMLFormElement>>;
 
 declare namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
