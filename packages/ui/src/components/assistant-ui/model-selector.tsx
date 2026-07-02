@@ -30,7 +30,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { RadioGroup } from "radix-ui";
+import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 
 export type ModelSelectorEffortOption = {
   id: string;
@@ -576,11 +576,21 @@ function ModelSelectorEffort({
         // cmdk's Command root claims Home/End to jump the model list; stop
         // them here so only the radiogroup reacts.
         if (e.key === "Home" || e.key === "End") e.stopPropagation();
+        // Vertical arrows refocus cmdk's input before the event bubbles to
+        // the Command root: the same keypress then moves the list highlight,
+        // and Enter selects again (cmdk's Enter is inert while a radio has
+        // focus, so the highlight would otherwise move with no way to act).
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.currentTarget
+            .closest("[cmdk-root]")
+            ?.querySelector<HTMLInputElement>("[cmdk-input]")
+            ?.focus();
+        }
       }}
       {...props}
     >
       <span className="text-muted-foreground text-xs">{label}</span>
-      <RadioGroup.Root
+      <RadioGroupPrimitive.Root
         value={effort ?? ""}
         onValueChange={setEffort}
         orientation="horizontal"
@@ -588,7 +598,7 @@ function ModelSelectorEffort({
         className="flex items-center gap-0.5"
       >
         {efforts.map((option) => (
-          <RadioGroup.Item
+          <RadioGroupPrimitive.Item
             key={option.id}
             value={option.id}
             className={cn(
@@ -597,9 +607,9 @@ function ModelSelectorEffort({
             )}
           >
             {option.name}
-          </RadioGroup.Item>
+          </RadioGroupPrimitive.Item>
         ))}
-      </RadioGroup.Root>
+      </RadioGroupPrimitive.Root>
     </div>
   );
 }

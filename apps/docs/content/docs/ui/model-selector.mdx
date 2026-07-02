@@ -223,8 +223,11 @@ Keyboard navigation needs a focused input to drive it. When content is unfiltere
   custom effort controls) should stop propagation for the keys they handle in
   their own `onKeyDown` so the focused control responds instead.
   `ModelSelector.Effort` does this for <Kbd>Home</Kbd> / <Kbd>End</Kbd> (which
-  cmdk would otherwise use to jump to the first / last model) and lets its
-  radiogroup own the arrow keys.
+  cmdk would otherwise use to jump to the first / last model), lets its
+  radiogroup own <Kbd>ArrowLeft</Kbd> / <Kbd>ArrowRight</Kbd>, and hands
+  <Kbd>ArrowUp</Kbd> / <Kbd>ArrowDown</Kbd> back to the model list by
+  refocusing cmdk's input, so the highlight only moves while a following
+  <Kbd>Enter</Kbd> can act on it.
 </Callout>
 
 ## Variants
@@ -259,7 +262,7 @@ The picker is fully operable from the keyboard, including when search is disable
 
 | Key | Action |
 | --- | --- |
-| <Kbd>ArrowDown</Kbd> / <Kbd>ArrowUp</Kbd> | Open the popover from the focused trigger; move between models once open |
+| <Kbd>ArrowDown</Kbd> / <Kbd>ArrowUp</Kbd> | Open the popover from the focused trigger; move between models once open, returning focus to the list from the Thinking row |
 | <Kbd>Enter</Kbd> | Select the highlighted model and close |
 | <Kbd>Escape</Kbd> | Close the popover and return focus to the trigger |
 | <Kbd>Tab</Kbd> | Move from the model list to the Thinking row |
@@ -275,7 +278,7 @@ The picker implements the WAI-ARIA combobox pattern over Popover + Command.
 - The trigger is `role="combobox"` with `aria-haspopup="listbox"`; Radix Popover manages `aria-expanded` and `aria-controls`.
 - The model list is a Command (cmdk) listbox: each item is `role="option"` with `aria-selected`, and the active item is tracked with `aria-activedescendant`.
 - Keyboard navigation works without a visible search box: `ModelSelector.Content` renders a visually hidden input (`ModelSelector.FocusAnchor`) that anchors cmdk's focus so the list stays reachable. Pass `searchable` to surface a real search input instead.
-- The Thinking row (`ModelSelector.Effort`) is a `role="radiogroup"` of `role="radio"` toggles with roving tabindex, so it is a single tab stop and <Kbd>ArrowLeft</Kbd> / <Kbd>ArrowRight</Kbd> move focus and select in one step.
+- The Thinking row (`ModelSelector.Effort`) is a `role="radiogroup"` of `role="radio"` toggles with roving tabindex, so it is a single tab stop and <Kbd>ArrowLeft</Kbd> / <Kbd>ArrowRight</Kbd> move focus and select in one step. <Kbd>ArrowUp</Kbd> / <Kbd>ArrowDown</Kbd> return focus to the model list.
 
 ## How It Works
 
