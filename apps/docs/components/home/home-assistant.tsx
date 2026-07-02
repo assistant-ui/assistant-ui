@@ -26,8 +26,7 @@ function HomeShift({
   return (
     <div
       className={cn(
-        "flex min-h-screen flex-col",
-        isHome && "md:mr-(--chat-panel-width)",
+        isHome && "flex min-h-screen flex-col md:mr-(--chat-panel-width)",
         isHome &&
           !isResizing &&
           "transition-[margin] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
