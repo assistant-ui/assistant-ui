@@ -80,6 +80,7 @@ Defaults and useful options:
 - `oauthRedirectUri` — `${window.location.origin}/mcp/callback`
 - `autoConnect` — `true` (connect on mount when usable auth is persisted)
 - `connectionTimeout` — optional timeout in milliseconds. Set it on the manager as a default or on a connector/custom server to bound the MCP readiness flow (`connect()` plus `listTools()`) with a clear error.
+- Connector `id` values must be unique. The id is used for server lookup, OAuth routing, and model-visible tool names such as `linear__search`.
 
 </Step>
 <Step>
