@@ -498,6 +498,19 @@ export const registry: RegistryItem[] = [
     registryDependencies: ["command", "popover"],
   },
   {
+    name: "logos",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/logos.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/logos.tsx",
+      },
+    ],
+    dependencies: [],
+    registryDependencies: [],
+  },
+  {
     name: "select",
     type: "registry:component",
     files: [

@@ -130,6 +130,8 @@ type ModelSelectorContextValue = {
   effort: string | undefined;
   setEffort: (effort: string) => void;
   setOpen: (open: boolean) => void;
+  /** Whether the default trigger value and list items render model icons. */
+  showIcons: boolean;
 };
 
 const ModelSelectorContext = createContext<ModelSelectorContextValue | null>(
@@ -172,6 +174,11 @@ export type ModelSelectorRootProps = {
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /**
+   * Render each model's `icon` in the trigger and the dropdown items. Pass
+   * `false` to keep the selector text-only even when models carry icons.
+   */
+  showIcons?: boolean;
   children: ReactNode;
 };
 
@@ -186,6 +193,7 @@ function ModelSelectorRoot({
   open: openProp,
   defaultOpen,
   onOpenChange,
+  showIcons = true,
   children,
 }: ModelSelectorRootProps) {
   const [value, setValue] = useControllableState({
@@ -217,6 +225,7 @@ function ModelSelectorRoot({
       effort: activeEffort,
       setEffort,
       setOpen,
+      showIcons,
     }),
     [
       models,
@@ -227,6 +236,7 @@ function ModelSelectorRoot({
       activeEffort,
       setEffort,
       setOpen,
+      showIcons,
     ],
   );
 
@@ -240,7 +250,7 @@ function ModelSelectorRoot({
 }
 
 export const modelSelectorTriggerVariants = cva(
-  "focus-visible:ring-ring/50 flex w-fit items-center justify-between gap-2 overflow-hidden rounded-md text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "focus-visible:ring-ring/50 flex w-fit items-center justify-between gap-2 overflow-hidden rounded-md text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
   {
     variants: {
       variant: {
@@ -310,9 +320,20 @@ export type ModelSelectorValueProps = {
   className?: string;
 };
 
-function ModelIcon({ children }: { children: ReactNode }) {
+function ModelIcon({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
+    <span
+      className={cn(
+        "flex size-3.5 shrink-0 items-center justify-center [&_svg]:size-3.5",
+        className,
+      )}
+    >
       {children}
     </span>
   );
@@ -323,7 +344,8 @@ function ModelSelectorValue({
   showEffort = true,
   className,
 }: ModelSelectorValueProps) {
-  const { selectedModel, efforts, effort } = useModelSelectorContext();
+  const { selectedModel, efforts, effort, showIcons } =
+    useModelSelectorContext();
 
   if (!selectedModel) {
     return (
@@ -346,7 +368,9 @@ function ModelSelectorValue({
       data-slot="model-selector-value"
       className={cn("flex min-w-0 items-center gap-2", className)}
     >
-      {selectedModel.icon && <ModelIcon>{selectedModel.icon}</ModelIcon>}
+      {showIcons && selectedModel.icon && (
+        <ModelIcon>{selectedModel.icon}</ModelIcon>
+      )}
       <span className="truncate font-medium">{selectedModel.name}</span>
       {effortName && (
         <span className="text-muted-foreground min-w-7.5 truncate text-center">
@@ -510,7 +534,7 @@ function ModelSelectorItem({
   onSelect,
   ...props
 }: ModelSelectorItemProps) {
-  const { value, setValue, setOpen } = useModelSelectorContext();
+  const { value, setValue, setOpen, showIcons } = useModelSelectorContext();
   const isSelected = value === model.id;
 
   return (
@@ -524,12 +548,17 @@ function ModelSelectorItem({
         setOpen(false);
         onSelect?.(selectedValue);
       }}
-      className={cn("relative gap-2 rounded-lg py-2 ps-3 pe-9", className)}
+      className={cn(
+        "relative items-start gap-2 rounded-lg py-2 ps-3 pe-9 [&_svg:not([class*='size-'])]:size-3.5",
+        className,
+      )}
       {...props}
     >
       {children ?? (
         <>
-          {model.icon && <ModelIcon>{model.icon}</ModelIcon>}
+          {showIcons && model.icon && (
+            <ModelIcon className="mt-[3px]">{model.icon}</ModelIcon>
+          )}
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{model.name}</span>
             {model.description && (
