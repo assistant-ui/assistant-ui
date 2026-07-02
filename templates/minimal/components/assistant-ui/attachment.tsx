@@ -148,9 +148,16 @@ const AttachmentUI: FC = () => {
     }
   });
 
-  const status = useAuiState((s) => s.attachment.status);
-  const isUploading = status.type === "running";
-  const isError = status.type === "incomplete" && status.reason === "error";
+  const uploadState = useAuiState((s) =>
+    s.attachment.status.type === "running"
+      ? "uploading"
+      : s.attachment.status.type === "incomplete" &&
+          s.attachment.status.reason === "error"
+        ? "error"
+        : undefined,
+  );
+  const isUploading = uploadState === "uploading";
+  const isError = uploadState === "error";
 
   return (
     <Tooltip>
