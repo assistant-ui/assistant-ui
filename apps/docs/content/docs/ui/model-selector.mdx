@@ -204,6 +204,7 @@ import {
 | `ModelSelector.Value` | Selected model name, icon, and active effort |
 | `ModelSelector.Content` | Popover content wrapping a Command |
 | `ModelSelector.Search` | Search input that filters the list |
+| `ModelSelector.FocusAnchor` | Visually hidden input that anchors keyboard navigation when there is no search box |
 | `ModelSelector.List` | List of model items (renders all models by default) |
 | `ModelSelector.Empty` | Empty state shown when search has no matches |
 | `ModelSelector.Group` | Labeled group of items (e.g. by provider) |
@@ -212,6 +213,8 @@ import {
 | `ModelSelector.Effort` | Thinking level row for the selected model |
 
 `ModelSelector.List` is a Command list, so filtering and keyboard navigation work across groups automatically. Custom sorting is plain code: order the models before rendering items.
+
+Keyboard navigation needs a focused input to drive it. When content is unfiltered (`searchable={false}` on `ModelSelector.Content`, or the default children), `ModelSelector.Content` renders a visually hidden `ModelSelector.FocusAnchor` automatically, so custom layouts without a search box stay keyboard-operable. In a custom layout that renders neither `ModelSelector.Search` nor `searchable={false}`, place `ModelSelector.FocusAnchor` yourself to keep the list reachable from the keyboard.
 
 <Callout type="warn">
   `ModelSelector.Content` wraps a Command whose root keydown handler claims
@@ -261,7 +264,7 @@ The picker is fully operable from the keyboard, including when search is disable
 | <Kbd>Escape</Kbd> | Close the popover and return focus to the trigger |
 | <Kbd>Tab</Kbd> | Move from the model list to the Thinking row |
 | <Kbd>ArrowLeft</Kbd> / <Kbd>ArrowRight</Kbd> | Move between reasoning effort levels (Thinking row) |
-| <Kbd>Home</Kbd> / <Kbd>End</Kbd> | Jump to the first / last effort level |
+| <Kbd>Home</Kbd> / <Kbd>End</Kbd> | Jump to the first / last model (list) or effort level (Thinking row) |
 
 When `searchable` is set, typing filters the list; otherwise the keys above drive selection directly.
 
@@ -271,7 +274,7 @@ The picker implements the WAI-ARIA combobox pattern over Popover + Command.
 
 - The trigger is `role="combobox"` with `aria-haspopup="listbox"`; Radix Popover manages `aria-expanded` and `aria-controls`.
 - The model list is a Command (cmdk) listbox: each item is `role="option"` with `aria-selected`, and the active item is tracked with `aria-activedescendant`.
-- Keyboard navigation works without a visible search box: a visually hidden input anchors cmdk's focus so the list stays reachable. Pass `searchable` to surface that input.
+- Keyboard navigation works without a visible search box: `ModelSelector.Content` renders a visually hidden input (`ModelSelector.FocusAnchor`) that anchors cmdk's focus so the list stays reachable. Pass `searchable` to surface a real search input instead.
 - The Thinking row (`ModelSelector.Effort`) is a `role="radiogroup"` of `role="radio"` toggles with roving tabindex, so it is a single tab stop and <Kbd>ArrowLeft</Kbd> / <Kbd>ArrowRight</Kbd> move focus and select in one step.
 
 ## How It Works

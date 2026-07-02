@@ -362,8 +362,11 @@ export type ModelSelectorContentProps = ComponentPropsWithoutRef<
   searchable?: boolean;
 };
 
-// cmdk drives arrow/Enter navigation from a focused input, exposing the active
-// row via aria-activedescendant. Hide input when not searchable to serve as anchor.
+/**
+ * Hidden input that anchors cmdk's keyboard navigation, keeping the list
+ * keyboard-operable without a visible search box. ModelSelectorContent renders
+ * one automatically when unfiltered.
+ */
 function ModelSelectorFocusAnchor() {
   return (
     <div className="sr-only">
@@ -396,12 +399,12 @@ function ModelSelectorContent({
     >
       <Command
         className="bg-transparent"
-        {...(unfiltered ? { shouldFilter: false } : {})}
+        shouldFilter={!unfiltered}
         {...(value !== undefined ? { defaultValue: value } : {})}
       >
+        {unfiltered && <ModelSelectorFocusAnchor />}
         {children ?? (
           <>
-            <ModelSelectorFocusAnchor />
             <ModelSelectorList />
             <ModelSelectorEffort />
           </>
@@ -580,23 +583,18 @@ function ModelSelectorEffort({
         aria-label={typeof label === "string" ? label : "Reasoning effort"}
         className="flex items-center gap-0.5"
       >
-        {efforts.map((option) => {
-          const isActive = option.id === effort;
-          return (
-            <RadioGroup.Item
-              key={option.id}
-              value={option.id}
-              className={cn(
-                "focus-visible:ring-ring/50 rounded-md px-2 py-1 text-xs transition-colors outline-none focus-visible:ring-2",
-                isActive
-                  ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {option.name}
-            </RadioGroup.Item>
-          );
-        })}
+        {efforts.map((option) => (
+          <RadioGroup.Item
+            key={option.id}
+            value={option.id}
+            className={cn(
+              "focus-visible:ring-ring/50 text-muted-foreground hover:text-foreground rounded-md px-2 py-1 text-xs transition-colors outline-none focus-visible:ring-2",
+              "data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground data-[state=checked]:font-medium",
+            )}
+          >
+            {option.name}
+          </RadioGroup.Item>
+        ))}
       </RadioGroup.Root>
     </div>
   );
@@ -652,7 +650,7 @@ const ModelSelectorImpl = ({
         className={contentClassName}
         searchable={searchable ?? false}
       >
-        {searchable ? <ModelSelectorSearch /> : <ModelSelectorFocusAnchor />}
+        {searchable && <ModelSelectorSearch />}
         <ModelSelectorList />
         <ModelSelectorEffort />
       </ModelSelectorContent>
@@ -667,6 +665,7 @@ type ModelSelectorComponent = typeof ModelSelectorImpl & {
   Value: typeof ModelSelectorValue;
   Content: typeof ModelSelectorContent;
   Search: typeof ModelSelectorSearch;
+  FocusAnchor: typeof ModelSelectorFocusAnchor;
   List: typeof ModelSelectorList;
   Empty: typeof ModelSelectorEmpty;
   Group: typeof ModelSelectorGroup;
@@ -685,6 +684,7 @@ ModelSelector.Trigger = ModelSelectorTrigger;
 ModelSelector.Value = ModelSelectorValue;
 ModelSelector.Content = ModelSelectorContent;
 ModelSelector.Search = ModelSelectorSearch;
+ModelSelector.FocusAnchor = ModelSelectorFocusAnchor;
 ModelSelector.List = ModelSelectorList;
 ModelSelector.Empty = ModelSelectorEmpty;
 ModelSelector.Group = ModelSelectorGroup;
@@ -699,6 +699,7 @@ export {
   ModelSelectorValue,
   ModelSelectorContent,
   ModelSelectorSearch,
+  ModelSelectorFocusAnchor,
   ModelSelectorList,
   ModelSelectorEmpty,
   ModelSelectorGroup,
