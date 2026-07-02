@@ -309,6 +309,12 @@ const aui = useAui();
 await aui.mcp().addCustomServer({ name, url, auth: { type: "bearer", token } });
 await aui.mcp().server({ id }).connect();
 await aui.mcp().server({ id }).callTool("echo", { text: "hi" });
+
+// Build a resource browser/preview UI for servers that expose resources.
+const { resources } = (await aui.mcp().server({ id }).listResources()) as {
+  resources: Array<{ uri: string; name?: string }>;
+};
+const preview = await aui.mcp().server({ id }).readResource(resources[0].uri);
 ```
 
 ## v1 scope
@@ -316,13 +322,14 @@ await aui.mcp().server({ id }).callTool("echo", { text: "hi" });
 What ships:
 
 - Tool listing and invocation, auto-registered as frontend tools
+- Resource listing and reads for app-built browsers or preview panes
 - OAuth (PKCE + DCR), bearer, none
 - StreamableHTTP transport
 - Manual connect/disconnect
 
 What's deferred:
 
-- Resources, prompts, sampling
+- Prompts, sampling
 - Auto-reconnect with backoff
 - Per-tool enable/disable persistence
 - Per-tool consent prompts

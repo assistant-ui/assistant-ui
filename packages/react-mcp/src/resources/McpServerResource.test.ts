@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => {
       () => listToolsResults[index]?.() ?? Promise.resolve({ tools: [] }),
     );
     this.callTool = vi.fn();
+    this.listResources = vi.fn(() => Promise.resolve({ resources: [] }));
     this.readResource = vi.fn();
     clients.push(this);
   });
@@ -214,6 +215,52 @@ describe("McpServerResource connectionTimeout", () => {
         lastError: null,
       });
       expect(mocks.transports[0].close).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+});
+
+describe("McpServerResource resource methods", () => {
+  beforeEach(() => {
+    mocks.clients.length = 0;
+    mocks.transports.length = 0;
+    mocks.connectResults.length = 0;
+    mocks.listToolsResults.length = 0;
+    mocks.Client.mockClear();
+    mocks.StreamableHTTPClientTransport.mockClear();
+  });
+
+  it("lists resources from a connected server", async () => {
+    const result = {
+      resources: [
+        {
+          uri: "docs://intro",
+          name: "Intro",
+          mimeType: "text/markdown",
+        },
+      ],
+    };
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      mocks.clients[0].listResources.mockResolvedValueOnce(result);
+
+      await expect(root.getValue().listResources()).resolves.toBe(result);
+      expect(mocks.clients[0].listResources).toHaveBeenCalledTimes(1);
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("rejects listResources when the server is disconnected", async () => {
+    const root = mount();
+
+    try {
+      await expect(root.getValue().listResources()).rejects.toThrow(
+        'MCP server "docs" is not connected',
+      );
     } finally {
       root.unmount();
     }
