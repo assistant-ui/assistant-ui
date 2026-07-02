@@ -215,10 +215,10 @@ export const ComposerAddAttachment: FC = () => {
         side="bottom"
         variant="ghost"
         size="icon"
-        className="aui-composer-add-attachment hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-7 rounded-full p-1 text-xs font-semibold"
+        className="aui-composer-add-attachment text-muted-foreground hover:text-foreground size-7 rounded-full"
         aria-label="Add Attachment"
       >
-        <PlusIcon className="aui-attachment-add-icon size-4.5 stroke-[1.5px]" />
+        <PlusIcon className="aui-attachment-add-icon size-4" />
       </TooltipIconButton>
     </ComposerPrimitive.AddAttachment>
   );
