@@ -202,7 +202,7 @@ export const analytics = {
 
     panelToggled: (props: {
       open: boolean;
-      source: "trigger" | "toggle" | "header";
+      source: "trigger" | "toggle" | "header" | "shortcut";
     }) => {
       trackEvent("assistant_panel_toggled", props);
     },
