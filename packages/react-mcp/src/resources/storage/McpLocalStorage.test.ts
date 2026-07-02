@@ -23,9 +23,12 @@ describe("normalizeCustomServerRecords", () => {
         null,
         { ...validRecord, id: "" },
         { ...validRecord, id: "docs__search" },
+        { ...validRecord, name: "" },
+        { ...validRecord, url: " " },
         { ...validRecord, name: 123 },
         { ...validRecord, url: null },
         { ...validRecord, createdAt: Number.NaN },
+        { ...validRecord, auth: { type: "bearer", token: "" } },
         { ...validRecord, auth: { type: "bearer", token: 123 } },
       ]),
     ).toEqual([validRecord]);

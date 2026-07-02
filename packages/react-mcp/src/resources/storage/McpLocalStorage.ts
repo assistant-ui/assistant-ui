@@ -29,6 +29,14 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isOptionalString = (value: unknown): value is string | undefined =>
   value === undefined || typeof value === "string";
 
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0;
+
+const isOptionalNonEmptyString = (
+  value: unknown,
+): value is string | undefined =>
+  value === undefined || isNonEmptyString(value);
+
 const isOptionalStringArray = (value: unknown): value is string[] | undefined =>
   value === undefined ||
   (Array.isArray(value) && value.every((item) => typeof item === "string"));
@@ -49,7 +57,7 @@ const isMCPAuthConfig = (auth: unknown): auth is MCPAuthConfig => {
     case "none":
       return true;
     case "bearer":
-      return isOptionalString(auth.token);
+      return isOptionalNonEmptyString(auth.token);
     case "oauth":
       return (
         isOptionalStringArray(auth.scopes) &&
@@ -72,8 +80,8 @@ const isCustomServerRecord = (
     return false;
   }
   return (
-    typeof value.name === "string" &&
-    typeof value.url === "string" &&
+    isNonEmptyString(value.name) &&
+    isNonEmptyString(value.url) &&
     Number.isFinite(value.createdAt) &&
     isMCPAuthConfig(value.auth)
   );
