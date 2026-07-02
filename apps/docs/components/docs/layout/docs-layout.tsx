@@ -7,6 +7,7 @@ import {
 } from "@/components/docs/assistant/panel";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { DOCS_SIDEBAR_WIDTH } from "@/components/docs/contexts/sidebar";
+import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
 export const COLLAPSED_WIDTH = "12px";
@@ -42,7 +43,8 @@ export function DocsAssistantPanel(): ReactNode {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "i") return;
+      if (e.repeat || !(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "i")
+        return;
       const target = e.target;
       if (
         target instanceof HTMLElement &&
@@ -54,11 +56,12 @@ export function DocsAssistantPanel(): ReactNode {
       }
       e.preventDefault();
       e.stopPropagation();
+      analytics.assistant.panelToggled({ open: !open, source: "shortcut" });
       toggle();
     };
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [toggle]);
+  }, [toggle, open]);
 
   return (
     <div
