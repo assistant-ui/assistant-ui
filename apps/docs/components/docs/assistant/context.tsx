@@ -90,18 +90,6 @@ export function AssistantPanelProvider({ children }: { children: ReactNode }) {
     };
   }, [askAI]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "i") {
-        e.preventDefault();
-        e.stopPropagation();
-        toggle();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [toggle]);
-
   return (
     <AssistantPanelContext.Provider
       value={{

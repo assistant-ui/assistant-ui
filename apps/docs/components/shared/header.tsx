@@ -12,7 +12,10 @@ import { SearchDialog } from "./search-dialog";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { NAV_ITEMS } from "@/lib/constants";
-import { CloudButton } from "@/components/shared/cloud-button";
+import {
+  CloudButton,
+  cloudButtonVariants,
+} from "@/components/shared/cloud-button";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { NavItems } from "@/components/shared/nav-items";
 
@@ -139,7 +142,8 @@ export function Header() {
             <button
               type="button"
               onClick={toggle}
-              className="border-border hover:bg-muted hidden rounded-md border px-3 py-1.5 text-sm font-medium transition-colors md:inline-flex"
+              className={cloudButtonVariants.marketing}
+              aria-label="Ask AI (⌘I)"
             >
               Ask AI
             </button>

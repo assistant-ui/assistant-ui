@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { AssistantPanelContent } from "@/components/docs/assistant/panel";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { DOCS_SIDEBAR_WIDTH } from "@/components/docs/contexts/sidebar";
@@ -35,7 +35,27 @@ export function DocsContent({ children }: { children: ReactNode }): ReactNode {
 }
 
 export function DocsAssistantPanel(): ReactNode {
-  const { open, width, isResizing } = useAssistantPanel();
+  const { open, width, isResizing, toggle } = useAssistantPanel();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "i") return;
+      const target = e.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      toggle();
+    };
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
+  }, [toggle]);
 
   return (
     <div
