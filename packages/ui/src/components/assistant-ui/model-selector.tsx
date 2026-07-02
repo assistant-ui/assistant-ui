@@ -570,7 +570,7 @@ function ModelSelectorItem({
         </>
       )}
       {isSelected && (
-        <span className="absolute end-3 flex size-4 items-center justify-center">
+        <span className="absolute end-3 top-2.5 flex size-4 items-center justify-center">
           <CheckIcon className="size-4" />
         </span>
       )}
