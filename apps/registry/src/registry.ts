@@ -68,6 +68,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "button",
       "https://r.assistant-ui.com/attachment.json",
+      "https://r.assistant-ui.com/follow-up-suggestions.json",
       "https://r.assistant-ui.com/markdown-text.json",
       "https://r.assistant-ui.com/reasoning.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
