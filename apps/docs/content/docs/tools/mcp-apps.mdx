@@ -73,6 +73,9 @@ let clientPromise: ReturnType<typeof createMCPClient> | undefined;
 const getClient = () => {
   clientPromise ??= createMCPClient({
     transport: { type: "sse", url: process.env.MCP_SERVER_URL! },
+  }).catch((error) => {
+    clientPromise = undefined;
+    throw error;
   });
   return clientPromise;
 };
