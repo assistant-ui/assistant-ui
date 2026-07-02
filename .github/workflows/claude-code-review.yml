@@ -112,6 +112,7 @@ jobs:
           fetch-depth: 1
 
       - name: Review
+        id: review
         uses: anthropics/claude-code-action@428971d2ecd6e3a7cb0ee0da2a3a8b33fdb3678d # ratchet:anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -120,3 +121,23 @@ jobs:
           track_progress: ${{ fromJSON(env.TRACK_PROGRESS) }}
           claude_args: ${{ env.CLAUDE_ARGS }}
           additional_permissions: ${{ env.ADDITIONAL_PERMISSIONS }}
+
+      # Fable's cybersecurity classifier can silently swap the session to Opus
+      # mid-run; the model's own context still claims Fable, so the transcript
+      # is the only reliable signal of the downgrade.
+      - name: Flag Opus fallback
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FILE='${{ steps.review.outputs.execution_file }}'
+          [ -f "$FILE" ] && grep -q '"model_refusal_fallback"' "$FILE" || exit 0
+          echo "::warning::Fable safeguard triggered — review served by Opus fallback"
+          COMMENT=$(gh api --paginate "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq '.[] | select(.user.login == "claude[bot]")' | jq -s 'last')
+          [ -n "$COMMENT" ] && [ "$COMMENT" != "null" ] || exit 0
+          gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$(jq -r .id <<<"$COMMENT")" \
+            -f body="> [!WARNING]
+          > **Fable's cybersecurity safeguard triggered — this review was served by Opus 4.8.** Ignore it and re-review with Fable locally.
+
+          $(jq -r .body <<<"$COMMENT")"
