@@ -17,6 +17,7 @@ import {
 } from "react";
 import TextareaAutosize, {
   type TextareaAutosizeProps,
+  type TextareaHeightChangeMeta,
 } from "react-textarea-autosize";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
@@ -283,7 +284,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     const handleHeightChange = (
       height: number,
-      meta: { rowHeight: number },
+      meta: TextareaHeightChangeMeta,
     ) => {
       onHeightChange?.(height, meta);
       if (!compactContext) return;
