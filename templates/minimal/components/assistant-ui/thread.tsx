@@ -166,6 +166,7 @@ const Composer: FC = () => {
           data-slot="aui_composer-shell"
           className="data-[dragging=true]:border-ring flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border border-transparent bg-(--composer-bg) p-(--composer-padding) shadow-[0_2px_12px_rgba(0,0,0,0.04)] ring-1 ring-black/10 transition-[box-shadow] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.04),0_2px_12px_rgba(0,0,0,0.04)] focus-within:ring-black/15 hover:ring-black/15 data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))] dark:shadow-none dark:ring-white/10 dark:focus-within:shadow-none dark:focus-within:ring-white/15 dark:hover:ring-white/15"
           onMouseDown={(e) => {
+            if (e.button !== 0) return;
             const target = e.target as HTMLElement;
             if (
               target.closest(
