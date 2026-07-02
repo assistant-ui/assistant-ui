@@ -20,6 +20,8 @@ vi.mock("@ai-sdk/mcp/mcp-stdio", () => ({
   })),
 }));
 
+const never = <T>() => new Promise<T>(() => {});
+
 describe("AISDKToolkit.tools()", () => {
   it("merges frontend tools with toolkit tools", async () => {
     const toolSet = await new AISDKToolkit({
@@ -242,6 +244,83 @@ describe("AISDKToolkit", () => {
     await expect(toolkit.tools()).rejects.toThrow(error);
     await expect(toolkit.tools()).resolves.toHaveProperty("echo");
     expect(mocks.createMCPClient).toHaveBeenCalledTimes(2);
+  });
+
+  it("times out MCP client creation", async () => {
+    vi.useFakeTimers();
+    mocks.createMCPClient.mockReturnValue(never());
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: {
+            type: "http",
+            url: "http://localhost:3001/mcp",
+            connectionTimeout: 10_000,
+          },
+        },
+      },
+    });
+
+    try {
+      const toolsPromise = toolkit.tools();
+      const expectedRejection = expect(toolsPromise).rejects.toThrow(
+        'MCP toolkit entry "docs" timed out while connecting after 10000ms.',
+      );
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expectedRejection;
+
+      mocks.createMCPClient.mockResolvedValueOnce({
+        tools: vi.fn().mockResolvedValue({ echo: { inputSchema: {} } }),
+        close: mocks.close,
+      });
+      await expect(toolkit.tools()).resolves.toHaveProperty("echo");
+      expect(mocks.createMCPClient).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("times out MCP tool listing", async () => {
+    vi.useFakeTimers();
+    const close = vi.fn().mockResolvedValue(undefined);
+    mocks.createMCPClient.mockResolvedValue({
+      tools: vi.fn(() => never()),
+      close,
+    });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: {
+            type: "http",
+            url: "http://localhost:3001/mcp",
+            connectionTimeout: 10_000,
+          },
+        },
+      },
+    });
+
+    try {
+      const toolsPromise = toolkit.tools();
+      const expectedRejection = expect(toolsPromise).rejects.toThrow(
+        'MCP toolkit entry "docs" timed out while listing tools after 10000ms.',
+      );
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expectedRejection;
+      expect(close).toHaveBeenCalledTimes(1);
+
+      mocks.createMCPClient.mockResolvedValueOnce({
+        tools: vi.fn().mockResolvedValue({ echo: { inputSchema: {} } }),
+        close: mocks.close,
+      });
+      await expect(toolkit.tools()).resolves.toHaveProperty("echo");
+      expect(mocks.createMCPClient).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("rejects duplicate MCP tool names", async () => {

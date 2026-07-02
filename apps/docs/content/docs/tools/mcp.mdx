@@ -93,6 +93,7 @@ export default defineToolkit({
     github: {
       type: "http",
       url: "https://mcp.example.com/mcp",
+      connectionTimeout: 10_000,
     },
   }),
 });
@@ -121,6 +122,10 @@ If both servers publish `search`, the model receives `docs_search` and
 
 Use `AISDKToolkit` in the route. It opens the MCP clients, merges their tools
 with the rest of your toolkit, and closes them when you call `close()`:
+
+`connectionTimeout` is optional and measured in milliseconds. Set it to fail
+the server-side MCP readiness flow (`createMCPClient()` plus `tools()`) before
+a bad URL or hanging local process can stall the route.
 
 ```ts title="app/api/chat/route.ts"
 import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
