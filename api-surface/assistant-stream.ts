@@ -11237,7 +11237,6 @@ type McpServerConfig = {
 type McpTool = ToolBase<Record<string, unknown>, unknown> & {
   type: "mcp";
   server: McpServerConfig;
-  prefix?: string | undefined;
   description?: undefined;
   parameters?: undefined;
   disabled?: boolean;

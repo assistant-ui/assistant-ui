@@ -362,10 +362,6 @@ type McpTool = ToolBase<Record<string, unknown>, unknown> & {
   /** Tools loaded from an MCP server by a server adapter. */
   type: "mcp";
   server: McpServerConfig;
-  /**
-   * Prefix applied to every tool name exposed by this MCP server.
-   */
-  prefix?: string | undefined;
 
   description?: undefined;
   parameters?: undefined;

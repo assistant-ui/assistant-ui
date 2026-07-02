@@ -114,11 +114,24 @@ export class AISDKToolkit {
   }
 
   async tools(options: AISDKToolkitToolsOptions = {}): Promise<ToolSet> {
+    const frontendToolSet = options.frontend
+      ? frontendTools(options.frontend)
+      : {};
+    const mcpToolSet = await this.#mcpTools();
+    const providerToolSet = toProviderToolSet(this.#toolkit);
+    const serverToolSet = toServerToolSet(this.#toolkit as ToolkitDefinition);
+
+    assertNoMcpToolNameCollisions(mcpToolSet, [
+      { source: "frontend", tools: frontendToolSet },
+      { source: "provider", tools: providerToolSet },
+      { source: "toolkit", tools: serverToolSet },
+    ]);
+
     return {
-      ...(options.frontend ? frontendTools(options.frontend) : {}),
-      ...(await this.#mcpTools()),
-      ...toProviderToolSet(this.#toolkit),
-      ...toServerToolSet(this.#toolkit as ToolkitDefinition),
+      ...frontendToolSet,
+      ...mcpToolSet.tools,
+      ...providerToolSet,
+      ...serverToolSet,
     };
   }
 
@@ -149,7 +162,7 @@ export class AISDKToolkit {
     }
   }
 
-  async #mcpTools(): Promise<ToolSet> {
+  async #mcpTools(): Promise<McpToolSet> {
     const toolSets = await Promise.all(
       Object.entries(this.#toolkit)
         .filter((entry): entry is [string, McpToolkitTool] =>
@@ -176,7 +189,7 @@ export class AISDKToolkit {
         tools[exposedName] = tool;
       }
     }
-    return tools;
+    return { tools, sources: toolSources };
   }
 
   #mcpClient(name: string, config: McpServerConfig): Promise<MCPClient> {
@@ -221,6 +234,26 @@ type ToolkitTool = Toolkit[string];
 type McpToolkitTool = ToolkitTool & {
   type: "mcp";
   server: McpServerConfig;
+  prefix?: string | undefined;
+};
+
+type McpToolSet = {
+  tools: ToolSet;
+  sources: Map<string, string>;
+};
+
+const assertNoMcpToolNameCollisions = (
+  mcp: McpToolSet,
+  toolSets: readonly { source: string; tools: ToolSet }[],
+): void => {
+  for (const [toolName, serverName] of mcp.sources) {
+    for (const { source, tools } of toolSets) {
+      if (!Object.prototype.hasOwnProperty.call(tools, toolName)) continue;
+      throw new Error(
+        `MCP tool "${toolName}" from "${serverName}" conflicts with ${source} tool "${toolName}". Rename one of the tools so each model-visible tool name is unique.`,
+      );
+    }
+  }
 };
 
 const isMcpToolkitTool = (tool: ToolkitTool): tool is McpToolkitTool =>

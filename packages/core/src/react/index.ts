@@ -50,6 +50,7 @@ export {
 } from "./model-context/provider-tool";
 export {
   defineMcpToolkit,
+  type McpToolkitEntry,
   type McpToolkitDefinition,
 } from "./model-context/define-mcp-toolkit";
 /**

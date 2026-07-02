@@ -5,6 +5,7 @@ export type McpToolkitEntry =
   | McpServerConfig
   | {
       server: McpServerConfig;
+      disabled?: boolean | undefined;
       /**
        * Prefix applied to every tool name exposed by this MCP server. Useful
        * when multiple servers publish the same tool name, such as `search`.
@@ -20,10 +21,15 @@ export type McpToolkitDefinition = Record<string, McpToolkitEntry>;
 export function defineMcpToolkit(definition: McpToolkitDefinition): Toolkit {
   return Object.fromEntries(
     Object.entries(definition).map(([name, entry]) => {
-      const { server, prefix } = normalizeMcpToolkitEntry(entry);
+      const { disabled, prefix, server } = normalizeMcpToolkitEntry(entry);
       return [
         name,
-        { type: "mcp", server, ...(prefix !== undefined && { prefix }) },
+        {
+          type: "mcp",
+          server,
+          ...(disabled !== undefined && { disabled }),
+          ...(prefix !== undefined && { prefix }),
+        },
       ];
     }),
   ) as Toolkit;
@@ -31,6 +37,7 @@ export function defineMcpToolkit(definition: McpToolkitDefinition): Toolkit {
 
 function normalizeMcpToolkitEntry(entry: McpToolkitEntry): {
   server: McpServerConfig;
+  disabled?: boolean | undefined;
   prefix?: string | undefined;
 } {
   if ("type" in entry) return { server: entry };

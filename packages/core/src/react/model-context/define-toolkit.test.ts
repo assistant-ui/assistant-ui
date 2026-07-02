@@ -75,17 +75,36 @@ const checkToolkitDefinitionTypes = () => {
 };
 expectTypeOf(checkToolkitDefinitionTypes).toEqualTypeOf<() => void>();
 
+const checkDefineMcpToolkitTypes = () => {
+  defineMcpToolkit({
+    docs: {
+      type: "http",
+      url: "https://example.com/mcp",
+    },
+    prefixedDocs: {
+      server: {
+        type: "http",
+        url: "https://example.com/prefixed-mcp",
+      },
+      disabled: true,
+      prefix: "docs_",
+    },
+  });
+};
+expectTypeOf(checkDefineMcpToolkitTypes).toEqualTypeOf<() => void>();
+
 describe("use-generative markers", () => {
   it("defineToolkit returns the toolkit at runtime", () => {
     const toolkit = {};
     expect(defineToolkit(toolkit)).toBe(toolkit);
   });
 
-  it("defineMcpToolkit supports prefixed MCP tool names", () => {
+  it("defineMcpToolkit supports prefixed and disabled MCP entries", () => {
     expect(
       defineMcpToolkit({
         docs: {
           server: { type: "http", url: "https://example.com/mcp" },
+          disabled: true,
           prefix: "docs_",
         },
       }),
@@ -93,6 +112,7 @@ describe("use-generative markers", () => {
       docs: {
         type: "mcp",
         server: { type: "http", url: "https://example.com/mcp" },
+        disabled: true,
         prefix: "docs_",
       },
     });

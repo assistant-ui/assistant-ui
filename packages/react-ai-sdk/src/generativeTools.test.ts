@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defineMcpToolkit } from "@assistant-ui/core/react";
 import { AISDKToolkit } from "./generativeTools";
 import { wrapModelContentEnvelope } from "./modelContentEnvelope";
 
@@ -287,18 +288,16 @@ describe("AISDKToolkit", () => {
       });
 
     const toolkit = new AISDKToolkit({
-      toolkit: {
+      toolkit: defineMcpToolkit({
         docs: {
-          type: "mcp",
           server: { type: "http", url: "http://localhost:3001/mcp" },
           prefix: "docs_",
         },
         github: {
-          type: "mcp",
           server: { type: "http", url: "http://localhost:3002/mcp" },
           prefix: "github_",
         },
-      },
+      }),
     });
 
     const toolSet = await toolkit.tools();
@@ -308,10 +307,98 @@ describe("AISDKToolkit", () => {
     expect(toolSet).not.toHaveProperty("search");
 
     expect(toolSet.docs_search?.execute).toBeTypeOf("function");
+    const executeOptions = {
+      toolCallId: "call-docs-search",
+      messages: [],
+    };
     await expect(
-      toolSet.docs_search?.execute?.({ query: "assistant-ui" }),
+      toolSet.docs_search?.execute?.({ query: "assistant-ui" }, executeOptions),
     ).resolves.toBe("docs result");
-    expect(docsExecute).toHaveBeenCalledWith({ query: "assistant-ui" });
+    expect(docsExecute).toHaveBeenCalledWith(
+      { query: "assistant-ui" },
+      executeOptions,
+    );
+  });
+
+  it("rejects MCP tool names that collide with toolkit tools", async () => {
+    mocks.tools.mockResolvedValue({ search: { inputSchema: {} } });
+    mocks.createMCPClient.mockResolvedValue({
+      tools: mocks.tools,
+      close: mocks.close,
+    });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+        },
+        search: {
+          type: "backend",
+          parameters: { type: "object", properties: {} },
+          execute: async () => "local search",
+        } as never,
+      },
+    });
+
+    await expect(toolkit.tools()).rejects.toThrow(
+      'MCP tool "search" from "docs" conflicts with toolkit tool "search"',
+    );
+  });
+
+  it("rejects MCP tool names that collide with provider tools", async () => {
+    mocks.tools.mockResolvedValue({ web_search: { inputSchema: {} } });
+    mocks.createMCPClient.mockResolvedValue({
+      tools: mocks.tools,
+      close: mocks.close,
+    });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+        },
+        web_search: {
+          type: "provider",
+          providerId: "openai.web_search_preview",
+          args: { searchContextSize: "low" },
+        },
+      },
+    });
+
+    await expect(toolkit.tools()).rejects.toThrow(
+      'MCP tool "web_search" from "docs" conflicts with provider tool "web_search"',
+    );
+  });
+
+  it("rejects MCP tool names that collide with uploaded frontend tools", async () => {
+    mocks.tools.mockResolvedValue({ clientTool: { inputSchema: {} } });
+    mocks.createMCPClient.mockResolvedValue({
+      tools: mocks.tools,
+      close: mocks.close,
+    });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+        },
+      },
+    });
+
+    await expect(
+      toolkit.tools({
+        frontend: {
+          clientTool: {
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      }),
+    ).rejects.toThrow(
+      'MCP tool "clientTool" from "docs" conflicts with frontend tool "clientTool"',
+    );
   });
 
   it("includes provider tools alongside MCP tools", async () => {
