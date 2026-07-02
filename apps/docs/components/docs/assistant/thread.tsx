@@ -8,11 +8,13 @@ import {
 } from "@assistant-ui/react";
 import { type ComponentType, type ReactNode, useEffect, useRef } from "react";
 import { AssistantMessage, UserMessage } from "./messages";
-import { AssistantComposer } from "./composer";
+import { AssistantComposer, useSharedDocsModelSelection } from "./composer";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { AssistantFooter } from "@/components/docs/assistant/footer";
 import { analytics } from "@/lib/analytics";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
+import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+import { getContextWindow } from "@/constants/model";
 import { Button } from "@/components/ui/button";
 import {
   PaletteIcon,
@@ -109,6 +111,15 @@ export function AssistantThread({
 function PanelHeader(): React.ReactNode {
   const { setOpen } = useAssistantPanel();
   const aui = useAui();
+  const threadId = useAuiState((s) => s.threadListItem.id);
+  const messages = useAuiState((s) => s.thread.messages);
+  const currentPage = useCurrentPage();
+  const pathname = currentPage?.pathname;
+  const lastUsage = useThreadTokenUsage();
+  const contextTokens = lastUsage?.totalTokens ?? 0;
+  const { modelValue } = useSharedDocsModelSelection();
+  const contextWindow = getContextWindow(modelValue);
+  const usagePercent = Math.min((contextTokens / contextWindow) * 100, 100);
 
   return (
     <div className="flex h-12 shrink-0 items-center justify-between border-b px-3">
@@ -119,7 +130,19 @@ function PanelHeader(): React.ReactNode {
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => aui.threads().switchToNewThread()}
+              onClick={() => {
+                const modelName = aui.thread().getModelContext()
+                  ?.config?.modelName;
+                analytics.assistant.newThreadClicked({
+                  threadId,
+                  previous_message_count: messages.length,
+                  context_total_tokens: contextTokens,
+                  context_usage_percent: usagePercent,
+                  ...(pathname ? { pathname } : {}),
+                  ...(modelName ? { model_name: modelName } : {}),
+                });
+                aui.threads().switchToNewThread();
+              }}
               aria-label="New chat"
             >
               <PlusIcon className="size-4" />
@@ -132,7 +155,13 @@ function PanelHeader(): React.ReactNode {
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                analytics.assistant.panelToggled({
+                  open: false,
+                  source: "header",
+                });
+                setOpen(false);
+              }}
               aria-label="Close chat"
             >
               <XIcon className="size-4" />

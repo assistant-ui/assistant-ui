@@ -200,7 +200,10 @@ export const analytics = {
       trackEvent("assistant_feedback_submit_failed", props);
     },
 
-    panelToggled: (props: { open: boolean; source: "trigger" | "toggle" }) => {
+    panelToggled: (props: {
+      open: boolean;
+      source: "trigger" | "toggle" | "header";
+    }) => {
       trackEvent("assistant_panel_toggled", props);
     },
 
