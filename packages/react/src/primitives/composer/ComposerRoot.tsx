@@ -75,7 +75,7 @@ export const ComposerPrimitiveRoot = forwardRef<
   };
 
   return (
-    <ComposerCompactContext.Provider value={compactContext}>
+    <ComposerCompactContext.Provider value={compact ? compactContext : null}>
       <Primitive.form
         {...rest}
         data-compact={isCompact ? "" : undefined}

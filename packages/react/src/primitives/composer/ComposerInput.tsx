@@ -420,7 +420,7 @@ export const ComposerPrimitiveInput = forwardRef<
         },
       ),
       onPaste: composeEventHandlers(onPaste, handlePaste),
-      onHeightChange: handleHeightChange,
+      onHeightChange: compactContext ? handleHeightChange : onHeightChange,
     };
 
     if (render && isValidElement(render)) {

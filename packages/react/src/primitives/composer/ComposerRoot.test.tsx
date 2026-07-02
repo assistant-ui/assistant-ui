@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import type * as AssistantStore from "@assistant-ui/store";
+import type * as ComposerSendModule from "./ComposerSend";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
 import type { ComposerCompactContextValue } from "./ComposerCompactContext";
@@ -44,7 +45,8 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   };
 });
 
-vi.mock("./ComposerSend", () => ({
+vi.mock("./ComposerSend", async (importOriginal) => ({
+  ...(await importOriginal<typeof ComposerSendModule>()),
   useComposerSend: () => vi.fn(),
 }));
 
