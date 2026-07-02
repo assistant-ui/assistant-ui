@@ -34,51 +34,44 @@ const MESSAGES: TestMessage[] = [
   { id: "a1", role: "assistant", text: "hello" },
 ];
 
-describe("useExternalMessageConverter", () => {
-  it("reuses converted messages across rerenders when inputs are unchanged", () => {
-    const metadata: TestMetadata = {};
-    const { result, rerender } = renderHook(() =>
+const EMPTY: TestMetadata = {};
+
+type Props = {
+  callback?: useExternalMessageConverter.Callback<TestMessage>;
+  metadata?: TestMetadata;
+};
+
+const renderConverter = (initialProps: Props = {}) =>
+  renderHook(
+    ({ callback = convert, metadata = EMPTY }: Props) =>
       useExternalMessageConverter<TestMessage>({
-        callback: convert,
+        callback,
         messages: MESSAGES,
         isRunning: false,
         metadata,
       }),
-    );
+    { initialProps },
+  );
+
+describe("useExternalMessageConverter", () => {
+  it("reuses converted messages across rerenders when inputs are unchanged", () => {
+    const { result, rerender } = renderConverter();
 
     const first = result.current;
-    rerender();
+    rerender({});
 
     expect(result.current[0]).toBe(first[0]);
     expect(result.current[1]).toBe(first[1]);
   });
 
   it("re-converts cached messages when metadata changes", () => {
-    const { result, rerender } = renderHook(
-      ({
-        isRunning,
-        metadata,
-      }: {
-        isRunning: boolean;
-        metadata: TestMetadata;
-      }) =>
-        useExternalMessageConverter<TestMessage>({
-          callback: convert,
-          messages: MESSAGES,
-          isRunning,
-          metadata,
-        }),
-      {
-        initialProps: {
-          isRunning: true,
-          metadata: { optimisticMessageId: "a1" } as TestMetadata,
-        },
-      },
-    );
+    const { result, rerender } = renderConverter({
+      metadata: { optimisticMessageId: "a1" },
+    });
 
     expect(result.current.at(-1)?.metadata.isOptimistic).toBe(true);
 
-    rerender({ isRunning: false, metadata: {} });
+    rerender({ metadata: {} });
 
     expect(result.current.at(-1)?.metadata.isOptimistic).toBeUndefined();
   });
@@ -92,21 +85,7 @@ describe("useExternalMessageConverter", () => {
       content: [{ type: "text", text: message.text.toUpperCase() }],
     });
 
-    const metadata: TestMetadata = {};
-    const { result, rerender } = renderHook(
-      ({
-        callback,
-      }: {
-        callback: useExternalMessageConverter.Callback<TestMessage>;
-      }) =>
-        useExternalMessageConverter<TestMessage>({
-          callback,
-          messages: MESSAGES,
-          isRunning: false,
-          metadata,
-        }),
-      { initialProps: { callback: convert } },
-    );
+    const { result, rerender } = renderConverter();
 
     expect(result.current[1]?.content[0]).toMatchObject({
       type: "text",

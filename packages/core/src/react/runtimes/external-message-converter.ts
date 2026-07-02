@@ -74,6 +74,9 @@ export namespace useExternalMessageConverter {
 type CallbackResult<T> = {
   input: T;
   outputs: useExternalMessageConverter.Message[];
+};
+
+type CallbackCacheEntry<T> = CallbackResult<T> & {
   metadata: useExternalMessageConverter.Metadata;
   callback: useExternalMessageConverter.Callback<T>;
 };
@@ -411,7 +414,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
   // them on dependency change would not survive compilation. Staleness is
   // instead tracked per entry via the metadata/callback that produced it.
   const [caches] = useState(() => ({
-    callbackCache: new WeakMap<T, CallbackResult<T>>(),
+    callbackCache: new WeakMap<T, CallbackCacheEntry<T>>(),
     chunkCache: new WeakMap<
       useExternalMessageConverter.Message,
       ChunkResult<T>
