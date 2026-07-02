@@ -309,6 +309,32 @@ describe("MessageRepository", () => {
       expect(exported.headId).toBe("u");
     });
 
+    it("re-parents children of a skipped optimistic message in export()", () => {
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "u1" }));
+      repository.addOrUpdateMessage("u1", optimistic({ id: "a1" }));
+      repository.addOrUpdateMessage(
+        "a1",
+        createTestMessage({ id: "u2", role: "user" }),
+      );
+      repository.addOrUpdateMessage("u2", createTestMessage({ id: "a2" }));
+      repository.resetHead("a2");
+
+      const exported = repository.export();
+      const byId = new Map(exported.messages.map((m) => [m.message.id, m]));
+
+      expect([...byId.keys()].sort()).toEqual(["a2", "u1", "u2"]);
+      expect(byId.get("u2")?.parentId).toBe("u1");
+      expect(byId.get("a2")?.parentId).toBe("u2");
+
+      const restored = new MessageRepository();
+      restored.import(exported);
+      expect(restored.getMessages().map((m) => m.id)).toEqual([
+        "u1",
+        "u2",
+        "a2",
+      ]);
+    });
+
     it("round-trips through export/import without resurrecting the placeholder", () => {
       const parent = createTestMessage({ id: "u" });
       const real = createTestMessage({ id: "a" });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ThreadMessageConverter } from "../../runtimes/external-store/thread-message-converter";
 import {
   getExternalStoreMessages,
@@ -74,6 +74,8 @@ export namespace useExternalMessageConverter {
 type CallbackResult<T> = {
   input: T;
   outputs: useExternalMessageConverter.Message[];
+  metadata: useExternalMessageConverter.Metadata;
+  callback: useExternalMessageConverter.Callback<T>;
 };
 
 type ChunkResult<T> = {
@@ -404,28 +406,45 @@ export const useExternalMessageConverter = <T extends WeakKey>({
   joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
 }) => {
+  // The caches live for the component lifetime; React Compiler hoists
+  // allocations without reactive dependencies out of useMemo, so re-creating
+  // them on dependency change would not survive compilation. Staleness is
+  // instead tracked per entry via the metadata/callback that produced it.
+  const [caches] = useState(() => ({
+    callbackCache: new WeakMap<T, CallbackResult<T>>(),
+    chunkCache: new WeakMap<
+      useExternalMessageConverter.Message,
+      ChunkResult<T>
+    >(),
+    converterCache: new ThreadMessageConverter(),
+  }));
+
   const state = useMemo(
     () => ({
       metadata: metadata ?? {},
       callback,
-      callbackCache: new WeakMap<T, CallbackResult<T>>(),
-      chunkCache: new WeakMap<
-        useExternalMessageConverter.Message,
-        ChunkResult<T>
-      >(),
-      converterCache: new ThreadMessageConverter(),
+      ...caches,
     }),
-    [callback, metadata],
+    [callback, metadata, caches],
   );
 
   return useMemo(() => {
     const callbackResults: CallbackResult<T>[] = [];
     for (const message of messages) {
       let result = state.callbackCache.get(message);
-      if (!result) {
+      if (
+        !result ||
+        result.metadata !== state.metadata ||
+        result.callback !== state.callback
+      ) {
         const output = state.callback(message, state.metadata);
         const outputs = Array.isArray(output) ? output : [output];
-        result = { input: message, outputs };
+        result = {
+          input: message,
+          outputs,
+          metadata: state.metadata,
+          callback: state.callback,
+        };
         state.callbackCache.set(message, result);
       }
       callbackResults.push(result);
