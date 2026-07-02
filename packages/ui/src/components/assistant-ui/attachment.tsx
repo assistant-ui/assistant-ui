@@ -1,7 +1,13 @@
 "use client";
 
 import { type PropsWithChildren, useEffect, useState, type FC } from "react";
-import { XIcon, PlusIcon, FileText } from "lucide-react";
+import {
+  XIcon,
+  PlusIcon,
+  FileText,
+  Loader2Icon,
+  AlertCircleIcon,
+} from "lucide-react";
 import {
   AttachmentPrimitive,
   ComposerPrimitive,
@@ -142,6 +148,10 @@ const AttachmentUI: FC = () => {
     }
   });
 
+  const status = useAuiState((s) => s.attachment.status);
+  const isUploading = status.type === "running";
+  const isError = status.type === "incomplete" && status.reason === "error";
+
   return (
     <Tooltip>
       <AttachmentPrimitive.Root
@@ -155,12 +165,33 @@ const AttachmentUI: FC = () => {
         <AttachmentPreviewDialog>
           <TooltipTrigger asChild>
             <div
-              className="aui-attachment-tile bg-muted size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius)-var(--composer-padding))] border transition-opacity hover:opacity-75"
+              className={cn(
+                "aui-attachment-tile bg-muted relative size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius)-var(--composer-padding))] border transition-opacity hover:opacity-75",
+                isError && "border-destructive",
+              )}
               role="button"
               tabIndex={0}
-              aria-label={`${typeLabel} attachment`}
+              aria-label={`${typeLabel} attachment${
+                isError ? ", upload failed" : isUploading ? ", uploading" : ""
+              }`}
             >
               <AttachmentThumb />
+              {isUploading && (
+                <div
+                  aria-hidden="true"
+                  className="aui-attachment-tile-uploading bg-background/60 absolute inset-0 flex items-center justify-center backdrop-blur-[1px]"
+                >
+                  <Loader2Icon className="text-muted-foreground size-5 animate-spin" />
+                </div>
+              )}
+              {isError && (
+                <div
+                  aria-hidden="true"
+                  className="aui-attachment-tile-error bg-destructive/10 absolute inset-0 flex items-center justify-center"
+                >
+                  <AlertCircleIcon className="text-destructive size-5" />
+                </div>
+              )}
             </div>
           </TooltipTrigger>
         </AttachmentPreviewDialog>
