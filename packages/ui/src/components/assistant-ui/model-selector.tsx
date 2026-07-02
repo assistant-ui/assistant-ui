@@ -348,7 +348,9 @@ function ModelSelectorValue({
       {selectedModel.icon && <ModelIcon>{selectedModel.icon}</ModelIcon>}
       <span className="truncate font-medium">{selectedModel.name}</span>
       {effortName && (
-        <span className="text-muted-foreground text-center min-w-7.5 truncate">{effortName}</span>
+        <span className="text-muted-foreground min-w-7.5 truncate text-center">
+          {effortName}
+        </span>
       )}
     </span>
   );
