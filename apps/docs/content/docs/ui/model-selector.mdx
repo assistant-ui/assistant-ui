@@ -149,7 +149,7 @@ Search is opt-in. Pass `searchable` to the default component:
 <ModelSelector models={models} searchable />
 ```
 
-Or compose `ModelSelector.Search` into a custom layout. Matching runs against each model's `id`, `name`, and `keywords`; add the provider name to `keywords` so typing "openai" finds its models.
+The same prop works on `ModelSelector.Content` when it renders its default children. Or compose `ModelSelector.Search` into a custom layout. Matching runs against each model's `id`, `name`, and `keywords`; add the provider name to `keywords` so typing "openai" finds its models.
 
 ## Composition
 

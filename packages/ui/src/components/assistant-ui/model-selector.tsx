@@ -286,13 +286,14 @@ function ModelSelectorTrigger({
       aria-haspopup="listbox"
       className={cn(modelSelectorTriggerVariants({ variant, size }), className)}
       onKeyDown={(e) => {
+        onKeyDown?.(e);
+        if (e.defaultPrevented) return;
         // ARIA combobox: arrows open the listbox from a focused trigger.
         // Popover leaves this to the consumer.
         if (e.key === "ArrowDown" || e.key === "ArrowUp") {
           e.preventDefault();
           setOpen(true);
         }
-        onKeyDown?.(e);
       }}
       {...props}
     >
@@ -384,7 +385,8 @@ function ModelSelectorContent({
   ...props
 }: ModelSelectorContentProps) {
   const { value } = useModelSelectorContext();
-  const unfiltered = searchable === false || children === undefined;
+  const unfiltered =
+    searchable === false || (!searchable && children === undefined);
 
   return (
     <PopoverContent
@@ -405,6 +407,7 @@ function ModelSelectorContent({
         {unfiltered && <ModelSelectorFocusAnchor />}
         {children ?? (
           <>
+            {searchable && <ModelSelectorSearch />}
             <ModelSelectorList />
             <ModelSelectorEffort />
           </>
@@ -568,10 +571,11 @@ function ModelSelectorEffort({
         className,
       )}
       onKeyDown={(e) => {
+        onKeyDown?.(e);
+        if (e.defaultPrevented) return;
         // cmdk's Command root claims Home/End to jump the model list; stop
         // them here so only the radiogroup reacts.
         if (e.key === "Home" || e.key === "End") e.stopPropagation();
-        onKeyDown?.(e);
       }}
       {...props}
     >
@@ -649,11 +653,7 @@ const ModelSelectorImpl = ({
       <ModelSelectorContent
         className={contentClassName}
         searchable={searchable ?? false}
-      >
-        {searchable && <ModelSelectorSearch />}
-        <ModelSelectorList />
-        <ModelSelectorEffort />
-      </ModelSelectorContent>
+      />
     </ModelSelectorRoot>
   );
 };
