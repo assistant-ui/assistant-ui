@@ -63,6 +63,19 @@ The toolbar only appears when the selection is entirely within a single message.
 
 `Root` returns `null` when there is no valid selection (collapsed selection, empty text, or no single-message match).
 
+### Quote Regions
+
+By default, any selected text inside a message can be quoted. For rich messages with tool cards, attachments, or custom controls, add `data-aui-quote-selectable` to the element that contains the message text. Once a message has a quote-selectable region, selections must stay inside the same marked region for the toolbar to appear.
+
+```tsx
+<MessagePrimitive.Root>
+  <div data-aui-quote-selectable="">
+    <MessagePrimitive.Parts />
+  </div>
+  <ToolCard />
+</MessagePrimitive.Root>
+```
+
 ### Quote Action
 
 The `Quote` button does two things on click:
