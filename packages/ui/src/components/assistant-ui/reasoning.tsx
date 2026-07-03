@@ -294,7 +294,7 @@ function ReasoningText({
       <ScrollAreaPrimitive.Viewport
         ref={scrollRef}
         data-slot="reasoning-text-viewport"
-        className="aui-reasoning-text-viewport max-h-64 w-full ps-6 pt-2 pb-2 leading-relaxed text-pretty outline-none"
+        className="aui-reasoning-text-viewport focus-visible:ring-ring/50 max-h-64 w-full ps-6 pt-2 pb-2 leading-relaxed text-pretty transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
       >
         <div ref={contentRef} className="aui-reasoning-text-content space-y-4">
           {children}
