@@ -421,7 +421,11 @@ export const ComposerPrimitiveInput = forwardRef<
         },
       ),
       onPaste: composeEventHandlers(onPaste, handlePaste),
-      onHeightChange: compactContext ? handleHeightChange : onHeightChange,
+      ...(compactContext
+        ? { onHeightChange: handleHeightChange }
+        : onHeightChange !== undefined
+          ? { onHeightChange }
+          : {}),
     };
 
     if (render && isValidElement(render)) {
