@@ -97,6 +97,18 @@ describe("ComposerPrimitiveRoot", () => {
     expect(form.hasAttribute("data-compact")).toBe(false);
   });
 
+  it("provides no compact context when compact is not enabled", async () => {
+    let compactContext: ComposerCompactContextValue | null = null;
+    const Probe = () => {
+      compactContext = useComposerCompactContextOptional();
+      return null;
+    };
+
+    await mount({ children: <Probe /> });
+
+    expect(compactContext).toBeNull();
+  });
+
   it("starts compact on the first render when compact is enabled and composer state is pristine", async () => {
     const form = await mount({ compact: true });
 
