@@ -514,10 +514,7 @@ function DiffViewer({
             showIcon={showIcon}
             showStats={showStats}
           />
-          <div
-            data-slot="diff-viewer-content"
-            className="overflow-x-auto [scrollbar-color:var(--color-border)_transparent] [scrollbar-width:thin]"
-          >
+          <DiffViewerContent>
             {viewMode === "split"
               ? pairLinesForSplit(file.lines).map((pair, pairIndex) => (
                   <DiffViewerSplitLine
@@ -533,7 +530,7 @@ function DiffViewer({
                     showLineNumbers={showLineNumbers}
                   />
                 ))}
-          </div>
+          </DiffViewerContent>
         </div>
       ))}
     </div>
