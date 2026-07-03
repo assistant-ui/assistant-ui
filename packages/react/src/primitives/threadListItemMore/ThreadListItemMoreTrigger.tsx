@@ -1,9 +1,19 @@
 "use client";
 
 import { type ComponentRef, forwardRef } from "react";
-import type { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
+import {
+  Direction,
+  type DropdownMenu as DropdownMenuPrimitive,
+} from "radix-ui";
+import { useComposedRefs } from "@radix-ui/react-compose-refs";
+import { composeEventHandlers } from "@radix-ui/primitive";
 import type { WithRenderPropProps } from "../../utils/Primitive";
 import { DropdownMenuRenderTrigger } from "../dropdownMenuRenderPrimitives";
+import { useThreadListItemFocus } from "../threadListFocusGroup";
+import {
+  useThreadListItemMoreSharedFocusGroup,
+  useThreadListItemMoreSetOpen,
+} from "./ThreadListItemMoreRoot";
 import { type ScopedProps, useDropdownMenuScope } from "./scope";
 
 export namespace ThreadListItemMorePrimitiveTrigger {
@@ -23,8 +33,25 @@ export const ThreadListItemMorePrimitiveTrigger = forwardRef<
     ref,
   ) => {
     const scope = useDropdownMenuScope(__scopeThreadListItemMore);
+    const focus = useThreadListItemFocus();
+    const setOpen = useThreadListItemMoreSetOpen();
+    const sharedFocusGroup = useThreadListItemMoreSharedFocusGroup();
+    const composedRef = useComposedRefs(ref, focus?.moreRef);
+    const direction = Direction.useDirection();
+    const openKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
 
-    return <DropdownMenuRenderTrigger {...scope} {...rest} ref={ref} />;
+    return (
+      <DropdownMenuRenderTrigger
+        {...scope}
+        {...rest}
+        onKeyDown={composeEventHandlers(rest.onKeyDown, (event) => {
+          if (!sharedFocusGroup || event.key !== openKey) return;
+          event.preventDefault();
+          setOpen(true);
+        })}
+        ref={composedRef}
+      />
+    );
   },
 );
 

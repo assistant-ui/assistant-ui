@@ -29,10 +29,33 @@ describe("createActionRegistry", () => {
   it("dispatch is a no-op (returns undefined) for an unknown action type", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
-      const registry = createActionRegistry({ known: () => undefined });
+      const registry = createActionRegistry({
+        purchase: () => undefined,
+        refund: () => undefined,
+      });
       expect(registry.dispatch({ type: "unknown" })).toBeUndefined();
       expect(warn).toHaveBeenCalledTimes(1);
-      expect(warn.mock.calls[0]![0]).toContain('"unknown"');
+      expect(warn).toHaveBeenCalledWith(
+        '[@assistant-ui/react-generative-ui] Action "unknown" has no registered handler. Registered actions: "purchase", "refund". Register it with createActionRegistry(...) or update the emitted `$action.type`.',
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("dispatch is a no-op for malformed non-string action types", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const handler = vi.fn();
+      const registry = createActionRegistry({ purchase: handler });
+
+      expect(registry.dispatch({ type: 123 } as never)).toBeUndefined();
+
+      expect(handler).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "[@assistant-ui/react-generative-ui] Skipping malformed action; `$action.type` must be a string. Received number. Update the emitted `$action` payload.",
+      );
     } finally {
       warn.mockRestore();
     }
@@ -53,6 +76,9 @@ describe("emptyActionRegistry", () => {
         emptyActionRegistry.dispatch({ type: "anything" }),
       ).toBeUndefined();
       expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        '[@assistant-ui/react-generative-ui] Action "anything" has no registered handler. No actions are registered. Register it with createActionRegistry(...) or update the emitted `$action.type`.',
+      );
     } finally {
       warn.mockRestore();
     }
