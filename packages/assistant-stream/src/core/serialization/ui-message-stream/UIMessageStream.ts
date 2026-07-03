@@ -229,6 +229,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 toolCallController.argsText.append(JSON.stringify(chunk.input));
               }
               toolCallController.argsText.close();
+              toolCallHasArgsText.delete(chunk.toolCallId);
               if (activeToolCallId === chunk.toolCallId) {
                 activeToolCallArgsText = undefined;
                 activeToolCallId = undefined;
@@ -238,6 +239,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
 
             case "tool-call-end":
               activeToolCallArgsText?.close();
+              if (activeToolCallId) {
+                toolCallHasArgsText.delete(activeToolCallId);
+              }
               activeToolCallArgsText = undefined;
               activeToolCallId = undefined;
               break;
