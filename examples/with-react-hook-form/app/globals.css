@@ -130,7 +130,11 @@
       scrollbar-color: transparent transparent;
     }
     *:hover {
-      scrollbar-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent)
+      scrollbar-color: color-mix(
+          in srgb,
+          var(--muted-foreground) 35%,
+          transparent
+        )
         transparent;
     }
   }
@@ -146,11 +150,19 @@
     border-radius: 9999px;
   }
   *:hover::-webkit-scrollbar-thumb {
-    background-color: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+    background-color: color-mix(
+      in srgb,
+      var(--muted-foreground) 30%,
+      transparent
+    );
   }
   *::-webkit-scrollbar-thumb:hover,
   *::-webkit-scrollbar-thumb:active {
-    background-color: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
+    background-color: color-mix(
+      in srgb,
+      var(--muted-foreground) 50%,
+      transparent
+    );
   }
   *::-webkit-scrollbar-corner {
     background: transparent;
