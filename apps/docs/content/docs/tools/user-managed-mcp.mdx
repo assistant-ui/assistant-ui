@@ -216,13 +216,19 @@ The callback reads `?state=...&code=...` from the URL, derives the target server
 
 ```tsx
 "use client";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export function Chat() {
-  const runtime = useChatRuntime({ api: "/api/chat" });
+  const runtime = useChatRuntime({
+    api: "/api/chat",
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
   /* … */
 }
 ```
+
+`sendAutomaticallyWhen` sends completed frontend tool results back to the server so the model can continue after a tool call.
 
 Tool names are prefixed `serverId__toolName` to avoid collisions across connected servers. The toolkit re-registers whenever a server connects / disconnects or its tool list changes.
 
