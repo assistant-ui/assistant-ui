@@ -89,34 +89,42 @@ describe("UIMessageStreamDecoder", () => {
     expect(partStarts.some((p) => p.part.type === "reasoning")).toBe(true);
   });
 
-  it("should clean up tool input arg tracking when input becomes available", async () => {
+  it("should clean up tool input arg tracking after the tool result arrives", async () => {
     const deleteSpy = vi.spyOn(Map.prototype, "delete");
-    const events = [
-      JSON.stringify({ type: "start", messageId: "msg_123" }),
-      JSON.stringify({
-        type: "tool-input-start",
-        toolCallId: "call_cleanup",
-        toolName: "weather",
-      }),
-      JSON.stringify({
-        type: "tool-input-available",
-        toolCallId: "call_cleanup",
-        input: { city: "NYC" },
-      }),
-      JSON.stringify({
-        type: "finish",
-        finishReason: "stop",
-        usage: { inputTokens: 10, outputTokens: 5 },
-      }),
-      "[DONE]",
-    ];
+    try {
+      const events = [
+        JSON.stringify({ type: "start", messageId: "msg_123" }),
+        JSON.stringify({
+          type: "tool-input-start",
+          toolCallId: "call_cleanup",
+          toolName: "weather",
+        }),
+        JSON.stringify({
+          type: "tool-input-available",
+          toolCallId: "call_cleanup",
+          input: { city: "NYC" },
+        }),
+        JSON.stringify({
+          type: "tool-output-available",
+          toolCallId: "call_cleanup",
+          output: { temp: 72 },
+        }),
+        JSON.stringify({
+          type: "finish",
+          finishReason: "stop",
+          usage: { inputTokens: 10, outputTokens: 5 },
+        }),
+        "[DONE]",
+      ];
 
-    const stream = createUIMessageStream(events);
-    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
-    await collectChunks(decodedStream);
+      const stream = createUIMessageStream(events);
+      const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+      await collectChunks(decodedStream);
 
-    expect(deleteSpy).toHaveBeenCalledWith("call_cleanup");
-    deleteSpy.mockRestore();
+      expect(deleteSpy).toHaveBeenCalledWith("call_cleanup");
+    } finally {
+      deleteSpy.mockRestore();
+    }
   });
 
   it("should decode AI SDK v6 tool input/output aliases", async () => {
