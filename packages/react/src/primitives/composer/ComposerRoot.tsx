@@ -30,8 +30,10 @@ export namespace ComposerPrimitiveRoot {
  * Clicking blank space inside the form focuses the composer input (the first
  * textarea or contenteditable element), so the whole composer surface acts as a
  * click target. Interactive children (buttons, links, inputs, menu items) keep
- * their own behavior, and calling `preventDefault()` in your own `onMouseDown`
- * handler opts out.
+ * their own behavior. Because focusing happens on mousedown, text selection
+ * cannot start from non-interactive areas inside the form; consumers rendering
+ * selectable content there should opt out by calling `preventDefault()` in
+ * their own `onMouseDown` handler.
  *
  * @example
  * ```tsx
@@ -58,14 +60,16 @@ export const ComposerPrimitiveRoot = forwardRef<
     if (e.button !== 0) return;
     if (
       (e.target as HTMLElement).closest(
-        "button, a, input, textarea, select, label, [contenteditable], [role='button'], [role='menuitem'], [role='combobox'], [role='option']",
+        "button, a, input, textarea, select, label, [contenteditable]:not([contenteditable='false']), [role='button'], [role='menuitem'], [role='combobox'], [role='option']",
       )
     )
       return;
+    const input = e.currentTarget.querySelector<HTMLElement>(
+      "textarea, [contenteditable]:not([contenteditable='false'])",
+    );
+    if (!input) return;
     e.preventDefault();
-    e.currentTarget
-      .querySelector<HTMLElement>("textarea, [contenteditable='true']")
-      ?.focus();
+    input.focus();
   };
 
   return (
