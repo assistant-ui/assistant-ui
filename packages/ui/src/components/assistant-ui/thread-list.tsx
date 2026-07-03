@@ -221,7 +221,7 @@ export const ThreadListItem: FC = () => {
 
 const ThreadListItemMore: FC = () => {
   return (
-    <ThreadListItemMorePrimitive.Root>
+    <ThreadListItemMorePrimitive.Root sharedFocusGroup>
       <ThreadListItemMorePrimitive.Trigger asChild>
         <Button
           variant="ghost"

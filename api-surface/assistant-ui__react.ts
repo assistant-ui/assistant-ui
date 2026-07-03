@@ -489,12 +489,14 @@ type McpServerConfig = {
   url: string;
   headers?: Record<string, string>;
   redirect?: "error" | "follow";
+  connectionTimeout?: number | undefined;
 } | {
   type: "stdio";
   command: string;
   args?: readonly string[];
   env?: Record<string, string>;
   cwd?: string;
+  connectionTimeout?: number | undefined;
 };
 
 type McpTool = ToolBase<Record<string, unknown>, unknown> & {
@@ -7059,7 +7061,9 @@ declare namespace threadListItem_d_exports {
 }
 
 declare namespace ThreadListItemMorePrimitiveRoot {
-  type Props = DropdownMenu.DropdownMenuProps;
+  type Props = DropdownMenu.DropdownMenuProps & {
+    sharedFocusGroup?: boolean | undefined;
+  };
 }
 
 declare const ThreadListItemMorePrimitiveRoot: FC<ThreadListItemMorePrimitiveRoot.Props>;

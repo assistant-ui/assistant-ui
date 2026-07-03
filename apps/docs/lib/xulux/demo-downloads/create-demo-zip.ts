@@ -9,6 +9,7 @@ import {
 import {
   DEMO_DEPENDENCIES,
   DEMO_DEV_DEPENDENCIES,
+  dependencyVersionsFromPackage,
   dependencyVersions,
 } from "./package-versions";
 import { createZip, type ZipFileMap } from "./zip";
@@ -29,6 +30,10 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
   const manifest = getDemoDownloadManifest(slug);
   if (!manifest) {
     throw new Error(`Unsupported demo slug: ${slug}`);
+  }
+
+  if (manifest.target === "node-cli") {
+    return createNodeCliDemoFileMap(manifest, snapshot);
   }
 
   const demoSource = assertSnapshotFile(snapshot, manifest.entry);
@@ -86,7 +91,11 @@ function assertSnapshotFile(snapshot: SourceSnapshot, snapshotKey: string) {
 
 function targetPathForSourceFile(sourceFile: string) {
   if (sourceFile.startsWith("packages/ui/src/")) {
-    return sourceFile.replace(/^packages\/ui\/src\//, "");
+    return sourceFile
+      .replace(/^packages\/ui\/src\//, "")
+      .replace(/^components\/ui\//, "components/ui/")
+      .replace(/^components\/assistant-ui\//, "components/assistant-ui/")
+      .replace(/^lib\//, "lib/");
   }
 
   if (sourceFile.startsWith("apps/docs/")) {
@@ -94,6 +103,81 @@ function targetPathForSourceFile(sourceFile: string) {
   }
 
   throw new Error(`Unsupported demo source path: ${sourceFile}`);
+}
+
+const REACT_INK_SOURCE_FILES = [
+  "examples/with-react-ink/src/app.tsx",
+  "examples/with-react-ink/src/components/thread.tsx",
+  "examples/with-react-ink/src/dev.ts",
+  "examples/with-react-ink/src/index.tsx",
+  "examples/with-react-ink/src/scripted-adapter.ts",
+  "examples/with-react-ink/src/tools.tsx",
+] as const;
+
+function createNodeCliDemoFileMap(
+  manifest: DemoDownloadManifest,
+  snapshot: SourceSnapshot,
+) {
+  if (manifest.slug !== "react-ink") {
+    throw new Error(`Unsupported node-cli demo slug: ${manifest.slug}`);
+  }
+
+  const files: ZipFileMap = {
+    "package.json": nodeCliPackageJson(manifest, snapshot),
+    "tsconfig.json": assertSnapshotFile(
+      snapshot,
+      "examples/with-react-ink/tsconfig.json",
+    ),
+    "README.md": nodeCliReadme(manifest),
+  };
+
+  for (const sourceFile of REACT_INK_SOURCE_FILES) {
+    files[sourceFile.replace(/^examples\/with-react-ink\//, "")] =
+      assertSnapshotFile(snapshot, sourceFile);
+  }
+
+  return files;
+}
+
+function nodeCliPackageJson(
+  manifest: DemoDownloadManifest,
+  snapshot: SourceSnapshot,
+) {
+  const packagePath = "examples/with-react-ink/package.json";
+  const dependencies = dependencyVersionsFromPackage(snapshot, packagePath, [
+    "@assistant-ui/react-ink",
+    "@assistant-ui/react-ink-markdown",
+    "ink",
+    "react",
+  ]);
+  const devDependencies = dependencyVersionsFromPackage(snapshot, packagePath, [
+    "@types/react",
+    "esbuild",
+    "tsx",
+    "typescript",
+  ]);
+
+  return `${JSON.stringify(
+    {
+      name: `xulux-${manifest.slug}-demo`,
+      version: "0.1.0",
+      private: true,
+      type: "module",
+      scripts: {
+        dev: "node --import tsx/esm src/dev.ts",
+        build: "tsc",
+        start: "node dist/index.js",
+      },
+      dependencies,
+      devDependencies,
+    },
+    null,
+    2,
+  )}\n`;
+}
+
+function nodeCliReadme(manifest: DemoDownloadManifest) {
+  return `# Xulux ${manifest.name}\n\n${manifest.description}\n\nThis is a Node.js terminal app. It renders a Claude Code or Codex CLI-style assistant UI with React Ink and assistant-ui terminal primitives.\n\n## Run\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n## Build\n\n\`\`\`bash\nnpm run build\nnpm start\n\`\`\`\n\nSource demo: \`${manifest.sourcePath ?? "examples/with-react-ink"}\`\n`;
 }
 
 function packageJson(manifest: DemoDownloadManifest, snapshot: SourceSnapshot) {
@@ -175,7 +259,7 @@ function runtimeProviderTsx() {
 }
 
 function chatRouteTs() {
-  return `import { openai } from "@ai-sdk/openai";\nimport {\n  convertToModelMessages,\n  createUIMessageStream,\n  createUIMessageStreamResponse,\n  streamText,\n} from "ai";\n\nexport const maxDuration = 30;\n\nexport async function POST(req: Request) {\n  const { messages } = await req.json();\n\n  if (!process.env.OPENAI_API_KEY) {\n    const stream = createUIMessageStream({\n      originalMessages: messages,\n      execute: async ({ writer }) => {\n        await writer.write({\n          type: "text-delta",\n          id: "fallback-text",\n          delta:\n            "This starter is running without OPENAI_API_KEY. Add one to .env.local to enable live AI responses.",\n        });\n      },\n    });\n\n    return createUIMessageStreamResponse({ stream });\n  }\n\n  const result = streamText({\n    model: openai("gpt-4.1-mini"),\n    messages: await convertToModelMessages(messages),\n  });\n\n  return result.toUIMessageStreamResponse();\n}\n`;
+  return `import { openai } from "@ai-sdk/openai";\nimport {\n  convertToModelMessages,\n  createUIMessageStream,\n  createUIMessageStreamResponse,\n  streamText,\n} from "ai";\n\nexport const maxDuration = 30;\n\nexport async function POST(req: Request) {\n  const { messages } = await req.json();\n\n  if (!process.env.OPENAI_API_KEY) {\n    const stream = createUIMessageStream({\n      originalMessages: messages,\n      execute: async ({ writer }) => {\n        const messageId = \`msg-\${crypto.randomUUID()}\`;\n        const textId = "fallback-text";\n\n        writer.write({ type: "start", messageId });\n        writer.write({ type: "start-step" });\n        writer.write({ type: "text-start", id: textId });\n        writer.write({\n          type: "text-delta",\n          id: textId,\n          delta:\n            "This starter is running without OPENAI_API_KEY. Add one to .env.local to enable live AI responses.",\n        });\n        writer.write({ type: "text-end", id: textId });\n        writer.write({ type: "finish-step" });\n        writer.write({ type: "finish" });\n      },\n    });\n\n    return createUIMessageStreamResponse({ stream });\n  }\n\n  const result = streamText({\n    model: openai("gpt-4.1-mini"),\n    messages: await convertToModelMessages(messages),\n  });\n\n  return result.toUIMessageStreamResponse();\n}\n`;
 }
 
 function markdownTextShim() {

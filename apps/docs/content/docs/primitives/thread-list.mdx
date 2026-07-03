@@ -38,12 +38,12 @@ function MyThreadList() {
 
 function ThreadListItem() {
   return (
-    <ThreadListItemPrimitive.Root className="group flex h-9 items-center rounded-lg hover:bg-muted data-active:bg-muted">
-      <ThreadListItemPrimitive.Trigger className="flex-1 truncate px-3 text-sm">
+    <ThreadListItemPrimitive.Root className="group relative flex h-9 items-center rounded-lg hover:bg-muted data-active:bg-muted has-focus-visible:bg-muted">
+      <ThreadListItemPrimitive.Trigger className="min-w-0 flex-1 truncate px-3 text-sm outline-none">
         <ThreadListItemPrimitive.Title fallback="New Chat" />
       </ThreadListItemPrimitive.Trigger>
-      <ThreadListItemMorePrimitive.Root>
-        <ThreadListItemMorePrimitive.Trigger className="mr-2 size-7 rounded-md opacity-0 group-hover:opacity-100">
+      <ThreadListItemMorePrimitive.Root sharedFocusGroup>
+        <ThreadListItemMorePrimitive.Trigger className="absolute end-1.5 top-1/2 size-7 -translate-y-1/2 rounded-md opacity-0 group-hover:opacity-100 group-has-focus-visible:opacity-100 data-[state=open]:opacity-100">
           <MoreHorizontalIcon className="size-4" />
         </ThreadListItemMorePrimitive.Trigger>
         <ThreadListItemMorePrimitive.Content className="rounded-md border bg-popover p-1 shadow-md">
@@ -118,6 +118,21 @@ Both `ThreadListPrimitive.New` and `ThreadListItemPrimitive.Root` get a `data-ac
 
 The `New` button gets `data-active` when the user is on a fresh, unsaved thread.
 
+### Keyboard Navigation
+
+Every item stays a native Tab stop, and arrow keys are layered on top. Up/Down move between items and Right focuses an item's `More` button (Left/Right are mirrored in RTL). This is built into the primitives — no prop is required.
+
+To fold the `More` menu into the same navigation, opt it in with `sharedFocusGroup`:
+
+```tsx
+<ThreadListItemMorePrimitive.Root sharedFocusGroup>
+  {/* Right opens the menu from the trigger; Left/Escape close it and
+      return focus to the trigger, keeping the highlight continuous. */}
+</ThreadListItemMorePrimitive.Root>
+```
+
+`sharedFocusGroup` joins the menu to the list's focus group, so its trigger and the open menu act as one keyboard-navigable unit: Right opens it and Left/Escape close it, synchronously restoring focus to the trigger so a `group-has-focus-visible` highlight never flickers. Enabling it forces the menu non-modal, because a focus trap and a shared focus group are mutually exclusive — the trap keeps focus inside the menu, the shared group lets it move out across the boundary. Without `sharedFocusGroup` the menu keeps its standard Radix `DropdownMenu` keyboard behavior (modal by default), so menus you already render are unchanged. Our assistant-ui [thread-list](/docs/ui/thread-list) registry component sets `sharedFocusGroup` for you.
+
 ### Items Iterator
 
 `ThreadListPrimitive.Items` now prefers a children render function, similar to `ThreadPrimitive.Messages`:
@@ -167,6 +182,15 @@ The canonical pattern composes `ThreadListItemPrimitive.Archive asChild` with `T
 ```
 
 `Archive` provides the click handler and disabled logic. `Item` provides the menu item behavior and styling. `asChild` merges them into a single element.
+
+## Accessibility
+
+The thread list leans on native button semantics and Radix's `DropdownMenu`; the arrow-key navigation is layered on top as a convenience, not a requirement.
+
+- Each `ThreadListItemPrimitive.Trigger` is a native `<button>` and its own Tab stop, so the whole list is reachable with <Kbd>Tab</Kbd> alone. The arrow keys (see [Keyboard Navigation](#keyboard-navigation)) speed traversal up, but nothing depends on them.
+- The item representing the current thread sets `aria-current="true"` (alongside `data-active`) on `ThreadListItemPrimitive.Root`, so assistive tech announces which conversation is open.
+- The `More` trigger exposes `aria-haspopup="menu"`, and its panel is a Radix `role="menu"` with `role="menuitem"` children, so screen readers announce it as a menu and the arrow keys cycle its items.
+- With `sharedFocusGroup`, the `More` menu is non-modal and joins the list's focus group: opening and closing it move focus synchronously between the trigger and the menu, so keyboard focus is never dropped and the `group-has-focus-visible` highlight never flickers. Without it, the menu keeps Radix's default modal focus trap.
 
 ## Parts
 
@@ -319,10 +343,10 @@ Button that deletes the current thread item. Renders a `<button>` element unless
 
 #### Root
 
-Root container for the overflow menu primitives.
+Root container for the overflow menu primitives. Pass `sharedFocusGroup` to fold the menu into the list's arrow-key navigation (see [Keyboard Navigation](#keyboard-navigation)); doing so forces it non-modal. Without it the menu honors the `modal` prop, defaulting to modal like Radix's `DropdownMenu`.
 
 ```tsx
-<ThreadListItemMorePrimitive.Root>
+<ThreadListItemMorePrimitive.Root sharedFocusGroup>
   <ThreadListItemMorePrimitive.Trigger>More</ThreadListItemMorePrimitive.Trigger>
 </ThreadListItemMorePrimitive.Root>
 ```

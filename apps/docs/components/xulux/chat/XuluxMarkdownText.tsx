@@ -11,6 +11,7 @@ import {
 } from "@assistant-ui/react-streamdown";
 import { type CodeHeaderProps } from "@assistant-ui/react-markdown";
 import { OpenInSyntaxHighlighter } from "@/components/xulux/chat/OpenInCard";
+import { XuluxAskQuestion } from "@/components/xulux/chat/XuluxAskQuestion";
 import {
   type ComponentPropsWithoutRef,
   type CSSProperties,
@@ -32,6 +33,13 @@ const XuluxMarkdownTextImpl = () => {
         "open-in": {
           SyntaxHighlighter: OpenInSyntaxHighlighter,
           CodeHeader: () => null,
+        },
+        "ask-question": {
+          SyntaxHighlighter: XuluxAskQuestion,
+          CodeHeader: () => null,
+        },
+        text: {
+          SyntaxHighlighter: PlainTextSyntaxHighlighter,
         },
       }}
     />
@@ -76,7 +84,7 @@ const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
       showLanguage={false}
       showLineNumbers
       defaultColor={false}
-      className="[&_pre]:border-border/50 [&_pre]:bg-muted/30 [&_pre]:scrollbar-none [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-t-0 [&_pre]:py-3 [&_pre]:pr-3 [&_pre]:pl-1 [&_pre]:text-xs [&_pre]:leading-relaxed"
+      className="[&_pre]:border-border/50 [&_pre]:bg-muted/30 [&_pre]:m-0 [&_pre]:scrollbar-none [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-t-0 [&_pre]:py-3 [&_pre]:pr-3 [&_pre]:pl-1 [&_pre]:text-xs [&_pre]:leading-relaxed"
       style={
         {
           "--line-numbers-foreground": "var(--color-muted-foreground)",
@@ -88,6 +96,14 @@ const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
     >
       {code.trim()}
     </ShikiHighlighter>
+  );
+};
+
+const PlainTextSyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code }) => {
+  return (
+    <pre className="border-border/50 bg-muted/30 !mt-0 max-w-full overflow-x-hidden rounded-t-none rounded-b-lg border border-t-0 px-3 py-2 text-xs leading-normal whitespace-pre-wrap">
+      <code className="break-words whitespace-pre-wrap">{code.trim()}</code>
+    </pre>
   );
 };
 
