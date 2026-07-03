@@ -651,7 +651,7 @@ const ModelSelectorImpl = ({
   searchable,
   variant,
   size,
-  align = "start",
+  align,
   className,
   contentClassName,
   ...rootProps
@@ -665,7 +665,7 @@ const ModelSelectorImpl = ({
         className={className}
       />
       <ModelSelectorContent
-        align={align}
+        {...(align !== undefined ? { align } : {})}
         className={contentClassName}
         searchable={searchable ?? false}
       />
