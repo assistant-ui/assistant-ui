@@ -14,7 +14,7 @@ function FlowRoot({ className, children, llm: _llm, ...props }: FlowRootProps) {
     <div
       data-slot="flow-root"
       className={cn(
-        "aui-flow-root not-prose my-6 overflow-x-auto overflow-y-hidden",
+        "aui-flow-root not-prose my-6 overflow-x-auto overflow-y-hidden [scrollbar-color:var(--color-border)_transparent] [scrollbar-width:thin]",
         className,
       )}
       {...props}

@@ -18,7 +18,7 @@ export type HighlighterProps = Omit<
   Partial<Pick<AUIProps, "node" | "components">>;
 
 const containerClassName =
-  "aui-shiki-base [&_pre]:border-border/50 [&_pre]:bg-muted/30! [&_.line]:px-0! [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-xl [&_pre]:border [&_pre]:border-t-0 [&_pre]:p-3.5 [&_pre]:text-[13px] [&_pre]:leading-relaxed";
+  "aui-shiki-base [&_pre]:border-border/50 [&_pre]:bg-muted/30! [&_.line]:px-0! [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-xl [&_pre]:border [&_pre]:border-t-0 [&_pre]:p-3.5 [&_pre]:text-[13px] [&_pre]:leading-relaxed [&_pre]:[scrollbar-width:thin] [&_pre]:[scrollbar-color:var(--color-border)_transparent]";
 
 const PlainCode: FC<{ code: string }> = ({ code }) => (
   <pre>

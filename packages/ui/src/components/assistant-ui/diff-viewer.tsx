@@ -237,7 +237,10 @@ function DiffViewerContent({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="diff-viewer-content"
-      className={cn("overflow-x-auto", className)}
+      className={cn(
+        "overflow-x-auto [scrollbar-color:var(--color-border)_transparent] [scrollbar-width:thin]",
+        className,
+      )}
       {...props}
     />
   );

@@ -199,7 +199,13 @@ export const UserMessageAttachments: FC = () => {
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="aui-composer-attachments flex w-full flex-row items-center gap-2 overflow-x-auto empty:hidden">
+    <div
+      className={cn(
+        "aui-composer-attachments flex w-full flex-row items-center gap-2 overflow-x-auto empty:hidden",
+        "[scrollbar-width:thin]",
+        "[scrollbar-color:var(--color-border)_transparent]",
+      )}
+    >
       <ComposerPrimitive.Attachments>
         {() => <AttachmentUI />}
       </ComposerPrimitive.Attachments>
