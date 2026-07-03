@@ -137,7 +137,8 @@ body {
 }
 
 @layer base {
-  @supports not selector(::-webkit-scrollbar) {
+  /* Firefox only: standard scrollbar-* props would disable ::-webkit-scrollbar styling in Chromium */
+  @supports (-moz-appearance: none) {
     * {
       scrollbar-width: thin;
       scrollbar-color: transparent transparent;
