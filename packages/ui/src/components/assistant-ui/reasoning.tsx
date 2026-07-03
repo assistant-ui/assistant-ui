@@ -25,7 +25,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 const ANIMATION_DURATION = 200;
@@ -300,7 +299,16 @@ function ReasoningText({
           {children}
         </div>
       </ScrollAreaPrimitive.Viewport>
-      <ScrollBar />
+      <ScrollAreaPrimitive.ScrollAreaScrollbar
+        data-slot="reasoning-scrollbar"
+        orientation="vertical"
+        className="aui-reasoning-scrollbar flex h-full w-2.5 touch-none border-s border-s-transparent p-px transition-colors select-none"
+      >
+        <ScrollAreaPrimitive.ScrollAreaThumb
+          data-slot="reasoning-scrollbar-thumb"
+          className="aui-reasoning-scrollbar-thumb bg-border relative flex-1 rounded-full"
+        />
+      </ScrollAreaPrimitive.ScrollAreaScrollbar>
     </ScrollAreaPrimitive.Root>
   );
 }
