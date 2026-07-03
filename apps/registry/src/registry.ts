@@ -124,6 +124,7 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [
       "collapsible",
+      "scroll-area",
       "https://r.assistant-ui.com/markdown-text.json",
     ],
     dependencies: [

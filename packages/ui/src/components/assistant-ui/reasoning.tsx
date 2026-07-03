@@ -25,6 +25,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 const ANIMATION_DURATION = 200;
@@ -136,7 +137,7 @@ function ReasoningFade({
       <div
         data-slot="reasoning-fade"
         className={cn(
-          "aui-reasoning-fade pointer-events-none absolute inset-x-0 top-0 z-10 h-8",
+          "aui-reasoning-fade pointer-events-none absolute start-0 end-2.5 top-0 z-10 h-8",
           "bg-[linear-gradient(to_bottom,var(--color-background),transparent)]",
           "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_bottom,hsl(var(--muted)/0.5),transparent)]",
           "fade-in-0 animate-in",
@@ -152,7 +153,7 @@ function ReasoningFade({
     <div
       data-slot="reasoning-fade"
       className={cn(
-        "aui-reasoning-fade pointer-events-none absolute inset-x-0 bottom-0 z-10 h-8",
+        "aui-reasoning-fade pointer-events-none absolute start-0 end-2.5 bottom-0 z-10 h-8",
         "bg-[linear-gradient(to_top,var(--color-background),transparent)]",
         "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_top,hsl(var(--muted)/0.5),transparent)]",
         "fade-in-0 animate-in",
@@ -299,16 +300,7 @@ function ReasoningText({
           {children}
         </div>
       </ScrollAreaPrimitive.Viewport>
-      <ScrollAreaPrimitive.ScrollAreaScrollbar
-        data-slot="scroll-area-scrollbar"
-        orientation="vertical"
-        className="flex h-full w-2.5 touch-none border-s border-s-transparent p-px transition-colors select-none"
-      >
-        <ScrollAreaPrimitive.ScrollAreaThumb
-          data-slot="scroll-area-thumb"
-          className="bg-border relative flex-1 rounded-full"
-        />
-      </ScrollAreaPrimitive.ScrollAreaScrollbar>
+      <ScrollBar />
     </ScrollAreaPrimitive.Root>
   );
 }
