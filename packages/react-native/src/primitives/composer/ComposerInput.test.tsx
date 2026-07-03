@@ -49,21 +49,28 @@ vi.mock("react-native", async (importOriginal) => {
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
-const setNativeValue = (input: HTMLInputElement, value: string) => {
-  const setter = Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    "value",
-  )?.set;
+const setNativeValue = (
+  input: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+) => {
+  const prototype =
+    input instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
   setter?.call(input, value);
 };
 
-const fireInput = (input: HTMLInputElement, value: string) => {
+const fireInput = (
+  input: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+) => {
   setNativeValue(input, value);
   input.dispatchEvent(new InputEvent("input", { bubbles: true }));
 };
 
 const fireKeyDown = (
-  input: HTMLInputElement,
+  input: HTMLInputElement | HTMLTextAreaElement,
   opts: {
     key?: string;
     shiftKey?: boolean;
@@ -114,7 +121,9 @@ describe("ComposerInput", () => {
     await act(async () => {
       root.render(<ComposerInput {...props} />);
     });
-    const input = container.querySelector("input") as HTMLInputElement;
+    const input = container.querySelector("textarea, input") as
+      | HTMLInputElement
+      | HTMLTextAreaElement;
     expect(input).not.toBeNull();
     return input;
   };
@@ -205,6 +214,29 @@ describe("ComposerInput", () => {
 
       expect(h.sendSpy).not.toHaveBeenCalled();
       expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("shows a scrollbar when multiline content exceeds the maximum height", async () => {
+      h.composerState.text = "line 1";
+      const input = await mount({
+        multiline: true,
+        style: { maxHeight: 40 },
+      });
+      expect(input.tagName).toBe("TEXTAREA");
+
+      Object.defineProperty(input, "scrollHeight", {
+        configurable: true,
+        value: 120,
+      });
+
+      h.composerState.text = "line 1\nline 2\nline 3";
+      await act(async () => {
+        root.render(<ComposerInput multiline style={{ maxHeight: 40 }} />);
+      });
+
+      expect(input.style.height).toBe("40px");
+      expect(input.style.overflowY).toBe("auto");
+      expect(input.style.overflowX).toBe("hidden");
     });
 
     it("forwards keydown events to a consumer onKeyPress handler", async () => {
