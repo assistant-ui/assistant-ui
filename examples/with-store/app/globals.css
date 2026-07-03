@@ -24,3 +24,37 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@layer base {
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+    *:hover {
+      scrollbar-color: color-mix(in srgb, currentColor 35%, transparent)
+        transparent;
+    }
+  }
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 9999px;
+  }
+  *:hover::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, currentColor 30%, transparent);
+  }
+  *::-webkit-scrollbar-thumb:hover,
+  *::-webkit-scrollbar-thumb:active {
+    background-color: color-mix(in srgb, currentColor 50%, transparent);
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
