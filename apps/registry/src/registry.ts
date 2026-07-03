@@ -131,6 +131,7 @@ export const registry: RegistryItem[] = [
       "lucide-react",
       "class-variance-authority",
       "tw-shimmer",
+      "radix-ui",
     ],
     css: {
       '@import "tw-shimmer"': {},

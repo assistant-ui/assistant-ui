@@ -12,6 +12,7 @@ import {
 } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
+import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
 import {
   useScrollLock,
   useAuiState,
@@ -249,7 +250,7 @@ function ReasoningText({
   className,
   children,
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
   const isPreview = useContext(ReasoningPreviewContext);
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -269,11 +270,10 @@ function ReasoningText({
   }, [isPreview]);
 
   return (
-    <div
-      ref={scrollRef}
+    <ScrollAreaPrimitive.Root
       data-slot="reasoning-text"
       className={cn(
-        "aui-reasoning-text relative z-0 max-h-64 overflow-y-auto ps-6 pt-2 pb-2 leading-relaxed text-pretty",
+        "aui-reasoning-text relative z-0",
         "transform-gpu transition-[transform,opacity] ease-[cubic-bezier(0.32,0.72,0,1)]",
         "motion-reduce:animate-none",
         "group-data-[state=open]/collapsible-content:animate-in",
@@ -290,10 +290,26 @@ function ReasoningText({
       )}
       {...props}
     >
-      <div ref={contentRef} className="aui-reasoning-text-content space-y-4">
-        {children}
-      </div>
-    </div>
+      <ScrollAreaPrimitive.Viewport
+        ref={scrollRef}
+        data-slot="reasoning-text-viewport"
+        className="aui-reasoning-text-viewport max-h-64 w-full ps-6 pt-2 pb-2 leading-relaxed text-pretty outline-none"
+      >
+        <div ref={contentRef} className="aui-reasoning-text-content space-y-4">
+          {children}
+        </div>
+      </ScrollAreaPrimitive.Viewport>
+      <ScrollAreaPrimitive.ScrollAreaScrollbar
+        data-slot="scroll-area-scrollbar"
+        orientation="vertical"
+        className="flex h-full w-2.5 touch-none border-s border-s-transparent p-px transition-colors select-none"
+      >
+        <ScrollAreaPrimitive.ScrollAreaThumb
+          data-slot="scroll-area-thumb"
+          className="bg-border relative flex-1 rounded-full"
+        />
+      </ScrollAreaPrimitive.ScrollAreaScrollbar>
+    </ScrollAreaPrimitive.Root>
   );
 }
 
