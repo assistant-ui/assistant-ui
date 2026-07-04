@@ -63,7 +63,8 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         status: { type: "requires-action", reason: "composer-send" },
       };
       yield attachment;
-    } catch {
+    } catch (error) {
+      console.error("[assistant-ui] Failed to upload attachment:", error);
       attachment = {
         ...attachment,
         status: { type: "incomplete", reason: "error" },

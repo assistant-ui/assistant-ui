@@ -27,6 +27,7 @@ const drain = async (adapter: CloudFileAttachmentAdapter) => {
 describe("CloudFileAttachmentAdapter", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("marks the attachment ready when the upload succeeds", async () => {
@@ -57,6 +58,7 @@ describe("CloudFileAttachmentAdapter", () => {
   });
 
   it("marks the attachment incomplete when the upload returns an HTTP error", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -73,16 +75,21 @@ describe("CloudFileAttachmentAdapter", () => {
       type: "incomplete",
       reason: "error",
     });
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[assistant-ui] Failed to upload attachment:",
+      expect.objectContaining({
+        message: "Failed to upload file: 403 Forbidden",
+      }),
+    );
     await expect(adapter.send(yields.at(-1)!)).rejects.toThrow(
       "Attachment not uploaded",
     );
   });
 
   it("marks the attachment incomplete when the upload throws", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("network down")),
-    );
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const uploadError = new Error("network down");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(uploadError));
     const adapter = new CloudFileAttachmentAdapter(makeCloud());
 
     const yields = await drain(adapter);
@@ -91,6 +98,10 @@ describe("CloudFileAttachmentAdapter", () => {
       type: "incomplete",
       reason: "error",
     });
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[assistant-ui] Failed to upload attachment:",
+      uploadError,
+    );
     await expect(adapter.send(yields.at(-1)!)).rejects.toThrow(
       "Attachment not uploaded",
     );
