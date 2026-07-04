@@ -122,6 +122,19 @@ jobs:
           claude_args: ${{ env.CLAUDE_ARGS }}
           additional_permissions: ${{ env.ADDITIONAL_PERMISSIONS }}
 
+      # The action reports success even when the Claude execution errors out
+      # (e.g. expired OAuth token or exhausted usage limit), leaving PRs with a
+      # green check and no review. Fail loudly and surface the error text,
+      # which the action redacts from its own logs.
+      - name: Fail on Claude execution error
+        if: always()
+        run: |
+          FILE='${{ steps.review.outputs.execution_file }}'
+          [ -f "$FILE" ] || exit 0
+          jq -e 'last(.[] | select(.type == "result")) | .is_error == true' "$FILE" >/dev/null || exit 0
+          echo "::error::Claude review failed: $(jq -r 'last(.[] | select(.type == "result")) | .result // "no error text"' "$FILE" | tr '\n' ' ' | head -c 500)"
+          exit 1
+
       # Fable's cybersecurity classifier can silently swap the session to Opus
       # mid-run; the model's own context still claims Fable, so the transcript
       # is the only reliable signal of the downgrade.
