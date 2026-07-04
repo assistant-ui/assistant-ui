@@ -10,9 +10,10 @@ export const createMcpOAuthCallbackError = (
   if (serverId) {
     return new Error(
       `MCP OAuth callback for server "${serverId}" failed: ${message}`,
+      { cause: err },
     );
   }
-  return new Error(`MCP OAuth callback failed: ${message}`);
+  return new Error(`MCP OAuth callback failed: ${message}`, { cause: err });
 };
 
 export type UseMcpOAuthCallbackOptions = {

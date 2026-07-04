@@ -3,15 +3,22 @@ import { createMcpOAuthCallbackError } from "./useMcpOAuthCallback";
 
 describe("createMcpOAuthCallbackError", () => {
   it("adds MCP OAuth callback context without a server id", () => {
-    expect(
-      createMcpOAuthCallbackError(new Error('missing "state" parameter'), null)
-        .message,
-    ).toBe('MCP OAuth callback failed: missing "state" parameter');
+    const cause = new Error('missing "state" parameter');
+    const error = createMcpOAuthCallbackError(cause, null);
+
+    expect(error.message).toBe(
+      'MCP OAuth callback failed: missing "state" parameter',
+    );
+    expect(error.cause).toBe(cause);
   });
 
   it("adds MCP OAuth callback context with a server id", () => {
-    expect(
-      createMcpOAuthCallbackError(new Error("invalid_grant"), "github").message,
-    ).toBe('MCP OAuth callback for server "github" failed: invalid_grant');
+    const cause = new Error("invalid_grant");
+    const error = createMcpOAuthCallbackError(cause, "github");
+
+    expect(error.message).toBe(
+      'MCP OAuth callback for server "github" failed: invalid_grant',
+    );
+    expect(error.cause).toBe(cause);
   });
 });
