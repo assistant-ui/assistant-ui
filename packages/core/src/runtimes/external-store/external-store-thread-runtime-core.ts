@@ -526,11 +526,11 @@ export class ExternalStoreThreadRuntimeCore
     await this._store.onResume(config);
   }
 
-  public exportExternalState(): any {
+  public exportExternalState(repository?: ExportedMessageRepository): any {
     if (!this._store.onExportExternalState)
       throw new Error("Runtime does not support exporting external states.");
 
-    return this._store.onExportExternalState();
+    return this._store.onExportExternalState(repository);
   }
 
   public importExternalState(state: any): void {

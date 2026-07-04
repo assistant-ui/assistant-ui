@@ -1371,7 +1371,7 @@ type ThreadRuntimeCore = Readonly<{
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
   import(repository: ExportedMessageRepository): void;
   export(): ExportedMessageRepository;
-  exportExternalState(): any;
+  exportExternalState(repository?: ExportedMessageRepository): any;
   importExternalState(state: any): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
   unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -1531,6 +1531,15 @@ type RuntimeExtras<T extends object> = {
 
 declare const createRuntimeExtras: <T extends object>(runtimeName: string) => RuntimeExtras<T>;
 
+type ThreadForkedFrom = {
+  readonly threadId: string;
+  readonly messageId?: string | undefined;
+};
+
+type ThreadForkOptions = {
+  fromMessageId?: string | undefined;
+};
+
 type ThreadListItemRuntimePath = {
   readonly ref: string;
   readonly threadSelector: {
@@ -1606,10 +1615,7 @@ type ThreadListItemCoreState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
-  readonly forkedFrom?: {
-    readonly threadId: string;
-    readonly messageId?: string | undefined;
-  } | undefined;
+  readonly forkedFrom?: ThreadForkedFrom | undefined;
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
@@ -1642,9 +1648,7 @@ type ThreadListRuntimeCore = {
   archive(threadId: string): Promise<void>;
   unarchive(threadId: string): Promise<void>;
   delete(threadId: string): Promise<void>;
-  fork(threadId: string, options?: {
-    fromMessageId?: string | undefined;
-  }): Promise<{
+  fork(threadId: string, options?: ThreadForkOptions): Promise<{
     threadId: string;
   }>;
   initialize(threadId: string): Promise<{
@@ -1679,10 +1683,7 @@ type ThreadListItemState$1 = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
-  readonly forkedFrom?: {
-    readonly threadId: string;
-    readonly messageId?: string | undefined;
-  } | undefined;
+  readonly forkedFrom?: ThreadForkedFrom | undefined;
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
@@ -1885,7 +1886,7 @@ declare abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   abstract resumeToolCall(options: ResumeToolCallOptions): void;
   abstract respondToToolApproval(options: RespondToToolApprovalOptions): void;
   abstract cancelRun(): void;
-  abstract exportExternalState(): any;
+  abstract exportExternalState(repository?: ExportedMessageRepository): any;
   abstract importExternalState(state: any): void;
   protected _voiceMessages: ThreadMessage[];
   protected _voiceGeneration: number;
@@ -2283,7 +2284,7 @@ type ThreadRuntime = {
   deleteMessage(messageId: string): void | Promise<void>;
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
-  exportExternalState(): any;
+  exportExternalState(repository?: ExportedMessageRepository): any;
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe$1;
   cancelRun(): void;
@@ -2382,7 +2383,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
       import(repository: ExportedMessageRepository): void;
       export(): ExportedMessageRepository;
-      exportExternalState(): any;
+      exportExternalState(repository?: ExportedMessageRepository): any;
       importExternalState(state: any): void;
       reset(initialMessages?: readonly ThreadMessageLike[]): void;
       unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -2403,7 +2404,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   getModelContext(): ModelContext$1;
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
-  exportExternalState(): any;
+  exportExternalState(repository?: ExportedMessageRepository): any;
   importExternalState(state: any): void;
   cancelRun(): void;
   stopSpeaking(): void;
@@ -2503,9 +2504,7 @@ type ThreadListItemRuntime = {
   archive(): Promise<void>;
   unarchive(): Promise<void>;
   delete(): Promise<void>;
-  fork(options?: {
-    fromMessageId?: string | undefined;
-  }): Promise<{
+  fork(options?: ThreadForkOptions): Promise<{
     threadId: string;
   }>;
   detach(): void;
@@ -2531,9 +2530,7 @@ declare class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
   archive(): Promise<void>;
   unarchive(): Promise<void>;
   delete(): Promise<void>;
-  fork(options?: {
-    fromMessageId?: string | undefined;
-  }): Promise<{
+  fork(options?: ThreadForkOptions): Promise<{
     threadId: string;
   }>;
   initialize(): Promise<{
@@ -2780,10 +2777,7 @@ type ExternalStoreThreadData<TState extends "archived" | "regular"> = {
   id: string;
   remoteId?: string | undefined;
   externalId?: string | undefined;
-  forkedFrom?: {
-    readonly threadId: string;
-    readonly messageId?: string | undefined;
-  } | undefined;
+  forkedFrom?: ThreadForkedFrom | undefined;
   title?: string | undefined;
   custom?: Record<string, unknown> | undefined;
 };
@@ -2800,9 +2794,7 @@ type ExternalStoreThreadListAdapter = {
   onArchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onUnarchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onDelete?: ((threadId: string) => Promise<void> | void) | undefined;
-  onFork?: ((threadId: string, options?: {
-    fromMessageId?: string | undefined;
-  }) => Promise<{
+  onFork?: ((threadId: string, options?: ThreadForkOptions) => Promise<{
     threadId: string;
   }> | {
     threadId: string;
@@ -2833,7 +2825,7 @@ type ExternalStoreAdapterBase<T> = {
   setMessages?: ((messages: readonly T[]) => void) | undefined;
   unstable_onBranchChange?: ((event: ExternalStoreBranchChange) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
-  onExportExternalState?: (() => any) | undefined;
+  onExportExternalState?: ((repository?: ExportedMessageRepository) => any) | undefined;
   onLoadExternalState?: ((state: any) => void) | undefined;
   onNew: (message: AppendMessage) => Promise<void>;
   queue?: ExternalThreadQueueAdapter | undefined;
@@ -2907,7 +2899,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   removeQueueItem(queueItemId: string): void;
   startRun(config: StartRunConfig): Promise<void>;
   resumeRun(config: ResumeRunConfig): Promise<void>;
-  exportExternalState(): any;
+  exportExternalState(repository?: ExportedMessageRepository): any;
   importExternalState(state: any): void;
   cancelRun(): void;
   addToolResult(options: AddToolResultOptions): void;
@@ -2950,9 +2942,7 @@ declare class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCor
   archive(threadId: string): Promise<void>;
   unarchive(threadId: string): Promise<void>;
   delete(threadId: string): Promise<void>;
-  fork(threadId: string, options?: {
-    fromMessageId?: string | undefined;
-  }): Promise<{
+  fork(threadId: string, options?: ThreadForkOptions): Promise<{
     threadId: string;
   }>;
   initialize(threadId: string): Promise<{
@@ -3122,10 +3112,7 @@ type RemoteThreadMetadata = {
   readonly status: "archived" | "regular";
   readonly remoteId: string;
   readonly externalId?: string | undefined;
-  readonly forkedFrom?: {
-    readonly threadId: string;
-    readonly messageId?: string | undefined;
-  } | undefined;
+  readonly forkedFrom?: ThreadForkedFrom | undefined;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
   readonly custom?: Record<string, unknown> | undefined;
@@ -3147,9 +3134,7 @@ type RemoteThreadListAdapter = {
   archive(remoteId: string): Promise<void>;
   unarchive(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
-  fork?(remoteId: string, options?: {
-    fromMessageId?: string | undefined;
-  }): Promise<RemoteThreadInitializeResponse>;
+  fork?(remoteId: string, options?: ThreadForkOptions): Promise<RemoteThreadInitializeResponse>;
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
@@ -3178,10 +3163,7 @@ type RemoteThreadData = {
   readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
   readonly remoteId: undefined;
   readonly externalId: undefined;
-  readonly forkedFrom?: {
-    readonly threadId: string;
-    readonly messageId?: string | undefined;
-  } | undefined;
+  readonly forkedFrom?: ThreadForkedFrom | undefined;
   readonly status: "archived" | "regular";
   readonly title?: string | undefined;
   readonly custom: undefined;
@@ -3190,10 +3172,7 @@ type RemoteThreadData = {
   readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
   readonly remoteId: string;
   readonly externalId: string | undefined;
-  readonly forkedFrom?: {
-    readonly threadId: string;
-    readonly messageId?: string | undefined;
-  } | undefined;
+  readonly forkedFrom?: ThreadForkedFrom | undefined;
   readonly status: "archived" | "regular";
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
@@ -3229,10 +3208,7 @@ type ThreadListItemState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
-  readonly forkedFrom?: {
-    readonly threadId: string;
-    readonly messageId?: string | undefined;
-  } | undefined;
+  readonly forkedFrom?: ThreadForkedFrom | undefined;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
   readonly status: ThreadListItemStatus;
@@ -3249,9 +3225,7 @@ type ThreadListItemMethods = {
   archive(): void;
   unarchive(): void;
   delete(): void;
-  fork(options?: {
-    fromMessageId?: string | undefined;
-  }): Promise<{
+  fork(options?: ThreadForkOptions): Promise<{
     threadId: string;
   }>;
   generateTitle(): void;
@@ -4491,7 +4465,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
     export(): ExportedMessageRepository;
-    exportExternalState(): any;
+    exportExternalState(repository?: ExportedMessageRepository): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -4542,7 +4516,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
     export(): ExportedMessageRepository;
-    exportExternalState(): any;
+    exportExternalState(repository?: ExportedMessageRepository): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -4630,7 +4604,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
     export(): ExportedMessageRepository;
-    exportExternalState(): any;
+    exportExternalState(repository?: ExportedMessageRepository): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -4681,7 +4655,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
     export(): ExportedMessageRepository;
-    exportExternalState(): any;
+    exportExternalState(repository?: ExportedMessageRepository): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -4699,9 +4673,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   archive(threadIdOrRemoteId: string): Promise<void>;
   unarchive(threadIdOrRemoteId: string): Promise<void>;
   delete(threadIdOrRemoteId: string): Promise<void>;
-  fork(threadIdOrRemoteId: string, options?: {
-    fromMessageId?: string | undefined;
-  }): Promise<{
+  fork(threadIdOrRemoteId: string, options?: ThreadForkOptions): Promise<{
     threadId: string;
   }>;
   detach(threadIdOrRemoteId: string): Promise<void>;
@@ -5876,7 +5848,7 @@ declare class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
 declare function createRequestHeaders(headersValue: Record<string, string> | Headers | (() => Promise<Record<string, string> | Headers>)): Promise<Headers>;
 
 declare namespace entry_root_exports {
-  export { AddToolResultOptions, AppendMessage, AssistantContextConfig, AssistantFrameHost, AssistantFrameProvider, AssistantInstructionsConfig, AssistantRuntime, AssistantRuntimeCore, AssistantToolProps$1 as AssistantToolProps, Attachment, AttachmentAdapter, AttachmentAddErrorEvent, AttachmentAddErrorReason, AttachmentRuntime, AttachmentRuntimePath, AttachmentState$1 as AttachmentState, AttachmentStatus, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, CompleteAttachment, CompleteAttachmentStatus, ComposerRuntime, ComposerRuntimeCore, ComposerRuntimeEventCallback, ComposerRuntimeEventPayload, ComposerRuntimeEventType, ComposerRuntimePath, ComposerState$1 as ComposerState, CompositeAttachmentAdapter, CoreChatModelRunResult, CreateAppendMessage, CreateAttachment, CreateResumeRunConfig, CreateStartRunConfig, DataMessagePart, DictationAdapter, DictationState, EditComposerRuntime, EditComposerRuntimeCore, EditComposerState, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThreadBranchAdapter, ExternalThreadQueueAdapter, FRAME_MESSAGE_CHANNEL, FeedbackAdapter, FileMessagePart, FrameMessage, FrameMessageType, GenerativeUIMessagePart, GenerativeUINode, GenerativeUISpec, GenericThreadHistoryAdapter, ImageMessagePart, InMemoryThreadListAdapter, LanguageModelConfig, LanguageModelV1CallSettings, LocalRuntimeOptionsBase, MCP_APP_URI_SCHEME, McpAppMetadata, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, MessagePartRuntime, MessagePartRuntimePath, MessagePartState, MessagePartStatus, MessageQueueController, MessageQueueDriver, MessageRole, MessageRuntime, MessageRuntimePath, MessageState$1 as MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, PendingAttachment, PendingAttachmentStatus, QuoteInfo, RealtimeVoiceAdapter, ReasoningMessagePart, RemoteThreadInitializeResponse, RemoteThreadListAdapter, RemoteThreadListOptions, RemoteThreadListPageOptions, RemoteThreadListResponse, RemoteThreadMetadata, RespondToToolApprovalOptions, ResumeRunConfig, ResumeToolCallOptions, RunConfig, RuntimeCapabilities, SendOptions, SerializedModelContext, SerializedTool, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SourceMessagePart, SourceProviderMetadata, SpeechState, SpeechSynthesisAdapter, StartRunConfig, StreamingTimingAccessors, StreamingTimingOptions, StreamingTimingState, SubmitFeedbackOptions, SubmittedFeedback, SuggestionAdapter, TextMessagePart, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerRuntimeCore, ThreadComposerState, ThreadHistoryAdapter, ThreadListItemCoreState, ThreadListItemEventCallback, ThreadListItemEventPayload, ThreadListItemEventType, ThreadListItemRuntime, ThreadListItemRuntimePath, ThreadListItemState$1 as ThreadListItemState, ThreadListItemStatus, ThreadListRuntime, ThreadListRuntimeCore, ThreadListState, ThreadMessage, ThreadMessageLike, ThreadRuntime, ThreadRuntimeCore, ThreadRuntimeEventCallback, ThreadRuntimeEventPayload, ThreadRuntimeEventType, ThreadRuntimePath, ThreadState$1 as ThreadState, ThreadStep, ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalResponse, ToolCallMessagePart, ToolCallMessagePartMcpMetadata, ToolCallMessagePartStatus, ToolCallTiming, ToolExecutionStatus, ToolModelContentPart, Unstable_AudioMessagePart, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, Unstable_InteractableSnapshotEntry, Unstable_InteractableVersion, Unstable_TriggerAdapter, Unstable_TriggerCategory, Unstable_TriggerItem, Unsubscribe$1 as Unsubscribe, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, WebSpeechDictationAdapter, WebSpeechSynthesisAdapter, bindExternalStoreMessage, createMessageQueue, createRequestHeaders, createVoiceSession, fromThreadMessageLike, generateId, getExternalStoreMessages, isMcpAppUri, mergeModelContexts, pickExternalStoreSharedOptions, stepStreamingTiming, tool, unstable_defaultDirectiveFormatter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions };
+  export { AddToolResultOptions, AppendMessage, AssistantContextConfig, AssistantFrameHost, AssistantFrameProvider, AssistantInstructionsConfig, AssistantRuntime, AssistantRuntimeCore, AssistantToolProps$1 as AssistantToolProps, Attachment, AttachmentAdapter, AttachmentAddErrorEvent, AttachmentAddErrorReason, AttachmentRuntime, AttachmentRuntimePath, AttachmentState$1 as AttachmentState, AttachmentStatus, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, CompleteAttachment, CompleteAttachmentStatus, ComposerRuntime, ComposerRuntimeCore, ComposerRuntimeEventCallback, ComposerRuntimeEventPayload, ComposerRuntimeEventType, ComposerRuntimePath, ComposerState$1 as ComposerState, CompositeAttachmentAdapter, CoreChatModelRunResult, CreateAppendMessage, CreateAttachment, CreateResumeRunConfig, CreateStartRunConfig, DataMessagePart, DictationAdapter, DictationState, EditComposerRuntime, EditComposerRuntimeCore, EditComposerState, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThreadBranchAdapter, ExternalThreadQueueAdapter, FRAME_MESSAGE_CHANNEL, FeedbackAdapter, FileMessagePart, FrameMessage, FrameMessageType, GenerativeUIMessagePart, GenerativeUINode, GenerativeUISpec, GenericThreadHistoryAdapter, ImageMessagePart, InMemoryThreadListAdapter, LanguageModelConfig, LanguageModelV1CallSettings, LocalRuntimeOptionsBase, MCP_APP_URI_SCHEME, McpAppMetadata, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, MessagePartRuntime, MessagePartRuntimePath, MessagePartState, MessagePartStatus, MessageQueueController, MessageQueueDriver, MessageRole, MessageRuntime, MessageRuntimePath, MessageState$1 as MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, PendingAttachment, PendingAttachmentStatus, QuoteInfo, RealtimeVoiceAdapter, ReasoningMessagePart, RemoteThreadInitializeResponse, RemoteThreadListAdapter, RemoteThreadListOptions, RemoteThreadListPageOptions, RemoteThreadListResponse, RemoteThreadMetadata, RespondToToolApprovalOptions, ResumeRunConfig, ResumeToolCallOptions, RunConfig, RuntimeCapabilities, SendOptions, SerializedModelContext, SerializedTool, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SourceMessagePart, SourceProviderMetadata, SpeechState, SpeechSynthesisAdapter, StartRunConfig, StreamingTimingAccessors, StreamingTimingOptions, StreamingTimingState, SubmitFeedbackOptions, SubmittedFeedback, SuggestionAdapter, TextMessagePart, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerRuntimeCore, ThreadComposerState, ThreadForkOptions, ThreadForkedFrom, ThreadHistoryAdapter, ThreadListItemCoreState, ThreadListItemEventCallback, ThreadListItemEventPayload, ThreadListItemEventType, ThreadListItemRuntime, ThreadListItemRuntimePath, ThreadListItemState$1 as ThreadListItemState, ThreadListItemStatus, ThreadListRuntime, ThreadListRuntimeCore, ThreadListState, ThreadMessage, ThreadMessageLike, ThreadRuntime, ThreadRuntimeCore, ThreadRuntimeEventCallback, ThreadRuntimeEventPayload, ThreadRuntimeEventType, ThreadRuntimePath, ThreadState$1 as ThreadState, ThreadStep, ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalResponse, ToolCallMessagePart, ToolCallMessagePartMcpMetadata, ToolCallMessagePartStatus, ToolCallTiming, ToolExecutionStatus, ToolModelContentPart, Unstable_AudioMessagePart, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, Unstable_InteractableSnapshotEntry, Unstable_InteractableVersion, Unstable_TriggerAdapter, Unstable_TriggerCategory, Unstable_TriggerItem, Unsubscribe$1 as Unsubscribe, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, WebSpeechDictationAdapter, WebSpeechSynthesisAdapter, bindExternalStoreMessage, createMessageQueue, createRequestHeaders, createVoiceSession, fromThreadMessageLike, generateId, getExternalStoreMessages, isMcpAppUri, mergeModelContexts, pickExternalStoreSharedOptions, stepStreamingTiming, tool, unstable_defaultDirectiveFormatter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions };
 }
 
 export { entry_internal_exports as entry_internal, entry_react_exports as entry_react, entry_root_exports as entry_root, entry_store_exports as entry_store, entry_store_internal_exports as entry_store_internal };

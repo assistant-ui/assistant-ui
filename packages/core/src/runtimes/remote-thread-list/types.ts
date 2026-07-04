@@ -2,6 +2,10 @@ import type { ComponentType, PropsWithChildren } from "react";
 import type { ThreadMessage } from "../../types/message";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AssistantStream } from "assistant-stream";
+import type {
+  ThreadForkedFrom,
+  ThreadForkOptions,
+} from "../../types/thread-fork";
 
 export type RemoteThreadInitializeResponse = {
   remoteId: string;
@@ -12,12 +16,7 @@ export type RemoteThreadMetadata = {
   readonly status: "regular" | "archived";
   readonly remoteId: string;
   readonly externalId?: string | undefined;
-  readonly forkedFrom?:
-    | {
-        readonly threadId: string;
-        readonly messageId?: string | undefined;
-      }
-    | undefined;
+  readonly forkedFrom?: ThreadForkedFrom | undefined;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
   readonly custom?: Record<string, unknown> | undefined;
@@ -48,7 +47,7 @@ export type RemoteThreadListAdapter = {
    */
   fork?(
     remoteId: string,
-    options?: { fromMessageId?: string | undefined },
+    options?: ThreadForkOptions,
   ): Promise<RemoteThreadInitializeResponse>;
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(

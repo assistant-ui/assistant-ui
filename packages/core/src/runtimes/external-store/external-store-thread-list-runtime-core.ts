@@ -5,6 +5,7 @@ import type {
   ThreadListRuntimeCore,
 } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { ExternalStoreThreadListAdapter } from "./external-store-adapter";
+import type { ThreadForkOptions } from "../../types/thread-fork";
 
 export type ExternalStoreThreadFactory = () => ExternalStoreThreadRuntimeCore;
 
@@ -242,7 +243,7 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
 
   public async fork(
     threadId: string,
-    options?: { fromMessageId?: string | undefined },
+    options?: ThreadForkOptions,
   ): Promise<{ threadId: string }> {
     const onFork = this.adapter.onFork;
     if (!onFork)

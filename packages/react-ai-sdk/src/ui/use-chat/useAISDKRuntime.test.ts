@@ -3,17 +3,24 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { validateUIMessages } from "ai";
+import type {
+  ExportedMessageRepository,
+  MessageFormatRepository,
+} from "@assistant-ui/core";
 
 // Mock only the sibling module that requires AUI store context (not available
 // in isolation). Every other dependency — useExternalStoreRuntime,
 // useToolInvocations, the message converter — runs for real.
-vi.mock("./useExternalHistory", () => ({
-  useExternalHistory: vi.fn(() => ({
-    isLoading: false,
-    deleteMessage: vi.fn().mockResolvedValue(undefined),
-  })),
-  toExportedMessageRepository: vi.fn(),
-}));
+vi.mock("./useExternalHistory", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./useExternalHistory")>();
+  return {
+    ...actual,
+    useExternalHistory: vi.fn(() => ({
+      isLoading: false,
+      deleteMessage: vi.fn().mockResolvedValue(undefined),
+    })),
+  };
+});
 
 import { useExternalHistory } from "./useExternalHistory";
 import { useAISDKRuntime } from "./useAISDKRuntime";
@@ -43,6 +50,12 @@ const createChatHelpers = (messages: any[] = []) => {
 
 const textOf = (message: any): string =>
   message.content
+    .filter((part: any) => part.type === "text")
+    .map((part: any) => part.text)
+    .join("|");
+
+const uiTextOf = (message: any): string =>
+  message.parts
     .filter((part: any) => part.type === "text")
     .map((part: any) => part.text)
     .join("|");
@@ -541,5 +554,143 @@ describe("useAISDKRuntime", () => {
       "assistant",
     ]);
     expect(messages.slice(1).map(textOf)).toEqual(["first", "second"]);
+  });
+
+  it("exports external state from a supplied repository branch", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      { id: "a1", role: "assistant", parts: [{ type: "text", text: "one" }] },
+      { id: "u2", role: "user", parts: [{ type: "text", text: "again" }] },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(3);
+    });
+
+    const exported = result.current.thread.export();
+    const branch: ExportedMessageRepository = {
+      headId: "a1",
+      messages: exported.messages.filter((item) =>
+        ["u1", "a1"].includes(item.message.id),
+      ),
+    };
+
+    const externalState = result.current.thread.exportExternalState(branch);
+
+    expect(externalState).toEqual({
+      headId: "a1",
+      messages: [
+        expect.objectContaining({
+          parentId: null,
+          message: expect.objectContaining({ id: "u1" }),
+        }),
+        expect.objectContaining({
+          parentId: "u1",
+          message: expect.objectContaining({ id: "a1" }),
+        }),
+      ],
+    });
+  });
+
+  it("exports assistant messages after a streaming response settles", async () => {
+    const userMessage = {
+      id: "u1",
+      role: "user",
+      parts: [{ type: "text", text: "hi" }],
+    };
+    const assistantMessage = {
+      id: "a1",
+      role: "assistant",
+      parts: [{ type: "text", text: "yo" }],
+    };
+    const chat = createChatHelpers([userMessage, assistantMessage]);
+    chat.status = "streaming";
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.at(-1)?.id).toBe("a1");
+    });
+
+    expect(
+      result.current.thread
+        .export()
+        .messages.some((item) => item.message.id === "a1"),
+    ).toBe(false);
+
+    chat.status = "ready";
+    rerender();
+
+    await waitFor(() => {
+      const assistantItem = result.current.thread
+        .export()
+        .messages.find((item) => item.message.id === "a1");
+      expect(assistantItem?.message.metadata.isOptimistic).toBeFalsy();
+    });
+  });
+
+  it("imports external state into the AI SDK message list", async () => {
+    const chat = createChatHelpers();
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+    const repo: MessageFormatRepository<any> = {
+      headId: "a2",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "u1",
+            role: "user",
+            parts: [{ type: "text", text: "one" }],
+          },
+        },
+        {
+          parentId: "u1",
+          message: {
+            id: "a1",
+            role: "assistant",
+            parts: [{ type: "text", text: "two" }],
+          },
+        },
+        {
+          parentId: "a1",
+          message: {
+            id: "u2",
+            role: "user",
+            parts: [{ type: "text", text: "three" }],
+          },
+        },
+        {
+          parentId: "u2",
+          message: {
+            id: "a2",
+            role: "assistant",
+            parts: [{ type: "text", text: "four" }],
+          },
+        },
+      ],
+    };
+
+    act(() => {
+      result.current.thread.importExternalState(repo);
+    });
+
+    await waitFor(() => {
+      expect(chat.messages).toHaveLength(4);
+    });
+
+    expect(chat.messages.map((message: any) => message.role)).toEqual([
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+    ]);
+    expect(chat.messages.map(uiTextOf)).toEqual([
+      "one",
+      "two",
+      "three",
+      "four",
+    ]);
   });
 });

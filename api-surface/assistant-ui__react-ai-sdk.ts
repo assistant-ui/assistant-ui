@@ -1135,6 +1135,15 @@ type ResumeRunConfig = StartRunConfig & {
   stream?: (options: ChatModelRunOptions) => AsyncGenerator<ChatModelRunResult, void, unknown>;
 };
 
+type ThreadForkedFrom = {
+  readonly threadId: string;
+  readonly messageId?: string | undefined;
+};
+
+type ThreadForkOptions = {
+  fromMessageId?: string | undefined;
+};
+
 type ThreadListItemStatus = "archived" | "deleted" | "new" | "regular";
 
 type ThreadListItemState = {
@@ -1142,10 +1151,7 @@ type ThreadListItemState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
-  readonly forkedFrom?: {
-    readonly threadId: string;
-    readonly messageId?: string | undefined;
-  } | undefined;
+  readonly forkedFrom?: ThreadForkedFrom | undefined;
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
@@ -1334,7 +1340,7 @@ type ThreadRuntime = {
   deleteMessage(messageId: string): void | Promise<void>;
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
-  exportExternalState(): any;
+  exportExternalState(repository?: ExportedMessageRepository): any;
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
@@ -1392,9 +1398,7 @@ type ThreadListItemRuntime = {
   archive(): Promise<void>;
   unarchive(): Promise<void>;
   delete(): Promise<void>;
-  fork(options?: {
-    fromMessageId?: string | undefined;
-  }): Promise<{
+  fork(options?: ThreadForkOptions): Promise<{
     threadId: string;
   }>;
   detach(): void;
@@ -1582,10 +1586,7 @@ type ExternalStoreThreadData<TState extends "archived" | "regular"> = {
   id: string;
   remoteId?: string | undefined;
   externalId?: string | undefined;
-  forkedFrom?: {
-    readonly threadId: string;
-    readonly messageId?: string | undefined;
-  } | undefined;
+  forkedFrom?: ThreadForkedFrom | undefined;
   title?: string | undefined;
   custom?: Record<string, unknown> | undefined;
 };
@@ -1602,9 +1603,7 @@ type ExternalStoreThreadListAdapter = {
   onArchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onUnarchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onDelete?: ((threadId: string) => Promise<void> | void) | undefined;
-  onFork?: ((threadId: string, options?: {
-    fromMessageId?: string | undefined;
-  }) => Promise<{
+  onFork?: ((threadId: string, options?: ThreadForkOptions) => Promise<{
     threadId: string;
   }> | {
     threadId: string;
@@ -1635,7 +1634,7 @@ type ExternalStoreAdapterBase<T> = {
   setMessages?: ((messages: readonly T[]) => void) | undefined;
   unstable_onBranchChange?: ((event: ExternalStoreBranchChange) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
-  onExportExternalState?: (() => any) | undefined;
+  onExportExternalState?: ((repository?: ExportedMessageRepository) => any) | undefined;
   onLoadExternalState?: ((state: any) => void) | undefined;
   onNew: (message: AppendMessage) => Promise<void>;
   queue?: ExternalThreadQueueAdapter | undefined;

@@ -2,6 +2,7 @@ import type {
   RemoteThreadInitializeResponse,
   RemoteThreadMetadata,
 } from "./types";
+import type { ThreadForkedFrom } from "../../types/thread-fork";
 
 export type RemoteThreadData =
   | {
@@ -18,12 +19,7 @@ export type RemoteThreadData =
       readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
       readonly remoteId: undefined;
       readonly externalId: undefined;
-      readonly forkedFrom?:
-        | {
-            readonly threadId: string;
-            readonly messageId?: string | undefined;
-          }
-        | undefined;
+      readonly forkedFrom?: ThreadForkedFrom | undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
       readonly custom: undefined;
@@ -33,12 +29,7 @@ export type RemoteThreadData =
       readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
       readonly remoteId: string;
       readonly externalId: string | undefined;
-      readonly forkedFrom?:
-        | {
-            readonly threadId: string;
-            readonly messageId?: string | undefined;
-          }
-        | undefined;
+      readonly forkedFrom?: ThreadForkedFrom | undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
       readonly lastMessageAt?: Date | undefined;

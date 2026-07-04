@@ -82,6 +82,24 @@ const threadListAdapter: RemoteThreadListAdapter = {
     threadsStore.delete(remoteId);
   },
 
+  async fork(remoteId, options) {
+    const thread = threadsStore.get(remoteId);
+    if (!thread) {
+      throw new Error("Thread not found");
+    }
+
+    const forkId = `${remoteId}-fork-${Date.now()}`;
+    threadsStore.set(forkId, {
+      remoteId: forkId,
+      status: "regular",
+      title: `Fork of ${thread.title ?? remoteId}${
+        options?.fromMessageId ? ` from ${options.fromMessageId}` : ""
+      }`,
+    });
+
+    return { remoteId: forkId, externalId: forkId };
+  },
+
   async fetch(remoteId) {
     const thread = threadsStore.get(remoteId);
     if (!thread) {

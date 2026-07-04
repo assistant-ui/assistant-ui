@@ -211,7 +211,7 @@ export type ThreadRuntimeCore = Readonly<{
   import(repository: ExportedMessageRepository): void;
   export(): ExportedMessageRepository;
 
-  exportExternalState(): any;
+  exportExternalState(repository?: ExportedMessageRepository): any;
   importExternalState(state: any): void;
 
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
