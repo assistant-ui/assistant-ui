@@ -2,6 +2,19 @@ import { type FC, type ReactNode, useEffect, useRef, useState } from "react";
 import { useAui } from "@assistant-ui/store";
 import { decodeServerIdFromState } from "../auth/createOAuthProvider";
 
+export const createMcpOAuthCallbackError = (
+  err: unknown,
+  serverId: string | null,
+): Error => {
+  const message = err instanceof Error ? err.message : String(err);
+  if (serverId) {
+    return new Error(
+      `MCP OAuth callback for server "${serverId}" failed: ${message}`,
+    );
+  }
+  return new Error(`MCP OAuth callback failed: ${message}`);
+};
+
 export type UseMcpOAuthCallbackOptions = {
   /** Defaults to `window.location.href`. */
   url?: string;
@@ -39,27 +52,28 @@ export function useMcpOAuthCallback(
     startedRef.current = url;
 
     (async () => {
+      let serverId: string | null = null;
       try {
         const parsed = new URL(url);
         const state = parsed.searchParams.get("state");
+        if (state) serverId = decodeServerIdFromState(state);
         const error = parsed.searchParams.get("error");
         if (error) {
           throw new Error(
             parsed.searchParams.get("error_description") ?? error,
           );
         }
-        if (!state) throw new Error("missing state parameter in callback URL");
-        const serverId = decodeServerIdFromState(state);
+        if (!state) throw new Error('missing "state" parameter');
         if (!serverId) {
-          throw new Error("callback state does not match an MCP server");
+          throw new Error("state was not created by assistant-ui MCP");
         }
         setResult({ status: "running", serverId, error: null });
         await aui.mcp().server({ id: serverId }).completeAuth(url);
         setResult({ status: "done", serverId, error: null });
         optsRef.current.onComplete?.(serverId);
       } catch (err) {
-        const e = err instanceof Error ? err : new Error(String(err));
-        setResult((prev) => ({ ...prev, status: "error", error: e }));
+        const e = createMcpOAuthCallbackError(err, serverId);
+        setResult({ status: "error", serverId, error: e });
         optsRef.current.onError?.(e);
       }
     })();
