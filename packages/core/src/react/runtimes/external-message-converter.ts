@@ -412,7 +412,10 @@ export const useExternalMessageConverter = <T extends WeakKey>({
   // The caches live for the component lifetime; React Compiler hoists
   // allocations without reactive dependencies out of useMemo, so re-creating
   // them on dependency change would not survive compilation. Staleness is
-  // instead tracked per entry via the metadata/callback that produced it.
+  // instead tracked per entry via the metadata/callback that produced it,
+  // keeping correctness independent of memoization (which React treats as
+  // droppable). A "use no memo" opt-out would restore the useMemo semantics
+  // but leave cache flushing coupled to memo firing.
   const [caches] = useState(() => ({
     callbackCache: new WeakMap<T, CallbackCacheEntry<T>>(),
     chunkCache: new WeakMap<
