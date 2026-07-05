@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AssistantCloudAPI } from "../AssistantCloudAPI";
+import { AssistantCloudAPI, CloudAPIError } from "../AssistantCloudAPI";
 
 describe("AssistantCloudAPI", () => {
   beforeEach(() => {
@@ -125,9 +125,10 @@ describe("AssistantCloudAPI", () => {
     });
 
     const error = await api.makeRawRequest("/threads").catch((e) => e);
-    expect(error).toBeInstanceOf(Error);
+    expect(error).toBeInstanceOf(CloudAPIError);
     expect(error.name).toBe("APIError");
     expect(error.message).toBe("invalid request payload");
+    expect(error.status).toBe(400);
   });
 
   it("throws generic error with status for non-JSON error responses", async () => {
@@ -145,9 +146,10 @@ describe("AssistantCloudAPI", () => {
       workspaceId: "w-1",
     });
 
-    await expect(api.makeRawRequest("/threads")).rejects.toThrow(
-      "Request failed with status 502, Bad Gateway",
-    );
+    const error = await api.makeRawRequest("/threads").catch((e) => e);
+    expect(error).toBeInstanceOf(CloudAPIError);
+    expect(error.message).toBe("Request failed with status 502, Bad Gateway");
+    expect(error.status).toBe(502);
   });
 
   it("makeRequest returns parsed JSON from a successful response", async () => {
