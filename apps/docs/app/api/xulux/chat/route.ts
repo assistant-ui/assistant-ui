@@ -394,11 +394,16 @@ export async function POST(req: Request): Promise<Response> {
       activePreviewContext,
     } = body;
 
-    const inputError = validateDocChatInput(messages);
-    if (inputError) return inputError;
+    if (!Array.isArray(messages)) {
+      return new Response("Invalid messages format", { status: 400 });
+    }
 
     const uiMessages = messages as UIMessage[];
     const prunedMessages = await prepareMessages(uiMessages);
+
+    const inputError = validateDocChatInput(prunedMessages);
+    if (inputError) return inputError;
+
     const normalizedPreviewContext =
       normalizeActivePreviewContext(activePreviewContext);
     const userMessageId = getLatestUserMessageId(uiMessages);
