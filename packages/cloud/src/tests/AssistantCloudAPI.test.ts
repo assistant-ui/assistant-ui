@@ -126,7 +126,7 @@ describe("AssistantCloudAPI", () => {
 
     const error = await api.makeRawRequest("/threads").catch((e) => e);
     expect(error).toBeInstanceOf(CloudAPIError);
-    expect(error.name).toBe("APIError");
+    expect(error.name).toBe("CloudAPIError");
     expect(error.message).toBe("invalid request payload");
     expect(error.status).toBe(400);
   });
