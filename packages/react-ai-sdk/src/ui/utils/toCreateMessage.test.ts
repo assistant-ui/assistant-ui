@@ -11,6 +11,85 @@ const baseMessage = {
 } as const;
 
 describe("toCreateMessage", () => {
+  it("preserves the media type from image data URLs", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "image",
+          image: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+          filename: "photo.jpg",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+        filename: "photo.jpg",
+        mediaType: "image/jpeg",
+      },
+    ]);
+  });
+
+  it("uses attachment contentType for image attachments", () => {
+    const message = {
+      ...baseMessage,
+      content: [],
+      attachments: [
+        {
+          id: "some-id",
+          type: "image",
+          name: "photo.webp",
+          contentType: "image/webp",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "image",
+              image: "https://cdn.example.com/photo",
+            },
+          ],
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "https://cdn.example.com/photo",
+        filename: "photo.webp",
+        mediaType: "image/webp",
+      },
+    ]);
+  });
+
+  it("falls back to image/png for images without a known media type", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "image",
+          image: "https://cdn.example.com/photo",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "https://cdn.example.com/photo",
+        mediaType: "image/png",
+      },
+    ]);
+  });
+
   it("converts a data part in message content into a data-<name> part", () => {
     const message = {
       ...baseMessage,
