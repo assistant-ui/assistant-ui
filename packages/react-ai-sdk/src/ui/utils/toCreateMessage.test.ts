@@ -11,6 +11,64 @@ const baseMessage = {
 } as const;
 
 describe("toCreateMessage", () => {
+  it("converts a direct file part in message content", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "file",
+          data: "data:application/pdf;base64,JVBERi0xLjQ=",
+          mimeType: "application/pdf",
+          filename: "invoice.pdf",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "data:application/pdf;base64,JVBERi0xLjQ=",
+        mediaType: "application/pdf",
+        filename: "invoice.pdf",
+      },
+    ]);
+  });
+
+  it("preserves text and direct file parts together", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "text",
+          text: "Summarize this invoice and list the due date.",
+        },
+        {
+          type: "file",
+          data: "data:application/pdf;base64,JVBERi0xLjQ=",
+          mimeType: "application/pdf",
+          filename: "invoice.pdf",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "text",
+        text: "Summarize this invoice and list the due date.",
+      },
+      {
+        type: "file",
+        url: "data:application/pdf;base64,JVBERi0xLjQ=",
+        mediaType: "application/pdf",
+        filename: "invoice.pdf",
+      },
+    ]);
+  });
+
   it("preserves the media type from image data URLs", () => {
     const message = {
       ...baseMessage,
@@ -128,6 +186,40 @@ describe("toCreateMessage", () => {
 
     expect(result.parts).toEqual([
       { type: "data-some-content-name", data: { field: 1 } },
+    ]);
+  });
+
+  it("keeps converting attachment file content", () => {
+    const message = {
+      ...baseMessage,
+      content: [],
+      attachments: [
+        {
+          id: "some-id",
+          type: "document",
+          name: "invoice.pdf",
+          contentType: "application/pdf",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "file",
+              data: "data:application/pdf;base64,JVBERi0xLjQ=",
+              mimeType: "application/pdf",
+            },
+          ],
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "data:application/pdf;base64,JVBERi0xLjQ=",
+        mediaType: "application/pdf",
+        filename: "invoice.pdf",
+      },
     ]);
   });
 });
