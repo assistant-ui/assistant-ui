@@ -109,6 +109,7 @@ type JsonValue =
 type JsonObject = { [key: string]: JsonValue };
 
 const MAX_ACTIVE_PREVIEW_CONFIG_CHARS = 8_000;
+const MAX_RAW_MESSAGES_CHARS = 1_000_000;
 
 async function prepareMessages(messages: readonly UIMessage[]) {
   const modelMessages = await convertToModelMessages(
@@ -397,12 +398,12 @@ export async function POST(req: Request): Promise<Response> {
     if (!Array.isArray(messages)) {
       return new Response("Invalid messages format", { status: 400 });
     }
+    if (JSON.stringify(messages).length > MAX_RAW_MESSAGES_CHARS) {
+      return new Response("Input too long", { status: 400 });
+    }
 
     const uiMessages = messages as UIMessage[];
     const prunedMessages = await prepareMessages(uiMessages);
-
-    const inputError = validateDocChatInput(prunedMessages);
-    if (inputError) return inputError;
 
     const normalizedPreviewContext =
       normalizeActivePreviewContext(activePreviewContext);
@@ -465,6 +466,9 @@ export async function POST(req: Request): Promise<Response> {
         );
       }
     }
+
+    const inputError = validateDocChatInput(prunedMessages);
+    if (inputError) return inputError;
 
     const evalRunId = req.headers.get("x-agent-eval-run-id");
     const localTraceUrl = req.headers.get("x-agent-eval-trace-url");
