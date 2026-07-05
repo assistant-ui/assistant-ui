@@ -183,6 +183,41 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     }
   });
 
+  it("forwards the status message when adapter yields an errored attachment with one", async () => {
+    const composer = makeComposer(
+      makeAdapter({
+        add: async ({ file }) => ({
+          id: "att-3",
+          type: "image",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: {
+            type: "incomplete",
+            reason: "error",
+            message: "Failed to upload file: 403 Forbidden",
+          },
+        }),
+      }),
+    );
+    const onError = vi.fn();
+    composer.unstable_on("attachmentAddError", onError);
+
+    await composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "adapter-error",
+        message: "Failed to upload file: 403 Forbidden",
+        attachmentId: "att-3",
+      }),
+    );
+    expect(onError.mock.calls[0]![0]).not.toHaveProperty("error");
+  });
+
   it("emits attachmentAddError with attachment id when adapter yields an errored attachment", async () => {
     const composer = makeComposer(
       makeAdapter({
@@ -209,6 +244,7 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     expect(onError).toHaveBeenCalledWith(
       expect.objectContaining({
         reason: "adapter-error",
+        message: "Attachment upload did not complete successfully.",
         attachmentId: "att-2",
       }),
     );

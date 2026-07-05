@@ -333,14 +333,15 @@ export abstract class BaseComposerRuntimeCore
       throw e;
     }
 
-    const hasError =
+    if (
       lastAttachment?.status.type === "incomplete" &&
-      lastAttachment.status.reason === "error";
-    if (hasError) {
+      lastAttachment.status.reason === "error"
+    ) {
       this._safeEmitAttachmentAddError(
         "adapter-error",
-        "Attachment upload did not complete successfully.",
-        lastAttachment?.id,
+        lastAttachment.status.message ??
+          "Attachment upload did not complete successfully.",
+        lastAttachment.id,
       );
     } else {
       this._notifyEventSubscribers("attachmentAdd", {});
