@@ -321,7 +321,11 @@ export abstract class BaseComposerRuntimeCore
       if (lastAttachment) {
         upsertAttachment({
           ...lastAttachment,
-          status: { type: "incomplete", reason: "error" },
+          status: {
+            type: "incomplete",
+            reason: "error",
+            message: e instanceof Error ? e.message : String(e),
+          },
         });
       }
       this._safeEmitAttachmentAddError(

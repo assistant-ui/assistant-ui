@@ -177,10 +177,11 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     expect(onAdd).not.toHaveBeenCalled();
     expect(composer.attachments).toHaveLength(1);
     const att = composer.attachments[0]!;
-    expect(att.status.type).toBe("incomplete");
-    if (att.status.type === "incomplete") {
-      expect(att.status.reason).toBe("error");
-    }
+    expect(att.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      message: "network error",
+    });
   });
 
   it("forwards the status message when adapter yields an errored attachment with one", async () => {
