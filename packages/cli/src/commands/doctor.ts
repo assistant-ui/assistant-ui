@@ -106,13 +106,90 @@ function walkNodeModulesAt(
   }
 }
 
+// pnpm keeps every real package dir in the `.pnpm` virtual store as
+// `node_modules/.pnpm/<pkg>@<ver>[_<peerhash>]/node_modules/<pkg>` and never
+// nests a package's deps inside its own dir, so the hoisted-layout walk above
+// only ever reaches the project's direct deps. The store dir name encodes the
+// package, so filtering by a tracked prefix keeps this pass O(tracked entries).
+const TRACKED_PNPM_ENTRY_PREFIXES = [
+  "@assistant-ui+",
+  "assistant-ui@",
+  "assistant-stream@",
+  "assistant-cloud@",
+];
+
+function isTrackedPnpmEntry(dirName: string): boolean {
+  return TRACKED_PNPM_ENTRY_PREFIXES.some((p) => dirName.startsWith(p));
+}
+
+function processTrackedPackagesIn(
+  nm: string,
+  results: DiscoveredPackage[],
+  visited: ProcessedDir,
+): void {
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(nm, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) continue;
+    if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+
+    if (entry.name.startsWith("@")) {
+      const scopeDir = path.join(nm, entry.name);
+      let scoped: fs.Dirent[];
+      try {
+        scoped = fs.readdirSync(scopeDir, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      for (const s of scoped) {
+        if (!s.isDirectory() && !s.isSymbolicLink()) continue;
+        if (!isTrackedPackage(`${entry.name}/${s.name}`)) continue;
+        processPackageDir(path.join(scopeDir, s.name), results, visited);
+      }
+    } else if (isTrackedPackage(entry.name)) {
+      processPackageDir(path.join(nm, entry.name), results, visited);
+    }
+  }
+}
+
+function walkPnpmStore(
+  cwd: string,
+  results: DiscoveredPackage[],
+  visited: ProcessedDir,
+): void {
+  const storeDir = path.join(cwd, "node_modules", ".pnpm");
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(storeDir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+    if (!isTrackedPnpmEntry(entry.name)) continue;
+    processTrackedPackagesIn(
+      path.join(storeDir, entry.name, "node_modules"),
+      results,
+      visited,
+    );
+  }
+}
+
 // Discover every installation of an assistant-ui-family package reachable
 // from `cwd`. Recurses into nested node_modules so transitive copies
-// (the real source of duplicate-version bugs) are not missed.
+// (the real source of duplicate-version bugs) are not missed, and scans the
+// pnpm `.pnpm` virtual store, which the hoisted walk cannot reach.
 export function discoverInstalledPackages(cwd: string): DiscoveredPackage[] {
   const results: DiscoveredPackage[] = [];
   const visited: ProcessedDir = { set: new Set() };
   walkNodeModulesAt(cwd, results, visited);
+  walkPnpmStore(cwd, results, visited);
   return results;
 }
 
