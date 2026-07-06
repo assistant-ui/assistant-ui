@@ -6,6 +6,21 @@ import {
   parseStoredThreadMetadata,
 } from "./LocalStorageThreadListAdapter";
 
+const storedMessage = (
+  id: string,
+  role: "user" | "assistant" | "system" = "user",
+) => ({
+  id,
+  role,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  content: [],
+  metadata: { custom: {} },
+  ...(role === "user" ? { attachments: [] } : undefined),
+  ...(role === "assistant"
+    ? { status: { type: "complete", reason: "stop" } }
+    : undefined),
+});
+
 const createStorage = (
   entries: Record<string, string> = {},
 ): AsyncStorageLike & { get(key: string): string | undefined } => {
@@ -61,12 +76,12 @@ describe("parseStoredMessageRepository", () => {
         headId: "message-2",
         messages: [
           {
-            message: { id: "message-1", role: "user", content: [] },
+            message: storedMessage("message-1"),
             parentId: null,
           },
           { message: { role: "user", content: [] }, parentId: null },
           {
-            message: { id: "message-2", role: "assistant", content: [] },
+            message: storedMessage("message-2", "assistant"),
             parentId: "message-1",
           },
         ],
@@ -86,21 +101,87 @@ describe("parseStoredMessageRepository", () => {
         headId: "missing",
         messages: [
           {
-            message: { id: "message-1", role: "user", content: [] },
+            message: storedMessage("message-1"),
             parentId: null,
           },
         ],
       }),
     );
 
-    expect(repo).toEqual({
-      messages: [
-        {
-          message: { id: "message-1", role: "user", content: [] },
-          parentId: null,
-        },
-      ],
-    });
+    expect(repo.headId).toBeUndefined();
+    expect(repo.messages.map((item) => item.message.id)).toEqual(["message-1"]);
+  });
+
+  it("skips messages missing the required thread message shell", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          { message: { id: "missing-role" }, parentId: null },
+          {
+            message: {
+              ...storedMessage("missing-content"),
+              content: undefined,
+            },
+            parentId: null,
+          },
+          {
+            message: { ...storedMessage("missing-metadata"), metadata: {} },
+            parentId: null,
+          },
+          {
+            message: storedMessage("valid"),
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
+  });
+
+  it("skips messages whose parent is missing, skipped, or appears later", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        headId: "child-of-root",
+        messages: [
+          {
+            message: storedMessage("child-of-missing"),
+            parentId: "missing",
+          },
+          {
+            message: storedMessage("child-of-invalid"),
+            parentId: "invalid",
+          },
+          {
+            message: { id: "invalid" },
+            parentId: null,
+          },
+          {
+            message: storedMessage("child-before-parent"),
+            parentId: "late-parent",
+          },
+          {
+            message: storedMessage("late-parent"),
+            parentId: null,
+          },
+          {
+            message: storedMessage("child-of-root"),
+            parentId: "late-parent",
+          },
+        ],
+      }),
+    );
+
+    expect(
+      repo.messages.map((item) => ({
+        id: item.message.id,
+        parentId: item.parentId,
+      })),
+    ).toEqual([
+      { id: "late-parent", parentId: null },
+      { id: "child-of-root", parentId: "late-parent" },
+    ]);
+    expect(repo.headId).toBe("child-of-root");
   });
 });
 

@@ -66,6 +66,50 @@ const parseStoredThread = (value: unknown): StoredThreadMetadata | null => {
   };
 };
 
+const parseDate = (value: unknown): Date | null => {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value !== "string" && typeof value !== "number") return null;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const isMessageRole = (value: unknown): value is ThreadMessage["role"] =>
+  value === "system" || value === "user" || value === "assistant";
+
+const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
+  if (!isRecord(value) || typeof value.id !== "string") return null;
+  if (!isMessageRole(value.role)) return null;
+  if (!Array.isArray(value.content)) return null;
+
+  const createdAt = parseDate(value.createdAt);
+  if (!createdAt) return null;
+
+  const metadata = value.metadata;
+  if (!isRecord(metadata) || !isRecord(metadata.custom)) return null;
+
+  if (value.role === "assistant") {
+    const status = value.status;
+    if (!isRecord(status) || typeof status.type !== "string") return null;
+  }
+
+  return {
+    ...value,
+    createdAt,
+    metadata: {
+      ...metadata,
+      custom: metadata.custom,
+    },
+    ...(value.role === "user"
+      ? {
+          attachments: Array.isArray(value.attachments)
+            ? value.attachments
+            : [],
+        }
+      : undefined),
+  } as ThreadMessage;
+};
+
 export const parseStoredThreadMetadata = (
   raw: string | null,
 ): StoredThreadMetadata[] => {
@@ -83,8 +127,8 @@ const parseStoredMessageRepositoryItem = (
 ): ExportedMessageRepositoryItem | null => {
   if (!isRecord(value)) return null;
 
-  const message = value.message;
-  if (!isRecord(message) || typeof message.id !== "string") return null;
+  const message = parseStoredThreadMessage(value.message);
+  if (!message) return null;
 
   const parentId = value.parentId;
   if (
@@ -96,7 +140,7 @@ const parseStoredMessageRepositoryItem = (
   }
 
   return {
-    message: message as ThreadMessage,
+    message,
     parentId: parentId ?? null,
     ...(isRecord(value.runConfig)
       ? { runConfig: value.runConfig as RunConfig }
@@ -112,9 +156,18 @@ export const parseStoredMessageRepository = (
     return { messages: [] };
   }
 
-  const messages = parsed.messages.flatMap((item) => {
+  const candidateMessages = parsed.messages.flatMap((item) => {
     const parsedItem = parseStoredMessageRepositoryItem(item);
     return parsedItem ? [parsedItem] : [];
+  });
+
+  const acceptedIds = new Set<string>();
+  const messages = candidateMessages.flatMap((item) => {
+    if (acceptedIds.has(item.message.id)) return [];
+    if (item.parentId !== null && !acceptedIds.has(item.parentId)) return [];
+
+    acceptedIds.add(item.message.id);
+    return [item];
   });
 
   const headId =
