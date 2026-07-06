@@ -416,6 +416,31 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
+    const isFirstUserTurn =
+      prunedMessages.filter((m) => m.role === "user").length === 1 &&
+      !prunedMessages.some((m) => m.role === "assistant");
+    if (isFirstUserTurn) {
+      const templateContext = formatSelectedTemplateContext(selectedTemplate);
+      const firstUser = prunedMessages.find((m) => m.role === "user");
+      if (templateContext && firstUser) {
+        appendHiddenText(firstUser, templateContext);
+      }
+    }
+    if (normalizedPreviewContext) {
+      const latestUser = [...prunedMessages]
+        .reverse()
+        .find((m) => m.role === "user");
+      if (latestUser) {
+        appendHiddenText(
+          latestUser,
+          formatActivePreviewContext(normalizedPreviewContext),
+        );
+      }
+    }
+
+    const inputError = validateDocChatInput(prunedMessages);
+    if (inputError) return inputError;
+
     const distinctId = getDistinctId(req);
     const budget = await beginTurn(sessionId.trim(), distinctId);
     if (budget.denied) {
@@ -444,31 +469,6 @@ export async function POST(req: Request): Promise<Response> {
       });
     }
     const budgetDate = budget.budgetDate;
-
-    const isFirstUserTurn =
-      prunedMessages.filter((m) => m.role === "user").length === 1 &&
-      !prunedMessages.some((m) => m.role === "assistant");
-    if (isFirstUserTurn) {
-      const templateContext = formatSelectedTemplateContext(selectedTemplate);
-      const firstUser = prunedMessages.find((m) => m.role === "user");
-      if (templateContext && firstUser) {
-        appendHiddenText(firstUser, templateContext);
-      }
-    }
-    if (normalizedPreviewContext) {
-      const latestUser = [...prunedMessages]
-        .reverse()
-        .find((m) => m.role === "user");
-      if (latestUser) {
-        appendHiddenText(
-          latestUser,
-          formatActivePreviewContext(normalizedPreviewContext),
-        );
-      }
-    }
-
-    const inputError = validateDocChatInput(prunedMessages);
-    if (inputError) return inputError;
 
     const evalRunId = req.headers.get("x-agent-eval-run-id");
     const localTraceUrl = req.headers.get("x-agent-eval-trace-url");
