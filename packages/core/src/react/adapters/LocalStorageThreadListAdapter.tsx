@@ -8,6 +8,7 @@ import type {
   RemoteThreadMetadata,
   ThreadHistoryAdapter,
   ThreadMessage,
+  RunConfig,
 } from "../../index";
 import type {
   ExportedMessageRepository,
@@ -36,6 +37,99 @@ type StoredThreadMetadata = {
   custom?: Record<string, unknown> | undefined;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const parseJSON = (raw: string | null): unknown => {
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return undefined;
+  }
+};
+
+const parseStoredThread = (value: unknown): StoredThreadMetadata | null => {
+  if (!isRecord(value) || typeof value.remoteId !== "string") return null;
+
+  const status = value.status ?? "regular";
+  if (status !== "regular" && status !== "archived") return null;
+
+  return {
+    remoteId: value.remoteId,
+    status,
+    ...(typeof value.externalId === "string"
+      ? { externalId: value.externalId }
+      : undefined),
+    ...(typeof value.title === "string" ? { title: value.title } : undefined),
+    ...(isRecord(value.custom) ? { custom: value.custom } : undefined),
+  };
+};
+
+export const parseStoredThreadMetadata = (
+  raw: string | null,
+): StoredThreadMetadata[] => {
+  const parsed = parseJSON(raw);
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed.flatMap((item) => {
+    const thread = parseStoredThread(item);
+    return thread ? [thread] : [];
+  });
+};
+
+const parseStoredMessageRepositoryItem = (
+  value: unknown,
+): ExportedMessageRepositoryItem | null => {
+  if (!isRecord(value)) return null;
+
+  const message = value.message;
+  if (!isRecord(message) || typeof message.id !== "string") return null;
+
+  const parentId = value.parentId;
+  if (
+    parentId !== undefined &&
+    parentId !== null &&
+    typeof parentId !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    message: message as ThreadMessage,
+    parentId: parentId ?? null,
+    ...(isRecord(value.runConfig)
+      ? { runConfig: value.runConfig as RunConfig }
+      : undefined),
+  };
+};
+
+export const parseStoredMessageRepository = (
+  raw: string | null,
+): ExportedMessageRepository => {
+  const parsed = parseJSON(raw);
+  if (!isRecord(parsed) || !Array.isArray(parsed.messages)) {
+    return { messages: [] };
+  }
+
+  const messages = parsed.messages.flatMap((item) => {
+    const parsedItem = parseStoredMessageRepositoryItem(item);
+    return parsedItem ? [parsedItem] : [];
+  });
+
+  const headId =
+    parsed.headId === null ||
+    (typeof parsed.headId === "string" &&
+      messages.some((item) => item.message.id === parsed.headId))
+      ? parsed.headId
+      : undefined;
+
+  return {
+    ...(headId !== undefined ? { headId } : undefined),
+    messages,
+  };
+};
+
 class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   constructor(
     private storage: AsyncStorageLike,
@@ -52,8 +146,7 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     if (!remoteId) return { messages: [] };
 
     const raw = await this.storage.getItem(this._messagesKey(remoteId));
-    if (!raw) return { messages: [] };
-    return JSON.parse(raw) as ExportedMessageRepository;
+    return parseStoredMessageRepository(raw);
   }
 
   async append(item: ExportedMessageRepositoryItem): Promise<void> {
@@ -61,9 +154,7 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
 
     const key = this._messagesKey(remoteId);
     const raw = await this.storage.getItem(key);
-    const repo: ExportedMessageRepository = raw
-      ? (JSON.parse(raw) as ExportedMessageRepository)
-      : { messages: [] };
+    const repo = parseStoredMessageRepository(raw);
 
     const idx = repo.messages.findIndex(
       (m) => m.message.id === item.message.id,
@@ -110,7 +201,7 @@ export const createLocalStorageAdapter = (
 
   const loadThreadMetadata = async (): Promise<StoredThreadMetadata[]> => {
     const raw = await storage.getItem(threadsKey);
-    return raw ? (JSON.parse(raw) as StoredThreadMetadata[]) : [];
+    return parseStoredThreadMetadata(raw);
   };
 
   const saveThreadMetadata = async (
