@@ -1894,7 +1894,7 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
 declare const useOpenCodeRuntimeExtras: () => OpenCodeRuntimeExtras;
 
-declare const useOpenCodeSession: () => import("@opencode-ai/sdk/v2/client").Session | null;
+declare const useOpenCodeSession: () => import("@opencode-ai/sdk/v2/types").Session | null;
 
 declare function useOpenCodeThreadState(): OpenCodeThreadState;
 

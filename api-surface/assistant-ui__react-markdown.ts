@@ -1,8 +1,8 @@
 import { ComponentProps, ComponentPropsWithoutRef, ComponentType, ElementType, ForwardRefExoticComponent, RefAttributes } from "react";
 
-import { Options } from "react-markdown";
-
 import { Primitive } from "@radix-ui/react-primitive";
+
+import { Options } from "react-markdown";
 
 interface Data$1 {
 }
