@@ -1,6 +1,6 @@
 ---
-title: Thread List Component
-description: Sidebar or dropdown component for switching between AI chat conversations. Persistent thread state, search, and active selection — built for assistant-ui apps.
+title: ThreadList
+description: Sidebar or dropdown component for switching between AI chat conversations. Persistent thread state, search, and active selection, built for assistant-ui apps.
 platforms: ["react"]
 ---
 
@@ -9,7 +9,7 @@ import { ThreadListSample } from "@/components/docs/samples/threadlist";
 <ThreadListSample />
 
 <Callout>
-This demo uses `ThreadListSidebar`, which includes `thread-list` as a dependency and provides a complete sidebar layout. For custom implementations, you can use `thread-list` directly.
+This demo uses [`AssistantShell`](/docs/ui/assistant-shell), which includes `thread-list` as a dependency and provides a complete app shell layout with a collapsible sidebar. For custom implementations, you can use `thread-list` directly.
 </Callout>
 
 ## Getting Started
@@ -19,11 +19,11 @@ This demo uses `ThreadListSidebar`, which includes `thread-list` as a dependency
 
 ### Add the component
 
-Use `threadlist-sidebar` for a complete sidebar layout or `thread-list` for custom layouts.
+Use `assistant-shell` for a complete app shell layout or `thread-list` for custom layouts.
 
-#### ThreadListSidebar
+#### AssistantShell
 
-<InstallCommand shadcn={["threadlist-sidebar"]} />
+<InstallCommand shadcn={["assistant-shell"]} />
 
 #### ThreadList
 
@@ -38,25 +38,13 @@ Use `threadlist-sidebar` for a complete sidebar layout or `thread-list` for cust
   <Tab value="With Sidebar">
     ```tsx title="/app/assistant.tsx"
     import { Thread } from "@/components/assistant-ui/thread";
-    import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
-    import {
-      SidebarProvider,
-      SidebarInset,
-      SidebarTrigger
-    } from "@/components/ui/sidebar";
+    import { AssistantShell } from "@/components/assistant-ui/assistant-shell";
 
     export default function Assistant() {
       return (
-        <SidebarProvider>
-          <div className="flex h-dvh w-full">
-            <ThreadListSidebar />
-            <SidebarInset>
-              {/* Add sidebar trigger, location can be customized */}
-              <SidebarTrigger className="absolute top-4 left-4" />
-              <Thread />
-            </SidebarInset>
-          </div>
-        </SidebarProvider>
+        <AssistantShell title="My App">
+          <Thread />
+        </AssistantShell>
       );
     }
     ```

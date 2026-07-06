@@ -7,8 +7,10 @@
   "pages": [
     "---Functional---",
     "thread",
+    "thread-list",
     "assistant-modal",
     "assistant-sidebar",
+    "assistant-shell",
     "---Add-ons---",
     "attachment",
     "composer-trigger-popover",
@@ -27,7 +29,6 @@
     "sources",
     "streamdown",
     "syntax-highlighting",
-    "thread-list",
     "tool-fallback",
     "tool-group",
     "voice",
