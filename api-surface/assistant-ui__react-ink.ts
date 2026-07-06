@@ -2256,7 +2256,7 @@ declare class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
   delete(): Promise<void>;
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(): Promise<AssistantStream>;
-  fetch(_threadId: string): Promise<RemoteThreadMetadata>;
+  fetch(threadId: string): Promise<RemoteThreadMetadata>;
 }
 
 declare class CompositeContextProvider implements ModelContextProvider {
