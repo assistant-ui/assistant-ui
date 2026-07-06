@@ -37,6 +37,10 @@ type StoredThreadMetadata = {
   custom?: Record<string, unknown> | undefined;
 };
 
+type StoredSystemMessage = Extract<ThreadMessage, { role: "system" }>;
+type StoredUserMessage = Extract<ThreadMessage, { role: "user" }>;
+type StoredAssistantMessage = Extract<ThreadMessage, { role: "assistant" }>;
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -91,23 +95,79 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
   if (value.role === "assistant") {
     const status = value.status;
     if (!isRecord(status) || typeof status.type !== "string") return null;
+
+    const submittedFeedback = isRecord(metadata.submittedFeedback)
+      ? metadata.submittedFeedback
+      : undefined;
+    const submittedFeedbackType = submittedFeedback?.type;
+
+    return {
+      id: value.id,
+      role: "assistant",
+      content: value.content as StoredAssistantMessage["content"],
+      status: status as StoredAssistantMessage["status"],
+      createdAt,
+      metadata: {
+        unstable_state: (metadata.unstable_state ??
+          null) as StoredAssistantMessage["metadata"]["unstable_state"],
+        unstable_annotations: Array.isArray(metadata.unstable_annotations)
+          ? (metadata.unstable_annotations as StoredAssistantMessage["metadata"]["unstable_annotations"])
+          : [],
+        unstable_data: Array.isArray(metadata.unstable_data)
+          ? (metadata.unstable_data as StoredAssistantMessage["metadata"]["unstable_data"])
+          : [],
+        steps: Array.isArray(metadata.steps)
+          ? (metadata.steps as StoredAssistantMessage["metadata"]["steps"])
+          : [],
+        ...(submittedFeedbackType === "positive" ||
+        submittedFeedbackType === "negative"
+          ? {
+              submittedFeedback: {
+                type: submittedFeedbackType,
+              },
+            }
+          : undefined),
+        ...(metadata.timing !== undefined
+          ? {
+              timing: metadata.timing as NonNullable<
+                StoredAssistantMessage["metadata"]["timing"]
+              >,
+            }
+          : undefined),
+        ...(metadata.isOptimistic === true
+          ? { isOptimistic: true }
+          : undefined),
+        custom: metadata.custom,
+      },
+    };
   }
 
+  if (value.role === "user") {
+    return {
+      id: value.id,
+      role: "user",
+      content: value.content as StoredUserMessage["content"],
+      attachments: Array.isArray(value.attachments)
+        ? (value.attachments as StoredUserMessage["attachments"])
+        : [],
+      createdAt,
+      metadata: {
+        custom: metadata.custom,
+      },
+    };
+  }
+
+  if (value.content.length !== 1) return null;
+
   return {
-    ...value,
+    id: value.id,
+    role: "system",
+    content: [value.content[0] as StoredSystemMessage["content"][0]],
     createdAt,
     metadata: {
-      ...metadata,
       custom: metadata.custom,
     },
-    ...(value.role === "user"
-      ? {
-          attachments: Array.isArray(value.attachments)
-            ? value.attachments
-            : [],
-        }
-      : undefined),
-  } as ThreadMessage;
+  };
 };
 
 export const parseStoredThreadMetadata = (
