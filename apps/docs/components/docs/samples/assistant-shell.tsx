@@ -9,7 +9,7 @@ import {
 } from "@/components/assistant-ui/assistant-shell";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
-export function ThreadListSample() {
+export function AssistantShellSample() {
   return (
     <SampleFrame className="h-100 overflow-hidden md:h-150">
       <AssistantShellRoot className="h-full">

@@ -1,0 +1,412 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import {
+  ThreadList,
+  ThreadListItems,
+  ThreadListNew,
+  ThreadListRoot,
+} from "@/components/assistant-ui/thread-list";
+import { cn } from "@/lib/utils";
+import { useAuiState } from "@assistant-ui/react";
+import { MenuIcon, MessagesSquareIcon, PanelLeftIcon } from "lucide-react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentPropsWithoutRef,
+  type FC,
+  type ReactNode,
+} from "react";
+
+// The assistant-ui brand mark is the MessagesSquare glyph at stroke-width 3 (see docs favicon/icon.svg and brand/logotype.svg), so the default logo needs no bundled asset.
+const defaultLogo = <MessagesSquareIcon strokeWidth={3} className="size-5" />;
+
+// SSR apps can read this cookie and pass it back as defaultCollapsed for a zero-flash restore.
+const COLLAPSED_COOKIE = "assistant-shell-collapsed";
+
+// The fade is a mask rather than an overlay so it stays background-agnostic across the light bg-sidebar and dark bg-muted/30 shell backdrops.
+const SCROLL_FADE_CLASS =
+  "data-overflowing:[mask-image:linear-gradient(to_bottom,black_calc(100%-2rem),transparent)]";
+
+const useScrollFade = () => {
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useEffect(() => {
+    if (!container) return;
+    const update = () => {
+      setOverflowing(
+        container.scrollHeight - container.scrollTop - container.clientHeight >
+          1,
+      );
+    };
+    update();
+    container.addEventListener("scroll", update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
+    for (const child of container.children) observer.observe(child);
+    return () => {
+      container.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, [container]);
+
+  return { ref: setContainer, overflowing };
+};
+
+type AssistantShellContextValue = {
+  collapsed: boolean;
+  toggle: () => void;
+};
+
+const AssistantShellContext = createContext<AssistantShellContextValue | null>(
+  null,
+);
+
+export const useAssistantShell = (): AssistantShellContextValue => {
+  const context = useContext(AssistantShellContext);
+  if (!context)
+    throw new Error("useAssistantShell must be used within AssistantShellRoot");
+  return context;
+};
+
+export type AssistantShellProps = {
+  logo?: ReactNode;
+  title?: ReactNode;
+  headerActions?: ReactNode;
+  defaultCollapsed?: boolean;
+  children: ReactNode;
+};
+
+export const AssistantShell: FC<AssistantShellProps> = ({
+  logo,
+  title,
+  headerActions,
+  defaultCollapsed,
+  children,
+}) => {
+  return (
+    <AssistantShellRoot defaultCollapsed={defaultCollapsed}>
+      <AssistantShellSidebar logo={logo} title={title} />
+      <AssistantShellMain>
+        <AssistantShellHeader logo={logo} title={title}>
+          {headerActions}
+        </AssistantShellHeader>
+        <main data-slot="aui_shell-content" className="flex-1 overflow-hidden">
+          {children}
+        </main>
+      </AssistantShellMain>
+    </AssistantShellRoot>
+  );
+};
+
+export type AssistantShellRootProps = ComponentPropsWithoutRef<"div"> & {
+  defaultCollapsed?: boolean | undefined;
+};
+
+export const AssistantShellRoot: FC<AssistantShellRootProps> = ({
+  defaultCollapsed,
+  className,
+  children,
+  ...props
+}) => {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed ?? false);
+
+  const toggle = useCallback(() => {
+    const next = !collapsed;
+    setCollapsed(next);
+    document.cookie = `${COLLAPSED_COOKIE}=${next}; path=/; max-age=31536000`;
+  }, [collapsed]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "b" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        toggle();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [toggle]);
+
+  const context = useMemo(() => ({ collapsed, toggle }), [collapsed, toggle]);
+
+  return (
+    <AssistantShellContext.Provider value={context}>
+      <div
+        data-slot="aui_shell-root"
+        className={cn(
+          "bg-sidebar dark:bg-muted/30 flex h-dvh w-full",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </div>
+    </AssistantShellContext.Provider>
+  );
+};
+
+export type AssistantShellSidebarProps = {
+  logo?: ReactNode;
+  title?: ReactNode;
+};
+
+export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
+  logo = defaultLogo,
+  title = "assistant-ui",
+}) => {
+  const { collapsed } = useAssistantShell();
+  const fade = useScrollFade();
+
+  return (
+    <div data-slot="aui_shell-sidebar-wrapper" className="hidden md:block">
+      <aside
+        data-slot="aui_shell-sidebar"
+        className={cn(
+          "flex h-full flex-col overflow-hidden pb-2 transition-all duration-200",
+          collapsed ? "w-12" : "w-65",
+        )}
+      >
+        <div
+          data-slot="aui_shell-sidebar-header"
+          className={cn(
+            "mt-2 flex h-12 shrink-0 items-center transition-[padding] duration-200",
+            collapsed ? "px-3.5" : "px-6",
+          )}
+        >
+          <div
+            data-slot="aui_shell-logo"
+            className="flex shrink-0 items-center"
+          >
+            {logo}
+          </div>
+          {title != null && (
+            <span
+              data-slot="aui_shell-sidebar-title"
+              className={cn(
+                "text-foreground/90 ml-2 text-sm font-medium whitespace-nowrap transition-opacity duration-200",
+                collapsed && "opacity-0",
+              )}
+            >
+              {title}
+            </span>
+          )}
+        </div>
+        <div
+          data-slot="aui_shell-sidebar-scroll"
+          ref={fade.ref}
+          data-overflowing={fade.overflowing ? "" : undefined}
+          className={cn(
+            "relative flex-1 overflow-y-auto transition-[width] duration-200",
+            collapsed ? "w-12" : "w-65",
+            SCROLL_FADE_CLASS,
+          )}
+        >
+          <ThreadListRoot
+            className={cn(
+              "transition-[padding] duration-200",
+              collapsed ? "px-2 pt-1" : "p-3",
+            )}
+          >
+            <TooltipProvider>
+              <Tooltip>
+                {/* Base UI merges trigger props over the render element's, so the trigger must re-declare the button's data-slot or it is replaced by "tooltip-trigger". */}
+                <TooltipTrigger
+                  data-slot="aui_thread-list-new"
+                  render={
+                    <ThreadListNew
+                      className={cn(
+                        "overflow-hidden transition-all duration-200",
+                        // Button has a 1px transparent border, so 7px padding centers the 16px icon in the 32px rail.
+                        collapsed
+                          ? "w-8 gap-0 px-[7px] has-[>svg]:px-[7px]"
+                          : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
+                      )}
+                      labelClassName={cn(
+                        "overflow-hidden transition-all duration-200",
+                        collapsed
+                          ? "max-w-0 opacity-0"
+                          : "max-w-24 opacity-100",
+                      )}
+                    />
+                  }
+                />
+                {collapsed && (
+                  <TooltipContent side="right">New Thread</TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+            <ThreadListItems
+              aria-hidden={collapsed}
+              inert={collapsed}
+              className={cn(
+                "transition-[opacity,transform] duration-150",
+                collapsed
+                  ? "pointer-events-none opacity-0 delay-50"
+                  : "translate-x-0 opacity-100",
+              )}
+            />
+          </ThreadListRoot>
+        </div>
+      </aside>
+    </div>
+  );
+};
+
+export const AssistantShellMain: FC<ComponentPropsWithoutRef<"div">> = ({
+  className,
+  children,
+  ...props
+}) => {
+  return (
+    <div
+      data-slot="aui_shell-main-wrapper"
+      className={cn(
+        "flex flex-1 flex-col overflow-hidden p-2 md:pl-0",
+        className,
+      )}
+      {...props}
+    >
+      <div
+        data-slot="aui_shell-main"
+        className="bg-background flex flex-1 flex-col overflow-hidden rounded-lg"
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
+export type AssistantShellHeaderProps = Omit<
+  ComponentPropsWithoutRef<"header">,
+  "title"
+> & {
+  logo?: ReactNode;
+  title?: ReactNode;
+};
+
+export const AssistantShellHeader: FC<AssistantShellHeaderProps> = ({
+  logo = defaultLogo,
+  title = "assistant-ui",
+  className,
+  children,
+  ...props
+}) => {
+  const { collapsed, toggle } = useAssistantShell();
+
+  return (
+    <header
+      data-slot="aui_shell-header"
+      className={cn("flex h-12 shrink-0 items-center gap-2 px-4", className)}
+      {...props}
+    >
+      <AssistantShellMobileSidebar logo={logo} title={title} />
+      <TooltipIconButton
+        tooltip={collapsed ? "Show sidebar" : "Hide sidebar"}
+        side="bottom"
+        onClick={toggle}
+        data-slot="aui_shell-sidebar-toggle"
+        className="hidden size-8 md:flex"
+      >
+        <PanelLeftIcon className="size-4" />
+      </TooltipIconButton>
+      <AssistantShellThreadTitle />
+      {children != null && (
+        <div
+          data-slot="aui_shell-header-actions"
+          className="ml-auto flex items-center gap-1"
+        >
+          {children}
+        </div>
+      )}
+    </header>
+  );
+};
+
+export type AssistantShellMobileSidebarProps = {
+  logo?: ReactNode;
+  title?: ReactNode;
+};
+
+export const AssistantShellMobileSidebar: FC<
+  AssistantShellMobileSidebarProps
+> = ({ logo = defaultLogo, title = "assistant-ui" }) => {
+  const fade = useScrollFade();
+
+  return (
+    <Sheet>
+      <SheetTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            data-slot="aui_shell-mobile-trigger"
+            className="size-8 shrink-0 md:hidden"
+          />
+        }
+      >
+        <MenuIcon className="size-4" />
+        <span className="sr-only">Toggle menu</span>
+      </SheetTrigger>
+      <SheetContent side="left" className="flex w-70 flex-col p-0">
+        <SheetTitle className="sr-only">Sidebar</SheetTitle>
+        <div
+          data-slot="aui_shell-mobile-header"
+          className="flex h-12 shrink-0 items-center px-4"
+        >
+          <div className="flex items-center gap-2 px-2 text-sm font-medium">
+            {logo}
+            {title != null && (
+              <span className="text-foreground/90">{title}</span>
+            )}
+          </div>
+        </div>
+        <div
+          data-slot="aui_shell-mobile-content"
+          ref={fade.ref}
+          data-overflowing={fade.overflowing ? "" : undefined}
+          className={cn(
+            "relative flex-1 overflow-y-auto p-3",
+            SCROLL_FADE_CLASS,
+          )}
+        >
+          <ThreadList />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
+export const AssistantShellThreadTitle: FC = () => {
+  const title = useAuiState(
+    (s) =>
+      s.threads.threadItems.find((t) => t.id === s.threads.mainThreadId)?.title,
+  );
+
+  return (
+    <span
+      data-slot="aui_shell-thread-title"
+      className="min-w-0 truncate text-sm font-medium"
+    >
+      {title ?? "New Chat"}
+    </span>
+  );
+};

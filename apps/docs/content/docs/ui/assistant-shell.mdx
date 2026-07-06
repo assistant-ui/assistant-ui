@@ -1,0 +1,204 @@
+---
+title: AssistantShell
+description: App shell layout with a collapsible thread list sidebar, header with thread title, and built-in mobile drawer for assistant-ui chat apps.
+platforms: ["react"]
+---
+
+import { AssistantShellSample } from "@/components/docs/samples/assistant-shell";
+
+A complete app shell for chat applications: a collapsible sidebar with the thread list, a header with a sidebar toggle and the active thread title, and your chat content in the main area. On mobile, the sidebar becomes a slide-out drawer.
+
+<AssistantShellSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `assistant-shell`
+
+<InstallCommand shadcn={["assistant-shell"]} />
+
+This adds `/components/assistant-ui/assistant-shell.tsx` to your project, along with `thread-list` as a dependency.
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+The `AssistantShell` component is the all-in-one path. Pass your `Thread` as children:
+
+```tsx title="/app/assistant.tsx"
+import { Thread } from "@/components/assistant-ui/thread";
+import { AssistantShell } from "@/components/assistant-ui/assistant-shell";
+
+export const Assistant = () => {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <AssistantShell logo={<MyLogo />} title="My App">
+        <Thread />
+      </AssistantShell>
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+Without `logo` and `title`, the shell brands itself with the assistant-ui logo and wordmark. Pass your own to replace them, or `null` to render neither.
+
+  </Step>
+</Steps>
+
+## Custom composition
+
+`AssistantShell` composes exported parts you can arrange yourself. Use them directly when you need a custom header, extra sidebar content, or a different main layout:
+
+```tsx title="/app/assistant.tsx"
+import {
+  AssistantShellHeader,
+  AssistantShellMain,
+  AssistantShellRoot,
+  AssistantShellSidebar,
+} from "@/components/assistant-ui/assistant-shell";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export const Assistant = () => {
+  return (
+    <AssistantShellRoot>
+      <AssistantShellSidebar logo={<Logo />} title="My App" />
+      <AssistantShellMain>
+        <AssistantShellHeader logo={<Logo />} title="My App">
+          {/* header actions, right-aligned */}
+        </AssistantShellHeader>
+        <main className="flex-1 overflow-hidden">
+          <Thread />
+        </main>
+      </AssistantShellMain>
+    </AssistantShellRoot>
+  );
+};
+```
+
+## API Reference
+
+### AssistantShell
+
+The all-in-one shell. Renders `AssistantShellRoot`, `AssistantShellSidebar`, `AssistantShellMain`, and `AssistantShellHeader` with your content in the main area.
+
+<ParametersTable
+  type="AssistantShellProps"
+  parameters={[
+    {
+      name: "logo",
+      type: "ReactNode",
+      description:
+        "Logo shown in the sidebar header and the mobile drawer. Defaults to the assistant-ui logo; pass null to render none.",
+    },
+    {
+      name: "title",
+      type: "ReactNode",
+      default: '"assistant-ui"',
+      description: "App title shown next to the logo. Pass null to render none.",
+    },
+    {
+      name: "headerActions",
+      type: "ReactNode",
+      description: "Content rendered right-aligned in the header.",
+    },
+    {
+      name: "defaultCollapsed",
+      type: "boolean",
+      default: "false",
+      description:
+        "Initial collapsed state of the sidebar. Pass the persisted cookie value on the server for a flash-free restore.",
+    },
+    {
+      name: "children",
+      type: "ReactNode",
+      required: true,
+      description: "Main content, typically a Thread.",
+    },
+  ]}
+/>
+
+### AssistantShellRoot
+
+Layout container that owns the collapse state. Provides the `useAssistantShell` context, registers the <kbd>Cmd/Ctrl</kbd>+<kbd>B</kbd> shortcut, and persists toggles to the `assistant-shell-collapsed` cookie. Accepts all `div` props plus `defaultCollapsed`.
+
+### AssistantShellSidebar
+
+The desktop sidebar (hidden below the `md` breakpoint). Renders the logo, title, a New Thread button, and the thread list. Collapses to an icon rail with a width animation; while collapsed, the New Thread button shrinks to an icon with a tooltip. Accepts `logo` and `title`, defaulting to the assistant-ui logo and wordmark.
+
+### AssistantShellMain
+
+Column wrapper for the header and content, rendered as a rounded surface next to the sidebar. Accepts all `div` props.
+
+### AssistantShellHeader
+
+The top bar. Renders the mobile drawer trigger, the sidebar toggle button, and the active thread title. Its `children` render right-aligned as header actions. Accepts all `header` props plus `logo` and `title` (forwarded to the mobile drawer).
+
+### AssistantShellMobileSidebar
+
+The mobile drawer: a menu button that opens the thread list in a Sheet from the left. Rendered automatically by `AssistantShellHeader`; use it directly only in custom headers. Accepts `logo` and `title`.
+
+### AssistantShellThreadTitle
+
+Displays the title of the active thread, falling back to "New Chat". Rendered automatically by `AssistantShellHeader`.
+
+### useAssistantShell
+
+Context hook for building custom controls inside the shell. Returns `{ collapsed: boolean; toggle: () => void }`. Throws when used outside `AssistantShellRoot`.
+
+## Collapse behavior
+
+The sidebar toggles between full width and a narrow icon rail with a width animation. Three ways to toggle:
+
+- The panel button in the header
+- <kbd>Cmd</kbd>+<kbd>B</kbd> (macOS) / <kbd>Ctrl</kbd>+<kbd>B</kbd>
+- `toggle()` from `useAssistantShell` in your own components
+
+### Persistence across reloads
+
+Every toggle writes the state to the `assistant-shell-collapsed` cookie (values `"true"` / `"false"`). In a server-rendered app, read the cookie on the server and pass it back as `defaultCollapsed` so the sidebar restores without a flash:
+
+```tsx title="/app/page.tsx"
+import { cookies } from "next/headers";
+import { Assistant } from "./assistant";
+
+export default async function Page() {
+  const cookieStore = await cookies();
+  const collapsed = cookieStore.get("assistant-shell-collapsed")?.value === "true";
+  return <Assistant defaultCollapsed={collapsed} />;
+}
+```
+
+Without this, the sidebar renders expanded on the server and snaps to the persisted state after hydration.
+
+## Styling
+
+Every element carries a `data-slot="aui_shell-*"` attribute for CSS targeting without editing the component:
+
+| Slot                        | Element                                  |
+| --------------------------- | ---------------------------------------- |
+| `aui_shell-root`            | Outer layout container                   |
+| `aui_shell-sidebar`         | Desktop sidebar                          |
+| `aui_shell-sidebar-header`  | Logo and title row in the sidebar        |
+| `aui_shell-sidebar-scroll`  | Scrollable thread list area              |
+| `aui_shell-main`            | Main content surface                     |
+| `aui_shell-header`          | Top bar                                  |
+| `aui_shell-sidebar-toggle`  | Collapse toggle button                   |
+| `aui_shell-header-actions`  | Right-aligned header actions container   |
+| `aui_shell-thread-title`    | Active thread title                      |
+| `aui_shell-mobile-trigger`  | Mobile drawer menu button                |
+| `aui_shell-mobile-content`  | Thread list container in the drawer      |
+
+```css
+[data-slot="aui_shell-sidebar"] {
+  /* custom sidebar styles */
+}
+```
+
+## Related Components
+
+- [Thread](/docs/ui/thread) - The chat interface displayed in the main area
+- [ThreadList](/docs/ui/thread-list) - The thread list rendered inside the sidebar
+- [AssistantSidebar](/docs/ui/assistant-sidebar) - Resizable side panel layout for co-pilot experiences
