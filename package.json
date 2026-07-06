@@ -9,7 +9,7 @@
     "docs:dev": "turbo run dev --filter=@assistant-ui/docs",
     "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
-    "build": "turbo build",
+    "build": "turbo build --concurrency=4",
     "api-surface": "pnpm api-surface:build && node scripts/generate-api-surface.mjs",
     "api-surface:build": "pnpm exec turbo build --filter='./packages/*' --force",
     "api-surface:check": "node scripts/check-api-surface.mjs",
