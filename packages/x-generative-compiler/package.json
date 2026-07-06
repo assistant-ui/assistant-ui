@@ -44,7 +44,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/babel__generator": "^7.27.0",
     "@types/babel__traverse": "^7.28.0",
-    "@types/node": "^26.0.0",
+    "@types/node": "^26.1.0",
     "@types/semver": "^7.7.1",
     "vitest": "^4.1.9"
   },
