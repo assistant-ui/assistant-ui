@@ -54,7 +54,7 @@
     "fflate": "^0.8.3",
     "fumadocs-core": "16.10.5",
     "fumadocs-mdx": "^15.0.13",
-    "fumadocs-ui": "^16.10.7",
+    "fumadocs-ui": "16.10.5",
     "geist": "^1.7.2",
     "heat-graph": "workspace:*",
     "input-otp": "^1.4.2",
