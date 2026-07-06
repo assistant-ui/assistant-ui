@@ -239,6 +239,72 @@ describe("ComposerInput", () => {
       expect(input.style.overflowX).toBe("hidden");
     });
 
+    it("shrinks back below max height after content is deleted", async () => {
+      h.composerState.text = "line 1";
+      const input = await mount({
+        multiline: true,
+        style: { maxHeight: 40 },
+      });
+      expect(input.tagName).toBe("TEXTAREA");
+
+      let scrollHeight = 120;
+      Object.defineProperty(input, "scrollHeight", {
+        configurable: true,
+        get: () => scrollHeight,
+      });
+
+      h.composerState.text = "line 1\nline 2\nline 3";
+      await act(async () => {
+        root.render(<ComposerInput multiline style={{ maxHeight: 40 }} />);
+      });
+
+      expect(input.style.height).toBe("40px");
+      expect(input.style.overflowY).toBe("auto");
+
+      scrollHeight = 24;
+      h.composerState.text = "line 1";
+      await act(async () => {
+        root.render(<ComposerInput multiline style={{ maxHeight: 40 }} />);
+      });
+
+      expect(input.style.height).toBe("24px");
+      expect(input.style.overflowY).toBe("hidden");
+    });
+
+    it("prefers computed maxHeight over raw CSS unit parsing", async () => {
+      h.composerState.text = "line 1";
+      const computedStyleSpy = vi
+        .spyOn(globalThis, "getComputedStyle")
+        .mockImplementation((() => ({
+          maxHeight: "64px",
+        })) as typeof getComputedStyle);
+
+      try {
+        const input = await mount({
+          multiline: true,
+          style: { maxHeight: "4rem" as never },
+        });
+        expect(input.tagName).toBe("TEXTAREA");
+
+        Object.defineProperty(input, "scrollHeight", {
+          configurable: true,
+          value: 80,
+        });
+
+        h.composerState.text = "line 1\nline 2\nline 3";
+        await act(async () => {
+          root.render(
+            <ComposerInput multiline style={{ maxHeight: "4rem" as never }} />,
+          );
+        });
+
+        expect(input.style.height).toBe("64px");
+        expect(input.style.overflowY).toBe("auto");
+      } finally {
+        computedStyleSpy.mockRestore();
+      }
+    });
+
     it("forwards keydown events to a consumer onKeyPress handler", async () => {
       const onKeyPress = vi.fn();
       const input = await mount({ onKeyPress });
