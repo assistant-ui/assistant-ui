@@ -27,6 +27,11 @@ export function Provider({ children }: { children: React.ReactNode }) {
 }
 ```
 
+When `protocol` is omitted, the runtime detects `x-vercel-ai-data-stream: v1`
+responses as the legacy data-stream wire format and otherwise falls back to the
+UI message stream format. Set `protocol` explicitly only for custom endpoints
+that do not preserve or expose the response marker.
+
 ## See also
 
 - `@assistant-ui/react-ai-sdk` for direct Vercel AI SDK integration with frontend tool forwarding.
