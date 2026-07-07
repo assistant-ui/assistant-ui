@@ -465,6 +465,10 @@ const MANUAL_CLASSIFICATIONS = new Map<
     { section: "hooks", page: "primitives", role: "related" },
   ],
   [
+    "RuntimeStatusReason",
+    { section: "hooks", page: "primitives", role: "related" },
+  ],
+  [
     "RuntimeStatusType",
     { section: "hooks", page: "primitives", role: "related" },
   ],

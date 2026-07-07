@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { MessageState } from "../../store/scopes/message";
+import type { MessageStatus } from "../../types/message";
+import { getMessageError } from "./useMessageError";
 
 /**
  * High-level runtime phase derived from the current thread state.
@@ -10,8 +12,18 @@ export type RuntimeStatusType =
   | "idle"
   | "loading"
   | "running"
+  | "requires-action"
   | "error"
-  | "cancelled";
+  | "cancelled"
+  | "incomplete";
+
+/**
+ * Terminal message status reason surfaced by {@link RuntimeStatus}.
+ */
+export type RuntimeStatusReason = Extract<
+  MessageStatus,
+  { type: "requires-action" | "incomplete" }
+>["reason"];
 
 /**
  * Derived runtime status for badges, toasts, retry controls, and loading UI.
@@ -21,9 +33,12 @@ export type RuntimeStatus = {
   readonly isIdle: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
+  readonly isRequiresAction: boolean;
   readonly isError: boolean;
   readonly isCancelled: boolean;
+  readonly isIncomplete: boolean;
   readonly isDisabled: boolean;
+  readonly reason: RuntimeStatusReason | undefined;
   readonly error: ReadonlyJSONValue | undefined;
 };
 
@@ -34,8 +49,7 @@ export type RuntimeStatusInput = {
   readonly isLoading: boolean;
   readonly isRunning: boolean;
   readonly isDisabled?: boolean | undefined;
-  readonly error?: ReadonlyJSONValue | undefined;
-  readonly isCancelled?: boolean | undefined;
+  readonly messageStatus?: MessageStatus | undefined;
 };
 
 /**
@@ -46,29 +60,50 @@ export const getRuntimeStatus = ({
   isLoading,
   isRunning,
   isDisabled = false,
-  error,
-  isCancelled = false,
+  messageStatus,
 }: RuntimeStatusInput): RuntimeStatus => {
+  const reason =
+    messageStatus?.type === "requires-action" ||
+    messageStatus?.type === "incomplete"
+      ? messageStatus.reason
+      : undefined;
+  const error = getMessageError(messageStatus);
+
   const type: RuntimeStatusType = isLoading
     ? "loading"
     : isRunning
       ? "running"
-      : error !== undefined
-        ? "error"
-        : isCancelled
-          ? "cancelled"
-          : "idle";
+      : messageStatus?.type === "requires-action"
+        ? "requires-action"
+        : error !== undefined
+          ? "error"
+          : messageStatus?.type === "incomplete" &&
+              messageStatus.reason === "cancelled"
+            ? "cancelled"
+            : messageStatus?.type === "incomplete"
+              ? "incomplete"
+              : "idle";
 
   const activeError = type === "error" ? error : undefined;
+  const activeReason =
+    type === "requires-action" ||
+    type === "error" ||
+    type === "cancelled" ||
+    type === "incomplete"
+      ? reason
+      : undefined;
 
   return {
     type,
     isIdle: type === "idle",
     isLoading: type === "loading",
     isRunning: type === "running",
+    isRequiresAction: type === "requires-action",
     isError: type === "error",
     isCancelled: type === "cancelled",
+    isIncomplete: type === "incomplete",
     isDisabled,
+    reason: activeReason,
     error: activeError,
   };
 };
@@ -78,27 +113,12 @@ const getLastAssistantMessage = (
 ): MessageState | undefined =>
   messages.findLast((message) => message.role === "assistant");
 
-const getRuntimeError = (
-  messages: readonly MessageState[],
-): ReadonlyJSONValue | undefined => {
-  const status = getLastAssistantMessage(messages)?.status;
-  if (status?.type !== "incomplete" || status.reason !== "error") {
-    return undefined;
-  }
-  return status.error ?? "An error occurred";
-};
-
-const getRuntimeIsCancelled = (messages: readonly MessageState[]): boolean => {
-  const status = getLastAssistantMessage(messages)?.status;
-  return status?.type === "incomplete" && status.reason === "cancelled";
-};
-
 /**
  * Reads the current runtime status from the active assistant thread.
  *
  * Use this for app-level status badges, loading indicators, error toasts, and
  * retry UI without manually combining `thread.isLoading`, `thread.isRunning`,
- * `thread.isDisabled`, and terminal message errors.
+ * `thread.isDisabled`, terminal message errors, and terminal message status.
  *
  * @example
  * ```tsx
@@ -114,9 +134,8 @@ export const useRuntimeStatus = (): RuntimeStatus => {
   const isLoading = useAuiState((s) => s.thread.isLoading);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const isDisabled = useAuiState((s) => s.thread.isDisabled);
-  const error = useAuiState((s) => getRuntimeError(s.thread.messages));
-  const isCancelled = useAuiState((s) =>
-    getRuntimeIsCancelled(s.thread.messages),
+  const messageStatus = useAuiState(
+    (s) => getLastAssistantMessage(s.thread.messages)?.status,
   );
 
   return useMemo(
@@ -125,9 +144,8 @@ export const useRuntimeStatus = (): RuntimeStatus => {
         isLoading,
         isRunning,
         isDisabled,
-        error,
-        isCancelled,
+        messageStatus,
       }),
-    [error, isCancelled, isDisabled, isLoading, isRunning],
+    [isDisabled, isLoading, isRunning, messageStatus],
   );
 };

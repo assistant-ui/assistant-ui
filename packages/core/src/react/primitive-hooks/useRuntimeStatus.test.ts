@@ -10,9 +10,12 @@ describe("getRuntimeStatus", () => {
       isIdle: true,
       isLoading: false,
       isRunning: false,
+      isRequiresAction: false,
       isError: false,
       isCancelled: false,
+      isIncomplete: false,
       isDisabled: false,
+      reason: undefined,
       error: undefined,
     });
   });
@@ -22,15 +25,21 @@ describe("getRuntimeStatus", () => {
       getRuntimeStatus({
         isLoading: true,
         isRunning: true,
-        error: "boom",
-        isCancelled: true,
+        messageStatus: {
+          type: "incomplete",
+          reason: "error",
+          error: "boom",
+        },
       }),
     ).toMatchObject({
       type: "loading",
       isLoading: true,
       isRunning: false,
+      isRequiresAction: false,
       isError: false,
       isCancelled: false,
+      isIncomplete: false,
+      reason: undefined,
       error: undefined,
     });
   });
@@ -40,15 +49,21 @@ describe("getRuntimeStatus", () => {
       getRuntimeStatus({
         isLoading: false,
         isRunning: true,
-        error: "boom",
-        isCancelled: true,
+        messageStatus: {
+          type: "incomplete",
+          reason: "error",
+          error: "boom",
+        },
       }),
     ).toMatchObject({
       type: "running",
       isLoading: false,
       isRunning: true,
+      isRequiresAction: false,
       isError: false,
       isCancelled: false,
+      isIncomplete: false,
+      reason: undefined,
       error: undefined,
     });
   });
@@ -58,11 +73,16 @@ describe("getRuntimeStatus", () => {
       getRuntimeStatus({
         isLoading: false,
         isRunning: false,
-        error: { message: "boom" },
+        messageStatus: {
+          type: "incomplete",
+          reason: "error",
+          error: { message: "boom" },
+        },
       }),
     ).toMatchObject({
       type: "error",
       isError: true,
+      reason: "error",
       error: { message: "boom" },
     });
   });
@@ -72,11 +92,40 @@ describe("getRuntimeStatus", () => {
       getRuntimeStatus({
         isLoading: false,
         isRunning: false,
-        isCancelled: true,
+        messageStatus: { type: "incomplete", reason: "cancelled" },
       }),
     ).toMatchObject({
       type: "cancelled",
       isCancelled: true,
+      reason: "cancelled",
+    });
+  });
+
+  it("reports requires-action when idle while waiting on tools or human input", () => {
+    expect(
+      getRuntimeStatus({
+        isLoading: false,
+        isRunning: false,
+        messageStatus: { type: "requires-action", reason: "interrupt" },
+      }),
+    ).toMatchObject({
+      type: "requires-action",
+      isRequiresAction: true,
+      reason: "interrupt",
+    });
+  });
+
+  it("reports incomplete for non-error terminal incomplete reasons", () => {
+    expect(
+      getRuntimeStatus({
+        isLoading: false,
+        isRunning: false,
+        messageStatus: { type: "incomplete", reason: "content-filter" },
+      }),
+    ).toMatchObject({
+      type: "incomplete",
+      isIncomplete: true,
+      reason: "content-filter",
     });
   });
 

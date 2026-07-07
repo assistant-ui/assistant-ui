@@ -1,10 +1,14 @@
 import { useAuiState } from "@assistant-ui/store";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { MessageStatus } from "../../types/message";
+
+export const getMessageError = (
+  status: MessageStatus | undefined,
+): ReadonlyJSONValue | undefined =>
+  status?.type === "incomplete" && status.reason === "error"
+    ? (status.error ?? "An error occurred")
+    : undefined;
 
 export const useMessageError = () => {
-  return useAuiState((s) =>
-    s.message.status?.type === "incomplete" &&
-    s.message.status.reason === "error"
-      ? (s.message.status.error ?? "An error occurred")
-      : undefined,
-  );
+  return useAuiState((s) => getMessageError(s.message.status));
 };

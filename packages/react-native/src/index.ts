@@ -138,6 +138,7 @@ export {
   useRuntimeStatus,
   type RuntimeStatus,
   type RuntimeStatusInput,
+  type RuntimeStatusReason,
   type RuntimeStatusType,
 } from "@assistant-ui/core/react";
 

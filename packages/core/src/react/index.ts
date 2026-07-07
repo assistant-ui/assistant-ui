@@ -312,6 +312,7 @@ export {
   useRuntimeStatus,
   type RuntimeStatus,
   type RuntimeStatusInput,
+  type RuntimeStatusReason,
   type RuntimeStatusType,
 } from "./primitive-hooks/useRuntimeStatus";
 export { useComposerSend } from "./primitive-hooks/useComposerSend";
