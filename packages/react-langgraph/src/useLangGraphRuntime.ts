@@ -154,6 +154,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const toolResultBufferRef = useRef<
     Map<string, LangChainMessage & { type: "tool" }>
   >(new Map());
+  // A frontend tool result resolving while the streaming run is still draining
+  // is stashed here and sent from that run's completion callback, so run #2
+  // never starts while run #1 is in flight.
+  const inFlightRef = useRef(0);
+  const pendingResumeRef = useRef<LangChainMessage[] | null>(null);
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
@@ -194,14 +199,28 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
   ) => {
+    inFlightRef.current++;
     setIsRunning(true);
     // setIsRunning(false) flips atomically with the final reconcile via onComplete
-    return sendMessage(messages, config, () => setIsRunning(false));
+    return sendMessage(messages, config, (info) => {
+      if (info.aborted || info.error !== undefined)
+        pendingResumeRef.current = null;
+      inFlightRef.current--;
+      if (inFlightRef.current > 0) return;
+      const pending = pendingResumeRef.current;
+      if (pending) {
+        pendingResumeRef.current = null;
+        void handleSendMessage(pending, {});
+        return;
+      }
+      setIsRunning(false);
+    });
   };
 
   const runUserMessage = async (msg: AppendMessage) => {
     // A new turn abandons any half-collected parallel tool batch.
     toolResultBufferRef.current.clear();
+    pendingResumeRef.current = null;
     const cancellations =
       autoCancelPendingToolCalls !== false
         ? getPendingToolCalls(messages).map(
@@ -370,12 +389,17 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         },
       );
       if (!batch) return;
+      if (inFlightRef.current > 0) {
+        pendingResumeRef.current = batch;
+        return;
+      }
       // TODO reuse runconfig here!
       await handleSendMessage(batch, {});
     },
     onEdit: getCheckpointId
       ? async (msg) => {
           toolResultBufferRef.current.clear();
+          pendingResumeRef.current = null;
           const truncated = truncateLangChainMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -428,6 +452,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
               throw new Error("Runtime does not support reloading messages.");
 
             toolResultBufferRef.current.clear();
+            pendingResumeRef.current = null;
             const truncated = truncateLangChainMessages(
               threadMessagesRef.current,
               parentId,
@@ -471,6 +496,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       // drop stale callbacks and abort the pending load on thread switch/unmount
       const controller = new AbortController();
       toolResultBufferRef.current.clear();
+      pendingResumeRef.current = null;
       setIsLoadingThread(true);
       load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {

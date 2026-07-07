@@ -5,14 +5,17 @@ import type {
   AttachmentAdapter,
   RemoteThreadListAdapter,
 } from "@assistant-ui/core";
-import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
+import {
+  AssistantRuntimeProvider,
+  useAssistantTool,
+} from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { useLangGraphSend } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
 import type { LangChainMessage } from "./types";
 import type { LangGraphInterruptState } from "./useLangGraphMessages";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
 type LoadResult = {
   messages: LangChainMessage[];
@@ -799,6 +802,305 @@ describe("useLangGraphRuntime", () => {
 
       expect(auiResult.current.thread().getState().capabilities.queue).toBe(
         false,
+      );
+    });
+  });
+
+  describe("frontend tool-result resume defers to the draining run", () => {
+    const ToolRegistrar = ({
+      execute,
+    }: {
+      execute: (args: Record<string, unknown>) => Promise<unknown>;
+    }) => {
+      const tool = useMemo(
+        () =>
+          ({
+            toolName: "my_tool",
+            type: "frontend",
+            parameters: { type: "object", properties: {} },
+            execute,
+          }) as const,
+        [execute],
+      );
+      useAssistantTool(tool);
+      return null;
+    };
+
+    const wrapperWithTool = (
+      runtime: AssistantRuntime,
+      execute: (args: Record<string, unknown>) => Promise<unknown>,
+    ) => {
+      const Wrapper = ({ children }: { children: ReactNode }) => (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <ToolRegistrar execute={execute} />
+          {children}
+        </AssistantRuntimeProvider>
+      );
+      Wrapper.displayName = "TestWrapperWithTool";
+      return Wrapper;
+    };
+
+    const toolCallAiMessage = {
+      event: "messages/complete",
+      data: [
+        {
+          id: "ai-1",
+          type: "ai" as const,
+          content: "",
+          tool_calls: [{ id: "tc-1", name: "my_tool", args: {} }],
+        },
+      ],
+    };
+
+    const mountAndSend = async (
+      streamMock: ReturnType<typeof vi.fn>,
+      execute: (args: Record<string, unknown>) => Promise<unknown>,
+      options: Omit<Parameters<typeof useLangGraphRuntime>[0], "stream"> = {},
+    ) => {
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ ...options, stream: streamMock }),
+      );
+      const wrapper = wrapperWithTool(runtimeResult.current, execute);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+
+      await act(async () => {
+        auiResult.current.composer().setText("hi");
+        auiResult.current.composer().send();
+      });
+
+      return auiResult;
+    };
+
+    it("keeps isRunning true across the run seam and resumes once run #1 drains", async () => {
+      const gate1 = deferred<void>();
+      const gate2 = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield metadataEvent;
+          yield toolCallAiMessage;
+          await gate1.promise;
+          return;
+        }
+        yield metadataEvent;
+        await gate2.promise;
+      });
+      const execute = vi.fn(async () => ({ ok: true }));
+
+      const auiResult = await mountAndSend(streamMock, execute);
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+
+      // tool result is stashed, not sent, while run #1 is still in flight
+      expect(streamMock).toHaveBeenCalledTimes(1);
+      expect(auiResult.current.thread().getState().isRunning).toBe(true);
+
+      // draining run #1 chains the resume with no falling edge in between
+      await act(async () => {
+        gate1.resolve();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(auiResult.current.thread().getState().isRunning).toBe(true);
+
+      // the resume run settles isRunning back to false once it drains
+      await act(async () => {
+        gate2.resolve();
+      });
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+    });
+
+    it("starts the resume run only after run #1 is fully drained", async () => {
+      const gate1 = deferred<void>();
+      const order: string[] = [];
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          order.push("run1-start");
+          yield metadataEvent;
+          yield toolCallAiMessage;
+          await gate1.promise;
+          order.push("run1-drained");
+          return;
+        }
+        order.push("run2-start");
+        yield metadataEvent;
+      });
+      const execute = vi.fn(async () => ({ ok: true }));
+
+      await mountAndSend(streamMock, execute);
+
+      await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+      await act(async () => {
+        gate1.resolve();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+
+      expect(order).toEqual(["run1-start", "run1-drained", "run2-start"]);
+    });
+
+    it("resumes with the buffered ToolMessage batch as run #2's input", async () => {
+      const gate1 = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield metadataEvent;
+          yield toolCallAiMessage;
+          await gate1.promise;
+          return;
+        }
+        yield metadataEvent;
+      });
+      const execute = vi.fn(async () => ({ ok: true }));
+
+      await mountAndSend(streamMock, execute);
+
+      await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+      await act(async () => {
+        gate1.resolve();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-1", status: "success" },
+      ]);
+    });
+
+    it("sends a tool result that resolves after the run finished immediately", async () => {
+      const run1Gate = deferred<void>();
+      const executeGate = deferred<{ ok: boolean }>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield metadataEvent;
+          yield toolCallAiMessage;
+          await run1Gate.promise;
+          return;
+        }
+        yield metadataEvent;
+      });
+      const execute = vi.fn(() => executeGate.promise);
+
+      const auiResult = await mountAndSend(streamMock, execute);
+
+      await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+
+      // run #1 finishes while the tool is still executing (HITL / slow tool)
+      await act(async () => {
+        run1Gate.resolve();
+      });
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(true),
+      );
+      expect(streamMock).toHaveBeenCalledTimes(1);
+
+      // the post-run result is sent immediately, with no deferral
+      await act(async () => {
+        executeGate.resolve({ ok: true });
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-1" },
+      ]);
+    });
+
+    it("drops the stashed resume when run #1 is cancelled", async () => {
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        config: { abortSignal: AbortSignal },
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield metadataEvent;
+          yield toolCallAiMessage;
+          await new Promise<void>((_resolve, reject) => {
+            config.abortSignal.addEventListener("abort", () => {
+              const err = new Error("The operation was aborted.");
+              err.name = "AbortError";
+              reject(err);
+            });
+          });
+          return;
+        }
+        yield metadataEvent;
+      });
+      const execute = vi.fn(async () => ({ ok: true }));
+
+      const auiResult = await mountAndSend(streamMock, execute, {
+        unstable_allowCancellation: true,
+      });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+      expect(streamMock).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        auiResult.current.thread().cancelRun();
+      });
+
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+      expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("drops the stashed resume when run #1 reports a top-level error event", async () => {
+      const gate1 = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield metadataEvent;
+          yield toolCallAiMessage;
+          await gate1.promise;
+          yield { event: "error", data: { message: "graph failed" } };
+          return;
+        }
+        yield metadataEvent;
+      });
+      const execute = vi.fn(async () => ({ ok: true }));
+
+      const auiResult = await mountAndSend(streamMock, execute);
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+      expect(streamMock).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        gate1.resolve();
+      });
+
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+      expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("chains the resume when only a subgraph reports an error event", async () => {
+      const gate1 = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield metadataEvent;
+          yield toolCallAiMessage;
+          await gate1.promise;
+          yield { event: "error|subgraph", data: { message: "recoverable" } };
+          return;
+        }
+        yield metadataEvent;
+      });
+      const execute = vi.fn(async () => ({ ok: true }));
+
+      const auiResult = await mountAndSend(streamMock, execute);
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+      expect(streamMock).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        gate1.resolve();
+      });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
       );
     });
   });

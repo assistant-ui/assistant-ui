@@ -3052,6 +3052,10 @@ describe("useLangGraphMessages", {}, () => {
     });
 
     expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledWith({
+      aborted: false,
+      error: undefined,
+    });
   });
 
   it("invokes onComplete on abort path", async () => {
@@ -3096,6 +3100,69 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+    expect(onComplete).toHaveBeenCalledWith({
+      aborted: true,
+      error: undefined,
+    });
+  });
+
+  it("reports a top-level error event through onComplete", async () => {
+    const onComplete = vi.fn();
+    const errorData = { message: "graph failed" };
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "error", data: errorData },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ type: "human", content: "hi" }],
+        {},
+        onComplete,
+      );
+    });
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledWith({
+      aborted: false,
+      error: errorData,
+    });
+  });
+
+  it("does not report a subgraph error event through onComplete", async () => {
+    const onComplete = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "error|subgraph", data: { message: "recoverable" } },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ type: "human", content: "hi" }],
+        {},
+        onComplete,
+      );
+    });
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledWith({
+      aborted: false,
+      error: undefined,
     });
   });
 
