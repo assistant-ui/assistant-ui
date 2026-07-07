@@ -169,11 +169,34 @@ export function ExampleShowcase() {
     if (stackingAncestor instanceof HTMLElement) {
       stackingAncestor.style.zIndex = "50";
     }
+    // The panel stays in the page's DOM (no portal), so keep Tab focus inside
+    // by inerting every element outside its ancestor chain. Radix portals
+    // opened while zoomed mount into <body> afterwards and stay interactive.
+    const inertedSiblings: HTMLElement[] = [];
+    for (
+      let node: HTMLElement | null = panelRef.current;
+      node && node !== document.body;
+      node = node.parentElement
+    ) {
+      for (const sibling of node.parentElement?.children ?? []) {
+        if (
+          sibling !== node &&
+          sibling instanceof HTMLElement &&
+          !sibling.inert
+        ) {
+          sibling.inert = true;
+          inertedSiblings.push(sibling);
+        }
+      }
+    }
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
       if (stackingAncestor instanceof HTMLElement) {
         stackingAncestor.style.zIndex = "";
+      }
+      for (const sibling of inertedSiblings) {
+        sibling.inert = false;
       }
     };
   }, [isFullscreen, toggleFullscreen]);
