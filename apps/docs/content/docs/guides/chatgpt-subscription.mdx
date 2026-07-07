@@ -1,0 +1,97 @@
+---
+title: ChatGPT Subscription
+description: Run your assistant-ui app on your ChatGPT Plus or Pro subscription via Codex OAuth. Local development without an OpenAI API key.
+platforms: ["react"]
+---
+
+If you have a ChatGPT Plus or Pro subscription, you can run your assistant-ui app against it locally instead of paying per token with an API key. OpenAI's Codex CLI authenticates via OAuth and caches tokens on your machine; requests made with those tokens hit the Responses API endpoint at `chatgpt.com` and bill to your plan. The same mechanism powers Codex itself and a growing set of local agents.
+
+This is a personal-use setup for apps running on your own machine. For anything deployed or shared, use an API key.
+
+## Log in with Codex
+
+Authenticate once with the Codex CLI. The login flow runs OAuth in your browser and writes access and refresh tokens to `~/.codex/auth.json`:
+
+```sh
+npx @openai/codex login
+```
+
+Everything below reads that file; no environment variables or API keys are involved.
+
+## AI SDK route
+
+The community AI SDK provider [`openai-oauth-provider`](https://github.com/EvanZhouDev/openai-oauth) picks up `~/.codex/auth.json` automatically, refreshes tokens as needed, and supports streaming, tool calls, and reasoning traces.
+
+```sh
+npm install openai-oauth-provider
+```
+
+In your chat route, swap `@ai-sdk/openai` for the OAuth provider. Starting from the default assistant-ui template route, only the model changes; `frontendTools` and the UI message stream response work as before:
+
+```ts title="/app/api/chat/route.ts" {10}
+import { createOpenAIOAuth } from "openai-oauth-provider";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import {
+  type JSONSchema7,
+  streamText,
+  convertToModelMessages,
+  type UIMessage,
+} from "ai";
+
+const openai = createOpenAIOAuth();
+
+export async function POST(req: Request) {
+  const {
+    messages,
+    system,
+    tools,
+  }: {
+    messages: UIMessage[];
+    system?: string;
+    tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
+  } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-5.3-codex"),
+    messages: await convertToModelMessages(messages),
+    system,
+    tools: {
+      ...frontendTools(tools ?? {}),
+    },
+  });
+
+  return result.toUIMessageStreamResponse({
+    sendReasoning: true,
+  });
+}
+```
+
+The provider discovers which models your plan includes (for example `gpt-5.4` and `gpt-5.3-codex`) from your ChatGPT account.
+
+## Eve agents
+
+Eve's `defineAgent` accepts a provider-authored AI SDK `LanguageModel`, so the same provider drops into an eve agent config:
+
+```ts title="agent/agent.ts"
+import { defineAgent } from "eve";
+import { createOpenAIOAuth } from "openai-oauth-provider";
+
+export default defineAgent({
+  model: createOpenAIOAuth()("gpt-5.3-codex"),
+});
+```
+
+## OpenAI-compatible proxy
+
+For stacks that take an OpenAI base URL rather than an AI SDK model, the same package ships a local proxy:
+
+```sh
+npx openai-oauth
+# OpenAI-compatible endpoint ready at http://127.0.0.1:10531/v1
+```
+
+Point any OpenAI-compatible client at that URL; no API key is required.
+
+<Callout type="warn">
+  Your OAuth tokens live in `~/.codex/auth.json`, so this only works where that file exists. A deployed instance would bill every visitor to your subscription. `openai-oauth-provider` is an unofficial community package, available models depend on your ChatGPT plan, and OpenAI sanctions this auth flow for Codex tooling, so treat it as personal use.
+</Callout>
