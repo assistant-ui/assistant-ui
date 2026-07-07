@@ -6,7 +6,6 @@ import {
   toJSONSchema,
   type Tool,
   type McpServerConfig,
-  type ToolJSONSchema,
   type ToolModelOutputFunction,
 } from "assistant-stream";
 import type {
@@ -14,7 +13,7 @@ import type {
   Toolkit,
   ToolkitDefinition,
 } from "@assistant-ui/core/react";
-import { frontendTools } from "./frontendTools";
+import { frontendTools, type FrontendTools } from "./frontendTools";
 import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
 import {
   unwrapModelContentEnvelope,
@@ -94,7 +93,7 @@ export interface GenerativeToolsOptions {
    * alongside the `toolkit`; a server `execute` from `toolkit` takes precedence
    * over an uploaded entry of the same name.
    */
-  frontendTools?: Record<string, ToolJSONSchema>;
+  frontendTools?: FrontendTools;
 }
 
 export type AISDKToolkitOptions = {
@@ -105,7 +104,7 @@ export type AISDKToolkitToolsOptions = {
   /**
    * Tools uploaded by the frontend request body.
    */
-  frontend?: Record<string, ToolJSONSchema>;
+  frontend?: FrontendTools;
 };
 
 /**

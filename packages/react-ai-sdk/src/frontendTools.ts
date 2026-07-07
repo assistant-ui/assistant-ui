@@ -3,6 +3,9 @@ import type { ToolJSONSchema } from "assistant-stream";
 import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
 import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
 
+/** Frontend tool definitions uploaded by AssistantChatTransport. */
+export type FrontendTools = Record<string, ToolJSONSchema>;
+
 export const defaultToModelOutput = ({ output }: { output: unknown }) => {
   const { result, modelContent } = unwrapModelContentEnvelope(output);
   if (modelContent !== undefined) {
@@ -11,7 +14,7 @@ export const defaultToModelOutput = ({ output }: { output: unknown }) => {
   return toAISDKDefaultOutput(result);
 };
 
-export const frontendTools = (tools: Record<string, ToolJSONSchema>): ToolSet =>
+export const frontendTools = (tools: FrontendTools): ToolSet =>
   Object.fromEntries(
     Object.entries(tools).map(([name, t]) => [
       name,
