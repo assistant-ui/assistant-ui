@@ -83,14 +83,25 @@ export default defineAgent({
 
 ## OpenAI-compatible proxy
 
-For stacks that take an OpenAI base URL rather than an AI SDK model, the same package ships a local proxy:
+For stacks that take an OpenAI base URL rather than an AI SDK model, the same project publishes a sibling package, `openai-oauth`, whose CLI runs a local proxy:
 
 ```sh
 npx openai-oauth
 # OpenAI-compatible endpoint ready at http://127.0.0.1:10531/v1
 ```
 
-Point any OpenAI-compatible client at that URL; no API key is required.
+Point any OpenAI-compatible client at that URL. No real API key is involved, but most clients require one at construction, so pass a placeholder:
+
+```ts
+import { OpenAI } from "openai";
+
+const openai = new OpenAI({
+  baseURL: "http://127.0.0.1:10531/v1",
+  apiKey: "unused",
+});
+```
+
+The proxy binds to `127.0.0.1` by default; keep it that way, since any caller that can reach the endpoint bills your subscription.
 
 <Callout type="warn">
   Your OAuth tokens live in `~/.codex/auth.json`, so this only works where that file exists. A deployed instance would bill every visitor to your subscription. `openai-oauth-provider` is an unofficial community package, available models depend on your ChatGPT plan, and OpenAI sanctions this auth flow for Codex tooling, so treat it as personal use.
