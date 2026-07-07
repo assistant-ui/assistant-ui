@@ -1969,7 +1969,9 @@ declare class AssistantChatTransport<UI_MESSAGE extends UIMessage> extends Defau
   __internal_setGetThreadListItem(getter: () => InitializableThreadListItem | undefined): void;
 }
 
-declare const frontendTools: (tools: Record<string, ToolJSONSchema>) => ToolSet;
+type FrontendTools = Record<string, ToolJSONSchema>;
+
+declare const frontendTools: (tools: FrontendTools) => ToolSet;
 
 declare function injectQuoteContext(messages: UIMessage[]): UIMessage[];
 
@@ -1994,7 +1996,7 @@ declare function useThreadTokenUsage(): ThreadTokenUsage | undefined;
 
 interface GenerativeToolsOptions {
   toolkit: Toolkit;
-  frontendTools?: Record<string, ToolJSONSchema>;
+  frontendTools?: FrontendTools;
 }
 
 type AISDKToolkitOptions = {
@@ -2002,7 +2004,7 @@ type AISDKToolkitOptions = {
 };
 
 type AISDKToolkitToolsOptions = {
-  frontend?: Record<string, ToolJSONSchema>;
+  frontend?: FrontendTools;
 };
 
 declare const generativeTools: (options: GenerativeToolsOptions) => ToolSet;
@@ -2015,7 +2017,7 @@ declare class AISDKToolkit {
 }
 
 declare namespace entry_root_exports {
-  export { AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, AssistantChatResumableOptions, AssistantChatTransport, GenerativeToolsOptions, RESUMABLE_STREAM_ID_HEADER, ResumableClientStorage, ThreadTokenUsage, TokenUsageExtractableMessage, UseChatRuntimeOptions, createResumableSessionStorage, frontendTools, generativeTools, getThreadMessageTokenUsage, injectQuoteContext, unstable_injectInteractableContext, useAISDKRuntime, useChatRuntime, useThreadTokenUsage };
+  export { AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, AssistantChatResumableOptions, AssistantChatTransport, FrontendTools, GenerativeToolsOptions, RESUMABLE_STREAM_ID_HEADER, ResumableClientStorage, ThreadTokenUsage, TokenUsageExtractableMessage, UseChatRuntimeOptions, createResumableSessionStorage, frontendTools, generativeTools, getThreadMessageTokenUsage, injectQuoteContext, unstable_injectInteractableContext, useAISDKRuntime, useChatRuntime, useThreadTokenUsage };
 }
 
 export { entry_root_exports as entry_root };
