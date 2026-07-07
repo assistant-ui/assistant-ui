@@ -158,7 +158,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   // is stashed here and sent from that run's completion callback, so run #2
   // never starts while run #1 is in flight.
   const inFlightRef = useRef(0);
-  const pendingResumeRef = useRef<LangChainMessage[] | null>(null);
+  const pendingResumeRef = useRef<
+    (LangChainMessage & { type: "tool" })[] | null
+  >(null);
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
@@ -376,9 +378,13 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       // resume the graph with the full batch in a single run. Sending each
       // result on its own would resume LangGraph while sibling tool calls of a
       // parallel turn are still executing.
+      // Stashed results are not in `messages` yet, so they must not count as
+      // pending or a later same-run tool call could never complete its batch.
+      const stashed = pendingResumeRef.current;
+      const stashedIds = new Set(stashed?.map((m) => m.tool_call_id));
       const batch = bufferToolResult(
         toolResultBufferRef.current,
-        getPendingToolCalls(messages),
+        getPendingToolCalls(messages).filter((t) => !stashedIds.has(t.id)),
         {
           type: "tool",
           name: toolName,
@@ -390,7 +396,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       );
       if (!batch) return;
       if (inFlightRef.current > 0) {
-        pendingResumeRef.current = batch;
+        pendingResumeRef.current = [
+          ...(stashed ?? []).filter(
+            (m) => !batch.some((b) => b.tool_call_id === m.tool_call_id),
+          ),
+          ...batch,
+        ];
         return;
       }
       // TODO reuse runconfig here!

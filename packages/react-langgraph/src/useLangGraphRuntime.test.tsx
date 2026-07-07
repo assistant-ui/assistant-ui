@@ -1103,5 +1103,61 @@ describe("useLangGraphRuntime", () => {
         expect(auiResult.current.thread().getState().isRunning).toBe(false),
       );
     });
+
+    it("merges a staggered same-run tool result into the stashed resume", async () => {
+      const gateB = deferred<void>();
+      const gateDrain = deferred<void>();
+      const staggeredAiMessage = {
+        event: "messages/complete",
+        data: [
+          {
+            id: "ai-1",
+            type: "ai" as const,
+            content: "",
+            tool_calls: [
+              { id: "tc-1", name: "my_tool", args: {} },
+              { id: "tc-2", name: "my_tool", args: {} },
+            ],
+          },
+        ],
+      };
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield metadataEvent;
+          yield toolCallAiMessage;
+          await gateB.promise;
+          yield staggeredAiMessage;
+          await gateDrain.promise;
+          return;
+        }
+        yield metadataEvent;
+      });
+      const execute = vi.fn(async () => ({ ok: true }));
+
+      const auiResult = await mountAndSend(streamMock, execute);
+
+      await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+      // flush so tool A's batch is stashed before tool B streams in
+      await act(async () => {});
+      expect(streamMock).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        gateB.resolve();
+      });
+      await waitFor(() => expect(execute).toHaveBeenCalledTimes(2));
+      expect(streamMock).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        gateDrain.resolve();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]![0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-1", status: "success" },
+        { type: "tool", tool_call_id: "tc-2", status: "success" },
+      ]);
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+    });
   });
 });
