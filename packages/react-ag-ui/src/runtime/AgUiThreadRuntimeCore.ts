@@ -58,6 +58,7 @@ type CoreOptions = {
   agent: AbstractAgent;
   logger: Logger;
   showThinking: boolean;
+  autoCancelPendingToolCalls?: boolean | undefined;
   onError?: (error: Error) => void;
   onCancel?: () => void;
   history?: ThreadHistoryAdapter;
@@ -70,6 +71,7 @@ export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
   private showThinking: boolean;
+  private autoCancelPendingToolCalls: boolean | undefined;
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
   private readonly notifyUpdate: () => void;
@@ -92,6 +94,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.history = options.history;
@@ -103,6 +106,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.history = options.history;
@@ -179,10 +183,24 @@ export class AgUiThreadRuntimeCore {
 
   async append(message: AppendMessage): Promise<void> {
     const startRun = message.startRun ?? message.role === "user";
-    if (startRun) this.assertNoPendingInterrupts();
+    if (startRun) {
+      this.assertNoPendingInterrupts();
+      this.maybeAutoCancelPendingToolCalls();
+    }
     const threadMessageId = this.appendEntry(message);
     if (!startRun) return;
     await this.startRun(threadMessageId, message.runConfig);
+  }
+
+  // Must run before appendEntry/resetHead: a parentId that points at an
+  // ancestor would truncate the pending assistant away before its tool calls
+  // can be cancelled, stranding it with a status that history never persists.
+  private maybeAutoCancelPendingToolCalls(): void {
+    if (this.autoCancelPendingToolCalls === false) return;
+    const pending = this.getPendingToolCalls();
+    if (!pending) return;
+    this.cancelUnresolvedToolCalls(pending.messageId);
+    this.maybeCompleteAfterToolResults(pending.messageId);
   }
 
   private appendEntry(message: AppendMessage): string {
@@ -209,6 +227,7 @@ export class AgUiThreadRuntimeCore {
     config: { runConfig?: RunConfig } = {},
   ): Promise<void> {
     this.assertNoPendingInterrupts();
+    this.maybeAutoCancelPendingToolCalls();
     this.resetHead(parentId);
     this.notifyUpdate();
     await this.startRun(parentId, config.runConfig);
