@@ -97,6 +97,35 @@ describe("auiV0Encode", () => {
       },
     ]);
   });
+
+  it("omits missing attachment contentType in the legacy cloud encoder", () => {
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      content: [{ type: "text", text: "please review this" }],
+      attachments: [
+        {
+          id: "att-1",
+          type: "document",
+          name: "notes.txt",
+          status: { type: "complete" },
+          content: [{ type: "text", text: "notes" }],
+        },
+      ],
+    });
+
+    expect(encoded.attachments).toEqual([
+      {
+        id: "att-1",
+        type: "document",
+        name: "notes.txt",
+        status: { type: "complete" },
+        content: [{ type: "text", text: "notes" }],
+      },
+    ]);
+  });
 });
 
 describe("auiV0Decode", () => {

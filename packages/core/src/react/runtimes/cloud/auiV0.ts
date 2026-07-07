@@ -78,7 +78,12 @@ type AuiV0AttachmentPart =
   | Unstable_AudioMessagePart
   | DataMessagePart<ReadonlyJSONValue>;
 
-type AuiV0Attachment = Omit<CompleteAttachment, "content" | "file"> & {
+type AuiV0Attachment = {
+  readonly id: string;
+  readonly type: CompleteAttachment["type"];
+  readonly name: string;
+  readonly contentType?: string;
+  readonly status: CompleteAttachment["status"];
   readonly content: readonly AuiV0AttachmentPart[];
 };
 
