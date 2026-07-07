@@ -13,7 +13,9 @@
 //   node scripts/template-metrics.mjs report <baseJson|""> <headJson> <outMd> [gateFile] [commentFile]
 //
 // report writes "pass"/"fail" to gateFile based on the regression thresholds
-// (env: MAX_LOC_INCREASE applied to total LOC, MAX_BUNDLE_INCREASE_KB).
+// (env: MAX_LOC_INCREASE applied to total LOC, MAX_BUNDLE_INCREASE_KB), or
+// "no-baseline" when there is nothing to compare against (evicted cache), so
+// the workflow can surface the unenforced gate instead of passing silently.
 
 import { execFileSync } from "node:child_process";
 import {
@@ -307,11 +309,15 @@ function report(baseJson, headJson, outMd, gateFile, commentFile) {
   }
 
   writeFileSync(outMd, lines.join("\n"));
-  if (gateFile) writeFileSync(gateFile, regressions.length ? "fail" : "pass");
+  if (gateFile)
+    writeFileSync(
+      gateFile,
+      !hasBaseline ? "no-baseline" : regressions.length ? "fail" : "pass",
+    );
   if (commentFile)
     writeFileSync(
       commentFile,
-      hasAnyLocChange || regressions.length ? "post" : "skip",
+      hasAnyLocChange || regressions.length || !hasBaseline ? "post" : "skip",
     );
 }
 

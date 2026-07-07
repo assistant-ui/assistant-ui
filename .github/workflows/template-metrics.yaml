@@ -134,12 +134,19 @@ jobs:
 
       # always(): run even if the comment step failed (e.g. fork 403), so the
       # gate verdict is never lost. Only blocks PRs; pushes refresh the baseline.
+      # A missing baseline (evicted cache) cannot be compared against, so the
+      # gate downgrades to a loud warning instead of passing as if it ran.
       - name: Enforce regression gate
         if: always() && github.event_name == 'pull_request'
         run: |
-          if [ "$(cat metrics-gate.txt 2>/dev/null)" = "fail" ]; then
+          verdict="$(cat metrics-gate.txt 2>/dev/null)"
+          if [ "$verdict" = "fail" ]; then
             echo "::error::Template metrics regressed past the configured limits. See the PR comment."
             exit 1
+          fi
+          if [ "$verdict" = "no-baseline" ]; then
+            echo "::warning::No main baseline was restored (cache evicted or never created); the regression gate was not enforced for this run. The next push to main touching templates/ or packages/ui/ recreates it."
+            exit 0
           fi
           echo "Template metrics within limits."
 
