@@ -245,7 +245,7 @@ export async function POST(req: Request) {
     system,
     messages: await convertToModelMessages(messages),
     tools: {
-      ...frontendTools(tools),
+      ...frontendTools(tools ?? {}),
       // your backend tools...
     },
   });
@@ -444,7 +444,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: getModel(config?.modelName),
     messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    tools: frontendTools(tools ?? {}),
   });
   return result.toUIMessageStreamResponse({
     messageMetadata: ({ part }) => {
