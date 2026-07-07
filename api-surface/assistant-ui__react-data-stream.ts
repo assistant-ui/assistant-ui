@@ -1493,6 +1493,8 @@ declare function toLanguageModelMessages(messages: readonly ThreadMessage[], opt
   unstable_includeId?: boolean | undefined;
 }): LanguageModelV2Message[];
 
+type DataStreamProtocol = "data-stream" | "ui-message-stream";
+
 type SamplingCallData = {
   model_id?: string;
   input_tokens?: number;
@@ -1755,8 +1757,6 @@ type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
 };
 
 type HeadersValue = Record<string, string> | Headers;
-
-type DataStreamProtocol = "data-stream" | "ui-message-stream";
 
 type UseDataStreamRuntimeOptions = {
   api: string;
