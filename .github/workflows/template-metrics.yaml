@@ -134,11 +134,21 @@ jobs:
 
       # always(): run even if the comment step failed (e.g. fork 403), so the
       # gate verdict is never lost. Only blocks PRs; pushes refresh the baseline.
+      # A maintainer accepts a deliberate increase by applying the
+      # template-loc-ok label. Labels are read at run time (the event payload is
+      # stale), so labeling plus a re-run flips the verdict without a new push;
+      # merging refreshes the baseline, so the acceptance never carries over.
       - name: Enforce regression gate
         if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$(cat metrics-gate.txt 2>/dev/null)" = "fail" ]; then
-            echo "::error::Template metrics regressed past the configured limits. See the PR comment."
+            if gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" --jq '.labels[].name' | grep -qx "template-loc-ok"; then
+              echo "::notice::Template metrics exceed the limits; increase accepted via the template-loc-ok label."
+              exit 0
+            fi
+            echo "::error::Template metrics regressed past the configured limits. See the PR comment. A maintainer can accept a deliberate increase by applying the template-loc-ok label and re-running this check."
             exit 1
           fi
           echo "Template metrics within limits."
