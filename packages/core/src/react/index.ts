@@ -307,6 +307,13 @@ export { useThreadMessages } from "./primitive-hooks/useThreadMessages";
 export { unstable_useThreadMessageIds } from "./primitive-hooks/useThreadMessageIds";
 export { useThreadIsRunning } from "./primitive-hooks/useThreadIsRunning";
 export { useThreadIsEmpty } from "./primitive-hooks/useThreadIsEmpty";
+export {
+  getRuntimeStatus,
+  useRuntimeStatus,
+  type RuntimeStatus,
+  type RuntimeStatusInput,
+  type RuntimeStatusType,
+} from "./primitive-hooks/useRuntimeStatus";
 export { useComposerSend } from "./primitive-hooks/useComposerSend";
 export { useComposerCancel } from "./primitive-hooks/useComposerCancel";
 export { useComposerDictate } from "./primitive-hooks/useComposerDictate";

@@ -177,7 +177,14 @@ export {
   SuggestionByIndexProvider,
 } from "@assistant-ui/core/react";
 
-export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
+export {
+  getRuntimeStatus,
+  unstable_useThreadMessageIds,
+  useRuntimeStatus,
+  type RuntimeStatus,
+  type RuntimeStatusInput,
+  type RuntimeStatusType,
+} from "@assistant-ui/core/react";
 
 // Model context, tools & clients
 export {

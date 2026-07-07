@@ -3,7 +3,7 @@ title: Primitive Hooks
 description: Primitive hooks for reading scoped assistant-ui runtime state, viewport behavior, timing, and message part data inside React components.
 ---
 
-import { unstable_useComposerInput, unstable_useMessageStallDetection, useAssistantRuntime, useAttachmentRuntime, useCloudThreadListAdapter, useComposerRuntime, useEditComposerAttachmentRuntime, useMessageAttachmentRuntime, useMessagePartData, useMessagePartRuntime, useMessageRuntime, useScrollLock, useThreadComposerAttachmentRuntime, useThreadListItemRuntime, useThreadRuntime, useThreadViewportAutoScroll } from "@/generated/typeDocs";
+import { RuntimeStatus, RuntimeStatusInput, RuntimeStatusType, unstable_useComposerInput, unstable_useMessageStallDetection, useAssistantRuntime, useAttachmentRuntime, useCloudThreadListAdapter, useComposerRuntime, useEditComposerAttachmentRuntime, useMessageAttachmentRuntime, useMessagePartData, useMessagePartRuntime, useMessageRuntime, useScrollLock, useThreadComposerAttachmentRuntime, useThreadListItemRuntime, useThreadRuntime, useThreadViewportAutoScroll } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -86,6 +86,27 @@ type RuntimeAdapters = {
 const useRuntimeAdapters: () => RuntimeAdapters | null;
 ```
 
+### useRuntimeStatus
+
+Reads the current runtime status from the active assistant thread.
+
+Use this for app-level status badges, loading indicators, error toasts, and
+retry UI without manually combining `thread.isLoading`, `thread.isRunning`,
+`thread.isDisabled`, and terminal message errors.
+
+```tsx
+import { useRuntimeStatus } from "@assistant-ui/react";
+
+function RuntimeBadge() {
+  const status = useRuntimeStatus();
+  return <span data-status={status.type}>{status.type}</span>;
+}
+```
+
+```ts
+const useRuntimeStatus: () => RuntimeStatus;
+```
+
 ### useScrollLock
 
 Locks scroll position during collapsible/height animations and hides scrollbar.
@@ -135,6 +156,33 @@ const useThreadViewport: { (): ThreadViewportState; <TSelected>(selector: (state
 ```ts
 const useThreadViewportStore: { (): ReadonlyStore<ThreadViewportState>; (options: { optional: true; }): ReadonlyStore<ThreadViewportState> | null; };
 ```
+
+### getRuntimeStatus
+
+Derives a high-level status from runtime booleans and the latest terminal
+message state.
+
+```ts
+const getRuntimeStatus: ({ isLoading, isRunning, isDisabled, error, isCancelled, }: RuntimeStatusInput) => RuntimeStatus;
+```
+
+### RuntimeStatus
+
+Derived runtime status for badges, toasts, retry controls, and loading UI.
+
+<ParametersTable {...RuntimeStatus} />
+
+### RuntimeStatusInput
+
+State fields used by [getRuntimeStatus](/docs/api-reference/hooks/primitives#getruntimestatus).
+
+<ParametersTable {...RuntimeStatusInput} />
+
+### RuntimeStatusType
+
+High-level runtime phase derived from the current thread state.
+
+<ParametersTable {...RuntimeStatusType} />
 
 ### unstable_useComposerInput
 

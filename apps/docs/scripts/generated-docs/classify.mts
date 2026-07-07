@@ -455,6 +455,23 @@ const MANUAL_CLASSIFICATIONS = new Map<
     "ExportedMessageRepository",
     { section: "adapters", page: "persistence", role: "primary" },
   ],
+  [
+    "getRuntimeStatus",
+    { section: "hooks", page: "primitives", role: "related" },
+  ],
+  ["RuntimeStatus", { section: "hooks", page: "primitives", role: "related" }],
+  [
+    "RuntimeStatusInput",
+    { section: "hooks", page: "primitives", role: "related" },
+  ],
+  [
+    "RuntimeStatusType",
+    { section: "hooks", page: "primitives", role: "related" },
+  ],
+  [
+    "useRuntimeStatus",
+    { section: "hooks", page: "primitives", role: "primary" },
+  ],
 ]);
 
 export function classifyExport(input: ClassificationInput): Classification {

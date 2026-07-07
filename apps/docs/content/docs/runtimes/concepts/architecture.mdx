@@ -136,6 +136,21 @@ A few things follow predictable patterns regardless of layer:
 - **Threads** (single, cloud, custom database) work via a shared `RemoteThreadListAdapter` for `LocalRuntime`-based runtimes and a separate `ExternalStoreThreadListAdapter` for `ExternalStoreRuntime`. See [threads](/docs/runtimes/concepts/threads).
 - **Unstable APIs** are surfaced with an `unstable_` prefix and may change in any release. See [stability](/docs/runtimes/concepts/stability).
 
+## Runtime status
+
+Use `useRuntimeStatus()` when app chrome needs one status value for badges, loading indicators, error toasts, or retry controls.
+
+```tsx
+import { useRuntimeStatus } from "@assistant-ui/react";
+
+function RuntimeBadge() {
+  const status = useRuntimeStatus();
+  return <span data-status={status.type}>{status.type}</span>;
+}
+```
+
+The hook derives `idle`, `loading`, `running`, `error`, and `cancelled` from the active thread state and terminal assistant message status.
+
 ## Choosing a layer
 
 Start at the top, descend only when blocked.

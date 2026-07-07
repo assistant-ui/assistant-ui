@@ -240,6 +240,11 @@ export {
   type Unstable_InteractablesConfig,
   useToolArgsStatus,
   type ToolArgsStatus,
+  getRuntimeStatus,
+  useRuntimeStatus,
+  type RuntimeStatus,
+  type RuntimeStatusInput,
+  type RuntimeStatusType,
 } from "@assistant-ui/core/react";
 
 export type {
