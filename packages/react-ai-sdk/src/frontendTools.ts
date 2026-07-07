@@ -14,10 +14,10 @@ export const defaultToModelOutput = ({ output }: { output: unknown }) => {
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const validateFrontendTool = (
+function validateFrontendTool(
   name: string,
   tool: unknown,
-): asserts tool is ToolJSONSchema => {
+): asserts tool is ToolJSONSchema {
   if (!isPlainObject(tool)) {
     throw new Error(
       `frontendTools() expected tool "${name}" to be an object with a JSON Schema parameters object.`,
@@ -44,11 +44,11 @@ const validateFrontendTool = (
       `frontendTools() expected tool "${name}" providerOptions to be an object.`,
     );
   }
-};
+}
 
-const validateFrontendTools = (
+function validateFrontendTools(
   tools: unknown,
-): asserts tools is Record<string, ToolJSONSchema> => {
+): asserts tools is Record<string, ToolJSONSchema> {
   if (!isPlainObject(tools)) {
     throw new Error(
       "frontendTools() expected tools to be an object keyed by tool name.",
@@ -58,7 +58,7 @@ const validateFrontendTools = (
   for (const [name, tool] of Object.entries(tools)) {
     validateFrontendTool(name, tool);
   }
-};
+}
 
 export const frontendTools = (
   tools: Record<string, ToolJSONSchema>,
