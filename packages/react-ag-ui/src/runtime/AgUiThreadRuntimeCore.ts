@@ -89,7 +89,7 @@ const getRepositoryBranchMessages = (
 
   if (!item) return fallbackMessages();
 
-  while (item) {
+  while (true) {
     const id = item.message.id;
     if (visited.has(id)) return fallbackMessages();
 
