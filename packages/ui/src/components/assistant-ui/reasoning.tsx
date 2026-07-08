@@ -347,7 +347,6 @@ export const stripReasoningMarkdown = (text: string) =>
 
 const ReasoningImpl: ReasoningMessagePartComponent = ({ text, status }) => {
   const running = status?.type === "running";
-  const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
 
   const paragraphs = (text ?? "")
     .split(/\n\s*\n/)
@@ -370,11 +369,7 @@ const ReasoningImpl: ReasoningMessagePartComponent = ({ text, status }) => {
   }
 
   return (
-    <ReasoningRoot
-      variant="ghost"
-      open={userExpanded ?? running}
-      onOpenChange={setUserExpanded}
-    >
+    <ReasoningRoot variant="ghost" streaming={running}>
       <ReasoningTrigger label={headline} active={running} />
       <CollapsibleContent
         data-slot="reasoning-panel"

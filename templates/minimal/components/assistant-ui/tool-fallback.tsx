@@ -92,6 +92,7 @@ function ToolFallbackRoot({
 }
 
 const prettifyToolName = (toolName: string) => {
+  if (!toolName) return "Tool";
   const words = toolName.replace(/[_-]+/g, " ").trim();
   return words.length === 0
     ? toolName
@@ -769,7 +770,9 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
 
   let prettyArgs = argsText;
   if (args && typeof args === "object" && Object.keys(args).length > 0) {
-    prettyArgs = JSON.stringify(args, null, 2);
+    try {
+      prettyArgs = JSON.stringify(args, null, 2);
+    } catch {}
   }
   const showArgs = prettyArgs !== undefined && prettyArgs !== "{}";
 
