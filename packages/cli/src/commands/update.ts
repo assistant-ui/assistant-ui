@@ -23,7 +23,18 @@ export const update = new Command()
       process.exit(1);
     }
 
-    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+    let pkg: Record<string, Record<string, string> | undefined>;
+    try {
+      pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+    } catch {
+      logger.error("Could not parse package.json.");
+      logger.info(`Package path: ${packageJsonPath}`);
+      logger.info(
+        "Fix the JSON syntax in that file, then run: assistant-ui update",
+      );
+      logger.info("No changes were written.");
+      process.exit(1);
+    }
     const sections = ["dependencies", "devDependencies"];
     const targets: string[] = [];
 
