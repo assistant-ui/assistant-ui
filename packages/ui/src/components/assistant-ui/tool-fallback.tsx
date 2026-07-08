@@ -156,9 +156,7 @@ const collectResults = (result: unknown) => {
 };
 
 type ToolPreset = {
-  /** Row label while the call is in flight, e.g. "Searching web". */
   running: string;
-  /** Row label once the call settled, e.g. "Searched web". */
   done: string;
   icon: React.ReactNode;
 };
