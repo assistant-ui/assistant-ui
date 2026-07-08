@@ -97,7 +97,7 @@ The component consists of two parts:
 
 Consecutive reasoning parts are grouped by `MessagePrimitive.GroupedParts`. Use the composable API below to control the grouped layout.
 
-> When using the composable API, `ReasoningText` is a plain container. Add `<MarkdownText />` for markdown rendering.
+> When using the composable API, `ReasoningText` renders a Radix ScrollArea with a built-in auto-hiding scrollbar — content taller than `max-h-64` scrolls and pins to the bottom while streaming. Add `<MarkdownText />` for markdown rendering. To customize scroll behavior, target the `reasoning-text-viewport` slot (the scrolling element, which carries the max height) or the `reasoning-scrollbar` / `reasoning-scrollbar-thumb` slots.
 
 ## Variants
 
@@ -160,7 +160,7 @@ All sub-components are exported for custom layouts:
 | `ReasoningRoot`      | Collapsible container with scroll lock     |
 | `ReasoningTrigger`   | Button with icon, label, and shimmer       |
 | `ReasoningContent`   | Animated collapsible content wrapper       |
-| `ReasoningText`      | Text wrapper with slide/fade animation     |
+| `ReasoningText`      | Scroll area with slide/fade animation      |
 | `ReasoningFade`      | Gradient fade overlay at bottom            |
 
 ```tsx
