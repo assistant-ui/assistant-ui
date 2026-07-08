@@ -190,13 +190,25 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     [uiMessagesByParent, messageTiming],
   );
 
+  // A frontend tool result starts run #2 before run #1's onComplete fires
+  // (the runs overlap while run #1 drains its tail). A plain boolean lets
+  // run #1's settle clobber run #2's in-flight flag, so isRunning drops to
+  // false between the tool result and run #2's first event. Count pending
+  // runs instead and only clear the flag when the last run settles.
+  const pendingRunsRef = useRef(0);
   const handleSendMessage = (
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
   ) => {
+    pendingRunsRef.current++;
     setIsRunning(true);
-    // setIsRunning(false) flips atomically with the final reconcile via onComplete
-    return sendMessage(messages, config, () => setIsRunning(false));
+    return sendMessage(messages, config, () => {
+      pendingRunsRef.current--;
+      if (pendingRunsRef.current <= 0) {
+        pendingRunsRef.current = 0;
+        setIsRunning(false);
+      }
+    });
   };
 
   const runUserMessage = async (msg: AppendMessage) => {

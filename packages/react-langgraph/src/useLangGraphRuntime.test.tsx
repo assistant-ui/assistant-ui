@@ -802,4 +802,119 @@ describe("useLangGraphRuntime", () => {
       );
     });
   });
+
+  describe("overlapping runs (frontend tool result resume)", () => {
+    it("keeps isRunning true across the run #1 -> run #2 seam", async () => {
+      // Run #1 streams a tool call, then holds open (draining its tail) on
+      // gate1. The tool result starts run #2 (held on gate2) while run #1 is
+      // still in flight, so the runs overlap. isRunning must stay true until
+      // the last run settles, not flip to false when run #1 completes.
+      const gate1 = deferred<void>();
+      const gate2 = deferred<void>();
+      const run1Settled = vi.fn();
+
+      const toolCallChunk = {
+        id: "ai-tool-1",
+        content: "",
+        additional_kwargs: {},
+        type: "AIMessageChunk" as const,
+        name: null,
+        tool_calls: [] as unknown[],
+        invalid_tool_calls: [] as unknown[],
+        tool_call_chunks: [
+          { id: "tc-1", name: "get_weather", args: '{"city":"NYC"}', index: 0 },
+        ],
+      };
+
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        config: { abortSignal: AbortSignal },
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield metadataEvent;
+          yield {
+            event: "messages",
+            data: [toolCallChunk, { run_attempt: 1 }],
+          };
+          await Promise.race([
+            gate1.promise,
+            new Promise<void>((resolve) =>
+              config.abortSignal.addEventListener("abort", () => resolve(), {
+                once: true,
+              }),
+            ),
+          ]);
+          run1Settled();
+        } else {
+          yield metadataEvent;
+          await Promise.race([
+            gate2.promise,
+            new Promise<void>((resolve) =>
+              config.abortSignal.addEventListener("abort", () => resolve(), {
+                once: true,
+              }),
+            ),
+          ]);
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(
+        () => useLangGraphRuntime({ stream: streamMock }),
+        {},
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      const send = async (text: string) => {
+        await act(async () => {
+          auiResult.current.composer().setText(text);
+          auiResult.current.composer().send();
+        });
+      };
+
+      await send("use the tool");
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(true),
+      );
+
+      // the assistant tool-call message is present
+      await waitFor(() => {
+        const messages = auiResult.current.thread().getState().messages;
+        expect(messages.some((m) => m.id === "ai-tool-1")).toBe(true);
+      });
+
+      // posting the tool result starts run #2 while run #1 is still draining
+      await act(async () => {
+        auiResult.current
+          .thread()
+          .message({ id: "ai-tool-1" })
+          .part({ toolCallId: "tc-1" })
+          .addToolResult({ temp: 72 });
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(auiResult.current.thread().getState().isRunning).toBe(true);
+
+      // run #1 settles (its tail drains) — run #2 is still in flight, so the
+      // flag must NOT drop to false here. With a plain boolean, run #1's
+      // onComplete would clobber run #2's in-flight true.
+      await act(async () => {
+        gate1.resolve();
+      });
+      await waitFor(() => expect(run1Settled).toHaveBeenCalledTimes(1));
+      // flush the onComplete microtask tail before re-reading
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(auiResult.current.thread().getState().isRunning).toBe(true);
+
+      // the last run settling clears the flag
+      await act(async () => {
+        gate2.resolve();
+      });
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+    });
+  });
 });
