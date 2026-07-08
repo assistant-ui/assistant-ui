@@ -17,7 +17,7 @@ export type SerialRunQueue<TPayload> = {
  * `run` receives an `onComplete` callback to invoke atomically with its final
  * state flush; the queue reports `onRunningChange(false)` through it only when
  * nothing else is queued, so back-to-back runs form one continuous running
- * window.
+ * window. `onRunningChange` fires on transitions only.
  *
  * A run that rejects drops the payloads queued behind it (their promises
  * resolve without running) and rejects its own promise. `drop()` does the same
@@ -32,6 +32,13 @@ export const createSerialRunQueue = <TPayload>({
 }): SerialRunQueue<TPayload> => {
   const queue: QueuedRun<TPayload>[] = [];
   let draining = false;
+  let running = false;
+
+  const setRunning = (value: boolean) => {
+    if (running === value) return;
+    running = value;
+    onRunningChange(value);
+  };
 
   const drop = () => {
     for (const queued of queue.splice(0)) queued.resolve();
@@ -39,23 +46,24 @@ export const createSerialRunQueue = <TPayload>({
 
   const drain = async () => {
     draining = true;
-    onRunningChange(true);
     try {
       let queued: QueuedRun<TPayload> | undefined;
       while ((queued = queue.shift())) {
+        setRunning(true);
         try {
           await run(queued.payload, () => {
-            if (queue.length === 0) onRunningChange(false);
+            if (queue.length === 0) setRunning(false);
           });
           queued.resolve();
         } catch (error) {
           drop();
-          onRunningChange(false);
+          setRunning(false);
           queued.reject(error);
         }
       }
     } finally {
       draining = false;
+      setRunning(false);
     }
   };
 

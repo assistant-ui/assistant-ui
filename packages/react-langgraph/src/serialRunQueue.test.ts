@@ -88,6 +88,28 @@ describe("createSerialRunQueue", () => {
     expect(onRunningChange.mock.calls.map((c) => c[0])).toEqual([true, false]);
   });
 
+  it("re-asserts running for a payload enqueued after a mid-drain falling edge", async () => {
+    let queue!: ReturnType<typeof createSerialRunQueue<string>>;
+    let second: Promise<void> | undefined;
+    const run = vi.fn(async (payload: string, onComplete: () => void) => {
+      onComplete();
+      if (payload === "a") second = queue.enqueue("b");
+    });
+    const onRunningChange = vi.fn();
+    queue = createSerialRunQueue({ run, onRunningChange });
+
+    await queue.enqueue("a");
+    await second;
+
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(onRunningChange.mock.calls.map((c) => c[0])).toEqual([
+      true,
+      false,
+      true,
+      false,
+    ]);
+  });
+
   it("recovers after an error: the next enqueue starts a new drain", async () => {
     const run = vi.fn(async (payload: string, onComplete: () => void) => {
       onComplete();
