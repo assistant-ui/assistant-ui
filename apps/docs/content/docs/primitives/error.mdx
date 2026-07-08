@@ -113,6 +113,29 @@ Renders the current error text for the active message.
 
 ## Patterns
 
+### Runtime-Level Alert
+
+Use message errors for failures that belong next to a specific assistant message. If your app shell needs a toast, banner, or retry affordance for the active run, read the thread-level status with `useRuntimeStatus()`.
+
+```tsx
+import { useRuntimeStatus } from "@assistant-ui/react";
+
+function RuntimeErrorAlert() {
+  const status = useRuntimeStatus();
+
+  if (!status.isError) return null;
+
+  const message =
+    typeof status.error === "string"
+      ? status.error
+      : "The assistant failed to respond.";
+
+  return <div role="alert">{message}</div>;
+}
+```
+
+Runtime errors are runtime state, not React render errors. Keep React error boundaries for component crashes, and use `ErrorPrimitive` or `useRuntimeStatus()` for model, stream, tool, and adapter failures.
+
 ### Styled Error Alert
 
 ```tsx
