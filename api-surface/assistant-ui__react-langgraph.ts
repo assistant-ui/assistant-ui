@@ -2139,7 +2139,10 @@ declare const useLangGraphMessages: <TMessage extends {
   messages: TMessage[];
   messageMetadata: Map<string, LangGraphTupleMetadata>;
   uiMessages: UIMessage[];
-  sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: () => void) => Promise<void>;
+  sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: (info: {
+    aborted: boolean;
+    error: unknown;
+  }) => void) => Promise<void>;
   cancel: () => void;
   setInterrupt: import("react").Dispatch<import("react").SetStateAction<LangGraphInterruptState | undefined>>;
   setMessages: (msgs: TMessage[]) => void;

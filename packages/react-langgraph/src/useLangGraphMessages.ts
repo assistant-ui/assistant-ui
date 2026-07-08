@@ -213,10 +213,12 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     async (
       newMessages: TMessage[],
       config: LangGraphSendMessageConfig,
-      onComplete?: () => void,
+      onComplete?: (info: { aborted: boolean; error: unknown }) => void,
     ) => {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
+      let aborted = false;
+      let caughtError: unknown;
       try {
         // ensure all messages have an ID
         const newMessagesWithId = newMessages.map((m) =>
@@ -355,6 +357,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               onError?.(chunk.data);
               // namespaced errors come from subgraphs, which the parent may recover from
               if (!eventNamespace) {
+                caughtError = chunk.data;
                 const messages = accumulator.getMessages();
                 const lastAiMessage = messages.findLast(
                   (m): m is TMessage & { type: string; id: string } =>
@@ -415,13 +418,18 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
           !abortController.signal.aborted &&
           !(error instanceof Error && error.name === "AbortError")
         ) {
+          caughtError = error;
           throw error;
         }
+        aborted = true;
       } finally {
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
         }
-        onComplete?.();
+        onComplete?.({
+          aborted: aborted || abortController.signal.aborted,
+          error: caughtError,
+        });
       }
     },
     [
