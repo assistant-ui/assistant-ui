@@ -333,7 +333,9 @@ const MermaidDiagramImpl: FC<MermaidDiagramProps> = ({
           className,
         )}
       >
-        <pre className="overflow-x-auto p-4 text-sm">{code.trim()}</pre>
+        <pre className="overflow-x-auto p-4 text-sm [scrollbar-color:var(--color-border)_transparent] [scrollbar-width:thin]">
+          {code.trim()}
+        </pre>
         <p className="text-muted-foreground border-border border-t px-4 py-1.5 text-xs">
           diagram could not be rendered
         </p>
