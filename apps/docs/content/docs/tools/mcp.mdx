@@ -368,6 +368,60 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
 </Step>
 <Step>
 
+### Require approval before an MCP tool runs
+
+MCP tools execute on the server, so approval is a server-side tool gate, not a
+`humanTool()` result. Add `needsApproval` to the MCP tool object before passing
+it to `streamText`. The tool name stays the same, so your custom renderer or
+the default `ToolFallback` receives `approval` and `respondToApproval` like any
+other backend tool:
+
+```ts title="app/api/chat/route.ts"
+const mcpTools = await mcpClient.tools();
+const deleteRepository = mcpTools.github_delete_repository;
+
+if (!deleteRepository) {
+  throw new Error('MCP tool "github_delete_repository" was not found.');
+}
+
+const tools = {
+  ...mcpTools,
+  github_delete_repository: {
+    ...deleteRepository,
+    needsApproval: true,
+  },
+};
+
+const result = streamText({
+  model: openai("gpt-5.4-mini"),
+  messages: await convertToModelMessages(messages),
+  tools,
+});
+```
+
+With `AISDKToolkit`, apply the same wrapping to the object returned by
+`await aiToolkit.tools(...)` before handing it to `streamText`.
+
+On the client, let the AI SDK send the recorded approval decision back to the
+route:
+
+```tsx title="app/components/RuntimeProvider.tsx"
+import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
+
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+});
+```
+
+Use this pattern for backend-owned actions such as deleting, writing, deploying,
+or calling privileged MCP tools. Use `humanTool()` only when the user supplies
+the tool result itself. For custom approval UIs, see
+[Server-side approval gates](/docs/tools/tool-ui#server-side-approval-gates).
+
+</Step>
+<Step>
+
 ### Run and verify
 
 Start the app and trigger a tool call (e.g., ask the assistant to do something the MCP server can do). Confirm:
