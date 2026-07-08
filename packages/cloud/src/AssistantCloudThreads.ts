@@ -7,7 +7,7 @@ type AssistantCloudThreadsListQuery = {
   after?: string;
 };
 
-type CloudThread = {
+export type CloudThread = {
   title: string;
   last_message_at: Date;
   metadata: unknown;
