@@ -1338,6 +1338,147 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getMessageRepository()).toBeUndefined();
   });
 
+  it("preserves branchable history while resuming loaded history", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const repository = ExportedMessageRepository.fromBranchableArray(
+      [
+        {
+          message: {
+            id: "msg-1",
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant",
+            content: [{ type: "text", text: "Option A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant",
+            content: [{ type: "text", text: "Option B" }],
+          },
+          parentId: "msg-1",
+        },
+      ],
+      { headId: "msg-2b" },
+    );
+
+    const resume = vi.fn(async function* (): AsyncGenerator<
+      ChatModelRunResult,
+      void,
+      unknown
+    > {
+      yield {
+        content: [{ type: "text", text: "recovered" }],
+        status: { type: "complete", reason: "unknown" },
+      };
+    });
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        ...repository,
+        unstable_resume: true,
+      }),
+      resume,
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.__internal_load();
+
+    expect(resume).toHaveBeenCalledTimes(1);
+    expect(runAgent).not.toHaveBeenCalled();
+
+    const messages = core.getMessages();
+    const assistant = messages.at(-1) as ThreadAssistantMessage;
+    expect(messages.map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2b",
+      assistant.id,
+    ]);
+    expect(assistant.content.at(-1)).toMatchObject({
+      type: "text",
+      text: "recovered",
+    });
+    expect(assistant.metadata.isOptimistic).toBeUndefined();
+
+    const loadedRepository = core.getMessageRepository();
+    expect(loadedRepository?.headId).toBe(assistant.id);
+    expect(
+      loadedRepository?.messages.map(({ message, parentId }) => ({
+        id: message.id,
+        parentId,
+      })),
+    ).toEqual([
+      { id: "msg-1", parentId: null },
+      { id: "msg-2a", parentId: "msg-1" },
+      { id: "msg-2b", parentId: "msg-1" },
+      { id: assistant.id, parentId: "msg-2b" },
+    ]);
+  });
+
+  it("falls back to flat loaded history when branchable history has duplicate ids", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      metadata: { custom: {} },
+    };
+    const firstAssistant: ThreadAssistantMessage = {
+      id: "msg-2",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "complete", reason: "unknown" },
+      content: [{ type: "text", text: "Option A" }],
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    const secondAssistant: ThreadAssistantMessage = {
+      ...firstAssistant,
+      content: [{ type: "text", text: "Option B" }],
+    };
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: "msg-2",
+        messages: [
+          { message: userMessage, parentId: null },
+          { message: firstAssistant, parentId: "msg-1" },
+          { message: secondAssistant, parentId: "msg-1" },
+        ],
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.__internal_load();
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2",
+      "msg-2",
+    ]);
+    expect(core.getMessageRepository()).toBeUndefined();
+  });
+
   it("returns existing promise if __internal_load called multiple times", async () => {
     const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
 
