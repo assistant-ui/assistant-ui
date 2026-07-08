@@ -1427,6 +1427,99 @@ describe("AGUIThreadRuntimeCore", () => {
     ]);
   });
 
+  it("does not rewrite a hidden branch when a resumed server id collides", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onTextMessageStartEvent?.({
+        event: {
+          type: "TEXT_MESSAGE_START",
+          messageId: "msg-2a",
+          role: "assistant",
+        },
+      });
+      subscriber.onTextMessageContentEvent?.({
+        event: {
+          type: "TEXT_MESSAGE_CONTENT",
+          messageId: "msg-2a",
+          delta: "server reused sibling id",
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const repository = ExportedMessageRepository.fromBranchableArray(
+      [
+        {
+          message: {
+            id: "msg-1",
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant",
+            content: [{ type: "text", text: "Option A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant",
+            content: [{ type: "text", text: "Option B" }],
+          },
+          parentId: "msg-1",
+        },
+      ],
+      { headId: "msg-2b" },
+    );
+    const append = vi.fn().mockResolvedValue(undefined);
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(repository),
+      append,
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+    await core.__internal_load();
+    await core.resume({
+      parentId: "msg-2b",
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+    });
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2b",
+    ]);
+    const loadedRepository = core.getMessageRepository();
+    expect(loadedRepository?.headId).toBe("msg-2b");
+    expect(
+      loadedRepository?.messages.map(({ message, parentId }) => ({
+        id: message.id,
+        parentId,
+        text:
+          message.content[0]?.type === "text" ? message.content[0].text : "",
+      })),
+    ).toEqual([
+      { id: "msg-1", parentId: null, text: "Hello" },
+      { id: "msg-2a", parentId: "msg-1", text: "Option A" },
+      { id: "msg-2b", parentId: "msg-1", text: "Option B" },
+    ]);
+    expect(
+      loadedRepository?.messages.filter(
+        ({ message }) => message.id === "msg-2a",
+      ),
+    ).toHaveLength(1);
+    expect(
+      loadedRepository?.messages.some(({ message }) =>
+        message.id.startsWith("__optimistic__"),
+      ),
+    ).toBe(false);
+    expect(append).not.toHaveBeenCalled();
+  });
+
   it("falls back to flat loaded history when branchable history has duplicate ids", async () => {
     const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
     const userMessage: ThreadMessage = {

@@ -125,6 +125,11 @@ const hasDuplicateMessageIds = (repository: ExportedMessageRepository) => {
   return false;
 };
 
+const repositoryHasMessageId = (
+  repository: ExportedMessageRepository,
+  messageId: string,
+) => repository.messages.some(({ message }) => message.id === messageId);
+
 export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
@@ -1065,11 +1070,15 @@ export class AgUiThreadRuntimeCore {
   private reassignAssistantId(oldId: string, newId: string): void {
     if (oldId === newId) return;
 
-    const collidesWithExisting = this.messages.some((m) => m.id === newId);
+    const collidesWithExisting =
+      this.messages.some((m) => m.id === newId) ||
+      (this.messageRepository
+        ? repositoryHasMessageId(this.messageRepository, newId)
+        : false);
 
     if (collidesWithExisting) {
       this.logger.debug?.(
-        "[agui] reassignAssistantId: server id already present in messages, dropping placeholder",
+        "[agui] reassignAssistantId: server id already present in messages or repository, dropping placeholder",
         { oldId, newId },
       );
       this.messages = this.messages.filter((m) => m.id !== oldId);
@@ -1082,6 +1091,9 @@ export class AgUiThreadRuntimeCore {
     }
 
     if (this.messageRepository) {
+      const oldRepositoryItem = this.messageRepository.messages.find(
+        (item) => item.message.id === oldId,
+      );
       const messagesById = new Map(
         this.messages.map((message) => [message.id, message]),
       );
@@ -1089,7 +1101,9 @@ export class AgUiThreadRuntimeCore {
         ...this.messageRepository,
         headId:
           this.messageRepository.headId === oldId
-            ? newId
+            ? collidesWithExisting
+              ? (oldRepositoryItem?.parentId ?? null)
+              : newId
             : this.messageRepository.headId,
         messages: this.messageRepository.messages.flatMap((item) => {
           if (collidesWithExisting && item.message.id === oldId) return [];
@@ -1109,14 +1123,16 @@ export class AgUiThreadRuntimeCore {
     const pendingParent = this.assistantHistoryParents.get(oldId);
     if (pendingParent !== undefined) {
       this.assistantHistoryParents.delete(oldId);
-      if (!this.assistantHistoryParents.has(newId)) {
+      if (!collidesWithExisting && !this.assistantHistoryParents.has(newId)) {
         this.assistantHistoryParents.set(newId, pendingParent);
       }
     }
 
     if (this.recordedHistoryIds.has(oldId)) {
       this.recordedHistoryIds.delete(oldId);
-      this.recordedHistoryIds.add(newId);
+      if (!collidesWithExisting) {
+        this.recordedHistoryIds.add(newId);
+      }
     }
 
     this.notifyUpdate();
