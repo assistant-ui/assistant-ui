@@ -495,6 +495,7 @@ const ChainOfThought: FC<PropsWithChildren<{ indices: readonly number[] }>> = ({
   const sourcesOnly = useAuiState((s) =>
     indices.every((i) => s.message.parts[i]?.type === "source"),
   );
+  const isLast = useAuiState((s) => s.message.isLast);
   const startedAt = useContext(RunStartAtContext);
 
   const collapsibleRef = useRef<HTMLDivElement>(null);
@@ -509,13 +510,13 @@ const ChainOfThought: FC<PropsWithChildren<{ indices: readonly number[] }>> = ({
     [lockScroll],
   );
 
-  const prevLive = useRef(live);
+  const prevIsLast = useRef(isLast);
   useEffect(() => {
-    if (prevLive.current && !live) {
+    if (prevIsLast.current && !isLast) {
       handleOpenChange(false);
     }
-    prevLive.current = live;
-  }, [live, handleOpenChange]);
+    prevIsLast.current = isLast;
+  }, [isLast, handleOpenChange]);
 
   const elapsedMs = useWorkingElapsed(live, startedAt);
   const duration = elapsedMs !== null ? formatWorkingDuration(elapsedMs) : null;
