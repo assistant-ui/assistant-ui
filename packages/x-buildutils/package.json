@@ -30,7 +30,7 @@
     "jiti": "^2.7.0",
     "rolldown": "^1.1.2",
     "tsdown": "^0.22.3",
-    "typescript": "^6.0.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",

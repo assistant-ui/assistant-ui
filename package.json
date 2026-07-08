@@ -34,7 +34,7 @@
     "oxfmt": "^0.56.0",
     "oxlint": "^1.71.0",
     "turbo": "^2.9.18",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "packageManager": "pnpm@11.9.0",
   "lint-staged": {

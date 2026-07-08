@@ -204,7 +204,7 @@ describe("AISDKToolkit", () => {
               disabled: true,
             },
           },
-        },
+        } as never,
       },
     });
 
@@ -502,7 +502,7 @@ describe("AISDKToolkit", () => {
               disabled: true,
             },
           },
-        },
+        } as never,
         second: {
           type: "mcp",
           server: { type: "http", url: "http://localhost:3002/mcp" },
