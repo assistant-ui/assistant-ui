@@ -744,7 +744,7 @@ export class AgUiThreadRuntimeCore {
     if (!this.messageRepository) return undefined;
     if (messages.length === 0) return undefined;
 
-    const headId = messages.at(-1)?.id ?? null;
+    const headId = messages[messages.length - 1]!.id;
     const repositoryMessages = getRepositoryBranchMessages(
       this.messageRepository,
       headId,
