@@ -1310,5 +1310,53 @@ describe("useLangGraphRuntime", () => {
         );
       });
     });
+
+    it("drops a late tool result for a call already answered by a new turn's auto-cancellation instead of resuming the graph", async () => {
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer().setText("what's the weather?");
+        auiResult.current.composer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+
+      // a new turn auto-cancels the dangling tool call with a tool message
+      await act(async () => {
+        auiResult.current.composer().setText("never mind");
+        auiResult.current.composer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        {
+          type: "tool",
+          tool_call_id: "tc-1",
+          content: JSON.stringify({ cancelled: true }),
+          status: "error",
+        },
+        { type: "human", content: "never mind" },
+      ]);
+
+      // a result arriving after the call was already answered must not resume
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(2);
+    });
   });
 });

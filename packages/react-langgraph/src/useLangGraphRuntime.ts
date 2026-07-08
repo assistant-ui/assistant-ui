@@ -43,6 +43,7 @@ import { langGraphExtras } from "./runtimeExtras";
 import {
   filterUIMessagesBySurvivingIds,
   getPendingToolCalls,
+  hasToolResult,
   truncateLangChainMessages,
 } from "./messageHelpers";
 
@@ -408,6 +409,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       isError,
       artifact,
     }) => {
+      // A result for a call that already has a tool message (e.g. one
+      // auto-cancelled when a new turn started, or a duplicate) must not resume
+      // the graph with a second tool message. A call awaiting human input has
+      // no tool message yet and stays on the normal pending path.
+      if (hasToolResult(messages, toolCallId)) return;
       // Buffer results until every pending tool call in the turn has one, then
       // resume the graph with the full batch in a single run. Sending each
       // result on its own would resume LangGraph while sibling tool calls of a
