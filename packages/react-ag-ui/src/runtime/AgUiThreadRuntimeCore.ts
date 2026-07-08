@@ -8,6 +8,7 @@ import type {
   AssistantRuntime,
   ChatModelRunOptions,
   ChatModelRunResult,
+  ExportedMessageRepository,
   MessageStatus,
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
@@ -66,6 +67,50 @@ type CoreOptions = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
+const getRepositoryHeadId = (
+  repository: ExportedMessageRepository,
+): string | null =>
+  repository.headId ?? repository.messages.at(-1)?.message.id ?? null;
+
+const getRepositoryBranchMessages = (
+  repository: ExportedMessageRepository,
+  headId = getRepositoryHeadId(repository),
+): readonly ThreadMessage[] => {
+  if (headId === null) return [];
+
+  const byId = new Map(
+    repository.messages.map((item) => [item.message.id, item]),
+  );
+  const fallbackMessages = () =>
+    repository.messages.map((item) => item.message);
+  const branch: ThreadMessage[] = [];
+  const visited = new Set<string>();
+  let item = byId.get(headId);
+
+  if (!item) return fallbackMessages();
+
+  while (item) {
+    const id = item.message.id;
+    if (visited.has(id)) return fallbackMessages();
+
+    visited.add(id);
+    branch.push(item.message);
+
+    if (item.parentId === null) break;
+    item = byId.get(item.parentId);
+    if (!item) return fallbackMessages();
+  }
+
+  return branch.reverse();
+};
+
+const sameMessagePath = (
+  left: readonly ThreadMessage[],
+  right: readonly ThreadMessage[],
+) =>
+  left.length === right.length &&
+  left.every((message, index) => message.id === right[index]?.id);
+
 export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
@@ -76,6 +121,7 @@ export class AgUiThreadRuntimeCore {
 
   private runtime: AssistantRuntime | undefined;
   private messages: ThreadMessage[] = [];
+  private messageRepository: ExportedMessageRepository | undefined;
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
   private stateSnapshot: ReadonlyJSONValue | undefined;
@@ -121,6 +167,10 @@ export class AgUiThreadRuntimeCore {
     return this.messages;
   }
 
+  getMessageRepository(): ExportedMessageRepository | undefined {
+    return this.messageRepository;
+  }
+
   getState(): ReadonlyJSONValue | undefined {
     return this.stateSnapshot;
   }
@@ -144,15 +194,14 @@ export class AgUiThreadRuntimeCore {
       .then(async (repo) => {
         if (!repo) return;
 
-        const messages = repo.messages.map((item) => item.message);
-        this.applyExternalMessages(messages);
+        this.applyExternalMessageRepository(repo);
 
         if (repo.state !== undefined) {
           this.loadExternalState(repo.state);
         }
 
         if (repo.unstable_resume) {
-          const parentId = repo.headId ?? messages.at(-1)?.id ?? null;
+          const parentId = repo.headId ?? this.messages.at(-1)?.id ?? null;
           const resumeStream = this.history?.resume?.bind(this.history);
           await this.startRun(
             parentId,
@@ -637,11 +686,57 @@ export class AgUiThreadRuntimeCore {
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
     this.assistantHistoryParents.clear();
     this.messages = [...messages];
+    this.messageRepository = this.getUpdatedRepositoryForMessages(messages);
     this.recordedHistoryIds.clear();
-    for (const message of this.messages) {
+    const recordedMessages = this.messageRepository
+      ? this.messageRepository.messages.map((item) => item.message)
+      : this.messages;
+    for (const message of recordedMessages) {
       this.recordedHistoryIds.add(message.id);
     }
     this.notifyUpdate();
+  }
+
+  private applyExternalMessageRepository(
+    repository: ExportedMessageRepository,
+  ): void {
+    const headId = getRepositoryHeadId(repository);
+    this.assistantHistoryParents.clear();
+    this.messageRepository = { ...repository, headId };
+    this.messages = [...getRepositoryBranchMessages(repository, headId)];
+    this.recordedHistoryIds.clear();
+    for (const { message } of repository.messages) {
+      this.recordedHistoryIds.add(message.id);
+    }
+    this.notifyUpdate();
+  }
+
+  private getUpdatedRepositoryForMessages(
+    messages: readonly ThreadMessage[],
+  ): ExportedMessageRepository | undefined {
+    if (!this.messageRepository) return undefined;
+    if (messages.length === 0) return undefined;
+
+    const headId = messages.at(-1)?.id ?? null;
+    const repositoryMessages = getRepositoryBranchMessages(
+      this.messageRepository,
+      headId,
+    );
+
+    if (!sameMessagePath(messages, repositoryMessages)) return undefined;
+
+    const incomingMessages = new Map(
+      messages.map((message) => [message.id, message]),
+    );
+
+    return {
+      ...this.messageRepository,
+      headId,
+      messages: this.messageRepository.messages.map((item) => ({
+        ...item,
+        message: incomingMessages.get(item.message.id) ?? item.message,
+      })),
+    };
   }
 
   loadExternalState(state: ReadonlyJSONValue): void {
@@ -1177,6 +1272,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   private resetHead(parentId: string | null | undefined) {
+    this.messageRepository = undefined;
     if (!parentId) {
       if (this.messages.length) {
         this.messages = [];

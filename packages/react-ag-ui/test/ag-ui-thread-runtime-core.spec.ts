@@ -1,6 +1,7 @@
 "use client";
 
 import { describe, expect, it, vi } from "vitest";
+import { ExportedMessageRepository } from "@assistant-ui/core";
 import type {
   AppendMessage,
   ChatModelRunResult,
@@ -1262,6 +1263,79 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getMessages()).toHaveLength(2);
     expect(core.getMessages()[0]?.id).toBe("msg-1");
     expect(core.getMessages()[1]?.id).toBe("msg-2");
+  });
+
+  it("preserves branchable history on __internal_load", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const repository = ExportedMessageRepository.fromBranchableArray(
+      [
+        {
+          message: {
+            id: "msg-1",
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant",
+            content: [{ type: "text", text: "Option A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant",
+            content: [{ type: "text", text: "Option B" }],
+          },
+          parentId: "msg-1",
+        },
+      ],
+      { headId: "msg-2b" },
+    );
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(repository),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.__internal_load();
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2b",
+    ]);
+    expect(
+      core.getMessageRepository()?.messages.map(({ message, parentId }) => ({
+        id: message.id,
+        parentId,
+      })),
+    ).toEqual([
+      { id: "msg-1", parentId: null },
+      { id: "msg-2a", parentId: "msg-1" },
+      { id: "msg-2b", parentId: "msg-1" },
+    ]);
+
+    core.applyExternalMessages([
+      repository.messages[0]!.message,
+      repository.messages[1]!.message,
+    ]);
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2a",
+    ]);
+    expect(core.getMessageRepository()?.headId).toBe("msg-2a");
+    expect(core.getMessageRepository()?.messages).toHaveLength(3);
+
+    core.applyExternalMessages([]);
+
+    expect(core.getMessageRepository()).toBeUndefined();
   });
 
   it("returns existing promise if __internal_load called multiple times", async () => {
