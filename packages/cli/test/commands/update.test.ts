@@ -41,17 +41,16 @@ describe("update command", () => {
 
     expect(exitSpy).toHaveBeenCalledWith(1);
 
-    const output = [
-      ...consoleErrorSpy.mock.calls.flat(),
-      ...consoleLogSpy.mock.calls.flat(),
-    ].join("\n");
+    const stderr = consoleErrorSpy.mock.calls.flat().join("\n");
+    const stdout = consoleLogSpy.mock.calls.flat().join("\n");
 
-    expect(output).toContain("Could not parse package.json.");
-    expect(output).toContain(`Package path: ${packageJsonPath}`);
-    expect(output).toContain(
+    expect(stderr).toContain("Could not parse package.json.");
+    expect(stderr).toContain(`Package path: ${packageJsonPath}`);
+    expect(stderr).toContain(
       "Fix the JSON syntax in that file, then run: assistant-ui update",
     );
-    expect(output).toContain("No changes were written.");
-    expect(output).not.toContain("SyntaxError");
+    expect(stderr).toContain("No changes were written.");
+    expect(stderr).not.toContain("SyntaxError");
+    expect(stdout).toBe("");
   });
 });
