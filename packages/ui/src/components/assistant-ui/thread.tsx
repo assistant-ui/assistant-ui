@@ -7,14 +7,19 @@ import {
 } from "@/components/assistant-ui/attachment";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { Sources } from "@/components/assistant-ui/sources";
 import {
   Reasoning,
   ReasoningContent,
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
+  stripReasoningMarkdown,
 } from "@/components/assistant-ui/reasoning";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import {
+  prettifyToolName,
+  ToolFallback,
+} from "@/components/assistant-ui/tool-fallback";
 import {
   ToolGroupContent,
   ToolGroupRoot,
@@ -22,6 +27,11 @@ import {
 } from "@/components/assistant-ui/tool-group";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
   ActionBarMorePrimitive,
@@ -37,11 +47,13 @@ import {
   ThreadPrimitive,
   type ToolCallMessagePartComponent,
   useAuiState,
+  useScrollLock,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
   CheckIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
@@ -54,7 +66,11 @@ import {
 } from "lucide-react";
 import {
   createContext,
+  useCallback,
   useContext,
+  useEffect,
+  useRef,
+  useState,
   type ComponentType,
   type FC,
   type PropsWithChildren,
@@ -101,7 +117,9 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
 
   return (
     <ThreadComponentsContext.Provider value={components}>
-      <ThreadRoot isEmpty={isEmpty} />
+      <RunStartProvider>
+        <ThreadRoot isEmpty={isEmpty} />
+      </RunStartProvider>
     </ThreadComponentsContext.Provider>
   );
 };
@@ -329,6 +347,291 @@ const MessageError: FC = () => {
   );
 };
 
+const ANIMATION_DURATION = 200;
+
+const RunStartAtContext = createContext<number | undefined>(undefined);
+
+// Message `createdAt` is re-stamped during message conversion, so the
+// wall-clock start of each run is stamped once at thread level to anchor
+// the working timer.
+const RunStartProvider: FC<PropsWithChildren> = ({ children }) => {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const startRef = useRef<number | undefined>(undefined);
+  const prevRunning = useRef(false);
+  if (isRunning && !prevRunning.current) {
+    startRef.current = Date.now();
+  }
+  prevRunning.current = isRunning;
+  return (
+    <RunStartAtContext.Provider value={startRef.current}>
+      {children}
+    </RunStartAtContext.Provider>
+  );
+};
+
+const formatWorkingDuration = (ms: number) => {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 1) return null;
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+};
+
+const useWorkingElapsed = (running: boolean, startedAt?: number) => {
+  const startRef = useRef<number | null>(
+    running ? (startedAt ?? Date.now()) : null,
+  );
+  const [elapsedMs, setElapsedMs] = useState<number | null>(
+    running && startRef.current !== null ? Date.now() - startRef.current : null,
+  );
+
+  useEffect(() => {
+    if (!running) return;
+    startRef.current ??= startedAt ?? Date.now();
+    const start = startRef.current;
+    setElapsedMs(Date.now() - start);
+    const id = setInterval(() => setElapsedMs(Date.now() - start), 1000);
+    return () => clearInterval(id);
+  }, [running, startedAt]);
+
+  return elapsedMs;
+};
+
+const GLYPH_REST_OPACITY = [1, 1, 1, 0.85, 0.7, 0.2, 0.2, 0.2, 0.2];
+
+const WorkingGlyph: FC<{ active: boolean }> = ({ active }) => (
+  <span
+    aria-hidden
+    data-slot="aui_working-glyph"
+    className="aui-working-glyph grid grid-cols-3 gap-[2.5px]"
+  >
+    {GLYPH_REST_OPACITY.map((restOpacity, i) => (
+      <span
+        key={i}
+        className={cn(
+          "aui-working-glyph-dot size-[3px] rounded-full bg-current",
+          active && "animate-working-dot motion-reduce:animate-none",
+        )}
+        style={
+          active
+            ? {
+                animationDelay: `${(i % 3) * 140 + Math.floor(i / 3) * 70}ms`,
+              }
+            : { opacity: restOpacity }
+        }
+      />
+    ))}
+  </span>
+);
+
+const WorkingIndicator: FC = () => {
+  const startedAt = useContext(RunStartAtContext);
+  const elapsedMs = useWorkingElapsed(true, startedAt);
+  const duration = elapsedMs !== null ? formatWorkingDuration(elapsedMs) : null;
+
+  const label = (
+    <>
+      Working
+      {duration && (
+        <span className="whitespace-nowrap">
+          {" for "}
+          <span className="tabular-nums">{duration}</span>
+        </span>
+      )}
+    </>
+  );
+
+  return (
+    <div
+      data-slot="aui_assistant-message-indicator"
+      aria-label="Assistant is working"
+      className="aui-assistant-message-indicator text-muted-foreground flex items-center py-1 text-sm font-medium"
+    >
+      <span className="flex w-6 shrink-0 items-center justify-center">
+        <WorkingGlyph active />
+      </span>
+      <span className="relative leading-6">
+        {label}
+        <span
+          aria-hidden
+          className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
+        >
+          {label}
+        </span>
+      </span>
+    </div>
+  );
+};
+
+const ChainOfThought: FC<PropsWithChildren<{ indices: readonly number[] }>> = ({
+  indices,
+  children,
+}) => {
+  const lastIndex = indices.at(-1) ?? 0;
+  const live = useAuiState(
+    (s) =>
+      s.message.status?.type === "running" &&
+      s.message.parts.length - 1 <= lastIndex,
+  );
+  const activeLabel = useAuiState((s) => {
+    if (s.message.status?.type !== "running") return undefined;
+    if (s.message.parts.length - 1 > lastIndex) return undefined;
+    const part = s.message.parts.at(-1);
+    if (part?.type === "tool-call") return prettifyToolName(part.toolName);
+    if (part?.type === "reasoning") {
+      const headline = stripReasoningMarkdown(
+        part.text.split("\n", 1)[0] ?? "",
+      );
+      return headline.length === 0 ? "Thinking" : headline;
+    }
+    return undefined;
+  });
+  const hasVisibleContent = useAuiState((s) =>
+    indices.some((i) => {
+      const part = s.message.parts[i];
+      if (part === undefined) return false;
+      return part.type !== "reasoning" || part.text.trim().length > 0;
+    }),
+  );
+  const sourcesOnly = useAuiState((s) =>
+    indices.every((i) => s.message.parts[i]?.type === "source"),
+  );
+  const startedAt = useContext(RunStartAtContext);
+
+  const collapsibleRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(live);
+  const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
+
+  const handleOpenChange = useCallback(
+    (next: boolean) => {
+      lockScroll();
+      setOpen(next);
+    },
+    [lockScroll],
+  );
+
+  const prevLive = useRef(live);
+  useEffect(() => {
+    if (prevLive.current && !live) {
+      handleOpenChange(false);
+    }
+    prevLive.current = live;
+  }, [live, handleOpenChange]);
+
+  const elapsedMs = useWorkingElapsed(live, startedAt);
+  const duration = elapsedMs !== null ? formatWorkingDuration(elapsedMs) : null;
+
+  if (sourcesOnly) return <>{children}</>;
+  if (!hasVisibleContent && !live) return null;
+
+  let label: React.ReactNode;
+  let swapKey: string;
+  if (live && !open && activeLabel) {
+    label = `${activeLabel}…`;
+    swapKey = activeLabel;
+  } else if (live) {
+    label = (
+      <>
+        Working
+        {duration && (
+          <span className="whitespace-nowrap">
+            {" for "}
+            <span className="tabular-nums">{duration}</span>
+          </span>
+        )}
+      </>
+    );
+    swapKey = "working";
+  } else {
+    label = duration ? (
+      <>
+        Worked for <span className="tabular-nums">{duration}</span>
+      </>
+    ) : (
+      "Thought process"
+    );
+    swapKey = "done";
+  }
+
+  return (
+    <Collapsible
+      ref={collapsibleRef}
+      data-slot="aui_chain-of-thought"
+      data-streaming={live || undefined}
+      open={open}
+      onOpenChange={handleOpenChange}
+      className="aui-chain-of-thought w-full"
+      style={
+        {
+          "--animation-duration": `${ANIMATION_DURATION}ms`,
+        } as React.CSSProperties
+      }
+    >
+      <CollapsibleTrigger
+        data-slot="aui_chain-of-thought-header"
+        className="aui-chain-of-thought-header group/cot-header text-muted-foreground hover:text-foreground data-[state=open]:text-foreground flex w-fit items-center py-1 text-sm font-medium transition-colors"
+      >
+        {live && (
+          <span className="flex w-6 shrink-0 items-center justify-center">
+            <WorkingGlyph active={live} />
+          </span>
+        )}
+        <span
+          key={swapKey}
+          className={cn(
+            "aui-chain-of-thought-label relative leading-6",
+            "animate-in fade-in-0 slide-in-from-bottom-1 blur-in-[2px] duration-300 motion-reduce:animate-none",
+          )}
+        >
+          {label}
+          {live && (
+            <span
+              aria-hidden
+              className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
+            >
+              {label}
+            </span>
+          )}
+        </span>
+        <ChevronDownIcon
+          data-slot="aui_chain-of-thought-chevron"
+          className={cn(
+            "aui-chain-of-thought-chevron ms-1.5 size-3.5 shrink-0",
+            "transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+            "group-data-[state=closed]/cot-header:-rotate-90",
+            "group-data-[state=open]/cot-header:rotate-0",
+          )}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent
+        data-slot="aui_chain-of-thought-content"
+        className={cn(
+          "aui-chain-of-thought-content relative overflow-hidden text-sm outline-none",
+          "ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
+          "data-[state=closed]:animate-collapsible-up",
+          "data-[state=open]:animate-collapsible-down",
+          "data-[state=closed]:fill-mode-forwards",
+          "data-[state=closed]:pointer-events-none",
+          "data-[state=open]:duration-(--animation-duration)",
+          "data-[state=closed]:duration-(--animation-duration)",
+        )}
+      >
+        <div
+          data-slot="aui_chain-of-thought-steps"
+          className={cn(
+            "aui-chain-of-thought-steps flex flex-col pt-1 pb-2",
+            "[&_[data-slot=tool-fallback-connector]]:block",
+            "[&_[data-slot=reasoning-connector]]:block",
+            "[&>*:last-child_[data-slot=tool-fallback-connector]]:hidden",
+            "[&>*:last-child_[data-slot=reasoning-connector]]:hidden",
+          )}
+        >
+          {children}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
 const AssistantMessage: FC = () => {
   const {
     ToolFallback: ToolFallbackComponent = ToolFallback,
@@ -355,15 +658,21 @@ const AssistantMessage: FC = () => {
       >
         <MessagePrimitive.GroupedParts
           groupBy={groupPartByType({
-            reasoning: ["group-chainOfThought", "group-reasoning"],
-            "tool-call": ["group-chainOfThought", "group-tool"],
+            reasoning: ["group-chainOfThought"],
+            "tool-call": ["group-chainOfThought"],
+            source: ["group-chainOfThought", "group-sources"],
             "standalone-tool-call": [],
           })}
+          indicator="empty"
         >
           {({ part, children }) => {
             switch (part.type) {
               case "group-chainOfThought":
-                return <div data-slot="aui_chain-of-thought">{children}</div>;
+                return (
+                  <ChainOfThought indices={part.indices}>
+                    {children}
+                  </ChainOfThought>
+                );
               case "group-tool":
                 if (ToolGroup) {
                   return <ToolGroup group={part}>{children}</ToolGroup>;
@@ -385,7 +694,7 @@ const AssistantMessage: FC = () => {
                 }
                 const running = part.status.type === "running";
                 return (
-                  <ReasoningRoot streaming={running}>
+                  <ReasoningRoot variant="ghost" streaming={running}>
                     <ReasoningTrigger active={running} />
                     <ReasoningContent aria-busy={running}>
                       <ReasoningText>{children}</ReasoningText>
@@ -393,24 +702,27 @@ const AssistantMessage: FC = () => {
                   </ReasoningRoot>
                 );
               }
+              case "group-sources":
+                return (
+                  <div
+                    data-slot="aui_sources-row"
+                    className="aui-sources-row flex flex-wrap items-center gap-1.5 py-1 pe-2 in-[.aui-chain-of-thought-steps]:ps-6"
+                  >
+                    {children}
+                  </div>
+                );
               case "text":
                 return <MarkdownText />;
               case "reasoning":
                 return <Reasoning {...part} />;
+              case "source":
+                return <Sources {...part} />;
               case "tool-call":
                 return part.toolUI ?? <ToolFallbackComponent {...part} />;
               case "data":
                 return part.dataRendererUI;
               case "indicator":
-                return (
-                  <span
-                    data-slot="aui_assistant-message-indicator"
-                    className="animate-pulse font-sans"
-                    aria-label="Assistant is working"
-                  >
-                    {"●"}
-                  </span>
-                );
+                return <WorkingIndicator />;
               default:
                 return null;
             }

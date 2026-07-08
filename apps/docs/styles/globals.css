@@ -66,6 +66,16 @@
   }
   --animate-shimmer: shimmer-sweep var(--shimmer-duration, 1000ms) linear
     infinite both;
+  --animate-working-dot: working-dot 1.4s ease-in-out infinite;
+  @keyframes working-dot {
+    0%,
+    100% {
+      opacity: 0.2;
+    }
+    40% {
+      opacity: 1;
+    }
+  }
 }
 
 :root {

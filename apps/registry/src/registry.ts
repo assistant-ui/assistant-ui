@@ -71,10 +71,26 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/follow-up-suggestions.json",
       "https://r.assistant-ui.com/markdown-text.json",
       "https://r.assistant-ui.com/reasoning.json",
+      "https://r.assistant-ui.com/sources.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
       "https://r.assistant-ui.com/tool-fallback.json",
       "https://r.assistant-ui.com/tool-group.json",
     ],
+    cssVars: {
+      theme: {
+        "--animate-working-dot": "working-dot 1.4s ease-in-out infinite",
+      },
+    },
+    css: {
+      "@keyframes working-dot": {
+        "0%, 100%": {
+          opacity: "0.2",
+        },
+        "40%": {
+          opacity: "1",
+        },
+      },
+    },
   },
   {
     name: "voice",
@@ -129,8 +145,10 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: [
       "@assistant-ui/react",
+      "@assistant-ui/react-markdown",
       "lucide-react",
       "class-variance-authority",
+      "remark-gfm",
       "tw-shimmer",
     ],
     css: {
