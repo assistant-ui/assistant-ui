@@ -10,6 +10,15 @@ export type ResumableClientStorage = {
   clear(): void;
 };
 
+const getSessionStorage = (): Storage | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+};
+
 /** `sessionStorage`-backed storage for the pending resumable stream id. */
 export function createResumableSessionStorage(options?: {
   key?: string;
@@ -17,16 +26,31 @@ export function createResumableSessionStorage(options?: {
   const key = options?.key ?? DEFAULT_STORAGE_KEY;
   return {
     getStreamId() {
-      if (typeof window === "undefined") return null;
-      return window.sessionStorage.getItem(key);
+      const storage = getSessionStorage();
+      if (!storage) return null;
+      try {
+        return storage.getItem(key);
+      } catch {
+        return null;
+      }
     },
     setStreamId(id) {
-      if (typeof window === "undefined") return;
-      window.sessionStorage.setItem(key, id);
+      const storage = getSessionStorage();
+      if (!storage) return;
+      try {
+        storage.setItem(key, id);
+      } catch {
+        // Ignore blocked or unavailable sessionStorage.
+      }
     },
     clear() {
-      if (typeof window === "undefined") return;
-      window.sessionStorage.removeItem(key);
+      const storage = getSessionStorage();
+      if (!storage) return;
+      try {
+        storage.removeItem(key);
+      } catch {
+        // Ignore blocked or unavailable sessionStorage.
+      }
     },
   };
 }
