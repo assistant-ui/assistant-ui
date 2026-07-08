@@ -159,11 +159,7 @@ import { ClaudeLogo, GeminiLogo, OpenAILogo } from "@/components/assistant-ui/lo
 />;
 ```
 
-Icons are opt-in per model — omit `icon` and the entry renders text-only. To keep the whole selector text-only even when models carry icons, pass `showIcons={false}`:
-
-```tsx
-<ModelSelector models={models} showIcons={false} />
-```
+Icons are opt-in per model — omit `icon` and the entry renders text-only.
 
 ## Search
 
@@ -362,12 +358,6 @@ This works out of the box with `@assistant-ui/react-ai-sdk`. `ModelSelector.Root
       type: "boolean",
       default: "false",
       description: "Render a search input above the model list.",
-    },
-    {
-      name: "showIcons",
-      type: "boolean",
-      default: "true",
-      description: "Render each model's icon in the trigger and the dropdown items. Pass false to keep the selector text-only.",
     },
     {
       name: "variant",

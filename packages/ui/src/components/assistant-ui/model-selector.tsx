@@ -130,8 +130,6 @@ type ModelSelectorContextValue = {
   effort: string | undefined;
   setEffort: (effort: string) => void;
   setOpen: (open: boolean) => void;
-  /** Whether the default trigger value and list items render model icons. */
-  showIcons: boolean;
 };
 
 const ModelSelectorContext = createContext<ModelSelectorContextValue | null>(
@@ -174,11 +172,6 @@ export type ModelSelectorRootProps = {
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /**
-   * Render each model's `icon` in the trigger and the dropdown items. Pass
-   * `false` to keep the selector text-only even when models carry icons.
-   */
-  showIcons?: boolean;
   children: ReactNode;
 };
 
@@ -193,7 +186,6 @@ function ModelSelectorRoot({
   open: openProp,
   defaultOpen,
   onOpenChange,
-  showIcons = true,
   children,
 }: ModelSelectorRootProps) {
   const [value, setValue] = useControllableState({
@@ -225,7 +217,6 @@ function ModelSelectorRoot({
       effort: activeEffort,
       setEffort,
       setOpen,
-      showIcons,
     }),
     [
       models,
@@ -236,7 +227,6 @@ function ModelSelectorRoot({
       activeEffort,
       setEffort,
       setOpen,
-      showIcons,
     ],
   );
 
@@ -344,8 +334,7 @@ function ModelSelectorValue({
   showEffort = true,
   className,
 }: ModelSelectorValueProps) {
-  const { selectedModel, efforts, effort, showIcons } =
-    useModelSelectorContext();
+  const { selectedModel, efforts, effort } = useModelSelectorContext();
 
   if (!selectedModel) {
     return (
@@ -368,9 +357,7 @@ function ModelSelectorValue({
       data-slot="model-selector-value"
       className={cn("flex min-w-0 items-center gap-2", className)}
     >
-      {showIcons && selectedModel.icon && (
-        <ModelIcon>{selectedModel.icon}</ModelIcon>
-      )}
+      {selectedModel.icon && <ModelIcon>{selectedModel.icon}</ModelIcon>}
       <span className="truncate font-medium">{selectedModel.name}</span>
       {effortName && (
         <span className="text-muted-foreground min-w-7.5 truncate text-center">
@@ -534,7 +521,7 @@ function ModelSelectorItem({
   onSelect,
   ...props
 }: ModelSelectorItemProps) {
-  const { value, setValue, setOpen, showIcons } = useModelSelectorContext();
+  const { value, setValue, setOpen } = useModelSelectorContext();
   const isSelected = value === model.id;
 
   return (
@@ -556,7 +543,7 @@ function ModelSelectorItem({
     >
       {children ?? (
         <>
-          {showIcons && model.icon && (
+          {model.icon && (
             <ModelIcon className="mt-[3px]">{model.icon}</ModelIcon>
           )}
           <span className="flex min-w-0 flex-col">
