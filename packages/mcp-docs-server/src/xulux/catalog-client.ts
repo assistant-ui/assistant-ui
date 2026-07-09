@@ -83,7 +83,9 @@ export async function getXuluxCatalog(): Promise<XuluxCatalogResult> {
     return { catalog, degraded: false };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.warn(`assistant-ui template catalog fetch failed (${url}): ${message}`);
+    logger.warn(
+      `assistant-ui template catalog fetch failed (${url}): ${message}`,
+    );
 
     // Prefer a stale cached copy over the minimal fallback.
     if (cache && cache.url === url) {

@@ -47,7 +47,8 @@ export function resolveTemplate(
 
   if (!template) return null;
 
-  const effectiveVersionId = versionId ?? impliedVersionId ?? template.versionId;
+  const effectiveVersionId =
+    versionId ?? impliedVersionId ?? template.versionId;
   const version = effectiveVersionId
     ? (template.versions.find((v) => v.id === effectiveVersionId) ?? null)
     : null;
@@ -324,7 +325,8 @@ export async function createTemplatePreview(
   if (hasConfig(input.config)) {
     try {
       const sessionUrl = new URL("/api/preview/session", baseUrl);
-      if (effectiveVersionId) sessionUrl.searchParams.set("v", effectiveVersionId);
+      if (effectiveVersionId)
+        sessionUrl.searchParams.set("v", effectiveVersionId);
       const res = await fetchSandboxResource(sessionUrl.toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -389,9 +391,7 @@ export async function createTemplatePreview(
 
   const previewUrl = version?.previewUrl ?? template.previewUrl;
   const downloadUrl =
-    version?.downloadUrl ??
-    template.downloadUrl ??
-    `${baseUrl}/api/download`;
+    version?.downloadUrl ?? template.downloadUrl ?? `${baseUrl}/api/download`;
 
   return {
     success: true,

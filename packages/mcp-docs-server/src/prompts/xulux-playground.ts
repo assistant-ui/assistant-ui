@@ -2,8 +2,7 @@
 // Adapted for MCP clients: tools return URLs and data only; there is no
 // browser canvas UI here.
 
-export const XULUX_PLAYGROUND_PROMPT_NAME =
-  "assistant-ui-template-workflow";
+export const XULUX_PLAYGROUND_PROMPT_NAME = "assistant-ui-template-workflow";
 
 export const XULUX_PLAYGROUND_PROMPT_DESCRIPTION =
   "How to use the assistant-ui template tools to discover hosted templates, inspect their customization contracts, and retrieve preview/download URLs.";

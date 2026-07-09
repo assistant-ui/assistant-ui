@@ -11,9 +11,7 @@ import {
 const emptyInputSchema = z.object({});
 
 const detailsInputSchema = z.object({
-  templateId: z
-    .string()
-    .describe("The template id from assistantUITemplates"),
+  templateId: z.string().describe("The template id from assistantUITemplates"),
   versionId: z
     .string()
     .optional()
@@ -23,9 +21,7 @@ const detailsInputSchema = z.object({
 });
 
 const previewInputSchema = z.object({
-  templateId: z
-    .string()
-    .describe("The template id from assistantUITemplates"),
+  templateId: z.string().describe("The template id from assistantUITemplates"),
   versionId: z
     .string()
     .optional()
@@ -88,7 +84,9 @@ export const xuluxTemplateDetailsTool = {
     "If assistantUITemplatePreview returns validationWarnings, call this again and cross-reference configRoots to correct the config.",
   parameters: detailsInputSchema.shape,
   execute: async (args: z.infer<typeof detailsInputSchema>) => {
-    logger.info(`Getting assistant-ui template details for: ${args.templateId}`);
+    logger.info(
+      `Getting assistant-ui template details for: ${args.templateId}`,
+    );
     try {
       const { catalog, degraded, degradedReason } = await getXuluxCatalog();
       const details = await getTemplateDetails(catalog, args);
@@ -119,7 +117,9 @@ export const xuluxTemplatePreviewTool = {
     "This tool only returns URLs.",
   parameters: previewInputSchema.shape,
   execute: async (args: z.infer<typeof previewInputSchema>) => {
-    logger.info(`Creating assistant-ui template preview for: ${args.templateId}`);
+    logger.info(
+      `Creating assistant-ui template preview for: ${args.templateId}`,
+    );
     try {
       const { catalog, degraded, degradedReason } = await getXuluxCatalog();
       const result = await createTemplatePreview(catalog, args);

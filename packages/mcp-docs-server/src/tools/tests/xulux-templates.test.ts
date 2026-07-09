@@ -58,7 +58,8 @@ const LIVE_CATALOG = {
       customizable: [],
       versions: [],
       previewUrl: "https://www.assistant-ui.com/demos/base",
-      downloadUrl: "https://www.assistant-ui.com/api/xulux/demo-download?slug=base",
+      downloadUrl:
+        "https://www.assistant-ui.com/api/xulux/demo-download?slug=base",
       rules: {
         required: [
           "This entry is a fixed demo and is not schema-customizable.",
@@ -139,9 +140,7 @@ describe("assistant-ui template MCP tools", () => {
       if (href === "https://catalog.example.com/mcp-catalog") {
         return jsonResponse(LIVE_CATALOG);
       }
-      if (
-        href === "https://base.example.com/api/template/contract?v=default"
-      ) {
+      if (href === "https://base.example.com/api/template/contract?v=default") {
         return jsonResponse({
           exampleCompleteConfig: {
             assistant: { appName: "Example" },
@@ -172,9 +171,9 @@ describe("assistant-ui template MCP tools", () => {
       String(call[0]).includes("/api/template/contract"),
     ) as [string | URL, RequestInit] | undefined;
     expect(sandboxCall?.[1].headers).toBeInstanceOf(Headers);
-    expect(
-      (sandboxCall?.[1].headers as Headers).get("User-Agent"),
-    ).toBe("curl/8.7.1");
+    expect((sandboxCall?.[1].headers as Headers).get("User-Agent")).toBe(
+      "curl/8.7.1",
+    );
   });
 
   it("returns fixed demo preview URLs and rejects config for fixed demos", async () => {
