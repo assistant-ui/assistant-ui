@@ -151,6 +151,15 @@ export class AssistantCloudAPI {
 
   public async makeRequest(endpoint: string, options: MakeRequestOptions = {}) {
     const response = await this.makeRawRequest(endpoint, options);
-    return response.json();
+    if (
+      response.status === 204 ||
+      response.headers.get("content-length") === "0"
+    )
+      return undefined;
+
+    const text = await response.text();
+    if (text.trim() === "") return undefined;
+
+    return JSON.parse(text);
   }
 }
