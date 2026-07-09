@@ -2583,6 +2583,10 @@ declare namespace PartPrimitiveMessages {
 
 declare const PartPrimitiveMessages: import("react").NamedExoticComponent<PartPrimitiveMessages.Props>;
 
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
 type PartState = (ThreadUserMessagePart | ThreadAssistantMessagePart) & {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
 };
@@ -2732,6 +2736,7 @@ type ReasoningGroupProps = PropsWithChildren<{
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -2929,9 +2934,7 @@ type SourceMessagePartComponent = ComponentType<SourceMessagePartProps>;
 
 type SourceMessagePartProps = MessagePartState & SourceMessagePart;
 
-type SourceProviderMetadata = {
-  readonly [providerName: string]: ReadonlyJSONObject;
-};
+type SourceProviderMetadata = PartProviderMetadata;
 
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
@@ -3145,6 +3148,7 @@ type TextInputProps = ComponentProps<typeof Box> & {
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -3529,6 +3533,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
       readonly approved?: boolean;
@@ -4018,6 +4023,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
   readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: {
     type: "human";

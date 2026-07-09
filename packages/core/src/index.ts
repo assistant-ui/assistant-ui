@@ -12,6 +12,7 @@ export type {
   // Message parts
   TextMessagePart,
   ReasoningMessagePart,
+  PartProviderMetadata,
   SourceProviderMetadata,
   SourceMessagePart,
   ImageMessagePart,
