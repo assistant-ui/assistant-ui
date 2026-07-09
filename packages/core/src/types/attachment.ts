@@ -31,6 +31,7 @@ type BaseAttachment = {
   contentType?: string | undefined;
   file?: File;
   content?: ThreadUserMessagePart[];
+  isSending?: boolean | undefined;
 };
 
 export type PendingAttachment = BaseAttachment & {

@@ -62,7 +62,9 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(composer.text).toBe("hello");
     expect(composer.attachments).toEqual(originalAttachments);
     expect(composer.attachments).toHaveLength(1);
+    expect(composer.attachments[0]!.isSending).toBeUndefined();
     expect(composer.quote).toEqual({ text: "quoted", messageId: "m-1" });
+    expect(composer.canSend).toBe(true);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -87,6 +89,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     expect(composer.text).toBe("new draft");
     expect(composer.attachments).toHaveLength(0);
+    expect(composer.canSend).toBe(true);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -132,12 +135,15 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     const sendPromise = composer.send();
 
-    // The input clears immediately (users expect the box to empty on send),
-    // but the attachment chips must remain visible as upload-in-progress
-    // feedback until the message lands in the chat.
     expect(composer.text).toBe("");
-    expect(composer.attachments).toEqual(originalAttachments);
+    expect(composer.attachments).toEqual(
+      originalAttachments.map((attachment) => ({
+        ...attachment,
+        isSending: true,
+      })),
+    );
     expect(composer.attachments).toHaveLength(1);
+    expect(composer.canSend).toBe(false);
     expect(append).not.toHaveBeenCalled();
 
     resolveSend();
@@ -145,6 +151,68 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     expect(composer.isEmpty).toBe(true);
     expect(composer.attachments).toHaveLength(0);
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not remove or resend submitted attachments while upload is in flight", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn(
+      (a: PendingAttachment) =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    );
+    const adapter = makeAdapter({ send });
+    const { composer, append } = makeComposer(adapter);
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    const attachmentId = composer.attachments[0]!.id;
+
+    const firstSend = composer.send();
+    await composer.removeAttachment(attachmentId);
+    await composer.send();
+
+    expect(composer.attachments).toHaveLength(1);
+    expect(composer.attachments[0]!.isSending).toBe(true);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(append).not.toHaveBeenCalled();
+
+    resolveSend();
+    await firstSend;
+
+    expect(composer.attachments).toHaveLength(0);
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a later attachment with the same id when the pending send finishes", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+
+    const sendPromise = composer.send();
+    await composer.addAttachment(textFile());
+
+    expect(composer.attachments).toHaveLength(1);
+    expect(composer.attachments[0]!.id).toBe("att-1");
+    expect(composer.attachments[0]!.isSending).toBeUndefined();
+
+    resolveSend();
+    await sendPromise;
+
+    expect(composer.attachments).toHaveLength(1);
+    expect(composer.attachments[0]!.id).toBe("att-1");
+    expect(composer.attachments[0]!.isSending).toBeUndefined();
     expect(append).toHaveBeenCalledTimes(1);
   });
 

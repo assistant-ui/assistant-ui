@@ -63,6 +63,11 @@ export abstract class BaseComposerRuntimeCore
     return this._attachments;
   }
 
+  private _isSending = false;
+  protected get isSending() {
+    return this._isSending;
+  }
+
   protected setAttachments(value: readonly Attachment[]) {
     this._attachments = value;
     this._notifySubscribers();
@@ -196,34 +201,45 @@ export abstract class BaseComposerRuntimeCore
         : [];
 
     const originalAttachments = this.attachments;
+    const originalAttachmentIds = new Set(
+      originalAttachments.map((attachment) => attachment.id),
+    );
+    const isOriginalSendingAttachment = (attachment: Attachment) =>
+      attachment.isSending === true && originalAttachmentIds.has(attachment.id);
     const text = this.text;
     const quote = this._quote;
+
+    this._isSending = true;
     this._quote = undefined;
-    // Clear only the text now so the input empties on send; the attachment
-    // chips stay visible as upload-in-progress feedback and are cleared once
-    // the message has landed, so the composer and chat never go empty together.
     this._text = "";
+    this._attachments = this._attachments.map((attachment) =>
+      originalAttachmentIds.has(attachment.id)
+        ? { ...attachment, isSending: true }
+        : attachment,
+    );
     this._notifySubscribers();
 
     let resolvedAttachments: Awaited<typeof attachments>;
     try {
       resolvedAttachments = await attachments;
     } catch (e) {
+      this._isSending = false;
+      const onlyOriginalAttachments =
+        this._attachments.length === originalAttachments.length &&
+        this._attachments.every(isOriginalSendingAttachment);
+
       if (
         this._text === "" &&
         this._quote === undefined &&
-        this._attachments === originalAttachments
+        onlyOriginalAttachments
       ) {
-        // The composer is still in the state we left it, so the user hasn't
-        // touched anything during the upload — restore the pre-send draft.
+        this._attachments = originalAttachments;
         this._text = text;
         this._quote = quote;
         this._notifySubscribers();
       } else {
-        // The user started a new draft; drop the failed-upload chips but keep
-        // any attachments they added.
         this._attachments = this._attachments.filter(
-          (a) => !originalAttachments.includes(a),
+          (attachment) => !isOriginalSendingAttachment(attachment),
         );
         this._notifySubscribers();
       }
@@ -239,11 +255,15 @@ export abstract class BaseComposerRuntimeCore
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
-    this.handleSend(message, options);
-    if (originalAttachments.length > 0) {
-      this._attachments = this._attachments.filter(
-        (a) => !originalAttachments.includes(a),
-      );
+    try {
+      this.handleSend(message, options);
+    } finally {
+      this._isSending = false;
+      if (originalAttachments.length > 0) {
+        this._attachments = this._attachments.filter(
+          (attachment) => !isOriginalSendingAttachment(attachment),
+        );
+      }
       this._notifySubscribers();
     }
     this._notifyEventSubscribers("send", {});
@@ -413,6 +433,7 @@ export abstract class BaseComposerRuntimeCore
     const index = this._attachments.findIndex((a) => a.id === attachmentId);
     if (index === -1) throw new Error("Attachment not found");
     const attachment = this._attachments[index]!;
+    if (attachment.isSending) return;
 
     if (!isAttachmentComplete(attachment)) {
       const adapter = this.getAttachmentAdapter();

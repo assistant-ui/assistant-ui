@@ -149,7 +149,7 @@ const AttachmentUI: FC = () => {
   });
 
   const uploadState = useAuiState((s) =>
-    s.attachment.status.type === "running"
+    s.attachment.isSending || s.attachment.status.type === "running"
       ? "uploading"
       : s.attachment.status.type === "incomplete" &&
           s.attachment.status.reason === "error"
