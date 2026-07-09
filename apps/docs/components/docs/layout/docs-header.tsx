@@ -5,14 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
-import {
-  ArrowUpRight,
-  LayoutGrid,
-  Menu,
-  Search,
-  SparklesIcon,
-  X,
-} from "lucide-react";
+import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
 import { NAV_ITEMS, type NavItem } from "@/lib/constants";
 import { CloudButton } from "@/components/shared/cloud-button";
@@ -20,6 +13,7 @@ import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
+import { getPanelWidth } from "@/components/docs/layout/docs-layout";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -42,10 +36,9 @@ function AskAIButton() {
     <button
       type="button"
       onClick={toggle}
-      className="border-border/50 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border transition-colors"
-      aria-label="Ask AI"
+      className="border-border/50 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground flex h-8 shrink-0 items-center rounded-lg border px-3 text-sm transition-colors"
     >
-      <SparklesIcon className="size-3.5" />
+      Ask AI
     </button>
   );
 }
@@ -140,6 +133,7 @@ export function DocsHeader({
     toggle: toggleSidebar,
   } = useDocsSidebar();
   const [navMenuOpen, setNavMenuOpen] = useState(false);
+  const { open, width, isResizing } = useAssistantPanel();
 
   const sectionFilter = (item: (typeof NAV_ITEMS)[number]) =>
     item.type !== "link" || item.href !== sectionHref;
@@ -163,7 +157,18 @@ export function DocsHeader({
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full">
+    <header
+      className={cn(
+        "sticky top-0 z-50 md:mr-(--chat-panel-width)",
+        !isResizing &&
+          "transition-[margin] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
+      )}
+      style={
+        {
+          "--chat-panel-width": getPanelWidth(open, width),
+        } as React.CSSProperties
+      }
+    >
       <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl" />
       <div className="relative flex h-12 w-full items-center px-4">
         <div className="flex min-w-0 flex-1 items-center">
@@ -196,6 +201,7 @@ export function DocsHeader({
 
         {/* Mobile controls */}
         <div className="ml-auto flex shrink-0 items-center gap-1 md:hidden">
+          <AskAIButton />
           <button
             type="button"
             onClick={() => {
@@ -207,7 +213,6 @@ export function DocsHeader({
           >
             <Search className="size-4" />
           </button>
-          <AskAIButton />
           <ThemeToggle />
           <button
             type="button"
@@ -237,6 +242,7 @@ export function DocsHeader({
 
         {/* Condensed nav: md to lg */}
         <div className="ml-auto hidden items-center gap-2 md:flex lg:hidden">
+          <AskAIButton />
           <button
             type="button"
             onClick={() => {
@@ -248,7 +254,6 @@ export function DocsHeader({
           >
             <Search className="size-4" />
           </button>
-          <AskAIButton />
           <nav className="flex shrink-0 items-center">
             <NavItems items={condensedItems} megaAlign="end" />
             {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
@@ -259,8 +264,8 @@ export function DocsHeader({
 
         {/* Full nav: lg+ */}
         <div className="ml-auto hidden items-center gap-2 lg:flex">
-          <HeaderSearch />
           <AskAIButton />
+          <HeaderSearch />
           <nav className="flex shrink-0 items-center">
             <NavItems items={filteredItems} megaAlign="end" />
           </nav>

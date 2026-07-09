@@ -358,6 +358,21 @@ export default defineToolkit({
     expect(code).not.toContain("defineGenerativeComponents");
   });
 
+  it("allows an exported module-scope JSONGenerativeUI instance", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
+export const ui = new JSONGenerativeUI({ library: {} });
+export default defineToolkit({ present: ui.present() });`;
+
+    expect(compileGenerative(src, { target: "server" }).code).toContain(
+      "ui.present()",
+    );
+    expect(compileGenerative(src, { target: "client" }).code).toContain(
+      "ui.present()",
+    );
+  });
+
   it("rejects an unknown method on a JSONGenerativeUI instance", () => {
     const src = `"use generative";
 import { defineToolkit } from "@assistant-ui/react";
@@ -366,6 +381,37 @@ const ui = new JSONGenerativeUI({ library: {} });
 export default defineToolkit({ present: ui.notARealMethod() });`;
     expect(() => compileGenerative(src, { target: "server" })).toThrow(
       /inline object literal/,
+    );
+  });
+
+  it("allows an aliased JSONGenerativeUI import", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { JSONGenerativeUI as GenUI } from "@assistant-ui/react-generative-ui";
+const ui = new GenUI({ library: {} });
+export default defineToolkit({ present: ui.present() });`;
+
+    expect(compileGenerative(src, { target: "server" }).code).toContain(
+      "ui.present()",
+    );
+    expect(compileGenerative(src, { target: "client" }).code).toContain(
+      "ui.present()",
+    );
+  });
+
+  it("does not trust a local class named JSONGenerativeUI", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+class JSONGenerativeUI {
+  present() {
+    return makeTool();
+  }
+}
+const ui = new JSONGenerativeUI();
+export default defineToolkit({ present: ui.present() });`;
+
+    expect(() => compileGenerative(src, { target: "server" })).toThrow(
+      /tool "present" cannot be `ui\.present\(\)`/,
     );
   });
 

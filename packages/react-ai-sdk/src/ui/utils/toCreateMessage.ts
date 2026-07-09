@@ -7,15 +7,38 @@ import type {
   UITools,
 } from "ai";
 
+type InputPart = AppendMessage["content"][number] & {
+  readonly contentType?: string | undefined;
+  readonly filename?: string | undefined;
+};
+
+const getDataUrlMediaType = (url: string) => {
+  const match = /^data:([^;,]+)(?:[;,])/.exec(url);
+  return match?.[1];
+};
+
+const getImageMediaType = (part: {
+  readonly contentType?: string | undefined;
+  readonly image: string;
+}) => {
+  if (part.contentType?.startsWith("image/")) return part.contentType;
+
+  const dataUrlMediaType = getDataUrlMediaType(part.image);
+  if (dataUrlMediaType?.startsWith("image/")) return dataUrlMediaType;
+
+  return "image/png";
+};
+
 export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
   message: AppendMessage,
 ): CreateUIMessage<UI_MESSAGE> => {
-  const inputParts = [
-    ...message.content.filter((c) => c.type !== "file"),
+  const inputParts: InputPart[] = [
+    ...message.content,
     ...(message.attachments?.flatMap((a) =>
       a.content.map((c) => ({
         ...c,
         filename: a.name,
+        contentType: a.contentType,
       })),
     ) ?? []),
   ];
@@ -32,7 +55,7 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           type: "file",
           url: part.image,
           ...(part.filename && { filename: part.filename }),
-          mediaType: "image/png",
+          mediaType: getImageMediaType(part),
         };
       case "file":
         return {

@@ -22,6 +22,8 @@ import {
   useXuluxAnalytics,
   withXuluxContext,
 } from "@/lib/xulux/analytics-context";
+import { cn } from "@/lib/utils";
+import { XuluxPreviewFrame } from "../canvas/XuluxPreviewFrame";
 import type { XuluxTemplate } from "../templates/types";
 import { Thumbnail } from "./Thumbnail";
 
@@ -111,18 +113,22 @@ export function TemplateDetailModal({
                     </div>
                   </div>
                 )}
-                <iframe
-                  key={current.id}
-                  src={current.previewUrl}
-                  className="absolute inset-0 z-10 h-full w-full border-0"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                  title={`${current.title} preview`}
-                  onLoad={() => setIframeLoaded(true)}
-                  style={{
-                    opacity: iframeLoaded ? 1 : 0,
-                    transition: "opacity 200ms",
-                  }}
-                />
+                <XuluxPreviewFrame
+                  frame={current.previewFrame}
+                  className={cn(
+                    "absolute inset-0 z-10 transition-opacity duration-200",
+                    iframeLoaded ? "opacity-100" : "opacity-0",
+                  )}
+                >
+                  <iframe
+                    key={current.id}
+                    src={current.previewUrl}
+                    className="h-full w-full border-0"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                    title={`${current.title} preview`}
+                    onLoad={() => setIframeLoaded(true)}
+                  />
+                </XuluxPreviewFrame>
                 <a
                   href={current.previewUrl}
                   target="_blank"

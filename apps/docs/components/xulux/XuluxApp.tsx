@@ -21,6 +21,7 @@ import {
   XuluxUsageBudgetProvider,
   type XuluxLimitBlock,
 } from "./chat/XuluxUsageLimitBanner";
+import type { XuluxActivePreviewContext } from "./runtime/types";
 
 export type SelectedTemplateContext = Pick<
   XuluxTemplate,
@@ -41,21 +42,26 @@ export function XuluxApp() {
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [selectedTemplateContext, setSelectedTemplateContext] =
     useState<SelectedTemplateContext | null>(null);
+  const [activePreviewContext, setActivePreviewContext] =
+    useState<XuluxActivePreviewContext | null>(null);
 
   const resetSession = () => {
     setSelectedTemplateContext(null);
+    setActivePreviewContext(null);
   };
 
   return (
     <XuluxRuntimeProvider
       sessionId={sessionId}
       selectedTemplateContext={selectedTemplateContext}
+      activePreviewContext={activePreviewContext}
     >
       <AssistantPanelProvider>
         <XuluxShell
           sessionId={sessionId}
           onSetSessionId={setSessionId}
           onSetSelectedTemplateContext={setSelectedTemplateContext}
+          onSetActivePreviewContext={setActivePreviewContext}
           onResetSession={resetSession}
         />
       </AssistantPanelProvider>
@@ -66,10 +72,12 @@ export function XuluxApp() {
 function XuluxRuntimeProvider({
   sessionId,
   selectedTemplateContext,
+  activePreviewContext,
   children,
 }: {
   sessionId: string;
   selectedTemplateContext: SelectedTemplateContext | null;
+  activePreviewContext: XuluxActivePreviewContext | null;
   children: ReactNode;
 }) {
   const cloudBaseUrl =
@@ -84,6 +92,7 @@ function XuluxRuntimeProvider({
     <XuluxRuntimeProviderInner
       sessionId={sessionId}
       selectedTemplateContext={selectedTemplateContext}
+      activePreviewContext={activePreviewContext}
       cloudBaseUrl={cloudBaseUrl}
     >
       {children}
@@ -110,11 +119,13 @@ function XuluxMissingCloudConfig() {
 function XuluxRuntimeProviderInner({
   sessionId,
   selectedTemplateContext,
+  activePreviewContext,
   cloudBaseUrl,
   children,
 }: {
   sessionId: string;
   selectedTemplateContext: SelectedTemplateContext | null;
+  activePreviewContext: XuluxActivePreviewContext | null;
   cloudBaseUrl: string;
   children: ReactNode;
 }) {
@@ -122,6 +133,8 @@ function XuluxRuntimeProviderInner({
   sessionIdRef.current = sessionId;
   const selectedTemplateContextRef = useRef(selectedTemplateContext);
   selectedTemplateContextRef.current = selectedTemplateContext;
+  const activePreviewContextRef = useRef(activePreviewContext);
+  activePreviewContextRef.current = activePreviewContext;
   const [limitBlock, setLimitBlock] = useState<XuluxLimitBlock | null>(null);
 
   useEffect(() => {
@@ -165,6 +178,9 @@ function XuluxRuntimeProviderInner({
           },
           get selectedTemplate() {
             return selectedTemplateContextRef.current;
+          },
+          get activePreviewContext() {
+            return activePreviewContextRef.current;
           },
         },
         fetch: async (input, init) => {

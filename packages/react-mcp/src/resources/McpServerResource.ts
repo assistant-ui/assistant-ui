@@ -30,6 +30,7 @@ export type McpServerResourceProps = {
   storage: MCPStorage;
   redirectUri: string;
   autoConnect: boolean;
+  connectionTimeout?: number | undefined;
   onRemove: () => Promise<void>;
 };
 
@@ -65,6 +66,35 @@ const useMcpServerResource = (
     if (transportRef.current === transport) return;
     await closeOwnedTransport(transport);
   };
+
+  const withConnectionTimeout = useEffectEvent(
+    async <T>(
+      promise: Promise<T>,
+      phase: "connecting" | "listing tools",
+      startedAt: number,
+    ): Promise<T> => {
+      const timeoutMs = props.connectionTimeout;
+      if (timeoutMs === undefined) return await promise;
+      const remainingMs = timeoutMs - (Date.now() - startedAt);
+      const timeoutError = () =>
+        new Error(
+          `MCP server "${props.id}" timed out while ${phase} after ${timeoutMs}ms.`,
+        );
+      if (remainingMs <= 0) throw timeoutError();
+
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        return await Promise.race([
+          promise,
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => reject(timeoutError()), remainingMs);
+          }),
+        ]);
+      } finally {
+        if (timeout !== undefined) clearTimeout(timeout);
+      }
+    },
+  );
 
   const buildTransport = useEffectEvent(
     async (attempt: number): Promise<StreamableHTTPClientTransport> => {
@@ -104,11 +134,16 @@ const useMcpServerResource = (
         name: "assistant-ui-mcp",
         version: "0.0.0",
       });
+      const startedAt = Date.now();
       // SDK's StreamableHTTPClientTransport.sessionId is `string | undefined`
       // but Transport.sessionId is declared `string?` — under
       // exactOptionalPropertyTypes the SDK's own classes don't satisfy its
       // Transport interface. Cast to bridge the gap.
-      await client.connect(transport as unknown as Transport);
+      await withConnectionTimeout(
+        client.connect(transport as unknown as Transport),
+        "connecting",
+        startedAt,
+      );
       if (!isCurrentAttempt(attempt)) {
         await closeStaleTransport(transport);
         return;
@@ -117,7 +152,11 @@ const useMcpServerResource = (
       // post-connect failure leaves stale refs that `callTool()` would
       // happily walk into, producing confusing SDK errors instead of
       // "not connected".
-      const list = await client.listTools();
+      const list = await withConnectionTimeout(
+        client.listTools(),
+        "listing tools",
+        startedAt,
+      );
       if (!isCurrentAttempt(attempt)) {
         await closeStaleTransport(transport);
         return;
@@ -223,10 +262,12 @@ const useMcpServerResource = (
         return;
       }
       await closeTransport();
+      const error = err instanceof Error ? err : new Error(String(err));
       setLastError({
-        message: err instanceof Error ? err.message : String(err),
+        message: error.message,
       });
       setConnectionState("error");
+      throw error;
     }
   });
 
