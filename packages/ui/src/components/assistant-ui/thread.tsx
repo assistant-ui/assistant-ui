@@ -335,22 +335,19 @@ const AssistantMessage: FC = () => {
     ReasoningGroup,
   } = useContext(ThreadComponentsContext);
 
-  // reserves space for action bar and compensates with `-mb` for consistent msg spacing
-  // keeps hovered action bar from shifting layout (autohide doesn't support absolute positioning well)
-  // for pt-[n] use -mb-[n + 6] & min-h-[n + 6] to preserve compensation
   const ACTION_BAR_PT = "pt-1.5";
-  const ACTION_BAR_HEIGHT = `-mb-7.5 min-h-7.5 ${ACTION_BAR_PT}`;
+  // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
+  const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`;
 
   return (
     <MessagePrimitive.Root
       data-slot="aui_assistant-message-root"
       data-role="assistant"
-      className="fade-in slide-in-from-bottom-1 animate-in relative duration-150"
+      className="fade-in slide-in-from-bottom-1 animate-in relative -mb-7.5 pb-7.5 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
     >
       <div
         data-slot="aui_assistant-message-content"
-        // [contain-intrinsic-size:auto_24px] fixes issue #4104, don't change without checking for regressions
-        className="text-foreground px-2 leading-relaxed wrap-break-word [contain-intrinsic-size:auto_24px] [content-visibility:auto]"
+        className="text-foreground px-2 leading-relaxed wrap-break-word"
       >
         <MessagePrimitive.GroupedParts
           groupBy={groupPartByType({
@@ -482,7 +479,7 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
-      className="fade-in slide-in-from-bottom-1 animate-in grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 duration-150 [contain-intrinsic-size:auto_60px] [content-visibility:auto] [&:where(>*)]:col-start-2"
+      className="fade-in slide-in-from-bottom-1 animate-in grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto] [&:where(>*)]:col-start-2"
       data-role="user"
     >
       <UserMessageAttachments />
@@ -524,7 +521,7 @@ const EditComposer: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_edit-composer-wrapper"
-      className="flex flex-col px-2"
+      className="flex flex-col px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
     >
       <ComposerPrimitive.Root className="aui-edit-composer-root ms-auto flex w-full max-w-[85%] flex-col rounded-(--composer-radius) bg-(--composer-bg) shadow-[0_2px_12px_rgba(0,0,0,0.04)] ring-1 ring-black/10 transition-[box-shadow] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.04),0_2px_12px_rgba(0,0,0,0.04)] focus-within:ring-black/15 dark:shadow-none dark:ring-white/10 dark:focus-within:shadow-none dark:focus-within:ring-white/15">
         <ComposerPrimitive.Input

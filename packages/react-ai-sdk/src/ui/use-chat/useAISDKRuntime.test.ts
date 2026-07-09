@@ -203,6 +203,52 @@ describe("useAISDKRuntime", () => {
     ).resolves.toBeDefined();
   });
 
+  it("forwards a successful tool result through addToolOutput, not the deprecated addToolResult", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    act(() => {
+      result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1")
+        .addToolResult({ temp: 72 });
+    });
+
+    await waitFor(() => {
+      expect(chat.addToolOutput).toHaveBeenCalledTimes(1);
+    });
+
+    expect(chat.addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tool: "weather",
+        toolCallId: "tc-1",
+        output: { temp: 72 },
+        options: { metadata: undefined },
+      }),
+    );
+    expect(chat.addToolResult).not.toHaveBeenCalled();
+  });
+
   it("appends a new user message without sending when startRun is false", async () => {
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "earlier" }] },

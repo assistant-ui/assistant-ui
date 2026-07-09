@@ -9,10 +9,11 @@
     "docs:dev": "turbo run dev --filter=@assistant-ui/docs",
     "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
-    "build": "turbo build",
+    "build": "turbo build --concurrency=4",
     "api-surface": "pnpm api-surface:build && node scripts/generate-api-surface.mjs",
     "api-surface:build": "pnpm exec turbo build --filter='./packages/*' --force",
     "api-surface:check": "node scripts/check-api-surface.mjs",
+    "api-surface:test": "node --test scripts/generate-api-surface.test.mjs",
     "lint": "pnpm exec oxlint && pnpm exec oxfmt --check",
     "check:resource-memo": "node packages/x-buildutils/check-resource-memoization.mjs",
     "lint:fix": "pnpm exec oxlint --fix && pnpm exec oxfmt",
@@ -20,7 +21,7 @@
     "format:fix": "pnpm exec oxfmt",
     "sync-templates": "bash scripts/sync-templates.sh",
     "test": "turbo test && pnpm test:types",
-    "test:types": "pnpm -r --parallel exec sh -c '! test -f tsconfig.json || tsc --noEmit'",
+    "test:types": "pnpm -r --workspace-concurrency=4 --no-bail exec sh -c '! test -f tsconfig.json || tsc --noEmit'",
     "prepare": "husky && pnpm --filter @assistant-ui/react-devtools run build:css",
     "deps:check": "npx taze major -f -r",
     "deps:update": "npx taze major -f -w -r && cd examples/with-expo && npx expo install --fix && cd ../.. && find . -name node_modules -prune -exec rm -rf {} + && rm -f pnpm-lock.yaml && pnpm install && pnpm dedupe && bash scripts/generate-deps-changeset.sh"
@@ -30,12 +31,12 @@
     "@changesets/cli": "^2.31.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.8",
-    "oxfmt": "^0.56.0",
-    "oxlint": "^1.71.0",
-    "turbo": "^2.9.18",
-    "typescript": "^6.0.3"
+    "oxfmt": "^0.57.0",
+    "oxlint": "^1.72.0",
+    "turbo": "^2.10.3",
+    "typescript": "^7.0.2"
   },
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@11.10.0",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,cjs,mjs,cts,mts,json,jsonc}": [
       "oxlint --fix --no-error-on-unmatched-pattern",

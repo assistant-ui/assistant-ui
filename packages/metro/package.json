@@ -44,8 +44,10 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-generative-compiler": "workspace:^",
-    "@types/node": "^26.0.0",
+    "@types/node": "^26.1.0",
     "tsdown": "^0.22.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-7": "npm:typescript@^7.0.2",
     "vitest": "^4.1.9"
   },
   "publishConfig": {

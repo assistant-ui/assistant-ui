@@ -11,20 +11,20 @@ const badgeVariants = cva(
     variants: {
       variant: {
         outline:
-          "border-input text-muted-foreground hover:bg-accent hover:text-accent-foreground border bg-transparent",
+          "border-input text-muted-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground border bg-transparent",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/80",
         muted:
-          "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+          "bg-muted text-muted-foreground [a&]:hover:bg-muted/80 [a&]:hover:text-foreground",
         ghost:
-          "text-muted-foreground hover:bg-accent hover:text-accent-foreground bg-transparent",
-        info: "bg-blue-100 text-blue-700 hover:bg-blue-100/80 dark:bg-blue-900/50 dark:text-blue-300",
+          "text-muted-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground bg-transparent",
+        info: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 [a&]:hover:bg-blue-100/80",
         warning:
-          "bg-amber-100 text-amber-700 hover:bg-amber-100/80 dark:bg-amber-900/50 dark:text-amber-300",
+          "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 [a&]:hover:bg-amber-100/80",
         success:
-          "bg-emerald-100 text-emerald-700 hover:bg-emerald-100/80 dark:bg-emerald-900/50 dark:text-emerald-300",
+          "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 [a&]:hover:bg-emerald-100/80",
         destructive:
-          "bg-red-100 text-red-700 hover:bg-red-100/80 dark:bg-red-900/50 dark:text-red-300",
+          "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 [a&]:hover:bg-red-100/80",
       },
       size: {
         sm: "px-1.5 py-0.5",

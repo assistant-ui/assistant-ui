@@ -14,6 +14,7 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | `agent` | `HttpAgent` | An AG-UI client agent (from `@ag-ui/client`). Required. |
 | `logger` | `Partial<Logger>` | Optional logger overrides. The runtime logs event-parser warnings and run lifecycle events. |
 | `showThinking` | `boolean` | Whether to render `THINKING_*` and `REASONING_*` events as visible reasoning. Defaults to `true`. |
+| `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
 | `onError` | `(e: Error) => void` | Error callback fired on `RUN_ERROR` events and protocol errors. |
 | `onCancel` | `() => void` | Cancellation callback fired when the user cancels a run. |
 | `adapters` | `UseAgUiRuntimeAdapters` | Standard adapter slots (see below). |
@@ -137,7 +138,9 @@ await runtime.unstable_submitInterruptResponses(
 
 ### Steering away from an interrupt
 
-When the user ignores the interrupt UI and just sends a new message, use the `useAgUiSteerAway` hook. Every open interrupt defaults to `status: "cancelled"`, the new message is appended, and the run resumes with `resume: ResumeEntry[]` on the wire. With no pending interrupts it behaves like a normal append.
+When the user ignores the interrupt UI and just sends a new message, use the `useAgUiSteerAway` hook. Every open interrupt defaults to `status: "cancelled"`, the new message is appended, and the run resumes with `resume: ResumeEntry[]` on the wire.
+
+The same hook also steers away from pending client-side tool calls. When the head assistant message is in `requires-action` with `reason: "tool-calls"` (frontend tools awaiting a result) and the user sends a new message, every unresolved tool call is cancelled with an error result, the message is completed, and a single fresh run starts with those cancellations in its history. Passing `responses` in this case throws, since responses only address interrupts. With nothing pending, `steerAway` behaves like a normal append.
 
 ```tsx
 const steerAway = useAgUiSteerAway();
@@ -153,6 +156,12 @@ await steerAway("continue without the file", [
   { interruptId: "tool-1", status: "resolved", payload: { approved: true } },
 ]);
 ```
+
+### Auto-cancelling pending tool calls
+
+By default the runtime does the tool-call half of this automatically: when client-side tool calls are still unresolved and the user sends a new message, edits an earlier one, or reloads, every unresolved tool call receives the same cancellation error result, the assistant message is completed, and the run proceeds with those cancellations in its history. Set `autoCancelPendingToolCalls: false` to opt out, in which case pending tool calls stay unresolved on a plain send and [steering away](#steering-away-from-an-interrupt) remains the explicit way to cancel them.
+
+Pending interrupts are never auto-cancelled: sending while an interrupt is open still throws, and the interrupt must be answered with `useAgUiSubmitInterruptResponses` or discarded with `useAgUiSteerAway`.
 
 ## Supported events
 

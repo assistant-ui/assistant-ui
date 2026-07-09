@@ -141,6 +141,26 @@ function EffortDropdown() {
 
 Render it inside `ModelSelector.Content` in place of `ModelSelector.Effort`. The same hook supports any shape that reads the levels and writes the selection.
 
+## Provider Logos
+
+Each model's `icon` accepts any `ReactNode` and renders in the trigger and the dropdown items. The optional `logos` registry item ships `OpenAILogo`, `ClaudeLogo`, and `GeminiLogo` marks to plug in:
+
+<InstallCommand shadcn={["logos"]} />
+
+```tsx
+import { ClaudeLogo, GeminiLogo, OpenAILogo } from "@/components/assistant-ui/logos";
+
+<ModelSelector
+  models={[
+    { id: "gpt-5.5", name: "GPT-5.5", icon: <OpenAILogo /> },
+    { id: "claude-opus-4.5", name: "Claude Opus 4.5", icon: <ClaudeLogo /> },
+    { id: "gemini-3-pro", name: "Gemini 3 Pro", icon: <GeminiLogo /> },
+  ]}
+/>;
+```
+
+Icons are opt-in per model — omit `icon` and the entry renders text-only.
+
 ## Search
 
 Search is opt-in. Pass `searchable` to the default component:
@@ -350,6 +370,12 @@ This works out of the box with `@assistant-ui/react-ai-sdk`. `ModelSelector.Root
       type: '"sm" | "default" | "lg"',
       default: '"default"',
       description: "Size of the trigger button.",
+    },
+    {
+      name: "align",
+      type: '"start" | "center" | "end"',
+      default: '"start"',
+      description: "Alignment of the dropdown relative to the trigger.",
     },
     {
       name: "contentClassName",

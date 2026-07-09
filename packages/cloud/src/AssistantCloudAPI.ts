@@ -48,10 +48,13 @@ export type AssistantCloudConfig = (
   telemetry?: boolean | AssistantCloudTelemetryConfig;
 };
 
-class CloudAPIError extends Error {
-  constructor(message: string) {
+export class CloudAPIError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
     super(message);
-    this.name = "APIError";
+    this.name = "CloudAPIError";
   }
 }
 
@@ -133,11 +136,12 @@ export class AssistantCloudAPI {
       const text = await response.text();
       try {
         const body = JSON.parse(text);
-        throw new CloudAPIError(body.message);
+        throw new CloudAPIError(body.message, response.status);
       } catch (error) {
         if (error instanceof CloudAPIError) throw error;
-        throw new Error(
+        throw new CloudAPIError(
           `Request failed with status ${response.status}, ${text}`,
+          response.status,
         );
       }
     }

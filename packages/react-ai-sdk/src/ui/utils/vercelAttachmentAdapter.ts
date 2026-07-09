@@ -1,15 +1,6 @@
 import type { AttachmentAdapter } from "@assistant-ui/core";
+import { getFileDataURL } from "@assistant-ui/core/internal";
 import { generateId } from "ai";
-
-const getFileDataURL = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-
-    reader.readAsDataURL(file);
-  });
 
 export const vercelAttachmentAdapter: AttachmentAdapter = {
   accept: "*",

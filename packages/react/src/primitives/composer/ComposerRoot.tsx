@@ -1,6 +1,7 @@
 "use client";
 
 import { composeEventHandlers } from "@radix-ui/primitive";
+import { useAuiState } from "@assistant-ui/store";
 import { Primitive } from "../../utils/Primitive";
 import {
   type ComponentRef,
@@ -8,8 +9,11 @@ import {
   forwardRef,
   type ComponentPropsWithoutRef,
   type MouseEvent,
+  useMemo,
+  useState,
 } from "react";
 import { useComposerSend } from "./ComposerSend";
+import { ComposerCompactContext } from "./ComposerCompactContext";
 
 export namespace ComposerPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.form>;
@@ -17,7 +21,17 @@ export namespace ComposerPrimitiveRoot {
    * Props for the ComposerPrimitive.Root component.
    * Accepts all standard form element props.
    */
-  export type Props = ComponentPropsWithoutRef<typeof Primitive.form>;
+  export type Props = ComponentPropsWithoutRef<typeof Primitive.form> & {
+    /**
+     * Opt the composer into compact mode. While the input holds at most a single
+     * line of text and there are no attachments, quote, queued messages, or
+     * active dictation, the root renders a `data-compact` attribute so styles
+     * can collapse the composer into a single row. It expands automatically
+     * when any of those conditions stop holding.
+     * @default false
+     */
+    compact?: boolean | undefined;
+  };
 }
 
 /**
@@ -46,8 +60,21 @@ export namespace ComposerPrimitiveRoot {
 export const ComposerPrimitiveRoot = forwardRef<
   ComposerPrimitiveRoot.Element,
   ComposerPrimitiveRoot.Props
->(({ onSubmit, onMouseDown, ...rest }, forwardedRef) => {
+>(({ onSubmit, onMouseDown, compact, ...rest }, forwardedRef) => {
   const send = useComposerSend();
+
+  const [multiline, setMultiline] = useState(false);
+  const compactContext = useMemo(() => ({ setMultiline }), []);
+  const stateAllowsCompact = useAuiState((s) =>
+    compact
+      ? s.composer.attachments.length === 0 &&
+        s.composer.quote == null &&
+        s.composer.queue.length === 0 &&
+        s.composer.dictation == null &&
+        !s.composer.text.includes("\n")
+      : false,
+  );
+  const isCompact = stateAllowsCompact && !multiline;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -73,12 +100,15 @@ export const ComposerPrimitiveRoot = forwardRef<
   };
 
   return (
-    <Primitive.form
-      {...rest}
-      ref={forwardedRef}
-      onSubmit={composeEventHandlers(onSubmit, handleSubmit)}
-      onMouseDown={composeEventHandlers(onMouseDown, handleMouseDown)}
-    />
+    <ComposerCompactContext.Provider value={compact ? compactContext : null}>
+      <Primitive.form
+        {...rest}
+        data-compact={isCompact ? "" : undefined}
+        ref={forwardedRef}
+        onSubmit={composeEventHandlers(onSubmit, handleSubmit)}
+        onMouseDown={composeEventHandlers(onMouseDown, handleMouseDown)}
+      />
+    </ComposerCompactContext.Provider>
   );
 });
 

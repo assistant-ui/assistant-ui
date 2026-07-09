@@ -13,6 +13,8 @@ For authoring tools, see [Defining Tools](/docs/tools/defining-tools). For MCP s
 `@assistant-ui/react-ai-sdk` posts `{ messages, system, tools }` to your route. `tools` is the map of **frontend** tools the client serialized for this request (the model needs their schemas to call them, even though they run in the browser):
 
 ```ts
+import type { FrontendTools } from "@assistant-ui/react-ai-sdk";
+
 const {
   messages,
   system,
@@ -20,7 +22,7 @@ const {
 }: {
   messages: UIMessage[];
   system?: string;
-  tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
+  tools?: FrontendTools;
 } = await req.json();
 ```
 

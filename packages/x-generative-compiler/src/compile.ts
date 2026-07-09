@@ -9,6 +9,12 @@ import { satisfies } from "semver";
 import { DIRECTIVE, type Target } from "./constants";
 import pkgJson from "../package.json" with { type: "json" };
 
+const parserPlugins = [
+  "typescript",
+  "jsx",
+  "explicitResourceManagement",
+] as NonNullable<NonNullable<Parameters<typeof parse>[1]>["plugins"]>;
+
 // @babel/traverse and @babel/generator are CJS; their default export is the
 // function itself under some interop and `{ default }` under others.
 const traverse = (
@@ -246,7 +252,7 @@ export function compileGenerative(
 
   const ast = parse(code, {
     sourceType: "module",
-    plugins: ["typescript", "jsx", "explicitResourceManagement"],
+    plugins: parserPlugins,
   });
 
   if (!ast.program.directives.some((d) => d.value.value === DIRECTIVE)) {
@@ -346,7 +352,7 @@ export function compileGenerative(
     ast,
     {
       sourceMaps: options.sourceMaps ?? false,
-      filename,
+      ...(filename ? { filename } : {}),
       jsescOption: { minimal: true },
     },
     code,
@@ -833,7 +839,7 @@ function getGenerativeImportToolkitNames(
   try {
     const importedAst = parse(code, {
       sourceType: "module",
-      plugins: ["typescript", "jsx", "explicitResourceManagement"],
+      plugins: parserPlugins,
     });
     const names = getDefaultExportToolkitNames(importedAst, resolved, context);
     context.importedToolkitNamesByFile.set(resolved, names);

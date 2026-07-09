@@ -65,7 +65,7 @@
   },
   "dependencies": {
     "assistant-stream": "^0.3.25",
-    "nanoid": "^5.1.15"
+    "nanoid": "^5.1.16"
   },
   "optionalDevDependencies": {
     "@assistant-ui/x-generative-compiler": ">=0.0.3"
