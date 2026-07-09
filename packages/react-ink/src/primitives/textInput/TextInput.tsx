@@ -5,7 +5,7 @@ import {
   getGraphemeAt,
   textBufferReducer,
   useTextBuffer,
-} from "../composer/useTextBuffer";
+} from "./useTextBuffer";
 
 // cap dedup map so an owner that drops echoes can't grow the counter without bound
 const PENDING_SYNC_CAP = 64;
