@@ -11,6 +11,7 @@ type BaseAttachment = {
   contentType?: string | undefined;
   file?: File;
   content?: ThreadUserMessagePart[];
+  isSending?: boolean | undefined;
 };
 
 type BaseThreadMessage = {

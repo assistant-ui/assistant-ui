@@ -587,6 +587,7 @@ type BaseAttachment = {
   contentType?: string | undefined;
   file?: File;
   content?: ThreadUserMessagePart[];
+  isSending?: boolean | undefined;
 };
 
 declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implements ComposerRuntimeCore {
@@ -601,6 +602,8 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   get attachmentAccept(): string;
   private _attachments;
   get attachments(): readonly Attachment[];
+  private _isSending;
+  protected get isSending(): boolean;
   protected setAttachments(value: readonly Attachment[]): void;
   abstract get canCancel(): boolean;
   abstract get canSend(): boolean;
