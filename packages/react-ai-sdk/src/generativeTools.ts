@@ -9,7 +9,11 @@ import {
   type ToolJSONSchema,
   type ToolModelOutputFunction,
 } from "assistant-stream";
-import type { Toolkit, ToolkitDefinition } from "@assistant-ui/core/react";
+import type {
+  McpToolkitToolConfig,
+  Toolkit,
+  ToolkitDefinition,
+} from "@assistant-ui/core/react";
 import { frontendTools } from "./frontendTools";
 import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
 import {
@@ -220,7 +224,7 @@ export class AISDKToolkit {
               phase: "listing tools",
               startedAt,
             });
-            return [name, tool.prefix ?? "", tools] as const;
+            return [name, tool, tools] as const;
           } catch (error) {
             if (error instanceof MCPConnectionTimeoutError) {
               this.#mcpClients.delete(name);
@@ -233,9 +237,10 @@ export class AISDKToolkit {
 
     const tools: ToolSet = {};
     const toolSources = new Map<string, string>();
-    for (const [serverName, prefix, toolSet] of toolSets) {
+    for (const [serverName, mcpTool, toolSet] of toolSets) {
       for (const [toolName, tool] of Object.entries(toolSet)) {
-        const exposedName = `${prefix}${toolName}`;
+        if (isDisabledMcpTool(mcpTool.tools?.[toolName])) continue;
+        const exposedName = `${mcpTool.prefix ?? ""}${toolName}`;
         const existingServerName = toolSources.get(exposedName);
         if (existingServerName) {
           throw new Error(
@@ -304,6 +309,7 @@ type McpToolkitTool = ToolkitTool & {
   type: "mcp";
   server: McpServerConfig;
   prefix?: string | undefined;
+  tools?: Record<string, McpToolkitToolConfig> | undefined;
 };
 
 type McpToolSet = {
@@ -327,6 +333,9 @@ const assertNoMcpToolNameCollisions = (
 
 const isMcpToolkitTool = (tool: ToolkitTool): tool is McpToolkitTool =>
   tool.type === "mcp" && !tool.disabled;
+
+const isDisabledMcpTool = (config: McpToolkitToolConfig | undefined): boolean =>
+  config?.disabled === true;
 
 const assertNoMcpToolkitTools = (toolkit: Toolkit): void => {
   const mcpToolName = Object.entries(toolkit).find(([, tool]) =>

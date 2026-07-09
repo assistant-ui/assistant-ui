@@ -90,7 +90,10 @@ env:
   # - mcp__github_inline_comment__create_inline_comment: Create inline code comments
   # - Bash(gh ...): Read-only GitHub CLI commands for PR/issue info
   # Note: gh pr comment is NOT allowed - Claude must use update_claude_comment only
-  CLAUDE_ARGS: '--model fable --effort medium --allowedTools "Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+  # Temporarily on Opus 4.8 while Fable usage credits are exhausted; swap back to
+  # `--model fable` when access returns. The Fable-specific machinery below
+  # (Opus-fallback flagging) stays in place for that switch-back.
+  CLAUDE_ARGS: '--model claude-opus-4-8 --effort high --allowedTools "Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
 
 jobs:
   claude-review:
@@ -112,6 +115,7 @@ jobs:
           fetch-depth: 1
 
       - name: Review
+        id: review
         uses: anthropics/claude-code-action@428971d2ecd6e3a7cb0ee0da2a3a8b33fdb3678d # ratchet:anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -120,3 +124,36 @@ jobs:
           track_progress: ${{ fromJSON(env.TRACK_PROGRESS) }}
           claude_args: ${{ env.CLAUDE_ARGS }}
           additional_permissions: ${{ env.ADDITIONAL_PERMISSIONS }}
+
+      # The action reports success even when the Claude execution errors out
+      # (e.g. expired OAuth token or exhausted usage limit), leaving PRs with a
+      # green check and no review. Fail loudly and surface the error text,
+      # which the action redacts from its own logs.
+      - name: Fail on Claude execution error
+        if: always()
+        run: |
+          FILE='${{ steps.review.outputs.execution_file }}'
+          [ -f "$FILE" ] || exit 0
+          jq -e 'last(.[] | select(.type == "result")) | .is_error == true' "$FILE" >/dev/null || exit 0
+          echo "::error::Claude review failed: $(jq -r 'last(.[] | select(.type == "result")) | .result // "no error text"' "$FILE" | tr '\n' ' ' | head -c 500)"
+          exit 1
+
+      # Fable's cybersecurity classifier can silently swap the session to Opus
+      # mid-run; the model's own context still claims Fable, so the transcript
+      # is the only reliable signal of the downgrade.
+      - name: Flag Opus fallback
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FILE='${{ steps.review.outputs.execution_file }}'
+          [ -f "$FILE" ] && grep -q '"model_refusal_fallback"' "$FILE" || exit 0
+          echo "::warning::Fable safeguard triggered — review served by Opus fallback"
+          COMMENT=$(gh api --paginate "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq '.[] | select(.user.login == "claude[bot]")' | jq -s 'last')
+          [ -n "$COMMENT" ] && [ "$COMMENT" != "null" ] || exit 0
+          gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$(jq -r .id <<<"$COMMENT")" \
+            -f body="> [!WARNING]
+          > **Fable's cybersecurity safeguard triggered — this review was served by Opus 4.8.** Ignore it and re-review with Fable locally.
+
+          $(jq -r .body <<<"$COMMENT")"

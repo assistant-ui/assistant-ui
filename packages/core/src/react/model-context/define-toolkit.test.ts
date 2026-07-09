@@ -1,11 +1,11 @@
 import { describe, it, expect, expectTypeOf } from "vitest";
 import type { AsyncIterableStream } from "assistant-stream/utils";
+import { defineMcpToolkit } from "./define-mcp-toolkit";
 import { defineToolkit } from "./define-toolkit";
 import { hitl, hitlTool, humanTool } from "./human-tool";
 import { providerTool } from "./provider-tool";
 import { stubTool } from "./stub-tool";
 import { externalTool } from "./external-tool";
-import { defineMcpToolkit } from "./define-mcp-toolkit";
 import type { ToolkitDefinition } from "./toolbox";
 
 type TestStandardSchema<T> = {
@@ -89,6 +89,18 @@ const checkDefineMcpToolkitTypes = () => {
       disabled: true,
       prefix: "docs_",
     },
+    gatedDocs: {
+      server: {
+        type: "http",
+        url: "https://example.com/gated-mcp",
+      },
+      disabled: true,
+      tools: {
+        privateSearch: {
+          disabled: true,
+        },
+      },
+    },
   });
 };
 expectTypeOf(checkDefineMcpToolkitTypes).toEqualTypeOf<() => void>();
@@ -114,6 +126,50 @@ describe("use-generative markers", () => {
         server: { type: "http", url: "https://example.com/mcp" },
         disabled: true,
         prefix: "docs_",
+      },
+    });
+  });
+
+  it("defineMcpToolkit supports disabled server entries", () => {
+    expect(
+      defineMcpToolkit({
+        docs: {
+          type: "http",
+          url: "https://example.com/mcp",
+        },
+        gatedDocs: {
+          server: {
+            type: "http",
+            url: "https://example.com/gated-mcp",
+          },
+          disabled: true,
+          tools: {
+            privateSearch: {
+              disabled: true,
+            },
+          },
+        },
+      }),
+    ).toEqual({
+      docs: {
+        type: "mcp",
+        server: {
+          type: "http",
+          url: "https://example.com/mcp",
+        },
+      },
+      gatedDocs: {
+        type: "mcp",
+        server: {
+          type: "http",
+          url: "https://example.com/gated-mcp",
+        },
+        disabled: true,
+        tools: {
+          privateSearch: {
+            disabled: true,
+          },
+        },
       },
     });
   });

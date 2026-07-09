@@ -99,6 +99,41 @@ export default defineToolkit({
 });
 ```
 
+Use `{ server, disabled }` when a whole MCP server should stay configured but
+not expose tools for the current request, such as missing credentials, feature
+flags, or plan gating:
+
+```tsx
+defineMcpToolkit({
+  docs: {
+    server: {
+      type: "http",
+      url: process.env.DOCS_MCP_URL!,
+    },
+    disabled: !process.env.DOCS_MCP_URL,
+  },
+});
+```
+
+Use `tools` when the server should stay enabled but specific MCP tools should
+be hidden from the model:
+
+```tsx
+defineMcpToolkit({
+  docs: {
+    server: {
+      type: "http",
+      url: process.env.DOCS_MCP_URL!,
+    },
+    tools: {
+      deleteDocument: {
+        disabled: !userCanDelete,
+      },
+    },
+  },
+});
+```
+
 If multiple MCP servers expose the same tool name, wrap the entry with
 `{ server, prefix }` to give each server's tools distinct model-visible names:
 
