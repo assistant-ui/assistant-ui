@@ -212,7 +212,7 @@ export const getMessageContent = (msg: AppendMessage) => {
           data: part.data,
           mime_type: part.mimeType,
           metadata: { filename: part.filename ?? "file" },
-          source_type: "base64" as const,
+          source_type: part.sourceType ?? "base64",
         };
       case "tool-call":
         throw new Error("Tool call appends are not supported.");

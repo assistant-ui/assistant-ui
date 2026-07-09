@@ -91,7 +91,7 @@ export type MessageContentFile = {
   type: "file";
   data: string;
   mime_type: string;
-  source_type?: "base64";
+  source_type?: "base64" | "url" | "id";
   metadata?: {
     filename?: string;
   };

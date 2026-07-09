@@ -374,7 +374,7 @@ export const getMessageContent = (msg: AppendMessage) => {
           metadata: {
             filename: part.filename ?? "file",
           },
-          source_type: "base64" as const,
+          source_type: part.sourceType ?? "base64",
         };
 
       case "tool-call":

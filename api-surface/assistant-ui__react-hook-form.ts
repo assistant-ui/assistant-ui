@@ -50,6 +50,7 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "base64" | "id" | "url";
   readonly parentId?: string;
 };
 

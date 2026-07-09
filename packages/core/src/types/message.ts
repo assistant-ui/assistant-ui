@@ -56,6 +56,13 @@ export type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  /**
+   * How `data` should be interpreted by downstream converters. Defaults to
+   * `"base64"` (raw base64, no `data:` prefix) for backward compatibility;
+   * `"url"` passes a remote URL through verbatim, and `"id"` passes a
+   * provider-specific file identifier.
+   */
+  readonly sourceType?: "base64" | "url" | "id";
   readonly parentId?: string;
 };
 

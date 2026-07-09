@@ -706,6 +706,7 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "base64" | "id" | "url";
   readonly parentId?: string;
 };
 
@@ -881,7 +882,7 @@ type LangChainContentBlock = {
   type: "file";
   data: string;
   mime_type: string;
-  source_type?: "base64";
+  source_type?: "base64" | "id" | "url";
   metadata?: {
     filename?: string;
   };

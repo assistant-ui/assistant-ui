@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { convertLangChainBaseMessage } from "./convertMessages";
+import type { AppendMessage } from "@assistant-ui/core";
+import {
+  convertLangChainBaseMessage,
+  getMessageContent,
+} from "./convertMessages";
 import type { LangChainBaseMessage, UIMessage } from "./types";
 
 const humanMessage = (content: unknown): LangChainBaseMessage => ({
@@ -206,5 +210,95 @@ describe("convertLangChainBaseMessage image content parts", () => {
     );
 
     expect(contentOf(result)).toEqual([]);
+  });
+});
+
+const baseAppendMessage = {
+  role: "user",
+  parentId: null,
+  sourceId: null,
+  runConfig: undefined,
+  metadata: undefined,
+} as const;
+
+describe("getMessageContent file source_type", () => {
+  it("defaults to base64 when the adapter does not set sourceType", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "file",
+          data: "JVBERi0xLjQ=",
+          mimeType: "application/pdf",
+          filename: "doc.pdf",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const content = getMessageContent(message);
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        data: "JVBERi0xLjQ=",
+        mime_type: "application/pdf",
+        metadata: { filename: "doc.pdf" },
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("passes a url sourceType through verbatim", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "file",
+          data: "https://r2.example/u/abc/file.pdf",
+          mimeType: "application/pdf",
+          filename: "file.pdf",
+          sourceType: "url",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const content = getMessageContent(message);
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        data: "https://r2.example/u/abc/file.pdf",
+        mime_type: "application/pdf",
+        metadata: { filename: "file.pdf" },
+        source_type: "url",
+      },
+    ]);
+  });
+
+  it("passes an id sourceType through verbatim", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "file",
+          data: "file-abc123",
+          mimeType: "application/pdf",
+          filename: "file.pdf",
+          sourceType: "id",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const content = getMessageContent(message);
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        data: "file-abc123",
+        mime_type: "application/pdf",
+        metadata: { filename: "file.pdf" },
+        source_type: "id",
+      },
+    ]);
   });
 });

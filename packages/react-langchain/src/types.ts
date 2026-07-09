@@ -32,7 +32,7 @@ export type LangChainContentBlock =
       type: "file";
       data: string;
       mime_type: string;
-      source_type?: "base64";
+      source_type?: "base64" | "url" | "id";
       metadata?: { filename?: string };
     }
   | { type: "tool_use" | "input_json_delta" };
