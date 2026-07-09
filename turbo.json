@@ -37,9 +37,6 @@
     "test": {
       "dependsOn": ["^build"]
     },
-    "deploy": {
-      "dependsOn": ["build", "lint", "test"]
-    },
     "dev": {
       "cache": false,
       "persistent": true
