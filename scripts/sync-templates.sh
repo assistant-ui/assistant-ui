@@ -27,9 +27,6 @@ OVERRIDES=(
     # minimal intentionally ships a slim thread.tsx without GroupedParts /
     # reasoning / tool-group, since it doesn't bundle those companion files.
     "thread.tsx"
-    # minimal ships without react-shiki, so its markdown-text.tsx omits the
-    # SyntaxHighlighter wiring.
-    "markdown-text.tsx"
 )
 
 MODE="${1:-check}"
