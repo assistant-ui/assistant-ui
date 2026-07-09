@@ -40,6 +40,10 @@ export {
   type ToolCallText,
 } from "./model-context/toolbox";
 export { defineToolkit } from "./model-context/define-toolkit";
+export {
+  mergeToolkits,
+  type MergedToolkit,
+} from "./model-context/merge-toolkits";
 export { stubTool } from "./model-context/stub-tool";
 export { externalTool } from "./model-context/external-tool";
 export { useAuiToolOverrides } from "./model-context/useAuiToolOverrides";
@@ -96,6 +100,7 @@ export {
 } from "./model-context/useToolArgsStatus";
 
 // client
+export { useAui } from "./client/useAui";
 export { Tools, type McpAppResourceOutput } from "./client/Tools";
 export { DataRenderers } from "./client/DataRenderers";
 /**

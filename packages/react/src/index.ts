@@ -2,7 +2,6 @@
 
 // Re-export from @assistant-ui/store
 export {
-  useAui,
   AuiProvider,
   useAuiState,
   useAuiEvent,
@@ -15,6 +14,7 @@ export {
   type AssistantEventPayload,
   type AssistantEventCallback,
 } from "@assistant-ui/store";
+export { useAui } from "@assistant-ui/core/react";
 
 // Re-export public runtime types from @assistant-ui/core
 export type {
@@ -200,6 +200,8 @@ export {
   type ToolkitDefinition,
   type ToolkitDefinitionEntry,
   defineToolkit,
+  mergeToolkits,
+  type MergedToolkit,
   stubTool,
   externalTool,
   useAuiToolOverrides,

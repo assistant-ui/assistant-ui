@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mergeToolkits } from "@assistant-ui/core/react";
 import { AISDKToolkit } from "./generativeTools";
 import { wrapModelContentEnvelope } from "./modelContentEnvelope";
 
@@ -22,6 +23,33 @@ vi.mock("@ai-sdk/mcp/mcp-stdio", () => ({
 const never = <T>() => new Promise<T>(() => {});
 
 describe("AISDKToolkit.tools()", () => {
+  it("accepts a merged app toolkit from feature toolkits", async () => {
+    const filesToolkit = {
+      search_files: {
+        type: "backend",
+        description: "Search files",
+        parameters: { type: "object", properties: {} },
+        execute: async () => "files",
+      } as never,
+    };
+    const calendarToolkit = {
+      create_event: {
+        type: "backend",
+        description: "Create a calendar event",
+        parameters: { type: "object", properties: {} },
+        execute: async () => "event",
+      } as never,
+    };
+    const appToolkit = mergeToolkits(filesToolkit, calendarToolkit);
+
+    const toolSet = await new AISDKToolkit({ toolkit: appToolkit }).tools();
+
+    expect(toolSet.search_files?.description).toBe("Search files");
+    expect(toolSet.search_files?.execute).toBeTypeOf("function");
+    expect(toolSet.create_event?.description).toBe("Create a calendar event");
+    expect(toolSet.create_event?.execute).toBeTypeOf("function");
+  });
+
   it("merges frontend tools with toolkit tools", async () => {
     const toolSet = await new AISDKToolkit({
       toolkit: {
