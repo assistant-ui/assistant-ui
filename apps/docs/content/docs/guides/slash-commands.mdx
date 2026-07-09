@@ -8,12 +8,9 @@ Slash commands let users type `/` in the composer to open a popover, browse avai
 
 ## How It Works
 
-```
-User types "/"  →  Trigger detected  →  Adapter provides commands
-                                              ↓
-              Callback fired  ←  User selects command from popover
-                   ↓
-       Directive chip left in composer (or removed if removeOnExecute)
+```mermaid
+flowchart LR
+    type["User types /"] --> trigger["Trigger detected"] --> adapter["Adapter provides<br/>commands"] --> select["User selects command<br/>from popover"] --> callback["Callback fired"] --> chip["Directive chip left in composer<br/>(or removed if removeOnExecute)"]
 ```
 
 The slash command system is built on the same [trigger popover architecture](#trigger-popover-architecture) as mentions. A slash command declares its behavior with a `<TriggerPopover.Action>` sub-primitive whose `onExecute` callback fires when an item is chosen.

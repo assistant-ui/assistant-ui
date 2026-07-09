@@ -279,6 +279,56 @@ Convenience component that pairs `SpanByIndexProvider` with a render component:
 
 Useful when you want explicit control over which child indices to render (e.g. for virtualization).
 
+### SpanPrimitive.Timeline
+
+A `<div>` that provides a timeline range to descendant `TimelineBar` primitives and exposes range CSS variables.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `timeRange` | `{ min: number; max: number }` | `span.timeRange` | Override the range used for positioning bars. |
+| `paddingEnd` | `number` | `0` | Extends the max by this ratio of the range duration, useful for right-side breathing room. |
+
+Exposes `data-span-timeline` and CSS variables:
+
+| Variable | Description |
+| --- | --- |
+| `--span-timeline-min-ms` | Timeline start timestamp. |
+| `--span-timeline-max-ms` | Timeline end timestamp after padding. |
+| `--span-timeline-range-ms` | Timeline duration after padding. |
+
+### SpanPrimitive.TimelineBar
+
+A `<div>` that positions the current span within the nearest `SpanPrimitive.Timeline` range. It reads `startedAt`, `endedAt`, `status`, `type`, and `timeRange` from the current span scope.
+
+```tsx
+<SpanPrimitive.Timeline>
+  <SpanPrimitive.Children>
+    {() => (
+      <div className="relative h-8">
+        <SpanPrimitive.TimelineBar className="top-1 h-6 rounded bg-blue-500" />
+      </div>
+    )}
+  </SpanPrimitive.Children>
+</SpanPrimitive.Timeline>
+```
+
+Running spans use the timeline range max when `now` is omitted, keeping SSR and hydration deterministic. For live ticking, update a timestamp from an effect or animation loop and pass it as `now`.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `now` | `number` | `undefined` | Explicit timestamp used as the end of running spans. |
+| `timeRange` | `{ min: number; max: number }` | nearest `Timeline` range | Override the range used for this bar. |
+
+Exposes `data-span-status`, `data-span-type`, `data-span-running`, and these CSS variables:
+
+| Variable | Description |
+| --- | --- |
+| `--span-timeline-left` | Bar start position as a percentage. |
+| `--span-timeline-end` | Bar end position as a percentage. |
+| `--span-timeline-width` | Bar width as a percentage. |
+| `--span-timeline-duration-ms` | Bar duration in milliseconds. |
+| `--span-timeline-min-width` | Optional consumer-set minimum width used by the default inline size. |
+
 ## Styling
 
 All primitives forward refs and accept standard DOM props (`className`, `style`, etc.). Use the data attributes for state-based styling:

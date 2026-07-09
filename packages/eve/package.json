@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/eve",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Eve runtime adapter for assistant-ui",
   "keywords": [
     "eve",
@@ -33,7 +33,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.2.18"
+    "@assistant-ui/core": "^0.2.19"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -48,7 +48,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.17",
-    "eve": "^0.12.0",
+    "eve": "^0.13.8",
     "react": "^19.2.7",
     "vitest": "^4.1.9"
   },

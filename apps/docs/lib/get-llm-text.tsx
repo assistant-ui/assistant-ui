@@ -10,8 +10,9 @@ import rehypeRemark from "rehype-remark";
 import remarkGfm from "remark-gfm";
 import remarkStringify from "remark-stringify";
 import { unified } from "unified";
+import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { LLM_COMPONENTS } from "@/lib/llm-components";
-import type { examples, source } from "@/lib/source";
+import type { examples, source, tapDocs } from "@/lib/source";
 import type { InferPageType } from "fumadocs-core/source";
 
 const processor = unified()
@@ -306,7 +307,10 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
   return renderClientFallback(props, resolvedChildren);
 }
 
-type LLMPage = InferPageType<typeof source> | InferPageType<typeof examples>;
+type LLMPage =
+  | InferPageType<typeof source>
+  | InferPageType<typeof examples>
+  | InferPageType<typeof tapDocs>;
 
 export async function getLLMText(page: LLMPage) {
   const Body = page.data.body;
@@ -328,5 +332,7 @@ export async function getLLMText(page: LLMPage) {
   return `# ${page.data.title}
 URL: ${page.url}
 ${page.data.description ? `\n${page.data.description}\n` : ""}
+${AGENT_DOCS_DIRECTIVE_MARKDOWN}
+
 ${markdown}`;
 }

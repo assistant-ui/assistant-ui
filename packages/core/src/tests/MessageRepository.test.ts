@@ -302,6 +302,8 @@ describe("MessageRepository", () => {
       const exported = repository.export();
 
       expect(exported.messages.map((m) => m.message.id)).toEqual(["u"]);
+      expect(repository.headId).toBe("placeholder");
+      expect(repository.canonicalHeadId).toBe("u");
       // head was the optimistic placeholder; the exported head must fall back
       // to the nearest persisted ancestor so it always resolves on import.
       expect(exported.headId).toBe("u");

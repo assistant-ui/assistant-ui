@@ -2,13 +2,17 @@
 
 import { useMemo, useRef, useState } from "react";
 import {
+  fromThreadMessageLike,
+  generateId,
   pickExternalStoreSharedOptions,
+  type AppendMessage,
   type AttachmentAdapter,
   type DictationAdapter,
   type ExternalStoreSharedOptions,
   type FeedbackAdapter,
   type RealtimeVoiceAdapter,
   type SpeechSynthesisAdapter,
+  type ThreadMessage,
   type ToolExecutionStatus,
 } from "@assistant-ui/core";
 import {
@@ -25,6 +29,21 @@ import {
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
+
+const USER_STAGED_STATUS = {
+  type: "complete",
+  reason: "unknown",
+} as const;
+
+const truncateThreadMessages = (
+  messages: readonly ThreadMessage[],
+  parentId: string | null,
+) => {
+  if (parentId === null) return [];
+  const parentIndex = messages.findIndex((message) => message.id === parentId);
+  if (parentIndex === -1) return [];
+  return messages.slice(0, parentIndex + 1);
+};
 
 export type UseEveAgentRuntimeOptions = Omit<
   UseEveAgentOptions<EveMessageData>,
@@ -68,7 +87,16 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
+  const [stagedMessages, setStagedMessages] = useState<ThreadMessage[] | null>(
+    null,
+  );
   const createdAtByMessageIdRef = useRef(new Map<string, Date>());
+  const stagedInputsRef = useRef(
+    new Map<
+      string,
+      { message: AppendMessage; runConfig: AppendMessage["runConfig"] }
+    >(),
+  );
 
   const hasExecutingTools = Object.values(toolStatuses).some(
     (status) => status?.type === "executing",
@@ -78,7 +106,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     agent.status === "streaming" ||
     hasExecutingTools;
 
-  const messages = useMemo(() => {
+  const convertedMessages = useMemo(() => {
     const createdAtByMessageId = createdAtByMessageIdRef.current;
     const messageIds = new Set(
       agent.data.messages.map((message) => message.id),
@@ -100,6 +128,26 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     });
   }, [agent.data, isRunning]);
 
+  const messages = stagedMessages ?? convertedMessages;
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+
+  const stageUserMessage = (message: AppendMessage) => {
+    const threadMessage = fromThreadMessageLike(
+      message,
+      generateId(),
+      USER_STAGED_STATUS,
+    );
+    stagedInputsRef.current.set(threadMessage.id, {
+      message,
+      runConfig: message.runConfig,
+    });
+    setStagedMessages([
+      ...truncateThreadMessages(messagesRef.current, message.parentId),
+      threadMessage,
+    ]);
+  };
+
   return useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     messages,
@@ -114,8 +162,26 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       feedback: adapters?.feedback,
     },
     onNew: async (message) => {
+      if (!(message.startRun ?? message.role === "user")) {
+        stageUserMessage(message);
+        return;
+      }
       await agent.send({ message: getEveMessageContent(message) });
     },
+    ...(stagedMessages
+      ? {
+          onReload: async (parentId: string | null) => {
+            const staged = parentId
+              ? stagedInputsRef.current.get(parentId)
+              : null;
+            if (!staged)
+              throw new Error("Runtime does not support reloading messages.");
+            stagedInputsRef.current.delete(parentId!);
+            setStagedMessages(null);
+            await agent.send({ message: getEveMessageContent(staged.message) });
+          },
+        }
+      : {}),
     onCancel: () => {
       agent.stop();
       return Promise.resolve();

@@ -150,6 +150,138 @@ describe("adapter conversions", () => {
     });
   });
 
+  it("restores requires-action status for an assistant message with an unresolved tool call", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "msg-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "ask_user", arguments: "{}" },
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect((result[0] as any).status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+
+  it("leaves a resolved tool call without a requires-action status", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "msg-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "get_weather", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "msg-2",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: '{"temperature":"22C"}',
+      },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect((result[0] as any).status).toBeUndefined();
+  });
+
+  it("does not add status to an assistant message without tool calls", () => {
+    const result = fromAgUiMessages([
+      { id: "msg-1", role: "assistant", content: "done" },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect((result[0] as any).status).toBeUndefined();
+  });
+
+  it("restores interrupt status and metadata from a persisted interrupts blob", () => {
+    const interrupts = [
+      { id: "int-1", reason: "confirmation", message: "Proceed?" },
+    ];
+    const result = fromAgUiMessages([
+      {
+        id: "msg-1",
+        role: "assistant",
+        content: "waiting",
+        metadata: { custom: { agui: { interrupts } } },
+      },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect((result[0] as any).status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+    expect((result[0] as any).metadata.custom.agui.interrupts).toEqual(
+      interrupts,
+    );
+  });
+
+  it("prefers interrupt status over tool-calls when both are present", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "msg-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "ask_user", arguments: "{}" },
+          },
+        ],
+        metadata: {
+          custom: {
+            agui: { interrupts: [{ id: "int-1", reason: "tool_call" }] },
+          },
+        },
+      },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect((result[0] as any).status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
+  it("ignores a malformed interrupts blob without throwing", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "msg-1",
+        role: "assistant",
+        content: "done",
+        metadata: {
+          custom: {
+            agui: {
+              interrupts: [{ reason: "no-id" }, { id: "no-reason" }, 42],
+            },
+          },
+        },
+      },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect((result[0] as any).status).toBeUndefined();
+    expect(
+      (result[0] as any).metadata?.custom?.agui?.interrupts,
+    ).toBeUndefined();
+  });
+
   it("creates a synthetic assistant tool-call when snapshot has an orphan tool message", () => {
     const result = fromAgUiMessages([
       {

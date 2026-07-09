@@ -5,8 +5,8 @@
 export const SETUP_PROMPT = `Step 1: Read the docs
 
 Read https://assistant-ui.com/llms-full.txt — the full reference in one
-file. Append ".mdx" to any docs URL for raw markdown
-(e.g. /docs/installation.mdx).
+file. Append ".md" to any docs URL for raw markdown
+(e.g. /docs/installation.md).
 
 Step 2: Ask the user
 
@@ -37,7 +37,7 @@ scaffolds app/assistant.tsx + app/api/chat/route.ts).
   \`with-tanstack\` / \`with-expo\` and migrating code in. In-place only
   if you must: \`npx shadcn@latest add https://r.assistant-ui.com/thread.json\`,
   install the provider SDK, and wire your own server for the chat endpoint
-  (Vite/Expo do not bundle one). See /docs/installation.mdx Manual Setup.
+  (Vite/Expo do not bundle one). See /docs/installation.md Manual Setup.
 - Next.js App Router → confirm package manager, Tailwind (v3 or v4), and
   env var location, then run:
 

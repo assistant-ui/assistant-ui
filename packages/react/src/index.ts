@@ -136,6 +136,7 @@ export type {
   ExternalStoreSharedOptions,
   ExternalStoreThreadListAdapter,
   ExternalStoreThreadData,
+  ExternalStoreBranchChange,
 } from "@assistant-ui/core";
 export {
   createMessageQueue,
@@ -208,13 +209,35 @@ export {
   providerTool,
   type ProviderToolConfig,
   defineMcpToolkit,
+  type McpToolkitEntry,
   type McpToolkitDefinition,
+  type McpToolkitToolConfig,
   Tools,
   DataRenderers,
   Interactables,
   useAssistantInteractable,
   type AssistantInteractableProps,
   useInteractableState,
+  unstable_Interactables,
+  unstable_useInteractable,
+  type Unstable_InteractableConfig,
+  type Unstable_InferInteractableState,
+  type Unstable_InteractableVersionInfo,
+  unstable_useInteractableState,
+  unstable_useInteractableVersions,
+  unstable_interactableTool,
+  type Unstable_InteractableToolConfig,
+  type Unstable_InteractableToolRenderProps,
+  type Unstable_InteractableStateSchema,
+  type Unstable_InteractablesState,
+  type Unstable_InteractableDefinition,
+  type Unstable_InteractableRegistration,
+  type Unstable_InteractablesMethods,
+  type Unstable_InteractablePersistedState,
+  type Unstable_InteractablePersistenceAdapter,
+  type Unstable_InteractablePersistenceStatus,
+  type Unstable_InteractablesClientSchema,
+  type Unstable_InteractablesConfig,
   useToolArgsStatus,
   type ToolArgsStatus,
 } from "@assistant-ui/core/react";
@@ -227,6 +250,14 @@ export type {
 } from "@assistant-ui/core";
 
 export { mergeModelContexts } from "@assistant-ui/core";
+
+export {
+  unstable_getInteractableSnapshots,
+  unstable_formatInteractableSnapshot,
+  unstable_getInteractableVersions,
+  type Unstable_InteractableSnapshotEntry,
+  type Unstable_InteractableVersion,
+} from "@assistant-ui/core";
 
 export type { Tool } from "assistant-stream";
 
@@ -280,6 +311,7 @@ export * as ThreadListItemMorePrimitive from "./primitives/threadListItemMore";
 export * as SelectionToolbarPrimitive from "./primitives/selectionToolbar";
 
 export { groupPartByType, type GroupByContext } from "@assistant-ui/core/react";
+export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
 export { useMessagePartText } from "./primitives/messagePart/useMessagePartText";
 export { useMessagePartReasoning } from "./primitives/messagePart/useMessagePartReasoning";
 export { useMessagePartSource } from "./primitives/messagePart/useMessagePartSource";
@@ -446,6 +478,15 @@ export {
   unstable_useComposerInputHistory,
   type Unstable_ComposerInputHistory,
 } from "./unstable/useComposerInputHistory";
+
+// Unstable - headless composer input bridge (value/send without ComposerPrimitive.Input)
+export {
+  unstable_useComposerInput,
+  unstable_useTriggerPopoverAriaProps,
+  type Unstable_UseComposerInputOptions,
+  type Unstable_ComposerInput,
+  type Unstable_TriggerPopoverAriaProps,
+} from "./unstable/useComposerInput";
 
 export type { Assistant } from "./augmentations";
 

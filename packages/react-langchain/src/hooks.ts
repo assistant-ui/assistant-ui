@@ -58,6 +58,15 @@ export const useLangChainSubgraphs = () =>
   langChainExtras.use((e) => e.subgraphs ?? EMPTY_SUBGRAPHS, EMPTY_SUBGRAPHS);
 
 /**
+ * The underlying `useStream` handle, for advanced views — pass it to v1's
+ * `useMessages(stream, target)` / `useToolCalls(stream, target)` with a
+ * subagent/subgraph from `useLangChainSubagents` / `useLangChainSubgraphs`.
+ * `undefined` outside the runtime provider.
+ */
+export const useLangChainStream = () =>
+  langChainExtras.use((e) => e.stream, undefined);
+
+/**
  * Returns a function to submit raw state updates to the LangGraph agent,
  * bypassing the normal message flow. Useful for sending interrupt resume
  * commands.

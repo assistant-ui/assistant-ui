@@ -52,7 +52,7 @@ export const registry: RegistryItem[] = [
         target: "app/api/chat/route.ts",
       },
     ],
-    dependencies: ["ai", "@ai-sdk/openai"],
+    dependencies: ["ai", "@ai-sdk/openai", "@assistant-ui/react-ai-sdk"],
   },
   {
     name: "thread",
@@ -68,6 +68,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "button",
       "https://r.assistant-ui.com/attachment.json",
+      "https://r.assistant-ui.com/follow-up-suggestions.json",
       "https://r.assistant-ui.com/markdown-text.json",
       "https://r.assistant-ui.com/reasoning.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
@@ -316,8 +317,11 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/tool-fallback.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
-    registryDependencies: ["collapsible"],
+    dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
+    registryDependencies: ["button", "collapsible"],
+    css: {
+      '@import "tw-shimmer"': {},
+    },
   },
   {
     name: "tool-group",
@@ -334,6 +338,7 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react",
       "lucide-react",
       "class-variance-authority",
+      "tw-shimmer",
     ],
     registryDependencies: ["collapsible"],
     css: {
@@ -438,7 +443,7 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/sources.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react"],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: ["https://r.assistant-ui.com/badge.json"],
   },
   {
@@ -489,8 +494,22 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react",
       "lucide-react",
       "class-variance-authority",
+      "radix-ui",
     ],
     registryDependencies: ["command", "popover"],
+  },
+  {
+    name: "logos",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/logos.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/logos.tsx",
+      },
+    ],
+    dependencies: [],
+    registryDependencies: [],
   },
   {
     name: "select",

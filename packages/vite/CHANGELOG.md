@@ -1,5 +1,30 @@
 # @assistant-ui/vite
 
+## 0.0.8
+
+### Patch Changes
+
+- Updated dependencies [[`9caecdd`](https://github.com/assistant-ui/assistant-ui/commit/9caecddfc70e3c351ae6e9cc069be37b9f9f386b), [`ab217e4`](https://github.com/assistant-ui/assistant-ui/commit/ab217e49494d74e570d18ec73c21b7700f53df5a), [`fa083a4`](https://github.com/assistant-ui/assistant-ui/commit/fa083a47d4c4f37553a09b9f577793d363290146)]:
+  - @assistant-ui/x-generative-compiler@0.0.8
+
+## 0.0.7
+
+### Patch Changes
+
+- [#4608](https://github.com/assistant-ui/assistant-ui/pull/4608) [`a7b06f7`](https://github.com/assistant-ui/assistant-ui/commit/a7b06f76876078fc2fcbb92a86fa0e1530fde782) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`d162f44`](https://github.com/assistant-ui/assistant-ui/commit/d162f440502c29e4293e33c0c081e87c36d67bba)]:
+  - @assistant-ui/x-generative-compiler@0.0.7
+
+## 0.0.6
+
+### Patch Changes
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff), [`32f1b05`](https://github.com/assistant-ui/assistant-ui/commit/32f1b0528a080bc247655aac8bae19d8bcfc4cfa), [`0c51b90`](https://github.com/assistant-ui/assistant-ui/commit/0c51b905d22418b93532636b1028c080ecc819e0), [`048e20c`](https://github.com/assistant-ui/assistant-ui/commit/048e20ce1b69142f843952b8ce7fb6f6d330fd6a), [`056eea8`](https://github.com/assistant-ui/assistant-ui/commit/056eea856f99172cc222e83c1a4f839fef20bfe8)]:
+  - @assistant-ui/x-generative-compiler@0.0.6
+
 ## 0.0.5
 
 ### Patch Changes

@@ -24,23 +24,45 @@ const ESTIMATED_TURN_HEIGHT = 200;
 const AT_BOTTOM_THRESHOLD = 4;
 
 type MessageComponents = ComponentProps<
-  typeof ThreadPrimitive.MessageByIndex
+  typeof ThreadPrimitive.Unstable_MessageById
 >["components"];
 
-type Turn = { id: string; indices: number[] };
+type MessageRow = {
+  id: string;
+  role: "user" | "assistant" | "system";
+};
 
-const buildTurns = (signature: string): Turn[] => {
-  if (!signature) return [];
+type Turn = { id: string; messageIds: string[] };
+
+const useThreadMessageRows = (): readonly MessageRow[] => {
+  const prevRowsRef = useRef<readonly MessageRow[]>([]);
+
+  return useAuiState((s) => {
+    const messages = s.thread.messages;
+    const prev = prevRowsRef.current;
+    if (
+      prev.length === messages.length &&
+      prev.every((row, index) => {
+        const message = messages[index]!;
+        return row.id === message.id && row.role === message.role;
+      })
+    ) {
+      return prev;
+    }
+
+    const next = messages.map(({ id, role }) => ({ id, role }));
+    prevRowsRef.current = next;
+    return next;
+  });
+};
+
+const buildTurns = (messages: readonly MessageRow[]): Turn[] => {
+  if (messages.length === 0) return [];
   const turns: Turn[] = [];
-  for (const row of signature.split("\n")) {
-    const firstColon = row.indexOf(":");
-    const secondColon = row.indexOf(":", firstColon + 1);
-    const index = Number(row.slice(0, firstColon));
-    const role = row.slice(firstColon + 1, secondColon);
-    const id = row.slice(secondColon + 1);
+  for (const { id, role } of messages) {
     const last = turns.at(-1);
-    if (role === "user" || !last) turns.push({ id, indices: [index] });
-    else last.indices.push(index);
+    if (role === "user" || !last) turns.push({ id, messageIds: [id] });
+    else last.messageIds.push(id);
   }
   return turns;
 };
@@ -83,11 +105,9 @@ const Composer: FC = () => (
 );
 
 export const VirtualizedThread: FC = () => {
-  const signature = useAuiState((s) =>
-    s.thread.messages.map((m, i) => `${i}:${m.role}:${m.id}`).join("\n"),
-  );
+  const messages = useThreadMessageRows();
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const turns = useMemo(() => buildTurns(signature), [signature]);
+  const turns = useMemo(() => buildTurns(messages), [messages]);
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -211,10 +231,10 @@ export const VirtualizedThread: FC = () => {
                 ref={virtualizer.measureElement}
                 className="flex flex-col gap-4 py-3"
               >
-                {turns[item.index]!.indices.map((index) => (
-                  <ThreadPrimitive.MessageByIndex
-                    key={index}
-                    index={index}
+                {turns[item.index]!.messageIds.map((messageId) => (
+                  <ThreadPrimitive.Unstable_MessageById
+                    key={messageId}
+                    messageId={messageId}
                     components={MESSAGE_COMPONENTS}
                   />
                 ))}

@@ -6,20 +6,70 @@ import {
   attachTransformScopes,
 } from "@assistant-ui/store";
 import type {
-  InteractablesState,
-  InteractableRegistration,
-  InteractableStateSchema,
-  InteractablePersistedState,
-  InteractablePersistenceAdapter,
+  Unstable_InteractablesState,
+  Unstable_InteractableRegistration,
+  Unstable_InteractablePersistedState,
+  Unstable_InteractablePersistenceAdapter,
+  Unstable_InteractablesConfig,
 } from "../types/scopes/interactables";
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store";
-import { buildInteractableModelContext } from "./interactable-model-context";
+import {
+  buildInteractableModelContext,
+  type PartialJSONSchema,
+} from "./interactable-model-context";
+import {
+  findModelKnownState,
+  interactableToolName,
+} from "../../model-context/interactable-composer-metadata";
 
 const PERSISTENCE_DEBOUNCE_MS = 500;
 
-const useInteractables = (): ClientOutput<"interactables"> => {
-  const [state, setState] = useState<InteractablesState>(() => ({
+type RestorePersistedStateOptions = {
+  stash: Map<string, unknown>;
+  shouldStash?: (id: string) => boolean;
+  shouldApply?: (
+    id: string,
+    def: Unstable_InteractablesState["definitions"][string],
+  ) => boolean;
+};
+
+type ToolCallLikePart = {
+  type?: string;
+  toolCallId?: string;
+  toolName?: string;
+};
+
+type MessageLike = {
+  role?: string;
+  content?: readonly unknown[] | undefined;
+};
+
+type InternalInteractableRegistration = Unstable_InteractableRegistration & {
+  scope?: "thread" | undefined;
+};
+
+const hasInteractableCreateCall = (
+  messages: readonly MessageLike[],
+  id: string,
+  name: string,
+) =>
+  messages.some(
+    (message) =>
+      message.role === "assistant" &&
+      message.content?.some((part) => {
+        if (!part || typeof part !== "object") return false;
+        const p = part as ToolCallLikePart;
+        return (
+          p.type === "tool-call" && p.toolCallId === id && p.toolName === name
+        );
+      }),
+  );
+
+const useInteractablesResource = ({
+  persistence,
+}: Unstable_InteractablesConfig = {}): ClientOutput<"unstable_interactables"> => {
+  const [state, setState] = useState<Unstable_InteractablesState>(() => ({
     definitions: {},
     persistence: {},
   }));
@@ -27,19 +77,32 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const clientRef = useAssistantClientRef();
 
   const stateRef = useRef(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
 
   const subscribersRef = useRef(new Set<() => void>());
-  const partialSchemaCacheRef = useRef(
-    new Map<string, InteractableStateSchema>(),
+  const partialSchemaCacheRef = useRef(new Map<string, PartialJSONSchema>());
+  const streamBaselinesRef = useRef(
+    new Map<string, { targetId: string; state: unknown }>(),
   );
-  const detachedStateRef = useRef(new Map<string, unknown>());
+  const detachedAppStateRef = useRef(new Map<string, unknown>());
+  const detachedThreadStateRef = useRef(
+    new Map<string, Map<string, unknown>>(),
+  );
+  // An instance may be registered from several anchors (its creating tool
+  // call plus update_* calls); the definition lives until the last one leaves.
+  const registrationCountsRef = useRef(new Map<string, number>());
+  // One update-tool UI per interactable name, alive while any registrant
+  // that supplied an updateRender is mounted.
+  const updateToolUIsRef = useRef(
+    new Map<string, { count: number; unsubscribe: () => void }>(),
+  );
+  // App-scoped state restored via adapter.load(), consumed as components register.
+  const loadedStateRef = useRef(new Map<string, unknown>());
+  // Ids edited locally this session — a local edit always wins over a slow load.
+  const touchedIdsRef = useRef(new Set<string>());
 
-  const adapterRef = useRef<InteractablePersistenceAdapter | undefined>(
-    undefined,
-  );
+  const adapterRef = useRef<
+    Unstable_InteractablePersistenceAdapter | undefined
+  >(undefined);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
@@ -47,6 +110,28 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const hasPendingLocalChangeRef = useRef(false);
   const flushResolversRef = useRef<Array<() => void>>([]);
   const dirtyIdsRef = useRef(new Set<string>());
+
+  const setStateAndRef = useCallback(
+    (
+      updater: (
+        prev: Unstable_InteractablesState,
+      ) => Unstable_InteractablesState,
+    ) => {
+      const next = updater(stateRef.current);
+      stateRef.current = next;
+      setState(next);
+    },
+    [],
+  );
+
+  const exportState = useCallback((): Unstable_InteractablePersistedState => {
+    const result: Unstable_InteractablePersistedState = {};
+    for (const [id, def] of Object.entries(stateRef.current.definitions)) {
+      if (def.scope === "thread") continue; // thread items persist via snapshot, not the adapter
+      result[id] = { name: def.name, state: def.state };
+    }
+    return result;
+  }, []);
 
   const runPersistence = useCallback(async () => {
     const adapter = adapterRef.current;
@@ -62,13 +147,9 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     hasPendingLocalChangeRef.current = true;
 
     // Snapshot before any await so unregistered definitions are still included.
-    const exported = stateRef.current.definitions;
-    const payload: InteractablePersistedState = {};
-    for (const [id, def] of Object.entries(exported)) {
-      payload[id] = { name: def.name, state: def.state };
-    }
+    const payload = exportState();
 
-    setState((prev) => ({
+    setStateAndRef((prev) => ({
       ...prev,
       persistence: {
         ...prev.persistence,
@@ -85,7 +166,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
       await adapter.save(payload);
       if (syncSeqRef.current === seq) {
         hasPendingLocalChangeRef.current = false;
-        setState((prev) => {
+        setStateAndRef((prev) => {
           const persistence = { ...prev.persistence };
           for (const id of dirtyIds) delete persistence[id];
           return { ...prev, persistence };
@@ -94,7 +175,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     } catch (e) {
       if (syncSeqRef.current === seq) {
         hasPendingLocalChangeRef.current = false;
-        setState((prev) => ({
+        setStateAndRef((prev) => ({
           ...prev,
           persistence: {
             ...prev.persistence,
@@ -112,7 +193,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         flushResolversRef.current = [];
       }
     }
-  }, []);
+  }, [exportState, setStateAndRef]);
 
   const schedulePersistence = useCallback(
     (id: string) => {
@@ -136,37 +217,102 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     [runPersistence],
   );
 
-  const exportState = useCallback((): InteractablePersistedState => {
-    const result: InteractablePersistedState = {};
-    for (const [id, def] of Object.entries(stateRef.current.definitions)) {
-      result[id] = { name: def.name, state: def.state };
-    }
-    return result;
-  }, []);
+  const restorePersistedState = useCallback(
+    (
+      saved: Unstable_InteractablePersistedState,
+      options: RestorePersistedStateOptions,
+    ) => {
+      const shouldStash = options.shouldStash ?? (() => true);
+      const shouldApply = options.shouldApply ?? (() => true);
 
-  const importState = useCallback((saved: InteractablePersistedState) => {
-    for (const [id, entry] of Object.entries(saved)) {
-      detachedStateRef.current.set(id, entry.state);
-    }
-    setState((prev) => {
-      let changed = false;
-      const definitions = { ...prev.definitions };
       for (const [id, entry] of Object.entries(saved)) {
-        if (definitions[id]) {
-          definitions[id] = { ...definitions[id], state: entry.state };
+        if (shouldStash(id)) options.stash.set(id, entry.state);
+      }
+      setStateAndRef((prev) => {
+        let changed = false;
+        const definitions = { ...prev.definitions };
+        for (const [id, entry] of Object.entries(saved)) {
+          const def = definitions[id];
+          if (!def || !shouldApply(id, def)) continue;
+          definitions[id] = { ...def, state: entry.state };
           changed = true;
         }
+        if (!changed) return prev;
+        return { ...prev, definitions };
+      });
+    },
+    [setStateAndRef],
+  );
+
+  const importState = useCallback(
+    (saved: Unstable_InteractablePersistedState) => {
+      restorePersistedState(saved, { stash: detachedAppStateRef.current });
+    },
+    [restorePersistedState],
+  );
+
+  // Applies adapter.load() output: a local edit made while the load was in
+  // flight wins, and thread-scoped items never restore from the adapter.
+  const applyLoadedState = useCallback(
+    (saved: Unstable_InteractablePersistedState) => {
+      restorePersistedState(saved, {
+        stash: loadedStateRef.current,
+        shouldStash: (id) => !touchedIdsRef.current.has(id),
+        shouldApply: (id, def) =>
+          !touchedIdsRef.current.has(id) && def.scope !== "thread",
+      });
+    },
+    [restorePersistedState],
+  );
+
+  const loadFromAdapter = useCallback(
+    async (adapter: Unstable_InteractablePersistenceAdapter) => {
+      if (!adapter.load) return;
+      try {
+        const saved = await adapter.load();
+        if (!saved || adapterRef.current !== adapter) return;
+        applyLoadedState(saved);
+      } catch (e) {
+        console.warn("[Interactables] Persistence load failed.", e);
       }
-      return changed ? { ...prev, definitions } : prev;
-    });
-  }, []);
+    },
+    [applyLoadedState],
+  );
 
   const setPersistenceAdapter = useCallback(
-    (adapter: InteractablePersistenceAdapter | undefined) => {
+    (adapter: Unstable_InteractablePersistenceAdapter | undefined) => {
       adapterRef.current = adapter;
+      if (adapter) void loadFromAdapter(adapter);
     },
-    [],
+    [loadFromAdapter],
   );
+
+  const getCurrentThreadId = useCallback((): string | undefined => {
+    const client = clientRef.current;
+    if (!client) return undefined;
+
+    const threadListItem = client.threadListItem;
+    if (threadListItem.source != null) {
+      return threadListItem().getState().id;
+    }
+
+    const threads = client.threads;
+    if (threads.source != null) {
+      return threads().getState().mainThreadId;
+    }
+
+    return undefined;
+  }, [clientRef]);
+
+  useEffect(() => {
+    if (!persistence) return;
+    setPersistenceAdapter(persistence);
+    return () => {
+      if (adapterRef.current === persistence) {
+        adapterRef.current = undefined;
+      }
+    };
+  }, [persistence, setPersistenceAdapter]);
 
   const flush = useCallback(async () => {
     if (debounceTimerRef.current !== undefined) {
@@ -195,7 +341,8 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
   const setDefState = useCallback(
     (id: string, updater: (prev: unknown) => unknown) => {
-      setState((prev) => {
+      touchedIdsRef.current.add(id);
+      setStateAndRef((prev) => {
         const existing = prev.definitions[id];
         if (!existing) return prev;
         return {
@@ -206,24 +353,12 @@ const useInteractables = (): ClientOutput<"interactables"> => {
           },
         };
       });
-      if (stateRef.current.definitions[id]) schedulePersistence(id);
+      if (stateRef.current.definitions[id]?.scope !== "thread") {
+        schedulePersistence(id);
+      }
     },
-    [schedulePersistence],
+    [schedulePersistence, setStateAndRef],
   );
-
-  const setDefSelected = useCallback((id: string, selected: boolean) => {
-    setState((prev) => {
-      const existing = prev.definitions[id];
-      if (!existing) return prev;
-      return {
-        ...prev,
-        definitions: {
-          ...prev.definitions,
-          [id]: { ...existing, selected },
-        },
-      };
-    });
-  }, []);
 
   const provider = useMemo(
     () => ({
@@ -234,6 +369,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
             defs,
             partialSchemaCacheRef.current,
             setDefState,
+            streamBaselinesRef.current,
           ) ?? {}
         );
       },
@@ -256,24 +392,111 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   }, [clientRef, provider]);
 
   const register = useCallback(
-    (def: InteractableRegistration) => {
-      try {
-        const jsonSchema = toJSONSchema(def.stateSchema);
-        partialSchemaCacheRef.current.set(
-          def.id,
-          toPartialJSONSchema(jsonSchema),
-        );
-      } catch (e) {
+    (def: InternalInteractableRegistration) => {
+      const threadAccessor = clientRef.current?.thread;
+      const threadMessages =
+        threadAccessor && threadAccessor.source != null
+          ? (threadAccessor().getState().messages ?? [])
+          : [];
+      const scope =
+        def.scope ??
+        (hasInteractableCreateCall(threadMessages, def.id, def.name)
+          ? "thread"
+          : "app");
+
+      if (
+        process.env.NODE_ENV !== "production" &&
+        stateRef.current.definitions[def.id] &&
+        scope !== "thread"
+      ) {
         console.warn(
-          `[Interactables] Failed to create partial schema for "${def.name}". The update tool will require all fields.`,
-          e,
+          `[Interactables] "${def.name}" (${def.id}) is already registered. ` +
+            `Register an app-scoped interactable once (unstable_useInteractable) and ` +
+            `read it from other components with unstable_useInteractableState.`,
         );
       }
 
-      const detached = detachedStateRef.current.get(def.id);
-      detachedStateRef.current.delete(def.id);
+      registrationCountsRef.current.set(
+        def.id,
+        (registrationCountsRef.current.get(def.id) ?? 0) + 1,
+      );
 
-      setState((prev) => ({
+      let releaseUpdateToolUI: (() => void) | undefined;
+      if (def.updateRender) {
+        const toolsAccessor = clientRef.current?.tools;
+        if (toolsAccessor && toolsAccessor.source != null) {
+          const toolName = interactableToolName(def.name);
+          const existing = updateToolUIsRef.current.get(def.name);
+          if (existing) {
+            existing.count++;
+          } else {
+            updateToolUIsRef.current.set(def.name, {
+              count: 1,
+              unsubscribe: toolsAccessor().setToolUI(
+                toolName,
+                def.updateRender,
+                { standalone: true },
+              ),
+            });
+          }
+          releaseUpdateToolUI = () => {
+            const entry = updateToolUIsRef.current.get(def.name);
+            if (!entry) return;
+            if (--entry.count === 0) {
+              updateToolUIsRef.current.delete(def.name);
+              entry.unsubscribe();
+            }
+          };
+        } else if (process.env.NODE_ENV !== "production") {
+          console.warn(
+            `[Interactables] "${def.name}" supplied an updateRender, but no ` +
+              `tools scope is available to install it into.`,
+          );
+        }
+      }
+
+      // The same id re-registers once per anchor (its create call + each update_*).
+      if (!partialSchemaCacheRef.current.has(def.id)) {
+        try {
+          const jsonSchema = toJSONSchema(def.stateSchema);
+          partialSchemaCacheRef.current.set(
+            def.id,
+            toPartialJSONSchema(jsonSchema),
+          );
+        } catch (e) {
+          console.warn(
+            `[Interactables] Failed to create partial schema for "${def.name}". The update tool will accept arbitrary fields without validation.`,
+            e,
+          );
+        }
+      }
+
+      const threadId = scope === "thread" ? getCurrentThreadId() : undefined;
+      const detached =
+        scope === "thread"
+          ? threadId
+            ? detachedThreadStateRef.current.get(threadId)?.get(def.id)
+            : undefined
+          : detachedAppStateRef.current.get(def.id);
+      if (scope === "thread") {
+        if (threadId)
+          detachedThreadStateRef.current.get(threadId)?.delete(def.id);
+      } else {
+        detachedAppStateRef.current.delete(def.id);
+      }
+      const loaded =
+        scope === "thread" ? undefined : loadedStateRef.current.get(def.id);
+
+      // Tool-created items restore from what the model already knows in this
+      // thread (the creating call's args, sent snapshots, and the model's own
+      // update_* calls) on a fresh reload; detached (in-session remount) still
+      // wins so an unsent edit survives a scroll/virtualization cycle.
+      const known =
+        scope === "thread"
+          ? findModelKnownState(threadMessages, def.id, def.name)
+          : undefined;
+
+      setStateAndRef((prev) => ({
         ...prev,
         definitions: {
           ...prev.definitions,
@@ -282,19 +505,45 @@ const useInteractables = (): ClientOutput<"interactables"> => {
             name: def.name,
             description: def.description,
             stateSchema: def.stateSchema,
+            initialState: def.initialState,
+            scope,
             state:
-              prev.definitions[def.id]?.state ?? detached ?? def.initialState,
-            selected: def.selected,
+              prev.definitions[def.id]?.state ??
+              detached ??
+              known?.state ??
+              loaded ??
+              def.initialState,
           },
         },
       }));
 
       return () => {
+        releaseUpdateToolUI?.();
+
+        const remaining = (registrationCountsRef.current.get(def.id) ?? 1) - 1;
+        if (remaining > 0) {
+          registrationCountsRef.current.set(def.id, remaining);
+          return;
+        }
+        registrationCountsRef.current.delete(def.id);
+
         flushIfPending();
-        setState((prev) => {
+        setStateAndRef((prev) => {
           const existing = prev.definitions[def.id];
           if (existing) {
-            detachedStateRef.current.set(def.id, existing.state);
+            if (existing.scope === "thread") {
+              const threadId = getCurrentThreadId();
+              if (threadId) {
+                let stateById = detachedThreadStateRef.current.get(threadId);
+                if (!stateById) {
+                  stateById = new Map();
+                  detachedThreadStateRef.current.set(threadId, stateById);
+                }
+                stateById.set(def.id, existing.state);
+              }
+            } else {
+              detachedAppStateRef.current.set(def.id, existing.state);
+            }
           }
           partialSchemaCacheRef.current.delete(def.id);
           const { [def.id]: _, ...rest } = prev.definitions;
@@ -303,14 +552,13 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         });
       };
     },
-    [flushIfPending],
+    [flushIfPending, clientRef, getCurrentThreadId, setStateAndRef],
   );
 
   return {
-    getState: () => state,
+    getState: () => stateRef.current,
     register,
     setState: setDefState,
-    setSelected: setDefSelected,
     exportState,
     importState,
     setPersistenceAdapter,
@@ -318,9 +566,14 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   };
 };
 
-export const Interactables = resource(useInteractables);
+/**
+ * Registers the unstable interactables store scope.
+ *
+ * @deprecated Unstable / Experimental (not actually removed).
+ */
+export const unstable_Interactables = resource(useInteractablesResource);
 
-attachTransformScopes(useInteractables, (scopes, parent) => {
+attachTransformScopes(useInteractablesResource, (scopes, parent) => {
   if (!scopes.modelContext && parent.modelContext.source === null) {
     scopes.modelContext = ModelContext();
   }

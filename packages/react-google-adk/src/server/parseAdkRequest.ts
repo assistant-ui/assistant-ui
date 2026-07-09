@@ -46,11 +46,13 @@ export const parseAdkRequest = async (
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    throw new Error("Invalid JSON in request body");
+    throw new Error(
+      'Invalid JSON in Google ADK proxy request body. Expected a JSON object like {"message":"Hello"} or {"type":"tool-result",...}.',
+    );
   }
 
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    throw new Error("Request body must be a JSON object");
+    throw new Error("Google ADK proxy request body must be a JSON object");
   }
 
   const config: AdkSendMessageConfig = {};

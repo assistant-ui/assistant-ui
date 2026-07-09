@@ -5,7 +5,7 @@ description: Use LangChain's useStream hook with a React chat UI through assista
 
 import { LangGraphIcon } from "@/components/icons/langgraph";
 
-`@assistant-ui/react-langchain` wraps [`useStream`](https://docs.langchain.com/oss/javascript/langgraph-sdk/react-stream) from `@langchain/react` and exposes it as an assistant-ui runtime. It targets the same backend as [`@assistant-ui/react-langgraph`](/docs/runtimes/langgraph) (LangGraph Cloud) but at a higher level, delegating stream plumbing to the upstream hook.
+`@assistant-ui/react-langchain` wraps [`useStream`](https://docs.langchain.com/oss/javascript/langgraph-sdk/react-stream) from `@langchain/react` and exposes it as an assistant-ui runtime. It targets the same backend as [`@assistant-ui/react-langgraph`](/docs/runtimes/langgraph/overview) (LangGraph Cloud) but at a higher level, delegating stream plumbing to the upstream hook.
 
 ## When to use it
 
@@ -18,9 +18,9 @@ Pick `react-langchain` over `react-langgraph` when:
 
 Pick `react-langgraph` instead when:
 
-- You need subgraph events, generative UI messages, message metadata, or end-to-end cancellation today.
+- You need a fully custom/bespoke backend stream (your own async generator) rather than `useStream`'s transport, or you're maintaining an existing `react-langgraph` app.
 
-Both adapters are first-class. `react-langchain` is newer and thinner; some features have not been ported yet (the [comparison](#comparison-with-react-langgraph) below has the full table).
+Both adapters are first-class and now at feature parity (the [comparison](#comparison-with-react-langgraph) below has the full table); `react-langchain` is the newer, thinner wrapper pinned to upstream `useStream`.
 
 ## Architecture
 
@@ -646,6 +646,94 @@ function Discovered() {
 }
 ```
 
+## Subagent and subgraph views
+
+The discovery maps above pair with v1's scoped selector hooks to render a subagent's or subgraph's own messages and tool calls. `useLangChainStream` exposes the underlying `useStream` handle; feed it to `useMessages(stream, target)` / `useToolCalls(stream, target)` from `@langchain/react`, with a `SubagentDiscoverySnapshot` / `SubgraphDiscoverySnapshot` from `useLangChainSubagents` / `useLangChainSubgraphs` as the target. `useLangChainStream` returns `undefined` outside the runtime provider.
+
+```tsx
+import {
+  useLangChainStream,
+  useLangChainSubagents,
+} from "@assistant-ui/react-langchain";
+import { useMessages, useToolCalls } from "@langchain/react";
+
+function SubagentCard({ stream, subagent }) {
+  const messages = useMessages(stream, subagent);
+  const toolCalls = useToolCalls(stream, subagent);
+  return (
+    <div>
+      <strong>{subagent.namespace.join("/")}</strong>
+      <pre>{messages.map((m) => m.content).join("\n")}</pre>
+      <ul>
+        {toolCalls.map((tc) => (
+          <li key={tc.id}>{tc.name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Subagents() {
+  const stream = useLangChainStream();
+  const subagents = useLangChainSubagents();
+  if (!stream) return null;
+  return [...subagents.values()].map((s) => (
+    <SubagentCard key={s.namespace.join("/")} stream={stream} subagent={s} />
+  ));
+}
+```
+
+## Per-message metadata
+
+`useMessageMetadata` (from `@langchain/react`) reads per-message metadata (e.g. `parentCheckpointId`) for a given message id. Pair it with `useLangChainStream`, which returns `undefined` outside the runtime provider; guard the stream before calling the selector, since `useMessageMetadata` throws on an undefined stream.
+
+```tsx
+import { useLangChainStream } from "@assistant-ui/react-langchain";
+import { useMessageMetadata } from "@langchain/react";
+
+function MessageInfoView({
+  stream,
+  messageId,
+}: {
+  stream: NonNullable<ReturnType<typeof useLangChainStream>>;
+  messageId: string;
+}) {
+  const { parentCheckpointId } = useMessageMetadata(stream, messageId) ?? {};
+  // …render per-message metadata…
+}
+
+function MessageInfo({ messageId }: { messageId: string }) {
+  const stream = useLangChainStream();
+  if (!stream) return null;
+  return <MessageInfoView stream={stream} messageId={messageId} />;
+}
+```
+
+## Media
+
+The v1 media hooks surface multimodal media streamed by the agent. Feed the `useLangChainStream` handle to them — the same pattern as the views and metadata sections above.
+
+```tsx
+import { useLangChainStream } from "@assistant-ui/react-langchain";
+import { useImages, useAudio } from "@langchain/react";
+
+function MediaView({
+  stream,
+}: {
+  stream: NonNullable<ReturnType<typeof useLangChainStream>>;
+}) {
+  const images = useImages(stream);
+  // useAudio / useVideo / useFiles likewise
+  return <>{/* …render media… */}</>;
+}
+
+function Media() {
+  const stream = useLangChainStream();
+  if (!stream) return null;
+  return <MediaView stream={stream} />;
+}
+```
+
 ## Generative UI
 
 Graphs can accumulate UI components in their state and attach each one to the assistant message that produced it. The runtime reads these from `stream.values[uiStateKey]` (default `"ui"`) and, for every `UIMessage` whose parent id matches an assistant message, emits a `data` part on that message. The parent id is read from `metadata.message_id` (Python SDK) or `metadata.id` (JS SDK). Pass `uiStateKey` if your graph stores them elsewhere.
@@ -680,7 +768,9 @@ function App() {
 }
 ```
 
-This is the state-snapshot path: it renders whatever UI the graph has committed to its state. Streaming a component live over the `push_ui_message` custom channel before it lands in state is a separate path that will arrive in a follow-up.
+This covers two paths transparently. The **state-snapshot** path renders whatever UI the graph has committed to its state. The **live** path renders UI streamed over the `custom` channel by `push_ui_message` / `remove_ui_message` before (or instead of) it lands in state, so components appear as the graph emits them. The runtime accumulates the live events and merges them with the state snapshot, with the snapshot authoritative once a UI lands in state. Both feed the same `makeAssistantDataUI` renderers.
+
+The live path requires the graph's `streamMode` to include `"custom"` so the UI events reach the client.
 
 ## Errors
 
@@ -731,7 +821,7 @@ const runtime = useStreamRuntime({
 
 ## Comparison with `react-langgraph`
 
-Both packages connect assistant-ui to LangGraph backends. They are independent adapters for different upstream libraries; one is not a successor to the other. The official `create-assistant-ui` template (`-t langchain`) ships `react-langchain`; `react-langgraph` remains available for subgraph events, generative UI, per-message metadata, and end-to-end cancellation.
+Both packages connect assistant-ui to LangGraph backends. They are independent adapters for different upstream libraries; one is not a successor to the other. The official `create-assistant-ui` template (`-t langchain`) ships `react-langchain`. The two are now at feature parity; `react-langgraph` remains the choice for a fully custom backend stream or an existing `react-langgraph` app.
 
 | Aspect | `react-langgraph` | `react-langchain` |
 | --- | --- | --- |
@@ -756,17 +846,22 @@ Both packages connect assistant-ui to LangGraph backends. They are independent a
 | File content parts in messages | Yes | Yes |
 | Regenerate (checkpoint fork) | Yes (`getCheckpointId`) | Yes (auto-resolved) |
 | Edit message (checkpoint fork) | Yes | Yes (auto-resolved) |
-| Per-message metadata (`messages-tuple`) | Yes | Not exposed |
+| Per-message metadata (`messages-tuple`) | Yes | Yes (`useMessageMetadata` via `useLangChainStream`) |
+| Multimodal media (audio/image/video/file) | Via parts | Yes (v1 media hooks via `useLangChainStream`) |
 | Generative UI (state snapshot) | Yes | Yes (`uiStateKey`) |
-| Generative UI (live `push_ui_message`) | Yes | Not yet |
-| Subgraph / namespaced stream events | Yes (via `eventHandlers`) | Not exposed |
+| Generative UI (live `push_ui_message`) | Yes | Yes (`streamMode: ["custom"]`) |
+| Subgraph / namespaced stream events | Yes (via `eventHandlers`) | Replaced by `useLangChainSubagents` / `useLangChainSubgraphs` + views |
 | Subagent discovery | Via `eventHandlers` | Yes (`useLangChainSubagents`) |
 | Subgraph discovery | Via `eventHandlers` | Yes (`useLangChainSubgraphs`) |
-| End-to-end cancellation primitive | Yes (`unstable_createLangGraphStream`) | Not exposed |
-| Message accumulator utility | Yes (`LangGraphMessageAccumulator`) | Not exposed |
+| Subagent/subgraph message views | Via `eventHandlers` | Yes (via `useLangChainStream` + v1 selector hooks) |
+| End-to-end cancellation primitive | Yes (`unstable_createLangGraphStream`) | n/a — cancellation via `useStream().stop()` (Cancel button on by default) |
+| Message accumulator utility | Yes (`LangGraphMessageAccumulator`) | n/a — `useStream` owns accumulation |
+| Streaming timing (per-message) | Yes | Yes |
 | Cloud thread persistence | Yes | Yes |
 
-`react-langchain` is the newer, thinner wrapper. It delegates to upstream `useStream` rather than re-implementing the stream plumbing, which is why its footprint is smaller. Features absent today have not been ported, not deprecated.
+Per-message streaming timing is attached automatically to `message.metadata.timing` (no setup), matching `react-langgraph`. It captures time-to-first-token, total stream time, chunk count, and tokens/sec, computed from message growth while the run is in flight.
+
+`react-langchain` is the newer, thinner wrapper. It delegates to upstream `useStream` rather than re-implementing the stream plumbing, which is why its footprint is smaller.
 
 Regenerate works without configuration. Clicking regenerate resolves the server checkpoint to fork from (the checkpoint each message records as it streams in, falling back to a `stream.client.threads.getHistory(threadId)` id match for older turns), then re-runs with `submit(null, { forkFrom })`. It works on checkpoint-enabled backends (for example LangGraph Cloud) and degrades gracefully; when no checkpoint resolves the regenerate is a no-op. `react-langgraph` instead requires a user-supplied `getCheckpointId` callback. Editing a message forks from the same checkpoint and submits the edited human content instead of re-running the prior turn; editing the first message forks from the thread's initial checkpoint to restart it.
 
@@ -778,8 +873,8 @@ Regenerate works without configuration. Clicking regenerate resolves the server 
 | `useLangGraphInterruptState` | `useLangChainInterruptState` | Same return shape. |
 | `useLangGraphSendCommand` | `useLangChainRespond` | Preferred resume; carries a payload via `stream.respond`. For a raw `Command`, use `useLangChainSubmit(null, { command })`. |
 | `useLangGraphSend` | _(use `runtime.thread.append`)_ | No direct equivalent; send turns through the runtime. |
-| `useLangGraphMessageMetadata` | _(not available)_ | Open an issue if you rely on this. |
-| `useLangGraphUIMessages` | _(not available)_ | Open an issue if you rely on this. |
+| `useLangGraphMessageMetadata` | _(use `useMessageMetadata(useLangChainStream(), id)`)_ | Per-message metadata via the upstream selector hook. |
+| `useLangGraphUIMessages` | _(UI renders as data parts; register with `makeAssistantDataUI`)_ | See [Generative UI](#generative-ui). |
 | _(none)_ | `useLangChainState<T>(key)` | New — reads any custom state key reactively. |
 | _(none)_ | `useLangChainToolCalls` | New — root tool calls assembled by `useStream`. |
 | _(none)_ | `useLangChainError()` | New — reads the last run/hydration error reactively. |
@@ -787,6 +882,7 @@ Regenerate works without configuration. Clicking regenerate resolves the server 
 | _(none)_ | `useLangChainInterrupts` | New — every interrupt pending at the checkpoint, each with `id` and `value`. |
 | _(via `eventHandlers`)_ | `useLangChainSubagents` | New — subagents discovered on the current run; replaces subgraph event handlers. |
 | _(via `eventHandlers`)_ | `useLangChainSubgraphs` | New — subgraphs discovered on the current run; replaces subgraph event handlers. |
+| _(none)_ | `useLangChainStream` | New — the raw `useStream` handle for v1's scoped `useMessages` / `useToolCalls` selector hooks. |
 
 ## Related
 
@@ -794,8 +890,8 @@ Regenerate works without configuration. Clicking regenerate resolves the server 
   <Card
     icon={<LangGraphIcon width={20} height={20} className="text-[#1C3C3C] dark:text-[#5b9595]" />}
     title="LangGraph"
-    description="The full-featured adapter with subgraph events, UI messages, metadata."
-    href="/docs/runtimes/langgraph"
+    description="The original LangGraph adapter, built on the raw SDK."
+    href="/docs/runtimes/langgraph/overview"
   />
   <Card
     title="ExternalStoreRuntime"

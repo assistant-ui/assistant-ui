@@ -1,9 +1,14 @@
 /// <reference types="@assistant-ui/core/store" />
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppendMessage, ToolExecutionStatus } from "@assistant-ui/core";
-import { pickExternalStoreSharedOptions } from "@assistant-ui/core";
+import {
+  generateId,
+  getExternalStoreMessages,
+  pickExternalStoreSharedOptions,
+} from "@assistant-ui/core";
+import type { ThreadMessage } from "@assistant-ui/core";
 import {
   useCloudThreadListAdapter,
   useExternalStoreRuntime,
@@ -11,7 +16,8 @@ import {
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
-import { STREAM_CONTROLLER, useStream } from "@langchain/react";
+import { STREAM_CONTROLLER, useChannel, useStream } from "@langchain/react";
+import type { Channel } from "@langchain/react";
 import type {
   LangChainBaseMessage,
   LangChainToolCall,
@@ -23,8 +29,12 @@ import {
   getMessageContent,
   getMessageType,
 } from "./convertMessages";
+import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
 import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
+import { useLangChainStreamingTiming } from "./streamingTiming";
+
+const UI_CUSTOM_CHANNELS: readonly Channel[] = ["custom"];
 
 export const runConfigToSubmitOptions = (
   runConfig: AppendMessage["runConfig"],
@@ -72,6 +82,31 @@ const getPendingToolCalls = (
   return [...pending.values()];
 };
 
+const toStagedHumanMessage = (
+  msg: AppendMessage,
+  id = generateId(),
+): LangChainBaseMessage & { id: string } => ({
+  id,
+  _getType: () => "human",
+  content: getMessageContent(msg),
+});
+
+const truncateLangChainBaseMessages = (
+  threadMessages: readonly ThreadMessage[],
+  parentId: string | null,
+): LangChainBaseMessage[] => {
+  if (parentId === null) return [];
+  const parentIndex = threadMessages.findIndex((m) => m.id === parentId);
+  if (parentIndex === -1) return [];
+  const truncated: LangChainBaseMessage[] = [];
+  for (let i = 0; i <= parentIndex && i < threadMessages.length; i++) {
+    truncated.push(
+      ...getExternalStoreMessages<LangChainBaseMessage>(threadMessages[i]!),
+    );
+  }
+  return truncated;
+};
+
 type DistributiveOmit<T, K extends keyof any> = T extends unknown
   ? Omit<T, K>
   : never;
@@ -96,6 +131,9 @@ const useStreamThreadRuntime = (
   options.threadId = externalId;
 
   const stream = useStream(options);
+  const [stagedMessages, setStagedMessages] = useState<
+    LangChainBaseMessage[] | null
+  >(null);
 
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -106,22 +144,124 @@ const useStreamThreadRuntime = (
   const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
   const uiStateValue = stream.values[uiStateKey];
+
+  const customEvents = useChannel(stream, UI_CUSTOM_CHANNELS);
+  const liveUiMessages = useMemo(
+    () => foldUIUpdates(customEvents),
+    [customEvents],
+  );
+
+  const mergedUiMessages = useMemo(
+    () => mergeUIMessages(liveUiMessages, uiStateValue),
+    [liveUiMessages, uiStateValue],
+  );
+
+  const visibleMessages =
+    stagedMessages ?? (stream.messages as LangChainBaseMessage[]);
+
+  const messageTiming = useLangChainStreamingTiming(
+    visibleMessages,
+    effectiveIsRunning,
+  );
+
   const convertWithUI = useMemo<
     useExternalMessageConverter.Callback<LangChainBaseMessage>
   >(() => {
-    const uiMessagesByParent = groupUIMessagesByParent(uiStateValue);
+    const uiMessagesByParent = groupUIMessagesByParent(mergedUiMessages);
     return (message, metadata) =>
-      convertLangChainBaseMessage(message, { ...metadata, uiMessagesByParent });
-  }, [uiStateValue]);
+      convertLangChainBaseMessage(message, {
+        ...metadata,
+        uiMessagesByParent,
+        messageTiming,
+      });
+  }, [mergedUiMessages, messageTiming]);
 
   const threadMessages = useExternalMessageConverter({
     callback: convertWithUI,
-    messages: stream.messages as LangChainBaseMessage[],
+    messages: visibleMessages,
     isRunning: effectiveIsRunning,
   });
 
   const streamRef = useRef(stream);
   streamRef.current = stream;
+
+  const visibleMessagesRef = useRef(visibleMessages);
+  visibleMessagesRef.current = visibleMessages;
+
+  const threadMessagesRef = useRef(threadMessages);
+  threadMessagesRef.current = threadMessages;
+
+  const stagedMessagesRef = useRef(
+    new Map<
+      string,
+      {
+        message: LangChainBaseMessage & { id: string };
+        runConfig: AppendMessage["runConfig"];
+      }
+    >(),
+  );
+  const stagedBaseMessagesRef = useRef<LangChainBaseMessage[] | null>(null);
+
+  useEffect(() => {
+    if (stagedMessagesRef.current.size === 0) return;
+
+    // Staged edits must keep their truncated base while stream updates arrive before promotion.
+    const baseMessages =
+      stagedBaseMessagesRef.current ??
+      (stream.messages as LangChainBaseMessage[]);
+    const baseMessageIds = new Set(
+      baseMessages.flatMap((message) => (message.id ? [message.id] : [])),
+    );
+    const remainingStagedMessages: LangChainBaseMessage[] = [];
+    const seenStagedIds = new Set<string>();
+    for (const message of visibleMessagesRef.current) {
+      if (!message.id || seenStagedIds.has(message.id)) continue;
+      if (baseMessageIds.has(message.id)) continue;
+      const staged = stagedMessagesRef.current.get(message.id);
+      if (!staged) continue;
+      remainingStagedMessages.push(staged.message);
+      seenStagedIds.add(message.id);
+    }
+
+    if (remainingStagedMessages.length === 0) {
+      stagedBaseMessagesRef.current = null;
+      visibleMessagesRef.current = baseMessages;
+      setStagedMessages(null);
+      return;
+    }
+
+    const nextMessages = [...baseMessages, ...remainingStagedMessages];
+    visibleMessagesRef.current = nextMessages;
+    setStagedMessages(nextMessages);
+  }, [stream.messages]);
+
+  const getStagedRun = (parentId: string | null) => {
+    if (!parentId || !stagedMessagesRef.current.has(parentId)) return null;
+
+    const staged: LangChainBaseMessage[] = [];
+    for (const message of visibleMessagesRef.current) {
+      if (message.id && stagedMessagesRef.current.has(message.id)) {
+        staged.push(stagedMessagesRef.current.get(message.id)!.message);
+      }
+      if (message.id === parentId) break;
+    }
+
+    return {
+      messages: staged,
+      runConfig: stagedMessagesRef.current.get(parentId)!.runConfig,
+    };
+  };
+
+  const stageUserMessage = (msg: AppendMessage) => {
+    const stagedMessage = toStagedHumanMessage(msg);
+    stagedMessagesRef.current.set(stagedMessage.id, {
+      message: stagedMessage,
+      runConfig: msg.runConfig,
+    });
+    const nextMessages = [...visibleMessagesRef.current, stagedMessage];
+    visibleMessagesRef.current = nextMessages;
+    setStagedMessages(nextMessages);
+  };
 
   const extras = useMemo(
     () =>
@@ -131,6 +271,7 @@ const useStreamThreadRuntime = (
         toolCalls: stream.toolCalls,
         subagents: stream.subagents,
         subgraphs: stream.subgraphs,
+        stream,
         error: stream.error,
         submit: stream.submit,
         respond: stream.respond,
@@ -138,19 +279,7 @@ const useStreamThreadRuntime = (
         values: stream.values,
         messagesKey,
       }),
-    [
-      stream.interrupt,
-      stream.interrupts,
-      stream.toolCalls,
-      stream.subagents,
-      stream.subgraphs,
-      stream.error,
-      stream.submit,
-      stream.respond,
-      stream.respondAll,
-      stream.values,
-      messagesKey,
-    ],
+    [stream, messagesKey],
   );
 
   const runtime = useExternalStoreRuntime({
@@ -163,6 +292,11 @@ const useStreamThreadRuntime = (
     unstable_enableToolInvocations: true,
     setToolStatuses,
     onNew: async (msg) => {
+      if (!(msg.startRun ?? msg.role === "user")) {
+        stageUserMessage(msg);
+        return;
+      }
+
       const content = getMessageContent(msg);
       const cancellations =
         autoCancelPendingToolCalls !== false
@@ -202,6 +336,37 @@ const useStreamThreadRuntime = (
       });
     },
     onReload: async (parentId, config) => {
+      const stagedRun = getStagedRun(parentId);
+      if (stagedRun) {
+        const promotedIds = new Set<string>();
+        for (const message of stagedRun.messages) {
+          if (!message.id) continue;
+          promotedIds.add(message.id);
+          stagedMessagesRef.current.delete(message.id);
+        }
+        stagedBaseMessagesRef.current = null;
+        if (stagedMessagesRef.current.size > 0) {
+          const nextMessages = visibleMessagesRef.current.filter(
+            (message) => !message.id || !promotedIds.has(message.id),
+          );
+          visibleMessagesRef.current = nextMessages;
+          setStagedMessages(nextMessages);
+        } else {
+          setStagedMessages(null);
+        }
+        await stream.submit(
+          {
+            [messagesKey]: stagedRun.messages.map((message) => ({
+              id: message.id,
+              type: "human",
+              content: message.content,
+            })),
+          },
+          runConfigToSubmitOptions(config.runConfig ?? stagedRun.runConfig),
+        );
+        return;
+      }
+
       const threadId = externalId;
       if (!threadId || parentId == null) return;
       const s = streamRef.current;
@@ -221,6 +386,23 @@ const useStreamThreadRuntime = (
       });
     },
     onEdit: async (message) => {
+      if (!(message.startRun ?? message.role === "user")) {
+        const truncated = truncateLangChainBaseMessages(
+          threadMessagesRef.current,
+          message.parentId,
+        );
+        const stagedMessage = toStagedHumanMessage(message);
+        stagedMessagesRef.current.set(stagedMessage.id, {
+          message: stagedMessage,
+          runConfig: message.runConfig,
+        });
+        stagedBaseMessagesRef.current = truncated;
+        const nextMessages = [...truncated, stagedMessage];
+        visibleMessagesRef.current = nextMessages;
+        setStagedMessages(nextMessages);
+        return;
+      }
+
       const threadId = externalId;
       if (!threadId) return;
       const s = streamRef.current;

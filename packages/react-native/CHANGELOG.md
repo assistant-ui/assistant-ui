@@ -1,5 +1,65 @@
 # @assistant-ui/react-native
 
+## 0.1.29
+
+### Patch Changes
+
+- [#4580](https://github.com/assistant-ui/assistant-ui/pull/4580) [`2220136`](https://github.com/assistant-ui/assistant-ui/commit/222013629f8c4bd3fc8c8c1de641bab799041515) - fix: re-export documented context providers from platform barrels ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.1.28
+
+### Patch Changes
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#4310](https://github.com/assistant-ui/assistant-ui/pull/4310) [`0c51b90`](https://github.com/assistant-ui/assistant-ui/commit/0c51b905d22418b93532636b1028c080ecc819e0) - feat: add `unstable_` interactables API; restore and deprecate the previous interactables API ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+  The redesigned interactables API is now available as an additive `unstable_*` surface for building editable, in-message UI while preserving the existing stable API for compatibility.
+
+  - `unstable_useInteractable(name, config)` registers an interactable and returns its state plus methods in one hook.
+  - Each unstable interactable name gets one stable `update_{name}` tool. When multiple instances share a name, the tool targets an instance by `id`.
+  - Thread-scoped interactables rendered inside message parts expose `version`, including the state for that message, whether it is the latest tool-driven version, and `restore()`.
+  - Added `unstable_interactableTool(...)` for defining a creating tool and its in-message render UI together.
+  - Added `unstable_useInteractableVersions(id, name)` for version history UIs.
+  - Persistence adapters can now provide `load()` and be passed directly to `unstable_Interactables({ persistence })`.
+
+  The previous `useAssistantInteractable` / `useInteractableState` / `Interactables` API remains available unchanged and is marked deprecated. Existing apps do not need to migrate immediately.
+
+  Migration notes for the unstable API:
+
+  ```diff
+  - const id = useAssistantInteractable("taskBoard", config);
+  - const [state, { setState }] = useInteractableState(id, initialState);
+  + const [state, { id, setState }] = unstable_useInteractable("taskBoard", config);
+  ```
+
+  - Use `unstable_interactables: unstable_Interactables()` when registering the unstable scope.
+  - `unstable_useInteractableState(id)` is intended for secondary readers and returns `undefined` until the owner registers.
+  - The unstable API uses per-name update tools (`update_{name}`) with an `id` parameter instead of legacy per-instance tools (`update_{name}_{id}`).
+  - A top-level `id` field in `stateSchema` is reserved for instance addressing. Rename domain state fields to `itemId`, `recordId`, etc. if the model should edit them.
+  - Model selection should be represented as ordinary state in the unstable API; the legacy `selected` registration prop and `setSelected` method remain available on the deprecated stable API.
+
+- [#4513](https://github.com/assistant-ui/assistant-ui/pull/4513) [`ef5d628`](https://github.com/assistant-ui/assistant-ui/commit/ef5d6282b550ba784617d41234c770a4afd68b44) - fix(react-native): stop IME composition from breaking the web composer input ([@okisdev](https://github.com/okisdev))
+
+  two related IME regressions on the rn-web `ComposerInput` ([#4506](https://github.com/assistant-ui/assistant-ui/issues/4506), [#4510](https://github.com/assistant-ui/assistant-ui/issues/4510)):
+
+  - [#4506](https://github.com/assistant-ui/assistant-ui/issues/4506): typing a CJK/IME composition was interrupted mid character. `onChangeText` called `aui.composer().setText(value)`, which the tap scheduler defers to a macrotask, so the controlled `value={text}` stayed stale while react-dom reconciled the textarea and reset it back, killing the in flight composition buffer. now wraps `setText` in `flushTapSync` on web so the controlled value is synced synchronously before react can write the stale value back, mirroring the web `ComposerPrimitive.Input`.
+  - [#4510](https://github.com/assistant-ui/assistant-ui/issues/4510): pressing Enter to commit an IME candidate submitted the message instead of only confirming it. rn-web forwards the raw dom keydown to `onKeyPress` before its own composition guard, so the Enter branch fired while `isComposing`/`keyCode === 229` was set. now bails out of the submit branch when the forwarded `nativeEvent` reports an active composition, matching rn-web's own `isEventComposing`.
+
+  both only affect the web path; native iOS/Android keep the existing behavior.
+
+- [#4514](https://github.com/assistant-ui/assistant-ui/pull/4514) [`19c0b86`](https://github.com/assistant-ui/assistant-ui/commit/19c0b86d338e45f094f269d81690b1f479f704ea) - test: add a vitest suite covering the react-native primitives (composer input IME and submit behavior, action buttons, conditionals, state readers, error, chain-of-thought, and message content dispatch) ([@okisdev](https://github.com/okisdev))
+
+- [#4577](https://github.com/assistant-ui/assistant-ui/pull/4577) [`fe28419`](https://github.com/assistant-ui/assistant-ui/commit/fe28419d30f49c214a892783d9922a445f9ade0f) - feat: re-export unstable interactable snapshot helpers from native and ink barrels ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4542](https://github.com/assistant-ui/assistant-ui/pull/4542) [`4acd4c0`](https://github.com/assistant-ui/assistant-ui/commit/4acd4c0f608da1c62bf23a666bc0fec870a27dca) - add unstable id-keyed thread message rendering APIs for virtualized and custom message lists. `unstable_useThreadMessageIds()` returns the thread's message ids (stable array identity across content-only updates), and `ThreadPrimitive.Unstable_MessageById` renders a single message by id with the same component surface as `MessageByIndex`. A missing or removed id renders `null` instead of throwing. ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- Updated dependencies [[`ddc40b7`](https://github.com/assistant-ui/assistant-ui/commit/ddc40b7791563057749ecf1121e15d19574479ff), [`ea52de0`](https://github.com/assistant-ui/assistant-ui/commit/ea52de06368853b7af7ac6755b157ec5305a8494), [`29c6fdb`](https://github.com/assistant-ui/assistant-ui/commit/29c6fdbc8ede04fb2647b0a47184003ee3c2f090), [`d0987a3`](https://github.com/assistant-ui/assistant-ui/commit/d0987a32540880e5058ee529fd52a3efb4298706), [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff), [`0c51b90`](https://github.com/assistant-ui/assistant-ui/commit/0c51b905d22418b93532636b1028c080ecc819e0), [`3a8f685`](https://github.com/assistant-ui/assistant-ui/commit/3a8f685e23a3e7ad76ac41e3ce6fff05714e04d3), [`ec6adf4`](https://github.com/assistant-ui/assistant-ui/commit/ec6adf4adc91fe12c7de47fc93adcc347ece8245), [`4acd4c0`](https://github.com/assistant-ui/assistant-ui/commit/4acd4c0f608da1c62bf23a666bc0fec870a27dca)]:
+  - @assistant-ui/core@0.2.19
+  - assistant-stream@0.3.24
+  - @assistant-ui/store@0.2.19
+  - @assistant-ui/tap@0.9.3
+
 ## 0.1.27
 
 ### Patch Changes

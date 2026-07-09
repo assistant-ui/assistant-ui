@@ -40,12 +40,10 @@ export function WaterfallRow() {
       </SpanPrimitive.Indent>
 
       <div
-        className="group-hover:bg-accent/30"
+        className="group-hover:bg-accent/30 relative"
         style={{ width: barWidth, height: barHeight }}
       >
-        <svg aria-hidden="true" width={barWidth} height={barHeight}>
-          <WaterfallBar />
-        </svg>
+        <WaterfallBar />
       </div>
     </SpanPrimitive.Root>
   );

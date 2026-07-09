@@ -84,7 +84,10 @@ type Toolkit = Record<string, ToolDefinition<any, any>>;
 
 ### defineMcpToolkit
 
-Defines MCP server tools as a spreadable toolkit fragment.
+Defines MCP server tools as a spreadable toolkit fragment. Pass a raw
+`McpServerConfig` for always-on servers, or `{ server, disabled, tools }`
+when a server should stay configured but not expose all tools for the current
+request.
 
 <ParametersTable {...defineMcpToolkit} />
 
@@ -113,26 +116,6 @@ client build.
 
 ```ts
 function externalTool(): never;
-```
-
-### hitl
-
-<Callout type="warn">
-<strong>Deprecated.</strong> Use [humanTool](/docs/api-reference/tools/toolkits#humantool).
-</Callout>
-
-```ts
-const hitl: typeof humanTool;
-```
-
-### hitlTool
-
-<Callout type="warn">
-<strong>Deprecated.</strong> Use [humanTool](/docs/api-reference/tools/toolkits#humantool).
-</Callout>
-
-```ts
-const hitlTool: typeof humanTool;
 ```
 
 ### humanTool
@@ -171,5 +154,25 @@ supplied by `useAuiToolOverrides(...)`.
 
 ```ts
 function stubTool(): never;
+```
+
+### hitl
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [humanTool](/docs/api-reference/tools/toolkits#humantool).
+</Callout>
+
+```ts
+const hitl: typeof humanTool;
+```
+
+### hitlTool
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [humanTool](/docs/api-reference/tools/toolkits#humantool).
+</Callout>
+
+```ts
+const hitlTool: typeof humanTool;
 ```
 {/* api-reference:end */}

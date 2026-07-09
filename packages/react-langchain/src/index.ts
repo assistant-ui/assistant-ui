@@ -9,6 +9,7 @@ export {
   useLangChainSend,
   useLangChainSendCommand,
   useLangChainState,
+  useLangChainStream,
   useLangChainSubagents,
   useLangChainSubgraphs,
   useLangChainSubmit,
@@ -16,6 +17,7 @@ export {
 } from "./hooks";
 
 export { convertLangChainBaseMessage } from "./convertMessages";
+export { useLangChainStreamingTiming } from "./streamingTiming";
 
 export type {
   SubagentDiscoverySnapshot,
@@ -26,6 +28,7 @@ export type {
   LangChainBaseMessage,
   LangChainContentBlock,
   LangChainToolCall,
+  RemoveUIMessage,
   UIMessage,
   UseStreamRuntimeOptions,
 } from "./types";

@@ -50,13 +50,46 @@ export {
 } from "./model-context/provider-tool";
 export {
   defineMcpToolkit,
+  type McpToolkitEntry,
   type McpToolkitDefinition,
+  type McpToolkitToolConfig,
 } from "./model-context/define-mcp-toolkit";
+/**
+ * @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API.
+ * Scheduled for removal on/after 2026-09-14. See
+ * {@link https://www.assistant-ui.com/docs/tools/interactables#migrating-from-the-previous-api | Interactables migration guide}.
+ */
 export {
   useAssistantInteractable,
   type AssistantInteractableProps,
-} from "./model-context/useAssistantInteractable";
-export { useInteractableState } from "./model-context/useInteractableState";
+} from "./interactables-legacy/useAssistantInteractable";
+/**
+ * @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API.
+ * Scheduled for removal on/after 2026-09-14. See
+ * {@link https://www.assistant-ui.com/docs/tools/interactables#migrating-from-the-previous-api | Interactables migration guide}.
+ */
+export { useInteractableState } from "./interactables-legacy/useInteractableState";
+export {
+  /** @deprecated Unstable / Experimental — may change in any release. */
+  unstable_useInteractable,
+  type Unstable_InteractableConfig,
+  type Unstable_InferInteractableState,
+  type Unstable_InteractableVersionInfo,
+} from "./model-context/useInteractable";
+export {
+  /** @deprecated Unstable / Experimental — may change in any release. */
+  unstable_useInteractableState,
+} from "./model-context/useInteractableState";
+export {
+  /** @deprecated Unstable / Experimental — may change in any release. */
+  unstable_useInteractableVersions,
+} from "./model-context/useInteractableVersions";
+export {
+  /** @deprecated Unstable / Experimental — may change in any release. */
+  unstable_interactableTool,
+  type Unstable_InteractableToolConfig,
+  type Unstable_InteractableToolRenderProps,
+} from "./model-context/interactableTool";
 export {
   useToolArgsStatus,
   type ToolArgsStatus,
@@ -65,7 +98,16 @@ export {
 // client
 export { Tools, type McpAppResourceOutput } from "./client/Tools";
 export { DataRenderers } from "./client/DataRenderers";
-export { Interactables } from "./client/Interactables";
+/**
+ * @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API.
+ * Scheduled for removal on/after 2026-09-14. See
+ * {@link https://www.assistant-ui.com/docs/tools/interactables#migrating-from-the-previous-api | Interactables migration guide}.
+ */
+export { Interactables } from "./interactables-legacy/Interactables";
+export {
+  /** @deprecated Unstable / Experimental — may change in any release. */
+  unstable_Interactables,
+} from "./client/Interactables";
 
 // types
 export type {
@@ -107,15 +149,36 @@ export type {
   DataRenderersClientSchema,
 } from "./types/scopes/dataRenderers";
 export type {
+  /** @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API. */
   InteractableStateSchema,
+  /** @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API. */
   InteractablesState,
+  /** @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API. */
   InteractableDefinition,
+  /** @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API. */
   InteractableRegistration,
+  /** @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API. */
   InteractablesMethods,
+  /** @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API. */
   InteractablePersistedState,
+  /** @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API. */
   InteractablePersistenceAdapter,
+  /** @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API. */
   InteractablePersistenceStatus,
+  /** @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API. */
   InteractablesClientSchema,
+} from "./interactables-legacy/scopes";
+export type {
+  Unstable_InteractableStateSchema,
+  Unstable_InteractablesState,
+  Unstable_InteractableDefinition,
+  Unstable_InteractableRegistration,
+  Unstable_InteractablesMethods,
+  Unstable_InteractablePersistedState,
+  Unstable_InteractablePersistenceAdapter,
+  Unstable_InteractablePersistenceStatus,
+  Unstable_InteractablesClientSchema,
+  Unstable_InteractablesConfig,
 } from "./types/scopes/interactables";
 
 // providers
@@ -157,6 +220,12 @@ export {
 } from "./runtimes/external-message-converter";
 export type { JoinStrategy } from "./runtimes/external-message-converter";
 export { createMessageConverter } from "./runtimes/createMessageConverter";
+export {
+  useStreamingTiming,
+  type StreamingTimingAccessors,
+  type StreamingTimingOptions,
+  type StreamingTimingState,
+} from "./runtimes/useStreamingTiming";
 export { RemoteThreadListHookInstanceManager } from "./runtimes/RemoteThreadListHookInstanceManager";
 export { RemoteThreadListThreadListRuntimeCore } from "./runtimes/RemoteThreadListThreadListRuntimeCore";
 export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
@@ -184,6 +253,7 @@ export {
   ThreadPrimitiveMessages,
   ThreadPrimitiveMessagesImpl,
   ThreadPrimitiveMessageByIndex,
+  ThreadPrimitiveUnstable_MessageById,
 } from "./primitives/thread/ThreadMessages";
 export {
   MessagePrimitiveParts,
@@ -234,6 +304,7 @@ export { getMessageQuote } from "./utils/getMessageQuote";
 
 // Primitive hooks (shared behavior logic)
 export { useThreadMessages } from "./primitive-hooks/useThreadMessages";
+export { unstable_useThreadMessageIds } from "./primitive-hooks/useThreadMessageIds";
 export { useThreadIsRunning } from "./primitive-hooks/useThreadIsRunning";
 export { useThreadIsEmpty } from "./primitive-hooks/useThreadIsEmpty";
 export { useComposerSend } from "./primitive-hooks/useComposerSend";

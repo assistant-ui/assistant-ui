@@ -7,7 +7,40 @@ import { COLLAPSED_WIDTH } from "@/components/docs/layout/docs-layout";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
 import { PanelRightCloseIcon } from "lucide-react";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
+
+function canScrollVertically(element: HTMLElement, deltaY: number): boolean {
+  if (element.scrollHeight <= element.clientHeight) return false;
+  if (deltaY < 0) return element.scrollTop > 0;
+  return element.scrollTop + element.clientHeight < element.scrollHeight - 1;
+}
+
+function hasScrollableAncestor(
+  target: EventTarget | null,
+  boundary: HTMLElement,
+  deltaY: number,
+): boolean {
+  if (!(target instanceof Node)) return false;
+
+  let element = target instanceof HTMLElement ? target : target.parentElement;
+
+  while (element && boundary.contains(element)) {
+    const overflowY = window.getComputedStyle(element).overflowY;
+    if (
+      (overflowY === "auto" ||
+        overflowY === "scroll" ||
+        overflowY === "overlay") &&
+      canScrollVertically(element, deltaY)
+    ) {
+      return true;
+    }
+
+    if (element === boundary) break;
+    element = element.parentElement;
+  }
+
+  return false;
+}
 
 function ResizeHandle() {
   const { width, setWidth, setIsResizing, isResizing } = useAssistantPanel();
@@ -78,6 +111,29 @@ export function AssistantPanelToggle(): React.ReactNode {
 
 export function AssistantPanelContent(): React.ReactNode {
   const { open, toggle } = useAssistantPanel();
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!open || !content) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (event.deltaY === 0 || event.ctrlKey) return;
+      if (!hasScrollableAncestor(event.target, content, event.deltaY)) {
+        event.preventDefault();
+      }
+    };
+
+    content.addEventListener("wheel", handleWheel, {
+      capture: true,
+      passive: false,
+    });
+    return () => {
+      content.removeEventListener("wheel", handleWheel, {
+        capture: true,
+      });
+    };
+  }, [open]);
 
   const handleTriggerClick = () => {
     analytics.assistant.panelToggled({ open: !open, source: "trigger" });
@@ -86,6 +142,7 @@ export function AssistantPanelContent(): React.ReactNode {
 
   return (
     <div
+      ref={contentRef}
       className={cn(
         "bg-background before:bg-border relative h-full w-(--panel-content-width) before:absolute before:inset-y-0 before:left-0 before:w-px before:transition-opacity before:duration-300",
         open ? "before:opacity-100" : "before:opacity-0",

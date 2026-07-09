@@ -9,14 +9,9 @@ If you use AssistantCloud, see [cloud authorization](/docs/cloud) instead; cloud
 
 ## How it works
 
-```
-browser  ──►  /api/chat               ──►  auth() returns session
-              /api/threads/*               │
-                                           ▼
-                                  scope queries by session.user.id
-                                           │
-                                           ▼
-                                       database
+```mermaid
+flowchart LR
+    browser["browser"] --> routes["/api/chat<br/>/api/threads/*"] --> auth["auth() returns session"] --> scope["scope queries by<br/>session.user.id"] --> db["database"]
 ```
 
 Three places auth touches the integration:

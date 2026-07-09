@@ -4,7 +4,6 @@ import { logger } from "../utils/logger.js";
 import { ROOT_DIR } from "../constants.js";
 
 const DOCS_SOURCE = join(ROOT_DIR, "apps/docs/content/docs");
-const BLOG_SOURCE = join(ROOT_DIR, "apps/docs/content/blog");
 const DOCS_DEST = join(ROOT_DIR, "packages/mcp-docs-server/.docs/raw");
 
 async function copyDir(src: string, dest: string): Promise<void> {
@@ -42,10 +41,6 @@ export async function copyRaw(): Promise<void> {
     const docsPath = join(DOCS_DEST, "docs");
     await copyDir(DOCS_SOURCE, docsPath);
     logger.info(`Copied documentation to ${docsPath}`);
-
-    const blogPath = join(DOCS_DEST, "blog");
-    await copyDir(BLOG_SOURCE, blogPath);
-    logger.info(`Copied blog posts to ${blogPath}`);
 
     logger.info("Raw documentation copy complete");
   } catch (error) {

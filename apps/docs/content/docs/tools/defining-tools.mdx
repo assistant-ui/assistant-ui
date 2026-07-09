@@ -423,6 +423,15 @@ The compiler splits each file across the client/server boundary on its own, then
 - **Spread a default import** (`import weatherTools from "./tools/weather"`). Relative paths and `tsconfig` path aliases like `@/tools/weather` both resolve. Only the default export crosses the generative-module boundary, so a named import (or any opaque, non-generative import) is rejected.
 - You can also spread a local `defineToolkit(...)` or `defineMcpToolkit(...)` binding declared in the same file.
 
+The compiler checks static tool names across inline entries and compiler-visible
+spreads. If two fragments define the same tool name, the build warns that
+JavaScript object spread will keep the later tool definition.
+
+If the compiler reports that `tool "weather" cannot be makeTool()`, that entry
+came from an opaque factory call. Rewrite it as an inline tool object, or spread
+a compiler-visible `defineToolkit(...)` / `defineMcpToolkit(...)` fragment
+instead.
+
 ### Add MCP server tools
 
 `defineMcpToolkit` exposes tools from an MCP server. For an MCP-only toolkit, export it directly:

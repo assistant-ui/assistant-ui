@@ -15,18 +15,11 @@ Integrations are wiring guides for using third-party services with assistant-ui,
 
 ## Where integrations slot in
 
-```
-client  ──►  your API route  ──►  LLM provider
-                │                    ▲
-                │                    │
-     agent      │                    │  observability
-     frameworks │                    │  proxies
-     (e.g.      │                    │  (e.g. Helicone,
-     Mastra)    │                    │   Langfuse)
-                ▼                    │
-          run on the server,         │
-          then forward calls   ──────┘
-          to the provider
+```mermaid
+flowchart LR
+    client["client"] --> route["your API route"] --> provider["LLM provider"]
+    route -->|"agent frameworks (e.g. Mastra)"| server["run on the server,<br/>then forward calls"]
+    server -->|"observability proxies (e.g. Helicone, Langfuse)"| provider
 ```
 
 Integrations live on the server. **Agent frameworks** like Mastra take over the API route. **Gateways** swap the upstream provider URL. **Observability** logs or traces every call. **Auth** gates the route and scopes per-user data. **Persistence** and **attachments** are adapter recipes for storing chat data outside the default in-memory path.
@@ -165,7 +158,7 @@ Upload chat attachments to object storage instead of inlining as data URLs.
 assistant-ui doesn't ship a guide for every tool, but most fit one of two patterns:
 
 - **Routes through your AI SDK handler** (agent frameworks, observability proxies, gateways): adapt the [Mastra full-stack](/docs/integrations/frameworks/mastra/full-stack) or [Helicone proxy](/docs/integrations/observability/helicone) pattern using the service's own SDK.
-- **Replaces the runtime entirely** (custom backends): see [custom backend](/docs/runtimes/custom).
+- **Replaces the runtime entirely** (custom backends): see [custom backend](/docs/runtimes/custom/overview).
 
 If you build something useful, [open an issue](https://github.com/assistant-ui/assistant-ui/issues) or post in [Discord](https://discord.gg/S9dwgCNEFs); the docs are open to contributions.
 

@@ -119,6 +119,75 @@ describe("useLangGraphStreamingTiming", () => {
     expect(result.current["msg-1"]?.toolCallCount).toBe(2);
   });
 
+  it("counts reasoning block content toward the token estimate", () => {
+    const start: LangChainMessage[] = [
+      {
+        id: "msg-1",
+        type: "ai",
+        content: [
+          {
+            type: "reasoning",
+            summary: [{ type: "summary_text", text: "step one" }],
+          },
+        ],
+      } as never,
+    ];
+
+    const { result, rerender } = renderHook(
+      ({ msgs, running }) => useLangGraphStreamingTiming(msgs, running),
+      { initialProps: { msgs: start, running: true } },
+    );
+
+    // Grow the reasoning summary, then finalize in the same update as stop.
+    const grown: LangChainMessage[] = [
+      {
+        id: "msg-1",
+        type: "ai",
+        content: [
+          {
+            type: "reasoning",
+            summary: [
+              { type: "summary_text", text: "step one" },
+              { type: "summary_text", text: "step two" },
+            ],
+          },
+        ],
+      } as never,
+    ];
+
+    act(() => {
+      rerender({ msgs: grown, running: false });
+    });
+
+    const timing = result.current["msg-1"];
+    // Reasoning text is joined like convertLangChainMessages renders it.
+    const reasoningText = "step one\n\n\nstep two";
+    expect(timing?.tokenCount).toBe(Math.ceil(reasoningText.length / 4));
+  });
+
+  it("counts a bare reasoning field when no summary is present", () => {
+    const messages: LangChainMessage[] = [
+      {
+        id: "msg-1",
+        type: "ai",
+        content: [{ type: "reasoning", reasoning: "deduced" }],
+      } as never,
+    ];
+
+    const { result, rerender } = renderHook(
+      ({ msgs, running }) => useLangGraphStreamingTiming(msgs, running),
+      { initialProps: { msgs: messages, running: true } },
+    );
+
+    act(() => {
+      rerender({ msgs: messages, running: false });
+    });
+
+    expect(result.current["msg-1"]?.tokenCount).toBe(
+      Math.ceil("deduced".length / 4),
+    );
+  });
+
   it("tracks multiple content updates as chunks", () => {
     const messages: LangChainMessage[] = [
       { id: "msg-1", type: "ai", content: "a" } as never,

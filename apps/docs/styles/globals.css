@@ -192,8 +192,8 @@
   *::-webkit-scrollbar-corner {
     background: transparent;
   }
-}
 
-:focus-visible {
-  box-shadow: none;
+  :focus-visible {
+    box-shadow: none;
+  }
 }

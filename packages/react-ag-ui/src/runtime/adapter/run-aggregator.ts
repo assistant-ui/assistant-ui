@@ -334,7 +334,7 @@ export class RunAggregator {
         (part) => part.kind === "tool-call" && part.toolCallId === id,
       )
     ) {
-      this.partOrder.push({ kind: "tool-call", toolCallId: id });
+      this.insertToolPart(id, parentMessageId);
     }
     const state: ToolCallState = {
       toolCallId: id,
@@ -348,6 +348,35 @@ export class RunAggregator {
       state.parentMessageId = parentMessageId;
     }
     this.toolCalls.set(id, state);
+  }
+
+  // The message and tool-call channels are unordered on the wire, so anchor a
+  // tool call under its parentMessageId text part instead of appending it.
+  private insertToolPart(id: string, parentMessageId?: string) {
+    const entry = { kind: "tool-call", toolCallId: id } as const;
+    if (parentMessageId) {
+      const parentIndex = this.partOrder.findIndex(
+        (part) => part.kind === "text" && part.key === parentMessageId,
+      );
+      if (parentIndex !== -1) {
+        let insertAt = parentIndex + 1;
+        while (insertAt < this.partOrder.length) {
+          const part = this.partOrder[insertAt];
+          if (
+            part?.kind === "tool-call" &&
+            this.toolCalls.get(part.toolCallId)?.parentMessageId ===
+              parentMessageId
+          ) {
+            insertAt += 1;
+            continue;
+          }
+          break;
+        }
+        this.partOrder.splice(insertAt, 0, entry);
+        return;
+      }
+    }
+    this.partOrder.push(entry);
   }
 
   private appendToolArgs(id: string | undefined, delta: string) {

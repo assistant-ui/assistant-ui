@@ -64,6 +64,14 @@ export type ExternalStoreMessageConverter<T> = (
   idx: number,
 ) => ThreadMessageLike;
 
+/**
+ * @deprecated This API is still under active development and might change without notice.
+ */
+export type ExternalStoreBranchChange = {
+  headId: string | null;
+  visibleMessageIds: readonly string[];
+};
+
 type ExternalStoreMessageConverterAdapter<T> = {
   convertMessage: ExternalStoreMessageConverter<T>;
 };
@@ -102,6 +110,26 @@ type ExternalStoreAdapterBase<T> = {
   extras?: unknown;
 
   setMessages?: ((messages: readonly T[]) => void) | undefined;
+  /**
+   * Fires when the user explicitly switches branches via the runtime's
+   * `switchToBranch` action (e.g. a BranchPicker click). It does not fire on
+   * adapter resync, `append`, edit/regenerate, content-only updates, or while
+   * the thread is running. Consecutive switches that resolve to the same
+   * canonical head are de-duped.
+   *
+   * `headId` is the canonical (persisted) head of the now-visible branch —
+   * optimistic/transient ids are never surfaced. `visibleMessageIds` lists the
+   * visible path in order.
+   *
+   * This complements `setMessages` rather than replacing it: switching still
+   * requires `setMessages`, and this callback does not on its own enable branch
+   * switching.
+   *
+   * @deprecated This API is still under active development and might change without notice.
+   */
+  unstable_onBranchChange?:
+    | ((event: ExternalStoreBranchChange) => void)
+    | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
   onExportExternalState?: (() => any) | undefined;
   onLoadExternalState?: ((state: any) => void) | undefined;

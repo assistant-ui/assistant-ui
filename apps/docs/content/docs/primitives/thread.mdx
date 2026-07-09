@@ -319,6 +319,30 @@ Renders a single message at a specific index in the thread.
 
 <PrimitivesTypeTable type="ThreadPrimitiveMessageByIndexProps" parameters={ThreadPrimitiveDocs.MessageByIndex.props} />
 
+### Unstable_MessageById
+
+Renders a single message by id with the same `components` surface as
+`MessageByIndex`. Pair it with `unstable_useThreadMessageIds` for virtualized or
+custom message lists that should stay attached to messages across reordering and
+windowing. Unknown ids render `null`.
+
+```tsx
+const messageIds = unstable_useThreadMessageIds();
+
+messageIds.map((messageId) => (
+  <ThreadPrimitive.Unstable_MessageById
+    key={messageId}
+    messageId={messageId}
+    components={{ Message: MyMessage }}
+  />
+));
+```
+
+<Callout type="warn">
+  `unstable_useThreadMessageIds` and `ThreadPrimitive.Unstable_MessageById` are
+  experimental and may change in any release.
+</Callout>
+
 ### ScrollToBottom
 
 Scrolls the viewport to the bottom. Automatically disabled when already at the bottom. Renders a `<button>` element unless `asChild` is set.

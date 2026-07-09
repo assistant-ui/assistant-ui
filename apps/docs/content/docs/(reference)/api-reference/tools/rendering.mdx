@@ -44,6 +44,21 @@ type AssistantDataUIProps = {
 const makeAssistantDataUI: <T = any>(dataUI: AssistantDataUIProps<T>) => AssistantDataUI;
 ```
 
+### McpAppRenderer
+
+<ParametersTable {...McpAppRenderer} />
+
+### McpAppsRemoteHost
+
+<ParametersTable {...McpAppsRemoteHost} />
+
+### useAssistantDataUI
+
+Registers a renderer for named `data` message parts while the component is
+mounted.
+
+<ParametersTable {...useAssistantDataUI} />
+
 ### makeAssistantToolUI
 
 <Callout type="warn">
@@ -73,21 +88,6 @@ type AssistantToolUIProps = {
 
 const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<TArgs, TResult>) => AssistantToolUI;
 ```
-
-### McpAppRenderer
-
-<ParametersTable {...McpAppRenderer} />
-
-### McpAppsRemoteHost
-
-<ParametersTable {...McpAppsRemoteHost} />
-
-### useAssistantDataUI
-
-Registers a renderer for named `data` message parts while the component is
-mounted.
-
-<ParametersTable {...useAssistantDataUI} />
 
 ### useAssistantToolUI
 

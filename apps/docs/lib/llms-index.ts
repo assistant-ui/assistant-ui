@@ -15,10 +15,11 @@ function addPageToSection(
   page: LLMIndexPage,
 ) {
   const list = map.get(section) ?? [];
-  const markdownUrl = `${BASE_URL}${page.url}.mdx`;
-  list.push(
-    `- [${page.data.title}](${markdownUrl}): ${page.data.description || ""}`,
-  );
+  const markdownUrl = `${BASE_URL}${page.url}.md`;
+  const description = page.data.description
+    ? `: ${page.data.description.slice(0, 120)}`
+    : "";
+  list.push(`- [${page.data.title}](${markdownUrl})${description}`);
   map.set(section, list);
 }
 
@@ -37,13 +38,13 @@ export function buildLLMSIndex(
     `- [Full documentation](${BASE_URL}/llms-full.txt): all docs and examples pages rendered into one large text file.`,
   );
   lines.push(
-    "- Per-page markdown: append `.mdx` to any docs page URL. For example, `/docs/getting-started.mdx` returns the markdown for `/docs/getting-started`, and `/examples/ai-sdk.mdx` returns the markdown for `/examples/ai-sdk`.",
+    "- Per-page markdown: append `.md` to any docs page URL. `.mdx` is kept as a backwards-compatible alias for agents that request source-style URLs. For example, `/docs/installation.md` and `/docs/installation.mdx` both return markdown for `/docs/installation`.",
   );
   lines.push(
     "- Markdown by Accept header: requesting a docs or examples page with `Accept: text/markdown` also returns that page's markdown.",
   );
   lines.push(
-    "- Use the index below to choose a specific page. Remove the `.mdx` suffix to open the human-readable docs page.",
+    "- Use the index below to choose a specific page. Remove the `.md` or `.mdx` suffix to open the human-readable docs page.",
   );
   lines.push("");
   lines.push("## Table of Contents");

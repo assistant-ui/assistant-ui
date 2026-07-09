@@ -14,6 +14,7 @@ import { MapPin, CloudSun, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import {
   defineToolkit,
+  unstable_interactableTool,
   useAuiState,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
@@ -22,14 +23,15 @@ import {
   defineGenerativeComponents,
   generativeUIToJSX,
 } from "@assistant-ui/react-generative-ui";
-import {
-  formatToolCall,
-  ToolErrorCard,
-  ToolStatusCard,
-  ToolTraceCard,
-} from "@/lib/tool-trace";
+import { ToolErrorCard, ToolStatusCard, ToolTraceCard } from "@/lib/tool-trace";
+import { Notepad } from "@/components/tool-ui/notepad";
 
 const weatherFormatSchema = z.enum(["fahrenheit", "celsius"]);
+
+const notepadSchema = z.object({
+  title: z.string().describe("A short title for the text."),
+  content: z.string().describe("The full plain text."),
+});
 
 type GeocodeLocationArgs = {
   query: string;
@@ -61,16 +63,18 @@ const GeocodeLocationToolUI: ToolCallMessagePartComponent<
   GeocodeLocationArgs,
   GeocodeLocationResult
 > = ({ toolName, args, result }) => {
-  const signature = formatToolCall(toolName, args);
   const icon = <MapPin className="size-4" />;
 
   if (result?.success === false) {
-    return <ToolErrorCard signature={signature} error={result.error} />;
+    return (
+      <ToolErrorCard signature={toolName} error={result.error} args={args} />
+    );
   }
+
   if (!result) {
     return (
       <ToolStatusCard
-        signature={signature}
+        signature={toolName}
         icon={icon}
         message="Finding location..."
         loading
@@ -79,11 +83,13 @@ const GeocodeLocationToolUI: ToolCallMessagePartComponent<
   }
 
   const { name, latitude, longitude } = result.result;
+
   return (
     <ToolTraceCard
       icon={icon}
-      signature={signature}
+      signature={toolName}
       description={`${name} · ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`}
+      args={args}
       result={result}
     />
   );
@@ -93,16 +99,18 @@ const GetWeatherToolUI: ToolCallMessagePartComponent<
   GetWeatherArgs,
   GetWeatherResult
 > = ({ toolName, args, result }) => {
-  const signature = formatToolCall(toolName, args);
   const icon = <CloudSun className="size-4" />;
 
   if (result?.success === false) {
-    return <ToolErrorCard signature={signature} error={result.error} />;
+    return (
+      <ToolErrorCard signature={toolName} error={result.error} args={args} />
+    );
   }
+
   if (!result) {
     return (
       <ToolStatusCard
-        signature={signature}
+        signature={toolName}
         icon={icon}
         message="Fetching weather..."
         loading
@@ -112,15 +120,17 @@ const GetWeatherToolUI: ToolCallMessagePartComponent<
 
   const current = result.widget?.current;
   const unitSymbol = result.widget?.units.temperature === "celsius" ? "C" : "F";
+
   return (
     <ToolTraceCard
       icon={icon}
-      signature={signature}
+      signature={toolName}
       description={
         current
           ? `${Math.round(current.temperature)}°${unitSymbol} · ${current.conditionCode} in ${result.location}`
           : "Weather ready"
       }
+      args={args}
       result={result}
     />
   );
@@ -185,6 +195,17 @@ export default defineToolkit({
     render: GetWeatherToolUI,
   },
   present: generative.present({ display: "standalone" }),
+  notepad: unstable_interactableTool({
+    description:
+      "A live notepad whose drafted text the user sees and can edit. Open one " +
+      "whenever you write or draft prose for the user — a note, message, post, " +
+      "release notes, a description — and revise it with `update_notepad` " +
+      "rather than opening a new one. Opening the notepad and every " +
+      "`update_notepad` call display the latest draft to the user directly, so " +
+      "keep the text in the notepad and never repeat it in your reply.",
+    stateSchema: notepadSchema,
+    render: (props) => <Notepad {...props} />,
+  }),
 });
 
 const WeatherCard = ({

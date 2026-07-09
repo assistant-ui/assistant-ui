@@ -1,5 +1,43 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.7
+
+### Patch Changes
+
+- [#4645](https://github.com/assistant-ui/assistant-ui/pull/4645) [`096c171`](https://github.com/assistant-ui/assistant-ui/commit/096c1717790453d7029c129fc8e6d08e3683c5ef) - fix: name duplicate prop owners in generative UI schema warnings ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4652](https://github.com/assistant-ui/assistant-ui/pull/4652) [`0b139f0`](https://github.com/assistant-ui/assistant-ui/commit/0b139f0fc9b494b2c4c0fcbb65728abcde3dad53) - fix: clarify unknown generative UI action warnings ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4625](https://github.com/assistant-ui/assistant-ui/pull/4625) [`998e585`](https://github.com/assistant-ui/assistant-ui/commit/998e5853a2feeeeb7e1984275cb62991b3d904df) - add `ActionRegistry` and wire `$action` dispatch end to end. `createActionRegistry(handlers)` maps `$action.type` to a handler; omit `actions` for a read-only render where `$dispatch` stays un-injected and interactive clicks are silent. the vocabulary's `Button`/`Select`/`Input`/`DatePicker` attach real event handlers that fire `$dispatch($action)`, merging the user's runtime value into the payload under the reserved `$input` key so a model-supplied `value` is never clobbered; an unknown action type degrades to a no-op with a dev warning rather than throwing. HITL resume-value typing is left as `unknown` (IR doc open question [#2](https://github.com/assistant-ui/assistant-ui/issues/2)); the resume value reaching the runtime is a follow-up. ([@okisdev](https://github.com/okisdev))
+
+- [#4656](https://github.com/assistant-ui/assistant-ui/pull/4656) [`67405a0`](https://github.com/assistant-ui/assistant-ui/commit/67405a0f6da97f39fb2bd7fe888195336b4628ab) - fix: honor stable generative UI item keys ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4655](https://github.com/assistant-ui/assistant-ui/pull/4655) [`625fbd0`](https://github.com/assistant-ui/assistant-ui/commit/625fbd0a20c4bf1bc7eee03b45d5ae1311c1a735) - fix: skip malformed generative UI action types ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`f833bc1`](https://github.com/assistant-ui/assistant-ui/commit/f833bc118b49641f3f6e0ab22bcfc63bf0a04408)]:
+  - assistant-stream@0.3.25
+
+## 0.0.6
+
+### Patch Changes
+
+- [#4605](https://github.com/assistant-ui/assistant-ui/pull/4605) [`d592c85`](https://github.com/assistant-ui/assistant-ui/commit/d592c854d5fb2771d457167f9fa3542958678474) - add the react-free `./ir` subpath carrying the flat `$type` generative-ui IR: `UINode`, `UIElement`, `LegacyComponentNode`, `Action`, `UISpec`, the canonical `NormalizedUINode`/`NormalizedUIElement`, and `normalizeUINode`/`normalizeSpec`. `normalizeUINode` accepts the flat `$type` shape and the legacy `component` shape, strips the reserved `$`-prefixed keys (`$type`, `$key`, `$action`) and `children` from the component prop bag, and threads a streaming `partialPath` so a node whose `$type` is still mid-arrival is held back. the package's existing generative-ui types are rebased onto `./ir`: `GenerativeUIElement` is now an alias of `NormalizedUIElement` (with `children` lifted to a reserved top-level key instead of living in `props`), `GenerativeUINode`/`GenerativeUIProps`/`GenerativeUIAction` alias the `./ir` types, and `renderGenerativeUI` consumes `NormalizedUINode` directly. the wire format is unchanged (`$type` already shipped); the `GenerativeUI*` export names are kept so the surface stays append-only. the ui token enums (`TextSize`/`Color`/`Align`/...) are deferred to the PR that introduces the closed vocabulary that consumes them, so this PR's surface is only what the renderer uses. core is not touched. ([@okisdev](https://github.com/okisdev))
+
+- [#4607](https://github.com/assistant-ui/assistant-ui/pull/4607) [`8a2b9cb`](https://github.com/assistant-ui/assistant-ui/commit/8a2b9cb7dead677aa802335132bc588a03998896) - add the closed generative-ui vocabulary as a published default `GenerativeUILibrary` (`defaultGenerativeUILibrary`) plus the ui token enums (`TextSize`, `ImageSize`, `Weight`, `Color`, `Align`, `Justify`, `ButtonStyle`, `AlertTone`) that PR [#4605](https://github.com/assistant-ui/assistant-ui/issues/4605) deferred. the vocabulary covers the portable core (`Header`, `Text`, `Caption`, `Fact`, `Image`, `Divider`, `Button`, `Select`, `Input`, `DatePicker`, `Alert`, `Carousel`), layout (`Card`, `Col`, `Row`, `Spacer`, `Badge`), and data (`Table`, `Markdown`, `Chart`) — 20 components total. each component is a zod `properties` schema plus an unstyled structural `render` that emits semantic HTML with a `data-aui="<component>"` attribute and `data-aui-<prop>` hooks for the host to style (no tailwind, no `@assistant-ui/ui` dependency). `Text`/`Caption`/`Markdown` opt into `streamProperties` so they render partial content while streaming. interactive components (`Button`/`Select`/`Input`/`DatePicker`) carry `$action`, now re-injected into `render` props and stashed on a `data-aui-action` attribute; dispatch is a follow-up. users opt in via `new JSONGenerativeUI({ library: defaultGenerativeUILibrary })` and override entries with their own `defineGenerativeComponents`. ([@okisdev](https://github.com/okisdev))
+
+- [#4600](https://github.com/assistant-ui/assistant-ui/pull/4600) [`c08260c`](https://github.com/assistant-ui/assistant-ui/commit/c08260c66e58b557f4c36126292aadad1434c18b) - fix: align assistant-stream dependency range with lockfile ([@Yonom](https://github.com/Yonom))
+
+- [#4597](https://github.com/assistant-ui/assistant-ui/pull/4597) [`23d4d22`](https://github.com/assistant-ui/assistant-ui/commit/23d4d2230361c2f285d9fcd9863717a336ba4a23) - fix: avoid unresolved self-import build warning ([@Yonom](https://github.com/Yonom))
+
+## 0.0.6
+
+### Patch Changes
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff)]:
+  - assistant-stream@0.3.24
+
 ## 0.0.5
 
 ### Patch Changes

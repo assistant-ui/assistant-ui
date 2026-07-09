@@ -1,28 +1,78 @@
 import type { ReactNode } from "react";
 import type { ZodType } from "zod";
+import type { Action, NormalizedUIElement } from "./ir";
+
+/**
+ * The canonical generative-ui element, normalized from the flat `$type` shape
+ * or the legacy `component` shape (see {@link normalizeUINode}). `children` is
+ * a reserved top-level key, not a prop, so it lives here rather than inside
+ * `props`. Alias of {@link NormalizedUIElement}; kept under its old name so the
+ * package's public surface stays append-only.
+ */
+export type GenerativeUIElement = NormalizedUIElement;
+
+export type GenerativeUIProps = NormalizedUIElement["props"];
+
+/**
+ * Anything renderable as generative UI — mirrors React's `ReactNode`: an
+ * element, primitive text, a list of nodes, or nothing. Widened beyond the
+ * model payload (a {@link GenerativeUIElement}) with the renderer's
+ * null/boolean/undefined inputs.
+ */
+export type GenerativeUINode =
+  | GenerativeUIElement
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | GenerativeUINode[];
+
+export type GenerativeUIAction = Action;
 
 /** Whether a node's props are still streaming in or have fully arrived. */
 export type GenerativeUIStatus = "streaming" | "done";
+
+/** The dispatcher an interactive component calls to fire its `$action`. */
+export type GenerativeUIDispatch = (action: Action) => unknown;
 
 /** The render context threaded through {@link renderGenerativeUI}. */
 export type GenerativeUIRenderContext = {
   /** Whether the tool call's arguments are still streaming or are complete. */
   status: GenerativeUIStatus;
+  dispatch?: GenerativeUIDispatch;
 };
 
 /**
  * Props a component's `render` receives: its model props, rendered `children`,
- * and the injected `$status`. `$status` is the discriminant — when it is
- * `"done"`, `P` is complete; while `"streaming"`, `P` is partial. It is named
- * `$status` (not `status`) so it never collides with a real `status` prop, the
- * same reservation as `$type`.
+ * and the injected framework keys. `$status` is the discriminant — when it is
+ * `"done"`, `P` is complete; while `"streaming"`, `P` is partial. `$action` is
+ * the node's behavior payload, present only on interactive nodes. `$dispatch`
+ * fires that payload through the host's {@link ActionRegistry}; it is present
+ * only when a registry was wired. All three are `$`-prefixed so they never
+ * collide with a real `status`/`action`/`dispatch` prop.
  */
 type StreamingRenderProps<P> =
-  | (Partial<P> & { children?: ReactNode; $status: "streaming" })
-  | (P & { children?: ReactNode; $status: "done" });
+  | (Partial<P> & {
+      children?: ReactNode;
+      $status: "streaming";
+      $action?: Action;
+      $dispatch?: GenerativeUIDispatch;
+    })
+  | (P & {
+      children?: ReactNode;
+      $status: "done";
+      $action?: Action;
+      $dispatch?: GenerativeUIDispatch;
+    });
 
 /** Props for a component that only renders once complete — `$status` is always `"done"`. */
-type StaticRenderProps<P> = P & { children?: ReactNode; $status: "done" };
+type StaticRenderProps<P> = P & {
+  children?: ReactNode;
+  $status: "done";
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+};
 
 /**
  * A component the model is allowed to render, with the schema for its props.
@@ -67,38 +117,3 @@ export type GenerativeUIComponent<P = any> =
  * This registry is the security boundary — any `type` not present is rejected.
  */
 export type GenerativeUILibrary = Record<string, GenerativeUIComponent>;
-
-/**
- * A component invocation — mirrors React's `ReactElement`.
- *
- * `type` selects a component from the {@link GenerativeUILibrary}; `props` are
- * passed to it. The `children` prop is special: it is itself a renderable
- * {@link GenerativeUINode}, drawn as generative UI rather than passed as data.
- *
- * On the wire the model emits the flattened form `{ $type, ...props }`, where
- * `$type` names the component so a real `type` prop never collides. This is the
- * normalized shape the renderer works with, the same way React normalizes
- * `createElement` arguments into an element.
- */
-export type GenerativeUIElement = {
-  type: string;
-  props: GenerativeUIProps;
-};
-
-/** Props passed to a component — mirrors a React component's props. */
-export type GenerativeUIProps = {
-  children?: GenerativeUINode;
-} & Record<string, unknown>;
-
-/**
- * Anything renderable as generative UI — mirrors React's `ReactNode`: an
- * element, primitive text, or a list of nodes.
- */
-export type GenerativeUINode =
-  | GenerativeUIElement
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | GenerativeUINode[];

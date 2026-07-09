@@ -31,6 +31,15 @@ For examples and usage patterns, see [ChainOfThought](/docs/primitives/chain-of-
   <p>This primitive renders a <code>{`<${ChainOfThoughtPrimitiveDocs.Root?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
 
+```tsx
+<ChainOfThoughtPrimitive.Root>
+  <ChainOfThoughtPrimitive.AccordionTrigger>
+    Toggle reasoning
+  </ChainOfThoughtPrimitive.AccordionTrigger>
+  <ChainOfThoughtPrimitive.Parts />
+</ChainOfThoughtPrimitive.Root>
+```
+
 <ParametersTable {...ChainOfThoughtPrimitiveRootProps} />
 
 ### AccordionTrigger
@@ -46,6 +55,12 @@ For examples and usage patterns, see [ChainOfThought](/docs/primitives/chain-of-
 {ChainOfThoughtPrimitiveDocs.AccordionTrigger?.element && (
   <p>This primitive renders a <code>{`<${ChainOfThoughtPrimitiveDocs.AccordionTrigger?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
+
+```tsx
+<ChainOfThoughtPrimitive.AccordionTrigger>
+  Toggle Reasoning
+</ChainOfThoughtPrimitive.AccordionTrigger>
+```
 
 <ParametersTable {...ChainOfThoughtPrimitiveAccordionTriggerProps} />
 

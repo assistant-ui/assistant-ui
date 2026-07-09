@@ -1,16 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo } from "react";
 import type { MessageTiming } from "@assistant-ui/react";
+import {
+  useStreamingTiming,
+  type StreamingTimingAccessors,
+} from "@assistant-ui/core/react";
 import type { OpenCodeThreadState } from "./types";
-
-type TrackingState = {
-  messageId: string;
-  startTime: number;
-  firstTokenTime?: number;
-  lastContentLength: number;
-  totalChunks: number;
-};
 
 export function getMessageTextLength(
   state: OpenCodeThreadState,
@@ -53,59 +49,44 @@ export function getLastAssistantId(
   return undefined;
 }
 
+// OpenCode tracks timing off a single thread-state snapshot rather than a
+// message list, so the snapshot is wrapped in a one-element array to satisfy
+// the shared primitive's `readonly TMessage[]` contract. The wrapper is
+// memoized on `state` so the primitive's effect keeps the original
+// `[state, isRunning]` reactivity (runs on state change, not every render).
+const stateOf = (messages: readonly OpenCodeThreadState[]) => messages[0];
+
+const openCodeStreamingTimingAccessors: StreamingTimingAccessors<OpenCodeThreadState> =
+  {
+    getAssistantMessageId: (messages) => {
+      const state = stateOf(messages);
+      return state ? getLastAssistantId(state) : undefined;
+    },
+    getTextLength: (messages, messageId) => {
+      const state = stateOf(messages);
+      return state ? getMessageTextLength(state, messageId) : 0;
+    },
+    getToolCallCount: (messages, messageId) => {
+      const state = stateOf(messages);
+      return state ? getMessageToolCallCount(state, messageId) : 0;
+    },
+  };
+
+/**
+ * Tracks per-message streaming timing for OpenCode messages. Delegates to
+ * the shared `useStreamingTiming` primitive in `@assistant-ui/core/react`,
+ * adapted to the `OpenCodeThreadState` snapshot shape (`messagesById` +
+ * `messageOrder`). Timing is finalized when streaming ends and stored per
+ * message id.
+ */
 export const useOpenCodeStreamingTiming = (
   state: OpenCodeThreadState,
   isRunning: boolean,
 ): Record<string, MessageTiming> => {
-  const [timings, setTimings] = useState<Record<string, MessageTiming>>({});
-  const trackRef = useRef<TrackingState | null>(null);
-
-  useEffect(() => {
-    const lastId = getLastAssistantId(state);
-
-    if (isRunning && lastId) {
-      if (!trackRef.current || trackRef.current.messageId !== lastId) {
-        trackRef.current = {
-          messageId: lastId,
-          startTime: Date.now(),
-          lastContentLength: 0,
-          totalChunks: 0,
-        };
-      }
-
-      const t = trackRef.current;
-      const len = getMessageTextLength(state, t.messageId);
-      if (len > t.lastContentLength) {
-        if (t.firstTokenTime === undefined) {
-          t.firstTokenTime = Date.now() - t.startTime;
-        }
-        t.totalChunks++;
-        t.lastContentLength = len;
-      }
-    } else if (!isRunning && trackRef.current) {
-      const t = trackRef.current;
-      const totalStreamTime = Date.now() - t.startTime;
-      const tokenCount = Math.ceil(t.lastContentLength / 4);
-      const toolCallCount = getMessageToolCallCount(state, t.messageId);
-
-      const timing: MessageTiming = {
-        streamStartTime: t.startTime,
-        totalStreamTime,
-        totalChunks: t.totalChunks,
-        toolCallCount,
-        ...(t.firstTokenTime !== undefined && {
-          firstTokenTime: t.firstTokenTime,
-        }),
-        ...(tokenCount > 0 && { tokenCount }),
-        ...(totalStreamTime > 0 &&
-          tokenCount > 0 && {
-            tokensPerSecond: tokenCount / (totalStreamTime / 1000),
-          }),
-      };
-      setTimings((prev) => ({ ...prev, [t.messageId]: timing }));
-      trackRef.current = null;
-    }
-  }, [state, isRunning]);
-
-  return timings;
+  const messages = useMemo(() => [state], [state]);
+  return useStreamingTiming(
+    messages,
+    isRunning,
+    openCodeStreamingTimingAccessors,
+  );
 };

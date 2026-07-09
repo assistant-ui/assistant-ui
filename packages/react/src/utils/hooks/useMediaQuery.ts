@@ -8,7 +8,7 @@ const noopUnsubscribe = () => {};
 export const useMediaQuery = (query: string | null): boolean => {
   const subscribe = useCallback(
     (callback: () => void) => {
-      if (typeof window === "undefined" || query === null)
+      if (typeof window === "undefined" || query === null || !window.matchMedia)
         return noopUnsubscribe;
       const mql = window.matchMedia(query);
       mql.addEventListener("change", callback);
@@ -18,7 +18,8 @@ export const useMediaQuery = (query: string | null): boolean => {
   );
 
   const getSnapshot = useCallback(() => {
-    if (typeof window === "undefined" || query === null) return false;
+    if (typeof window === "undefined" || query === null || !window.matchMedia)
+      return false;
     return window.matchMedia(query).matches;
   }, [query]);
 

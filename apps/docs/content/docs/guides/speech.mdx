@@ -57,24 +57,22 @@ const runtime = useChatRuntime({
 The default action bar does not include a speech button. Add `ActionBarPrimitive.Speak` and `ActionBarPrimitive.StopSpeaking` to your assistant message action bar:
 
 ```tsx
-import { ActionBarPrimitive, useMessageTTS } from "@assistant-ui/react";
+import { ActionBarPrimitive, AuiIf } from "@assistant-ui/react";
 import { AudioLinesIcon, StopCircleIcon } from "lucide-react";
 
 const AssistantActionBar = () => {
-  const isSpeaking = useMessageTTS();
-
   return (
     <ActionBarPrimitive.Root>
-      {!isSpeaking && (
+      <AuiIf condition={(s) => s.message.speech == null}>
         <ActionBarPrimitive.Speak>
           <AudioLinesIcon />
         </ActionBarPrimitive.Speak>
-      )}
-      {isSpeaking && (
+      </AuiIf>
+      <AuiIf condition={(s) => s.message.speech != null}>
         <ActionBarPrimitive.StopSpeaking>
           <StopCircleIcon />
         </ActionBarPrimitive.StopSpeaking>
-      )}
+      </AuiIf>
       <ActionBarPrimitive.Copy />
     </ActionBarPrimitive.Root>
   );

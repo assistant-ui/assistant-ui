@@ -8,7 +8,10 @@ import type {
   ThreadSuggestion,
 } from "../../runtime/interfaces/thread-runtime-core";
 
-import type { ExternalStoreAdapter } from "./external-store-adapter";
+import type {
+  ExternalStoreAdapter,
+  ExternalStoreBranchChange,
+} from "./external-store-adapter";
 import {
   getExternalStoreMessages,
   bindExternalStoreMessage,
@@ -405,8 +408,37 @@ export class ExternalStoreThreadRuntimeCore
       return;
     }
 
+    const onBranchChange = this._store.unstable_onBranchChange;
+    const previousHeadId = onBranchChange
+      ? this.repository.canonicalHeadId
+      : null;
+
     this.repository.switchToBranch(branchId);
     this.updateMessages(this.repository.getMessages());
+    if (onBranchChange) {
+      this._notifyBranchChange(previousHeadId, onBranchChange);
+    }
+  }
+
+  /**
+   * Emit `unstable_onBranchChange` for an explicit branch switch. Reads the
+   * canonical head from the repository (which skips optimistic/transient
+   * messages) and de-dupes switches that leave the canonical head unchanged.
+   * Comparing against the head observed just before the switch — rather than the
+   * last emitted head — keeps a switch firing after an adapter resync moved the
+   * head elsewhere in the meantime.
+   */
+  private _notifyBranchChange(
+    previousHeadId: string | null,
+    onBranchChange: (event: ExternalStoreBranchChange) => void,
+  ): void {
+    const headId = this.repository.canonicalHeadId;
+    if (headId === previousHeadId) return;
+
+    onBranchChange({
+      headId,
+      visibleMessageIds: this.repository.getMessages().map((m) => m.id),
+    });
   }
 
   public async append(message: AppendMessage): Promise<void> {

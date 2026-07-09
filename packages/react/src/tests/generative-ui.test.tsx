@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   GenerativeUIRender,
@@ -111,6 +111,26 @@ describe("MessagePrimitive.GenerativeUI (same-realm renderer)", () => {
       />,
     );
     expect(out2).toContain("<h3>loading</h3>");
+  });
+
+  it("skips malformed nodes with non-string component names", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const malformedNode = { component: 123, props: { title: "bad" } };
+    const spec = { root: malformedNode } as unknown as GenerativeUISpec;
+
+    try {
+      const out = renderToStaticMarkup(
+        <GenerativeUIRender spec={spec} components={{ Card }} />,
+      );
+
+      expect(out).toBe("");
+      expect(warn).toHaveBeenCalledWith(
+        "[generative-ui] Skipping malformed node at 0:",
+        malformedNode,
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("respects user-provided keys", () => {

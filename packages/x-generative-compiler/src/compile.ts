@@ -37,12 +37,21 @@ const DISTRIBUTION_PACKAGES = [
   "@assistant-ui/react-native",
   "@assistant-ui/react-ink",
 ] as const;
+/** Package that exports the generative UI runtime split by export condition. */
+const GENERATIVE_UI_PACKAGE = "@assistant-ui/react-generative-ui";
 /**
  * The class whose instances expose split-by-condition tools (`present()`,
  * `promptUser()`). A toolkit entry that calls a method on one of these passes
  * through untouched — the library, not this compiler, routes its halves.
  */
 const GENERATIVE_FACTORY = "JSONGenerativeUI";
+/**
+ * The factory producing an interactable's complete tool entry. Unlike
+ * `JSONGenerativeUI`, its package has no per-target builds, so this compiler
+ * splits the inline config: the client keeps `render`, the server drops it.
+ * The factory's own `execute` is internal and client-safe (frontend tool).
+ */
+const INTERACTABLE_TOOL_FACTORY = "unstable_interactableTool";
 
 /** Mutable per-build outcomes the toolkit pass reports back for directive/guard injection. */
 interface TargetFlags {
@@ -78,7 +87,9 @@ export interface CompileResult {
 /** Thrown when a `"use generative"` file violates an authoring constraint. */
 export class GenerativeCompileError extends Error {
   constructor(message: string, filename?: string) {
-    super(`[assistant-ui/next]${filename ? ` ${filename}:` : ""} ${message}`);
+    super(
+      `[assistant-ui/use-generative]${filename ? ` ${filename}:` : ""} ${message}`,
+    );
     this.name = "GenerativeCompileError";
   }
 }
@@ -103,9 +114,124 @@ export function isGenerativeModule(code: string): boolean {
       break;
     }
   }
+
+  const quote = code[i];
+  if (quote !== '"' && quote !== "'") return false;
+
+  const directiveStart = i + 1;
+  if (!code.startsWith(DIRECTIVE, directiveStart)) return false;
+
+  const directiveEnd = directiveStart + DIRECTIVE.length;
+  if (code[directiveEnd] !== quote) return false;
+
+  return hasDirectiveTerminator(code, directiveEnd + 1);
+}
+
+function hasDirectiveTerminator(code: string, start: number): boolean {
+  let i = start;
+  let sawLineTerminator = false;
+  for (;;) {
+    if (i >= code.length) return true;
+
+    const char = code.charCodeAt(i);
+    if (isSemicolon(char)) return true;
+    if (isLineTerminator(char)) {
+      sawLineTerminator = true;
+      i++;
+      continue;
+    }
+
+    if (code.startsWith("//", i)) {
+      const lineEnd = nextLineTerminatorIndex(code, i + 2);
+      if (lineEnd === -1) return true;
+      sawLineTerminator = true;
+      i = lineEnd + 1;
+      continue;
+    }
+
+    if (code.startsWith("/*", i)) {
+      const end = code.indexOf("*/", i + 2);
+      if (end === -1) return false;
+      sawLineTerminator ||= containsLineTerminator(code, i + 2, end);
+      i = end + 2;
+      continue;
+    }
+
+    if (/\s/.test(code[i]!)) {
+      i++;
+      continue;
+    }
+
+    return sawLineTerminator && !startsExpressionContinuation(code, i);
+  }
+}
+
+function nextLineTerminatorIndex(code: string, start: number): number {
+  for (let i = start; i < code.length; i++) {
+    if (isLineTerminator(code.charCodeAt(i))) return i;
+  }
+  return -1;
+}
+
+function containsLineTerminator(
+  code: string,
+  start: number,
+  end: number,
+): boolean {
+  for (let i = start; i < end; i++) {
+    if (isLineTerminator(code.charCodeAt(i))) return true;
+  }
+  return false;
+}
+
+function startsExpressionContinuation(code: string, start: number): boolean {
+  switch (code[start]) {
+    case ".":
+    case "+":
+    case "-":
+    case "*":
+    case "/":
+    case "%":
+    case "<":
+    case ">":
+    case "=":
+    case "!":
+    case "&":
+    case "|":
+    case "^":
+    case "?":
+    case ":":
+    case ",":
+    case "[":
+    case "(":
+    case "`":
+      return true;
+  }
+
   return (
-    code.startsWith(`"${DIRECTIVE}"`, i) || code.startsWith(`'${DIRECTIVE}'`, i)
+    startsKeywordContinuation(code, start, "as") ||
+    startsKeywordContinuation(code, start, "in") ||
+    startsKeywordContinuation(code, start, "instanceof") ||
+    startsKeywordContinuation(code, start, "satisfies")
   );
+}
+
+function startsKeywordContinuation(
+  code: string,
+  start: number,
+  keyword: string,
+): boolean {
+  if (!code.startsWith(keyword, start)) return false;
+  const next = code[start + keyword.length];
+  return next === undefined || !/[\p{ID_Continue}$]/u.test(next);
+}
+
+function isSemicolon(char: number): boolean {
+  return char === 59;
+}
+
+function isLineTerminator(char: number): boolean {
+  return char === 10 || char === 13 || char === 0x2028 || char === 0x2029;
 }
 
 /**
@@ -140,7 +266,12 @@ export function compileGenerative(
   // such entries pass through.
   ensureDefaultExport(ast, filename);
   const generativeInstances = collectGenerativeInstances(ast);
-  const safeToolkitSpreads = collectSafeToolkitSpreads(ast, filename);
+  const interactableToolImports = collectInteractableToolImports(ast);
+  const toolkitSpreadNames = collectToolkitSpreadNames(
+    ast,
+    filename,
+    createToolkitNameContext(),
+  );
 
   const flags: TargetFlags = { keptRender: false, keptBackendExecute: false };
 
@@ -177,7 +308,8 @@ export function compileGenerative(
           object,
           target,
           generativeInstances,
-          safeToolkitSpreads,
+          interactableToolImports,
+          toolkitSpreadNames,
           flags,
           filename,
         );
@@ -470,14 +602,22 @@ function unwrapToCall(node: t.Node, name: string): t.CallExpression | null {
  */
 function collectGenerativeInstances(ast: t.File): Set<string> {
   const names = new Set<string>();
+  const generativeFactories = collectGenerativeFactoryImports(ast);
   for (const statement of ast.program.body) {
-    if (!t.isVariableDeclaration(statement)) continue;
-    for (const declaration of statement.declarations) {
+    const variableDeclaration = t.isVariableDeclaration(statement)
+      ? statement
+      : t.isExportNamedDeclaration(statement) &&
+          t.isVariableDeclaration(statement.declaration)
+        ? statement.declaration
+        : null;
+    if (!variableDeclaration) continue;
+    for (const declaration of variableDeclaration.declarations) {
       const { id, init } = declaration;
       if (
         t.isIdentifier(id) &&
         t.isNewExpression(init) &&
-        t.isIdentifier(init.callee, { name: GENERATIVE_FACTORY })
+        t.isIdentifier(init.callee) &&
+        generativeFactories.has(init.callee.name)
       ) {
         names.add(id.name);
       }
@@ -486,8 +626,85 @@ function collectGenerativeInstances(ast: t.File): Set<string> {
   return names;
 }
 
+function collectGenerativeFactoryImports(ast: t.File): Set<string> {
+  const names = new Set<string>();
+  for (const statement of ast.program.body) {
+    if (
+      !t.isImportDeclaration(statement) ||
+      statement.source.value !== GENERATIVE_UI_PACKAGE
+    ) {
+      continue;
+    }
+
+    for (const specifier of statement.specifiers) {
+      if (
+        t.isImportSpecifier(specifier) &&
+        t.isIdentifier(specifier.imported, { name: GENERATIVE_FACTORY })
+      ) {
+        names.add(specifier.local.name);
+      }
+    }
+  }
+  return names;
+}
+
+type ToolkitStaticNames = readonly string[] | null;
+type ToolkitSpreadNames = Map<string, ToolkitStaticNames>;
+
+interface ToolkitNameContext {
+  importedToolkitNamesByFile: Map<string, ToolkitStaticNames | undefined>;
+  resolvingImportedToolkitNames: Set<string>;
+}
+
 /**
- * Toolkit identifiers that are safe to spread into a `defineToolkit({ ... })`.
+ * Collects the local names `unstable_interactableTool` is imported under from a
+ * distribution package, so toolkit entries calling it can be recognized
+ * (and a same-named local function can't smuggle an arbitrary call through).
+ */
+function collectInteractableToolImports(ast: t.File): Set<string> {
+  const names = new Set<string>();
+  for (const statement of ast.program.body) {
+    if (!t.isImportDeclaration(statement)) continue;
+    if (!packageNameFromSpecifier(statement.source.value)) continue;
+    for (const specifier of statement.specifiers) {
+      if (
+        t.isImportSpecifier(specifier) &&
+        t.isIdentifier(specifier.imported, { name: INTERACTABLE_TOOL_FACTORY })
+      ) {
+        names.add(specifier.local.name);
+      }
+    }
+  }
+  return names;
+}
+
+function createToolkitNameContext(): ToolkitNameContext {
+  return {
+    importedToolkitNamesByFile: new Map(),
+    resolvingImportedToolkitNames: new Set(),
+  };
+}
+
+/**
+ * The inline config of an `unstable_interactableTool({ ... })` toolkit entry, or `null`
+ * when the entry is some other expression.
+ */
+function interactableToolConfig(
+  value: t.Node,
+  imports: Set<string>,
+): t.ObjectExpression | null {
+  return t.isCallExpression(value) &&
+    t.isIdentifier(value.callee) &&
+    imports.has(value.callee.name) &&
+    t.isObjectExpression(value.arguments[0])
+    ? value.arguments[0]
+    : null;
+}
+
+/**
+ * Toolkit identifiers that are safe to spread into a `defineToolkit({ ... })`,
+ * paired with the static tool names they contain. A `null` name list means the
+ * spread is safe, but its names are not statically known for duplicate checks.
  *
  * Two kinds qualify:
  *
@@ -500,19 +717,21 @@ function collectGenerativeInstances(ast: t.File): Set<string> {
  *   export crosses the generative-module boundary, so named imports don't
  *   qualify — they would be `undefined` once that module is build-split.
  */
-function collectSafeToolkitSpreads(
+function collectToolkitSpreadNames(
   ast: t.File,
   filename: string | undefined,
-): Set<string> {
-  const names = new Set<string>();
-  const generativeBySource = new Map<string, boolean>();
+  context: ToolkitNameContext,
+): ToolkitSpreadNames {
+  const spreadNames: ToolkitSpreadNames = new Map();
+  const localToolkitCalls = new Map<string, t.CallExpression>();
 
   for (const statement of ast.program.body) {
     if (t.isVariableDeclaration(statement)) {
       for (const declaration of statement.declarations) {
         const { id, init } = declaration;
-        if (t.isIdentifier(id) && init && unwrapToToolkitCall(init)) {
-          names.add(id.name);
+        if (t.isIdentifier(id) && init) {
+          const toolkitCall = unwrapToToolkitCall(init);
+          if (toolkitCall) localToolkitCalls.set(id.name, toolkitCall);
         }
       }
       continue;
@@ -525,17 +744,40 @@ function collectSafeToolkitSpreads(
       );
       if (!defaultSpecifier) continue;
 
-      const source = statement.source.value;
-      let isGenerative = generativeBySource.get(source);
-      if (isGenerative === undefined) {
-        isGenerative = isGenerativeImport(source, filename);
-        generativeBySource.set(source, isGenerative);
+      const names = getGenerativeImportToolkitNames(
+        statement.source.value,
+        filename,
+        context,
+      );
+      if (names !== undefined) {
+        spreadNames.set(defaultSpecifier.local.name, names);
       }
-      if (isGenerative) names.add(defaultSpecifier.local.name);
     }
   }
 
-  return names;
+  const resolveLocal = (name: string): ToolkitStaticNames | undefined => {
+    if (spreadNames.has(name)) return spreadNames.get(name);
+
+    const call = localToolkitCalls.get(name);
+    if (!call) return undefined;
+
+    const object = t.isObjectExpression(call.arguments[0])
+      ? call.arguments[0]
+      : null;
+    const names = object
+      ? collectToolkitObjectNames(object, spreadNames)
+      : null;
+    const publicNames = uniqueToolkitNames(names);
+
+    spreadNames.set(name, publicNames);
+    return publicNames;
+  };
+
+  for (const name of localToolkitCalls.keys()) {
+    resolveLocal(name);
+  }
+
+  return spreadNames;
 }
 
 const MODULE_EXTENSIONS = [
@@ -553,26 +795,78 @@ const MODULE_EXTENSIONS = [
 const REWRITABLE_JS_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".cjs"]);
 
 /**
- * Whether an import specifier resolves on disk to a `"use generative"` module.
- * Relative specifiers and `tsconfig` path aliases (e.g. `@/tools`) are resolved;
- * anything else (a bare package, an unresolvable alias) is treated as
- * non-generative, and thus an unsafe spread.
+ * Reads the static tool names from the default export of an imported
+ * `"use generative"` module. Relative specifiers and `tsconfig` path aliases
+ * (e.g. `@/tools`) are resolved; anything else (a bare package, an unresolvable
+ * alias) is treated as non-generative, and thus an unsafe spread.
  */
-function isGenerativeImport(
+function getGenerativeImportToolkitNames(
   source: string,
   filename: string | undefined,
-): boolean {
+  context: ToolkitNameContext,
+): ToolkitStaticNames | undefined {
   const cleanFilename = cleanAbsoluteFilename(filename);
-  if (!cleanFilename) return false;
+  if (!cleanFilename) return undefined;
 
   const resolved = resolveImportedModuleFile(source, cleanFilename);
-  if (!resolved) return false;
+  if (!resolved) return undefined;
 
-  try {
-    return isGenerativeModule(readFileSync(resolved, "utf8"));
-  } catch {
-    return false;
+  if (context.importedToolkitNamesByFile.has(resolved)) {
+    return context.importedToolkitNamesByFile.get(resolved);
   }
+  if (context.resolvingImportedToolkitNames.has(resolved)) return null;
+
+  let code: string;
+  try {
+    code = readFileSync(resolved, "utf8");
+  } catch {
+    context.importedToolkitNamesByFile.set(resolved, undefined);
+    return undefined;
+  }
+
+  if (!isGenerativeModule(code)) {
+    context.importedToolkitNamesByFile.set(resolved, undefined);
+    return undefined;
+  }
+
+  context.resolvingImportedToolkitNames.add(resolved);
+  try {
+    const importedAst = parse(code, {
+      sourceType: "module",
+      plugins: ["typescript", "jsx", "explicitResourceManagement"],
+    });
+    const names = getDefaultExportToolkitNames(importedAst, resolved, context);
+    context.importedToolkitNamesByFile.set(resolved, names);
+    return names;
+  } catch (error) {
+    if (error instanceof GenerativeCompileError) throw error;
+    context.importedToolkitNamesByFile.set(resolved, null);
+    return null;
+  } finally {
+    context.resolvingImportedToolkitNames.delete(resolved);
+  }
+}
+
+function getDefaultExportToolkitNames(
+  ast: t.File,
+  filename: string | undefined,
+  context: ToolkitNameContext,
+): ToolkitStaticNames {
+  const def = ast.program.body.find(
+    (stmt): stmt is t.ExportDefaultDeclaration =>
+      t.isExportDefaultDeclaration(stmt),
+  );
+  if (!def) return null;
+
+  const toolkitCall = unwrapToToolkitCall(def.declaration);
+  if (!toolkitCall || !t.isObjectExpression(toolkitCall.arguments[0])) {
+    return null;
+  }
+
+  const spreadNames = collectToolkitSpreadNames(ast, filename, context);
+  return uniqueToolkitNames(
+    collectToolkitObjectNames(toolkitCall.arguments[0], spreadNames),
+  );
 }
 
 /** Resolves an import specifier (relative or `tsconfig`-aliased) to a file on disk. */
@@ -797,17 +1091,119 @@ function unwrapToToolkitCall(node: t.Node): t.CallExpression | null {
   );
 }
 
+function collectToolkitObjectNames(
+  object: t.ObjectExpression,
+  toolkitSpreadNames: ToolkitSpreadNames,
+): ToolkitStaticNames {
+  const names: string[] = [];
+
+  for (const entry of object.properties) {
+    const entryNames = toolkitEntryNames(entry, toolkitSpreadNames);
+    if (!entryNames) return null;
+    names.push(...entryNames);
+  }
+
+  return names;
+}
+
+function uniqueToolkitNames(names: ToolkitStaticNames): ToolkitStaticNames {
+  return names ? [...new Set(names)] : names;
+}
+
+function toolkitEntryNames(
+  entry: t.ObjectExpression["properties"][number],
+  toolkitSpreadNames: ToolkitSpreadNames,
+): ToolkitStaticNames {
+  if (t.isSpreadElement(entry)) {
+    if (t.isIdentifier(entry.argument)) {
+      return toolkitSpreadNames.get(entry.argument.name) ?? null;
+    }
+
+    const directMcpToolkit = unwrapToCall(entry.argument, MCP_TOOLKIT_WRAPPER);
+    if (
+      directMcpToolkit &&
+      t.isObjectExpression(directMcpToolkit.arguments[0])
+    ) {
+      return collectToolkitObjectNames(
+        directMcpToolkit.arguments[0],
+        toolkitSpreadNames,
+      );
+    }
+
+    return null;
+  }
+
+  if (t.isObjectProperty(entry) || t.isObjectMethod(entry)) {
+    const name = memberName(entry.key, entry.computed);
+    return name ? [name] : [];
+  }
+
+  return [];
+}
+
+function warnDuplicateToolkitNames(
+  object: t.ObjectExpression,
+  toolkitSpreadNames: ToolkitSpreadNames,
+  filename: string | undefined,
+): void {
+  const names = collectToolkitObjectNames(object, toolkitSpreadNames);
+  if (!names) return;
+
+  const seen = new Set<string>();
+  const warned = new Set<string>();
+  for (const name of names) {
+    if (seen.has(name)) {
+      if (!warned.has(name)) {
+        console.warn(
+          new GenerativeCompileError(
+            `Duplicate tool name "${name}" while composing toolkits. ` +
+              "JavaScript object spread keeps the last definition.",
+            filename,
+          ).message,
+        );
+        warned.add(name);
+      }
+      continue;
+    }
+    seen.add(name);
+  }
+}
+
 function isSafeToolkitSpread(
   entry: t.SpreadElement,
-  safeToolkitSpreads: Set<string>,
+  toolkitSpreadNames: ToolkitSpreadNames,
 ): boolean {
   if (t.isIdentifier(entry.argument)) {
-    return safeToolkitSpreads.has(entry.argument.name);
+    return toolkitSpreadNames.has(entry.argument.name);
   }
 
   const directMcpToolkit = unwrapToCall(entry.argument, MCP_TOOLKIT_WRAPPER);
   return (
     !!directMcpToolkit && t.isObjectExpression(directMcpToolkit.arguments[0])
+  );
+}
+
+function genericUnsafeToolkitEntryMessage(): string {
+  return (
+    "each tool must be an inline object literal (`name: { ... }`) or a " +
+    "compiler-visible toolkit spread / generative tool (e.g. " +
+    "`...defineMcpToolkit(...)`, `...baseToolkit`, " +
+    "`generative.present()`, or `unstable_interactableTool(...)`) so its " +
+    "`execute` can be routed"
+  );
+}
+
+function describeUnsafeToolkitEntry(entry: Entry): string {
+  if (!t.isObjectProperty(entry)) return genericUnsafeToolkitEntryMessage();
+
+  const toolName = memberName(entry.key, entry.computed);
+  const raw = entryRawValue(entry);
+  if (!toolName || !raw) return genericUnsafeToolkitEntryMessage();
+
+  return (
+    `tool "${toolName}" cannot be \`${generate(raw).code}\`; use an inline ` +
+    `object literal (\`${toolName}: { ... }\`) or a compiler-visible toolkit ` +
+    "spread / generative tool so its `execute` can be routed"
   );
 }
 
@@ -871,10 +1267,17 @@ function compileToolkit(
   object: t.ObjectExpression,
   target: Target,
   instances: Set<string>,
-  safeToolkitSpreads: Set<string>,
+  interactableToolImports: Set<string>,
+  toolkitSpreadNames: ToolkitSpreadNames,
   flags: TargetFlags,
   filename: string | undefined,
 ): void {
+  // Split builds compile both targets; emit target-independent warnings from
+  // the client pass so each duplicate is logged once.
+  if (target === "client") {
+    warnDuplicateToolkitNames(object, toolkitSpreadNames, filename);
+  }
+
   const nextProperties: t.ObjectExpression["properties"] = [];
 
   for (const entry of object.properties) {
@@ -882,7 +1285,7 @@ function compileToolkit(
     if (!value) {
       if (
         t.isSpreadElement(entry) &&
-        isSafeToolkitSpread(entry, safeToolkitSpreads)
+        isSafeToolkitSpread(entry, toolkitSpreadNames)
       ) {
         nextProperties.push(entry);
         continue;
@@ -896,27 +1299,36 @@ function compileToolkit(
         nextProperties.push(entry);
         continue;
       }
+      const config =
+        raw && interactableToolConfig(raw, interactableToolImports);
+      if (config) {
+        if (target === "client") flags.keptRender = true;
+        else removeMember(config, "render");
+        nextProperties.push(entry);
+        continue;
+      }
       throw new GenerativeCompileError(
-        "each tool must be an inline object literal (`name: { ... }`) or a " +
-          "compiler-visible toolkit spread / generative tool (e.g. " +
-          "`...defineMcpToolkit(...)`, `...baseToolkit`, or " +
-          "`generative.present()`) so its `execute` can be routed",
+        describeUnsafeToolkitEntry(entry),
         filename,
       );
     }
 
     // Nature is inferred from `execute` (see inferToolType), not an authored
     // `type`. The resolved type is written back below so the runtime keeps it.
+    const toolName = t.isObjectProperty(entry)
+      ? memberName(entry.key, entry.computed)
+      : undefined;
     const execute = findMember(value, "execute");
     const isStub = execute ? executeIsStubTool(execute) : false;
     const isExternal = execute ? executeIsExternalTool(execute) : false;
-    const type = inferToolType(value, filename);
+    const type = inferToolType(value, toolName, filename);
     const hasRender = !!findMember(value, "render");
     const hasRenderText = !!findMember(value, "renderText");
 
     if (type === "frontend" && !hasRender && !hasRenderText) {
       throw new GenerativeCompileError(
-        "a frontend tool must declare a `render` or `renderText` " +
+        `${typedToolSubject("frontend", toolName)} must declare a ` +
+          "`render` or `renderText` " +
           "(it has no server execute to show otherwise)",
         filename,
       );
@@ -924,19 +1336,21 @@ function compileToolkit(
 
     if (type === "human" && !hasRender) {
       throw new GenerativeCompileError(
-        "a human tool must declare a `render` so it can collect input",
+        `${typedToolSubject("human", toolName)} must declare a ` +
+          "`render` so it can collect input",
         filename,
       );
     }
 
     if (type === "provider" && execute) {
-      applyProviderToolConfig(value, execute, filename);
+      applyProviderToolConfig(value, execute, toolName, filename);
     }
 
     if (isExternal) {
       if (!hasRender && !hasRenderText) {
         throw new GenerativeCompileError(
-          "an external tool must declare a `render` or `renderText` " +
+          `${typedToolSubject("external", toolName)} must declare a ` +
+            "`render` or `renderText` " +
             "(assistant-ui only renders calls for tools defined elsewhere)",
           filename,
         );
@@ -972,6 +1386,7 @@ function compileToolkit(
 function applyProviderToolConfig(
   object: t.ObjectExpression,
   execute: t.ObjectProperty | t.ObjectMethod,
+  toolName: string | undefined,
   filename: string | undefined,
 ): void {
   if (
@@ -1019,8 +1434,9 @@ function applyProviderToolConfig(
       );
     }
     if (existingNames.has(name) || configNames.has(name)) {
+      const toolLabel = toolName ? ` for "${toolName}"` : "";
       throw new GenerativeCompileError(
-        "`providerTool(...)` config cannot duplicate tool properties",
+        `\`providerTool(...)\` config${toolLabel} duplicates "${name}"`,
         filename,
       );
     }
@@ -1151,13 +1567,14 @@ function stripUseClient(member: t.ObjectProperty | t.ObjectMethod): void {
  */
 function inferToolType(
   object: t.ObjectExpression,
+  toolName: string | undefined,
   filename: string | undefined,
 ): ToolType {
   const execute = findMember(object, "execute");
   if (!execute) {
     throw new GenerativeCompileError(
-      "every tool must declare an `execute`; use `humanTool()` for a " +
-        "human-in-the-loop tool",
+      `${toolSubject(toolName)} must declare an \`execute\`; use ` +
+        "`humanTool()` for a human-in-the-loop tool",
       filename,
     );
   }
@@ -1166,6 +1583,16 @@ function inferToolType(
   if (executeIsStubTool(execute)) return "frontend";
   if (executeIsExternalTool(execute)) return "backend";
   return executeIsClient(execute) ? "frontend" : "backend";
+}
+
+function toolSubject(toolName: string | undefined): string {
+  return toolName ? `tool "${toolName}"` : "every tool";
+}
+
+function typedToolSubject(type: string, toolName: string | undefined): string {
+  if (toolName) return `${type} tool "${toolName}"`;
+  const article = /^[aeiou]/i.test(type) ? "an" : "a";
+  return `${article} ${type} tool`;
 }
 
 function stripExternalToolMetadata(object: t.ObjectExpression): void {

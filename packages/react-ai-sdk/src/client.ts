@@ -14,5 +14,6 @@ export type {
 } from "./ui/resumable";
 export { frontendTools } from "./frontendTools";
 export { injectQuoteContext } from "./injectQuoteContext";
+export { unstable_injectInteractableContext } from "./injectInteractableContext";
 export type { ThreadTokenUsage, TokenUsageExtractableMessage } from "./usage";
 export { getThreadMessageTokenUsage, useThreadTokenUsage } from "./usage";

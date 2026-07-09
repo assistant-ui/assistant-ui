@@ -14,7 +14,12 @@ import {
   ToolGroupRoot,
   ToolGroupTrigger,
 } from "@/components/assistant-ui/tool-group";
-import { ThreadList } from "@/components/assistant-ui/thread-list";
+import {
+  ThreadList,
+  ThreadListItems,
+  ThreadListNew,
+  ThreadListRoot,
+} from "@/components/assistant-ui/thread-list";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
   Reasoning,
@@ -43,7 +48,6 @@ import {
   ErrorPrimitive,
   groupPartByType,
   MessagePrimitive,
-  ThreadListPrimitive,
   ThreadPrimitive,
   unstable_useMentionAdapter,
   unstable_useSlashCommandAdapter,
@@ -73,7 +77,6 @@ import {
   PanelLeftIcon,
   PencilIcon,
   PencilLineIcon,
-  PlusIcon,
   RefreshCwIcon,
   ShareIcon,
   SlashIcon,
@@ -87,6 +90,11 @@ import {
 import Image from "next/image";
 import { useState, type FC, type ReactNode } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
 import { DEFAULT_MODEL_ID } from "@/constants/model";
@@ -132,23 +140,42 @@ const Sidebar: FC<{ collapsed?: boolean }> = ({ collapsed }) => {
           assistant-ui
         </span>
       </div>
-      {collapsed ? (
-        <ThreadListPrimitive.New asChild>
-          <TooltipIconButton
-            tooltip="New thread"
-            side="right"
-            variant="ghost"
-            size="icon"
-            className="mt-1 ml-2 size-8"
-          >
-            <PlusIcon className="size-4" />
-          </TooltipIconButton>
-        </ThreadListPrimitive.New>
-      ) : (
-        <div className="relative w-65 flex-1 overflow-y-auto p-3">
-          <ThreadList />
-        </div>
-      )}
+      <ThreadListRoot
+        className={cn(
+          "relative flex-1 overflow-y-auto transition-[padding,width] duration-200",
+          collapsed ? "w-12 px-2 pt-1" : "w-65 p-3",
+        )}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ThreadListNew
+              className={cn(
+                "overflow-hidden transition-all duration-200",
+                collapsed
+                  ? "w-8 gap-0 px-2 has-[>svg]:px-2"
+                  : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
+              )}
+              labelClassName={cn(
+                "overflow-hidden transition-all duration-200",
+                collapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
+              )}
+            />
+          </TooltipTrigger>
+          {collapsed && (
+            <TooltipContent side="right">New Thread</TooltipContent>
+          )}
+        </Tooltip>
+        <ThreadListItems
+          aria-hidden={collapsed}
+          inert={collapsed}
+          className={cn(
+            "transition-[opacity,transform] duration-150",
+            collapsed
+              ? "pointer-events-none opacity-0 delay-50"
+              : "translate-x-0 opacity-100",
+          )}
+        />
+      </ThreadListRoot>
     </aside>
   );
 };
@@ -371,6 +398,11 @@ const SUGGESTION_GROUPS: SuggestionGroup[] = [
     label: "Write",
     icon: <PencilLineIcon />,
     options: [
+      {
+        label: "a birthday card message",
+        prompt:
+          "Help me write a birthday card message for a friend in the notepad",
+      },
       {
         label: "a product announcement",
         prompt: "Draft a short product announcement for a new dark mode",
@@ -731,7 +763,7 @@ const AssistantMessage: FC = () => {
               case "group-reasoning": {
                 const running = part.status.type === "running";
                 return (
-                  <ReasoningRoot streaming={running}>
+                  <ReasoningRoot defaultOpen={running}>
                     <ReasoningTrigger active={running} />
                     <ReasoningContent aria-busy={running}>
                       <ReasoningText>{children}</ReasoningText>

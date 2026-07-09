@@ -6,7 +6,7 @@ export type TaskBoardState = { tasks: Task[] };
 export const taskBoardSchema = z.object({
   tasks: z.array(
     z.object({
-      id: z.string(),
+      id: z.string().describe("Stable task id, unique within this board."),
       title: z.string(),
       done: z.boolean(),
     }),
@@ -15,31 +15,31 @@ export const taskBoardSchema = z.object({
 
 export const taskBoardInitialState: TaskBoardState = { tasks: [] };
 
-export const manageTasksParameters = z.object({
-  action: z.enum(["add", "toggle", "remove", "clear"]),
-  title: z.string().optional(),
-  id: z.string().optional(),
-});
-
-export type ManageTasksArgs = z.infer<typeof manageTasksParameters>;
-
-export type NoteState = { title: string; content: string; color: string };
+export const noteColorSchema = z.enum(["yellow", "blue", "green", "pink"]);
 
 export const noteSchema = z.object({
+  id: z.string().describe("Stable note id, unique within this collection."),
   title: z.string(),
   content: z.string(),
-  color: z.enum(["yellow", "blue", "green", "pink"]),
+  color: noteColorSchema,
 });
 
-export const noteInitialState: NoteState = {
+export type NoteState = z.infer<typeof noteSchema>;
+
+export const noteInitialState: Omit<NoteState, "id"> = {
   title: "New Note",
   content: "",
   color: "yellow",
 };
 
-export const manageNotesParameters = z.object({
-  action: z.enum(["add", "remove", "clear"]),
-  noteId: z.string().optional(),
+export const notesSchema = z.object({
+  notes: z.array(noteSchema),
+  selectedId: z.string().nullable(),
 });
 
-export type ManageNotesArgs = z.infer<typeof manageNotesParameters>;
+export type NotesState = z.infer<typeof notesSchema>;
+
+export const notesInitialState: NotesState = {
+  notes: [],
+  selectedId: null,
+};

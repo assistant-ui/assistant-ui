@@ -418,7 +418,7 @@ export function jsDocTag(
     : undefined;
 }
 
-function jsDocTags(
+export function jsDocTags(
   doc: JSDoc | undefined,
   name: string,
   source = "unknown source",

@@ -4,6 +4,36 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
 
+const deployEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
+const faviconVariant =
+  deployEnv === "preview" || deployEnv === "development"
+    ? deployEnv
+    : undefined;
+
+// Browsers prefer the app-router icon <link> tags (icon.svg, icon0.svg,
+// icon1.png) over /favicon.ico, so every icon route must be rewritten for the
+// environment favicon to actually show in the tab.
+const faviconRewrites = faviconVariant
+  ? [
+      {
+        source: "/favicon.ico",
+        destination: `/favicon.${faviconVariant}.ico`,
+      },
+      {
+        source: "/icon.svg",
+        destination: `/favicon.${faviconVariant}.svg`,
+      },
+      {
+        source: "/icon0.svg",
+        destination: `/favicon.${faviconVariant}.svg`,
+      },
+      {
+        source: "/icon1.png",
+        destination: `/favicon.${faviconVariant}.png`,
+      },
+    ]
+  : [];
+
 // The playground AI Builder renders same-origin preview routes inside an iframe.
 // Keep frame ancestors self-only so external sites still cannot embed docs pages.
 const cspHeader = `
@@ -36,25 +66,73 @@ const config: NextConfig = {
       ],
     },
   ],
-  redirects: async () => [
-    {
-      source: "/docs/:path*.md",
-      destination: "/docs/:path*.mdx",
-      permanent: true,
-    },
-    {
-      source: "/examples.md",
-      destination: "/examples.mdx",
-      permanent: true,
-    },
-    {
-      source: "/examples/:path*.md",
-      destination: "/examples/:path*.mdx",
-      permanent: true,
-    },
-  ],
   rewrites: async () => ({
     beforeFiles: [
+      ...faviconRewrites,
+      {
+        source: "/mcp",
+        destination: "/api/mcp",
+      },
+      {
+        source: "/.well-known/mcp",
+        destination: "/api/mcp",
+      },
+      {
+        source: "/docs/mcp",
+        destination: "/api/mcp",
+      },
+      {
+        source: "/docs/.well-known/mcp",
+        destination: "/api/mcp",
+      },
+      {
+        source: "/docs.md",
+        destination: "/llms.mdx",
+      },
+      {
+        source: "/docs.mdx",
+        destination: "/llms.mdx",
+      },
+      {
+        source: "/docs/:path*.md",
+        destination: "/llms.mdx/:path*",
+      },
+      {
+        source: "/docs/:path*.mdx",
+        destination: "/llms.mdx/:path*",
+      },
+      {
+        source: "/examples.md",
+        destination: "/llms.mdx/examples",
+      },
+      {
+        source: "/examples.mdx",
+        destination: "/llms.mdx/examples",
+      },
+      {
+        source: "/examples/:path*.md",
+        destination: "/llms.mdx/examples/:path*",
+      },
+      {
+        source: "/examples/:path*.mdx",
+        destination: "/llms.mdx/examples/:path*",
+      },
+      {
+        source: "/tap/docs.md",
+        destination: "/tap-llms.mdx",
+      },
+      {
+        source: "/tap/docs.mdx",
+        destination: "/tap-llms.mdx",
+      },
+      {
+        source: "/tap/docs/:path*.md",
+        destination: "/tap-llms.mdx/:path*",
+      },
+      {
+        source: "/tap/docs/:path*.mdx",
+        destination: "/tap-llms.mdx/:path*",
+      },
       {
         source: "/",
         has: [
@@ -67,6 +145,10 @@ const config: NextConfig = {
         has: [
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
+        destination: "/pricing.md",
+      },
+      {
+        source: "/pricing.mdx",
         destination: "/pricing.md",
       },
       {
@@ -88,19 +170,11 @@ const config: NextConfig = {
         destination: "https://assistant-ui-umami.vercel.app/:path*",
       },
       {
-        source: "/docs/:path*.mdx",
-        destination: "/llms.mdx/:path*",
-      },
-      {
-        source: "/examples.mdx",
-        destination: "/llms.mdx/examples",
-      },
-      {
-        source: "/examples/:path*.mdx",
-        destination: "/llms.mdx/examples/:path*",
-      },
-      {
         source: "/blog/:path.md",
+        destination: "/blog/llms.md/:path",
+      },
+      {
+        source: "/blog/:path.mdx",
         destination: "/blog/llms.md/:path",
       },
       {

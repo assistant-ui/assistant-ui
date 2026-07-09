@@ -7,6 +7,7 @@ import type { DictationAdapter } from "../../adapters/speech";
 import type { SendOptions } from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
+import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
 
 export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   public get canCancel() {
@@ -97,8 +98,24 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
               ...this._nonTextPassthrough,
             ] as AppendMessage["content"])
           : message.content;
+      // Gate live state against the new branch's prefix (messages up to the
+      // parent): an unchanged interactable re-stamps the prior baseline, an
+      // interactable edited since the original message stamps its newest state.
+      const messages = this.runtime.messages;
+      const parentIndex =
+        this._parentId === null
+          ? -1
+          : messages.findIndex((m) => m.id === this._parentId);
+      const composerMetadata = gateInteractableComposerMetadata(
+        this.runtime.getModelContext().unstable_composerMetadata,
+        messages.slice(0, parentIndex + 1),
+      );
+      const enriched = this.enrichWithComposerMetadata(
+        message,
+        composerMetadata,
+      );
       this.runtime.append({
-        ...message,
+        ...enriched,
         content,
         parentId: this._parentId,
         sourceId: this._sourceId,

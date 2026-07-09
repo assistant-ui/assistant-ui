@@ -230,11 +230,14 @@ export function WaterfallTimeline() {
         </div>
 
         <WaterfallLayoutContext.Provider value={layoutValue}>
-          <div style={{ width: contentWidth }}>
+          <SpanPrimitive.Timeline
+            timeRange={renderTimeRange}
+            style={{ width: contentWidth }}
+          >
             <SpanPrimitive.Children>
               {() => <WaterfallRow />}
             </SpanPrimitive.Children>
-          </div>
+          </SpanPrimitive.Timeline>
         </WaterfallLayoutContext.Provider>
       </div>
 

@@ -252,6 +252,44 @@ The synthetic `"standalone-tool-call"` key on `groupPartByType` matches all of t
   The `"mcp-app"` key is deprecated in favor of `"standalone-tool-call"`, which is a superset (it also matches MCP-app tool calls). Existing `"mcp-app"` usage keeps working.
 </Callout>
 
+### Render Tool Calls as Flat Rows
+
+The previous section keeps `"tool-call"` folded into the chain-of-thought and only lifts standalone tool UIs out. To keep reasoning collapsed in a group while every tool call renders as its own row in the message flow, map both tool keys to `[]`:
+
+```tsx
+<MessagePrimitive.GroupedParts
+  groupBy={groupPartByType({
+    reasoning: ["group-thought", "group-reasoning"],
+    "tool-call": [],
+    "standalone-tool-call": [],
+  })}
+>
+  {({ part, children }) => {
+    switch (part.type) {
+      case "group-thought":
+      case "group-reasoning":
+        return <ReasoningBlock>{children}</ReasoningBlock>;
+      case "reasoning":
+        return <Reasoning {...part} />;
+      case "tool-call":
+        return part.toolUI ?? <ToolFallback {...part} />;
+      case "text":
+        return <MarkdownText />;
+      case "indicator":
+        return <LoadingDots />;
+      default:
+        return null;
+    }
+  }}
+</MessagePrimitive.GroupedParts>
+```
+
+Adjacent `reasoning` parts still coalesce into one `group-thought`, while each tool call is a leaf at the same level as text — the `"standalone-tool-call"` entry is mapped to `[]` too so human-in-the-loop and generative-UI tools stay flat alongside routine calls instead of falling through to `"tool-call"`. Tool-call leaves keep their stable identity keys across re-renders, so rows don't remount as the message streams.
+
+<Callout type="warn">
+  This renders tool calls flat **in the message flow** — each leaf sits where the part appears, in order. It does not pin, portal, float, or otherwise move tool UIs out of the flow into a sidebar or fixed region. For out-of-flow placement you still own the layout outside `GroupedParts`.
+</Callout>
+
 ### Group by Custom Metadata
 
 Use any custom metadata in your parts for grouping:

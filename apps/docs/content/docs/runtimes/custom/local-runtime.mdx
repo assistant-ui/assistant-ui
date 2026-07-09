@@ -698,6 +698,8 @@ const OpenAIAdapter: ChatModelAdapter = {
 };
 ```
 
+For local development on a ChatGPT Plus or Pro plan, the same client can run without a real API key by pointing `baseURL` at a local OAuth proxy and passing a placeholder `apiKey`; see [ChatGPT Subscription](/docs/guides/chatgpt-subscription#openai-compatible-proxy).
+
 ### Custom REST API
 
 ```tsx

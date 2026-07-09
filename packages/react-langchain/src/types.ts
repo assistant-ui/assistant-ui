@@ -12,6 +12,7 @@ import type { AssistantCloud } from "assistant-cloud";
 import type {
   UseStreamOptions,
   AssembledToolCall,
+  AnyStream,
   SubagentDiscoverySnapshot,
   SubgraphDiscoverySnapshot,
 } from "@langchain/react";
@@ -69,6 +70,15 @@ export type UIMessage<
 };
 
 /**
+ * Emitted on the live `custom` channel by the graph's `remove_ui_message`
+ * helper to drop a pushed `UIMessage` by id.
+ */
+export type RemoveUIMessage = {
+  type: "remove-ui";
+  id: string;
+};
+
+/**
  * Minimal duck-typed interface for BaseMessage class instances returned by
  * `useStream`. Used internally by the message converter.
  *
@@ -97,6 +107,7 @@ export type LangChainRuntimeExtras = {
   toolCalls: readonly AssembledToolCall[];
   subagents: ReadonlyMap<string, SubagentDiscoverySnapshot>;
   subgraphs: ReadonlyMap<string, SubgraphDiscoverySnapshot>;
+  stream: AnyStream;
   error: unknown;
   submit: (
     values: Record<string, unknown> | null | undefined,

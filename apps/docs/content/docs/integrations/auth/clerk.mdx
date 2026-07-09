@@ -9,15 +9,9 @@ If you use AssistantCloud, see [cloud authorization](/docs/cloud/authorization) 
 
 ## How it works
 
-```
-browser  ──►  clerkMiddleware (proxy.ts)  ──►  /api/chat
-                                               /api/threads/*
-                                                   │
-                                                   ▼
-                                          auth() returns { userId }
-                                                   │
-                                                   ▼
-                                       scope queries by userId
+```mermaid
+flowchart LR
+    browser["browser"] --> mw["clerkMiddleware<br/>(proxy.ts)"] --> routes["/api/chat<br/>/api/threads/*"] --> auth["auth() returns { userId }"] --> scope["scope queries by userId"]
 ```
 
 Three places Clerk touches the integration:

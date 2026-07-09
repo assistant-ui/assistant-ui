@@ -475,17 +475,17 @@ figure.shiki {
   padding: 0 !important;
 }
 
+/* A Callout (or any not-prose block) inside a tab owns its own link styling.
+   The tab's [&_a] color/weight would otherwise bleed in, turning callout links
+   foreground-white and medium-weight. Let them inherit, like .prose does. */
+[role="tabpanel"] :where([class~="not-prose"], [class~="not-prose"] *) a {
+  color: inherit;
+  font-weight: inherit;
+}
+
 /* Steps component */
 .steps-container {
   counter-reset: step;
-}
-
-/* Steps is not-prose, which drops the .prose link styling — restore it so
-   links inside steps aren't invisible. Mirrors the .prose a rule above. */
-.steps-container :where(a):not([data-card]) {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  text-decoration-color: var(--fd-muted-foreground);
 }
 
 .step-number {

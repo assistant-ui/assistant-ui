@@ -2,8 +2,14 @@
 
 import type { InputContent } from "@ag-ui/client";
 import type { ThreadMessageLike as CoreThreadMessageLike } from "@assistant-ui/core";
+import { getAutoStatus } from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import {
+  AG_UI_METADATA_NAMESPACE,
+  type AgUiCustomMetadata,
+} from "./run-aggregator";
+import type { AgUiInterrupt } from "../types";
 
 export type { InputContent };
 
@@ -439,6 +445,28 @@ function extractAssistantToolCalls(
   return parts;
 }
 
+function validateInterrupts(value: unknown): AgUiInterrupt[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const valid = value.filter(
+    (entry): entry is AgUiInterrupt =>
+      isObject(entry) &&
+      typeof entry.id === "string" &&
+      typeof entry.reason === "string",
+  );
+  return valid.length > 0 ? valid : undefined;
+}
+
+function readPersistedInterrupts(
+  metadata: unknown,
+): AgUiInterrupt[] | undefined {
+  if (!isObject(metadata)) return undefined;
+  const custom = metadata.custom;
+  if (!isObject(custom)) return undefined;
+  const namespaced = custom[AG_UI_METADATA_NAMESPACE];
+  if (!isObject(namespaced)) return undefined;
+  return validateInterrupts(namespaced.interrupts);
+}
+
 function toAssistantSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
@@ -449,11 +477,23 @@ function toAssistantSnapshotMessage(
     ...toolCallParts,
   ];
   const messageName = getString(rawMessage, "name");
+  const interrupts = readPersistedInterrupts(rawMessage.metadata);
   return {
     id: getString(rawMessage, "id") ?? generateId(),
     role: "assistant",
     content: assistantContent.length > 0 ? assistantContent : "",
     ...(messageName !== undefined ? { name: messageName } : {}),
+    ...(interrupts
+      ? {
+          metadata: {
+            custom: {
+              [AG_UI_METADATA_NAMESPACE]: {
+                interrupts,
+              } satisfies AgUiCustomMetadata,
+            },
+          },
+        }
+      : {}),
   };
 }
 
@@ -602,6 +642,35 @@ export function fromAgUiMessages(
 
     if (role === "user" || role === "system") {
       converted.push(toUserOrSystemSnapshotMessage(role, rawMessage));
+    }
+  }
+
+  for (let i = 0; i < converted.length; i++) {
+    const message = converted[i]!;
+    if (message.role !== "assistant") continue;
+
+    const hasInterrupt =
+      readPersistedInterrupts(message.metadata) !== undefined;
+    const hasPendingToolCall =
+      Array.isArray(message.content) &&
+      message.content.some(
+        (part) =>
+          isObject(part) &&
+          part.type === "tool-call" &&
+          part.result === undefined,
+      );
+
+    if (hasInterrupt || hasPendingToolCall) {
+      converted[i] = {
+        ...message,
+        status: getAutoStatus(
+          false,
+          false,
+          hasInterrupt,
+          hasPendingToolCall,
+          undefined,
+        ),
+      };
     }
   }
 

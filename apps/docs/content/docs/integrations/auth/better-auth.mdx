@@ -9,16 +9,13 @@ This page covers the non-cloud path. AssistantCloud users should see [cloud auth
 
 ## How it works
 
-```
-browser  ──►  /api/auth/[...all]  ──►  better-auth handlers
-              /api/chat                 │
-              /api/threads/*            │
-                  │                     │
-                  ▼                     ▼
-         auth.api.getSession({ headers })  ──►  session.user.id
-                                                     │
-                                                     ▼
-                                          scope queries by userId
+```mermaid
+flowchart LR
+    browser["browser"] --> routes["/api/auth/[...all]<br/>/api/chat<br/>/api/threads/*"]
+    routes --> handlers["better-auth handlers"]
+    routes --> session["auth.api.getSession({ headers })"]
+    handlers --> session
+    session --> uid["session.user.id"] --> scope["scope queries by userId"]
 ```
 
 Three integration points:

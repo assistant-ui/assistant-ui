@@ -1,5 +1,29 @@
 # @assistant-ui/react-mcp
 
+## 0.0.17
+
+### Patch Changes
+
+- [#4700](https://github.com/assistant-ui/assistant-ui/pull/4700) [`9ae141c`](https://github.com/assistant-ui/assistant-ui/commit/9ae141ce1ddeeae9b3f23724d902cc93e4b90d7a) - fix: validate duplicate MCP server ids in the React MCP manager ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4684](https://github.com/assistant-ui/assistant-ui/pull/4684) [`4092037`](https://github.com/assistant-ui/assistant-ui/commit/4092037da30e6b04d985dc807a53323daa66a4f4) - feat: support MCP connection timeouts ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`523e0b5`](https://github.com/assistant-ui/assistant-ui/commit/523e0b563a71a656f050473c42c414b26c2d5ab4), [`f833bc1`](https://github.com/assistant-ui/assistant-ui/commit/f833bc118b49641f3f6e0ab22bcfc63bf0a04408)]:
+  - @assistant-ui/core@0.2.20
+  - assistant-stream@0.3.25
+
+## 0.0.16
+
+### Patch Changes
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`ddc40b7`](https://github.com/assistant-ui/assistant-ui/commit/ddc40b7791563057749ecf1121e15d19574479ff), [`ea52de0`](https://github.com/assistant-ui/assistant-ui/commit/ea52de06368853b7af7ac6755b157ec5305a8494), [`29c6fdb`](https://github.com/assistant-ui/assistant-ui/commit/29c6fdbc8ede04fb2647b0a47184003ee3c2f090), [`d0987a3`](https://github.com/assistant-ui/assistant-ui/commit/d0987a32540880e5058ee529fd52a3efb4298706), [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff), [`0c51b90`](https://github.com/assistant-ui/assistant-ui/commit/0c51b905d22418b93532636b1028c080ecc819e0), [`3a8f685`](https://github.com/assistant-ui/assistant-ui/commit/3a8f685e23a3e7ad76ac41e3ce6fff05714e04d3), [`ec6adf4`](https://github.com/assistant-ui/assistant-ui/commit/ec6adf4adc91fe12c7de47fc93adcc347ece8245), [`4acd4c0`](https://github.com/assistant-ui/assistant-ui/commit/4acd4c0f608da1c62bf23a666bc0fec870a27dca)]:
+  - @assistant-ui/core@0.2.19
+  - assistant-stream@0.3.24
+  - @assistant-ui/store@0.2.19
+  - @assistant-ui/tap@0.9.3
+
 ## 0.0.15
 
 ### Patch Changes

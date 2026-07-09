@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
 import { source } from "@/lib/source";
@@ -30,9 +30,13 @@ export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
 }) {
   const params = await props.params;
-  const page = source.getPage(params.slug ?? []);
+  const slug = params.slug ?? [];
+  const page = source.getPage(slug);
 
   if (page == null) {
+    const overviewPage = source.getPage([...slug, "overview"]);
+    if (overviewPage) redirect(overviewPage.url);
+
     notFound();
   }
 
@@ -41,7 +45,7 @@ export default async function Page(props: {
   });
 
   const path = `apps/docs/content/docs/${page.path}`;
-  const markdownUrl = `${page.url}.mdx`;
+  const markdownUrl = `${page.url}.md`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
 
   const neighbours = getDocsNeighbours(source.pageTree, page.url);
