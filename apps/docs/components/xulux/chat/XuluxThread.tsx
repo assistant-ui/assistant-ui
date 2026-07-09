@@ -25,13 +25,7 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import Image from "next/image";
-import {
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { XuluxPoweredBy } from "../XuluxPoweredBy";
 import { useXuluxTemplateContext } from "./XuluxTemplateContext";
 import { XuluxToolCall } from "./XuluxToolCall";
