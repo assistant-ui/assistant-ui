@@ -24,6 +24,12 @@ pnpm turbo build
 
 (some packages rely on build outputs from other packages, even if you want to start the project in development mode)
 
+### Building for a pull request
+
+- `pnpm build:packages` builds every package under `packages/` (no example or template apps). Use it before pushing a change to `packages/*` to catch cross-package export breakage.
+- `pnpm build:affected` builds only the packages you changed plus their dependents, approximating what CI runs on your PR. Fastest check on a feature branch. It compares against your local `main`, so run `git fetch origin main:main` first if yours is stale or missing.
+- `pnpm build` builds everything including the example and template apps. Use it only when you touch `examples/`, `templates/`, or `turbo.json`.
+
 ### Running the project
 
 To run the docs project in development mode:

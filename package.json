@@ -10,6 +10,8 @@
     "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
     "build": "turbo build --concurrency=4",
+    "build:packages": "turbo build --filter='./packages/*'",
+    "build:affected": "turbo build --affected",
     "api-surface": "pnpm api-surface:build && node scripts/generate-api-surface.mjs",
     "api-surface:build": "pnpm exec turbo build --filter='./packages/*' --force",
     "api-surface:check": "node scripts/check-api-surface.mjs",
