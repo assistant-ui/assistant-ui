@@ -4,10 +4,16 @@ export function cacheListing(
   let cache: Promise<string[]> | null = null;
   return () => {
     if (!cache) {
-      cache = scan().catch((error) => {
-        cache = null;
-        throw error;
-      });
+      cache = scan().then(
+        (result) => {
+          if (result.length === 0) cache = null;
+          return result;
+        },
+        (error) => {
+          cache = null;
+          throw error;
+        },
+      );
     }
     return cache;
   };
