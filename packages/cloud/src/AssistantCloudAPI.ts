@@ -93,7 +93,7 @@ export class AssistantCloudAPI {
   }
 
   public async initializeAuth() {
-    return !!this._auth.getAuthHeaders();
+    return !!(await this._auth.getAuthHeaders());
   }
 
   public async makeRawRequest(

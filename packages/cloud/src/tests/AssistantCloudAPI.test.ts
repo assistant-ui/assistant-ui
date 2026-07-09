@@ -105,6 +105,15 @@ describe("AssistantCloudAPI", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("returns false from initializeAuth when auth token callback returns null", async () => {
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken: async () => null,
+    });
+
+    await expect(api.initializeAuth()).resolves.toBe(false);
+  });
+
   it("throws APIError with parsed message for JSON error responses", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
