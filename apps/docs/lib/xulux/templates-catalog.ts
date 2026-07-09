@@ -11,9 +11,18 @@ import {
 const DOCS_BASE_URL = "https://0d9e27d14127c0eeadfc34b424cc7ed0.preview.bl.run";
 const SUPPORT_BASE_URL =
   "https://8fd186ab9f30417b876d717f734067a9.preview.bl.run";
+const BASE_ASSISTANT_UI_URL =
+  "https://71e34324f44b97fed5523a6a9857f14b.preview.bl.run";
+const REACT_NATIVE_PREVIEW_URL = "https://assistant-ui-expo.vercel.app/";
 
 const CATEGORIES: XuluxTemplateCategory[] = [
   DEMO_DOWNLOAD_CATEGORY,
+  {
+    id: "base",
+    name: "Base Chat Templates",
+    description:
+      "assistant-ui Base chat templates with thread history, composer, suggestions, and AI SDK runtime.",
+  },
   {
     id: "docs",
     name: "Docs and Knowledge",
@@ -307,27 +316,139 @@ function demoCards(): XuluxTemplate[] {
     gradient: demo.gradient,
     kind: "example",
     previewStatus: "live",
-    previewUrl: `/demos/${demo.slug}`,
+    previewUrl: demo.previewUrl ?? `/demos/${demo.slug}`,
+    ...(demo.previewFrame ? { previewFrame: demo.previewFrame } : {}),
     downloadUrl: `/api/xulux/demo-download?slug=${demo.slug}`,
-    sourcePath: demo.entry,
-    docsUrl: `/demos/${demo.slug}`,
+    sourcePath: demo.sourcePath ?? demo.entry,
+    docsUrl: demo.docsUrl ?? `/demos/${demo.slug}`,
     featured: demo.featured,
-    tech: {
+    tech: demo.tech ?? {
       framework: "Next.js",
       runtime: "assistant-ui + AI SDK",
       frontendPattern: "Fixed demo",
     },
-    env: [
-      {
-        name: "OPENAI_API_KEY",
-        required: false,
-        secret: true,
-        description:
-          "Optional. Enables live AI responses in the downloaded starter app.",
-      },
-    ],
+    env:
+      demo.target === "node-cli"
+        ? []
+        : [
+            {
+              name: "OPENAI_API_KEY",
+              required: false,
+              secret: true,
+              description:
+                "Optional. Enables live AI responses in the downloaded starter app.",
+            },
+          ],
     canStart: true,
   }));
+}
+
+function baseAssistantCards(): XuluxTemplate[] {
+  return [
+    {
+      id: "base-assistant-ui",
+      templateId: "base-assistant-ui",
+      title: "Configurable Base Assistant UI",
+      description:
+        "The assistant-ui Base demo as a hosted configurable chat template with threads, composer, mic input, suggestions, slash commands, local/cloud persistence fallback, and no-key demo flows.",
+      categoryId: "base",
+      categoryName: "Base Chat Templates",
+      tags: ["assistant-ui", "Base", "Chat", "AI SDK", "Customizable"],
+      prompt:
+        "Spin up the configurable assistant-ui Base chat app with thread history, suggestions, slash commands, model picker, mic input, and AI SDK runtime.",
+      gradient: "from-teal-500/40 via-cyan-500/30 to-zinc-400/20",
+      kind: "template",
+      previewStatus: "live",
+      previewUrl: BASE_ASSISTANT_UI_URL,
+      downloadUrl: joinUrl(BASE_ASSISTANT_UI_URL, "/api/download"),
+      sandboxBaseUrl: BASE_ASSISTANT_UI_URL,
+      sourcePath:
+        "docsAgentVersion/xuluxVersion2Agent/generated-templates/base-assistant-ui",
+      docsUrl: "/demos/base",
+      featured: true,
+      intent: {
+        goodFor: [
+          "General chat assistants",
+          "assistant-ui Base starters",
+          "Configurable no-key demos",
+        ],
+        notFor: ["Docs article shells", "Support dashboard workflows"],
+        exampleUserRequests: [
+          "Build me a branded assistant-ui Base chat app.",
+          "Customize the welcome message, suggestions, theme, and demo flows.",
+          "Create a downloadable starter from the Base assistant template.",
+        ],
+      },
+      customization: {
+        safeFieldsSummary: [
+          "brandTheme preset plus accent, background, surface, and text hex overrides",
+          "assistant appName, welcome headline/body, composer and thread labels",
+          "assistant suggestionGroups and slashCommands with controlled icon ids",
+          "assistant tools and demoFlows for deterministic no-key mock behavior",
+        ],
+        supportedRenderers: ["generic"],
+        sourceEditFiles: [
+          "lib/base/defaults.ts",
+          "lib/base/preview-schema.ts",
+          "lib/base/template-contract.ts",
+          "lib/base/runtime-config.ts",
+          "lib/base/download-materializer.ts",
+        ],
+      },
+      tech: {
+        framework: "Next.js",
+        runtime: "assistant-ui + AI SDK",
+        frontendPattern: "Base demo shell",
+      },
+      env: [],
+      canStart: true,
+    },
+  ];
+}
+
+function platformPreviewCards(): XuluxTemplate[] {
+  return [
+    {
+      id: "expo-react-native",
+      title: "Expo React Native Assistant",
+      description:
+        "A mobile AI chat app built with Expo and assistant-ui React Native primitives, with drawer navigation, thread management, streaming responses, and native mobile UI.",
+      categoryId: DEMO_DOWNLOAD_CATEGORY.id,
+      categoryName: DEMO_DOWNLOAD_CATEGORY.name,
+      tags: ["assistant-ui", "React Native", "Expo", "mobile", "chat"],
+      prompt:
+        "Open the Expo React Native assistant demo and give me setup notes.",
+      gradient: "from-sky-500/35 via-blue-400/25 to-zinc-300/20",
+      kind: "example",
+      previewStatus: "live",
+      previewUrl: REACT_NATIVE_PREVIEW_URL,
+      previewFrame: {
+        kind: "phone",
+        width: 320,
+        aspectRatio: "9 / 19.5",
+        chrome: "ios-dark",
+      },
+      sourcePath: "examples/with-expo",
+      docsUrl: "/docs/react-native",
+      featured: true,
+      intent: {
+        goodFor: ["Mobile chat apps", "Expo starters", "React Native UI"],
+        notFor: ["Terminal assistants", "Browser-only chat skins"],
+        exampleUserRequests: [
+          "Build me a React Native assistant app.",
+          "Show me the Expo mobile chat starter.",
+          "I want an assistant-ui app for iOS and Android.",
+        ],
+      },
+      tech: {
+        framework: "Expo",
+        runtime: "React Native",
+        frontendPattern: "Mobile chat with drawer navigation",
+      },
+      env: [],
+      canStart: true,
+    },
+  ];
 }
 
 export function getXuluxHostedTemplatesCatalog(): XuluxTemplateCatalog {
@@ -335,6 +456,8 @@ export function getXuluxHostedTemplatesCatalog(): XuluxTemplateCatalog {
     categories: CATEGORIES,
     templates: [
       ...demoCards(),
+      ...platformPreviewCards(),
+      ...baseAssistantCards(),
       ...docsVersionCards(),
       ...supportVersionCards(),
     ],

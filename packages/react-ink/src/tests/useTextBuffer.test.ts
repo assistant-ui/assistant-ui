@@ -5,7 +5,7 @@ import {
   textBufferReducer,
   type TextBufferAction,
   type TextBufferState,
-} from "../primitives/composer/useTextBuffer";
+} from "../primitives/textInput/useTextBuffer";
 
 const reduce = (
   state: TextBufferState,

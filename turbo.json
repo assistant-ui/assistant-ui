@@ -6,14 +6,10 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": [
-        "**/*.*",
-        "!.next/**",
-        "!.turbo/**",
-        "!dist/**",
-        "!build/**",
-        "!generated/**",
-        "!.output/**",
-        "!.source/**"
+        "$TURBO_DEFAULT$",
+        "!**/*.test.{ts,tsx}",
+        "!**/*.spec.{ts,tsx}",
+        "!**/__tests__/**"
       ],
       "outputs": [
         "dist/**",

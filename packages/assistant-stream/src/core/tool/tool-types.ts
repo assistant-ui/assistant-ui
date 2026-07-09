@@ -348,6 +348,8 @@ export type McpServerConfig =
       url: string;
       headers?: Record<string, string>;
       redirect?: "follow" | "error";
+      /** Optional timeout in milliseconds for client creation and tool listing. */
+      connectionTimeout?: number | undefined;
     }
   | {
       /** Start and connect to a local MCP server over stdio. */
@@ -356,6 +358,8 @@ export type McpServerConfig =
       args?: readonly string[];
       env?: Record<string, string>;
       cwd?: string;
+      /** Optional timeout in milliseconds for client creation and tool listing. */
+      connectionTimeout?: number | undefined;
     };
 
 type McpTool = ToolBase<Record<string, unknown>, unknown> & {
