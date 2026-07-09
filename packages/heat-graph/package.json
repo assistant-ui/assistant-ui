@@ -32,7 +32,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@radix-ui/react-popper": "^1.3.1"
+    "@radix-ui/react-popper": "^1.3.2"
   },
   "peerDependencies": {
     "@types/react": "*",

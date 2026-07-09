@@ -1913,7 +1913,7 @@ declare const useOpenCodeRuntime: (options?: OpenCodeRuntimeOptions) => Assistan
 
 declare const useOpenCodeRuntimeExtras: () => OpenCodeRuntimeExtras;
 
-declare const useOpenCodeSession: () => import("@opencode-ai/sdk/v2/client").Session | null;
+declare const useOpenCodeSession: () => import("@opencode-ai/sdk/v2/types").Session | null;
 
 declare const useOpenCodeStreamingTiming: (state: OpenCodeThreadState, isRunning: boolean) => Record<string, MessageTiming>;
 
