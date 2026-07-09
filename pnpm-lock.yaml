@@ -3379,7 +3379,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.24
+        specifier: ^0.3.25
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.16
@@ -3566,7 +3566,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.19
@@ -3577,6 +3577,9 @@ importers:
       '@radix-ui/primitive':
         specifier: ^1.1.4
         version: 1.1.4
+      '@radix-ui/react-collection':
+        specifier: ^1.1.10
+        version: 1.1.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@radix-ui/react-compose-refs':
         specifier: ^1.1.3
         version: 1.1.3(@types/react@19.2.17)(react@19.2.7)
@@ -3589,6 +3592,9 @@ importers:
       '@radix-ui/react-use-callback-ref':
         specifier: ^1.1.2
         version: 1.1.2(@types/react@19.2.17)(react@19.2.7)
+      '@radix-ui/react-use-controllable-state':
+        specifier: ^1.2.3
+        version: 1.2.3(@types/react@19.2.17)(react@19.2.7)
       '@radix-ui/react-use-escape-keydown':
         specifier: ^1.1.2
         version: 1.1.2(@types/react@19.2.17)(react@19.2.7)
@@ -3596,7 +3602,7 @@ importers:
         specifier: ^0.1.34
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.24
+        specifier: ^0.3.25
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.16
@@ -3679,13 +3685,13 @@ importers:
         specifier: ^0.0.57
         version: 0.0.57
       '@assistant-ui/core':
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.19
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.24
+        specifier: ^0.3.25
         version: link:../assistant-stream
       fast-json-patch:
         specifier: ^3.1.1
@@ -3713,10 +3719,10 @@ importers:
         specifier: ^1.0.52
         version: 1.0.55(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^3.0.210
+        specifier: ^3.0.211
         version: 3.0.216(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/core':
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.19
@@ -3728,7 +3734,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.24
+        specifier: ^0.3.25
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3830,7 +3836,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.24
+        specifier: ^0.3.25
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -3975,7 +3981,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.19
@@ -4205,6 +4211,9 @@ importers:
       react:
         specifier: ^19.2.7
         version: 19.2.7
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@opentelemetry/api@1.9.0)(@types/node@26.0.1)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@29.1.1)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
 
   packages/react-native:
     dependencies:
@@ -4286,7 +4295,7 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.19
@@ -4326,7 +4335,7 @@ importers:
   packages/react-pi:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.19

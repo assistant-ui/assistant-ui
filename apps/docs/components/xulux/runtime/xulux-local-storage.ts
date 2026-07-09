@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import type {
+  XuluxActivePreviewContext,
   XuluxCanvasSnapshot,
   XuluxStoredThread,
   XuluxThreadCustom,
@@ -191,6 +192,7 @@ export function updateXuluxThreadContext(
   context: {
     selectedTemplate?: SelectedTemplateContext | null;
     canvas?: XuluxCanvasSnapshot;
+    activePreviewContext?: XuluxActivePreviewContext | null;
   },
 ) {
   updateXuluxThreadCustom(remoteId, context);

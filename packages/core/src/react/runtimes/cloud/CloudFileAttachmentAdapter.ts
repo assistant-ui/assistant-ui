@@ -44,7 +44,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         await this.cloud.files.generatePresignedUploadUrl({
           filename: file.name,
         });
-      await fetch(signedUrl, {
+      const res = await fetch(signedUrl, {
         method: "PUT",
         body: file,
         headers: {
@@ -52,13 +52,19 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         },
         mode: "cors",
       });
+      if (!res.ok) {
+        throw new Error(
+          `Failed to upload file: ${res.status} ${res.statusText}`,
+        );
+      }
       this.uploadedUrls.set(id, publicUrl);
       attachment = {
         ...attachment,
         status: { type: "requires-action", reason: "composer-send" },
       };
       yield attachment;
-    } catch {
+    } catch (error) {
+      console.error("[assistant-ui] Failed to upload attachment:", error);
       attachment = {
         ...attachment,
         status: { type: "incomplete", reason: "error" },
