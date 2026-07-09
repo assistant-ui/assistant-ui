@@ -21,7 +21,26 @@ describe("resolveDataStreamProtocol", () => {
     ).toBe("data-stream");
   });
 
-  it("falls back to ui-message-stream without a known data stream header", () => {
+  it("detects UI message stream responses from the Vercel AI header", () => {
+    expect(
+      resolveDataStreamProtocol(
+        new Headers({ "x-vercel-ai-ui-message-stream": " v1 " }),
+      ),
+    ).toBe("ui-message-stream");
+  });
+
+  it("prefers data stream when both protocol headers are present", () => {
+    expect(
+      resolveDataStreamProtocol(
+        new Headers({
+          "x-vercel-ai-data-stream": "v1",
+          "x-vercel-ai-ui-message-stream": "v1",
+        }),
+      ),
+    ).toBe("data-stream");
+  });
+
+  it("falls back to ui-message-stream without a known protocol header", () => {
     expect(resolveDataStreamProtocol(new Headers())).toBe("ui-message-stream");
     expect(
       resolveDataStreamProtocol(

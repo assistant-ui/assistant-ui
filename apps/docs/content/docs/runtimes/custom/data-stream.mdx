@@ -20,12 +20,12 @@ If your backend exposes a richer state surface, consider [`AssistantTransport`](
 ## Wire protocols
 
 `useDataStreamRuntime` accepts two wire formats. When `protocol` is omitted, it
-detects `x-vercel-ai-data-stream: v1` responses as data-stream and otherwise
-falls back to UI message stream.
+detects known Vercel AI response markers before falling back to UI message
+stream for compatibility.
 
 | Protocol | Detection | Matching backend |
 | --- | --- | --- |
-| `"ui-message-stream"` | fallback | AI SDK v6's `result.toUIMessageStreamResponse()` (SSE) |
+| `"ui-message-stream"` | `x-vercel-ai-ui-message-stream: v1`, otherwise fallback | AI SDK v5+'s `result.toUIMessageStreamResponse()` (SSE) |
 | `"data-stream"` | `x-vercel-ai-data-stream: v1` | `createAssistantStreamResponse` from `assistant-stream`, or AI SDK v4's `toDataStreamResponse()` (Vercel data stream v1) |
 
 Set `protocol` explicitly only for custom endpoints that do not preserve or
