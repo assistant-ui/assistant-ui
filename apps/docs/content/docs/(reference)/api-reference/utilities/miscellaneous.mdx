@@ -63,6 +63,10 @@ Takes the current part state and a `smooth` argument: `false` disables,
 the reveal. Returns the part state with `text` replaced by the revealed
 prefix and `status` reporting `running` until the reveal catches up.
 
+The reveal auto-disables under `prefers-reduced-motion: reduce`,
+committing the full text immediately; this takes precedence over an
+explicit `smooth={true}`.
+
 ```tsx
 const { text, status } = useSmooth(useMessagePartText(), {
   drainMs: 500,

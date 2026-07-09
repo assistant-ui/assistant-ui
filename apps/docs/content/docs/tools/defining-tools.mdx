@@ -461,6 +461,10 @@ export default defineToolkit({
 });
 ```
 
+When two MCP servers expose the same tool name, use `{ server, prefix }` on an
+entry so the model sees distinct names such as `docs_search` and
+`github_search`.
+
 See [MCP](/docs/tools/mcp) for the full server-side and user-managed MCP flows.
 
 ## Advanced

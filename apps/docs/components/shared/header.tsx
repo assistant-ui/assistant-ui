@@ -154,15 +154,15 @@ export function Header() {
             href="https://github.com/assistant-ui/assistant-ui"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground hidden items-center gap-2.5 transition-colors sm:flex"
+            className="text-muted-foreground hover:text-foreground ml-2 hidden items-center gap-2.5 transition-colors sm:flex"
             aria-label="GitHub"
           >
+            <GitHubIcon className="size-4" />
             {stars !== null && (
               <span className="text-sm tabular-nums">
                 {formatCompact(stars)}
               </span>
             )}
-            <GitHubIcon className="size-4" />
           </a>
 
           {!isHome && (

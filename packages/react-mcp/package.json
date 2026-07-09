@@ -36,7 +36,7 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@radix-ui/react-primitive": "^2.1.6",
+    "@radix-ui/react-primitive": "^2.1.7",
     "assistant-stream": "workspace:*"
   },
   "peerDependencies": {

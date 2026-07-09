@@ -178,6 +178,7 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [
       "button",
+      "input",
       "skeleton",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],

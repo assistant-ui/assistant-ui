@@ -67,7 +67,11 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
       console.error("[assistant-ui] Failed to upload attachment:", error);
       attachment = {
         ...attachment,
-        status: { type: "incomplete", reason: "error" },
+        status: {
+          type: "incomplete",
+          reason: "error",
+          message: error instanceof Error ? error.message : String(error),
+        },
       };
       yield attachment;
     }

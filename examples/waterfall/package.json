@@ -12,19 +12,19 @@
     "@assistant-ui/react-o11y": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "next": "^16.2.9",
+    "next": "^16.2.10",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@assistant-ui/next": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@tailwindcss/postcss": "^4.3.1",
-    "@types/node": "^26.0.0",
+    "@tailwindcss/postcss": "^4.3.2",
+    "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "postcss": "^8.5.15",
-    "tailwindcss": "^4.3.1",
+    "postcss": "^8.5.16",
+    "tailwindcss": "^4.3.2",
     "typescript": "^7.0.2"
   }
 }

@@ -2,6 +2,7 @@
 
 import type {
   AppendMessage,
+  CompleteAttachment,
   DataMessagePart,
   MessageTiming,
   ThreadAssistantMessage,
@@ -25,6 +26,7 @@ type LangGraphMessageConverterMetadata =
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     uiMessagesByParent?: Map<string, UIMessage[]>;
     messageTiming?: Record<string, MessageTiming>;
+    attachmentsByMessageId?: Map<string, readonly CompleteAttachment[]>;
   };
 
 const uiMessageToDataPart = (ui: UIMessage): DataMessagePart => ({
@@ -255,13 +257,18 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         content: [{ type: "text", text: message.content }],
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
       };
-    case "human":
+    case "human": {
+      const attachments = message.id
+        ? metadata.attachmentsByMessageId?.get(message.id)
+        : undefined;
       return {
         role: "user",
         id: message.id,
         content: contentToParts(message.content, metadata, message.id),
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
+        ...(attachments?.length ? { attachments } : {}),
       };
+    }
     case "ai": {
       const toolCallParts =
         message.tool_calls?.map((chunk, idx): ToolCallMessagePart => {

@@ -240,14 +240,15 @@ export class AISDKToolkit {
     for (const [serverName, mcpTool, toolSet] of toolSets) {
       for (const [toolName, tool] of Object.entries(toolSet)) {
         if (isDisabledMcpTool(mcpTool.tools?.[toolName])) continue;
-        const existingServerName = toolSources.get(toolName);
+        const exposedName = `${mcpTool.prefix ?? ""}${toolName}`;
+        const existingServerName = toolSources.get(exposedName);
         if (existingServerName) {
           throw new Error(
-            `MCP tool name collision: "${toolName}" is exposed by both "${existingServerName}" and "${serverName}". Rename one of the toolkit entries or expose distinct MCP tool names.`,
+            `MCP tool name collision: "${exposedName}" is exposed by both "${existingServerName}" and "${serverName}". Rename one of the toolkit entries or expose distinct MCP tool names.`,
           );
         }
-        toolSources.set(toolName, serverName);
-        tools[toolName] = tool;
+        toolSources.set(exposedName, serverName);
+        tools[exposedName] = tool;
       }
     }
     return { tools, sources: toolSources };
@@ -307,6 +308,7 @@ type ToolkitTool = Toolkit[string];
 type McpToolkitTool = ToolkitTool & {
   type: "mcp";
   server: McpServerConfig;
+  prefix?: string | undefined;
   tools?: Record<string, McpToolkitToolConfig> | undefined;
 };
 
