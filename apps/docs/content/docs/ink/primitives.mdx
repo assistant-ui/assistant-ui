@@ -3,7 +3,7 @@ title: Primitives
 description: Composable terminal components for building chat UIs with Ink.
 ---
 
-Primitives are thin wrappers around Ink components (`Box`, `Text`, `TextInput`) that integrate with the assistant-ui runtime. They accept all standard Ink props and add runtime-aware behavior.
+Primitives are thin wrappers around Ink components (`Box`, `Text`) that integrate with the assistant-ui runtime. They accept all standard Ink props and add runtime-aware behavior.
 
 Primitives use namespace imports, the same pattern as the web package (e.g. `ThreadPrimitive.Root`, `ComposerPrimitive.Input`).
 
@@ -1215,3 +1215,37 @@ Container `Box` for the status bar. Forwards all `Box` props; pass `gap` to spac
   <StatusBarPrimitive.Latency />
 </StatusBarPrimitive.Root>
 ```
+
+## TextInput
+
+```tsx
+import { TextInput } from "@assistant-ui/react-ink";
+```
+
+Store-free, controlled single/multi-line text field. Ink ships no native text input, so this is the terminal equivalent of the DOM `<textarea>` or React Native's `<TextInput>` — the editing engine (buffer, grapheme-aware cursor, and the full emacs/arrow keymap) without any runtime or composer coupling. `ComposerPrimitive.Input` is a thin adapter that wraps `TextInput` and binds it to the composer store; reach for `TextInput` directly when you need an editable field outside the thread composer (for example, editing a value before confirming an action).
+
+It is controlled on `value`/`onChange`, so an external owner can override the text at any time (the buffer absorbs the echo without thrashing the cursor):
+
+```tsx
+const [command, setCommand] = useState(approval.action.command);
+
+<TextInput
+  value={command}
+  onChange={setCommand}
+  submitOnEnter
+  onSubmit={(text) => runEdited(text)}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `value` | `string` | Current text (controlled) |
+| `onChange` | `(text: string) => void` | Called with the next text whenever the buffer changes |
+| `onSubmit` | `(text: string) => void` | Called with the current text on Enter when `submitOnEnter` is set |
+| `submitOnEnter` | `boolean` | Whether Enter calls `onSubmit` (default: `false`) |
+| `placeholder` | `string` | Placeholder text when empty (default: `""`) |
+| `autoFocus` | `boolean` | Auto-focus on mount (default: `true`) |
+| `multiLine` | `boolean` | When true, Enter inserts a newline unless `submitOnEnter` is enabled |
+| `...rest` | `ComponentProps<typeof Box>` | Forwarded to the underlying Ink `Box` |
+
+Keyboard bindings, grapheme handling, and terminal-capability caveats are identical to [`ComposerPrimitive.Input`](#input).

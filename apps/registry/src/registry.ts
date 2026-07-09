@@ -68,6 +68,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "button",
       "https://r.assistant-ui.com/attachment.json",
+      "https://r.assistant-ui.com/follow-up-suggestions.json",
       "https://r.assistant-ui.com/markdown-text.json",
       "https://r.assistant-ui.com/reasoning.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
@@ -496,6 +497,19 @@ export const registry: RegistryItem[] = [
       "radix-ui",
     ],
     registryDependencies: ["command", "popover"],
+  },
+  {
+    name: "logos",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/logos.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/logos.tsx",
+      },
+    ],
+    dependencies: [],
+    registryDependencies: [],
   },
   {
     name: "select",
