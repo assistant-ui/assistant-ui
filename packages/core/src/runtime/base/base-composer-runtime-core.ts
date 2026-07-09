@@ -195,16 +195,30 @@ export abstract class BaseComposerRuntimeCore
           )
         : [];
 
+    const originalAttachments = this.attachments;
     const text = this.text;
     const quote = this._quote;
     this._quote = undefined;
     this._emptyTextAndAttachments();
 
+    let resolvedAttachments: Awaited<typeof attachments>;
+    try {
+      resolvedAttachments = await attachments;
+    } catch (e) {
+      if (this.isEmpty && this._quote === undefined) {
+        this._attachments = originalAttachments;
+        this._text = text;
+        this._quote = quote;
+        this._notifySubscribers();
+      }
+      throw e;
+    }
+
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
       role: this.role,
       content: text ? [{ type: "text", text }] : [],
-      attachments: await attachments,
+      attachments: resolvedAttachments,
       runConfig: this.runConfig,
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };

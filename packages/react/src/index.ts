@@ -211,6 +211,7 @@ export {
   defineMcpToolkit,
   type McpToolkitEntry,
   type McpToolkitDefinition,
+  type McpToolkitToolConfig,
   Tools,
   DataRenderers,
   Interactables,
