@@ -29,9 +29,6 @@ interface SplitLinePair {
   left: ParsedLine | null;
   right: ParsedLine | null;
 }
-interface ParsedFileWithSplitPairs extends ParsedFile {
-  splitLinePairs: SplitLinePair[];
-}
 
 function parsePatch(patch: string): ParsedFile[] {
   const files = parseDiff(patch);
@@ -467,12 +464,9 @@ function DiffViewer({
   const newContent = newFile?.content;
   const newName = newFile?.name;
 
-  const parsedFiles = useMemo<ParsedFileWithSplitPairs[]>(() => {
+  const parsedFiles = useMemo<ParsedFile[]>(() => {
     if (diffPatch) {
-      return parsePatch(diffPatch).map((file) => ({
-        ...file,
-        splitLinePairs: pairLinesForSplit(file.lines),
-      }));
+      return parsePatch(diffPatch);
     }
     if (oldContent !== undefined && newContent !== undefined) {
       const { lines, additions, deletions } = computeDiff(
@@ -486,12 +480,16 @@ function DiffViewer({
           lines,
           additions,
           deletions,
-          splitLinePairs: pairLinesForSplit(lines),
         },
       ];
     }
     return [];
   }, [diffPatch, oldContent, oldName, newContent, newName]);
+
+  const splitLinePairs = useMemo<SplitLinePair[][]>(() => {
+    if (viewMode !== "split") return [];
+    return parsedFiles.map((file) => pairLinesForSplit(file.lines));
+  }, [parsedFiles, viewMode]);
 
   if (parsedFiles.length === 0) {
     return (
@@ -528,7 +526,7 @@ function DiffViewer({
           />
           <div data-slot="diff-viewer-content" className="overflow-x-auto">
             {viewMode === "split"
-              ? file.splitLinePairs.map((pair, pairIndex) => (
+              ? (splitLinePairs[fileIndex] ?? []).map((pair, pairIndex) => (
                   <DiffViewerSplitLine
                     key={pairIndex}
                     pair={pair}
