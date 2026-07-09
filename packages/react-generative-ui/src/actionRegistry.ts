@@ -41,6 +41,19 @@ export function createActionRegistry(
   const map = new Map(Object.entries(handlers));
   return {
     dispatch(action) {
+      if (typeof action?.type !== "string") {
+        if (process.env["NODE_ENV"] !== "production") {
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[@assistant-ui/react-generative-ui] Skipping malformed action; " +
+              "`$action.type` must be a string. " +
+              `Received ${formatReceivedType(action?.type)}. Update the emitted ` +
+              "`$action` payload.",
+          );
+        }
+        return undefined;
+      }
+
       const handler = map.get(action.type);
       if (!handler) {
         if (process.env["NODE_ENV"] !== "production") {
@@ -74,4 +87,10 @@ function formatRegisteredActions(actionTypes: string[]) {
   return `Registered actions: ${actionTypes
     .map((type) => `"${type}"`)
     .join(", ")}.`;
+}
+
+function formatReceivedType(value: unknown) {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  return typeof value;
 }

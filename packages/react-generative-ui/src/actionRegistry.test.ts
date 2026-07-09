@@ -43,6 +43,24 @@ describe("createActionRegistry", () => {
     }
   });
 
+  it("dispatch is a no-op for malformed non-string action types", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const handler = vi.fn();
+      const registry = createActionRegistry({ purchase: handler });
+
+      expect(registry.dispatch({ type: 123 } as never)).toBeUndefined();
+
+      expect(handler).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "[@assistant-ui/react-generative-ui] Skipping malformed action; `$action.type` must be a string. Received number. Update the emitted `$action` payload.",
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("has reports whether a handler is registered", () => {
     const registry = createActionRegistry({ a: () => undefined });
     expect(registry.has("a")).toBe(true);

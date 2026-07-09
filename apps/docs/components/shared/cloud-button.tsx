@@ -1,7 +1,7 @@
 import { CLOUD_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-const cloudButtonVariants = {
+export const cloudButtonVariants = {
   marketing:
     "border-border hover:bg-muted hidden rounded-md border px-3 py-1.5 text-sm font-medium transition-colors md:inline-flex",
   docs: "border-border/50 bg-muted/50 hover:bg-muted flex h-8 items-center rounded-lg border px-3 text-sm font-medium transition-colors",
