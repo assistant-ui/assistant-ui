@@ -31,7 +31,7 @@ Container `View` for the thread area.
 
 ### ThreadPrimitive.Messages
 
-`FlatList`-based message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside the rendered component.
+`FlatList`-based message list with automatic runtime integration. This uses `ThreadPrimitive.MessagesFlatList` internally and keeps the same backwards-compatible name as earlier React Native releases.
 
 ```tsx
 <ThreadPrimitive.Messages>
@@ -53,7 +53,27 @@ You can also provide role-specific components:
 | Prop | Type | Description |
 |------|------|-------------|
 | `components` | `MessageComponents` | Component map — provide either a `Message` component (used for all roles) or role-specific `UserMessage`, `AssistantMessage`, and optionally `SystemMessage`. Edit composers can be set via `EditComposer` or role-specific variants (`UserEditComposer`, `AssistantEditComposer`, `SystemEditComposer`). |
-| `...rest` | `FlatListProps` | Standard FlatList props (except `data`, `renderItem`) |
+| `...rest` | `ThreadPrimitive.MessagesFlatList` props | Same props as `ThreadPrimitive.MessagesFlatList` |
+
+### ThreadPrimitive.MessagesFlatList
+
+React Native message viewport backed by `FlatList`. It scopes each row to its message, forwards refs to the underlying `FlatList`, and handles scroll-to-bottom behavior for common chat flows.
+
+```tsx
+<ThreadPrimitive.MessagesFlatList autoScroll>
+  {() => <MyMessage />}
+</ThreadPrimitive.MessagesFlatList>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `({ message }) => ReactNode` | Render function for each message |
+| `components` | `MessageComponents` | Component map alternative to `children` |
+| `autoScroll` | `boolean` | Automatically keeps the list at the bottom while it is already near the bottom. Defaults to `true` |
+| `scrollToBottomOnRunStart` | `boolean` | Scrolls to the bottom when a run starts. Defaults to `true` |
+| `scrollToBottomOnInitialize` | `boolean` | Scrolls to the bottom when messages first appear. Defaults to `true` |
+| `scrollToBottomOnThreadSwitch` | `boolean` | Scrolls to the bottom when switching threads. Defaults to `true` |
+| `...rest` | `FlatListProps` | Standard FlatList props, except `data`, `renderItem`, and `children` |
 
 ### ThreadPrimitive.MessageByIndex
 

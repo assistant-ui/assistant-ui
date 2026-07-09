@@ -3,6 +3,8 @@ export {
   type ThreadRootProps as RootProps,
 } from "./thread/ThreadRoot";
 export {
+  ThreadMessagesFlatList as MessagesFlatList,
+  type ThreadMessagesFlatListProps as MessagesFlatListProps,
   ThreadMessages as Messages,
   type ThreadMessagesProps as MessagesProps,
 } from "./thread/ThreadMessages";

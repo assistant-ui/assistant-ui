@@ -1,14 +1,28 @@
 import {
   type ComponentType,
   type FC,
+  type ForwardedRef,
   type ReactNode,
+  type RefObject,
   forwardRef,
   memo,
   useCallback,
+  useEffect,
+  useRef,
 } from "react";
-import { FlatList, type FlatListProps } from "react-native";
+import {
+  FlatList,
+  type FlatListProps,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
 import type { MessageState, ThreadMessage } from "@assistant-ui/core";
-import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import {
+  RenderChildrenWithAccessor,
+  useAuiEvent,
+  useAuiState,
+} from "@assistant-ui/store";
 import { MessageByIndexProvider } from "@assistant-ui/core/react";
 
 type MessageComponents =
@@ -44,13 +58,21 @@ type MessagesContent =
       components?: never;
     };
 
-export type ThreadMessagesProps = Omit<
+export type ThreadMessagesFlatListProps = Omit<
   FlatListProps<ThreadMessage>,
   "data" | "renderItem" | "children"
 > &
-  MessagesContent;
+  MessagesContent & {
+    autoScroll?: boolean | undefined;
+    scrollToBottomOnRunStart?: boolean | undefined;
+    scrollToBottomOnInitialize?: boolean | undefined;
+    scrollToBottomOnThreadSwitch?: boolean | undefined;
+  };
+
+export type ThreadMessagesProps = ThreadMessagesFlatListProps;
 
 const DEFAULT_SYSTEM_MESSAGE = () => null;
+const AT_BOTTOM_THRESHOLD = 4;
 
 const getComponent = (
   components: MessageComponents,
@@ -155,36 +177,230 @@ const ThreadMessageByChildren = memo(
 );
 ThreadMessageByChildren.displayName = "ThreadPrimitive.MessageByChildren";
 
+const setForwardedRef = <T,>(ref: ForwardedRef<T>, value: T | null) => {
+  if (typeof ref === "function") {
+    ref(value);
+  } else if (ref) {
+    ref.current = value;
+  }
+};
+
+const useComposedFlatListRef = (
+  forwardedRef: ForwardedRef<FlatList<ThreadMessage>>,
+) => {
+  const flatListRef = useRef<FlatList<ThreadMessage> | null>(null);
+
+  const setFlatListRef = useCallback(
+    (node: FlatList<ThreadMessage> | null) => {
+      flatListRef.current = node;
+      setForwardedRef(forwardedRef, node);
+    },
+    [forwardedRef],
+  );
+
+  return [flatListRef, setFlatListRef] as const;
+};
+
+const useThreadMessagesFlatListAutoScroll = ({
+  flatListRef,
+  messageCount,
+  autoScroll = true,
+  scrollToBottomOnRunStart = true,
+  scrollToBottomOnInitialize = true,
+  scrollToBottomOnThreadSwitch = true,
+}: {
+  flatListRef: RefObject<FlatList<ThreadMessage> | null>;
+  messageCount: number;
+  autoScroll?: boolean | undefined;
+  scrollToBottomOnRunStart?: boolean | undefined;
+  scrollToBottomOnInitialize?: boolean | undefined;
+  scrollToBottomOnThreadSwitch?: boolean | undefined;
+}) => {
+  const metricsRef = useRef({
+    contentHeight: 0,
+    viewportHeight: 0,
+    scrollY: 0,
+  });
+  const isAtBottomRef = useRef(true);
+  const initializeScrollRequestedRef = useRef(false);
+
+  const updateIsAtBottom = useCallback(() => {
+    const { contentHeight, scrollY, viewportHeight } = metricsRef.current;
+    isAtBottomRef.current =
+      contentHeight <= viewportHeight ||
+      contentHeight - scrollY - viewportHeight <= AT_BOTTOM_THRESHOLD;
+  }, []);
+
+  const scrollToBottom = useCallback(
+    (animated: boolean) => {
+      flatListRef.current?.scrollToEnd({ animated });
+    },
+    [flatListRef],
+  );
+
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      metricsRef.current.viewportHeight = event.nativeEvent.layout.height;
+      updateIsAtBottom();
+    },
+    [updateIsAtBottom],
+  );
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } =
+        event.nativeEvent;
+      metricsRef.current = {
+        contentHeight: contentSize.height,
+        viewportHeight: layoutMeasurement.height,
+        scrollY: contentOffset.y,
+      };
+      updateIsAtBottom();
+    },
+    [updateIsAtBottom],
+  );
+
+  const handleContentSizeChange = useCallback(
+    (_width: number, height: number) => {
+      const metrics = metricsRef.current;
+      const previousContentHeight = metrics.contentHeight;
+      const wasAtBottom = isAtBottomRef.current;
+      metrics.contentHeight = height;
+      updateIsAtBottom();
+
+      if (!autoScroll) return;
+      if (!wasAtBottom) return;
+      if (height <= previousContentHeight) return;
+
+      scrollToBottom(false);
+    },
+    [autoScroll, scrollToBottom, updateIsAtBottom],
+  );
+
+  useEffect(() => {
+    if (!scrollToBottomOnInitialize) return;
+    if (messageCount === 0) {
+      initializeScrollRequestedRef.current = false;
+      return;
+    }
+    if (initializeScrollRequestedRef.current) return;
+
+    initializeScrollRequestedRef.current = true;
+    scrollToBottom(false);
+  }, [messageCount, scrollToBottom, scrollToBottomOnInitialize]);
+
+  useAuiEvent("thread.runStart", () => {
+    if (!scrollToBottomOnRunStart) return;
+    scrollToBottom(true);
+  });
+
+  useAuiEvent("threadListItem.switchedTo", () => {
+    initializeScrollRequestedRef.current = false;
+    if (!scrollToBottomOnThreadSwitch) return;
+    scrollToBottom(false);
+  });
+
+  return {
+    handleLayout,
+    handleScroll,
+    handleContentSizeChange,
+  };
+};
+
+export const ThreadMessagesFlatList = forwardRef<
+  FlatList<ThreadMessage>,
+  ThreadMessagesFlatListProps
+>(
+  (
+    {
+      autoScroll,
+      components,
+      children,
+      onContentSizeChange,
+      onLayout,
+      onScroll,
+      scrollEventThrottle,
+      scrollToBottomOnInitialize,
+      scrollToBottomOnRunStart,
+      scrollToBottomOnThreadSwitch,
+      ...flatListProps
+    },
+    forwardedRef,
+  ) => {
+    const messages = useAuiState((s) => s.thread.messages);
+    const [flatListRef, setFlatListRef] = useComposedFlatListRef(forwardedRef);
+    const {
+      handleContentSizeChange: handleAutoScrollContentSizeChange,
+      handleLayout: handleAutoScrollLayout,
+      handleScroll: handleAutoScrollScroll,
+    } = useThreadMessagesFlatListAutoScroll({
+      flatListRef,
+      messageCount: messages.length,
+      autoScroll,
+      scrollToBottomOnInitialize,
+      scrollToBottomOnRunStart,
+      scrollToBottomOnThreadSwitch,
+    });
+
+    const renderItem = useCallback(
+      ({ index }: { item: ThreadMessage; index: number }) => {
+        if (children) {
+          return (
+            <ThreadMessageByChildren index={index}>
+              {children}
+            </ThreadMessageByChildren>
+          );
+        }
+        return <ThreadMessageByIndex index={index} components={components!} />;
+      },
+      [components, children],
+    );
+
+    const keyExtractor = useCallback((item: ThreadMessage) => item.id, []);
+
+    const handleLayout = useCallback(
+      (event: LayoutChangeEvent) => {
+        handleAutoScrollLayout(event);
+        onLayout?.(event);
+      },
+      [handleAutoScrollLayout, onLayout],
+    );
+
+    const handleScroll = useCallback(
+      (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        handleAutoScrollScroll(event);
+        onScroll?.(event);
+      },
+      [handleAutoScrollScroll, onScroll],
+    );
+
+    const handleContentSizeChange = useCallback(
+      (width: number, height: number) => {
+        handleAutoScrollContentSizeChange(width, height);
+        onContentSizeChange?.(width, height);
+      },
+      [handleAutoScrollContentSizeChange, onContentSizeChange],
+    );
+
+    return (
+      <FlatList
+        ref={setFlatListRef}
+        data={messages as unknown as ThreadMessage[]}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        onContentSizeChange={handleContentSizeChange}
+        onLayout={handleLayout}
+        onScroll={handleScroll}
+        scrollEventThrottle={scrollEventThrottle ?? 16}
+        {...flatListProps}
+      />
+    );
+  },
+);
+ThreadMessagesFlatList.displayName = "ThreadPrimitive.MessagesFlatList";
+
 export const ThreadMessages = forwardRef<
   FlatList<ThreadMessage>,
   ThreadMessagesProps
->(({ components, children, ...flatListProps }, ref) => {
-  const messages = useAuiState((s) => s.thread.messages);
-
-  const renderItem = useCallback(
-    ({ index }: { item: ThreadMessage; index: number }) => {
-      if (children) {
-        return (
-          <ThreadMessageByChildren index={index}>
-            {children}
-          </ThreadMessageByChildren>
-        );
-      }
-      return <ThreadMessageByIndex index={index} components={components!} />;
-    },
-    [components, children],
-  );
-
-  const keyExtractor = useCallback((item: ThreadMessage) => item.id, []);
-
-  return (
-    <FlatList
-      ref={ref}
-      data={messages as unknown as ThreadMessage[]}
-      renderItem={renderItem}
-      keyExtractor={keyExtractor}
-      {...flatListProps}
-    />
-  );
-});
+>((props, ref) => <ThreadMessagesFlatList ref={ref} {...props} />);
 ThreadMessages.displayName = "ThreadPrimitive.Messages";
