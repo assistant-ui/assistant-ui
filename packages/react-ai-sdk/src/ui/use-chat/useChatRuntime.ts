@@ -29,6 +29,13 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
+      /**
+       * Called when `useChatRuntime` automatically attempts to resume a pending
+       * resumable stream on mount and that reconnect fails. Use this to surface
+       * a toast, report telemetry, or mark the thread as needing a retry. The
+       * stored stream id is still cleared after the callback runs.
+       */
+      onResumeError?: ((error: unknown) => void) | undefined;
       joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
       onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
     };
@@ -80,6 +87,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     unstable_capabilities: _unstable_capabilities,
     suggestions: _suggestions,
     onResume,
+    onResumeError,
     joinStrategy,
     ...chatOptions
   } = options ?? {};
@@ -117,6 +125,10 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   }
 
   const resumeFiredRef = useRef(false);
+  const onResumeErrorRef = useRef(onResumeError);
+  useEffect(() => {
+    onResumeErrorRef.current = onResumeError;
+  });
   useEffect(() => {
     if (resumeFiredRef.current) return;
     const adapter = getResumableAdapter(transport);
@@ -129,7 +141,16 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         "[assistant-ui] resumable: resume failed; clearing stored stream id",
         err,
       );
-      adapter.storage.clear();
+      try {
+        onResumeErrorRef.current?.(err);
+      } catch (callbackError) {
+        console.error(
+          "[assistant-ui] resumable: onResumeError callback failed",
+          callbackError,
+        );
+      } finally {
+        adapter.storage.clear();
+      }
     });
   }, [transport, chat]);
 

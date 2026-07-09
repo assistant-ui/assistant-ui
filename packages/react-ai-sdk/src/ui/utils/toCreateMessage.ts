@@ -33,7 +33,7 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
   message: AppendMessage,
 ): CreateUIMessage<UI_MESSAGE> => {
   const inputParts: InputPart[] = [
-    ...message.content.filter((c) => c.type !== "file"),
+    ...message.content,
     ...(message.attachments?.flatMap((a) =>
       a.content.map((c) => ({
         ...c,

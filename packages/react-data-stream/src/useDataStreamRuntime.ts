@@ -102,9 +102,10 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
       credentials: this.options.credentials ?? "same-origin",
       body: JSON.stringify({
         system: context.system,
-        messages: toLanguageModelMessages(messages, {
-          unstable_includeId: this.options.sendExtraMessageFields,
-        }) as DataStreamRuntimeRequestOptions["messages"],
+        messages: toLanguageModelMessages(
+          [...messages, unstable_getMessage()],
+          { unstable_includeId: this.options.sendExtraMessageFields },
+        ) as DataStreamRuntimeRequestOptions["messages"],
         tools: toToolsJSONSchema(
           context.tools ?? {},
         ) as unknown as DataStreamRuntimeRequestOptions["tools"],
