@@ -134,9 +134,13 @@ To let the model see a frontend tool's result and continue, configure the runtim
 
 ```tsx
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import {
+  useChatRuntime,
+  AssistantChatTransport,
+} from "@assistant-ui/react-ai-sdk";
 
 const runtime = useChatRuntime({
-  api: "/api/chat",
+  transport: new AssistantChatTransport({ api: "/api/chat" }),
   sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
 });
 ```

@@ -217,11 +217,14 @@ The callback reads `?state=...&code=...` from the URL, derives the target server
 ```tsx
 "use client";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import {
+  useChatRuntime,
+  AssistantChatTransport,
+} from "@assistant-ui/react-ai-sdk";
 
 export function Chat() {
   const runtime = useChatRuntime({
-    api: "/api/chat",
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
   /* … */

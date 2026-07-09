@@ -317,7 +317,7 @@ export async function POST(req: Request) {
 }
 ```
 
-On the client, configure `useChat` with `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses` so the response is sent back to the server when the user decides:
+On the client, configure `useChat` with `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses` so the response is sent back to the server when the user decides. These blocks use a plain `DefaultChatTransport` because the `AssistantChatTransport` system-message and frontend-tool forwarding only activates through `useChatRuntime`, not raw `useAISDKRuntime`:
 
 ```tsx title="@/app/page.tsx"
 "use client";
@@ -327,12 +327,15 @@ import {
   AssistantRuntimeProvider,
   useAISDKRuntime,
 } from "@assistant-ui/react-ai-sdk";
-import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+} from "ai";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export default function Page() {
   const chat = useChat({
-    api: "/api/chat",
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
   const runtime = useAISDKRuntime(chat);
@@ -358,7 +361,10 @@ import {
   useAui,
 } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
-import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+} from "ai";
 import { Thread } from "@/components/assistant-ui/thread";
 
 const toolkit = defineToolkit({
@@ -391,7 +397,7 @@ const toolkit = defineToolkit({
 
 export default function Page() {
   const chat = useChat({
-    api: "/api/chat",
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
   const runtime = useAISDKRuntime(chat);

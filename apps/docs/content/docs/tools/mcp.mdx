@@ -348,13 +348,18 @@ Register the toolkit once with `Tools({ toolkit })`. Renderer keys such as
 "use client";
 
 import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import {
+  useChatRuntime,
+  AssistantChatTransport,
+} from "@assistant-ui/react-ai-sdk";
 import type { ReactNode } from "react";
 
 import { toolkit } from "./GitHubIssueToolUI";
 
 export function MyRuntimeProvider({ children }: { children: ReactNode }) {
-  const runtime = useChatRuntime({ api: "/api/chat" });
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
+  });
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   return (
