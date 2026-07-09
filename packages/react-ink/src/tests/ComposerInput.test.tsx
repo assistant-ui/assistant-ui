@@ -39,10 +39,10 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   };
 });
 
-vi.mock("../primitives/composer/useTextBuffer", async (importOriginal) => {
+vi.mock("../primitives/textInput/useTextBuffer", async (importOriginal) => {
   const actual =
     await importOriginal<
-      typeof import("../primitives/composer/useTextBuffer")
+      typeof import("../primitives/textInput/useTextBuffer")
     >();
   return {
     ...actual,

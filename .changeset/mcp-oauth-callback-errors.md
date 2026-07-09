@@ -2,4 +2,4 @@
 "@assistant-ui/react-mcp": patch
 ---
 
-feat: support MCP connection timeouts
+fix: clarify MCP OAuth callback failures
