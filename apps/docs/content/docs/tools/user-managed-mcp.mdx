@@ -321,7 +321,12 @@ await aui.mcp().server({ id }).callTool("echo", { text: "hi" });
 const { resources } = (await aui.mcp().server({ id }).listResources()) as {
   resources: Array<{ uri: string; name?: string }>;
 };
-const preview = await aui.mcp().server({ id }).readResource(resources[0].uri);
+const firstResource = resources[0];
+if (firstResource) {
+  const preview = await aui.mcp()
+    .server({ id })
+    .readResource(firstResource.uri);
+}
 ```
 
 ## v1 scope
