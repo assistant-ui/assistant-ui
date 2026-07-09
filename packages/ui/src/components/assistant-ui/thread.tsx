@@ -11,14 +11,15 @@ import { Sources } from "@/components/assistant-ui/sources";
 import {
   Reasoning,
   ReasoningContent,
+  reasoningHeadline,
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
-  stripReasoningMarkdown,
 } from "@/components/assistant-ui/reasoning";
 import {
-  prettifyToolName,
+  formatToolDuration,
   ToolFallback,
+  toolRunningLabel,
 } from "@/components/assistant-ui/tool-fallback";
 import {
   ToolGroupContent,
@@ -356,24 +357,21 @@ const RunStartAtContext = createContext<number | undefined>(undefined);
 // the working timer.
 const RunStartProvider: FC<PropsWithChildren> = ({ children }) => {
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const startRef = useRef<number | undefined>(undefined);
-  const prevRunning = useRef(false);
-  if (isRunning && !prevRunning.current) {
-    startRef.current = Date.now();
+  const [runStart, setRunStart] = useState<{
+    running: boolean;
+    startedAt: number | undefined;
+  }>({ running: false, startedAt: undefined });
+  if (isRunning !== runStart.running) {
+    setRunStart({
+      running: isRunning,
+      startedAt: isRunning ? Date.now() : runStart.startedAt,
+    });
   }
-  prevRunning.current = isRunning;
   return (
-    <RunStartAtContext.Provider value={startRef.current}>
+    <RunStartAtContext.Provider value={runStart.startedAt}>
       {children}
     </RunStartAtContext.Provider>
   );
-};
-
-const formatWorkingDuration = (ms: number) => {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 1) return null;
-  if (seconds < 60) return `${seconds}s`;
-  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 };
 
 const useWorkingElapsed = (running: boolean, startedAt?: number) => {
@@ -423,22 +421,24 @@ const WorkingGlyph: FC<{ active: boolean }> = ({ active }) => (
   </span>
 );
 
+const WorkingLabel: FC<{ duration: string | null }> = ({ duration }) => (
+  <>
+    Working
+    {duration && (
+      <span className="whitespace-nowrap">
+        {" for "}
+        <span className="tabular-nums">{duration}</span>
+      </span>
+    )}
+  </>
+);
+
 const WorkingIndicator: FC = () => {
   const startedAt = useContext(RunStartAtContext);
   const elapsedMs = useWorkingElapsed(true, startedAt);
-  const duration = elapsedMs !== null ? formatWorkingDuration(elapsedMs) : null;
+  const duration = elapsedMs !== null ? formatToolDuration(elapsedMs) : null;
 
-  const label = (
-    <>
-      Working
-      {duration && (
-        <span className="whitespace-nowrap">
-          {" for "}
-          <span className="tabular-nums">{duration}</span>
-        </span>
-      )}
-    </>
-  );
+  const label = <WorkingLabel duration={duration} />;
 
   return (
     <div
@@ -476,12 +476,9 @@ const ChainOfThought: FC<PropsWithChildren<{ indices: readonly number[] }>> = ({
     if (s.message.status?.type !== "running") return undefined;
     if (s.message.parts.length - 1 > lastIndex) return undefined;
     const part = s.message.parts.at(-1);
-    if (part?.type === "tool-call") return prettifyToolName(part.toolName);
+    if (part?.type === "tool-call") return toolRunningLabel(part.toolName);
     if (part?.type === "reasoning") {
-      const headline = stripReasoningMarkdown(
-        part.text.split("\n", 1)[0] ?? "",
-      );
-      return headline.length === 0 ? "Thinking" : headline;
+      return reasoningHeadline(part.text.split("\n", 1)[0] ?? "");
     }
     return undefined;
   });
@@ -519,7 +516,7 @@ const ChainOfThought: FC<PropsWithChildren<{ indices: readonly number[] }>> = ({
   }, [isLast, handleOpenChange]);
 
   const elapsedMs = useWorkingElapsed(live, startedAt);
-  const duration = elapsedMs !== null ? formatWorkingDuration(elapsedMs) : null;
+  const duration = elapsedMs !== null ? formatToolDuration(elapsedMs) : null;
 
   if (sourcesOnly) return <>{children}</>;
   if (!hasVisibleContent && !live) return null;
@@ -530,17 +527,7 @@ const ChainOfThought: FC<PropsWithChildren<{ indices: readonly number[] }>> = ({
     label = `${activeLabel}…`;
     swapKey = activeLabel;
   } else if (live) {
-    label = (
-      <>
-        Working
-        {duration && (
-          <span className="whitespace-nowrap">
-            {" for "}
-            <span className="tabular-nums">{duration}</span>
-          </span>
-        )}
-      </>
-    );
+    label = <WorkingLabel duration={duration} />;
     swapKey = "working";
   } else {
     label = duration ? (
@@ -668,6 +655,10 @@ const AssistantMessage: FC = () => {
             source: ["group-chainOfThought", "group-sources"],
             "standalone-tool-call": [],
           })}
+          // "empty" over the default "no-text": ChainOfThought renders its own
+          // live working header, so a trailing indicator would double up while
+          // a grouped part streams. Standalone tool calls carry their own
+          // running state via ToolFallback.
           indicator="empty"
         >
           {({ part, children }) => {

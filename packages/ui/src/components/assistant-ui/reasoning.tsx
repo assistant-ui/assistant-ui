@@ -230,7 +230,7 @@ function ReasoningTrigger({
       <span className="aui-reasoning-trigger-line flex min-h-8 min-w-0 flex-1 items-center gap-1.5 py-1 pe-2 text-start">
         <span
           data-slot="reasoning-trigger-label"
-          className="aui-reasoning-trigger-label-wrapper text-muted-foreground group-hover/trigger:text-foreground relative shrink-0 text-sm leading-6 transition-colors motion-reduce:transition-none"
+          className="aui-reasoning-trigger-label-wrapper text-muted-foreground group-hover/trigger:text-foreground relative min-w-0 truncate text-sm leading-6 transition-colors motion-reduce:transition-none"
         >
           {label}
           {active ? (
@@ -345,6 +345,9 @@ function ReasoningText({
 export const stripReasoningMarkdown = (text: string) =>
   text.replace(/\*\*|__|`/g, "").trim();
 
+export const reasoningHeadline = (text: string) =>
+  stripReasoningMarkdown(text) || "Thinking";
+
 const ReasoningImpl: ReasoningMessagePartComponent = ({ text, status }) => {
   const running = status?.type === "running";
 
@@ -352,7 +355,7 @@ const ReasoningImpl: ReasoningMessagePartComponent = ({ text, status }) => {
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter((p) => stripReasoningMarkdown(p).length > 0);
-  const headline = stripReasoningMarkdown(paragraphs[0] ?? "") || "Thinking";
+  const headline = reasoningHeadline(paragraphs[0] ?? "");
   const thoughts = paragraphs.slice(1);
 
   if (thoughts.length === 0) {

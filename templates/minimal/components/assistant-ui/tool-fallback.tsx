@@ -103,7 +103,7 @@ const PREFERRED_ARG_KEYS = ["query", "path", "command", "code", "url", "file"];
 
 const primaryArg = (args: unknown, argsText: string | undefined) => {
   if (args && typeof args === "object") {
-    const record: Record<string, unknown> = { ...args };
+    const record = args as Record<string, unknown>;
     const candidates = [
       ...PREFERRED_ARG_KEYS.map((key) => record[key]),
       ...Object.values(record),
@@ -174,6 +174,11 @@ const TOOL_PRESETS: Record<string, ToolPreset> = {
   },
 };
 
+const toolRunningLabel = (toolName: string) =>
+  Object.hasOwn(TOOL_PRESETS, toolName)
+    ? TOOL_PRESETS[toolName]!.running
+    : prettifyToolName(toolName);
+
 const formatToolDuration = (ms: number) => {
   const seconds = Math.floor(ms / 1000);
   if (seconds < 1) return null;
@@ -204,26 +209,78 @@ function ToolFallbackDuration({
   );
 }
 
+const defaultFaviconUrl = (domain: string) =>
+  `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+
+function ToolFallbackFavicon({
+  domain,
+  faviconUrl = defaultFaviconUrl,
+  className,
+  style,
+}: {
+  domain: string;
+  faviconUrl?: ((domain: string) => string) | undefined;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const src = faviconUrl(domain);
+  const [errorSrc, setErrorSrc] = useState<string | undefined>(undefined);
+
+  if (errorSrc === src) {
+    return (
+      <span
+        data-slot="tool-fallback-favicon-fallback"
+        className={cn(
+          "aui-tool-fallback-favicon bg-muted ring-background flex size-[18px] items-center justify-center rounded-full text-[9px] font-medium ring-2",
+          className,
+        )}
+        style={style}
+      >
+        {domain.charAt(0).toUpperCase() || "?"}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      data-slot="tool-fallback-favicon"
+      src={src}
+      alt=""
+      role="presentation"
+      className={cn(
+        "aui-tool-fallback-favicon bg-muted ring-background size-[18px] rounded-full ring-2",
+        className,
+      )}
+      style={style}
+      onError={() => setErrorSrc(src)}
+    />
+  );
+}
+
 function ToolFallbackFavicons({
   urls,
   max = 3,
+  faviconUrl,
   className,
 }: {
   urls: readonly string[];
   max?: number;
+  faviconUrl?: ((domain: string) => string) | undefined;
   className?: string;
 }) {
-  const domains = urls
-    .map((url) => {
-      try {
-        return new URL(url).hostname;
-      } catch {
-        return null;
-      }
-    })
-    .filter((domain): domain is string => domain !== null)
-    .filter((domain, i, all) => all.indexOf(domain) === i)
-    .slice(0, max);
+  const domains = [
+    ...new Set(
+      urls
+        .map((url) => {
+          try {
+            return new URL(url).hostname.replace(/^www\./, "");
+          } catch {
+            return null;
+          }
+        })
+        .filter((domain): domain is string => domain !== null),
+    ),
+  ].slice(0, max);
 
   if (domains.length === 0) return null;
 
@@ -233,15 +290,11 @@ function ToolFallbackFavicons({
       className={cn("aui-tool-fallback-favicons flex items-center", className)}
     >
       {domains.map((domain, i) => (
-        <img
+        <ToolFallbackFavicon
           key={domain}
-          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
-          alt=""
-          role="presentation"
-          className={cn(
-            "aui-tool-fallback-favicon bg-muted ring-background size-[18px] rounded-full ring-2",
-            i > 0 && "-ms-2",
-          )}
+          domain={domain}
+          faviconUrl={faviconUrl}
+          className={cn(i > 0 && "-ms-2")}
           style={{ zIndex: domains.length - i }}
         />
       ))}
@@ -274,11 +327,12 @@ function ToolFallbackTrigger({
   const preset = Object.hasOwn(TOOL_PRESETS, toolName)
     ? TOOL_PRESETS[toolName]
     : undefined;
-  const label = preset
-    ? isRunning
-      ? preset.running
-      : preset.done
-    : prettifyToolName(toolName);
+  const label =
+    preset && !isCancelled && !isFailed
+      ? isRunning
+        ? preset.running
+        : preset.done
+      : prettifyToolName(toolName);
 
   return (
     <CollapsibleTrigger
@@ -860,7 +914,9 @@ ToolFallback.Error = ToolFallbackError;
 ToolFallback.Approval = ToolFallbackApproval;
 
 export {
+  formatToolDuration,
   prettifyToolName,
+  toolRunningLabel,
   ToolFallback,
   ToolFallbackRoot,
   ToolFallbackTrigger,
