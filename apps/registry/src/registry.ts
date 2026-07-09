@@ -263,11 +263,12 @@ export const registry: RegistryItem[] = [
         type: "registry:component",
         path: "components/assistant-ui/syntax-highlighter.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/syntax-highlighter.ts",
+          "../../packages/ui/src/components/assistant-ui/syntax-highlighter.tsx",
       },
     ],
     dependencies: [
       "@assistant-ui/react-syntax-highlighter",
+      "@assistant-ui/react-markdown",
       "react-syntax-highlighter",
       "@types/react-syntax-highlighter",
     ],

@@ -1,6 +1,6 @@
-import { createElement, Fragment, type ComponentProps } from "react";
 import { PrismAsyncLight } from "react-syntax-highlighter";
 import { makePrismAsyncLightSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter";
+import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 
 import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx";
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
@@ -34,12 +34,9 @@ const DarkSyntaxHighlighter = makePrismAsyncLightSyntaxHighlighter({
   className: "hidden dark:block",
 });
 
-type SyntaxHighlighterProps = ComponentProps<typeof LightSyntaxHighlighter>;
-
-export const SyntaxHighlighter = (props: SyntaxHighlighterProps) =>
-  createElement(
-    Fragment,
-    null,
-    createElement(LightSyntaxHighlighter, props),
-    createElement(DarkSyntaxHighlighter, props),
-  );
+export const SyntaxHighlighter = (props: SyntaxHighlighterProps) => (
+  <>
+    <LightSyntaxHighlighter {...props} />
+    <DarkSyntaxHighlighter {...props} />
+  </>
+);
