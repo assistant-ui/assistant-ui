@@ -124,33 +124,27 @@ function PanelHeader(): React.ReactNode {
   const messages = useAuiState((s) => s.thread.messages);
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
-  const lastUsage = useMemo<ThreadTokenUsage | undefined>(() => {
-    let hasUsage = false;
-    let totalTokens = 0;
-    let inputTokens = 0;
-    let outputTokens = 0;
-    let reasoningTokens = 0;
-    let cachedInputTokens = 0;
+  const contextUsage = useMemo<ThreadTokenUsage | undefined>(() => {
+    // Each request's usage already counts the full prompt for that turn, so
+    // context-window fill is the largest request seen, not the sum across
+    // turns. The max only rises as the thread grows, which keeps the
+    // indicator monotonic when server-side pruning shrinks a later prompt.
+    let peak: ThreadTokenUsage | undefined;
+    let peakTotal = -1;
     for (const message of messages) {
       const usage = getThreadMessageTokenUsage(message);
       if (!usage) continue;
-      hasUsage = true;
-      totalTokens += usage.totalTokens ?? 0;
-      inputTokens += usage.inputTokens ?? 0;
-      outputTokens += usage.outputTokens ?? 0;
-      reasoningTokens += usage.reasoningTokens ?? 0;
-      cachedInputTokens += usage.cachedInputTokens ?? 0;
+      const total =
+        usage.totalTokens ??
+        (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0);
+      if (total >= peakTotal) {
+        peak = { ...usage, totalTokens: total };
+        peakTotal = total;
+      }
     }
-    if (!hasUsage) return undefined;
-    return {
-      totalTokens,
-      ...(inputTokens > 0 && { inputTokens }),
-      ...(outputTokens > 0 && { outputTokens }),
-      ...(reasoningTokens > 0 && { reasoningTokens }),
-      ...(cachedInputTokens > 0 && { cachedInputTokens }),
-    };
+    return peak;
   }, [messages]);
-  const contextTokens = lastUsage?.totalTokens ?? 0;
+  const contextTokens = contextUsage?.totalTokens ?? 0;
   const { modelValue } = useSharedDocsModelSelection();
   const contextWindow = getContextWindow(modelValue);
   const usagePercent = Math.min((contextTokens / contextWindow) * 100, 100);
@@ -161,7 +155,7 @@ function PanelHeader(): React.ReactNode {
       <div className="flex items-center gap-0.5">
         <ContextDisplay.Ring
           modelContextWindow={contextWindow}
-          usage={lastUsage}
+          usage={contextUsage}
           side="bottom"
         />
         <Tooltip>
