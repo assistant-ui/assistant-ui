@@ -29,6 +29,8 @@
     "speech",
     "---Programmatic---",
     "context-api",
+    "---Providers---",
+    "chatgpt-subscription",
     "---Resilience---",
     "resumable-streams",
     "resumable-stream-stores",
