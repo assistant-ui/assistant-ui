@@ -1,9 +1,3 @@
-declare const DIRECTIVE = "use generative";
-
-type Target = "client" | "server";
-
-type ToolType = "backend" | "frontend" | "human" | "provider";
-
 interface CompileOptions {
   target: Target;
   filename?: string;
@@ -16,16 +10,22 @@ interface CompileResult {
   map?: object | null;
 }
 
+declare const DIRECTIVE = "use generative";
+
 declare class GenerativeCompileError extends Error {
   constructor(message: string, filename?: string);
 }
 
-declare function isGenerativeModule(code: string): boolean;
+type Target = "client" | "server";
+
+type ToolType = "backend" | "frontend" | "human" | "provider";
 
 declare function compileGenerative(code: string, options: CompileOptions): CompileResult;
 
 declare namespace entry_root_exports {
   export { CompileOptions, CompileResult, DIRECTIVE, GenerativeCompileError, Target, ToolType, compileGenerative, isGenerativeModule };
 }
+
+declare function isGenerativeModule(code: string): boolean;
 
 export { entry_root_exports as entry_root };

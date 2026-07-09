@@ -149,6 +149,10 @@ export * as MessagePartPrimitive from "./primitives/messagePart";
 export * as LoadingPrimitive from "./primitives/loading";
 export * as StatusBarPrimitive from "./primitives/statusBar";
 export { DiffView, type DiffViewProps } from "./primitives/diff/DiffView";
+export {
+  TextInput,
+  type TextInputProps,
+} from "./primitives/textInput/TextInput";
 export * as ChecklistPrimitive from "./primitives/checklist";
 export {
   LiveChecklist,
