@@ -31,8 +31,14 @@ const mocks = vi.hoisted(() => {
 
   const StreamableHTTPClientTransport = vi
     .fn()
-    .mockImplementation(function StreamableHTTPClientTransport(this: any) {
+    .mockImplementation(function StreamableHTTPClientTransport(
+      this: any,
+      url: URL,
+      options?: unknown,
+    ) {
       const index = transports.length;
+      this.url = url;
+      this.options = options;
       this.close = vi.fn(() => Promise.resolve());
       this.finishAuth = vi.fn(
         () => finishAuthResults[index]?.() ?? Promise.resolve(),
@@ -86,6 +92,21 @@ const waitFor = async (predicate: () => boolean) => {
   }
   expect(predicate()).toBe(true);
 };
+
+const deferred = <T>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
+const tool = (name: string) => ({
+  name,
+  inputSchema: { type: "object" },
+});
 
 const createStorage = (): MCPStorage => ({
   loadCustomServers: vi.fn(async () => []),
@@ -288,6 +309,92 @@ describe("McpServerResource completeAuth", () => {
         },
       });
       expect(mocks.transports[0].finishAuth).toHaveBeenCalledWith("abc");
+      expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
+    } finally {
+      root.unmount();
+    }
+  });
+});
+
+describe("McpServerResource stale connect results", () => {
+  beforeEach(resetMocks);
+
+  it("keeps a later disconnect when an earlier connect completes late", async () => {
+    const staleList = deferred<{ tools: ReturnType<typeof tool>[] }>();
+    mocks.listToolsResults.push(() => staleList.promise);
+    const root = mount();
+
+    try {
+      const connectPromise = root.getValue().connect();
+      await waitFor(() => mocks.clients[0]?.listTools.mock.calls.length === 1);
+
+      await root.getValue().disconnect();
+      staleList.resolve({ tools: [tool("stale")] });
+      await connectPromise;
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        tools: [],
+        lastError: null,
+      });
+      expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("keeps the latest connect result when an older connect finishes later", async () => {
+    const staleList = deferred<{ tools: ReturnType<typeof tool>[] }>();
+    mocks.listToolsResults.push(
+      () => staleList.promise,
+      () => Promise.resolve({ tools: [tool("fresh")] }),
+    );
+    const root = mount();
+
+    try {
+      const firstConnectPromise = root.getValue().connect();
+      await waitFor(() => mocks.clients[0]?.listTools.mock.calls.length === 1);
+
+      await root.getValue().connect();
+      staleList.resolve({ tools: [tool("stale")] });
+      await firstConnectPromise;
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "connected",
+        tools: [tool("fresh")],
+        lastError: null,
+      });
+      expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
+      expect(mocks.transports[1].close).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("ignores stale connect errors after a newer connect succeeds", async () => {
+    const staleList = deferred<{ tools: ReturnType<typeof tool>[] }>();
+    mocks.listToolsResults.push(
+      () => staleList.promise,
+      () => Promise.resolve({ tools: [tool("fresh")] }),
+    );
+    const root = mount();
+
+    try {
+      const firstConnectPromise = root.getValue().connect();
+      await waitFor(() => mocks.clients[0]?.listTools.mock.calls.length === 1);
+
+      await root.getValue().connect();
+      staleList.reject(new Error("stale list failed"));
+      await firstConnectPromise;
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "connected",
+        tools: [tool("fresh")],
+        lastError: null,
+      });
       expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
     } finally {
       root.unmount();
