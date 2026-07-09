@@ -11,6 +11,7 @@ import type { Tool } from "assistant-stream";
 import { McpServerResource } from "./McpServerResource";
 import { McpLocalStorage } from "./storage/McpLocalStorage";
 import type { MCPStorageElement } from "./storage/types";
+import { assertUniqueServerIds } from "../utils/serverId";
 import type {
   MCPAuthConfig,
   MCPConnector,
@@ -104,6 +105,11 @@ const useMcpManagerResource = (
   }, [customServers]);
 
   const serverElements = useMemo(() => {
+    assertUniqueServerIds([
+      ...connectors.map((c) => c.id),
+      ...customServers.map((s) => s.id),
+    ]);
+
     const connectorElements = connectors.map((c) =>
       withKey(
         c.id,

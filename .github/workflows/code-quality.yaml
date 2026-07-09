@@ -106,9 +106,10 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # ratchet:actions/cache@v5
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
+          key: ${{ runner.os }}-turbo-build-${{ github.ref }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.ref }}-
+            ${{ runner.os }}-turbo-build-${{ github.ref }}-
+            ${{ runner.os }}-turbo-build-
             ${{ runner.os }}-turbo-
 
       - name: Install dependencies
@@ -134,6 +135,9 @@ jobs:
             pnpm run api-surface:check -- --skip-build --filter="...[HEAD^1]"
           fi
 
+      - name: Test API surface generator
+        run: pnpm run api-surface:test
+
   test:
     name: Test Changed Packages
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -158,9 +162,10 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # ratchet:actions/cache@v5
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
+          key: ${{ runner.os }}-turbo-test-${{ github.ref }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.ref }}-
+            ${{ runner.os }}-turbo-test-${{ github.ref }}-
+            ${{ runner.os }}-turbo-test-
             ${{ runner.os }}-turbo-
 
       - name: Install dependencies

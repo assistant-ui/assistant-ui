@@ -85,12 +85,14 @@ describe("parseAdkRequest", () => {
       method: "POST",
       body: "not json",
     });
-    await expect(parseAdkRequest(req)).rejects.toThrow();
+    await expect(parseAdkRequest(req)).rejects.toThrow(
+      'Invalid JSON in Google ADK proxy request body. Expected a JSON object like {"message":"Hello"} or {"type":"tool-result",...}.',
+    );
   });
 
   it("throws on non-object body", async () => {
     await expect(parseAdkRequest(makeRequest([1, 2, 3]))).rejects.toThrow(
-      "Request body must be a JSON object",
+      "Google ADK proxy request body must be a JSON object",
     );
   });
 });
