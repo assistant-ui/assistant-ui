@@ -203,14 +203,14 @@ const useComposedFlatListRef = (
 
 const useThreadMessagesFlatListAutoScroll = ({
   flatListRef,
-  messageCount,
+  hasMessages,
   autoScroll = true,
   scrollToBottomOnRunStart = true,
   scrollToBottomOnInitialize = true,
   scrollToBottomOnThreadSwitch = true,
 }: {
   flatListRef: RefObject<FlatList<ThreadMessage> | null>;
-  messageCount: number;
+  hasMessages: boolean;
   autoScroll?: boolean | undefined;
   scrollToBottomOnRunStart?: boolean | undefined;
   scrollToBottomOnInitialize?: boolean | undefined;
@@ -270,6 +270,7 @@ const useThreadMessagesFlatListAutoScroll = ({
 
       if (!autoScroll) return;
       if (!wasAtBottom) return;
+      if (previousContentHeight === 0) return;
       if (height <= previousContentHeight) return;
 
       scrollToBottom(false);
@@ -279,7 +280,7 @@ const useThreadMessagesFlatListAutoScroll = ({
 
   useEffect(() => {
     if (!scrollToBottomOnInitialize) return;
-    if (messageCount === 0) {
+    if (!hasMessages) {
       initializeScrollRequestedRef.current = false;
       return;
     }
@@ -287,7 +288,7 @@ const useThreadMessagesFlatListAutoScroll = ({
 
     initializeScrollRequestedRef.current = true;
     scrollToBottom(false);
-  }, [messageCount, scrollToBottom, scrollToBottomOnInitialize]);
+  }, [hasMessages, scrollToBottom, scrollToBottomOnInitialize]);
 
   useAuiEvent("thread.runStart", () => {
     if (!scrollToBottomOnRunStart) return;
@@ -295,8 +296,8 @@ const useThreadMessagesFlatListAutoScroll = ({
   });
 
   useAuiEvent("threadListItem.switchedTo", () => {
-    initializeScrollRequestedRef.current = false;
     if (!scrollToBottomOnThreadSwitch) return;
+    initializeScrollRequestedRef.current = false;
     scrollToBottom(false);
   });
 
@@ -335,7 +336,7 @@ export const ThreadMessagesFlatList = forwardRef<
       handleScroll: handleAutoScrollScroll,
     } = useThreadMessagesFlatListAutoScroll({
       flatListRef,
-      messageCount: messages.length,
+      hasMessages: messages.length > 0,
       autoScroll,
       scrollToBottomOnInitialize,
       scrollToBottomOnRunStart,

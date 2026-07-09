@@ -366,6 +366,35 @@ describe("ThreadMessages", () => {
       expect(h.scrollToEnd).toHaveBeenCalledWith({ animated: false });
     });
 
+    it("does not treat the first content-size event as automatic content growth", async () => {
+      h.state.thread.messages = [{ id: "1", role: "user" }];
+      await mountFlatList({
+        components: messageComponents,
+        scrollToBottomOnInitialize: false,
+      });
+      const props = getFlatListProps();
+
+      await act(async () => {
+        props.onContentSizeChange?.(0, 140);
+      });
+
+      expect(h.scrollToEnd).not.toHaveBeenCalled();
+    });
+
+    it("does not duplicate the initial scroll on first content-size event", async () => {
+      h.state.thread.messages = [{ id: "1", role: "user" }];
+      await mountFlatList({ components: messageComponents });
+      const props = getFlatListProps();
+
+      expect(h.scrollToEnd).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        props.onContentSizeChange?.(0, 140);
+      });
+
+      expect(h.scrollToEnd).toHaveBeenCalledTimes(1);
+    });
+
     it("does not scroll when content grows after the user scrolled away", async () => {
       h.state.thread.messages = [{ id: "1", role: "user" }];
       await mountFlatList({ components: messageComponents });
@@ -384,6 +413,38 @@ describe("ThreadMessages", () => {
           },
         });
         props.onContentSizeChange?.(0, 340);
+      });
+
+      expect(h.scrollToEnd).not.toHaveBeenCalled();
+    });
+
+    it("scrolls to the bottom when switching threads", async () => {
+      h.state.thread.messages = [{ id: "1", role: "user" }];
+      await mountFlatList({ components: messageComponents });
+      h.scrollToEnd.mockClear();
+
+      await emit("threadListItem.switchedTo");
+
+      expect(h.scrollToEnd).toHaveBeenCalledWith({ animated: false });
+    });
+
+    it("does not rearm initialize scroll when thread-switch scroll is disabled", async () => {
+      h.state.thread.messages = [{ id: "1", role: "user" }];
+      await mountFlatList({
+        components: messageComponents,
+        scrollToBottomOnThreadSwitch: false,
+      });
+      h.scrollToEnd.mockClear();
+
+      await emit("threadListItem.switchedTo");
+
+      h.state.thread.messages = [
+        { id: "2", role: "user" },
+        { id: "3", role: "assistant" },
+      ];
+      await mountFlatList({
+        components: messageComponents,
+        scrollToBottomOnThreadSwitch: false,
       });
 
       expect(h.scrollToEnd).not.toHaveBeenCalled();

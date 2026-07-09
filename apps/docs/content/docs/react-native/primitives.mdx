@@ -33,6 +33,8 @@ Container `View` for the thread area.
 
 `FlatList`-based message list with automatic runtime integration. This uses `ThreadPrimitive.MessagesFlatList` internally and keeps the same backwards-compatible name as earlier React Native releases.
 
+It now auto-scrolls by default. If your app already manages message-list scrolling, pass `autoScroll={false}` or disable the individual `scrollToBottomOn*` options.
+
 ```tsx
 <ThreadPrimitive.Messages>
   {() => <MyMessage />}
@@ -74,6 +76,8 @@ React Native message viewport backed by `FlatList`. It scopes each row to its me
 | `scrollToBottomOnInitialize` | `boolean` | Scrolls to the bottom when messages first appear. Defaults to `true` |
 | `scrollToBottomOnThreadSwitch` | `boolean` | Scrolls to the bottom when switching threads. Defaults to `true` |
 | `...rest` | `FlatListProps` | Standard FlatList props, except `data`, `renderItem`, and `children` |
+
+The built-in auto-scroll behavior assumes the default, non-inverted `FlatList` direction.
 
 ### ThreadPrimitive.MessageByIndex
 
