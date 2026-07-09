@@ -199,16 +199,32 @@ export abstract class BaseComposerRuntimeCore
     const text = this.text;
     const quote = this._quote;
     this._quote = undefined;
-    this._emptyTextAndAttachments();
+    // Clear only the text now so the input empties on send; the attachment
+    // chips stay visible as upload-in-progress feedback and are cleared once
+    // the message has landed, so the composer and chat never go empty together.
+    this._text = "";
+    this._notifySubscribers();
 
     let resolvedAttachments: Awaited<typeof attachments>;
     try {
       resolvedAttachments = await attachments;
     } catch (e) {
-      if (this.isEmpty && this._quote === undefined) {
-        this._attachments = originalAttachments;
+      if (
+        this._text === "" &&
+        this._quote === undefined &&
+        this._attachments === originalAttachments
+      ) {
+        // The composer is still in the state we left it, so the user hasn't
+        // touched anything during the upload — restore the pre-send draft.
         this._text = text;
         this._quote = quote;
+        this._notifySubscribers();
+      } else {
+        // The user started a new draft; drop the failed-upload chips but keep
+        // any attachments they added.
+        this._attachments = this._attachments.filter(
+          (a) => !originalAttachments.includes(a),
+        );
         this._notifySubscribers();
       }
       throw e;
@@ -224,6 +240,12 @@ export abstract class BaseComposerRuntimeCore
     };
 
     this.handleSend(message, options);
+    if (originalAttachments.length > 0) {
+      this._attachments = this._attachments.filter(
+        (a) => !originalAttachments.includes(a),
+      );
+      this._notifySubscribers();
+    }
     this._notifyEventSubscribers("send", {});
   }
 

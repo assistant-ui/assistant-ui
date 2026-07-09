@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { DefaultThreadComposerRuntimeCore } from "../runtime/base/default-thread-composer-runtime-core";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
-import type { PendingAttachment } from "../types/attachment";
+import type {
+  CompleteAttachment,
+  PendingAttachment,
+} from "../types/attachment";
 
 const makeAdapter = (
   overrides: Partial<AttachmentAdapter> = {},
@@ -110,6 +113,39 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(composer.text).toBe("");
     expect(composer.attachments).toHaveLength(0);
     expect(append).not.toHaveBeenCalled();
+  });
+
+  it("keeps attachment chips visible while the upload is in flight", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    const originalAttachments = composer.attachments;
+
+    const sendPromise = composer.send();
+
+    // The input clears immediately (users expect the box to empty on send),
+    // but the attachment chips must remain visible as upload-in-progress
+    // feedback until the message lands in the chat.
+    expect(composer.text).toBe("");
+    expect(composer.attachments).toEqual(originalAttachments);
+    expect(composer.attachments).toHaveLength(1);
+    expect(append).not.toHaveBeenCalled();
+
+    resolveSend();
+    await sendPromise;
+
+    expect(composer.isEmpty).toBe(true);
+    expect(composer.attachments).toHaveLength(0);
+    expect(append).toHaveBeenCalledTimes(1);
   });
 
   it("sends and clears the composer on a successful upload", async () => {
