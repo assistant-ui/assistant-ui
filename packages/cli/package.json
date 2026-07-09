@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@assistant-ui/agent-launcher": "workspace:*",
-    "@clack/prompts": "^1.6.0",
+    "@clack/prompts": "^1.7.0",
     "chalk": "^5.6.2",
     "cli-progress": "^3.12.0",
     "commander": "^15.0.0",
@@ -50,7 +50,7 @@
     "@types/cross-spawn": "^6.0.6",
     "@types/debug": "^4.1.13",
     "@types/jscodeshift": "^17.3.0",
-    "@types/node": "^26.0.0",
+    "@types/node": "^26.1.0",
     "@vitest/coverage-v8": "^4.1.9",
     "vitest": "^4.1.9"
   },

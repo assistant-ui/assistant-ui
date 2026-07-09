@@ -36,10 +36,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.2.19",
+    "@assistant-ui/core": "^0.2.20",
     "@assistant-ui/store": "^0.2.19",
     "@assistant-ui/tap": "^0.9.3",
-    "assistant-stream": "^0.3.24",
+    "assistant-stream": "^0.3.25",
     "zustand": "^5.0.14"
   },
   "peerDependencies": {

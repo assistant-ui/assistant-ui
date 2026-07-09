@@ -51,10 +51,10 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^26.0.0",
+    "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
     "ai": "^6.0.209",
-    "assistant-stream": "^0.3.24",
+    "assistant-stream": "^0.3.25",
     "jsdom": "^29.1.1",
     "react": "^19.2.7",
     "vitest": "^4.1.9"
