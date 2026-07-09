@@ -149,4 +149,57 @@ describe("frontendTools", () => {
 
     expect(tools.getWeather).not.toHaveProperty("providerOptions");
   });
+
+  it("names the malformed frontend tool when parameters are missing", () => {
+    expect(() =>
+      frontendTools({
+        getWeather: {
+          description: "Get the weather",
+        },
+      } as never),
+    ).toThrow(
+      'frontendTools() expected tool "getWeather" to include a JSON Schema parameters object.',
+    );
+  });
+
+  it("rejects non-object tools request bodies", () => {
+    expect(() => frontendTools(null as never)).toThrow(
+      "frontendTools() expected tools to be an object keyed by tool name.",
+    );
+    expect(() => frontendTools([] as never)).toThrow(
+      "frontendTools() expected tools to be an object keyed by tool name.",
+    );
+  });
+
+  it("names frontend tool entries with malformed field types", () => {
+    expect(() =>
+      frontendTools({
+        getWeather: null,
+      } as never),
+    ).toThrow(
+      'frontendTools() expected tool "getWeather" to be an object with a JSON Schema parameters object.',
+    );
+
+    expect(() =>
+      frontendTools({
+        getWeather: {
+          description: 123,
+          parameters: { type: "object" },
+        },
+      } as never),
+    ).toThrow(
+      'frontendTools() expected tool "getWeather" description to be a string.',
+    );
+
+    expect(() =>
+      frontendTools({
+        getWeather: {
+          parameters: { type: "object" },
+          providerOptions: "anthropic",
+        },
+      } as never),
+    ).toThrow(
+      'frontendTools() expected tool "getWeather" providerOptions to be an object.',
+    );
+  });
 });

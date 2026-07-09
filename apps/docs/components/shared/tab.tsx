@@ -62,7 +62,7 @@ const tabIndicatorVariants = cva(
 );
 
 const tabItemVariants = cva(
-  "relative flex h-[30px] cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-sm leading-5 whitespace-nowrap transition-all duration-300 focus:outline-none data-[active=true]:font-medium",
+  "focus-visible:ring-ring/50 relative flex h-[30px] cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-sm leading-5 whitespace-nowrap transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-inset data-[active=true]:font-medium",
   {
     variants: {
       variant: {
