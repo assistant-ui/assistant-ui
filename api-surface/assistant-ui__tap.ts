@@ -1,5 +1,11 @@
 import { Context } from "react";
 
+type ContravariantResource<R, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<R>;
+
+type ExtractResourceReturnType<T> = T extends ResourceElement<infer R, any> ? R : T extends Resource<infer R, any> ? R : never;
+
+type Resource<R, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<R, A>;
+
 type ResourceElement<R, A extends readonly unknown[] = any[]> = {
   readonly hook: (...args: A) => R;
   readonly args: Readonly<A>;
@@ -7,33 +13,19 @@ type ResourceElement<R, A extends readonly unknown[] = any[]> = {
   readonly deps?: readonly unknown[];
 };
 
-type Resource<R, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<R, A>;
-
-type ContravariantResource<R, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<R>;
-
-type ExtractResourceReturnType<T> = T extends ResourceElement<infer R, any> ? R : T extends Resource<infer R, any> ? R : never;
-
-declare const useContextProvider: <T, TResult>(context: Context<T>, value: T, fn: () => TResult) => TResult;
-
-declare namespace useTapRoot {
-  type Unsubscribe = () => void;
-  interface Root<R> {
-    getValue(): R;
-    subscribe(listener: () => void): Unsubscribe;
-  }
-}
-
-declare const useTapRoot: <R>(render: () => R) => useTapRoot.Root<R>;
-
 declare const createTapRoot: <R>(render: () => R) => useTapRoot.Root<R> & {
   unmount: () => void;
 };
 
-declare function resource<R, A extends readonly unknown[]>(hook: (...args: A) => R): Resource<R, A>;
-
 declare const flushTapSync: <T>(callback: () => T) => T;
 
-declare function withKey<E extends ResourceElement<any, any>>(key: string | number, element: E, deps?: readonly unknown[]): E;
+declare namespace entry_root_exports {
+  export { ContravariantResource, Resource, ResourceElement, createTapRoot, flushTapSync, resource, useContextProvider, useResource, useResources, useTapHost, useTapRoot, withKey };
+}
+
+declare function resource<R, A extends readonly unknown[]>(hook: (...args: A) => R): Resource<R, A>;
+
+declare const useContextProvider: <T, TResult>(context: Context<T>, value: T, fn: () => TResult) => TResult;
 
 declare function useResource<E extends ResourceElement<any, any[]>>(element: E): ExtractResourceReturnType<E>;
 
@@ -48,8 +40,16 @@ declare namespace useTapHost {
 
 declare const useTapHost: <R>(callback: () => R) => useTapHost.Result<R>;
 
-declare namespace entry_root_exports {
-  export { ContravariantResource, Resource, ResourceElement, createTapRoot, flushTapSync, resource, useContextProvider, useResource, useResources, useTapHost, useTapRoot, withKey };
+declare namespace useTapRoot {
+  type Unsubscribe = () => void;
+  interface Root<R> {
+    getValue(): R;
+    subscribe(listener: () => void): Unsubscribe;
+  }
 }
+
+declare const useTapRoot: <R>(render: () => R) => useTapRoot.Root<R>;
+
+declare function withKey<E extends ResourceElement<any, any>>(key: string | number, element: E, deps?: readonly unknown[]): E;
 
 export { entry_root_exports as entry_root };
