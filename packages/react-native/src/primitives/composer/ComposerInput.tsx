@@ -22,6 +22,15 @@ export type ComposerInputProps = Omit<
   submitMode?: "enter" | "none";
 };
 
+const getWebTextareaMaxHeight = (el: HTMLTextAreaElement) => {
+  const computedMaxHeight = globalThis.getComputedStyle?.(el).maxHeight;
+  const parsedComputedMaxHeight = Number.parseFloat(computedMaxHeight ?? "");
+  if (Number.isFinite(parsedComputedMaxHeight)) return parsedComputedMaxHeight;
+
+  const inlineMaxHeight = Number.parseFloat(el.style.maxHeight);
+  return Number.isFinite(inlineMaxHeight) ? inlineMaxHeight : null;
+};
+
 const adjustWebTextareaHeight = (ref: React.RefObject<TextInput | null>) => {
   if (Platform.OS !== "web") return;
   // On web, the TextInput ref IS the DOM element
@@ -29,9 +38,19 @@ const adjustWebTextareaHeight = (ref: React.RefObject<TextInput | null>) => {
   if (!el) return;
   // Ensure rows=1 so scrollHeight reflects actual content
   if (el.rows !== 1) el.rows = 1;
-  el.style.overflow = "hidden";
+
+  el.style.overflowX = "hidden";
+  el.style.overflowY = "hidden";
   el.style.height = "auto";
-  el.style.height = `${el.scrollHeight}px`;
+
+  const scrollHeight = el.scrollHeight;
+  const maxHeight = getWebTextareaMaxHeight(el);
+  const needsScrollbar = maxHeight !== null && scrollHeight > maxHeight;
+  const nextHeight =
+    maxHeight === null ? scrollHeight : Math.min(scrollHeight, maxHeight);
+
+  el.style.overflowY = needsScrollbar ? "auto" : "hidden";
+  el.style.height = `${nextHeight}px`;
 };
 
 export const ComposerInput = ({

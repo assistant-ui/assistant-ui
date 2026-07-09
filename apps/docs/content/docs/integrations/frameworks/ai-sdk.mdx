@@ -5,7 +5,7 @@ description: Wire the Vercel AI SDK into a React chat UI with assistant-ui — u
 
 import { VercelIcon } from "@/components/icons/vercel";
 
-[Vercel AI SDK](https://ai-sdk.dev/) is the most common framework people pair with assistant-ui. The full setup, attachments, persistence, tool-call patterns, and version notes are documented under [runtimes/ai-sdk](/docs/runtimes/ai-sdk); this page is the entry point in the integrations tree for discoverability and architecture context.
+[Vercel AI SDK](https://ai-sdk.dev/) is the most common framework people pair with assistant-ui. The full setup, attachments, persistence, tool-call patterns, and version notes are documented under [runtimes/ai-sdk](/docs/runtimes/ai-sdk/overview); this page is the entry point in the integrations tree for discoverability and architecture context.
 
 <Callout type="info">
 If you arrived here looking to wire up your first chat: jump to [AI SDK v7 quickstart](/docs/runtimes/ai-sdk/v7). This page is a high-level pointer.
@@ -64,7 +64,7 @@ AI SDK is the default choice for new projects on Next.js, Remix, or any framewor
 - You will compose with a framework like [Mastra](/docs/integrations/frameworks/mastra/overview), an [observability tool](/docs/integrations/observability/helicone), an [LLM gateway](/docs/integrations/gateways), or [tools through MCP](/docs/tools/mcp), all of which assume an AI SDK route.
 - You want first-party `frontendTools`, attachments, multi-step tool calls, token-usage metadata, and persisted history via `withFormat`.
 
-If you need streaming agent state (subgraph events, generative UI messages), look at [LangGraph](/docs/runtimes/langgraph) instead. If you have a different protocol-shaped backend (A2A, AG-UI, OpenCode), see [pick a runtime](/docs/runtimes/pick-a-runtime).
+If you need streaming agent state (subgraph events, generative UI messages), look at [LangGraph](/docs/runtimes/langgraph/overview) instead. If you have a different protocol-shaped backend (A2A, AG-UI, OpenCode), see [pick a runtime](/docs/runtimes/pick-a-runtime).
 
 ## Related
 
@@ -73,7 +73,7 @@ If you need streaming agent state (subgraph events, generative UI messages), loo
     icon={<VercelIcon width={20} height={20} />}
     title="AI SDK runtime overview"
     description="The full runtime documentation and version selector."
-    href="/docs/runtimes/ai-sdk"
+    href="/docs/runtimes/ai-sdk/overview"
   />
   <Card
     title="Pick a runtime"

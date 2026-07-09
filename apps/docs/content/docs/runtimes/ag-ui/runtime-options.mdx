@@ -137,7 +137,9 @@ await runtime.unstable_submitInterruptResponses(
 
 ### Steering away from an interrupt
 
-When the user ignores the interrupt UI and just sends a new message, use the `useAgUiSteerAway` hook. Every open interrupt defaults to `status: "cancelled"`, the new message is appended, and the run resumes with `resume: ResumeEntry[]` on the wire. With no pending interrupts it behaves like a normal append.
+When the user ignores the interrupt UI and just sends a new message, use the `useAgUiSteerAway` hook. Every open interrupt defaults to `status: "cancelled"`, the new message is appended, and the run resumes with `resume: ResumeEntry[]` on the wire.
+
+The same hook also steers away from pending client-side tool calls. When the head assistant message is in `requires-action` with `reason: "tool-calls"` (frontend tools awaiting a result) and the user sends a new message, every unresolved tool call is cancelled with an error result, the message is completed, and a single fresh run starts with those cancellations in its history. Passing `responses` in this case throws, since responses only address interrupts. With nothing pending, `steerAway` behaves like a normal append.
 
 ```tsx
 const steerAway = useAgUiSteerAway();
@@ -201,7 +203,7 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
     icon={<AguiIcon width={20} height={20} />}
     title="AG-UI overview"
     description="What AG-UI is and when to pick it."
-    href="/docs/runtimes/ag-ui"
+    href="/docs/runtimes/ag-ui/overview"
   />
   <Card
     title="Quickstart"

@@ -166,6 +166,43 @@ type GenerativeUISpec = {
 The spec is plain JSON — easy for any agent to emit, and easy to validate
 on the server before delivery.
 
+## Actions with `JSONGenerativeUI`
+
+When you expose a component library through `new JSONGenerativeUI(...)`, pass an
+action registry to let interactive nodes call back into your app. This path uses
+the flat `{ "$type": ... }` node shape; the model puts an `$action` object on
+the node, and its `type` is matched against your registered handlers.
+
+```tsx
+import {
+  JSONGenerativeUI,
+  createActionRegistry,
+  defaultGenerativeUILibrary,
+} from "@assistant-ui/react-generative-ui";
+
+const actions = createActionRegistry({
+  purchase: async ({ payload }) => {
+    await checkout(payload);
+  },
+});
+
+const generative = new JSONGenerativeUI({
+  library: defaultGenerativeUILibrary,
+  actions,
+});
+```
+
+```json
+{
+  "$type": "Button",
+  "label": "Buy",
+  "$action": { "type": "purchase", "sku": "pro-plan" }
+}
+```
+
+`Select`, `Input`, and `DatePicker` add the user's value as `$input` when they
+fire the action. Unknown action types are ignored and warn in development.
+
 ## Streaming
 
 When a message contains native `generative-ui` parts whose `spec` updates

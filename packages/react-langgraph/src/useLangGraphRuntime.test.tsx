@@ -5,14 +5,17 @@ import type {
   AttachmentAdapter,
   RemoteThreadListAdapter,
 } from "@assistant-ui/core";
-import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
+import {
+  AssistantRuntimeProvider,
+  useAssistantTool,
+} from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { useLangGraphSend } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
 import type { LangChainMessage } from "./types";
 import type { LangGraphInterruptState } from "./useLangGraphMessages";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
 type LoadResult = {
   messages: LangChainMessage[];
@@ -800,6 +803,560 @@ describe("useLangGraphRuntime", () => {
       expect(auiResult.current.thread().getState().capabilities.queue).toBe(
         false,
       );
+    });
+  });
+
+  describe("run serialization", () => {
+    const toolCallEvent = {
+      event: "messages/complete",
+      data: [
+        {
+          id: "ai-1",
+          type: "ai" as const,
+          content: "",
+          tool_calls: [
+            { id: "tc-1", name: "get_weather", args: { city: "sf" } },
+          ],
+        },
+      ],
+    };
+
+    const waitForToolCallPart = async (aui: ReturnType<typeof useAui>) => {
+      await waitFor(() => {
+        const parts = aui
+          .thread()
+          .getState()
+          .messages.flatMap((m): readonly unknown[] => m.content);
+        expect(parts).toContainEqual(
+          expect.objectContaining({ type: "tool-call", toolCallId: "tc-1" }),
+        );
+      });
+    };
+
+    const addToolResult = (runtime: AssistantRuntime, result: unknown) => {
+      act(() => {
+        runtime.thread
+          .getMessageById("ai-1")
+          .getMessagePartByToolCallId("tc-1")
+          .addToolResult(result);
+      });
+    };
+
+    it("defers a tool-result resume until the in-flight run drains, without dropping isRunning", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+          await gate.promise;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+      const observedIsRunning: boolean[] = [];
+      renderHook(
+        () => {
+          observedIsRunning.push(useAuiState((s) => s.thread.isRunning));
+        },
+        { wrapper },
+      );
+
+      await act(async () => {
+        auiResult.current.composer().setText("what's the weather?");
+        auiResult.current.composer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      // the resume waits for run #1 to drain instead of starting a second run
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(1);
+      expect(auiResult.current.thread().getState().isRunning).toBe(true);
+
+      await act(async () => {
+        gate.resolve();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        {
+          type: "tool",
+          tool_call_id: "tc-1",
+          name: "get_weather",
+          content: JSON.stringify({ temperature: 72 }),
+          status: "success",
+        },
+      ]);
+
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+      const transitions = observedIsRunning.filter(
+        (value, i) => i === 0 || observedIsRunning[i - 1] !== value,
+      );
+      expect(transitions).toEqual([false, true, false]);
+    });
+
+    it("sends a tool result immediately when no run is in flight", async () => {
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer().setText("what's the weather?");
+        auiResult.current.composer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+    });
+
+    it("drops the queued resume when the run is cancelled", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        config: { abortSignal: AbortSignal },
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+          await Promise.race([
+            gate.promise,
+            new Promise<void>((resolve) => {
+              config.abortSignal.addEventListener("abort", () => resolve(), {
+                once: true,
+              });
+            }),
+          ]);
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          unstable_allowCancellation: true,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer().setText("what's the weather?");
+        auiResult.current.composer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await act(async () => {
+        runtimeResult.current.thread.cancelRun();
+      });
+
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("drops the queued resume when the draining run errors", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+          await gate.promise;
+          throw new Error("stream failed");
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+      const { result: sendResult } = renderHook(() => useLangGraphSend(), {
+        wrapper,
+      });
+      await waitFor(() => expect(sendResult.current).toBeDefined());
+
+      let runError: unknown;
+      act(() => {
+        sendResult
+          .current([{ type: "human", content: "what's the weather?" }], {})
+          .catch((error: unknown) => {
+            runError = error;
+          });
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await act(async () => {
+        gate.resolve();
+      });
+
+      await waitFor(() => expect(runError).toBeInstanceOf(Error));
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("replaces a duplicate result in the queued resume instead of double-sending", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+          await gate.promise;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer().setText("what's the weather?");
+        auiResult.current.composer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { attempt: 1 });
+      addToolResult(runtimeResult.current, { attempt: 2 });
+
+      await act(async () => {
+        gate.resolve();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+
+      const resume = streamMock.mock.calls[1]?.[0];
+      expect(resume).toHaveLength(1);
+      expect(resume?.[0]).toMatchObject({
+        type: "tool",
+        tool_call_id: "tc-1",
+        content: JSON.stringify({ attempt: 2 }),
+      });
+    });
+
+    it("drops the queued resume when the run ends with a top-level error event", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+          await gate.promise;
+          yield { event: "error", data: { message: "graph failed" } };
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer().setText("what's the weather?");
+        auiResult.current.composer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await act(async () => {
+        gate.resolve();
+      });
+
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("still sends the queued resume when only a subgraph reports an error", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+          await gate.promise;
+          yield { event: "error|subgraph", data: { message: "recoverable" } };
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer().setText("what's the weather?");
+        auiResult.current.composer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await act(async () => {
+        gate.resolve();
+      });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-1", status: "success" },
+      ]);
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+    });
+
+    it("drops the queued resume when a new user turn starts, cancelling the dangling tool call", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+          await gate.promise;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer().setText("what's the weather?");
+        auiResult.current.composer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await act(async () => {
+        auiResult.current.composer().setText("never mind");
+        auiResult.current.composer().send();
+      });
+
+      await act(async () => {
+        gate.resolve();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+
+      // the second run is the new turn (with the pending call cancelled), not the resume
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        {
+          type: "tool",
+          tool_call_id: "tc-1",
+          content: JSON.stringify({ cancelled: true }),
+          status: "error",
+        },
+        { type: "human", content: "never mind" },
+      ]);
+
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(2);
+    });
+
+    describe("with a registered frontend tool", () => {
+      const ToolRegistrar = ({
+        execute,
+      }: {
+        execute: (args: Record<string, unknown>) => Promise<unknown>;
+      }) => {
+        const tool = useMemo(
+          () =>
+            ({
+              toolName: "my_tool",
+              type: "frontend",
+              parameters: { type: "object", properties: {} },
+              execute,
+            }) as const,
+          [execute],
+        );
+        useAssistantTool(tool);
+        return null;
+      };
+
+      const wrapperWithTool = (
+        runtime: AssistantRuntime,
+        execute: (args: Record<string, unknown>) => Promise<unknown>,
+      ) => {
+        const Wrapper = ({ children }: { children: ReactNode }) => (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <ToolRegistrar execute={execute} />
+            {children}
+          </AssistantRuntimeProvider>
+        );
+        Wrapper.displayName = "TestWrapperWithTool";
+        return Wrapper;
+      };
+
+      it("merges a staggered same-run tool result into the queued resume", async () => {
+        const gateB = deferred<void>();
+        const gateDrain = deferred<void>();
+        const firstAiMessage = {
+          event: "messages/complete",
+          data: [
+            {
+              id: "ai-1",
+              type: "ai" as const,
+              content: "",
+              tool_calls: [{ id: "tc-1", name: "my_tool", args: {} }],
+            },
+          ],
+        };
+        const staggeredAiMessage = {
+          event: "messages/complete",
+          data: [
+            {
+              id: "ai-1",
+              type: "ai" as const,
+              content: "",
+              tool_calls: [
+                { id: "tc-1", name: "my_tool", args: {} },
+                { id: "tc-2", name: "my_tool", args: {} },
+              ],
+            },
+          ],
+        };
+        const streamMock = vi.fn(async function* (
+          _messages: LangChainMessage[],
+        ) {
+          if (streamMock.mock.calls.length === 1) {
+            yield firstAiMessage;
+            await gateB.promise;
+            yield staggeredAiMessage;
+            await gateDrain.promise;
+            return;
+          }
+        });
+        const execute = vi.fn(async () => ({ ok: true }));
+
+        const { result: runtimeResult } = renderHook(() =>
+          useLangGraphRuntime({ stream: streamMock }),
+        );
+        const wrapper = wrapperWithTool(runtimeResult.current, execute);
+        const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+        await new Promise((r) => setTimeout(r, 0));
+        await new Promise((r) => setTimeout(r, 0));
+
+        await act(async () => {
+          auiResult.current.composer().setText("hi");
+          auiResult.current.composer().send();
+        });
+
+        await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+        // flush so tool A's batch is queued before tool B streams in
+        await act(async () => {});
+        expect(streamMock).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+          gateB.resolve();
+        });
+        await waitFor(() => expect(execute).toHaveBeenCalledTimes(2));
+        expect(streamMock).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+          gateDrain.resolve();
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+        expect(streamMock.mock.calls[1]![0]).toMatchObject([
+          { type: "tool", tool_call_id: "tc-1", status: "success" },
+          { type: "tool", tool_call_id: "tc-2", status: "success" },
+        ]);
+        await waitFor(() =>
+          expect(auiResult.current.thread().getState().isRunning).toBe(false),
+        );
+      });
+    });
+
+    it("drops a late tool result for a call already answered by a new turn's auto-cancellation instead of resuming the graph", async () => {
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer().setText("what's the weather?");
+        auiResult.current.composer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+      );
+
+      // a new turn auto-cancels the dangling tool call with a tool message
+      await act(async () => {
+        auiResult.current.composer().setText("never mind");
+        auiResult.current.composer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        {
+          type: "tool",
+          tool_call_id: "tc-1",
+          content: JSON.stringify({ cancelled: true }),
+          status: "error",
+        },
+        { type: "human", content: "never mind" },
+      ]);
+
+      // a result arriving after the call was already answered must not resume
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(2);
     });
   });
 });

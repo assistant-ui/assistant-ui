@@ -8,7 +8,7 @@ import { VercelIcon } from "@/components/icons/vercel";
 
 LLM gateways sit between your route handler and the upstream provider. They give you a single endpoint that fronts many providers, plus features like multi-provider fallback, prompt caching, and BYOK (bring-your-own-key) flows. Most are OpenAI API-compatible, so the integration is a `baseURL` swap on `createOpenAI` from `@ai-sdk/openai`.
 
-For pure observability (proxy that logs every call) see [Helicone](/docs/integrations/observability/helicone). The gateways here overlap in spirit but are positioned around routing rather than logging.
+For pure observability (proxy that logs every call) see [Helicone](/docs/integrations/observability/helicone). The gateways here overlap in spirit but are positioned around routing rather than logging. For local personal projects there is also a keyless option in the same `baseURL`-swap shape: a local OAuth proxy billed to your ChatGPT subscription; see [ChatGPT Subscription](/docs/guides/chatgpt-subscription).
 
 ## Compare
 

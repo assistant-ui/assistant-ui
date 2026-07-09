@@ -45,11 +45,17 @@ function isReasoningEffort(value: unknown): value is XuluxReasoningEffort {
   );
 }
 
-function resolveXuluxModel(config: XuluxRequestConfig | undefined) {
+function resolveXuluxModel(config: unknown) {
+  const requestConfig =
+    config && typeof config === "object" && !Array.isArray(config)
+      ? (config as XuluxRequestConfig)
+      : undefined;
   const modelName =
-    typeof config?.modelName === "string" ? config.modelName.trim() : "";
-  const reasoningEffort = isReasoningEffort(config?.reasoningEffort)
-    ? config.reasoningEffort
+    typeof requestConfig?.modelName === "string"
+      ? requestConfig.modelName.trim()
+      : "";
+  const reasoningEffort = isReasoningEffort(requestConfig?.reasoningEffort)
+    ? requestConfig.reasoningEffort
     : undefined;
 
   if (modelName === "gpt-5.4" && reasoningEffort) {
@@ -83,6 +89,26 @@ type SelectedTemplateRequestContext = {
   downloadUrl?: unknown;
 };
 
+type ActivePreviewRequestContext = {
+  source: "template_modal" | "agent_tool";
+  templateId: string;
+  versionId?: string | null;
+  customized: boolean;
+  config?: JsonObject;
+};
+
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+type JsonObject = { [key: string]: JsonValue };
+
+const MAX_ACTIVE_PREVIEW_CONFIG_CHARS = 8_000;
+const MAX_RAW_MESSAGES_CHARS = 1_000_000;
+
 async function prepareMessages(messages: readonly UIMessage[]) {
   const modelMessages = await convertToModelMessages(
     injectQuoteContext([...messages]),
@@ -90,34 +116,93 @@ async function prepareMessages(messages: readonly UIMessage[]) {
   return pruneMessages({ messages: modelMessages, ...PRUNE_OPTIONS });
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeJsonObject(value: unknown): JsonObject | undefined {
+  if (!isRecord(value)) return undefined;
+  try {
+    const json = JSON.stringify(value);
+    if (json.length > MAX_ACTIVE_PREVIEW_CONFIG_CHARS) return undefined;
+    return JSON.parse(json) as JsonObject;
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeActivePreviewContext(
+  value: unknown,
+): ActivePreviewRequestContext | null {
+  if (!isRecord(value)) return null;
+  const source = value.source;
+  const templateId = value.templateId;
+  const versionId = value.versionId;
+  const customized = value.customized;
+  if (
+    (source !== "template_modal" && source !== "agent_tool") ||
+    typeof templateId !== "string" ||
+    typeof customized !== "boolean"
+  ) {
+    return null;
+  }
+  const config = normalizeJsonObject(value.config);
+  return {
+    source,
+    templateId,
+    ...(typeof versionId === "string" || versionId === null
+      ? { versionId }
+      : {}),
+    customized,
+    ...(config ? { config } : {}),
+  };
+}
+
+function appendHiddenText(message: { content: unknown }, text: string) {
+  if (typeof message.content === "string") {
+    message.content = `${message.content}\n\n${text}`;
+  } else if (Array.isArray(message.content)) {
+    message.content = [...message.content, { type: "text", text }];
+  }
+}
+
+function formatActivePreviewContext(context: ActivePreviewRequestContext) {
+  const json = JSON.stringify(context).replaceAll("<", "\\u003c");
+  return [
+    "<xulux_active_preview_context>",
+    "Treat this as the currently open preview state.",
+    json,
+    "</xulux_active_preview_context>",
+  ].join("\n");
+}
+
 function formatSelectedTemplateContext(
-  selectedTemplate: SelectedTemplateRequestContext | null | undefined,
+  selectedTemplate: unknown,
 ): string | null {
   if (!selectedTemplate || typeof selectedTemplate !== "object") return null;
-  const id =
-    typeof selectedTemplate.id === "string" ? selectedTemplate.id : null;
-  const title =
-    typeof selectedTemplate.title === "string" ? selectedTemplate.title : null;
+  const template = selectedTemplate as SelectedTemplateRequestContext;
+  const id = typeof template.id === "string" ? template.id : null;
+  const title = typeof template.title === "string" ? template.title : null;
   if (!id || !title) return null;
 
   const lines = [
     "<selected_template_context>",
-    `The user selected this ${selectedTemplate.kind === "example" ? "example" : "template"} before sending their message.`,
+    `The user selected this ${template.kind === "example" ? "example" : "template"} before sending their message.`,
     `id: ${id}`,
     `title: ${title}`,
   ];
 
-  if (typeof selectedTemplate.description === "string") {
-    lines.push(`description: ${selectedTemplate.description}`);
+  if (typeof template.description === "string") {
+    lines.push(`description: ${template.description}`);
   }
-  if (typeof selectedTemplate.prompt === "string") {
-    lines.push(`catalog_prompt: ${selectedTemplate.prompt}`);
+  if (typeof template.prompt === "string") {
+    lines.push(`catalog_prompt: ${template.prompt}`);
   }
-  if (typeof selectedTemplate.sourcePath === "string") {
-    lines.push(`sourcePath: ${selectedTemplate.sourcePath}`);
+  if (typeof template.sourcePath === "string") {
+    lines.push(`sourcePath: ${template.sourcePath}`);
   }
-  if (typeof selectedTemplate.downloadUrl === "string") {
-    lines.push(`downloadUrl: ${selectedTemplate.downloadUrl}`);
+  if (typeof template.downloadUrl === "string") {
+    lines.push(`downloadUrl: ${template.downloadUrl}`);
   }
 
   lines.push(
@@ -147,14 +232,20 @@ assistant-ui is a React library for building AI chat interfaces. It provides:
 When users send a casual greeting (hey, hi, hello):
 1. Welcome them to assistant-ui with emoji 👋
 2. Briefly explain what assistant-ui helps them do (build AI chat interfaces in React)
-3. Ask what they're working on or offer 2-3 common starter projects
+3. Ask what they're working on or offer 2-3 common starter projects using an \`ask-question\` block.
 
 Example tone:
 "Hey! 👋 Welcome to assistant-ui!
 
 I'm here to help you build AI chat interfaces with React. Whether you're just getting started, connecting to an AI backend, or customizing components — I've got you covered.
 
-What are you working on?"
+What are you working on?
+\`\`\`
+\`\`\`ask-question
+{"question":"Which direction should I take?","options":[{"label":"Build a new app","prompt":"Build a new app using assistant-ui.","preferred":true},{"label":"Read docs first","prompt":"Read the relevant assistant-ui docs first, then suggest the implementation path."}]}
+\`\`\`
+\`\`\`
+"
 
 Do NOT dump all documentation categories. Keep it conversational.
 </greetings>
@@ -214,7 +305,7 @@ Case 1: User wants to build an app:
 {"title":"<short app name>","prompt":"<full step-by-step build guide from the docs you read — no fake download link>"}
 \`\`\`
 \`\`\`
-- Also include the same prompt as a blockquote in your response.
+- Also include the same prompt as a fenced code block with language \`text\` in your response.
 
 Case 2: User ask questions about assistant-ui:
 - Use listDocs → readDoc to find relevant information.
@@ -228,6 +319,7 @@ Case 2: User ask questions about assistant-ui:
 - When customizing, review both the visible UI and the assistant behavior together. A good match requires the screen, assistant identity, prompts, tool descriptions, and mock/demo responses to all reflect the same user request.
 - Use 'getTemplateDetails' and especially 'exampleConfig' to understand what the template actually represents in practice: what the UI looks like, how the assistant behaves, what the tools do, and what the demo/mock flows are modeling.
 - After reading that full template shape, decide whether the user’s request can be represented within it with supported customization. If not, do not force the template.
+- When a user message contains <xulux_active_preview_context>, treat it as the current open preview state. Use it to understand follow-up requests, and call template tools if you need schema or template details before customizing or opening a template.
 </template_customization_guide>
 
 <common_pitfalls_to_avoid>
@@ -237,6 +329,7 @@ Case 2: User ask questions about assistant-ui:
 - You assume wrong CLI flags; use the help command to understand how to use the CLI.
 - You confuse assistant-ui components at \`@/components/assistant-ui/*\` to be exported from \`@assistant-ui/react\`. They are shadcn-based components—read the Components doc/subdocs for details on available components and installation (use assistant-ui CLI or shadcn). If customization is needed, customize the generated components.
 - You some time guess for fabricate urls, always use the urls from the tool results.
+- You sometimes ask plain-text clarifying questions when the user needs to choose between concrete next actions. Instead, render an \`ask-question\` block.
 </common_pitfalls_to_avoid>
 
 <answering>
@@ -247,6 +340,19 @@ Case 2: User ask questions about assistant-ui:
 - When linking, copy the exact URL from tool results: [Page Title](/docs/exact-path-from-tool)
 - Prefer not linking over linking to a potentially non-existent page
 - Admit uncertainty rather than guessing
+- If you cannot proceed because the user needs to choose between a few concrete next actions, ask the question and include a fenced code block with language \`ask-question\`. This renders clickable auto-send options:
+\`\`\`
+\`\`\`ask-question
+{"question":"Which direction should I take?","options":[{"label":"Customize current preview","prompt":"Customize the current preview for this request.","preferred":true},{"label":"Read docs first","prompt":"Read the relevant assistant-ui docs first, then suggest the implementation path."}]}
+\`\`\`
+\`\`\`
+  - Only use \`question\` and \`options\` at the top level.
+  - Each option MUST have \`label\` and \`prompt\`, and may include \`preferred: true\`.
+  - Set \`preferred: true\` on exactly one option when there is a recommended path.
+  - Put the preferred option first in the JSON options array.
+  - \`label\` should be short button text.
+  - \`prompt\` should be the full user message to auto-send when clicked.
+  - Do not use suggestions when you can confidently proceed with tools or a direct answer.
 </answering>
 
 <formatting>
@@ -269,7 +375,14 @@ export async function POST(req: Request): Promise<Response> {
     const rateLimitResponse = await checkRateLimit(req);
     if (rateLimitResponse) return rateLimitResponse;
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!isRecord(body)) {
+      return NextResponse.json(
+        { error: "Invalid JSON request body." },
+        { status: 400 },
+      );
+    }
+
     const {
       messages,
       tools: clientTools,
@@ -277,12 +390,22 @@ export async function POST(req: Request): Promise<Response> {
       config,
       sessionId,
       selectedTemplate,
+      activePreviewContext,
     } = body;
 
-    const prunedMessages = await prepareMessages(messages);
+    if (!Array.isArray(messages)) {
+      return new Response("Invalid messages format", { status: 400 });
+    }
+    if (JSON.stringify(messages).length > MAX_RAW_MESSAGES_CHARS) {
+      return new Response("Input too long", { status: 400 });
+    }
 
-    const inputError = validateDocChatInput(prunedMessages);
-    if (inputError) return inputError;
+    const uiMessages = messages as UIMessage[];
+    const prunedMessages = await prepareMessages(uiMessages);
+
+    const normalizedPreviewContext =
+      normalizeActivePreviewContext(activePreviewContext);
+    const userMessageId = getLatestUserMessageId(uiMessages);
 
     if (typeof sessionId !== "string" || sessionId.trim().length === 0) {
       return NextResponse.json(
@@ -290,6 +413,31 @@ export async function POST(req: Request): Promise<Response> {
         { status: 400 },
       );
     }
+
+    const isFirstUserTurn =
+      prunedMessages.filter((m) => m.role === "user").length === 1 &&
+      !prunedMessages.some((m) => m.role === "assistant");
+    if (isFirstUserTurn) {
+      const templateContext = formatSelectedTemplateContext(selectedTemplate);
+      const firstUser = prunedMessages.find((m) => m.role === "user");
+      if (templateContext && firstUser) {
+        appendHiddenText(firstUser, templateContext);
+      }
+    }
+    if (normalizedPreviewContext) {
+      const latestUser = [...prunedMessages]
+        .reverse()
+        .find((m) => m.role === "user");
+      if (latestUser) {
+        appendHiddenText(
+          latestUser,
+          formatActivePreviewContext(normalizedPreviewContext),
+        );
+      }
+    }
+
+    const inputError = validateDocChatInput(prunedMessages);
+    if (inputError) return inputError;
 
     const distinctId = getDistinctId(req);
     const budget = await beginTurn(sessionId.trim(), distinctId);
@@ -302,10 +450,9 @@ export async function POST(req: Request): Promise<Response> {
         typeof payload?.error === "string"
           ? payload.error
           : "This request could not run because a usage limit was reached.";
-      const userMessageId = getLatestUserMessageId(messages);
       const code = typeof payload?.code === "string" ? payload.code : undefined;
       return createXuluxDiagnosticMessageResponse({
-        messages,
+        messages: uiMessages,
         text: userVisibleMessage,
         outcome: createXuluxTurnOutcome({
           type: "budget_denied",
@@ -321,31 +468,15 @@ export async function POST(req: Request): Promise<Response> {
     }
     const budgetDate = budget.budgetDate;
 
-    const isFirstUserTurn =
-      prunedMessages.filter((m) => m.role === "user").length === 1 &&
-      !prunedMessages.some((m) => m.role === "assistant");
-    if (isFirstUserTurn) {
-      const templateContext = formatSelectedTemplateContext(selectedTemplate);
-      const firstUser = prunedMessages.find((m) => m.role === "user");
-      if (templateContext && firstUser) {
-        if (typeof firstUser.content === "string") {
-          firstUser.content = `${firstUser.content}\n\n${templateContext}`;
-        } else if (Array.isArray(firstUser.content)) {
-          firstUser.content = [
-            ...firstUser.content,
-            { type: "text", text: templateContext },
-          ];
-        }
-      }
-    }
-
     const evalRunId = req.headers.get("x-agent-eval-run-id");
     const localTraceUrl = req.headers.get("x-agent-eval-trace-url");
     const modelConfig = resolveXuluxModel(config);
     const baseModel = modelConfig.model;
     const prismTracer = createPrismTracer({ evalRunId, localTraceUrl });
     const xuluxTools = createXuluxChatTools({
-      clientTools,
+      clientTools: clientTools as Parameters<
+        typeof createXuluxChatTools
+      >[0]["clientTools"],
       routeUrl: req.url,
     });
     const toolManifest =
@@ -419,16 +550,16 @@ export async function POST(req: Request): Promise<Response> {
     });
 
     return result.toUIMessageStreamResponse({
-      originalMessages: messages,
+      originalMessages: uiMessages,
       messageMetadata: ({ part }) => {
         if (part.type === "finish-step") {
           return { modelId: part.response.modelId };
         }
         if (part.type === "finish") {
-          const userMessageId = getLatestUserMessageId(messages);
           return {
             usage: part.totalUsage,
             custom: {
+              usage: part.totalUsage,
               xulux: {
                 outcome: createXuluxTurnOutcome({
                   type: "assistant_response_completed",
@@ -437,6 +568,16 @@ export async function POST(req: Request): Promise<Response> {
                   distinctId,
                   ...(userMessageId ? { userMessageId } : {}),
                 }),
+                ...(normalizedPreviewContext
+                  ? {
+                      activePreviewContext: {
+                        value: normalizedPreviewContext,
+                        ...(userMessageId
+                          ? { injectedIntoUserMessageId: userMessageId }
+                          : {}),
+                      },
+                    }
+                  : {}),
               },
             },
           };

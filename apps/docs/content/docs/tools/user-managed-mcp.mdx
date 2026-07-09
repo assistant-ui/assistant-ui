@@ -59,20 +59,28 @@ const connectors = [
     name: "Weather",
     url: "https://mcp.example.com/weather",
     auth: { type: "none" },
+    connectionTimeout: 10_000,
   }),
 ];
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const aui = useAui({ mcp: McpManagerResource({ connectors }) });
+  const aui = useAui({
+    mcp: McpManagerResource({
+      connectors,
+      connectionTimeout: 15_000,
+    }),
+  });
   return <AuiProvider value={aui}>{children}</AuiProvider>;
 }
 ```
 
-Defaults baked in:
+Defaults and useful options:
 
 - `storage` — `McpLocalStorage()` (override for production; see [Storage](#storage))
 - `oauthRedirectUri` — `${window.location.origin}/mcp/callback`
 - `autoConnect` — `true` (connect on mount when usable auth is persisted)
+- `connectionTimeout` — optional timeout in milliseconds. Set it on the manager as a default or on a connector/custom server to bound the MCP readiness flow (`connect()` plus `listTools()`) with a clear error.
+- Connector `id` values must be unique. The id is used for server lookup, OAuth routing, and model-visible tool names such as `linear__search`.
 
 </Step>
 <Step>
@@ -208,13 +216,19 @@ The callback reads `?state=...&code=...` from the URL, derives the target server
 
 ```tsx
 "use client";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export function Chat() {
-  const runtime = useChatRuntime({ api: "/api/chat" });
+  const runtime = useChatRuntime({
+    api: "/api/chat",
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
   /* … */
 }
 ```
+
+`sendAutomaticallyWhen` sends completed frontend tool results back to the server so the model can continue after a tool call.
 
 Tool names are prefixed `serverId__toolName` to avoid collisions across connected servers. The toolkit re-registers whenever a server connects / disconnects or its tool list changes.
 
