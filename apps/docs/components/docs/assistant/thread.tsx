@@ -6,14 +6,23 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
-import { type ComponentType, type ReactNode, useEffect, useRef } from "react";
+import {
+  type ComponentType,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { AssistantMessage, UserMessage } from "./messages";
 import { AssistantComposer, useSharedDocsModelSelection } from "./composer";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
-import { AssistantFooter } from "@/components/docs/assistant/footer";
+import { ContextDisplay } from "@assistant-ui/ui/components/assistant-ui/context-display";
 import { analytics } from "@/lib/analytics";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
-import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+import {
+  getThreadMessageTokenUsage,
+  type ThreadTokenUsage,
+} from "@assistant-ui/react-ai-sdk";
 import { getContextWindow } from "@/constants/model";
 import { Button } from "@/components/ui/button";
 import {
@@ -77,7 +86,7 @@ type AssistantThreadProps = {
 export function AssistantThread({
   welcome = <AssistantWelcome />,
   composer = <AssistantComposer />,
-  footer = <AssistantFooter />,
+  footer,
   UserMessageComponent = UserMessage,
   AssistantMessageComponent = AssistantMessage,
 }: AssistantThreadProps = {}): ReactNode {
@@ -115,7 +124,32 @@ function PanelHeader(): React.ReactNode {
   const messages = useAuiState((s) => s.thread.messages);
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
-  const lastUsage = useThreadTokenUsage();
+  const lastUsage = useMemo<ThreadTokenUsage | undefined>(() => {
+    let hasUsage = false;
+    let totalTokens = 0;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let reasoningTokens = 0;
+    let cachedInputTokens = 0;
+    for (const message of messages) {
+      const usage = getThreadMessageTokenUsage(message);
+      if (!usage) continue;
+      hasUsage = true;
+      totalTokens += usage.totalTokens ?? 0;
+      inputTokens += usage.inputTokens ?? 0;
+      outputTokens += usage.outputTokens ?? 0;
+      reasoningTokens += usage.reasoningTokens ?? 0;
+      cachedInputTokens += usage.cachedInputTokens ?? 0;
+    }
+    if (!hasUsage) return undefined;
+    return {
+      totalTokens,
+      ...(inputTokens > 0 && { inputTokens }),
+      ...(outputTokens > 0 && { outputTokens }),
+      ...(reasoningTokens > 0 && { reasoningTokens }),
+      ...(cachedInputTokens > 0 && { cachedInputTokens }),
+    };
+  }, [messages]);
   const contextTokens = lastUsage?.totalTokens ?? 0;
   const { modelValue } = useSharedDocsModelSelection();
   const contextWindow = getContextWindow(modelValue);
@@ -125,6 +159,11 @@ function PanelHeader(): React.ReactNode {
     <div className="flex h-12 shrink-0 items-center justify-between border-b px-3">
       <span className="text-sm font-semibold">Ask AI</span>
       <div className="flex items-center gap-0.5">
+        <ContextDisplay.Ring
+          modelContextWindow={contextWindow}
+          usage={lastUsage}
+          side="bottom"
+        />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
