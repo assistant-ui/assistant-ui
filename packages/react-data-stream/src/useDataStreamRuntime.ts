@@ -134,7 +134,7 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         throw new Error("Response body is null");
       }
 
-      const protocol = resolveDataStreamProtocol(
+      const { protocol } = resolveDataStreamProtocol(
         result.headers,
         this.options.protocol,
       );

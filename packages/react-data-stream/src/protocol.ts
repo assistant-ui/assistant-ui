@@ -1,5 +1,16 @@
 export type DataStreamProtocol = "ui-message-stream" | "data-stream";
 
+type DataStreamProtocolSource =
+  | "explicit"
+  | "data-stream-header"
+  | "ui-message-stream-header"
+  | "fallback";
+
+type DataStreamProtocolResolution = {
+  protocol: DataStreamProtocol;
+  source: DataStreamProtocolSource;
+};
+
 const VERCEL_AI_DATA_STREAM_HEADER = "x-vercel-ai-data-stream";
 const VERCEL_AI_UI_MESSAGE_STREAM_HEADER = "x-vercel-ai-ui-message-stream";
 
@@ -9,13 +20,18 @@ const isV1Header = (headers: Headers, header: string) =>
 export const resolveDataStreamProtocol = (
   headers: Headers,
   protocol?: DataStreamProtocol,
-): DataStreamProtocol => {
-  if (protocol) return protocol;
+): DataStreamProtocolResolution => {
+  if (protocol) return { protocol, source: "explicit" };
 
-  if (isV1Header(headers, VERCEL_AI_DATA_STREAM_HEADER)) return "data-stream";
+  if (isV1Header(headers, VERCEL_AI_DATA_STREAM_HEADER)) {
+    return { protocol: "data-stream", source: "data-stream-header" };
+  }
   if (isV1Header(headers, VERCEL_AI_UI_MESSAGE_STREAM_HEADER)) {
-    return "ui-message-stream";
+    return {
+      protocol: "ui-message-stream",
+      source: "ui-message-stream-header",
+    };
   }
 
-  return "ui-message-stream";
+  return { protocol: "ui-message-stream", source: "fallback" };
 };
