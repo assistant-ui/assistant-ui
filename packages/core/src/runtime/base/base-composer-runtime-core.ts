@@ -206,6 +206,12 @@ export abstract class BaseComposerRuntimeCore
     );
     const isOriginalSendingAttachment = (attachment: Attachment) =>
       attachment.isSending === true && originalAttachmentIds.has(attachment.id);
+    const dropOriginalSendingAttachments = () => {
+      this._attachments = this._attachments.filter(
+        (attachment) => !isOriginalSendingAttachment(attachment),
+      );
+      this._notifySubscribers();
+    };
     const text = this.text;
     const quote = this._quote;
 
@@ -238,10 +244,7 @@ export abstract class BaseComposerRuntimeCore
         this._quote = quote;
         this._notifySubscribers();
       } else {
-        this._attachments = this._attachments.filter(
-          (attachment) => !isOriginalSendingAttachment(attachment),
-        );
-        this._notifySubscribers();
+        dropOriginalSendingAttachments();
       }
       throw e;
     }
@@ -259,12 +262,7 @@ export abstract class BaseComposerRuntimeCore
       this.handleSend(message, options);
     } finally {
       this._isSending = false;
-      if (originalAttachments.length > 0) {
-        this._attachments = this._attachments.filter(
-          (attachment) => !isOriginalSendingAttachment(attachment),
-        );
-      }
-      this._notifySubscribers();
+      dropOriginalSendingAttachments();
     }
     this._notifyEventSubscribers("send", {});
   }
@@ -280,6 +278,10 @@ export abstract class BaseComposerRuntimeCore
   public steerQueueItem(_queueItemId: string): void {}
   public removeQueueItem(_queueItemId: string): void {}
 
+  /**
+   * Append the message synchronously before returning so submitted attachments
+   * can move from the composer into the thread without a blank UI gap.
+   */
   protected abstract handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
