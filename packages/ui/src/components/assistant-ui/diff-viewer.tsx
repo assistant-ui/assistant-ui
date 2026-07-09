@@ -29,6 +29,9 @@ interface SplitLinePair {
   left: ParsedLine | null;
   right: ParsedLine | null;
 }
+interface ParsedFileWithSplitPairs extends ParsedFile {
+  splitLinePairs: SplitLinePair[];
+}
 
 function parsePatch(patch: string): ParsedFile[] {
   const files = parseDiff(patch);
@@ -459,28 +462,36 @@ function DiffViewer({
   className,
 }: DiffViewerProps) {
   const diffPatch = patch ?? code;
+  const oldContent = oldFile?.content;
+  const oldName = oldFile?.name;
+  const newContent = newFile?.content;
+  const newName = newFile?.name;
 
-  const parsedFiles = useMemo(() => {
+  const parsedFiles = useMemo<ParsedFileWithSplitPairs[]>(() => {
     if (diffPatch) {
-      return parsePatch(diffPatch);
+      return parsePatch(diffPatch).map((file) => ({
+        ...file,
+        splitLinePairs: pairLinesForSplit(file.lines),
+      }));
     }
-    if (oldFile && newFile) {
+    if (oldContent !== undefined && newContent !== undefined) {
       const { lines, additions, deletions } = computeDiff(
-        oldFile.content,
-        newFile.content,
+        oldContent,
+        newContent,
       );
       return [
         {
-          oldName: oldFile.name,
-          newName: newFile.name,
+          oldName,
+          newName,
           lines,
           additions,
           deletions,
+          splitLinePairs: pairLinesForSplit(lines),
         },
       ];
     }
     return [];
-  }, [diffPatch, oldFile, newFile]);
+  }, [diffPatch, oldContent, oldName, newContent, newName]);
 
   if (parsedFiles.length === 0) {
     return (
@@ -502,7 +513,11 @@ function DiffViewer({
       className={cn(diffViewerVariants({ variant, size }), className)}
     >
       {parsedFiles.map((file, fileIndex) => (
-        <div key={fileIndex} data-slot="diff-viewer-file">
+        <div
+          key={fileIndex}
+          data-slot="diff-viewer-file"
+          className="[contain-intrinsic-size:auto_240px] [content-visibility:auto]"
+        >
           <DiffViewerHeader
             oldName={file.oldName}
             newName={file.newName}
@@ -513,7 +528,7 @@ function DiffViewer({
           />
           <div data-slot="diff-viewer-content" className="overflow-x-auto">
             {viewMode === "split"
-              ? pairLinesForSplit(file.lines).map((pair, pairIndex) => (
+              ? file.splitLinePairs.map((pair, pairIndex) => (
                   <DiffViewerSplitLine
                     key={pairIndex}
                     pair={pair}
