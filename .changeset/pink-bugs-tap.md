@@ -29,6 +29,7 @@
 "@assistant-ui/react": patch
 "safe-content-frame": patch
 "@assistant-ui/tap": patch
+"tw-shimmer": patch
 "@assistant-ui/vite": patch
 "@assistant-ui/x-buildutils": patch
 "@assistant-ui/x-generative-compiler": patch
