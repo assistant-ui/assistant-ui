@@ -497,8 +497,9 @@ export class A2AClient {
     if (!reader) throw new Error("No response body");
 
     const decoder = new TextDecoder();
-    let buffer = "";
+    let lineBuffer = "";
     let dataLines: string[] = [];
+    let sawCarriageReturn = false;
 
     const readEvent = (): A2AStreamEvent | null => {
       if (dataLines.length === 0) return null;
@@ -523,20 +524,17 @@ export class A2AClient {
     };
 
     const processLine = (line: string): A2AStreamEvent | null => {
-      const normalizedLine = line.endsWith("\r") ? line.slice(0, -1) : line;
-
-      if (normalizedLine === "") {
+      if (line === "") {
         const event = readEvent();
         dataLines = [];
         return event;
       }
 
-      if (normalizedLine.startsWith(":")) return null;
+      if (line.startsWith(":")) return null;
 
-      const separator = normalizedLine.indexOf(":");
-      const field =
-        separator === -1 ? normalizedLine : normalizedLine.slice(0, separator);
-      let value = separator === -1 ? "" : normalizedLine.slice(separator + 1);
+      const separator = line.indexOf(":");
+      const field = separator === -1 ? line : line.slice(0, separator);
+      let value = separator === -1 ? "" : line.slice(separator + 1);
       if (value.startsWith(" ")) value = value.slice(1);
 
       if (field === "data") {
@@ -546,32 +544,53 @@ export class A2AClient {
       return null;
     };
 
+    const processText = (text: string): A2AStreamEvent[] => {
+      const events: A2AStreamEvent[] = [];
+
+      for (const character of text) {
+        if (character === "\r") {
+          const event = processLine(lineBuffer);
+          if (event) events.push(event);
+          lineBuffer = "";
+          sawCarriageReturn = true;
+          continue;
+        }
+
+        if (character === "\n") {
+          if (sawCarriageReturn) {
+            sawCarriageReturn = false;
+            continue;
+          }
+
+          const event = processLine(lineBuffer);
+          if (event) events.push(event);
+          lineBuffer = "";
+          continue;
+        }
+
+        sawCarriageReturn = false;
+        lineBuffer += character;
+      }
+
+      return events;
+    };
+
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
-          buffer += decoder.decode();
+          for (const event of processText(decoder.decode())) {
+            yield event;
+          }
           break;
         }
 
-        buffer += decoder.decode(value, { stream: true });
-
-        let lineEnd = buffer.indexOf("\n");
-        while (lineEnd !== -1) {
-          const event = processLine(buffer.slice(0, lineEnd));
-          if (event) yield event;
-          buffer = buffer.slice(lineEnd + 1);
-          lineEnd = buffer.indexOf("\n");
+        for (const event of processText(
+          decoder.decode(value, { stream: true }),
+        )) {
+          yield event;
         }
       }
-
-      if (buffer.length > 0) {
-        const event = processLine(buffer);
-        if (event) yield event;
-      }
-
-      const event = processLine("");
-      if (event) yield event;
     } finally {
       reader.releaseLock();
     }

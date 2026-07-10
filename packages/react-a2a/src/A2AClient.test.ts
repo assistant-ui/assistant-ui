@@ -14,9 +14,11 @@ function mockFetchResponse(body: unknown, ok = true, status = 200): Response {
   } as unknown as Response;
 }
 
-function mockSSETextResponse(text: string): Response {
+function mockSSETextResponse(text: string | string[]): Response {
   const encoder = new TextEncoder();
-  const chunks = [encoder.encode(text)];
+  const chunks = (Array.isArray(text) ? text : [text]).map((chunk) =>
+    encoder.encode(chunk),
+  );
   let index = 0;
 
   return {
@@ -822,6 +824,67 @@ describe("A2AClient", () => {
 
       expect(events).toHaveLength(1);
       expect(events[0]!.type).toBe("statusUpdate");
+    });
+
+    it("parses CR-delimited SSE events", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+
+      fetchMock.mockResolvedValue(mockSSETextResponse(`data: ${sseData}\r\r`));
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.type).toBe("statusUpdate");
+    });
+
+    it("parses CRLF delimiters split across chunks", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        mockSSETextResponse([`data: ${sseData}\r`, "\n\r", "\n"]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.type).toBe("statusUpdate");
+    });
+
+    it("does not dispatch unterminated SSE events", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+
+      fetchMock.mockResolvedValue(mockSSETextResponse(`data: ${sseData}`));
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(0);
     });
 
     it("parses SSE artifact update events", async () => {
