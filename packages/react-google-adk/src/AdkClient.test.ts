@@ -34,6 +34,17 @@ const sseBody = (text: string): ReadableStream<Uint8Array> => {
   });
 };
 
+const nextWithTimeout = async <T>(
+  promise: Promise<IteratorResult<T>>,
+): Promise<IteratorResult<T> | "timeout"> => {
+  return Promise.race([
+    promise,
+    new Promise<"timeout">((resolve) => {
+      setTimeout(() => resolve("timeout"), 100);
+    }),
+  ]);
+};
+
 const mockFetch =
   vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>();
 
@@ -396,6 +407,78 @@ describe("createAdkStream - SSE parsing", () => {
 
     expect(collected).toHaveLength(1);
     expect(collected[0]!.id).toBe("e1");
+  });
+
+  it("parses data fields without a space after the colon", async () => {
+    const text = `data:${JSON.stringify({ id: "e1" })}\n\n`;
+    mockFetch.mockResolvedValueOnce(
+      new Response(sseBody(text), { status: 200 }),
+    );
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+    const collected: AdkEvent[] = [];
+    for await (const evt of gen) {
+      collected.push(evt);
+    }
+
+    expect(collected).toHaveLength(1);
+    expect(collected[0]!.id).toBe("e1");
+  });
+
+  it("parses CR-delimited SSE events", async () => {
+    const events: AdkEvent[] = [{ id: "e1" }, { id: "e2" }];
+    const text = events.map((e) => `data: ${JSON.stringify(e)}\r\r`).join("");
+    mockFetch.mockResolvedValueOnce(
+      new Response(sseBody(text), { status: 200 }),
+    );
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+    const collected: AdkEvent[] = [];
+    for await (const evt of gen) {
+      collected.push(evt);
+    }
+
+    expect(collected).toHaveLength(2);
+    expect(collected[0]!.id).toBe("e1");
+    expect(collected[1]!.id).toBe("e2");
+  });
+
+  it("emits CRLF-delimited SSE events before the response closes", async () => {
+    const encoder = new TextEncoder();
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const body = new ReadableStream<Uint8Array>({
+      start(nextController) {
+        controller = nextController;
+      },
+    });
+    mockFetch.mockResolvedValueOnce(new Response(body, { status: 200 }));
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+
+    const first = gen.next();
+    controller.enqueue(
+      encoder.encode(`data: ${JSON.stringify({ id: "e1" })}\r`),
+    );
+    controller.enqueue(encoder.encode("\n\r\n"));
+
+    await expect(nextWithTimeout(first)).resolves.toMatchObject({
+      done: false,
+      value: { id: "e1" },
+    });
+
+    controller.close();
   });
 
   it("handles partial chunks that split across reads", async () => {
