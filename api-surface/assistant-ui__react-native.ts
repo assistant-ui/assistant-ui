@@ -3083,7 +3083,6 @@ type ThreadMessageLike = {
   } | undefined;
 };
 
-/** @deprecated Use ThreadPrimitive.MessagesFlatList instead. */
 declare const ThreadMessages: import("react").ForwardRefExoticComponent<ThreadMessagesFlatListProps & import("react").RefAttributes<FlatList<ThreadMessage>>>;
 
 declare const ThreadMessagesFlatList: import("react").ForwardRefExoticComponent<ThreadMessagesFlatListProps & import("react").RefAttributes<FlatList<ThreadMessage>>>;
@@ -3095,7 +3094,6 @@ type ThreadMessagesFlatListProps = Omit<FlatListProps<ThreadMessage>, "children"
   scrollToBottomOnThreadSwitch?: boolean | undefined;
 };
 
-/** @deprecated Use ThreadMessagesFlatListProps instead. */
 type ThreadMessagesProps = ThreadMessagesFlatListProps;
 
 declare namespace ThreadPrimitiveMessageByIndex {
