@@ -31,9 +31,9 @@ Container `View` for the thread area.
 
 ### ThreadPrimitive.Messages
 
-`FlatList`-based message list with automatic runtime integration. This uses `ThreadPrimitive.MessagesFlatList` internally and keeps the same backwards-compatible name as earlier React Native releases.
+Deprecated `FlatList`-based message list kept for backwards compatibility. It uses `ThreadPrimitive.MessagesFlatList` internally, but keeps the previous no-auto-scroll default so existing apps with custom scroll handling do not change behavior on upgrade.
 
-It now auto-scrolls by default. If your app already manages message-list scrolling, pass `autoScroll={false}` or disable the individual `scrollToBottomOn*` options.
+Use `ThreadPrimitive.MessagesFlatList` for new React Native threads.
 
 ```tsx
 <ThreadPrimitive.Messages>
@@ -55,11 +55,11 @@ You can also provide role-specific components:
 | Prop | Type | Description |
 |------|------|-------------|
 | `components` | `MessageComponents` | Component map — provide either a `Message` component (used for all roles) or role-specific `UserMessage`, `AssistantMessage`, and optionally `SystemMessage`. Edit composers can be set via `EditComposer` or role-specific variants (`UserEditComposer`, `AssistantEditComposer`, `SystemEditComposer`). |
-| `...rest` | `ThreadPrimitive.MessagesFlatList` props | Same props as `ThreadPrimitive.MessagesFlatList` |
+| `...rest` | `ThreadPrimitive.MessagesFlatList` props | Same props as `ThreadPrimitive.MessagesFlatList`, with the auto-scroll options defaulting to `false` on this deprecated wrapper |
 
 ### ThreadPrimitive.MessagesFlatList
 
-React Native message viewport backed by `FlatList`. It scopes each row to its message, forwards refs to the underlying `FlatList`, and handles scroll-to-bottom behavior for common chat flows.
+Canonical React Native message viewport backed by `FlatList`. It scopes each row to its message, forwards refs to the underlying `FlatList`, and handles scroll-to-bottom behavior for common chat flows.
 
 ```tsx
 <ThreadPrimitive.MessagesFlatList autoScroll>

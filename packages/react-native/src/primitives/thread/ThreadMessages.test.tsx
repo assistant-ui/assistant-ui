@@ -324,6 +324,30 @@ describe("ThreadMessages", () => {
     expect(ref.current).not.toBeNull();
   });
 
+  it("keeps deprecated Messages from auto-scrolling by default", async () => {
+    h.state.thread.messages = [{ id: "1", role: "user" }];
+    await mount({ components: messageComponents });
+    const props = getFlatListProps();
+
+    await act(async () => {
+      props.onLayout?.({
+        nativeEvent: { layout: { height: 100 } },
+      });
+      props.onScroll?.({
+        nativeEvent: {
+          contentOffset: { y: 0 },
+          contentSize: { height: 100, width: 0 },
+          layoutMeasurement: { height: 100, width: 0 },
+        },
+      });
+      props.onContentSizeChange?.(0, 140);
+    });
+    await emit("thread.runStart");
+    await emit("threadListItem.switchedTo");
+
+    expect(h.scrollToEnd).not.toHaveBeenCalled();
+  });
+
   describe("MessagesFlatList auto-scroll", () => {
     it("scrolls to the bottom when messages first appear", async () => {
       h.state.thread.messages = [{ id: "1", role: "user" }];

@@ -69,6 +69,7 @@ export type ThreadMessagesFlatListProps = Omit<
     scrollToBottomOnThreadSwitch?: boolean | undefined;
   };
 
+/** @deprecated Use ThreadMessagesFlatListProps instead. */
 export type ThreadMessagesProps = ThreadMessagesFlatListProps;
 
 const DEFAULT_SYSTEM_MESSAGE = () => null;
@@ -400,8 +401,29 @@ export const ThreadMessagesFlatList = forwardRef<
 );
 ThreadMessagesFlatList.displayName = "ThreadPrimitive.MessagesFlatList";
 
+/** @deprecated Use ThreadPrimitive.MessagesFlatList instead. */
 export const ThreadMessages = forwardRef<
   FlatList<ThreadMessage>,
   ThreadMessagesProps
->((props, ref) => <ThreadMessagesFlatList ref={ref} {...props} />);
+>(
+  (
+    {
+      autoScroll = false,
+      scrollToBottomOnInitialize = false,
+      scrollToBottomOnRunStart = false,
+      scrollToBottomOnThreadSwitch = false,
+      ...props
+    },
+    ref,
+  ) => (
+    <ThreadMessagesFlatList
+      ref={ref}
+      autoScroll={autoScroll}
+      scrollToBottomOnInitialize={scrollToBottomOnInitialize}
+      scrollToBottomOnRunStart={scrollToBottomOnRunStart}
+      scrollToBottomOnThreadSwitch={scrollToBottomOnThreadSwitch}
+      {...props}
+    />
+  ),
+);
 ThreadMessages.displayName = "ThreadPrimitive.Messages";
