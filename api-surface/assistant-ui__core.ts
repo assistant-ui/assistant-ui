@@ -561,6 +561,8 @@ type AttachmentState$1 = ThreadComposerAttachmentState | EditComposerAttachmentS
 
 type AttachmentStatus = PendingAttachmentStatus | CompleteAttachmentStatus;
 
+type AttachmentUploadTask = () => Promise<readonly CompleteAttachment[]>;
+
 type AuiToolOverride<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = Partial<Tool<TArgs, TResult>>;
 
 type AuiToolOverrides = Record<string, AuiToolOverride<any, any>>;
@@ -602,15 +604,6 @@ type BaseAttachment = {
   file?: File;
   content?: ThreadUserMessagePart[];
 };
-
-type AttachmentUploadTask = () => Promise<readonly CompleteAttachment[]>;
-
-type OptimisticSendResult = {
-  clearComposer: "now";
-  settle: Promise<void> | void;
-};
-
-type SendResult = Promise<void> | void | OptimisticSendResult;
 
 declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implements ComposerRuntimeCore {
   readonly isEditing = true;
@@ -2886,6 +2879,11 @@ type ObjectStreamOperation = {
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
+type OptimisticSendResult = {
+  clearComposer: "now";
+  settle: Promise<void> | void;
+};
+
 declare class OptimisticState<TState> extends BaseSubscribable {
   private readonly _pendingTransforms;
   private readonly _completedOptimistics;
@@ -3722,6 +3720,8 @@ type SendOptions = {
   startRun?: boolean;
   steer?: boolean;
 };
+
+type SendResult = Promise<void> | void | OptimisticSendResult;
 
 type SerializedModelContext = {
   system?: string;

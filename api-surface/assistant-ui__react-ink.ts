@@ -533,6 +533,8 @@ declare const AttachmentThumb: FC<AttachmentThumbProps>;
 
 type AttachmentThumbProps = ComponentProps<typeof Text>;
 
+type AttachmentUploadTask = () => Promise<readonly CompleteAttachment[]>;
+
 declare namespace AuiIf {
   type Props = PropsWithChildren<{
     condition: AuiIf.Condition;
@@ -588,15 +590,6 @@ type BaseAttachment = {
   file?: File;
   content?: ThreadUserMessagePart[];
 };
-
-type AttachmentUploadTask = () => Promise<readonly CompleteAttachment[]>;
-
-type OptimisticSendResult = {
-  clearComposer: "now";
-  settle: Promise<void> | void;
-};
-
-type SendResult = Promise<void> | void | OptimisticSendResult;
 
 declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implements ComposerRuntimeCore {
   readonly isEditing = true;
@@ -2515,6 +2508,11 @@ type ObjectStreamOperation = {
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
+type OptimisticSendResult = {
+  clearComposer: "now";
+  settle: Promise<void> | void;
+};
+
 type OverrideOptionalField<T, TKey extends keyof T, TValue> = undefined extends T[TKey] ? Exclude<T[TKey], undefined> extends never ? {
   [K in TKey]?: undefined;
 } : {
@@ -2899,6 +2897,8 @@ type SendOptions = {
   startRun?: boolean;
   steer?: boolean;
 };
+
+type SendResult = Promise<void> | void | OptimisticSendResult;
 
 declare class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   accept: string;
