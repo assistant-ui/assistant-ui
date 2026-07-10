@@ -1931,7 +1931,7 @@ type Unstable_AudioMessagePart = {
 
 type Unsubscribe = () => void;
 
-type UseStreamRuntimeOptions = UseStreamOptions extends infer O ? O extends UseStreamOptions ? O & LangChainRuntimeExtraOptions : never : never;
+type UseStreamRuntimeOptions = UseStreamOptions extends (infer O) ? O extends UseStreamOptions ? O & LangChainRuntimeExtraOptions : never : never;
 
 type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;

@@ -1,8 +1,16 @@
+import "@radix-ui/react-primitive";
+
 import { StandardSchemaV1 } from "@standard-schema/spec";
+
+import "radix-ui";
 
 import { ComponentType, ReactNode } from "react";
 
+import "react-textarea-autosize";
+
 import { ZodType } from "zod";
+
+import "zustand";
 
 declare const ALERT_TONES: readonly [
   "info",
@@ -165,7 +173,7 @@ interface ClientMethods {
   [key: string | symbol]: (...args: any[]) => any;
 }
 
-type ClientNames = keyof ClientSchemas extends infer U ? U : never;
+type ClientNames = keyof ClientSchemas extends (infer U) ? U : never;
 
 type ClientSchemas = keyof ScopeRegistry extends never ? {
   "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
