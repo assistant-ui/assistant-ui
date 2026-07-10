@@ -152,7 +152,10 @@ const AttachmentUI: FC = () => {
     (s) => isComposer && s.composer.isSending,
   );
   const uploadState = useAuiState((s) =>
-    isComposerSending || s.attachment.status.type === "running"
+    isComposerSending ||
+    s.attachment.status.type === "running" ||
+    (s.attachment.status.type === "requires-action" &&
+      s.attachment.status.reason === "composer-send")
       ? "uploading"
       : s.attachment.status.type === "incomplete" &&
           s.attachment.status.reason === "error"

@@ -589,6 +589,15 @@ type BaseAttachment = {
   content?: ThreadUserMessagePart[];
 };
 
+type AttachmentUploadTask = () => Promise<readonly CompleteAttachment[]>;
+
+type OptimisticSendResult = {
+  clearComposer: "now";
+  settle: Promise<void> | void;
+};
+
+type SendResult = Promise<void> | void | OptimisticSendResult;
+
 declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implements ComposerRuntimeCore {
   readonly isEditing = true;
   protected abstract getAttachmentAdapter(): AttachmentAdapter | undefined;
@@ -628,7 +637,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   get queue(): readonly QueueItemState[];
   steerQueueItem(_queueItemId: string): void;
   removeQueueItem(_queueItemId: string): void;
-  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void;
+  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions, uploadAttachments?: AttachmentUploadTask): SendResult;
   protected abstract handleCancel(): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   private _safeEmitAttachmentAddError;
@@ -1237,14 +1246,19 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   protected getAttachmentAdapter(): AttachmentAdapter | undefined;
   protected getDictationAdapter(): DictationAdapter | undefined;
   constructor(runtime: Omit<ThreadRuntimeCore, "composer"> & {
+    __internal_appendOptimisticAttachmentSend?: (message: AppendMessage, uploadAttachments: () => Promise<readonly CompleteAttachment[]>) => Promise<void> | void;
     adapters?: {
       attachments?: AttachmentAdapter | undefined;
       dictation?: DictationAdapter | undefined;
     } | undefined;
   });
   connect(): Unsubscribe$1;
-  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): Promise<void>;
+  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions, uploadAttachments?: () => Promise<readonly CompleteAttachment[]>): Promise<void> | {
+    clearComposer: "now";
+    settle: void | Promise<void>;
+  } | undefined;
   handleCancel(): Promise<void>;
+  private _appendWithResolvedAttachments;
 }
 
 declare const Derived: <K extends ClientNames>(_config: Derived.Props<K>) => ResourceElement<null, [
@@ -3547,8 +3561,8 @@ type ThreadMessageLike = {
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
-  readonly attachments?: readonly (Omit<CompleteAttachment, "content"> & {
-    readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
+  readonly attachments?: readonly (Omit<Attachment, "content"> & {
+    readonly content?: readonly (ThreadUserMessagePart | DataPrefixedPart)[] | undefined;
   })[] | undefined;
   readonly metadata?: {
     readonly unstable_state?: ReadonlyJSONValue;

@@ -32,6 +32,20 @@ import { generateId } from "../../utils/id";
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
 
+type AttachmentUploadTask = () => Promise<readonly CompleteAttachment[]>;
+
+type OptimisticSendResult = {
+  clearComposer: "now";
+  settle: Promise<void> | void;
+};
+
+type SendResult = Promise<void> | void | OptimisticSendResult;
+
+const isOptimisticSendResult = (
+  result: SendResult,
+): result is OptimisticSendResult =>
+  typeof result === "object" && result !== null && "clearComposer" in result;
+
 export abstract class BaseComposerRuntimeCore
   extends BaseSubscribable
   implements ComposerRuntimeCore
@@ -202,9 +216,11 @@ export abstract class BaseComposerRuntimeCore
     const role = this.role;
     const runConfig = this.runConfig;
     const quote = this._quote;
-    const attachments =
-      originalAttachments.length > 0
-        ? Promise.all(
+    const uploadAttachments = originalAttachments.some(
+      (a) => !isAttachmentComplete(a),
+    )
+      ? async () =>
+          Promise.all(
             originalAttachments.map(async (a) => {
               if (isAttachmentComplete(a)) return a;
               if (!adapter) throw new Error("Attachments are not supported");
@@ -212,40 +228,39 @@ export abstract class BaseComposerRuntimeCore
               return result as CompleteAttachment;
             }),
           )
-        : [];
-
-    this._isSending = true;
-    this._notifySubscribers();
-
-    let resolvedAttachments: Awaited<typeof attachments>;
-    try {
-      resolvedAttachments = await attachments;
-    } catch (e) {
-      this._isSending = false;
-      this._notifySubscribers();
-      throw e;
-    }
+      : undefined;
 
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
       role,
       content: text ? [{ type: "text", text }] : [],
-      attachments: resolvedAttachments,
+      attachments: originalAttachments as readonly CompleteAttachment[],
       runConfig,
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
+    this._isSending = true;
+    this._notifySubscribers();
+
     try {
-      this.handleSend(message, options);
+      const sendResult = this.handleSend(message, options, uploadAttachments);
+      if (isOptimisticSendResult(sendResult)) {
+        this._emptyTextAndAttachments();
+        this._notifyEventSubscribers("send", {});
+        await sendResult.settle;
+      } else {
+        await sendResult;
+        this._emptyTextAndAttachments();
+        this._notifyEventSubscribers("send", {});
+      }
+
+      this._isSending = false;
+      this._notifySubscribers();
     } catch (e) {
       this._isSending = false;
       this._notifySubscribers();
       throw e;
     }
-
-    this._isSending = false;
-    this._emptyTextAndAttachments();
-    this._notifyEventSubscribers("send", {});
   }
 
   public cancel() {
@@ -266,7 +281,8 @@ export abstract class BaseComposerRuntimeCore
   protected abstract handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
-  ): void;
+    uploadAttachments?: AttachmentUploadTask,
+  ): SendResult;
   protected abstract handleCancel(): void;
 
   async addAttachment(fileOrAttachment: File | CreateAttachment) {

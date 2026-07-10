@@ -24,8 +24,22 @@ const makeAdapter = (
   ...overrides,
 });
 
-const makeComposer = (adapter?: AttachmentAdapter) => {
+const makeComposer = (
+  adapter?: AttachmentAdapter,
+  options: { optimisticAttachments?: boolean } = {},
+) => {
   const append = vi.fn();
+  const __internal_appendOptimisticAttachmentSend = vi.fn(
+    (
+      message: Parameters<NonNullable<ThreadRuntimeCore["append"]>>[0],
+      uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
+    ) => {
+      append(message);
+      return uploadAttachments().then((attachments) => {
+        append({ ...message, attachments });
+      });
+    },
+  );
   const runtime = {
     append,
     cancelRun: vi.fn(),
@@ -34,11 +48,14 @@ const makeComposer = (adapter?: AttachmentAdapter) => {
     messages: [],
     getModelContext: () => ({ unstable_composerMetadata: undefined }),
     adapters: adapter ? { attachments: adapter } : undefined,
+    ...(options.optimisticAttachments && {
+      __internal_appendOptimisticAttachmentSend,
+    }),
   } as unknown as Omit<ThreadRuntimeCore, "composer"> & {
     adapters?: { attachments?: AttachmentAdapter };
   };
   const composer = new DefaultThreadComposerRuntimeCore(runtime);
-  return { composer, append };
+  return { composer, append, __internal_appendOptimisticAttachmentSend };
 };
 
 const textFile = () => new File(["content"], "f.txt", { type: "text/plain" });
@@ -148,6 +165,46 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(composer.isSending).toBe(false);
     expect(composer.attachments).toHaveLength(0);
     expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it("moves submitted attachments into the thread while upload is in flight when the runtime supports optimistic sends", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append, __internal_appendOptimisticAttachmentSend } =
+      makeComposer(adapter, { optimisticAttachments: true });
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    const originalAttachments = composer.attachments;
+
+    const sendPromise = composer.send({ startRun: false });
+
+    expect(composer.isSending).toBe(true);
+    expect(composer.text).toBe("");
+    expect(composer.attachments).toHaveLength(0);
+    expect(composer.canSend).toBe(false);
+    expect(__internal_appendOptimisticAttachmentSend).toHaveBeenCalledTimes(1);
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0].content).toEqual([
+      { type: "text", text: "hello" },
+    ]);
+    expect(append.mock.calls[0]![0].attachments).toEqual(originalAttachments);
+
+    resolveSend();
+    await sendPromise;
+
+    expect(composer.isEmpty).toBe(true);
+    expect(composer.isSending).toBe(false);
+    expect(append).toHaveBeenCalledTimes(2);
+    expect(append.mock.calls[1]![0].attachments[0].status).toEqual({
+      type: "complete",
+    });
   });
 
   it("does not remove or resend submitted attachments while upload is in flight", async () => {

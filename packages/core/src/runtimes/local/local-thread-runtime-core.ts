@@ -20,6 +20,7 @@ import type {
   AppendMessage,
   ThreadAssistantMessage,
 } from "../../types/message";
+import type { Attachment, CompleteAttachment } from "../../types/attachment";
 import type { RunConfig } from "../../types/message";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
@@ -250,13 +251,14 @@ export class LocalThreadRuntimeCore
     this._queue?.adapter.remove(queueItemId);
   }
 
-  private async _runAppend(message: AppendMessage): Promise<void> {
+  private _getInitializationPromise(): Promise<unknown> | undefined {
     this.ensureInitialized();
+    return this._getInitializePromise?.();
+  }
 
-    const initPromise = this._getInitializePromise?.();
-    if (initPromise) {
-      await initPromise;
-    }
+  private async _runAppend(message: AppendMessage): Promise<void> {
+    const initPromise = this._getInitializationPromise();
+    if (initPromise) await initPromise;
 
     const newMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
@@ -278,6 +280,80 @@ export class LocalThreadRuntimeCore
       });
     } else {
       this.repository.resetHead(newMessage.id);
+      this._notifySubscribers();
+    }
+  }
+
+  public async __internal_appendOptimisticAttachmentSend(
+    message: AppendMessage,
+    uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
+  ): Promise<void> {
+    const initPromise = this._getInitializationPromise();
+    if (initPromise) await initPromise;
+
+    const optimisticMessage = fromThreadMessageLike(message, generateId(), {
+      type: "complete",
+      reason: "unknown",
+    });
+    this.repository.addOrUpdateMessage(message.parentId, optimisticMessage);
+    this._notifySubscribers();
+
+    let attachments: readonly CompleteAttachment[];
+    try {
+      attachments = await uploadAttachments();
+    } catch (error) {
+      if (optimisticMessage.role === "user") {
+        const messageText =
+          error instanceof Error ? error.message : String(error);
+        const failedAttachments = (
+          optimisticMessage.attachments as readonly Attachment[]
+        ).map((attachment) =>
+          attachment.status.type === "complete"
+            ? attachment
+            : {
+                ...attachment,
+                status: {
+                  type: "incomplete",
+                  reason: "error",
+                  message: messageText,
+                },
+              },
+        );
+        const failedMessage = {
+          ...optimisticMessage,
+          attachments:
+            failedAttachments as typeof optimisticMessage.attachments,
+        } as typeof optimisticMessage;
+        this.repository.addOrUpdateMessage(message.parentId, failedMessage);
+        this._notifySubscribers();
+      }
+      throw error;
+    }
+
+    if (optimisticMessage.role !== "user") {
+      throw new Error("Attachments are only supported for user messages.");
+    }
+
+    const completedMessage = {
+      ...optimisticMessage,
+      attachments,
+    } as typeof optimisticMessage;
+    this.repository.addOrUpdateMessage(message.parentId, completedMessage);
+    this._options.adapters.history?.append({
+      parentId: message.parentId,
+      message: completedMessage,
+      ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
+    });
+
+    const startRun = message.startRun ?? message.role === "user";
+    if (startRun) {
+      void this.startRun({
+        parentId: completedMessage.id,
+        sourceId: message.sourceId,
+        runConfig: message.runConfig ?? {},
+      }).catch(() => {});
+    } else {
+      this.repository.resetHead(completedMessage.id);
       this._notifySubscribers();
     }
   }

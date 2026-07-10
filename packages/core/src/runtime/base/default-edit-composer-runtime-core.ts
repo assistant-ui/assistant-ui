@@ -79,10 +79,17 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   public async handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
+    uploadAttachments?: () => Promise<readonly CompleteAttachment[]>,
   ) {
+    const resolvedMessage = uploadAttachments
+      ? {
+          ...message,
+          attachments: await uploadAttachments(),
+        }
+      : message;
     const text = getThreadMessageText(message as AppendMessage);
     const attachmentsChanged = !attachmentsEqual(
-      message.attachments ?? [],
+      resolvedMessage.attachments ?? [],
       this._previousAttachments,
     );
 
@@ -97,7 +104,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
               ...message.content,
               ...this._nonTextPassthrough,
             ] as AppendMessage["content"])
-          : message.content;
+          : resolvedMessage.content;
       // Gate live state against the new branch's prefix (messages up to the
       // parent): an unchanged interactable re-stamps the prior baseline, an
       // interactable edited since the original message stamps its newest state.
@@ -111,7 +118,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
         messages.slice(0, parentIndex + 1),
       );
       const enriched = this.enrichWithComposerMetadata(
-        message,
+        resolvedMessage,
         composerMetadata,
       );
       this.runtime.append({

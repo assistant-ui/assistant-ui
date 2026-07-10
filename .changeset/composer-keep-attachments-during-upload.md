@@ -3,4 +3,4 @@
 "@assistant-ui/react": patch
 ---
 
-fix: keep attachment chips visible and locked during the upload window on send
+fix: move sent attachment chips into the thread during the upload window
