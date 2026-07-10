@@ -118,6 +118,55 @@ test("base variant content validation accepts clean content", () => {
   );
 });
 
+test("base variant content validation reports plain and scoped radix imports", () => {
+  assert.throws(
+    () =>
+      validateBaseVariantContent([
+        createBuilt("plain", [
+          ["components/plain.tsx", 'import { Tooltip } from "radix-ui";'],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.ok(
+        error.message.includes(
+          "- plain: base variant for components/plain.tsx contains forbidden radix import",
+        ),
+      );
+      return true;
+    },
+  );
+
+  assert.throws(
+    () =>
+      validateBaseVariantContent([
+        createBuilt("scoped", [
+          [
+            "components/scoped.tsx",
+            'import { Tooltip } from "@radix-ui/react-tooltip";',
+          ],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.ok(
+        error.message.includes(
+          "- scoped: base variant for components/scoped.tsx contains forbidden radix import",
+        ),
+      );
+      return true;
+    },
+  );
+
+  assert.doesNotThrow(() =>
+    validateBaseVariantContent([
+      createBuilt("clean", [
+        ["components/clean.tsx", "export const clean = true;"],
+      ]),
+    ]),
+  );
+});
+
 test("base variant content validation aggregates forbidden tokens across files", () => {
   assert.throws(
     () =>
@@ -147,7 +196,7 @@ test("base variant content validation aggregates forbidden tokens across files",
       );
       assert.ok(
         error.message.includes(
-          '- second: base variant for components/second.tsx contains forbidden from "radix-ui"',
+          "- second: base variant for components/second.tsx contains forbidden radix import",
         ),
       );
       assert.ok(

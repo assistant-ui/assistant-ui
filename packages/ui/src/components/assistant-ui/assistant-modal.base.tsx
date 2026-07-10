@@ -2,7 +2,14 @@
 
 import { BotIcon, ChevronDownIcon } from "lucide-react";
 
-import { type ComponentPropsWithoutRef, type FC, forwardRef } from "react";
+import {
+  type ComponentPropsWithoutRef,
+  type FC,
+  forwardRef,
+  useEffect,
+  useState,
+} from "react";
+import { useAui } from "@assistant-ui/react";
 
 import { Thread } from "@/components/assistant-ui/thread";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -13,9 +20,16 @@ import {
 } from "@/components/ui-base/popover";
 
 export const AssistantModal: FC = () => {
+  const [open, setOpen] = useState(false);
+  const aui = useAui();
+
+  useEffect(() => {
+    return aui.on("thread.runStart", () => setOpen(true));
+  }, [aui]);
+
   return (
     <Popover
-      defaultOpen={false}
+      open={open}
       onOpenChange={(open, eventDetails) => {
         if (
           !open &&
@@ -23,6 +37,8 @@ export const AssistantModal: FC = () => {
             eventDetails.reason === "focus-out")
         ) {
           eventDetails.cancel();
+        } else {
+          setOpen(open);
         }
       }}
     >

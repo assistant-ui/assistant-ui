@@ -16,7 +16,7 @@ const ASSISTANT_REGISTRY_DEPENDENCY_RE =
 const BASE_VARIANT_FORBIDDEN_PATTERNS = [
   ["asChild", /\basChild\b/],
   ["delayDuration", /\bdelayDuration\b/],
-  ['from "radix-ui"', /from\s+["']radix-ui["']/],
+  ["radix import", /from\s+["'](?:radix-ui["']|@radix-ui\/)/],
   ["data-[state=", /data-\[state=/],
 ] as const;
 const PROJECT_PACKAGE_IMPORTS = new Set([

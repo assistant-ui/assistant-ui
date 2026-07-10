@@ -170,8 +170,8 @@ function ToolGroupContent({
         "data-open:animate-collapsible-down",
         "data-closed:fill-mode-forwards",
         "data-closed:pointer-events-none",
-        "data-open:animation-duration-(--animation-duration)",
-        "data-closed:animation-duration-(--animation-duration)",
+        "data-open:duration-(--animation-duration)",
+        "data-closed:duration-(--animation-duration)",
         className,
       )}
       {...props}
