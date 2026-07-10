@@ -1,15 +1,23 @@
-import { promises as fs, readFileSync } from "node:fs";
+import { existsSync, promises as fs, readFileSync } from "node:fs";
 import * as path from "node:path";
 import * as ts from "typescript";
 import { registry } from "../src/registry";
 import { registrySchema, type RegistryItem } from "../src/schema";
 
 const REGISTRY_PATH = path.join(process.cwd(), "dist");
+const BASE_REGISTRY_PATH = path.join(REGISTRY_PATH, "base");
 const REGISTRY_INDEX_PATH = path.join(REGISTRY_PATH, "registry.json");
+const BASE_REGISTRY_INDEX_PATH = path.join(BASE_REGISTRY_PATH, "registry.json");
 const REGISTRY_ITEM_SCHEMA_URL =
   "https://ui.shadcn.com/schema/registry-item.json";
 const ASSISTANT_REGISTRY_DEPENDENCY_RE =
-  /^https:\/\/r\.assistant-ui\.com\/(.+)\.json$/;
+  /^https:\/\/r\.assistant-ui\.com\/(?:base\/)?(.+)\.json$/;
+const BASE_VARIANT_FORBIDDEN_PATTERNS = [
+  ["asChild", /\basChild\b/],
+  ["delayDuration", /\bdelayDuration\b/],
+  ['from "radix-ui"', /from\s+["']radix-ui["']/],
+  ["data-[state=", /data-\[state=/],
+] as const;
 const PROJECT_PACKAGE_IMPORTS = new Set([
   "next",
   "next-themes",
@@ -18,10 +26,11 @@ const PROJECT_PACKAGE_IMPORTS = new Set([
 ]);
 
 type RegistryFile = NonNullable<RegistryItem["files"]>[number];
+type RegistryBuildItem = Omit<RegistryItem, "baseRegistryDependencies">;
 type RegistryOutputFile = Omit<RegistryFile, "sourcePath"> & {
   content: string;
 };
-type RegistryOutputItem = Omit<RegistryItem, "files"> & {
+type RegistryOutputItem = Omit<RegistryBuildItem, "files"> & {
   $schema: string;
   files?: RegistryOutputFile[];
 };
@@ -55,16 +64,66 @@ function validateRegistrySchema(registry: RegistryItem[]) {
   }
 }
 
-function createRegistryPayload(item: RegistryItem): RegistryOutputItem {
+function getBaseVariantSourcePath(sourcePath: string) {
+  if (!sourcePath.endsWith(".tsx")) return null;
+
+  return `${sourcePath.slice(0, -4)}.base.tsx`;
+}
+
+function validateBaseVariantContent(
+  itemName: string,
+  filePath: string,
+  content: string,
+) {
+  for (const [label, pattern] of BASE_VARIANT_FORBIDDEN_PATTERNS) {
+    if (pattern.test(content)) {
+      throw new Error(
+        `${itemName}: base variant for ${filePath} contains forbidden ${label}`,
+      );
+    }
+  }
+}
+
+type BuiltRegistryPayload = {
+  payload: RegistryOutputItem;
+  readPaths: string[];
+  baseVariantOutputPaths: string[];
+};
+
+function createRegistryPayload(
+  item: RegistryBuildItem,
+  useBaseVariants = false,
+): BuiltRegistryPayload {
+  const readPaths: string[] = [];
+  const baseVariantOutputPaths: string[] = [];
   const files = item.files?.map((file) => {
-    // Read from sourcePath if provided, otherwise use path
-    const readPath = file.sourcePath ?? file.path;
+    const sourcePath = file.sourcePath ?? file.path;
+    const baseVariantPath = useBaseVariants
+      ? getBaseVariantSourcePath(sourcePath)
+      : null;
+    const usesBaseVariant = Boolean(
+      baseVariantPath && existsSync(path.join(process.cwd(), baseVariantPath)),
+    );
+    const readPath = usesBaseVariant ? baseVariantPath! : sourcePath;
+    readPaths.push(readPath);
+    if (usesBaseVariant) {
+      baseVariantOutputPaths.push(file.path);
+    }
     let content = readFileSync(path.join(process.cwd(), readPath), "utf8");
 
-    // Transform @assistant-ui/react-ui/* imports to @/* imports
+    if (usesBaseVariant) {
+      content = content.replace(
+        /@\/components\/ui-base\//g,
+        "@/components/ui/",
+      );
+    }
+
     content = transformImports(content);
 
-    // Exclude sourcePath from output (it's only for build)
+    if (usesBaseVariant) {
+      validateBaseVariantContent(item.name, file.path, content);
+    }
+
     const { sourcePath: _, ...fileOutput } = file;
     return {
       ...fileOutput,
@@ -78,11 +137,95 @@ function createRegistryPayload(item: RegistryItem): RegistryOutputItem {
     ...itemOutput,
   };
 
-  return files ? { ...payload, files } : payload;
+  return {
+    payload: files ? { ...payload, files } : payload,
+    readPaths,
+    baseVariantOutputPaths,
+  };
+}
+
+function assertRadixPassDidNotReadBaseSources(built: BuiltRegistryPayload[]) {
+  for (const { payload, readPaths } of built) {
+    for (const readPath of readPaths) {
+      if (readPath.endsWith(".base.tsx")) {
+        throw new Error(
+          `${payload.name}: radix registry pass read base variant path ${readPath}`,
+        );
+      }
+    }
+  }
+}
+
+function assertVariantTreesDiffer(
+  radixBuilt: BuiltRegistryPayload[],
+  baseBuilt: BuiltRegistryPayload[],
+) {
+  const radixByName = new Map(
+    radixBuilt.map((built) => [built.payload.name, built]),
+  );
+
+  for (const base of baseBuilt) {
+    if (base.baseVariantOutputPaths.length === 0) continue;
+
+    const radix = radixByName.get(base.payload.name);
+    if (!radix) {
+      throw new Error(
+        `${base.payload.name}: base variant exists but radix payload is missing`,
+      );
+    }
+
+    for (const filePath of base.baseVariantOutputPaths) {
+      const radixContent = radix.payload.files?.find(
+        (file) => file.path === filePath,
+      )?.content;
+      const baseContent = base.payload.files?.find(
+        (file) => file.path === filePath,
+      )?.content;
+
+      if (radixContent === undefined || baseContent === undefined) {
+        throw new Error(
+          `${base.payload.name}: missing emitted content for ${filePath} while comparing radix and base trees`,
+        );
+      }
+
+      if (radixContent === baseContent) {
+        throw new Error(
+          `${base.payload.name}: radix and base content for ${filePath} are identical despite a .base.tsx variant`,
+        );
+      }
+    }
+  }
 }
 
 function getAssistantRegistryDependencyName(dependency: string) {
   return ASSISTANT_REGISTRY_DEPENDENCY_RE.exec(dependency)?.[1] ?? null;
+}
+
+function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
+  const { baseRegistryDependencies: _, ...radixItem } = item;
+  return radixItem;
+}
+
+function createBaseRegistryItem(item: RegistryItem): RegistryBuildItem {
+  const { baseRegistryDependencies, ...baseItem } = item;
+  const hasRegistryDependencies =
+    baseItem.registryDependencies !== undefined ||
+    baseRegistryDependencies !== undefined;
+
+  if (!hasRegistryDependencies) return baseItem;
+
+  const registryDependencies = [
+    ...(baseItem.registryDependencies ?? []),
+    ...(baseRegistryDependencies ?? []),
+  ].map((dependency) => {
+    const name = getAssistantRegistryDependencyName(dependency);
+    return name ? `https://r.assistant-ui.com/base/${name}.json` : dependency;
+  });
+
+  return {
+    ...baseItem,
+    registryDependencies: [...new Set(registryDependencies)],
+  };
 }
 
 function getPackageName(specifier: string) {
@@ -291,13 +434,37 @@ function validateRegistryInstallMetadata(payloads: RegistryOutputItem[]) {
 async function buildRegistry(registry: RegistryItem[]) {
   validateRegistrySchema(registry);
 
-  const payloads = registry.map(createRegistryPayload);
+  const radixRegistry = registry.map(createRadixRegistryItem);
+  const baseRegistry = registry.map(createBaseRegistryItem);
+  validateRegistrySchema(radixRegistry);
+  validateRegistrySchema(baseRegistry);
+
+  const radixBuilt = radixRegistry.map((item) =>
+    createRegistryPayload(item, false),
+  );
+  const baseBuilt = baseRegistry.map((item) =>
+    createRegistryPayload(item, true),
+  );
+  assertRadixPassDidNotReadBaseSources(radixBuilt);
+  assertVariantTreesDiffer(radixBuilt, baseBuilt);
+
+  const payloads = radixBuilt.map((built) => built.payload);
+  const basePayloads = baseBuilt.map((built) => built.payload);
   validateRegistryInstallMetadata(payloads);
+  validateRegistryInstallMetadata(basePayloads);
 
   await fs.mkdir(REGISTRY_PATH, { recursive: true });
+  await fs.mkdir(BASE_REGISTRY_PATH, { recursive: true });
 
   for (const payload of payloads) {
     const p = path.join(REGISTRY_PATH, `${payload.name}.json`);
+    await fs.mkdir(path.dirname(p), { recursive: true });
+
+    await fs.writeFile(p, JSON.stringify(payload, null, 2), "utf8");
+  }
+
+  for (const payload of basePayloads) {
+    const p = path.join(BASE_REGISTRY_PATH, `${payload.name}.json`);
     await fs.mkdir(path.dirname(p), { recursive: true });
 
     await fs.writeFile(p, JSON.stringify(payload, null, 2), "utf8");
@@ -307,12 +474,18 @@ async function buildRegistry(registry: RegistryItem[]) {
     $schema: "https://ui.shadcn.com/schema/registry.json",
     name: "assistant-ui",
     homepage: "https://assistant-ui.com",
-    items: registry,
+    items: radixRegistry,
   };
 
   await fs.writeFile(
     REGISTRY_INDEX_PATH,
     JSON.stringify(registryIndex, null, 2),
+    "utf8",
+  );
+
+  await fs.writeFile(
+    BASE_REGISTRY_INDEX_PATH,
+    JSON.stringify({ ...registryIndex, items: baseRegistry }, null, 2),
     "utf8",
   );
 }

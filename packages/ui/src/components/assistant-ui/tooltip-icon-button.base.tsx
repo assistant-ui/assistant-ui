@@ -7,8 +7,8 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui-base/tooltip";
+import { Button } from "@/components/ui-base/button";
 import { cn } from "@/lib/utils";
 
 export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
@@ -21,22 +21,24 @@ export const TooltipIconButton = forwardRef<
   TooltipIconButtonProps
 >(({ children, tooltip, side = "bottom", className, ...rest }, ref) => {
   return (
-    <TooltipProvider delayDuration={0}>
+    <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            {...rest}
-            className={cn(
-              "aui-button-icon size-6 p-1 active:scale-90",
-              className,
-            )}
-            ref={ref}
-          >
-            {children}
-            <span className="aui-sr-only sr-only">{tooltip}</span>
-          </Button>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              {...rest}
+              className={cn(
+                "aui-button-icon size-6 p-1 active:scale-90",
+                className,
+              )}
+              ref={ref}
+            />
+          }
+        >
+          {children}
+          <span className="aui-sr-only sr-only">{tooltip}</span>
         </TooltipTrigger>
         <TooltipContent side={side}>{tooltip}</TooltipContent>
       </Tooltip>

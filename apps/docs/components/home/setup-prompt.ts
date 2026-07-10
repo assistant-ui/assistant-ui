@@ -35,9 +35,13 @@ scaffolds app/assistant.tsx + app/api/chat/route.ts).
 - Vite / React Router v7 / TanStack Start / Expo → init does NOT work.
   Prefer starting fresh with \`create <name> -e with-react-router\` /
   \`with-tanstack\` / \`with-expo\` and migrating code in. In-place only
-  if you must: \`npx shadcn@latest add https://r.assistant-ui.com/thread.json\`,
-  install the provider SDK, and wire your own server for the chat endpoint
-  (Vite/Expo do not bundle one). See /docs/installation.md Manual Setup.
+  if you must: set components.json registries to
+  \`"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"\`
+  (base- styles get Base UI components; others get Radix; plain
+  \`https://r.assistant-ui.com/{name}.json\` is the Radix-only fallback),
+  then \`npx shadcn@latest add @assistant-ui/thread\`, install the provider
+  SDK, and wire your own server for the chat endpoint (Vite/Expo do not
+  bundle one). See /docs/installation.md Manual Setup.
 - Next.js App Router → confirm package manager, Tailwind (v3 or v4), and
   env var location, then run:
 

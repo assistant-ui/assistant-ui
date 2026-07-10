@@ -253,7 +253,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/tooltip-icon-button.tsx",
       },
     ],
-    dependencies: ["radix-ui"],
+    dependencies: [],
     registryDependencies: ["tooltip", "button"],
   },
   {
@@ -290,6 +290,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/thread.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
+    baseRegistryDependencies: ["popover"],
   },
   {
     name: "assistant-sidebar",
