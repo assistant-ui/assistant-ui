@@ -7,7 +7,7 @@
     "build": "tsx ./scripts/build-registry.ts"
   },
   "dependencies": {
-    "radix-ui": "^1.6.1"
+    "radix-ui": "^1.6.2"
   },
   "devDependencies": {
     "@ai-sdk/openai": "^3.0.74",
@@ -18,7 +18,7 @@
     "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.3.2",
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
