@@ -212,15 +212,11 @@ const getContextSegments = (
   usage: ThreadTokenUsage | undefined,
 ): ContextSegment[] => {
   if (!usage) return [];
-  const cached = usage.cachedInputTokens ?? 0;
-  const input = Math.max((usage.inputTokens ?? 0) - cached, 0);
-  const reasoning = usage.reasoningTokens ?? 0;
-  const output = Math.max((usage.outputTokens ?? 0) - reasoning, 0);
   return [
-    { label: "Input", tokens: input },
-    { label: "Cached input", tokens: cached },
-    { label: "Output", tokens: output },
-    { label: "Reasoning", tokens: reasoning },
+    { label: "Input", tokens: usage.inputTokens ?? 0 },
+    { label: "Cached input", tokens: usage.cachedInputTokens ?? 0 },
+    { label: "Output", tokens: usage.outputTokens ?? 0 },
+    { label: "Reasoning", tokens: usage.reasoningTokens ?? 0 },
   ].filter((segment) => segment.tokens > 0);
 };
 
@@ -249,7 +245,7 @@ function ContextDisplayContent({
         <div className="flex items-baseline justify-between gap-6 whitespace-nowrap">
           <span className="font-medium">Context usage</span>
           <span className="text-muted-foreground tabular-nums">
-            {formatTokenCount(totalTokens)} of{" "}
+            {formatTokenCount(Math.min(totalTokens, modelContextWindow))} of{" "}
             {formatTokenCount(modelContextWindow)}
           </span>
         </div>
