@@ -498,54 +498,80 @@ export class A2AClient {
 
     const decoder = new TextDecoder();
     let buffer = "";
+    let dataLines: string[] = [];
+
+    const readEvent = (): A2AStreamEvent | null => {
+      if (dataLines.length === 0) return null;
+
+      try {
+        let parsed = JSON.parse(dataLines.join("\n"));
+
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          "jsonrpc" in parsed &&
+          "result" in parsed
+        ) {
+          parsed = parsed.result;
+        }
+
+        const normalized = normalizeKeys(parsed) as Record<string, unknown>;
+        return discriminateStreamResponse(normalized);
+      } catch {
+        return null;
+      }
+    };
+
+    const processLine = (line: string): A2AStreamEvent | null => {
+      const normalizedLine = line.endsWith("\r") ? line.slice(0, -1) : line;
+
+      if (normalizedLine === "") {
+        const event = readEvent();
+        dataLines = [];
+        return event;
+      }
+
+      if (normalizedLine.startsWith(":")) return null;
+
+      const separator = normalizedLine.indexOf(":");
+      const field =
+        separator === -1 ? normalizedLine : normalizedLine.slice(0, separator);
+      let value = separator === -1 ? "" : normalizedLine.slice(separator + 1);
+      if (value.startsWith(" ")) value = value.slice(1);
+
+      if (field === "data") {
+        dataLines.push(value);
+      }
+
+      return null;
+    };
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          buffer += decoder.decode();
+          break;
+        }
 
         buffer += decoder.decode(value, { stream: true });
 
-        let eventEnd: number = buffer.indexOf("\n\n");
-        while (eventEnd !== -1) {
-          const eventText = buffer.slice(0, eventEnd);
-          buffer = buffer.slice(eventEnd + 2);
-
-          const dataLines: string[] = [];
-
-          for (const line of eventText.split("\n")) {
-            const trimmed = line.replace(/\r$/, "");
-            if (trimmed.startsWith("data:")) {
-              dataLines.push(trimmed.slice(5).trim());
-            }
-            // event:, id:, retry: lines are parsed but not used —
-            // we discriminate event type from the JSON payload.
-          }
-
-          if (dataLines.length === 0) continue;
-
-          try {
-            let parsed = JSON.parse(dataLines.join("\n"));
-
-            // Unwrap JSON-RPC envelope if present
-            if (
-              parsed &&
-              typeof parsed === "object" &&
-              "jsonrpc" in parsed &&
-              "result" in parsed
-            ) {
-              parsed = parsed.result;
-            }
-
-            const normalized = normalizeKeys(parsed) as Record<string, unknown>;
-            const event = discriminateStreamResponse(normalized);
-            if (event) yield event;
-          } catch {
-            // Skip malformed events
-          }
-          eventEnd = buffer.indexOf("\n\n");
+        let lineEnd = buffer.indexOf("\n");
+        while (lineEnd !== -1) {
+          const event = processLine(buffer.slice(0, lineEnd));
+          if (event) yield event;
+          buffer = buffer.slice(lineEnd + 1);
+          lineEnd = buffer.indexOf("\n");
         }
       }
+
+      if (buffer.length > 0) {
+        const event = processLine(buffer);
+        if (event) yield event;
+      }
+
+      const event = processLine("");
+      if (event) yield event;
     } finally {
       reader.releaseLock();
     }
