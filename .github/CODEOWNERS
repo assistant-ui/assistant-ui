@@ -1,3 +1,6 @@
+# Every change requires review from a human maintainer; approvals from apps or bots do not satisfy code owner review.
+* @assistant-ui/maintainers
+
 # CI and repository policy changes require maintainer review.
 /.github/CODEOWNERS @Yonom @okisdev
 /.github/actions/ @assistant-ui/maintainers
