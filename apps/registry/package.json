@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsx ./scripts/build-registry.ts"
+    "build": "tsx ./scripts/build-registry.ts",
+    "test": "node --test scripts/build-registry.test.mjs"
   },
   "dependencies": {
     "radix-ui": "^1.6.1"

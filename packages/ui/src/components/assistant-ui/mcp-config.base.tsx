@@ -30,7 +30,7 @@ import {
   DialogTrigger,
 } from "@/components/ui-base/dialog";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "@/components/ui-base/separator";
 import { cn } from "@/lib/utils";
 
 const inputClassName =

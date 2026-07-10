@@ -1,5 +1,6 @@
 import { existsSync, promises as fs, readFileSync } from "node:fs";
 import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 import * as ts from "typescript";
 import { registry } from "../src/registry";
 import { registrySchema, type RegistryItem } from "../src/schema";
@@ -64,24 +65,10 @@ function validateRegistrySchema(registry: RegistryItem[]) {
   }
 }
 
-function getBaseVariantSourcePath(sourcePath: string) {
+export function getBaseVariantSourcePath(sourcePath: string) {
   if (!sourcePath.endsWith(".tsx")) return null;
 
   return `${sourcePath.slice(0, -4)}.base.tsx`;
-}
-
-function validateBaseVariantContent(
-  itemName: string,
-  filePath: string,
-  content: string,
-) {
-  for (const [label, pattern] of BASE_VARIANT_FORBIDDEN_PATTERNS) {
-    if (pattern.test(content)) {
-      throw new Error(
-        `${itemName}: base variant for ${filePath} contains forbidden ${label}`,
-      );
-    }
-  }
 }
 
 type BuiltRegistryPayload = {
@@ -89,6 +76,34 @@ type BuiltRegistryPayload = {
   readPaths: string[];
   baseVariantOutputPaths: string[];
 };
+
+export function validateBaseVariantContent(built: BuiltRegistryPayload[]) {
+  const findings = new Set<string>();
+
+  for (const { payload, baseVariantOutputPaths } of built) {
+    const outputPaths = new Set(baseVariantOutputPaths);
+
+    for (const file of payload.files ?? []) {
+      if (!outputPaths.has(file.path)) continue;
+
+      for (const [label, pattern] of BASE_VARIANT_FORBIDDEN_PATTERNS) {
+        if (pattern.test(file.content)) {
+          findings.add(
+            `${payload.name}: base variant for ${file.path} contains forbidden ${label}`,
+          );
+        }
+      }
+    }
+  }
+
+  if (findings.size > 0) {
+    throw new Error(
+      `Invalid base variant content:\n${[...findings]
+        .map((finding) => `- ${finding}`)
+        .join("\n")}`,
+    );
+  }
+}
 
 function createRegistryPayload(
   item: RegistryBuildItem,
@@ -120,10 +135,6 @@ function createRegistryPayload(
 
     content = transformImports(content);
 
-    if (usesBaseVariant) {
-      validateBaseVariantContent(item.name, file.path, content);
-    }
-
     const { sourcePath: _, ...fileOutput } = file;
     return {
       ...fileOutput,
@@ -144,34 +155,48 @@ function createRegistryPayload(
   };
 }
 
-function assertRadixPassDidNotReadBaseSources(built: BuiltRegistryPayload[]) {
+export function validateRadixPassDidNotReadBaseSources(
+  built: BuiltRegistryPayload[],
+) {
+  const findings = new Set<string>();
+
   for (const { payload, readPaths } of built) {
     for (const readPath of readPaths) {
       if (readPath.endsWith(".base.tsx")) {
-        throw new Error(
+        findings.add(
           `${payload.name}: radix registry pass read base variant path ${readPath}`,
         );
       }
     }
   }
+
+  if (findings.size > 0) {
+    throw new Error(
+      `Invalid radix registry source reads:\n${[...findings]
+        .map((finding) => `- ${finding}`)
+        .join("\n")}`,
+    );
+  }
 }
 
-function assertVariantTreesDiffer(
+export function validateVariantTreesDiffer(
   radixBuilt: BuiltRegistryPayload[],
   baseBuilt: BuiltRegistryPayload[],
 ) {
   const radixByName = new Map(
     radixBuilt.map((built) => [built.payload.name, built]),
   );
+  const findings = new Set<string>();
 
   for (const base of baseBuilt) {
     if (base.baseVariantOutputPaths.length === 0) continue;
 
     const radix = radixByName.get(base.payload.name);
     if (!radix) {
-      throw new Error(
+      findings.add(
         `${base.payload.name}: base variant exists but radix payload is missing`,
       );
+      continue;
     }
 
     for (const filePath of base.baseVariantOutputPaths) {
@@ -183,17 +208,26 @@ function assertVariantTreesDiffer(
       )?.content;
 
       if (radixContent === undefined || baseContent === undefined) {
-        throw new Error(
+        findings.add(
           `${base.payload.name}: missing emitted content for ${filePath} while comparing radix and base trees`,
         );
+        continue;
       }
 
       if (radixContent === baseContent) {
-        throw new Error(
+        findings.add(
           `${base.payload.name}: radix and base content for ${filePath} are identical despite a .base.tsx variant`,
         );
       }
     }
+  }
+
+  if (findings.size > 0) {
+    throw new Error(
+      `Invalid registry variant trees:\n${[...findings]
+        .map((finding) => `- ${finding}`)
+        .join("\n")}`,
+    );
   }
 }
 
@@ -201,12 +235,12 @@ function getAssistantRegistryDependencyName(dependency: string) {
   return ASSISTANT_REGISTRY_DEPENDENCY_RE.exec(dependency)?.[1] ?? null;
 }
 
-function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
+export function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
   const { baseRegistryDependencies: _, ...radixItem } = item;
   return radixItem;
 }
 
-function createBaseRegistryItem(item: RegistryItem): RegistryBuildItem {
+export function createBaseRegistryItem(item: RegistryItem): RegistryBuildItem {
   const { baseRegistryDependencies, ...baseItem } = item;
   const hasRegistryDependencies =
     baseItem.registryDependencies !== undefined ||
@@ -445,8 +479,9 @@ async function buildRegistry(registry: RegistryItem[]) {
   const baseBuilt = baseRegistry.map((item) =>
     createRegistryPayload(item, true),
   );
-  assertRadixPassDidNotReadBaseSources(radixBuilt);
-  assertVariantTreesDiffer(radixBuilt, baseBuilt);
+  validateBaseVariantContent(baseBuilt);
+  validateRadixPassDidNotReadBaseSources(radixBuilt);
+  validateVariantTreesDiffer(radixBuilt, baseBuilt);
 
   const payloads = radixBuilt.map((built) => built.payload);
   const basePayloads = baseBuilt.map((built) => built.payload);
@@ -490,4 +525,10 @@ async function buildRegistry(registry: RegistryItem[]) {
   );
 }
 
-await buildRegistry(registry);
+const entrypoint = process.argv[1];
+if (
+  entrypoint &&
+  import.meta.url === pathToFileURL(path.resolve(entrypoint)).href
+) {
+  await buildRegistry(registry);
+}

@@ -355,6 +355,11 @@ function ToolFallbackApproval({
     (approval.approved !== undefined || approval.resolution !== undefined)
   )
     return null;
+
+  // Custom (`_`-prefixed) kinds cannot be resolved to a boolean by the kit;
+  // hosts using custom kinds render their own bar. A declared option list is
+  // a host constraint: the kit never adds an approval path beyond it, but
+  // always preserves a refusal path.
   const declaredOptions = respondToApproval ? approval?.options : undefined;
   const options = declaredOptions?.filter((o) =>
     Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, o.kind),
