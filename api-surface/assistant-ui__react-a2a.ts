@@ -414,7 +414,6 @@ type BaseAttachment = {
   contentType?: string | undefined;
   file?: File;
   content?: ThreadUserMessagePart[];
-  isSending?: boolean | undefined;
 };
 
 type BaseComposerState = {
@@ -422,6 +421,7 @@ type BaseComposerState = {
   readonly canSend: boolean;
   readonly isEditing: boolean;
   readonly isEmpty: boolean;
+  readonly isSending: boolean;
   readonly text: string;
   readonly role: MessageRole;
   readonly attachments: readonly Attachment[];

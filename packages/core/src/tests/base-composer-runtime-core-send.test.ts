@@ -62,13 +62,12 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(composer.text).toBe("hello");
     expect(composer.attachments).toEqual(originalAttachments);
     expect(composer.attachments).toHaveLength(1);
-    expect(composer.attachments[0]!.isSending).toBeUndefined();
     expect(composer.quote).toEqual({ text: "quoted", messageId: "m-1" });
     expect(composer.canSend).toBe(true);
     expect(append).not.toHaveBeenCalled();
   });
 
-  it("does not clobber text the user typed while the upload was in flight", async () => {
+  it("keeps text locked while the upload is in flight", async () => {
     let rejectSend!: (e: Error) => void;
     const adapter = makeAdapter({
       send: () =>
@@ -87,13 +86,13 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     await expect(sendPromise).rejects.toThrow("upload failed");
 
-    expect(composer.text).toBe("new draft");
-    expect(composer.attachments).toHaveLength(0);
+    expect(composer.text).toBe("hello");
+    expect(composer.attachments).toHaveLength(1);
     expect(composer.canSend).toBe(true);
     expect(append).not.toHaveBeenCalled();
   });
 
-  it("does not clobber a quote the user set while the upload was in flight", async () => {
+  it("keeps quote locked while the upload is in flight", async () => {
     let rejectSend!: (e: Error) => void;
     const adapter = makeAdapter({
       send: () =>
@@ -112,13 +111,13 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     await expect(sendPromise).rejects.toThrow("upload failed");
 
-    expect(composer.quote).toEqual({ text: "new quote", messageId: "m-2" });
-    expect(composer.text).toBe("");
-    expect(composer.attachments).toHaveLength(0);
+    expect(composer.quote).toBeUndefined();
+    expect(composer.text).toBe("hello");
+    expect(composer.attachments).toHaveLength(1);
     expect(append).not.toHaveBeenCalled();
   });
 
-  it("keeps attachment chips visible while the upload is in flight", async () => {
+  it("keeps text and attachment chips visible while the upload is in flight", async () => {
     let resolveSend!: () => void;
     const adapter = makeAdapter({
       send: (a) =>
@@ -135,13 +134,9 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     const sendPromise = composer.send();
 
-    expect(composer.text).toBe("");
-    expect(composer.attachments).toEqual(
-      originalAttachments.map((attachment) => ({
-        ...attachment,
-        isSending: true,
-      })),
-    );
+    expect(composer.isSending).toBe(true);
+    expect(composer.text).toBe("hello");
+    expect(composer.attachments).toEqual(originalAttachments);
     expect(composer.attachments).toHaveLength(1);
     expect(composer.canSend).toBe(false);
     expect(append).not.toHaveBeenCalled();
@@ -150,6 +145,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await sendPromise;
 
     expect(composer.isEmpty).toBe(true);
+    expect(composer.isSending).toBe(false);
     expect(composer.attachments).toHaveLength(0);
     expect(append).toHaveBeenCalledTimes(1);
   });
@@ -175,7 +171,6 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await composer.send();
 
     expect(composer.attachments).toHaveLength(1);
-    expect(composer.attachments[0]!.isSending).toBe(true);
     expect(send).toHaveBeenCalledTimes(1);
     expect(append).not.toHaveBeenCalled();
 
@@ -186,7 +181,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(append).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a later attachment with the same id when the pending send finishes", async () => {
+  it("does not add attachments while upload is in flight", async () => {
     let resolveSend!: () => void;
     const adapter = makeAdapter({
       send: (a) =>
@@ -205,14 +200,11 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     expect(composer.attachments).toHaveLength(1);
     expect(composer.attachments[0]!.id).toBe("att-1");
-    expect(composer.attachments[0]!.isSending).toBeUndefined();
 
     resolveSend();
     await sendPromise;
 
-    expect(composer.attachments).toHaveLength(1);
-    expect(composer.attachments[0]!.id).toBe("att-1");
-    expect(composer.attachments[0]!.isSending).toBeUndefined();
+    expect(composer.attachments).toHaveLength(0);
     expect(append).toHaveBeenCalledTimes(1);
   });
 

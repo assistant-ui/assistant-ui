@@ -12,6 +12,7 @@ const sendSpy = vi.fn<(options?: { steer?: boolean }) => void>();
 
 const composerState = {
   isEditing: true,
+  isSending: false,
   text: "",
   type: "thread" as const,
   isEmpty: true,

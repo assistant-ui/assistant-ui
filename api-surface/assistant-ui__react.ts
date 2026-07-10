@@ -879,7 +879,6 @@ type BaseAttachment = {
   contentType?: string | undefined;
   file?: File;
   content?: ThreadUserMessagePart[];
-  isSending?: boolean | undefined;
 };
 
 declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implements ComposerRuntimeCore {
@@ -895,7 +894,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   private _attachments;
   get attachments(): readonly Attachment[];
   private _isSending;
-  protected get isSending(): boolean;
+  get isSending(): boolean;
   protected setAttachments(value: readonly Attachment[]): void;
   abstract get canCancel(): boolean;
   abstract get canSend(): boolean;
@@ -949,6 +948,7 @@ type BaseComposerState = {
   readonly canSend: boolean;
   readonly isEditing: boolean;
   readonly isEmpty: boolean;
+  readonly isSending: boolean;
   readonly text: string;
   readonly role: MessageRole;
   readonly attachments: readonly Attachment[];
@@ -1610,6 +1610,7 @@ type ComposerRuntimeCore = Readonly<{
   canCancel: boolean;
   canSend: boolean;
   isEmpty: boolean;
+  isSending: boolean;
   attachments: readonly Attachment[];
   attachmentAccept: string;
   addAttachment: (fileOrAttachment: File | CreateAttachment) => Promise<void>;
@@ -1690,6 +1691,7 @@ type ComposerState = {
   readonly attachments: readonly Attachment[];
   readonly runConfig: RunConfig;
   readonly isEditing: boolean;
+  readonly isSending: boolean;
   readonly canCancel: boolean;
   readonly canSend: boolean;
   readonly attachmentAccept: string;
@@ -4747,6 +4749,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         canCancel: boolean;
         canSend: boolean;
         isEmpty: boolean;
+        isSending: boolean;
         attachments: readonly Attachment[];
         attachmentAccept: string;
         addAttachment: (fileOrAttachment: File | CreateAttachment) => Promise<void>;
@@ -6007,7 +6010,7 @@ declare const useAttachment: {
   }) | TSelected | null;
 };
 
-declare const useAttachmentRemove: () => (() => void) | null;
+declare const useAttachmentRemove: () => () => void;
 
 declare function useAttachmentRuntime(options?: {
   optional?: false | undefined;
@@ -6133,7 +6136,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6148,7 +6150,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -6164,7 +6165,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6179,7 +6179,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -6195,7 +6194,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6210,7 +6208,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -6225,7 +6222,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6240,7 +6236,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -6258,7 +6253,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6273,7 +6267,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -6291,7 +6284,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6306,7 +6298,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -6324,7 +6315,6 @@ declare const useEditComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: CompleteAttachmentStatus;
       content: ThreadUserMessagePart[];
@@ -6339,7 +6329,6 @@ declare const useEditComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: PendingAttachmentStatus;
       file: File;
@@ -6358,7 +6347,6 @@ declare const useEditComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: CompleteAttachmentStatus;
       content: ThreadUserMessagePart[];
@@ -6373,7 +6361,6 @@ declare const useEditComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: PendingAttachmentStatus;
       file: File;
@@ -6389,7 +6376,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6404,7 +6390,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -6422,7 +6407,6 @@ declare const useEditComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: CompleteAttachmentStatus;
       content: ThreadUserMessagePart[];
@@ -6437,7 +6421,6 @@ declare const useEditComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: PendingAttachmentStatus;
       file: File;
@@ -6456,7 +6439,6 @@ declare const useEditComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: CompleteAttachmentStatus;
       content: ThreadUserMessagePart[];
@@ -6471,7 +6453,6 @@ declare const useEditComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: PendingAttachmentStatus;
       file: File;
@@ -6487,7 +6468,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6502,7 +6482,6 @@ declare const useEditComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -6606,7 +6585,6 @@ declare const useMessageAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6622,7 +6600,6 @@ declare const useMessageAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6638,7 +6615,6 @@ declare const useMessageAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6653,7 +6629,6 @@ declare const useMessageAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6671,7 +6646,6 @@ declare const useMessageAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6689,7 +6663,6 @@ declare const useMessageAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6707,7 +6680,6 @@ declare const useMessageAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: CompleteAttachmentStatus;
       content: ThreadUserMessagePart[];
@@ -6726,7 +6698,6 @@ declare const useMessageAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: CompleteAttachmentStatus;
       content: ThreadUserMessagePart[];
@@ -6742,7 +6713,6 @@ declare const useMessageAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -6760,7 +6730,6 @@ declare const useMessageAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: CompleteAttachmentStatus;
       content: ThreadUserMessagePart[];
@@ -6779,7 +6748,6 @@ declare const useMessageAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: CompleteAttachmentStatus;
       content: ThreadUserMessagePart[];
@@ -6795,7 +6763,6 @@ declare const useMessageAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -7070,7 +7037,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -7085,7 +7051,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -7101,7 +7066,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -7116,7 +7080,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -7132,7 +7095,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -7147,7 +7109,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -7162,7 +7123,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -7177,7 +7137,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -7195,7 +7154,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -7210,7 +7168,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -7228,7 +7185,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -7243,7 +7199,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -7261,7 +7216,6 @@ declare const useThreadComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: CompleteAttachmentStatus;
       content: ThreadUserMessagePart[];
@@ -7276,7 +7230,6 @@ declare const useThreadComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: PendingAttachmentStatus;
       file: File;
@@ -7295,7 +7248,6 @@ declare const useThreadComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: CompleteAttachmentStatus;
       content: ThreadUserMessagePart[];
@@ -7310,7 +7262,6 @@ declare const useThreadComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: PendingAttachmentStatus;
       file: File;
@@ -7326,7 +7277,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -7341,7 +7291,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;
@@ -7359,7 +7308,6 @@ declare const useThreadComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: CompleteAttachmentStatus;
       content: ThreadUserMessagePart[];
@@ -7374,7 +7322,6 @@ declare const useThreadComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: PendingAttachmentStatus;
       file: File;
@@ -7393,7 +7340,6 @@ declare const useThreadComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: CompleteAttachmentStatus;
       content: ThreadUserMessagePart[];
@@ -7408,7 +7354,6 @@ declare const useThreadComposerAttachment: {
       contentType?: string | undefined;
       file?: File;
       content?: ThreadUserMessagePart[];
-      isSending?: boolean | undefined;
     } & {
       status: PendingAttachmentStatus;
       file: File;
@@ -7424,7 +7369,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: CompleteAttachmentStatus;
     content: ThreadUserMessagePart[];
@@ -7439,7 +7383,6 @@ declare const useThreadComposerAttachment: {
     contentType?: string | undefined;
     file?: File;
     content?: ThreadUserMessagePart[];
-    isSending?: boolean | undefined;
   } & {
     status: PendingAttachmentStatus;
     file: File;

@@ -135,6 +135,7 @@ const useComposerClient = ({
       attachments: attachments.state,
       runConfig: runtimeState.runConfig,
       isEditing: runtimeState.isEditing,
+      isSending: runtimeState.isSending,
       canCancel: runtimeState.canCancel,
       canSend: runtimeState.canSend,
       attachmentAccept: runtimeState.attachmentAccept,

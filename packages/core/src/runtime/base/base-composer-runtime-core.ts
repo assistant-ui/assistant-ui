@@ -64,7 +64,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   private _isSending = false;
-  protected get isSending() {
+  public get isSending() {
     return this._isSending;
   }
 
@@ -105,6 +105,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public setQuote(quote: QuoteInfo | undefined) {
+    if (this._isSending) return;
     if (this._quote === quote) return;
 
     this._quote = quote;
@@ -112,6 +113,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public setText(value: string) {
+    if (this._isSending) return;
     if (this._text === value) return;
 
     this._text = value;
@@ -125,6 +127,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public setRole(role: MessageRole) {
+    if (this._isSending) return;
     if (this._role === role) return;
 
     this._role = role;
@@ -132,6 +135,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public setRunConfig(runConfig: RunConfig) {
+    if (this._isSending) return;
     if (this._runConfig === runConfig) return;
 
     this._runConfig = runConfig;
@@ -141,6 +145,7 @@ export abstract class BaseComposerRuntimeCore
   private _emptyTextAndAttachments() {
     this._attachments = [];
     this._text = "";
+    this._quote = undefined;
     this._notifySubscribers();
   }
 
@@ -153,6 +158,8 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async reset() {
+    if (this._isSending) return;
+
     if (
       this._attachments.length === 0 &&
       this._text === "" &&
@@ -173,6 +180,8 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async clearAttachments() {
+    if (this._isSending) return;
+
     const task = this._onClearAttachments();
     this.setAttachments([]);
 
@@ -188,10 +197,15 @@ export abstract class BaseComposerRuntimeCore
     }
 
     const adapter = this.getAttachmentAdapter();
+    const originalAttachments = this.attachments;
+    const text = this.text;
+    const role = this.role;
+    const runConfig = this.runConfig;
+    const quote = this._quote;
     const attachments =
-      this.attachments.length > 0
+      originalAttachments.length > 0
         ? Promise.all(
-            this.attachments.map(async (a) => {
+            originalAttachments.map(async (a) => {
               if (isAttachmentComplete(a)) return a;
               if (!adapter) throw new Error("Attachments are not supported");
               const result = await adapter.send(a);
@@ -200,29 +214,7 @@ export abstract class BaseComposerRuntimeCore
           )
         : [];
 
-    const originalAttachments = this.attachments;
-    const originalAttachmentIds = new Set(
-      originalAttachments.map((attachment) => attachment.id),
-    );
-    const isOriginalSendingAttachment = (attachment: Attachment) =>
-      attachment.isSending === true && originalAttachmentIds.has(attachment.id);
-    const dropOriginalSendingAttachments = () => {
-      this._attachments = this._attachments.filter(
-        (attachment) => !isOriginalSendingAttachment(attachment),
-      );
-      this._notifySubscribers();
-    };
-    const text = this.text;
-    const quote = this._quote;
-
     this._isSending = true;
-    this._quote = undefined;
-    this._text = "";
-    this._attachments = this._attachments.map((attachment) =>
-      originalAttachmentIds.has(attachment.id)
-        ? { ...attachment, isSending: true }
-        : attachment,
-    );
     this._notifySubscribers();
 
     let resolvedAttachments: Awaited<typeof attachments>;
@@ -230,40 +222,29 @@ export abstract class BaseComposerRuntimeCore
       resolvedAttachments = await attachments;
     } catch (e) {
       this._isSending = false;
-      const onlyOriginalAttachments =
-        this._attachments.length === originalAttachments.length &&
-        this._attachments.every(isOriginalSendingAttachment);
-
-      if (
-        this._text === "" &&
-        this._quote === undefined &&
-        onlyOriginalAttachments
-      ) {
-        this._attachments = originalAttachments;
-        this._text = text;
-        this._quote = quote;
-        this._notifySubscribers();
-      } else {
-        dropOriginalSendingAttachments();
-      }
+      this._notifySubscribers();
       throw e;
     }
 
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
-      role: this.role,
+      role,
       content: text ? [{ type: "text", text }] : [],
       attachments: resolvedAttachments,
-      runConfig: this.runConfig,
+      runConfig,
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
     try {
       this.handleSend(message, options);
-    } finally {
+    } catch (e) {
       this._isSending = false;
-      dropOriginalSendingAttachments();
+      this._notifySubscribers();
+      throw e;
     }
+
+    this._isSending = false;
+    this._emptyTextAndAttachments();
     this._notifyEventSubscribers("send", {});
   }
 
@@ -289,6 +270,8 @@ export abstract class BaseComposerRuntimeCore
   protected abstract handleCancel(): void;
 
   async addAttachment(fileOrAttachment: File | CreateAttachment) {
+    if (this._isSending) return;
+
     if (!(fileOrAttachment instanceof File)) {
       const adapter = this.getAttachmentAdapter();
       if (
@@ -432,10 +415,11 @@ export abstract class BaseComposerRuntimeCore
   }
 
   async removeAttachment(attachmentId: string) {
+    if (this._isSending) return;
+
     const index = this._attachments.findIndex((a) => a.id === attachmentId);
     if (index === -1) throw new Error("Attachment not found");
     const attachment = this._attachments[index]!;
-    if (attachment.isSending) return;
 
     if (!isAttachmentComplete(attachment)) {
       const adapter = this.getAttachmentAdapter();

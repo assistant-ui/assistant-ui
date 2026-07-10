@@ -6,17 +6,15 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import { useCallback } from "react";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 
 const useAttachmentRemove = () => {
   const aui = useAui();
-  const isSending = useAuiState((s) => s.attachment.isSending === true);
 
   const handleRemoveAttachment = useCallback(() => {
     aui.attachment().remove();
   }, [aui]);
 
-  if (isSending) return null;
   return handleRemoveAttachment;
 };
 

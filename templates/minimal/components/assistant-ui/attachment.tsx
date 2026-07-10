@@ -148,8 +148,11 @@ const AttachmentUI: FC = () => {
     }
   });
 
+  const isComposerSending = useAuiState(
+    (s) => isComposer && s.composer.isSending,
+  );
   const uploadState = useAuiState((s) =>
-    s.attachment.isSending || s.attachment.status.type === "running"
+    isComposerSending || s.attachment.status.type === "running"
       ? "uploading"
       : s.attachment.status.type === "incomplete" &&
           s.attachment.status.reason === "error"
@@ -209,7 +212,7 @@ const AttachmentUI: FC = () => {
             </div>
           </TooltipTrigger>
         </AttachmentPreviewDialog>
-        {isComposer && <AttachmentRemove />}
+        {isComposer && !isComposerSending && <AttachmentRemove />}
       </AttachmentPrimitive.Root>
       <TooltipContent side="top">
         <AttachmentPrimitive.Name />

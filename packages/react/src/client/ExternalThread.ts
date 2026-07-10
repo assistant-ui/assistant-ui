@@ -393,6 +393,7 @@ const useComposerClientResource = ({
       attachments: attachmentClients.state,
       runConfig,
       isEditing,
+      isSending: false,
       canCancel,
       canSend: isEditing && !isEmpty && !isSendDisabled,
       attachmentAccept: "*",

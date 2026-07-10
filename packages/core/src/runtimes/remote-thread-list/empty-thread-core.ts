@@ -108,6 +108,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     canCancel: false,
     canSend: false,
     isEmpty: true,
+    isSending: false,
 
     text: "",
 

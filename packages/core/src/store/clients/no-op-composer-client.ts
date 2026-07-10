@@ -12,6 +12,7 @@ const useNoOpComposerClient = ({
     return {
       isEditing: false,
       isEmpty: true,
+      isSending: false,
       text: "",
       attachmentAccept: "*",
       attachments: [],
