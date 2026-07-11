@@ -21,6 +21,23 @@ const collapsibleStateCss = {
   },
 };
 
+const accordionKeyframesCss = {
+  "@keyframes accordion-down": {
+    from: { height: "0" },
+    to: {
+      height:
+        "var(--radix-accordion-content-height, var(--accordion-panel-height, auto))",
+    },
+  },
+  "@keyframes accordion-up": {
+    from: {
+      height:
+        "var(--radix-accordion-content-height, var(--accordion-panel-height, auto))",
+    },
+    to: { height: "0" },
+  },
+};
+
 export const registry: RegistryItem[] = [
   {
     name: "shimmer-style",
@@ -521,8 +538,9 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react",
       "lucide-react",
       "class-variance-authority",
-      "radix-ui",
     ],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
     registryDependencies: ["command", "popover"],
   },
   {
@@ -548,7 +566,9 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/select.tsx",
       },
     ],
-    dependencies: ["radix-ui", "lucide-react", "class-variance-authority"],
+    dependencies: ["lucide-react", "class-variance-authority"],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
   },
   {
@@ -561,7 +581,8 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/ui/direction.tsx",
       },
     ],
-    dependencies: ["radix-ui"],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
   },
   {
@@ -574,7 +595,9 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/badge.tsx",
       },
     ],
-    dependencies: ["radix-ui", "class-variance-authority"],
+    dependencies: ["class-variance-authority"],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
   },
   {
@@ -587,7 +610,9 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/tabs.tsx",
       },
     ],
-    dependencies: ["radix-ui", "class-variance-authority"],
+    dependencies: ["class-variance-authority"],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
   },
   {
@@ -601,8 +626,11 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/accordion.tsx",
       },
     ],
-    dependencies: ["radix-ui", "lucide-react", "class-variance-authority"],
+    dependencies: ["lucide-react", "class-variance-authority"],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
+    css: { ...accordionKeyframesCss },
   },
   {
     name: "dot-matrix",
