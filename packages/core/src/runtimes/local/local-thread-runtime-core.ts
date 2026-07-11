@@ -6,6 +6,7 @@ import type {
 } from "../../runtime/utils/chat-model-adapter";
 import { shouldContinue } from "./should-continue";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
+import { consumeSuggestionResult } from "../../adapters/suggestion";
 import type {
   AddToolResultOptions,
   ResumeToolCallOptions,
@@ -386,18 +387,13 @@ export class LocalThreadRuntimeCore
         signal,
       });
 
-      if (Symbol.asyncIterator in promiseOrGenerator) {
-        for await (const r of promiseOrGenerator) {
-          if (signal.aborted) break;
+      await consumeSuggestionResult(promiseOrGenerator, {
+        signal,
+        onUpdate: (r) => {
           this._suggestions = r;
           this._notifySubscribers();
-        }
-      } else {
-        const result = await promiseOrGenerator;
-        if (signal.aborted) return;
-        this._suggestions = result;
-        this._notifySubscribers();
-      }
+        },
+      });
     }
   }
 

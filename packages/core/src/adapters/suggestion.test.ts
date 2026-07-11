@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSuggestionAdapter } from "./suggestion";
+import { consumeSuggestionResult, createSuggestionAdapter } from "./suggestion";
 import type { ThreadMessage } from "../types/message";
+import type { ThreadSuggestion } from "../runtime/interfaces/thread-runtime-core";
 
 const message = (
   role: "user" | "assistant" | "system",
@@ -136,5 +137,51 @@ describe("createSuggestionAdapter", () => {
     expect(prompt).not.toContain("user: first");
     expect(prompt).not.toContain("assistant: second");
     expect(prompt).toContain("exactly 3");
+  });
+});
+
+describe("consumeSuggestionResult", () => {
+  it("calls onUpdate for each yield and stops after abort mid-stream", async () => {
+    const controller = new AbortController();
+    const updates: ThreadSuggestion[][] = [];
+    const onUpdate = vi.fn((s: readonly ThreadSuggestion[]) => {
+      updates.push([...s]);
+    });
+
+    async function* generate() {
+      yield [{ prompt: "one" }];
+      yield [{ prompt: "two" }];
+      controller.abort();
+      yield [{ prompt: "three" }];
+      yield [{ prompt: "four" }];
+    }
+
+    await consumeSuggestionResult(generate(), {
+      signal: controller.signal,
+      onUpdate,
+    });
+
+    expect(onUpdate).toHaveBeenCalledTimes(2);
+    expect(updates).toEqual([[{ prompt: "one" }], [{ prompt: "two" }]]);
+  });
+
+  it("drops the promise result when aborted before resolve", async () => {
+    const controller = new AbortController();
+    const onUpdate = vi.fn();
+    let resolve!: (value: readonly ThreadSuggestion[]) => void;
+    const promise = new Promise<readonly ThreadSuggestion[]>((r) => {
+      resolve = r;
+    });
+
+    const consumption = consumeSuggestionResult(promise, {
+      signal: controller.signal,
+      onUpdate,
+    });
+
+    controller.abort();
+    resolve([{ prompt: "late" }]);
+    await consumption;
+
+    expect(onUpdate).not.toHaveBeenCalled();
   });
 });

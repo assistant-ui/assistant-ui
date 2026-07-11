@@ -30,6 +30,7 @@ import {
   getExternalStoreMessages,
   pickExternalStoreSharedOptions,
 } from "@assistant-ui/core";
+import { consumeSuggestionResult } from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
@@ -157,16 +158,10 @@ const useGeneratedSuggestions = (
           signal,
         });
 
-        if (Symbol.asyncIterator in promiseOrGenerator) {
-          for await (const r of promiseOrGenerator) {
-            if (signal.aborted) break;
-            setSuggestions(r);
-          }
-        } else {
-          const result = await promiseOrGenerator;
-          if (signal.aborted) return;
-          setSuggestions(result);
-        }
+        await consumeSuggestionResult(promiseOrGenerator, {
+          signal,
+          onUpdate: setSuggestions,
+        });
       } catch {}
     })();
   }, [hasAdapter, isRunning]);

@@ -15,6 +15,26 @@ export type SuggestionAdapter = {
     | AsyncGenerator<readonly ThreadSuggestion[], void>;
 };
 
+export const consumeSuggestionResult = async (
+  result: ReturnType<SuggestionAdapter["generate"]>,
+  options: {
+    signal: AbortSignal;
+    onUpdate: (suggestions: readonly ThreadSuggestion[]) => void;
+  },
+): Promise<void> => {
+  const { signal, onUpdate } = options;
+  if (Symbol.asyncIterator in result) {
+    for await (const r of result) {
+      if (signal.aborted) break;
+      onUpdate(r);
+    }
+  } else {
+    const suggestions = await result;
+    if (signal.aborted) return;
+    onUpdate(suggestions);
+  }
+};
+
 export type CreateSuggestionAdapterOptions = {
   complete: (options: {
     prompt: string;
