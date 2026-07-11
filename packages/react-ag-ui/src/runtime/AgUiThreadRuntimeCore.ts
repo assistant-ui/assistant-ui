@@ -668,8 +668,13 @@ export class AgUiThreadRuntimeCore {
     this.notifyUpdate();
   }
 
-  setState(state: ReadonlyJSONValue): void {
-    this.stateSnapshot = state;
+  setState(
+    next:
+      | ReadonlyJSONValue
+      | ((prev: ReadonlyJSONValue | undefined) => ReadonlyJSONValue),
+  ): void {
+    this.stateSnapshot =
+      typeof next === "function" ? next(this.stateSnapshot) : next;
     this.notifyUpdate();
   }
 

@@ -53,14 +53,12 @@ export const useAgUiState = <TState = ReadonlyJSONValue>():
 
 export const useAgUiSetState = <TState = ReadonlyJSONValue>() => {
   const aui = useAui();
-  return (next: TState | ((prev: TState | undefined) => TState)): void => {
-    const extras = agUiExtras.get(aui);
-    const resolved =
-      typeof next === "function"
-        ? (next as (prev: TState | undefined) => TState)(
-            extras.state as TState | undefined,
-          )
-        : next;
-    extras.setState(resolved as ReadonlyJSONValue);
-  };
+  return (next: TState | ((prev: TState | undefined) => TState)): void =>
+    agUiExtras
+      .get(aui)
+      .setState(
+        next as
+          | ReadonlyJSONValue
+          | ((prev: ReadonlyJSONValue | undefined) => ReadonlyJSONValue),
+      );
 };

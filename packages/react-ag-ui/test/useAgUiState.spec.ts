@@ -64,7 +64,7 @@ describe("useAgUiSetState", () => {
     expect(setState).toHaveBeenCalledWith({ count: 5 });
   });
 
-  it("resolves a functional updater against the current extras state", () => {
+  it("forwards a functional updater to extras.setState", () => {
     const setState = vi.fn();
     const extras = agUiExtras.provide({
       interrupts: [],
@@ -78,10 +78,11 @@ describe("useAgUiSetState", () => {
       thread: () => ({ getState: () => ({ extras }) }),
     });
 
-    useAgUiSetState<{ count: number }>()((prev) => ({
+    const updater = (prev: { count: number } | undefined) => ({
       count: (prev?.count ?? 0) + 1,
-    }));
+    });
+    useAgUiSetState<{ count: number }>()(updater);
 
-    expect(setState).toHaveBeenCalledWith({ count: 3 });
+    expect(setState).toHaveBeenCalledWith(updater);
   });
 });

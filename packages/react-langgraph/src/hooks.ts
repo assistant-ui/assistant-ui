@@ -26,16 +26,16 @@ export const useLangGraphSetState = <
   TState extends Record<string, unknown> = Record<string, unknown>,
 >() => {
   const aui = useAui();
-  return (next: TState | ((prev: TState | undefined) => TState)): void => {
-    const extras = langGraphExtras.get(aui);
-    const resolved =
-      typeof next === "function"
-        ? (next as (prev: TState | undefined) => TState)(
-            extras.state as TState | undefined,
-          )
-        : next;
-    extras.setState(resolved);
-  };
+  return (next: TState | ((prev: TState | undefined) => TState)): void =>
+    langGraphExtras
+      .get(aui)
+      .setState(
+        next as
+          | Record<string, unknown>
+          | ((
+              prev: Record<string, unknown> | undefined,
+            ) => Record<string, unknown>),
+      );
 };
 
 /** Read the current LangGraph interrupt state from the runtime extras. */

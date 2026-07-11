@@ -77,6 +77,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const pendingStateRef = useRef<Record<string, unknown> | undefined>(
     undefined,
   );
+  const effectiveStateRef = useRef<Record<string, unknown> | undefined>(
+    undefined,
+  );
   const [optimisticState, setOptimisticState] = useState<
     Record<string, unknown> | undefined
   >();
@@ -293,10 +296,20 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       optimisticState ? { ...(values ?? {}), ...optimisticState } : values,
     [optimisticState, values],
   );
+  effectiveStateRef.current = state;
 
-  const setState = (next: Record<string, unknown>) => {
-    pendingStateRef.current = next;
-    setOptimisticState(next);
+  const setState = (
+    next:
+      | Record<string, unknown>
+      | ((
+          prev: Record<string, unknown> | undefined,
+        ) => Record<string, unknown>),
+  ) => {
+    const resolved =
+      typeof next === "function" ? next(effectiveStateRef.current) : next;
+    effectiveStateRef.current = resolved;
+    pendingStateRef.current = resolved;
+    setOptimisticState(resolved);
   };
 
   const runUserMessage = async (msg: AppendMessage) => {
@@ -609,6 +622,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       const controller = new AbortController();
       toolResultBufferRef.current.clear();
       pendingStateRef.current = undefined;
+      effectiveStateRef.current = undefined;
       setOptimisticState(undefined);
       setValues(undefined);
       setIsLoadingThread(true);

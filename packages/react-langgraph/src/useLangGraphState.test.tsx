@@ -136,4 +136,33 @@ describe("useLangGraphState", () => {
       });
     });
   });
+
+  it("composes chained functional setState updaters in the same act", async () => {
+    const stream = vi.fn(() => mockStreamCallbackFactory([])());
+    const { result } = renderAgentState(stream);
+    await waitForRuntime();
+
+    act(() => {
+      result.current.setState({ count: 0 });
+      result.current.setState((prev) => ({
+        count: ((prev?.count as number | undefined) ?? 0) + 1,
+      }));
+      result.current.setState((prev) => ({
+        count: ((prev?.count as number | undefined) ?? 0) + 1,
+      }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.state).toEqual({ count: 2 });
+    });
+
+    await act(async () => {
+      await result.current.send([humanMessage], {});
+    });
+
+    expect(stream).toHaveBeenCalledWith(
+      [expect.objectContaining(humanMessage)],
+      expect.objectContaining({ state: { count: 2 } }),
+    );
+  });
 });

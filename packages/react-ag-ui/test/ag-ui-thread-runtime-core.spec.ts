@@ -2729,6 +2729,29 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runInputs[0].state).toEqual({ count: 3, label: "optimistic" });
   });
 
+  it("composes chained functional setState updaters in the same tick", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.setState({ count: 0 });
+    core.setState((prev) => ({
+      count: ((prev as { count?: number } | undefined)?.count ?? 0) + 1,
+    }));
+    core.setState((prev) => ({
+      count: ((prev as { count?: number } | undefined)?.count ?? 0) + 1,
+    }));
+    expect(core.getState()).toEqual({ count: 2 });
+
+    await core.append(createAppendMessage());
+    expect(runInputs[0].state).toEqual({ count: 2 });
+  });
+
   it("applies STATE_DELTA on top of a setState snapshot", async () => {
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {
