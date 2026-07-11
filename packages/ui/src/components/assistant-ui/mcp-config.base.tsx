@@ -19,7 +19,7 @@ import {
   XIcon,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-base/badge";
 import { Button, buttonVariants } from "@/components/ui-base/button";
 import {
   Dialog,
@@ -29,7 +29,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui-base/dialog";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui-base/label";
 import { Separator } from "@/components/ui-base/separator";
 import { cn } from "@/lib/utils";
 
