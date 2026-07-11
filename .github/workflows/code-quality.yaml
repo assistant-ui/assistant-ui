@@ -73,24 +73,12 @@ jobs:
   template-sync:
     name: Template Sync
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 5
+    timeout-minutes: 2
     steps:
       - name: Checkout code repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
         with:
           fetch-depth: 1
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # ratchet:pnpm/action-setup@v6.0.9
-
-      - name: Setup node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: "pnpm"
-
-      - name: Install root tooling
-        run: pnpm install --frozen-lockfile --filter .
 
       - name: Verify templates match packages/ui source
         run: bash scripts/sync-templates.sh
