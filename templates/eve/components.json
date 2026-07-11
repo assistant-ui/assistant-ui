@@ -1,6 +1,9 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "new-york",
+  "style": "base-nova",
+  "registries": {
+    "@assistant-ui": "https://r.assistant-ui.com/{name}.json"
+  },
   "rsc": true,
   "tsx": true,
   "tailwind": {
@@ -17,8 +20,5 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "iconLibrary": "lucide",
-  "registries": {
-    "@assistant-ui": "https://r.assistant-ui.com/{name}.json"
-  }
+  "iconLibrary": "lucide"
 }
