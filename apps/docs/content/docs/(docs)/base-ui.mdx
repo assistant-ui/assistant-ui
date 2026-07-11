@@ -26,7 +26,7 @@ assistant-ui's headless primitives, the components exported from `@assistant-ui/
 
 Open-state styling and panel-height animation do not force a variant either: the kit styles state through custom variants that match both libraries' data attributes, and animates collapsibles through keyframes that read both libraries' height variables, so components like `reasoning`, `tool-group`, and `tool-fallback` serve one source to both flavors.
 
-Components that reach past composition into library-specific surfaces (trigger composition, provider wiring, popup recomposition) ship a dedicated Base UI variant instead. The following components currently have one: `tooltip-icon-button`, `attachment`, `context-display`, `message-timing`, `mcp-config`, `threadlist-sidebar`, and `assistant-modal`.
+Components that reach past composition into library-specific surfaces (raw primitive imports, trigger composition, provider wiring, popup recomposition) ship a dedicated Base UI variant instead. The following components currently have one: `tooltip-icon-button`, `attachment`, `context-display`, `message-timing`, `mcp-config`, `threadlist-sidebar`, `assistant-modal`, `select`, `tabs`, `accordion`, `badge`, `model-selector`, and `direction`.
 
 ## Behavior notes
 

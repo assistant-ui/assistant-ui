@@ -100,6 +100,7 @@
   "devDependencies": {
     "@assistant-ui/shadcn-registry": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@base-ui/react": "^1.6.0",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.1.1",

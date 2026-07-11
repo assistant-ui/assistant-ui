@@ -6,6 +6,7 @@ const {
   createBaseRegistryItem,
   createRadixRegistryItem,
   getBaseVariantSourcePath,
+  validateBaseTreeRadixImports,
   validateBaseVariantContent,
   validateRadixPassDidNotReadBaseSources,
   validateStyleScopedDependencies,
@@ -120,6 +121,94 @@ test("base variant content validation accepts clean content", () => {
       createBuilt("clean", [
         ["components/clean.tsx", "export const clean = true;"],
       ]),
+    ]),
+  );
+});
+
+test("base tree radix import validation catches fallback payloads", () => {
+  assert.throws(
+    () =>
+      validateBaseTreeRadixImports([
+        createBuilt(
+          "fallback",
+          [["components/fallback.tsx", 'import { Tooltip } from "radix-ui";']],
+          { baseVariantOutputPaths: [] },
+        ),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid base tree imports:/);
+      assert.ok(
+        error.message.includes(
+          "- fallback: base tree file components/fallback.tsx imports radix",
+        ),
+      );
+      return true;
+    },
+  );
+
+  assert.throws(
+    () =>
+      validateBaseTreeRadixImports([
+        createBuilt(
+          "scoped",
+          [
+            [
+              "components/scoped.tsx",
+              'import { Tooltip } from "@radix-ui/react-tooltip";',
+            ],
+          ],
+          { baseVariantOutputPaths: [] },
+        ),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.ok(
+        error.message.includes(
+          "- scoped: base tree file components/scoped.tsx imports radix",
+        ),
+      );
+      return true;
+    },
+  );
+
+  assert.throws(
+    () =>
+      validateBaseTreeRadixImports([
+        createBuilt(
+          "side-effect",
+          [
+            [
+              "components/side-effect.tsx",
+              'import "@radix-ui/themes/styles.css";',
+            ],
+          ],
+          { baseVariantOutputPaths: [] },
+        ),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.ok(
+        error.message.includes(
+          "- side-effect: base tree file components/side-effect.tsx imports radix",
+        ),
+      );
+      return true;
+    },
+  );
+
+  assert.doesNotThrow(() =>
+    validateBaseTreeRadixImports([
+      createBuilt(
+        "clean",
+        [
+          [
+            "components/clean.tsx",
+            'export const styles = "data-radix-thing"; export const clean = true;',
+          ],
+        ],
+        { baseVariantOutputPaths: [] },
+      ),
     ]),
   );
 });

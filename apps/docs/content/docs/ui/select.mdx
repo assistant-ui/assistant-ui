@@ -2,8 +2,10 @@
 title: Select
 description: A dropdown select component with composable sub-components.
 links:
-  - label: Radix UI Select
+  - label: Radix UI Select (Radix styles)
     url: https://www.radix-ui.com/primitives/docs/components/select
+  - label: Base UI Select (base styles)
+    url: https://base-ui.com/react/components/select
 platforms: ["react"]
 ---
 
@@ -18,12 +20,16 @@ import {
   SelectSizesSample,
   SelectScrollableSample,
 } from "@/components/docs/samples/select";
+import * as SelectBaseSamples from "@/components/docs/samples/select.base";
+import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
 <Callout>
   This is a **standalone component** that does not depend on the assistant-ui runtime. Use it anywhere in your application.
 </Callout>
 
-<SelectSample />
+<FlavorSwitcher />
+
+<Flavored radix={<SelectSample />} base={<SelectBaseSamples.SelectSample />} />
 
 ## Installation
 
@@ -60,7 +66,7 @@ export function FruitPicker() {
 
 Use the `variant` prop on `SelectTrigger` to change the visual style.
 
-<SelectVariantsSample />
+<Flavored radix={<SelectVariantsSample />} base={<SelectBaseSamples.SelectVariantsSample />} />
 
 ```tsx
 <SelectTrigger variant="outline" /> // Border (default)
@@ -72,7 +78,7 @@ Use the `variant` prop on `SelectTrigger` to change the visual style.
 
 Use the `size` prop on `SelectTrigger` to change the height.
 
-<SelectSizesSample />
+<Flavored radix={<SelectSizesSample />} base={<SelectBaseSamples.SelectSizesSample />} />
 
 ```tsx
 <SelectTrigger size="default" /> // 36px (default)
@@ -83,7 +89,7 @@ Use the `size` prop on `SelectTrigger` to change the height.
 
 Long lists automatically become scrollable.
 
-<PreviewCode file="components/docs/samples/select" name="SelectScrollableSample">
+<PreviewCode file="components/docs/samples/select" name="SelectScrollableSample" base={<SelectBaseSamples.SelectScrollableSample />}>
   <SelectScrollableSample />
 </PreviewCode>
 
@@ -91,25 +97,25 @@ Long lists automatically become scrollable.
 
 Use the composable API for grouped options:
 
-<PreviewCode file="components/docs/samples/select" name="SelectGroupsSample">
+<PreviewCode file="components/docs/samples/select" name="SelectGroupsSample" base={<SelectBaseSamples.SelectGroupsSample />}>
   <SelectGroupsSample />
 </PreviewCode>
 
 ### Disabled Items
 
-<PreviewCode file="components/docs/samples/select" name="SelectDisabledItemsSample">
+<PreviewCode file="components/docs/samples/select" name="SelectDisabledItemsSample" base={<SelectBaseSamples.SelectDisabledItemsSample />}>
   <SelectDisabledItemsSample />
 </PreviewCode>
 
 ### With Placeholder
 
-<PreviewCode file="components/docs/samples/select" name="SelectPlaceholderSample">
+<PreviewCode file="components/docs/samples/select" name="SelectPlaceholderSample" base={<SelectBaseSamples.SelectPlaceholderSample />}>
   <SelectPlaceholderSample />
 </PreviewCode>
 
 ### Disabled Select
 
-<PreviewCode file="components/docs/samples/select" name="SelectDisabledSample">
+<PreviewCode file="components/docs/samples/select" name="SelectDisabledSample" base={<SelectBaseSamples.SelectDisabledSample />}>
   <SelectDisabledSample />
 </PreviewCode>
 

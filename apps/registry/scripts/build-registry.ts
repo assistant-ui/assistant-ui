@@ -13,10 +13,12 @@ const REGISTRY_ITEM_SCHEMA_URL =
   "https://ui.shadcn.com/schema/registry-item.json";
 const ASSISTANT_REGISTRY_DEPENDENCY_RE =
   /^https:\/\/r\.assistant-ui\.com\/(?:base\/)?(.+)\.json$/;
+const RADIX_IMPORT_RE =
+  /(?:from|import)\s*\(?\s*["'](?:radix-ui["']|@radix-ui\/)/;
 const BASE_VARIANT_FORBIDDEN_PATTERNS = [
   ["asChild", /\basChild\b/],
   ["delayDuration", /\bdelayDuration\b/],
-  ["radix import", /from\s+["'](?:radix-ui["']|@radix-ui\/)/],
+  ["radix import", RADIX_IMPORT_RE],
   ["data-[state=", /data-\[state=/],
 ] as const;
 const PROJECT_PACKAGE_IMPORTS = new Set([
@@ -103,6 +105,30 @@ export function validateBaseVariantContent(built: BuiltRegistryPayload[]) {
   if (findings.size > 0) {
     throw new Error(
       `Invalid base variant content:\n${[...findings]
+        .map((finding) => `- ${finding}`)
+        .join("\n")}`,
+    );
+  }
+}
+
+export function validateBaseTreeRadixImports(
+  baseBuilt: BuiltRegistryPayload[],
+) {
+  const findings = new Set<string>();
+
+  for (const { payload } of baseBuilt) {
+    for (const file of payload.files ?? []) {
+      if (RADIX_IMPORT_RE.test(file.content)) {
+        findings.add(
+          `${payload.name}: base tree file ${file.path} imports radix`,
+        );
+      }
+    }
+  }
+
+  if (findings.size > 0) {
+    throw new Error(
+      `Invalid base tree imports:\n${[...findings]
         .map((finding) => `- ${finding}`)
         .join("\n")}`,
     );
@@ -788,6 +814,7 @@ async function buildRegistry(registry: RegistryItem[]) {
     createRegistryPayload(item, true),
   );
   validateBaseVariantContent(baseBuilt);
+  validateBaseTreeRadixImports(baseBuilt);
   validateRadixPassDidNotReadBaseSources(radixBuilt);
   validateVariantTreesDiffer(radixBuilt, baseBuilt);
   validateVariantSlotParity(radixBuilt, baseBuilt);
