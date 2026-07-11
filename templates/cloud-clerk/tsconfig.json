@@ -21,13 +21,18 @@
     "paths": {
       "@/*": ["./*"],
       "@/components/assistant-ui/*": [
+        "../../packages/ui/src/components/assistant-ui/*.base",
         "../../packages/ui/src/components/assistant-ui/*"
       ],
       "@/components/icons/*": ["../../packages/ui/src/components/icons/*"],
-      "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
+      "@/components/ui/*": [
+        "../../packages/ui/src/components/ui-base/*",
+        "../../packages/ui/src/components/ui/*"
+      ],
       "@/hooks/*": ["../../packages/ui/src/hooks/*"],
       "@/lib/utils": ["../../packages/ui/src/lib/utils"],
-      "@assistant-ui/ui/*": ["../../packages/ui/src/*"]
+      "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
+      "@/components/ui-base/*": ["../../packages/ui/src/components/ui-base/*"]
     }
   },
   "include": [

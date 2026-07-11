@@ -4,11 +4,16 @@
     "paths": {
       "@/*": ["./*"],
       "@/components/assistant-ui/*": [
+        "../../packages/ui/src/components/assistant-ui/*.base",
         "../../packages/ui/src/components/assistant-ui/*"
       ],
-      "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
+      "@/components/ui/*": [
+        "../../packages/ui/src/components/ui-base/*",
+        "../../packages/ui/src/components/ui/*"
+      ],
       "@/lib/utils": ["../../packages/ui/src/lib/utils"],
-      "@assistant-ui/ui/*": ["../../packages/ui/src/*"]
+      "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
+      "@/components/ui-base/*": ["../../packages/ui/src/components/ui-base/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
