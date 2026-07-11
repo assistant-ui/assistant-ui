@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { ModelSelectorSample } from "@/components/docs/samples/model-selector";
+import * as ModelSelectorBaseSamples from "@/components/docs/samples/model-selector.base";
+import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
 A picker that lets users switch between AI models and choose a reasoning effort (thinking) level. It is built on Popover + Command, so search, provider grouping, and filtering compose in without being built in. The default export integrates with assistant-ui's `ModelContext` system, so the selection reaches your backend on every request with no extra wiring.
 
@@ -179,8 +181,6 @@ All parts are exported individually. The default popover content is `List` + `Ef
 
 ```tsx
 import {
-import * as ModelSelectorBaseSamples from "@/components/docs/samples/model-selector.base";
-import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
   ModelSelectorRoot,
   ModelSelectorTrigger,
   ModelSelectorContent,
