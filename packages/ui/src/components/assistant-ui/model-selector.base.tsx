@@ -20,7 +20,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui-base/popover";
+} from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -29,7 +29,7 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@/components/ui-base/command";
+} from "@/components/ui/command";
 import { RadioGroup } from "@base-ui/react/radio-group";
 import { Radio } from "@base-ui/react/radio";
 

@@ -8,7 +8,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui-base/tooltip";
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   createContext,
