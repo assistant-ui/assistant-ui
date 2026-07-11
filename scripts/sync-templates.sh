@@ -91,22 +91,42 @@ rendered_ui() {
 # difference still does. Non-import lines pass through byte-exact.
 NORMALIZE_JS='
 const fs = require("node:fs");
+const squash = (stmt) => {
+  let out = "";
+  let quote = null;
+  for (let i = 0; i < stmt.length; i++) {
+    const char = stmt[i];
+    if (quote) {
+      out += char;
+      if (char === quote && stmt[i - 1] !== "\\") quote = null;
+      continue;
+    }
+    if (char === "\"" || char === "\x27") {
+      quote = char;
+      out += char;
+      continue;
+    }
+    if (/\s/.test(char)) continue;
+    out += char;
+  }
+  return out.replace(/,}/g, "}");
+};
 const lines = fs.readFileSync(process.argv[1], "utf8").split("\n");
 const out = [];
 let buf = null;
 for (const line of lines) {
   if (buf === null && /^import[\s{"]/.test(line)) buf = "";
   if (buf !== null) {
-    buf += line;
+    buf += line + "\n";
     if (/["\x27];?\s*$/.test(line)) {
-      out.push(buf.replace(/\s+/g, "").replace(/,}/g, "}"));
+      out.push(squash(buf));
       buf = null;
     }
     continue;
   }
   out.push(line);
 }
-if (buf !== null) out.push(buf.replace(/\s+/g, "").replace(/,}/g, "}"));
+if (buf !== null) out.push(squash(buf));
 process.stdout.write(out.join("\n"));
 '
 

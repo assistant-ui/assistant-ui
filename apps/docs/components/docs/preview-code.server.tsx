@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { ReactNode } from "react";
 import { PreviewCodeClient } from "./preview-code";
+import type { LLMRenderContext } from "@/lib/get-llm-text";
 
 type PreviewCodeProps = {
   /** Path relative to apps/docs, e.g. "components/docs/samples/select" */
@@ -250,10 +251,7 @@ export async function PreviewCode({
 // keep the source.
 (
   PreviewCode as typeof PreviewCode & {
-    llm: (
-      props: PreviewCodeProps,
-      ctx?: { flavor: "radix" | "base" },
-    ) => ReactNode;
+    llm: (props: PreviewCodeProps, ctx?: LLMRenderContext) => ReactNode;
   }
 ).llm = ({ file, name }: PreviewCodeProps, ctx) => {
   const sourceFile =

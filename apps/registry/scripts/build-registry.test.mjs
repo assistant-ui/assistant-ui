@@ -172,6 +172,31 @@ test("base tree radix import validation catches fallback payloads", () => {
     },
   );
 
+  assert.throws(
+    () =>
+      validateBaseTreeRadixImports([
+        createBuilt(
+          "side-effect",
+          [
+            [
+              "components/side-effect.tsx",
+              'import "@radix-ui/themes/styles.css";',
+            ],
+          ],
+          { baseVariantOutputPaths: [] },
+        ),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.ok(
+        error.message.includes(
+          "- side-effect: base tree file components/side-effect.tsx imports radix",
+        ),
+      );
+      return true;
+    },
+  );
+
   assert.doesNotThrow(() =>
     validateBaseTreeRadixImports([
       createBuilt(

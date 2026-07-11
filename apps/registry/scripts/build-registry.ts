@@ -13,7 +13,8 @@ const REGISTRY_ITEM_SCHEMA_URL =
   "https://ui.shadcn.com/schema/registry-item.json";
 const ASSISTANT_REGISTRY_DEPENDENCY_RE =
   /^https:\/\/r\.assistant-ui\.com\/(?:base\/)?(.+)\.json$/;
-const RADIX_IMPORT_RE = /from\s+["'](?:radix-ui["']|@radix-ui\/)/;
+const RADIX_IMPORT_RE =
+  /(?:from|import)\s*\(?\s*["'](?:radix-ui["']|@radix-ui\/)/;
 const BASE_VARIANT_FORBIDDEN_PATTERNS = [
   ["asChild", /\basChild\b/],
   ["delayDuration", /\bdelayDuration\b/],

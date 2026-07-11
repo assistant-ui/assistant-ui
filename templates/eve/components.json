@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema.json",
   "style": "base-nova",
   "registries": {
-    "@assistant-ui": "https://r.assistant-ui.com/{name}.json"
+    "@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"
   },
   "rsc": true,
   "tsx": true,

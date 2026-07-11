@@ -12,14 +12,20 @@ let flavor: UiFlavor = "base";
 let hydrated = false;
 const listeners = new Set<() => void>();
 
+function readStoredFlavor(): string | null {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 function readCurrent(): UiFlavor {
   if (typeof window === "undefined") return "base";
   const param = new URLSearchParams(window.location.search).get(PARAM);
   if (param === "radix-ui") return "radix";
   if (param === "base-ui") return "base";
-  return window.localStorage.getItem(STORAGE_KEY) === "radix"
-    ? "radix"
-    : "base";
+  return readStoredFlavor() === "radix" ? "radix" : "base";
 }
 
 function emit() {
@@ -41,7 +47,12 @@ function subscribe(listener: () => void) {
 
 export function setFlavor(next: UiFlavor) {
   flavor = next;
-  window.localStorage.setItem(STORAGE_KEY, next);
+  try {
+    window.localStorage.setItem(STORAGE_KEY, next);
+  } catch {
+    // Storage can be blocked (private mode, quota); the in-memory value and
+    // the url parameter still carry the selection.
+  }
   const url = new URL(window.location.href);
   if (next === "radix") {
     url.searchParams.set(PARAM, "radix-ui");
@@ -90,6 +101,7 @@ export function FlavorSwitcher({ className }: { className?: string }) {
           key={value}
           type="button"
           onClick={() => setFlavor(value)}
+          aria-pressed={current === value}
           data-active={current === value}
           className="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground after:bg-foreground relative -mb-px pb-2 text-sm font-medium transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:opacity-0 after:transition-opacity data-[active=true]:after:opacity-100"
         >

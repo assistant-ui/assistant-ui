@@ -6,6 +6,7 @@ import type { LLMRenderContext } from "@/lib/get-llm-text";
 import {
   resolveAllComponents,
   ComponentSourceFromFile,
+  type RegistryFlavor,
   type ResolvedComponents,
   type ResolvedFile,
   type ResolvedGroup,
@@ -126,7 +127,7 @@ const CommandBlock = ({ command }: { command: string }) => (
   </pre>
 );
 
-function githubSourcePath(filePath: string, flavor: "radix" | "base"): string {
+function githubSourcePath(filePath: string, flavor: RegistryFlavor): string {
   if (flavor !== "base") return filePath;
   const basePath = filePath.replace(/\.tsx$/, ".base.tsx");
   return fs.existsSync(
@@ -136,15 +137,11 @@ function githubSourcePath(filePath: string, flavor: "radix" | "base"): string {
     : filePath;
 }
 
-function buildDownloadCommand(
-  files: ResolvedFile[],
-  flavor: "radix" | "base",
-): string {
+type LinkedFile = ResolvedFile & { sourcePath: string };
+
+function buildDownloadCommand(files: LinkedFile[]): string {
   const args = files
-    .map(
-      (file) =>
-        `  -o ${file.path} ${GITHUB_RAW}/${githubSourcePath(file.path, flavor)}`,
-    )
+    .map((file) => `  -o ${file.path} ${GITHUB_RAW}/${file.sourcePath}`)
     .join(" \\\n");
   return `curl -sSL --create-dirs \\\n${args}`;
 }
@@ -173,7 +170,13 @@ export const InstallCommandLLM = async (
       : `https://r.assistant-ui.com/${c}.json`,
   );
   const resolved = await resolveAllComponents(props.shadcn, flavor);
-  const files = [...resolved.main.files, ...resolved.auiDeps.files];
+  const files: LinkedFile[] = [
+    ...resolved.main.files,
+    ...resolved.auiDeps.files,
+  ].map((file) => ({
+    ...file,
+    sourcePath: githubSourcePath(file.path, flavor),
+  }));
   // npm packages the copied files import. shadcn deps (e.g. radix-ui) are
   // omitted here — they install with the shadcn components below.
   const npmDeps = [
@@ -212,15 +215,11 @@ export const InstallCommandLLM = async (
           <ul>
             {files.map((file) => (
               <li key={file.path}>
-                <a
-                  href={`${GITHUB_BLOB}/${githubSourcePath(file.path, flavor)}`}
-                >
-                  {file.path}
-                </a>
+                <a href={`${GITHUB_BLOB}/${file.sourcePath}`}>{file.path}</a>
               </li>
             ))}
           </ul>
-          <CommandBlock command={buildDownloadCommand(files, flavor)} />
+          <CommandBlock command={buildDownloadCommand(files)} />
         </>
       )}
     </>
