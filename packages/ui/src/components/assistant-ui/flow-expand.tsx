@@ -14,11 +14,9 @@ import { Maximize2, Minus, Plus, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -125,21 +123,20 @@ export function FlowExpand({ className, children, ...props }: FlowExpandProps) {
         {...props}
       >
         {children}
-        <DialogTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Expand diagram"
-            title="Expand diagram"
-            className={cn(
-              flowControlButtonClass,
-              "aui-flow-expand-trigger absolute end-2 top-2 opacity-0 group-hover/flow:opacity-100 focus-visible:opacity-100",
-            )}
-          >
-            <Maximize2 className="size-3.5" />
-          </Button>
-        </DialogTrigger>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Expand diagram"
+          title="Expand diagram"
+          onClick={() => onOpenChange(true)}
+          className={cn(
+            flowControlButtonClass,
+            "aui-flow-expand-trigger absolute end-2 top-2 opacity-0 group-hover/flow:opacity-100 focus-visible:opacity-100",
+          )}
+        >
+          <Maximize2 className="size-3.5" />
+        </Button>
         <DialogContent
           showCloseButton={false}
           className="aui-flow-dialog-content bg-background fixed inset-0 start-0 top-0 z-50 max-w-none translate-x-0 translate-y-0 rounded-none border-0 p-0 shadow-none sm:max-w-none"
@@ -206,18 +203,17 @@ export function FlowExpand({ className, children, ...props }: FlowExpandProps) {
             >
               <RotateCcw className="size-4" />
             </Button>
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Close diagram"
-                title="Close diagram"
-                className={flowControlButtonClass}
-              >
-                <X className="size-4" />
-              </Button>
-            </DialogClose>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Close diagram"
+              title="Close diagram"
+              onClick={() => onOpenChange(false)}
+              className={flowControlButtonClass}
+            >
+              <X className="size-4" />
+            </Button>
           </div>
         </DialogContent>
       </div>
