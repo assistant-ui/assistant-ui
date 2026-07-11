@@ -401,7 +401,8 @@ describe("LocalThreadRuntimeCore suggestions", () => {
     );
 
     const appendPromise = thread.append(userMessage("hi"));
-    await flush();
+    await appendPromise;
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(generate).toHaveBeenCalledTimes(1);
     const signal = generate.mock.calls[0]![0].signal as AbortSignal;
@@ -409,8 +410,6 @@ describe("LocalThreadRuntimeCore suggestions", () => {
 
     thread.cancelRun();
     expect(signal.aborted).toBe(true);
-
-    await appendPromise;
     expect(thread.suggestions).toEqual([]);
   });
 
@@ -427,10 +426,41 @@ describe("LocalThreadRuntimeCore suggestions", () => {
     );
 
     await thread.append(userMessage("hi"));
-    await flush();
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(generate).toHaveBeenCalledTimes(1);
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
     expect(thread.suggestions).toEqual([]);
+  });
+
+  it("resolves append before suggestion generation completes", async () => {
+    let resolveSuggestions!: (value: readonly { prompt: string }[]) => void;
+    const suggestionsDeferred = new Promise<readonly { prompt: string }[]>(
+      (resolve) => {
+        resolveSuggestions = resolve;
+      },
+    );
+    const generate = vi.fn().mockReturnValue(suggestionsDeferred);
+
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "hello" }] };
+        },
+      },
+      { suggestion: { generate } },
+    );
+
+    await thread.append(userMessage("hi"));
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+    expect(thread.suggestions).toEqual([]);
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(thread.suggestions).toEqual([]);
+
+    resolveSuggestions([{ prompt: "follow up" }]);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
   });
 });

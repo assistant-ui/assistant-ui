@@ -382,20 +382,22 @@ export class LocalThreadRuntimeCore
     ) {
       this._suggestionsController = new AbortController();
       const signal = this._suggestionsController.signal;
-      try {
-        const promiseOrGenerator = this.adapters.suggestion.generate({
-          messages: this.messages,
-          signal,
-        });
-
-        await consumeSuggestionResult(promiseOrGenerator, {
-          signal,
-          onUpdate: (r) => {
-            this._suggestions = r;
-            this._notifySubscribers();
-          },
-        });
-      } catch {}
+      const adapter = this.adapters.suggestion;
+      void (async () => {
+        try {
+          const promiseOrGenerator = adapter.generate({
+            messages: this.messages,
+            signal,
+          });
+          await consumeSuggestionResult(promiseOrGenerator, {
+            signal,
+            onUpdate: (r) => {
+              this._suggestions = r;
+              this._notifySubscribers();
+            },
+          });
+        } catch {}
+      })();
     }
   }
 
