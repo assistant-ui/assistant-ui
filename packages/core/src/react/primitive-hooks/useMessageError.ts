@@ -13,9 +13,10 @@ export const useMessageError = () => {
     if (
       typeof error === "object" &&
       error !== null &&
-      typeof (error as { message?: unknown }).message === "string"
+      "message" in error &&
+      typeof error.message === "string"
     ) {
-      return (error as { message: string }).message;
+      return error.message;
     }
     return error ?? "An error occurred";
   });

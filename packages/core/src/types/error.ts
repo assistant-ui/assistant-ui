@@ -15,13 +15,9 @@ export type AssistantError = {
   readonly display?: ErrorDisplay;
 };
 
-const ERROR_SEVERITIES: readonly ErrorSeverity[] = [
-  "critical",
-  "warning",
-  "info",
-];
+const ERROR_SEVERITIES: readonly string[] = ["critical", "warning", "info"];
 
-const ERROR_DISPLAYS: readonly ErrorDisplay[] = [
+const ERROR_DISPLAYS: readonly string[] = [
   "inline",
   "toast",
   "silent",
@@ -40,14 +36,16 @@ export const isAssistantError = (value: unknown): value is AssistantError => {
   if (
     "severity" in candidate &&
     candidate.severity !== undefined &&
-    !ERROR_SEVERITIES.includes(candidate.severity as ErrorSeverity)
+    (typeof candidate.severity !== "string" ||
+      !ERROR_SEVERITIES.includes(candidate.severity))
   ) {
     return false;
   }
   if (
     "display" in candidate &&
     candidate.display !== undefined &&
-    !ERROR_DISPLAYS.includes(candidate.display as ErrorDisplay)
+    (typeof candidate.display !== "string" ||
+      !ERROR_DISPLAYS.includes(candidate.display))
   ) {
     return false;
   }
