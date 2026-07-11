@@ -74,6 +74,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     uiComponents,
   } = options;
   const aui = useAui();
+  const pendingStateRef = useRef<Record<string, unknown> | undefined>(
+    undefined,
+  );
+  const [optimisticState, setOptimisticState] = useState<
+    Record<string, unknown> | undefined
+  >();
 
   // Attachments the composer handed to onNew/onEdit, keyed by the staged human
   // message id. The wire message only carries flattened `content` (so the model
@@ -159,12 +165,17 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           runErrorBalanceRef.current--;
           return eventHandlers?.onSubgraphError?.(namespace, error);
         },
+        onValues: (values: unknown) => {
+          setOptimisticState(undefined);
+          return eventHandlers?.onValues?.(values);
+        },
       }) satisfies UseLangGraphRuntimeOptions["eventHandlers"],
     [eventHandlers],
   );
 
   const {
     interrupt,
+    values,
     setInterrupt,
     messages,
     messageMetadata,
@@ -172,6 +183,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     sendMessage,
     cancel,
     setMessages,
+    setValues,
     setUIMessages,
   } = useLangGraphMessages({
     appendMessage: appendLangChainChunk,
@@ -267,7 +279,25 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const handleSendMessage = (
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
-  ) => runQueue.enqueue({ messages, config });
+  ) => {
+    const state = pendingStateRef.current;
+    pendingStateRef.current = undefined;
+    return runQueue.enqueue({
+      messages,
+      config: state ? { ...config, state } : config,
+    });
+  };
+
+  const state = useMemo(
+    () =>
+      optimisticState ? { ...(values ?? {}), ...optimisticState } : values,
+    [optimisticState, values],
+  );
+
+  const setState = (next: Record<string, unknown>) => {
+    pendingStateRef.current = next;
+    setOptimisticState(next);
+  };
 
   const runUserMessage = async (msg: AppendMessage) => {
     // A new turn abandons any half-collected parallel tool batch and any
@@ -409,6 +439,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     },
     extras: langGraphExtras.provide({
       interrupt,
+      state,
+      setState,
       messageMetadata,
       uiMessages,
       send: handleSendMessage,
@@ -576,6 +608,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       // drop stale callbacks and abort the pending load on thread switch/unmount
       const controller = new AbortController();
       toolResultBufferRef.current.clear();
+      pendingStateRef.current = undefined;
+      setOptimisticState(undefined);
+      setValues(undefined);
       setIsLoadingThread(true);
       load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
@@ -597,7 +632,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         controller.abort();
         setIsLoadingThread(false);
       };
-    }, [aui, setMessages, setUIMessages, setInterrupt]);
+    }, [aui, setMessages, setUIMessages, setInterrupt, setValues]);
   }
 
   return runtime;

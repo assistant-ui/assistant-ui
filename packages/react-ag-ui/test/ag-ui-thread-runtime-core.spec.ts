@@ -2701,6 +2701,54 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(stateAtRun).toEqual({ initial: false, snapshot: 42 });
   });
 
+  it("setState updates getState immediately", () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.setState({ count: 7 });
+    expect(core.getState()).toEqual({ count: 7 });
+  });
+
+  it("setState rides the next run as input.state", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.setState({ count: 3, label: "optimistic" });
+    await core.append(createAppendMessage());
+
+    expect(runInputs[0].state).toEqual({ count: 3, label: "optimistic" });
+  });
+
+  it("applies STATE_DELTA on top of a setState snapshot", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onStateDeltaEvent?.({
+          event: {
+            type: "STATE_DELTA",
+            delta: [{ op: "replace", path: "/count", value: 2 }],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.setState({ count: 1, label: "base" });
+    await core.append(createAppendMessage());
+
+    expect(core.getState()).toEqual({ count: 2, label: "base" });
+  });
+
   it("adopts TEXT_MESSAGE_START.messageId as the ThreadAssistantMessage.id", async () => {
     const serverId = "11111111-1111-1111-1111-111111111111";
     const agent = {

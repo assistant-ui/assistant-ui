@@ -147,6 +147,8 @@ export function useAgUiRuntime(
           submitInterruptResponses: (responses) =>
             core.submitInterruptResponses(responses),
           steerAway: (message, responses) => core.steerAway(message, responses),
+          state: core.getState(),
+          setState: (state) => core.setState(state),
         }),
         unstable_enableToolInvocations: true,
         setToolStatuses,

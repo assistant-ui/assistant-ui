@@ -15,6 +15,29 @@ import type {
 const EMPTY_UI_MESSAGES: readonly UIMessage[] = Object.freeze([]);
 const EMPTY_MESSAGE_METADATA: Map<string, LangGraphTupleMetadata> = new Map();
 
+/** Read the graph's shared state streamed via values events. */
+export const useLangGraphState = <
+  TState extends Record<string, unknown> = Record<string, unknown>,
+>(): TState | undefined =>
+  langGraphExtras.use((e) => e.state as TState | undefined, undefined);
+
+/** Stage an optimistic graph state update that rides the next run input. */
+export const useLangGraphSetState = <
+  TState extends Record<string, unknown> = Record<string, unknown>,
+>() => {
+  const aui = useAui();
+  return (next: TState | ((prev: TState | undefined) => TState)): void => {
+    const extras = langGraphExtras.get(aui);
+    const resolved =
+      typeof next === "function"
+        ? (next as (prev: TState | undefined) => TState)(
+            extras.state as TState | undefined,
+          )
+        : next;
+    extras.setState(resolved);
+  };
+};
+
 /** Read the current LangGraph interrupt state from the runtime extras. */
 export const useLangGraphInterruptState = () =>
   langGraphExtras.use((e) => e.interrupt, undefined);

@@ -975,6 +975,7 @@ type LangGraphSendMessageConfig = {
   command?: LangGraphCommand;
   runConfig?: unknown;
   checkpointId?: string;
+  state?: Record<string, unknown>;
 };
 
 type LangGraphStateAccumulatorConfig<TMessage> = {
@@ -2154,7 +2155,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { CreateLangGraphStreamOptions, LangChainEvent, LangChainMessage, LangChainMessageChunk, LangChainToolCall, LangChainToolCallChunk, LangGraphCommand, LangGraphInterruptState, LangGraphMessageAccumulator, LangGraphMessagesEvent, LangGraphSendMessageConfig, LangGraphStreamCallback, LangGraphStreamClient, LangGraphTupleMetadata, OnCustomEventCallback, OnErrorEventCallback, OnInfoEventCallback, OnMessageChunkCallback, OnMetadataEventCallback, OnSubgraphErrorEventCallback, OnSubgraphUpdatesEventCallback, OnSubgraphValuesEventCallback, OnUpdatesEventCallback, OnValuesEventCallback, RemoveUIMessage, UIMessage, UseLangGraphRuntimeOptions, appendLangChainChunk, convertLangChainMessages, unstable_createLangGraphStream, useLangGraphInterruptState, useLangGraphMessageMetadata, useLangGraphMessages, useLangGraphRuntime, useLangGraphSend, useLangGraphSendCommand, useLangGraphStreamingTiming, useLangGraphUIMessages };
+  export { CreateLangGraphStreamOptions, LangChainEvent, LangChainMessage, LangChainMessageChunk, LangChainToolCall, LangChainToolCallChunk, LangGraphCommand, LangGraphInterruptState, LangGraphMessageAccumulator, LangGraphMessagesEvent, LangGraphSendMessageConfig, LangGraphStreamCallback, LangGraphStreamClient, LangGraphTupleMetadata, OnCustomEventCallback, OnErrorEventCallback, OnInfoEventCallback, OnMessageChunkCallback, OnMetadataEventCallback, OnSubgraphErrorEventCallback, OnSubgraphUpdatesEventCallback, OnSubgraphValuesEventCallback, OnUpdatesEventCallback, OnValuesEventCallback, RemoveUIMessage, UIMessage, UseLangGraphRuntimeOptions, appendLangChainChunk, convertLangChainMessages, unstable_createLangGraphStream, useLangGraphInterruptState, useLangGraphMessageMetadata, useLangGraphMessages, useLangGraphRuntime, useLangGraphSend, useLangGraphSendCommand, useLangGraphSetState, useLangGraphState, useLangGraphStreamingTiming, useLangGraphUIMessages };
 }
 
 declare const unstable_createLangGraphStream: (_param3: CreateLangGraphStreamOptions) => LangGraphStreamCallback<LangChainMessage>;
@@ -2213,12 +2214,14 @@ declare const useLangGraphMessages: <TMessage extends {
   };
 }) => {
   interrupt: LangGraphInterruptState | undefined;
+  values: Record<string, unknown> | undefined;
   messages: TMessage[];
   messageMetadata: Map<string, LangGraphTupleMetadata>;
   uiMessages: UIMessage[];
   sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: () => void) => Promise<void>;
   cancel: () => void;
   setInterrupt: import("react").Dispatch<import("react").SetStateAction<LangGraphInterruptState | undefined>>;
+  setValues: import("react").Dispatch<import("react").SetStateAction<Record<string, unknown> | undefined>>;
   setMessages: (msgs: TMessage[]) => void;
   setUIMessages: (next: UIMessage[]) => void;
 };
@@ -2228,6 +2231,10 @@ declare const useLangGraphRuntime: (_param6: UseLangGraphRuntimeOptions) => Assi
 declare const useLangGraphSend: () => (messages: LangChainMessage[], config: LangGraphSendMessageConfig) => Promise<void>;
 
 declare const useLangGraphSendCommand: () => (command: LangGraphCommand) => Promise<void>;
+
+declare const useLangGraphSetState: <TState extends Record<string, unknown> = Record<string, unknown>>() => (next: TState | ((prev: TState | undefined) => TState)) => void;
+
+declare const useLangGraphState: <TState extends Record<string, unknown> = Record<string, unknown>>() => TState | undefined;
 
 declare const useLangGraphStreamingTiming: (messages: readonly LangChainMessage[], isRunning: boolean) => Record<string, MessageTiming>;
 

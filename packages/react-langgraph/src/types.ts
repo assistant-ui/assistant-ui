@@ -262,6 +262,8 @@ export type LangGraphRuntimeExtras = {
     config: LangGraphSendMessageConfig,
   ) => Promise<void>;
   interrupt: LangGraphInterruptState | undefined;
+  state: Record<string, unknown> | undefined;
+  setState: (next: Record<string, unknown>) => void;
   messageMetadata: Map<string, LangGraphTupleMetadata>;
   uiMessages: readonly UIMessage[];
 };

@@ -668,6 +668,11 @@ export class AgUiThreadRuntimeCore {
     this.notifyUpdate();
   }
 
+  setState(state: ReadonlyJSONValue): void {
+    this.stateSnapshot = state;
+    this.notifyUpdate();
+  }
+
   private async startRun(
     parentId: string | null,
     runConfig?: RunConfig,
