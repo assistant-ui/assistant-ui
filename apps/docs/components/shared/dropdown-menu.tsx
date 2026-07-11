@@ -1,29 +1,41 @@
 "use client";
 
-import type { ReactNode, ComponentProps } from "react";
-import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
+import type { ReactNode, ComponentProps, ReactElement } from "react";
+import { isValidElement } from "react";
+import { Menu } from "@base-ui/react/menu";
 import { cn } from "@/lib/utils";
 
-function DropdownMenu(
-  props: ComponentProps<typeof DropdownMenuPrimitive.Root>,
-) {
-  return <DropdownMenuPrimitive.Root {...props} />;
+function DropdownMenu(props: Menu.Root.Props) {
+  return <Menu.Root {...props} />;
 }
 
 function DropdownMenuTrigger({
   className,
+  asChild,
+  children,
   ...props
-}: ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
+}: ComponentProps<typeof Menu.Trigger> & { asChild?: boolean }) {
+  const mergedClassName = cn(
+    "flex items-center justify-center rounded-md transition-colors outline-none",
+    "text-muted-foreground hover:bg-muted hover:text-foreground",
+    "focus-visible:ring-ring/50 focus-visible:ring-2",
+    className,
+  );
+
+  if (asChild && isValidElement(children)) {
+    return (
+      <Menu.Trigger
+        className={mergedClassName}
+        render={children as ReactElement}
+        {...props}
+      />
+    );
+  }
+
   return (
-    <DropdownMenuPrimitive.Trigger
-      className={cn(
-        "flex items-center justify-center rounded-md transition-colors outline-none",
-        "text-muted-foreground hover:bg-muted hover:text-foreground",
-        "focus-visible:ring-ring/50 focus-visible:ring-2",
-        className,
-      )}
-      {...props}
-    />
+    <Menu.Trigger className={mergedClassName} {...props}>
+      {children}
+    </Menu.Trigger>
   );
 }
 
@@ -31,30 +43,42 @@ function DropdownMenuContent({
   className,
   sideOffset = 6,
   align = "end",
+  side,
+  children,
   ...props
-}: ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+}: ComponentProps<typeof Menu.Popup> &
+  Pick<Menu.Positioner.Props, "align" | "sideOffset" | "side">) {
   return (
-    <DropdownMenuPrimitive.Portal>
-      <DropdownMenuPrimitive.Content
+    <Menu.Portal>
+      <Menu.Positioner
         sideOffset={sideOffset}
         align={align}
-        className={cn(
-          "bg-popover/95 text-popover-foreground z-50 min-w-40 overflow-hidden rounded-xl border p-1.5 shadow-lg backdrop-blur-sm focus-visible:shadow-lg",
-          "data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in",
-          "data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out",
-          "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2",
-          className,
-        )}
-        {...props}
-      />
-    </DropdownMenuPrimitive.Portal>
+        {...(side !== undefined ? { side } : {})}
+      >
+        <Menu.Popup
+          className={cn(
+            "bg-popover/95 text-popover-foreground z-50 min-w-40 overflow-hidden rounded-xl border p-1.5 shadow-lg backdrop-blur-sm focus-visible:shadow-lg",
+            "data-open:fade-in-0 data-open:zoom-in-95 data-open:animate-in",
+            "data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:animate-out",
+            "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2",
+            className,
+          )}
+          {...props}
+        >
+          {children}
+        </Menu.Popup>
+      </Menu.Positioner>
+    </Menu.Portal>
   );
 }
 
-interface DropdownMenuItemProps extends ComponentProps<
-  typeof DropdownMenuPrimitive.Item
+interface DropdownMenuItemProps extends Omit<
+  ComponentProps<typeof Menu.Item>,
+  "onSelect"
 > {
   icon?: ReactNode;
+  asChild?: boolean;
+  onSelect?: (event: Event) => void;
 }
 
 const itemClassName =
@@ -65,39 +89,46 @@ function DropdownMenuItem({
   icon,
   children,
   asChild,
+  onSelect,
+  onClick,
   ...props
 }: DropdownMenuItemProps) {
-  if (asChild) {
+  const handleClick: ComponentProps<typeof Menu.Item>["onClick"] = (event) => {
+    onSelect?.(event.nativeEvent);
+    onClick?.(event);
+  };
+
+  if (asChild && isValidElement(children)) {
     return (
-      <DropdownMenuPrimitive.Item
-        asChild
+      <Menu.Item
         className={cn(itemClassName, className)}
+        render={children as ReactElement}
+        onClick={handleClick}
         {...props}
-      >
-        {children}
-      </DropdownMenuPrimitive.Item>
+      />
     );
   }
 
   return (
-    <DropdownMenuPrimitive.Item
+    <Menu.Item
       className={cn(itemClassName, className)}
+      onClick={handleClick}
       {...props}
     >
       {icon && (
         <span className="flex size-4 items-center justify-center">{icon}</span>
       )}
       {children}
-    </DropdownMenuPrimitive.Item>
+    </Menu.Item>
   );
 }
 
 function DropdownMenuSeparator({
   className,
   ...props
-}: ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
+}: ComponentProps<typeof Menu.Separator>) {
   return (
-    <DropdownMenuPrimitive.Separator
+    <Menu.Separator
       className={cn("bg-border my-1 h-px", className)}
       {...props}
     />

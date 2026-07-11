@@ -4,11 +4,11 @@ import { analytics, type AnalyticsProperties } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon, SparklesIcon, TerminalIcon } from "lucide-react";
 import { useState } from "react";
-import { DropdownMenu as DropdownMenuRadix } from "radix-ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/shared/dropdown-menu";
 import { SETUP_PROMPT } from "./setup-prompt";
 
@@ -74,7 +74,7 @@ export function CopyCommandButton({
 
   return (
     <DropdownMenu>
-      <DropdownMenuRadix.Trigger asChild aria-label="Copy options">
+      <DropdownMenuTrigger asChild aria-label="Copy options">
         <button
           type="button"
           className={cn(wrapperClassName, "cursor-pointer")}
@@ -83,7 +83,7 @@ export function CopyCommandButton({
           <span>{command}</span>
           <div className="ml-1">{copyIcon}</div>
         </button>
-      </DropdownMenuRadix.Trigger>
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuItem
           icon={<TerminalIcon className="size-3.5" />}
