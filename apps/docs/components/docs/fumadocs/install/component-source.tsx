@@ -70,6 +70,12 @@ async function readLocalShadcnComponent(
   name: string,
   flavor: RegistryFlavor,
 ): Promise<string | null> {
+  const uiPath = path.join(
+    process.cwd(),
+    "../../packages/ui/src/components/ui",
+    `${name}.tsx`,
+  );
+
   if (flavor === "base") {
     const vendoredPath = path.join(
       process.cwd(),
@@ -84,24 +90,13 @@ async function readLocalShadcnComponent(
       );
     }
 
-    const fallbackPath = path.join(
-      process.cwd(),
-      "../../packages/ui/src/components/ui",
-      `${name}.tsx`,
-    );
-    const fallbackContent = await readFile(fallbackPath);
+    const fallbackContent = await readFile(uiPath);
     return fallbackContent !== null && !RADIX_IMPORT.test(fallbackContent)
       ? fallbackContent
       : null;
   }
 
-  const localPath = path.join(
-    process.cwd(),
-    "../../packages/ui/src/components/ui",
-    `${name}.tsx`,
-  );
-
-  return readFile(localPath);
+  return readFile(uiPath);
 }
 
 function parseRegistryDependency(dep: string): {
