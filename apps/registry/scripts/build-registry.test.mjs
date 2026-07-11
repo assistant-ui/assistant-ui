@@ -8,6 +8,7 @@ const {
   getBaseVariantSourcePath,
   validateBaseTreeRadixImports,
   validateBaseVariantContent,
+  validateEmittedSpecifierHygiene,
   validateRadixPassDidNotReadBaseSources,
   validateStyleScopedDependencies,
   validateVariantExportParity,
@@ -120,6 +121,43 @@ test("base variant content validation accepts clean content", () => {
     validateBaseVariantContent([
       createBuilt("clean", [
         ["components/clean.tsx", "export const clean = true;"],
+      ]),
+    ]),
+  );
+});
+
+test("emitted specifier hygiene aggregates marked UI specifiers", () => {
+  assert.throws(
+    () =>
+      validateEmittedSpecifierHygiene([
+        createBuilt("radix", [
+          ["components/radix.tsx", 'import "@/components/ui/radix/button";'],
+        ]),
+        createBuilt("base", [
+          ["components/base.tsx", 'import "@/components/ui/base/button";'],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid emitted UI specifiers:/);
+      assert.ok(
+        error.message.includes(
+          "- radix: components/radix.tsx contains @/components/ui/radix/",
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          "- base: components/base.tsx contains @/components/ui/base/",
+        ),
+      );
+      return true;
+    },
+  );
+
+  assert.doesNotThrow(() =>
+    validateEmittedSpecifierHygiene([
+      createBuilt("clean", [
+        ["components/clean.tsx", 'import "@/components/ui/button";'],
       ]),
     ]),
   );

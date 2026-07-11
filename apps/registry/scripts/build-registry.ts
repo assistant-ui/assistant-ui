@@ -21,6 +21,9 @@ const BASE_VARIANT_FORBIDDEN_PATTERNS = [
   ["radix import", RADIX_IMPORT_RE],
   ["data-[state=", /data-\[state=/],
 ] as const;
+const MARKED_UI_SPECIFIERS = ["radix", "base"].map(
+  (flavor) => `@/components/ui/${flavor}/`,
+);
 const PROJECT_PACKAGE_IMPORTS = new Set([
   "next",
   "next-themes",
@@ -131,6 +134,22 @@ export function validateBaseTreeRadixImports(
   throwIfFindings("Invalid base tree imports:", findings);
 }
 
+export function validateEmittedSpecifierHygiene(built: BuiltRegistryPayload[]) {
+  const findings = new Set<string>();
+
+  for (const { payload } of built) {
+    for (const file of payload.files ?? []) {
+      for (const token of MARKED_UI_SPECIFIERS) {
+        if (file.content.includes(token)) {
+          findings.add(`${payload.name}: ${file.path} contains ${token}`);
+        }
+      }
+    }
+  }
+
+  throwIfFindings("Invalid emitted UI specifiers:", findings);
+}
+
 function createRegistryPayload(
   item: RegistryBuildItem,
   useBaseVariants = false,
@@ -154,9 +173,9 @@ function createRegistryPayload(
     let content = readFileSync(path.join(process.cwd(), readPath), "utf8");
     sourceContentsByOutputPath.set(file.path, content);
 
-    if (usesBaseVariant) {
+    if (!useBaseVariants) {
       content = content.replace(
-        /@\/components\/ui-base\//g,
+        /@\/components\/ui\/radix\//g,
         "@/components/ui/",
       );
     }
@@ -775,6 +794,7 @@ async function buildRegistry(registry: RegistryItem[]) {
   );
   validateBaseVariantContent(baseBuilt);
   validateBaseTreeRadixImports(baseBuilt);
+  validateEmittedSpecifierHygiene([...radixBuilt, ...baseBuilt]);
   validateRadixPassDidNotReadBaseSources(radixBuilt);
   validateVariantTreesDiffer(radixBuilt, baseBuilt);
   validateVariantSlotParity(radixBuilt, baseBuilt);
