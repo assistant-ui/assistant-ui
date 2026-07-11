@@ -82,7 +82,7 @@ export const createSuggestionAdapter = (
         .map((s) => s.trim())
         .filter((s) => s.length > 0)
         .slice(0, count)
-        .map((prompt) => ({ prompt }));
+        .map((text) => ({ prompt: text }));
     },
   };
 };
