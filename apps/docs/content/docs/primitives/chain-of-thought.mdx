@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { ChainOfThoughtPrimitiveSample } from "@/components/docs/samples/chain-of-thought-primitive";
+import { ChainOfThoughtPrimitiveSample as ChainOfThoughtPrimitiveSampleBase } from "@/components/docs/samples/chain-of-thought-primitive.base";
+import { Flavored } from "@/components/docs/contexts/flavor.server";
 import {
   ChainOfThoughtPrimitive as ChainOfThoughtPrimitiveDocs,
   MessagePrimitive as MessagePrimitiveDocs,
@@ -18,7 +20,10 @@ For new grouped reasoning/tool-call UI, use `MessagePrimitive.GroupedParts`. `Ch
 
 <Tabs items={["Preview", "Code"]}>
   <Tab>
-    <ChainOfThoughtPrimitiveSample />
+    <Flavored
+      base={<ChainOfThoughtPrimitiveSampleBase />}
+      radix={<ChainOfThoughtPrimitiveSample />}
+    />
   </Tab>
   <Tab>
 ```tsx
