@@ -36,6 +36,20 @@ describe("toAssistantError", () => {
     });
   });
 
+  it("converts a thrown number", () => {
+    expect(toAssistantError(42)).toEqual({
+      code: "unknown",
+      message: "[number] 42",
+    });
+  });
+
+  it("converts a thrown null", () => {
+    expect(toAssistantError(null)).toEqual({
+      code: "unknown",
+      message: "[object] null",
+    });
+  });
+
   it("converts an object whose toString throws", () => {
     const value = {
       toString() {

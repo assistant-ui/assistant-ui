@@ -1,5 +1,4 @@
 import { useAuiState } from "@assistant-ui/store";
-import { isAssistantError } from "../../types/error";
 
 export const useMessageError = () => {
   return useAuiState((s) => {
@@ -10,7 +9,6 @@ export const useMessageError = () => {
       return undefined;
     }
     const error = s.message.status.error;
-    if (isAssistantError(error)) return error.message;
     if (typeof error === "string") return error;
     if (
       typeof error === "object" &&

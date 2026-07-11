@@ -271,7 +271,7 @@ describe("AssistantMessageAccumulator error chunks", () => {
         error: "boom",
         code: "unknown",
         severity: "fatal",
-      },
+      } as unknown as AssistantStreamChunk,
     ]);
     const last = messages.at(-1)!;
 
