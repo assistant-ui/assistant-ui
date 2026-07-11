@@ -502,20 +502,24 @@ type AssistantMessage = {
 
 declare namespace AssistantModalPrimitiveAnchor {
   type Element = ComponentRef<typeof Popover.Anchor>;
-  type Props = ComponentPropsWithoutRef<typeof Popover.Anchor>;
+  type Props = WithRenderPropProps<typeof Popover.Anchor>;
 }
 
-declare const AssistantModalPrimitiveAnchor: import("react").ForwardRefExoticComponent<Omit<Popover.PopoverAnchorProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
+declare const AssistantModalPrimitiveAnchor: import("react").ForwardRefExoticComponent<Omit<Popover.PopoverAnchorProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & {
+  render?: import("react").ReactElement | undefined;
+} & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace AssistantModalPrimitiveContent {
   type Element = ComponentRef<typeof Popover.Content>;
-  type Props = ComponentPropsWithoutRef<typeof Popover.Content> & {
+  type Props = WithRenderPropProps<typeof Popover.Content> & {
     portalProps?: ComponentPropsWithoutRef<typeof Popover.Portal> | undefined;
     dissmissOnInteractOutside?: boolean | undefined;
   };
 }
 
 declare const AssistantModalPrimitiveContent: import("react").ForwardRefExoticComponent<Omit<Popover.PopoverContentProps & import("react").RefAttributes<HTMLDivElement>, "ref"> & {
+  render?: import("react").ReactElement | undefined;
+} & {
   portalProps?: ComponentPropsWithoutRef<typeof Popover.Portal> | undefined;
   dissmissOnInteractOutside?: boolean | undefined;
 } & import("react").RefAttributes<HTMLDivElement>>;
@@ -530,10 +534,12 @@ declare const AssistantModalPrimitiveRoot: FC<AssistantModalPrimitiveRoot.Props>
 
 declare namespace AssistantModalPrimitiveTrigger {
   type Element = ComponentRef<typeof Popover.Trigger>;
-  type Props = ComponentPropsWithoutRef<typeof Popover.Trigger>;
+  type Props = WithRenderPropProps<typeof Popover.Trigger>;
 }
 
-declare const AssistantModalPrimitiveTrigger: import("react").ForwardRefExoticComponent<Omit<Popover.PopoverTriggerProps & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
+declare const AssistantModalPrimitiveTrigger: import("react").ForwardRefExoticComponent<Omit<Popover.PopoverTriggerProps & import("react").RefAttributes<HTMLButtonElement>, "ref"> & {
+  render?: import("react").ReactElement | undefined;
+} & import("react").RefAttributes<HTMLButtonElement>>;
 
 type AssistantRuntime = {
   readonly threads: ThreadListRuntime;
@@ -1156,7 +1162,7 @@ interface ClientMethods {
   [key: string | symbol]: (...args: any[]) => any;
 }
 
-type ClientNames = keyof ClientSchemas extends infer U ? U : never;
+type ClientNames = keyof ClientSchemas extends (infer U) ? U : never;
 
 type ClientOutput<K extends ClientNames> = ClientSchemas[K]["methods"] & ClientMethods;
 
@@ -5187,7 +5193,7 @@ type ToolkitDefinitionEntryWithParameters<TArgs extends Record<string, unknown> 
   parameters: NonNullable<ToolParameters<TArgs>>;
 };
 
-type ToolkitDefinitionInput<TArgs extends Record<string, unknown>, TResult> = WithRender<ToolDeclaration<TArgs, TResult> extends infer T ? T extends {
+type ToolkitDefinitionInput<TArgs extends Record<string, unknown>, TResult> = WithRender<ToolDeclaration<TArgs, TResult> extends (infer T) ? T extends {
   streamCall?: unknown;
 } ? OverrideToolDeclarationCallbacks<T, TArgs, TResult> : never : never, TArgs, TResult>;
 

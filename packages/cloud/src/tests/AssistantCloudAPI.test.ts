@@ -105,6 +105,15 @@ describe("AssistantCloudAPI", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("returns false from initializeAuth when auth token callback returns null", async () => {
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken: async () => null,
+    });
+
+    await expect(api.initializeAuth()).resolves.toBe(false);
+  });
+
   it("throws APIError with parsed message for JSON error responses", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
@@ -157,7 +166,7 @@ describe("AssistantCloudAPI", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       headers: new Headers(),
-      json: vi.fn().mockResolvedValue(responseData),
+      text: vi.fn().mockResolvedValue(JSON.stringify(responseData)),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -169,5 +178,63 @@ describe("AssistantCloudAPI", () => {
 
     const result = await api.makeRequest("/threads");
     expect(result).toEqual(responseData);
+  });
+
+  it("makeRequest returns undefined from a successful empty response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      headers: new Headers(),
+      text: vi.fn().mockResolvedValue(""),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      apiKey: "test-key",
+      userId: "u-1",
+      workspaceId: "w-1",
+    });
+
+    await expect(
+      api.makeRequest("/threads/t-1", { method: "DELETE" }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("makeRequest returns undefined when content-length is zero", async () => {
+    const text = vi.fn().mockResolvedValue("");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-length": "0" }),
+      text,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      apiKey: "test-key",
+      userId: "u-1",
+      workspaceId: "w-1",
+    });
+
+    await expect(api.makeRequest("/threads/t-1")).resolves.toBeUndefined();
+    expect(text).not.toHaveBeenCalled();
+  });
+
+  it("makeRequest returns undefined from a whitespace-only success body", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      text: vi.fn().mockResolvedValue("  "),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      apiKey: "test-key",
+      userId: "u-1",
+      workspaceId: "w-1",
+    });
+
+    await expect(api.makeRequest("/threads/t-1")).resolves.toBeUndefined();
   });
 });
