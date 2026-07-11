@@ -114,14 +114,16 @@ import {
     <PlusIcon />
   </DropdownMenuTrigger>
   <DropdownMenuContent align="start" side="bottom">
-    <DropdownMenuItem asChild>
-      <ComposerPrimitive.AddAttachment>
-        <Paperclip /> Add photos & files
-      </ComposerPrimitive.AddAttachment>
+    <DropdownMenuItem render={<ComposerPrimitive.AddAttachment />}>
+      <Paperclip /> Add photos & files
     </DropdownMenuItem>
     <DropdownMenuSeparator />
-    <DropdownMenuItem icon={<Telescope />}>Deep Research</DropdownMenuItem>
-    <DropdownMenuItem icon={<PencilRuler />}>Canvas</DropdownMenuItem>
+    <DropdownMenuItem>
+      <Telescope /> Deep Research
+    </DropdownMenuItem>
+    <DropdownMenuItem>
+      <PencilRuler /> Canvas
+    </DropdownMenuItem>
     {/* Create image, Guided Learning ... */}
   </DropdownMenuContent>
 </DropdownMenu>

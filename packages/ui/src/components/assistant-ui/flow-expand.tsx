@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useId,
   useRef,
   useState,
   type ComponentProps,
@@ -37,7 +38,9 @@ type FlowExpandProps = Omit<ComponentProps<"div">, "children"> & {
 export function FlowExpand({ className, children, ...props }: FlowExpandProps) {
   const [open, setOpen] = useState(false);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const dialogId = useId();
   const viewportRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const drag = useRef<{
     startX: number;
     startY: number;
@@ -50,6 +53,7 @@ export function FlowExpand({ className, children, ...props }: FlowExpandProps) {
     if (!nextOpen) {
       drag.current = null;
       setTransform({ x: 0, y: 0, scale: 1 });
+      requestAnimationFrame(() => triggerRef.current?.focus());
     }
   }, []);
 
@@ -124,11 +128,15 @@ export function FlowExpand({ className, children, ...props }: FlowExpandProps) {
       >
         {children}
         <Button
+          ref={triggerRef}
           type="button"
           variant="ghost"
           size="icon-sm"
           aria-label="Expand diagram"
           title="Expand diagram"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-controls={open ? dialogId : undefined}
           onClick={() => onOpenChange(true)}
           className={cn(
             flowControlButtonClass,
@@ -138,6 +146,7 @@ export function FlowExpand({ className, children, ...props }: FlowExpandProps) {
           <Maximize2 className="size-3.5" />
         </Button>
         <DialogContent
+          id={dialogId}
           showCloseButton={false}
           className="aui-flow-dialog-content bg-background fixed inset-0 start-0 top-0 z-50 max-w-none translate-x-0 translate-y-0 rounded-none border-0 p-0 shadow-none sm:max-w-none"
         >
