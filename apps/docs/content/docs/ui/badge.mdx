@@ -83,7 +83,7 @@ Badges automatically style SVG icons.
 
 ### As Link
 
-Use the `asChild` prop to render the badge as a different element, like a link.
+Compose with `render` (Base UI) or `asChild` (Radix) to render the badge as a different element, like a link.
 
 <PreviewCode file="components/docs/samples/badge" name="BadgeAsLinkSample" base={<BadgeBaseSamples.BadgeAsLinkSample />}>
   <BadgeAsLinkSample />
@@ -117,10 +117,15 @@ Combine with CSS transitions for scroll and color animations.
       description: "The size of the badge.",
     },
     {
+      name: "render",
+      type: "ReactElement | function",
+      description: "Base UI: compose as a different element instead of rendering a span.",
+    },
+    {
       name: "asChild",
       type: "boolean",
       default: "false",
-      description: "Merge props with child element instead of rendering a span.",
+      description: "Radix: merge props with a child element instead of rendering a span.",
     },
     {
       name: "className",

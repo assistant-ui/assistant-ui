@@ -104,7 +104,7 @@ Use `value` and `onValueChange` for controlled tab state.
 
 ### As Link
 
-Use the `asChild` prop on `TabsTrigger` to render as a different element, like a navigation link.
+Compose with `render` (Base UI) or `asChild` (Radix) on `TabsTrigger` to render as a different element, like a navigation link.
 
 <PreviewCode file="components/docs/samples/tabs" name="TabsAsLinkSample" base={<TabsBaseSamples.TabsAsLinkSample />}>
   <TabsAsLinkSample />
@@ -208,10 +208,15 @@ An individual tab button.
       description: "The unique value for this tab.",
     },
     {
+      name: "render",
+      type: "ReactElement | function",
+      description: "Base UI: compose as a different element instead of rendering a button.",
+    },
+    {
       name: "asChild",
       type: "boolean",
       default: "false",
-      description: "Merge props with child element instead of rendering a button.",
+      description: "Radix: merge props with a child element instead of rendering a button.",
     },
     {
       name: "disabled",
