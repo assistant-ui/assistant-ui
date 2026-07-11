@@ -1,0 +1,112 @@
+---
+title: Welcome Suggestions
+description: Starter prompt pills with a composer-coupled picker panel for the new-thread welcome screen.
+platforms: ["react"]
+---
+
+import { WelcomeSuggestionsSample } from "@/components/docs/samples/welcome-suggestions";
+
+<WelcomeSuggestionsSample />
+
+`ThreadWelcomeSuggestions` renders starter prompts for an empty thread. Grouped entries render as a pill row that opens a composer-coupled picker panel; flat entries render as an always-open vertical list. Place it next to any composer — no wrapper elements or thread layout changes are required.
+
+<Callout type="info">
+  For runtime-generated prompts that appear after an assistant response, use
+  [Follow-Up Suggestions](/docs/ui/follow-up-suggestions) instead.
+</Callout>
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `welcome-suggestions`
+
+<InstallCommand shadcn={["welcome-suggestions"]} />
+
+This adds a `/components/assistant-ui/welcome-suggestions.tsx` file to your project.
+
+  </Step>
+  <Step>
+
+### Provide suggestions
+
+Pass entries through the `suggestions` prop. An entry with a `suggestions` array is a group; without one it is a flat item. When the prop is omitted, the component reads the static welcome prompts configured with `Suggestions(...)`. Dynamic follow-up prompts from `thread.suggestions` are never rendered here.
+
+```tsx title="/components/assistant-ui/thread.tsx"
+import {
+  ThreadWelcomeSuggestions,
+  type SuggestionEntry,
+} from "@/components/assistant-ui/welcome-suggestions";
+
+const WELCOME_SUGGESTIONS: SuggestionEntry[] = [
+  {
+    label: "Weather",
+    icon: <CloudSunIcon />,
+    suggestions: [
+      {
+        label: "in San Francisco",
+        prompt: "What's the weather in San Francisco?",
+      },
+      { label: "in Tokyo", prompt: "What's the weather in Tokyo?" },
+    ],
+  },
+  { label: "Compare React and Vue" }, // flat item; label doubles as prompt
+];
+```
+
+  </Step>
+  <Step>
+
+### Render next to the composer
+
+```tsx title="/components/assistant-ui/thread.tsx" {4}
+<ThreadPrimitive.ViewportFooter>
+  <ThreadPrimitive.ScrollToBottom />
+  <Composer />
+  <ThreadWelcomeSuggestions suggestions={WELCOME_SUGGESTIONS} />
+</ThreadPrimitive.ViewportFooter>
+```
+
+  </Step>
+</Steps>
+
+## Behavior
+
+Selecting a suggestion goes through `ThreadPrimitive.Suggestion`: by default (`send`) it sends the prompt immediately; with `send={false}` it places the prompt in the composer for editing. Clicking an item and pressing <kbd>Enter</kbd> on the highlighted item are the same action.
+
+While a group panel is open, the composer keeps focus and drives the panel:
+
+| Key                          | Action                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| <kbd>↑</kbd> / <kbd>↓</kbd>  | Move the highlight; live-preview the prompt in an empty composer          |
+| <kbd>Enter</kbd>             | Select the highlighted item (plain composer submit when nothing is highlighted) |
+| <kbd>Esc</kbd>               | Close the panel                                                           |
+| <kbd>Tab</kbd>               | Close the panel and move focus on; the previewed prompt stays in the composer |
+| Characters                   | Type into the composer; the panel dismisses                               |
+
+Navigation never destroys user text: the preview only writes over an empty composer or text the picker wrote itself. A draft you typed stays untouched while you browse, and sending a highlighted suggestion over a draft preserves the draft.
+
+In the pill row, pills are tab stops: <kbd>←</kbd>/<kbd>→</kbd> move focus and <kbd>↓</kbd> or <kbd>Enter</kbd> opens a group. In the flat list, items are tab stops navigated with <kbd>↑</kbd>/<kbd>↓</kbd>.
+
+## Props
+
+- `suggestions` — the entries to render; falls back to the static `Suggestions(...)` scope. Pass the prop for grouped entries.
+- `send` — default `true`. Whether selecting an item sends the prompt immediately or places it in the composer.
+
+## Custom composition
+
+The default export composes exported subcomponents you can arrange yourself: `WelcomeSuggestionsRoot`, `WelcomeSuggestionsPills`, `WelcomeSuggestionsPicker`, `WelcomeSuggestionsPickerItem`, `WelcomeSuggestionsList`, and the `useWelcomeSuggestions` context hook.
+
+```tsx
+<WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
+  <WelcomeSuggestionsPills />
+  <WelcomeSuggestionsPicker />
+</WelcomeSuggestionsRoot>
+```
+
+## Related Components
+
+- [Thread](/docs/ui/thread) - Complete chat interface with message list and composer
+- [Follow-Up Suggestions](/docs/ui/follow-up-suggestions) - Runtime follow-up prompt chips after a response
+- [Suggestions guide](/docs/guides/suggestions) - Runtime and static suggestion patterns

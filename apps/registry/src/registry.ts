@@ -1212,6 +1212,22 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react"],
   },
   {
+    name: "welcome-suggestions",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/welcome-suggestions.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/welcome-suggestions.tsx",
+      },
+    ],
+    registryDependencies: [],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
+  },
+  {
     name: "tooltip-icon-button",
     type: "registry:component",
     title: "Tooltip Icon Button",
