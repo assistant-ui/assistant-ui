@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-streamdown",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Streamdown-based markdown rendering for assistant-ui",
   "keywords": [
     "markdown",
@@ -76,7 +76,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "remark-rehype": "^11.1.2",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

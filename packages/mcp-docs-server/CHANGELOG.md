@@ -1,5 +1,31 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.38
+
+### Patch Changes
+
+- [#4579](https://github.com/assistant-ui/assistant-ui/pull/4579) [`84a9fcd`](https://github.com/assistant-ui/assistant-ui/commit/84a9fcd9acb27737035ac88d48063111b944e3a6) - feat: add assistantUISearch tool for keyword search over the docs ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4621](https://github.com/assistant-ui/assistant-ui/pull/4621) [`f7c814d`](https://github.com/assistant-ui/assistant-ui/commit/f7c814d79f8df5d7998bd4dd2340c3b3801f663c) - feat: add argument completions for the docs and examples resources ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+## 0.1.37
+
+### Patch Changes
+
+- [#4578](https://github.com/assistant-ui/assistant-ui/pull/4578) [`e65a982`](https://github.com/assistant-ui/assistant-ui/commit/e65a982bad3f1205b60ed57725c537c3fad4794c) - fix: cap aggregate directory content size in assistantUIDocs ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4575](https://github.com/assistant-ui/assistant-ui/pull/4575) [`42db1f7`](https://github.com/assistant-ui/assistant-ui/commit/42db1f7a9759d3d5ba1c8a17a221ebc389b0fcba) - fix: do not bundle unused blog posts in the docs server ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4596](https://github.com/assistant-ui/assistant-ui/pull/4596) [`4e26f35`](https://github.com/assistant-ui/assistant-ui/commit/4e26f35f7f05979c22b86a958dece18a48ffaecb) - feat: expose docs and examples as MCP resources ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+## 0.1.36
+
+### Patch Changes
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#4574](https://github.com/assistant-ui/assistant-ui/pull/4574) [`d130d38`](https://github.com/assistant-ui/assistant-ui/commit/d130d38df851533e6a06d63ded4982db83a8b546) - feat: adopt registerTool API and advertise read-only tool annotations ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.1.35
 
 ### Patch Changes

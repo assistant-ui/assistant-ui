@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Resolve release commit SHA
         id: release-sha
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const dispatchReleaseShaRaw = context.payload?.client_payload?.releaseSha;
@@ -103,7 +103,7 @@ jobs:
       DEFAULT_BRANCH: ${{ needs.approve.outputs.default_branch }}
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           ref: ${{ env.RELEASE_SHA }}
@@ -232,14 +232,14 @@ jobs:
       VERSION: ${{ needs.summary.outputs.version }}
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 1
           fetch-tags: true
           ref: ${{ env.RELEASE_SHA }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
           # No cache - hardened against cache poisoning for sensitive publish operations
           enable-cache: false
@@ -268,7 +268,7 @@ jobs:
       # PyPI trusted publishing requires this workflow filename and the
       # `pypi publish` environment to match the project's trusted-publisher config.
       - name: Publish to PyPI via OIDC
-        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.13.0
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
         with:
           packages-dir: ${{ env.PYTHON_PACKAGE_DIR }}/dist
 

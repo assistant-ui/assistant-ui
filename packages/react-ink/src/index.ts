@@ -149,6 +149,10 @@ export * as MessagePartPrimitive from "./primitives/messagePart";
 export * as LoadingPrimitive from "./primitives/loading";
 export * as StatusBarPrimitive from "./primitives/statusBar";
 export { DiffView, type DiffViewProps } from "./primitives/diff/DiffView";
+export {
+  TextInput,
+  type TextInputProps,
+} from "./primitives/textInput/TextInput";
 export * as ChecklistPrimitive from "./primitives/checklist";
 export {
   LiveChecklist,
@@ -166,8 +170,11 @@ export {
 // Re-export shared providers from core/react
 export {
   ThreadListItemByIndexProvider,
+  ThreadListItemRuntimeProvider,
   ChainOfThoughtByIndicesProvider,
   MessageByIndexProvider,
+  MessageAttachmentByIndexProvider,
+  ComposerAttachmentByIndexProvider,
   PartByIndexProvider,
   TextMessagePartProvider,
   ChainOfThoughtPartByIndexProvider,
@@ -202,7 +209,9 @@ export {
   useAuiToolOverrides,
   type ProviderToolConfig,
   defineMcpToolkit,
+  type McpToolkitEntry,
   type McpToolkitDefinition,
+  type McpToolkitToolConfig,
   Tools,
   DataRenderers,
   Interactables,
@@ -251,6 +260,13 @@ export type {
   LanguageModelV1CallSettings,
 } from "@assistant-ui/core";
 export { mergeModelContexts } from "@assistant-ui/core";
+export {
+  unstable_getInteractableSnapshots,
+  unstable_formatInteractableSnapshot,
+  unstable_getInteractableVersions,
+  type Unstable_InteractableSnapshotEntry,
+  type Unstable_InteractableVersion,
+} from "@assistant-ui/core";
 export type { Tool } from "assistant-stream";
 export { tool } from "@assistant-ui/core";
 export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";

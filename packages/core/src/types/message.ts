@@ -7,21 +7,25 @@ import type { CompleteAttachment } from "./attachment";
 
 export type { ToolCallTiming, ToolModelContentPart };
 
+export type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
 export type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
 export type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
-export type SourceProviderMetadata = {
-  readonly [providerName: string]: ReadonlyJSONObject;
-};
+export type SourceProviderMetadata = PartProviderMetadata;
 
 export type SourceMessagePart =
   | {
@@ -197,6 +201,8 @@ export type ToolCallMessagePart<
   readonly timing?: ToolCallTiming;
   /** MCP app metadata associated with this tool call, when present. */
   readonly mcp?: ToolCallMessagePartMcpMetadata;
+  /** Provider metadata associated with this tool call, when present. */
+  readonly providerMetadata?: PartProviderMetadata;
   /** Content returned to the model for this tool result. */
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   /** Human-input request that must be resolved before the run can continue. */

@@ -137,8 +137,11 @@ export { unstable_useThreadMessageIds } from "@assistant-ui/core/react";
 // Re-export shared providers from core/react
 export {
   ThreadListItemByIndexProvider,
+  ThreadListItemRuntimeProvider,
   ChainOfThoughtByIndicesProvider,
   MessageByIndexProvider,
+  MessageAttachmentByIndexProvider,
+  ComposerAttachmentByIndexProvider,
   PartByIndexProvider,
   TextMessagePartProvider,
   ChainOfThoughtPartByIndexProvider,
@@ -178,7 +181,9 @@ export {
   providerTool,
   type ProviderToolConfig,
   defineMcpToolkit,
+  type McpToolkitEntry,
   type McpToolkitDefinition,
+  type McpToolkitToolConfig,
   Tools,
   DataRenderers,
   Interactables,
@@ -217,6 +222,14 @@ export type {
 } from "@assistant-ui/core";
 
 export { mergeModelContexts } from "@assistant-ui/core";
+
+export {
+  unstable_getInteractableSnapshots,
+  unstable_formatInteractableSnapshot,
+  unstable_getInteractableVersions,
+  type Unstable_InteractableSnapshotEntry,
+  type Unstable_InteractableVersion,
+} from "@assistant-ui/core";
 
 export type { ExportedMessageRepositoryItem } from "@assistant-ui/core";
 export { ExportedMessageRepository } from "@assistant-ui/core";

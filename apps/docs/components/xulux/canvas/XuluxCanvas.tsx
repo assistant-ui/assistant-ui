@@ -17,8 +17,10 @@ import {
   useXuluxAnalytics,
 } from "@/lib/xulux/analytics-context";
 import { cn } from "@/lib/utils";
+import type { XuluxPreviewFrame as XuluxPreviewFrameConfig } from "../templates/types";
 import { XuluxCanvasTabBar, type CanvasTab } from "./XuluxCanvasTabBar";
 import { XuluxFileBrowser } from "./XuluxFileBrowser";
+import { XuluxPreviewFrame } from "./XuluxPreviewFrame";
 import { useVirtualArchive } from "./useVirtualArchive";
 
 function toAbsoluteUrl(url: string | null): string | null {
@@ -54,7 +56,9 @@ export function XuluxCanvas({
   source,
   error,
   downloadUrl,
+  previewFrame,
   templateId,
+  versionId,
   sourceUrl,
   title,
 }: {
@@ -64,7 +68,9 @@ export function XuluxCanvas({
   source: "template" | "agent_template" | "refresh" | null;
   error: string | null;
   downloadUrl?: string;
+  previewFrame?: XuluxPreviewFrameConfig;
   templateId?: string;
+  versionId?: string;
   sourceUrl?: string;
   title?: string;
 }) {
@@ -86,7 +92,7 @@ export function XuluxCanvas({
     : "empty";
 
   const archiveUrl = canDownloadTemplate ? downloadUrl : undefined;
-  const archiveState = useVirtualArchive(archiveUrl);
+  const archiveState = useVirtualArchive(archiveUrl, templateId, versionId);
 
   useEffect(() => {
     if (!resolvedPreviewUrl) {
@@ -306,16 +312,18 @@ export function XuluxCanvas({
                   </div>
                 </div>
               )}
-              <iframe
-                key={iframeKey}
-                title={title ?? "Xulux preview"}
-                src={resolvedPreviewUrl}
-                onLoad={() => {
-                  previewLoadedForUrlRef.current = iframeKey;
-                  setIsPreviewLoading(false);
-                }}
-                className="h-full w-full border-0 bg-white"
-              />
+              <XuluxPreviewFrame frame={previewFrame}>
+                <iframe
+                  key={iframeKey}
+                  title={title ?? "Xulux preview"}
+                  src={resolvedPreviewUrl}
+                  onLoad={() => {
+                    previewLoadedForUrlRef.current = iframeKey;
+                    setIsPreviewLoading(false);
+                  }}
+                  className="h-full w-full border-0 bg-white"
+                />
+              </XuluxPreviewFrame>
             </>
           ) : (
             <div className="flex h-full items-center justify-center p-6 text-center">

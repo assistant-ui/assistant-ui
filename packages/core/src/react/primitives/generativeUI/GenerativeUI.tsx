@@ -51,7 +51,11 @@ const renderNode = (
 
   if (typeof node === "string") return node;
 
-  if (!isObjectNode(node) || !("component" in node)) {
+  if (
+    !isObjectNode(node) ||
+    !("component" in node) ||
+    typeof node.component !== "string"
+  ) {
     if (
       typeof process !== "undefined" &&
       process.env?.NODE_ENV !== "production"

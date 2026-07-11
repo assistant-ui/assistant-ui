@@ -4,10 +4,20 @@ import { join } from "node:path";
 import { PACKAGE_DIR } from "../../constants.js";
 import { docsTools } from "../docs.js";
 import { examplesTools } from "../examples.js";
+import { searchTools } from "../search.js";
+import {
+  xuluxTemplatesListTool,
+  xuluxTemplateDetailsTool,
+  xuluxTemplatePreviewTool,
+} from "../xulux-templates.js";
 
 const tools = {
   assistantUIDocs: docsTools,
   assistantUIExamples: examplesTools,
+  assistantUISearch: searchTools,
+  assistantUITemplates: xuluxTemplatesListTool,
+  assistantUITemplateDetails: xuluxTemplateDetailsTool,
+  assistantUITemplatePreview: xuluxTemplatePreviewTool,
 };
 
 export const testContext = {

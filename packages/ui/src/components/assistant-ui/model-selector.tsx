@@ -10,7 +10,6 @@ import {
   createContext,
   useContext,
   type ComponentPropsWithoutRef,
-  type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -31,6 +30,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 
 export type ModelSelectorEffortOption = {
   id: string;
@@ -39,7 +39,7 @@ export type ModelSelectorEffortOption = {
 
 export const DEFAULT_EFFORT_OPTIONS: readonly ModelSelectorEffortOption[] = [
   { id: "low", name: "Low" },
-  { id: "medium", name: "Medium" },
+  { id: "medium", name: "Med" },
   { id: "high", name: "High" },
 ];
 
@@ -232,7 +232,6 @@ function ModelSelectorRoot({
 
   return (
     <ModelSelectorContext.Provider value={contextValue}>
-      {/* `?? false` narrows away undefined for exactOptionalPropertyTypes consumers. */}
       <Popover open={open ?? false} onOpenChange={setOpen}>
         {children}
       </Popover>
@@ -241,7 +240,7 @@ function ModelSelectorRoot({
 }
 
 export const modelSelectorTriggerVariants = cva(
-  "focus-visible:ring-ring/50 flex w-fit items-center justify-between gap-2 overflow-hidden rounded-md text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "focus-visible:ring-ring/50 flex w-fit items-center justify-between gap-2 overflow-hidden rounded-md text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
   {
     variants: {
       variant: {
@@ -273,15 +272,29 @@ function ModelSelectorTrigger({
   variant,
   size,
   children,
+  onKeyDown,
   ...props
 }: ModelSelectorTriggerProps) {
+  const { setOpen } = useModelSelectorContext();
+
   return (
     <PopoverTrigger
       data-slot="model-selector-trigger"
       data-variant={variant ?? "outline"}
       data-size={size ?? "default"}
       role="combobox"
+      aria-haspopup="listbox"
       className={cn(modelSelectorTriggerVariants({ variant, size }), className)}
+      onKeyDown={(e) => {
+        onKeyDown?.(e);
+        if (e.defaultPrevented) return;
+        // ARIA combobox: arrows open the listbox from a focused trigger.
+        // Popover leaves this to the consumer.
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          setOpen(true);
+        }
+      }}
       {...props}
     >
       {children ?? <ModelSelectorValue />}
@@ -297,9 +310,20 @@ export type ModelSelectorValueProps = {
   className?: string;
 };
 
-function ModelIcon({ children }: { children: ReactNode }) {
+function ModelIcon({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
+    <span
+      className={cn(
+        "flex size-3.5 shrink-0 items-center justify-center [&_svg]:size-3.5",
+        className,
+      )}
+    >
       {children}
     </span>
   );
@@ -336,7 +360,9 @@ function ModelSelectorValue({
       {selectedModel.icon && <ModelIcon>{selectedModel.icon}</ModelIcon>}
       <span className="truncate font-medium">{selectedModel.name}</span>
       {effortName && (
-        <span className="text-muted-foreground truncate">{effortName}</span>
+        <span className="text-muted-foreground min-w-7.5 truncate text-center">
+          {effortName}
+        </span>
       )}
     </span>
   );
@@ -344,16 +370,34 @@ function ModelSelectorValue({
 
 export type ModelSelectorContentProps = ComponentPropsWithoutRef<
   typeof PopoverContent
->;
+> & {
+  searchable?: boolean;
+};
+
+/**
+ * Hidden input that anchors cmdk's keyboard navigation, keeping the list
+ * keyboard-operable without a visible search box. ModelSelectorContent renders
+ * one automatically when unfiltered.
+ */
+function ModelSelectorFocusAnchor() {
+  return (
+    <div className="sr-only">
+      <CommandInput readOnly aria-label="Model" />
+    </div>
+  );
+}
 
 function ModelSelectorContent({
   className,
   align = "start",
   sideOffset = 6,
+  searchable,
   children,
   ...props
 }: ModelSelectorContentProps) {
   const { value } = useModelSelectorContext();
+  const unfiltered =
+    searchable === false || (!searchable && children === undefined);
 
   return (
     <PopoverContent
@@ -366,14 +410,15 @@ function ModelSelectorContent({
       )}
       {...props}
     >
-      {/* Seeding cmdk with the selected id makes it the active item, which
-          cmdk scrolls into view when the popover opens. */}
       <Command
         className="bg-transparent"
+        shouldFilter={!unfiltered}
         {...(value !== undefined ? { defaultValue: value } : {})}
       >
+        {unfiltered && <ModelSelectorFocusAnchor />}
         {children ?? (
           <>
+            {searchable && <ModelSelectorSearch />}
             <ModelSelectorList />
             <ModelSelectorEffort />
           </>
@@ -490,12 +535,17 @@ function ModelSelectorItem({
         setOpen(false);
         onSelect?.(selectedValue);
       }}
-      className={cn("relative gap-2 rounded-lg py-2 ps-3 pe-9", className)}
+      className={cn(
+        "relative items-start gap-2 rounded-lg py-2 ps-3 pe-9 [&_svg:not([class*='size-'])]:size-3.5",
+        className,
+      )}
       {...props}
     >
       {children ?? (
         <>
-          {model.icon && <ModelIcon>{model.icon}</ModelIcon>}
+          {model.icon && (
+            <ModelIcon className="mt-[3px]">{model.icon}</ModelIcon>
+          )}
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{model.name}</span>
             {model.description && (
@@ -507,7 +557,7 @@ function ModelSelectorItem({
         </>
       )}
       {isSelected && (
-        <span className="absolute end-3 flex size-4 items-center justify-center">
+        <span className="absolute end-3 top-2.5 flex size-4 items-center justify-center">
           <CheckIcon className="size-4" />
         </span>
       )}
@@ -536,41 +586,46 @@ function ModelSelectorEffort({
         "flex items-center justify-between gap-3 border-t px-3 py-2",
         className,
       )}
-      onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
-        // cmdk's root keydown handler claims Enter to select the highlighted
-        // model; stop it from seeing Enter so the focused toggle activates.
-        if (e.key === "Enter") e.stopPropagation();
+      onKeyDown={(e) => {
         onKeyDown?.(e);
+        if (e.defaultPrevented) return;
+        // cmdk's Command root claims Home/End to jump the model list; stop
+        // them here so only the radiogroup reacts.
+        if (e.key === "Home" || e.key === "End") e.stopPropagation();
+        // Vertical arrows refocus cmdk's input before the event bubbles to
+        // the Command root: the same keypress then moves the list highlight,
+        // and Enter selects again (cmdk's Enter is inert while a radio has
+        // focus, so the highlight would otherwise move with no way to act).
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.currentTarget
+            .closest("[cmdk-root]")
+            ?.querySelector<HTMLInputElement>("[cmdk-input]")
+            ?.focus();
+        }
       }}
       {...props}
     >
       <span className="text-muted-foreground text-xs">{label}</span>
-      <div
-        role="group"
+      <RadioGroupPrimitive.Root
+        value={effort ?? ""}
+        onValueChange={setEffort}
+        orientation="horizontal"
         aria-label={typeof label === "string" ? label : "Reasoning effort"}
         className="flex items-center gap-0.5"
       >
-        {efforts.map((option) => {
-          const isActive = option.id === effort;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              aria-pressed={isActive}
-              data-state={isActive ? "on" : "off"}
-              onClick={() => setEffort(option.id)}
-              className={cn(
-                "focus-visible:ring-ring/50 rounded-md px-2 py-1 text-xs transition-colors outline-none focus-visible:ring-2",
-                isActive
-                  ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {option.name}
-            </button>
-          );
-        })}
-      </div>
+        {efforts.map((option) => (
+          <RadioGroupPrimitive.Item
+            key={option.id}
+            value={option.id}
+            className={cn(
+              "focus-visible:ring-ring/50 text-muted-foreground hover:text-foreground rounded-md px-2 py-1 text-xs transition-colors outline-none focus-visible:ring-2",
+              "data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground data-[state=checked]:font-medium",
+            )}
+          >
+            {option.name}
+          </RadioGroupPrimitive.Item>
+        ))}
+      </RadioGroupPrimitive.Root>
     </div>
   );
 }
@@ -579,6 +634,9 @@ export type ModelSelectorProps = Omit<ModelSelectorRootProps, "children"> &
   VariantProps<typeof modelSelectorTriggerVariants> & {
     /** Render a search input above the model list. */
     searchable?: boolean;
+    /** Alignment of the dropdown relative to the trigger. Use `"end"` when the
+     * trigger sits at the right edge of its container. */
+    align?: ModelSelectorContentProps["align"];
     className?: string;
     contentClassName?: string;
   };
@@ -609,6 +667,7 @@ const ModelSelectorImpl = ({
   searchable,
   variant,
   size,
+  align,
   className,
   contentClassName,
   ...rootProps
@@ -621,11 +680,11 @@ const ModelSelectorImpl = ({
         size={size}
         className={className}
       />
-      <ModelSelectorContent className={contentClassName}>
-        {searchable && <ModelSelectorSearch />}
-        <ModelSelectorList />
-        <ModelSelectorEffort />
-      </ModelSelectorContent>
+      <ModelSelectorContent
+        {...(align !== undefined ? { align } : {})}
+        className={contentClassName}
+        searchable={searchable ?? false}
+      />
     </ModelSelectorRoot>
   );
 };
@@ -637,6 +696,7 @@ type ModelSelectorComponent = typeof ModelSelectorImpl & {
   Value: typeof ModelSelectorValue;
   Content: typeof ModelSelectorContent;
   Search: typeof ModelSelectorSearch;
+  FocusAnchor: typeof ModelSelectorFocusAnchor;
   List: typeof ModelSelectorList;
   Empty: typeof ModelSelectorEmpty;
   Group: typeof ModelSelectorGroup;
@@ -655,6 +715,7 @@ ModelSelector.Trigger = ModelSelectorTrigger;
 ModelSelector.Value = ModelSelectorValue;
 ModelSelector.Content = ModelSelectorContent;
 ModelSelector.Search = ModelSelectorSearch;
+ModelSelector.FocusAnchor = ModelSelectorFocusAnchor;
 ModelSelector.List = ModelSelectorList;
 ModelSelector.Empty = ModelSelectorEmpty;
 ModelSelector.Group = ModelSelectorGroup;
@@ -669,6 +730,7 @@ export {
   ModelSelectorValue,
   ModelSelectorContent,
   ModelSelectorSearch,
+  ModelSelectorFocusAnchor,
   ModelSelectorList,
   ModelSelectorEmpty,
   ModelSelectorGroup,

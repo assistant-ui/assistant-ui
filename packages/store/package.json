@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/store",
-  "version": "0.2.18",
+  "version": "0.2.19",
   "description": "Tap-based state management for @assistant-ui",
   "keywords": [
     "state-management",
@@ -52,7 +52,7 @@
     "@types/react-dom": "^19.2.3",
     "jsdom": "^29.1.1",
     "react": "^19.2.7",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

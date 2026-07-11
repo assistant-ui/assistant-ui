@@ -9,6 +9,12 @@ import { satisfies } from "semver";
 import { DIRECTIVE, type Target } from "./constants";
 import pkgJson from "../package.json" with { type: "json" };
 
+const parserPlugins = [
+  "typescript",
+  "jsx",
+  "explicitResourceManagement",
+] as NonNullable<NonNullable<Parameters<typeof parse>[1]>["plugins"]>;
+
 // @babel/traverse and @babel/generator are CJS; their default export is the
 // function itself under some interop and `{ default }` under others.
 const traverse = (
@@ -37,6 +43,8 @@ const DISTRIBUTION_PACKAGES = [
   "@assistant-ui/react-native",
   "@assistant-ui/react-ink",
 ] as const;
+/** Package that exports the generative UI runtime split by export condition. */
+const GENERATIVE_UI_PACKAGE = "@assistant-ui/react-generative-ui";
 /**
  * The class whose instances expose split-by-condition tools (`present()`,
  * `promptUser()`). A toolkit entry that calls a method on one of these passes
@@ -112,9 +120,124 @@ export function isGenerativeModule(code: string): boolean {
       break;
     }
   }
+
+  const quote = code[i];
+  if (quote !== '"' && quote !== "'") return false;
+
+  const directiveStart = i + 1;
+  if (!code.startsWith(DIRECTIVE, directiveStart)) return false;
+
+  const directiveEnd = directiveStart + DIRECTIVE.length;
+  if (code[directiveEnd] !== quote) return false;
+
+  return hasDirectiveTerminator(code, directiveEnd + 1);
+}
+
+function hasDirectiveTerminator(code: string, start: number): boolean {
+  let i = start;
+  let sawLineTerminator = false;
+  for (;;) {
+    if (i >= code.length) return true;
+
+    const char = code.charCodeAt(i);
+    if (isSemicolon(char)) return true;
+    if (isLineTerminator(char)) {
+      sawLineTerminator = true;
+      i++;
+      continue;
+    }
+
+    if (code.startsWith("//", i)) {
+      const lineEnd = nextLineTerminatorIndex(code, i + 2);
+      if (lineEnd === -1) return true;
+      sawLineTerminator = true;
+      i = lineEnd + 1;
+      continue;
+    }
+
+    if (code.startsWith("/*", i)) {
+      const end = code.indexOf("*/", i + 2);
+      if (end === -1) return false;
+      sawLineTerminator ||= containsLineTerminator(code, i + 2, end);
+      i = end + 2;
+      continue;
+    }
+
+    if (/\s/.test(code[i]!)) {
+      i++;
+      continue;
+    }
+
+    return sawLineTerminator && !startsExpressionContinuation(code, i);
+  }
+}
+
+function nextLineTerminatorIndex(code: string, start: number): number {
+  for (let i = start; i < code.length; i++) {
+    if (isLineTerminator(code.charCodeAt(i))) return i;
+  }
+  return -1;
+}
+
+function containsLineTerminator(
+  code: string,
+  start: number,
+  end: number,
+): boolean {
+  for (let i = start; i < end; i++) {
+    if (isLineTerminator(code.charCodeAt(i))) return true;
+  }
+  return false;
+}
+
+function startsExpressionContinuation(code: string, start: number): boolean {
+  switch (code[start]) {
+    case ".":
+    case "+":
+    case "-":
+    case "*":
+    case "/":
+    case "%":
+    case "<":
+    case ">":
+    case "=":
+    case "!":
+    case "&":
+    case "|":
+    case "^":
+    case "?":
+    case ":":
+    case ",":
+    case "[":
+    case "(":
+    case "`":
+      return true;
+  }
+
   return (
-    code.startsWith(`"${DIRECTIVE}"`, i) || code.startsWith(`'${DIRECTIVE}'`, i)
+    startsKeywordContinuation(code, start, "as") ||
+    startsKeywordContinuation(code, start, "in") ||
+    startsKeywordContinuation(code, start, "instanceof") ||
+    startsKeywordContinuation(code, start, "satisfies")
   );
+}
+
+function startsKeywordContinuation(
+  code: string,
+  start: number,
+  keyword: string,
+): boolean {
+  if (!code.startsWith(keyword, start)) return false;
+  const next = code[start + keyword.length];
+  return next === undefined || !/[\p{ID_Continue}$]/u.test(next);
+}
+
+function isSemicolon(char: number): boolean {
+  return char === 59;
+}
+
+function isLineTerminator(char: number): boolean {
+  return char === 10 || char === 13 || char === 0x2028 || char === 0x2029;
 }
 
 /**
@@ -129,7 +252,7 @@ export function compileGenerative(
 
   const ast = parse(code, {
     sourceType: "module",
-    plugins: ["typescript", "jsx", "explicitResourceManagement"],
+    plugins: parserPlugins,
   });
 
   if (!ast.program.directives.some((d) => d.value.value === DIRECTIVE)) {
@@ -229,7 +352,7 @@ export function compileGenerative(
     ast,
     {
       sourceMaps: options.sourceMaps ?? false,
-      filename,
+      ...(filename ? { filename } : {}),
       jsescOption: { minimal: true },
     },
     code,
@@ -485,16 +608,46 @@ function unwrapToCall(node: t.Node, name: string): t.CallExpression | null {
  */
 function collectGenerativeInstances(ast: t.File): Set<string> {
   const names = new Set<string>();
+  const generativeFactories = collectGenerativeFactoryImports(ast);
   for (const statement of ast.program.body) {
-    if (!t.isVariableDeclaration(statement)) continue;
-    for (const declaration of statement.declarations) {
+    const variableDeclaration = t.isVariableDeclaration(statement)
+      ? statement
+      : t.isExportNamedDeclaration(statement) &&
+          t.isVariableDeclaration(statement.declaration)
+        ? statement.declaration
+        : null;
+    if (!variableDeclaration) continue;
+    for (const declaration of variableDeclaration.declarations) {
       const { id, init } = declaration;
       if (
         t.isIdentifier(id) &&
         t.isNewExpression(init) &&
-        t.isIdentifier(init.callee, { name: GENERATIVE_FACTORY })
+        t.isIdentifier(init.callee) &&
+        generativeFactories.has(init.callee.name)
       ) {
         names.add(id.name);
+      }
+    }
+  }
+  return names;
+}
+
+function collectGenerativeFactoryImports(ast: t.File): Set<string> {
+  const names = new Set<string>();
+  for (const statement of ast.program.body) {
+    if (
+      !t.isImportDeclaration(statement) ||
+      statement.source.value !== GENERATIVE_UI_PACKAGE
+    ) {
+      continue;
+    }
+
+    for (const specifier of statement.specifiers) {
+      if (
+        t.isImportSpecifier(specifier) &&
+        t.isIdentifier(specifier.imported, { name: GENERATIVE_FACTORY })
+      ) {
+        names.add(specifier.local.name);
       }
     }
   }
@@ -692,7 +845,7 @@ function getGenerativeImportToolkitNames(
   try {
     const importedAst = parse(code, {
       sourceType: "module",
-      plugins: ["typescript", "jsx", "explicitResourceManagement"],
+      plugins: parserPlugins,
     });
     const names = getDefaultExportToolkitNames(importedAst, resolved, context);
     context.importedToolkitNamesByFile.set(resolved, names);
@@ -1042,6 +1195,30 @@ function isSafeToolkitSpread(
   );
 }
 
+function genericUnsafeToolkitEntryMessage(): string {
+  return (
+    "each tool must be an inline object literal (`name: { ... }`) or a " +
+    "compiler-visible toolkit spread / generative tool (e.g. " +
+    "`...defineMcpToolkit(...)`, `...baseToolkit`, " +
+    "`generative.present()`, or `unstable_interactableTool(...)`) so its " +
+    "`execute` can be routed"
+  );
+}
+
+function describeUnsafeToolkitEntry(entry: Entry): string {
+  if (!t.isObjectProperty(entry)) return genericUnsafeToolkitEntryMessage();
+
+  const toolName = memberName(entry.key, entry.computed);
+  const raw = entryRawValue(entry);
+  if (!toolName || !raw) return genericUnsafeToolkitEntryMessage();
+
+  return (
+    `tool "${toolName}" cannot be \`${generate(raw).code}\`; use an inline ` +
+    `object literal (\`${toolName}: { ... }\`) or a compiler-visible toolkit ` +
+    "spread / generative tool so its `execute` can be routed"
+  );
+}
+
 /** The `JSONGenerativeUI` methods that produce a split-by-condition tool. */
 const GENERATIVE_TOOL_METHODS = new Set(["present", "promptUser"]);
 
@@ -1143,27 +1320,27 @@ function compileToolkit(
         continue;
       }
       throw new GenerativeCompileError(
-        "each tool must be an inline object literal (`name: { ... }`) or a " +
-          "compiler-visible toolkit spread / generative tool (e.g. " +
-          "`...defineMcpToolkit(...)`, `...baseToolkit`, " +
-          "`generative.present()`, or `unstable_interactableTool(...)`) so its " +
-          "`execute` can be routed",
+        describeUnsafeToolkitEntry(entry),
         filename,
       );
     }
 
     // Nature is inferred from `execute` (see inferToolType), not an authored
     // `type`. The resolved type is written back below so the runtime keeps it.
+    const toolName = t.isObjectProperty(entry)
+      ? memberName(entry.key, entry.computed)
+      : undefined;
     const execute = findMember(value, "execute");
     const isStub = execute ? executeIsStubTool(execute) : false;
     const isExternal = execute ? executeIsExternalTool(execute) : false;
-    const type = inferToolType(value, filename);
+    const type = inferToolType(value, toolName, filename);
     const hasRender = !!findMember(value, "render");
     const hasRenderText = !!findMember(value, "renderText");
 
     if (type === "frontend" && !hasRender && !hasRenderText) {
       throw new GenerativeCompileError(
-        "a frontend tool must declare a `render` or `renderText` " +
+        `${typedToolSubject("frontend", toolName)} must declare a ` +
+          "`render` or `renderText` " +
           "(it has no server execute to show otherwise)",
         filename,
       );
@@ -1171,19 +1348,21 @@ function compileToolkit(
 
     if (type === "human" && !hasRender) {
       throw new GenerativeCompileError(
-        "a human tool must declare a `render` so it can collect input",
+        `${typedToolSubject("human", toolName)} must declare a ` +
+          "`render` so it can collect input",
         filename,
       );
     }
 
     if (type === "provider" && execute) {
-      applyProviderToolConfig(value, execute, filename);
+      applyProviderToolConfig(value, execute, toolName, filename);
     }
 
     if (isExternal) {
       if (!hasRender && !hasRenderText) {
         throw new GenerativeCompileError(
-          "an external tool must declare a `render` or `renderText` " +
+          `${typedToolSubject("external", toolName)} must declare a ` +
+            "`render` or `renderText` " +
             "(assistant-ui only renders calls for tools defined elsewhere)",
           filename,
         );
@@ -1219,6 +1398,7 @@ function compileToolkit(
 function applyProviderToolConfig(
   object: t.ObjectExpression,
   execute: t.ObjectProperty | t.ObjectMethod,
+  toolName: string | undefined,
   filename: string | undefined,
 ): void {
   if (
@@ -1266,8 +1446,9 @@ function applyProviderToolConfig(
       );
     }
     if (existingNames.has(name) || configNames.has(name)) {
+      const toolLabel = toolName ? ` for "${toolName}"` : "";
       throw new GenerativeCompileError(
-        "`providerTool(...)` config cannot duplicate tool properties",
+        `\`providerTool(...)\` config${toolLabel} duplicates "${name}"`,
         filename,
       );
     }
@@ -1398,13 +1579,14 @@ function stripUseClient(member: t.ObjectProperty | t.ObjectMethod): void {
  */
 function inferToolType(
   object: t.ObjectExpression,
+  toolName: string | undefined,
   filename: string | undefined,
 ): ToolType {
   const execute = findMember(object, "execute");
   if (!execute) {
     throw new GenerativeCompileError(
-      "every tool must declare an `execute`; use `humanTool()` for a " +
-        "human-in-the-loop tool",
+      `${toolSubject(toolName)} must declare an \`execute\`; use ` +
+        "`humanTool()` for a human-in-the-loop tool",
       filename,
     );
   }
@@ -1413,6 +1595,16 @@ function inferToolType(
   if (executeIsStubTool(execute)) return "frontend";
   if (executeIsExternalTool(execute)) return "backend";
   return executeIsClient(execute) ? "frontend" : "backend";
+}
+
+function toolSubject(toolName: string | undefined): string {
+  return toolName ? `tool "${toolName}"` : "every tool";
+}
+
+function typedToolSubject(type: string, toolName: string | undefined): string {
+  if (toolName) return `${type} tool "${toolName}"`;
+  const article = /^[aeiou]/i.test(type) ? "an" : "a";
+  return `${article} ${type} tool`;
 }
 
 function stripExternalToolMetadata(object: t.ObjectExpression): void {

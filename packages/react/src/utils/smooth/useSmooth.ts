@@ -9,6 +9,7 @@ import type {
   MessagePartState,
 } from "@assistant-ui/core";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useSmoothStatusStore } from "./SmoothContext";
 import { writableStore } from "../../context/ReadonlyStore";
 
@@ -134,6 +135,10 @@ const positiveOr = (value: number | undefined, fallback: number): number =>
  * the reveal. Returns the part state with `text` replaced by the revealed
  * prefix and `status` reporting `running` until the reveal catches up.
  *
+ * The reveal auto-disables under `prefers-reduced-motion: reduce`,
+ * committing the full text immediately; this takes precedence over an
+ * explicit `smooth={true}`.
+ *
  * @example
  * ```tsx
  * const { text, status } = useSmooth(useMessagePartText(), {
@@ -147,9 +152,10 @@ export const useSmooth = (
   smooth: boolean | SmoothOptions = false,
 ): MessagePartState & (TextMessagePart | ReasoningMessagePart) => {
   const { text } = state;
+  const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const options =
     typeof smooth === "object" && smooth !== null ? smooth : undefined;
-  const enabled = smooth !== false && smooth !== null;
+  const enabled = smooth !== false && smooth !== null && !reduceMotion;
   const drainMs = positiveOr(options?.drainMs, DEFAULT_DRAIN_MS);
   const maxCharIntervalMs = positiveOr(
     options?.maxCharIntervalMs,

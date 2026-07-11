@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createTapRoot, useResource } from "@assistant-ui/tap";
+import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import type {
   Unstable_TriggerCategory,
   Unstable_TriggerItem,
@@ -22,8 +22,6 @@ const makeKeyEvent = (key: string, shiftKey = false) => ({
   shiftKey,
   preventDefault: vi.fn(),
 });
-
-const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 const render = (
   overrides: Partial<Parameters<typeof TriggerKeyboardResource>[0]> = {},
@@ -106,55 +104,53 @@ describe("TriggerKeyboardResource", () => {
     expect(props.selectItem).not.toHaveBeenCalled();
   });
 
-  it("moves the highlight forward on ArrowDown", async () => {
+  it("moves the highlight forward on ArrowDown", () => {
     const { sub } = render();
 
-    const consumed = sub.getValue().handleKeyDown(makeKeyEvent("ArrowDown"));
-    await tick();
+    const consumed = flushTapSync(() =>
+      sub.getValue().handleKeyDown(makeKeyEvent("ArrowDown")),
+    );
 
     expect(consumed).toBe(true);
     expect(sub.getValue().highlightedIndex).toBe(1);
   });
 
-  it("wraps the highlight to the top on ArrowDown past the last entry", async () => {
+  it("wraps the highlight to the top on ArrowDown past the last entry", () => {
     const { sub } = render();
     const handle = sub.getValue().handleKeyDown;
 
-    handle(makeKeyEvent("ArrowDown"));
-    handle(makeKeyEvent("ArrowDown"));
-    handle(makeKeyEvent("ArrowDown"));
-    await tick();
+    flushTapSync(() => {
+      handle(makeKeyEvent("ArrowDown"));
+      handle(makeKeyEvent("ArrowDown"));
+      handle(makeKeyEvent("ArrowDown"));
+    });
 
     expect(sub.getValue().highlightedIndex).toBe(0);
   });
 
-  it("moves the highlight backward on ArrowUp", async () => {
+  it("moves the highlight backward on ArrowUp", () => {
     const { sub } = render();
     const handle = sub.getValue().handleKeyDown;
 
-    handle(makeKeyEvent("ArrowDown"));
-    await tick();
-    handle(makeKeyEvent("ArrowUp"));
-    await tick();
+    flushTapSync(() => handle(makeKeyEvent("ArrowDown")));
+    flushTapSync(() => handle(makeKeyEvent("ArrowUp")));
 
     expect(sub.getValue().highlightedIndex).toBe(0);
   });
 
-  it("wraps the highlight to the bottom on ArrowUp from the first entry", async () => {
+  it("wraps the highlight to the bottom on ArrowUp from the first entry", () => {
     const { sub } = render();
 
-    sub.getValue().handleKeyDown(makeKeyEvent("ArrowUp"));
-    await tick();
+    flushTapSync(() => sub.getValue().handleKeyDown(makeKeyEvent("ArrowUp")));
 
     expect(sub.getValue().highlightedIndex).toBe(2);
   });
 
-  it("keeps the highlight at 0 on ArrowDown when navigableList is empty", async () => {
+  it("keeps the highlight at 0 on ArrowDown when navigableList is empty", () => {
     const { sub } = render({ navigableList: [] });
     const e = makeKeyEvent("ArrowDown");
 
-    const consumed = sub.getValue().handleKeyDown(e);
-    await tick();
+    const consumed = flushTapSync(() => sub.getValue().handleKeyDown(e));
 
     expect(consumed).toBe(true);
     expect(e.preventDefault).toHaveBeenCalled();

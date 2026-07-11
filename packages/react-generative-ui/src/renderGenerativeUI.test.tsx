@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { isValidElement, type ReactElement } from "react";
 import { parsePartialJsonObject } from "assistant-stream/utils";
 import { z } from "zod";
 import { renderGenerativeUI } from "./renderGenerativeUI";
@@ -63,6 +64,28 @@ describe("renderGenerativeUI", () => {
     expect(html).toBe(
       '<section data-title="Hello"><p>first</p><p data-tone="muted">second</p></section>',
     );
+  });
+
+  it("uses stable $key for array items and keeps the positional fallback", () => {
+    const out = renderGenerativeUI(
+      [
+        { $type: "Text", $key: "1:Text", children: "first" },
+        { $type: "Text", children: "second" },
+        "plain",
+        { $type: "Text", $key: { id: "bad" }, children: "bad key" },
+      ],
+      library,
+    );
+
+    expect(Array.isArray(out)).toBe(true);
+    const elements = out as ReactElement[];
+    expect(elements.every(isValidElement)).toBe(true);
+    expect(elements.map((element) => element.key)).toEqual([
+      "model:1:Text",
+      "1:Text",
+      "2:#text",
+      "3:Text",
+    ]);
   });
 
   it("passes a component's own `type` prop through without collision", () => {
@@ -224,6 +247,36 @@ describe("buildPresentParameters", () => {
     expect(schema.properties.children.$ref).toBe("#/$defs/children");
     expect(schema.properties.label).toBeDefined();
     expect(schema.required).toEqual(["$type"]);
+  });
+
+  it("names every component that declares the same prop in the dev warning", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      buildPresentParameters({
+        Select: {
+          description: "Selects an option.",
+          properties: z.object({ value: z.string() }),
+          render: () => null,
+        },
+        DatePicker: {
+          description: "Picks a date.",
+          properties: z.object({ value: z.string() }),
+          render: () => null,
+        },
+        Combobox: {
+          description: "Chooses from filtered options.",
+          properties: z.object({ value: z.string() }),
+          render: () => null,
+        },
+      });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        '[@assistant-ui/react-generative-ui] Prop "value" is declared by "Select", "DatePicker", and "Combobox"; keeping "Select"\'s schema. Rename or align the prop type to avoid an ambiguous schema.',
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("throws when a component's properties is not an object schema", () => {

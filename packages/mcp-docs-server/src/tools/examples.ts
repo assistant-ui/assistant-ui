@@ -2,6 +2,7 @@ import { z } from "zod/v3";
 import { readFile, readdir, lstat } from "node:fs/promises";
 import { join, extname } from "node:path";
 import { CODE_EXAMPLES_PATH, MAX_FILE_SIZE } from "../constants.js";
+import { cacheListing } from "../utils/cache.js";
 import { logger } from "../utils/logger.js";
 import { formatMCPResponse } from "../utils/mcp-format.js";
 import { sanitizePath } from "../utils/security.js";
@@ -15,20 +16,26 @@ const examplesInputSchema = z.object({
     ),
 });
 
-async function listCodeExamples(): Promise<string[]> {
-  try {
-    const files = await readdir(CODE_EXAMPLES_PATH);
-    return files
-      .filter((file) => extname(file) === ".md")
-      .map((file) => file.replace(".md", ""))
-      .sort();
-  } catch (error) {
+const loadCodeExamples = cacheListing(scanCodeExamples);
+
+export function listCodeExamples(): Promise<string[]> {
+  return loadCodeExamples().catch((error) => {
     logger.error("Failed to list code examples", error);
     return [];
-  }
+  });
 }
 
-async function readCodeExample(exampleName: string): Promise<string | null> {
+async function scanCodeExamples(): Promise<string[]> {
+  const files = await readdir(CODE_EXAMPLES_PATH);
+  return files
+    .filter((file) => extname(file) === ".md")
+    .map((file) => file.replace(".md", ""))
+    .sort();
+}
+
+export async function readCodeExample(
+  exampleName: string,
+): Promise<string | null> {
   try {
     const sanitized = sanitizePath(exampleName);
     const filePath = join(CODE_EXAMPLES_PATH, `${sanitized}.md`);

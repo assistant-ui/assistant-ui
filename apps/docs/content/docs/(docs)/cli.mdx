@@ -70,15 +70,19 @@ Use `--example` to create a project from one of the monorepo examples with full 
 | `with-eve` | Eve agent integration | `npx assistant-ui create my-app -e with-eve` |
 | `with-artifacts` | HTML artifact rendering with live preview | `npx assistant-ui create my-app -e with-artifacts` |
 | `with-langgraph` | LangGraph agent with custom tools | `npx assistant-ui create my-app -e with-langgraph` |
+| `with-google-adk` | Google ADK agent integration | `npx assistant-ui create my-app -e with-google-adk` |
 | `with-cloud` | Assistant Cloud persistence | `npx assistant-ui create my-app -e with-cloud` |
-| `with-ag-ui` | [AG-UI protocol](/docs/runtimes/ag-ui) integration | `npx assistant-ui create my-app -e with-ag-ui` |
+| `with-ag-ui` | [AG-UI protocol](/docs/runtimes/ag-ui/overview) integration | `npx assistant-ui create my-app -e with-ag-ui` |
 | `with-assistant-transport` | Custom backend via Assistant Transport | `npx assistant-ui create my-app -e with-assistant-transport` |
 | `with-resumable-stream` | Resumable LLM stream that survives reload mid-response | `npx assistant-ui create my-app -e with-resumable-stream` |
 | `with-chain-of-thought` | Chain-of-thought reasoning, tool calls, and source citations | `npx assistant-ui create my-app -e with-chain-of-thought` |
 | `with-external-store` | External message store | `npx assistant-ui create my-app -e with-external-store` |
+| `with-interactables` | AI-driven interactive UI components | `npx assistant-ui create my-app -e with-interactables` |
 | `with-custom-thread-list` | Custom thread list UI | `npx assistant-ui create my-app -e with-custom-thread-list` |
 | `with-react-hook-form` | React Hook Form integration | `npx assistant-ui create my-app -e with-react-hook-form` |
 | `with-ffmpeg` | FFmpeg video processing tool | `npx assistant-ui create my-app -e with-ffmpeg` |
+| `with-elevenlabs-conversational` | Realtime voice with ElevenLabs | `npx assistant-ui create my-app -e with-elevenlabs-conversational` |
+| `with-livekit` | Realtime voice with LiveKit | `npx assistant-ui create my-app -e with-livekit` |
 | `with-elevenlabs-scribe` | ElevenLabs voice transcription | `npx assistant-ui create my-app -e with-elevenlabs-scribe` |
 | `with-expo` | Expo / React Native | `npx assistant-ui create my-app -e with-expo` |
 | `with-react-ink` | Terminal UI chat | `npx assistant-ui create my-app -e with-react-ink` |
@@ -450,6 +454,18 @@ npx assistant-ui@latest update
 ## Component Registry
 
 The CLI pulls components from our public registry at [r.assistant-ui.com](https://r.assistant-ui.com).
+
+Configure the style-aware URL in `components.json` so `@assistant-ui/*` installs match your shadcn style:
+
+```json title="components.json"
+{
+  "registries": {
+    "@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"
+  }
+}
+```
+
+The `{style}` placeholder is filled from your `components.json` `style` field. Styles whose name starts with `base-` resolve to Base UI flavored components; every other style resolves to Radix. Existing Radix projects can keep `https://r.assistant-ui.com/{name}.json` as a fallback.
 
 Each component includes:
 - Full TypeScript source code

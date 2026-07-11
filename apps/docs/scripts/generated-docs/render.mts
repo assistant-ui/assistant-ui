@@ -688,12 +688,11 @@ function generateApiPage({
 }): string {
   const lines = [
     frontmatter(title, description),
-    imports,
-    "",
     GENERATED_PAGE_MARKER,
     "{/* Do not edit manually. */}",
     "",
   ];
+  if (imports) lines.splice(1, 0, imports, "");
   if (guideLine) lines.push(guideLine, "");
   if (slots.manual) lines.push(slots.manual, "");
   lines.push(generatedReferenceRegion(reference));
@@ -765,7 +764,14 @@ const PAGE_ORDER_BY_SECTION: Partial<Record<ApiSection, readonly string[]>> = {
     "interactables",
     "interactables-legacy",
   ],
-  "generative-ui": ["spec", "rendering"],
+  "generative-ui": [
+    "json-generative-ui",
+    "components",
+    "actions",
+    "spec",
+    "rendering",
+    "tokens",
+  ],
 };
 
 function comparePageSlugs(section: ApiSection, a: string, b: string): number {

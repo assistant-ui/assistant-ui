@@ -1,5 +1,6 @@
 import type { ToolDefinition } from "@assistant-ui/react";
 import type { JSONSchema7 } from "json-schema";
+import type { ActionRegistry } from "./actionRegistry";
 import type { GenerativeUILibrary } from "./types";
 
 /** Options for {@link JSONGenerativeUI}. */
@@ -10,6 +11,13 @@ export type JSONGenerativeUIOptions = {
    * `"use generative"` build can split each `render` from its `properties`.
    */
   library: GenerativeUILibrary;
+  /**
+   * Host-provided map from `$action.type` to its handler. Interactive
+   * components (`Button`/`Select`/`Input`/`DatePicker`) call `$dispatch($action)`
+   * on their event, which resolves through this registry. Omit it for a
+   * read-only render where model-emitted actions degrade to a no-op.
+   */
+  actions?: ActionRegistry;
 };
 
 /** Options for {@link JSONGenerativeUI.present}. */

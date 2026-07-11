@@ -720,6 +720,74 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("preserves providerMetadata on text and reasoning parts", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "text",
+            text: "hello",
+            providerMetadata: { acme: { agentName: "researcher" } },
+          },
+          {
+            type: "reasoning",
+            text: "thinking",
+            providerMetadata: { acme: { agentName: "researcher" } },
+          },
+          { type: "text", text: "plain" },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "text",
+      text: "hello",
+      providerMetadata: { acme: { agentName: "researcher" } },
+    });
+    expect(converted[0]?.content[1]).toMatchObject({
+      type: "reasoning",
+      text: "thinking",
+      providerMetadata: { acme: { agentName: "researcher" } },
+    });
+    expect(converted[0]?.content[2]).not.toHaveProperty("providerMetadata");
+  });
+
+  it("forwards callProviderMetadata onto ToolCallMessagePart.providerMetadata", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-search",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { query: "hi" },
+            output: { results: [] },
+            callProviderMetadata: { acme: { agentName: "researcher" } },
+          },
+          {
+            type: "tool-search",
+            toolCallId: "tc-2",
+            state: "output-available",
+            input: { query: "yo" },
+            output: { results: [] },
+          },
+        ],
+      } as any,
+    ]);
+
+    const calls = converted[0]?.content.filter(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(calls?.[0]?.providerMetadata).toEqual({
+      acme: { agentName: "researcher" },
+    });
+    expect(calls?.[1]).not.toHaveProperty("providerMetadata");
+  });
+
   it("extracts MCP app metadata from output._meta['ui/resourceUri']", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {

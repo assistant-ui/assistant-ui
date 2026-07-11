@@ -57,6 +57,7 @@
     "**/build/**",
     "**/.turbo/**",
     "**/coverage/**",
+    "api-surface/**",
     "apps/docs/components/tool-ui/weather-widget/generated/**"
   ],
   "overrides": [

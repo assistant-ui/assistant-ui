@@ -1,6 +1,7 @@
 import { readdir, stat } from "node:fs/promises";
 import { join, extname } from "node:path";
 import { DOCS_PATH, MDX_EXTENSION, MD_EXTENSION } from "../constants.js";
+import { cacheListing } from "./cache.js";
 import { logger } from "./logger.js";
 
 const SIMILARITY_THRESHOLDS = {
@@ -64,6 +65,30 @@ export async function getAvailablePaths(): Promise<string[]> {
 
   await scanDirectory(DOCS_PATH);
   return paths.sort();
+}
+
+export const getAvailableDocFiles = cacheListing(scanDocFiles);
+
+async function scanDocFiles(): Promise<string[]> {
+  const files: string[] = [];
+
+  async function scanDirectory(dir: string, prefix = ""): Promise<void> {
+    const { directories, files: dirFiles } = await listDirContents(dir);
+
+    for (const file of dirFiles) {
+      if (extname(file) !== MDX_EXTENSION) continue;
+      const name = file.replace(MDX_EXTENSION, "");
+      files.push(prefix ? `${prefix}/${name}` : name);
+    }
+
+    for (const subdir of directories) {
+      const newPrefix = prefix ? `${prefix}/${subdir}` : subdir;
+      await scanDirectory(join(dir, subdir), newPrefix);
+    }
+  }
+
+  await scanDirectory(DOCS_PATH);
+  return files.sort();
 }
 
 export function findNearestPaths(

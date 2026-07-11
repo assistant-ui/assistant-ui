@@ -1,17 +1,16 @@
 #!/bin/bash
 
-# Verifies that shared assistant-ui components in templates/* are byte-equal
-# with the canonical source in packages/ui/src/components/assistant-ui, and
-# that examples/* don't carry redundant byte-equal copies (examples resolve
-# `@/components/assistant-ui/*` to packages/ui via tsconfig paths, so an
-# identical local copy is dead weight that silently drifts).
+# Templates and examples alias packages/ui via tsconfig and carry no copies,
+# except `minimal`, which ships its own. This keeps minimal's copies byte-equal
+# with packages/ui/src/components/assistant-ui (minus the OVERRIDES divergences)
+# and flags any redundant byte-equal copy under examples/*.
 #
 # Usage:
 #   bash scripts/sync-templates.sh            # check (CI mode), exits 1 on drift
-#   bash scripts/sync-templates.sh --write    # copy source -> templates to fix drift
+#   bash scripts/sync-templates.sh --write    # copy source -> minimal to fix drift
 #
-# To allow an intentional divergence (e.g. minimal/thread.tsx is a slim variant),
-# add `<tpl>/<file>` to the OVERRIDES array below with a comment explaining why.
+# To allow an intentional divergence (e.g. thread.tsx is a slim variant),
+# add `<file>` to the OVERRIDES array below with a comment explaining why.
 
 set -e
 
@@ -21,15 +20,16 @@ SOURCE_DIR="$ROOT_DIR/packages/ui/src/components/assistant-ui"
 TEMPLATES_ROOT="$ROOT_DIR/templates"
 EXAMPLES_ROOT="$ROOT_DIR/examples"
 
-TEMPLATES=(default minimal cloud cloud-clerk langgraph mcp)
+# Only minimal carries copies; every other template aliases packages/ui.
+MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui"
 
 OVERRIDES=(
     # minimal intentionally ships a slim thread.tsx without GroupedParts /
     # reasoning / tool-group, since it doesn't bundle those companion files.
-    "minimal/thread.tsx"
+    "thread.tsx"
     # minimal ships without react-shiki, so its markdown-text.tsx omits the
     # SyntaxHighlighter wiring.
-    "minimal/markdown-text.tsx"
+    "markdown-text.tsx"
 )
 
 MODE="${1:-check}"
@@ -44,31 +44,28 @@ annotate() {
 
 drift=()
 
-for tpl in "${TEMPLATES[@]}"; do
-    tpl_dir="$TEMPLATES_ROOT/$tpl/components/assistant-ui"
-    [[ -d "$tpl_dir" ]] || continue
-
-    while IFS= read -r -d '' tpl_file; do
-        file="$(basename "$tpl_file")"
+if [[ -d "$MINIMAL_DIR" ]]; then
+    while IFS= read -r -d '' min_file; do
+        file="$(basename "$min_file")"
         src_file="$SOURCE_DIR/$file"
 
-        # template-specific file with no packages/ui counterpart, leave alone
+        # minimal-specific file with no packages/ui counterpart, leave alone
         [[ -f "$src_file" ]] || continue
 
         is_override=0
         for o in "${OVERRIDES[@]}"; do
-            if [[ "$tpl/$file" == "$o" ]]; then
+            if [[ "$file" == "$o" ]]; then
                 is_override=1
                 break
             fi
         done
         [[ "$is_override" -eq 1 ]] && continue
 
-        if ! cmp -s "$src_file" "$tpl_file"; then
-            drift+=("$tpl/$file")
+        if ! cmp -s "$src_file" "$min_file"; then
+            drift+=("$file")
         fi
-    done < <(find "$tpl_dir" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
-done
+    done < <(find "$MINIMAL_DIR" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
+fi
 
 # Examples must NOT hold byte-equal copies of packages/ui components: their
 # tsconfig already aliases `@/components/assistant-ui/*` to packages/ui, so a
@@ -93,11 +90,9 @@ if [[ ${#drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
 fi
 
 if [[ "$MODE" == "--write" ]]; then
-    for d in "${drift[@]}"; do
-        tpl="${d%%/*}"
-        file="${d##*/}"
-        cp "$SOURCE_DIR/$file" "$TEMPLATES_ROOT/$tpl/components/assistant-ui/$file"
-        echo "synced $d"
+    for file in "${drift[@]}"; do
+        cp "$SOURCE_DIR/$file" "$MINIMAL_DIR/$file"
+        echo "synced minimal/$file"
     done
     for r in "${redundant[@]}"; do
         rm "$ROOT_DIR/$r"
@@ -109,10 +104,10 @@ if [[ "$MODE" == "--write" ]]; then
 fi
 
 if [[ ${#drift[@]} -gt 0 ]]; then
-    echo "✗ drift detected in ${#drift[@]} template file(s) vs packages/ui:"
-    for d in "${drift[@]}"; do
-        echo "    templates/$d"
-        annotate "templates/$d/components/assistant-ui/${d##*/}" "out of sync with packages/ui/src/components/assistant-ui/${d##*/}; run 'pnpm sync-templates --write' or add an OVERRIDES entry"
+    echo "✗ drift detected in ${#drift[@]} minimal file(s) vs packages/ui:"
+    for file in "${drift[@]}"; do
+        echo "    templates/minimal/components/assistant-ui/$file"
+        annotate "templates/minimal/components/assistant-ui/$file" "out of sync with packages/ui/src/components/assistant-ui/$file; run 'pnpm sync-templates --write' or add an OVERRIDES entry"
     done
 fi
 
@@ -126,5 +121,5 @@ fi
 
 echo ""
 echo "to fix, run:    pnpm sync-templates --write"
-echo "if a template divergence is intentional, add '<tpl>/<file>' to OVERRIDES in scripts/sync-templates.sh"
+echo "if a minimal divergence is intentional, add '<file>' to OVERRIDES in scripts/sync-templates.sh"
 exit 1

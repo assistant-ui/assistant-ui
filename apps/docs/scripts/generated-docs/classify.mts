@@ -272,6 +272,65 @@ const GENERATIVE_UI_SPEC_TYPES = new Set([
   "GenerativeUIMessagePart",
 ]);
 
+export const GENERATIVE_UI_PACKAGE_EXPORTS = new Map<
+  string,
+  { page: string; role: ExportInfo["pageRole"] }
+>([
+  ["JSONGenerativeUI", { page: "json-generative-ui", role: "primary" }],
+  ["JSONGenerativeUIOptions", { page: "json-generative-ui", role: "primary" }],
+  ["PresentToolOptions", { page: "json-generative-ui", role: "primary" }],
+  ["PresentTool", { page: "json-generative-ui", role: "supporting-type" }],
+  ["PromptUserTool", { page: "json-generative-ui", role: "supporting-type" }],
+
+  ["defineGenerativeComponents", { page: "components", role: "primary" }],
+  ["defaultGenerativeUILibrary", { page: "components", role: "primary" }],
+  ["GenerativeUILibrary", { page: "components", role: "primary" }],
+  ["GenerativeUIComponent", { page: "components", role: "primary" }],
+
+  ["createActionRegistry", { page: "actions", role: "primary" }],
+  ["emptyActionRegistry", { page: "actions", role: "primary" }],
+  ["ActionRegistry", { page: "actions", role: "primary" }],
+  ["ActionHandler", { page: "actions", role: "primary" }],
+  ["ActionDispatchContext", { page: "actions", role: "primary" }],
+
+  ["renderGenerativeUI", { page: "rendering", role: "primary" }],
+  ["generativeUIToJSX", { page: "rendering", role: "primary" }],
+  ["buildPresentParameters", { page: "rendering", role: "primary" }],
+  ["GenerativeUIRenderContext", { page: "rendering", role: "primary" }],
+
+  ["TEXT_SIZES", { page: "tokens", role: "primary" }],
+  ["IMAGE_SIZE_TOKENS", { page: "tokens", role: "primary" }],
+  ["WEIGHTS", { page: "tokens", role: "primary" }],
+  ["COLORS", { page: "tokens", role: "primary" }],
+  ["ALIGNS", { page: "tokens", role: "primary" }],
+  ["JUSTIFIES", { page: "tokens", role: "primary" }],
+  ["BUTTON_STYLES", { page: "tokens", role: "primary" }],
+  ["ALERT_TONES", { page: "tokens", role: "primary" }],
+  ["TextSize", { page: "tokens", role: "supporting-type" }],
+  ["ImageSize", { page: "tokens", role: "supporting-type" }],
+  ["Weight", { page: "tokens", role: "supporting-type" }],
+  ["Color", { page: "tokens", role: "supporting-type" }],
+  ["Align", { page: "tokens", role: "supporting-type" }],
+  ["Justify", { page: "tokens", role: "supporting-type" }],
+  ["ButtonStyle", { page: "tokens", role: "supporting-type" }],
+  ["AlertTone", { page: "tokens", role: "supporting-type" }],
+]);
+
+function generativeUIPackageRule(
+  input: ClassificationInput,
+): Classification | undefined {
+  const placement = GENERATIVE_UI_PACKAGE_EXPORTS.get(input.name);
+  if (!placement) return undefined;
+  return classification(
+    "generative-ui",
+    placement.page,
+    placement.role,
+    "feature:react-generative-ui",
+    "strong",
+    "@assistant-ui/react-generative-ui package export",
+  );
+}
+
 function generativeUIRule(
   input: ClassificationInput,
 ): Classification | undefined {
@@ -416,6 +475,7 @@ const CLASSIFICATION_RULES: ClassificationRule[] = [
   externalStoreRule,
   modelContextRule,
   voiceRule,
+  generativeUIPackageRule,
   generativeUIRule,
   interactablesRule,
   kindRule,

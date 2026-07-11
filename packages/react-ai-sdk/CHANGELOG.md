@@ -1,5 +1,53 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.40
+
+### Patch Changes
+
+- [#4659](https://github.com/assistant-ui/assistant-ui/pull/4659) [`ea41c9c`](https://github.com/assistant-ui/assistant-ui/commit/ea41c9c077d1a6c88cde07e4686a968275893be4) - fix: detect MCP tool name collisions with toolkit tools ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4687](https://github.com/assistant-ui/assistant-ui/pull/4687) [`f833bc1`](https://github.com/assistant-ui/assistant-ui/commit/f833bc118b49641f3f6e0ab22bcfc63bf0a04408) - feat: support server-side MCP connection timeouts ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`523e0b5`](https://github.com/assistant-ui/assistant-ui/commit/523e0b563a71a656f050473c42c414b26c2d5ab4), [`f833bc1`](https://github.com/assistant-ui/assistant-ui/commit/f833bc118b49641f3f6e0ab22bcfc63bf0a04408)]:
+  - @assistant-ui/core@0.2.20
+  - assistant-stream@0.3.25
+
+## 1.3.39
+
+### Patch Changes
+
+- [#4608](https://github.com/assistant-ui/assistant-ui/pull/4608) [`a7b06f7`](https://github.com/assistant-ui/assistant-ui/commit/a7b06f76876078fc2fcbb92a86fa0e1530fde782) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 1.3.38
+
+### Patch Changes
+
+- [#4551](https://github.com/assistant-ui/assistant-ui/pull/4551) [`49175f3`](https://github.com/assistant-ui/assistant-ui/commit/49175f3ecedb2652f6b79c9d116917478abefaef) - refactor: delegate useStreamingTiming to the shared core primitive, with no public API change ([@okisdev](https://github.com/okisdev))
+
+- [#4517](https://github.com/assistant-ui/assistant-ui/pull/4517) [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#4515](https://github.com/assistant-ui/assistant-ui/pull/4515) [`f5e94b7`](https://github.com/assistant-ui/assistant-ui/commit/f5e94b767ab23fdae4739fbf73cf4d75c6ce4778) - feat: forward `onThreadIdChange` through the adapter entry hooks (`useLangGraphRuntime`, `useStreamRuntime`, `useChatRuntime`, `useAdkRuntime`, `useOpenCodeRuntime`, `usePiRuntime`). the option already existed on `useRemoteThreadListRuntime` but every wrapper dropped it, so routing/persistence built on the settled remote thread id never fired from these hooks. only the settled remote id is emitted; the transient `__LOCALID_*` placeholder is never surfaced. ([@okisdev](https://github.com/okisdev))
+
+- [#4310](https://github.com/assistant-ui/assistant-ui/pull/4310) [`0c51b90`](https://github.com/assistant-ui/assistant-ui/commit/0c51b905d22418b93532636b1028c080ecc819e0) - feat: add `unstable_injectInteractableContext` for AI SDK route handlers ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+  When using AI SDK's `convertToModelMessages`, call `unstable_injectInteractableContext(messages)` first so the model can read current interactable state:
+
+  ```diff
+  import { convertToModelMessages } from "ai";
+  +import { unstable_injectInteractableContext } from "@assistant-ui/react-ai-sdk";
+
+  - messages: await convertToModelMessages(messages),
+  + messages: await convertToModelMessages(unstable_injectInteractableContext(messages)),
+  ```
+
+  Existing interactables apps using AI SDK need this call after upgrading.
+
+- Updated dependencies [[`ddc40b7`](https://github.com/assistant-ui/assistant-ui/commit/ddc40b7791563057749ecf1121e15d19574479ff), [`ea52de0`](https://github.com/assistant-ui/assistant-ui/commit/ea52de06368853b7af7ac6755b157ec5305a8494), [`29c6fdb`](https://github.com/assistant-ui/assistant-ui/commit/29c6fdbc8ede04fb2647b0a47184003ee3c2f090), [`d0987a3`](https://github.com/assistant-ui/assistant-ui/commit/d0987a32540880e5058ee529fd52a3efb4298706), [`cefcf27`](https://github.com/assistant-ui/assistant-ui/commit/cefcf27b4b53ceafef18e469644d51797c11c8ff), [`0c51b90`](https://github.com/assistant-ui/assistant-ui/commit/0c51b905d22418b93532636b1028c080ecc819e0), [`3a8f685`](https://github.com/assistant-ui/assistant-ui/commit/3a8f685e23a3e7ad76ac41e3ce6fff05714e04d3), [`ec6adf4`](https://github.com/assistant-ui/assistant-ui/commit/ec6adf4adc91fe12c7de47fc93adcc347ece8245), [`4acd4c0`](https://github.com/assistant-ui/assistant-ui/commit/4acd4c0f608da1c62bf23a666bc0fec870a27dca)]:
+  - @assistant-ui/core@0.2.19
+  - assistant-stream@0.3.24
+  - assistant-cloud@0.1.34
+  - @assistant-ui/store@0.2.19
+
 ## 1.3.37
 
 ### Patch Changes

@@ -55,6 +55,86 @@ const createReconnectClient = ({
 });
 
 describe("OpenCodeThreadController", () => {
+  it("stages a message locally and sends it later", async () => {
+    const client = {
+      session: {
+        promptAsync: vi.fn().mockResolvedValue({}),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [{ type: "text", text: "hello" }],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      },
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(controller.getState().pendingUserMessages)[0];
+    expect(pendingId).toBeDefined();
+    expect(client.session.promptAsync).not.toHaveBeenCalled();
+
+    await expect(
+      controller.sendStagedMessage(`local:${pendingId}`),
+    ).resolves.toBe(true);
+
+    expect(client.session.promptAsync).toHaveBeenCalledWith({
+      sessionID: "ses_1",
+      parts: [{ type: "text", text: "hello" }],
+      model: { providerID: "anthropic", modelID: "claude" },
+    });
+    await expect(
+      controller.sendStagedMessage(`local:${pendingId}`),
+    ).resolves.toBe(false);
+  });
+
+  it("keeps a staged message when sending it fails", async () => {
+    const client = {
+      session: {
+        promptAsync: vi
+          .fn()
+          .mockRejectedValueOnce(new Error("boom"))
+          .mockResolvedValueOnce({}),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage({
+      role: "user",
+      parentId: null,
+      sourceId: null,
+      content: [{ type: "text", text: "hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+      runConfig: {},
+      createdAt: new Date(),
+    });
+
+    const pendingId = Object.keys(controller.getState().pendingUserMessages)[0];
+    await expect(
+      controller.sendStagedMessage(`local:${pendingId}`),
+    ).rejects.toThrow("boom");
+
+    await expect(
+      controller.sendStagedMessage(`local:${pendingId}`),
+    ).resolves.toBe(true);
+  });
+
   it("re-subscribes through the provider after dispose", () => {
     let eventSource = createEventSource();
     const getEventSource = vi.fn(() => eventSource);
