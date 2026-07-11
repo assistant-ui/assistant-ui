@@ -70,6 +70,14 @@ function validateRegistrySchema(registry: RegistryItem[]) {
   }
 }
 
+function throwIfFindings(header: string, findings: Set<string>): void {
+  if (findings.size > 0) {
+    throw new Error(
+      `${header}\n${[...findings].map((finding) => `- ${finding}`).join("\n")}`,
+    );
+  }
+}
+
 export function getBaseVariantSourcePath(sourcePath: string) {
   if (!sourcePath.endsWith(".tsx")) return null;
 
@@ -102,13 +110,7 @@ export function validateBaseVariantContent(built: BuiltRegistryPayload[]) {
     }
   }
 
-  if (findings.size > 0) {
-    throw new Error(
-      `Invalid base variant content:\n${[...findings]
-        .map((finding) => `- ${finding}`)
-        .join("\n")}`,
-    );
-  }
+  throwIfFindings("Invalid base variant content:", findings);
 }
 
 export function validateBaseTreeRadixImports(
@@ -126,13 +128,7 @@ export function validateBaseTreeRadixImports(
     }
   }
 
-  if (findings.size > 0) {
-    throw new Error(
-      `Invalid base tree imports:\n${[...findings]
-        .map((finding) => `- ${finding}`)
-        .join("\n")}`,
-    );
-  }
+  throwIfFindings("Invalid base tree imports:", findings);
 }
 
 function createRegistryPayload(
@@ -203,13 +199,7 @@ export function validateRadixPassDidNotReadBaseSources(
     }
   }
 
-  if (findings.size > 0) {
-    throw new Error(
-      `Invalid radix registry source reads:\n${[...findings]
-        .map((finding) => `- ${finding}`)
-        .join("\n")}`,
-    );
-  }
+  throwIfFindings("Invalid radix registry source reads:", findings);
 }
 
 export function validateVariantTreesDiffer(
@@ -251,13 +241,7 @@ export function validateVariantTreesDiffer(
     }
   }
 
-  if (findings.size > 0) {
-    throw new Error(
-      `Invalid registry variant trees:\n${[...findings]
-        .map((finding) => `- ${finding}`)
-        .join("\n")}`,
-    );
-  }
+  throwIfFindings("Invalid registry variant trees:", findings);
 }
 
 function collectDataSlots(content: string) {
@@ -331,13 +315,7 @@ export function validateVariantSlotParity(
     }
   }
 
-  if (findings.size > 0) {
-    throw new Error(
-      `Invalid variant slot parity:\n${[...findings]
-        .map((finding) => `- ${finding}`)
-        .join("\n")}`,
-    );
-  }
+  throwIfFindings("Invalid variant slot parity:", findings);
 }
 
 function collectExportedNames(content: string, filePath: string) {
@@ -458,13 +436,7 @@ export function validateVariantExportParity(
     }
   }
 
-  if (findings.size > 0) {
-    throw new Error(
-      `Invalid variant export parity:\n${[...findings]
-        .map((finding) => `- ${finding}`)
-        .join("\n")}`,
-    );
-  }
+  throwIfFindings("Invalid variant export parity:", findings);
 }
 
 function collectUsedPackages(payload: RegistryOutputItem) {
@@ -517,13 +489,7 @@ export function validateStyleScopedDependencies(
     }
   }
 
-  if (findings.size > 0) {
-    throw new Error(
-      `Invalid style-scoped dependencies:\n${[...findings]
-        .map((finding) => `- ${finding}`)
-        .join("\n")}`,
-    );
-  }
+  throwIfFindings("Invalid style-scoped dependencies:", findings);
 }
 
 function getAssistantRegistryDependencyName(dependency: string) {
@@ -790,13 +756,7 @@ function validateRegistryInstallMetadata(payloads: RegistryOutputItem[]) {
     }
   }
 
-  if (findings.size > 0) {
-    throw new Error(
-      `Invalid registry install metadata:\n${[...findings]
-        .map((finding) => `- ${finding}`)
-        .join("\n")}`,
-    );
-  }
+  throwIfFindings("Invalid registry install metadata:", findings);
 }
 
 async function buildRegistry(registry: RegistryItem[]) {
