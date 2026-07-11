@@ -36,7 +36,7 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
     <button
       type="button"
       onClick={onToggle}
-      className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
+      className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors"
       aria-label="Search (⌘K)"
     >
       <Search className="size-4" />
