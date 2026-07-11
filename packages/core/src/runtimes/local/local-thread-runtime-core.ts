@@ -376,12 +376,12 @@ export class LocalThreadRuntimeCore
       }
     }
 
-    this._suggestionsController = new AbortController();
-    const signal = this._suggestionsController.signal;
     if (
       this.adapters.suggestion &&
       message.status?.type !== "requires-action"
     ) {
+      this._suggestionsController = new AbortController();
+      const signal = this._suggestionsController.signal;
       try {
         const promiseOrGenerator = this.adapters.suggestion?.generate({
           messages: this.messages,
