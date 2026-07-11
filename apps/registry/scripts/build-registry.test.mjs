@@ -17,7 +17,7 @@ const {
 const createBuilt = (
   name,
   files,
-  { readPaths = [], baseVariantOutputPaths } = {},
+  { readPaths = [], baseVariantOutputPaths, sourceContentsByOutputPath } = {},
 ) => ({
   payload: {
     $schema: "https://ui.shadcn.com/schema/registry-item.json",
@@ -32,6 +32,9 @@ const createBuilt = (
   readPaths,
   baseVariantOutputPaths:
     baseVariantOutputPaths ?? files.map(([filePath]) => filePath),
+  sourceContentsByOutputPath:
+    sourceContentsByOutputPath ??
+    new Map(files.map(([filePath, content]) => [filePath, content])),
 });
 
 test("base registry item merges, rewrites, and deduplicates dependencies in order", () => {
@@ -245,7 +248,7 @@ test("radix source validation aggregates every base variant path read", () => {
   );
 });
 
-test("variant tree validation aggregates identical radix and base content", () => {
+test("variant tree validation aggregates identical radix and base sources", () => {
   const radixBuilt = [
     createBuilt("first", [["components/first.tsx", "same first"]]),
     createBuilt("second", [["components/second.tsx", "same second"]]),
@@ -261,17 +264,36 @@ test("variant tree validation aggregates identical radix and base content", () =
       assert.equal(error instanceof Error, true);
       assert.ok(
         error.message.includes(
-          "- first: radix and base content for components/first.tsx are identical despite a .base.tsx variant",
+          "- first: radix and base sources for components/first.tsx are identical despite a .base.tsx variant",
         ),
       );
       assert.ok(
         error.message.includes(
-          "- second: radix and base content for components/second.tsx are identical despite a .base.tsx variant",
+          "- second: radix and base sources for components/second.tsx are identical despite a .base.tsx variant",
         ),
       );
       return true;
     },
   );
+});
+
+test("variant tree validation accepts identical emitted content when sources differ", () => {
+  const radixBuilt = [
+    createBuilt("widget", [["components/widget.tsx", "shared emitted"]], {
+      sourceContentsByOutputPath: new Map([
+        ["components/widget.tsx", 'import "@/components/ui/collapsible";'],
+      ]),
+    }),
+  ];
+  const baseBuilt = [
+    createBuilt("widget", [["components/widget.tsx", "shared emitted"]], {
+      sourceContentsByOutputPath: new Map([
+        ["components/widget.tsx", 'import "@/components/ui-base/collapsible";'],
+      ]),
+    }),
+  ];
+
+  assert.doesNotThrow(() => validateVariantTreesDiffer(radixBuilt, baseBuilt));
 });
 
 test("radix registry item merges and dedupes radixDependencies into dependencies", () => {
