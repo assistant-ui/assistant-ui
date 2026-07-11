@@ -216,6 +216,10 @@ export class ServerDictationAdapter implements DictationAdapter {
     void (async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
         mediaRecorder = new MediaRecorder(stream);
         mediaRecorder.ondataavailable = (e) => {
           if (e.data.size > 0) chunks.push(e.data);

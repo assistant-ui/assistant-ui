@@ -124,6 +124,7 @@ export class CustomTTSAdapter implements SpeechSynthesisAdapter {
     })
       .then((res) => res.blob())
       .then((blob) => {
+        if (status.type === "ended") return;
         audio = new Audio(URL.createObjectURL(blob));
         status = { type: "running" };
         notify();
