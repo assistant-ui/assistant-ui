@@ -36,7 +36,10 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     return createNodeCliDemoFileMap(manifest, snapshot);
   }
 
-  const demoSource = assertSnapshotFile(snapshot, manifest.entry);
+  const demoSource = assertSnapshotFile(snapshot, manifest.entry).replaceAll(
+    "@/components/ui/radix/",
+    "@/components/ui/",
+  );
   const files: ZipFileMap = {
     "package.json": packageJson(manifest, snapshot),
     "next.config.ts": nextConfigTs(),
