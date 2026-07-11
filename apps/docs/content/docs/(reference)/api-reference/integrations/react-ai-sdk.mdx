@@ -24,7 +24,7 @@ import { reactAiSdk_AISDKToolkit, reactAiSdk_AssistantChatTransport, reactAiSdk_
 
 ### createResumableSessionStorage
 
-`sessionStorage`-backed storage for the pending resumable stream id.
+`sessionStorage`-backed storage for the pending resumable stream id. See the [Resumable Streams](/docs/guides/resumable-streams) guide for end-to-end wiring.
 
 <ParametersTable {...reactAiSdk_createResumableSessionStorage} />
 
@@ -66,6 +66,8 @@ export async function POST(req: Request) {
 ```ts
 const RESUMABLE_STREAM_ID_HEADER: "x-resumable-stream-id";
 ```
+
+Response header used by the [Resumable Streams](/docs/guides/resumable-streams) server and client wiring.
 
 ### unstable_injectInteractableContext
 

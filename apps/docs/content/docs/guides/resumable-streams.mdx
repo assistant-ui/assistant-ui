@@ -215,3 +215,9 @@ Both helpers default to the data-stream encoder; pass `encoder: () => new Assist
 ```sh
 npx assistant-ui create my-app -e with-resumable-stream
 ```
+
+To drop the resumable chat and resume routes into an existing project (in-memory store only; upgrade via [Storage choices](#storage-choices)):
+
+```sh
+npx shadcn@latest add https://r.assistant-ui.com/ai-sdk-backend-resumable
+```

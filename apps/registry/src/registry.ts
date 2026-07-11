@@ -93,6 +93,38 @@ export const registry: RegistryItem[] = [
     dependencies: ["ai", "@ai-sdk/openai", "@assistant-ui/react-ai-sdk"],
   },
   {
+    name: "ai-sdk-backend-resumable",
+    type: "registry:page",
+    files: [
+      {
+        type: "registry:page",
+        path: "app/api/chat/route.ts",
+        sourcePath: "templates/ai-sdk-backend-resumable/app/api/chat/route.ts",
+        target: "app/api/chat/route.ts",
+      },
+      {
+        type: "registry:page",
+        path: "app/api/chat/resume/[streamId]/route.ts",
+        sourcePath:
+          "templates/ai-sdk-backend-resumable/app/api/chat/resume/[streamId]/route.ts",
+        target: "app/api/chat/resume/[streamId]/route.ts",
+      },
+      {
+        type: "registry:lib",
+        path: "lib/resumable-context.ts",
+        sourcePath:
+          "templates/ai-sdk-backend-resumable/lib/resumable-context.ts",
+        target: "lib/resumable-context.ts",
+      },
+    ],
+    dependencies: [
+      "ai",
+      "@ai-sdk/openai",
+      "@assistant-ui/react-ai-sdk",
+      "assistant-stream",
+    ],
+  },
+  {
     name: "thread",
     type: "registry:component",
     files: [
