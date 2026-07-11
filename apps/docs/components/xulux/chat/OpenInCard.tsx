@@ -210,10 +210,8 @@ export function OpenInCard({
             <span className="text-muted-foreground/70 text-xs">or</span>
           </>
         )}
-        <PreviewCard.Root>
+        <PreviewCard.Root delay={150} closeDelay={150}>
           <PreviewCard.Trigger
-            delay={150}
-            closeDelay={150}
             render={
               <button
                 type="button"
