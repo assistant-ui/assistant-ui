@@ -1,5 +1,26 @@
 import type { RegistryItem } from "./schema";
 
+const collapsibleStateCss = {
+  '@custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])))':
+    {},
+  '@custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])))':
+    {},
+  "@keyframes collapsible-down": {
+    from: { height: "0" },
+    to: {
+      height:
+        "var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto))",
+    },
+  },
+  "@keyframes collapsible-up": {
+    from: {
+      height:
+        "var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto))",
+    },
+    to: { height: "0" },
+  },
+};
+
 export const registry: RegistryItem[] = [
   {
     name: "shimmer-style",
@@ -135,6 +156,7 @@ export const registry: RegistryItem[] = [
     ],
     css: {
       '@import "tw-shimmer"': {},
+      ...collapsibleStateCss,
     },
   },
   {
@@ -324,6 +346,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: ["button", "collapsible"],
     css: {
       '@import "tw-shimmer"': {},
+      ...collapsibleStateCss,
     },
   },
   {
@@ -346,6 +369,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: ["collapsible"],
     css: {
       '@import "tw-shimmer"': {},
+      ...collapsibleStateCss,
     },
   },
   {

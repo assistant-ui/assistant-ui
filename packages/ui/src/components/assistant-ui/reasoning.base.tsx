@@ -208,6 +208,7 @@ function ReasoningTrigger({
           "aui-reasoning-trigger-chevron mt-0.5 size-4 shrink-0",
           "transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
           "-rotate-90",
+          "group-data-open/trigger:rotate-0",
           "group-data-panel-open/trigger:rotate-0",
         )}
       />
@@ -228,7 +229,6 @@ function ReasoningContent({
       className={cn(
         "aui-reasoning-content text-muted-foreground relative overflow-hidden text-sm outline-none",
         "group/collapsible-content ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
-        "[--radix-collapsible-content-height:var(--collapsible-panel-height)]",
         "data-closed:animate-collapsible-up",
         "data-open:animate-collapsible-down",
         "data-closed:fill-mode-forwards",
