@@ -364,6 +364,12 @@ const handleErrorChunk = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "error" },
 ): AssistantMessage => {
+  const severity =
+    chunk.severity === "critical" ||
+    chunk.severity === "warning" ||
+    chunk.severity === "info"
+      ? chunk.severity
+      : undefined;
   return {
     ...message,
     status: {
@@ -372,7 +378,7 @@ const handleErrorChunk = (
       error: {
         code: chunk.code ?? "unknown",
         message: chunk.error,
-        ...(chunk.severity && { severity: chunk.severity }),
+        ...(severity !== undefined && { severity }),
       },
     },
   };

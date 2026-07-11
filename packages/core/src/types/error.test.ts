@@ -24,7 +24,27 @@ describe("toAssistantError", () => {
     const value = { foo: 1 };
     expect(toAssistantError(value)).toEqual({
       code: "unknown",
-      message: `[object] ${new String(value).toString()}`,
+      message: `[object] ${String(value)}`,
+    });
+  });
+
+  it("converts a thrown Symbol", () => {
+    const value = Symbol("x");
+    expect(toAssistantError(value)).toEqual({
+      code: "unknown",
+      message: `[symbol] ${String(value)}`,
+    });
+  });
+
+  it("converts an object whose toString throws", () => {
+    const value = {
+      toString() {
+        throw new Error("toString failed");
+      },
+    };
+    expect(toAssistantError(value)).toEqual({
+      code: "unknown",
+      message: "[object]",
     });
   });
 

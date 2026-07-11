@@ -262,4 +262,29 @@ describe("AssistantMessageAccumulator error chunks", () => {
       },
     });
   });
+
+  it("drops out-of-taxonomy severity at ingestion", async () => {
+    const messages = await collectStream([
+      {
+        type: "error",
+        path: [],
+        error: "boom",
+        code: "unknown",
+        severity: "fatal",
+      },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: {
+        code: "unknown",
+        message: "boom",
+      },
+    });
+    expect(last.status).toMatchObject({
+      error: expect.not.objectContaining({ severity: expect.anything() }),
+    });
+  });
 });

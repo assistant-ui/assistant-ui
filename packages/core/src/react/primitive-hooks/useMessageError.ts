@@ -12,6 +12,13 @@ export const useMessageError = () => {
     const error = s.message.status.error;
     if (isAssistantError(error)) return error.message;
     if (typeof error === "string") return error;
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      typeof (error as { message?: unknown }).message === "string"
+    ) {
+      return (error as { message: string }).message;
+    }
     return error ?? "An error occurred";
   });
 };

@@ -62,8 +62,15 @@ export const toAssistantError = (error: unknown): AssistantError => {
   if (typeof error === "string") {
     return { code: "unknown", message: error };
   }
-  return {
-    code: "unknown",
-    message: `[${typeof error}] ${new String(error).toString()}`,
-  };
+  try {
+    return {
+      code: "unknown",
+      message: `[${typeof error}] ${String(error)}`,
+    };
+  } catch {
+    return {
+      code: "unknown",
+      message: `[${typeof error}]`,
+    };
+  }
 };

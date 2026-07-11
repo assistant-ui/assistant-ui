@@ -40,6 +40,21 @@ describe("useMessageError", () => {
     expect(useMessageError()).toBe("legacy failure");
   });
 
+  it("returns message from an object that fails the full guard", () => {
+    against({
+      status: {
+        type: "incomplete",
+        reason: "error",
+        error: {
+          code: "unknown",
+          message: "foreign severity stream",
+          severity: "fatal",
+        },
+      },
+    });
+    expect(useMessageError()).toBe("foreign severity stream");
+  });
+
   it("returns undefined when there is no error status", () => {
     against({
       status: { type: "complete", reason: "stop" },
