@@ -9,6 +9,7 @@ import {
   type ToolCallMessagePart,
   type TextMessagePart,
   type DataMessagePart,
+  type PartProviderMetadata,
   type SourceMessagePart,
   type SourceProviderMetadata,
   type FileMessagePart,
@@ -206,6 +207,11 @@ function convertParts(
         return {
           type: "text",
           text: part.text,
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata: part.providerMetadata as PartProviderMetadata,
+              }
+            : undefined),
         } satisfies TextMessagePart;
       }
 
@@ -213,6 +219,11 @@ function convertParts(
         return {
           type: "reasoning",
           text: part.text,
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata: part.providerMetadata as PartProviderMetadata,
+              }
+            : undefined),
         } satisfies ReasoningMessagePart;
       }
 
@@ -293,6 +304,12 @@ function convertParts(
           isError,
           ...(modelContent !== undefined && { modelContent }),
           ...(mcpApp && { mcp: { app: mcpApp } }),
+          ...(part.callProviderMetadata != null
+            ? {
+                providerMetadata:
+                  part.callProviderMetadata as PartProviderMetadata,
+              }
+            : undefined),
           ...getToolApprovalAndInterrupt(part, toolStatus),
         } satisfies ToolCallMessagePart;
       }

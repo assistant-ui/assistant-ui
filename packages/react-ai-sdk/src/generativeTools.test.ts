@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defineMcpToolkit } from "@assistant-ui/core/react";
 import { AISDKToolkit } from "./generativeTools";
 import { wrapModelContentEnvelope } from "./modelContentEnvelope";
 
@@ -204,7 +205,7 @@ describe("AISDKToolkit", () => {
               disabled: true,
             },
           },
-        },
+        } as never,
       },
     });
 
@@ -400,6 +401,53 @@ describe("AISDKToolkit", () => {
     );
   });
 
+  it("prefixes MCP tool names when configured", async () => {
+    const docsExecute = vi.fn().mockResolvedValue("docs result");
+    mocks.createMCPClient
+      .mockResolvedValueOnce({
+        tools: vi.fn().mockResolvedValue({
+          search: { inputSchema: {}, execute: docsExecute },
+        }),
+        close: mocks.close,
+      })
+      .mockResolvedValueOnce({
+        tools: vi.fn().mockResolvedValue({ search: { inputSchema: {} } }),
+        close: mocks.close,
+      });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: defineMcpToolkit({
+        docs: {
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+          prefix: "docs_",
+        },
+        github: {
+          server: { type: "http", url: "http://localhost:3002/mcp" },
+          prefix: "github_",
+        },
+      }),
+    });
+
+    const toolSet = await toolkit.tools();
+
+    expect(toolSet).toHaveProperty("docs_search");
+    expect(toolSet).toHaveProperty("github_search");
+    expect(toolSet).not.toHaveProperty("search");
+
+    expect(toolSet.docs_search?.execute).toBeTypeOf("function");
+    const executeOptions = {
+      toolCallId: "call-docs-search",
+      messages: [],
+    };
+    await expect(
+      toolSet.docs_search?.execute?.({ query: "assistant-ui" }, executeOptions),
+    ).resolves.toBe("docs result");
+    expect(docsExecute).toHaveBeenCalledWith(
+      { query: "assistant-ui" },
+      executeOptions,
+    );
+  });
+
   it("rejects MCP tool names that collide with toolkit tools", async () => {
     mocks.tools.mockResolvedValue({ search: { inputSchema: {} } });
     mocks.createMCPClient.mockResolvedValue({
@@ -502,7 +550,7 @@ describe("AISDKToolkit", () => {
               disabled: true,
             },
           },
-        },
+        } as never,
         second: {
           type: "mcp",
           server: { type: "http", url: "http://localhost:3002/mcp" },

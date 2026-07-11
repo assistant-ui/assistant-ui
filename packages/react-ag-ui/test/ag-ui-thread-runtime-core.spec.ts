@@ -35,12 +35,14 @@ const createCore = (
     onCancel?: () => void;
     history?: ThreadHistoryAdapter;
     logger?: Logger;
+    autoCancelPendingToolCalls?: boolean;
   } = {},
 ) =>
   new AgUiThreadRuntimeCore({
     agent,
     logger: hooks.logger ?? noopLogger,
     showThinking: true,
+    autoCancelPendingToolCalls: hooks.autoCancelPendingToolCalls,
     ...(hooks.onError ? { onError: hooks.onError } : {}),
     ...(hooks.onCancel ? { onCancel: hooks.onCancel } : {}),
     ...(hooks.history ? { history: hooks.history } : {}),
@@ -1974,6 +1976,237 @@ describe("AGUIThreadRuntimeCore", () => {
     release();
     await appendPromise;
     expect(runCount).toBe(1);
+  });
+
+  const createPendingToolCallAgent = () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "call-1",
+            toolCallName: "tool_a",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onTextMessageContentEvent?.({
+        event: { type: "TEXT_MESSAGE_CONTENT", delta: "Done." },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    return {
+      runAgent,
+      runInputs,
+      getRunCount: () => runCount,
+    };
+  };
+
+  it("append auto-cancels pending client-side tool calls by default", async () => {
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["call-1"]);
+
+    const headId = core.getMessages().at(-1)!.id;
+    await core.append(createAppendMessage({ parentId: headId }));
+
+    expect(getRunCount()).toBe(2);
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({ type: "complete" });
+    const call1 = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "call-1",
+    ) as any;
+    expect(call1.result).toEqual({ error: "Tool call cancelled by user" });
+    expect(call1.isError).toBe(true);
+
+    const run2Messages = runInputs[1]?.messages ?? [];
+    const toolMsg = run2Messages.find(
+      (m: any) => m.role === "tool" && m.toolCallId === "call-1",
+    );
+    expect(toolMsg?.content).toContain("Tool call cancelled by user");
+  });
+
+  it("append leaves pending tool calls untouched when autoCancelPendingToolCalls is false", async () => {
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
+    const core = createCore({ runAgent } as unknown as HttpAgent, {
+      autoCancelPendingToolCalls: false,
+    });
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const headId = core.getMessages().at(-1)!.id;
+    await core.append(createAppendMessage({ parentId: headId }));
+
+    expect(getRunCount()).toBe(2);
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    const call1 = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "call-1",
+    ) as any;
+    expect(call1.result).toBeUndefined();
+
+    const run2Messages = runInputs[1]?.messages ?? [];
+    expect(run2Messages.some((m: any) => m.role === "tool")).toBe(false);
+  });
+
+  it("edit auto-cancels pending tool calls before truncating the branch", async () => {
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ headId: null, messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore({ runAgent } as unknown as HttpAgent, {
+      history: historyAdapter,
+    });
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const userId = core.getMessages()[0]!.id;
+    await core.edit(createAppendMessage({ parentId: null, sourceId: userId }));
+
+    expect(getRunCount()).toBe(2);
+
+    const persisted = (historyAdapter.append as any).mock.calls.map(
+      (call: any[]) => call[0].message,
+    );
+    const cancelledAssistant = persisted.find(
+      (m: ThreadMessage) =>
+        m.role === "assistant" &&
+        m.content.some(
+          (p: any) =>
+            p.type === "tool-call" &&
+            p.toolCallId === "call-1" &&
+            p.isError === true,
+        ),
+    ) as ThreadAssistantMessage | undefined;
+    expect(cancelledAssistant).toBeDefined();
+    expect(cancelledAssistant!.status).toMatchObject({ type: "complete" });
+
+    const run2Messages = runInputs[1]?.messages ?? [];
+    expect(run2Messages.some((m: any) => m.role === "tool")).toBe(false);
+  });
+
+  it("reload auto-cancels pending tool calls before truncating", async () => {
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ headId: null, messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore({ runAgent } as unknown as HttpAgent, {
+      history: historyAdapter,
+    });
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const userId = core.getMessages()[0]!.id;
+    await core.reload(userId);
+
+    expect(getRunCount()).toBe(2);
+
+    const persisted = (historyAdapter.append as any).mock.calls.map(
+      (call: any[]) => call[0].message,
+    );
+    expect(
+      persisted.some(
+        (m: ThreadMessage) =>
+          m.role === "assistant" &&
+          m.content.some(
+            (p: any) => p.type === "tool-call" && p.isError === true,
+          ),
+      ),
+    ).toBe(true);
+
+    const run2Messages = runInputs[1]?.messages ?? [];
+    expect(run2Messages.some((m: any) => m.role === "tool")).toBe(false);
+  });
+
+  it("reload leaves pending tool calls untouched when autoCancelPendingToolCalls is false", async () => {
+    const { runAgent, getRunCount } = createPendingToolCallAgent();
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ headId: null, messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore({ runAgent } as unknown as HttpAgent, {
+      history: historyAdapter,
+      autoCancelPendingToolCalls: false,
+    });
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const userId = core.getMessages()[0]!.id;
+    await core.reload(userId);
+
+    expect(getRunCount()).toBe(2);
+
+    const persisted = (historyAdapter.append as any).mock.calls.map(
+      (call: any[]) => call[0].message,
+    );
+    expect(
+      persisted.some(
+        (m: ThreadMessage) =>
+          m.role === "assistant" &&
+          m.content.some(
+            (p: any) => p.type === "tool-call" && p.isError === true,
+          ),
+      ),
+    ).toBe(false);
+  });
+
+  it("updateOptions can disable auto-cancel live", async () => {
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      autoCancelPendingToolCalls: false,
+    });
+
+    const headId = core.getMessages().at(-1)!.id;
+    await core.append(createAppendMessage({ parentId: headId }));
+
+    expect(getRunCount()).toBe(2);
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    expect(
+      (runInputs[1]?.messages ?? []).some((m: any) => m.role === "tool"),
+    ).toBe(false);
   });
 
   it("attaches a TOOL_CALL_RESULT for a prior run's tool call to its owning message", async () => {

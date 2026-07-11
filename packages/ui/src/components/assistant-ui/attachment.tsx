@@ -159,6 +159,13 @@ const AttachmentUI: FC = () => {
   const isUploading = uploadState === "uploading";
   const isError = uploadState === "error";
 
+  const errorMessage = useAuiState((s) =>
+    s.attachment.status.type === "incomplete" &&
+    s.attachment.status.reason === "error"
+      ? (s.attachment.status.message ?? "Upload failed")
+      : undefined,
+  );
+
   return (
     <Tooltip>
       <AttachmentPrimitive.Root
@@ -206,6 +213,9 @@ const AttachmentUI: FC = () => {
       </AttachmentPrimitive.Root>
       <TooltipContent side="top">
         <AttachmentPrimitive.Name />
+        {errorMessage && (
+          <p className="aui-attachment-error-message">{errorMessage}</p>
+        )}
       </TooltipContent>
     </Tooltip>
   );

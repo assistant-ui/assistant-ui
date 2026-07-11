@@ -134,6 +134,27 @@ defineMcpToolkit({
 });
 ```
 
+If multiple MCP servers expose the same tool name, wrap the entry with
+`{ server, prefix }` to give each server's tools distinct model-visible names:
+
+```tsx
+export default defineToolkit({
+  ...defineMcpToolkit({
+    docs: {
+      server: { type: "http", url: "https://docs.example.com/mcp" },
+      prefix: "docs_",
+    },
+    github: {
+      server: { type: "http", url: "https://github.example.com/mcp" },
+      prefix: "github_",
+    },
+  }),
+});
+```
+
+If both servers publish `search`, the model receives `docs_search` and
+`github_search` instead of an ambiguous duplicate.
+
 Use `AISDKToolkit` in the route. It opens the MCP clients, merges their tools
 with the rest of your toolkit, and closes them when you call `close()`:
 
@@ -354,7 +375,7 @@ import type { ReactNode } from "react";
 import { toolkit } from "./GitHubIssueToolUI";
 
 export function MyRuntimeProvider({ children }: { children: ReactNode }) {
-  const runtime = useChatRuntime({ api: "/api/chat" });
+  const runtime = useChatRuntime();
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   return (
@@ -364,6 +385,8 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
   );
 }
 ```
+
+`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v6#custom-transport).
 
 </Step>
 <Step>

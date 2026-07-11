@@ -1,6 +1,7 @@
 import { readdir, stat } from "node:fs/promises";
 import { join, extname } from "node:path";
 import { DOCS_PATH, MDX_EXTENSION, MD_EXTENSION } from "../constants.js";
+import { cacheListing } from "./cache.js";
 import { logger } from "./logger.js";
 
 const SIMILARITY_THRESHOLDS = {
@@ -66,7 +67,9 @@ export async function getAvailablePaths(): Promise<string[]> {
   return paths.sort();
 }
 
-export async function getAvailableDocFiles(): Promise<string[]> {
+export const getAvailableDocFiles = cacheListing(scanDocFiles);
+
+async function scanDocFiles(): Promise<string[]> {
   const files: string[] = [];
 
   async function scanDirectory(dir: string, prefix = ""): Promise<void> {

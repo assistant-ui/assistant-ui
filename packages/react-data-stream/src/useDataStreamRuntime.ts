@@ -1,6 +1,7 @@
 "use client";
 
 import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
+import { resolveDataStreamProtocol, type DataStreamProtocol } from "./protocol";
 import type {
   AssistantRuntime,
   ChatModelAdapter,
@@ -23,11 +24,13 @@ import { asAsyncIterableStream } from "assistant-stream/utils";
 
 type HeadersValue = Record<string, string> | Headers;
 
-export type DataStreamProtocol = "ui-message-stream" | "data-stream";
+export type { DataStreamProtocol } from "./protocol";
+
+let didWarnProtocolFallback = false;
 
 export type UseDataStreamRuntimeOptions = {
   api: string;
-  /** Defaults to "ui-message-stream". Use "data-stream" for legacy AI SDK. */
+  /** Defaults to response-header detection, then "ui-message-stream". */
   protocol?: DataStreamProtocol;
   /** Callback for data-* parts (ui-message-stream only). */
   onData?: (data: {
@@ -133,7 +136,20 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         throw new Error("Response body is null");
       }
 
-      const protocol = this.options.protocol ?? "ui-message-stream";
+      const { protocol, source } = resolveDataStreamProtocol(
+        result.headers,
+        this.options.protocol,
+      );
+      if (
+        source === "fallback" &&
+        process.env.NODE_ENV !== "production" &&
+        !didWarnProtocolFallback
+      ) {
+        didWarnProtocolFallback = true;
+        console.warn(
+          '@assistant-ui/react-data-stream could not detect a stream protocol header; falling back to "ui-message-stream". Pass protocol explicitly or expose x-vercel-ai-data-stream / x-vercel-ai-ui-message-stream from the response.',
+        );
+      }
       const decoder =
         protocol === "ui-message-stream"
           ? new UIMessageStreamDecoder(
