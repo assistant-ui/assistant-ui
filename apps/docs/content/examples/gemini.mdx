@@ -98,7 +98,7 @@ The trailing slot swaps between Send and Cancel with `AuiIf`. `ComposerPrimitive
 
 ### Combined `+` menu
 
-The `+` button opens one menu for both attachments and tools. `ComposerPrimitive.AddAttachment` is rendered as the first item via `asChild`, so picking it opens the file dialog and closes the menu:
+The `+` button opens one menu for both attachments and tools. `ComposerPrimitive.AddAttachment` is rendered as the first item through the `render` prop, so picking it opens the file dialog and closes the menu:
 
 ```tsx
 import {
