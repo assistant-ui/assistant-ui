@@ -2,6 +2,7 @@ import { UI_MESSAGE_STREAM_HEADERS } from "ai";
 import { RESUMABLE_STREAM_ID_HEADER } from "assistant-stream/resumable";
 import { resumableContext } from "@/lib/resumable-context";
 
+// Resume access is authenticated only by stream id; scope it to the signed-in user in production (see /docs/guides/resumable-stream-deployment).
 export async function GET(
   _req: Request,
   context: { params: Promise<{ streamId: string }> },

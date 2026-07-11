@@ -5,6 +5,7 @@ import {
   convertToModelMessages,
   type UIMessage,
   type JSONSchema7,
+  UI_MESSAGE_STREAM_HEADERS,
 } from "ai";
 import { RESUMABLE_STREAM_ID_HEADER } from "assistant-stream/resumable";
 import { resumableContext } from "@/lib/resumable-context";
@@ -31,14 +32,15 @@ export async function POST(req: Request) {
     ...(system === undefined ? {} : { system }),
   });
 
-  const sourceBody = result.toUIMessageStreamResponse().body!;
-  const stream = await resumableContext.run(streamId, () => sourceBody);
+  const body = result.toUIMessageStreamResponse().body;
+  if (!body) {
+    throw new Error("UI message stream response has no body");
+  }
+  const stream = await resumableContext.run(streamId, () => body);
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
+      ...UI_MESSAGE_STREAM_HEADERS,
       [RESUMABLE_STREAM_ID_HEADER]: streamId,
     },
   });

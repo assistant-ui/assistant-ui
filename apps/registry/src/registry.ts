@@ -122,6 +122,7 @@ export const registry: RegistryItem[] = [
       "@ai-sdk/openai",
       "@assistant-ui/react-ai-sdk",
       "assistant-stream",
+      "next",
     ],
   },
   {
