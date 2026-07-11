@@ -89,7 +89,7 @@ async function readLocalShadcnComponent(
 
     const fallbackContent = await readFile(uiPath);
     return fallbackContent !== null && !RADIX_IMPORT.test(fallbackContent)
-      ? fallbackContent
+      ? fallbackContent.replaceAll("@/components/ui/radix/", "@/components/ui/")
       : null;
   }
 

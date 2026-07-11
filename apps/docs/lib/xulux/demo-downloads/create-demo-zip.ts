@@ -66,7 +66,10 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
         `Demo zip target collision: ${sourceFile} flattens onto ${target}`,
       );
     }
-    files[target] = assertSnapshotFile(snapshot, sourceFile);
+    files[target] = assertSnapshotFile(snapshot, sourceFile).replaceAll(
+      "@/components/ui/radix/",
+      "@/components/ui/",
+    );
   }
 
   return files;
