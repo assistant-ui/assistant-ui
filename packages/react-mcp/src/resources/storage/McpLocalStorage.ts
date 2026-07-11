@@ -41,6 +41,9 @@ const isOptionalStringArray = (value: unknown): value is string[] | undefined =>
   value === undefined ||
   (Array.isArray(value) && value.every((item) => typeof item === "string"));
 
+const isOptionalNumber = (value: unknown): value is number | undefined =>
+  value === undefined || typeof value === "number";
+
 const isValidServerId = (id: string): boolean => {
   try {
     assertValidServerId(id);
@@ -94,6 +97,50 @@ export const normalizeCustomServerRecords = (
   return value.filter(isCustomServerRecord);
 };
 
+const normalizeOAuthTokens = (
+  value: unknown,
+): MCPPersistedAuthState["tokens"] | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (!isNonEmptyString(value.access_token)) return undefined;
+  if (!isOptionalString(value.token_type)) return undefined;
+  if (!isOptionalString(value.refresh_token)) return undefined;
+  if (!isOptionalNumber(value.expires_in)) return undefined;
+  if (!isOptionalString(value.scope)) return undefined;
+  return value as MCPPersistedAuthState["tokens"];
+};
+
+const normalizeClientInformation = (
+  value: unknown,
+): MCPPersistedAuthState["clientInformation"] | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (!isNonEmptyString(value.client_id)) return undefined;
+  if (!isOptionalString(value.client_secret)) return undefined;
+  if (!isOptionalNumber(value.client_id_issued_at)) return undefined;
+  if (!isOptionalNumber(value.client_secret_expires_at)) return undefined;
+  if (!isOptionalStringArray(value.redirect_uris)) return undefined;
+  return value as MCPPersistedAuthState["clientInformation"];
+};
+
+export const normalizePersistedAuthState = (
+  value: unknown,
+): MCPPersistedAuthState | null => {
+  if (!isRecord(value)) return null;
+
+  const state: MCPPersistedAuthState = {};
+  if (isNonEmptyString(value.token)) state.token = value.token;
+  if (isNonEmptyString(value.codeVerifier)) {
+    state.codeVerifier = value.codeVerifier;
+  }
+
+  const tokens = normalizeOAuthTokens(value.tokens);
+  if (tokens) state.tokens = tokens;
+
+  const clientInformation = normalizeClientInformation(value.clientInformation);
+  if (clientInformation) state.clientInformation = clientInformation;
+
+  return Object.keys(state).length > 0 ? state : null;
+};
+
 const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
   const prefix = opts.keyPrefix ?? "aui-mcp";
   const customServersKey = `${prefix}:custom-servers`;
@@ -136,7 +183,7 @@ const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
       write(customServersKey, records);
     },
     loadAuthState: async (id) =>
-      read<MCPPersistedAuthState | null>(authKey(id), null),
+      normalizePersistedAuthState(read<unknown>(authKey(id), null)),
     saveAuthState: async (id, state) => {
       write(authKey(id), state);
     },
