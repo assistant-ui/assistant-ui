@@ -74,8 +74,12 @@ describe("normalizePersistedAuthState", () => {
       normalizePersistedAuthState({
         token: "",
         codeVerifier: 123,
-        tokens: "not-tokens",
-        clientInformation: { redirect_uris: ["http://localhost/callback"] },
+        tokens: {
+          access_token: "access-token",
+          token_type: "Bearer",
+          expires_in: Number.POSITIVE_INFINITY,
+        },
+        clientInformation: { client_id: "client-id" },
       }),
     ).toBeNull();
   });
@@ -122,7 +126,7 @@ describe("normalizePersistedAuthState", () => {
       normalizePersistedAuthState({
         token: "bearer-token",
         codeVerifier: 123,
-        tokens: { refresh_token: "missing-access-token" },
+        tokens: { access_token: "access-token" },
         clientInformation: "not-client-info",
       }),
     ).toEqual({

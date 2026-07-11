@@ -1,4 +1,8 @@
 import { resource } from "@assistant-ui/tap";
+import {
+  OAuthClientInformationFullSchema,
+  OAuthTokensSchema,
+} from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
 import { assertValidServerId } from "../../utils/serverId";
@@ -40,9 +44,6 @@ const isOptionalNonEmptyString = (
 const isOptionalStringArray = (value: unknown): value is string[] | undefined =>
   value === undefined ||
   (Array.isArray(value) && value.every((item) => typeof item === "string"));
-
-const isOptionalNumber = (value: unknown): value is number | undefined =>
-  value === undefined || typeof value === "number";
 
 const isValidServerId = (id: string): boolean => {
   try {
@@ -100,25 +101,15 @@ export const normalizeCustomServerRecords = (
 const normalizeOAuthTokens = (
   value: unknown,
 ): MCPPersistedAuthState["tokens"] | undefined => {
-  if (!isRecord(value)) return undefined;
-  if (!isNonEmptyString(value.access_token)) return undefined;
-  if (!isOptionalString(value.token_type)) return undefined;
-  if (!isOptionalString(value.refresh_token)) return undefined;
-  if (!isOptionalNumber(value.expires_in)) return undefined;
-  if (!isOptionalString(value.scope)) return undefined;
-  return value as MCPPersistedAuthState["tokens"];
+  const result = OAuthTokensSchema.safeParse(value);
+  return result.success ? result.data : undefined;
 };
 
 const normalizeClientInformation = (
   value: unknown,
 ): MCPPersistedAuthState["clientInformation"] | undefined => {
-  if (!isRecord(value)) return undefined;
-  if (!isNonEmptyString(value.client_id)) return undefined;
-  if (!isOptionalString(value.client_secret)) return undefined;
-  if (!isOptionalNumber(value.client_id_issued_at)) return undefined;
-  if (!isOptionalNumber(value.client_secret_expires_at)) return undefined;
-  if (!isOptionalStringArray(value.redirect_uris)) return undefined;
-  return value as MCPPersistedAuthState["clientInformation"];
+  const result = OAuthClientInformationFullSchema.safeParse(value);
+  return result.success ? result.data : undefined;
 };
 
 export const normalizePersistedAuthState = (
