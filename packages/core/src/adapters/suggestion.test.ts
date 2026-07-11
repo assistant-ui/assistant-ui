@@ -121,4 +121,20 @@ describe("createSuggestionAdapter", () => {
     });
     expect(complete.mock.calls[0]![0]).not.toHaveProperty("signal");
   });
+
+  it("treats maxMessages 0 as an empty transcript while still calling complete", async () => {
+    const complete = vi.fn().mockResolvedValue(["follow up"]);
+    const adapter = createSuggestionAdapter({ complete, maxMessages: 0 });
+
+    await adapter.generate({
+      messages: [message("user", "first"), message("assistant", "second")],
+    });
+
+    expect(complete).toHaveBeenCalledTimes(1);
+    const prompt = complete.mock.calls[0]![0].prompt as string;
+    expect(prompt).toContain("Conversation:\n");
+    expect(prompt).not.toContain("user: first");
+    expect(prompt).not.toContain("assistant: second");
+    expect(prompt).toContain("exactly 3");
+  });
 });

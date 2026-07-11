@@ -585,6 +585,8 @@ export class LocalThreadRuntimeCore
     const error = new AbortError(true);
     this.abortController?.abort(error);
     this.abortController = null;
+    this._suggestionsController?.abort();
+    this._suggestionsController = null;
   }
 
   public cancelRun() {
@@ -592,6 +594,8 @@ export class LocalThreadRuntimeCore
     const error = new AbortError(false);
     this.abortController?.abort(error);
     this.abortController = null;
+    this._suggestionsController?.abort();
+    this._suggestionsController = null;
   }
 
   public addToolResult({

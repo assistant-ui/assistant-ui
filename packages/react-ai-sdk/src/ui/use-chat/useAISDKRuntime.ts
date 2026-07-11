@@ -119,6 +119,9 @@ const useGeneratedSuggestions = (
   useEffect(() => {
     const adapter = adapterRef.current;
     if (!adapter) {
+      controllerRef.current?.abort();
+      controllerRef.current = null;
+      setSuggestions((prev) => (prev.length === 0 ? prev : EMPTY_SUGGESTIONS));
       wasRunningRef.current = isRunning;
       return;
     }
@@ -141,6 +144,7 @@ const useGeneratedSuggestions = (
     const currentMessages = messagesRef.current;
     const last = currentMessages.at(-1);
     if (last?.role !== "assistant") return;
+    if (last.status?.type === "requires-action") return;
 
     const controller = new AbortController();
     controllerRef.current = controller;

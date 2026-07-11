@@ -33,7 +33,8 @@ export const createSuggestionAdapter = (
 
   return {
     async generate({ messages, signal }) {
-      const recent = messages.slice(-maxMessages);
+      const limit = Math.max(0, Math.floor(maxMessages));
+      const recent = limit === 0 ? [] : messages.slice(-limit);
       const transcript = recent
         .map((message) => {
           const text = getThreadMessageText(message).trim();
@@ -53,15 +54,10 @@ export const createSuggestionAdapter = (
         prompt += `\n\nAdditional instructions:\n${options.instructions}`;
       }
 
-      const completeOptions: {
-        prompt: string;
-        signal?: AbortSignal;
-      } = { prompt };
-      if (signal !== undefined) {
-        completeOptions.signal = signal;
-      }
-
-      const results = await options.complete(completeOptions);
+      const results = await options.complete({
+        prompt,
+        ...(signal !== undefined && { signal }),
+      });
       return results
         .map((s) => s.trim())
         .filter((s) => s.length > 0)

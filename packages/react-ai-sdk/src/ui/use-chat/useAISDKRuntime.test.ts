@@ -710,6 +710,100 @@ describe("useAISDKRuntime", () => {
     ]);
   });
 
+  it("skips suggestion generation when the final assistant message requires action", async () => {
+    const generate = vi.fn().mockResolvedValue([{ prompt: "next" }]);
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: { generate } },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    rerender({ status: "ready" });
+
+    await waitFor(() => {
+      const last = result.current.thread.getState().messages.at(-1);
+      expect(last?.role).toBe("assistant");
+      expect(last?.status?.type).toBe("requires-action");
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(generate).not.toHaveBeenCalled();
+    expect(result.current.thread.getState().suggestions).toEqual([]);
+  });
+
+  it("aborts in-flight generation and drops the stale result when the adapter is removed", async () => {
+    let resolveGenerate!: (value: readonly { prompt: string }[]) => void;
+    const generate = vi.fn().mockImplementation(
+      () =>
+        new Promise<readonly { prompt: string }[]>((resolve) => {
+          resolveGenerate = resolve;
+        }),
+    );
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status, withAdapter }) => {
+        chat.status = status;
+        return useAISDKRuntime(
+          chat,
+          withAdapter ? { adapters: { suggestion: { generate } } } : {},
+        );
+      },
+      {
+        initialProps: {
+          status: "submitted" as string,
+          withAdapter: true,
+        },
+      },
+    );
+
+    rerender({ status: "ready", withAdapter: true });
+
+    await waitFor(() => {
+      expect(generate).toHaveBeenCalledTimes(1);
+    });
+    const firstSignal = generate.mock.calls[0]![0].signal as AbortSignal;
+
+    rerender({ status: "ready", withAdapter: false });
+
+    expect(firstSignal.aborted).toBe(true);
+
+    resolveGenerate([{ prompt: "stale" }]);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(result.current.thread.getState().suggestions).toEqual([]);
+  });
+
   it("merges consecutive assistant messages into one turn by default", async () => {
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
