@@ -630,7 +630,7 @@ export const registry: RegistryItem[] = [
     radixDependencies: ["radix-ui"],
     baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
-    css: { ...accordionKeyframesCss },
+    css: accordionKeyframesCss,
   },
   {
     name: "dot-matrix",
