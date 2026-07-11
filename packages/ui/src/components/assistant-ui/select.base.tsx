@@ -117,7 +117,7 @@ const SelectContent = ({
       <SelectPrimitive.Popup
         data-slot="select-content"
         className={cn(
-          "bg-popover/95 text-popover-foreground relative z-50 max-h-[min(24rem,var(--available-height))] min-w-[8rem] min-w-[var(--anchor-width)] overflow-x-hidden overflow-y-auto rounded-xl border p-1.5 shadow-lg backdrop-blur-sm",
+          "bg-popover/95 text-popover-foreground relative z-50 max-h-[min(24rem,var(--available-height))] min-w-[max(8rem,var(--anchor-width))] overflow-x-hidden overflow-y-auto rounded-xl border p-1.5 shadow-lg backdrop-blur-sm",
           "data-open:fade-in-0 data-open:zoom-in-95 data-open:animate-in",
           "data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:animate-out",
           "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
