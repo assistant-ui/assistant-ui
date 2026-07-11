@@ -207,7 +207,7 @@ describe("createLocalStorageAdapter", () => {
     ]);
   });
 
-  it("preserves concurrent thread metadata mutations", async () => {
+  it("preserves concurrent metadata mutations across adapters", async () => {
     const threadsKey = "@assistant-ui:threads";
     const values = new Map<string, string>();
     let metadataReads = 0;
@@ -239,11 +239,12 @@ describe("createLocalStorageAdapter", () => {
         values.delete(key);
       },
     };
-    const adapter = createLocalStorageAdapter({ storage });
+    const firstAdapter = createLocalStorageAdapter({ storage });
+    const secondAdapter = createLocalStorageAdapter({ storage });
 
-    const firstInitialization = adapter.initialize("thread-1");
+    const firstInitialization = firstAdapter.initialize("thread-1");
     await firstWriteStarted;
-    const secondInitialization = adapter.initialize("thread-2");
+    const secondInitialization = secondAdapter.initialize("thread-2");
     const readsWhileFirstWritePending = metadataReads;
 
     releaseFirstWrite();

@@ -43,6 +43,17 @@ class KeyedMutationQueue {
   }
 }
 
+const mutationQueues = new WeakMap<AsyncStorageLike, KeyedMutationQueue>();
+
+const getMutationQueue = (storage: AsyncStorageLike): KeyedMutationQueue => {
+  let queue = mutationQueues.get(storage);
+  if (!queue) {
+    queue = new KeyedMutationQueue();
+    mutationQueues.set(storage, queue);
+  }
+  return queue;
+};
+
 type LocalStorageAdapterOptions = {
   storage: AsyncStorageLike;
   prefix?: string | undefined;
@@ -335,7 +346,7 @@ export const createLocalStorageAdapter = (
 
   const threadsKey = `${prefix}threads`;
   const messagesKey = (threadId: string) => `${prefix}messages:${threadId}`;
-  const mutationQueue = new KeyedMutationQueue();
+  const mutationQueue = getMutationQueue(storage);
 
   const loadThreadMetadata = async (): Promise<StoredThreadMetadata[]> => {
     const raw = await storage.getItem(threadsKey);
