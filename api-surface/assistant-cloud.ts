@@ -238,6 +238,8 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: string;
 } | {
   readonly type: "update-state";
   readonly operations: ObjectStreamOperation[];

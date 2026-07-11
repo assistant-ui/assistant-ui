@@ -366,7 +366,15 @@ const handleErrorChunk = (
 ): AssistantMessage => {
   return {
     ...message,
-    status: { type: "incomplete", reason: "error", error: chunk.error },
+    status: {
+      type: "incomplete",
+      reason: "error",
+      error: {
+        code: chunk.code ?? "unknown",
+        message: chunk.error,
+        ...(chunk.severity && { severity: chunk.severity }),
+      },
+    },
   };
 };
 

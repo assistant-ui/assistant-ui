@@ -225,3 +225,41 @@ describe("AssistantMessageAccumulator timing", () => {
     expect(last.metadata.timing!.firstTokenTime).toBeTypeOf("number");
   });
 });
+
+describe("AssistantMessageAccumulator error chunks", () => {
+  it("defaults missing code to unknown", async () => {
+    const messages = await collectStream([
+      { type: "error", path: [], error: "stream failed" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: { code: "unknown", message: "stream failed" },
+    });
+  });
+
+  it("carries code and severity through unchanged", async () => {
+    const messages = await collectStream([
+      {
+        type: "error",
+        path: [],
+        error: "rate limited",
+        code: "provider",
+        severity: "warning",
+      },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: {
+        code: "provider",
+        message: "rate limited",
+        severity: "warning",
+      },
+    });
+  });
+});

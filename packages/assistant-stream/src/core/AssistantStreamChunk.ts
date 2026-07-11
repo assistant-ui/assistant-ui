@@ -132,6 +132,8 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
       /** Emits a stream-level error message. */
       readonly type: "error";
       readonly error: string;
+      readonly code?: string;
+      readonly severity?: string;
     }
   | {
       /** Applies object-stream operations to state carried by this stream. */
