@@ -182,6 +182,7 @@ export class ServerDictationAdapter implements DictationAdapter {
 
     let mediaRecorder: MediaRecorder | null = null;
     let stream: MediaStream | null = null;
+    let cancelled = false;
     const chunks: BlobPart[] = [];
 
     const session: DictationAdapter.Session = {
@@ -192,6 +193,7 @@ export class ServerDictationAdapter implements DictationAdapter {
       },
 
       cancel: () => {
+        cancelled = true;
         mediaRecorder?.stop();
         stream?.getTracks().forEach((t) => t.stop());
         session.status = { type: "ended", reason: "cancelled" };
@@ -224,6 +226,7 @@ export class ServerDictationAdapter implements DictationAdapter {
         };
         mediaRecorder.onstop = async () => {
           stream?.getTracks().forEach((t) => t.stop());
+          if (cancelled) return;
           try {
             const blob = new Blob(chunks, {
               type: mediaRecorder?.mimeType || "audio/webm",

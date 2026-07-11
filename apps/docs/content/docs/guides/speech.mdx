@@ -129,7 +129,7 @@ export class CustomTTSAdapter implements SpeechSynthesisAdapter {
         notify();
         audio.onended = () => finish("finished");
         audio.onerror = (e) => finish("error", e);
-        void audio.play();
+        audio.play().catch((err) => finish("error", err));
       })
       .catch((err) => finish("error", err));
 
