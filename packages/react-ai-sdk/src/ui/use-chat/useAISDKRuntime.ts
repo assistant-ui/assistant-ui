@@ -84,6 +84,13 @@ export type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
    */
   onResume?: ExternalStoreAdapter["onResume"];
   /**
+   * Called when `runtime.thread.resumeToolCall(options)` is invoked for a tool call the in-process tracker does not own.
+   *
+   * When omitted, `resumeToolCall` throws `"Tool call ${toolCallId} is not waiting for resume."`.
+   * Provide this to bridge resume-tool-call invocations into a custom handler.
+   */
+  onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
+  /**
    * How consecutive assistant messages are rendered.
    *
    * `"concat-content"` (the default) merges them into a single thread message.
@@ -103,6 +110,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     toCreateMessage: customToCreateMessage,
     cancelPendingToolCallsOnSend = true,
     onResume,
+    onResumeToolCall,
     joinStrategy,
   } = adapter;
   const contextAdapters = useRuntimeAdapters();
@@ -380,6 +388,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     ...pickExternalStoreSharedOptions(adapter),
     ...(onResume && { onResume }),
+    ...(onResumeToolCall && { onResumeToolCall }),
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...contextAdapters,
