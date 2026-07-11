@@ -33,6 +33,7 @@
     "lint-staged": "^17.0.8",
     "oxfmt": "^0.57.0",
     "oxlint": "^1.72.0",
+    "pkg-pr-new": "^0.0.75",
     "turbo": "^2.10.3",
     "typescript": "^7.0.2"
   },
