@@ -27,7 +27,10 @@ const PROJECT_PACKAGE_IMPORTS = new Set([
 ]);
 
 type RegistryFile = NonNullable<RegistryItem["files"]>[number];
-type RegistryBuildItem = Omit<RegistryItem, "baseRegistryDependencies">;
+type RegistryBuildItem = Omit<
+  RegistryItem,
+  "baseRegistryDependencies" | "radixDependencies" | "baseDependencies"
+>;
 type RegistryOutputFile = Omit<RegistryFile, "sourcePath"> & {
   content: string;
 };
@@ -231,34 +234,324 @@ export function validateVariantTreesDiffer(
   }
 }
 
+function collectDataSlots(content: string) {
+  const slots = new Set<string>();
+  for (const match of content.matchAll(/data-slot="([^"]+)"/g)) {
+    slots.add(match[1]!);
+  }
+  return slots;
+}
+
+function formatSetDifference(onlyInRadix: string[], onlyInBase: string[]) {
+  const parts: string[] = [];
+  if (onlyInRadix.length > 0) {
+    parts.push(`radix-only: ${onlyInRadix.join(", ")}`);
+  }
+  if (onlyInBase.length > 0) {
+    parts.push(`base-only: ${onlyInBase.join(", ")}`);
+  }
+  return parts.join("; ");
+}
+
+export function validateVariantSlotParity(
+  radixBuilt: BuiltRegistryPayload[],
+  baseBuilt: BuiltRegistryPayload[],
+) {
+  const radixByName = new Map(
+    radixBuilt.map((built) => [built.payload.name, built]),
+  );
+  const findings = new Set<string>();
+
+  for (const base of baseBuilt) {
+    if (base.baseVariantOutputPaths.length === 0) continue;
+
+    const radix = radixByName.get(base.payload.name);
+    if (!radix) {
+      findings.add(
+        `${base.payload.name}: base variant exists but radix payload is missing`,
+      );
+      continue;
+    }
+
+    for (const filePath of base.baseVariantOutputPaths) {
+      const radixContent = radix.payload.files?.find(
+        (file) => file.path === filePath,
+      )?.content;
+      const baseContent = base.payload.files?.find(
+        (file) => file.path === filePath,
+      )?.content;
+
+      if (radixContent === undefined || baseContent === undefined) {
+        findings.add(
+          `${base.payload.name}: missing emitted content for ${filePath} while comparing radix and base slots`,
+        );
+        continue;
+      }
+
+      const radixSlots = collectDataSlots(radixContent);
+      const baseSlots = collectDataSlots(baseContent);
+      const onlyInRadix = [...radixSlots]
+        .filter((slot) => !baseSlots.has(slot))
+        .sort();
+      const onlyInBase = [...baseSlots]
+        .filter((slot) => !radixSlots.has(slot))
+        .sort();
+
+      if (onlyInRadix.length > 0 || onlyInBase.length > 0) {
+        findings.add(
+          `${base.payload.name}: data-slot attributes differ for ${filePath} (${formatSetDifference(onlyInRadix, onlyInBase)})`,
+        );
+      }
+    }
+  }
+
+  if (findings.size > 0) {
+    throw new Error(
+      `Invalid variant slot parity:\n${[...findings]
+        .map((finding) => `- ${finding}`)
+        .join("\n")}`,
+    );
+  }
+}
+
+function collectExportedNames(content: string, filePath: string) {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    getScriptKind(filePath),
+  );
+  const names = new Set<string>();
+
+  for (const stmt of sourceFile.statements) {
+    if (
+      ts.isExportDeclaration(stmt) &&
+      stmt.exportClause &&
+      ts.isNamedExports(stmt.exportClause)
+    ) {
+      for (const element of stmt.exportClause.elements) {
+        names.add(element.name.text);
+      }
+    }
+
+    if (
+      ts.canHaveModifiers(stmt) &&
+      ts.getModifiers(stmt)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+    ) {
+      if (
+        (ts.isFunctionDeclaration(stmt) ||
+          ts.isClassDeclaration(stmt) ||
+          ts.isTypeAliasDeclaration(stmt) ||
+          ts.isInterfaceDeclaration(stmt) ||
+          ts.isEnumDeclaration(stmt)) &&
+        stmt.name
+      ) {
+        names.add(stmt.name.text);
+      } else if (ts.isVariableStatement(stmt)) {
+        for (const declaration of stmt.declarationList.declarations) {
+          if (ts.isIdentifier(declaration.name)) {
+            names.add(declaration.name.getText(sourceFile));
+          }
+        }
+      }
+    }
+
+    if (ts.isExportAssignment(stmt)) {
+      names.add("default");
+    }
+  }
+
+  return names;
+}
+
+export function validateVariantExportParity(
+  radixBuilt: BuiltRegistryPayload[],
+  baseBuilt: BuiltRegistryPayload[],
+) {
+  const radixByName = new Map(
+    radixBuilt.map((built) => [built.payload.name, built]),
+  );
+  const findings = new Set<string>();
+
+  for (const base of baseBuilt) {
+    if (base.baseVariantOutputPaths.length === 0) continue;
+
+    const radix = radixByName.get(base.payload.name);
+    if (!radix) {
+      findings.add(
+        `${base.payload.name}: base variant exists but radix payload is missing`,
+      );
+      continue;
+    }
+
+    for (const filePath of base.baseVariantOutputPaths) {
+      const radixContent = radix.payload.files?.find(
+        (file) => file.path === filePath,
+      )?.content;
+      const baseContent = base.payload.files?.find(
+        (file) => file.path === filePath,
+      )?.content;
+
+      if (radixContent === undefined || baseContent === undefined) {
+        findings.add(
+          `${base.payload.name}: missing emitted content for ${filePath} while comparing radix and base exports`,
+        );
+        continue;
+      }
+
+      const radixExports = collectExportedNames(radixContent, filePath);
+      const baseExports = collectExportedNames(baseContent, filePath);
+      const onlyInRadix = [...radixExports]
+        .filter((name) => !baseExports.has(name))
+        .sort();
+      const onlyInBase = [...baseExports]
+        .filter((name) => !radixExports.has(name))
+        .sort();
+
+      if (onlyInRadix.length > 0 || onlyInBase.length > 0) {
+        findings.add(
+          `${base.payload.name}: exported symbols differ for ${filePath} (${formatSetDifference(onlyInRadix, onlyInBase)})`,
+        );
+      }
+    }
+  }
+
+  if (findings.size > 0) {
+    throw new Error(
+      `Invalid variant export parity:\n${[...findings]
+        .map((finding) => `- ${finding}`)
+        .join("\n")}`,
+    );
+  }
+}
+
+function collectUsedPackages(payload: RegistryOutputItem) {
+  const packages = new Set<string>();
+
+  for (const file of payload.files ?? []) {
+    for (const specifier of collectModuleSpecifiers(file)) {
+      if (specifier.startsWith(".") || specifier.startsWith("@/")) continue;
+      packages.add(getPackageName(specifier));
+    }
+  }
+
+  for (const packageName of collectCssPackageImports(payload.css)) {
+    packages.add(packageName);
+  }
+
+  return packages;
+}
+
+export function validateStyleScopedDependencies(
+  radixBuilt: BuiltRegistryPayload[],
+  baseBuilt: BuiltRegistryPayload[],
+) {
+  const radixByName = new Map(
+    radixBuilt.map((built) => [built.payload.name, built]),
+  );
+  const findings = new Set<string>();
+
+  for (const base of baseBuilt) {
+    const radix = radixByName.get(base.payload.name);
+    if (!radix) continue;
+
+    const radixUsed = collectUsedPackages(radix.payload);
+    const baseUsed = collectUsedPackages(base.payload);
+
+    for (const dependency of radix.payload.dependencies ?? []) {
+      if (!radixUsed.has(dependency) && baseUsed.has(dependency)) {
+        findings.add(
+          `${base.payload.name}: dependency "${dependency}" is declared for the radix tree but only used by the base tree; move it to baseDependencies`,
+        );
+      }
+    }
+
+    for (const dependency of base.payload.dependencies ?? []) {
+      if (!baseUsed.has(dependency) && radixUsed.has(dependency)) {
+        findings.add(
+          `${base.payload.name}: dependency "${dependency}" is declared for the base tree but only used by the radix tree; move it to radixDependencies`,
+        );
+      }
+    }
+  }
+
+  if (findings.size > 0) {
+    throw new Error(
+      `Invalid style-scoped dependencies:\n${[...findings]
+        .map((finding) => `- ${finding}`)
+        .join("\n")}`,
+    );
+  }
+}
+
 function getAssistantRegistryDependencyName(dependency: string) {
   return ASSISTANT_REGISTRY_DEPENDENCY_RE.exec(dependency)?.[1] ?? null;
 }
 
 export function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
-  const { baseRegistryDependencies: _, ...radixItem } = item;
-  return radixItem;
+  const {
+    baseRegistryDependencies: _,
+    radixDependencies,
+    baseDependencies: __,
+    ...radixItem
+  } = item;
+
+  const hasDependencies =
+    radixItem.dependencies !== undefined || radixDependencies !== undefined;
+
+  if (!hasDependencies) return radixItem;
+
+  return {
+    ...radixItem,
+    dependencies: [
+      ...new Set([
+        ...(radixItem.dependencies ?? []),
+        ...(radixDependencies ?? []),
+      ]),
+    ],
+  };
 }
 
 export function createBaseRegistryItem(item: RegistryItem): RegistryBuildItem {
-  const { baseRegistryDependencies, ...baseItem } = item;
+  const {
+    baseRegistryDependencies,
+    radixDependencies: _,
+    baseDependencies,
+    ...baseItem
+  } = item;
+
   const hasRegistryDependencies =
     baseItem.registryDependencies !== undefined ||
     baseRegistryDependencies !== undefined;
 
-  if (!hasRegistryDependencies) return baseItem;
+  const hasDependencies =
+    baseItem.dependencies !== undefined || baseDependencies !== undefined;
 
-  const registryDependencies = [
-    ...(baseItem.registryDependencies ?? []),
-    ...(baseRegistryDependencies ?? []),
-  ].map((dependency) => {
-    const name = getAssistantRegistryDependencyName(dependency);
-    return name ? `https://r.assistant-ui.com/base/${name}.json` : dependency;
-  });
+  let result = baseItem;
+
+  if (hasRegistryDependencies) {
+    const registryDependencies = [
+      ...(baseItem.registryDependencies ?? []),
+      ...(baseRegistryDependencies ?? []),
+    ].map((dependency) => {
+      const name = getAssistantRegistryDependencyName(dependency);
+      return name ? `https://r.assistant-ui.com/base/${name}.json` : dependency;
+    });
+
+    result = {
+      ...result,
+      registryDependencies: [...new Set(registryDependencies)],
+    };
+  }
+
+  if (!hasDependencies) return result;
 
   return {
-    ...baseItem,
-    registryDependencies: [...new Set(registryDependencies)],
+    ...result,
+    dependencies: [
+      ...new Set([...(result.dependencies ?? []), ...(baseDependencies ?? [])]),
+    ],
   };
 }
 
@@ -482,6 +775,9 @@ async function buildRegistry(registry: RegistryItem[]) {
   validateBaseVariantContent(baseBuilt);
   validateRadixPassDidNotReadBaseSources(radixBuilt);
   validateVariantTreesDiffer(radixBuilt, baseBuilt);
+  validateVariantSlotParity(radixBuilt, baseBuilt);
+  validateVariantExportParity(radixBuilt, baseBuilt);
+  validateStyleScopedDependencies(radixBuilt, baseBuilt);
 
   const payloads = radixBuilt.map((built) => built.payload);
   const basePayloads = baseBuilt.map((built) => built.payload);

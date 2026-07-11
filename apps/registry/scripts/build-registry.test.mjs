@@ -8,6 +8,9 @@ const {
   getBaseVariantSourcePath,
   validateBaseVariantContent,
   validateRadixPassDidNotReadBaseSources,
+  validateStyleScopedDependencies,
+  validateVariantExportParity,
+  validateVariantSlotParity,
   validateVariantTreesDiffer,
 } = await import("./build-registry.ts");
 
@@ -268,5 +271,272 @@ test("variant tree validation aggregates identical radix and base content", () =
       );
       return true;
     },
+  );
+});
+
+test("radix registry item merges and dedupes radixDependencies into dependencies", () => {
+  assert.deepEqual(
+    createRadixRegistryItem({
+      name: "example",
+      type: "registry:ui",
+      dependencies: ["lucide-react", "radix-ui"],
+      radixDependencies: ["radix-ui", "class-variance-authority"],
+      baseDependencies: ["@base-ui/react"],
+      baseRegistryDependencies: ["popover"],
+    }),
+    {
+      name: "example",
+      type: "registry:ui",
+      dependencies: ["lucide-react", "radix-ui", "class-variance-authority"],
+    },
+  );
+});
+
+test("radix registry item omits dependencies when neither source list exists", () => {
+  assert.deepEqual(
+    createRadixRegistryItem({
+      name: "example",
+      type: "registry:ui",
+      baseDependencies: ["@base-ui/react"],
+      baseRegistryDependencies: ["popover"],
+    }),
+    {
+      name: "example",
+      type: "registry:ui",
+    },
+  );
+});
+
+test("base registry item merges baseDependencies and drops radixDependencies", () => {
+  assert.deepEqual(
+    createBaseRegistryItem({
+      name: "example",
+      type: "registry:ui",
+      dependencies: ["lucide-react", "@base-ui/react"],
+      baseDependencies: ["@base-ui/react", "clsx"],
+      radixDependencies: ["radix-ui"],
+    }),
+    {
+      name: "example",
+      type: "registry:ui",
+      dependencies: ["lucide-react", "@base-ui/react", "clsx"],
+    },
+  );
+});
+
+test("slot parity reports mismatched data-slot attributes", () => {
+  const radixBuilt = [
+    createBuilt("button", [
+      [
+        "components/button.tsx",
+        '<button data-slot="button" data-slot="button-icon" />',
+      ],
+    ]),
+  ];
+  const baseBuilt = [
+    createBuilt("button", [
+      ["components/button.tsx", '<button data-slot="button" />'],
+    ]),
+  ];
+
+  assert.throws(
+    () => validateVariantSlotParity(radixBuilt, baseBuilt),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid variant slot parity:/);
+      assert.ok(error.message.includes("button"));
+      assert.ok(error.message.includes("components/button.tsx"));
+      assert.ok(error.message.includes("button-icon"));
+      assert.ok(
+        error.message.includes(
+          "- button: data-slot attributes differ for components/button.tsx (radix-only: button-icon)",
+        ),
+      );
+      return true;
+    },
+  );
+});
+
+test("slot parity accepts identical slot sets and skips empty base variants", () => {
+  assert.doesNotThrow(() =>
+    validateVariantSlotParity(
+      [
+        createBuilt("button", [
+          ["components/button.tsx", '<button data-slot="button" />'],
+        ]),
+        createBuilt("plain", [["components/plain.tsx", "export const x = 1;"]]),
+      ],
+      [
+        createBuilt("button", [
+          ["components/button.tsx", '<div data-slot="button" />'],
+        ]),
+        createBuilt(
+          "plain",
+          [["components/plain.tsx", "export const y = 2;"]],
+          {
+            baseVariantOutputPaths: [],
+          },
+        ),
+      ],
+    ),
+  );
+});
+
+test("export parity reports exports present only in the radix content", () => {
+  const radixBuilt = [
+    createBuilt("widget", [
+      [
+        "components/widget.tsx",
+        "export function Widget() {}\nexport function Helper() {}",
+      ],
+    ]),
+  ];
+  const baseBuilt = [
+    createBuilt("widget", [
+      ["components/widget.tsx", "export function Widget() {}"],
+    ]),
+  ];
+
+  assert.throws(
+    () => validateVariantExportParity(radixBuilt, baseBuilt),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid variant export parity:/);
+      assert.ok(error.message.includes("widget"));
+      assert.ok(error.message.includes("components/widget.tsx"));
+      assert.ok(error.message.includes("Helper"));
+      assert.ok(
+        error.message.includes(
+          "- widget: exported symbols differ for components/widget.tsx (radix-only: Helper)",
+        ),
+      );
+      return true;
+    },
+  );
+});
+
+test("export parity treats export { A as B } as B and accepts identical sets", () => {
+  assert.throws(
+    () =>
+      validateVariantExportParity(
+        [
+          createBuilt("alias", [
+            ["components/alias.tsx", "const A = 1;\nexport { A as B };"],
+          ]),
+        ],
+        [
+          createBuilt("alias", [
+            ["components/alias.tsx", "export function Other() {}"],
+          ]),
+        ],
+      ),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.ok(error.message.includes("radix-only: B"));
+      assert.ok(error.message.includes("base-only: Other"));
+      return true;
+    },
+  );
+
+  assert.doesNotThrow(() =>
+    validateVariantExportParity(
+      [
+        createBuilt("same", [
+          [
+            "components/same.tsx",
+            "export function Same() {}\nconst A = 1;\nexport { A as B };",
+          ],
+        ]),
+      ],
+      [
+        createBuilt("same", [
+          [
+            "components/same.tsx",
+            "export function Same() {}\nexport function B() {}",
+          ],
+        ]),
+      ],
+    ),
+  );
+});
+
+test("style-scoped dependencies flag deps used only by the opposite tree", () => {
+  const radixOnlyImport = createBuilt("tooltip", [
+    [
+      "components/tooltip.tsx",
+      'import { Tooltip } from "radix-ui";\nexport const TooltipButton = Tooltip;',
+    ],
+  ]);
+  const baseOnlyImport = createBuilt("tooltip", [
+    [
+      "components/tooltip.tsx",
+      'import { Tooltip } from "@base-ui/react";\nexport const TooltipButton = Tooltip;',
+    ],
+  ]);
+  const bothImport = createBuilt("shared", [
+    [
+      "components/shared.tsx",
+      'import { clsx } from "clsx";\nexport const cx = clsx;',
+    ],
+  ]);
+  const neitherImport = createBuilt("unused", [
+    ["components/unused.tsx", "export const value = 1;"],
+  ]);
+
+  radixOnlyImport.payload.dependencies = ["radix-ui"];
+  baseOnlyImport.payload.dependencies = ["radix-ui"];
+  bothImport.payload.dependencies = ["clsx"];
+  neitherImport.payload.dependencies = ["lodash"];
+
+  assert.throws(
+    () => validateStyleScopedDependencies([radixOnlyImport], [baseOnlyImport]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid style-scoped dependencies:/);
+      assert.ok(error.message.includes("radixDependencies"));
+      assert.ok(
+        error.message.includes(
+          '- tooltip: dependency "radix-ui" is declared for the base tree but only used by the radix tree; move it to radixDependencies',
+        ),
+      );
+      return true;
+    },
+  );
+
+  const radixDeclaresBaseOnly = createBuilt("panel", [
+    ["components/panel.tsx", "export const P = true;"],
+  ]);
+  const baseUsesBaseOnly = createBuilt("panel", [
+    [
+      "components/panel.tsx",
+      'import { Panel } from "@base-ui/react";\nexport const P = Panel;',
+    ],
+  ]);
+  radixDeclaresBaseOnly.payload.dependencies = ["@base-ui/react"];
+
+  assert.throws(
+    () =>
+      validateStyleScopedDependencies(
+        [radixDeclaresBaseOnly],
+        [baseUsesBaseOnly],
+      ),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.ok(error.message.includes("baseDependencies"));
+      assert.ok(
+        error.message.includes(
+          '- panel: dependency "@base-ui/react" is declared for the radix tree but only used by the base tree; move it to baseDependencies',
+        ),
+      );
+      return true;
+    },
+  );
+
+  assert.doesNotThrow(() =>
+    validateStyleScopedDependencies([bothImport], [bothImport]),
+  );
+
+  assert.doesNotThrow(() =>
+    validateStyleScopedDependencies([neitherImport], [neitherImport]),
   );
 });
