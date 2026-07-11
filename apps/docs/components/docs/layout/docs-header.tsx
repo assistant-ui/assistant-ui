@@ -53,7 +53,7 @@ function HeaderSearch() {
         analytics.search.opened("header");
         setOpenSearch(true);
       }}
-      className="border-border/50 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground flex h-8 w-full max-w-96 items-center gap-2 rounded-lg border px-3 text-sm transition-colors"
+      className="border-border/50 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground flex h-8 w-full max-w-96 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm transition-colors"
     >
       <Search className="size-3.5 shrink-0" />
       <span className="flex-1 text-left">Search...</span>
@@ -208,7 +208,7 @@ export function DocsHeader({
               analytics.search.opened("header");
               setOpenSearch(true);
             }}
-            className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
+            className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors"
             aria-label="Search"
           >
             <Search className="size-4" />
@@ -249,7 +249,7 @@ export function DocsHeader({
               analytics.search.opened("header");
               setOpenSearch(true);
             }}
-            className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
+            className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors"
             aria-label="Search"
           >
             <Search className="size-4" />

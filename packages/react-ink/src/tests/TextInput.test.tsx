@@ -129,7 +129,9 @@ describe("TextInput", () => {
     render(<Controlled initial="hello" onChange={killOnChange} />);
     await flush();
 
-    inputHandler?.("u", { ctrl: true });
+    const killHandler = inputHandler as InputHandler | undefined;
+    if (!killHandler) throw new Error("expected input handler");
+    killHandler("u", { ctrl: true });
     expect(killOnChange).toHaveBeenLastCalledWith("");
   });
 

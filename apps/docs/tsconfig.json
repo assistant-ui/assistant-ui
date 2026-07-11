@@ -3,6 +3,7 @@
   "compilerOptions": {
     "paths": {
       "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
+      "@/components/ui-base/*": ["../../packages/ui/src/components/ui-base/*"],
       "@/lib/utils": ["../../packages/ui/src/lib/utils"],
       "@/components/assistant-ui/markdown-text": [
         "./components/assistant-ui/markdown-text"

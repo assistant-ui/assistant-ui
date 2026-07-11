@@ -375,7 +375,7 @@ import type { ReactNode } from "react";
 import { toolkit } from "./GitHubIssueToolUI";
 
 export function MyRuntimeProvider({ children }: { children: ReactNode }) {
-  const runtime = useChatRuntime({ api: "/api/chat" });
+  const runtime = useChatRuntime();
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   return (
@@ -385,6 +385,8 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
   );
 }
 ```
+
+`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v6#custom-transport).
 
 </Step>
 <Step>

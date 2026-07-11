@@ -32,9 +32,9 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.0.8",
     "oxfmt": "^0.57.0",
-    "oxlint": "^1.72.0",
-    "turbo": "^2.10.3",
-    "typescript": "^6.0.3"
+    "oxlint": "^1.73.0",
+    "turbo": "^2.10.4",
+    "typescript": "^7.0.2"
   },
   "packageManager": "pnpm@11.10.0",
   "lint-staged": {
