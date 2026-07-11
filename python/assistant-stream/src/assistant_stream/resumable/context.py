@@ -4,7 +4,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 from assistant_stream.resumable.errors import ResumableStreamError
 from assistant_stream.resumable.types import (
@@ -14,6 +14,7 @@ from assistant_stream.resumable.types import (
 )
 
 logger = logging.getLogger(__name__)
+_hook_logger = logging.getLogger("assistant_stream.resumable")
 
 MakeStream = Callable[[], AsyncIterator[bytes]]
 WaitUntil = Callable[[asyncio.Task[None]], None]
@@ -21,6 +22,15 @@ OnAcquire = Callable[[str, ResumableStreamRole], None]
 OnAppend = Callable[[str, int], None]
 OnFinalize = Callable[[str, Literal["done", "error"], str | None], None]
 OnError = Callable[[str, object], None]
+
+
+def _call_hook(hook: Callable[..., Any] | None, /, *args: Any) -> None:
+    if hook is None:
+        return
+    try:
+        hook(*args)
+    except Exception:
+        _hook_logger.debug("resumable stream hook failed: %r", hook, exc_info=True)
 
 
 @dataclass
@@ -41,11 +51,7 @@ class ResumableStreamContext:
             stream_id,
             ttl_ms=self._ttl_ms,
         )
-        if self._on_acquire is not None:
-            try:
-                self._on_acquire(stream_id, role)
-            except Exception:
-                pass
+        _call_hook(self._on_acquire, stream_id, role)
         if role == "producer":
             _start_producer_task(
                 self._store,
@@ -117,31 +123,15 @@ def _start_producer_task(
         try:
             async for chunk in make_stream():
                 await store.append(stream_id, chunk)
-                if on_append is not None:
-                    try:
-                        on_append(stream_id, len(chunk))
-                    except Exception:
-                        pass
+                _call_hook(on_append, stream_id, len(chunk))
             await store.finalize(stream_id, "done")
-            if on_finalize is not None:
-                try:
-                    on_finalize(stream_id, "done", None)
-                except Exception:
-                    pass
+            _call_hook(on_finalize, stream_id, "done", None)
         except Exception as err:
-            if on_error is not None:
-                try:
-                    on_error(stream_id, err)
-                except Exception:
-                    pass
+            _call_hook(on_error, stream_id, err)
             message = str(err) if str(err) else repr(err)
             try:
                 await store.finalize(stream_id, "error", message)
-                if on_finalize is not None:
-                    try:
-                        on_finalize(stream_id, "error", message)
-                    except Exception:
-                        pass
+                _call_hook(on_finalize, stream_id, "error", message)
             except Exception as finalize_err:
                 logger.error(
                     "resumable stream finalize failed: %s", finalize_err

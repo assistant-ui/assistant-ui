@@ -247,7 +247,7 @@ def _parse_meta(value: str) -> dict[str, Any] | None:
 async def _sleep(ms: int, signal: CancellationSignal) -> None:
     if signal.is_set():
         return
-    with suppress(TimeoutError):
+    with suppress(asyncio.TimeoutError):
         await asyncio.wait_for(signal.wait(), timeout=ms / 1000.0)
 
 

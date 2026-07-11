@@ -7,6 +7,7 @@ from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from assistant_stream.create_run import RunController, create_run
 from assistant_stream.resumable.context import ResumableStreamContext
+from assistant_stream.resumable.errors import ResumableStreamError
 from assistant_stream.serialization.data_stream import DataStreamEncoder
 from assistant_stream.serialization.stream_encoder import StreamEncoder
 
@@ -43,7 +44,12 @@ async def create_resume_assistant_stream_response(
     headers: Mapping[str, str] | None = None,
     missing_response: Callable[[], Response] | None = None,
 ) -> Response:
-    body = await context.resume(stream_id)
+    try:
+        body = await context.resume(stream_id)
+    except ResumableStreamError as err:
+        if err.code != "invalid-id":
+            raise
+        body = None
     if body is None:
         if missing_response is not None:
             return missing_response()

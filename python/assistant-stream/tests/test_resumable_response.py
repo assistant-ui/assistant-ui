@@ -92,6 +92,20 @@ async def test_resume_returns_404_json_when_missing() -> None:
 
 
 @pytest.mark.anyio
+async def test_resume_returns_404_json_for_invalid_stream_id() -> None:
+    ctx = create_resumable_stream_context(
+        store=create_in_memory_resumable_stream_store()
+    )
+    response = await create_resume_assistant_stream_response(
+        context=ctx,
+        stream_id="x" * 300,
+    )
+    assert response.status_code == 404
+    body = response.body
+    assert b"stream not found" in body
+
+
+@pytest.mark.anyio
 async def test_assistant_transport_encoder_round_trips() -> None:
     ctx = create_resumable_stream_context(
         store=create_in_memory_resumable_stream_store()
