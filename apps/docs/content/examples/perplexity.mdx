@@ -81,7 +81,7 @@ const Composer = ({ placeholder }) => (
 ### Functional Search & Model Dropdowns
 
 ```tsx
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/shared/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui-base/dropdown-menu";
 
 const SEARCH_MODES = [
   { id: "search", name: "Search", description: "Fast answers to everyday questions", Icon: Search },
@@ -95,7 +95,7 @@ const SEARCH_MODES = [
   </DropdownMenuTrigger>
   <DropdownMenuContent>
     {SEARCH_MODES.map((m) => (
-      <DropdownMenuItem onSelect={() => setMode(m.id)}>
+      <DropdownMenuItem onClick={() => setMode(m.id)}>
         {m.id === mode ? <Check /> : <m.Icon />}
         {m.name} — {m.description}
       </DropdownMenuItem>

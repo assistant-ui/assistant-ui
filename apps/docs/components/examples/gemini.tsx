@@ -37,7 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/shared/dropdown-menu";
+} from "@/components/ui-base/dropdown-menu";
 
 export const Gemini: FC = () => {
   return (
@@ -130,17 +130,16 @@ const GeminiPlusMenu: FC = () => {
         <PlusIcon width={20} height={20} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="bottom" className="min-w-56">
-        <DropdownMenuItem asChild>
-          <ComposerPrimitive.AddAttachment>
-            <span className="flex size-4 items-center justify-center">
-              <Paperclip className="size-4" />
-            </span>
-            Add photos &amp; files
-          </ComposerPrimitive.AddAttachment>
+        <DropdownMenuItem render={<ComposerPrimitive.AddAttachment />}>
+          <span className="flex size-4 items-center justify-center">
+            <Paperclip className="size-4" />
+          </span>
+          Add photos &amp; files
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {GEMINI_TOOLS.map(({ id, label, Icon }) => (
-          <DropdownMenuItem key={id} icon={<Icon className="size-4" />}>
+          <DropdownMenuItem key={id}>
+            <Icon className="size-4" />
             {label}
           </DropdownMenuItem>
         ))}
@@ -172,7 +171,7 @@ const GeminiModelPicker: FC = () => {
         {GEMINI_MODELS.map((m) => (
           <DropdownMenuItem
             key={m.id}
-            onSelect={() => setModel(m.id)}
+            onClick={() => setModel(m.id)}
             className="items-start gap-3"
           >
             <span className="mt-0.5 flex size-4 items-center justify-center text-[#0b57d0] dark:text-[#a8c7fa]">

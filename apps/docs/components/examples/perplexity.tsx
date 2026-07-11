@@ -37,7 +37,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/shared/dropdown-menu";
+} from "@/components/ui-base/dropdown-menu";
 
 const composerPrimaryActionClassName =
   "absolute inset-0 flex items-center justify-center rounded-full transition-all duration-200 ease-out";
@@ -229,7 +229,7 @@ const SearchModePicker: FC = () => {
         {SEARCH_MODES.map(({ id, name, description, Icon }) => (
           <DropdownMenuItem
             key={id}
-            onSelect={() => setMode(id)}
+            onClick={() => setMode(id)}
             className="flex items-start gap-3"
           >
             <span className="mt-0.5 flex size-4 items-center justify-center text-[#1f1b17] dark:text-[#f5f2ed]">
@@ -271,7 +271,7 @@ const ModelPicker: FC = () => {
         {PERPLEXITY_MODELS.map((m) => (
           <DropdownMenuItem
             key={m.id}
-            onSelect={() => setModel(m.id)}
+            onClick={() => setModel(m.id)}
             className="flex items-start gap-3"
           >
             <span className="mt-0.5 flex size-4 items-center justify-center text-[#1f1b17] dark:text-[#f5f2ed]">

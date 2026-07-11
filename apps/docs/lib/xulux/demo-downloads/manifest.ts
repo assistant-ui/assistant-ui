@@ -49,7 +49,7 @@ export type DemoDownloadManifest = {
 
 const COMMON_EXTRA_SOURCE_FILES = [
   "packages/ui/src/lib/utils.ts",
-  "apps/docs/components/shared/dropdown-menu.tsx",
+  "packages/ui/src/components/ui-base/dropdown-menu.tsx",
 ] as const;
 
 const BASE_EXTRA_SOURCE_FILES = [

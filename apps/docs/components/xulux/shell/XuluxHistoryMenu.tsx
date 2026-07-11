@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/shared/dropdown-menu";
+} from "@/components/ui-base/dropdown-menu";
 import { cn } from "@/lib/utils";
 import {
   useNormalizeInterruptedXuluxThreads,
@@ -63,20 +63,22 @@ export function XuluxHistoryMenu({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="relative h-7 gap-1.5 px-2.5 text-xs"
-        >
-          <History className="size-3.5" />
-          <span className="hidden md:inline">History</span>
-          <ChevronDown className="size-3" />
-          {hasInterrupted && (
-            <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-amber-500" />
-          )}
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="relative h-7 gap-1.5 px-2.5 text-xs"
+          />
+        }
+      >
+        <History className="size-3.5" />
+        <span className="hidden md:inline">History</span>
+        <ChevronDown className="size-3" />
+        {hasInterrupted && (
+          <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-amber-500" />
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
@@ -97,7 +99,7 @@ export function XuluxHistoryMenu({
               <DropdownMenuItem
                 key={thread.remoteId}
                 className="items-start px-2 py-1.5"
-                onSelect={() => handleSelect(thread)}
+                onClick={() => handleSelect(thread)}
               >
                 <span className="min-w-0 flex-1">
                   <span className="text-foreground block truncate text-xs font-medium">
@@ -129,7 +131,7 @@ export function XuluxHistoryMenu({
           })
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="px-2 py-1.5 text-xs" onSelect={onNewChat}>
+        <DropdownMenuItem className="px-2 py-1.5 text-xs" onClick={onNewChat}>
           New chat
         </DropdownMenuItem>
       </DropdownMenuContent>

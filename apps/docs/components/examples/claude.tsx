@@ -37,7 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/shared/dropdown-menu";
+} from "@/components/ui-base/dropdown-menu";
 
 const messageActionButtonClassName =
   "flex size-8 items-center justify-center rounded-md text-[#5b5950] transition-colors hover:bg-[#1a1a18]/5 hover:text-[#1a1a18] dark:text-[#a3a098] dark:hover:bg-white/5 dark:hover:text-[#eee]";
@@ -199,7 +199,7 @@ const ClaudeModelPicker: FC = () => {
         {CLAUDE_MODELS.map((m) => (
           <DropdownMenuItem
             key={m.id}
-            onSelect={() => setModel(m.id)}
+            onClick={() => setModel(m.id)}
             className="flex items-start gap-3"
           >
             <span className="mt-0.5 flex size-4 items-center justify-center text-[#c96442]">

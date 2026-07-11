@@ -36,7 +36,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/shared/dropdown-menu";
+} from "@/components/ui-base/dropdown-menu";
 
 export const Grok: FC = () => {
   return (
@@ -159,7 +159,7 @@ const GrokModelPicker: FC = () => {
         {GROK_MODELS.map(({ id, name, description, Icon }) => (
           <DropdownMenuItem
             key={id}
-            onSelect={() => setModel(id)}
+            onClick={() => setModel(id)}
             className="flex items-start gap-3"
           >
             <span className="mt-0.5 flex size-4 items-center justify-center text-[#0d0d0d] dark:text-white">

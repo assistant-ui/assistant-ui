@@ -9,7 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-} from "@/components/shared/dropdown-menu";
+} from "@/components/ui-base/dropdown-menu";
 import { SETUP_PROMPT } from "./setup-prompt";
 
 export function CopyCommandButton({
@@ -88,16 +88,12 @@ export function CopyCommandButton({
         <div className="ml-1">{copyIcon}</div>
       </Menu.Trigger>
       <DropdownMenuContent align="start">
-        <DropdownMenuItem
-          icon={<TerminalIcon className="size-3.5" />}
-          onSelect={copyCommand}
-        >
+        <DropdownMenuItem onClick={copyCommand}>
+          <TerminalIcon className="size-3.5" />
           Copy CLI command
         </DropdownMenuItem>
-        <DropdownMenuItem
-          icon={<SparklesIcon className="size-3.5" />}
-          onSelect={copyPrompt}
-        >
+        <DropdownMenuItem onClick={copyPrompt}>
+          <SparklesIcon className="size-3.5" />
           Copy coding agent prompt
         </DropdownMenuItem>
       </DropdownMenuContent>
