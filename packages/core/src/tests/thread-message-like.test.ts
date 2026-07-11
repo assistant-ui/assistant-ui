@@ -162,13 +162,14 @@ describe("fromThreadMessageLike", () => {
   });
 
   describe("providerMetadata passthrough", () => {
-    it("keeps providerMetadata on text and tool-call parts", () => {
+    it("keeps providerMetadata on text, reasoning, and tool-call parts", () => {
       const providerMetadata = { acme: { agentName: "researcher" } };
       const result = fromThreadMessageLike(
         {
           role: "assistant",
           content: [
             { type: "text", text: "hi", providerMetadata },
+            { type: "reasoning", text: "thinking", providerMetadata },
             {
               type: "tool-call",
               toolCallId: "tc-1",
@@ -188,6 +189,11 @@ describe("fromThreadMessageLike", () => {
         providerMetadata,
       });
       expect(result.content[1]).toMatchObject({
+        type: "reasoning",
+        text: "thinking",
+        providerMetadata,
+      });
+      expect(result.content[2]).toMatchObject({
         type: "tool-call",
         toolCallId: "tc-1",
         providerMetadata,
