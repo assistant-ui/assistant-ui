@@ -325,14 +325,23 @@ function collectExportedNames(content: string, filePath: string) {
   const names = new Set<string>();
 
   for (const stmt of sourceFile.statements) {
+    if (ts.isExportDeclaration(stmt) && stmt.exportClause) {
+      if (ts.isNamedExports(stmt.exportClause)) {
+        for (const element of stmt.exportClause.elements) {
+          names.add(element.name.text);
+        }
+      } else if (ts.isNamespaceExport(stmt.exportClause)) {
+        names.add(stmt.exportClause.name.text);
+      }
+    }
+
     if (
       ts.isExportDeclaration(stmt) &&
-      stmt.exportClause &&
-      ts.isNamedExports(stmt.exportClause)
+      !stmt.exportClause &&
+      stmt.moduleSpecifier &&
+      isStringLiteralLike(stmt.moduleSpecifier)
     ) {
-      for (const element of stmt.exportClause.elements) {
-        names.add(element.name.text);
-      }
+      names.add(`*:${stmt.moduleSpecifier.text}`);
     }
 
     if (
@@ -347,7 +356,13 @@ function collectExportedNames(content: string, filePath: string) {
           ts.isEnumDeclaration(stmt)) &&
         stmt.name
       ) {
-        names.add(stmt.name.text);
+        names.add(
+          ts
+            .getModifiers(stmt)
+            ?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)
+            ? "default"
+            : stmt.name.text,
+        );
       } else if (ts.isVariableStatement(stmt)) {
         for (const declaration of stmt.declarationList.declarations) {
           if (ts.isIdentifier(declaration.name)) {

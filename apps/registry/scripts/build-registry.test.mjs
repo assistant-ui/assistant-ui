@@ -460,6 +460,95 @@ test("export parity treats export { A as B } as B and accepts identical sets", (
   );
 });
 
+test("export parity records default exports as default regardless of local name", () => {
+  assert.throws(
+    () =>
+      validateVariantExportParity(
+        [
+          createBuilt("widget", [
+            ["components/widget.tsx", "export default function Widget() {}"],
+          ]),
+        ],
+        [
+          createBuilt("widget", [
+            ["components/widget.tsx", "export function Widget() {}"],
+          ]),
+        ],
+      ),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.ok(error.message.includes("radix-only: default"));
+      assert.ok(error.message.includes("base-only: Widget"));
+      return true;
+    },
+  );
+
+  assert.doesNotThrow(() =>
+    validateVariantExportParity(
+      [
+        createBuilt("widget", [
+          ["components/widget.tsx", "export default function RadixWidget() {}"],
+        ]),
+      ],
+      [
+        createBuilt("widget", [
+          ["components/widget.tsx", "export default function BaseWidget() {}"],
+        ]),
+      ],
+    ),
+  );
+});
+
+test("export parity tracks star and namespace re-exports", () => {
+  assert.throws(
+    () =>
+      validateVariantExportParity(
+        [
+          createBuilt("widget", [
+            [
+              "components/widget.tsx",
+              'export function Widget() {}\nexport * from "./extra";',
+            ],
+          ]),
+        ],
+        [
+          createBuilt("widget", [
+            ["components/widget.tsx", "export function Widget() {}"],
+          ]),
+        ],
+      ),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.ok(error.message.includes("radix-only: *:./extra"));
+      return true;
+    },
+  );
+
+  assert.throws(
+    () =>
+      validateVariantExportParity(
+        [
+          createBuilt("widget", [
+            [
+              "components/widget.tsx",
+              'export * as Helpers from "./extra";\nexport function Widget() {}',
+            ],
+          ]),
+        ],
+        [
+          createBuilt("widget", [
+            ["components/widget.tsx", "export function Widget() {}"],
+          ]),
+        ],
+      ),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.ok(error.message.includes("radix-only: Helpers"));
+      return true;
+    },
+  );
+});
+
 test("style-scoped dependencies flag deps used only by the opposite tree", () => {
   const radixOnlyImport = createBuilt("tooltip", [
     [
