@@ -413,4 +413,24 @@ describe("LocalThreadRuntimeCore suggestions", () => {
     await appendPromise;
     expect(thread.suggestions).toEqual([]);
   });
+
+  it("completes the run when suggestion generation rejects", async () => {
+    const generate = vi.fn().mockRejectedValue(new Error("suggestion failed"));
+
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "hello" }] };
+        },
+      },
+      { suggestion: { generate } },
+    );
+
+    await thread.append(userMessage("hi"));
+    await flush();
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+    expect(thread.suggestions).toEqual([]);
+  });
 });

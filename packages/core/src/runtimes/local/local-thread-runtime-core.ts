@@ -382,18 +382,20 @@ export class LocalThreadRuntimeCore
       this.adapters.suggestion &&
       message.status?.type !== "requires-action"
     ) {
-      const promiseOrGenerator = this.adapters.suggestion?.generate({
-        messages: this.messages,
-        signal,
-      });
+      try {
+        const promiseOrGenerator = this.adapters.suggestion?.generate({
+          messages: this.messages,
+          signal,
+        });
 
-      await consumeSuggestionResult(promiseOrGenerator, {
-        signal,
-        onUpdate: (r) => {
-          this._suggestions = r;
-          this._notifySubscribers();
-        },
-      });
+        await consumeSuggestionResult(promiseOrGenerator, {
+          signal,
+          onUpdate: (r) => {
+            this._suggestions = r;
+            this._notifySubscribers();
+          },
+        });
+      } catch {}
     }
   }
 

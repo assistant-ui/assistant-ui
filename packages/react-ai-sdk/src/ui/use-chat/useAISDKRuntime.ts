@@ -118,22 +118,22 @@ const useGeneratedSuggestions = (
   const hasAdapter = suggestionAdapter != null;
 
   useEffect(() => {
-    const adapter = adapterRef.current;
-    if (!adapter) {
+    const clearSuggestions = () => {
       controllerRef.current?.abort();
       controllerRef.current = null;
       setSuggestions((prev) => (prev.length === 0 ? prev : EMPTY_SUGGESTIONS));
+    };
+
+    const adapter = adapterRef.current;
+    if (!adapter) {
+      clearSuggestions();
       wasRunningRef.current = isRunning;
       return;
     }
 
     if (isRunning) {
       if (!wasRunningRef.current) {
-        controllerRef.current?.abort();
-        controllerRef.current = null;
-        setSuggestions((prev) =>
-          prev.length === 0 ? prev : EMPTY_SUGGESTIONS,
-        );
+        clearSuggestions();
       }
       wasRunningRef.current = true;
       return;
