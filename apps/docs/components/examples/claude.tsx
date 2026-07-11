@@ -11,24 +11,22 @@ import {
 } from "@assistant-ui/react";
 import {
   ArrowUpIcon,
+  AudioLines,
+  Calendar as CalendarIcon,
   CheckIcon,
   ChevronDownIcon,
   ClipboardIcon,
-  Cross2Icon,
-  Pencil1Icon,
-  PlusIcon,
-  ReloadIcon,
-} from "@radix-ui/react-icons";
-import {
-  AudioLines,
-  Calendar as CalendarIcon,
   Code as CodeIcon,
   FolderOpen,
   GraduationCap,
+  PencilIcon,
   PenLine,
+  PlusIcon,
+  RefreshCwIcon,
   Sparkle,
   ThumbsDown,
   ThumbsUp,
+  XIcon,
 } from "lucide-react";
 import { useEffect, useState, type FC } from "react";
 import { useShallow } from "zustand/shallow";
@@ -268,7 +266,7 @@ const ChatMessage: FC = () => {
           </div>
           <ActionBarPrimitive.Root className="-mt-px flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
             <ActionBarPrimitive.Edit className={messageActionButtonClassName}>
-              <Pencil1Icon width={16} height={16} />
+              <PencilIcon width={16} height={16} />
             </ActionBarPrimitive.Edit>
             <ActionBarPrimitive.Copy className={messageActionButtonClassName}>
               <AuiIf condition={(s) => s.message.isCopied}>
@@ -312,7 +310,7 @@ const ChatMessage: FC = () => {
               <ThumbsDown className="size-4" />
             </ActionBarPrimitive.FeedbackNegative>
             <ActionBarPrimitive.Reload className={messageActionButtonClassName}>
-              <ReloadIcon width={16} height={16} />
+              <RefreshCwIcon width={16} height={16} />
             </ActionBarPrimitive.Reload>
           </ActionBarPrimitive.Root>
         </div>
@@ -382,7 +380,7 @@ const ClaudeAttachment: FC = () => {
         className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-[#1a1a18] text-white opacity-0 transition-opacity group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 hover:bg-[#3d3a35] dark:bg-white dark:text-[#1a1a18] dark:hover:bg-[#cdc9be]"
         aria-label="Remove attachment"
       >
-        <Cross2Icon width={12} height={12} />
+        <XIcon width={12} height={12} />
       </AttachmentPrimitive.Remove>
     </AttachmentPrimitive.Root>
   );

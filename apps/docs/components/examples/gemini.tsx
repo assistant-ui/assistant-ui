@@ -13,22 +13,20 @@ import {
   ArrowUpIcon,
   CheckIcon,
   ChevronDownIcon,
-  Cross2Icon,
-  Pencil1Icon,
-  PlusIcon,
-  ReloadIcon,
-} from "@radix-ui/react-icons";
-import {
   CopyIcon,
   EllipsisVertical,
   ImageIcon,
   Lightbulb,
   Mic,
   Paperclip,
+  PencilIcon,
   PencilRuler,
+  PlusIcon,
+  RefreshCwIcon,
   Telescope,
   ThumbsDown,
   ThumbsUp,
+  XIcon,
 } from "lucide-react";
 import { type FC, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
@@ -232,7 +230,7 @@ const ChatMessage: FC = () => {
               <CopyIcon width={16} height={16} />
             </ActionBarPrimitive.Copy>
             <ActionBarPrimitive.Edit className={actionBtnClass}>
-              <Pencil1Icon width={16} height={16} />
+              <PencilIcon width={16} height={16} />
             </ActionBarPrimitive.Edit>
           </ActionBarPrimitive.Root>
           <div className="max-w-[75%] rounded-3xl bg-[#f2f0f0] px-5 py-3 wrap-break-word text-[#1f1f1f] dark:bg-[#333537] dark:text-[#e3e3e3]">
@@ -262,7 +260,7 @@ const ChatMessage: FC = () => {
               </AuiIf>
             </ActionBarPrimitive.Copy>
             <ActionBarPrimitive.Reload className={actionBtnClass}>
-              <ReloadIcon width={16} height={16} />
+              <RefreshCwIcon width={16} height={16} />
             </ActionBarPrimitive.Reload>
             <button type="button" aria-label="More" className={actionBtnClass}>
               <EllipsisVertical width={16} height={16} />
@@ -328,7 +326,7 @@ const GeminiAttachment: FC = () => {
         className="absolute -top-1.5 -right-1.5 flex size-6 items-center justify-center rounded-full border border-[#dadce0] bg-white text-[#5e6063] opacity-0 transition-all group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 hover:bg-[#f1f3f4] hover:text-[#1f1f1f] dark:border-[#3c4043] dark:bg-[#1e1f20] dark:text-[#9aa0a6] dark:hover:bg-[#2b2c2f] dark:hover:text-[#e3e3e3]"
         aria-label="Remove attachment"
       >
-        <Cross2Icon width={14} height={14} />
+        <XIcon width={14} height={14} />
       </AttachmentPrimitive.Remove>
     </AttachmentPrimitive.Root>
   );
