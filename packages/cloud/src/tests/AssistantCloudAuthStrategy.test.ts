@@ -78,7 +78,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     });
   });
 
-  it("uses a valid cached refresh token even when storing the rotated token fails", async () => {
+  it("removes a cached refresh token before storing the rotated token", async () => {
     class ConstructableDate {
       constructor(private readonly value?: string) {}
 
@@ -126,6 +126,10 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: "refresh-old" }),
       },
+    );
+    expect(storage.removeItem).toHaveBeenCalledWith("aui:refresh_token");
+    expect(storage.removeItem.mock.invocationCallOrder[0]).toBeLessThan(
+      storage.setItem.mock.invocationCallOrder[0]!,
     );
   });
 });

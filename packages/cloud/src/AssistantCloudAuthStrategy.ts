@@ -201,6 +201,7 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
             const data = await response.json();
             const { access_token, refresh_token } = data;
             if (refresh_token) {
+              removeRefreshToken();
               writeRefreshToken(refresh_token);
             }
             return access_token;
