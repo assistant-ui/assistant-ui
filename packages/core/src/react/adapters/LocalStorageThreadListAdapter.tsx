@@ -348,6 +348,20 @@ export const createLocalStorageAdapter = (
     await storage.setItem(threadsKey, JSON.stringify(threads));
   };
 
+  const updateThreadMetadata = async (
+    remoteId: string,
+    update: (thread: StoredThreadMetadata) => void,
+  ): Promise<void> => {
+    await mutationQueue.run(threadsKey, async () => {
+      const threads = await loadThreadMetadata();
+      const thread = threads.find((item) => item.remoteId === remoteId);
+      if (thread) {
+        update(thread);
+        await saveThreadMetadata(threads);
+      }
+    });
+  };
+
   const adapter: RemoteThreadListAdapter = {
     unstable_Provider: createHistoryProvider(storage, prefix, mutationQueue),
 
@@ -385,13 +399,8 @@ export const createLocalStorageAdapter = (
     },
 
     async rename(remoteId: string, newTitle: string): Promise<void> {
-      await mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
-        const thread = threads.find((t) => t.remoteId === remoteId);
-        if (thread) {
-          thread.title = newTitle;
-          await saveThreadMetadata(threads);
-        }
+      await updateThreadMetadata(remoteId, (thread) => {
+        thread.title = newTitle;
       });
     },
 
@@ -399,35 +408,20 @@ export const createLocalStorageAdapter = (
       remoteId: string,
       custom: Record<string, unknown> | undefined,
     ): Promise<void> {
-      await mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
-        const thread = threads.find((t) => t.remoteId === remoteId);
-        if (thread) {
-          thread.custom = custom;
-          await saveThreadMetadata(threads);
-        }
+      await updateThreadMetadata(remoteId, (thread) => {
+        thread.custom = custom;
       });
     },
 
     async archive(remoteId: string): Promise<void> {
-      await mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
-        const thread = threads.find((t) => t.remoteId === remoteId);
-        if (thread) {
-          thread.status = "archived";
-          await saveThreadMetadata(threads);
-        }
+      await updateThreadMetadata(remoteId, (thread) => {
+        thread.status = "archived";
       });
     },
 
     async unarchive(remoteId: string): Promise<void> {
-      await mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
-        const thread = threads.find((t) => t.remoteId === remoteId);
-        if (thread) {
-          thread.status = "regular";
-          await saveThreadMetadata(threads);
-        }
+      await updateThreadMetadata(remoteId, (thread) => {
+        thread.status = "regular";
       });
     },
 
@@ -437,9 +431,8 @@ export const createLocalStorageAdapter = (
         const filtered = threads.filter((t) => t.remoteId !== remoteId);
         await saveThreadMetadata(filtered);
       });
-      await mutationQueue.run(messagesKey(remoteId), () =>
-        storage.removeItem(messagesKey(remoteId)),
-      );
+      const key = messagesKey(remoteId);
+      await mutationQueue.run(key, () => storage.removeItem(key));
     },
 
     async fetch(threadId: string): Promise<RemoteThreadMetadata> {
@@ -466,13 +459,8 @@ export const createLocalStorageAdapter = (
         const title = await titleGenerator.generateTitle(messages);
 
         // Update the stored title
-        await mutationQueue.run(threadsKey, async () => {
-          const threads = await loadThreadMetadata();
-          const thread = threads.find((t) => t.remoteId === remoteId);
-          if (thread) {
-            thread.title = title;
-            await saveThreadMetadata(threads);
-          }
+        await updateThreadMetadata(remoteId, (thread) => {
+          thread.title = title;
         });
 
         // Return a stream with a single text part
