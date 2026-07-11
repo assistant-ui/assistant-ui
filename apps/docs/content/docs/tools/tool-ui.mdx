@@ -70,16 +70,11 @@ export default defineToolkit({
 
 ```tsx title="app/MyRuntimeProvider.tsx"
 import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
-import {
-  useChatRuntime,
-  AssistantChatTransport,
-} from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import toolkit from "./toolkit";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
-  const runtime = useChatRuntime({
-    transport: new AssistantChatTransport({ api: "/api/chat" }),
-  });
+  const runtime = useChatRuntime();
   const aui = useAui({ tools: Tools({ toolkit }) });
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
@@ -88,6 +83,8 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 ```
+
+`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v6#custom-transport).
 
 <Callout type="tip">
   Frontend toolkit entries can be passed to your backend using the
