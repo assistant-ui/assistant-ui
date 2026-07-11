@@ -139,7 +139,10 @@ const readRefreshToken = (): StoredRefreshToken | undefined => {
       typeof parsed.token === "string" &&
       typeof parsed.expires_at === "string"
     ) {
-      return parsed;
+      return {
+        token: parsed.token,
+        expires_at: parsed.expires_at,
+      };
     }
   } catch {
     // Ignore invalid or unavailable storage and fall back to a new anonymous token.
