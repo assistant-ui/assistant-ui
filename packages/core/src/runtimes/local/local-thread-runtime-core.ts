@@ -288,8 +288,11 @@ export class LocalThreadRuntimeCore
     message: AppendMessage,
     uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
   ): Promise<void> {
+    if (message.role !== "user") {
+      throw new Error("Attachments are only supported for user messages.");
+    }
+
     const initPromise = this._getInitializationPromise();
-    if (initPromise) await initPromise;
 
     const optimisticMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
@@ -300,6 +303,7 @@ export class LocalThreadRuntimeCore
 
     let attachments: readonly CompleteAttachment[];
     try {
+      if (initPromise) await initPromise;
       attachments = await uploadAttachments();
     } catch (error) {
       if (optimisticMessage.role === "user") {
@@ -328,10 +332,6 @@ export class LocalThreadRuntimeCore
         this._notifySubscribers();
       }
       throw error;
-    }
-
-    if (optimisticMessage.role !== "user") {
-      throw new Error("Attachments are only supported for user messages.");
     }
 
     const completedMessage = {

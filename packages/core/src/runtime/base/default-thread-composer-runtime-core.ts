@@ -111,6 +111,7 @@ export class DefaultThreadComposerRuntimeCore
     const startRun = appendMessage.startRun ?? appendMessage.role === "user";
     if (
       uploadAttachments &&
+      appendMessage.role === "user" &&
       (!this.runtime.capabilities.queue || !startRun) &&
       this.runtime.__internal_appendOptimisticAttachmentSend
     ) {
