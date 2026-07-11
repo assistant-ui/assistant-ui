@@ -1256,6 +1256,7 @@ type SuggestionAdapter = {
 
 type SuggestionAdapterGenerateOptions = {
   messages: readonly ThreadMessage[];
+  signal?: AbortSignal;
 };
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;

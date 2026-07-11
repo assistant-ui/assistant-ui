@@ -539,6 +539,177 @@ describe("useAISDKRuntime", () => {
     expect(result.current.thread.getState().suggestions).toEqual(suggestions);
   });
 
+  it("calls adapters.suggestion after settle with messages and signal", async () => {
+    const generate = vi.fn().mockResolvedValue([{ prompt: "next" }]);
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: { generate } },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(result.current.thread.getState().suggestions).toEqual([]);
+
+    chat.messages = [
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ];
+    rerender({ status: "ready" });
+
+    await waitFor(() => {
+      expect(generate).toHaveBeenCalledTimes(1);
+    });
+
+    expect(generate).toHaveBeenCalledWith({
+      messages: expect.any(Array),
+      signal: expect.any(AbortSignal),
+    });
+    const call = generate.mock.calls[0]![0];
+    expect(call.messages.some((m: any) => m.role === "user")).toBe(true);
+    expect(call.messages.some((m: any) => m.role === "assistant")).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "next" },
+      ]);
+    });
+  });
+
+  it("aborts and clears suggestions when a new run starts", async () => {
+    let resolveGenerate!: (value: readonly { prompt: string }[]) => void;
+    const generate = vi.fn().mockImplementation(
+      () =>
+        new Promise<readonly { prompt: string }[]>((resolve) => {
+          resolveGenerate = resolve;
+        }),
+    );
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: { generate } },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    rerender({ status: "ready" });
+
+    await waitFor(() => {
+      expect(generate).toHaveBeenCalledTimes(1);
+    });
+    const firstSignal = generate.mock.calls[0]![0].signal as AbortSignal;
+
+    resolveGenerate([{ prompt: "stale" }]);
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "stale" },
+      ]);
+    });
+
+    chat.messages = [
+      ...chat.messages,
+      { id: "u2", role: "user", parts: [{ type: "text", text: "again" }] },
+    ];
+    rerender({ status: "submitted" });
+
+    expect(firstSignal.aborted).toBe(true);
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([]);
+    });
+  });
+
+  it("applies async generator yields progressively", async () => {
+    const generate = vi.fn().mockImplementation(async function* () {
+      yield [{ prompt: "a" }];
+      yield [{ prompt: "a" }, { prompt: "b" }];
+    });
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: { generate } },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    rerender({ status: "ready" });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "a" },
+        { prompt: "b" },
+      ]);
+    });
+  });
+
+  it("ignores static suggestions when adapters.suggestion is set", async () => {
+    const generate = vi.fn().mockResolvedValue([{ prompt: "dynamic" }]);
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          suggestions: [{ prompt: "static" }],
+          adapters: { suggestion: { generate } },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    expect(result.current.thread.getState().suggestions).toEqual([]);
+
+    rerender({ status: "ready" });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "dynamic" },
+      ]);
+    });
+    expect(result.current.thread.getState().suggestions).not.toEqual([
+      { prompt: "static" },
+    ]);
+  });
+
   it("merges consecutive assistant messages into one turn by default", async () => {
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },

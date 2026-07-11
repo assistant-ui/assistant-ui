@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
 import { isToolUIPart, generateId } from "ai";
 import {
@@ -8,7 +8,11 @@ import {
   useRuntimeAdapters,
   type JoinStrategy,
 } from "@assistant-ui/core/react";
-import type { ToolExecutionStatus } from "@assistant-ui/core";
+import type {
+  SuggestionAdapter,
+  ThreadSuggestion,
+  ToolExecutionStatus,
+} from "@assistant-ui/core";
 import type {
   ExternalStoreAdapter,
   ExternalStoreSharedOptions,
@@ -63,6 +67,7 @@ export type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   adapters?:
     | (NonNullable<ExternalStoreAdapter["adapters"]> & {
         history?: ThreadHistoryAdapter | undefined;
+        suggestion?: SuggestionAdapter | undefined;
       })
     | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
@@ -94,6 +99,83 @@ export type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   joinStrategy?: JoinStrategy | undefined;
 };
 
+const EMPTY_SUGGESTIONS: readonly ThreadSuggestion[] = [];
+
+const useGeneratedSuggestions = (
+  suggestionAdapter: SuggestionAdapter | undefined,
+  messages: readonly ThreadMessage[],
+  isRunning: boolean,
+): readonly ThreadSuggestion[] => {
+  const [suggestions, setSuggestions] =
+    useState<readonly ThreadSuggestion[]>(EMPTY_SUGGESTIONS);
+  const controllerRef = useRef<AbortController | null>(null);
+  const wasRunningRef = useRef(false);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const adapterRef = useRef(suggestionAdapter);
+  adapterRef.current = suggestionAdapter;
+  const hasAdapter = suggestionAdapter != null;
+
+  useEffect(() => {
+    const adapter = adapterRef.current;
+    if (!adapter) {
+      wasRunningRef.current = isRunning;
+      return;
+    }
+
+    if (isRunning) {
+      if (!wasRunningRef.current) {
+        controllerRef.current?.abort();
+        controllerRef.current = null;
+        setSuggestions((prev) =>
+          prev.length === 0 ? prev : EMPTY_SUGGESTIONS,
+        );
+      }
+      wasRunningRef.current = true;
+      return;
+    }
+
+    if (!wasRunningRef.current) return;
+    wasRunningRef.current = false;
+
+    const currentMessages = messagesRef.current;
+    const last = currentMessages.at(-1);
+    if (last?.role !== "assistant") return;
+
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    const { signal } = controller;
+
+    void (async () => {
+      try {
+        const promiseOrGenerator = adapter.generate({
+          messages: currentMessages,
+          signal,
+        });
+
+        if (Symbol.asyncIterator in promiseOrGenerator) {
+          for await (const r of promiseOrGenerator) {
+            if (signal.aborted) break;
+            setSuggestions(r);
+          }
+        } else {
+          const result = await promiseOrGenerator;
+          if (signal.aborted) return;
+          setSuggestions(result);
+        }
+      } catch {}
+    })();
+  }, [hasAdapter, isRunning]);
+
+  useEffect(() => {
+    return () => {
+      controllerRef.current?.abort();
+    };
+  }, []);
+
+  return suggestions;
+};
+
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
   adapter: AISDKRuntimeAdapter = {},
@@ -105,6 +187,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onResume,
     joinStrategy,
   } = adapter;
+  const suggestionAdapter = adapters?.suggestion;
   const contextAdapters = useRuntimeAdapters();
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -151,6 +234,12 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       [toolStatuses, messageTiming, optimisticMessageId, chatHelpers.error],
     ),
   });
+
+  const generatedSuggestions = useGeneratedSuggestions(
+    suggestionAdapter,
+    messages,
+    isRunning,
+  );
 
   const [runtimeRef] = useState(() => ({
     get current(): AssistantRuntime {
@@ -379,6 +468,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       });
     },
     ...pickExternalStoreSharedOptions(adapter),
+    ...(suggestionAdapter ? { suggestions: generatedSuggestions } : {}),
     ...(onResume && { onResume }),
     adapters: {
       attachments: vercelAttachmentAdapter,

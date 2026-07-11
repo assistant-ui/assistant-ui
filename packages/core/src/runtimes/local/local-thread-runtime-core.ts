@@ -383,6 +383,7 @@ export class LocalThreadRuntimeCore
     ) {
       const promiseOrGenerator = this.adapters.suggestion?.generate({
         messages: this.messages,
+        signal,
       });
 
       if (Symbol.asyncIterator in promiseOrGenerator) {

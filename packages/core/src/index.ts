@@ -150,7 +150,12 @@ export type {
 export type { FeedbackAdapter } from "./adapters/feedback";
 
 // Suggestion adapter
-export type { SuggestionAdapter } from "./adapters/suggestion";
+export type {
+  SuggestionAdapter,
+  SuggestionAdapterGenerateOptions,
+  CreateSuggestionAdapterOptions,
+} from "./adapters/suggestion";
+export { createSuggestionAdapter } from "./adapters/suggestion";
 
 // Directive formatter
 export { unstable_defaultDirectiveFormatter } from "./adapters/directive-formatter";

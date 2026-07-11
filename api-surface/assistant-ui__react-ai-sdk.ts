@@ -9,6 +9,7 @@ import { ComponentType, ReactNode } from "react";
 type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   adapters?: (NonNullable<ExternalStoreAdapter["adapters"]> & {
     history?: ThreadHistoryAdapter | undefined;
+    suggestion?: SuggestionAdapter | undefined;
   }) | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   cancelPendingToolCallsOnSend?: boolean | undefined;
@@ -1407,6 +1408,15 @@ type StartRunConfig = {
   parentId: string | null;
   sourceId: string | null;
   runConfig: RunConfig;
+};
+
+type SuggestionAdapter = {
+  generate: (options: SuggestionAdapterGenerateOptions) => Promise<readonly ThreadSuggestion[]> | AsyncGenerator<readonly ThreadSuggestion[], void>;
+};
+
+type SuggestionAdapterGenerateOptions = {
+  messages: readonly ThreadMessage[];
+  signal?: AbortSignal;
 };
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
