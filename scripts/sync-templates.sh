@@ -59,8 +59,10 @@ resolve_aui_source() {
     fi
 }
 
-# The import rewrite can change line widths, so rendered output runs through
-# oxfmt to stay byte-comparable with the committed, formatter-owned copies.
+# The import rewrite can change line widths, so committed copies (formatted by
+# oxfmt) and raw renders may disagree on import statement layout. The check
+# compares import-normalized forms, which is layout-insensitive but content
+# strict; --write formats the rendered output with oxfmt before copying.
 RENDER_DIR="$(mktemp -d)"
 trap 'rm -rf "$RENDER_DIR"' EXIT
 mkdir -p "$RENDER_DIR/assistant-ui" "$RENDER_DIR/ui"
@@ -84,9 +86,41 @@ rendered_ui() {
     echo "$out"
 }
 
+# Squash every import statement to a whitespace-free, trailing-comma-free
+# token string so formatter reflow never reads as drift, while any content
+# difference still does. Non-import lines pass through byte-exact.
+NORMALIZE_JS='
+const fs = require("node:fs");
+const lines = fs.readFileSync(process.argv[1], "utf8").split("\n");
+const out = [];
+let buf = null;
+for (const line of lines) {
+  if (buf === null && /^import[\s{"]/.test(line)) buf = "";
+  if (buf !== null) {
+    buf += line;
+    if (/["\x27];?\s*$/.test(line)) {
+      out.push(buf.replace(/\s+/g, "").replace(/,}/g, "}"));
+      buf = null;
+    }
+    continue;
+  }
+  out.push(line);
+}
+if (buf !== null) out.push(buf.replace(/\s+/g, "").replace(/,}/g, "}"));
+process.stdout.write(out.join("\n"));
+'
+
+same_normalized() {
+    local a="$1" b="$2"
+    cmp -s <(node -e "$NORMALIZE_JS" "$a") <(node -e "$NORMALIZE_JS" "$b")
+}
+
 format_rendered() {
+    if [[ "$MODE" != "--write" ]]; then
+        return 0
+    fi
     if ! (cd "$ROOT_DIR" && pnpm exec oxfmt "$RENDER_DIR" > /dev/null 2>&1); then
-        echo "✗ oxfmt is required to render template sources; run via 'pnpm sync-templates'"
+        echo "✗ oxfmt is required to write template sources; run via 'pnpm sync-templates --write'"
         exit 1
     fi
 }
@@ -137,13 +171,13 @@ fi
 format_rendered
 
 for file in "${aui_candidates[@]}"; do
-    if ! cmp -s "$RENDER_DIR/assistant-ui/$file" "$MINIMAL_DIR/$file"; then
+    if ! same_normalized "$RENDER_DIR/assistant-ui/$file" "$MINIMAL_DIR/$file"; then
         drift+=("$file")
     fi
 done
 
 for file in "${ui_candidates[@]}"; do
-    if ! cmp -s "$RENDER_DIR/ui/$file" "$MINIMAL_UI_DIR/$file"; then
+    if ! same_normalized "$RENDER_DIR/ui/$file" "$MINIMAL_UI_DIR/$file"; then
         ui_drift+=("$file")
     fi
 done
