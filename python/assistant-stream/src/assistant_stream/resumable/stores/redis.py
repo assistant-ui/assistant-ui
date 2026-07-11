@@ -3,7 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import math
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator
+from contextlib import suppress
 from typing import Any, Literal, Protocol
 
 from assistant_stream.resumable.errors import (
@@ -34,19 +35,11 @@ STREAM_START_ID = "0-0"
 class RedisLikeClient(Protocol):
     async def set_nx(self, key: str, value: str, ttl_sec: int) -> bool: ...
 
-    async def set(self, key: str, value: str, ttl_sec: int) -> None: ...
-
     async def get(self, key: str) -> str | None: ...
-
-    async def expire(self, key: str, ttl_sec: int) -> None: ...
 
     async def exists(self, key: str) -> bool: ...
 
     async def delete(self, keys: list[str]) -> None: ...
-
-    async def xadd(
-        self, key: str, fields: Mapping[str, str | bytes]
-    ) -> str: ...
 
     async def xrange(
         self, key: str, start: str, end: str
@@ -254,22 +247,8 @@ def _parse_meta(value: str) -> dict[str, Any] | None:
 async def _sleep(ms: int, signal: CancellationSignal) -> None:
     if signal.is_set():
         return
-    sleep_task = asyncio.create_task(asyncio.sleep(ms / 1000.0))
-    signal_task = asyncio.create_task(signal.wait())
-    done, pending = await asyncio.wait(
-        {sleep_task, signal_task}, return_when=asyncio.FIRST_COMPLETED
-    )
-    for task in pending:
-        task.cancel()
-        try:
-            await task
-        except (asyncio.CancelledError, Exception):
-            pass
-    for task in done:
-        try:
-            await task
-        except Exception:
-            pass
+    with suppress(TimeoutError):
+        await asyncio.wait_for(signal.wait(), timeout=ms / 1000.0)
 
 
 def _read_string(value: str | bytes | None) -> str | None:
@@ -294,9 +273,6 @@ class _RedisAsyncioAdapter:
         result = await self._client.set(key, value, nx=True, ex=ttl_sec)
         return result is True or result == b"OK" or result == "OK"
 
-    async def set(self, key: str, value: str, ttl_sec: int) -> None:
-        await self._client.set(key, value, ex=ttl_sec)
-
     async def get(self, key: str) -> str | None:
         value = await self._client.get(key)
         if value is None:
@@ -304,9 +280,6 @@ class _RedisAsyncioAdapter:
         if isinstance(value, bytes):
             return value.decode("utf-8")
         return str(value)
-
-    async def expire(self, key: str, ttl_sec: int) -> None:
-        await self._client.expire(key, ttl_sec)
 
     async def exists(self, key: str) -> bool:
         result = await self._client.exists(key)
@@ -316,12 +289,6 @@ class _RedisAsyncioAdapter:
         if not keys:
             return
         await self._client.delete(*keys)
-
-    async def xadd(self, key: str, fields: Mapping[str, str | bytes]) -> str:
-        result = await self._client.xadd(key, dict(fields))
-        if isinstance(result, bytes):
-            return result.decode("utf-8")
-        return str(result)
 
     async def xrange(
         self, key: str, start: str, end: str
@@ -370,6 +337,17 @@ def create_redis_resumable_stream_store(
             "redis is required for create_redis_resumable_stream_store; "
             "install with: pip install assistant-stream[redis]"
         ) from exc
+
+    connection_pool = getattr(client, "connection_pool", None)
+    if connection_pool is not None:
+        connection_kwargs = getattr(connection_pool, "connection_kwargs", None)
+        if isinstance(connection_kwargs, dict) and connection_kwargs.get(
+            "decode_responses"
+        ):
+            raise ValueError(
+                "redis client must be constructed without decode_responses "
+                "(decode_responses=True cannot round-trip binary stream chunks)"
+            )
 
     return RedisResumableStreamStore(
         _RedisAsyncioAdapter(client),

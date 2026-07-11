@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 from assistant_stream.resumable.context import (
     ResumableStreamContext,
     create_resumable_stream_context,
@@ -42,7 +44,7 @@ __all__ = [
     "validate_stream_id",
 ]
 
-try:
+with suppress(ImportError):
     from assistant_stream.resumable.stores.redis import (
         RedisLikeClient,
         RedisResumableStreamStore,
@@ -54,5 +56,3 @@ try:
         "RedisResumableStreamStore",
         "create_redis_resumable_stream_store",
     ]
-except ImportError:
-    pass

@@ -262,3 +262,37 @@ async def test_on_finalize_and_on_error_fire_on_failure() -> None:
     assert len(errors) == 1
     assert errors[0]["id"] == "a"
     assert str(errors[0]["error"]) == "boom"
+
+
+@pytest.mark.anyio
+async def test_raising_on_acquire_does_not_break_producer_pipeline() -> None:
+    def boom_acquire(_id: str, _role: str) -> None:
+        raise RuntimeError("hook-acquire-boom")
+
+    ctx = create_resumable_stream_context(
+        store=create_in_memory_resumable_stream_store(),
+        on_acquire=boom_acquire,
+    )
+    stream = await ctx.run("a", lambda: _make_string_stream(["hello ", "world"]))
+    assert await _collect(stream) == "hello world"
+    assert await ctx.status("a") == "done"
+
+
+@pytest.mark.anyio
+async def test_raising_on_error_still_finalizes_error_status() -> None:
+    def boom_error(_id: str, _err: object) -> None:
+        raise RuntimeError("hook-error-boom")
+
+    ctx = create_resumable_stream_context(
+        store=create_in_memory_resumable_stream_store(),
+        on_error=boom_error,
+    )
+
+    async def failing() -> AsyncIterator[bytes]:
+        yield _bytes("partial;")
+        raise Exception("producer-failed")
+
+    stream = await ctx.run("a", lambda: failing())
+    with pytest.raises(Exception, match="producer-failed"):
+        await _collect(stream)
+    assert await ctx.status("a") == "error"

@@ -18,7 +18,7 @@ class ResumableStreamError(Exception):
 
 
 def validate_stream_id(stream_id: str) -> None:
-    if not _STREAM_ID_PATTERN.match(stream_id):
+    if not _STREAM_ID_PATTERN.fullmatch(stream_id):
         raise ResumableStreamError(
             "invalid-id",
             f"Invalid streamId: {stream_id} (must match {_STREAM_ID_PATTERN.pattern})",

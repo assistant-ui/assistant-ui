@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from assistant_stream.resumable.errors import ResumableStreamError
@@ -32,6 +32,7 @@ class ResumableStreamContext:
     _on_append: OnAppend | None
     _on_finalize: OnFinalize | None
     _on_error: OnError | None
+    _tasks: set[asyncio.Task[None]] = field(default_factory=set, repr=False)
 
     async def run(
         self, stream_id: str, make_stream: MakeStream
@@ -41,12 +42,16 @@ class ResumableStreamContext:
             ttl_ms=self._ttl_ms,
         )
         if self._on_acquire is not None:
-            self._on_acquire(stream_id, role)
+            try:
+                self._on_acquire(stream_id, role)
+            except Exception:
+                pass
         if role == "producer":
             _start_producer_task(
                 self._store,
                 stream_id,
                 make_stream,
+                tasks=self._tasks,
                 wait_until=self._wait_until,
                 on_append=self._on_append,
                 on_finalize=self._on_finalize,
@@ -102,6 +107,7 @@ def _start_producer_task(
     stream_id: str,
     make_stream: MakeStream,
     *,
+    tasks: set[asyncio.Task[None]],
     wait_until: WaitUntil | None,
     on_append: OnAppend | None,
     on_finalize: OnFinalize | None,
@@ -112,24 +118,38 @@ def _start_producer_task(
             async for chunk in make_stream():
                 await store.append(stream_id, chunk)
                 if on_append is not None:
-                    on_append(stream_id, len(chunk))
+                    try:
+                        on_append(stream_id, len(chunk))
+                    except Exception:
+                        pass
             await store.finalize(stream_id, "done")
             if on_finalize is not None:
-                on_finalize(stream_id, "done", None)
+                try:
+                    on_finalize(stream_id, "done", None)
+                except Exception:
+                    pass
         except Exception as err:
             if on_error is not None:
-                on_error(stream_id, err)
+                try:
+                    on_error(stream_id, err)
+                except Exception:
+                    pass
             message = str(err) if str(err) else repr(err)
             try:
                 await store.finalize(stream_id, "error", message)
                 if on_finalize is not None:
-                    on_finalize(stream_id, "error", message)
+                    try:
+                        on_finalize(stream_id, "error", message)
+                    except Exception:
+                        pass
             except Exception as finalize_err:
                 logger.error(
                     "resumable stream finalize failed: %s", finalize_err
                 )
 
     task = asyncio.create_task(_pump())
+    tasks.add(task)
+    task.add_done_callback(tasks.discard)
     if wait_until is not None:
         wait_until(task)
 

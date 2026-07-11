@@ -148,3 +148,17 @@ async def test_binary_round_trip_0_to_255(redis_store) -> None:
     async for entry in store.read(stream_id, "", signal):
         replayed.extend(entry.chunk)
     assert bytes(replayed) == producer
+
+
+@pytest.mark.anyio
+async def test_decode_responses_true_is_rejected() -> None:
+    import redis.asyncio as redis
+
+    from assistant_stream.resumable import create_redis_resumable_stream_store
+
+    client = redis.from_url(REDIS_URL, decode_responses=True)
+    try:
+        with pytest.raises(ValueError, match="decode_responses"):
+            create_redis_resumable_stream_store(client)
+    finally:
+        await client.aclose()

@@ -141,3 +141,23 @@ async def test_user_headers_merge_but_cannot_override_id() -> None:
     assert response.headers["cache-control"] == "private, max-age=0"
     assert response.headers[RESUMABLE_STREAM_ID_HEADER] == "s1"
     await response.body_iterator.aclose()
+
+
+@pytest.mark.anyio
+async def test_differently_cased_user_id_header_is_filtered() -> None:
+    ctx = create_resumable_stream_context(
+        store=create_in_memory_resumable_stream_store()
+    )
+
+    async def callback(controller: RunController) -> None:
+        controller.append_text("hi")
+
+    response = await create_resumable_assistant_stream_response(
+        context=ctx,
+        stream_id="s1",
+        headers={"X-RESUMABLE-STREAM-ID": "spoof"},
+        callback=callback,
+    )
+    assert response.headers[RESUMABLE_STREAM_ID_HEADER] == "s1"
+    assert "spoof" not in response.headers.values()
+    await response.body_iterator.aclose()

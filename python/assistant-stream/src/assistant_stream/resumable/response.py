@@ -23,12 +23,9 @@ async def create_resumable_assistant_stream_response(
 ) -> Response:
     resolved_encoder = encoder if encoder is not None else DataStreamEncoder()
 
-    def make_stream() -> AsyncIterator[bytes]:
-        async def _gen() -> AsyncIterator[bytes]:
-            async for frame in resolved_encoder.encode_stream(create_run(callback)):
-                yield frame.encode("utf-8")
-
-        return _gen()
+    async def make_stream() -> AsyncIterator[bytes]:
+        async for frame in resolved_encoder.encode_stream(create_run(callback)):
+            yield frame.encode("utf-8")
 
     body = await context.run(stream_id, make_stream)
     return StreamingResponse(
@@ -65,6 +62,8 @@ def _merge_headers(
 ) -> dict[str, str]:
     merged: dict[str, str] = {}
     if extra is not None:
-        merged.update(dict(extra))
+        for key, value in extra.items():
+            if key.lower() != RESUMABLE_STREAM_ID_HEADER:
+                merged[key] = value
     merged[RESUMABLE_STREAM_ID_HEADER] = stream_id
     return merged

@@ -38,6 +38,14 @@ async def test_elects_exactly_one_producer_per_stream_id() -> None:
 
 
 @pytest.mark.anyio
+async def test_stream_id_with_trailing_newline_is_invalid() -> None:
+    store = create_in_memory_resumable_stream_store()
+    with pytest.raises(ResumableStreamError) as exc:
+        await store.acquire("valid-id\n")
+    assert exc.value.code == "invalid-id"
+
+
+@pytest.mark.anyio
 async def test_post_finalize_acquire_is_consumer() -> None:
     store = create_in_memory_resumable_stream_store()
     assert await store.acquire("a") == "producer"

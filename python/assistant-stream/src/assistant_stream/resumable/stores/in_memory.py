@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import AsyncIterator, Callable
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -152,26 +153,16 @@ class _InMemoryResumableStreamStore:
             tasks.add(asyncio.create_task(asyncio.sleep(wake_by / 1000.0)))
 
         try:
-            done, pending = await asyncio.wait(
-                tasks, return_when=asyncio.FIRST_COMPLETED
-            )
-            for task in pending:
-                task.cancel()
-            for task in pending:
-                try:
-                    await task
-                except (asyncio.CancelledError, Exception):
-                    pass
-            for task in done:
-                try:
-                    await task
-                except Exception:
-                    pass
+            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         finally:
-            try:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            for task in tasks:
+                with suppress(asyncio.CancelledError):
+                    await task
+            with suppress(ValueError):
                 state.waiters.remove(event)
-            except ValueError:
-                pass
 
     def _require_active(self, stream_id: str) -> _StreamState:
         self._evict_expired()
