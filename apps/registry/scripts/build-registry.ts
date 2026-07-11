@@ -207,16 +207,12 @@ export function validateVariantTreesDiffer(
     }
 
     for (const filePath of base.baseVariantOutputPaths) {
-      const radixContent =
-        radix.sourceContentsByOutputPath?.get(filePath) ??
-        radix.payload.files?.find((file) => file.path === filePath)?.content;
-      const baseContent =
-        base.sourceContentsByOutputPath?.get(filePath) ??
-        base.payload.files?.find((file) => file.path === filePath)?.content;
+      const radixContent = radix.sourceContentsByOutputPath.get(filePath);
+      const baseContent = base.sourceContentsByOutputPath.get(filePath);
 
       if (radixContent === undefined || baseContent === undefined) {
         findings.add(
-          `${base.payload.name}: missing emitted content for ${filePath} while comparing radix and base trees`,
+          `${base.payload.name}: missing source content for ${filePath} while comparing radix and base trees`,
         );
         continue;
       }
