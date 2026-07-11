@@ -65,8 +65,10 @@ type MakeRequestOptions = {
   body?: object | undefined;
 };
 
-const normalizeBaseUrl = (baseUrl: string) =>
-  baseUrl ? baseUrl.replace(/\/+$/, "") : baseUrl;
+const normalizeBaseUrl = (baseUrl: string) => {
+  if (!baseUrl || !baseUrl.endsWith("/")) return baseUrl;
+  return baseUrl.slice(0, -1);
+};
 
 export class AssistantCloudAPI {
   public _auth: AssistantCloudAuthStrategy;
