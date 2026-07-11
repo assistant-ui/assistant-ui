@@ -9,7 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-} from "@/components/ui-base/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import { SETUP_PROMPT } from "./setup-prompt";
 
 export function CopyCommandButton({

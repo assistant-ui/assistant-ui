@@ -2,8 +2,13 @@
   "extends": "@assistant-ui/x-buildutils/ts/next",
   "compilerOptions": {
     "paths": {
-      "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
-      "@/components/ui-base/*": ["../../packages/ui/src/components/ui-base/*"],
+      "@/components/ui/*": [
+        "../../packages/ui/src/components/ui/base/*",
+        "../../packages/ui/src/components/ui/radix/*"
+      ],
+      "@/components/ui/radix/*": [
+        "../../packages/ui/src/components/ui/radix/*"
+      ],
       "@/lib/utils": ["../../packages/ui/src/lib/utils"],
       "@/components/assistant-ui/markdown-text": [
         "./components/assistant-ui/markdown-text"

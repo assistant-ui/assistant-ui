@@ -37,7 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui-base/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 
 export const Gemini: FC = () => {
   return (
