@@ -236,7 +236,7 @@ export function validateVariantTreesDiffer(
 
 function collectDataSlots(content: string) {
   const slots = new Set<string>();
-  for (const match of content.matchAll(/data-slot="([^"]+)"/g)) {
+  for (const match of content.matchAll(/"?data-slot"?\s*[:=]\s*"([^"]+)"/g)) {
     slots.add(match[1]!);
   }
   return slots;

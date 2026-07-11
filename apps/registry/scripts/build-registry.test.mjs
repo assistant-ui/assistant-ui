@@ -404,6 +404,26 @@ test("slot parity accepts identical slot sets and skips empty base variants", ()
   );
 });
 
+test("slot parity counts object-prop slots the same as jsx-attribute slots", () => {
+  assert.doesNotThrow(() =>
+    validateVariantSlotParity(
+      [
+        createBuilt("badge", [
+          ["components/badge.tsx", '<span data-slot="badge" />'],
+        ]),
+      ],
+      [
+        createBuilt("badge", [
+          [
+            "components/badge.tsx",
+            'useRender({ props: { "data-slot": "badge" } });',
+          ],
+        ]),
+      ],
+    ),
+  );
+});
+
 test("export parity reports exports present only in the radix content", () => {
   const radixBuilt = [
     createBuilt("widget", [
