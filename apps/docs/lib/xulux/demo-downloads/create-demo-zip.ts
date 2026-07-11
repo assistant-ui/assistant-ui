@@ -60,10 +60,13 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
   };
 
   for (const sourceFile of manifest.extraSourceFiles ?? []) {
-    files[targetPathForSourceFile(sourceFile)] = assertSnapshotFile(
-      snapshot,
-      sourceFile,
-    );
+    const target = targetPathForSourceFile(sourceFile);
+    if (target in files) {
+      throw new Error(
+        `Demo zip target collision: ${sourceFile} flattens onto ${target}`,
+      );
+    }
+    files[target] = assertSnapshotFile(snapshot, sourceFile);
   }
 
   return files;
