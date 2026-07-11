@@ -9,6 +9,8 @@ type PreviewCodeProps = {
   /** Function name to extract, e.g. "SelectScrollableSample" */
   name: string;
   children: React.ReactNode;
+  /** Base UI flavored twin of children; enables the flavor switcher. */
+  base?: React.ReactNode;
   className?: string;
 };
 
@@ -192,7 +194,9 @@ function cleanupImports(imports: string[]): string[] {
   return imports
     .filter((imp) => !imp.includes("SampleFrame"))
     .map((imp) =>
-      imp.replace(/@\/components\/assistant-ui\//g, "@/components/ui/"),
+      imp
+        .replace(/@\/components\/assistant-ui\//g, "@/components/ui/")
+        .replace(/(@\/components\/[\w-]+\/[\w.-]+?)\.base(["'])/g, "$1$2"),
     );
 }
 
@@ -219,12 +223,23 @@ export async function PreviewCode({
   file,
   name,
   children,
+  base,
   className,
 }: PreviewCodeProps) {
   const code = buildPreviewCode(file, name);
+  const baseCode =
+    base !== undefined &&
+    fs.existsSync(path.join(process.cwd(), `${file}.base.tsx`))
+      ? buildPreviewCode(`${file}.base`, name)
+      : undefined;
 
   return (
-    <PreviewCodeClient code={code} {...(className && { className })}>
+    <PreviewCodeClient
+      code={code}
+      {...(base !== undefined && { base })}
+      {...(baseCode !== undefined && { baseCode })}
+      {...(className && { className })}
+    >
       {children}
     </PreviewCodeClient>
   );
@@ -235,14 +250,27 @@ export async function PreviewCode({
 // keep the source.
 (
   PreviewCode as typeof PreviewCode & {
-    llm: (props: PreviewCodeProps) => ReactNode;
+    llm: (
+      props: PreviewCodeProps,
+      ctx?: { flavor: "radix" | "base" },
+    ) => ReactNode;
   }
-).llm = ({ file, name }: PreviewCodeProps) => (
-  <>
-    <p>{`[interactive preview component ${name} omitted]`}</p>
-    <p>{`Code for ${name} preview:`}</p>
-    <pre>
-      <code className="language-tsx">{buildPreviewCode(file, name)}</code>
-    </pre>
-  </>
-);
+).llm = ({ file, name }: PreviewCodeProps, ctx) => {
+  const sourceFile =
+    (ctx?.flavor ?? "base") === "base" &&
+    fs.existsSync(path.join(process.cwd(), `${file}.base.tsx`))
+      ? `${file}.base`
+      : file;
+
+  return (
+    <>
+      <p>{`[interactive preview component ${name} omitted]`}</p>
+      <p>{`Code for ${name} preview:`}</p>
+      <pre>
+        <code className="language-tsx">
+          {buildPreviewCode(sourceFile, name)}
+        </code>
+      </pre>
+    </>
+  );
+};

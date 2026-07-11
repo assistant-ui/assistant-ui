@@ -38,10 +38,16 @@ export type ResolvedComponents = {
   shadcn: ResolvedGroup;
 };
 
-async function readLocalRegistry(name: string): Promise<RegistryItem | null> {
+export type RegistryFlavor = "radix" | "base";
+
+async function readLocalRegistry(
+  name: string,
+  flavor: RegistryFlavor,
+): Promise<RegistryItem | null> {
   const localPath = path.join(
     process.cwd(),
     "../registry/dist",
+    flavor === "base" ? "base" : ".",
     `${name}.json`,
   );
 
@@ -53,7 +59,24 @@ async function readLocalRegistry(name: string): Promise<RegistryItem | null> {
   }
 }
 
-async function readLocalShadcnComponent(name: string): Promise<string | null> {
+async function readLocalShadcnComponent(
+  name: string,
+  flavor: RegistryFlavor,
+): Promise<string | null> {
+  if (flavor === "base") {
+    const vendoredPath = path.join(
+      process.cwd(),
+      "../../packages/ui/src/components/ui-base",
+      `${name}.tsx`,
+    );
+    try {
+      const content = await fs.readFile(vendoredPath, "utf-8");
+      return content.replaceAll("@/components/ui-base/", "@/components/ui/");
+    } catch {
+      return null;
+    }
+  }
+
   const localPath = path.join(process.cwd(), "components/ui", `${name}.tsx`);
 
   try {
@@ -70,52 +93,70 @@ function parseRegistryDependency(dep: string): {
   if (dep.startsWith("https://r.assistant-ui.com/")) {
     return {
       source: "assistant-ui",
-      name: dep.replace("https://r.assistant-ui.com/", "").replace(".json", ""),
+      name: dep
+        .replace("https://r.assistant-ui.com/", "")
+        .replace(/^base\//, "")
+        .replace(".json", ""),
     };
   }
   // Plain name = shadcn component
   return { source: "shadcn", name: dep };
 }
 
-// Known shadcn component dependencies (npm packages)
-const SHADCN_DEPENDENCIES: Record<string, string[]> = {
-  button: ["radix-ui"],
-  tooltip: ["radix-ui"],
-  collapsible: ["radix-ui"],
-  dialog: ["radix-ui"],
-  popover: ["radix-ui"],
-  "dropdown-menu": ["radix-ui"],
-  avatar: ["radix-ui"],
-  select: ["radix-ui"],
-  separator: ["radix-ui"],
-  tabs: ["radix-ui"],
-  toggle: ["radix-ui"],
-  "toggle-group": ["radix-ui"],
-  checkbox: ["radix-ui"],
-  label: ["radix-ui"],
-  progress: ["radix-ui"],
-  slider: ["radix-ui"],
-  switch: ["radix-ui"],
-  "scroll-area": ["radix-ui"],
-  "context-menu": ["radix-ui"],
-  "alert-dialog": ["radix-ui"],
-  "hover-card": ["radix-ui"],
-  menubar: ["radix-ui"],
-  "navigation-menu": ["radix-ui"],
-  "radio-group": ["radix-ui"],
-  accordion: ["radix-ui"],
-  "aspect-ratio": ["radix-ui"],
+// Known shadcn component dependencies (npm packages). The primitive package
+// is flavor-resolved: radix-ui on Radix styles, @base-ui/react on base styles.
+const PRIMITIVE_BACKED_SHADCN = new Set([
+  "button",
+  "tooltip",
+  "collapsible",
+  "dialog",
+  "popover",
+  "dropdown-menu",
+  "avatar",
+  "select",
+  "separator",
+  "tabs",
+  "toggle",
+  "toggle-group",
+  "checkbox",
+  "label",
+  "progress",
+  "slider",
+  "switch",
+  "scroll-area",
+  "context-menu",
+  "alert-dialog",
+  "hover-card",
+  "menubar",
+  "navigation-menu",
+  "radio-group",
+  "accordion",
+  "aspect-ratio",
+  "sidebar",
+]);
+
+const NEUTRAL_SHADCN_DEPENDENCIES: Record<string, string[]> = {
   form: ["react-hook-form", "@hookform/resolvers", "zod"],
   resizable: ["react-resizable-panels"],
   sonner: ["sonner"],
   drawer: ["vaul"],
   carousel: ["embla-carousel-react"],
   "input-otp": ["input-otp"],
-  sidebar: ["radix-ui"],
 };
+
+function shadcnDependencies(
+  name: string,
+  flavor: RegistryFlavor,
+): string[] | undefined {
+  if (PRIMITIVE_BACKED_SHADCN.has(name)) {
+    return flavor === "base" ? ["@base-ui/react"] : ["radix-ui"];
+  }
+  return NEUTRAL_SHADCN_DEPENDENCIES[name];
+}
 
 export async function resolveAllComponents(
   components: string[],
+  flavor: RegistryFlavor = "radix",
 ): Promise<ResolvedComponents> {
   const visited = new Set<string>();
   const mainNpmDeps = new Set<string>();
@@ -137,7 +178,7 @@ export async function resolveAllComponents(
     if (visited.has(key)) return;
     visited.add(key);
 
-    const item = await readLocalRegistry(name);
+    const item = await readLocalRegistry(name, flavor);
     if (!item) return;
 
     // Collect npm dependencies
@@ -185,11 +226,11 @@ export async function resolveAllComponents(
     if (visited.has(key)) return;
     visited.add(key);
 
-    const content = await readLocalShadcnComponent(name);
+    const content = await readLocalShadcnComponent(name, flavor);
     if (!content) return;
 
     // Collect npm dependencies for shadcn components
-    const deps = SHADCN_DEPENDENCIES[name];
+    const deps = shadcnDependencies(name, flavor);
     if (deps) {
       for (const dep of deps) {
         shadcnNpmDeps.add(dep);
@@ -229,12 +270,14 @@ export async function ComponentSource({
   name,
   title,
   collapsible = true,
+  flavor = "radix",
 }: {
   name: string;
   title?: string;
   collapsible?: boolean;
+  flavor?: RegistryFlavor;
 }) {
-  const item = await readLocalRegistry(name);
+  const item = await readLocalRegistry(name, flavor);
 
   if (!item?.files?.[0]?.content) {
     return (
