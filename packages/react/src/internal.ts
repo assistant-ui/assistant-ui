@@ -31,3 +31,4 @@ export {
 
 // ComposerInput plugin registry (used by react-lexical)
 export { useComposerInputPluginRegistryOptional } from "./primitives/composer/ComposerInputPluginContext";
+export { useComposerAriaProps } from "./primitives/composer/useComposerInputState";

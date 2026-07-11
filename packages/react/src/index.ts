@@ -480,6 +480,12 @@ export type {
 } from "@assistant-ui/core";
 export { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 
+// Unstable - composer input plugin registry (keyboard/aria/focus coupling seam)
+export {
+  unstable_useComposerInputPluginRegistry,
+  type Unstable_ComposerInputPlugin,
+} from "@assistant-ui/core/react";
+
 // Unstable - composer input history (terminal-style ArrowUp/ArrowDown recall)
 export {
   unstable_useComposerInputHistory,

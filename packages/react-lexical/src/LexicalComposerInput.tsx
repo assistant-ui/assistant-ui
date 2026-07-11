@@ -253,6 +253,7 @@ function CursorPlugin() {
 function FocusPlugin({ autoFocus }: { autoFocus: boolean }) {
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
+  const pluginRegistry = INTERNAL.useComposerInputPluginRegistryOptional();
 
   useEffect(() => {
     if (autoFocus) editor.focus();
@@ -263,6 +264,11 @@ function FocusPlugin({ autoFocus }: { autoFocus: boolean }) {
       editor.focus();
     });
   }, [editor, aui]);
+
+  useEffect(() => {
+    if (!pluginRegistry) return undefined;
+    return pluginRegistry.registerInput({ focus: () => editor.focus() });
+  }, [editor, pluginRegistry]);
 
   return null;
 }
@@ -290,6 +296,7 @@ export const LexicalComposerInput = forwardRef<
     const isDisabled = useAuiState(
       (s) => s.thread.isDisabled || s.composer.dictation?.inputDisabled,
     );
+    const ariaProps = INTERNAL.useComposerAriaProps();
     const resolvedFormatter =
       formatterProp ?? unstable_defaultDirectiveFormatter;
 
@@ -319,7 +326,7 @@ export const LexicalComposerInput = forwardRef<
           >
             <PlainTextPlugin
               contentEditable={
-                <ContentEditable className="aui-lexical-input" />
+                <ContentEditable className="aui-lexical-input" {...ariaProps} />
               }
               placeholder={
                 placeholder ? (

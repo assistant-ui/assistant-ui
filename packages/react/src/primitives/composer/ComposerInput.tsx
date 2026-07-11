@@ -27,9 +27,9 @@ import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
 import {
+  useComposerAriaProps,
   useComposerInputDisabled,
   useComposerInputValue,
-  useTriggerPopoverAriaProps,
 } from "./useComposerInputState";
 
 const TOUCH_PRIMARY_QUERY = "(pointer: coarse) and (not (any-pointer: fine))";
@@ -309,6 +309,13 @@ export const ComposerPrimitiveInput = forwardRef<
       }
     };
 
+    useEffect(() => {
+      if (!pluginRegistry) return undefined;
+      return pluginRegistry.registerInput({
+        focus: () => textareaRef.current?.focus({ preventScroll: true }),
+      });
+    }, [pluginRegistry]);
+
     const autoFocusEnabled = autoFocus && !isDisabled;
     const focus = useCallback(() => {
       const textarea = textareaRef.current;
@@ -353,7 +360,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (value === "") compactContext?.setMultiline(false);
     }, [value, compactContext]);
 
-    const ariaComboboxProps = useTriggerPopoverAriaProps();
+    const ariaComboboxProps = useComposerAriaProps();
 
     const inputProps = {
       name: "input" as const,

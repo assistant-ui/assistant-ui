@@ -70,5 +70,17 @@ export {
   toMediaWireUrl,
 } from "./utils/wire-media";
 
+// Composer input plugin registry. Internal because the provider is mounted by
+// the package at the store's scope boundaries, never by users.
+export {
+  ComposerInputPluginProvider,
+  useComposerInputPluginRegistry,
+  useComposerInputPluginRegistryOptional,
+  type ComposerActiveDescendant,
+  type ComposerInputPlugin,
+  type ComposerInputPluginRegisterOptions,
+  type ComposerInputPluginRegistry,
+} from "./react/primitives/composer/ComposerInputPluginContext";
+
 export * from "./runtime/internal";
 export * from "./runtimes/internal";

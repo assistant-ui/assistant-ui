@@ -1,6 +1,8 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { useAuiState } from "@assistant-ui/store";
+import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useTriggerPopoverActiveAriaOptional } from "./trigger/TriggerPopoverRootContext";
 
 export type TriggerPopoverAriaProps = {
@@ -19,6 +21,32 @@ export function useComposerInputDisabled(disabled?: boolean | undefined) {
     (s) => s.thread.isDisabled || s.composer.dictation?.inputDisabled,
   );
   return Boolean(composerDisabled) || Boolean(disabled);
+}
+
+const noopSubscribe = () => () => {};
+const getNullDescendant = () => null;
+
+/**
+ * ARIA combobox attributes describing the popup currently coupled to the
+ * composer input, read from the composer input plugin registry's active
+ * descendant channel. Returns an empty object when no registry is in scope or
+ * no popup is open.
+ */
+export function useComposerAriaProps(): TriggerPopoverAriaProps {
+  const registry = useComposerInputPluginRegistryOptional();
+  const activeDescendant = useSyncExternalStore(
+    registry ? registry.subscribeActiveDescendant : noopSubscribe,
+    registry ? registry.getActiveDescendant : getNullDescendant,
+    registry ? registry.getActiveDescendant : getNullDescendant,
+  );
+  if (!activeDescendant) return {};
+
+  return {
+    "aria-controls": activeDescendant.popoverId,
+    "aria-expanded": true,
+    "aria-haspopup": "listbox",
+    "aria-activedescendant": activeDescendant.highlightedItemId,
+  };
 }
 
 export function useTriggerPopoverAriaProps(): TriggerPopoverAriaProps {
