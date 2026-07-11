@@ -30,15 +30,22 @@ export type ResolvedGroup = {
 };
 
 export type ResolvedComponents = {
-  /** Main component files (the requested components) */
   main: ResolvedGroup;
-  /** assistant-ui dependency files */
   auiDeps: ResolvedGroup;
-  /** shadcn/ui dependency files */
   shadcn: ResolvedGroup;
 };
 
 export type RegistryFlavor = "radix" | "base";
+
+const RADIX_IMPORT = /(?:from|import)\s*\(?\s*["'](?:radix-ui["']|@radix-ui\/)/;
+
+async function readFile(filePath: string): Promise<string | null> {
+  try {
+    return await fs.readFile(filePath, "utf-8");
+  } catch {
+    return null;
+  }
+}
 
 async function readLocalRegistry(
   name: string,
@@ -69,21 +76,32 @@ async function readLocalShadcnComponent(
       "../../packages/ui/src/components/ui-base",
       `${name}.tsx`,
     );
-    try {
-      const content = await fs.readFile(vendoredPath, "utf-8");
-      return content.replaceAll("@/components/ui-base/", "@/components/ui/");
-    } catch {
-      return null;
+    const vendoredContent = await readFile(vendoredPath);
+    if (vendoredContent !== null) {
+      return vendoredContent.replaceAll(
+        "@/components/ui-base/",
+        "@/components/ui/",
+      );
     }
+
+    const fallbackPath = path.join(
+      process.cwd(),
+      "../../packages/ui/src/components/ui",
+      `${name}.tsx`,
+    );
+    const fallbackContent = await readFile(fallbackPath);
+    return fallbackContent !== null && !RADIX_IMPORT.test(fallbackContent)
+      ? fallbackContent
+      : null;
   }
 
-  const localPath = path.join(process.cwd(), "components/ui", `${name}.tsx`);
+  const localPath = path.join(
+    process.cwd(),
+    "../../packages/ui/src/components/ui",
+    `${name}.tsx`,
+  );
 
-  try {
-    return await fs.readFile(localPath, "utf-8");
-  } catch {
-    return null;
-  }
+  return readFile(localPath);
 }
 
 function parseRegistryDependency(dep: string): {
@@ -99,12 +117,9 @@ function parseRegistryDependency(dep: string): {
         .replace(".json", ""),
     };
   }
-  // Plain name = shadcn component
   return { source: "shadcn", name: dep };
 }
 
-// Known shadcn component dependencies (npm packages). The primitive package
-// is flavor-resolved: radix-ui on Radix styles, @base-ui/react on base styles.
 const PRIMITIVE_BACKED_SHADCN = new Set([
   "button",
   "tooltip",
@@ -169,7 +184,6 @@ export async function resolveAllComponents(
     shadcn: { files: [], dependencies: [] },
   };
 
-  // Collect dependencies for a component (returns them in order: component first, then its deps)
   async function resolveAssistantUI(
     name: string,
     isMain: boolean,
@@ -181,7 +195,6 @@ export async function resolveAllComponents(
     const item = await readLocalRegistry(name, flavor);
     if (!item) return;
 
-    // Collect npm dependencies
     if (item.dependencies) {
       for (const dep of item.dependencies) {
         if (isMain) {
@@ -192,11 +205,9 @@ export async function resolveAllComponents(
       }
     }
 
-    // First add all files from this component (skip if no files - e.g. style items)
     if (item.files) {
       for (const file of item.files) {
         const filePath = file.target ?? file.path;
-        // Skip lib/utils.ts
         if (filePath === "lib/utils.ts") continue;
 
         const targetGroup = isMain ? result.main : result.auiDeps;
@@ -208,7 +219,6 @@ export async function resolveAllComponents(
       }
     }
 
-    // Then resolve dependencies (component first, then its deps)
     if (item.registryDependencies) {
       for (const dep of item.registryDependencies) {
         const parsed = parseRegistryDependency(dep);
@@ -229,7 +239,6 @@ export async function resolveAllComponents(
     const content = await readLocalShadcnComponent(name, flavor);
     if (!content) return;
 
-    // Collect npm dependencies for shadcn components
     const deps = shadcnDependencies(name, flavor);
     if (deps) {
       for (const dep of deps) {
@@ -244,15 +253,12 @@ export async function resolveAllComponents(
     });
   }
 
-  // Resolve all requested components (mark them as main)
   for (const component of components) {
     await resolveAssistantUI(component, true);
   }
 
-  // Dependencies to ignore (assume user already has them)
   const ignoredDeps = new Set(["clsx", "tailwind-merge", "lucide-react"]);
 
-  // Convert sets to sorted arrays, filtering out ignored deps
   result.main.dependencies = Array.from(mainNpmDeps)
     .filter((dep) => !ignoredDeps.has(dep))
     .sort();
@@ -290,7 +296,6 @@ export async function ComponentSource({
   let code = item.files[0].content;
   const filePath = item.files[0].target ?? item.files[0].path;
 
-  // Clean up the code - similar to shadcn's transforms
   code = code.replaceAll("export default", "export");
 
   const lang = (filePath.split(".").pop() ?? "tsx") as "tsx" | "ts" | "js";
@@ -323,7 +328,6 @@ export function ComponentSourceFromFile({
 }) {
   let code = file.content;
 
-  // Clean up the code
   code = code.replaceAll("export default", "export");
 
   const lang = (file.path.split(".").pop() ?? "tsx") as "tsx" | "ts" | "js";
