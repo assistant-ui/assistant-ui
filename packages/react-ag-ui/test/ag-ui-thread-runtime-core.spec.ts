@@ -227,6 +227,36 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getState()).toEqual({ count: 1, label: "initial" });
   });
 
+  it("resetState clears the snapshot so the next run sends null state", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      if (runAgent.mock.calls.length === 1) {
+        subscriber.onStateSnapshotEvent?.({
+          event: {
+            type: "STATE_SNAPSHOT",
+            snapshot: { count: 1 },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(core.getState()).toEqual({ count: 1 });
+
+    core.resetState();
+    expect(core.getState()).toBeUndefined();
+
+    await core.resume({
+      parentId: null,
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+    });
+
+    expect(runAgent.mock.calls[1]?.[0].state).toBeNull();
+  });
+
   it("applies deltas before a snapshot from an empty state object", async () => {
     const runInputs: any[] = [];
     const agent = {

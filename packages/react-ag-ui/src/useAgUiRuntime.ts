@@ -97,6 +97,7 @@ export function useAgUiRuntime(
         ? async () => {
             await onSwitchToNewThread();
             core.applyExternalMessages([]);
+            core.resetState();
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
@@ -108,6 +109,8 @@ export function useAgUiRuntime(
             core.applyExternalMessages(result.messages);
             if (result.state !== undefined) {
               core.loadExternalState(result.state);
+            } else {
+              core.resetState();
             }
             if (result.unstable_resume) {
               void core.resumeInFlightRun(result.messages);

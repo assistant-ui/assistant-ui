@@ -678,6 +678,11 @@ export class AgUiThreadRuntimeCore {
     this.notifyUpdate();
   }
 
+  resetState(): void {
+    this.stateSnapshot = undefined;
+    this.notifyUpdate();
+  }
+
   private async startRun(
     parentId: string | null,
     runConfig?: RunConfig,
