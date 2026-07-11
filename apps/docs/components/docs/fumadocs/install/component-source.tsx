@@ -156,7 +156,7 @@ function shadcnDependencies(
 
 export async function resolveAllComponents(
   components: string[],
-  flavor: RegistryFlavor = "radix",
+  flavor: RegistryFlavor = "base",
 ): Promise<ResolvedComponents> {
   const visited = new Set<string>();
   const mainNpmDeps = new Set<string>();
@@ -270,7 +270,7 @@ export async function ComponentSource({
   name,
   title,
   collapsible = true,
-  flavor = "radix",
+  flavor = "base",
 }: {
   name: string;
   title?: string;
