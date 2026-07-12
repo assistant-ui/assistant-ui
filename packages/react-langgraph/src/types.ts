@@ -87,15 +87,34 @@ type CustomEventType = string;
 
 export type EventType = LangGraphKnownEventTypes | CustomEventType;
 
-export type MessageContentFile = {
-  type: "file";
-  data: string;
-  mime_type: string;
-  source_type?: "base64";
-  metadata?: {
-    filename?: string;
-  };
-};
+export type MessageContentFile =
+  | {
+      type: "file";
+      data: string;
+      mime_type: string;
+      source_type?: "base64";
+      metadata?: {
+        filename?: string;
+      };
+    }
+  | {
+      type: "file";
+      url: string;
+      mime_type?: string;
+      source_type: "url";
+      metadata?: {
+        filename?: string;
+      };
+    }
+  | {
+      type: "file";
+      id: string;
+      mime_type?: string;
+      source_type: "id";
+      metadata?: {
+        filename?: string;
+      };
+    };
 
 type UserMessageContentComplex =
   | MessageContentText

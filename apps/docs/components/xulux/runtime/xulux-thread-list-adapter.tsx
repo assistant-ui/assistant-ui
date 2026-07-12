@@ -104,6 +104,8 @@ export function createXuluxLocalThreadListAdapter({
       );
     }
 
+    const latestSessionStub = findXuluxSessionStub(sessionId) ?? sessionStub;
+
     // Drop pre-init local stubs (remoteId was sessionId) now that we have a cloud id.
     const threadsWithoutStub = readXuluxThreads().filter(
       (thread) =>
@@ -118,33 +120,43 @@ export function createXuluxLocalThreadListAdapter({
     upsertThread(cloudThreadId, (existing) => ({
       remoteId: cloudThreadId,
       externalId: sessionId,
-      status: existing?.status ?? sessionStub?.status ?? "regular",
+      status: existing?.status ?? latestSessionStub?.status ?? "regular",
       ...(existing?.title !== undefined
         ? { title: existing.title }
-        : sessionStub?.title !== undefined
-          ? { title: sessionStub.title }
+        : latestSessionStub?.title !== undefined
+          ? { title: latestSessionStub.title }
           : {}),
       custom: {
         xuluxStatus:
           existing?.custom.xuluxStatus ??
-          sessionStub?.custom.xuluxStatus ??
+          latestSessionStub?.custom.xuluxStatus ??
           "idle",
         sessionId,
         updatedAt: now,
         ...(existing?.custom.pendingUserMessage !== undefined
           ? { pendingUserMessage: existing.custom.pendingUserMessage }
-          : sessionStub?.custom.pendingUserMessage !== undefined
-            ? { pendingUserMessage: sessionStub.custom.pendingUserMessage }
+          : latestSessionStub?.custom.pendingUserMessage !== undefined
+            ? {
+                pendingUserMessage: latestSessionStub.custom.pendingUserMessage,
+              }
             : {}),
         ...(existing?.custom.selectedTemplate !== undefined
           ? { selectedTemplate: existing.custom.selectedTemplate }
-          : sessionStub?.custom.selectedTemplate !== undefined
-            ? { selectedTemplate: sessionStub.custom.selectedTemplate }
+          : latestSessionStub?.custom.selectedTemplate !== undefined
+            ? { selectedTemplate: latestSessionStub.custom.selectedTemplate }
             : {}),
         ...(existing?.custom.canvas !== undefined
           ? { canvas: existing.custom.canvas }
-          : sessionStub?.custom.canvas !== undefined
-            ? { canvas: sessionStub.custom.canvas }
+          : latestSessionStub?.custom.canvas !== undefined
+            ? { canvas: latestSessionStub.custom.canvas }
+            : {}),
+        ...(existing?.custom.activePreviewContext !== undefined
+          ? { activePreviewContext: existing.custom.activePreviewContext }
+          : latestSessionStub?.custom.activePreviewContext !== undefined
+            ? {
+                activePreviewContext:
+                  latestSessionStub.custom.activePreviewContext,
+              }
             : {}),
       } satisfies XuluxThreadCustom,
     }));

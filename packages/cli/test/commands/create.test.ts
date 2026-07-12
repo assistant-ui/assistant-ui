@@ -95,7 +95,7 @@ describe("resolveProject", () => {
   });
 
   it("uses selected project in interactive mode", async () => {
-    const select = vi.fn().mockResolvedValue("with-ai-sdk-v6");
+    const select = vi.fn().mockResolvedValue("with-ai-sdk-v7");
     const isCancel = vi.fn().mockReturnValue(false);
 
     const result = await resolveProject({
@@ -105,7 +105,7 @@ describe("resolveProject", () => {
     });
     expect(result).toEqual(
       expect.objectContaining({
-        name: "with-ai-sdk-v6",
+        name: "with-ai-sdk-v7",
         category: "example",
       }),
     );
@@ -166,7 +166,7 @@ describe("resolveScaffoldSelector", () => {
     expect(() =>
       resolveScaffoldSelector({
         template: "default",
-        example: "with-ai-sdk-v6",
+        example: "with-ai-sdk-v7",
       }),
     ).toThrow(
       "Only one scaffold selector can be provided (--template, --example). Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.",
@@ -194,7 +194,7 @@ describe("resolveScaffoldSelector", () => {
     expect(() =>
       resolveScaffoldSelector({
         preset: "chatgpt",
-        example: "with-ai-sdk-v6",
+        example: "with-ai-sdk-v7",
       }),
     ).toThrow(
       "Cannot use --preset with --example. Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.",

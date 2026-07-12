@@ -82,9 +82,9 @@ function loadAliases(tplDir) {
   }
   const paths = parsed.compilerOptions?.paths ?? {};
   return Object.entries(paths)
-    .map(([key, [target]]) => ({
+    .map(([key, targets]) => ({
       prefix: key.replace(/\*$/, ""),
-      target: target.replace(/\*$/, ""),
+      targets: targets.map((target) => target.replace(/\*$/, "")),
     }))
     .sort((a, b) => b.prefix.length - a.prefix.length);
 }
@@ -93,17 +93,7 @@ function isFile(p) {
   return existsSync(p) && statSync(p).isFile();
 }
 
-function resolveModule(fromFile, spec, tplDir, aliases) {
-  let target;
-  if (spec.startsWith("@/")) {
-    const alias = aliases.find((a) => spec.startsWith(a.prefix));
-    if (!alias) return null;
-    target = resolve(tplDir, alias.target + spec.slice(alias.prefix.length));
-  } else if (spec.startsWith(".")) {
-    target = resolve(dirname(fromFile), spec);
-  } else {
-    return null; // bare npm import: a dependency, not copied source
-  }
+function resolveCandidate(target) {
   for (const ext of RESOLVE_EXT) {
     const direct = target + ext;
     if (isFile(direct)) return direct;
@@ -111,6 +101,26 @@ function resolveModule(fromFile, spec, tplDir, aliases) {
     if (isFile(index)) return index;
   }
   return isFile(target) ? target : null;
+}
+
+// Alias targets are tsconfig fallback arrays: entries are tried in order and
+// the first that exists wins, matching bundler resolution.
+function resolveModule(fromFile, spec, tplDir, aliases) {
+  if (spec.startsWith("@/")) {
+    const alias = aliases.find((a) => spec.startsWith(a.prefix));
+    if (!alias) return null;
+    for (const target of alias.targets) {
+      const resolved = resolveCandidate(
+        resolve(tplDir, target + spec.slice(alias.prefix.length)),
+      );
+      if (resolved) return resolved;
+    }
+    return null;
+  }
+  if (spec.startsWith(".")) {
+    return resolveCandidate(resolve(dirname(fromFile), spec));
+  }
+  return null;
 }
 
 function importsOf(file) {

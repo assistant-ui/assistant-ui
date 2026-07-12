@@ -5,7 +5,7 @@ description: Use LangChain's useStream hook with a React chat UI through assista
 
 import { LangGraphIcon } from "@/components/icons/langgraph";
 
-`@assistant-ui/react-langchain` wraps [`useStream`](https://docs.langchain.com/oss/javascript/langgraph-sdk/react-stream) from `@langchain/react` and exposes it as an assistant-ui runtime. It targets the same backend as [`@assistant-ui/react-langgraph`](/docs/runtimes/langgraph) (LangGraph Cloud) but at a higher level, delegating stream plumbing to the upstream hook.
+`@assistant-ui/react-langchain` wraps [`useStream`](https://docs.langchain.com/oss/javascript/langgraph-sdk/react-stream) from `@langchain/react` and exposes it as an assistant-ui runtime. It targets the same backend as [`@assistant-ui/react-langgraph`](/docs/runtimes/langgraph/overview) (LangGraph Cloud) but at a higher level, delegating stream plumbing to the upstream hook.
 
 ## When to use it
 
@@ -891,7 +891,7 @@ Regenerate works without configuration. Clicking regenerate resolves the server 
     icon={<LangGraphIcon width={20} height={20} className="text-[#1C3C3C] dark:text-[#5b9595]" />}
     title="LangGraph"
     description="The original LangGraph adapter, built on the raw SDK."
-    href="/docs/runtimes/langgraph"
+    href="/docs/runtimes/langgraph/overview"
   />
   <Card
     title="ExternalStoreRuntime"

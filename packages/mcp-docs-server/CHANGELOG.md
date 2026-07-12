@@ -1,5 +1,13 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.38
+
+### Patch Changes
+
+- [#4579](https://github.com/assistant-ui/assistant-ui/pull/4579) [`84a9fcd`](https://github.com/assistant-ui/assistant-ui/commit/84a9fcd9acb27737035ac88d48063111b944e3a6) - feat: add assistantUISearch tool for keyword search over the docs ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4621](https://github.com/assistant-ui/assistant-ui/pull/4621) [`f7c814d`](https://github.com/assistant-ui/assistant-ui/commit/f7c814d79f8df5d7998bd4dd2340c3b3801f663c) - feat: add argument completions for the docs and examples resources ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.1.37
 
 ### Patch Changes

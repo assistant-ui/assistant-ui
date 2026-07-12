@@ -11,7 +11,17 @@ export type DemoDownloadSlug =
   | "claude"
   | "grok"
   | "gemini"
-  | "perplexity";
+  | "perplexity"
+  | "react-ink";
+
+export type DemoDownloadTarget = "web" | "node-cli";
+
+export type DemoDownloadPreviewFrame = {
+  kind: "terminal";
+  title?: string;
+  width?: number;
+  height?: number;
+};
 
 export type DemoDownloadManifest = {
   slug: DemoDownloadSlug;
@@ -23,13 +33,23 @@ export type DemoDownloadManifest = {
   componentName: string;
   tags: string[];
   gradient: string;
+  target?: DemoDownloadTarget;
+  previewUrl?: string;
+  previewFrame?: DemoDownloadPreviewFrame;
+  docsUrl?: string;
+  sourcePath?: string;
+  tech?: {
+    framework: string;
+    runtime: string;
+    frontendPattern: string;
+  };
   featured?: boolean;
   extraSourceFiles?: string[];
 };
 
 const COMMON_EXTRA_SOURCE_FILES = [
   "packages/ui/src/lib/utils.ts",
-  "apps/docs/components/shared/dropdown-menu.tsx",
+  "packages/ui/src/components/ui/base/dropdown-menu.tsx",
 ] as const;
 
 const BASE_EXTRA_SOURCE_FILES = [
@@ -45,15 +65,15 @@ const BASE_EXTRA_SOURCE_FILES = [
   "packages/ui/src/components/assistant-ui/select.tsx",
   "packages/ui/src/components/assistant-ui/thread-list.tsx",
   "packages/ui/src/components/assistant-ui/tool-group.tsx",
-  "packages/ui/src/components/ui/avatar.tsx",
-  "packages/ui/src/components/ui/button.tsx",
-  "packages/ui/src/components/ui/collapsible.tsx",
-  "packages/ui/src/components/ui/command.tsx",
-  "packages/ui/src/components/ui/dialog.tsx",
-  "packages/ui/src/components/ui/popover.tsx",
-  "packages/ui/src/components/ui/sheet.tsx",
-  "packages/ui/src/components/ui/skeleton.tsx",
-  "packages/ui/src/components/ui/tooltip.tsx",
+  "packages/ui/src/components/ui/radix/avatar.tsx",
+  "packages/ui/src/components/ui/radix/button.tsx",
+  "packages/ui/src/components/ui/radix/collapsible.tsx",
+  "packages/ui/src/components/ui/radix/command.tsx",
+  "packages/ui/src/components/ui/radix/dialog.tsx",
+  "packages/ui/src/components/ui/radix/popover.tsx",
+  "packages/ui/src/components/ui/radix/sheet.tsx",
+  "packages/ui/src/components/ui/radix/skeleton.tsx",
+  "packages/ui/src/components/ui/radix/tooltip.tsx",
 ] as const;
 
 export const DEMO_DOWNLOAD_MANIFESTS: Record<
@@ -170,6 +190,38 @@ export const DEMO_DOWNLOAD_MANIFESTS: Record<
     gradient: "from-teal-500/35 via-cyan-300/25 to-zinc-200/20",
     featured: true,
     extraSourceFiles: [...COMMON_EXTRA_SOURCE_FILES],
+  },
+  "react-ink": {
+    slug: "react-ink",
+    name: "React Ink Terminal Assistant",
+    tagline: "A terminal AI assistant built with assistant-ui and Ink.",
+    description:
+      "A Claude Code or Codex CLI-style terminal assistant built with assistant-ui React Ink primitives, including streaming chat, tool calls, status output, and terminal-native diff rendering.",
+    features: [
+      "Terminal chat UI built with @assistant-ui/react-ink",
+      "Scripted coding-agent flow with reasoning, tool calls, tests, and summary",
+      "Terminal-native diff rendering for apply_patch output",
+    ],
+    entry: "examples/with-react-ink/src/app.tsx",
+    componentName: "ReactInk",
+    tags: ["assistant-ui", "React Ink", "terminal", "CLI", "tools"],
+    gradient: "from-emerald-500/35 via-cyan-400/25 to-zinc-300/20",
+    target: "node-cli",
+    previewUrl: "https://assistant-ui-ink.vercel.app",
+    previewFrame: {
+      kind: "terminal",
+      title: "assistant-ui ink",
+      width: 800,
+      height: 480,
+    },
+    docsUrl: "/docs/ink",
+    sourcePath: "examples/with-react-ink",
+    tech: {
+      framework: "Node.js",
+      runtime: "React Ink",
+      frontendPattern: "Terminal assistant",
+    },
+    featured: true,
   },
 };
 

@@ -17,6 +17,7 @@ describe("MessageTimeline", () => {
         toolCallId: "c1",
         toolName: "search",
         args: { q: "a" },
+        subMessageCount: 0,
       }),
       part({ type: "text", text: "First chunk." }),
       part({
@@ -24,6 +25,7 @@ describe("MessageTimeline", () => {
         toolCallId: "c2",
         toolName: "lookup",
         args: { id: "b" },
+        subMessageCount: 0,
       }),
       part({ type: "text", text: "Final reply." }),
     ];
@@ -43,6 +45,7 @@ describe("MessageTimeline", () => {
         toolCallId: "c1",
         toolName: "getWeather",
         args: {},
+        subMessageCount: 0,
       }),
       part({ type: "text", text: "It is sunny." }),
     ];
@@ -62,6 +65,7 @@ describe("messageStepCount", () => {
         toolCallId: "c1",
         toolName: "a",
         args: {},
+        subMessageCount: 0,
       }),
       part({ type: "text", text: "one" }),
       part({
@@ -69,6 +73,7 @@ describe("messageStepCount", () => {
         toolCallId: "c2",
         toolName: "b",
         args: {},
+        subMessageCount: 0,
       }),
       part({ type: "text", text: "two" }),
     ];

@@ -2,7 +2,7 @@
 
 import { useAuiState } from "@assistant-ui/react";
 import type { ToolCallMessagePart } from "@assistant-ui/react";
-import { Tabs as TabsPrimitive } from "radix-ui";
+import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
 
 export const ArtifactsView = () => {
   const artifact = useAuiState((s) => {
@@ -27,26 +27,26 @@ export const ArtifactsView = () => {
           className="flex h-full flex-col"
         >
           <TabsPrimitive.List className="grid w-full grid-cols-2 border-b">
-            <TabsPrimitive.Trigger
+            <TabsPrimitive.Tab
               value="source"
-              className="data-[state=active]:border-primary border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors hover:border-gray-300"
+              className="data-active:border-primary border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors hover:border-gray-300"
             >
               Source Code
-            </TabsPrimitive.Trigger>
-            <TabsPrimitive.Trigger
+            </TabsPrimitive.Tab>
+            <TabsPrimitive.Tab
               value="preview"
-              className="data-[state=active]:border-primary border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors hover:border-gray-300"
+              className="data-active:border-primary border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors hover:border-gray-300"
             >
               Preview
-            </TabsPrimitive.Trigger>
+            </TabsPrimitive.Tab>
           </TabsPrimitive.List>
-          <TabsPrimitive.Content
+          <TabsPrimitive.Panel
             value="source"
             className="grow overflow-y-scroll px-4 py-2 font-mono text-sm wrap-break-word whitespace-pre-line"
           >
             {artifact}
-          </TabsPrimitive.Content>
-          <TabsPrimitive.Content value="preview" className="grow px-4 py-2">
+          </TabsPrimitive.Panel>
+          <TabsPrimitive.Panel value="preview" className="grow px-4 py-2">
             {artifact && (
               <iframe
                 title="artifact-preview"
@@ -54,7 +54,7 @@ export const ArtifactsView = () => {
                 srcDoc={artifact}
               />
             )}
-          </TabsPrimitive.Content>
+          </TabsPrimitive.Panel>
         </TabsPrimitive.Root>
       </div>
     </div>

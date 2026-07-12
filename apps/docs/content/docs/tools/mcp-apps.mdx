@@ -24,6 +24,12 @@ Capability presence is determined at mount time by which handlers you provide. U
 
 The renderer talks to a backend route you expose — the MCP client lives server-side so credentials and transport stay out of the browser. The route receives `{ method, params }` POSTs and dispatches to your MCP client.
 
+### Install the MCP client
+
+Install the AI SDK MCP client package used by the route handler:
+
+<InstallCommand npm={["@ai-sdk/mcp"]} />
+
 ### Client
 
 Compose `McpAppRenderer({...})` into your `Tools` resource. Provide `host.url` pointing at your route. Any tool-call part carrying `mcp.app` metadata renders the MCP App widget automatically.
@@ -61,12 +67,15 @@ The route accepts `POST` requests with `{ method, params }` JSON bodies. Dispatc
 
 ```ts
 // app/api/mcp-apps/route.ts
-import { experimental_createMCPClient } from "ai";
+import { createMCPClient } from "@ai-sdk/mcp";
 
-let clientPromise: ReturnType<typeof experimental_createMCPClient> | undefined;
+let clientPromise: ReturnType<typeof createMCPClient> | undefined;
 const getClient = () => {
-  clientPromise ??= experimental_createMCPClient({
+  clientPromise ??= createMCPClient({
     transport: { type: "sse", url: process.env.MCP_SERVER_URL! },
+  }).catch((error) => {
+    clientPromise = undefined;
+    throw error;
   });
   return clientPromise;
 };

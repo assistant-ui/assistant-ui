@@ -5,7 +5,7 @@ import {
   textBufferReducer,
   type TextBufferAction,
   type TextBufferState,
-} from "../primitives/composer/useTextBuffer";
+} from "../primitives/textInput/useTextBuffer";
 
 const reduce = (
   state: TextBufferState,
@@ -211,6 +211,25 @@ describe("textBufferReducer", () => {
     expect(deletedBackward.text).toBe("ab");
     expect(deletedForward.text).toBe("ab");
     expect(movedRight.cursorOffset).toBe(1 + skinToned.length);
+  });
+
+  it("snaps set-cursor to a grapheme boundary", () => {
+    const midSurrogate = reduce(createTextBufferState("👍🏽b"), {
+      type: "set-cursor",
+      cursorOffset: 2,
+    });
+    const onBoundary = reduce(createTextBufferState("👍🏽b"), {
+      type: "set-cursor",
+      cursorOffset: 4,
+    });
+    const beyondEnd = reduce(createTextBufferState("👍🏽b"), {
+      type: "set-cursor",
+      cursorOffset: 99,
+    });
+
+    expect(midSurrogate.cursorOffset).toBe(0);
+    expect(onBoundary.cursorOffset).toBe(4);
+    expect(beyondEnd.cursorOffset).toBe(5);
   });
 
   it("returns the full grapheme cluster at an offset", () => {

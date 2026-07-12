@@ -58,6 +58,25 @@ function normalizeUsage(value: unknown): ThreadTokenUsage | undefined {
       hasFields = true;
     }
   }
+  // AI SDK v7 moved these under token detail objects; v6 kept them top-level.
+  if (result.reasoningTokens === undefined) {
+    const count = asPositiveTokenCount(
+      asRecord(record.outputTokenDetails)?.reasoningTokens,
+    );
+    if (count !== undefined) {
+      result.reasoningTokens = count;
+      hasFields = true;
+    }
+  }
+  if (result.cachedInputTokens === undefined) {
+    const count = asPositiveTokenCount(
+      asRecord(record.inputTokenDetails)?.cacheReadTokens,
+    );
+    if (count !== undefined) {
+      result.cachedInputTokens = count;
+      hasFields = true;
+    }
+  }
   return hasFields ? result : undefined;
 }
 
