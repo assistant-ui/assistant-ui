@@ -247,7 +247,7 @@ export class AISDKToolkit {
           );
         }
         toolSources.set(exposedName, serverName);
-        tools[exposedName] = tool;
+        tools[exposedName] = tool as ToolSet[string];
       }
     }
     return { tools, sources: toolSources };

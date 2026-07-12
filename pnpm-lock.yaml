@@ -3830,10 +3830,10 @@ importers:
   packages/react-ai-sdk:
     dependencies:
       '@ai-sdk/mcp':
-        specifier: ^2
+        specifier: ^2.0.10
         version: 2.0.10(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4
+        specifier: ^4.0.23
         version: 4.0.23(react@19.2.7)(zod@4.4.3)
       '@assistant-ui/core':
         specifier: ^0.2.20
@@ -3842,8 +3842,8 @@ importers:
         specifier: ^0.2.19
         version: link:../store
       ai:
-        specifier: ^7
-        version: 7.0.18(zod@4.4.3)
+        specifier: ^7.0.22
+        version: 7.0.22(zod@4.4.3)
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
