@@ -233,13 +233,14 @@ describe("buildPresentParameters", () => {
     expect(schema.$defs.node.oneOf).toBeUndefined();
   });
 
-  it("drops author-declared `$type`/`$key`/`children` and keeps the framework fields", () => {
+  it("drops author-declared `$`-prefixed and `children` props, keeping framework fields", () => {
     const schema = buildPresentParameters({
       Reserved: {
         description: "Declares reserved keys that must not leak through.",
         properties: z.object({
           $type: z.number(),
           $key: z.boolean(),
+          $action: z.string(),
           children: z.number(),
           label: z.string(),
         }),
@@ -248,13 +249,15 @@ describe("buildPresentParameters", () => {
     }) as any;
 
     // The discriminator is the framework enum, not the author's `$type`; the
-    // author's `$key`/`children` are dropped in favor of framework fields.
+    // author's `$`-prefixed props and `children` are dropped in favor of the
+    // framework fields.
     expect(schema.properties.$type.enum).toEqual(["Reserved"]);
     expect(schema.properties.$key).toEqual({
       description:
         "Stable identity for this UI node. Use it for list items that may reorder.",
       anyOf: [{ type: "string" }, { type: "number" }],
     });
+    expect(schema.properties.$action).toBeUndefined();
     expect(schema.properties.children.$ref).toBe("#/$defs/children");
     expect(schema.properties.label).toBeDefined();
     expect(schema.required).toEqual(["$type"]);

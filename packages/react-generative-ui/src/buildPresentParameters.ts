@@ -25,10 +25,10 @@ export function buildPresentParameters(
 ): JSONSchema7 {
   const names = Object.keys(library);
 
-  // Merge every component's props into one optional bag. `$type`/`$key`/
-  // `children` are framework-reserved, so drop any author-declared copies. On a
-  // name clash the first component's schema wins — props are an advisory hint
-  // here, not a strict per-component contract.
+  // Merge every component's props into one optional bag. `$`-prefixed keys and
+  // `children` are framework-reserved (see ir.ts), so drop any author-declared
+  // copies. On a name clash the first component's schema wins — props are an
+  // advisory hint here, not a strict per-component contract.
   const props: Record<string, JSONSchema7Definition> = {};
   const propOwners = new Map<string, string[]>();
   for (const name of names) {
@@ -40,7 +40,7 @@ export function buildPresentParameters(
       );
     }
     for (const [key, schema] of Object.entries(propsSchema.properties ?? {})) {
-      if (key === TYPE_KEY || key === "$key" || key === "children") continue;
+      if (key.startsWith("$") || key === "children") continue;
       if (!(key in props)) {
         props[key] = schema;
       }
