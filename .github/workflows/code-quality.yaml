@@ -167,6 +167,7 @@ jobs:
         run: |
           if git status --porcelain -- 'apps/docs/content/docs/(reference)/api-reference' | grep -q .; then
             echo "API reference drift detected. Move durable prose into source JSDoc (or api-manual slots), then re-run pnpm -C apps/docs generate:api-reference."
+            git status --porcelain -- 'apps/docs/content/docs/(reference)/api-reference'
             git diff -- 'apps/docs/content/docs/(reference)/api-reference'
             exit 1
           fi
