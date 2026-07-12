@@ -40,7 +40,7 @@ importers:
         version: 0.0.57
       '@ai-sdk/provider':
         specifier: ^4.0.0
-        version: 4.0.2
+        version: 4.0.3
       '@ai-sdk/react':
         specifier: ^4.0.2
         version: 4.0.23(react@19.2.7)(zod@4.4.3)
@@ -70,13 +70,13 @@ importers:
         version: 1.1.0
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       denque:
         specifier: ^2.1.0
         version: 2.1.0
       eve:
         specifier: ^0.20.0
-        version: 0.20.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.0)(ai@7.0.18(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.0)(yaml@2.9.0))
+        version: 0.20.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.0)(ai@7.0.22(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.0)(yaml@2.9.0))
       ink:
         specifier: ^7.1.0
         version: 7.1.0(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
@@ -194,7 +194,7 @@ importers:
         version: link:../../packages/ui
       '@aui-x/prism':
         specifier: ^0.0.5
-        version: 0.0.5(@ai-sdk/provider@3.0.13)(ai@7.0.18(zod@4.4.3))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.66)(@smithy/signature-v4@5.6.3)(ws@8.21.0)(zod@4.4.3))
+        version: 0.0.5(@ai-sdk/provider@3.0.13)(ai@7.0.22(zod@4.4.3))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.66)(@smithy/signature-v4@5.6.3)(ws@8.21.0)(zod@4.4.3))
       '@base-ui/react':
         specifier: ^1.6.0
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -224,13 +224,13 @@ importers:
         version: 2.0.1(next@16.2.10(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
       bash-tool:
         specifier: ^1.3.17
-        version: 1.3.17(ai@7.0.18(zod@4.4.3))(just-bash@3.1.0)
+        version: 1.3.17(ai@7.0.22(zod@4.4.3))(just-bash@3.1.0)
       beautiful-mermaid:
         specifier: ^1.1.3
         version: 1.1.3
@@ -487,7 +487,7 @@ importers:
         version: 15.5.13
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -776,7 +776,7 @@ importers:
         version: link:../../packages/ui
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -855,7 +855,7 @@ importers:
         version: link:../../packages/ui
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1068,7 +1068,7 @@ importers:
         version: link:../../packages/ui
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1147,7 +1147,7 @@ importers:
         version: link:../../packages/ui
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1214,7 +1214,7 @@ importers:
         version: link:../../packages/cloud-ai-sdk
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1290,7 +1290,7 @@ importers:
         version: link:../../packages/ui
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
@@ -1381,7 +1381,7 @@ importers:
         version: 4.3.2
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1469,7 +1469,7 @@ importers:
         version: 4.3.2
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1627,7 +1627,7 @@ importers:
         version: 7.1.33(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       expo:
         specifier: ~57.0.4
         version: 57.0.4(@babel/core@7.29.7)(@expo/dom-webview@57.0.0)(@expo/metro-runtime@57.0.3)(@typescript/typescript6@6.0.2)(expo-router@57.0.4)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -1809,7 +1809,7 @@ importers:
         version: 0.12.2
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1885,7 +1885,7 @@ importers:
         version: link:../../packages/ui
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2086,7 +2086,7 @@ importers:
         version: link:../../packages/ui
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2159,7 +2159,7 @@ importers:
         version: link:../../packages/ui
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2393,7 +2393,7 @@ importers:
         version: 4.3.2
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2490,7 +2490,7 @@ importers:
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
@@ -2742,7 +2742,7 @@ importers:
         version: link:../../packages/ui
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2849,7 +2849,7 @@ importers:
         version: 0.3.0(@wterm/dom@0.3.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       ink:
         specifier: ^7.1.0
         version: 7.1.0(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.7)
@@ -2995,7 +2995,7 @@ importers:
         version: link:../../packages/ui
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
@@ -3470,7 +3470,7 @@ importers:
         version: 19.2.17
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       assistant-stream:
         specifier: ^0.3.25
         version: link:../assistant-stream
@@ -3880,7 +3880,7 @@ importers:
     dependencies:
       '@ai-sdk/provider':
         specifier: ^3.0.10 || ^4.0.0
-        version: 4.0.2
+        version: 4.0.3
       '@assistant-ui/core':
         specifier: ^0.2.20
         version: link:../core
@@ -4883,7 +4883,7 @@ importers:
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -4974,7 +4974,7 @@ importers:
         version: 2.4.57(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5059,7 +5059,7 @@ importers:
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5323,7 +5323,7 @@ importers:
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5408,7 +5408,7 @@ importers:
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
         specifier: ^7.0.2
-        version: 7.0.18(zod@4.4.3)
+        version: 7.0.22(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5506,12 +5506,6 @@ packages:
   '@ag-ui/proto@0.0.57':
     resolution: {integrity: sha512-pPENOZt0P6ibH8sCTgq05wLYXi5t3P9B5r/1bWYehXjUxtyOdnukSlWM++SsCIwUXsQdm/b3aBgGjEeTF7RenA==}
 
-  '@ai-sdk/gateway@4.0.14':
-    resolution: {integrity: sha512-wbYqQKpASsuK7bdoa1fp+QA6oy3ddqqBOukN3IkyaR8PAp0pWoc66ch2td+ixeknoCcO4F6VTkSFKVC6MP3bTQ==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
   '@ai-sdk/gateway@4.0.16':
     resolution: {integrity: sha512-9iYxdOLquoOFk5e+02P9qfBIA+EJU0FNJvyjGxi4iXJabt2+GlbaCg7TX0sTtxOsBVkdabkatqWM6+kvp53tBg==}
     engines: {node: '>=22'}
@@ -5530,12 +5524,6 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider-utils@5.0.6':
-    resolution: {integrity: sha512-i4mVayGtC+HrRmtfPFOxvKKQgFU+1dwTTsh4MY0jY1MaGuppOwDFrNYrJ3dDXWMkO3o6FDVAKY8ZDsy7hLsO9Q==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
   '@ai-sdk/provider-utils@5.0.7':
     resolution: {integrity: sha512-OSm5/5kdrHa11WIOo5LYgDKnxYWp5aB/wx5EXRHi0jpUGduMDeB6oht9U6p+UNNWIP3F/EqPpV8d7vdP/iRnqg==}
     engines: {node: '>=22'}
@@ -5545,10 +5533,6 @@ packages:
   '@ai-sdk/provider@3.0.13':
     resolution: {integrity: sha512-ZPtVYt5QIJzOta1kdUiDuCx4HhFkvNPv/rvmZ2b1iXwybYjJsCnNYR4PAw4kW7rgVfDARvHXcU64efWuqNp6bw==}
     engines: {node: '>=18'}
-
-  '@ai-sdk/provider@4.0.2':
-    resolution: {integrity: sha512-pfPoy9J1B1xV7cqJ8MYHOsDYrMv5tR3+EMNfI249OhkD2uRakvav3Fo7XpD2luuN/YNCBY7KfEQc7vEV7KEtyw==}
-    engines: {node: '>=22'}
 
   '@ai-sdk/provider@4.0.3':
     resolution: {integrity: sha512-e0CpNWJUY7OxAFAnCZkw+ri9QOHWwTs1tXP42782KFGCU07qt8NiXCrCVowyCB5dP2r5/Uls+g2oPd8kOJn9dw==}
@@ -10866,12 +10850,6 @@ packages:
   aggregate-error@3.1.0:
     resolution: {integrity: sha512-4I7Td01quW/RpocfNayFdFVk1qSuoh0E7JrbRJ16nH01HhKFQ88INq9Sd+nd72zqRySlr9BmDA8xlEJ6vJMrYA==}
     engines: {node: '>=8'}
-
-  ai@7.0.18:
-    resolution: {integrity: sha512-/DsiRfbLPtoHf9C47Hy+LK+HkjNowX1DQo3id4zWegfU6z1WjVDRAHYJAiX7SXhGp0mWX4tcenUhfIFessDWnw==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
 
   ai@7.0.22:
     resolution: {integrity: sha512-iAXYwQtR18qN7GXwNmGVAQM4uSJOh2+nZ5RP9NtDXfH5d4tlYyYzAM133O3U+eVcyWrvNRzecN9yW58xpCdfMg==}
@@ -17810,13 +17788,6 @@ snapshots:
       '@bufbuild/protobuf': 2.12.1
       '@protobuf-ts/protoc': 2.11.1
 
-  '@ai-sdk/gateway@4.0.14(zod@4.4.3)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.2
-      '@ai-sdk/provider-utils': 5.0.6(zod@4.4.3)
-      '@vercel/oidc': 3.2.0
-      zod: 4.4.3
-
   '@ai-sdk/gateway@4.0.16(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 4.0.3
@@ -17837,14 +17808,6 @@ snapshots:
       '@ai-sdk/provider-utils': 5.0.7(zod@4.4.3)
       zod: 4.4.3
 
-  '@ai-sdk/provider-utils@5.0.6(zod@4.4.3)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.2
-      '@standard-schema/spec': 1.1.0
-      '@workflow/serde': 4.1.0
-      eventsource-parser: 3.1.0
-      zod: 4.4.3
-
   '@ai-sdk/provider-utils@5.0.7(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 4.0.3
@@ -17857,10 +17820,6 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
     optional: true
-
-  '@ai-sdk/provider@4.0.2':
-    dependencies:
-      json-schema: 0.4.0
 
   '@ai-sdk/provider@4.0.3':
     dependencies:
@@ -17935,9 +17894,9 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
-  '@aui-x/prism@0.0.5(@ai-sdk/provider@3.0.13)(ai@7.0.18(zod@4.4.3))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.66)(@smithy/signature-v4@5.6.3)(ws@8.21.0)(zod@4.4.3))':
+  '@aui-x/prism@0.0.5(@ai-sdk/provider@3.0.13)(ai@7.0.22(zod@4.4.3))(openai@6.45.0(@aws-sdk/credential-provider-node@3.972.66)(@smithy/signature-v4@5.6.3)(ws@8.21.0)(zod@4.4.3))':
     dependencies:
-      ai: 7.0.18(zod@4.4.3)
+      ai: 7.0.22(zod@4.4.3)
     optionalDependencies:
       '@ai-sdk/provider': 3.0.13
       openai: 6.45.0(@aws-sdk/credential-provider-node@3.972.66)(@smithy/signature-v4@5.6.3)(ws@8.21.0)(zod@4.4.3)
@@ -24529,13 +24488,6 @@ snapshots:
       indent-string: 4.0.0
     optional: true
 
-  ai@7.0.18(zod@4.4.3):
-    dependencies:
-      '@ai-sdk/gateway': 4.0.14(zod@4.4.3)
-      '@ai-sdk/provider': 4.0.2
-      '@ai-sdk/provider-utils': 5.0.6(zod@4.4.3)
-      zod: 4.4.3
-
   ai@7.0.22(zod@4.4.3):
     dependencies:
       '@ai-sdk/gateway': 4.0.16(zod@4.4.3)
@@ -24878,9 +24830,9 @@ snapshots:
 
   baseline-browser-mapping@2.10.42: {}
 
-  bash-tool@1.3.17(ai@7.0.18(zod@4.4.3))(just-bash@3.1.0):
+  bash-tool@1.3.17(ai@7.0.22(zod@4.4.3))(just-bash@3.1.0):
     dependencies:
-      ai: 7.0.18(zod@4.4.3)
+      ai: 7.0.22(zod@4.4.3)
       fast-glob: 3.3.3
       yaml: 2.9.0
       zod: 3.25.76
@@ -26023,53 +25975,6 @@ snapshots:
       '@types/estree': 1.0.9
 
   etag@1.8.1: {}
-
-  eve@0.20.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.0)(ai@7.0.18(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.0)(yaml@2.9.0)):
-    dependencies:
-      ai: 7.0.18(zod@4.4.3)
-      nitro: 3.0.260610-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.0)(yaml@2.9.0))
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.0
-      just-bash: 3.1.0
-    transitivePeerDependencies:
-      - '@azure/app-configuration'
-      - '@azure/cosmos'
-      - '@azure/data-tables'
-      - '@azure/identity'
-      - '@azure/keyvault-secrets'
-      - '@azure/storage-blob'
-      - '@capacitor/preferences'
-      - '@deno/kv'
-      - '@electric-sql/pglite'
-      - '@libsql/client'
-      - '@netlify/blobs'
-      - '@netlify/runtime'
-      - '@planetscale/database'
-      - '@upstash/redis'
-      - '@vercel/blob'
-      - '@vercel/functions'
-      - '@vercel/kv'
-      - '@vercel/queue'
-      - aws4fetch
-      - better-sqlite3
-      - chokidar
-      - dotenv
-      - drizzle-orm
-      - giget
-      - idb-keyval
-      - ioredis
-      - jiti
-      - lru-cache
-      - miniflare
-      - mongodb
-      - mysql2
-      - rollup
-      - sqlite3
-      - uploadthing
-      - vite
-      - wrangler
-      - xml2js
-      - zephyr-agent
 
   eve@0.20.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.0)(ai@7.0.22(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.0)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.0)(yaml@2.9.0)):
     dependencies:
