@@ -5,3 +5,7 @@
 
 # Public API surface snapshots require maintainer review.
 /api-surface/ @Yonom @okisdev @AVGVSTVS96
+
+# Public UI components and template changes require maintainer review.
+/packages/ui/ @Yonom @okisdev @AVGVSTVS96
+/templates/ @Yonom @okisdev @AVGVSTVS96
