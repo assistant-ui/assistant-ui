@@ -273,4 +273,52 @@ describe("TextInput", () => {
     expect(emitted[0]).toBe("x");
     expect(emitted[1]).toBe("z👍👍");
   });
+
+  it("falls back to cursor-at-end when a deferred correction lands after pending edits were reconciled", async () => {
+    const emitted: string[] = [];
+    const { rerender } = render(
+      <TextInput value="hello" onChange={(text) => emitted.push(text)} />,
+    );
+    await flush();
+
+    inputHandler?.("", { leftArrow: true });
+    inputHandler?.("", { leftArrow: true });
+    inputHandler?.("a", {});
+    inputHandler?.("b", {});
+    await settle();
+
+    rerender(
+      <TextInput value="HELABLO" onChange={(text) => emitted.push(text)} />,
+    );
+    await settle();
+    inputHandler?.("z", {});
+    await settle();
+
+    expect(emitted).toEqual(["helalo", "helablo", "HELABLOz"]);
+  });
+
+  it("submits the optimistic buffer text while a correction is pending", async () => {
+    const onSubmit = vi.fn();
+    const Upper = () => {
+      const [value, setValue] = useState("hello");
+      return (
+        <TextInput
+          value={value}
+          submitOnEnter
+          onSubmit={onSubmit}
+          onChange={(text) => setValue(text.toUpperCase())}
+        />
+      );
+    };
+    render(<Upper />);
+    await flush();
+
+    inputHandler?.("", { leftArrow: true });
+    inputHandler?.("", { leftArrow: true });
+    inputHandler?.("x", {});
+    inputHandler?.("", { return: true });
+    await settle();
+
+    expect(onSubmit).toHaveBeenCalledWith("helxlo");
+  });
 });

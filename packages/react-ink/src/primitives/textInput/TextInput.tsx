@@ -5,7 +5,6 @@ import {
   getGraphemeAt,
   textBufferReducer,
   useTextBuffer,
-  type TextBufferState,
 } from "./useTextBuffer";
 
 // cap dedup map so an owner that drops echoes can't grow the counter without bound
@@ -54,11 +53,10 @@ export const TextInput = ({
     const previousCursorOffset = bufferStateRef.current.cursorOffset;
     counter.clear();
     setText(value);
-    let nextState: TextBufferState = {
+    let nextState = textBufferReducer(bufferStateRef.current, {
+      type: "set-text",
       text: value,
-      cursorOffset: value.length,
-      preferredColumn: undefined,
-    };
+    });
     if (isCorrection) {
       const restoreCursor = {
         type: "set-cursor",
