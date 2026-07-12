@@ -3,18 +3,13 @@ import { Box, Text } from "ink";
 import { DiffContent } from "./DiffContent";
 import { useDiffContext } from "./DiffContext";
 import { DiffRoot } from "./DiffRoot";
-import { computeDiff, parsePatch } from "./diff-utils";
+import { getDiffFiles } from "./diff-utils";
 import {
   buildIntraLineSegments,
   buildLinePairMap,
   type StyledDiffSegment,
 } from "./intra-line-utils";
-import type {
-  DiffFileInput,
-  FoldedRegion,
-  ParsedFile,
-  ParsedLine,
-} from "./types";
+import type { DiffFileInput, FoldedRegion, ParsedLine } from "./types";
 
 export type DiffViewProps = Omit<ComponentProps<typeof Box>, "children"> & {
   patch?: string | undefined;
@@ -183,39 +178,6 @@ const DiffViewInner = ({
   );
 };
 
-const getDiffViewFiles = ({
-  patch,
-  oldFile,
-  newFile,
-}: {
-  patch?: string | undefined;
-  oldFile?: DiffFileInput | undefined;
-  newFile?: DiffFileInput | undefined;
-}): ParsedFile[] => {
-  if (patch) {
-    return parsePatch(patch);
-  }
-
-  if (!oldFile || !newFile) {
-    return [];
-  }
-
-  const { lines, additions, deletions } = computeDiff(
-    oldFile.content,
-    newFile.content,
-  );
-
-  return [
-    {
-      oldName: oldFile.name,
-      newName: newFile.name,
-      lines,
-      additions,
-      deletions,
-    },
-  ];
-};
-
 export const DiffView = ({
   patch,
   oldFile,
@@ -232,7 +194,7 @@ export const DiffView = ({
 
   const files = useMemo(
     () =>
-      getDiffViewFiles({
+      getDiffFiles({
         patch,
         oldFile:
           oldContent !== undefined

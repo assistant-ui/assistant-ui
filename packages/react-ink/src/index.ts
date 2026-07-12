@@ -150,6 +150,11 @@ export * as LoadingPrimitive from "./primitives/loading";
 export * as StatusBarPrimitive from "./primitives/statusBar";
 export { DiffView, type DiffViewProps } from "./primitives/diff/DiffView";
 export {
+  StageableDiffView,
+  type StageableDiffViewProps,
+} from "./primitives/diff/StageableDiffView";
+export type { StagedSelection } from "./primitives/diff/diff-stage";
+export {
   TextInput,
   type TextInputProps,
 } from "./primitives/textInput/TextInput";

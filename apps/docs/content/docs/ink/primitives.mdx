@@ -1004,7 +1004,11 @@ A built-in component for rendering tool calls with expandable/collapsible output
 ## Diff
 
 ```tsx
-import { DiffPrimitive, DiffView } from "@assistant-ui/react-ink";
+import {
+  DiffPrimitive,
+  DiffView,
+  StageableDiffView,
+} from "@assistant-ui/react-ink";
 ```
 
 Components for rendering code diffs in the terminal.
@@ -1040,6 +1044,38 @@ When a replacement is rendered as an equal-length adjacent `-`/`+` run, `DiffVie
 | `showLineNumbers` | `boolean` | Whether to show line numbers (default: true) |
 | `contextLines` | `number` | Number of context lines to show around changes |
 | `maxLines` | `number` | Maximum number of lines to display |
+
+### StageableDiffView
+
+Interactive variant of `DiffView` that lets the user include or exclude individual hunks before approving a change. Takes the same `patch` / `oldFile` / `newFile` inputs, renders a per-hunk `[x]` / `[ ]` gutter marker on each hunk's first change line, dims unstaged hunks, and highlights the focused hunk. All hunks start staged. It reports the staged subset through `onStageChange`, which a consumer feeds to its own apply step.
+
+```tsx
+<StageableDiffView
+  patch={unifiedDiffString}
+  onStageChange={(staged) => {
+    // staged.stagedHunks: [{ fileIndex, hunkIndex }, ...]
+    setStaged(staged);
+  }}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onStageChange` | `(staged: StagedSelection) => void` | Called with the staged hunk subset whenever the selection changes |
+| `isActive` | `boolean` | Gates the keymap so a parent screen can own focus (default: `true`) |
+| `...DiffViewProps` | `DiffViewProps` | Same `patch` / `oldFile` / `newFile` / `showLineNumbers` / `contextLines` / `maxLines` inputs as `DiffView` |
+
+Keymap (active only while focused and `isActive`):
+
+| Key | Action |
+|-----|--------|
+| `j` / `Down` | Move focus to the next hunk |
+| `k` / `Up` | Move focus to the previous hunk |
+| `Space` | Toggle the focused hunk in or out |
+| `a` | Stage all hunks |
+| `n` | Stage no hunks |
+
+`StagedSelection` is `{ stagedHunks: ReadonlyArray<{ fileIndex: number; hunkIndex: number }> }`, sorted by file then hunk. Unlike `DiffView`, the staged view does not yet layer intra-line word highlighting onto its rows.
 
 ### Root
 

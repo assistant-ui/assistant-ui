@@ -3,6 +3,7 @@ import parseDiff from "parse-diff";
 import type {
   ParsedLine,
   ParsedFile,
+  DiffFileInput,
   DisplayLine,
   FoldedRegion,
 } from "./types";
@@ -135,6 +136,39 @@ function assignComputedHunkIndices(lines: ParsedLine[]) {
       line.hunkIndex = hunkIndex;
     }
   }
+}
+
+export function getDiffFiles({
+  patch,
+  oldFile,
+  newFile,
+}: {
+  patch?: string | undefined;
+  oldFile?: DiffFileInput | undefined;
+  newFile?: DiffFileInput | undefined;
+}): ParsedFile[] {
+  if (patch) {
+    return parsePatch(patch);
+  }
+
+  if (!oldFile || !newFile) {
+    return [];
+  }
+
+  const { lines, additions, deletions } = computeDiff(
+    oldFile.content,
+    newFile.content,
+  );
+
+  return [
+    {
+      oldName: oldFile.name,
+      newName: newFile.name,
+      lines,
+      additions,
+      deletions,
+    },
+  ];
 }
 
 export function foldContext(
