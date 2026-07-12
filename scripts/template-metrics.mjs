@@ -189,10 +189,9 @@ function bundleGzipFor(root, name) {
 }
 
 function measure(root, outJson) {
-  const result = listTemplates(root).map((name) => ({
-    name,
-    ...footprintFor(root, name),
-    bundleGzip: bundleGzipFor(root, name),
+  const result = locMetrics(root).map((t) => ({
+    ...t,
+    bundleGzip: bundleGzipFor(root, t.name),
   }));
   writeFileSync(outJson, JSON.stringify(result, null, 2));
 }
