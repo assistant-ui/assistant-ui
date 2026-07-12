@@ -455,6 +455,18 @@ npx assistant-ui@latest update
 
 The CLI pulls components from our public registry at [r.assistant-ui.com](https://r.assistant-ui.com).
 
+Configure the style-aware URL in `components.json` so `@assistant-ui/*` installs match your shadcn style:
+
+```json title="components.json"
+{
+  "registries": {
+    "@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"
+  }
+}
+```
+
+The `{style}` placeholder is filled from your `components.json` `style` field. Styles whose name starts with `base-` resolve to Base UI flavored components; every other style resolves to Radix. Existing Radix projects can keep `https://r.assistant-ui.com/{name}.json` as a fallback.
+
 Each component includes:
 - Full TypeScript source code
 - All required dependencies

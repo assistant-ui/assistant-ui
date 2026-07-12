@@ -5,10 +5,14 @@ platforms: ["react"]
 ---
 
 import { ModelSelectorSample } from "@/components/docs/samples/model-selector";
+import * as ModelSelectorBaseSamples from "@/components/docs/samples/model-selector.base";
+import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
 A picker that lets users switch between AI models and choose a reasoning effort (thinking) level. It is built on Popover + Command, so search, provider grouping, and filtering compose in without being built in. The default export integrates with assistant-ui's `ModelContext` system, so the selection reaches your backend on every request with no extra wiring.
 
-<ModelSelectorSample />
+<FlavorSwitcher />
+
+<Flavored radix={<ModelSelectorSample />} base={<ModelSelectorBaseSamples.ModelSelectorSample />} />
 
 ## Getting Started
 
@@ -295,7 +299,7 @@ When `searchable` is set, typing filters the list; otherwise the keys above driv
 
 The picker implements the WAI-ARIA combobox pattern over Popover + Command.
 
-- The trigger is `role="combobox"` with `aria-haspopup="listbox"`; Radix Popover manages `aria-expanded` and `aria-controls`.
+- The trigger is `role="combobox"` with `aria-haspopup="listbox"`; the popover primitive manages `aria-expanded` and `aria-controls`.
 - The model list is a Command (cmdk) listbox: each item is `role="option"` with `aria-selected`, and the active item is tracked with `aria-activedescendant`.
 - Keyboard navigation works without a visible search box: `ModelSelector.Content` renders a visually hidden input (`ModelSelector.FocusAnchor`) that anchors cmdk's focus so the list stays reachable. Pass `searchable` to surface a real search input instead.
 - The Thinking row (`ModelSelector.Effort`) is a `role="radiogroup"` of `role="radio"` toggles with roving tabindex, so it is a single tab stop and <Kbd>ArrowLeft</Kbd> / <Kbd>ArrowRight</Kbd> move focus and select in one step. <Kbd>ArrowUp</Kbd> / <Kbd>ArrowDown</Kbd> return focus to the model list.
@@ -370,6 +374,12 @@ This works out of the box with `@assistant-ui/react-ai-sdk`. `ModelSelector.Root
       type: '"sm" | "default" | "lg"',
       default: '"default"',
       description: "Size of the trigger button.",
+    },
+    {
+      name: "align",
+      type: '"start" | "center" | "end"',
+      default: '"start"',
+      description: "Alignment of the dropdown relative to the trigger.",
     },
     {
       name: "contentClassName",

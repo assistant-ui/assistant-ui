@@ -69,6 +69,32 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.attachments?.[1]?.type).toBe("file");
   });
 
+  it("degrades a user file part missing mediaType instead of throwing", () => {
+    const convert = () =>
+      AISDKMessageConverter.toThreadMessages([
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "https://cdn/file.bin",
+              filename: "file.bin",
+            },
+          ],
+        } as any,
+      ]);
+
+    expect(convert).not.toThrow();
+    const attachment = convert()[0]?.attachments?.[0];
+    expect(attachment?.type).toBe("file");
+    expect(attachment?.contentType).toBe("unknown/unknown");
+    expect(attachment?.content[0]).toMatchObject({
+      type: "file",
+      mimeType: "unknown/unknown",
+    });
+  });
+
   it("converts source-document parts into document sources", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
@@ -718,6 +744,74 @@ describe("AISDKMessageConverter", () => {
       mimeType: "text/html;profile=mcp-app",
       visibility: ["app", "model"],
     });
+  });
+
+  it("preserves providerMetadata on text and reasoning parts", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "text",
+            text: "hello",
+            providerMetadata: { acme: { agentName: "researcher" } },
+          },
+          {
+            type: "reasoning",
+            text: "thinking",
+            providerMetadata: { acme: { agentName: "researcher" } },
+          },
+          { type: "text", text: "plain" },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "text",
+      text: "hello",
+      providerMetadata: { acme: { agentName: "researcher" } },
+    });
+    expect(converted[0]?.content[1]).toMatchObject({
+      type: "reasoning",
+      text: "thinking",
+      providerMetadata: { acme: { agentName: "researcher" } },
+    });
+    expect(converted[0]?.content[2]).not.toHaveProperty("providerMetadata");
+  });
+
+  it("forwards callProviderMetadata onto ToolCallMessagePart.providerMetadata", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-search",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { query: "hi" },
+            output: { results: [] },
+            callProviderMetadata: { acme: { agentName: "researcher" } },
+          },
+          {
+            type: "tool-search",
+            toolCallId: "tc-2",
+            state: "output-available",
+            input: { query: "yo" },
+            output: { results: [] },
+          },
+        ],
+      } as any,
+    ]);
+
+    const calls = converted[0]?.content.filter(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(calls?.[0]?.providerMetadata).toEqual({
+      acme: { agentName: "researcher" },
+    });
+    expect(calls?.[1]).not.toHaveProperty("providerMetadata");
   });
 
   it("extracts MCP app metadata from output._meta['ui/resourceUri']", () => {

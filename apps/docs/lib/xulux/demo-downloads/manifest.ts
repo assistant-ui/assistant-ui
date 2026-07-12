@@ -49,7 +49,7 @@ export type DemoDownloadManifest = {
 
 const COMMON_EXTRA_SOURCE_FILES = [
   "packages/ui/src/lib/utils.ts",
-  "apps/docs/components/shared/dropdown-menu.tsx",
+  "packages/ui/src/components/ui/base/dropdown-menu.tsx",
 ] as const;
 
 const BASE_EXTRA_SOURCE_FILES = [
@@ -65,15 +65,15 @@ const BASE_EXTRA_SOURCE_FILES = [
   "packages/ui/src/components/assistant-ui/select.tsx",
   "packages/ui/src/components/assistant-ui/thread-list.tsx",
   "packages/ui/src/components/assistant-ui/tool-group.tsx",
-  "packages/ui/src/components/ui/avatar.tsx",
-  "packages/ui/src/components/ui/button.tsx",
-  "packages/ui/src/components/ui/collapsible.tsx",
-  "packages/ui/src/components/ui/command.tsx",
-  "packages/ui/src/components/ui/dialog.tsx",
-  "packages/ui/src/components/ui/popover.tsx",
-  "packages/ui/src/components/ui/sheet.tsx",
-  "packages/ui/src/components/ui/skeleton.tsx",
-  "packages/ui/src/components/ui/tooltip.tsx",
+  "packages/ui/src/components/ui/radix/avatar.tsx",
+  "packages/ui/src/components/ui/radix/button.tsx",
+  "packages/ui/src/components/ui/radix/collapsible.tsx",
+  "packages/ui/src/components/ui/radix/command.tsx",
+  "packages/ui/src/components/ui/radix/dialog.tsx",
+  "packages/ui/src/components/ui/radix/popover.tsx",
+  "packages/ui/src/components/ui/radix/sheet.tsx",
+  "packages/ui/src/components/ui/radix/skeleton.tsx",
+  "packages/ui/src/components/ui/radix/tooltip.tsx",
 ] as const;
 
 export const DEMO_DOWNLOAD_MANIFESTS: Record<

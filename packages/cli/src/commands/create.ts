@@ -255,6 +255,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     path: "examples/with-tanstack",
     hasLocalComponents: false,
   },
+  {
+    name: "with-resumable-stream",
+    label: "Resumable Stream",
+    description: "Resumable LLM stream that survives reload mid-response",
+    category: "example",
+    path: "examples/with-resumable-stream",
+    hasLocalComponents: false,
+  },
 ];
 
 // Examples that exist in the monorepo but are intentionally excluded from the CLI:

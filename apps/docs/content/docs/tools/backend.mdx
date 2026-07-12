@@ -13,6 +13,8 @@ For authoring tools, see [Defining Tools](/docs/tools/defining-tools). For MCP s
 `@assistant-ui/react-ai-sdk` posts `{ messages, system, tools }` to your route. `tools` is the map of **frontend** tools the client serialized for this request (the model needs their schemas to call them, even though they run in the browser):
 
 ```ts
+import type { FrontendTools } from "@assistant-ui/react-ai-sdk";
+
 const {
   messages,
   system,
@@ -20,7 +22,7 @@ const {
 }: {
   messages: UIMessage[];
   system?: string;
-  tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
+  tools?: FrontendTools;
 } = await req.json();
 ```
 
@@ -136,9 +138,10 @@ To let the model see a frontend tool's result and continue, configure the runtim
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 
 const runtime = useChatRuntime({
-  api: "/api/chat",
   sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
 });
 ```
+
+`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
 
 For the full AI SDK v7 backend setup — history persistence, reasoning, server-side approvals — see the [AI SDK v7 guide](/docs/runtimes/ai-sdk/v7).

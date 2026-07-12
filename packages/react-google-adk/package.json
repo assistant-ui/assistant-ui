@@ -63,7 +63,7 @@
     "@types/react": "^19.2.17",
     "@types/uuid": "^11.0.0",
     "react": "^19.2.7",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

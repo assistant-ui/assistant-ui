@@ -3,7 +3,7 @@
 import { useId } from "react";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-streamdown";
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
-import { HoverCard } from "radix-ui";
+import { PreviewCard } from "@base-ui/react/preview-card";
 import { useCopyToClipboard } from "@assistant-ui/ui/hooks/use-copy-to-clipboard";
 import { analytics } from "@/lib/analytics";
 import {
@@ -210,49 +210,56 @@ export function OpenInCard({
             <span className="text-muted-foreground/70 text-xs">or</span>
           </>
         )}
-        <HoverCard.Root openDelay={150} closeDelay={150}>
-          <HoverCard.Trigger asChild>
-            <button
-              type="button"
-              onClick={() => {
-                copyToClipboard(prompt);
-                analytics.xulux.converted(
-                  withXuluxContext(analyticsCtx, {
-                    action: "copy_prompt",
-                    surface: "open_in_card",
-                  }),
-                );
-              }}
-              className="bg-foreground text-background hover:bg-foreground/90 inline-flex h-8 items-center gap-1.5 rounded-md px-3.5 text-xs font-medium transition-colors"
-              aria-describedby={promptPreviewId}
-            >
-              {isCopied ? (
-                <CheckIcon className="size-3.5" />
-              ) : (
-                <CopyIcon className="size-3.5" />
-              )}
-              {isCopied ? "Copied!" : "Copy prompt"}
-            </button>
-          </HoverCard.Trigger>
-          <HoverCard.Portal>
-            <HoverCard.Content
-              id={promptPreviewId}
-              role="tooltip"
+        <PreviewCard.Root>
+          <PreviewCard.Trigger
+            delay={150}
+            closeDelay={150}
+            render={
+              <button
+                type="button"
+                onClick={() => {
+                  copyToClipboard(prompt);
+                  analytics.xulux.converted(
+                    withXuluxContext(analyticsCtx, {
+                      action: "copy_prompt",
+                      surface: "open_in_card",
+                    }),
+                  );
+                }}
+                className="bg-foreground text-background hover:bg-foreground/90 inline-flex h-8 items-center gap-1.5 rounded-md px-3.5 text-xs font-medium transition-colors"
+                aria-describedby={promptPreviewId}
+              />
+            }
+          >
+            {isCopied ? (
+              <CheckIcon className="size-3.5" />
+            ) : (
+              <CopyIcon className="size-3.5" />
+            )}
+            {isCopied ? "Copied!" : "Copy prompt"}
+          </PreviewCard.Trigger>
+          <PreviewCard.Portal>
+            <PreviewCard.Positioner
               side="bottom"
               align="start"
               sideOffset={8}
               collisionPadding={12}
-              className="border-border bg-popover text-popover-foreground z-[2147483647] w-[min(24rem,calc(100vw-2rem))] rounded-lg border p-3 text-xs shadow-lg"
             >
-              <div className="text-muted-foreground mb-2 font-medium">
-                Prompt preview
-              </div>
-              <pre className="max-h-56 overflow-auto font-mono leading-normal break-words whitespace-pre-wrap">
-                {prompt}
-              </pre>
-            </HoverCard.Content>
-          </HoverCard.Portal>
-        </HoverCard.Root>
+              <PreviewCard.Popup
+                id={promptPreviewId}
+                role="tooltip"
+                className="border-border bg-popover text-popover-foreground z-[2147483647] w-[min(24rem,calc(100vw-2rem))] rounded-lg border p-3 text-xs shadow-lg"
+              >
+                <div className="text-muted-foreground mb-2 font-medium">
+                  Prompt preview
+                </div>
+                <pre className="max-h-56 overflow-auto font-mono leading-normal break-words whitespace-pre-wrap">
+                  {prompt}
+                </pre>
+              </PreviewCard.Popup>
+            </PreviewCard.Positioner>
+          </PreviewCard.Portal>
+        </PreviewCard.Root>
       </div>
     </div>
   );

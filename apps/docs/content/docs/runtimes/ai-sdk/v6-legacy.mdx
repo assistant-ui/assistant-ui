@@ -336,7 +336,6 @@ import { Thread } from "@/components/assistant-ui/thread";
 
 export default function Page() {
   const chat = useChat({
-    api: "/api/chat",
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
   const runtime = useAISDKRuntime(chat);
@@ -395,7 +394,6 @@ const toolkit = defineToolkit({
 
 export default function Page() {
   const chat = useChat({
-    api: "/api/chat",
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
   const runtime = useAISDKRuntime(chat);
