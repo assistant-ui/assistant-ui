@@ -287,6 +287,14 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               }
 
               const chunk = JSON.parse(event.data);
+              if (
+                chunk.type === "text-delta" &&
+                chunk.textDelta === undefined
+              ) {
+                const { delta, ...rest } = chunk;
+                controller.enqueue({ ...rest, textDelta: delta ?? "" });
+                return;
+              }
               if (chunk.type === "start") {
                 controller.enqueue({
                   ...chunk,

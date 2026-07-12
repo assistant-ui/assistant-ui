@@ -38,6 +38,34 @@ describe("UIMessageStreamDecoder", () => {
     const events = [
       JSON.stringify({ type: "start", messageId: "msg_123" }),
       JSON.stringify({ type: "text-start", id: "text_1" }),
+      JSON.stringify({ type: "text-delta", id: "text_1", delta: "Hello" }),
+      JSON.stringify({ type: "text-delta", id: "text_1", delta: " world" }),
+      JSON.stringify({ type: "text-end" }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+    const chunks = await collectChunks(decodedStream);
+
+    const textDeltas = chunks.filter(
+      (c): c is AssistantStreamChunk & { type: "text-delta" } =>
+        c.type === "text-delta",
+    );
+    expect(textDeltas).toHaveLength(2);
+    expect(textDeltas[0]?.textDelta).toBe("Hello");
+    expect(textDeltas[1]?.textDelta).toBe(" world");
+  });
+
+  it("should decode legacy textDelta text deltas", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "text-start", id: "text_1" }),
       JSON.stringify({ type: "text-delta", textDelta: "Hello" }),
       JSON.stringify({ type: "text-delta", textDelta: " world" }),
       JSON.stringify({ type: "text-end" }),
@@ -352,7 +380,7 @@ describe("UIMessageStreamDecoder", () => {
       JSON.stringify({ type: "start", messageId: "msg_123" }),
       JSON.stringify({ type: "start-step", messageId: "step_1" }),
       JSON.stringify({ type: "text-start", id: "text_1" }),
-      JSON.stringify({ type: "text-delta", textDelta: "Hello" }),
+      JSON.stringify({ type: "text-delta", id: "text_1", delta: "Hello" }),
       JSON.stringify({ type: "text-end" }),
       JSON.stringify({
         type: "finish-step",
@@ -392,7 +420,7 @@ describe("UIMessageStreamDecoder", () => {
       JSON.stringify({ type: "start" }),
       JSON.stringify({ type: "start-step" }),
       JSON.stringify({ type: "text-start", id: "text_1" }),
-      JSON.stringify({ type: "text-delta", textDelta: "Hello" }),
+      JSON.stringify({ type: "text-delta", id: "text_1", delta: "Hello" }),
       JSON.stringify({ type: "text-end" }),
       JSON.stringify({ type: "finish-step" }),
       JSON.stringify({ type: "finish", finishReason: "stop" }),
@@ -430,7 +458,7 @@ describe("UIMessageStreamDecoder", () => {
     const events = [
       JSON.stringify({ type: "start", messageId: "msg_123" }),
       JSON.stringify({ type: "text-start", id: "text_1" }),
-      JSON.stringify({ type: "text-delta", textDelta: "Hello" }),
+      JSON.stringify({ type: "text-delta", id: "text_1", delta: "Hello" }),
       JSON.stringify({ type: "text-end" }),
       JSON.stringify({ type: "finish" }),
       "[DONE]",
@@ -496,8 +524,8 @@ describe("UIMessageStreamDecoder", () => {
   it("should throw when stream ends without [DONE]", async () => {
     const encoder = new TextEncoder();
     const sseText =
-      'data: {"type":"text-delta","textDelta":"Hello"}\n\n' +
-      'data: {"type":"text-delta","textDelta":" world"}\n\n';
+      'data: {"type":"text-delta","id":"text_1","delta":"Hello"}\n\n' +
+      'data: {"type":"text-delta","id":"text_1","delta":" world"}\n\n';
 
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
