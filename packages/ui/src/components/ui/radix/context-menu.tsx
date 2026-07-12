@@ -137,7 +137,6 @@ function ContextMenuItem({
 function ContextMenuCheckboxItem({
   className,
   children,
-  checked,
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.CheckboxItem>) {
   return (
@@ -147,7 +146,6 @@ function ContextMenuCheckboxItem({
         "focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm py-1.5 ps-8 pe-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
-      checked={checked}
       {...props}
     >
       <span className="pointer-events-none absolute start-2 flex size-3.5 items-center justify-center">
