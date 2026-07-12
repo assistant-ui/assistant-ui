@@ -6,10 +6,11 @@ import type { GenerativeUILibrary } from "./types";
 /**
  * Builds the JSON schema for the `present` tool from a {@link GenerativeUILibrary}.
  *
- * The model produces a node `{ $type, ...props }` where `$type` selects a
- * component and the rest are its props. The schema is a flat object: `$type` is
- * an enum of the component names, every component's props are merged into one
- * optional bag, and `children` recurses via `$defs` so the tree can nest.
+ * The model produces a node `{ $type, $key?, ...props }` where `$type` selects
+ * a component, the optional `$key` pins a stable identity for list items that
+ * may reorder, and the rest are its props. The schema is a flat object: `$type`
+ * is an enum of the component names, every component's props are merged into
+ * one optional bag, and `children` recurses via `$defs` so the tree can nest.
  *
  * It is intentionally flat rather than a per-`$type` discriminated union. Tool /
  * function-call schemas (OpenAI and others) require the top-level parameters to
