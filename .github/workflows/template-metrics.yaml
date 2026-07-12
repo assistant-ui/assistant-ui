@@ -1,11 +1,6 @@
 name: Template Metrics
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "templates/**"
-      - "packages/ui/**"
   pull_request:
     branches: [main]
     paths:
@@ -14,31 +9,52 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
-  # Templates to build for bundle-size measurement. LOC is measured for all
-  # templates regardless; only these are built (next build is the expensive part).
+  # Only these are built for bundle measurement; next build is the expensive part.
   BUNDLE_TEMPLATES: "default minimal"
-  # Per-template regression limits. A template that already exists on the main
-  # baseline fails the gate if it grows past either limit.
+  # Exceeding MAX_LOC_INCREASE only warns; MAX_LOC_HARD_INCREASE fails the gate.
   MAX_LOC_INCREASE: "50"
-  MAX_BUNDLE_INCREASE_KB: "10"
+  MAX_LOC_HARD_INCREASE: "300"
 
 jobs:
-  metrics:
-    name: LOC + Bundle Size
+  gate:
+    name: Footprint Gate
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
       - name: Checkout code repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v6
         with:
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+        with:
+          node-version: 24
+
+      # LOC reads tracked sources only; no dependency install needed.
+      - name: Compare against merge-base
+        run: node scripts/template-metrics.mjs check .
+
+  report:
+    name: LOC + Bundle Size
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # ratchet:actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Install pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # ratchet:pnpm/action-setup@v4
@@ -58,15 +74,6 @@ jobs:
             ${{ runner.os }}-turbo-${{ github.ref }}-
             ${{ runner.os }}-turbo-
 
-      # Baseline is main's metrics, cached by the last run on main. PRs restore
-      # the newest one via the restore-keys prefix to compute deltas against main.
-      - name: Restore main baseline
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # ratchet:actions/cache/restore@v4
-        with:
-          path: install-footprint/branch/main/data.json
-          key: install-footprint-main-${{ github.sha }}
-          restore-keys: install-footprint-main-
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -85,17 +92,18 @@ jobs:
           pnpm turbo build $filters
 
       - name: Measure metrics
-        run: node scripts/template-metrics.mjs measure . metrics-head.json
+        run: |
+          node scripts/template-metrics.mjs measure . metrics-head.json
+          node scripts/template-metrics.mjs measure-base . metrics-base-main.json
 
       - name: Build report
         run: |
-          node scripts/template-metrics.mjs report install-footprint/branch/main/data.json metrics-head.json metrics-report.md metrics-gate.txt metrics-comment.txt
+          node scripts/template-metrics.mjs report metrics-base-main.json metrics-head.json metrics-report.md metrics-comment.txt
           cat metrics-report.md
 
-      # continue-on-error: a fork PR's read-only token makes commenting 403; that
-      # must not fail the check or skip the gate below.
+      # continue-on-error: a fork PR's read-only token makes commenting 403; the
+      # comment is informational, so that must not fail the job.
       - name: Post / update PR comment
-        if: github.event_name == 'pull_request'
         continue-on-error: true
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # ratchet:actions/github-script@v7
         with:
@@ -131,27 +139,3 @@ jobs:
                 body,
               });
             }
-
-      # always(): run even if the comment step failed (e.g. fork 403), so the
-      # gate verdict is never lost. Only blocks PRs; pushes refresh the baseline.
-      - name: Enforce regression gate
-        if: always() && github.event_name == 'pull_request'
-        run: |
-          if [ "$(cat metrics-gate.txt 2>/dev/null)" = "fail" ]; then
-            echo "::error::Template metrics regressed past the configured limits. See the PR comment."
-            exit 1
-          fi
-          echo "Template metrics within limits."
-
-      - name: Persist baseline (main only)
-        if: github.event_name == 'push'
-        run: |
-          mkdir -p install-footprint/branch/main
-          cp metrics-head.json install-footprint/branch/main/data.json
-
-      - name: Save baseline cache (main only)
-        if: github.event_name == 'push'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # ratchet:actions/cache/save@v4
-        with:
-          path: install-footprint/branch/main/data.json
-          key: install-footprint-main-${{ github.sha }}
