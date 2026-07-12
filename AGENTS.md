@@ -60,6 +60,16 @@ Every PR that changes a published package needs a changeset. Always use **patch*
 feat: description of the change
 ```
 
+## API reference ownership
+
+Everything under `apps/docs/content/docs/(reference)/api-reference/` is owned by `pnpm -C apps/docs generate:api-reference` (`apps/docs/scripts/generate-api-reference.mts`).
+
+- Pages carrying the full-page marker `{/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}` are wholly generator-owned. Hand edits inside the generated block (including text between `api-reference:start/end`) are destroyed on the next run; durable prose belongs in the source JSDoc.
+- Hand-written content that must survive regen goes in `api-manual` / named `api-manual:<export>` slots (or `api-example:<export>` slots).
+- A fully hand-maintained page must carry `{/* api-reference:skip-auto-generation */}` immediately after the frontmatter. That marker keeps the page in the section `meta.json` sidebar list and exempts it from pruning; without it, an unexpected non-generated page is reported as an unmanaged stale page (and fails `--strict` / CI).
+- Section and root `meta.json` files under that tree are generated too. Do not hand-edit them.
+- CI job "API Reference Drift" regenerates in strict mode and fails if the tree drifts.
+
 ## Lint, format, and comments
 
 Lint with `pnpm lint`, autofix with `pnpm lint:fix`. Backed by `.oxlintrc.json` (oxlint) and `.oxfmtrc.json` (oxfmt). oxfmt owns formatting; do not hand-format.

@@ -138,6 +138,39 @@ jobs:
       - name: Test API surface generator
         run: pnpm run api-surface:test
 
+  api-reference-drift:
+    name: API Reference Drift
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # ratchet:pnpm/action-setup@v6.0.9
+
+      - name: Setup node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate API reference (strict)
+        run: pnpm -C apps/docs generate:api-reference -- --strict
+
+      - name: Fail on API reference drift
+        run: |
+          if git status --porcelain -- 'apps/docs/content/docs/(reference)/api-reference' | grep -q .; then
+            echo "API reference drift detected. Move durable prose into source JSDoc (or api-manual slots), then re-run pnpm -C apps/docs generate:api-reference."
+            git diff -- 'apps/docs/content/docs/(reference)/api-reference'
+            exit 1
+          fi
+
   test:
     name: Test Changed Packages
     runs-on: blacksmith-4vcpu-ubuntu-2404
