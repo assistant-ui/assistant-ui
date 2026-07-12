@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/radix/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/radix/sheet";
 import { cn } from "@/lib/utils";
 import { MenuIcon, PanelLeftIcon } from "lucide-react";
-import { useState, type FC, type ReactNode } from "react";
+import { useState, type FC, type MouseEvent, type ReactNode } from "react";
 
 type CloneThreadShellProps = {
   children: ReactNode;
@@ -19,6 +19,20 @@ type CloneThreadShellProps = {
 
 export const CloneThreadShell: FC<CloneThreadShellProps> = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const closeMobileSidebarAfterNavigation = (
+    event: MouseEvent<HTMLDivElement>,
+  ) => {
+    if (!(event.target instanceof Element)) return;
+    if (
+      event.target.closest(
+        '[data-slot="aui_thread-list-item-trigger"], [data-slot="aui_thread-list-new"]',
+      )
+    ) {
+      setMobileSidebarOpen(false);
+    }
+  };
 
   return (
     <div className="relative flex h-full w-full overflow-hidden">
@@ -76,7 +90,7 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({ children }) => {
       </aside>
 
       <div className="absolute top-2 left-2 z-20 md:hidden">
-        <Sheet>
+        <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="size-8">
               <MenuIcon className="size-4" />
@@ -87,7 +101,10 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({ children }) => {
             <div className="flex h-12 shrink-0 items-center px-4 text-sm font-medium">
               Chats
             </div>
-            <div className="relative flex-1 overflow-y-auto p-3">
+            <div
+              className="relative flex-1 overflow-y-auto p-3"
+              onClick={closeMobileSidebarAfterNavigation}
+            >
               <ThreadList />
             </div>
           </SheetContent>

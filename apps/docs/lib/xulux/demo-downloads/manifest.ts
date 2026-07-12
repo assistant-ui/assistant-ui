@@ -80,6 +80,8 @@ const CLONE_SIDEBAR_SOURCE_FILES = [
   "apps/docs/components/examples/clone-thread-shell.tsx",
   "packages/ui/src/components/assistant-ui/thread-list.tsx",
   "packages/ui/src/components/assistant-ui/tooltip-icon-button.tsx",
+  "packages/ui/src/components/ui/base/input.tsx",
+  "packages/ui/src/components/ui/base/skeleton.tsx",
   "packages/ui/src/components/ui/radix/button.tsx",
   "packages/ui/src/components/ui/radix/sheet.tsx",
 ] as const;
