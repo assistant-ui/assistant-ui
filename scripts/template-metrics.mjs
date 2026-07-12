@@ -216,7 +216,7 @@ function bundleCell(cur) {
 
 function hasLocChange(t, base, hasBaseline) {
   if (!hasBaseline) return false;
-  if (!base || base.ownLoc == null) return true;
+  if (!base) return true;
   return t.ownLoc !== base.ownLoc || t.uiLoc !== base.uiLoc;
 }
 
@@ -224,9 +224,7 @@ const MAX_LOC_INCREASE = Number(process.env.MAX_LOC_INCREASE ?? 50);
 const MAX_LOC_HARD_INCREASE = Number(process.env.MAX_LOC_HARD_INCREASE ?? 300);
 
 function regression(t, base) {
-  // base.ownLoc missing => incompatible/legacy base schema; treat as no base
-  // so the comparison can't silently produce NaN.
-  if (!base || base.ownLoc == null) return null;
+  if (!base) return null;
   const locDelta = totalLoc(t) - totalLoc(base);
   if (locDelta > MAX_LOC_INCREASE) {
     return `LOC +${locDelta} > ${MAX_LOC_INCREASE}`;
@@ -311,9 +309,7 @@ function report(baseJson, headJson, outMd, commentFile) {
   const hasBaseline = base.length > 0;
 
   const regressions = [];
-  let hasAnyLocChange = base.some(
-    (t) => t.ownLoc != null && !headByName.has(t.name),
-  );
+  let hasAnyLocChange = base.some((t) => !headByName.has(t.name));
   const rows = head.map((t) => {
     const b = baseByName.get(t.name);
     const reason = regression(t, b);
@@ -323,7 +319,7 @@ function report(baseJson, headJson, outMd, commentFile) {
       t.name,
       locCell(t.ownLoc, b?.ownLoc),
       locCell(t.uiLoc, b?.uiLoc),
-      locCell(totalLoc(t), b && b.ownLoc != null ? totalLoc(b) : null),
+      locCell(totalLoc(t), b ? totalLoc(b) : null),
       bundleCell(t.bundleGzip),
       reason ? "⚠️" : "✅",
     ];
