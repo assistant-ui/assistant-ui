@@ -134,14 +134,16 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
           }
 
           switch (type) {
-            case "start":
-              currentMessageId = chunk.messageId;
+            case "start": {
+              const messageId = chunk.messageId ?? generateId();
+              currentMessageId = messageId;
               controller.enqueue({
                 type: "step-start",
                 path: [],
-                messageId: chunk.messageId,
+                messageId,
               });
               break;
+            }
 
             case "text-start":
             case "text-end":
@@ -157,21 +159,21 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               controller.appendReasoning(chunk.delta);
               break;
 
-            case "source":
+            case "source-url":
               controller.appendSource({
                 type: "source",
-                sourceType: chunk.source.sourceType,
-                id: chunk.source.id,
-                url: chunk.source.url,
-                ...(chunk.source.title && { title: chunk.source.title }),
+                sourceType: "url",
+                id: chunk.sourceId,
+                url: chunk.url,
+                ...(chunk.title && { title: chunk.title }),
               });
               break;
 
             case "file":
               controller.appendFile({
                 type: "file",
-                mimeType: chunk.file.mimeType,
-                data: chunk.file.data,
+                mimeType: chunk.mediaType,
+                data: chunk.url,
               });
               break;
 
@@ -234,9 +236,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               controller.enqueue({
                 type: "step-finish",
                 path: [],
-                finishReason: chunk.finishReason,
-                usage: chunk.usage,
-                isContinued: chunk.isContinued,
+                finishReason: chunk.finishReason ?? "unknown",
+                usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
+                isContinued: chunk.isContinued ?? false,
               });
               break;
 
@@ -244,8 +246,8 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               controller.enqueue({
                 type: "message-finish",
                 path: [],
-                finishReason: chunk.finishReason,
-                usage: chunk.usage,
+                finishReason: chunk.finishReason ?? "unknown",
+                usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
               });
               break;
 
@@ -286,7 +288,29 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 return;
               }
 
-              controller.enqueue(JSON.parse(event.data));
+              const chunk = JSON.parse(event.data);
+              if (chunk.type === "source" && chunk.source != null) {
+                controller.enqueue({
+                  type: "source-url",
+                  sourceId: chunk.source.id,
+                  url: chunk.source.url,
+                  ...(chunk.source.title && { title: chunk.source.title }),
+                });
+                return;
+              }
+              if (chunk.type === "file") {
+                if (chunk.file != null) {
+                  controller.enqueue({
+                    type: "file",
+                    url: chunk.file.data,
+                    mediaType: chunk.file.mimeType,
+                  });
+                  return;
+                }
+                if (chunk.url === undefined) return;
+              }
+
+              controller.enqueue(chunk);
             },
             flush() {
               if (!receivedDone) {

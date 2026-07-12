@@ -11787,7 +11787,8 @@ type TypePath<T> = [
 
 type UIMessageStreamChunk = {
   type: "start";
-  messageId: string;
+  messageId?: string;
+  messageMetadata?: ReadonlyJSONValue;
 } | {
   type: "text-start";
   id: string;
@@ -11805,19 +11806,14 @@ type UIMessageStreamChunk = {
 } | {
   type: "reasoning-end";
 } | {
-  type: "source";
-  source: {
-    sourceType: "url";
-    id: string;
-    url: string;
-    title?: string;
-  };
+  type: "source-url";
+  sourceId: string;
+  url: string;
+  title?: string;
 } | {
   type: "file";
-  file: {
-    mimeType: string;
-    data: string;
-  };
+  url: string;
+  mediaType: string;
 } | {
   type: "tool-call-start";
   id: string;
@@ -11839,13 +11835,14 @@ type UIMessageStreamChunk = {
   messageId?: string;
 } | {
   type: "finish-step";
-  finishReason: FinishReason;
-  usage: Usage;
-  isContinued: boolean;
+  finishReason?: FinishReason;
+  usage?: Usage;
+  isContinued?: boolean;
 } | {
   type: "finish";
-  finishReason: FinishReason;
-  usage: Usage;
+  finishReason?: FinishReason;
+  usage?: Usage;
+  messageMetadata?: ReadonlyJSONValue;
 } | {
   type: "error";
   errorText: string;

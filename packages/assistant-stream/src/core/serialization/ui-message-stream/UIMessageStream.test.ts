@@ -138,7 +138,50 @@ describe("UIMessageStreamDecoder", () => {
     expect(result?.result).toEqual({ temp: 72 });
   });
 
-  it("should decode source parts", async () => {
+  it("should decode source-url parts", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({
+        type: "source-url",
+        sourceId: "src_1",
+        url: "https://example.com",
+        title: "Example",
+      }),
+      JSON.stringify({
+        type: "source-url",
+        sourceId: "src_2",
+        url: "https://example.org",
+      }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+    const chunks = await collectChunks(decodedStream);
+
+    const sourceStarts = chunks.filter(
+      (c): c is AssistantStreamChunk & { type: "part-start" } =>
+        c.type === "part-start" && c.part.type === "source",
+    );
+    expect(sourceStarts).toHaveLength(2);
+    if (sourceStarts[0]?.part.type === "source") {
+      expect(sourceStarts[0].part.id).toBe("src_1");
+      expect(sourceStarts[0].part.url).toBe("https://example.com");
+      expect(sourceStarts[0].part.title).toBe("Example");
+    }
+    if (sourceStarts[1]?.part.type === "source") {
+      expect(sourceStarts[1].part.id).toBe("src_2");
+      expect(sourceStarts[1].part.url).toBe("https://example.org");
+      expect(sourceStarts[1].part.title).toBeUndefined();
+    }
+  });
+
+  it("should decode legacy source parts", async () => {
     const events = [
       JSON.stringify({ type: "start", messageId: "msg_123" }),
       JSON.stringify({
@@ -168,12 +211,44 @@ describe("UIMessageStreamDecoder", () => {
     );
     expect(sourceStart).toBeDefined();
     if (sourceStart?.part.type === "source") {
+      expect(sourceStart.part.id).toBe("src_1");
       expect(sourceStart.part.url).toBe("https://example.com");
       expect(sourceStart.part.title).toBe("Example");
     }
   });
 
   it("should decode file parts", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({
+        type: "file",
+        url: "https://example.com/image.png",
+        mediaType: "image/png",
+      }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+    const chunks = await collectChunks(decodedStream);
+
+    const fileStart = chunks.find(
+      (c): c is AssistantStreamChunk & { type: "part-start" } =>
+        c.type === "part-start" && c.part.type === "file",
+    );
+    expect(fileStart).toBeDefined();
+    if (fileStart?.part.type === "file") {
+      expect(fileStart.part.mimeType).toBe("image/png");
+      expect(fileStart.part.data).toBe("https://example.com/image.png");
+    }
+  });
+
+  it("should decode legacy file parts", async () => {
     const events = [
       JSON.stringify({ type: "start", messageId: "msg_123" }),
       JSON.stringify({
@@ -308,6 +383,96 @@ describe("UIMessageStreamDecoder", () => {
     );
     expect(stepFinish).toBeDefined();
     expect(stepFinish?.finishReason).toBe("stop");
+    expect(stepFinish?.usage).toEqual({ inputTokens: 10, outputTokens: 5 });
+    expect(stepFinish?.isContinued).toBe(false);
+  });
+
+  it("should handle the stock v6 lifecycle with bare step chunks", async () => {
+    const events = [
+      JSON.stringify({ type: "start" }),
+      JSON.stringify({ type: "start-step" }),
+      JSON.stringify({ type: "text-start", id: "text_1" }),
+      JSON.stringify({ type: "text-delta", textDelta: "Hello" }),
+      JSON.stringify({ type: "text-end" }),
+      JSON.stringify({ type: "finish-step" }),
+      JSON.stringify({ type: "finish", finishReason: "stop" }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+    const chunks = await collectChunks(decodedStream);
+
+    const stepStarts = chunks.filter(
+      (c): c is AssistantStreamChunk & { type: "step-start" } =>
+        c.type === "step-start",
+    );
+    expect(stepStarts).toHaveLength(2);
+    expect(stepStarts[0]?.messageId).toBeTruthy();
+    expect(stepStarts[1]?.messageId).toBe(stepStarts[0]?.messageId);
+
+    const stepFinish = chunks.find(
+      (c): c is AssistantStreamChunk & { type: "step-finish" } =>
+        c.type === "step-finish",
+    );
+    expect(stepFinish?.finishReason).toBe("unknown");
+    expect(stepFinish?.usage).toEqual({ inputTokens: 0, outputTokens: 0 });
+    expect(stepFinish?.isContinued).toBe(false);
+
+    const messageFinish = chunks.find(
+      (c): c is AssistantStreamChunk & { type: "message-finish" } =>
+        c.type === "message-finish",
+    );
+    expect(messageFinish?.finishReason).toBe("stop");
+  });
+
+  it("should default finishReason on a bare finish chunk", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "text-start", id: "text_1" }),
+      JSON.stringify({ type: "text-delta", textDelta: "Hello" }),
+      JSON.stringify({ type: "text-end" }),
+      JSON.stringify({ type: "finish" }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+    const chunks = await collectChunks(decodedStream);
+
+    const messageFinish = chunks.find(
+      (c): c is AssistantStreamChunk & { type: "message-finish" } =>
+        c.type === "message-finish",
+    );
+    expect(messageFinish?.finishReason).toBe("unknown");
+    expect(messageFinish?.usage).toEqual({ inputTokens: 0, outputTokens: 0 });
+  });
+
+  it("should ignore malformed legacy source and file chunks", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "source" }),
+      JSON.stringify({ type: "source", source: null }),
+      JSON.stringify({ type: "file" }),
+      JSON.stringify({ type: "file", file: null }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+    const chunks = await collectChunks(decodedStream);
+
+    const partStarts = chunks.filter(
+      (c) =>
+        c.type === "part-start" &&
+        (c.part.type === "source" || c.part.type === "file"),
+    );
+    expect(partStarts).toHaveLength(0);
   });
 
   it("should handle errors", async () => {

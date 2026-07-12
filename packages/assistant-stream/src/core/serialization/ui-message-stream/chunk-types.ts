@@ -15,18 +15,19 @@ type Usage = {
 };
 
 export type UIMessageStreamChunk =
-  | { type: "start"; messageId: string }
+  | {
+      type: "start";
+      messageId?: string;
+      messageMetadata?: ReadonlyJSONValue;
+    }
   | { type: "text-start"; id: string }
   | { type: "text-delta"; textDelta: string }
   | { type: "text-end" }
   | { type: "reasoning-start"; id: string }
   | { type: "reasoning-delta"; delta: string }
   | { type: "reasoning-end" }
-  | {
-      type: "source";
-      source: { sourceType: "url"; id: string; url: string; title?: string };
-    }
-  | { type: "file"; file: { mimeType: string; data: string } }
+  | { type: "source-url"; sourceId: string; url: string; title?: string }
+  | { type: "file"; url: string; mediaType: string }
   | {
       type: "tool-call-start";
       id: string;
@@ -45,11 +46,16 @@ export type UIMessageStreamChunk =
   | { type: "start-step"; messageId?: string }
   | {
       type: "finish-step";
-      finishReason: FinishReason;
-      usage: Usage;
-      isContinued: boolean;
+      finishReason?: FinishReason;
+      usage?: Usage;
+      isContinued?: boolean;
     }
-  | { type: "finish"; finishReason: FinishReason; usage: Usage }
+  | {
+      type: "finish";
+      finishReason?: FinishReason;
+      usage?: Usage;
+      messageMetadata?: ReadonlyJSONValue;
+    }
   | { type: "error"; errorText: string }
   | UIMessageStreamDataChunk;
 
