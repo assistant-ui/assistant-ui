@@ -6,6 +6,8 @@ on:
     paths:
       - "templates/**"
       - "packages/ui/**"
+      - "scripts/template-metrics.mjs"
+      - ".github/workflows/template-metrics.yaml"
 
 permissions:
   contents: read
