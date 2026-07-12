@@ -1149,6 +1149,12 @@ function writeIntegrationPages(
     );
     const description = authoredDescription(authored?.frontmatter);
     pageSummaries.push({ slug: integration.slug, title, description });
+    if (authored?.skipAutoGeneration) {
+      console.log(
+        `Skipping auto-generation for API page: ${path.relative(REPO_ROOT, filePath)}`,
+      );
+      continue;
+    }
     const reference = generateReferenceRegion(
       items,
       typeDocNames,
