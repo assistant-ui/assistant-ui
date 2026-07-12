@@ -8,11 +8,27 @@ import {
 } from "@assistant-ui/react";
 import { type ComponentType, type ReactNode, useEffect, useRef } from "react";
 import { AssistantMessage, UserMessage } from "./messages";
-import { AssistantComposer } from "./composer";
+import { AssistantComposer, useSharedDocsModelSelection } from "./composer";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { AssistantFooter } from "@/components/docs/assistant/footer";
 import { analytics } from "@/lib/analytics";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
+import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+import { getContextWindow } from "@/constants/model";
+import { Button } from "@/components/ui/button";
+import {
+  PaletteIcon,
+  PlugIcon,
+  PlusIcon,
+  RocketIcon,
+  BookOpenIcon,
+  XIcon,
+} from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/radix/tooltip";
 
 function PendingMessageHandler() {
   const { pendingMessage, clearPendingMessage } = useAssistantPanel();
@@ -68,6 +84,7 @@ export function AssistantThread({
   return (
     <ThreadPrimitive.Root className="bg-background flex h-full flex-col">
       <PendingMessageHandler />
+      <PanelHeader />
       <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col overflow-y-auto overscroll-contain px-3 pt-3">
         <AuiIf condition={(s) => s.thread.isEmpty}>{welcome}</AuiIf>
 
@@ -91,12 +108,93 @@ export function AssistantThread({
   );
 }
 
+function PanelHeader(): React.ReactNode {
+  const { setOpen } = useAssistantPanel();
+  const aui = useAui();
+  const threadId = useAuiState((s) => s.threadListItem.id);
+  const messages = useAuiState((s) => s.thread.messages);
+  const currentPage = useCurrentPage();
+  const pathname = currentPage?.pathname;
+  const lastUsage = useThreadTokenUsage();
+  const contextTokens = lastUsage?.totalTokens ?? 0;
+  const { modelValue } = useSharedDocsModelSelection();
+  const contextWindow = getContextWindow(modelValue);
+  const usagePercent = Math.min((contextTokens / contextWindow) * 100, 100);
+
+  return (
+    <div className="flex h-12 shrink-0 items-center justify-between border-b px-3">
+      <span className="text-sm font-semibold">Ask AI</span>
+      <div className="flex items-center gap-0.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => {
+                const modelName = aui.thread().getModelContext()
+                  ?.config?.modelName;
+                analytics.assistant.newThreadClicked({
+                  threadId,
+                  previous_message_count: messages.length,
+                  context_total_tokens: contextTokens,
+                  context_usage_percent: usagePercent,
+                  ...(pathname ? { pathname } : {}),
+                  ...(modelName ? { model_name: modelName } : {}),
+                });
+                aui.threads().switchToNewThread();
+              }}
+              aria-label="New chat"
+            >
+              <PlusIcon className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">New chat</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => {
+                analytics.assistant.panelToggled({
+                  open: false,
+                  source: "header",
+                });
+                setOpen(false);
+              }}
+              aria-label="Close chat"
+            >
+              <XIcon className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Close chat</TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
+  );
+}
+
+const SUGGESTIONS = [
+  { prompt: "What is assistant-ui?", Icon: BookOpenIcon },
+  { prompt: "How do I get started?", Icon: RocketIcon },
+  { prompt: "How do I customize the styling?", Icon: PaletteIcon },
+  { prompt: "How do I connect my own backend?", Icon: PlugIcon },
+];
+
 function AssistantWelcome(): React.ReactNode {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
-      <p className="text-muted-foreground text-sm">
-        Ask me anything about assistant-ui
-      </p>
+    <div className="flex flex-1 flex-col justify-end gap-0.5 pb-3">
+      {SUGGESTIONS.map(({ prompt, Icon }) => (
+        <ThreadPrimitive.Suggestion
+          key={prompt}
+          prompt={prompt}
+          send
+          className="text-muted-foreground hover:bg-muted hover:text-foreground flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors"
+        >
+          <Icon className="text-muted-foreground size-4 shrink-0" />
+          {prompt}
+        </ThreadPrimitive.Suggestion>
+      ))}
     </div>
   );
 }

@@ -41,14 +41,29 @@ export function createActionRegistry(
   const map = new Map(Object.entries(handlers));
   return {
     dispatch(action) {
-      const handler = map.get(action.type);
-      if (!handler) {
+      if (typeof action?.type !== "string") {
         if (process.env["NODE_ENV"] !== "production") {
           // eslint-disable-next-line no-console
           console.warn(
-            `[@assistant-ui/react-generative-ui] No handler registered for ` +
-              `action type "${action.type}". Available: ` +
-              `${[...map.keys()].join(", ") || "(none)"}.`,
+            "[@assistant-ui/react-generative-ui] Skipping malformed action; " +
+              "`$action.type` must be a string. " +
+              `Received ${formatReceivedType(action?.type)}. Update the emitted ` +
+              "`$action` payload.",
+          );
+        }
+        return undefined;
+      }
+
+      const handler = map.get(action.type);
+      if (!handler) {
+        if (process.env["NODE_ENV"] !== "production") {
+          const actionTypes = [...map.keys()];
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[@assistant-ui/react-generative-ui] Action "${action.type}" has ` +
+              `no registered handler. ${formatRegisteredActions(actionTypes)} ` +
+              "Register it with createActionRegistry(...) or update the emitted " +
+              "`$action.type`.",
           );
         }
         return undefined;
@@ -65,3 +80,17 @@ export function createActionRegistry(
  * `undefined` and logs a warning in dev for unknown types, so a model-emitted
  * action with no handler degrades to "does nothing" rather than throwing. */
 export const emptyActionRegistry: ActionRegistry = createActionRegistry({});
+
+function formatRegisteredActions(actionTypes: string[]) {
+  if (actionTypes.length === 0) return "No actions are registered.";
+
+  return `Registered actions: ${actionTypes
+    .map((type) => `"${type}"`)
+    .join(", ")}.`;
+}
+
+function formatReceivedType(value: unknown) {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  return typeof value;
+}

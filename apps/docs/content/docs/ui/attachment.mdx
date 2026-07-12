@@ -5,8 +5,12 @@ platforms: ["react"]
 ---
 
 import { AttachmentSample } from "@/components/docs/samples/attachment";
+import * as AttachmentBaseSamples from "@/components/docs/samples/attachment.base";
+import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<AttachmentSample />
+<FlavorSwitcher />
+
+<Flavored radix={<AttachmentSample />} base={<AttachmentBaseSamples.AttachmentSample />} />
 
 <Callout type="info">
   **Note:** These components provide the UI for attachments, but you also need

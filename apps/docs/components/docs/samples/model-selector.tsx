@@ -17,6 +17,7 @@ import { DEFAULT_MODEL_ID, getContextWindow } from "@/constants/model";
 import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { cn } from "@/lib/utils";
+import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
 
 const PROVIDER_NAMES: Record<string, string> = {
   openai: "OpenAI",
@@ -90,18 +91,6 @@ function ComposedRow() {
     new Set(),
   );
 
-  const toggleProvider = (provider: string) => {
-    setProviderFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(provider)) {
-        next.delete(provider);
-      } else {
-        next.add(provider);
-      }
-      return next;
-    });
-  };
-
   // An empty filter means no filtering — all providers are shown.
   const visibleGroups = [...modelsByProvider].filter(
     ([provider]) => providerFilter.size === 0 || providerFilter.has(provider),
@@ -122,35 +111,44 @@ function ComposedRow() {
         <ModelSelectorTrigger />
         <ModelSelectorContent>
           <ModelSelectorSearch />
-          <div
+          <ToggleGroupPrimitive.Root
+            type="multiple"
+            orientation="horizontal"
+            value={[...providerFilter]}
+            onValueChange={(next) => setProviderFilter(new Set(next))}
+            aria-label="Filter by provider"
             className="flex flex-wrap gap-1 border-b px-3 py-2"
-            // Keep cmdk's root handler from claiming Enter so the focused
-            // chip toggles instead of selecting the highlighted model.
             onKeyDown={(e) => {
-              if (e.key === "Enter") e.stopPropagation();
+              // Keep cmdk's root handler from claiming Enter (the focused
+              // chip toggles instead of selecting the highlighted model) and
+              // Home/End (the roving focus group jumps chips, not the list).
+              if (e.key === "Enter" || e.key === "Home" || e.key === "End") {
+                e.stopPropagation();
+              }
+              // Vertical arrows hand focus back to the model list, matching
+              // the packaged Thinking row.
+              if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                e.currentTarget
+                  .closest("[cmdk-root]")
+                  ?.querySelector<HTMLInputElement>("[cmdk-input]")
+                  ?.focus();
+              }
             }}
           >
-            {[...modelsByProvider.keys()].map((provider) => {
-              const isActive = providerFilter.has(provider);
-              return (
-                <button
-                  key={provider}
-                  type="button"
-                  aria-pressed={isActive}
-                  data-state={isActive ? "on" : "off"}
-                  onClick={() => toggleProvider(provider)}
-                  className={cn(
-                    "rounded-full border px-2 py-0.5 text-xs transition-colors",
-                    isActive
-                      ? "bg-accent text-accent-foreground border-transparent"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {provider}
-                </button>
-              );
-            })}
-          </div>
+            {[...modelsByProvider.keys()].map((provider) => (
+              <ToggleGroupPrimitive.Item
+                key={provider}
+                value={provider}
+                className={cn(
+                  "rounded-full border px-2 py-0.5 text-xs transition-colors",
+                  "text-muted-foreground hover:text-foreground",
+                  "data-[state=on]:bg-accent data-[state=on]:text-accent-foreground data-[state=on]:border-transparent",
+                )}
+              >
+                {provider}
+              </ToggleGroupPrimitive.Item>
+            ))}
+          </ToggleGroupPrimitive.Root>
           <ModelSelectorList>
             <ModelSelectorEmpty />
             {visibleGroups.map(([provider, providerModels]) => (

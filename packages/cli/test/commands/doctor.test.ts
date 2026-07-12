@@ -146,6 +146,108 @@ describe("doctor — package discovery", () => {
   });
 });
 
+describe("doctor — pnpm store discovery", () => {
+  let root: string;
+
+  beforeAll(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-doctor-pnpm-"));
+    fs.writeFileSync(
+      path.join(root, "package.json"),
+      JSON.stringify({
+        name: "fixture",
+        version: "1.0.0",
+        dependencies: { "@assistant-ui/react": "0.14.5" },
+      }),
+    );
+
+    // Direct dependency hoisted into the top-level node_modules.
+    writePackage(root, {
+      name: "@assistant-ui/react",
+      version: "0.14.5",
+      installPath: "node_modules/@assistant-ui/react",
+    });
+
+    // Two peer-closure-split copies of @assistant-ui/core, each in its own
+    // .pnpm virtual-store entry — the exact duplication class from #4101.
+    writePackage(root, {
+      name: "@assistant-ui/core",
+      version: "0.2.5",
+      installPath:
+        "node_modules/.pnpm/@assistant-ui+core@0.2.5_react@18.3.1/node_modules/@assistant-ui/core",
+    });
+    writePackage(root, {
+      name: "@assistant-ui/core",
+      version: "0.2.2",
+      installPath:
+        "node_modules/.pnpm/@assistant-ui+core@0.2.2_react@19.0.0/node_modules/@assistant-ui/core",
+    });
+
+    // Unscoped tracked package living in the store.
+    writePackage(root, {
+      name: "assistant-stream",
+      version: "0.3.14",
+      installPath:
+        "node_modules/.pnpm/assistant-stream@0.3.14/node_modules/assistant-stream",
+    });
+
+    // Unrelated package in the store must be ignored.
+    writePackage(root, {
+      name: "lodash",
+      version: "4.17.21",
+      installPath: "node_modules/.pnpm/lodash@4.17.21/node_modules/lodash",
+    });
+  });
+
+  afterAll(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("collects assistant-ui copies from the .pnpm virtual store", () => {
+    const found = discoverInstalledPackages(root);
+    const summary = found
+      .map((p) => `${p.name}@${p.version}`)
+      .sort()
+      .join(",");
+
+    expect(summary).toContain("@assistant-ui/core@0.2.2");
+    expect(summary).toContain("@assistant-ui/core@0.2.5");
+    expect(summary).toContain("@assistant-ui/react@0.14.5");
+    expect(summary).toContain("assistant-stream@0.3.14");
+    expect(summary).not.toContain("lodash");
+  });
+
+  it("flags the peer-split @assistant-ui/core copies as duplicated", () => {
+    const dups = findDuplicates(discoverInstalledPackages(root));
+    expect(dups).toHaveLength(1);
+    expect(dups[0]!.name).toBe("@assistant-ui/core");
+    const versions = dups[0]!.installations.map((i) => i.version).sort();
+    expect(versions).toEqual(["0.2.2", "0.2.5"]);
+  });
+});
+
+describe("doctor — no pnpm store", () => {
+  it("returns nothing extra and does not throw when .pnpm is absent", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-doctor-npm-"));
+    try {
+      fs.writeFileSync(
+        path.join(root, "package.json"),
+        JSON.stringify({ name: "fixture", version: "1.0.0" }),
+      );
+      writePackage(root, {
+        name: "@assistant-ui/react",
+        version: "0.14.5",
+        installPath: "node_modules/@assistant-ui/react",
+      });
+      const found = discoverInstalledPackages(root);
+      expect(found.map((p) => `${p.name}@${p.version}`)).toEqual([
+        "@assistant-ui/react@0.14.5",
+      ]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("findOutdated", () => {
   it("flags packages whose installed version is older than the latest", () => {
     const installed: DiscoveredPackage[] = [

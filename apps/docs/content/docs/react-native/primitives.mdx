@@ -362,6 +362,29 @@ Renders message content parts using render-prop functions instead of the compone
 | `renderFile` | `(props: { part, index }) => ReactElement` | Renderer for file parts |
 | `renderData` | `(props: { part, index }) => ReactElement` | Fallback renderer for data parts not handled by registered data UIs |
 
+#### Rendering Markdown
+
+`MessagePrimitive.Content` renders text parts with React Native's `<Text>` by default, so markdown syntax is displayed as plain text. To render markdown, install a React Native markdown renderer and pass it through `renderText`:
+
+<InstallCommand npm={["react-native-markdown-display"]} />
+
+```tsx
+import Markdown from "react-native-markdown-display";
+import { MessagePrimitive } from "@assistant-ui/react-native";
+
+const AssistantMessage = () => {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Content
+        renderText={({ part }) => (
+          <Markdown>{part.text}</Markdown>
+        )}
+      />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
 ### MessagePrimitive.Parts
 
 Renders message content parts via a `components` prop. Tool call and data parts automatically render registered toolkit renderers and data UIs (via `useAssistantDataUI`), falling back to components provided here. A default `Text` component using React Native's `<Text>` is provided out of the box.

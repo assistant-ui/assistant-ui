@@ -1,12 +1,12 @@
 ---
 title: AI SDK v4 (legacy)
-description: Reference for projects still on AI SDK v4. New projects should use v6.
+description: Reference for projects still on AI SDK v4. New projects should use v7.
 ---
 
 import { VercelIcon } from "@/components/icons/vercel";
 
 <Callout type="warn">
-AI SDK v4 is a legacy version. New projects should use [AI SDK v6](/docs/runtimes/ai-sdk/v6). v4 integrations use the older `@assistant-ui/react-data-stream` package, not `@assistant-ui/react-ai-sdk`.
+AI SDK v4 is a legacy version. New projects should use [AI SDK v7](/docs/runtimes/ai-sdk/v7). v4 integrations use the older `@assistant-ui/react-data-stream` package, not `@assistant-ui/react-ai-sdk`.
 </Callout>
 
 ## Why legacy
@@ -53,10 +53,7 @@ import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export default function Home() {
-  const runtime = useDataStreamRuntime({
-    api: "/api/chat",
-    protocol: "data-stream",
-  });
+  const runtime = useDataStreamRuntime({ api: "/api/chat" });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <div className="h-full">
@@ -67,7 +64,10 @@ export default function Home() {
 }
 ```
 
-AI SDK v4's `toDataStreamResponse()` emits the data stream wire format, so `protocol: "data-stream"` is required to pair with it; the default `protocol: "ui-message-stream"` expects the SSE format introduced in AI SDK v6.
+AI SDK v4's `toDataStreamResponse()` emits the data stream wire format with the
+`x-vercel-ai-data-stream: v1` response header, so `useDataStreamRuntime`
+detects it automatically. If a custom proxy strips or hides that header, pass
+`protocol: "data-stream"` explicitly.
 
 </Step>
 </Steps>
@@ -85,12 +85,12 @@ AI SDK v4's `toDataStreamResponse()` emits the data stream wire format, so `prot
 | Tool schema | `parameters: z.object({...})` | `inputSchema: zodSchema(z.object({...}))` |
 | Message type | (untyped) | `UIMessage` |
 
-## Migration to v6
+## Migration to v7
 
 When you are ready to upgrade:
 
 1. Swap `@assistant-ui/react-data-stream` for `@assistant-ui/react-ai-sdk`.
-2. Update your backend to AI SDK v6's `streamText` (see [v6 docs](/docs/runtimes/ai-sdk/v6)).
+2. Update your backend to the current AI SDK's `streamText` (see [v7 docs](/docs/runtimes/ai-sdk/v7)).
 3. Switch the runtime hook from `useDataStreamRuntime` to `useChatRuntime`.
 
 AI SDK provides codemods at [ai-sdk.dev/docs/migration-guides](https://ai-sdk.dev/docs/migration-guides) that handle the package-side rewrites.
@@ -104,9 +104,9 @@ An older release line of `@assistant-ui/react-ai-sdk` (0.1.10) supported AI SDK 
 <Cards>
   <Card
     icon={<VercelIcon width={20} height={20} />}
-    title="AI SDK v6"
+    title="AI SDK v7"
     description="Current integration; what new projects should target."
-    href="/docs/runtimes/ai-sdk/v6"
+    href="/docs/runtimes/ai-sdk/v7"
   />
   <Card
     title="Data Stream Protocol"

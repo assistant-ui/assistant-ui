@@ -112,7 +112,12 @@ export default function Page() {
       }),
     [],
   );
-  const runtime = useChatRuntime({ transport });
+  const runtime = useChatRuntime({
+    transport,
+    onResumeError: (error) => {
+      console.error("Could not resume the previous response", error);
+    },
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -121,6 +126,8 @@ export default function Page() {
   );
 }
 ```
+
+`onResumeError` runs when the client finds a stored stream id but the reconnect attempt fails. Use it to show a toast, report telemetry, or mark the thread as needing retry; assistant-ui still clears the stale stream id after the callback runs.
 
 `createResumableSessionStorage` returns a `ResumableClientStorage` backed by `window.sessionStorage`. Pass `{ key }` to namespace per route or per chat surface, or supply your own implementation of the three methods (`getStreamId`, `setStreamId`, `clear`). If you are running on a transport that already wraps `fetch` or `prepareReconnectToStreamRequest`, the `resumable` option composes with your existing handlers.
 
@@ -207,4 +214,10 @@ Both helpers default to the data-stream encoder; pass `encoder: () => new Assist
 
 ```sh
 npx assistant-ui create my-app -e with-resumable-stream
+```
+
+To drop the resumable chat and resume routes into an existing project (in-memory store only; upgrade via [Storage choices](#storage-choices)):
+
+```sh
+npx shadcn@latest add https://r.assistant-ui.com/ai-sdk-backend-resumable
 ```

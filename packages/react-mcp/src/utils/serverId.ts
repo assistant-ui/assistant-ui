@@ -17,3 +17,15 @@ export function assertValidServerId(id: string): void {
     );
   }
 }
+
+export function assertUniqueServerIds(ids: Iterable<string>): void {
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) {
+      throw new Error(
+        `McpManagerResource received duplicate MCP server id "${id}". Server ids must be unique because they are used for lookups, OAuth routing, and tool name prefixes.`,
+      );
+    }
+    seen.add(id);
+  }
+}

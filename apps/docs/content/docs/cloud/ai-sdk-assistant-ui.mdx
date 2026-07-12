@@ -340,7 +340,7 @@ export function Chat() {
               name: "history",
               type: "ThreadHistoryAdapter",
               description:
-                "Adapter for loading and saving thread history. Used to restore previous messages when switching threads. The adapter must implement `withFormat` when used with AI SDK — see [Persisting Chat History](/docs/runtimes/ai-sdk/v6#persisting-chat-history).",
+                "Adapter for loading and saving thread history. Used to restore previous messages when switching threads. The adapter must implement `withFormat` when used with AI SDK — see [Persisting Chat History](/docs/runtimes/ai-sdk/v7#persisting-chat-history).",
             },
           ],
         },
@@ -357,6 +357,12 @@ export function Chat() {
       type: "ChatTransport",
       description:
         "Custom transport implementation. Defaults to AssistantChatTransport which sends requests to '/api/chat'.",
+    },
+    {
+      name: "onResumeError",
+      type: "(error: unknown) => void",
+      description:
+        "Optional callback when useChatRuntime finds a pending resumable stream id but the automatic reconnect fails. Use it for a toast, telemetry, or retry UI; the stale stream id is still cleared.",
     },
   ]}
 />

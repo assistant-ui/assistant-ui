@@ -1,5 +1,23 @@
 # @assistant-ui/react
 
+## 0.14.26
+
+### Patch Changes
+
+- [#4627](https://github.com/assistant-ui/assistant-ui/pull/4627) [`266657d`](https://github.com/assistant-ui/assistant-ui/commit/266657d6d46910c9e2a644e66f088f1304d9b0a4) - Thread list accessibility improvements, focused on keyboard and focus handling: ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+  - Arrow-key navigation: Up/Down between items, Right to an item's "More" button
+    (mirrored in RTL); every item stays a Tab stop.
+  - Continuous focus: opening and closing a menu keeps focus on the row, so the
+    focus-visible highlight never breaks.
+  - New `sharedFocusGroup` on `ThreadListItemMorePrimitive.Root` extends this to the
+    menu (Right opens, Left/Escape close and restore focus) and forces it non-modal;
+    without it, menus are unchanged.
+
+- Updated dependencies [[`523e0b5`](https://github.com/assistant-ui/assistant-ui/commit/523e0b563a71a656f050473c42c414b26c2d5ab4), [`f833bc1`](https://github.com/assistant-ui/assistant-ui/commit/f833bc118b49641f3f6e0ab22bcfc63bf0a04408)]:
+  - @assistant-ui/core@0.2.20
+  - assistant-stream@0.3.25
+
 ## 0.14.25
 
 ### Patch Changes
