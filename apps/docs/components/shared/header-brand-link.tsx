@@ -50,7 +50,7 @@ export function HeaderBrandLink({
 
 function BrandAssetsMenu({ children }: BrandAssetsMenuProps) {
   return (
-    <ContextMenu>
+    <ContextMenu modal={false}>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
 
       <ContextMenuContent className="w-56">
