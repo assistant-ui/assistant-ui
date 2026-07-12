@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-fix(assistant-stream): use `delta` field for text-delta in UIMessageStreamDecoder
+fix: accept the AI SDK v6 `delta` wire field for text-delta chunks in UIMessageStreamDecoder
