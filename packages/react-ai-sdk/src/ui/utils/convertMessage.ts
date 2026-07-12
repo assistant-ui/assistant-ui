@@ -377,7 +377,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           attachments: message.parts
             ?.filter((p) => p.type === "file")
             .map((part, idx) => {
-              const mediaType = part.mediaType || "unknown/unknown";
+              const mediaType = part.mediaType ?? "unknown/unknown";
               const isImage = mediaType.startsWith("image/");
               return {
                 id: idx.toString(),
