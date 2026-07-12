@@ -230,7 +230,7 @@ function regression(t, base) {
   if (!base || base.ownLoc == null) return null;
   const locDelta = totalLoc(t) - totalLoc(base);
   if (locDelta > MAX_LOC_INCREASE) {
-    return [`LOC +${locDelta} > ${MAX_LOC_INCREASE}`];
+    return `LOC +${locDelta} > ${MAX_LOC_INCREASE}`;
   }
   return null;
 }
@@ -255,10 +255,12 @@ function measureAtMergeBase(root, baseRef) {
   try {
     return locMetrics(dir);
   } finally {
-    execFileSync("git", ["worktree", "remove", "--force", dir], {
-      cwd: root,
-      stdio: "ignore",
-    });
+    try {
+      execFileSync("git", ["worktree", "remove", "--force", dir], {
+        cwd: root,
+        stdio: "ignore",
+      });
+    } catch {}
   }
 }
 
@@ -315,8 +317,8 @@ function report(baseJson, headJson, outMd, commentFile) {
   );
   const rows = head.map((t) => {
     const b = baseByName.get(t.name);
-    const reasons = regression(t, b);
-    if (reasons) regressions.push({ name: t.name, reasons });
+    const reason = regression(t, b);
+    if (reason) regressions.push({ name: t.name, reason });
     if (hasLocChange(t, b, hasBaseline)) hasAnyLocChange = true;
     return [
       t.name,
@@ -324,7 +326,7 @@ function report(baseJson, headJson, outMd, commentFile) {
       locCell(t.uiLoc, b?.uiLoc),
       locCell(totalLoc(t), b && b.ownLoc != null ? totalLoc(b) : null),
       bundleCell(t.bundleGzip),
-      reasons ? "⚠️" : "✅",
+      reason ? "⚠️" : "✅",
     ];
   });
 
@@ -332,7 +334,7 @@ function report(baseJson, headJson, outMd, commentFile) {
     "<!-- template-metrics -->",
     "## 📦 Template install footprint",
     "",
-    "Lines copied into your project on scaffold: **Own** (template glue) + **/ui** (shared `packages/ui` components it imports). LOC cells show `current (Δ vs main)`. Bundle = gzipped client JS from `next build`, measured per run for a representative subset.",
+    "Lines copied into your project on scaffold: **Own** (template glue) + **/ui** (shared `packages/ui` components it imports). LOC cells show `current (Δ vs merge-base)`. Bundle = gzipped client JS from `next build`, measured per run for a representative subset.",
     "",
     "| Template | Own LOC | /ui LOC | Total LOC | Bundle (gz) | Status |",
     "| --- | ---: | ---: | ---: | ---: | --- |",
@@ -344,8 +346,8 @@ function report(baseJson, headJson, outMd, commentFile) {
     lines.push("_No base measurements to diff against._");
   } else if (regressions.length) {
     lines.push(
-      `**Needs a deliberate look** - ${regressions.length} template(s) grew past +${MAX_LOC_INCREASE} LOC vs main:`,
-      ...regressions.map((r) => `- \`${r.name}\`: ${r.reasons.join("; ")}`),
+      `**Needs a deliberate look** - ${regressions.length} template(s) grew past +${MAX_LOC_INCREASE} LOC vs the merge-base:`,
+      ...regressions.map((r) => `- \`${r.name}\`: ${r.reason}`),
     );
   } else {
     lines.push(
