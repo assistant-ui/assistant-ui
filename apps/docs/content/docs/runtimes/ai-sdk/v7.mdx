@@ -78,6 +78,8 @@ import {
   convertToModelMessages,
   tool,
   zodSchema,
+  createUIMessageStreamResponse,
+  toUIMessageStream,
 } from "ai";
 import type { UIMessage } from "ai";
 import { z } from "zod";
@@ -227,7 +229,7 @@ Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and suppor
 
 ```ts title="@/app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
-import { streamText, convertToModelMessages, zodSchema } from "ai";
+import { streamText, convertToModelMessages, zodSchema, createUIMessageStreamResponse, toUIMessageStream } from "ai";
 import type { UIMessage } from "ai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 
@@ -270,6 +272,8 @@ import {
   streamText,
   convertToModelMessages,
   stepCountIs,
+  createUIMessageStreamResponse,
+  toUIMessageStream,
 } from "ai";
 
 export async function POST(req: Request) {
@@ -300,7 +304,7 @@ On the backend, configure the gate with the call-level `toolApproval` option (pe
 
 ```ts title="@/app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
-import { streamText, convertToModelMessages, tool } from "ai";
+import { streamText, convertToModelMessages, tool, createUIMessageStreamResponse, toUIMessageStream } from "ai";
 import { z } from "zod";
 
 export async function POST(req: Request) {
@@ -426,6 +430,8 @@ assistant-ui's composer can attach quote metadata to user messages (e.g. when th
 import {
   streamText,
   convertToModelMessages,
+  createUIMessageStreamResponse,
+  toUIMessageStream,
 } from "ai";
 import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { openai } from "@ai-sdk/openai";
@@ -449,7 +455,7 @@ export async function POST(req: Request) {
 `useThreadTokenUsage` exposes thread-level token usage on the client. Attach `usage` and `modelId` via `messageMetadata` on the server:
 
 ```ts title="@/app/api/chat/route.ts"
-import { streamText, convertToModelMessages } from "ai";
+import { streamText, convertToModelMessages, createUIMessageStreamResponse, toUIMessageStream } from "ai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 
 export async function POST(req: Request) {
