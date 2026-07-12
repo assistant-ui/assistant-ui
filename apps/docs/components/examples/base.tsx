@@ -28,7 +28,7 @@ import {
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/reasoning";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/radix/button";
 import { cn } from "@/lib/utils";
 import icon from "@/public/favicon/icon.svg";
 import {
@@ -89,12 +89,12 @@ import {
 } from "@assistant-ui/react-lexical";
 import Image from "next/image";
 import { useState, type FC, type ReactNode } from "react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/radix/sheet";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/radix/tooltip";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
 import { DEFAULT_MODEL_ID } from "@/constants/model";

@@ -2,6 +2,7 @@ import { z } from "zod/v3";
 import { readFile, readdir, lstat } from "node:fs/promises";
 import { join, extname } from "node:path";
 import { CODE_EXAMPLES_PATH, MAX_FILE_SIZE } from "../constants.js";
+import { cacheListing } from "../utils/cache.js";
 import { logger } from "../utils/logger.js";
 import { formatMCPResponse } from "../utils/mcp-format.js";
 import { sanitizePath } from "../utils/security.js";
@@ -11,21 +12,25 @@ const examplesInputSchema = z.object({
     .string()
     .optional()
     .describe(
-      'Example name (e.g., "with-ai-sdk-v6"). Leave empty to list all examples.',
+      'Example name (e.g., "with-ai-sdk-v7"). Leave empty to list all examples.',
     ),
 });
 
-export async function listCodeExamples(): Promise<string[]> {
-  try {
-    const files = await readdir(CODE_EXAMPLES_PATH);
-    return files
-      .filter((file) => extname(file) === ".md")
-      .map((file) => file.replace(".md", ""))
-      .sort();
-  } catch (error) {
+const loadCodeExamples = cacheListing(scanCodeExamples);
+
+export function listCodeExamples(): Promise<string[]> {
+  return loadCodeExamples().catch((error) => {
     logger.error("Failed to list code examples", error);
     return [];
-  }
+  });
+}
+
+async function scanCodeExamples(): Promise<string[]> {
+  const files = await readdir(CODE_EXAMPLES_PATH);
+  return files
+    .filter((file) => extname(file) === ".md")
+    .map((file) => file.replace(".md", ""))
+    .sort();
 }
 
 export async function readCodeExample(

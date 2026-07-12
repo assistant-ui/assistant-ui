@@ -286,7 +286,62 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 return;
               }
 
-              controller.enqueue(JSON.parse(event.data));
+              const chunk = JSON.parse(event.data);
+              if (
+                chunk.type === "text-delta" &&
+                chunk.textDelta === undefined
+              ) {
+                const { delta, ...rest } = chunk;
+                controller.enqueue({ ...rest, textDelta: delta ?? "" });
+                return;
+              }
+              if (chunk.type === "start") {
+                controller.enqueue({
+                  ...chunk,
+                  messageId: chunk.messageId ?? generateId(),
+                });
+                return;
+              }
+              if (chunk.type === "source-url") {
+                controller.enqueue({
+                  type: "source",
+                  source: {
+                    sourceType: "url",
+                    id: chunk.sourceId,
+                    url: chunk.url,
+                    ...(chunk.title && { title: chunk.title }),
+                  },
+                });
+                return;
+              }
+              if (chunk.type === "source" && chunk.source == null) return;
+              if (chunk.type === "file" && chunk.file == null) {
+                if (chunk.url === undefined) return;
+                controller.enqueue({
+                  type: "file",
+                  file: { mimeType: chunk.mediaType, data: chunk.url },
+                });
+                return;
+              }
+              if (chunk.type === "finish-step") {
+                controller.enqueue({
+                  ...chunk,
+                  finishReason: chunk.finishReason ?? "unknown",
+                  usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
+                  isContinued: chunk.isContinued ?? false,
+                });
+                return;
+              }
+              if (chunk.type === "finish") {
+                controller.enqueue({
+                  ...chunk,
+                  finishReason: chunk.finishReason ?? "unknown",
+                  usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
+                });
+                return;
+              }
+
+              controller.enqueue(chunk);
             },
             flush() {
               if (!receivedDone) {

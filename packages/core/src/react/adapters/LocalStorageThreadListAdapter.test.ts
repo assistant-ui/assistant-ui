@@ -206,4 +206,17 @@ describe("createLocalStorageAdapter", () => {
       { remoteId: "thread-1", status: "regular" },
     ]);
   });
+
+  it("includes the thread id when a stored thread cannot be fetched", async () => {
+    const storage = createStorage({
+      "@assistant-ui:threads": JSON.stringify([
+        { remoteId: "thread-1", status: "regular" },
+      ]),
+    });
+    const adapter = createLocalStorageAdapter({ storage });
+
+    await expect(adapter.fetch("missing-thread")).rejects.toThrow(
+      'Stored thread "missing-thread" not found while fetching thread metadata.',
+    );
+  });
 });

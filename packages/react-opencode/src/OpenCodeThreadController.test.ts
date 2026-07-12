@@ -78,7 +78,7 @@ describe("OpenCodeThreadController", () => {
         runConfig: {},
         createdAt: new Date(),
       },
-      { model: "claude" },
+      { model: { providerID: "anthropic", modelID: "claude" } },
     );
 
     const pendingId = Object.keys(controller.getState().pendingUserMessages)[0];
@@ -92,7 +92,7 @@ describe("OpenCodeThreadController", () => {
     expect(client.session.promptAsync).toHaveBeenCalledWith({
       sessionID: "ses_1",
       parts: [{ type: "text", text: "hello" }],
-      model: "claude",
+      model: { providerID: "anthropic", modelID: "claude" },
     });
     await expect(
       controller.sendStagedMessage(`local:${pendingId}`),
