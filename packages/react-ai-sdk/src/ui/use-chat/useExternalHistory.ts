@@ -268,12 +268,16 @@ export const useExternalHistory = <TMessage>(
               getLastInnerId(innerMessages) ?? lastInnerMessageId;
             continue;
           }
-          historyIds.current.add(message.id);
-
           const batchItems = toBatchItems(innerMessages);
-          for (const item of batchItems) {
-            await formatAdapter.append(item);
+          try {
+            for (const item of batchItems) {
+              await formatAdapter.append(item);
+            }
+          } catch (error) {
+            console.error("Failed to persist message history:", error);
+            return;
           }
+          historyIds.current.add(message.id);
 
           lastInnerMessageId =
             getLastInnerId(innerMessages) ?? lastInnerMessageId;
