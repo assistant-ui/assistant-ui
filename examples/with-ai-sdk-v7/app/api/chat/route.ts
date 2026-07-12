@@ -8,6 +8,8 @@ import {
   tool,
   stepCountIs,
   zodSchema,
+  createUIMessageStreamResponse,
+  toUIMessageStream,
 } from "ai";
 import { z } from "zod";
 
@@ -46,5 +48,7 @@ export async function POST(req: Request) {
     },
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }

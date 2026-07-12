@@ -101,7 +101,9 @@ export async function POST(req: Request) {
     },
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -250,7 +252,9 @@ export async function POST(req: Request) {
     },
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -280,7 +284,9 @@ export async function POST(req: Request) {
     stopWhen: stepCountIs(10), // cap at 10 tool-call iterations
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -288,9 +294,9 @@ Without a `stopWhen`, AI SDK runs a single inference step. Set `stepCountIs` (or
 
 ## Server-side tool approval
 
-AI SDK v7 lets a tool gate its own execution with `needsApproval`. The server pauses, emits an `approval-requested` part, and resumes once the client posts an approval response. assistant-ui surfaces the gate as `approval` on the tool part and adds a `respondToApproval` prop on the renderer, so tool components stay decoupled from `chatHelpers`.
+AI SDK v7 gates tool execution with the call-level `toolApproval` option. The server pauses, emits an `approval-requested` part, and resumes once the client posts an approval response. assistant-ui surfaces the gate as `approval` on the tool part and adds a `respondToApproval` prop on the renderer, so tool components stay decoupled from `chatHelpers`.
 
-On the backend, mark the tool with `needsApproval` (boolean or function):
+On the backend, configure the gate with the call-level `toolApproval` option (per-tool status or function):
 
 ```ts title="@/app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
@@ -307,13 +313,18 @@ export async function POST(req: Request) {
       deploy: tool({
         description: "Deploy the current build to an environment.",
         inputSchema: z.object({ target: z.string() }),
-        needsApproval: ({ input }) => input.target === "production",
         execute: async ({ target }) => ({ deployed: target }),
       }),
     },
+    toolApproval: {
+      deploy: (input) =>
+        input.target === "production" ? "user-approval" : "not-applicable",
+    },
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -425,7 +436,9 @@ export async function POST(req: Request) {
     model: openai("gpt-5.4-mini"),
     messages: await convertToModelMessages(injectQuoteContext(messages)),
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -446,16 +459,19 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
     tools: frontendTools(tools),
   });
-  return result.toUIMessageStreamResponse({
-    messageMetadata: ({ part }) => {
-      if (part.type === "finish") {
-        return { usage: part.totalUsage };
-      }
-      if (part.type === "finish-step") {
-        return { modelId: part.response.modelId };
-      }
-      return undefined;
-    },
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      messageMetadata: ({ part }) => {
+        if (part.type === "finish") {
+          return { usage: part.totalUsage };
+        }
+        if (part.type === "finish-step") {
+          return { modelId: part.response.modelId };
+        }
+        return undefined;
+      },
+    }),
   });
 }
 ```
@@ -606,7 +622,7 @@ const runtime = useAISDKRuntime(chat);
 | `@ai-sdk/react` | `@ai-sdk/react@^2` | `@ai-sdk/react@^4` |
 | `convertToModelMessages` | Sync | Async (`await`) |
 | Tool schema | `parameters: z.object({...})` | `inputSchema: zodSchema(z.object({...}))` |
-| Response | `toDataStreamResponse()` | `toUIMessageStreamResponse()` |
+| Response | `toDataStreamResponse()` | `createUIMessageStreamResponse()` |
 
 ## Example
 
