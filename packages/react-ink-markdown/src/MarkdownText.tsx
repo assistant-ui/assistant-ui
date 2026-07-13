@@ -43,15 +43,45 @@ export type MarkdownTextProps = {
   listIndent?: number;
 };
 
+// One shared "resize" listener per stream; per-instance listeners trip Node's
+// ten-listener warning once a thread renders more than ten markdown messages.
+type ResizeStore = {
+  subscribers: Set<() => void>;
+  notify: () => void;
+};
+const resizeStores = new WeakMap<NodeJS.WriteStream, ResizeStore>();
+
+const subscribeToStreamResize = (
+  stdout: NodeJS.WriteStream,
+  onChange: () => void,
+) => {
+  let store = resizeStores.get(stdout);
+  if (!store) {
+    const subscribers = new Set<() => void>();
+    const created: ResizeStore = {
+      subscribers,
+      notify: () => {
+        for (const subscriber of subscribers) subscriber();
+      },
+    };
+    resizeStores.set(stdout, created);
+    stdout.on("resize", created.notify);
+    store = created;
+  }
+  store.subscribers.add(onChange);
+  return () => {
+    store.subscribers.delete(onChange);
+    if (store.subscribers.size === 0) {
+      stdout.off("resize", store.notify);
+      resizeStores.delete(stdout);
+    }
+  };
+};
+
 const MarkdownTextImpl = ({ text, ...options }: MarkdownTextProps) => {
   const { stdout } = useStdout();
   const subscribeToResize = useCallback(
-    (onChange: () => void) => {
-      stdout.on("resize", onChange);
-      return () => {
-        stdout.off("resize", onChange);
-      };
-    },
+    (onChange: () => void) => subscribeToStreamResize(stdout, onChange),
     [stdout],
   );
   const terminalWidth = useSyncExternalStore(

@@ -140,6 +140,25 @@ describe("MarkdownText", () => {
     });
   });
 
+  it("shares a single stdout resize listener across markdown instances", async () => {
+    const single = render(<MarkdownText text="one" />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const baseline = single.stdout.listenerCount("resize");
+    expect(baseline).toBeGreaterThanOrEqual(1);
+    single.unmount();
+
+    const texts = Array.from({ length: 12 }, (_, i) => `message ${i}`);
+    const many = render(
+      <>
+        {texts.map((t) => (
+          <MarkdownText key={t} text={t} />
+        ))}
+      </>,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(many.stdout.listenerCount("resize")).toBe(baseline);
+  });
+
   it("memoizes rendering across re-renders with unchanged props", () => {
     const highlighter = vi.fn((code: string) => code);
     const text = "```js\nconst x = 1;\n```";
