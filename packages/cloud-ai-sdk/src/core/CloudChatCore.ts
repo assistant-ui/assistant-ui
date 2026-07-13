@@ -131,7 +131,9 @@ export class CloudChatCore {
         this.handleSyncError(err);
       }
     }
-    meta.loading = null;
+    if (!cancelledRef.cancelled) {
+      meta.loading = null;
+    }
   }
 
   createTransport(
