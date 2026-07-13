@@ -73,16 +73,6 @@ class SSEEventStream extends TransformStream<string, SSEEvent> {
             break;
         }
       },
-      flush(controller) {
-        if (dataLines.length > 0) {
-          controller.enqueue({
-            event: eventBuffer.event || "message",
-            data: dataLines.join("\n"),
-            id: eventBuffer.id,
-            retry: eventBuffer.retry,
-          });
-        }
-      },
     });
   }
 }

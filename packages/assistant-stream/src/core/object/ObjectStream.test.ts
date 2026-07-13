@@ -50,6 +50,26 @@ async function encodeAndDecode(
 }
 
 describe("ObjectStream serialization and deserialization", () => {
+  it("should discard an unterminated SSE event", async () => {
+    const operations: ObjectStreamChunk["operations"] = [
+      { type: "set", path: ["status"], value: "complete" },
+    ];
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(`data: ${JSON.stringify(operations)}\n`),
+        );
+        controller.close();
+      },
+    });
+
+    const chunks = await collectChunks(
+      stream.pipeThrough(new ObjectStreamDecoder()),
+    );
+
+    expect(chunks).toEqual([]);
+  });
+
   it("should correctly serialize and deserialize simple objects", async () => {
     // Create an object stream with simple operations
     const stream = createObjectStream({
