@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { logger } from "../lib/utils/logger";
-import { hasConfig } from "../lib/utils/config";
+import { getConfig, hasConfig } from "../lib/utils/config";
+import { resolveRegistryItemUrl } from "../lib/utils/registry";
 import {
   dlxCommand,
   resolvePackageManager,
@@ -8,8 +9,6 @@ import {
   type PackageManagerName,
 } from "../lib/create-project";
 import { runSpawn, SpawnExitError } from "../lib/run-spawn";
-
-const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
 export interface AddComponentsPlan {
   command: string;
@@ -23,12 +22,13 @@ export function createAddComponentsPlan(params: {
   overwrite?: boolean;
   cwd?: string;
   path?: string;
+  style?: string;
 }): AddComponentsPlan {
   const componentsToAdd = params.components.map((c) => {
     if (!/^[a-zA-Z0-9-/]+$/.test(c)) {
       throw new Error(`Invalid component name: ${c}`);
     }
-    return `${REGISTRY_BASE_URL}/${encodeURIComponent(c)}.json`;
+    return resolveRegistryItemUrl(c, params.style);
   });
 
   const [command, dlxArgs] = dlxCommand(params.packageManager);
@@ -75,6 +75,7 @@ export const add = new Command()
       opts.cwd,
       resolvePackageManager(opts),
     );
+    const style = getConfig(opts.cwd)?.style;
     const { command, args } = createAddComponentsPlan({
       components,
       packageManager,
@@ -82,6 +83,7 @@ export const add = new Command()
       overwrite: opts.overwrite,
       cwd: opts.cwd,
       path: opts.path,
+      ...(style === undefined ? {} : { style }),
     });
 
     try {

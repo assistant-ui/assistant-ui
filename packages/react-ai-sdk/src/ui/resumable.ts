@@ -1,6 +1,9 @@
 "use client";
 
-export { RESUMABLE_STREAM_ID_HEADER } from "assistant-stream/resumable";
+import { RESUMABLE_STREAM_ID_HEADER as RESUMABLE_STREAM_ID_HEADER_VALUE } from "assistant-stream/resumable";
+
+/** Response header used by the [Resumable Streams](/docs/guides/resumable-streams) server and client wiring. */
+export const RESUMABLE_STREAM_ID_HEADER = RESUMABLE_STREAM_ID_HEADER_VALUE;
 
 const DEFAULT_STORAGE_KEY = "aui-resumable-stream-id";
 
@@ -19,7 +22,7 @@ const getSessionStorage = (): Storage | null => {
   }
 };
 
-/** `sessionStorage`-backed storage for the pending resumable stream id. */
+/** `sessionStorage`-backed storage for the pending resumable stream id. See the [Resumable Streams](/docs/guides/resumable-streams) guide for end-to-end wiring. */
 export function createResumableSessionStorage(options?: {
   key?: string;
 }): ResumableClientStorage {

@@ -390,6 +390,39 @@ describe("useLangGraphRuntime", () => {
       },
     ]);
     expect(sentMessages?.[0]?.content?.[1]).not.toHaveProperty("file");
+
+    // The wire human message must not carry the structured attachments field;
+    // only flattened content reaches the stream.
+    expect(sentMessages?.[0]).not.toHaveProperty("attachments");
+
+    // The local user message state, however, must expose the CompleteAttachment[]
+    // returned by the adapter so MessagePrimitive.Attachments can render them.
+    await waitFor(() => {
+      const userMessage = auiResult.current
+        .thread()
+        .getState()
+        .messages.find((m) => m.role === "user");
+      expect(userMessage?.attachments).toHaveLength(1);
+    });
+
+    const userMessage = auiResult.current
+      .thread()
+      .getState()
+      .messages.find((m) => m.role === "user");
+    expect(userMessage?.attachments?.[0]).toMatchObject({
+      id: "pending-file-1",
+      type: "document",
+      name: "document.pdf",
+      status: { type: "complete" },
+    });
+    expect(userMessage?.attachments?.[0]?.content).toEqual([
+      {
+        type: "file",
+        filename: "document.pdf",
+        data: "ZmFrZS1wZGY=",
+        mimeType: "application/pdf",
+      },
+    ]);
   });
 
   it("should use unstable_threadListAdapter in place of the cloud adapter", async () => {

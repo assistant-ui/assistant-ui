@@ -6,14 +6,23 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
-import { type ComponentType, type ReactNode, useEffect, useRef } from "react";
+import {
+  type ComponentType,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { AssistantMessage, UserMessage } from "./messages";
 import { AssistantComposer, useSharedDocsModelSelection } from "./composer";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
-import { AssistantFooter } from "@/components/docs/assistant/footer";
+import { ContextDisplay } from "@assistant-ui/ui/components/assistant-ui/context-display";
 import { analytics } from "@/lib/analytics";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
-import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+import {
+  getThreadMessageTokenUsage,
+  type ThreadTokenUsage,
+} from "@assistant-ui/react-ai-sdk";
 import { getContextWindow } from "@/constants/model";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +37,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/radix/tooltip";
 
 function PendingMessageHandler() {
   const { pendingMessage, clearPendingMessage } = useAssistantPanel();
@@ -77,7 +86,7 @@ type AssistantThreadProps = {
 export function AssistantThread({
   welcome = <AssistantWelcome />,
   composer = <AssistantComposer />,
-  footer = <AssistantFooter />,
+  footer,
   UserMessageComponent = UserMessage,
   AssistantMessageComponent = AssistantMessage,
 }: AssistantThreadProps = {}): ReactNode {
@@ -115,8 +124,27 @@ function PanelHeader(): React.ReactNode {
   const messages = useAuiState((s) => s.thread.messages);
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
-  const lastUsage = useThreadTokenUsage();
-  const contextTokens = lastUsage?.totalTokens ?? 0;
+  const contextUsage = useMemo<ThreadTokenUsage | undefined>(() => {
+    // Each request's usage already counts the full prompt for that turn, so
+    // context-window fill is the largest request seen, not the sum across
+    // turns. The max only rises as the thread grows, which keeps the
+    // indicator monotonic when server-side pruning shrinks a later prompt.
+    let peak: ThreadTokenUsage | undefined;
+    let peakTotal = -1;
+    for (const message of messages) {
+      const usage = getThreadMessageTokenUsage(message);
+      if (!usage) continue;
+      const total =
+        usage.totalTokens ??
+        (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0);
+      if (total >= peakTotal) {
+        peak = { ...usage, totalTokens: total };
+        peakTotal = total;
+      }
+    }
+    return peak;
+  }, [messages]);
+  const contextTokens = contextUsage?.totalTokens ?? 0;
   const { modelValue } = useSharedDocsModelSelection();
   const contextWindow = getContextWindow(modelValue);
   const usagePercent = Math.min((contextTokens / contextWindow) * 100, 100);
@@ -125,6 +153,11 @@ function PanelHeader(): React.ReactNode {
     <div className="flex h-12 shrink-0 items-center justify-between border-b px-3">
       <span className="text-sm font-semibold">Ask AI</span>
       <div className="flex items-center gap-0.5">
+        <ContextDisplay.Ring
+          modelContextWindow={contextWindow}
+          usage={contextUsage}
+          side="bottom"
+        />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

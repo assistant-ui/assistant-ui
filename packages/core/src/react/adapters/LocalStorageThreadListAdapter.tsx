@@ -406,7 +406,10 @@ export const createLocalStorageAdapter = (
     async fetch(threadId: string): Promise<RemoteThreadMetadata> {
       const threads = await loadThreadMetadata();
       const thread = threads.find((t) => t.remoteId === threadId);
-      if (!thread) throw new Error("Thread not found");
+      if (!thread)
+        throw new Error(
+          `Stored thread "${threadId}" not found while fetching thread metadata.`,
+        );
       return {
         remoteId: thread.remoteId,
         externalId: thread.externalId,

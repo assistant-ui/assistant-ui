@@ -19,8 +19,8 @@ import {
   XIcon,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/radix/badge";
+import { Button, buttonVariants } from "@/components/ui/radix/button";
 import {
   Dialog,
   DialogContent,
@@ -28,10 +28,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/radix/dialog";
+import { Input } from "@/components/ui/radix/input";
+import { Label } from "@/components/ui/radix/label";
+import { Separator } from "@/components/ui/radix/separator";
 import { cn } from "@/lib/utils";
 
 export namespace McpConfigDialog {

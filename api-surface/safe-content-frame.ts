@@ -1,24 +1,3 @@
-declare namespace entry_shadow_dom_exports {
-  export { enableShadowDom, unsafeDisableShadowDom };
-}
-
-declare const enableShadowDom: () => boolean;
-
-declare const unsafeDisableShadowDom: () => boolean;
-
-declare namespace entry_root_exports {
-  export { RenderedFrame, SafeContentFrame, SafeContentFrameOptions, SandboxOption };
-}
-
-type SandboxOption = "allow-downloads" | "allow-forms" | "allow-modals" | "allow-popups" | "allow-popups-to-escape-sandbox" | "allow-same-origin" | "allow-scripts";
-
-interface SafeContentFrameOptions {
-  useShadowDom?: boolean;
-  enableBrowserCaching?: boolean;
-  sandbox?: SandboxOption[];
-  salt?: string;
-}
-
 interface RenderedFrame {
   iframe: HTMLIFrameElement;
   origin: string;
@@ -39,5 +18,26 @@ declare class SafeContentFrame {
   private render;
   private getSandbox;
 }
+
+interface SafeContentFrameOptions {
+  useShadowDom?: boolean;
+  enableBrowserCaching?: boolean;
+  sandbox?: SandboxOption[];
+  salt?: string;
+}
+
+type SandboxOption = "allow-downloads" | "allow-forms" | "allow-modals" | "allow-popups" | "allow-popups-to-escape-sandbox" | "allow-same-origin" | "allow-scripts";
+
+declare const enableShadowDom: () => boolean;
+
+declare namespace entry_root_exports {
+  export { RenderedFrame, SafeContentFrame, SafeContentFrameOptions, SandboxOption };
+}
+
+declare namespace entry_shadow_dom_exports {
+  export { enableShadowDom, unsafeDisableShadowDom };
+}
+
+declare const unsafeDisableShadowDom: () => boolean;
 
 export { entry_root_exports as entry_root, entry_shadow_dom_exports as entry_shadow_dom };

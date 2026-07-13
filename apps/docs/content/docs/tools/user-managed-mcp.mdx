@@ -221,14 +221,13 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export function Chat() {
   const runtime = useChatRuntime({
-    api: "/api/chat",
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
   /* … */
 }
 ```
 
-`sendAutomaticallyWhen` sends completed frontend tool results back to the server so the model can continue after a tool call.
+`sendAutomaticallyWhen` sends completed frontend tool results back to the server so the model can continue after a tool call. `useChatRuntime()` targets `/api/chat` by default; to point at a different endpoint, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
 
 Tool names are prefixed `serverId__toolName` to avoid collisions across connected servers. The toolkit re-registers whenever a server connects / disconnects or its tool list changes.
 
@@ -316,6 +315,17 @@ const aui = useAui();
 await aui.mcp().addCustomServer({ name, url, auth: { type: "bearer", token } });
 await aui.mcp().server({ id }).connect();
 await aui.mcp().server({ id }).callTool("echo", { text: "hi" });
+
+// Build a resource browser/preview UI for servers that expose resources.
+const { resources } = (await aui.mcp().server({ id }).listResources()) as {
+  resources: Array<{ uri: string; name?: string }>;
+};
+const firstResource = resources[0];
+if (firstResource) {
+  const preview = await aui.mcp()
+    .server({ id })
+    .readResource(firstResource.uri);
+}
 ```
 
 ## v1 scope
@@ -323,13 +333,14 @@ await aui.mcp().server({ id }).callTool("echo", { text: "hi" });
 What ships:
 
 - Tool listing and invocation, auto-registered as frontend tools
+- Resource listing and reads for app-built browsers or preview panes
 - OAuth (PKCE + DCR), bearer, none
 - StreamableHTTP transport
 - Manual connect/disconnect
 
 What's deferred:
 
-- Resources, prompts, sampling
+- Prompts, sampling
 - Auto-reconnect with backoff
 - Per-tool enable/disable persistence
 - Per-tool consent prompts

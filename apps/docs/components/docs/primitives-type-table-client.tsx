@@ -1,6 +1,6 @@
 "use client";
 
-import { Collapsible } from "radix-ui";
+import { Collapsible } from "@base-ui/react/collapsible";
 import { ChevronDown } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -81,7 +81,6 @@ function Item({
     return () => window.removeEventListener("hashchange", expand);
   }, [id]);
 
-  // Non-expandable row: render as plain div
   if (!hasContent) {
     return (
       <div
@@ -114,14 +113,14 @@ function Item({
         <TypeCell className="me-4 mask-[linear-gradient(to_right,black_calc(100%-1rem),transparent)]">
           {row.type}
         </TypeCell>
-        <ChevronDown className="text-fd-muted-foreground absolute inset-e-2 size-4 transition-transform group-data-[state=open]/trigger:rotate-180" />
+        <ChevronDown className="text-fd-muted-foreground absolute inset-e-2 size-4 transition-transform group-data-panel-open/trigger:rotate-180" />
       </Collapsible.Trigger>
 
-      <Collapsible.Content
+      <Collapsible.Panel
         className={cn(
           "overflow-hidden",
           mounted &&
-            "data-[state=closed]:animate-fd-collapsible-up data-[state=open]:animate-fd-collapsible-down",
+            "data-closed:animate-fd-collapsible-up data-open:animate-fd-collapsible-down",
         )}
       >
         <div className="fd-scroll-container grid grid-cols-[1fr_3fr] gap-y-4 overflow-auto border-t p-3 text-sm">
@@ -154,7 +153,7 @@ function Item({
             </div>
           ))}
         </div>
-      </Collapsible.Content>
+      </Collapsible.Panel>
     </Collapsible.Root>
   );
 }
