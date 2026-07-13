@@ -48,6 +48,14 @@ describe("LineDecoderStream", () => {
     expect(lines).toEqual(["line1", "line2", "line3"]);
   });
 
+  it("should handle CR line endings split across chunks", async () => {
+    const stream = createTextStream(["line1\r", "line2\r", "line3\r"]);
+    const lines = await collectLines(
+      stream.pipeThrough(new LineDecoderStream()),
+    );
+    expect(lines).toEqual(["line1", "line2", "line3"]);
+  });
+
   it("should handle CRLF split across chunks", async () => {
     // The \r is at the end of one chunk and \n at the start of the next
     const stream = createTextStream(["line1\r", "\nline2\r\n"]);
