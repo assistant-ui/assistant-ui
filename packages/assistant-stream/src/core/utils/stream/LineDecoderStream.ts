@@ -1,26 +1,33 @@
 export class LineDecoderStream extends TransformStream<string, string> {
   private buffer = "";
-  private pendingLF = false;
+  private skipNextLineFeed = false;
 
   constructor() {
     super({
       transform: (chunk, controller) => {
-        if (chunk === "") return;
+        let lineStart = 0;
 
-        // A chunk-trailing CR terminates its line immediately. Skip a leading
-        // LF in the next chunk so a split CRLF is counted only once.
-        if (this.pendingLF && chunk.startsWith("\n")) {
-          chunk = chunk.slice(1);
+        for (let i = 0; i < chunk.length; i++) {
+          const character = chunk[i]!;
+
+          if (this.skipNextLineFeed) {
+            this.skipNextLineFeed = false;
+            if (character === "\n") {
+              lineStart = i + 1;
+              continue;
+            }
+          }
+
+          if (character === "\n" || character === "\r") {
+            this.buffer += chunk.slice(lineStart, i);
+            controller.enqueue(this.buffer);
+            this.buffer = "";
+            this.skipNextLineFeed = character === "\r";
+            lineStart = i + 1;
+          }
         }
-        this.pendingLF = chunk.endsWith("\r");
 
-        this.buffer += chunk;
-        const lines = this.buffer.split(/\r\n|\r|\n/);
-        this.buffer = lines.pop()!;
-
-        for (const line of lines) {
-          controller.enqueue(line);
-        }
+        this.buffer += chunk.slice(lineStart);
       },
       flush: () => {
         if (this.buffer) {
