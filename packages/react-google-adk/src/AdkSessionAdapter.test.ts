@@ -342,19 +342,22 @@ describe("createAdkSessionAdapter - load", () => {
 // ── URL construction ──
 
 describe("createAdkSessionAdapter - URL construction", () => {
-  it("normalizes a trailing slash in apiUrl", async () => {
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify([]), { status: 200 }),
-    );
+  it.each(["http://localhost:8000/", "http://localhost:8000//"])(
+    "normalizes trailing slashes in apiUrl: %s",
+    async (apiUrl) => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 }),
+      );
 
-    const { adapter } = createAdkSessionAdapter({
-      ...baseOptions,
-      apiUrl: "http://localhost:8000/",
-    });
-    await adapter.list();
+      const { adapter } = createAdkSessionAdapter({
+        ...baseOptions,
+        apiUrl,
+      });
+      await adapter.list();
 
-    expect(mockFetch.mock.calls[0]![0]).toBe(expectedBaseUrl);
-  });
+      expect(mockFetch.mock.calls[0]![0]).toBe(expectedBaseUrl);
+    },
+  );
 
   it("encodes special characters in appName and userId", async () => {
     mockFetch.mockResolvedValueOnce(
