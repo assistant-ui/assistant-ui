@@ -9,7 +9,7 @@ import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { Gemini } from "@/components/examples/gemini";
 import { Grok } from "@/components/examples/grok";
 import { analytics } from "@/lib/analytics";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/radix/button";
 import { cn } from "@/lib/utils";
 import { ArrowUpRightIcon, Maximize2Icon, XIcon } from "lucide-react";
 import Link from "next/link";

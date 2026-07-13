@@ -66,6 +66,51 @@ test("normalization is idempotent", () => {
   assert.equal(normalizeBundledDeclaration(once), once);
 });
 
+test("top-level statements are grouped and sorted by name", () => {
+  const output = normalizeBundledDeclaration(
+    [
+      `type Zebra = string;`,
+      `import { Second } from "second";`,
+      `declare function alpha(a: string): void;`,
+      `import { First } from "first";`,
+      `interface Middle { a: 1; }`,
+      `export { Middle, Zebra, alpha };`,
+      `declare function alpha(a: number): void;`,
+    ].join("\n"),
+  );
+
+  const order = [
+    `import { First } from "first";`,
+    `import { Second } from "second";`,
+    "interface Middle",
+    "type Zebra",
+    "alpha(a: string)",
+    "alpha(a: number)",
+    "export { Middle, Zebra, alpha };",
+  ].map((snippet) => output.indexOf(snippet));
+
+  assert.ok(order.every((index) => index >= 0));
+  assert.deepEqual(
+    order,
+    [...order].sort((a, b) => a - b),
+  );
+});
+
+test("removing an unused React default import leaves no blank gap", () => {
+  const output = normalizeBundledDeclaration(
+    `import { A } from "a";\nimport React from "react";\ntype B = string;\nexport { B };\n`,
+  );
+  assert.ok(!output.includes(`import React`));
+  assert.ok(!output.includes("\n\n\n"));
+});
+
+test("statement sorting is idempotent", () => {
+  const once = normalizeBundledDeclaration(
+    `type Beta = 1;\n\ntype Alpha = 2;\n\nexport { Alpha, Beta };\n`,
+  );
+  assert.equal(normalizeBundledDeclaration(once), once);
+});
+
 test("an unrecognized composer attachment union shape throws", () => {
   const bad = attachmentUnion(
     `{ status: CompleteAttachmentStatus } & { source: "thread-composer" }`,

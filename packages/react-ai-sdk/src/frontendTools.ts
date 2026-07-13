@@ -3,6 +3,9 @@ import type { ToolJSONSchema } from "assistant-stream";
 import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
 import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
 
+/** Frontend tool definitions uploaded by AssistantChatTransport. */
+export type FrontendTools = Record<string, ToolJSONSchema>;
+
 export const defaultToModelOutput = ({ output }: { output: unknown }) => {
   const { result, modelContent } = unwrapModelContentEnvelope(output);
   if (modelContent !== undefined) {
@@ -46,9 +49,7 @@ function validateFrontendTool(
   }
 }
 
-function validateFrontendTools(
-  tools: unknown,
-): asserts tools is Record<string, ToolJSONSchema> {
+function validateFrontendTools(tools: unknown): asserts tools is FrontendTools {
   if (!isPlainObject(tools)) {
     throw new Error(
       "frontendTools() expected tools to be an object keyed by tool name.",
@@ -60,9 +61,7 @@ function validateFrontendTools(
   }
 }
 
-export const frontendTools = (
-  tools: Record<string, ToolJSONSchema>,
-): ToolSet => {
+export const frontendTools = (tools: FrontendTools): ToolSet => {
   validateFrontendTools(tools);
 
   return Object.fromEntries(

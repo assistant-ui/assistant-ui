@@ -79,6 +79,18 @@ npm run dev
 
 If you prefer not to use the CLI, you can install components manually.
 
+Add the assistant-ui registry to your `components.json` so the shadcn CLI resolves components for your style. Styles whose name starts with `base-` receive Base UI flavored components; all other styles receive the Radix flavored ones. `npx shadcn init` defaults to Base UI styles (for example `base-nova`), so new projects need this style-aware URL for components that compile against that stack.
+
+```json title="components.json"
+{
+  "registries": {
+    "@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"
+  }
+}
+```
+
+Existing Radix projects can keep the plain form `https://r.assistant-ui.com/{name}.json` as a fallback (for example `npx shadcn@latest add https://r.assistant-ui.com/thread.json`).
+
 <Steps>
   <Step>
 
