@@ -499,7 +499,7 @@ export class A2AClient {
     const decoder = new TextDecoder();
     let lineBuffer = "";
     let dataLines: string[] = [];
-    let sawCarriageReturn = false;
+    let pendingLF = false;
 
     const readEvent = (): A2AStreamEvent | null => {
       if (dataLines.length === 0) return null;
@@ -544,32 +544,23 @@ export class A2AClient {
       return null;
     };
 
+    // Lines end with LF, CRLF, or CR. A chunk-trailing "\r" terminates its
+    // line immediately; pendingLF then swallows the leading "\n" of the next
+    // chunk so a CRLF split across chunks is not counted twice.
     const processText = (text: string): A2AStreamEvent[] => {
       const events: A2AStreamEvent[] = [];
+      if (text === "") return events;
 
-      for (const character of text) {
-        if (character === "\r") {
-          const event = processLine(lineBuffer);
-          if (event) events.push(event);
-          lineBuffer = "";
-          sawCarriageReturn = true;
-          continue;
-        }
+      if (pendingLF && text.startsWith("\n")) text = text.slice(1);
+      pendingLF = text.endsWith("\r");
 
-        if (character === "\n") {
-          if (sawCarriageReturn) {
-            sawCarriageReturn = false;
-            continue;
-          }
+      lineBuffer += text;
+      const lines = lineBuffer.split(/\r\n|\r|\n/);
+      lineBuffer = lines.pop()!;
 
-          const event = processLine(lineBuffer);
-          if (event) events.push(event);
-          lineBuffer = "";
-          continue;
-        }
-
-        sawCarriageReturn = false;
-        lineBuffer += character;
+      for (const line of lines) {
+        const event = processLine(line);
+        if (event) events.push(event);
       }
 
       return events;

@@ -868,6 +868,28 @@ describe("A2AClient", () => {
       expect(events[0]!.type).toBe("statusUpdate");
     });
 
+    it("parses CR-delimited events split across chunks", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        mockSSETextResponse([`data: ${sseData}\r`, "\r"]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.type).toBe("statusUpdate");
+    });
+
     it("does not dispatch unterminated SSE events", async () => {
       const sseData = JSON.stringify({
         status_update: {
