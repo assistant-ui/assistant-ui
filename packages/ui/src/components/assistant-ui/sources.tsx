@@ -83,37 +83,28 @@ function DocumentSourceIcon({ className, ...props }: ComponentProps<"span">) {
   );
 }
 
-export type SourceProps = Omit<BadgeProps, "asChild"> &
-  ComponentProps<"a"> & {
-    asChild?: boolean;
-  };
+export type SourceProps = Omit<BadgeProps, "asChild"> & ComponentProps<"a">;
 
 function Source({
   className,
   variant,
   size,
-  asChild = false,
   target = "_blank",
   rel = "noopener noreferrer",
   ...props
 }: SourceProps) {
   return (
-    <Badge
-      asChild
-      variant={variant}
-      size={size}
+    <a
+      data-slot="source"
       className={cn(
+        badgeVariants({ variant, size }),
         "focus-visible:border-ring focus-visible:ring-ring/50 cursor-pointer outline-none focus-visible:ring-[3px]",
         className,
       )}
-    >
-      <a
-        data-slot="source"
-        target={target}
-        rel={rel}
-        {...(props as ComponentProps<"a">)}
-      />
-    </Badge>
+      target={target}
+      rel={rel}
+      {...props}
+    />
   );
 }
 
