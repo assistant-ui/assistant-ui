@@ -94,11 +94,12 @@ describe("SSEEventDecoder", () => {
     ]);
   });
 
-  it("ignores non-digit retry values", () => {
+  it("ignores non-digit and unsafe-integer retry values", () => {
     const decoder = new SSEEventDecoder();
     expect(
       decoder.push(
-        "retry: 1000\ndata: a\n\nretry: -1\ndata: b\n\nretry: 1.5\ndata: c\n\nretry: 1e3\ndata: d\n\nretry:\ndata: e\n\n",
+        "retry: 1000\ndata: a\n\nretry: -1\ndata: b\n\nretry: 1.5\ndata: c\n\nretry: 1e3\ndata: d\n\nretry:\ndata: e\n\n" +
+          `retry: ${"9".repeat(400)}\ndata: f\n\n`,
       ),
     ).toEqual([
       { data: "a", retry: 1000 },
@@ -106,6 +107,7 @@ describe("SSEEventDecoder", () => {
       { data: "c", retry: 1000 },
       { data: "d", retry: 1000 },
       { data: "e", retry: 1000 },
+      { data: "f", retry: 1000 },
     ]);
   });
 

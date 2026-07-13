@@ -76,9 +76,13 @@ export class SSEEventDecoder {
       case "id":
         if (!value.includes("\u0000")) this.lastEventId = value;
         break;
-      case "retry":
-        if (/^\d+$/.test(value)) this.retry = Number(value);
+      case "retry": {
+        const retry = Number(value);
+        if (/^\d+$/.test(value) && Number.isSafeInteger(retry)) {
+          this.retry = retry;
+        }
         break;
+      }
     }
 
     return null;
