@@ -268,6 +268,19 @@ export type LangGraphRuntimeExtras = {
 
 export type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
   /**
+   * When provided, the runtime starts on this thread instead of creating a new
+   * empty thread. Useful for URL-based routing (e.g. `/chat/[threadId]`).
+   *
+   * @deprecated Use `threadId` instead, which also reacts to subsequent changes.
+   */
+  initialThreadId?: string | undefined;
+  /**
+   * The current thread ID to display. When this value changes, the runtime
+   * automatically switches to the specified thread. Set to `undefined` to
+   * switch to a new thread.
+   */
+  threadId?: string | undefined;
+  /**
    * Called whenever the active thread's canonical (remote) ID changes, so the
    * value can be treated as a managed/controlled variable (e.g. synced to a URL
    * query param). Only the settled remote ID is emitted: while a freshly created
