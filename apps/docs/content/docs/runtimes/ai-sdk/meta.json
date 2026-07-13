@@ -1,5 +1,5 @@
 {
   "title": "AI SDK by Vercel",
-  "description": "Vercel AI SDK runtime docs for assistant-ui, including current v6 setup and legacy v5/v4 references.",
-  "pages": ["overview", "v6", "v5-legacy", "v4-legacy"]
+  "description": "Vercel AI SDK runtime docs for assistant-ui, including current v7 setup and legacy v6/v5/v4 references.",
+  "pages": ["overview", "v7", "v6-legacy", "v5-legacy", "v4-legacy"]
 }

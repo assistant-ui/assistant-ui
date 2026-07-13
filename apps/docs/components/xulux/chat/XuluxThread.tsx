@@ -5,7 +5,8 @@ import { AssistantComposer } from "@/components/docs/assistant/composer";
 import { AssistantActionBar } from "@/components/docs/assistant/assistant-action-bar";
 import { XuluxMarkdownText } from "./XuluxMarkdownText";
 import { AssistantFooter } from "@/components/docs/assistant/footer";
-import { AssistantThread } from "@/components/docs/assistant/thread";
+import { UserMessage } from "@/components/docs/assistant/messages";
+import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
 import { DotMatrix } from "@/components/assistant-ui/dot-matrix";
 import { analytics } from "@/lib/analytics";
@@ -19,10 +20,12 @@ import {
   AuiIf,
   ErrorPrimitive,
   MessagePrimitive,
+  ThreadPrimitive,
   useAui,
+  useAuiState,
 } from "@assistant-ui/react";
 import Image from "next/image";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { XuluxPoweredBy } from "../XuluxPoweredBy";
 import { useXuluxTemplateContext } from "./XuluxTemplateContext";
 import { XuluxToolCall } from "./XuluxToolCall";
@@ -50,26 +53,56 @@ export function XuluxThread({
   const welcome = useMemo(() => getXuluxThreadWelcome(template), [template]);
 
   return (
-    <AssistantThread
-      welcome={
-        <XuluxWelcome welcome={welcome} templateTitle={template?.title} />
-      }
-      composer={
-        <XuluxComposer
-          onNewThread={onNewThread}
-          placeholder={welcome.composerPlaceholder}
-        />
-      }
-      footer={
-        <AssistantFooter
-          onNewThread={onNewThread}
-          contextWindow={XULUX_CONTEXT_WINDOW}
-          centerContent={<XuluxPoweredBy className="min-w-0 truncate px-1" />}
-        />
-      }
-      AssistantMessageComponent={XuluxAssistantMessage}
-    />
+    <ThreadPrimitive.Root className="bg-background flex h-full flex-col">
+      <XuluxPendingMessageHandler />
+      <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col overflow-y-auto overscroll-contain px-3 pt-3">
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <XuluxWelcome welcome={welcome} templateTitle={template?.title} />
+        </AuiIf>
+
+        <div className="px-1.5" data-slot="thread-messages">
+          <ThreadPrimitive.Messages>
+            {({ message }) => {
+              if (message.role === "user") return <UserMessage />;
+              if (message.role === "assistant")
+                return <XuluxAssistantMessage />;
+              return null;
+            }}
+          </ThreadPrimitive.Messages>
+        </div>
+
+        <ThreadPrimitive.ViewportFooter className="bg-background sticky bottom-0 mt-auto flex flex-col overflow-visible rounded-t-xl">
+          <XuluxComposer
+            onNewThread={onNewThread}
+            placeholder={welcome.composerPlaceholder}
+          />
+        </ThreadPrimitive.ViewportFooter>
+      </ThreadPrimitive.Viewport>
+      <AssistantFooter
+        onNewThread={onNewThread}
+        contextWindow={XULUX_CONTEXT_WINDOW}
+        centerContent={<XuluxPoweredBy className="min-w-0 truncate px-1" />}
+      />
+    </ThreadPrimitive.Root>
   );
+}
+
+function XuluxPendingMessageHandler(): ReactNode {
+  const { pendingMessage, clearPendingMessage } = useAssistantPanel();
+  const aui = useAui();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const processedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!pendingMessage || processedRef.current === pendingMessage) return;
+    if (isRunning) return;
+
+    processedRef.current = pendingMessage;
+    clearPendingMessage();
+    aui.thread().append(pendingMessage);
+  }, [pendingMessage, clearPendingMessage, aui, isRunning]);
+
+  return null;
 }
 
 function XuluxComposer({

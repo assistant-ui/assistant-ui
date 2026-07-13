@@ -221,10 +221,12 @@ const useMcpServerResource = (
       await finalizeConnect(transport);
     } catch (err) {
       await closeTransport();
+      const error = err instanceof Error ? err : new Error(String(err));
       setLastError({
-        message: err instanceof Error ? err.message : String(err),
+        message: error.message,
       });
       setConnectionState("error");
+      throw error;
     }
   });
 
@@ -307,6 +309,13 @@ const useMcpServerResource = (
         name,
         arguments: args as Record<string, unknown> | undefined,
       });
+    },
+    listResources: async () => {
+      const client = clientRef.current;
+      if (!client) {
+        throw new Error(`MCP server "${props.id}" is not connected`);
+      }
+      return await client.listResources();
     },
     readResource: async (uri) => {
       const client = clientRef.current;

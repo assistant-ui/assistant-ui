@@ -81,7 +81,8 @@ const mcpClient = await createMCPClient({
 
 In a generative toolkit, spread `defineMcpToolkit({ ... })` with one entry per
 MCP server. The entry key names the server connection; the MCP server publishes
-the actual tool names.
+the actual tool names. Use a readable key because it appears in connection and
+tool-listing errors for debugging.
 
 ```tsx title="app/toolkit.tsx"
 "use generative";
@@ -98,6 +99,62 @@ export default defineToolkit({
   }),
 });
 ```
+
+Use `{ server, disabled }` when a whole MCP server should stay configured but
+not expose tools for the current request, such as missing credentials, feature
+flags, or plan gating:
+
+```tsx
+defineMcpToolkit({
+  docs: {
+    server: {
+      type: "http",
+      url: process.env.DOCS_MCP_URL!,
+    },
+    disabled: !process.env.DOCS_MCP_URL,
+  },
+});
+```
+
+Use `tools` when the server should stay enabled but specific MCP tools should
+be hidden from the model:
+
+```tsx
+defineMcpToolkit({
+  docs: {
+    server: {
+      type: "http",
+      url: process.env.DOCS_MCP_URL!,
+    },
+    tools: {
+      deleteDocument: {
+        disabled: !userCanDelete,
+      },
+    },
+  },
+});
+```
+
+If multiple MCP servers expose the same tool name, wrap the entry with
+`{ server, prefix }` to give each server's tools distinct model-visible names:
+
+```tsx
+export default defineToolkit({
+  ...defineMcpToolkit({
+    docs: {
+      server: { type: "http", url: "https://docs.example.com/mcp" },
+      prefix: "docs_",
+    },
+    github: {
+      server: { type: "http", url: "https://github.example.com/mcp" },
+      prefix: "github_",
+    },
+  }),
+});
+```
+
+If both servers publish `search`, the model receives `docs_search` and
+`github_search` instead of an ambiguous duplicate.
 
 Use `AISDKToolkit` in the route. It opens the MCP clients, merges their tools
 with the rest of your toolkit, and closes them when you call `close()`:
@@ -319,7 +376,7 @@ import type { ReactNode } from "react";
 import { toolkit } from "./GitHubIssueToolUI";
 
 export function MyRuntimeProvider({ children }: { children: ReactNode }) {
-  const runtime = useChatRuntime({ api: "/api/chat" });
+  const runtime = useChatRuntime();
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   return (
@@ -329,6 +386,46 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
   );
 }
 ```
+
+`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
+
+</Step>
+<Step>
+
+### Require approval before an MCP tool runs
+
+MCP tools execute on the server, so approval is a server-side tool gate, not a `humanTool()` result. Gate the call with AI SDK v7's call-level `toolApproval` option, keyed by the tool's model-visible name. The tool name stays the same, so your custom renderer or the default `ToolFallback` receives `approval` and `respondToApproval` like any other backend tool:
+
+```ts title="app/api/chat/route.ts"
+const tools = await mcpClient.tools();
+
+const result = streamText({
+  model: openai("gpt-5.4-mini"),
+  messages: await convertToModelMessages(messages),
+  tools,
+  toolApproval: {
+    github_delete_repository: "user-approval",
+  },
+  onFinish: async () => {
+    await mcpClient.close();
+  },
+});
+```
+
+With `AISDKToolkit`, pass the same `toolApproval` option alongside the tools returned by `await aiToolkit.tools(...)`; key it by the prefixed name when the entry sets one.
+
+On the client, let the AI SDK send the recorded approval decision back to the
+route:
+
+```tsx title="app/components/RuntimeProvider.tsx"
+import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
+
+const runtime = useChatRuntime({
+  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+});
+```
+
+Use this pattern for backend-owned actions such as deleting, writing, deploying, or calling privileged MCP tools. Use `humanTool()` only when the user supplies the tool result itself. For custom approval UIs, see [Server-side approval gates](/docs/tools/tool-ui#server-side-approval-gates); for the full wire setup, see [Server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval).
 
 </Step>
 <Step>
@@ -357,7 +454,7 @@ Start the app and trigger a tool call (e.g., ask the assistant to do something t
   <Card
     title="AI SDK runtime"
     description="The runtime that ferries MCP tool calls to the chat UI."
-    href="/docs/runtimes/ai-sdk/v6"
+    href="/docs/runtimes/ai-sdk/v7"
   />
   <Card
     title="Tools and tool UI"

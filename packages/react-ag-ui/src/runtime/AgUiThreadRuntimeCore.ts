@@ -36,6 +36,11 @@ const optimisticPrefix = "__optimistic__";
 const generateOptimisticId = () => `${optimisticPrefix}${generateId()}`;
 const isOptimisticId = (id: string) => id.startsWith(optimisticPrefix);
 
+const isResolvedToolCall = (
+  part: ThreadAssistantMessage["content"][number],
+): boolean =>
+  part.type === "tool-call" && "result" in part && part.result !== undefined;
+
 const symbolResumeShim = Symbol("agui-resume-shim");
 
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
@@ -53,6 +58,7 @@ type CoreOptions = {
   agent: AbstractAgent;
   logger: Logger;
   showThinking: boolean;
+  autoCancelPendingToolCalls?: boolean | undefined;
   onError?: (error: Error) => void;
   onCancel?: () => void;
   history?: ThreadHistoryAdapter;
@@ -65,6 +71,7 @@ export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
   private showThinking: boolean;
+  private autoCancelPendingToolCalls: boolean | undefined;
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
   private readonly notifyUpdate: () => void;
@@ -87,6 +94,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.history = options.history;
@@ -98,6 +106,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.history = options.history;
@@ -174,10 +183,24 @@ export class AgUiThreadRuntimeCore {
 
   async append(message: AppendMessage): Promise<void> {
     const startRun = message.startRun ?? message.role === "user";
-    if (startRun) this.assertNoPendingInterrupts();
+    if (startRun) {
+      this.assertNoPendingInterrupts();
+      this.maybeAutoCancelPendingToolCalls();
+    }
     const threadMessageId = this.appendEntry(message);
     if (!startRun) return;
     await this.startRun(threadMessageId, message.runConfig);
+  }
+
+  // Must run before appendEntry/resetHead: a parentId that points at an
+  // ancestor would truncate the pending assistant away before its tool calls
+  // can be cancelled, stranding it with a status that history never persists.
+  private maybeAutoCancelPendingToolCalls(): void {
+    if (this.autoCancelPendingToolCalls === false) return;
+    const pending = this.getPendingToolCalls();
+    if (!pending) return;
+    this.cancelUnresolvedToolCalls(pending.messageId);
+    this.maybeCompleteAfterToolResults(pending.messageId);
   }
 
   private appendEntry(message: AppendMessage): string {
@@ -204,6 +227,7 @@ export class AgUiThreadRuntimeCore {
     config: { runConfig?: RunConfig } = {},
   ): Promise<void> {
     this.assertNoPendingInterrupts();
+    this.maybeAutoCancelPendingToolCalls();
     this.resetHead(parentId);
     this.notifyUpdate();
     await this.startRun(parentId, config.runConfig);
@@ -255,20 +279,28 @@ export class AgUiThreadRuntimeCore {
     );
   }
 
-  getPendingInterrupts(): {
-    messageId: string;
-    interrupts: readonly AgUiInterrupt[];
-  } | null {
+  private findRequiresActionAssistant(
+    reason: "interrupt" | "tool-calls",
+  ): ThreadAssistantMessage | null {
     const assistant = this.messages.findLast((m) => m.role === "assistant") as
       | ThreadAssistantMessage
       | undefined;
     if (
       !assistant ||
       assistant.status?.type !== "requires-action" ||
-      assistant.status.reason !== "interrupt"
+      assistant.status.reason !== reason
     ) {
       return null;
     }
+    return assistant;
+  }
+
+  getPendingInterrupts(): {
+    messageId: string;
+    interrupts: readonly AgUiInterrupt[];
+  } | null {
+    const assistant = this.findRequiresActionAssistant("interrupt");
+    if (!assistant) return null;
     const stored = (
       assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
         | AgUiCustomMetadata
@@ -276,6 +308,22 @@ export class AgUiThreadRuntimeCore {
     )?.interrupts;
     if (!stored?.length) return null;
     return { messageId: assistant.id, interrupts: stored };
+  }
+
+  getPendingToolCalls(): {
+    messageId: string;
+    toolCallIds: string[];
+  } | null {
+    const assistant = this.findRequiresActionAssistant("tool-calls");
+    if (!assistant) return null;
+    const toolCallIds: string[] = [];
+    for (const part of assistant.content) {
+      if (part.type !== "tool-call") continue;
+      if (isResolvedToolCall(part)) continue;
+      toolCallIds.push(part.toolCallId);
+    }
+    if (toolCallIds.length === 0) return null;
+    return { messageId: assistant.id, toolCallIds };
   }
 
   async submitInterruptResponses(
@@ -359,6 +407,23 @@ export class AgUiThreadRuntimeCore {
   ): Promise<void> {
     const pending = this.getPendingInterrupts();
     if (!pending) {
+      const pendingTools = this.getPendingToolCalls();
+      if (pendingTools) {
+        if (responses?.length) {
+          throw new Error(
+            "[agui] steerAway: responses are only valid for pending interrupts",
+          );
+        }
+        if (this.isRunningFlag) {
+          throw new Error("[agui] steerAway: a run is already in progress");
+        }
+        this.cancelUnresolvedToolCalls(pendingTools.messageId);
+        this.maybeCompleteAfterToolResults(pendingTools.messageId);
+        const normalized = this.toAppendMessage(message);
+        const threadMessageId = this.appendEntry(normalized);
+        await this.startRun(threadMessageId, normalized.runConfig);
+        return;
+      }
       if (responses?.length) {
         throw new Error(
           "[agui] steerAway: no pending interrupts on this thread",
@@ -484,13 +549,31 @@ export class AgUiThreadRuntimeCore {
       for (const part of message.content) {
         if (part.type !== "tool-call" || part.toolCallId !== toolCallId)
           continue;
-        if (!("result" in part) || part.result === undefined) {
+        if (!isResolvedToolCall(part)) {
           return message.id;
         }
         fallbackMessageId ??= message.id;
       }
     }
     return fallbackMessageId;
+  }
+
+  private cancelUnresolvedToolCalls(messageId: string): void {
+    this.messages = this.messages.map((message) => {
+      if (message.id !== messageId || message.role !== "assistant")
+        return message;
+      const assistant = message as ThreadAssistantMessage;
+      const content = assistant.content.map((part) => {
+        if (part.type !== "tool-call" || isResolvedToolCall(part)) return part;
+        return {
+          ...part,
+          result: { error: "Tool call cancelled by user" },
+          isError: true,
+        };
+      });
+      return { ...assistant, content };
+    });
+    this.notifyUpdate();
   }
 
   addToolResult(options: AddToolResultOptions): void {
@@ -547,9 +630,7 @@ export class AgUiThreadRuntimeCore {
       return false;
     }
     const allResolved = assistant.content.every(
-      (part) =>
-        part.type !== "tool-call" ||
-        ("result" in part && part.result !== undefined),
+      (part) => part.type !== "tool-call" || isResolvedToolCall(part),
     );
     if (!allResolved) return false;
 
@@ -952,11 +1033,7 @@ export class AgUiThreadRuntimeCore {
   ): ThreadAssistantMessage["content"] {
     const resolved = new Map<string, ToolCallMessagePart>();
     for (const part of previous) {
-      if (
-        part.type === "tool-call" &&
-        "result" in part &&
-        part.result !== undefined
-      ) {
+      if (part.type === "tool-call" && isResolvedToolCall(part)) {
         resolved.set(part.toolCallId, part);
       }
     }
@@ -964,8 +1041,7 @@ export class AgUiThreadRuntimeCore {
 
     let changed = false;
     const merged = next.map((part) => {
-      if (part.type !== "tool-call") return part;
-      if ("result" in part && part.result !== undefined) return part;
+      if (part.type !== "tool-call" || isResolvedToolCall(part)) return part;
       const prior = resolved.get(part.toolCallId);
       if (!prior) return part;
       changed = true;

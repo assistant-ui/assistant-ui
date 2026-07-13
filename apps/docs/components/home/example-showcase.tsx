@@ -9,7 +9,7 @@ import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { Gemini } from "@/components/examples/gemini";
 import { Grok } from "@/components/examples/grok";
 import { analytics } from "@/lib/analytics";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/radix/button";
 import { cn } from "@/lib/utils";
 import { ArrowUpRightIcon, Maximize2Icon, XIcon } from "lucide-react";
 import Link from "next/link";
@@ -17,7 +17,10 @@ import React from "react";
 import { flushSync } from "react-dom";
 
 const ExampleWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="not-prose h-full overflow-hidden rounded-2xl border">
+  <div
+    className="not-prose h-full overflow-hidden rounded-2xl border"
+    data-slot="example-shell"
+  >
     {children}
   </div>
 );
@@ -144,10 +147,27 @@ export function ExampleShowcase() {
     );
   }, []);
 
+  // Radix portals mount into <body>, so a portaled dropdown's contents fail
+  // the shell containment check; require the target to sit inside the panel.
+  const isOutsideShell = React.useCallback(
+    (target: EventTarget | null) =>
+      target instanceof Element &&
+      panelRef.current?.contains(target) === true &&
+      !target.closest(
+        '[data-slot="example-shell"], [data-slot="tab-item"], [data-slot="tab-actions"]',
+      ),
+    [],
+  );
+
   // Inline, the demo is a static preview: clicking anywhere except the tab bar
-  // expands it to fullscreen, where it becomes interactive.
+  // expands it to fullscreen, where it becomes interactive. Fullscreen, the
+  // same click on the padding around the shell exits.
   const handlePanelClick = (e: React.MouseEvent) => {
-    if (isFullscreen) return;
+    if (isFullscreen) {
+      if (e.defaultPrevented) return;
+      if (isOutsideShell(e.target)) toggleFullscreen();
+      return;
+    }
     if ((e.target as HTMLElement).closest('[data-slot="tab-list"]')) return;
     toggleFullscreen();
   };
@@ -161,7 +181,15 @@ export function ExampleShowcase() {
       if (e.defaultPrevented) return;
       if (e.key === "Escape") toggleFullscreen();
     };
+    // Page scroll is locked, so a wheel gesture outside the shell can only
+    // mean "get back to the page". The deltaY check keeps horizontal trackpad
+    // swipes over the overflow-x tab bar from exiting.
+    const handleWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      if (isOutsideShell(e.target)) toggleFullscreen();
+    };
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("wheel", handleWheel, { passive: true });
     document.body.style.overflow = "hidden";
     // The homepage <main> creates a z-2 stacking context, which would paint
     // the overlay beneath the sticky z-50 site header.
@@ -169,14 +197,38 @@ export function ExampleShowcase() {
     if (stackingAncestor instanceof HTMLElement) {
       stackingAncestor.style.zIndex = "50";
     }
+    // The panel stays in the page's DOM (no portal), so keep Tab focus inside
+    // by inerting every element outside its ancestor chain. Radix portals
+    // opened while zoomed mount into <body> afterwards and stay interactive.
+    const inertedSiblings: HTMLElement[] = [];
+    for (
+      let node: HTMLElement | null = panelRef.current;
+      node && node !== document.body;
+      node = node.parentElement
+    ) {
+      for (const sibling of node.parentElement?.children ?? []) {
+        if (
+          sibling !== node &&
+          sibling instanceof HTMLElement &&
+          !sibling.inert
+        ) {
+          sibling.inert = true;
+          inertedSiblings.push(sibling);
+        }
+      }
+    }
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("wheel", handleWheel);
       document.body.style.overflow = "";
       if (stackingAncestor instanceof HTMLElement) {
         stackingAncestor.style.zIndex = "";
       }
+      for (const sibling of inertedSiblings) {
+        sibling.inert = false;
+      }
     };
-  }, [isFullscreen, toggleFullscreen]);
+  }, [isFullscreen, isOutsideShell, toggleFullscreen]);
 
   const activeSlug = EXAMPLE_TABS[activeIndex]?.slug;
 

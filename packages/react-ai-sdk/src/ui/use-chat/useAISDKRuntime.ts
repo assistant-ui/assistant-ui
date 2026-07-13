@@ -362,7 +362,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           modelContent !== undefined
             ? wrapModelContentEnvelope(result, modelContent)
             : result;
-        chatHelpers.addToolResult({
+        chatHelpers.addToolOutput({
           tool: toolName,
           toolCallId,
           output,

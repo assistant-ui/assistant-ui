@@ -41,7 +41,9 @@ export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
     return Promise.resolve(new ReadableStream<AssistantStreamChunk>());
   }
 
-  fetch(_threadId: string): Promise<RemoteThreadMetadata> {
-    return Promise.reject(new Error("Thread not found"));
+  fetch(threadId: string): Promise<RemoteThreadMetadata> {
+    return Promise.reject(
+      new Error(`Thread "${threadId}" not found in in-memory thread list.`),
+    );
   }
 }

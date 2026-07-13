@@ -20,7 +20,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/radix/popover";
 import {
   Command,
   CommandEmpty,
@@ -29,7 +29,7 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@/components/ui/command";
+} from "@/components/ui/radix/command";
 import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 
 export type ModelSelectorEffortOption = {
@@ -240,7 +240,7 @@ function ModelSelectorRoot({
 }
 
 export const modelSelectorTriggerVariants = cva(
-  "focus-visible:ring-ring/50 flex w-fit items-center justify-between gap-2 overflow-hidden rounded-md text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "focus-visible:ring-ring/50 flex w-fit items-center justify-between gap-2 overflow-hidden rounded-md text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
   {
     variants: {
       variant: {
@@ -310,9 +310,20 @@ export type ModelSelectorValueProps = {
   className?: string;
 };
 
-function ModelIcon({ children }: { children: ReactNode }) {
+function ModelIcon({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
+    <span
+      className={cn(
+        "flex size-3.5 shrink-0 items-center justify-center [&_svg]:size-3.5",
+        className,
+      )}
+    >
       {children}
     </span>
   );
@@ -524,12 +535,17 @@ function ModelSelectorItem({
         setOpen(false);
         onSelect?.(selectedValue);
       }}
-      className={cn("relative gap-2 rounded-lg py-2 ps-3 pe-9", className)}
+      className={cn(
+        "relative items-start gap-2 rounded-lg py-2 ps-3 pe-9 [&_svg:not([class*='size-'])]:size-3.5",
+        className,
+      )}
       {...props}
     >
       {children ?? (
         <>
-          {model.icon && <ModelIcon>{model.icon}</ModelIcon>}
+          {model.icon && (
+            <ModelIcon className="mt-[3px]">{model.icon}</ModelIcon>
+          )}
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{model.name}</span>
             {model.description && (
@@ -541,7 +557,7 @@ function ModelSelectorItem({
         </>
       )}
       {isSelected && (
-        <span className="absolute end-3 flex size-4 items-center justify-center">
+        <span className="absolute end-3 top-2.5 flex size-4 items-center justify-center">
           <CheckIcon className="size-4" />
         </span>
       )}
@@ -618,6 +634,9 @@ export type ModelSelectorProps = Omit<ModelSelectorRootProps, "children"> &
   VariantProps<typeof modelSelectorTriggerVariants> & {
     /** Render a search input above the model list. */
     searchable?: boolean;
+    /** Alignment of the dropdown relative to the trigger. Use `"end"` when the
+     * trigger sits at the right edge of its container. */
+    align?: ModelSelectorContentProps["align"];
     className?: string;
     contentClassName?: string;
   };
@@ -648,6 +667,7 @@ const ModelSelectorImpl = ({
   searchable,
   variant,
   size,
+  align,
   className,
   contentClassName,
   ...rootProps
@@ -661,6 +681,7 @@ const ModelSelectorImpl = ({
         className={className}
       />
       <ModelSelectorContent
+        {...(align !== undefined ? { align } : {})}
         className={contentClassName}
         searchable={searchable ?? false}
       />

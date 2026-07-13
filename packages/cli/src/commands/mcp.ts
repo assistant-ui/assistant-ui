@@ -135,6 +135,18 @@ function deepMerge(target: any, source: any): any {
   return result;
 }
 
+class McpConfigParseError extends Error {
+  constructor(targetName: string, configPath: string, flag: string) {
+    super(
+      `Invalid ${targetName} MCP config JSON at ${configPath}. Fix the JSON syntax, then run: assistant-ui mcp ${flag}`,
+    );
+    this.name = "McpConfigParseError";
+  }
+}
+
+const getTargetFlag = (target: Exclude<MCPTarget, "claude-code">) =>
+  `--${target}`;
+
 async function installForTarget(target: MCPTarget): Promise<void> {
   if (target === "claude-code") {
     logger.info("Installing MCP server for Claude Code...");
@@ -204,12 +216,15 @@ async function installForTarget(target: MCPTarget): Promise<void> {
     const content = fs.readFileSync(configPath, "utf-8");
     try {
       existingConfig = JSON.parse(content);
-    } catch (e) {
-      logger.error(`Could not parse existing config at ${configPath}`);
-      logger.error(
-        "Please fix the JSON syntax error before running this command.",
+    } catch {
+      const flag = getTargetFlag(target);
+      logger.error(`Could not parse ${targetConfig.name} MCP config.`);
+      logger.info(`Config path: ${configPath}`);
+      logger.info(
+        `Fix the JSON syntax in that file, then run: assistant-ui mcp ${flag}`,
       );
-      throw e;
+      logger.info("No changes were written.");
+      throw new McpConfigParseError(targetConfig.name, configPath, flag);
     }
   }
 
