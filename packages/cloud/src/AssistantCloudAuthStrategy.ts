@@ -109,6 +109,49 @@ export class AssistantCloudAPIKeyAuthStrategy implements AssistantCloudAuthStrat
 
 const AUI_REFRESH_TOKEN_NAME = "aui:refresh_token";
 
+const getLocalStorage = (): Storage | null => {
+  if (!("localStorage" in globalThis)) return null;
+  try {
+    return (globalThis as { localStorage: Storage }).localStorage;
+  } catch {
+    return null;
+  }
+};
+
+const readRefreshToken = ():
+  | { token: string; expires_at: string }
+  | undefined => {
+  const storage = getLocalStorage();
+  if (!storage) return undefined;
+  try {
+    const value = storage.getItem(AUI_REFRESH_TOKEN_NAME);
+    return value
+      ? (JSON.parse(value) as { token: string; expires_at: string })
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const writeRefreshToken = (refreshToken: {
+  token: string;
+  expires_at: string;
+}): void => {
+  const storage = getLocalStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(AUI_REFRESH_TOKEN_NAME, JSON.stringify(refreshToken));
+  } catch {}
+};
+
+const removeRefreshToken = (): void => {
+  const storage = getLocalStorage();
+  if (!storage) return;
+  try {
+    storage.removeItem(AUI_REFRESH_TOKEN_NAME);
+  } catch {}
+};
+
 export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthStrategy {
   public readonly strategy = "anon";
 
@@ -119,15 +162,7 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
     this.baseUrl = baseUrl;
     this.jwtStrategy = new AssistantCloudJWTAuthStrategy(async () => {
       const currentTime = Date.now();
-      const storedRefreshTokenJson = localStorage.getItem(
-        AUI_REFRESH_TOKEN_NAME,
-      );
-      const storedRefreshToken = storedRefreshTokenJson
-        ? (JSON.parse(storedRefreshTokenJson) as {
-            token: string;
-            expires_at: string;
-          })
-        : undefined;
+      const storedRefreshToken = readRefreshToken();
 
       if (storedRefreshToken) {
         const refreshExpiry = new Date(storedRefreshToken.expires_at).getTime();
@@ -145,15 +180,12 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
             const data = await response.json();
             const { access_token, refresh_token } = data;
             if (refresh_token) {
-              localStorage.setItem(
-                AUI_REFRESH_TOKEN_NAME,
-                JSON.stringify(refresh_token),
-              );
+              writeRefreshToken(refresh_token);
             }
             return access_token;
           }
         } else {
-          localStorage.removeItem(AUI_REFRESH_TOKEN_NAME);
+          removeRefreshToken();
         }
       }
 
@@ -169,10 +201,7 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
 
       if (!access_token || !refresh_token) return null;
 
-      localStorage.setItem(
-        AUI_REFRESH_TOKEN_NAME,
-        JSON.stringify(refresh_token),
-      );
+      writeRefreshToken(refresh_token);
       return access_token;
     });
   }

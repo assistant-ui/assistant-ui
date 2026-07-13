@@ -1,3 +1,5 @@
+import "@standard-schema/spec";
+
 import { DOMConversionMap, DOMExportOutput, DecoratorNode, EditorConfig, LexicalEditor, LexicalNode, NodeKey, SerializedLexicalNode, Spread } from "lexical";
 
 import { ComponentPropsWithoutRef, FC, ReactNode } from "react";

@@ -47,7 +47,7 @@ export function injectQuoteContext(messages: UIMessage[]): UIMessage[] {
       .join("\n");
 
     const alreadyInjected =
-      msg.parts[0]?.type === "text" &&
+      msg.parts?.[0]?.type === "text" &&
       msg.parts[0].text === `${blockquote}\n\n`;
     if (alreadyInjected) return msg;
 

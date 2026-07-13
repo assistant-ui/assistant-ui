@@ -27,18 +27,14 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui-base/tooltip";
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogTrigger,
-} from "@/components/ui-base/dialog";
-import {
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-} from "@/components/ui-base/avatar";
+} from "@/components/ui/dialog";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 

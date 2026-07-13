@@ -20,7 +20,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/radix/popover";
 import {
   Command,
   CommandEmpty,
@@ -29,7 +29,7 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@/components/ui/command";
+} from "@/components/ui/radix/command";
 import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 
 export type ModelSelectorEffortOption = {

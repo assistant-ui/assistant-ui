@@ -30,18 +30,31 @@ export type ResolvedGroup = {
 };
 
 export type ResolvedComponents = {
-  /** Main component files (the requested components) */
   main: ResolvedGroup;
-  /** assistant-ui dependency files */
   auiDeps: ResolvedGroup;
-  /** shadcn/ui dependency files */
   shadcn: ResolvedGroup;
 };
 
-async function readLocalRegistry(name: string): Promise<RegistryItem | null> {
+export type RegistryFlavor = "radix" | "base";
+
+const RADIX_IMPORT = /(?:from|import)\s*\(?\s*["'](?:radix-ui["']|@radix-ui\/)/;
+
+async function readFile(filePath: string): Promise<string | null> {
+  try {
+    return await fs.readFile(filePath, "utf-8");
+  } catch {
+    return null;
+  }
+}
+
+async function readLocalRegistry(
+  name: string,
+  flavor: RegistryFlavor,
+): Promise<RegistryItem | null> {
   const localPath = path.join(
     process.cwd(),
     "../registry/dist",
+    flavor === "base" ? "base" : ".",
     `${name}.json`,
   );
 
@@ -53,14 +66,37 @@ async function readLocalRegistry(name: string): Promise<RegistryItem | null> {
   }
 }
 
-async function readLocalShadcnComponent(name: string): Promise<string | null> {
-  const localPath = path.join(process.cwd(), "components/ui", `${name}.tsx`);
+async function readLocalShadcnComponent(
+  name: string,
+  flavor: RegistryFlavor,
+): Promise<string | null> {
+  const uiPath = path.join(
+    process.cwd(),
+    "../../packages/ui/src/components/ui/radix",
+    `${name}.tsx`,
+  );
 
-  try {
-    return await fs.readFile(localPath, "utf-8");
-  } catch {
-    return null;
+  if (flavor === "base") {
+    const vendoredPath = path.join(
+      process.cwd(),
+      "../../packages/ui/src/components/ui/base",
+      `${name}.tsx`,
+    );
+    const vendoredContent = await readFile(vendoredPath);
+    if (vendoredContent !== null) {
+      return vendoredContent;
+    }
+
+    const fallbackContent = await readFile(uiPath);
+    return fallbackContent !== null && !RADIX_IMPORT.test(fallbackContent)
+      ? fallbackContent.replaceAll("@/components/ui/radix/", "@/components/ui/")
+      : null;
   }
+
+  const radixContent = await readFile(uiPath);
+  return radixContent !== null
+    ? radixContent.replaceAll("@/components/ui/radix/", "@/components/ui/")
+    : null;
 }
 
 function parseRegistryDependency(dep: string): {
@@ -70,52 +106,67 @@ function parseRegistryDependency(dep: string): {
   if (dep.startsWith("https://r.assistant-ui.com/")) {
     return {
       source: "assistant-ui",
-      name: dep.replace("https://r.assistant-ui.com/", "").replace(".json", ""),
+      name: dep
+        .replace("https://r.assistant-ui.com/", "")
+        .replace(/^base\//, "")
+        .replace(".json", ""),
     };
   }
-  // Plain name = shadcn component
   return { source: "shadcn", name: dep };
 }
 
-// Known shadcn component dependencies (npm packages)
-const SHADCN_DEPENDENCIES: Record<string, string[]> = {
-  button: ["radix-ui"],
-  tooltip: ["radix-ui"],
-  collapsible: ["radix-ui"],
-  dialog: ["radix-ui"],
-  popover: ["radix-ui"],
-  "dropdown-menu": ["radix-ui"],
-  avatar: ["radix-ui"],
-  select: ["radix-ui"],
-  separator: ["radix-ui"],
-  tabs: ["radix-ui"],
-  toggle: ["radix-ui"],
-  "toggle-group": ["radix-ui"],
-  checkbox: ["radix-ui"],
-  label: ["radix-ui"],
-  progress: ["radix-ui"],
-  slider: ["radix-ui"],
-  switch: ["radix-ui"],
-  "scroll-area": ["radix-ui"],
-  "context-menu": ["radix-ui"],
-  "alert-dialog": ["radix-ui"],
-  "hover-card": ["radix-ui"],
-  menubar: ["radix-ui"],
-  "navigation-menu": ["radix-ui"],
-  "radio-group": ["radix-ui"],
-  accordion: ["radix-ui"],
-  "aspect-ratio": ["radix-ui"],
+const PRIMITIVE_BACKED_SHADCN = new Set([
+  "button",
+  "tooltip",
+  "collapsible",
+  "dialog",
+  "popover",
+  "dropdown-menu",
+  "avatar",
+  "select",
+  "separator",
+  "tabs",
+  "toggle",
+  "toggle-group",
+  "checkbox",
+  "label",
+  "progress",
+  "slider",
+  "switch",
+  "scroll-area",
+  "context-menu",
+  "alert-dialog",
+  "hover-card",
+  "menubar",
+  "navigation-menu",
+  "radio-group",
+  "accordion",
+  "aspect-ratio",
+  "sidebar",
+]);
+
+const NEUTRAL_SHADCN_DEPENDENCIES: Record<string, string[]> = {
   form: ["react-hook-form", "@hookform/resolvers", "zod"],
   resizable: ["react-resizable-panels"],
   sonner: ["sonner"],
   drawer: ["vaul"],
   carousel: ["embla-carousel-react"],
   "input-otp": ["input-otp"],
-  sidebar: ["radix-ui"],
 };
+
+function shadcnDependencies(
+  name: string,
+  flavor: RegistryFlavor,
+): string[] | undefined {
+  if (PRIMITIVE_BACKED_SHADCN.has(name)) {
+    return flavor === "base" ? ["@base-ui/react"] : ["radix-ui"];
+  }
+  return NEUTRAL_SHADCN_DEPENDENCIES[name];
+}
 
 export async function resolveAllComponents(
   components: string[],
+  flavor: RegistryFlavor = "base",
 ): Promise<ResolvedComponents> {
   const visited = new Set<string>();
   const mainNpmDeps = new Set<string>();
@@ -128,7 +179,6 @@ export async function resolveAllComponents(
     shadcn: { files: [], dependencies: [] },
   };
 
-  // Collect dependencies for a component (returns them in order: component first, then its deps)
   async function resolveAssistantUI(
     name: string,
     isMain: boolean,
@@ -137,10 +187,9 @@ export async function resolveAllComponents(
     if (visited.has(key)) return;
     visited.add(key);
 
-    const item = await readLocalRegistry(name);
+    const item = await readLocalRegistry(name, flavor);
     if (!item) return;
 
-    // Collect npm dependencies
     if (item.dependencies) {
       for (const dep of item.dependencies) {
         if (isMain) {
@@ -151,11 +200,9 @@ export async function resolveAllComponents(
       }
     }
 
-    // First add all files from this component (skip if no files - e.g. style items)
     if (item.files) {
       for (const file of item.files) {
         const filePath = file.target ?? file.path;
-        // Skip lib/utils.ts
         if (filePath === "lib/utils.ts") continue;
 
         const targetGroup = isMain ? result.main : result.auiDeps;
@@ -167,7 +214,6 @@ export async function resolveAllComponents(
       }
     }
 
-    // Then resolve dependencies (component first, then its deps)
     if (item.registryDependencies) {
       for (const dep of item.registryDependencies) {
         const parsed = parseRegistryDependency(dep);
@@ -185,11 +231,10 @@ export async function resolveAllComponents(
     if (visited.has(key)) return;
     visited.add(key);
 
-    const content = await readLocalShadcnComponent(name);
+    const content = await readLocalShadcnComponent(name, flavor);
     if (!content) return;
 
-    // Collect npm dependencies for shadcn components
-    const deps = SHADCN_DEPENDENCIES[name];
+    const deps = shadcnDependencies(name, flavor);
     if (deps) {
       for (const dep of deps) {
         shadcnNpmDeps.add(dep);
@@ -203,15 +248,12 @@ export async function resolveAllComponents(
     });
   }
 
-  // Resolve all requested components (mark them as main)
   for (const component of components) {
     await resolveAssistantUI(component, true);
   }
 
-  // Dependencies to ignore (assume user already has them)
   const ignoredDeps = new Set(["clsx", "tailwind-merge", "lucide-react"]);
 
-  // Convert sets to sorted arrays, filtering out ignored deps
   result.main.dependencies = Array.from(mainNpmDeps)
     .filter((dep) => !ignoredDeps.has(dep))
     .sort();
@@ -229,12 +271,14 @@ export async function ComponentSource({
   name,
   title,
   collapsible = true,
+  flavor = "base",
 }: {
   name: string;
   title?: string;
   collapsible?: boolean;
+  flavor?: RegistryFlavor;
 }) {
-  const item = await readLocalRegistry(name);
+  const item = await readLocalRegistry(name, flavor);
 
   if (!item?.files?.[0]?.content) {
     return (
@@ -247,7 +291,6 @@ export async function ComponentSource({
   let code = item.files[0].content;
   const filePath = item.files[0].target ?? item.files[0].path;
 
-  // Clean up the code - similar to shadcn's transforms
   code = code.replaceAll("export default", "export");
 
   const lang = (filePath.split(".").pop() ?? "tsx") as "tsx" | "ts" | "js";
@@ -280,7 +323,6 @@ export function ComponentSourceFromFile({
 }) {
   let code = file.content;
 
-  // Clean up the code
   code = code.replaceAll("export default", "export");
 
   const lang = (file.path.split(".").pop() ?? "tsx") as "tsx" | "ts" | "js";

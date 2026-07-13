@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Menu, X, ArrowUpRight, ArrowRight, Search } from "lucide-react";
 import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
 import { usePathname } from "next/navigation";
@@ -11,13 +10,11 @@ import { formatCompact } from "@/lib/format";
 import { SearchDialog } from "./search-dialog";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
-import { NAV_ITEMS } from "@/lib/constants";
-import {
-  CloudButton,
-  cloudButtonVariants,
-} from "@/components/shared/cloud-button";
+import { NAV_ITEMS, CLOUD_URL } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
-import { NavItems } from "@/components/shared/nav-items";
+import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
+import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 
 function SearchButton({ onToggle }: { onToggle: () => void }) {
   useEffect(() => {
@@ -36,7 +33,7 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
     <button
       type="button"
       onClick={onToggle}
-      className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors"
+      className="text-muted-foreground hover:text-foreground flex size-7 cursor-pointer items-center justify-center transition-colors"
       aria-label="Search (⌘K)"
     >
       <Search className="size-4" />
@@ -111,190 +108,213 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl" />
-      <div className="relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/favicon/icon.svg"
-              alt="assistant-ui logo"
-              width={18}
-              height={18}
-              className="dark:hue-rotate-180 dark:invert"
+      <NavItemsRoot>
+        <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl transition-opacity duration-200 group-data-[menu-open=true]:opacity-0" />
+        <div className="group-data-[menu-open=true]:bg-background relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 transition-colors duration-200">
+          <div className="flex items-center gap-4">
+            <HeaderBrandLink />
+
+            <NavItems
+              items={NAV_ITEMS}
+              className="hidden items-center md:flex"
             />
-            <span className="font-medium tracking-tight">assistant-ui</span>
-          </Link>
+          </div>
 
-          <nav className="hidden items-center md:flex">
-            <NavItems items={NAV_ITEMS} />
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-1">
-          {!isHome && (
-            <>
-              <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
-              <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-            </>
-          )}
-
-          {isHome && (
-            <button
-              type="button"
-              onClick={toggle}
-              className={cloudButtonVariants.marketing}
-              aria-label="Ask AI (⌘I)"
-            >
-              Ask AI
-            </button>
-          )}
-          <CloudButton variant="marketing" />
-
-          <a
-            href="https://github.com/assistant-ui/assistant-ui"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground ml-2 hidden items-center gap-2.5 transition-colors sm:flex"
-            aria-label="GitHub"
-          >
-            <GitHubIcon className="size-4" />
-            {stars !== null && (
-              <span className="text-sm tabular-nums">
-                {formatCompact(stars)}
-              </span>
+          <div className="flex items-center gap-2">
+            {!isHome && (
+              <>
+                <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
+                <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+              </>
             )}
-          </a>
 
-          {!isHome && (
-            <a
-              href="https://discord.gg/S9dwgCNEFs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground hidden size-8 items-center justify-center transition-colors sm:flex"
-              aria-label="Discord"
-            >
-              <DiscordIcon className="size-4" />
-            </a>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors md:hidden"
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? (
-              <X className="size-5" />
-            ) : (
-              <Menu className="size-5" />
+            {isHome && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggle}
+                className="hidden md:inline-flex"
+                aria-label="Ask AI (⌘I)"
+              >
+                Ask AI
+                <kbd className="text-muted-foreground border-border/60 bg-muted/50 hidden rounded-[3px] border px-1 font-mono text-[10px] leading-4 lg:inline-block">
+                  ⌘I
+                </kbd>
+              </Button>
             )}
-          </button>
-        </div>
-      </div>
+            <Button
+              size="sm"
+              nativeButton={false}
+              className="hidden md:inline-flex"
+              render={
+                <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
+              }
+            >
+              Cloud
+            </Button>
 
-      <div
-        className={cn(
-          "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 md:hidden",
-          mobileMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      >
-        <nav className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
-          {NAV_ITEMS.map((item) => {
-            if (item.type === "link") {
-              return item.href.startsWith("http") ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              nativeButton={false}
+              className="text-muted-foreground hidden px-1.5 sm:inline-flex"
+              render={
                 <a
-                  key={item.href}
-                  href={item.href}
+                  href="https://github.com/assistant-ui/assistant-ui"
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-foreground py-3 text-lg transition-colors"
-                >
-                  {item.label}
-                </a>
-              ) : (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-foreground py-3 text-lg transition-colors"
-                >
-                  {item.label}
-                </Link>
-              );
-            }
+                  aria-label="GitHub"
+                />
+              }
+            >
+              <GitHubIcon />
+              {stars !== null && (
+                <span className="tabular-nums">{formatCompact(stars)}</span>
+              )}
+            </Button>
 
-            const groups = item.groups;
-
-            return (
-              <div key={item.label} className="flex flex-col">
-                {groups.map((group) => (
-                  <div key={group.label} className="flex flex-col">
-                    <span className="text-muted-foreground py-3 text-sm">
-                      {group.label}
-                    </span>
-                    {group.items.map((link) =>
-                      link.external ? (
-                        <a
-                          key={link.href}
-                          href={link.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
-                        >
-                          {link.label}
-                          <ArrowUpRight className="size-3.5 opacity-40" />
-                        </a>
-                      ) : (
-                        <Link
-                          key={link.href}
-                          href={link.href}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="text-foreground py-2 pl-4 text-lg transition-colors"
-                        >
-                          {link.label}
-                        </Link>
-                      ),
-                    )}
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-
-          <div className="mt-auto flex flex-col gap-4 border-t py-6">
-            <CloudButton
-              variant="mobile"
-              onClick={() => setMobileMenuOpen(false)}
-            />
-            <div className="flex gap-4">
-              <a
-                href="https://github.com/assistant-ui/assistant-ui"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
-              >
-                <GitHubIcon className="size-5" />
-              </a>
+            {!isHome && (
               <a
                 href="https://discord.gg/S9dwgCNEFs"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
+                className="text-muted-foreground hover:text-foreground hidden size-7 items-center justify-center transition-colors sm:flex"
+                aria-label="Discord"
               >
-                <DiscordIcon className="size-5" />
+                <DiscordIcon className="size-4" />
               </a>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors md:hidden"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <X className="size-5" />
+              ) : (
+                <Menu className="size-5" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 md:hidden",
+            mobileMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
+          )}
+        >
+          <div className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
+            {NAV_ITEMS.map((item) => {
+              if (item.type === "link") {
+                return item.href.startsWith("http") ? (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-foreground py-3 text-lg transition-colors"
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-foreground py-3 text-lg transition-colors"
+                  >
+                    {item.label}
+                  </Link>
+                );
+              }
+
+              const groups = item.groups;
+
+              return (
+                <div key={item.label} className="flex flex-col">
+                  {groups.map((group) => (
+                    <div key={group.label} className="flex flex-col">
+                      <span className="text-muted-foreground py-3 text-sm">
+                        {group.label}
+                      </span>
+                      {group.items.map((link) =>
+                        link.external ? (
+                          <a
+                            key={link.href}
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
+                          >
+                            {link.label}
+                            <ArrowUpRight className="size-3.5 opacity-40" />
+                          </a>
+                        ) : (
+                          <Link
+                            key={link.href}
+                            href={link.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="text-foreground py-2 pl-4 text-lg transition-colors"
+                          >
+                            {link.label}
+                          </Link>
+                        ),
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+
+            <div className="mt-auto flex flex-col gap-4 border-t py-6">
+              <Button
+                size="sm"
+                nativeButton={false}
+                className="w-fit"
+                onClick={() => setMobileMenuOpen(false)}
+                render={
+                  <a
+                    href={CLOUD_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                }
+              >
+                Cloud
+              </Button>
+              <div className="flex gap-4">
+                <a
+                  href="https://github.com/assistant-ui/assistant-ui"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
+                >
+                  <GitHubIcon className="size-5" />
+                </a>
+                <a
+                  href="https://discord.gg/S9dwgCNEFs"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
+                >
+                  <DiscordIcon className="size-5" />
+                </a>
+              </div>
             </div>
           </div>
-        </nav>
-      </div>
-
-      {showBanner && (
-        <div className="absolute top-full right-0 left-0">
-          <HiringBanner onDismiss={() => setDismissed(true)} />
         </div>
-      )}
+
+        {showBanner && (
+          <div className="absolute top-full right-0 left-0">
+            <HiringBanner onDismiss={() => setDismissed(true)} />
+          </div>
+        )}
+      </NavItemsRoot>
     </header>
   );
 }

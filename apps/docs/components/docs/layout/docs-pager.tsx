@@ -13,7 +13,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/shared/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import { BASE_URL } from "@/lib/constants";
 import { useMarkdownCopy } from "@/hooks/use-markdown-copy";
 
@@ -61,22 +61,21 @@ export function DocsPager({ previous, next, markdownUrl }: DocsPagerProps) {
             <MoreHorizontal className="size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            <DropdownMenuItem
-              icon={<Copy className="size-4" />}
-              onClick={copy}
-              disabled={isLoading}
-            >
+            <DropdownMenuItem onClick={copy} disabled={isLoading}>
+              <Copy className="size-4" />
               {isLoading ? "Loading..." : "Copy page"}
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a
-                href={`${BASE_URL}${markdownUrl}`}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <FileText className="size-4" />
-                View as Markdown
-              </a>
+            <DropdownMenuItem
+              render={
+                <a
+                  href={`${BASE_URL}${markdownUrl}`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                />
+              }
+            >
+              <FileText className="size-4" />
+              View as Markdown
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

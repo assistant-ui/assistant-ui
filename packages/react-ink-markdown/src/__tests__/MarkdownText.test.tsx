@@ -111,4 +111,81 @@ describe("MarkdownText", () => {
     expect(lastFrame()).toContain("SECOND:");
     expect(lastFrame()).not.toContain("FIRST:");
   });
+
+  it("forwards undeclared markdansi options", () => {
+    const table =
+      "| column |\n| --- |\n| a very long cell value that must truncate |";
+
+    const { lastFrame } = render(
+      <MarkdownText text={table} width={20} {...{ tableEllipsis: ">>>" }} />,
+    );
+    expect(lastFrame()).toContain(">>>");
+  });
+
+  it("re-wraps memoized output when the terminal is resized", async () => {
+    const text = "word ".repeat(30).trim();
+
+    const { lastFrame, stdout } = render(<MarkdownText text={text} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(lastFrame()!.trimEnd().split("\n").length).toBeGreaterThan(1);
+
+    Object.defineProperty(stdout, "columns", {
+      configurable: true,
+      value: 200,
+    });
+    stdout.emit("resize");
+
+    await vi.waitFor(() => {
+      expect(lastFrame()!.trimEnd().split("\n")).toHaveLength(1);
+    });
+  });
+
+  it("shares a single stdout resize listener across markdown instances", async () => {
+    const single = render(<MarkdownText text="one" />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const baseline = single.stdout.listenerCount("resize");
+    expect(baseline).toBeGreaterThanOrEqual(1);
+    single.unmount();
+
+    const texts = Array.from({ length: 12 }, (_, i) => `message ${i}`);
+    const many = render(
+      <>
+        {texts.map((t) => (
+          <MarkdownText key={t} text={t} />
+        ))}
+      </>,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(many.stdout.listenerCount("resize")).toBe(baseline);
+  });
+
+  it("memoizes rendering across re-renders with unchanged props", () => {
+    const highlighter = vi.fn((code: string) => code);
+    const text = "```js\nconst x = 1;\n```";
+
+    const { rerender } = render(
+      <MarkdownText text={text} highlighter={highlighter} />,
+    );
+    expect(highlighter).toHaveBeenCalledTimes(1);
+
+    rerender(<MarkdownText text={text} highlighter={highlighter} />);
+    expect(highlighter).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <MarkdownText
+        text={"```js\nconst y = 2;\n```"}
+        highlighter={highlighter}
+      />,
+    );
+    expect(highlighter).toHaveBeenCalledTimes(2);
+
+    rerender(
+      <MarkdownText
+        text={"```js\nconst y = 2;\n```"}
+        highlighter={highlighter}
+        codeGutter
+      />,
+    );
+    expect(highlighter).toHaveBeenCalledTimes(3);
+  });
 });

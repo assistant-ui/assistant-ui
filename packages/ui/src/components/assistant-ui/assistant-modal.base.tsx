@@ -17,7 +17,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui-base/popover";
+} from "@/components/ui/popover";
 
 export const AssistantModal: FC = () => {
   const [open, setOpen] = useState(false);

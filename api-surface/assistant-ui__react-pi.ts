@@ -1,6 +1,14 @@
 import { createAgentSession } from "@earendil-works/pi-coding-agent";
 
+import "@radix-ui/react-primitive";
+
 import { StandardSchemaV1 } from "@standard-schema/spec";
+
+import "radix-ui";
+
+import "react-textarea-autosize";
+
+import "zustand";
 
 type AddToolResultOptions = {
   messageId: string;
@@ -221,7 +229,7 @@ interface ClientMethods {
   [key: string | symbol]: (...args: any[]) => any;
 }
 
-type ClientNames = keyof ClientSchemas extends infer U ? U : never;
+type ClientNames = keyof ClientSchemas extends (infer U) ? U : never;
 
 type ClientSchemas = keyof ScopeRegistry extends never ? {
   "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
@@ -832,6 +840,10 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TRe
 type ParentOf<K extends ClientNames> = AssistantClientAccessor<K> extends {
   source: infer S;
 } ? S extends ClientNames ? S : never : never;
+
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
 
 type PendingAttachment = BaseAttachment & {
   status: PendingAttachmentStatus;
@@ -1644,6 +1656,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1717,9 +1730,7 @@ type SourceMessagePart = {
   readonly parentId?: string;
 };
 
-type SourceProviderMetadata = {
-  readonly [providerName: string]: ReadonlyJSONObject;
-};
+type SourceProviderMetadata = PartProviderMetadata;
 
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
@@ -1780,6 +1791,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1931,6 +1943,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
       readonly approved?: boolean;
@@ -2121,6 +2134,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
   readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: {
     type: "human";

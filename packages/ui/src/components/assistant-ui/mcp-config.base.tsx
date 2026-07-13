@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui-base/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -28,9 +28,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui-base/dialog";
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui-base/separator";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const inputClassName =
