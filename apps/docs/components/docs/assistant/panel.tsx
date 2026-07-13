@@ -141,13 +141,7 @@ export function AssistantPanelContent(): React.ReactNode {
   };
 
   return (
-    <div
-      ref={contentRef}
-      className={cn(
-        "bg-background before:bg-border relative h-full w-(--panel-content-width) before:absolute before:inset-y-0 before:left-0 before:w-px before:transition-opacity before:duration-300",
-        open ? "before:opacity-100" : "before:opacity-0",
-      )}
-    >
+    <div ref={contentRef} className="relative h-full w-(--panel-content-width)">
       <button
         type="button"
         onClick={handleTriggerClick}
@@ -163,13 +157,15 @@ export function AssistantPanelContent(): React.ReactNode {
 
       <div
         className={cn(
-          "flex h-full flex-col transition-opacity duration-300",
+          "flex h-full flex-col p-2 transition-opacity duration-300",
           open ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
-        <ResizeHandle />
-        <div className="min-h-0 flex-1">
-          <AssistantThread />
+        <div className="border-border/60 bg-background relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border shadow-xs">
+          <ResizeHandle />
+          <div className="min-h-0 flex-1">
+            <AssistantThread />
+          </div>
         </div>
       </div>
     </div>
