@@ -533,6 +533,8 @@ declare const AttachmentThumb: FC<AttachmentThumbProps>;
 
 type AttachmentThumbProps = ComponentProps<typeof Text>;
 
+type AttachmentUploadTask = () => Promise<readonly CompleteAttachment[]>;
+
 declare namespace AuiIf {
   type Props = PropsWithChildren<{
     condition: AuiIf.Condition;
@@ -601,6 +603,8 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   get attachmentAccept(): string;
   private _attachments;
   get attachments(): readonly Attachment[];
+  private _isSending;
+  get isSending(): boolean;
   protected setAttachments(value: readonly Attachment[]): void;
   abstract get canCancel(): boolean;
   abstract get canSend(): boolean;
@@ -626,7 +630,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   get queue(): readonly QueueItemState[];
   steerQueueItem(_queueItemId: string): void;
   removeQueueItem(_queueItemId: string): void;
-  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void;
+  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions, uploadAttachments?: AttachmentUploadTask): SendResult;
   protected abstract handleCancel(): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   private _safeEmitAttachmentAddError;
@@ -654,6 +658,7 @@ type BaseComposerState = {
   readonly canSend: boolean;
   readonly isEditing: boolean;
   readonly isEmpty: boolean;
+  readonly isSending: boolean;
   readonly text: string;
   readonly role: MessageRole;
   readonly attachments: readonly Attachment[];
@@ -1047,6 +1052,7 @@ type ComposerRuntimeCore = Readonly<{
   canCancel: boolean;
   canSend: boolean;
   isEmpty: boolean;
+  isSending: boolean;
   attachments: readonly Attachment[];
   attachmentAccept: string;
   addAttachment: (fileOrAttachment: File | CreateAttachment) => Promise<void>;
@@ -1129,6 +1135,7 @@ type ComposerState = {
   readonly attachments: readonly Attachment[];
   readonly runConfig: RunConfig;
   readonly isEditing: boolean;
+  readonly isSending: boolean;
   readonly canCancel: boolean;
   readonly canSend: boolean;
   readonly attachmentAccept: string;
@@ -1232,14 +1239,19 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   protected getAttachmentAdapter(): AttachmentAdapter | undefined;
   protected getDictationAdapter(): DictationAdapter | undefined;
   constructor(runtime: Omit<ThreadRuntimeCore, "composer"> & {
+    __internal_appendOptimisticAttachmentSend?: (message: AppendMessage, uploadAttachments: () => Promise<readonly CompleteAttachment[]>) => Promise<void> | void;
     adapters?: {
       attachments?: AttachmentAdapter | undefined;
       dictation?: DictationAdapter | undefined;
     } | undefined;
   });
   connect(): Unsubscribe$1;
-  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): Promise<void>;
+  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions, uploadAttachments?: () => Promise<readonly CompleteAttachment[]>): Promise<void> | {
+    clearComposer: "now";
+    settle: void | Promise<void>;
+  } | undefined;
   handleCancel(): Promise<void>;
+  private _appendWithResolvedAttachments;
 }
 
 declare const Derived: <K extends ClientNames>(_config: Derived.Props<K>) => ResourceElement<null, [
@@ -2496,6 +2508,11 @@ type ObjectStreamOperation = {
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
+type OptimisticSendResult = {
+  clearComposer: "now";
+  settle: Promise<void> | void;
+};
+
 type OverrideOptionalField<T, TKey extends keyof T, TValue> = undefined extends T[TKey] ? Exclude<T[TKey], undefined> extends never ? {
   [K in TKey]?: undefined;
 } : {
@@ -2885,6 +2902,8 @@ type SendOptions = {
   startRun?: boolean;
   steer?: boolean;
 };
+
+type SendResult = Promise<void> | void | OptimisticSendResult;
 
 declare class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   accept: string;
@@ -3547,8 +3566,8 @@ type ThreadMessageLike = {
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
-  readonly attachments?: readonly (Omit<CompleteAttachment, "content"> & {
-    readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
+  readonly attachments?: readonly (Omit<Attachment, "content"> & {
+    readonly content?: readonly (ThreadUserMessagePart | DataPrefixedPart)[] | undefined;
   })[] | undefined;
   readonly metadata?: {
     readonly unstable_state?: ReadonlyJSONValue;
@@ -3765,6 +3784,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         canCancel: boolean;
         canSend: boolean;
         isEmpty: boolean;
+        isSending: boolean;
         attachments: readonly Attachment[];
         attachmentAccept: string;
         addAttachment: (fileOrAttachment: File | CreateAttachment) => Promise<void>;

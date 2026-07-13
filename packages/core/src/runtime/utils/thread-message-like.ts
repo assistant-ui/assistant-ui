@@ -17,7 +17,7 @@ import type {
   GenerativeUIMessagePart,
   Unstable_AudioMessagePart,
 } from "../../types/message";
-import type { CompleteAttachment } from "../../types/attachment";
+import type { Attachment } from "../../types/attachment";
 import type {
   MessageTiming,
   PartProviderMetadata,
@@ -78,8 +78,10 @@ export type ThreadMessageLike = {
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
   readonly attachments?:
-    | readonly (Omit<CompleteAttachment, "content"> & {
-        readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
+    | readonly (Omit<Attachment, "content"> & {
+        readonly content?:
+          | readonly (ThreadUserMessagePart | DataPrefixedPart)[]
+          | undefined;
       })[]
     | undefined;
   readonly metadata?:
@@ -254,16 +256,20 @@ export const fromThreadMessageLike = (
             }
           }
         }),
-        attachments: (attachments ?? []).map((att) => ({
-          ...att,
-          content: att.content.map((part): ThreadUserMessagePart => {
-            const converted = convertDataPrefixedPart(
-              part.type,
-              (part as DataPrefixedPart).data,
-            );
-            return converted ?? (part as ThreadUserMessagePart);
-          }),
-        })),
+        attachments: (attachments ?? []).map((att) => {
+          if (att.status.type !== "complete") return att;
+
+          return {
+            ...att,
+            content: (att.content ?? []).map((part): ThreadUserMessagePart => {
+              const converted = convertDataPrefixedPart(
+                part.type,
+                (part as DataPrefixedPart).data,
+              );
+              return converted ?? (part as ThreadUserMessagePart);
+            }),
+          };
+        }) as unknown as ThreadUserMessage["attachments"],
         metadata: {
           custom: metadata?.custom ?? {},
         },

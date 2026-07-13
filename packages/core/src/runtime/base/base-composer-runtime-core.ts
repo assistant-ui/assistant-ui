@@ -32,6 +32,20 @@ import { generateId } from "../../utils/id";
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
 
+type AttachmentUploadTask = () => Promise<readonly CompleteAttachment[]>;
+
+type OptimisticSendResult = {
+  clearComposer: "now";
+  settle: Promise<void> | void;
+};
+
+type SendResult = Promise<void> | void | OptimisticSendResult;
+
+const isOptimisticSendResult = (
+  result: SendResult,
+): result is OptimisticSendResult =>
+  typeof result === "object" && result !== null && "clearComposer" in result;
+
 export abstract class BaseComposerRuntimeCore
   extends BaseSubscribable
   implements ComposerRuntimeCore
@@ -61,6 +75,11 @@ export abstract class BaseComposerRuntimeCore
   private _attachments: readonly Attachment[] = [];
   public get attachments() {
     return this._attachments;
+  }
+
+  private _isSending = false;
+  public get isSending() {
+    return this._isSending;
   }
 
   protected setAttachments(value: readonly Attachment[]) {
@@ -100,6 +119,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public setQuote(quote: QuoteInfo | undefined) {
+    if (this._isSending) return;
     if (this._quote === quote) return;
 
     this._quote = quote;
@@ -107,6 +127,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public setText(value: string) {
+    if (this._isSending) return;
     if (this._text === value) return;
 
     this._text = value;
@@ -120,6 +141,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public setRole(role: MessageRole) {
+    if (this._isSending) return;
     if (this._role === role) return;
 
     this._role = role;
@@ -127,6 +149,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public setRunConfig(runConfig: RunConfig) {
+    if (this._isSending) return;
     if (this._runConfig === runConfig) return;
 
     this._runConfig = runConfig;
@@ -136,6 +159,7 @@ export abstract class BaseComposerRuntimeCore
   private _emptyTextAndAttachments() {
     this._attachments = [];
     this._text = "";
+    this._quote = undefined;
     this._notifySubscribers();
   }
 
@@ -148,6 +172,8 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async reset() {
+    if (this._isSending) return;
+
     if (
       this._attachments.length === 0 &&
       this._text === "" &&
@@ -168,6 +194,8 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async clearAttachments() {
+    if (this._isSending) return;
+
     const task = this._onClearAttachments();
     this.setAttachments([]);
 
@@ -183,48 +211,56 @@ export abstract class BaseComposerRuntimeCore
     }
 
     const adapter = this.getAttachmentAdapter();
-    const attachments =
-      this.attachments.length > 0
-        ? Promise.all(
-            this.attachments.map(async (a) => {
+    const originalAttachments = this.attachments;
+    const text = this.text;
+    const role = this.role;
+    const runConfig = this.runConfig;
+    const quote = this._quote;
+    const uploadAttachments = originalAttachments.some(
+      (a) => !isAttachmentComplete(a),
+    )
+      ? async () =>
+          Promise.all(
+            originalAttachments.map(async (a) => {
               if (isAttachmentComplete(a)) return a;
               if (!adapter) throw new Error("Attachments are not supported");
               const result = await adapter.send(a);
               return result as CompleteAttachment;
             }),
           )
-        : [];
-
-    const originalAttachments = this.attachments;
-    const text = this.text;
-    const quote = this._quote;
-    this._quote = undefined;
-    this._emptyTextAndAttachments();
-
-    let resolvedAttachments: Awaited<typeof attachments>;
-    try {
-      resolvedAttachments = await attachments;
-    } catch (e) {
-      if (this.isEmpty && this._quote === undefined) {
-        this._attachments = originalAttachments;
-        this._text = text;
-        this._quote = quote;
-        this._notifySubscribers();
-      }
-      throw e;
-    }
+      : undefined;
 
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
-      role: this.role,
+      role,
       content: text ? [{ type: "text", text }] : [],
-      attachments: resolvedAttachments,
-      runConfig: this.runConfig,
+      attachments: originalAttachments as readonly CompleteAttachment[],
+      runConfig,
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
-    this.handleSend(message, options);
-    this._notifyEventSubscribers("send", {});
+    this._isSending = true;
+    this._notifySubscribers();
+
+    try {
+      const sendResult = this.handleSend(message, options, uploadAttachments);
+      if (isOptimisticSendResult(sendResult)) {
+        this._emptyTextAndAttachments();
+        this._notifyEventSubscribers("send", {});
+        await sendResult.settle;
+      } else {
+        await sendResult;
+        this._emptyTextAndAttachments();
+        this._notifyEventSubscribers("send", {});
+      }
+
+      this._isSending = false;
+      this._notifySubscribers();
+    } catch (e) {
+      this._isSending = false;
+      this._notifySubscribers();
+      throw e;
+    }
   }
 
   public cancel() {
@@ -238,13 +274,20 @@ export abstract class BaseComposerRuntimeCore
   public steerQueueItem(_queueItemId: string): void {}
   public removeQueueItem(_queueItemId: string): void {}
 
+  /**
+   * Append the message synchronously before returning so submitted attachments
+   * can move from the composer into the thread without a blank UI gap.
+   */
   protected abstract handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
-  ): void;
+    uploadAttachments?: AttachmentUploadTask,
+  ): SendResult;
   protected abstract handleCancel(): void;
 
   async addAttachment(fileOrAttachment: File | CreateAttachment) {
+    if (this._isSending) return;
+
     if (!(fileOrAttachment instanceof File)) {
       const adapter = this.getAttachmentAdapter();
       if (
@@ -388,6 +431,8 @@ export abstract class BaseComposerRuntimeCore
   }
 
   async removeAttachment(attachmentId: string) {
+    if (this._isSending) return;
+
     const index = this._attachments.findIndex((a) => a.id === attachmentId);
     if (index === -1) throw new Error("Attachment not found");
     const attachment = this._attachments[index]!;

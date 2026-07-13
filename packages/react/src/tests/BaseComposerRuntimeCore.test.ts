@@ -3,6 +3,7 @@ import { BaseComposerRuntimeCore } from "../legacy-runtime/runtime-cores/compose
 import type {
   AppendMessage,
   AttachmentAdapter,
+  CompleteAttachment,
   CreateAttachment,
   DictationAdapter,
   PendingAttachment,
@@ -42,9 +43,14 @@ class TestComposerCore extends BaseComposerRuntimeCore {
   protected handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
+    uploadAttachments?: () => Promise<readonly CompleteAttachment[]>,
   ) {
-    this.sentMessages.push(message);
-    this.sentOptions.push(options);
+    return Promise.resolve(uploadAttachments?.()).then((attachments) => {
+      this.sentMessages.push(
+        attachments ? { ...message, attachments } : message,
+      );
+      this.sentOptions.push(options);
+    });
   }
 
   protected handleCancel() {

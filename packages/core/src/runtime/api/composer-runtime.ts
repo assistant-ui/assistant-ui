@@ -45,6 +45,7 @@ type BaseComposerState = {
   readonly canSend: boolean;
   readonly isEditing: boolean;
   readonly isEmpty: boolean;
+  readonly isSending: boolean;
 
   readonly text: string;
   readonly role: MessageRole;
@@ -93,6 +94,7 @@ const getThreadComposerState = (
     canCancel: runtime?.canCancel ?? false,
     canSend: runtime?.canSend ?? false,
     isEmpty: runtime?.isEmpty ?? true,
+    isSending: runtime?.isSending ?? false,
 
     attachments: runtime?.attachments ?? EMPTY_ARRAY,
     text: runtime?.text ?? "",
@@ -117,6 +119,7 @@ const getEditComposerState = (
     canCancel: runtime?.canCancel ?? false,
     canSend: runtime?.canSend ?? false,
     isEmpty: runtime?.isEmpty ?? true,
+    isSending: runtime?.isSending ?? false,
 
     text: runtime?.text ?? "",
     role: runtime?.role ?? "user",

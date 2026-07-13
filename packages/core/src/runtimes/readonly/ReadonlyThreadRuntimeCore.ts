@@ -128,6 +128,7 @@ export class ReadonlyThreadRuntimeCore
     canCancel: false,
     canSend: false,
     isEmpty: true,
+    isSending: false,
     text: "",
 
     setText() {

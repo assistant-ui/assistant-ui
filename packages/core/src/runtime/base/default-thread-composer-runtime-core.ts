@@ -1,4 +1,5 @@
 import type { AppendMessage } from "../../types/message";
+import type { CompleteAttachment } from "../../types/attachment";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
 import type {
@@ -23,7 +24,7 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public get canSend() {
-    return !this.isEmpty && !this.runtime.isSendDisabled;
+    return !this.isSending && !this.isEmpty && !this.runtime.isSendDisabled;
   }
 
   public override get queue(): readonly QueueItemState[] {
@@ -48,6 +49,10 @@ export class DefaultThreadComposerRuntimeCore
 
   constructor(
     private runtime: Omit<ThreadRuntimeCore, "composer"> & {
+      __internal_appendOptimisticAttachmentSend?: (
+        message: AppendMessage,
+        uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
+      ) => Promise<void> | void;
       adapters?:
         | {
             attachments?: AttachmentAdapter | undefined;
@@ -81,9 +86,10 @@ export class DefaultThreadComposerRuntimeCore
     });
   }
 
-  public async handleSend(
+  public handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
+    uploadAttachments?: () => Promise<readonly CompleteAttachment[]>,
   ) {
     // Merge provider-contributed metadata onto the outgoing user message
     // (same metadata.custom append path quotes ride). The interactables gate
@@ -94,16 +100,53 @@ export class DefaultThreadComposerRuntimeCore
     );
     const enriched = this.enrichWithComposerMetadata(message, composerMetadata);
 
-    this.runtime.append({
+    const appendMessage: AppendMessage = {
       ...(enriched as AppendMessage),
       parentId: this.runtime.messages.at(-1)?.id ?? null,
       sourceId: null,
       startRun: options?.startRun,
       steer: options?.steer,
-    });
+    };
+
+    const startRun = appendMessage.startRun ?? appendMessage.role === "user";
+    if (
+      uploadAttachments &&
+      appendMessage.role === "user" &&
+      (!this.runtime.capabilities.queue || !startRun) &&
+      this.runtime.__internal_appendOptimisticAttachmentSend
+    ) {
+      return {
+        clearComposer: "now" as const,
+        settle: this.runtime.__internal_appendOptimisticAttachmentSend(
+          appendMessage,
+          uploadAttachments,
+        ),
+      };
+    }
+
+    if (uploadAttachments) {
+      return this._appendWithResolvedAttachments(
+        appendMessage,
+        uploadAttachments,
+      );
+    }
+
+    this.runtime.append(appendMessage);
+    return undefined;
   }
 
   public async handleCancel() {
     this.runtime.cancelRun();
+  }
+
+  private async _appendWithResolvedAttachments(
+    message: AppendMessage,
+    uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
+  ) {
+    const attachments = await uploadAttachments();
+    this.runtime.append({
+      ...message,
+      attachments,
+    });
   }
 }

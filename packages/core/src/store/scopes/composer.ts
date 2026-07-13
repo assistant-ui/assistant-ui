@@ -25,6 +25,7 @@ export type ComposerState = {
   readonly attachments: readonly Attachment[];
   readonly runConfig: RunConfig;
   readonly isEditing: boolean;
+  readonly isSending: boolean;
   readonly canCancel: boolean;
   /**
    * Whether the composer is currently willing to send. `true` when the
