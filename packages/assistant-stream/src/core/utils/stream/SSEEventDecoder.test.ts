@@ -81,6 +81,34 @@ describe("SSEEventDecoder", () => {
     ]);
   });
 
+  it("ignores ids containing NUL and keeps ids containing spaces", () => {
+    const decoder = new SSEEventDecoder();
+    expect(
+      decoder.push(
+        "id: ok\ndata: a\n\nid: bad\u0000id\ndata: b\n\nid: spaced id\ndata: c\n\n",
+      ),
+    ).toEqual([
+      { data: "a", id: "ok" },
+      { data: "b", id: "ok" },
+      { data: "c", id: "spaced id" },
+    ]);
+  });
+
+  it("ignores non-digit retry values", () => {
+    const decoder = new SSEEventDecoder();
+    expect(
+      decoder.push(
+        "retry: 1000\ndata: a\n\nretry: -1\ndata: b\n\nretry: 1.5\ndata: c\n\nretry: 1e3\ndata: d\n\nretry:\ndata: e\n\n",
+      ),
+    ).toEqual([
+      { data: "a", retry: 1000 },
+      { data: "b", retry: 1000 },
+      { data: "c", retry: 1000 },
+      { data: "d", retry: 1000 },
+      { data: "e", retry: 1000 },
+    ]);
+  });
+
   it("does not dispatch blank frames", () => {
     const decoder = new SSEEventDecoder();
     expect(decoder.push("event: update\n\ndata: x\n\n")).toEqual([

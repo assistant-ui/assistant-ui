@@ -74,13 +74,11 @@ export class SSEEventDecoder {
         this.eventName = value;
         break;
       case "id":
-        this.lastEventId = value;
+        if (!value.includes("\u0000")) this.lastEventId = value;
         break;
-      case "retry": {
-        const retry = Number(value);
-        if (Number.isFinite(retry)) this.retry = retry;
+      case "retry":
+        if (/^\d+$/.test(value)) this.retry = Number(value);
         break;
-      }
     }
 
     return null;
