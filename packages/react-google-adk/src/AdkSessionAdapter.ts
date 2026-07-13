@@ -56,6 +56,12 @@ type AdkSessionAdapterResult = {
   };
 };
 
+const trimTrailingSlashes = (value: string) => {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === "/") end -= 1;
+  return value.slice(0, end);
+};
+
 /**
  * Creates a `RemoteThreadListAdapter` backed by ADK's session REST API,
  * plus a `load` function that reconstructs messages from session events.
@@ -79,7 +85,7 @@ export function createAdkSessionAdapter(
   options: AdkSessionAdapterOptions,
 ): AdkSessionAdapterResult {
   const { apiUrl, appName, userId } = options;
-  const normalizedApiUrl = apiUrl.replace(/\/+$/, "");
+  const normalizedApiUrl = trimTrailingSlashes(apiUrl);
   const baseUrl = `${normalizedApiUrl}/apps/${encodeURIComponent(appName)}/users/${encodeURIComponent(userId)}/sessions`;
 
   const getHeaders = async (): Promise<Record<string, string>> => {
