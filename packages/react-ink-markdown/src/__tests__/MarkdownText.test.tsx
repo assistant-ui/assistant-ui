@@ -112,14 +112,36 @@ describe("MarkdownText", () => {
     expect(lastFrame()).not.toContain("FIRST:");
   });
 
-  it("forwards undeclared markdansi options", () => {
+  it("passes table options to markdansi", () => {
     const table =
       "| column |\n| --- |\n| a very long cell value that must truncate |";
 
     const { lastFrame } = render(
-      <MarkdownText text={table} width={20} {...{ tableEllipsis: ">>>" }} />,
+      <MarkdownText text={table} width={20} tableEllipsis=">>>" />,
     );
     expect(lastFrame()).toContain(">>>");
+  });
+
+  it("wraps table cells when tableTruncate is disabled", () => {
+    const table =
+      "| column |\n| --- |\n| a very long cell value that must truncate |";
+
+    const { lastFrame } = render(
+      <MarkdownText text={table} width={20} tableTruncate={false} />,
+    );
+    const frame = lastFrame()!;
+    expect(frame).toContain("truncate");
+    expect(frame).not.toContain("…");
+  });
+
+  it("emits ANSI colors when color is enabled", () => {
+    const { lastFrame } = render(<MarkdownText text="# Head" color />);
+    expect(lastFrame()).toContain("[");
+  });
+
+  it("strips ANSI colors when color is disabled", () => {
+    const { lastFrame } = render(<MarkdownText text="# Head" color={false} />);
+    expect(lastFrame()).not.toContain("[");
   });
 
   it("re-wraps memoized output when the terminal is resized", async () => {
