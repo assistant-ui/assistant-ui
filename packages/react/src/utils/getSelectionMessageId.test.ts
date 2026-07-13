@@ -55,6 +55,22 @@ describe("getSelectionMessageId", () => {
     );
   });
 
+  it("treats the whole message as quotable when the root is the region", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1" data-aui-quote-selectable>
+        <p id="text">message text</p>
+        <div id="tool">tool output</div>
+      </div>
+    `;
+
+    expect(getSelectionMessageId(selectText(textNode("#text")))).toBe(
+      "message-1",
+    );
+    expect(
+      getSelectionMessageId(selectText(textNode("#text"), textNode("#tool"))),
+    ).toBe("message-1");
+  });
+
   it("rejects selections outside quote-selectable regions when a message opts in", () => {
     document.body.innerHTML = `
       <div data-message-id="message-1">
