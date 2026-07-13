@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { resolveRegistryItemUrl } from "./registry";
+import {
+  resolveQuickStartRegistryUrl,
+  resolveRegistryItemUrl,
+} from "./registry";
+
+describe("resolveQuickStartRegistryUrl", () => {
+  it("uses the base quick start for base styles", () => {
+    expect(resolveQuickStartRegistryUrl("base-nova")).toBe(
+      "https://r.assistant-ui.com/base/chat/b/ai-sdk-quick-start/json",
+    );
+  });
+
+  it("uses the radix quick start for radix styles", () => {
+    expect(resolveQuickStartRegistryUrl("radix-nova")).toBe(
+      "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json",
+    );
+  });
+
+  it("uses the base quick start without a style", () => {
+    expect(resolveQuickStartRegistryUrl()).toBe(
+      "https://r.assistant-ui.com/base/chat/b/ai-sdk-quick-start/json",
+    );
+  });
+});
 
 describe("resolveRegistryItemUrl", () => {
   it("uses the style scoped URL for base styles", () => {

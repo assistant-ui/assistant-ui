@@ -4,11 +4,7 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    include: [
-      "test/**/*.test.ts",
-      "src/**/*.test.ts",
-      "src/codemods/**/__tests__/**/*.test.ts",
-    ],
+    include: ["test/**/*.test.ts", "src/**/*.test.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

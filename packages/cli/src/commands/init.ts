@@ -7,36 +7,27 @@ import {
   resolvePackageManagerForCwd,
 } from "../lib/create-project";
 import { runSpawn, SpawnExitError } from "../lib/run-spawn";
+import { getConfig } from "../lib/utils/config";
 import { logger } from "../lib/utils/logger";
+import { resolveQuickStartRegistryUrl } from "../lib/utils/registry";
 import { create } from "./create";
 
-const DEFAULT_REGISTRY_URL =
-  "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json";
-
 interface ExistingProjectInitPlan {
-  initArgs: string[] | null;
+  initArgs: string[];
   addArgs: string[];
 }
 
 export function createExistingProjectInitPlan(params: {
   yes: boolean;
   overwrite: boolean;
-  registryUrl: string;
 }): ExistingProjectInitPlan {
-  const { yes, overwrite, registryUrl } = params;
-
-  if (!yes) {
-    const addArgs = [`shadcn@latest`, "add"];
-    if (overwrite) addArgs.push("--overwrite");
-    addArgs.push(registryUrl);
-    return { initArgs: null, addArgs };
-  }
-
-  const initArgs = [`shadcn@latest`, "init", "--defaults", "--yes"];
-
-  const addArgs = [`shadcn@latest`, "add", "--yes"];
+  const { yes, overwrite } = params;
+  const initArgs = yes
+    ? [`shadcn@latest`, "init", "--defaults", "--yes"]
+    : [`shadcn@latest`, "init"];
+  const addArgs = [`shadcn@latest`, "add"];
+  if (yes) addArgs.push("--yes");
   if (overwrite) addArgs.push("--overwrite");
-  addArgs.push(registryUrl);
 
   return { initArgs, addArgs };
 }
@@ -106,7 +97,6 @@ export const init = new Command()
       return;
     }
 
-    const registryUrl = DEFAULT_REGISTRY_URL;
     logger.info("Initializing assistant-ui in existing project...");
     logger.break();
 
@@ -131,13 +121,13 @@ export const init = new Command()
       const { initArgs, addArgs } = createExistingProjectInitPlan({
         yes: opts.yes,
         overwrite: opts.overwrite,
-        registryUrl,
       });
 
-      if (initArgs) {
-        await runSpawn(dlxCmd, [...dlxArgs, ...initArgs], targetDir);
-      }
-      await runSpawn(dlxCmd, [...dlxArgs, ...addArgs], targetDir);
+      await runSpawn(dlxCmd, [...dlxArgs, ...initArgs], targetDir);
+      const registryUrl = resolveQuickStartRegistryUrl(
+        getConfig(targetDir)?.style,
+      );
+      await runSpawn(dlxCmd, [...dlxArgs, ...addArgs, registryUrl], targetDir);
 
       logger.break();
       logger.success("Project initialized successfully!");
