@@ -512,6 +512,33 @@ describe("createAdkStream - SSE parsing", () => {
     expect(collected[0]!.id).toBe("e1");
   });
 
+  it("parses CR-delimited events split across chunks", async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ id: "e1" })}\r`),
+        );
+        controller.enqueue(encoder.encode("\r"));
+        controller.close();
+      },
+    });
+    mockFetch.mockResolvedValueOnce(new Response(body, { status: 200 }));
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+    const collected: AdkEvent[] = [];
+    for await (const evt of gen) {
+      collected.push(evt);
+    }
+
+    expect(collected).toHaveLength(1);
+    expect(collected[0]!.id).toBe("e1");
+  });
+
   it("handles remaining buffer at end of stream", async () => {
     // No trailing \n\n
     const event = { id: "e1" };
