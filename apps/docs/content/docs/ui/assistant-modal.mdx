@@ -5,14 +5,14 @@ platforms: ["react"]
 ---
 
 import { AssistantModalSample } from "@/components/docs/samples/assistant-modal";
-import * as AssistantModalBaseSamples from "@/components/docs/samples/assistant-modal.base";
+import * as AssistantModalRadixSamples from "@/components/docs/samples/assistant-modal.radix";
 import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
 A floating chat modal built on the popover primitive of your configured style (Radix UI Popover on Radix styles, Base UI Popover on `base-*` styles). Ideal for support widgets, help desks, and embedded assistants.
 
 <FlavorSwitcher />
 
-<Flavored radix={<AssistantModalSample />} base={<AssistantModalBaseSamples.AssistantModalSample />} />
+<Flavored radix={<AssistantModalRadixSamples.AssistantModalSample />} base={<AssistantModalSample />} />
 
 ## Getting Started
 
