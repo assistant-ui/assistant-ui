@@ -234,6 +234,55 @@ function entryNamespace(entry) {
   return sanitizeIdentifier(`entry_${exportPath}${conditions}`);
 }
 
+function statementCategory(statement) {
+  if (
+    ts.isImportDeclaration(statement) ||
+    ts.isImportEqualsDeclaration(statement)
+  ) {
+    return 0;
+  }
+  if (ts.isExportDeclaration(statement) || ts.isExportAssignment(statement)) {
+    return 2;
+  }
+  return 1;
+}
+
+function statementSortName(statement) {
+  if (ts.isImportDeclaration(statement)) {
+    return ts.isStringLiteral(statement.moduleSpecifier)
+      ? statement.moduleSpecifier.text
+      : "";
+  }
+  if (ts.isVariableStatement(statement)) {
+    const [declaration] = statement.declarationList.declarations;
+    return declaration && ts.isIdentifier(declaration.name)
+      ? declaration.name.text
+      : "";
+  }
+  if (ts.isModuleDeclaration(statement)) return statement.name.text;
+  if (statement.name && ts.isIdentifier(statement.name)) {
+    return statement.name.text;
+  }
+  return "";
+}
+
+function sortTopLevelStatements(statements) {
+  return statements
+    .map((statement, index) => ({
+      statement,
+      index,
+      category: statementCategory(statement),
+      name: statementSortName(statement),
+    }))
+    .toSorted(
+      (a, b) =>
+        a.category - b.category ||
+        compareStrings(a.name, b.name) ||
+        a.index - b.index,
+    )
+    .map(({ statement }) => statement);
+}
+
 function printSurfaceFile(sourceFile) {
   const printer = ts.createPrinter({
     newLine: ts.NewLineKind.LineFeed,
@@ -258,7 +307,7 @@ function normalizeReactImports(content) {
       /^import React, \{([^}]+)\} from "react";$/m,
       (_, specifiers) => `import {${specifiers}} from "react";`,
     )
-    .replace(/^import React from "react";\n?/m, "");
+    .replace(/^import React from "react";\n{0,2}/m, "");
 }
 
 function normalizeBundlerNamespaceNames(content) {
@@ -518,7 +567,11 @@ export function normalizeBundledDeclaration(content) {
     true,
     ts.ScriptKind.TS,
   );
-  const result = ts.transform(sourceFile, [
+  const sortedSourceFile = ts.factory.updateSourceFile(
+    sourceFile,
+    sortTopLevelStatements(sourceFile.statements),
+  );
+  const result = ts.transform(sortedSourceFile, [
     (context) => {
       let bindingParameterIndex = 0;
       const visit = (node) => {

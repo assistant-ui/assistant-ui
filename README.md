@@ -86,7 +86,7 @@ Broad model support out of the box (OpenAI, Anthropic, Google Gemini, Mistral, P
 
 ## Customization
 
-Radix-style: instead of a single monolithic chat component, you compose primitives and bring your own styles. The CLI ships a great starter; you control everything else.
+Instead of a single monolithic chat component, you compose primitives and bring your own styles. The CLI ships a great starter in your choice of Base UI (the default) or Radix UI flavor; you control everything else.
 
 ![Overview of components](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/components.png)
 

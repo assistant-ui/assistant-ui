@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@/components/ui/sidebar";
+} from "@/components/ui/radix/sidebar";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 
 export function ThreadListSidebar({

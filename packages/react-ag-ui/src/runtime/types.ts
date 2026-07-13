@@ -59,6 +59,17 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
+  /**
+   * When the user sends, edits, or reloads a message while client-side tool
+   * calls are still pending, automatically cancel the unresolved tool calls
+   * with an error result so the agent's tool-call accounting stays
+   * consistent. Pending AG-UI interrupts are exempt: they still reject the
+   * run and must be answered with `useAgUiSubmitInterruptResponses` or
+   * discarded with `useAgUiSteerAway`. When disabled, `useAgUiSteerAway`
+   * remains the explicit way to cancel pending tool calls.
+   * Defaults to `true`.
+   */
+  autoCancelPendingToolCalls?: boolean | undefined;
   onError?: (e: Error) => void;
   onCancel?: () => void;
   adapters?: UseAgUiRuntimeAdapters;

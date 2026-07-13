@@ -9,10 +9,22 @@ description: Spec-driven generative UI for assistant-ui. The data format an assi
 ## Pages
 
 <Cards>
+  <Card title={"JSONGenerativeUI"} href={"/docs/api-reference/generative-ui/json-generative-ui"}>
+    {"Create present and prompt_user tools from a generative UI component library, with options for display mode and action dispatch."}
+  </Card>
+  <Card title={"Generative UI Components"} href={"/docs/api-reference/generative-ui/components"}>
+    {"Define the component library JSONGenerativeUI can render, including schemas, render functions, and the default vocabulary."}
+  </Card>
+  <Card title={"Generative UI Actions"} href={"/docs/api-reference/generative-ui/actions"}>
+    {"Register handlers for model-emitted $action payloads and dispatch them from interactive generative UI components."}
+  </Card>
   <Card title={"Generative UI Spec"} href={"/docs/api-reference/generative-ui/spec"}>
     {"The serializable node tree an assistant emits to describe generative UI. Covers the GenerativeUISpec format, its nodes, and the message part that carries the spec."}
   </Card>
   <Card title={"Generative UI Rendering"} href={"/docs/api-reference/generative-ui/rendering"}>
-    {"Render a generative UI spec into React. The renderer resolves spec nodes against your component registry, and the error thrown when a component cannot be resolved."}
+    {"Render generative UI trees, build present-tool schemas, and inspect or serialize model-produced UI nodes."}
+  </Card>
+  <Card title={"Generative UI Tokens"} href={"/docs/api-reference/generative-ui/tokens"}>
+    {"Shared token arrays used by the default generative UI vocabulary for sizing, color, alignment, and component variants."}
   </Card>
 </Cards>

@@ -17,6 +17,7 @@ verifyDepsBeforeRun: install
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@assistant-ui/*'
+  - '@typescript/typescript-*'
   - assistant-cloud
   - assistant-stream
   - assistant-ui
@@ -26,6 +27,7 @@ minimumReleaseAgeExclude:
   - safe-content-frame
   - tw-glass
   - tw-shimmer
+  - typescript
 
 allowBuilds:
   '@clerk/shared': false
@@ -35,9 +37,6 @@ allowBuilds:
   '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false
-  esbuild@0.25.12: true
-  esbuild@0.27.7: true
-  esbuild@0.28.0: true
   esbuild@0.28.1: true
   msgpackr-extract: true
   node-liblzma: false

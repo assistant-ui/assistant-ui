@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@standard-schema/spec": "^1.1.0",
-    "nanoid": "^5.1.15",
+    "nanoid": "^5.1.16",
     "secure-json-parse": "^4.1.0"
   },
   "peerDependencies": {
@@ -71,8 +71,8 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
     "ioredis": "^5.11.1",
-    "redis": "^6.0.0",
-    "vitest": "^4.1.9"
+    "redis": "^6.1.0",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

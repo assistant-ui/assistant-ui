@@ -43,14 +43,9 @@
       var(--_repeat-delay-px)
   );
 
-  --_position: calc(
-    var(
-        --shimmer-track-width,
-        (100% - var(--_gradient-width) - var(--_repeat-delay-px)) / 2
-      ) +
-      var(--_gradient-width) / 2 + var(--_repeat-delay-px) -
-      var(--_xy-offset-px)
-  );
+  --_position: calc(var(--shimmer-track-width, (100% - var(--_gradient-width) -
+    var(--_repeat-delay-px)) / 2) + var(--_gradient-width) / 2 +
+    var(--_repeat-delay-px) - var(--_xy-offset-px));
 
   &:not(.shimmer-bg) {
     --_speed: var(--shimmer-speed, 200);

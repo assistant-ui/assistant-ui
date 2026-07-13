@@ -28,7 +28,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/radix/tooltip";
 
 function PendingMessageHandler() {
   const { pendingMessage, clearPendingMessage } = useAssistantPanel();
