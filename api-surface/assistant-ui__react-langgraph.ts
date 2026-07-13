@@ -2087,6 +2087,8 @@ type Unstable_AudioMessagePart = {
 type Unsubscribe = () => void;
 
 type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
+  initialThreadId?: string | undefined;
+  threadId?: string | undefined;
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
