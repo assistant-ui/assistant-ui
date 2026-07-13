@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X, ArrowUpRight, ArrowRight, Search } from "lucide-react";
+import { Menu, X, ArrowUpRight, ArrowRight } from "lucide-react";
 import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -30,14 +30,23 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
   }, [onToggle]);
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
+      size="sm"
       onClick={onToggle}
-      className="text-muted-foreground hover:text-foreground flex size-7 cursor-pointer items-center justify-center transition-colors"
+      className="hidden md:inline-flex"
       aria-label="Search (⌘K)"
     >
-      <Search className="size-4" />
-    </button>
+      Search
+      <span className="hidden gap-0.5 lg:flex">
+        <kbd className="text-muted-foreground border-border/60 bg-muted/50 min-w-4 rounded-[3px] border px-1 text-center font-mono text-[10px] leading-4">
+          ⌘
+        </kbd>
+        <kbd className="text-muted-foreground border-border/60 bg-muted/50 min-w-4 rounded-[3px] border px-1 text-center font-mono text-[10px] leading-4">
+          K
+        </kbd>
+      </span>
+    </Button>
   );
 }
 
@@ -137,9 +146,14 @@ export function Header() {
                 aria-label="Ask AI (⌘I)"
               >
                 Ask AI
-                <kbd className="text-muted-foreground border-border/60 bg-muted/50 hidden rounded-[3px] border px-1 font-mono text-[10px] leading-4 lg:inline-block">
-                  ⌘I
-                </kbd>
+                <span className="hidden gap-0.5 lg:flex">
+                  <kbd className="text-muted-foreground border-border/60 bg-muted/50 min-w-4 rounded-[3px] border px-1 text-center font-mono text-[10px] leading-4">
+                    ⌘
+                  </kbd>
+                  <kbd className="text-muted-foreground border-border/60 bg-muted/50 min-w-4 rounded-[3px] border px-1 text-center font-mono text-[10px] leading-4">
+                    I
+                  </kbd>
+                </span>
               </Button>
             )}
             <Button
@@ -172,18 +186,6 @@ export function Header() {
                 <span className="tabular-nums">{formatCompact(stars)}</span>
               )}
             </Button>
-
-            {!isHome && (
-              <a
-                href="https://discord.gg/S9dwgCNEFs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground hidden size-7 items-center justify-center transition-colors sm:flex"
-                aria-label="Discord"
-              >
-                <DiscordIcon className="size-4" />
-              </a>
-            )}
 
             <button
               type="button"
