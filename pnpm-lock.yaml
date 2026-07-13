@@ -3402,6 +3402,9 @@ importers:
       jscodeshift:
         specifier: ^17.3.0
         version: 17.3.0
+      semver:
+        specifier: ^7.8.5
+        version: 7.8.5
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -3421,6 +3424,9 @@ importers:
       '@types/node':
         specifier: ^26.1.1
         version: 26.1.1
+      '@types/semver':
+        specifier: ^7.7.1
+        version: 7.7.1
       '@vitest/coverage-v8':
         specifier: ^4.1.10
         version: 4.1.10(vitest@4.1.10)

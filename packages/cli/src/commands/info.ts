@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 import chalk from "chalk";
 import { detect } from "detect-package-manager";
+import { satisfies } from "semver";
 
 const ASSISTANT_UI_PACKAGES = [
   // Distribution
@@ -198,27 +199,8 @@ async function getPackageManagerInfo(
   return { name: pm, version };
 }
 
-function satisfiesRange(version: string, range: string): boolean {
-  if (range === "*" || range === "any") return true;
-
-  const clean = (v: string) => v.replace(/^[^\d]*/, "");
-  const major = (v: string) => parseInt(clean(v).split(".")[0]!, 10);
-
-  if (range.includes("||")) {
-    return range
-      .split("||")
-      .some((part) => satisfiesRange(version, part.trim()));
-  }
-
-  const rangeMajor = major(range);
-  const versionMajor = major(version);
-
-  if (Number.isNaN(rangeMajor) || Number.isNaN(versionMajor)) return true;
-
-  if (range.startsWith("^")) return versionMajor >= rangeMajor;
-  if (range.startsWith(">=")) return versionMajor >= rangeMajor;
-
-  return versionMajor >= rangeMajor;
+export function satisfiesRange(version: string, range: string): boolean {
+  return range === "any" || satisfies(version, range);
 }
 
 interface PackageInfo {
