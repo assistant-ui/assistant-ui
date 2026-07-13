@@ -647,6 +647,34 @@ describe("useLangGraphRuntime", () => {
     );
   });
 
+  it("forwards threadId so the runtime switches to the specified thread", async () => {
+    const fetch = vi.fn(async (threadId: string) => ({
+      status: "regular" as const,
+      remoteId: threadId,
+      externalId: threadId,
+    }));
+    // Empty list so switching has to fetch the routed thread instead of finding
+    // it already loaded.
+    const adapter: RemoteThreadListAdapter = {
+      ...makeThreadListAdapter(),
+      list: vi.fn(async () => ({ threads: [] })),
+      fetch,
+    };
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        unstable_threadListAdapter: adapter,
+        threadId: "lg-thread-1",
+      }),
+    );
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("lg-thread-1"));
+  });
+
   it("invokes user-provided create when stream calls initialize without cloud", async () => {
     const userCreate = vi.fn(async () => ({ externalId: "lg-thread-xyz" }));
 
