@@ -4535,7 +4535,7 @@ declare const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<T
 declare const mergeModelContexts: (configSet: Set<ModelContextProvider>) => ModelContext$1;
 
 declare namespace messagePart_d_exports {
-  export { MessagePartPrimitiveData as Data, MessagePartPrimitiveFile as File, MessagePartPrimitiveImage as Image, MessagePartPrimitiveInProgress as InProgress, PartPrimitiveMessages as Messages, MessagePartPrimitiveReasoning as Reasoning, MessagePartPrimitiveSource as Source, MessagePartPrimitiveText as Text };
+  export { MessagePartPrimitiveData as Data, MessagePartPrimitiveDataProps as DataProps, MessagePartPrimitiveFile as File, MessagePartPrimitiveFileProps as FileProps, MessagePartPrimitiveImage as Image, MessagePartPrimitiveImageProps as ImageProps, MessagePartPrimitiveInProgress as InProgress, PartPrimitiveMessages as Messages, MessagePartPrimitiveReasoning as Reasoning, MessagePartPrimitiveReasoningProps as ReasoningProps, MessagePartPrimitiveSource as Source, MessagePartPrimitiveSourceProps as SourceProps, MessagePartPrimitiveText as Text, MessagePartPrimitiveTextProps as TextProps };
 }
 
 declare namespace message_d_exports {
@@ -4553,7 +4553,7 @@ declare const ringBell: () => void;
 declare const sendOSCNotification: (title: string, body?: string, variant?: OSCVariant) => void;
 
 declare namespace statusBar_d_exports {
-  export { StatusBarPrimitiveLatency as Latency, StatusBarPrimitiveMessageCount as MessageCount, StatusBarPrimitiveModelName as ModelName, StatusBarPrimitiveRoot as Root, StatusBarPrimitiveStatus as Status, StatusType, StatusBarPrimitiveTokenCount as TokenCount };
+  export { StatusBarPrimitiveLatency as Latency, StatusBarPrimitiveLatencyProps as LatencyProps, StatusBarPrimitiveMessageCount as MessageCount, StatusBarPrimitiveMessageCountProps as MessageCountProps, StatusBarPrimitiveModelName as ModelName, StatusBarPrimitiveModelNameProps as ModelNameProps, StatusBarPrimitiveRoot as Root, StatusBarPrimitiveRootProps as RootProps, StatusBarPrimitiveStatus as Status, StatusBarPrimitiveStatusProps as StatusProps, StatusType, StatusBarPrimitiveTokenCount as TokenCount, StatusBarPrimitiveTokenCountProps as TokenCountProps };
 }
 
 declare function stubTool(): never;
