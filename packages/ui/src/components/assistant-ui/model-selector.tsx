@@ -20,7 +20,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/radix/popover";
 import {
   Command,
   CommandEmpty,
@@ -29,7 +29,7 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@/components/ui/command";
+} from "@/components/ui/radix/command";
 import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 
 export type ModelSelectorEffortOption = {
@@ -634,6 +634,9 @@ export type ModelSelectorProps = Omit<ModelSelectorRootProps, "children"> &
   VariantProps<typeof modelSelectorTriggerVariants> & {
     /** Render a search input above the model list. */
     searchable?: boolean;
+    /** Alignment of the dropdown relative to the trigger. Use `"end"` when the
+     * trigger sits at the right edge of its container. */
+    align?: ModelSelectorContentProps["align"];
     className?: string;
     contentClassName?: string;
   };
@@ -664,6 +667,7 @@ const ModelSelectorImpl = ({
   searchable,
   variant,
   size,
+  align,
   className,
   contentClassName,
   ...rootProps
@@ -677,6 +681,7 @@ const ModelSelectorImpl = ({
         className={className}
       />
       <ModelSelectorContent
+        {...(align !== undefined ? { align } : {})}
         className={contentClassName}
         searchable={searchable ?? false}
       />

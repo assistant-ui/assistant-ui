@@ -6,7 +6,6 @@ import {
   toJSONSchema,
   type Tool,
   type McpServerConfig,
-  type ToolJSONSchema,
   type ToolModelOutputFunction,
 } from "assistant-stream";
 import type {
@@ -14,7 +13,7 @@ import type {
   Toolkit,
   ToolkitDefinition,
 } from "@assistant-ui/core/react";
-import { frontendTools } from "./frontendTools";
+import { frontendTools, type FrontendTools } from "./frontendTools";
 import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
 import {
   unwrapModelContentEnvelope,
@@ -94,7 +93,7 @@ export interface GenerativeToolsOptions {
    * alongside the `toolkit`; a server `execute` from `toolkit` takes precedence
    * over an uploaded entry of the same name.
    */
-  frontendTools?: Record<string, ToolJSONSchema>;
+  frontendTools?: FrontendTools;
 }
 
 export type AISDKToolkitOptions = {
@@ -105,7 +104,7 @@ export type AISDKToolkitToolsOptions = {
   /**
    * Tools uploaded by the frontend request body.
    */
-  frontend?: Record<string, ToolJSONSchema>;
+  frontend?: FrontendTools;
 };
 
 /**
@@ -216,7 +215,14 @@ export class AISDKToolkit {
         )
         .map(async ([name, tool]) => {
           const startedAt = Date.now();
-          const client = await this.#mcpClient(name, tool.server, startedAt);
+          const client = await this.#mcpClient(
+            name,
+            tool.server,
+            startedAt,
+          ).catch((error: unknown) => {
+            if (error instanceof MCPConnectionTimeoutError) throw error;
+            throw toMcpToolkitError(name, "connect", error);
+          });
           try {
             const tools = await withMcpConnectionTimeout(client.tools(), {
               name,
@@ -229,8 +235,9 @@ export class AISDKToolkit {
             if (error instanceof MCPConnectionTimeoutError) {
               this.#mcpClients.delete(name);
               void client.close().catch(() => {});
+              throw error;
             }
-            throw error;
+            throw toMcpToolkitError(name, "list tools", error);
           }
         }),
     );
@@ -240,14 +247,15 @@ export class AISDKToolkit {
     for (const [serverName, mcpTool, toolSet] of toolSets) {
       for (const [toolName, tool] of Object.entries(toolSet)) {
         if (isDisabledMcpTool(mcpTool.tools?.[toolName])) continue;
-        const existingServerName = toolSources.get(toolName);
+        const exposedName = `${mcpTool.prefix ?? ""}${toolName}`;
+        const existingServerName = toolSources.get(exposedName);
         if (existingServerName) {
           throw new Error(
-            `MCP tool name collision: "${toolName}" is exposed by both "${existingServerName}" and "${serverName}". Rename one of the toolkit entries or expose distinct MCP tool names.`,
+            `MCP tool name collision: "${exposedName}" is exposed by both "${existingServerName}" and "${serverName}". Rename one of the toolkit entries or expose distinct MCP tool names.`,
           );
         }
-        toolSources.set(toolName, serverName);
-        tools[toolName] = tool;
+        toolSources.set(exposedName, serverName);
+        tools[exposedName] = tool as ToolSet[string];
       }
     }
     return { tools, sources: toolSources };
@@ -307,6 +315,7 @@ type ToolkitTool = Toolkit[string];
 type McpToolkitTool = ToolkitTool & {
   type: "mcp";
   server: McpServerConfig;
+  prefix?: string | undefined;
   tools?: Record<string, McpToolkitToolConfig> | undefined;
 };
 
@@ -331,6 +340,20 @@ const assertNoMcpToolNameCollisions = (
 
 const isMcpToolkitTool = (tool: ToolkitTool): tool is McpToolkitTool =>
   tool.type === "mcp" && !tool.disabled;
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message || error.name : String(error);
+
+const toMcpToolkitError = (
+  entryName: string,
+  action: "connect" | "list tools",
+  error: unknown,
+): Error => {
+  return new Error(
+    `MCP toolkit entry "${entryName}" failed to ${action}: ${getErrorMessage(error)}`,
+    { cause: error },
+  );
+};
 
 const isDisabledMcpTool = (config: McpToolkitToolConfig | undefined): boolean =>
   config?.disabled === true;

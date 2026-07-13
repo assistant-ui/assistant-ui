@@ -28,7 +28,7 @@ type AISDKToolkitOptions = {
 };
 
 type AISDKToolkitToolsOptions = {
-  frontend?: Record<string, ToolJSONSchema>;
+  frontend?: FrontendTools;
 };
 
 type AddToolResultOptions = {
@@ -775,6 +775,8 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
   providerOptions?: ProviderOptions;
 };
 
+type FrontendTools = Record<string, ToolJSONSchema>;
+
 type GeneratePresignedUploadUrlRequestBody = {
   filename: string;
 };
@@ -788,7 +790,7 @@ type GeneratePresignedUploadUrlResponse = {
 
 interface GenerativeToolsOptions {
   toolkit: Toolkit;
-  frontendTools?: Record<string, ToolJSONSchema>;
+  frontendTools?: FrontendTools;
 }
 
 type GenerativeUIMessagePart = {
@@ -1167,6 +1169,10 @@ type PartInit = {
   readonly parentId?: string;
 };
 
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
 type PdfToImagesRequestBody = {
   file_blob?: string | undefined;
   file_url?: string | undefined;
@@ -1193,6 +1199,7 @@ type PendingAttachmentStatus = {
 } | {
   type: "incomplete";
   reason: "error" | "upload-paused";
+  message?: string;
 };
 
 type ProviderOptions = Record<string, Record<string, unknown>>;
@@ -1267,6 +1274,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1356,9 +1364,7 @@ type SourceMessagePart = {
   readonly parentId?: string;
 };
 
-type SourceProviderMetadata = {
-  readonly [providerName: string]: ReadonlyJSONObject;
-};
+type SourceProviderMetadata = PartProviderMetadata;
 
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
@@ -1408,6 +1414,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1570,6 +1577,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
       readonly approved?: boolean;
@@ -1778,6 +1786,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
   readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: {
     type: "human";
@@ -1991,7 +2000,7 @@ declare function createResumableSessionStorage(options?: {
   key?: string;
 }): ResumableClientStorage;
 
-declare const frontendTools: (tools: Record<string, ToolJSONSchema>) => ToolSet;
+declare const frontendTools: (tools: FrontendTools) => ToolSet;
 
 declare const generativeTools: (options: GenerativeToolsOptions) => ToolSet;
 
@@ -2005,7 +2014,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, AssistantChatResumableOptions, AssistantChatTransport, GenerativeToolsOptions, RESUMABLE_STREAM_ID_HEADER, ResumableClientStorage, ThreadTokenUsage, TokenUsageExtractableMessage, UseChatRuntimeOptions, createResumableSessionStorage, frontendTools, generativeTools, getThreadMessageTokenUsage, injectQuoteContext, unstable_injectInteractableContext, useAISDKRuntime, useChatRuntime, useThreadTokenUsage };
+  export { AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, AssistantChatResumableOptions, AssistantChatTransport, FrontendTools, GenerativeToolsOptions, RESUMABLE_STREAM_ID_HEADER, ResumableClientStorage, ThreadTokenUsage, TokenUsageExtractableMessage, UseChatRuntimeOptions, createResumableSessionStorage, frontendTools, generativeTools, getThreadMessageTokenUsage, injectQuoteContext, unstable_injectInteractableContext, useAISDKRuntime, useChatRuntime, useThreadTokenUsage };
 }
 
 declare function injectQuoteContext(messages: UIMessage[]): UIMessage[];

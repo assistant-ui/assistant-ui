@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defineMcpToolkit } from "@assistant-ui/core/react";
 import { AISDKToolkit } from "./generativeTools";
 import { wrapModelContentEnvelope } from "./modelContentEnvelope";
 
@@ -204,7 +205,7 @@ describe("AISDKToolkit", () => {
               disabled: true,
             },
           },
-        },
+        } as never,
       },
     });
 
@@ -267,7 +268,10 @@ describe("AISDKToolkit", () => {
     await expect(toolkit.close()).rejects.toMatchObject({
       errors: [error, closeError],
     });
-    await expect(toolsPromise).rejects.toThrow(error);
+    await expect(toolsPromise).rejects.toMatchObject({
+      message: 'MCP toolkit entry "second" failed to connect: connect failed',
+      cause: error,
+    });
     expect(close).toHaveBeenCalledTimes(1);
 
     await expect(toolkit.close()).resolves.toBeUndefined();
@@ -289,7 +293,10 @@ describe("AISDKToolkit", () => {
       },
     });
 
-    await expect(toolkit.tools()).rejects.toThrow(error);
+    await expect(toolkit.tools()).rejects.toMatchObject({
+      message: 'MCP toolkit entry "local" failed to connect: connect failed',
+      cause: error,
+    });
     await expect(toolkit.tools()).resolves.toHaveProperty("echo");
     expect(mocks.createMCPClient).toHaveBeenCalledTimes(2);
   });
@@ -371,6 +378,48 @@ describe("AISDKToolkit", () => {
     }
   });
 
+  it("includes the MCP toolkit entry name when client initialization fails", async () => {
+    const error = new Error("connect failed");
+    mocks.createMCPClient.mockRejectedValue(error);
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        github: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+        },
+      },
+    });
+
+    await expect(toolkit.tools()).rejects.toMatchObject({
+      message: 'MCP toolkit entry "github" failed to connect: connect failed',
+      cause: error,
+    });
+  });
+
+  it("includes the MCP toolkit entry name when listing tools fails", async () => {
+    const error = new Error("list failed");
+    mocks.tools.mockRejectedValue(error);
+    mocks.createMCPClient.mockResolvedValue({
+      tools: mocks.tools,
+      close: mocks.close,
+    });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+        },
+      },
+    });
+
+    await expect(toolkit.tools()).rejects.toMatchObject({
+      message: 'MCP toolkit entry "docs" failed to list tools: list failed',
+      cause: error,
+    });
+  });
+
   it("rejects duplicate MCP tool names", async () => {
     mocks.createMCPClient
       .mockResolvedValueOnce({
@@ -397,6 +446,53 @@ describe("AISDKToolkit", () => {
 
     await expect(toolkit.tools()).rejects.toThrow(
       /MCP tool name collision: "echo"/,
+    );
+  });
+
+  it("prefixes MCP tool names when configured", async () => {
+    const docsExecute = vi.fn().mockResolvedValue("docs result");
+    mocks.createMCPClient
+      .mockResolvedValueOnce({
+        tools: vi.fn().mockResolvedValue({
+          search: { inputSchema: {}, execute: docsExecute },
+        }),
+        close: mocks.close,
+      })
+      .mockResolvedValueOnce({
+        tools: vi.fn().mockResolvedValue({ search: { inputSchema: {} } }),
+        close: mocks.close,
+      });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: defineMcpToolkit({
+        docs: {
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+          prefix: "docs_",
+        },
+        github: {
+          server: { type: "http", url: "http://localhost:3002/mcp" },
+          prefix: "github_",
+        },
+      }),
+    });
+
+    const toolSet = await toolkit.tools();
+
+    expect(toolSet).toHaveProperty("docs_search");
+    expect(toolSet).toHaveProperty("github_search");
+    expect(toolSet).not.toHaveProperty("search");
+
+    expect(toolSet.docs_search?.execute).toBeTypeOf("function");
+    const executeOptions = {
+      toolCallId: "call-docs-search",
+      messages: [],
+    };
+    await expect(
+      toolSet.docs_search?.execute?.({ query: "assistant-ui" }, executeOptions),
+    ).resolves.toBe("docs result");
+    expect(docsExecute).toHaveBeenCalledWith(
+      { query: "assistant-ui" },
+      executeOptions,
     );
   });
 
@@ -502,7 +598,7 @@ describe("AISDKToolkit", () => {
               disabled: true,
             },
           },
-        },
+        } as never,
         second: {
           type: "mcp",
           server: { type: "http", url: "http://localhost:3002/mcp" },

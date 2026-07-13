@@ -4,9 +4,13 @@ import {
   InitializeRequestSchema,
   ListToolsRequestSchema,
   CallToolRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema,
   type InitializeRequest,
   type ListToolsRequest,
   type CallToolRequest,
+  type ListPromptsRequest,
+  type GetPromptRequest,
 } from "@modelcontextprotocol/sdk/types.js";
 
 describe("MCP Protocol Integration", () => {
@@ -55,7 +59,7 @@ describe("MCP Protocol Integration", () => {
 
     expect(result).toBeDefined();
     expect(result.tools).toBeInstanceOf(Array);
-    expect(result.tools).toHaveLength(3);
+    expect(result.tools).toHaveLength(6);
 
     // Check the tools have proper JSON schemas
     const docsTool = result.tools.find(
@@ -93,6 +97,30 @@ describe("MCP Protocol Integration", () => {
     expect(searchTool.title).toBe("Search assistant-ui Documentation");
     expect(searchTool.annotations?.readOnlyHint).toBe(true);
     expect(searchTool.annotations?.openWorldHint).toBe(false);
+
+    const xuluxListTool = result.tools.find(
+      (t: any) => t.name === "assistantUITemplates",
+    );
+    expect(xuluxListTool).toBeDefined();
+    expect(xuluxListTool.title).toBe("assistant-ui Templates");
+    expect(xuluxListTool.annotations?.readOnlyHint).toBe(true);
+    expect(xuluxListTool.annotations?.openWorldHint).toBe(true);
+
+    const xuluxDetailsTool = result.tools.find(
+      (t: any) => t.name === "assistantUITemplateDetails",
+    );
+    expect(xuluxDetailsTool).toBeDefined();
+    expect(xuluxDetailsTool.title).toBe("assistant-ui Template Details");
+    expect(xuluxDetailsTool.annotations?.readOnlyHint).toBe(true);
+    expect(xuluxDetailsTool.annotations?.openWorldHint).toBe(true);
+
+    const xuluxPreviewTool = result.tools.find(
+      (t: any) => t.name === "assistantUITemplatePreview",
+    );
+    expect(xuluxPreviewTool).toBeDefined();
+    expect(xuluxPreviewTool.title).toBe("assistant-ui Template Preview URLs");
+    expect(xuluxPreviewTool.annotations?.readOnlyHint).toBe(false);
+    expect(xuluxPreviewTool.annotations?.openWorldHint).toBe(true);
   });
 
   it("should handle CallTool request for assistantUIDocs", async () => {
@@ -147,5 +175,57 @@ describe("MCP Protocol Integration", () => {
     expect(result).toBeDefined();
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe("text");
+  });
+
+  it("should handle ListPrompts request", async () => {
+    const request: ListPromptsRequest = {
+      method: "prompts/list",
+      params: {},
+    };
+
+    const parsed = ListPromptsRequestSchema.parse(request);
+    expect(parsed).toBeDefined();
+
+    const handlers = (server as any).server._requestHandlers;
+    expect(handlers.get("prompts/list")).toBeDefined();
+
+    const handler = handlers.get("prompts/list");
+    const result = await handler(parsed, {});
+
+    expect(result.prompts).toBeInstanceOf(Array);
+    const prompt = result.prompts.find(
+      (p: any) => p.name === "assistant-ui-template-workflow",
+    );
+    expect(prompt).toBeDefined();
+    expect(prompt.title).toBe("assistant-ui Template Workflow");
+  });
+
+  it("should handle GetPrompt request for assistant-ui-template-workflow", async () => {
+    const request: GetPromptRequest = {
+      method: "prompts/get",
+      params: {
+        name: "assistant-ui-template-workflow",
+        arguments: {},
+      },
+    };
+
+    const parsed = GetPromptRequestSchema.parse(request);
+    expect(parsed).toBeDefined();
+
+    const handlers = (server as any).server._requestHandlers;
+    expect(handlers.get("prompts/get")).toBeDefined();
+
+    const handler = handlers.get("prompts/get");
+    const result = await handler(parsed, {});
+
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0].content.type).toBe("text");
+    expect(result.messages[0].content.text).toContain("assistantUITemplates");
+    expect(result.messages[0].content.text).toContain(
+      "assistantUITemplateDetails",
+    );
+    expect(result.messages[0].content.text).toContain(
+      "assistantUITemplatePreview",
+    );
   });
 });

@@ -1224,7 +1224,7 @@ import { TextInput } from "@assistant-ui/react-ink";
 
 Store-free, controlled single/multi-line text field. Ink ships no native text input, so this is the terminal equivalent of the DOM `<textarea>` or React Native's `<TextInput>` — the editing engine (buffer, grapheme-aware cursor, and the full emacs/arrow keymap) without any runtime or composer coupling. `ComposerPrimitive.Input` is a thin adapter that wraps `TextInput` and binds it to the composer store; reach for `TextInput` directly when you need an editable field outside the thread composer (for example, editing a value before confirming an action).
 
-It is controlled on `value`/`onChange`, so an external owner can override the text at any time (the buffer absorbs the echo without thrashing the cursor):
+It is controlled on `value`/`onChange`, so an external owner can override the text at any time (the buffer absorbs the echo without thrashing the cursor). An owner may also transform the emitted text in `onChange` (uppercase, mask, reject); the buffer applies the corrected value while keeping the cursor at the edit position, snapped to a grapheme boundary. A replacement that does not respond to an edit (a programmatic set while idle) still places the cursor at the end:
 
 ```tsx
 const [command, setCommand] = useState(approval.action.command);
@@ -1241,7 +1241,7 @@ const [command, setCommand] = useState(approval.action.command);
 |------|------|-------------|
 | `value` | `string` | Current text (controlled) |
 | `onChange` | `(text: string) => void` | Called with the next text whenever the buffer changes |
-| `onSubmit` | `(text: string) => void` | Called with the current text on Enter when `submitOnEnter` is set |
+| `onSubmit` | `(text: string) => void` | Called on Enter when `submitOnEnter` is set, with the text as displayed; owners that validate in `onChange` should validate again in `onSubmit` |
 | `submitOnEnter` | `boolean` | Whether Enter calls `onSubmit` (default: `false`) |
 | `placeholder` | `string` | Placeholder text when empty (default: `""`) |
 | `autoFocus` | `boolean` | Auto-focus on mount (default: `true`) |

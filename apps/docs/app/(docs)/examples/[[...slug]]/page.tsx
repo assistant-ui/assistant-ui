@@ -11,7 +11,7 @@ import { DocsPager } from "@/components/docs/layout/docs-pager";
 import { findNeighbour } from "fumadocs-core/page-tree";
 import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/radix/button";
 import { getDemo } from "@/lib/demos";
 
 // The AI SDK example renders the Base demo component.
