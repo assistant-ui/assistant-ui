@@ -128,12 +128,12 @@ const CommandBlock = ({ command }: { command: string }) => (
 );
 
 function githubSourcePath(filePath: string, flavor: RegistryFlavor): string {
-  if (flavor !== "base") return filePath;
-  const basePath = filePath.replace(/\.tsx$/, ".base.tsx");
+  if (flavor !== "radix") return filePath;
+  const radixPath = filePath.replace(/\.tsx$/, ".radix.tsx");
   return fs.existsSync(
-    path.join(process.cwd(), "../../packages/ui/src", basePath),
+    path.join(process.cwd(), "../../packages/ui/src", radixPath),
   )
-    ? basePath
+    ? radixPath
     : filePath;
 }
 

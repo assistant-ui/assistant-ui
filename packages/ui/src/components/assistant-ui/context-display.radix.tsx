@@ -6,9 +6,8 @@ import type { ThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/radix/tooltip";
 import { cn } from "@/lib/utils";
 import {
   createContext,
@@ -141,9 +140,7 @@ function ContextDisplayRootBase({
 
   return (
     <ContextDisplayContext.Provider value={contextValue}>
-      <TooltipProvider>
-        <Tooltip>{children}</Tooltip>
-      </TooltipProvider>
+      <Tooltip>{children}</Tooltip>
     </ContextDisplayContext.Provider>
   );
 }
@@ -190,20 +187,18 @@ function ContextDisplayTrigger({
   ...props
 }: React.ComponentProps<"button">) {
   return (
-    <TooltipTrigger
-      render={
-        <button
-          type="button"
-          data-slot="context-display-trigger"
-          className={cn(
-            "inline-flex items-center rounded-md transition-colors",
-            className,
-          )}
-          {...props}
-        />
-      }
-    >
-      {children}
+    <TooltipTrigger asChild>
+      <button
+        type="button"
+        data-slot="context-display-trigger"
+        className={cn(
+          "inline-flex items-center rounded-md transition-colors",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </button>
     </TooltipTrigger>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Check, X, AlertCircle, Loader2 } from "lucide-react";
-import { Badge } from "@/components/assistant-ui/badge.base";
+import { Badge } from "@/components/assistant-ui/badge.radix";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { cn } from "@/lib/utils";
 
@@ -62,31 +62,25 @@ export function BadgeWithIconSample() {
 export function BadgeAsLinkSample() {
   return (
     <SampleFrame className="flex h-auto items-center justify-center gap-3 p-6">
-      <Badge
-        variant="muted"
-        render={
-          <a
-            href="https://github.com/assistant-ui/assistant-ui"
-            target="_blank"
-            rel="noopener noreferrer"
-          />
-        }
-      >
-        GitHub
-        <ArrowUpRight />
+      <Badge asChild variant="muted">
+        <a
+          href="https://github.com/assistant-ui/assistant-ui"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          GitHub
+          <ArrowUpRight />
+        </a>
       </Badge>
-      <Badge
-        variant="outline"
-        render={
-          <a
-            href="https://www.npmjs.com/package/@assistant-ui/react"
-            target="_blank"
-            rel="noopener noreferrer"
-          />
-        }
-      >
-        npm
-        <ArrowUpRight />
+      <Badge asChild variant="outline">
+        <a
+          href="https://www.npmjs.com/package/@assistant-ui/react"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          npm
+          <ArrowUpRight />
+        </a>
       </Badge>
     </SampleFrame>
   );

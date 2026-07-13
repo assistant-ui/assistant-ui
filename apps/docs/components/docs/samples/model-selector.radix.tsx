@@ -12,13 +12,12 @@ import {
   ModelSelectorItem,
   ModelSelectorEffort,
   type ModelOption,
-} from "@/components/assistant-ui/model-selector.base";
+} from "@/components/assistant-ui/model-selector.radix";
 import { DEFAULT_MODEL_ID, getContextWindow } from "@/constants/model";
 import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { cn } from "@/lib/utils";
-import { ToggleGroup } from "@base-ui/react/toggle-group";
-import { Toggle } from "@base-ui/react/toggle";
+import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
 
 const PROVIDER_NAMES: Record<string, string> = {
   openai: "OpenAI",
@@ -112,8 +111,9 @@ function ComposedRow() {
         <ModelSelectorTrigger />
         <ModelSelectorContent>
           <ModelSelectorSearch />
-          <ToggleGroup
-            multiple
+          <ToggleGroupPrimitive.Root
+            type="multiple"
+            orientation="horizontal"
             value={[...providerFilter]}
             onValueChange={(next) => setProviderFilter(new Set(next))}
             aria-label="Filter by provider"
@@ -136,19 +136,19 @@ function ComposedRow() {
             }}
           >
             {[...modelsByProvider.keys()].map((provider) => (
-              <Toggle
+              <ToggleGroupPrimitive.Item
                 key={provider}
                 value={provider}
                 className={cn(
                   "rounded-full border px-2 py-0.5 text-xs transition-colors",
                   "text-muted-foreground hover:text-foreground",
-                  "data-pressed:bg-accent data-pressed:text-accent-foreground data-pressed:border-transparent",
+                  "data-[state=on]:bg-accent data-[state=on]:text-accent-foreground data-[state=on]:border-transparent",
                 )}
               >
                 {provider}
-              </Toggle>
+              </ToggleGroupPrimitive.Item>
             ))}
-          </ToggleGroup>
+          </ToggleGroupPrimitive.Root>
           <ModelSelectorList>
             <ModelSelectorEmpty />
             {visibleGroups.map(([provider, providerModels]) => (

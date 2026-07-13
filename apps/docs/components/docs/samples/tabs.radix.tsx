@@ -7,7 +7,7 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
-} from "@/components/assistant-ui/tabs.base";
+} from "@/components/assistant-ui/tabs.radix";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 export function TabsSample() {
@@ -205,13 +205,17 @@ export function TabsAsLinkSample() {
     <SampleFrame className="flex h-auto items-center justify-center p-6">
       <Tabs defaultValue="docs">
         <TabsList variant="line">
-          <TabsTrigger value="docs" render={<a href="#installation" />}>
-            <FileText />
-            Docs
+          <TabsTrigger value="docs" asChild>
+            <a href="#installation">
+              <FileText />
+              Docs
+            </a>
           </TabsTrigger>
-          <TabsTrigger value="api" render={<a href="#api-reference" />}>
-            <Settings />
-            API
+          <TabsTrigger value="api" asChild>
+            <a href="#api-reference">
+              <Settings />
+              API
+            </a>
           </TabsTrigger>
         </TabsList>
       </Tabs>

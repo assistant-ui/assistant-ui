@@ -1,6 +1,7 @@
 "use client";
 
-import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
+import type { ComponentProps } from "react";
+import { Accordion as AccordionPrimitive } from "radix-ui";
 import { ChevronDownIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
@@ -23,7 +24,8 @@ function Accordion({
   className,
   variant,
   ...props
-}: AccordionPrimitive.Root.Props & VariantProps<typeof accordionVariants>) {
+}: ComponentProps<typeof AccordionPrimitive.Root> &
+  VariantProps<typeof accordionVariants>) {
   return (
     <AccordionPrimitive.Root
       data-slot="accordion"
@@ -34,7 +36,10 @@ function Accordion({
   );
 }
 
-function AccordionItem({ className, ...props }: AccordionPrimitive.Item.Props) {
+function AccordionItem({
+  className,
+  ...props
+}: ComponentProps<typeof AccordionPrimitive.Item>) {
   return (
     <AccordionPrimitive.Item
       data-slot="accordion-item"
@@ -42,7 +47,7 @@ function AccordionItem({ className, ...props }: AccordionPrimitive.Item.Props) {
         "aui-accordion-item group/accordion-item",
         "group-data-[variant=default]/accordion:border-b group-data-[variant=default]/accordion:last:border-b-0",
         "group-data-[variant=outline]/accordion:border-b group-data-[variant=outline]/accordion:last:border-b-0",
-        "group-data-[variant=ghost]/accordion:data-open:bg-muted/50 group-data-[variant=ghost]/accordion:rounded-lg",
+        "group-data-[variant=ghost]/accordion:data-[state=open]:bg-muted/50 group-data-[variant=ghost]/accordion:rounded-lg",
         className,
       )}
       {...props}
@@ -54,7 +59,7 @@ function AccordionTrigger({
   className,
   children,
   ...props
-}: AccordionPrimitive.Trigger.Props) {
+}: ComponentProps<typeof AccordionPrimitive.Trigger>) {
   return (
     <AccordionPrimitive.Header className="flex">
       <AccordionPrimitive.Trigger
@@ -69,7 +74,7 @@ function AccordionTrigger({
         {...props}
       >
         {children}
-        <ChevronDownIcon className="text-muted-foreground pointer-events-none size-4 shrink-0 transition-transform duration-200 ease-out group-data-panel-open/accordion-trigger:rotate-180" />
+        <ChevronDownIcon className="text-muted-foreground pointer-events-none size-4 shrink-0 transition-transform duration-200 ease-out group-data-[state=open]/accordion-trigger:rotate-180" />
       </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>
   );
@@ -79,11 +84,11 @@ function AccordionContent({
   className,
   children,
   ...props
-}: AccordionPrimitive.Panel.Props) {
+}: ComponentProps<typeof AccordionPrimitive.Content>) {
   return (
-    <AccordionPrimitive.Panel
+    <AccordionPrimitive.Content
       data-slot="accordion-content"
-      className="aui-accordion-content data-closed:animate-accordion-up data-open:animate-accordion-down overflow-hidden text-sm"
+      className="aui-accordion-content data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down overflow-hidden text-sm"
       {...props}
     >
       <div
@@ -96,7 +101,7 @@ function AccordionContent({
       >
         {children}
       </div>
-    </AccordionPrimitive.Panel>
+    </AccordionPrimitive.Content>
   );
 }
 

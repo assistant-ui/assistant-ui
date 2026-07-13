@@ -20,7 +20,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/radix/popover";
 import {
   Command,
   CommandEmpty,
@@ -29,9 +29,8 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "@/components/ui/command";
-import { RadioGroup } from "@base-ui/react/radio-group";
-import { Radio } from "@base-ui/react/radio";
+} from "@/components/ui/radix/command";
+import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 
 export type ModelSelectorEffortOption = {
   id: string;
@@ -406,7 +405,7 @@ function ModelSelectorContent({
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        "bg-popover/95 w-72 min-w-(--anchor-width) overflow-hidden rounded-xl p-0 shadow-lg backdrop-blur-sm",
+        "bg-popover/95 w-72 min-w-(--radix-popover-trigger-width) overflow-hidden rounded-xl p-0 shadow-lg backdrop-blur-sm",
         className,
       )}
       {...props}
@@ -607,25 +606,26 @@ function ModelSelectorEffort({
       {...props}
     >
       <span className="text-muted-foreground text-xs">{label}</span>
-      <RadioGroup
+      <RadioGroupPrimitive.Root
         value={effort ?? ""}
         onValueChange={setEffort}
+        orientation="horizontal"
         aria-label={typeof label === "string" ? label : "Reasoning effort"}
         className="flex items-center gap-0.5"
       >
         {efforts.map((option) => (
-          <Radio.Root
+          <RadioGroupPrimitive.Item
             key={option.id}
             value={option.id}
             className={cn(
               "focus-visible:ring-ring/50 text-muted-foreground hover:text-foreground rounded-md px-2 py-1 text-xs transition-colors outline-none focus-visible:ring-2",
-              "data-checked:bg-accent data-checked:text-accent-foreground data-checked:font-medium",
+              "data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground data-[state=checked]:font-medium",
             )}
           >
             {option.name}
-          </Radio.Root>
+          </RadioGroupPrimitive.Item>
         ))}
-      </RadioGroup>
+      </RadioGroupPrimitive.Root>
     </div>
   );
 }

@@ -48,6 +48,8 @@ Every publishable package builds with `aui-build` (`@assistant-ui/x-buildutils`)
 
 `packages/ui/src/components/assistant-ui` is the canonical UI source. Templates and examples alias it through tsconfig (`@/components/*`, `@/hooks/*`, `@/lib/utils`) and carry no byte-equal copies of it — except `minimal`, which ships its own (examples may still hold intentional forks). `pnpm sync-templates` keeps minimal's copies byte-equal with the source; declare intentional divergence in the `OVERRIDES` array in `scripts/sync-templates.sh`.
 
+`components/ui/` uses parallel `radix/` and `base/` directories because every primitive exists in both flavors; `components/assistant-ui/` (and the direction pair in `ui/radix/`) uses sparse variant suffixes where the unmarked file is the Base UI source and a `.radix.tsx` sibling holds the Radix variant.
+
 Run `pnpm check:resource-memo` when bumping `@babel/core`, `babel-plugin-react-compiler`, or `react-compiler`; a green build does not prove the compiler toolchain is intact. A package the published dist imports at runtime belongs in `dependencies`, not `devDependencies`, so the bundler externalizes it (a devDep gets inlined and drags unresolvable transitive imports into consumer builds). A registry item must be self-contained: enumerate every `@/components/*` import and CSS `@import` as `registryDependencies`, so `shadcn add` never lands a file with an unresolvable import.
 
 Every PR that changes a published package needs a changeset. Always use **patch**; minor and major require maintainer approval. Private packages (`private: true` in package.json) are exempt.

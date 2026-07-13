@@ -7,13 +7,13 @@ import {
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
-} from "@/components/assistant-ui/accordion.base";
+} from "@/components/assistant-ui/accordion.radix";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 export function AccordionSample() {
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">
-      <Accordion className="w-[400px]">
+      <Accordion type="single" collapsible className="w-[400px]">
         <AccordionItem value="item-1">
           <AccordionTrigger>Is it accessible?</AccordionTrigger>
           <AccordionContent>
@@ -43,7 +43,7 @@ export function AccordionVariantsSample() {
     <SampleFrame className="flex h-auto flex-col items-center justify-center gap-8 p-6">
       <div className="flex w-[400px] flex-col gap-2">
         <span className="text-muted-foreground text-xs">Default</span>
-        <Accordion variant="default">
+        <Accordion type="single" collapsible variant="default">
           <AccordionItem value="a">
             <AccordionTrigger>Section A</AccordionTrigger>
             <AccordionContent>Content for section A.</AccordionContent>
@@ -56,7 +56,7 @@ export function AccordionVariantsSample() {
       </div>
       <div className="flex w-[400px] flex-col gap-2">
         <span className="text-muted-foreground text-xs">Outline</span>
-        <Accordion variant="outline">
+        <Accordion type="single" collapsible variant="outline">
           <AccordionItem value="a">
             <AccordionTrigger>Section A</AccordionTrigger>
             <AccordionContent>Content for section A.</AccordionContent>
@@ -69,7 +69,7 @@ export function AccordionVariantsSample() {
       </div>
       <div className="flex w-[400px] flex-col gap-2">
         <span className="text-muted-foreground text-xs">Ghost</span>
-        <Accordion variant="ghost">
+        <Accordion type="single" collapsible variant="ghost">
           <AccordionItem value="a">
             <AccordionTrigger>Section A</AccordionTrigger>
             <AccordionContent>Content for section A.</AccordionContent>
@@ -87,7 +87,7 @@ export function AccordionVariantsSample() {
 export function AccordionMultipleSample() {
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">
-      <Accordion multiple className="w-[400px]">
+      <Accordion type="multiple" className="w-[400px]">
         <AccordionItem value="item-1">
           <AccordionTrigger>First Section</AccordionTrigger>
           <AccordionContent>
@@ -112,7 +112,12 @@ export function AccordionMultipleSample() {
 export function AccordionWithIconsSample() {
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">
-      <Accordion variant="outline" className="w-[400px]">
+      <Accordion
+        type="single"
+        collapsible
+        variant="outline"
+        className="w-[400px]"
+      >
         <AccordionItem value="account">
           <AccordionTrigger>
             <span className="flex items-center gap-2">
@@ -154,13 +159,15 @@ export function AccordionWithIconsSample() {
 }
 
 export function AccordionControlledSample() {
-  const [value, setValue] = useState<string[]>(["item-1"]);
+  const [value, setValue] = useState("item-1");
 
   return (
     <SampleFrame className="flex h-auto flex-col items-center justify-center gap-4 p-6">
       <Accordion
+        type="single"
+        collapsible
         value={value}
-        onValueChange={(next) => setValue(next as string[])}
+        onValueChange={setValue}
         className="w-[400px]"
       >
         <AccordionItem value="item-1">
@@ -197,7 +204,7 @@ export function AccordionFAQSample() {
           <HelpCircle className="size-5" />
           <h3 className="text-lg font-semibold">Frequently Asked Questions</h3>
         </div>
-        <Accordion>
+        <Accordion type="single" collapsible>
           <AccordionItem value="faq-1">
             <AccordionTrigger>
               What payment methods do you accept?

@@ -2,7 +2,7 @@
 
 import { ArrowUpIcon, FileText, PlusIcon, XIcon } from "lucide-react";
 import { SampleFrame } from "./sample-frame";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button.base";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button.radix";
 
 type AttachmentTileStaticProps = {
   name: string;

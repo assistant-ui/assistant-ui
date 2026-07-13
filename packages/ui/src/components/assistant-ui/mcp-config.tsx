@@ -1,6 +1,6 @@
 "use client";
 
-import { type FC, type ReactNode, useState } from "react";
+import { type FC, type ReactNode, useState, isValidElement } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import {
   McpAddFormPrimitive,
@@ -19,8 +19,8 @@ import {
   XIcon,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/radix/badge";
-import { Button, buttonVariants } from "@/components/ui/radix/button";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -28,11 +28,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/radix/dialog";
-import { Input } from "@/components/ui/radix/input";
-import { Label } from "@/components/ui/radix/label";
-import { Separator } from "@/components/ui/radix/separator";
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+
+const inputClassName =
+  "border-input selection:bg-primary selection:text-primary-foreground file:text-foreground placeholder:text-muted-foreground dark:bg-input/30 h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40";
 
 export namespace McpConfigDialog {
   export type Props = {
@@ -54,18 +56,22 @@ export namespace McpConfigDialog {
 export const McpConfigDialog: FC<McpConfigDialog.Props> = ({ children }) => {
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        {children ?? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="aui-mcp-config-trigger gap-2"
-          >
-            <PlugIcon className="size-4" />
-            MCP servers
-          </Button>
-        )}
-      </DialogTrigger>
+      {isValidElement(children) ? (
+        <DialogTrigger render={children} />
+      ) : (
+        <DialogTrigger
+          render={
+            <Button
+              variant="outline"
+              size="sm"
+              className="aui-mcp-config-trigger gap-2"
+            />
+          }
+        >
+          <PlugIcon className="size-4" />
+          MCP servers
+        </DialogTrigger>
+      )}
       <DialogContent className="aui-mcp-config-content sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>MCP servers</DialogTitle>
@@ -111,15 +117,15 @@ const CustomServersSection: FC = () => {
         </McpManagerPrimitive.CustomServers>
       </div>
       {!showForm && (
-        <McpManagerPrimitive.AddCustomTrigger asChild>
-          <Button
-            variant="outline"
-            className="aui-mcp-add-trigger h-9 justify-start gap-2 rounded-lg px-3 text-sm"
-            onClick={() => setShowForm(true)}
-          >
-            <PlusIcon className="size-4" />
-            Add server
-          </Button>
+        <McpManagerPrimitive.AddCustomTrigger
+          className={cn(
+            buttonVariants({ variant: "outline" }),
+            "aui-mcp-add-trigger h-9 justify-start gap-2 rounded-lg px-3 text-sm",
+          )}
+          onClick={() => setShowForm(true)}
+        >
+          <PlusIcon className="size-4" />
+          Add server
         </McpManagerPrimitive.AddCustomTrigger>
       )}
       {showForm && <AddServerForm onClose={() => setShowForm(false)} />}
@@ -151,15 +157,14 @@ const ServerCard: FC = () => {
         </div>
         <div className="flex items-center gap-1">
           <ServerActions />
-          <McpServerPrimitive.RemoveButton asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="aui-mcp-server-remove text-muted-foreground hover:text-destructive size-7"
-            >
-              <Trash2Icon className="size-4" />
-              <span className="sr-only">Remove</span>
-            </Button>
+          <McpServerPrimitive.RemoveButton
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "aui-mcp-server-remove text-muted-foreground hover:text-destructive size-7",
+            )}
+          >
+            <Trash2Icon className="size-4" />
+            <span className="sr-only">Remove</span>
           </McpServerPrimitive.RemoveButton>
         </div>
       </div>
@@ -232,15 +237,14 @@ const ServerError: FC = () => {
 
 const ServerActions: FC = () => (
   <div className="flex flex-wrap gap-2">
-    <McpServerPrimitive.ConnectButton asChild>
-      <Button
-        size="sm"
-        variant="default"
-        className="aui-mcp-server-connect h-8 gap-2 text-xs"
-      >
-        <PlugZapIcon className="size-3.5" />
-        Connect
-      </Button>
+    <McpServerPrimitive.ConnectButton
+      className={cn(
+        buttonVariants({ variant: "default", size: "sm" }),
+        "aui-mcp-server-connect h-8 gap-2 text-xs",
+      )}
+    >
+      <PlugZapIcon className="size-3.5" />
+      Connect
     </McpServerPrimitive.ConnectButton>
     <McpServerPrimitive.OAuthLink
       className={cn(
@@ -250,14 +254,13 @@ const ServerActions: FC = () => (
     >
       Authorize
     </McpServerPrimitive.OAuthLink>
-    <McpServerPrimitive.DisconnectButton asChild>
-      <Button
-        size="sm"
-        variant="outline"
-        className="aui-mcp-server-disconnect h-8 text-xs"
-      >
-        Disconnect
-      </Button>
+    <McpServerPrimitive.DisconnectButton
+      className={cn(
+        buttonVariants({ variant: "outline", size: "sm" }),
+        "aui-mcp-server-disconnect h-8 text-xs",
+      )}
+    >
+      Disconnect
     </McpServerPrimitive.DisconnectButton>
   </div>
 );
@@ -268,27 +271,28 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
       <div className="aui-mcp-add-form flex flex-col gap-3 rounded-lg border p-3">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-medium">New server</h4>
-          <McpAddFormPrimitive.Cancel asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground size-7"
-            >
-              <XIcon className="size-4" />
-              <span className="sr-only">Close</span>
-            </Button>
+          <McpAddFormPrimitive.Cancel
+            type="button"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "text-muted-foreground size-7",
+            )}
+          >
+            <XIcon className="size-4" />
+            <span className="sr-only">Close</span>
           </McpAddFormPrimitive.Cancel>
         </div>
         <FormRow label="Name">
-          <McpAddFormPrimitive.NameField asChild>
-            <Input placeholder="My MCP server" />
-          </McpAddFormPrimitive.NameField>
+          <McpAddFormPrimitive.NameField
+            placeholder="My MCP server"
+            className={inputClassName}
+          />
         </FormRow>
         <FormRow label="URL">
-          <McpAddFormPrimitive.UrlField asChild>
-            <Input placeholder="https://example.com/mcp" />
-          </McpAddFormPrimitive.UrlField>
+          <McpAddFormPrimitive.UrlField
+            placeholder="https://example.com/mcp"
+            className={inputClassName}
+          />
         </FormRow>
         <FormRow label="Auth">
           <McpAddFormPrimitive.AuthSelect className="aui-mcp-auth-select bg-background h-9 w-full rounded-md border px-2 text-sm" />
@@ -307,15 +311,17 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
         </FormRow>
         <McpAddFormPrimitive.Error className="text-destructive text-xs" />
         <div className="flex justify-end gap-2">
-          <McpAddFormPrimitive.Cancel asChild>
-            <Button type="button" variant="ghost" size="sm">
-              Cancel
-            </Button>
+          <McpAddFormPrimitive.Cancel
+            type="button"
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+          >
+            Cancel
           </McpAddFormPrimitive.Cancel>
-          <McpAddFormPrimitive.Submit asChild>
-            <Button type="submit" size="sm">
-              Add server
-            </Button>
+          <McpAddFormPrimitive.Submit
+            type="submit"
+            className={cn(buttonVariants({ size: "sm" }))}
+          >
+            Add server
           </McpAddFormPrimitive.Submit>
         </div>
       </div>
