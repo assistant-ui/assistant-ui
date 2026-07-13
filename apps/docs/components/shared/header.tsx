@@ -12,7 +12,7 @@ import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { NAV_ITEMS, CLOUD_URL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
-import { Kbd } from "@/components/shared/kbd";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
@@ -48,10 +48,10 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
         aria-label="Search (⌘K)"
       >
         Search
-        <span className="hidden gap-0.5 lg:flex">
+        <KbdGroup className="hidden lg:inline-flex">
           <Kbd>⌘</Kbd>
           <Kbd>K</Kbd>
-        </span>
+        </KbdGroup>
       </Button>
     </>
   );
@@ -153,10 +153,10 @@ export function Header() {
                 aria-label="Ask AI (⌘I)"
               >
                 Ask AI
-                <span className="hidden gap-0.5 lg:flex">
+                <KbdGroup className="hidden lg:inline-flex">
                   <Kbd>⌘</Kbd>
                   <Kbd>I</Kbd>
-                </span>
+                </KbdGroup>
               </Button>
             )}
             <Button

@@ -8,7 +8,7 @@ import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
 import { NAV_ITEMS, CLOUD_URL, type NavItem } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
-import { Kbd } from "@/components/shared/kbd";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
@@ -42,10 +42,10 @@ function AskAIButton() {
       aria-label="Ask AI (⌘I)"
     >
       Ask AI
-      <span className="hidden gap-0.5 lg:flex">
+      <KbdGroup className="hidden lg:inline-flex">
         <Kbd>⌘</Kbd>
         <Kbd>I</Kbd>
-      </span>
+      </KbdGroup>
     </Button>
   );
 }
@@ -65,11 +65,11 @@ function HeaderSearch() {
     >
       <Search className="size-3.5 shrink-0" />
       <span className="flex-1 text-left">Search...</span>
-      <div className="flex gap-0.5">
+      <KbdGroup>
         {hotKey.map((k, i) => (
           <Kbd key={i}>{k.display}</Kbd>
         ))}
-      </div>
+      </KbdGroup>
     </Button>
   );
 }
