@@ -420,6 +420,9 @@ const result = streamText({
   model: openai("gpt-5.4-mini"),
   messages: await convertToModelMessages(messages),
   tools,
+  onFinish: async () => {
+    await mcpClient.close();
+  },
 });
 ```
 
@@ -433,15 +436,11 @@ route:
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 
 const runtime = useChatRuntime({
-  api: "/api/chat",
   sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
 });
 ```
 
-Use this pattern for backend-owned actions such as deleting, writing, deploying,
-or calling privileged MCP tools. Use `humanTool()` only when the user supplies
-the tool result itself. For custom approval UIs, see
-[Server-side approval gates](/docs/tools/tool-ui#server-side-approval-gates).
+Use this pattern for backend-owned actions such as deleting, writing, deploying, or calling privileged MCP tools. Use `humanTool()` only when the user supplies the tool result itself. For custom approval UIs, see [Server-side approval gates](/docs/tools/tool-ui#server-side-approval-gates); for the full wire setup, see [Server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval).
 
 </Step>
 <Step>
