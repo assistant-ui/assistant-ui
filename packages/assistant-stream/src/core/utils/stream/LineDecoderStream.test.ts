@@ -40,6 +40,14 @@ describe("LineDecoderStream", () => {
     expect(lines).toEqual(["line1", "line2", "line3"]);
   });
 
+  it("should split lines on CR (\\r)", async () => {
+    const stream = createTextStream(["line1\rline2\rline3\r"]);
+    const lines = await collectLines(
+      stream.pipeThrough(new LineDecoderStream()),
+    );
+    expect(lines).toEqual(["line1", "line2", "line3"]);
+  });
+
   it("should handle CRLF split across chunks", async () => {
     // The \r is at the end of one chunk and \n at the start of the next
     const stream = createTextStream(["line1\r", "\nline2\r\n"]);
@@ -65,8 +73,16 @@ describe("LineDecoderStream", () => {
     expect(lines).toEqual(["line1", "", "line2"]);
   });
 
-  it("should handle mixed LF and CRLF", async () => {
-    const stream = createTextStream(["line1\nline2\r\nline3\n"]);
+  it("should handle empty lines with CR", async () => {
+    const stream = createTextStream(["line1\r\rline2\r"]);
+    const lines = await collectLines(
+      stream.pipeThrough(new LineDecoderStream()),
+    );
+    expect(lines).toEqual(["line1", "", "line2"]);
+  });
+
+  it("should handle mixed standard line endings", async () => {
+    const stream = createTextStream(["line1\nline2\r\nline3\r"]);
     const lines = await collectLines(
       stream.pipeThrough(new LineDecoderStream()),
     );
