@@ -99,7 +99,12 @@ export const fromObjectStreamResponse = (
   if (!response.ok)
     throw new Error(`Response failed, status ${response.status}`);
   if (!response.body) throw new Error("Response body is null");
-  if (response.headers.get("Content-Type") !== "text/event-stream") {
+  const mediaType = response.headers
+    .get("Content-Type")
+    ?.split(";", 1)[0]
+    ?.trim()
+    .toLowerCase();
+  if (mediaType !== "text/event-stream") {
     throw new Error("Response is not an event stream");
   }
   if (response.headers.get("Assistant-Stream-Format") !== "object-stream/v0") {
