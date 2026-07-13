@@ -1,7 +1,10 @@
 import { Command } from "commander";
 import { logger } from "../lib/utils/logger";
-import { getConfig, hasConfig } from "../lib/utils/config";
-import { resolveRegistryItemUrl } from "../lib/utils/registry";
+import { hasConfig } from "../lib/utils/config";
+import {
+  getComponentsJsonStyle,
+  resolveRegistryItemUrl,
+} from "../lib/utils/registry";
 import {
   dlxCommand,
   resolvePackageManager,
@@ -75,7 +78,7 @@ export const add = new Command()
       opts.cwd,
       resolvePackageManager(opts),
     );
-    const style = getConfig(opts.cwd)?.style;
+    const style = getComponentsJsonStyle(opts.cwd);
     const { command, args } = createAddComponentsPlan({
       components,
       packageManager,

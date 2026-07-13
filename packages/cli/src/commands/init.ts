@@ -7,9 +7,11 @@ import {
   resolvePackageManagerForCwd,
 } from "../lib/create-project";
 import { runSpawn, SpawnExitError } from "../lib/run-spawn";
-import { getConfig } from "../lib/utils/config";
 import { logger } from "../lib/utils/logger";
-import { resolveQuickStartRegistryUrl } from "../lib/utils/registry";
+import {
+  getComponentsJsonStyle,
+  resolveQuickStartRegistryUrl,
+} from "../lib/utils/registry";
 import { create } from "./create";
 
 interface ExistingProjectInitPlan {
@@ -125,7 +127,7 @@ export const init = new Command()
 
       await runSpawn(dlxCmd, [...dlxArgs, ...initArgs], targetDir);
       const registryUrl = resolveQuickStartRegistryUrl(
-        getConfig(targetDir)?.style,
+        getComponentsJsonStyle(targetDir),
       );
       await runSpawn(dlxCmd, [...dlxArgs, ...addArgs, registryUrl], targetDir);
 
