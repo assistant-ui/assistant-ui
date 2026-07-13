@@ -24,9 +24,12 @@ type MarkdownTextProps = {
   codeGutter?: boolean;
   codeWrap?: boolean;
   hyperlinks?: boolean;
+  color?: boolean;
   tableBorder?: "ascii" | "none" | "unicode";
   tablePadding?: number;
   tableDense?: boolean;
+  tableTruncate?: boolean;
+  tableEllipsis?: string;
   quotePrefix?: string;
   listIndent?: number;
 };
