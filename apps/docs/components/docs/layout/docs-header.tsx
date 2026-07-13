@@ -8,6 +8,7 @@ import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
 import { NAV_ITEMS, CLOUD_URL, type NavItem } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/shared/kbd";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
@@ -42,12 +43,8 @@ function AskAIButton() {
     >
       Ask AI
       <span className="hidden gap-0.5 lg:flex">
-        <kbd className="text-muted-foreground border-border/60 bg-muted/50 min-w-4 rounded-[3px] border px-1 text-center font-mono text-[10px] leading-4">
-          ⌘
-        </kbd>
-        <kbd className="text-muted-foreground border-border/60 bg-muted/50 min-w-4 rounded-[3px] border px-1 text-center font-mono text-[10px] leading-4">
-          I
-        </kbd>
+        <Kbd>⌘</Kbd>
+        <Kbd>I</Kbd>
       </span>
     </Button>
   );
@@ -70,12 +67,7 @@ function HeaderSearch() {
       <span className="flex-1 text-left">Search...</span>
       <div className="flex gap-0.5">
         {hotKey.map((k, i) => (
-          <kbd
-            key={i}
-            className="text-muted-foreground border-border/60 bg-muted/50 min-w-4 rounded-[3px] border px-1 text-center font-mono text-[10px] leading-4"
-          >
-            {k.display}
-          </kbd>
+          <Kbd key={i}>{k.display}</Kbd>
         ))}
       </div>
     </Button>

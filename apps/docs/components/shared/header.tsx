@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X, ArrowUpRight, ArrowRight } from "lucide-react";
+import { Menu, X, ArrowUpRight, ArrowRight, Search } from "lucide-react";
 import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { NAV_ITEMS, CLOUD_URL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/shared/kbd";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
@@ -30,23 +31,29 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
   }, [onToggle]);
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={onToggle}
-      className="hidden md:inline-flex"
-      aria-label="Search (⌘K)"
-    >
-      Search
-      <span className="hidden gap-0.5 lg:flex">
-        <kbd className="text-muted-foreground border-border/60 bg-muted/50 min-w-4 rounded-[3px] border px-1 text-center font-mono text-[10px] leading-4">
-          ⌘
-        </kbd>
-        <kbd className="text-muted-foreground border-border/60 bg-muted/50 min-w-4 rounded-[3px] border px-1 text-center font-mono text-[10px] leading-4">
-          K
-        </kbd>
-      </span>
-    </Button>
+    <>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors md:hidden"
+        aria-label="Search (⌘K)"
+      >
+        <Search className="size-4" />
+      </button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onToggle}
+        className="hidden md:inline-flex"
+        aria-label="Search (⌘K)"
+      >
+        Search
+        <span className="hidden gap-0.5 lg:flex">
+          <Kbd>⌘</Kbd>
+          <Kbd>K</Kbd>
+        </span>
+      </Button>
+    </>
   );
 }
 
@@ -147,12 +154,8 @@ export function Header() {
               >
                 Ask AI
                 <span className="hidden gap-0.5 lg:flex">
-                  <kbd className="text-muted-foreground border-border/60 bg-muted/50 min-w-4 rounded-[3px] border px-1 text-center font-mono text-[10px] leading-4">
-                    ⌘
-                  </kbd>
-                  <kbd className="text-muted-foreground border-border/60 bg-muted/50 min-w-4 rounded-[3px] border px-1 text-center font-mono text-[10px] leading-4">
-                    I
-                  </kbd>
+                  <Kbd>⌘</Kbd>
+                  <Kbd>I</Kbd>
                 </span>
               </Button>
             )}
