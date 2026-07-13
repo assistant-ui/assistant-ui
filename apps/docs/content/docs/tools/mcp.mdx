@@ -394,40 +394,25 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
 
 ### Require approval before an MCP tool runs
 
-MCP tools execute on the server, so approval is a server-side tool gate, not a
-`humanTool()` result. Add `needsApproval` to the MCP tool object before passing
-it to `streamText`. The tool name stays the same, so your custom renderer or
-the default `ToolFallback` receives `approval` and `respondToApproval` like any
-other backend tool:
+MCP tools execute on the server, so approval is a server-side tool gate, not a `humanTool()` result. Gate the call with AI SDK v7's call-level `toolApproval` option, keyed by the tool's model-visible name. The tool name stays the same, so your custom renderer or the default `ToolFallback` receives `approval` and `respondToApproval` like any other backend tool:
 
 ```ts title="app/api/chat/route.ts"
-const mcpTools = await mcpClient.tools();
-const deleteRepository = mcpTools.github_delete_repository;
-
-if (!deleteRepository) {
-  throw new Error('MCP tool "github_delete_repository" was not found.');
-}
-
-const tools = {
-  ...mcpTools,
-  github_delete_repository: {
-    ...deleteRepository,
-    needsApproval: true,
-  },
-};
+const tools = await mcpClient.tools();
 
 const result = streamText({
   model: openai("gpt-5.4-mini"),
   messages: await convertToModelMessages(messages),
   tools,
+  toolApproval: {
+    github_delete_repository: "user-approval",
+  },
   onFinish: async () => {
     await mcpClient.close();
   },
 });
 ```
 
-With `AISDKToolkit`, apply the same wrapping to the object returned by
-`await aiToolkit.tools(...)` before handing it to `streamText`.
+With `AISDKToolkit`, pass the same `toolApproval` option alongside the tools returned by `await aiToolkit.tools(...)`; key it by the prefixed name when the entry sets one.
 
 On the client, let the AI SDK send the recorded approval decision back to the
 route:
