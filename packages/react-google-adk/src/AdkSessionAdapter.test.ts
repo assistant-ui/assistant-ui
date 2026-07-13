@@ -339,9 +339,23 @@ describe("createAdkSessionAdapter - load", () => {
   });
 });
 
-// ── URL encoding ──
+// ── URL construction ──
 
-describe("createAdkSessionAdapter - URL encoding", () => {
+describe("createAdkSessionAdapter - URL construction", () => {
+  it("normalizes a trailing slash in apiUrl", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify([]), { status: 200 }),
+    );
+
+    const { adapter } = createAdkSessionAdapter({
+      ...baseOptions,
+      apiUrl: "http://localhost:8000/",
+    });
+    await adapter.list();
+
+    expect(mockFetch.mock.calls[0]![0]).toBe(expectedBaseUrl);
+  });
+
   it("encodes special characters in appName and userId", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify([]), { status: 200 }),

@@ -79,7 +79,8 @@ export function createAdkSessionAdapter(
   options: AdkSessionAdapterOptions,
 ): AdkSessionAdapterResult {
   const { apiUrl, appName, userId } = options;
-  const baseUrl = `${apiUrl}/apps/${encodeURIComponent(appName)}/users/${encodeURIComponent(userId)}/sessions`;
+  const normalizedApiUrl = apiUrl.replace(/\/$/, "");
+  const baseUrl = `${normalizedApiUrl}/apps/${encodeURIComponent(appName)}/users/${encodeURIComponent(userId)}/sessions`;
 
   const getHeaders = async (): Promise<Record<string, string>> => {
     if (!options.headers) return {};
