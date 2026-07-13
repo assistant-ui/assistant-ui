@@ -1,11 +1,11 @@
-import { Text } from "ink";
+import { Text, useStdout } from "ink";
 import {
   render,
   type RenderOptions,
   type ThemeName,
   type Theme,
 } from "markdansi";
-import { memo } from "react";
+import { memo, useCallback, useSyncExternalStore } from "react";
 
 export type MarkdownTextProps = {
   /** The markdown text to render. */
@@ -44,10 +44,34 @@ export type MarkdownTextProps = {
 };
 
 const MarkdownTextImpl = ({ text, ...options }: MarkdownTextProps) => {
+  const { stdout } = useStdout();
+  const subscribeToResize = useCallback(
+    (onChange: () => void) => {
+      stdout.on("resize", onChange);
+      return () => {
+        stdout.off("resize", onChange);
+      };
+    },
+    [stdout],
+  );
+  const terminalWidth = useSyncExternalStore(
+    subscribeToResize,
+    () => stdout.columns,
+  );
+
+  // Inject the live width only where markdansi would read the terminal itself
+  // (wrapping enabled, no explicit width), so resizes reach memoized output.
+  const resolvedOptions =
+    options.width === undefined &&
+    options.wrap !== false &&
+    terminalWidth !== undefined
+      ? { ...options, width: terminalWidth }
+      : options;
+
   const rendered = render(
     text,
-    Object.values(options).some((v) => v !== undefined)
-      ? (options as RenderOptions)
+    Object.values(resolvedOptions).some((v) => v !== undefined)
+      ? (resolvedOptions as RenderOptions)
       : undefined,
   );
   return <Text>{rendered}</Text>;
@@ -59,7 +83,9 @@ MarkdownTextImpl.displayName = "MarkdownText";
  * Renders markdown text as formatted ANSI terminal output using markdansi.
  *
  * Renders the full text via markdansi's one-shot `render()`; memoized so
- * re-renders with unchanged props skip the re-parse. This is fast enough for
+ * re-renders with unchanged props skip the re-parse. A stdout resize
+ * subscription feeds the live terminal width into the render, so memoized
+ * output still re-wraps when the terminal is resized. This is fast enough for
  * typical LLM output sizes (microseconds) and avoids the complexity of
  * incremental streaming state in React's rendering model.
  */

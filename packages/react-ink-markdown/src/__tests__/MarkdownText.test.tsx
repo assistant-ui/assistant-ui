@@ -122,6 +122,24 @@ describe("MarkdownText", () => {
     expect(lastFrame()).toContain(">>>");
   });
 
+  it("re-wraps memoized output when the terminal is resized", async () => {
+    const text = "word ".repeat(30).trim();
+
+    const { lastFrame, stdout } = render(<MarkdownText text={text} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(lastFrame()!.trimEnd().split("\n").length).toBeGreaterThan(1);
+
+    Object.defineProperty(stdout, "columns", {
+      configurable: true,
+      value: 200,
+    });
+    stdout.emit("resize");
+
+    await vi.waitFor(() => {
+      expect(lastFrame()!.trimEnd().split("\n")).toHaveLength(1);
+    });
+  });
+
   it("memoizes rendering across re-renders with unchanged props", () => {
     const highlighter = vi.fn((code: string) => code);
     const text = "```js\nconst x = 1;\n```";
