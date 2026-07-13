@@ -5799,7 +5799,7 @@ declare const useStreamingTiming: <TMessage>(messages: readonly TMessage[], isRu
 
 declare const useSuggestionTrigger: (_param20: UseSuggestionTriggerOptions) => {
   trigger: () => void;
-  disabled: boolean;
+  disabled: any;
 };
 
 declare const useThreadIsEmpty: () => boolean;
