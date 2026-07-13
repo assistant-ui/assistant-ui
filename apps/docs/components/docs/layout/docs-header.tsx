@@ -6,10 +6,10 @@ import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
-import { NAV_ITEMS, type NavItem } from "@/lib/constants";
-import { CloudButton } from "@/components/shared/cloud-button";
+import { NAV_ITEMS, CLOUD_URL, type NavItem } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
-import { NavItems } from "@/components/shared/nav-items";
+import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { getPanelWidth } from "@/components/docs/layout/docs-layout";
@@ -169,180 +169,206 @@ export function DocsHeader({
         } as React.CSSProperties
       }
     >
-      <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl" />
-      <div className="relative flex h-12 w-full items-center px-4">
-        <div className="flex min-w-0 flex-1 items-center">
-          <HeaderBrandLink labelClassName="hidden sm:inline" />
-          <span className="text-muted-foreground/40 mx-3">/</span>
-          <Link
-            href={sectionHref}
-            className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors"
-          >
-            {section}
-          </Link>
-          {mobileSectionTree && (
-            <MobileSectionBreadcrumb
-              tree={mobileSectionTree}
-              section={section}
-            />
-          )}
-        </div>
-
-        {/* Mobile controls */}
-        <div className="ml-auto flex shrink-0 items-center gap-1 md:hidden">
-          <AskAIButton />
-          <button
-            type="button"
-            onClick={() => {
-              analytics.search.opened("header");
-              setOpenSearch(true);
-            }}
-            className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors"
-            aria-label="Search"
-          >
-            <Search className="size-4" />
-          </button>
-          <ThemeToggle />
-          <button
-            type="button"
-            onClick={handleNavMenuToggle}
-            className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
-            aria-label="Site navigation"
-          >
-            {navMenuOpen ? (
-              <X className="size-5" />
-            ) : (
-              <LayoutGrid className="size-4.5" />
+      <NavItemsRoot>
+        <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl transition-opacity duration-200 group-data-[menu-open=true]:opacity-0" />
+        <div className="group-data-[menu-open=true]:bg-background relative flex h-12 w-full items-center px-4 transition-colors duration-200">
+          <div className="flex min-w-0 flex-1 items-center">
+            <HeaderBrandLink labelClassName="hidden sm:inline" />
+            <span className="text-muted-foreground/40 mx-3">/</span>
+            <Link
+              href={sectionHref}
+              className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors"
+            >
+              {section}
+            </Link>
+            {mobileSectionTree && (
+              <MobileSectionBreadcrumb
+                tree={mobileSectionTree}
+                section={section}
+              />
             )}
-          </button>
-          <button
-            type="button"
-            onClick={handleSidebarToggle}
-            className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
-            aria-label="Toggle sidebar"
-          >
-            {sidebarOpen ? (
-              <X className="size-5" />
-            ) : (
-              <Menu className="size-5" />
-            )}
-          </button>
-        </div>
-
-        {/* Condensed nav: md to lg */}
-        <div className="ml-auto hidden items-center gap-2 md:flex lg:hidden">
-          <AskAIButton />
-          <button
-            type="button"
-            onClick={() => {
-              analytics.search.opened("header");
-              setOpenSearch(true);
-            }}
-            className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors"
-            aria-label="Search"
-          >
-            <Search className="size-4" />
-          </button>
-          <nav className="flex shrink-0 items-center">
-            <NavItems items={condensedItems} megaAlign="end" />
-            {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
-          </nav>
-          <CloudButton variant="docs" />
-          <ThemeToggle />
-        </div>
-
-        {/* Full nav: lg+ */}
-        <div className="ml-auto hidden items-center gap-2 lg:flex">
-          <AskAIButton />
-          <HeaderSearch />
-          <nav className="flex shrink-0 items-center">
-            <NavItems items={filteredItems} megaAlign="end" />
-          </nav>
-          <CloudButton variant="docs" />
-          <ThemeToggle />
-        </div>
-      </div>
-
-      {/* Mobile nav menu */}
-      <div
-        className={cn(
-          "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 md:hidden",
-          navMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
-        )}
-      >
-        <nav className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
-          {filteredItems.map((item) => {
-            if (item.type === "link") {
-              return item.href.startsWith("http") ? (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setNavMenuOpen(false)}
-                  className="text-foreground py-3 text-lg transition-colors"
-                >
-                  {item.label}
-                </a>
-              ) : (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setNavMenuOpen(false)}
-                  className="text-foreground py-3 text-lg transition-colors"
-                >
-                  {item.label}
-                </Link>
-              );
-            }
-
-            const groups = item.groups;
-
-            return (
-              <div key={item.label} className="flex flex-col">
-                {groups.map((group) => (
-                  <div key={group.label} className="flex flex-col">
-                    <span className="text-muted-foreground py-3 text-sm">
-                      {group.label}
-                    </span>
-                    {group.items.map((link) =>
-                      link.external ? (
-                        <a
-                          key={link.href}
-                          href={link.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setNavMenuOpen(false)}
-                          className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
-                        >
-                          {link.label}
-                          <ArrowUpRight className="size-3.5 opacity-40" />
-                        </a>
-                      ) : (
-                        <Link
-                          key={link.href}
-                          href={link.href}
-                          onClick={() => setNavMenuOpen(false)}
-                          className="text-foreground py-2 pl-4 text-lg transition-colors"
-                        >
-                          {link.label}
-                        </Link>
-                      ),
-                    )}
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-          <div className="mt-auto border-t py-6">
-            <CloudButton
-              variant="mobile"
-              className="w-auto"
-              onClick={() => setNavMenuOpen(false)}
-            />
           </div>
-        </nav>
-      </div>
+
+          {/* Mobile controls */}
+          <div className="ml-auto flex shrink-0 items-center gap-1 md:hidden">
+            <AskAIButton />
+            <button
+              type="button"
+              onClick={() => {
+                analytics.search.opened("header");
+                setOpenSearch(true);
+              }}
+              className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors"
+              aria-label="Search"
+            >
+              <Search className="size-4" />
+            </button>
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={handleNavMenuToggle}
+              className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
+              aria-label="Site navigation"
+            >
+              {navMenuOpen ? (
+                <X className="size-5" />
+              ) : (
+                <LayoutGrid className="size-4.5" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleSidebarToggle}
+              className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
+              aria-label="Toggle sidebar"
+            >
+              {sidebarOpen ? (
+                <X className="size-5" />
+              ) : (
+                <Menu className="size-5" />
+              )}
+            </button>
+          </div>
+
+          {/* Condensed nav: md to lg */}
+          <div className="ml-auto hidden items-center gap-2 md:flex lg:hidden">
+            <AskAIButton />
+            <button
+              type="button"
+              onClick={() => {
+                analytics.search.opened("header");
+                setOpenSearch(true);
+              }}
+              className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors"
+              aria-label="Search"
+            >
+              <Search className="size-4" />
+            </button>
+            <div className="flex shrink-0 items-center">
+              <NavItems items={condensedItems} />
+              {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
+            </div>
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={
+                <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
+              }
+            >
+              Cloud
+            </Button>
+            <ThemeToggle />
+          </div>
+
+          {/* Full nav: lg+ */}
+          <div className="ml-auto hidden items-center gap-2 lg:flex">
+            <AskAIButton />
+            <HeaderSearch />
+            <NavItems items={filteredItems} />
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={
+                <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
+              }
+            >
+              Cloud
+            </Button>
+            <ThemeToggle />
+          </div>
+        </div>
+
+        {/* Mobile nav menu */}
+        <div
+          className={cn(
+            "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 md:hidden",
+            navMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
+          )}
+        >
+          <div className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
+            {filteredItems.map((item) => {
+              if (item.type === "link") {
+                return item.href.startsWith("http") ? (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setNavMenuOpen(false)}
+                    className="text-foreground py-3 text-lg transition-colors"
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setNavMenuOpen(false)}
+                    className="text-foreground py-3 text-lg transition-colors"
+                  >
+                    {item.label}
+                  </Link>
+                );
+              }
+
+              const groups = item.groups;
+
+              return (
+                <div key={item.label} className="flex flex-col">
+                  {groups.map((group) => (
+                    <div key={group.label} className="flex flex-col">
+                      <span className="text-muted-foreground py-3 text-sm">
+                        {group.label}
+                      </span>
+                      {group.items.map((link) =>
+                        link.external ? (
+                          <a
+                            key={link.href}
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setNavMenuOpen(false)}
+                            className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
+                          >
+                            {link.label}
+                            <ArrowUpRight className="size-3.5 opacity-40" />
+                          </a>
+                        ) : (
+                          <Link
+                            key={link.href}
+                            href={link.href}
+                            onClick={() => setNavMenuOpen(false)}
+                            className="text-foreground py-2 pl-4 text-lg transition-colors"
+                          >
+                            {link.label}
+                          </Link>
+                        ),
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+            <div className="mt-auto border-t py-6">
+              <Button
+                size="sm"
+                nativeButton={false}
+                className="w-fit"
+                onClick={() => setNavMenuOpen(false)}
+                render={
+                  <a
+                    href={CLOUD_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                }
+              >
+                Cloud
+              </Button>
+            </div>
+          </div>
+        </div>
+      </NavItemsRoot>
     </header>
   );
 }
