@@ -2,7 +2,7 @@
 
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/radix/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 export function ThreadListSample() {
