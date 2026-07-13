@@ -11470,6 +11470,31 @@ interface ResumableStreamStore {
 
 declare type RetryStrategy = ((times: number) => number | void | null) | null | undefined;
 
+type SSEEvent = {
+  event?: string;
+  data: string;
+  id?: string;
+  retry?: number;
+};
+
+declare class SSEEventDecoder {
+  private lineBuffer;
+  private dataLines;
+  private eventName;
+  private lastEventId;
+  private retry;
+  private pendingLF;
+  private readonly trailing;
+  constructor(options?: {
+    trailing?: "dispatch" | "drop";
+  });
+  push(text: string): SSEEvent[];
+  flush(): SSEEvent | null;
+  private processLine;
+  private dispatchEvent;
+  private resetFrame;
+}
+
 declare class ScanStream extends Readable {
   private opt;
   private _redisCursor;
@@ -11948,7 +11973,7 @@ declare function toolResultStream(tools: Record<string, Tool> | (() => Record<st
 declare function unstable_runPendingTools(message: AssistantMessage, tools: Record<string, Tool> | undefined, abortSignal: AbortSignal, human: (toolCallId: string, payload: unknown) => Promise<unknown>): Promise<AssistantMessage>;
 
 declare namespace entry_utils_exports {
-  export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
+  export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
 }
 
 export { entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };
