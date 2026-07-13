@@ -6,6 +6,7 @@ import type { ThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -20,8 +21,10 @@ import {
 } from "react";
 
 const formatTokenCount = (tokens: number): string => {
-  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
-  if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}k`;
+  if (tokens >= 1_000_000)
+    return `${(tokens / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (tokens >= 1_000)
+    return `${(tokens / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
   return `${tokens}`;
 };
 
@@ -45,14 +48,14 @@ const getStrokeColor = (percent: number): string => {
   const severity = getUsageSeverity(percent);
   if (severity === "critical") return "stroke-red-500";
   if (severity === "warning") return "stroke-amber-500";
-  return "stroke-emerald-500";
+  return "stroke-foreground";
 };
 
 const getBarColor = (percent: number): string => {
   const severity = getUsageSeverity(percent);
   if (severity === "critical") return "bg-red-500";
   if (severity === "warning") return "bg-amber-500";
-  return "bg-emerald-500";
+  return "bg-foreground";
 };
 
 type ContextDisplayContextValue = {
@@ -138,7 +141,9 @@ function ContextDisplayRootBase({
 
   return (
     <ContextDisplayContext.Provider value={contextValue}>
-      <Tooltip>{children}</Tooltip>
+      <TooltipProvider>
+        <Tooltip>{children}</Tooltip>
+      </TooltipProvider>
     </ContextDisplayContext.Provider>
   );
 }
@@ -185,21 +190,40 @@ function ContextDisplayTrigger({
   ...props
 }: React.ComponentProps<"button">) {
   return (
-    <TooltipTrigger asChild>
-      <button
-        type="button"
-        data-slot="context-display-trigger"
-        className={cn(
-          "inline-flex items-center rounded-md transition-colors",
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </button>
+    <TooltipTrigger
+      render={
+        <button
+          type="button"
+          data-slot="context-display-trigger"
+          className={cn(
+            "inline-flex items-center rounded-md transition-colors",
+            className,
+          )}
+          {...props}
+        />
+      }
+    >
+      {children}
     </TooltipTrigger>
   );
 }
+
+type ContextSegment = {
+  label: string;
+  tokens: number;
+};
+
+const getContextSegments = (
+  usage: ThreadTokenUsage | undefined,
+): ContextSegment[] => {
+  if (!usage) return [];
+  return [
+    { label: "Input", tokens: usage.inputTokens ?? 0 },
+    { label: "Cached input", tokens: usage.cachedInputTokens ?? 0 },
+    { label: "Output", tokens: usage.outputTokens ?? 0 },
+    { label: "Reasoning", tokens: usage.reasoningTokens ?? 0 },
+  ].filter((segment) => segment.tokens > 0);
+};
 
 function ContextDisplayContent({
   side = "top",
@@ -210,6 +234,7 @@ function ContextDisplayContent({
 }) {
   const { usage, totalTokens, percent, modelContextWindow } =
     useContextDisplay();
+  const segments = getContextSegments(usage);
 
   return (
     <TooltipContent
@@ -217,64 +242,50 @@ function ContextDisplayContent({
       sideOffset={8}
       data-slot="context-display-popover"
       className={cn(
-        "bg-popover text-popover-foreground rounded-lg border px-3 py-2 shadow-md [&_span>svg]:hidden!",
+        "bg-popover text-popover-foreground w-56 rounded-lg border p-3 text-left shadow-md [&_span>svg]:hidden!",
         className,
       )}
     >
-      <div className="grid min-w-40 gap-1.5 text-xs">
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-muted-foreground">Usage</span>
-          <span className="font-mono tabular-nums">{Math.round(percent)}%</span>
+      <div className="text-xs">
+        <div className="flex items-baseline justify-between gap-6 whitespace-nowrap">
+          <span className="font-medium">Context usage</span>
+          <span className="text-muted-foreground tabular-nums">
+            {formatTokenCount(Math.min(totalTokens, modelContextWindow))} of{" "}
+            {formatTokenCount(modelContextWindow)}
+          </span>
         </div>
-        {usage?.inputTokens !== undefined && (
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Input</span>
-            <span className="font-mono tabular-nums">
-              {formatTokenCount(usage.inputTokens)}
-            </span>
-          </div>
-        )}
-        {usage?.cachedInputTokens !== undefined &&
-          usage.cachedInputTokens > 0 && (
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Cached</span>
-              <span className="font-mono tabular-nums">
-                {formatTokenCount(usage.cachedInputTokens)}
-              </span>
-            </div>
-          )}
-        {usage?.outputTokens !== undefined && (
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Output</span>
-            <span className="font-mono tabular-nums">
-              {formatTokenCount(usage.outputTokens)}
-            </span>
-          </div>
-        )}
-        {usage?.reasoningTokens !== undefined && usage.reasoningTokens > 0 && (
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Reasoning</span>
-            <span className="font-mono tabular-nums">
-              {formatTokenCount(usage.reasoningTokens)}
-            </span>
-          </div>
-        )}
-        <div className="mt-0.5 border-t pt-1.5">
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Total</span>
-            <span className="font-mono tabular-nums">
-              {formatTokenCount(totalTokens)} /{" "}
-              {formatTokenCount(modelContextWindow)}
-            </span>
-          </div>
+        <div className="bg-muted mt-2.5 h-1 overflow-hidden rounded-full">
+          <div
+            className={cn(
+              "h-full w-(--usage-width) rounded-full transition-[width] duration-300",
+              totalTokens > 0 && "min-w-1",
+              getBarColor(percent),
+            )}
+            style={{ "--usage-width": `${percent}%` } as React.CSSProperties}
+          />
         </div>
+        {segments.length > 0 && (
+          <div className="mt-3 grid gap-1.5">
+            {segments.map((segment) => (
+              <div
+                key={segment.label}
+                className="flex items-baseline justify-between gap-6"
+              >
+                <span className="text-muted-foreground">{segment.label}</span>
+                <span className="tabular-nums">
+                  {formatTokenCount(segment.tokens)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </TooltipContent>
   );
 }
 
-const RING_SIZE = 24;
-const RING_STROKE = 3;
+const RING_SIZE = 18;
+const RING_STROKE = 2.5;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
@@ -317,6 +328,11 @@ function RingVisual() {
   );
 }
 
+function RingPercentLabel() {
+  const { percent } = useContextDisplay();
+  return <span className="font-mono tabular-nums">{Math.round(percent)}%</span>;
+}
+
 const ContextDisplayRing: FC<PresetProps> = ({
   modelContextWindow,
   className,
@@ -325,10 +341,14 @@ const ContextDisplayRing: FC<PresetProps> = ({
 }) => (
   <ContextDisplayRoot modelContextWindow={modelContextWindow} usage={usage}>
     <ContextDisplayTrigger
-      className={cn("p-1", className)}
+      className={cn(
+        "text-muted-foreground hover:text-foreground gap-1.5 px-1.5 py-1 text-xs",
+        className,
+      )}
       aria-label="Context usage"
     >
       <RingVisual />
+      <RingPercentLabel />
     </ContextDisplayTrigger>
     <ContextDisplayContent side={side} />
   </ContextDisplayRoot>

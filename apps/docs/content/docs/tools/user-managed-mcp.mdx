@@ -221,14 +221,13 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export function Chat() {
   const runtime = useChatRuntime({
-    api: "/api/chat",
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
   /* … */
 }
 ```
 
-`sendAutomaticallyWhen` sends completed frontend tool results back to the server so the model can continue after a tool call.
+`sendAutomaticallyWhen` sends completed frontend tool results back to the server so the model can continue after a tool call. `useChatRuntime()` targets `/api/chat` by default; to point at a different endpoint, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
 
 Tool names are prefixed `serverId__toolName` to avoid collisions across connected servers. The toolkit re-registers whenever a server connects / disconnects or its tool list changes.
 

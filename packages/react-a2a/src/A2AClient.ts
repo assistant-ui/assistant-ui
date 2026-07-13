@@ -497,53 +497,89 @@ export class A2AClient {
     if (!reader) throw new Error("No response body");
 
     const decoder = new TextDecoder();
-    let buffer = "";
+    let lineBuffer = "";
+    let dataLines: string[] = [];
+    let pendingLF = false;
+
+    const readEvent = (): A2AStreamEvent | null => {
+      if (dataLines.length === 0) return null;
+
+      try {
+        let parsed = JSON.parse(dataLines.join("\n"));
+
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          "jsonrpc" in parsed &&
+          "result" in parsed
+        ) {
+          parsed = parsed.result;
+        }
+
+        const normalized = normalizeKeys(parsed) as Record<string, unknown>;
+        return discriminateStreamResponse(normalized);
+      } catch {
+        return null;
+      }
+    };
+
+    const processLine = (line: string): A2AStreamEvent | null => {
+      if (line === "") {
+        const event = readEvent();
+        dataLines = [];
+        return event;
+      }
+
+      if (line.startsWith(":")) return null;
+
+      const separator = line.indexOf(":");
+      const field = separator === -1 ? line : line.slice(0, separator);
+      let value = separator === -1 ? "" : line.slice(separator + 1);
+      if (value.startsWith(" ")) value = value.slice(1);
+
+      if (field === "data") {
+        dataLines.push(value);
+      }
+
+      return null;
+    };
+
+    // Lines end with LF, CRLF, or CR. A chunk-trailing "\r" terminates its
+    // line immediately; pendingLF then swallows the leading "\n" of the next
+    // chunk so a CRLF split across chunks is not counted twice.
+    const processText = (text: string): A2AStreamEvent[] => {
+      const events: A2AStreamEvent[] = [];
+      if (text === "") return events;
+
+      if (pendingLF && text.startsWith("\n")) text = text.slice(1);
+      pendingLF = text.endsWith("\r");
+
+      lineBuffer += text;
+      const lines = lineBuffer.split(/\r\n|\r|\n/);
+      lineBuffer = lines.pop()!;
+
+      for (const line of lines) {
+        const event = processLine(line);
+        if (event) events.push(event);
+      }
+
+      return events;
+    };
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        let eventEnd: number = buffer.indexOf("\n\n");
-        while (eventEnd !== -1) {
-          const eventText = buffer.slice(0, eventEnd);
-          buffer = buffer.slice(eventEnd + 2);
-
-          const dataLines: string[] = [];
-
-          for (const line of eventText.split("\n")) {
-            const trimmed = line.replace(/\r$/, "");
-            if (trimmed.startsWith("data:")) {
-              dataLines.push(trimmed.slice(5).trim());
-            }
-            // event:, id:, retry: lines are parsed but not used —
-            // we discriminate event type from the JSON payload.
+        if (done) {
+          for (const event of processText(decoder.decode())) {
+            yield event;
           }
+          break;
+        }
 
-          if (dataLines.length === 0) continue;
-
-          try {
-            let parsed = JSON.parse(dataLines.join("\n"));
-
-            // Unwrap JSON-RPC envelope if present
-            if (
-              parsed &&
-              typeof parsed === "object" &&
-              "jsonrpc" in parsed &&
-              "result" in parsed
-            ) {
-              parsed = parsed.result;
-            }
-
-            const normalized = normalizeKeys(parsed) as Record<string, unknown>;
-            const event = discriminateStreamResponse(normalized);
-            if (event) yield event;
-          } catch {
-            // Skip malformed events
-          }
-          eventEnd = buffer.indexOf("\n\n");
+        for (const event of processText(
+          decoder.decode(value, { stream: true }),
+        )) {
+          yield event;
         }
       }
     } finally {

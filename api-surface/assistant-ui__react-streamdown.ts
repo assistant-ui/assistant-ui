@@ -1,10 +1,20 @@
+import "@radix-ui/react-primitive";
+
+import "@standard-schema/spec";
+
+import "radix-ui";
+
 import { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
+
+import "react-textarea-autosize";
 
 import { Options as RemarkRehypeOptions } from "remark-rehype";
 
 import { RemendOptions } from "remend";
 
 import { BundledLanguage, BundledTheme, BundledTheme as BundledTheme$1, CjkPlugin, CodeHighlighterPlugin, DiagramPlugin, HighlightOptions, MathPlugin, MermaidErrorComponentProps, MermaidOptions, StreamdownContext, StreamdownProps, StreamdownProps as StreamdownProps$1, StreamdownProps as StreamdownProps$2, parseMarkdownIntoBlocks } from "streamdown";
+
+import "zustand";
 
 type AllowedTags = Record<string, string[]>;
 
@@ -82,7 +92,7 @@ interface ClientMethods {
   [key: string | symbol]: (...args: any[]) => any;
 }
 
-type ClientNames = keyof ClientSchemas extends infer U ? U : never;
+type ClientNames = keyof ClientSchemas extends (infer U) ? U : never;
 
 type ClientSchemas = keyof ScopeRegistry extends never ? {
   "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;

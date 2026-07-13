@@ -215,7 +215,14 @@ export class AISDKToolkit {
         )
         .map(async ([name, tool]) => {
           const startedAt = Date.now();
-          const client = await this.#mcpClient(name, tool.server, startedAt);
+          const client = await this.#mcpClient(
+            name,
+            tool.server,
+            startedAt,
+          ).catch((error: unknown) => {
+            if (error instanceof MCPConnectionTimeoutError) throw error;
+            throw toMcpToolkitError(name, "connect", error);
+          });
           try {
             const tools = await withMcpConnectionTimeout(client.tools(), {
               name,
@@ -228,8 +235,9 @@ export class AISDKToolkit {
             if (error instanceof MCPConnectionTimeoutError) {
               this.#mcpClients.delete(name);
               void client.close().catch(() => {});
+              throw error;
             }
-            throw error;
+            throw toMcpToolkitError(name, "list tools", error);
           }
         }),
     );
@@ -247,7 +255,7 @@ export class AISDKToolkit {
           );
         }
         toolSources.set(exposedName, serverName);
-        tools[exposedName] = tool;
+        tools[exposedName] = tool as ToolSet[string];
       }
     }
     return { tools, sources: toolSources };
@@ -332,6 +340,20 @@ const assertNoMcpToolNameCollisions = (
 
 const isMcpToolkitTool = (tool: ToolkitTool): tool is McpToolkitTool =>
   tool.type === "mcp" && !tool.disabled;
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message || error.name : String(error);
+
+const toMcpToolkitError = (
+  entryName: string,
+  action: "connect" | "list tools",
+  error: unknown,
+): Error => {
+  return new Error(
+    `MCP toolkit entry "${entryName}" failed to ${action}: ${getErrorMessage(error)}`,
+    { cause: error },
+  );
+};
 
 const isDisabledMcpTool = (config: McpToolkitToolConfig | undefined): boolean =>
   config?.disabled === true;

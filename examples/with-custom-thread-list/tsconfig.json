@@ -6,7 +6,13 @@
       "@/components/assistant-ui/*": [
         "../../packages/ui/src/components/assistant-ui/*"
       ],
-      "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
+      "@/components/ui/*": [
+        "../../packages/ui/src/components/ui/base/*",
+        "../../packages/ui/src/components/ui/radix/*"
+      ],
+      "@/components/ui/radix/*": [
+        "../../packages/ui/src/components/ui/radix/*"
+      ],
       "@/lib/utils": ["../../packages/ui/src/lib/utils"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"]
     }

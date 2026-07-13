@@ -1,3 +1,5 @@
+import "@standard-schema/spec";
+
 declare class AssistantCloud {
   readonly threads: AssistantCloudThreads;
   readonly auth: {

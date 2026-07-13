@@ -66,6 +66,13 @@ const config: NextConfig = {
       ],
     },
   ],
+  redirects: async () => [
+    {
+      source: "/docs/runtimes/ai-sdk/v6",
+      destination: "/docs/runtimes/ai-sdk/v6-legacy",
+      permanent: true,
+    },
+  ],
   rewrites: async () => ({
     beforeFiles: [
       ...faviconRewrites,

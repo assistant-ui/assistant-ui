@@ -11,15 +11,18 @@ import { VercelIcon } from "@/components/icons/vercel";
 
 | AI SDK | Runtime package | Docs |
 | --- | --- | --- |
-| `ai@^6` + `@ai-sdk/react@^3` | `@assistant-ui/react-ai-sdk` (latest) | [v6 (current)](/docs/runtimes/ai-sdk/v6) |
+| `ai@^7` + `@ai-sdk/react@^4` | `@assistant-ui/react-ai-sdk` (latest) | [v7 (current)](/docs/runtimes/ai-sdk/v7) |
+| `ai@^6` + `@ai-sdk/react@^3` | `@assistant-ui/react-ai-sdk@1.x` | [v6 (legacy)](/docs/runtimes/ai-sdk/v6-legacy) |
 | `ai@^5` + `@ai-sdk/react@^2` | `@assistant-ui/react-ai-sdk@0.x` | [v5 (legacy)](/docs/runtimes/ai-sdk/v5-legacy) |
 | `ai@^4` | `@assistant-ui/react-data-stream` | [v4 (legacy)](/docs/runtimes/ai-sdk/v4-legacy) |
 
-New projects should target v6. v5 and v4 are documented for projects that have not migrated yet; both have known compatibility gaps and receive no new features.
+New projects should target v7. v6, v5, and v4 are documented for projects that have not migrated yet; all have known compatibility gaps and receive no new features.
 
 ## Architecture
 
 `@assistant-ui/react-ai-sdk` is layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)). Features that ship as runtime adapters work the same way they do everywhere else; see [adapters](/docs/runtimes/concepts/adapters).
+
+For reload-safe streaming (persist an in-flight response so the client can reconnect), see [Resumable Streams](/docs/guides/resumable-streams).
 
 ## Choosing useChatRuntime vs useAISDKRuntime
 
@@ -33,9 +36,15 @@ Both ship in the same package.
 <Cards>
   <Card
     icon={<VercelIcon width={20} height={20} />}
-    title="v6 (current)"
+    title="v7 (current)"
     description="Quickstart, frontend tools, attachments, quotes, history, multi-step, useAISDKRuntime."
-    href="/docs/runtimes/ai-sdk/v6"
+    href="/docs/runtimes/ai-sdk/v7"
+  />
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="v6 (legacy)"
+    description="Reference for projects still on AI SDK v6."
+    href="/docs/runtimes/ai-sdk/v6-legacy"
   />
   <Card
     icon={<VercelIcon width={20} height={20} />}

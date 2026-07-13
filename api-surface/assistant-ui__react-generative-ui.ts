@@ -1,8 +1,16 @@
+import "@radix-ui/react-primitive";
+
 import { StandardSchemaV1 } from "@standard-schema/spec";
+
+import "radix-ui";
 
 import { ComponentType, ReactNode } from "react";
 
+import "react-textarea-autosize";
+
 import { ZodType } from "zod";
+
+import "zustand";
 
 declare const ALERT_TONES: readonly [
   "info",
@@ -165,7 +173,7 @@ interface ClientMethods {
   [key: string | symbol]: (...args: any[]) => any;
 }
 
-type ClientNames = keyof ClientSchemas extends infer U ? U : never;
+type ClientNames = keyof ClientSchemas extends (infer U) ? U : never;
 
 type ClientSchemas = keyof ScopeRegistry extends never ? {
   "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
@@ -591,6 +599,10 @@ type ParentOf<K extends ClientNames> = AssistantClientAccessor<K> extends {
   source: infer S;
 } ? S extends ClientNames ? S : never : never;
 
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
 type PresentTool = ToolDefinition<Record<string, unknown>, Record<string, never>> & BackendDefaultMetadata;
 
 type PresentToolOptions = {
@@ -626,6 +638,7 @@ type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject |
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -653,9 +666,7 @@ type SourceMessagePart = {
   readonly parentId?: string;
 };
 
-type SourceProviderMetadata = {
-  readonly [providerName: string]: ReadonlyJSONObject;
-};
+type SourceProviderMetadata = PartProviderMetadata;
 
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
@@ -705,6 +716,7 @@ declare const TYPE_KEY = "$type";
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -829,6 +841,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
   readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: {
     type: "human";

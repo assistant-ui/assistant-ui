@@ -104,11 +104,11 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
-    name: "with-ai-sdk-v6",
-    label: "AI SDK v6",
-    description: "Vercel AI SDK v6",
+    name: "with-ai-sdk-v7",
+    label: "AI SDK v7",
+    description: "Vercel AI SDK v7",
     category: "example",
-    path: "examples/with-ai-sdk-v6",
+    path: "examples/with-ai-sdk-v7",
     hasLocalComponents: false,
   },
   {

@@ -31,6 +31,15 @@ describe("generativeUIToJSX", () => {
     );
   });
 
+  it("emits a model-provided $key as the JSX key attribute", () => {
+    expect(
+      generativeUIToJSX({ $type: "Text", $key: "1:Text", children: "hello" }),
+    ).toBe('<Text key="1:Text">hello</Text>');
+    expect(generativeUIToJSX({ $type: "Item", $key: 2 })).toBe(
+      "<Item key={2} />",
+    );
+  });
+
   it("renders string children between tags", () => {
     expect(
       generativeUIToJSX({ $type: "Text", tone: "muted", children: "hello" }),
