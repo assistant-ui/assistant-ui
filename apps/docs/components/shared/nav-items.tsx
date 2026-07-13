@@ -42,7 +42,7 @@ function DropdownLink({ link }: { link: DropdownItem }) {
 
 function NavigationMenuViewport() {
   return (
-    <div className="absolute inset-x-0 top-full overflow-clip">
+    <div className="absolute inset-x-0 top-full hidden overflow-clip md:block">
       <NavigationMenu.Viewport className="bg-background border-border/60 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-2 h-[var(--radix-navigation-menu-viewport-height)] w-full overflow-hidden border-b transition-[height] duration-200 data-[state=closed]:duration-150 data-[state=open]:duration-200 motion-reduce:animate-none motion-reduce:transition-none" />
     </div>
   );
