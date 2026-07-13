@@ -5,6 +5,7 @@ import {
   type ThemeName,
   type Theme,
 } from "markdansi";
+import { memo } from "react";
 
 export type MarkdownTextProps = {
   /** The markdown text to render. */
@@ -42,14 +43,7 @@ export type MarkdownTextProps = {
   listIndent?: number;
 };
 
-/**
- * Renders markdown text as formatted ANSI terminal output using markdansi.
- *
- * Re-renders the full text on each update via markdansi's one-shot `render()`.
- * This is fast enough for typical LLM output sizes (microseconds) and avoids
- * the complexity of incremental streaming state in React's rendering model.
- */
-export const MarkdownText = ({ text, ...options }: MarkdownTextProps) => {
+const MarkdownTextImpl = ({ text, ...options }: MarkdownTextProps) => {
   const rendered = render(
     text,
     Object.values(options).some((v) => v !== undefined)
@@ -59,4 +53,14 @@ export const MarkdownText = ({ text, ...options }: MarkdownTextProps) => {
   return <Text>{rendered}</Text>;
 };
 
-MarkdownText.displayName = "MarkdownText";
+MarkdownTextImpl.displayName = "MarkdownText";
+
+/**
+ * Renders markdown text as formatted ANSI terminal output using markdansi.
+ *
+ * Renders the full text via markdansi's one-shot `render()`; memoized so
+ * re-renders with unchanged props skip the re-parse. This is fast enough for
+ * typical LLM output sizes (microseconds) and avoids the complexity of
+ * incremental streaming state in React's rendering model.
+ */
+export const MarkdownText = memo(MarkdownTextImpl);

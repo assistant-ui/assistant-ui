@@ -111,4 +111,44 @@ describe("MarkdownText", () => {
     expect(lastFrame()).toContain("SECOND:");
     expect(lastFrame()).not.toContain("FIRST:");
   });
+
+  it("forwards undeclared markdansi options", () => {
+    const table =
+      "| column |\n| --- |\n| a very long cell value that must truncate |";
+
+    const { lastFrame } = render(
+      <MarkdownText text={table} width={20} {...{ tableEllipsis: ">>>" }} />,
+    );
+    expect(lastFrame()).toContain(">>>");
+  });
+
+  it("memoizes rendering across re-renders with unchanged props", () => {
+    const highlighter = vi.fn((code: string) => code);
+    const text = "```js\nconst x = 1;\n```";
+
+    const { rerender } = render(
+      <MarkdownText text={text} highlighter={highlighter} />,
+    );
+    expect(highlighter).toHaveBeenCalledTimes(1);
+
+    rerender(<MarkdownText text={text} highlighter={highlighter} />);
+    expect(highlighter).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <MarkdownText
+        text={"```js\nconst y = 2;\n```"}
+        highlighter={highlighter}
+      />,
+    );
+    expect(highlighter).toHaveBeenCalledTimes(2);
+
+    rerender(
+      <MarkdownText
+        text={"```js\nconst y = 2;\n```"}
+        highlighter={highlighter}
+        codeGutter
+      />,
+    );
+    expect(highlighter).toHaveBeenCalledTimes(3);
+  });
 });
