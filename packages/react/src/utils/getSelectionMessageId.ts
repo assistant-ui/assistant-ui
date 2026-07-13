@@ -14,21 +14,33 @@ const findMessageElement = (node: Node | null): HTMLElement | null => {
   return null;
 };
 
-const hasQuoteSelectableRegion = (messageElement: HTMLElement) => {
-  return (
-    messageElement.matches(QUOTE_SELECTABLE_SELECTOR) ||
-    !!messageElement.querySelector(QUOTE_SELECTABLE_SELECTOR)
-  );
+const isExcluded = (marker: Element): boolean => {
+  return marker.getAttribute("data-aui-quote-selectable") === "false";
 };
 
-const findQuoteSelectableRegion = (
+const hasQuoteSelectableRegion = (messageElement: HTMLElement) => {
+  if (
+    messageElement.matches(QUOTE_SELECTABLE_SELECTOR) &&
+    !isExcluded(messageElement)
+  ) {
+    return true;
+  }
+  for (const marker of messageElement.querySelectorAll(
+    QUOTE_SELECTABLE_SELECTOR,
+  )) {
+    if (!isExcluded(marker)) return true;
+  }
+  return false;
+};
+
+const findQuoteMarker = (
   node: Node | null,
   messageElement: HTMLElement,
 ): HTMLElement | null => {
-  const region = getElement(node)?.closest(QUOTE_SELECTABLE_SELECTOR);
-  if (!(region instanceof HTMLElement)) return null;
-  if (!messageElement.contains(region)) return null;
-  return region;
+  const marker = getElement(node)?.closest(QUOTE_SELECTABLE_SELECTOR);
+  if (!(marker instanceof HTMLElement)) return null;
+  if (!messageElement.contains(marker)) return null;
+  return marker;
 };
 
 export const getSelectionMessageId = (selection: Selection): string | null => {
@@ -45,18 +57,15 @@ export const getSelectionMessageId = (selection: Selection): string | null => {
   const messageId = anchorMessageElement.getAttribute("data-message-id");
   if (!messageId) return null;
 
+  const anchorMarker = findQuoteMarker(anchorNode, anchorMessageElement);
+  const focusMarker = findQuoteMarker(focusNode, anchorMessageElement);
+
+  if (anchorMarker && isExcluded(anchorMarker)) return null;
+  if (focusMarker && isExcluded(focusMarker)) return null;
+
   if (!hasQuoteSelectableRegion(anchorMessageElement)) return messageId;
 
-  const anchorRegion = findQuoteSelectableRegion(
-    anchorNode,
-    anchorMessageElement,
-  );
-  const focusRegion = findQuoteSelectableRegion(
-    focusNode,
-    anchorMessageElement,
-  );
-
-  if (!anchorRegion || anchorRegion !== focusRegion) return null;
+  if (!anchorMarker || anchorMarker !== focusMarker) return null;
 
   return messageId;
 };

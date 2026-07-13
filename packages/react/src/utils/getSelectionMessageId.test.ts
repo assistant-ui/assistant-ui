@@ -71,6 +71,51 @@ describe("getSelectionMessageId", () => {
     ).toBe("message-1");
   });
 
+  it("disables quoting for the whole message when the root is marked false", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1" data-aui-quote-selectable="false">
+        <p id="text">message text</p>
+        <div id="tool">tool output</div>
+      </div>
+    `;
+
+    expect(getSelectionMessageId(selectText(textNode("#text")))).toBeNull();
+    expect(getSelectionMessageId(selectText(textNode("#tool")))).toBeNull();
+  });
+
+  it("excludes a false subtree while the rest of the message stays quotable", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1">
+        <p id="text">message text</p>
+        <div id="tool" data-aui-quote-selectable="false">tool output</div>
+      </div>
+    `;
+
+    expect(getSelectionMessageId(selectText(textNode("#text")))).toBe(
+      "message-1",
+    );
+    expect(getSelectionMessageId(selectText(textNode("#tool")))).toBeNull();
+  });
+
+  it("carves a false region out of a quote-selectable region", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1">
+        <div data-aui-quote-selectable="">
+          <p id="text">message text</p>
+          <span id="chip" data-aui-quote-selectable="false">citation chip</span>
+        </div>
+      </div>
+    `;
+
+    expect(getSelectionMessageId(selectText(textNode("#text")))).toBe(
+      "message-1",
+    );
+    expect(getSelectionMessageId(selectText(textNode("#chip")))).toBeNull();
+    expect(
+      getSelectionMessageId(selectText(textNode("#text"), textNode("#chip"))),
+    ).toBeNull();
+  });
+
   it("rejects selections outside quote-selectable regions when a message opts in", () => {
     document.body.innerHTML = `
       <div data-message-id="message-1">

@@ -76,6 +76,18 @@ By default, any selected text inside a message can be quoted. For rich messages 
 </MessagePrimitive.Root>
 ```
 
+Set `data-aui-quote-selectable="false"` to exclude an element instead: on the message root it disables quoting for the entire message, and inside a quotable region it carves that subtree out. The nearest marker wins, and any value other than `"false"` (including empty) marks a quotable region.
+
+Apps know the message role at render time, so a role gate is a conditional attribute:
+
+```tsx
+const UserMessage = () => (
+  <MessagePrimitive.Root data-aui-quote-selectable="false">
+    <MessagePrimitive.Parts />
+  </MessagePrimitive.Root>
+);
+```
+
 ### Quote Action
 
 The `Quote` button does two things on click:
