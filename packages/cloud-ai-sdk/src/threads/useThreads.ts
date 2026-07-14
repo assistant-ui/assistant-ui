@@ -38,6 +38,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const mountedRef = useRef(true);
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };

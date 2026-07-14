@@ -47,6 +47,41 @@ describe("useThreads", () => {
     });
   });
 
+  it("loads threads when Strict Mode replays effects", async () => {
+    const cloud = {
+      threads: {
+        list: vi.fn().mockResolvedValue({
+          threads: [
+            {
+              id: "thread-1",
+              title: "Customer support",
+              is_archived: false,
+              external_id: null,
+              last_message_at: new Date("2026-01-01T00:00:00.000Z"),
+              created_at: new Date("2026-01-01T00:00:00.000Z"),
+              updated_at: new Date("2026-01-01T00:00:00.000Z"),
+            },
+          ],
+        }),
+        get: vi.fn(),
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    } as never;
+
+    const { result } = renderHook(() => useThreads({ cloud }), {
+      reactStrictMode: true,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(result.current.threads).toMatchObject([
+      { id: "thread-1", title: "Customer support" },
+    ]);
+  });
+
   it("avoids unmounted state updates during async refresh", async () => {
     const deferred = createDeferred<{ threads: never[] }>();
     const consoleErrorSpy = vi
