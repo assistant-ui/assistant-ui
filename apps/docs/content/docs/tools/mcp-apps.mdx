@@ -69,20 +69,32 @@ The route accepts `POST` requests with `{ method, params }` JSON bodies. Dispatc
 // app/api/mcp-apps/route.ts
 import { createMCPClient } from "@ai-sdk/mcp";
 
-let clientPromise: ReturnType<typeof createMCPClient> | undefined;
-const getClient = () => {
-  clientPromise ??= createMCPClient({
-    transport: { type: "sse", url: process.env.MCP_SERVER_URL! },
-  }).catch((error) => {
-    clientPromise = undefined;
-    throw error;
-  });
+const serverUrls = new Map([
+  ["search", process.env.SEARCH_MCP_SERVER_URL!],
+  ["calendar", process.env.CALENDAR_MCP_SERVER_URL!],
+]);
+const fallbackServerUrl = process.env.MCP_SERVER_URL!;
+const clientPromises = new Map<string, ReturnType<typeof createMCPClient>>();
+
+const getClient = (serverId?: string) => {
+  const url = serverId ? serverUrls.get(serverId) : fallbackServerUrl;
+  if (!url) throw new Error(`Unknown MCP server: ${serverId}`);
+  let clientPromise = clientPromises.get(url);
+  if (!clientPromise) {
+    clientPromise = createMCPClient({
+      transport: { type: "sse", url },
+    }).catch((error) => {
+      clientPromises.delete(url);
+      throw error;
+    });
+    clientPromises.set(url, clientPromise);
+  }
   return clientPromise;
 };
 
 export async function POST(req: Request) {
   const { method, params } = await req.json();
-  const client = await getClient();
+  const client = await getClient(params?.serverId);
 
   switch (method) {
     case "mcp-apps/read-resource": {
@@ -109,8 +121,10 @@ export async function POST(req: Request) {
     }
     case "resources/read":
       return Response.json(await client.readResource({ uri: params.uri }));
-    case "resources/list":
-      return Response.json(await client.listResources(params));
+    case "resources/list": {
+      const { serverId: _, ...listParams } = params ?? {};
+      return Response.json(await client.listResources(listParams));
+    }
     default:
       return Response.json({ error: "Unsupported method" }, { status: 400 });
   }
@@ -118,6 +132,10 @@ export async function POST(req: Request) {
 ```
 
 The renderer POSTs four method names: `mcp-apps/read-resource`, `tools/call`, `resources/read`, `resources/list`. Reject anything else server-side and apply your own auth / rate limiting in the route.
+
+### Multiple MCP servers
+
+When a tool part carries `mcp.app.serverId`, the renderer forwards it to the host operations as `params.serverId` so the route can select the MCP client that owns the resource or tool. The agent stack emits this routable identity in part metadata. For `@ag-ui/mcp-apps-middleware`, assistant-ui uses its configured `serverId`, falling back to `serverHash` when `serverId` is absent or empty. Omitting `serverId` preserves the single-server behavior, as shown by the fallback client in the route example.
 
 Per-name `setToolUI` registrations always win over the MCP fallback — you can still customize specific tools.
 
