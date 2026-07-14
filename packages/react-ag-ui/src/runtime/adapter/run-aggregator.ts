@@ -30,6 +30,7 @@ type ToolCallState = {
   toolMessageId?: string;
   mcpAppResourceUri?: string;
   modelContent?: ToolModelContentPart[];
+  snapshotResultApplied: boolean;
 };
 
 const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
@@ -272,6 +273,7 @@ export class RunAggregator {
               ];
             }
             entry.result = result;
+            entry.snapshotResultApplied = true;
             if (typeof result.isError === "boolean") {
               entry.isError = result.isError;
             }
@@ -374,6 +376,7 @@ export class RunAggregator {
       parsedArgs: undefined,
       result: undefined,
       isError: undefined,
+      snapshotResultApplied: false,
     };
     if (parentMessageId) {
       state.parentMessageId = parentMessageId;
@@ -442,6 +445,7 @@ export class RunAggregator {
         parsedArgs: undefined,
         result: undefined,
         isError: undefined,
+        snapshotResultApplied: false,
       };
       this.toolCalls.set(id, entry);
     }
@@ -452,8 +456,17 @@ export class RunAggregator {
     ) {
       this.partOrder.push({ kind: "tool-call", toolCallId: id });
     }
-    entry.result = tryParseJSON(content);
-    entry.isError = isError;
+    if (entry.snapshotResultApplied) {
+      if (entry.modelContent === undefined) {
+        entry.modelContent = [{ type: "text", text: content }];
+      }
+      if (entry.isError === undefined) {
+        entry.isError = isError;
+      }
+    } else {
+      entry.result = tryParseJSON(content);
+      entry.isError = isError;
+    }
     if (toolMessageId) {
       entry.toolMessageId = toolMessageId;
     }

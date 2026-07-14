@@ -230,6 +230,48 @@ describe("RunAggregator", () => {
     });
   });
 
+  it("preserves an identified mcp app snapshot result when the tool result arrives later", () => {
+    const aggregator = createAggregator(false);
+    const result = {
+      content: [{ type: "text", text: "snapshot" }],
+      structuredContent: { location: "San Francisco" },
+      isError: false,
+    };
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: {
+        toolCallId: "tool1",
+        result,
+        resourceUri: "ui://srv/mcp-app.html",
+      },
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "late text",
+      role: "tool",
+    } as AgUiEvent);
+
+    const toolPart = results
+      .at(-1)
+      ?.content?.find((part) => part.type === "tool-call") as any;
+    expect(toolPart.result).toEqual(result);
+    expect(toolPart.modelContent).toEqual([
+      { type: "text", text: "late text" },
+    ]);
+    expect(toolPart.mcp).toEqual({
+      app: { resourceUri: "ui://srv/mcp-app.html" },
+    });
+  });
+
   it("preserves model content across repeated mcp app snapshots", () => {
     const aggregator = createAggregator(false);
     const firstResult = {
