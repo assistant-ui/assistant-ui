@@ -200,7 +200,15 @@ async function getPackageManagerInfo(
 }
 
 export function satisfiesRange(version: string, range: string): boolean {
-  return range === "any" || satisfies(version, range);
+  const normalizedRange = range.startsWith("workspace:")
+    ? range.slice("workspace:".length)
+    : range;
+
+  return (
+    normalizedRange === "" ||
+    normalizedRange === "any" ||
+    satisfies(version, normalizedRange, { includePrerelease: true })
+  );
 }
 
 interface PackageInfo {

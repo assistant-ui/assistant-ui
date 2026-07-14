@@ -25,4 +25,15 @@ describe("satisfiesRange", () => {
   it.each(["*", "any"])("accepts the unrestricted %s range", (range) => {
     expect(satisfiesRange("20.0.0", range)).toBe(true);
   });
+
+  it("accepts prerelease versions that satisfy the peer range", () => {
+    expect(satisfiesRange("19.1.0-rc.1", "^18 || ^19")).toBe(true);
+  });
+
+  it.each(["workspace:*", "workspace:^19.0.0"])(
+    "accepts workspace protocol range %s",
+    (range) => {
+      expect(satisfiesRange("19.2.0", range)).toBe(true);
+    },
+  );
 });
