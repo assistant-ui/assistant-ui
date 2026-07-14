@@ -185,6 +185,209 @@ describe("RunAggregator", () => {
     expect((toolPart as any).result).toEqual({ ok: true });
   });
 
+  it("uses the mcp app snapshot result while preserving the model-facing result", () => {
+    const aggregator = createAggregator(false);
+    const result = {
+      content: [
+        { type: "text", text: "ok" },
+        { type: "image", data: "aGk=", mimeType: "image/png" },
+      ],
+      structuredContent: { ok: true },
+      isError: false,
+    };
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "ok",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: {
+        result,
+        resourceUri: "ui://srv/mcp-app.html",
+        serverHash: "h",
+        serverId: "s",
+        toolInput: { city: "sf" },
+      },
+    } as AgUiEvent);
+
+    const toolPart = results
+      .at(-1)
+      ?.content?.find((part) => part.type === "tool-call") as any;
+    expect(toolPart.result).toEqual(result);
+    expect(toolPart.modelContent).toEqual([{ type: "text", text: "ok" }]);
+    expect(toolPart.mcp).toEqual({
+      app: { resourceUri: "ui://srv/mcp-app.html" },
+    });
+  });
+
+  it("preserves model content across repeated mcp app snapshots", () => {
+    const aggregator = createAggregator(false);
+    const firstResult = {
+      content: [{ type: "text", text: "first" }],
+      structuredContent: { value: 1 },
+      isError: false,
+    };
+    const secondResult = {
+      content: [{ type: "text", text: "second" }],
+      structuredContent: { value: 2 },
+      isError: false,
+    };
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "ok",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: {
+        result: firstResult,
+        resourceUri: "ui://srv/first.html",
+      },
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: {
+        result: secondResult,
+        resourceUri: "ui://srv/second.html",
+      },
+    } as AgUiEvent);
+
+    const toolPart = results
+      .at(-1)
+      ?.content?.find((part) => part.type === "tool-call") as any;
+    expect(toolPart.result).toEqual(secondResult);
+    expect(toolPart.modelContent).toEqual([{ type: "text", text: "ok" }]);
+  });
+
+  it("uses a snapshot toolCallId instead of the last resolved tool call", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool2",
+      toolCallName: "show_chart",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "map",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool2",
+      content: "chart",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: {
+        toolCallId: "tool1",
+        resourceUri: "ui://srv/map.html",
+      },
+    } as AgUiEvent);
+
+    const parts = results
+      .at(-1)
+      ?.content?.filter((part) => part.type === "tool-call") as any[];
+    expect(parts.find((part) => part.toolCallId === "tool1").mcp).toEqual({
+      app: { resourceUri: "ui://srv/map.html" },
+    });
+    expect(
+      parts.find((part) => part.toolCallId === "tool2").mcp,
+    ).toBeUndefined();
+  });
+
+  it("ignores snapshots with an unknown toolCallId", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "ok",
+      role: "tool",
+    } as AgUiEvent);
+
+    const before = results.at(-1);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: {
+        toolCallId: "missing",
+        result: { content: [{ type: "text", text: "different" }] },
+        resourceUri: "ui://srv/mcp-app.html",
+      },
+    } as AgUiEvent);
+
+    expect(results.at(-1)).toBe(before);
+  });
+
+  it("maps an mcp app snapshot error result onto the tool call", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "failed",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: {
+        result: {
+          content: [{ type: "text", text: "failed" }],
+          isError: true,
+        },
+        resourceUri: "ui://srv/mcp-app.html",
+      },
+    } as AgUiEvent);
+
+    const toolPart = results
+      .at(-1)
+      ?.content?.find((part) => part.type === "tool-call") as any;
+    expect(toolPart.isError).toBe(true);
+  });
+
   it("maps each snapshot to its own tool when multiple ui tools resolve", () => {
     const aggregator = createAggregator(false);
 
