@@ -1961,7 +1961,7 @@ type InteractableStateSchema = NonNullable<Extract<Tool, {
   parameters: unknown;
 }>["parameters"]>;
 
-declare const Interactables: Resource<ClientOutput<"interactables">, [
+declare const Interactables: Resource<ClientMethods, [
 ]>;
 
 type InteractablesClientSchema = {
