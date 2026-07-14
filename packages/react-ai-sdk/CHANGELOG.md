@@ -1,5 +1,17 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.40
+
+### Patch Changes
+
+- [#4659](https://github.com/assistant-ui/assistant-ui/pull/4659) [`ea41c9c`](https://github.com/assistant-ui/assistant-ui/commit/ea41c9c077d1a6c88cde07e4686a968275893be4) - fix: detect MCP tool name collisions with toolkit tools ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4687](https://github.com/assistant-ui/assistant-ui/pull/4687) [`f833bc1`](https://github.com/assistant-ui/assistant-ui/commit/f833bc118b49641f3f6e0ab22bcfc63bf0a04408) - feat: support server-side MCP connection timeouts ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`523e0b5`](https://github.com/assistant-ui/assistant-ui/commit/523e0b563a71a656f050473c42c414b26c2d5ab4), [`f833bc1`](https://github.com/assistant-ui/assistant-ui/commit/f833bc118b49641f3f6e0ab22bcfc63bf0a04408)]:
+  - @assistant-ui/core@0.2.20
+  - assistant-stream@0.3.25
+
 ## 1.3.39
 
 ### Patch Changes

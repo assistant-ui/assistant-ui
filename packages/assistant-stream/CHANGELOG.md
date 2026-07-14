@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.25
+
+### Patch Changes
+
+- [#4687](https://github.com/assistant-ui/assistant-ui/pull/4687) [`f833bc1`](https://github.com/assistant-ui/assistant-ui/commit/f833bc118b49641f3f6e0ab22bcfc63bf0a04408) - feat: support server-side MCP connection timeouts ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.24
 
 ### Patch Changes

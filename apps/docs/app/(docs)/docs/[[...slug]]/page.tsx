@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { DocsPage, DocsBody } from "fumadocs-ui/page";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
 import { source } from "@/lib/source";
@@ -30,9 +30,13 @@ export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
 }) {
   const params = await props.params;
-  const page = source.getPage(params.slug ?? []);
+  const slug = params.slug ?? [];
+  const page = source.getPage(slug);
 
   if (page == null) {
+    const overviewPage = source.getPage([...slug, "overview"]);
+    if (overviewPage) redirect(overviewPage.url);
+
     notFound();
   }
 
@@ -89,11 +93,19 @@ export default async function Page(props: {
           {page.data.links && page.data.links.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {page.data.links.map((link) => (
-                <Badge key={link.url} asChild variant="muted">
-                  <a href={link.url} target="_blank" rel="noopener noreferrer">
-                    {link.label}
-                    <ArrowUpRight />
-                  </a>
+                <Badge
+                  key={link.url}
+                  variant="muted"
+                  render={
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    />
+                  }
+                >
+                  {link.label}
+                  <ArrowUpRight />
                 </Badge>
               ))}
             </div>

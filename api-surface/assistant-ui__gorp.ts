@@ -2,23 +2,6 @@ type DeepReadonly<T> = T extends ((...args: never[]) => unknown) ? T : T extends
   readonly [K in keyof T]: DeepReadonly<T[K]>;
 } : T;
 
-type GorpOperation = {
-  type: "set";
-  path: string[];
-  value: unknown;
-} | {
-  type: "append-text";
-  path: string[];
-  value: string;
-};
-
-type GorpMessage = {
-  ops: GorpOperation[];
-  ack?: number;
-};
-
-declare function appendText(value: string): string;
-
 declare class GorpClient<T extends Record<string, unknown>, C> {
   private readonly mutator;
   private readonly _send;
@@ -52,9 +35,26 @@ declare namespace GorpClient {
   };
 }
 
-type RelaySerializedState<T> = {
-  state: T;
+type GorpMessage = {
+  ops: GorpOperation[];
+  ack?: number;
 };
+
+type GorpOperation = {
+  type: "set";
+  path: string[];
+  value: unknown;
+} | {
+  type: "append-text";
+  path: string[];
+  value: string;
+};
+
+interface GorpPubsub<C> {
+  readonly state: unknown;
+  receive(command: C): void;
+  subscribe(callback: (env: GorpMessage) => void): () => void;
+}
 
 declare class GorpRelay<T extends Record<string, unknown>, C> {
   private readonly gorp;
@@ -96,21 +96,9 @@ declare namespace GorpServer {
   };
 }
 
-interface GorpPubsub<C> {
-  readonly state: unknown;
-  receive(command: C): void;
-  subscribe(callback: (env: GorpMessage) => void): () => void;
-}
-
 type GorpSession = {
   highWater: number;
   lastActivity: number;
-};
-
-type GorpSessionsState = {
-  sessions: Record<string, {
-    highWater: number;
-  }>;
 };
 
 declare class GorpSessions<C> {
@@ -136,6 +124,18 @@ declare namespace GorpSessions {
     remove(): void;
   }
 }
+
+type GorpSessionsState = {
+  sessions: Record<string, {
+    highWater: number;
+  }>;
+};
+
+type RelaySerializedState<T> = {
+  state: T;
+};
+
+declare function appendText(value: string): string;
 
 declare namespace entry_root_exports {
   export { GorpClient, GorpMessage, GorpRelay, GorpServer, GorpSessions, GorpSessionsState, RelaySerializedState, appendText };

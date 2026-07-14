@@ -46,9 +46,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.2.19",
+    "@assistant-ui/core": "^0.2.20",
     "@assistant-ui/store": "^0.2.19",
-    "@opencode-ai/sdk": "^1.17.9"
+    "@opencode-ai/sdk": "^1.17.16"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.14.14",
@@ -63,12 +63,12 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.0.0",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^29.1.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   }
 }

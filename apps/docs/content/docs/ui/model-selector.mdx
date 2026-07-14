@@ -5,10 +5,14 @@ platforms: ["react"]
 ---
 
 import { ModelSelectorSample } from "@/components/docs/samples/model-selector";
+import * as ModelSelectorRadixSamples from "@/components/docs/samples/model-selector.radix";
+import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
 A picker that lets users switch between AI models and choose a reasoning effort (thinking) level. It is built on Popover + Command, so search, provider grouping, and filtering compose in without being built in. The default export integrates with assistant-ui's `ModelContext` system, so the selection reaches your backend on every request with no extra wiring.
 
-<ModelSelectorSample />
+<FlavorSwitcher />
+
+<Flavored radix={<ModelSelectorRadixSamples.ModelSelectorSample />} base={<ModelSelectorSample />} />
 
 ## Getting Started
 
@@ -141,6 +145,26 @@ function EffortDropdown() {
 
 Render it inside `ModelSelector.Content` in place of `ModelSelector.Effort`. The same hook supports any shape that reads the levels and writes the selection.
 
+## Provider Logos
+
+Each model's `icon` accepts any `ReactNode` and renders in the trigger and the dropdown items. The optional `logos` registry item ships `OpenAILogo`, `ClaudeLogo`, and `GeminiLogo` marks to plug in:
+
+<InstallCommand shadcn={["logos"]} />
+
+```tsx
+import { ClaudeLogo, GeminiLogo, OpenAILogo } from "@/components/assistant-ui/logos";
+
+<ModelSelector
+  models={[
+    { id: "gpt-5.5", name: "GPT-5.5", icon: <OpenAILogo /> },
+    { id: "claude-opus-4.5", name: "Claude Opus 4.5", icon: <ClaudeLogo /> },
+    { id: "gemini-3-pro", name: "Gemini 3 Pro", icon: <GeminiLogo /> },
+  ]}
+/>;
+```
+
+Icons are opt-in per model — omit `icon` and the entry renders text-only.
+
 ## Search
 
 Search is opt-in. Pass `searchable` to the default component:
@@ -149,7 +173,7 @@ Search is opt-in. Pass `searchable` to the default component:
 <ModelSelector models={models} searchable />
 ```
 
-Or compose `ModelSelector.Search` into a custom layout. Matching runs against each model's `id`, `name`, and `keywords`; add the provider name to `keywords` so typing "openai" finds its models.
+The same prop works on `ModelSelector.Content` when it renders its default children. Or compose `ModelSelector.Search` into a custom layout. Matching runs against each model's `id`, `name`, and `keywords`; add the provider name to `keywords` so typing "openai" finds its models.
 
 ## Composition
 
@@ -204,6 +228,7 @@ import {
 | `ModelSelector.Value` | Selected model name, icon, and active effort |
 | `ModelSelector.Content` | Popover content wrapping a Command |
 | `ModelSelector.Search` | Search input that filters the list |
+| `ModelSelector.FocusAnchor` | Visually hidden input that anchors keyboard navigation when there is no search box |
 | `ModelSelector.List` | List of model items (renders all models by default) |
 | `ModelSelector.Empty` | Empty state shown when search has no matches |
 | `ModelSelector.Group` | Labeled group of items (e.g. by provider) |
@@ -213,12 +238,20 @@ import {
 
 `ModelSelector.List` is a Command list, so filtering and keyboard navigation work across groups automatically. Custom sorting is plain code: order the models before rendering items.
 
+Keyboard navigation needs a focused input to drive it. When content is unfiltered (`searchable={false}` on `ModelSelector.Content`, or the default children), `ModelSelector.Content` renders a visually hidden `ModelSelector.FocusAnchor` automatically, so custom layouts without a search box stay keyboard-operable. In a custom layout that renders neither `ModelSelector.Search` nor `searchable={false}`, place `ModelSelector.FocusAnchor` yourself to keep the list reachable from the keyboard.
+
 <Callout type="warn">
   `ModelSelector.Content` wraps a Command whose root keydown handler claims
-  <kbd>Enter</kbd> to select the highlighted model. Interactive elements
-  composed inside it (filter chips, custom effort controls) should stop
-  propagation for Enter in their own `onKeyDown` so the focused control
-  activates instead. `ModelSelector.Effort` already does this.
+  <Kbd>Enter</Kbd> to select the highlighted model and the arrow keys to move
+  through the list. Interactive elements composed inside it (filter chips,
+  custom effort controls) should stop propagation for the keys they handle in
+  their own `onKeyDown` so the focused control responds instead.
+  `ModelSelector.Effort` does this for <Kbd>Home</Kbd> / <Kbd>End</Kbd> (which
+  cmdk would otherwise use to jump to the first / last model), lets its
+  radiogroup own <Kbd>ArrowLeft</Kbd> / <Kbd>ArrowRight</Kbd>, and hands
+  <Kbd>ArrowUp</Kbd> / <Kbd>ArrowDown</Kbd> back to the model list by
+  refocusing cmdk's input, so the highlight only moves while a following
+  <Kbd>Enter</Kbd> can act on it.
 </Callout>
 
 ## Variants
@@ -246,6 +279,30 @@ Use the `size` prop to control the trigger dimensions.
 <ModelSelector size="default" /> // Standard (h-9)
 <ModelSelector size="lg" />      // Large (h-10)
 ```
+
+## Keyboard Navigation
+
+The picker is fully operable from the keyboard, including when search is disabled.
+
+| Key | Action |
+| --- | --- |
+| <Kbd>ArrowDown</Kbd> / <Kbd>ArrowUp</Kbd> | Open the popover from the focused trigger; move between models once open, returning focus to the list from the Thinking row |
+| <Kbd>Enter</Kbd> | Select the highlighted model and close |
+| <Kbd>Escape</Kbd> | Close the popover and return focus to the trigger |
+| <Kbd>Tab</Kbd> | Move from the model list to the Thinking row |
+| <Kbd>ArrowLeft</Kbd> / <Kbd>ArrowRight</Kbd> | Move between reasoning effort levels (Thinking row) |
+| <Kbd>Home</Kbd> / <Kbd>End</Kbd> | Jump to the first / last model (list) or effort level (Thinking row) |
+
+When `searchable` is set, typing filters the list; otherwise the keys above drive selection directly.
+
+## Accessibility
+
+The picker implements the WAI-ARIA combobox pattern over Popover + Command.
+
+- The trigger is `role="combobox"` with `aria-haspopup="listbox"`; the popover primitive manages `aria-expanded` and `aria-controls`.
+- The model list is a Command (cmdk) listbox: each item is `role="option"` with `aria-selected`, and the active item is tracked with `aria-activedescendant`.
+- Keyboard navigation works without a visible search box: `ModelSelector.Content` renders a visually hidden input (`ModelSelector.FocusAnchor`) that anchors cmdk's focus so the list stays reachable. Pass `searchable` to surface a real search input instead.
+- The Thinking row (`ModelSelector.Effort`) is a `role="radiogroup"` of `role="radio"` toggles with roving tabindex, so it is a single tab stop and <Kbd>ArrowLeft</Kbd> / <Kbd>ArrowRight</Kbd> move focus and select in one step. <Kbd>ArrowUp</Kbd> / <Kbd>ArrowDown</Kbd> return focus to the model list.
 
 ## How It Works
 
@@ -317,6 +374,12 @@ This works out of the box with `@assistant-ui/react-ai-sdk`. `ModelSelector.Root
       type: '"sm" | "default" | "lg"',
       default: '"default"',
       description: "Size of the trigger button.",
+    },
+    {
+      name: "align",
+      type: '"start" | "center" | "end"',
+      default: '"start"',
+      description: "Alignment of the dropdown relative to the trigger.",
     },
     {
       name: "contentClassName",

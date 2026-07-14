@@ -15,3 +15,7 @@ export type {
 
 export { AssistantTransformStream } from "./core/utils/stream/AssistantTransformStream";
 export { AssistantMetaTransformStream } from "./core/utils/stream/AssistantMetaTransformStream";
+export {
+  SSEEventDecoder,
+  type SSEEvent,
+} from "./core/utils/stream/SSEEventDecoder";

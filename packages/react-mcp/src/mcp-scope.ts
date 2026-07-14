@@ -19,6 +19,7 @@ export type MCPConnector = {
   url: string;
   icon?: string | undefined;
   auth: MCPAuthConfig;
+  connectionTimeout?: number | undefined;
 };
 
 export type MCPCustomServerRecord = {
@@ -26,6 +27,7 @@ export type MCPCustomServerRecord = {
   name: string;
   url: string;
   auth: MCPAuthConfig;
+  connectionTimeout?: number | undefined;
   createdAt: number;
 };
 
@@ -70,6 +72,8 @@ export type MCPServerMethods = {
   disconnect: () => Promise<void>;
   remove: () => Promise<void>;
   callTool: (name: string, args: unknown) => Promise<unknown>;
+  /** List resources exposed by the server. Returns the raw MCP `ListResourcesResult`. */
+  listResources: () => Promise<unknown>;
   /** Read a resource by URI. Returns the raw MCP `ReadResourceResult`. */
   readResource: (uri: string) => Promise<unknown>;
   /** OAuth only: pass full callback URL (e.g. window.location.href) */
@@ -93,6 +97,7 @@ export type MCPManagerMethods = {
     name: string;
     url: string;
     auth: MCPAuthConfig;
+    connectionTimeout?: number | undefined;
   }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };

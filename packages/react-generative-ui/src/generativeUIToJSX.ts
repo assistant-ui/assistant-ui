@@ -5,6 +5,7 @@ import { TYPE_KEY } from "./constants";
  * "view source" of a model-produced tree. The wire form
  * `{ $type: "Weather", id: "x" }` becomes `<Weather id="x" />`, and nested
  * `children` render between tags: `<Card title="Hi"><Text>hello</Text></Card>`.
+ * A model-provided `$key` becomes the JSX `key` attribute.
  *
  * It is a faithful textual rendering, not a parser: text children are emitted
  * verbatim (not HTML/JSX-escaped), so the result is meant to be shown, not
@@ -33,14 +34,17 @@ function toJSX(node: unknown, depth: number): string {
 
   const {
     [TYPE_KEY]: type,
+    $key,
     children,
     ...props
   } = node as Record<string, unknown>;
   if (typeof type !== "string") return "";
 
-  const attrs = Object.entries(props)
-    .map(([key, value]) => formatAttr(key, value))
-    .join("");
+  const attrs =
+    formatAttr("key", $key) +
+    Object.entries(props)
+      .map(([key, value]) => formatAttr(key, value))
+      .join("");
   const inner = children === undefined ? "" : toJSX(children, depth + 1);
 
   return inner === ""

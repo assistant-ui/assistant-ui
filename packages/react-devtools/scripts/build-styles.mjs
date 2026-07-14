@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -8,10 +9,23 @@ const input = resolve(root, "src/styles/panel.css");
 const tmp = resolve(root, "src/styles/.panel.out.css");
 const output = resolve(root, "src/styles/panel.generated.ts");
 
-execFileSync("tailwindcss", ["-i", input, "-o", tmp, "--minify"], {
-  cwd: root,
-  stdio: "inherit",
-});
+const require = createRequire(import.meta.url);
+const cliPackagePath = require.resolve("@tailwindcss/cli/package.json");
+const cliPackage = JSON.parse(readFileSync(cliPackagePath, "utf8"));
+const cliBin =
+  typeof cliPackage.bin === "string"
+    ? cliPackage.bin
+    : cliPackage.bin.tailwindcss;
+const tailwindCli = join(dirname(cliPackagePath), cliBin);
+
+execFileSync(
+  process.execPath,
+  [tailwindCli, "-i", input, "-o", tmp, "--minify"],
+  {
+    cwd: root,
+    stdio: "inherit",
+  },
+);
 
 let css = readFileSync(tmp, "utf8");
 rmSync(tmp, { force: true });

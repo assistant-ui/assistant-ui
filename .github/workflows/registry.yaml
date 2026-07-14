@@ -40,7 +40,7 @@ jobs:
           cache: "pnpm"
 
       - name: Cache turbo build setup
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # ratchet:actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # ratchet:actions/cache@v5
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
