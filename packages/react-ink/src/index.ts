@@ -33,6 +33,8 @@ export type {
   ComposerRuntime,
   ThreadListRuntime,
   ThreadListItemRuntime,
+  ThreadForkedFrom,
+  ThreadForkOptions,
   // Runtime core types
   ChatModelAdapter,
   ChatModelRunOptions,

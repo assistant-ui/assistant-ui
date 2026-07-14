@@ -5,7 +5,10 @@ import {
   deferred,
   makeAdapter,
 } from "./remote-thread-list-test-helpers";
-import type { RemoteThreadListAdapter } from "../runtimes/remote-thread-list/types";
+import type {
+  RemoteThreadListAdapter,
+  RemoteThreadMetadata,
+} from "../runtimes/remote-thread-list/types";
 
 const singleThreadList = () =>
   vi.fn(async () => ({
@@ -87,12 +90,7 @@ describe("RemoteThreadListThreadListRuntimeCore fork", () => {
 
   it("preserves a completed fork when an older list response reconciles", async () => {
     const staleReload = deferred<{
-      threads: Array<{
-        status: "regular";
-        remoteId: string;
-        externalId: string;
-        title: string;
-      }>;
+      threads: RemoteThreadMetadata[];
     }>();
     const list = vi
       .fn()
@@ -137,6 +135,162 @@ describe("RemoteThreadListThreadListRuntimeCore fork", () => {
     expect(core.getItemById("thread-fork")?.forkedFrom).toEqual({
       threadId: "thread-1",
       messageId: "msg-1",
+    });
+  });
+
+  it("preserves listed provider metadata for a concurrently reconciled fork", async () => {
+    const lastMessageAt = new Date("2026-07-14T22:00:00.000Z");
+    const reloadWithFork = deferred<{
+      threads: RemoteThreadMetadata[];
+    }>();
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-1",
+            externalId: "thread-1",
+            title: "Source",
+          },
+        ],
+      })
+      .mockReturnValueOnce(reloadWithFork.promise);
+    const adapter = makeAdapter({
+      list,
+      fork: forkToThreadFork(),
+    });
+    const core = createCore(adapter);
+
+    await core.getLoadThreadsPromise();
+    const reloadPromise = core.reload();
+
+    await core.fork("thread-1", { fromMessageId: "msg-1" });
+    reloadWithFork.resolve({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "thread-1",
+          externalId: "thread-1",
+          title: "Source",
+        },
+        {
+          status: "regular",
+          remoteId: "thread-fork",
+          externalId: "thread-fork",
+          title: "Provider Fork",
+          lastMessageAt,
+          custom: { source: "provider" },
+          forkedFrom: { threadId: "thread-1", messageId: "msg-1" },
+        },
+      ],
+    });
+    await reloadPromise;
+
+    expect(core.getItemById("thread-fork")).toMatchObject({
+      title: "Provider Fork",
+      lastMessageAt,
+      custom: { source: "provider" },
+      forkedFrom: { threadId: "thread-1", messageId: "msg-1" },
+    });
+  });
+
+  it("does not restore a completed fork after a later delete reconciles", async () => {
+    const staleReload = deferred<{
+      threads: RemoteThreadMetadata[];
+    }>();
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-1",
+            externalId: "thread-1",
+            title: "Source",
+          },
+        ],
+      })
+      .mockReturnValueOnce(staleReload.promise);
+    const adapter = makeAdapter({
+      list,
+      fork: forkToThreadFork(),
+    });
+    const core = createCore(adapter);
+
+    await core.getLoadThreadsPromise();
+    const reloadPromise = core.reload();
+
+    await core.fork("thread-1", { fromMessageId: "msg-1" });
+    await core.delete("thread-fork");
+
+    staleReload.resolve({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "thread-1",
+          externalId: "thread-1",
+          title: "Source",
+        },
+      ],
+    });
+    await reloadPromise;
+
+    expect(core.threadIds).toEqual(["thread-1"]);
+    expect(core.getItemById("thread-fork")).toBeUndefined();
+  });
+
+  it("does not revert a fork rename when a stale list response reconciles", async () => {
+    const staleReload = deferred<{
+      threads: RemoteThreadMetadata[];
+    }>();
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-1",
+            externalId: "thread-1",
+            title: "Source",
+          },
+        ],
+      })
+      .mockReturnValueOnce(staleReload.promise);
+    const adapter = makeAdapter({
+      list,
+      fork: forkToThreadFork(),
+    });
+    const core = createCore(adapter);
+
+    await core.getLoadThreadsPromise();
+    const reloadPromise = core.reload();
+
+    await core.fork("thread-1", { fromMessageId: "msg-1" });
+    await core.rename("thread-fork", "Renamed Fork");
+
+    staleReload.resolve({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "thread-1",
+          externalId: "thread-1",
+          title: "Source",
+        },
+        {
+          status: "regular",
+          remoteId: "thread-fork",
+          externalId: "thread-fork",
+          title: "Provider Fork",
+          forkedFrom: { threadId: "thread-1", messageId: "msg-1" },
+        },
+      ],
+    });
+    await reloadPromise;
+
+    expect(core.getItemById("thread-fork")).toMatchObject({
+      title: "Renamed Fork",
+      forkedFrom: { threadId: "thread-1", messageId: "msg-1" },
     });
   });
 

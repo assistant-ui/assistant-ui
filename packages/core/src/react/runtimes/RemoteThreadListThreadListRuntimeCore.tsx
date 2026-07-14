@@ -48,6 +48,8 @@ const addForkedThreadReducer = (
   const stateSource = getThreadData(state, sourceThreadIdOrRemoteId);
   const forkedRemoteId = forked.remoteId;
   const mappingId = createThreadMappingId(forkedRemoteId);
+  const existing = getThreadData(state, forkedRemoteId);
+  const messageId = existing?.forkedFrom?.messageId ?? options?.fromMessageId;
 
   return {
     ...state,
@@ -65,20 +67,20 @@ const addForkedThreadReducer = (
     threadData: {
       ...state.threadData,
       [mappingId]: {
+        ...existing,
         id: forkedRemoteId,
-        initializeTask: Promise.resolve(forked),
         remoteId: forkedRemoteId,
-        externalId: forked.externalId,
+        externalId: existing?.externalId ?? forked.externalId,
         forkedFrom: {
-          threadId: stateSource?.remoteId ?? source.remoteId,
-          ...(options?.fromMessageId
-            ? { messageId: options.fromMessageId }
-            : {}),
+          ...existing?.forkedFrom,
+          threadId:
+            existing?.forkedFrom?.threadId ??
+            stateSource?.remoteId ??
+            source.remoteId,
+          ...(messageId ? { messageId } : {}),
         },
         status: "regular" as const,
-        title: undefined,
-        lastMessageAt: undefined,
-        custom: undefined,
+        initializeTask: Promise.resolve(forked),
       },
     },
   };
