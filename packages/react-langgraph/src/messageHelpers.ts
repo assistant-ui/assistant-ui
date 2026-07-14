@@ -20,6 +20,12 @@ export const getPendingToolCalls = (messages: LangChainMessage[]) => {
   return [...pendingToolCalls.values()];
 };
 
+export const hasToolResult = (
+  messages: LangChainMessage[],
+  toolCallId: string,
+): boolean =>
+  messages.some((m) => m.type === "tool" && m.tool_call_id === toolCallId);
+
 export const truncateLangChainMessages = (
   threadMessages: readonly ThreadMessage[],
   parentId: string | null,

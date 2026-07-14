@@ -1,3 +1,4 @@
+import { SSEEventDecoder } from "assistant-stream/utils";
 import { contentToParts } from "./contentToParts";
 import type {
   AdkEvent,
@@ -213,34 +214,27 @@ function messagesToProxyBody(
 async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
+  const sseDecoder = new SSEEventDecoder({ trailing: "dispatch" });
 
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const parts = buffer.split("\n\n");
-      buffer = parts.pop() ?? "";
-
-      for (const part of parts) {
-        for (const line of part.split("\n")) {
-          if (line.startsWith("data: ")) {
-            yield JSON.parse(line.slice(6)) as AdkEvent;
-          }
+      if (done) {
+        for (const event of sseDecoder.push(decoder.decode())) {
+          yield JSON.parse(event.data) as AdkEvent;
         }
+        break;
+      }
+
+      for (const event of sseDecoder.push(
+        decoder.decode(value, { stream: true }),
+      )) {
+        yield JSON.parse(event.data) as AdkEvent;
       }
     }
 
-    // Handle remaining buffer
-    if (buffer.trim()) {
-      for (const line of buffer.split("\n")) {
-        if (line.startsWith("data: ")) {
-          yield JSON.parse(line.slice(6)) as AdkEvent;
-        }
-      }
-    }
+    const trailing = sseDecoder.flush();
+    if (trailing !== null) yield JSON.parse(trailing.data) as AdkEvent;
   } finally {
     reader.releaseLock();
   }

@@ -18,6 +18,11 @@
     "types": ["browser-process"],
     "paths": {
       "@assistant-ui/ui/*": ["./src/*"],
+      "@/components/ui/*": [
+        "./src/components/ui/base/*",
+        "./src/components/ui/radix/*"
+      ],
+      "@/components/ui/radix/*": ["./src/components/ui/radix/*"],
       "@/*": ["./src/*"]
     }
   },

@@ -39,7 +39,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@radix-ui/react-primitive": "^2.1.6",
+    "@radix-ui/react-primitive": "^2.1.7",
     "@radix-ui/react-use-callback-ref": "^1.1.2",
     "classnames": "^2.5.1",
     "react-markdown": "^10.1.0"
@@ -61,7 +61,7 @@
     "@types/react": "^19.2.17",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

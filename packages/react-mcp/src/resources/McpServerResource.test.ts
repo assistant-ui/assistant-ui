@@ -1,5 +1,6 @@
 import { createTapRoot, useResource } from "@assistant-ui/tap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MCPAuthConfig } from "../mcp-scope";
 import type { MCPStorage } from "./storage/types";
 
 const mocks = vi.hoisted(() => {
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => {
       }>;
     }>
   > = [];
+  const finishAuthResults: Array<() => Promise<void>> = [];
 
   const Client = vi.fn().mockImplementation(function Client(this: any) {
     const index = clients.length;
@@ -23,6 +25,7 @@ const mocks = vi.hoisted(() => {
       () => listToolsResults[index]?.() ?? Promise.resolve({ tools: [] }),
     );
     this.callTool = vi.fn();
+    this.listResources = vi.fn(() => Promise.resolve({ resources: [] }));
     this.readResource = vi.fn();
     clients.push(this);
   });
@@ -30,8 +33,11 @@ const mocks = vi.hoisted(() => {
   const StreamableHTTPClientTransport = vi
     .fn()
     .mockImplementation(function StreamableHTTPClientTransport(this: any) {
+      const index = transports.length;
       this.close = vi.fn(() => Promise.resolve());
-      this.finishAuth = vi.fn(() => Promise.resolve());
+      this.finishAuth = vi.fn(
+        () => finishAuthResults[index]?.() ?? Promise.resolve(),
+      );
       transports.push(this);
     });
 
@@ -42,6 +48,7 @@ const mocks = vi.hoisted(() => {
     transports,
     connectResults,
     listToolsResults,
+    finishAuthResults,
   };
 });
 
@@ -61,6 +68,18 @@ const tick = async () => {
   await Promise.resolve();
 };
 
+const flushMacrotask = async () => {
+  await new Promise<void>((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      channel.port2.close();
+      resolve();
+    };
+    channel.port2.postMessage(null);
+  });
+};
+
 const waitFor = async (predicate: () => boolean) => {
   for (let i = 0; i < 20; i++) {
     if (predicate()) return;
@@ -77,7 +96,20 @@ const createStorage = (): MCPStorage => ({
   clearAuthState: vi.fn(async () => {}),
 });
 
-const mount = (props?: { connectionTimeout?: number | undefined }) => {
+const resetMocks = () => {
+  mocks.clients.length = 0;
+  mocks.transports.length = 0;
+  mocks.connectResults.length = 0;
+  mocks.listToolsResults.length = 0;
+  mocks.finishAuthResults.length = 0;
+  mocks.Client.mockClear();
+  mocks.StreamableHTTPClientTransport.mockClear();
+};
+
+const mount = (props?: {
+  auth?: MCPAuthConfig | undefined;
+  connectionTimeout?: number | undefined;
+}) => {
   const connectionTimeout =
     props && "connectionTimeout" in props ? props.connectionTimeout : 10_000;
 
@@ -88,7 +120,7 @@ const mount = (props?: { connectionTimeout?: number | undefined }) => {
         kind: "connector",
         name: "Docs",
         url: "https://example.com/mcp",
-        auth: { type: "none" },
+        auth: props?.auth ?? { type: "none" },
         storage: createStorage(),
         redirectUri: "https://example.com/callback",
         autoConnect: false,
@@ -102,12 +134,7 @@ const mount = (props?: { connectionTimeout?: number | undefined }) => {
 describe("McpServerResource connectionTimeout", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    mocks.clients.length = 0;
-    mocks.transports.length = 0;
-    mocks.connectResults.length = 0;
-    mocks.listToolsResults.length = 0;
-    mocks.Client.mockClear();
-    mocks.StreamableHTTPClientTransport.mockClear();
+    resetMocks();
   });
 
   afterEach(() => {
@@ -214,6 +241,101 @@ describe("McpServerResource connectionTimeout", () => {
         lastError: null,
       });
       expect(mocks.transports[0].close).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+});
+
+describe("McpServerResource completeAuth", () => {
+  beforeEach(resetMocks);
+
+  it("rejects when the callback URL has no authorization code", async () => {
+    const root = mount();
+
+    try {
+      await expect(
+        root.getValue().completeAuth("https://example.com/callback?state=abc"),
+      ).rejects.toThrow("missing authorization code in callback URL");
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "error",
+        lastError: {
+          message: "missing authorization code in callback URL",
+        },
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("rejects after storing finishAuth failures on the server state", async () => {
+    mocks.finishAuthResults.push(() =>
+      Promise.reject(new Error("invalid_grant")),
+    );
+    const root = mount({ auth: { type: "oauth" } });
+
+    try {
+      await expect(
+        root.getValue().completeAuth("https://example.com/callback?code=abc"),
+      ).rejects.toThrow("invalid_grant");
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "error",
+        lastError: {
+          message: "invalid_grant",
+        },
+      });
+      expect(mocks.transports[0].finishAuth).toHaveBeenCalledWith("abc");
+      expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
+    } finally {
+      root.unmount();
+    }
+  });
+});
+
+describe("McpServerResource resource methods", () => {
+  beforeEach(() => {
+    mocks.clients.length = 0;
+    mocks.transports.length = 0;
+    mocks.connectResults.length = 0;
+    mocks.listToolsResults.length = 0;
+    mocks.Client.mockClear();
+    mocks.StreamableHTTPClientTransport.mockClear();
+  });
+
+  it("lists resources from a connected server", async () => {
+    const result = {
+      resources: [
+        {
+          uri: "docs://intro",
+          name: "Intro",
+          mimeType: "text/markdown",
+        },
+      ],
+    };
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      mocks.clients[0].listResources.mockResolvedValueOnce(result);
+
+      await expect(root.getValue().listResources()).resolves.toBe(result);
+      expect(mocks.clients[0].listResources).toHaveBeenCalledTimes(1);
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("rejects listResources when the server is disconnected", async () => {
+    const root = mount();
+
+    try {
+      await expect(root.getValue().listResources()).rejects.toThrow(
+        'MCP server "docs" is not connected',
+      );
     } finally {
       root.unmount();
     }

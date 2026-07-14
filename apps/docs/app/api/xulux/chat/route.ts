@@ -1,12 +1,10 @@
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
-import { createPrismTracer } from "@/lib/prism-server";
+import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
-import { getModel, openai } from "@/lib/ai/provider";
+import { getModel, openai, withTracing } from "@/lib/ai/provider";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
-import { prismAISDK } from "@aui-x/prism";
-import { withTracing } from "@posthog/ai";
 import { NextResponse } from "next/server";
 import {
   convertToModelMessages,
@@ -109,6 +107,7 @@ type JsonValue =
 type JsonObject = { [key: string]: JsonValue };
 
 const MAX_ACTIVE_PREVIEW_CONFIG_CHARS = 8_000;
+const MAX_RAW_MESSAGES_CHARS = 1_000_000;
 
 async function prepareMessages(messages: readonly UIMessage[]) {
   const modelMessages = await convertToModelMessages(
@@ -394,11 +393,16 @@ export async function POST(req: Request): Promise<Response> {
       activePreviewContext,
     } = body;
 
-    const inputError = validateDocChatInput(messages);
-    if (inputError) return inputError;
+    if (!Array.isArray(messages)) {
+      return new Response("Invalid messages format", { status: 400 });
+    }
+    if (JSON.stringify(messages).length > MAX_RAW_MESSAGES_CHARS) {
+      return new Response("Input too long", { status: 400 });
+    }
 
     const uiMessages = messages as UIMessage[];
     const prunedMessages = await prepareMessages(uiMessages);
+
     const normalizedPreviewContext =
       normalizeActivePreviewContext(activePreviewContext);
     const userMessageId = getLatestUserMessageId(uiMessages);
@@ -409,6 +413,31 @@ export async function POST(req: Request): Promise<Response> {
         { status: 400 },
       );
     }
+
+    const isFirstUserTurn =
+      prunedMessages.filter((m) => m.role === "user").length === 1 &&
+      !prunedMessages.some((m) => m.role === "assistant");
+    if (isFirstUserTurn) {
+      const templateContext = formatSelectedTemplateContext(selectedTemplate);
+      const firstUser = prunedMessages.find((m) => m.role === "user");
+      if (templateContext && firstUser) {
+        appendHiddenText(firstUser, templateContext);
+      }
+    }
+    if (normalizedPreviewContext) {
+      const latestUser = [...prunedMessages]
+        .reverse()
+        .find((m) => m.role === "user");
+      if (latestUser) {
+        appendHiddenText(
+          latestUser,
+          formatActivePreviewContext(normalizedPreviewContext),
+        );
+      }
+    }
+
+    const inputError = validateDocChatInput(prunedMessages);
+    if (inputError) return inputError;
 
     const distinctId = getDistinctId(req);
     const budget = await beginTurn(sessionId.trim(), distinctId);
@@ -438,28 +467,6 @@ export async function POST(req: Request): Promise<Response> {
       });
     }
     const budgetDate = budget.budgetDate;
-
-    const isFirstUserTurn =
-      prunedMessages.filter((m) => m.role === "user").length === 1 &&
-      !prunedMessages.some((m) => m.role === "assistant");
-    if (isFirstUserTurn) {
-      const templateContext = formatSelectedTemplateContext(selectedTemplate);
-      const firstUser = prunedMessages.find((m) => m.role === "user");
-      if (templateContext && firstUser) {
-        appendHiddenText(firstUser, templateContext);
-      }
-    }
-    if (normalizedPreviewContext) {
-      const latestUser = [...prunedMessages]
-        .reverse()
-        .find((m) => m.role === "user");
-      if (latestUser) {
-        appendHiddenText(
-          latestUser,
-          formatActivePreviewContext(normalizedPreviewContext),
-        );
-      }
-    }
 
     const evalRunId = req.headers.get("x-agent-eval-run-id");
     const localTraceUrl = req.headers.get("x-agent-eval-trace-url");

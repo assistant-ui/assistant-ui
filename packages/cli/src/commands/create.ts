@@ -104,11 +104,11 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
-    name: "with-ai-sdk-v6",
-    label: "AI SDK v6",
-    description: "Vercel AI SDK v6",
+    name: "with-ai-sdk-v7",
+    label: "AI SDK v7",
+    description: "Vercel AI SDK v7",
     category: "example",
-    path: "examples/with-ai-sdk-v6",
+    path: "examples/with-ai-sdk-v7",
     hasLocalComponents: false,
   },
   {
@@ -253,6 +253,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "TanStack/React Router + Vite",
     category: "example",
     path: "examples/with-tanstack",
+    hasLocalComponents: false,
+  },
+  {
+    name: "with-resumable-stream",
+    label: "Resumable Stream",
+    description: "Resumable LLM stream that survives reload mid-response",
+    category: "example",
+    path: "examples/with-resumable-stream",
     hasLocalComponents: false,
   },
 ];

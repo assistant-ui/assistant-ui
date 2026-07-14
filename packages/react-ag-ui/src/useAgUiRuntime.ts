@@ -58,6 +58,7 @@ export function useAgUiRuntime(
       agent: options.agent,
       logger,
       showThinking: options.showThinking ?? true,
+      autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
       ...(options.onError && { onError: options.onError }),
       ...(options.onCancel && { onCancel: options.onCancel }),
       ...(historyAdapter && { history: historyAdapter }),
@@ -70,6 +71,7 @@ export function useAgUiRuntime(
     agent: options.agent,
     logger,
     showThinking: options.showThinking ?? true,
+    autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
     ...(options.onError && { onError: options.onError }),
     ...(options.onCancel && { onCancel: options.onCancel }),
     ...(historyAdapter && { history: historyAdapter }),
@@ -132,11 +134,14 @@ export function useAgUiRuntime(
   const store = useMemo(
     () => {
       void _version; // rerender on version change
+      const messageRepository = core.getMessageRepository();
 
       return {
         ...shared,
         isLoading: core.isLoading,
-        messages: core.getMessages(),
+        ...(messageRepository
+          ? { messageRepository }
+          : { messages: core.getMessages() }),
         state: core.getState(),
         isRunning: core.isRunning() || hasExecutingTools,
         extras: agUiExtras.provide({

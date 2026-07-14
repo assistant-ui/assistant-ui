@@ -7,7 +7,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/components/ui/radix/collapsible";
 import { cn } from "@/lib/utils";
 import {
   ToolStatusIcon,

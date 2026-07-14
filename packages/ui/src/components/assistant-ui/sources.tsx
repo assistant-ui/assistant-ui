@@ -2,9 +2,10 @@
 
 import { memo, useState, type ComponentProps } from "react";
 import { FileTextIcon } from "lucide-react";
+import type { VariantProps } from "class-variance-authority";
 import type { SourceMessagePartComponent } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
-import { Badge, badgeVariants, type BadgeProps } from "./badge";
+import { Badge, badgeVariants } from "./badge";
 
 const extractDomain = (url: string): string => {
   try {
@@ -83,37 +84,29 @@ function DocumentSourceIcon({ className, ...props }: ComponentProps<"span">) {
   );
 }
 
-export type SourceProps = Omit<BadgeProps, "asChild"> &
-  ComponentProps<"a"> & {
-    asChild?: boolean;
-  };
+export type SourceProps = ComponentProps<"a"> &
+  VariantProps<typeof badgeVariants>;
 
 function Source({
   className,
   variant,
   size,
-  asChild = false,
   target = "_blank",
   rel = "noopener noreferrer",
   ...props
 }: SourceProps) {
   return (
-    <Badge
-      asChild
-      variant={variant}
-      size={size}
+    <a
+      data-slot="source"
       className={cn(
+        badgeVariants({ variant, size }),
         "focus-visible:border-ring focus-visible:ring-ring/50 cursor-pointer outline-none focus-visible:ring-[3px]",
         className,
       )}
-    >
-      <a
-        data-slot="source"
-        target={target}
-        rel={rel}
-        {...(props as ComponentProps<"a">)}
-      />
-    </Badge>
+      target={target}
+      rel={rel}
+      {...props}
+    />
   );
 }
 

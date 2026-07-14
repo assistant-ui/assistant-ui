@@ -20,9 +20,9 @@ import { HeatGraphDemo } from "@/app/(demos)/heat-graph/heat-graph-demo";
 <Tabs items={["shadcn", "npm", "pnpm", "yarn"]}>
   <Tab value="shadcn">
     ```sh
-    npx shadcn@latest add https://r.assistant-ui.com/heat-graph
+    npx shadcn@latest add @assistant-ui/heat-graph
     ```
-    This installs a pre-styled `HeatGraph` component to `components/assistant-ui/heat-graph.tsx` along with the `heat-graph` package.
+    This installs a pre-styled `HeatGraph` component to `components/assistant-ui/heat-graph.tsx` along with the `heat-graph` package. The `@assistant-ui` namespace resolves through the registry entry configured in [Manual Setup](/docs/installation#manual-setup).
   </Tab>
   <Tab value="npm">
     ```sh

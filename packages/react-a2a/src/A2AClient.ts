@@ -1,3 +1,4 @@
+import { SSEEventDecoder, type SSEEvent } from "assistant-stream/utils";
 import type {
   A2AAgentCard,
   A2AErrorInfo,
@@ -493,57 +494,59 @@ export class A2AClient {
   // --- SSE Parsing ---
 
   private async *parseSSE(response: Response): AsyncGenerator<A2AStreamEvent> {
+    const contentType = response.headers.get("Content-Type");
+    const mediaType = contentType?.split(";", 1)[0]?.trim().toLowerCase();
+    if (mediaType !== "text/event-stream") {
+      const received = contentType
+        ? `"${contentType}"`
+        : "no Content-Type header";
+      throw new Error(
+        `Expected A2A stream response Content-Type "text/event-stream", received ${received}`,
+      );
+    }
+
     const reader = response.body?.getReader();
     if (!reader) throw new Error("No response body");
 
     const decoder = new TextDecoder();
-    let buffer = "";
+    const sseDecoder = new SSEEventDecoder();
+
+    const readEvent = (event: SSEEvent): A2AStreamEvent | null => {
+      try {
+        let parsed = JSON.parse(event.data);
+
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          "jsonrpc" in parsed &&
+          "result" in parsed
+        ) {
+          parsed = parsed.result;
+        }
+
+        const normalized = normalizeKeys(parsed) as Record<string, unknown>;
+        return discriminateStreamResponse(normalized);
+      } catch {
+        return null;
+      }
+    };
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        let eventEnd: number = buffer.indexOf("\n\n");
-        while (eventEnd !== -1) {
-          const eventText = buffer.slice(0, eventEnd);
-          buffer = buffer.slice(eventEnd + 2);
-
-          const dataLines: string[] = [];
-
-          for (const line of eventText.split("\n")) {
-            const trimmed = line.replace(/\r$/, "");
-            if (trimmed.startsWith("data:")) {
-              dataLines.push(trimmed.slice(5).trim());
-            }
-            // event:, id:, retry: lines are parsed but not used —
-            // we discriminate event type from the JSON payload.
+        if (done) {
+          for (const event of sseDecoder.push(decoder.decode())) {
+            const parsed = readEvent(event);
+            if (parsed) yield parsed;
           }
+          break;
+        }
 
-          if (dataLines.length === 0) continue;
-
-          try {
-            let parsed = JSON.parse(dataLines.join("\n"));
-
-            // Unwrap JSON-RPC envelope if present
-            if (
-              parsed &&
-              typeof parsed === "object" &&
-              "jsonrpc" in parsed &&
-              "result" in parsed
-            ) {
-              parsed = parsed.result;
-            }
-
-            const normalized = normalizeKeys(parsed) as Record<string, unknown>;
-            const event = discriminateStreamResponse(normalized);
-            if (event) yield event;
-          } catch {
-            // Skip malformed events
-          }
-          eventEnd = buffer.indexOf("\n\n");
+        for (const event of sseDecoder.push(
+          decoder.decode(value, { stream: true }),
+        )) {
+          const parsed = readEvent(event);
+          if (parsed) yield parsed;
         }
       }
     } finally {

@@ -195,16 +195,30 @@ export abstract class BaseComposerRuntimeCore
           )
         : [];
 
+    const originalAttachments = this.attachments;
     const text = this.text;
     const quote = this._quote;
     this._quote = undefined;
     this._emptyTextAndAttachments();
 
+    let resolvedAttachments: Awaited<typeof attachments>;
+    try {
+      resolvedAttachments = await attachments;
+    } catch (e) {
+      if (this.isEmpty && this._quote === undefined) {
+        this._attachments = originalAttachments;
+        this._text = text;
+        this._quote = quote;
+        this._notifySubscribers();
+      }
+      throw e;
+    }
+
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
       role: this.role,
       content: text ? [{ type: "text", text }] : [],
-      attachments: await attachments,
+      attachments: resolvedAttachments,
       runConfig: this.runConfig,
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
@@ -321,7 +335,11 @@ export abstract class BaseComposerRuntimeCore
       if (lastAttachment) {
         upsertAttachment({
           ...lastAttachment,
-          status: { type: "incomplete", reason: "error" },
+          status: {
+            type: "incomplete",
+            reason: "error",
+            message: e instanceof Error ? e.message : String(e),
+          },
         });
       }
       this._safeEmitAttachmentAddError(
@@ -333,14 +351,15 @@ export abstract class BaseComposerRuntimeCore
       throw e;
     }
 
-    const hasError =
+    if (
       lastAttachment?.status.type === "incomplete" &&
-      lastAttachment.status.reason === "error";
-    if (hasError) {
+      lastAttachment.status.reason === "error"
+    ) {
       this._safeEmitAttachmentAddError(
         "adapter-error",
-        "Attachment upload did not complete successfully.",
-        lastAttachment?.id,
+        lastAttachment.status.message ??
+          "Attachment upload did not complete successfully.",
+        lastAttachment.id,
       );
     } else {
       this._notifyEventSubscribers("attachmentAdd", {});

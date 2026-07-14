@@ -4,6 +4,36 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
 
+const deployEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
+const faviconVariant =
+  deployEnv === "preview" || deployEnv === "development"
+    ? deployEnv
+    : undefined;
+
+// Browsers prefer the app-router icon <link> tags (icon.svg, icon0.svg,
+// icon1.png) over /favicon.ico, so every icon route must be rewritten for the
+// environment favicon to actually show in the tab.
+const faviconRewrites = faviconVariant
+  ? [
+      {
+        source: "/favicon.ico",
+        destination: `/favicon.${faviconVariant}.ico`,
+      },
+      {
+        source: "/icon.svg",
+        destination: `/favicon.${faviconVariant}.svg`,
+      },
+      {
+        source: "/icon0.svg",
+        destination: `/favicon.${faviconVariant}.svg`,
+      },
+      {
+        source: "/icon1.png",
+        destination: `/favicon.${faviconVariant}.png`,
+      },
+    ]
+  : [];
+
 // The playground AI Builder renders same-origin preview routes inside an iframe.
 // Keep frame ancestors self-only so external sites still cannot embed docs pages.
 const cspHeader = `
@@ -36,8 +66,16 @@ const config: NextConfig = {
       ],
     },
   ],
+  redirects: async () => [
+    {
+      source: "/docs/runtimes/ai-sdk/v6",
+      destination: "/docs/runtimes/ai-sdk/v6-legacy",
+      permanent: true,
+    },
+  ],
   rewrites: async () => ({
     beforeFiles: [
+      ...faviconRewrites,
       {
         source: "/mcp",
         destination: "/api/mcp",

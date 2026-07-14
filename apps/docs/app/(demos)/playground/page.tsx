@@ -37,7 +37,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
+} from "@/components/ui/radix/sheet";
 import { cn } from "@/lib/utils";
 import {
   usePlaygroundState,

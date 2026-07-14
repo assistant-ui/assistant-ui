@@ -1,17 +1,15 @@
 import { getLLMText } from "@/lib/get-llm-text";
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
-import { createPrismTracer } from "@/lib/prism-server";
+import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
 import { source, examples as examplesSource } from "@/lib/source";
-import { getModel } from "@/lib/ai/provider";
+import { getModel, withTracing } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { createBashTool } from "bash-tool";
-import { prismAISDK } from "@aui-x/prism";
-import { withTracing } from "@posthog/ai";
 import {
   convertToModelMessages,
   pruneMessages,

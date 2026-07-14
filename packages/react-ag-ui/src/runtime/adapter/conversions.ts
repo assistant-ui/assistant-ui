@@ -1,7 +1,10 @@
 "use client";
 
 import type { InputContent } from "@ag-ui/client";
-import type { ThreadMessageLike as CoreThreadMessageLike } from "@assistant-ui/core";
+import type {
+  ThreadMessageLike as CoreThreadMessageLike,
+  ToolModelContentPart,
+} from "@assistant-ui/core";
 import { getAutoStatus } from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
@@ -59,6 +62,7 @@ type ToolCallPart = {
   args?: ReadonlyJSONObject;
   result?: unknown;
   isError?: boolean;
+  modelContent?: readonly ToolModelContentPart[];
   unstable_toolMessageId?: string;
 };
 
@@ -715,10 +719,13 @@ function convertAssistantMessage(
   for (const { id: toolCallId, part } of toolCalls) {
     if (part.result === undefined) continue;
 
+    const modelText = extractText(part.modelContent);
     const resultContent =
-      typeof part.result === "string"
-        ? part.result
-        : JSON.stringify(part.result);
+      modelText.length > 0
+        ? modelText
+        : typeof part.result === "string"
+          ? part.result
+          : JSON.stringify(part.result);
 
     const toolMessage: AgUiMessage = {
       id: part.unstable_toolMessageId ?? `${toolCallId}:tool`,

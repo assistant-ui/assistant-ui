@@ -1,4 +1,10 @@
-import { isToolUIPart, getToolName, type UIMessage } from "ai";
+import {
+  isToolUIPart,
+  isReasoningFileUIPart,
+  isCustomContentUIPart,
+  getToolName,
+  type UIMessage,
+} from "ai";
 import {
   createMessageConverter as unstable_createMessageConverter,
   type useExternalMessageConverter,
@@ -9,6 +15,7 @@ import {
   type ToolCallMessagePart,
   type TextMessagePart,
   type DataMessagePart,
+  type PartProviderMetadata,
   type SourceMessagePart,
   type SourceProviderMetadata,
   type FileMessagePart,
@@ -70,10 +77,11 @@ function extractMcpAppMetadata(
   }
   if (typeof a["resourceUri"] !== "string") return undefined;
   if (!isMcpAppUri(a["resourceUri"])) return undefined;
-  const cached = cache?.get(a["resourceUri"]);
+  const cacheKey = `${typeof a["serverId"] === "string" ? a["serverId"] : ""} ${a["resourceUri"]}`;
+  const cached = cache?.get(cacheKey);
   if (cached) {
-    cache!.delete(a["resourceUri"]);
-    cache!.set(a["resourceUri"], cached);
+    cache!.delete(cacheKey);
+    cache!.set(cacheKey, cached);
     return cached;
   }
   const out: { -readonly [K in keyof McpAppMetadata]: McpAppMetadata[K] } = {
@@ -85,12 +93,14 @@ function extractMcpAppMetadata(
       (v): v is "model" | "app" => v === "model" || v === "app",
     );
   }
+  if (typeof a["serverId"] === "string" && a["serverId"].length > 0)
+    out.serverId = a["serverId"];
   if (cache) {
     if (cache.size >= MCP_APP_METADATA_CACHE_MAX) {
       const oldest = cache.keys().next().value;
       if (oldest !== undefined) cache.delete(oldest);
     }
-    cache.set(a["resourceUri"], out);
+    cache.set(cacheKey, out);
   }
   return out;
 }
@@ -206,6 +216,11 @@ function convertParts(
         return {
           type: "text",
           text: part.text,
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata: part.providerMetadata as PartProviderMetadata,
+              }
+            : undefined),
         } satisfies TextMessagePart;
       }
 
@@ -213,6 +228,11 @@ function convertParts(
         return {
           type: "reasoning",
           text: part.text,
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata: part.providerMetadata as PartProviderMetadata,
+              }
+            : undefined),
         } satisfies ReasoningMessagePart;
       }
 
@@ -293,6 +313,12 @@ function convertParts(
           isError,
           ...(modelContent !== undefined && { modelContent }),
           ...(mcpApp && { mcp: { app: mcpApp } }),
+          ...(part.callProviderMetadata != null
+            ? {
+                providerMetadata:
+                  part.callProviderMetadata as PartProviderMetadata,
+              }
+            : undefined),
           ...getToolApprovalAndInterrupt(part, toolStatus),
         } satisfies ToolCallMessagePart;
       }
@@ -347,6 +373,22 @@ function convertParts(
         } satisfies DataMessagePart;
       }
 
+      if (isReasoningFileUIPart(part)) {
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType,
+        } satisfies FileMessagePart;
+      }
+
+      if (isCustomContentUIPart(part)) {
+        return {
+          type: "data",
+          name: part.kind,
+          data: part.providerMetadata ?? null,
+        } satisfies DataMessagePart;
+      }
+
       console.warn(`Unsupported message part type: ${part.type}`);
       return null;
     })
@@ -376,27 +418,31 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           content,
           attachments: message.parts
             ?.filter((p) => p.type === "file")
-            .map((part, idx) => ({
-              id: idx.toString(),
-              type: part.mediaType.startsWith("image/") ? "image" : "file",
-              name: part.filename ?? "file",
-              content: [
-                part.mediaType.startsWith("image/")
-                  ? {
-                      type: "image",
-                      image: part.url,
-                      filename: part.filename!,
-                    }
-                  : {
-                      type: "file",
-                      filename: part.filename!,
-                      data: part.url,
-                      mimeType: part.mediaType,
-                    },
-              ],
-              contentType: part.mediaType ?? "unknown/unknown",
-              status: { type: "complete" as const },
-            })),
+            .map((part, idx) => {
+              const mediaType = part.mediaType ?? "unknown/unknown";
+              const isImage = mediaType.startsWith("image/");
+              return {
+                id: idx.toString(),
+                type: isImage ? "image" : "file",
+                name: part.filename ?? "file",
+                content: [
+                  isImage
+                    ? {
+                        type: "image",
+                        image: part.url,
+                        filename: part.filename!,
+                      }
+                    : {
+                        type: "file",
+                        filename: part.filename!,
+                        data: part.url,
+                        mimeType: mediaType,
+                      },
+                ],
+                contentType: mediaType,
+                status: { type: "complete" as const },
+              };
+            }),
           metadata: message.metadata as MessageMetadata,
         };
 
