@@ -2447,6 +2447,7 @@ type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
   readonly visibility?: readonly ("app" | "model")[];
+  readonly serverId?: string;
 };
 
 declare const McpAppRenderer: Resource<{
@@ -2501,12 +2502,18 @@ type McpAppToolCallParams = {
 type McpAppsHost = {
   loadResource: (params: {
     uri: string;
+    serverId?: string;
   }) => Promise<McpAppResource>;
-  callTool: (params: McpAppToolCallParams) => Promise<unknown>;
+  callTool: (params: McpAppToolCallParams & {
+    serverId?: string;
+  }) => Promise<unknown>;
   readResource: (params: {
     uri: string;
+    serverId?: string;
   }) => Promise<unknown>;
-  listResources: (params?: unknown) => Promise<unknown>;
+  listResources: (params?: {
+    serverId?: string;
+  } & Record<string, unknown>) => Promise<unknown>;
 };
 
 declare const McpAppsRemoteHost: Resource<McpAppsHost, [
