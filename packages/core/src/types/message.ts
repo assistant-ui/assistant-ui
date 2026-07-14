@@ -128,6 +128,8 @@ export type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
   readonly visibility?: readonly ("model" | "app")[];
+  /** Routable server identity emitted by the agent stack when multiple MCP servers back one agent; for @ag-ui/mcp-apps-middleware this is the configured serverId, falling back to its serverHash. */
+  readonly serverId?: string;
 };
 
 export const MCP_APP_URI_SCHEME = "ui://";
