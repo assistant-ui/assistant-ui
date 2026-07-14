@@ -1,0 +1,103 @@
+---
+title: Electron
+description: Run assistant-ui in an Electron renderer with a hosted backend or a secure, streaming preload and IPC bridge.
+platforms: ["react"]
+---
+
+assistant-ui works in Electron through `@assistant-ui/react`. The renderer is a React DOM environment, so there is no separate `@assistant-ui/electron` package to install. The Electron-specific decision is where model requests run and how the renderer reaches them.
+
+<Callout type="warn">
+  Never put a provider API key in renderer code, a `VITE_*` variable, or a preload script. Bundled values are readable by anyone with the app. Keep remote credentials on your backend, or keep local credentials in the main process and provision them with an OS-backed secret store.
+</Callout>
+
+## Choose a connection pattern
+
+| Pattern | Use it when | Runtime |
+| --- | --- | --- |
+| Hosted backend | You already have an AI SDK endpoint, need server auth or persistence, or ship the app to other people | `useChatRuntime` with an absolute HTTPS URL |
+| Local main process | The desktop app owns the provider or agent process and must work without your web backend | `useLocalRuntime` with a narrow preload/IPC bridge |
+
+```mermaid
+flowchart LR
+  Renderer["Electron renderer<br/>assistant-ui React"] -->|"absolute HTTPS"| Backend["Hosted chat backend"]
+  Renderer -->|"window.assistantAI"| Preload["context-isolated preload"]
+  Preload -->|"transferred MessagePort"| Main["Electron main process"]
+  Backend --> Provider["Model or agent"]
+  Main --> Provider
+```
+
+Do not send an SDK client, assistant-ui runtime, callback, `AbortSignal`, or `File` through IPC. Electron IPC uses structured clone semantics; define a small data-only protocol instead.
+
+## Pattern 1: hosted backend
+
+This is the smallest integration. Keep your existing AI SDK chat route and point `AssistantChatTransport` at its public URL.
+
+<include meta='title="renderer/assistant-runtime.tsx"'>../../../snippets/electron/remote.tsx</include>
+
+The URL must be absolute in a packaged app. A relative value such as `/api/chat` targets the renderer's `file://` or custom-protocol origin, not your deployed backend. Configure the backend's CORS policy for the packaged origin, allow the endpoint in `connect-src`, and authenticate requests as you would from any desktop client.
+
+The endpoint must return the AI SDK UI message stream consumed by `AssistantChatTransport`. See the [AI SDK runtime guide](/docs/runtimes/ai-sdk/v7) for the backend route and tool-calling setup.
+
+## Pattern 2: local main process
+
+Use this pattern when the Electron main process calls the model or runs a local agent. Keep `contextIsolation: true`, `sandbox: true`, and `nodeIntegration: false` on the `BrowserWindow`. Register `registerAssistantIpc(mainWindow)` after creating the trusted window.
+
+The following example is intentionally text-only. It streams one request over a dedicated `MessagePort`; closing that port propagates assistant-ui's Stop action to an `AbortController` in the main process.
+
+### 1. Define a data-only protocol
+
+Place the shared types somewhere all three Electron bundles can import.
+
+<include meta='title="shared/assistant-ipc.ts"'>../../../snippets/electron/shared.ts</include>
+
+### 2. Expose one preload capability
+
+Expose the smallest API the renderer needs, not `ipcRenderer` itself. The callback receives only validated event data, never Electron's privileged IPC event object.
+
+<include meta='title="preload/assistant.ts"'>../../../snippets/electron/preload.ts</include>
+
+Declare the context-bridge API for renderer TypeScript:
+
+<include meta='title="renderer/electron.d.ts"'>../../../snippets/electron/electron.d.ts</include>
+
+### 3. Stream from the main process
+
+Install the provider packages in the Electron main-process bundle:
+
+```sh
+pnpm add ai @ai-sdk/openai
+```
+
+The handler checks both the sending `WebContents` and its main frame, validates the untrusted payload and bounds its size before calling the model. Set `OPENAI_API_KEY` only in the main-process environment.
+
+<include meta='title="main/assistant-ipc.ts"'>../../../snippets/electron/main.ts</include>
+
+If your app can open more than one trusted assistant window, register a unique channel per window or route requests through one application-level registry. A global `ipcMain.on` listener should not be re-registered under the same channel for every window.
+
+### 4. Adapt IPC to assistant-ui
+
+`ChatModelAdapter` yields complete snapshots, so the renderer accumulates each IPC delta before yielding it. Its cleanup function closes the port on Stop, unmount, or completion.
+
+<include meta='title="renderer/assistant-runtime.tsx"'>../../../snippets/electron/renderer.tsx</include>
+
+Wrap your existing assistant-ui thread with `ElectronRuntimeProvider`. Primitives and installed UI components work exactly as they do in a browser React app.
+
+## Extend the protocol deliberately
+
+The local example drops every non-text content part. Add explicit structured-clone-safe fields before claiming support for more features:
+
+- Attachments: pass bounded `ArrayBuffer` data or an app-owned file reference after validating type, size, and path in the main process. Do not pass browser `File` objects.
+- Tools: define serializable tool-call and tool-result events, and validate every tool invocation in the privileged process. Never expose a generic shell or filesystem IPC method.
+- Reasoning and metadata: add distinct event variants and map them to the corresponding assistant-ui content parts.
+- Thread persistence: store serializable thread data in the main process or use a remote thread-list adapter; do not try to transfer a runtime object.
+
+## Packaged-app checklist
+
+- Use an absolute HTTPS endpoint, a privileged custom protocol, or the preload bridge. Relative `/api/*` routes that worked against a development server will not follow your backend after packaging.
+- Serve local content through a custom protocol instead of `file://` when possible, and define a restrictive Content Security Policy. Do not disable `webSecurity` to work around origin errors.
+- Validate every IPC sender and every payload in the main process. Treat renderer data as untrusted even when the renderer is local.
+- Intercept new windows and external links with `webContents.setWindowOpenHandler`; do not let model-generated links create unrestricted Electron windows.
+- If you render remote HTML with `SafeContentFrame`, allow its documented host in `frame-src`. Ordinary text and Markdown rendering need no Electron-specific change.
+- Test the packaged build, not only the Vite or Webpack development server. The scheme, origin, preload path, CSP, and environment loading can all differ.
+
+For the underlying platform constraints, see Electron's official guides to [IPC and MessagePorts](https://www.electronjs.org/docs/latest/tutorial/message-ports), [context isolation](https://www.electronjs.org/docs/latest/tutorial/context-isolation), and the [security checklist](https://www.electronjs.org/docs/latest/tutorial/security).
