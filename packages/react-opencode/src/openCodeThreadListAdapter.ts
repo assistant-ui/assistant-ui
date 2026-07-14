@@ -72,9 +72,21 @@ export const createOpenCodeThreadListAdapter = (
       throw new Error("OpenCode fork requires a source message id");
     }
 
+    const messagesResponse = await client.session.messages({
+      sessionID: remoteId,
+    });
+    const messages = messagesResponse.data ?? [];
+    const sourceIndex = messages.findIndex(
+      (message) => message.info.id === options.fromMessageId,
+    );
+    if (sourceIndex === -1) {
+      throw new Error("OpenCode fork source message not found");
+    }
+
+    const boundaryMessageId = messages[sourceIndex + 1]?.info.id;
     const response = await client.session.fork({
       sessionID: remoteId,
-      messageID: options.fromMessageId,
+      ...(boundaryMessageId ? { messageID: boundaryMessageId } : {}),
     });
     if (!response.data?.id) {
       throw new Error("Failed to fork OpenCode session");
