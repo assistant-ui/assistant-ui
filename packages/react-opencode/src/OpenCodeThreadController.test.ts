@@ -55,6 +55,31 @@ const createReconnectClient = ({
 });
 
 describe("OpenCodeThreadController", () => {
+  it("keeps the deprecated fork method inclusive", async () => {
+    const client = {
+      session: {
+        messages: vi.fn().mockResolvedValue({
+          data: [
+            { info: { id: "msg_1" }, parts: [] },
+            { info: { id: "msg_2" }, parts: [] },
+          ],
+        }),
+        fork: vi.fn().mockResolvedValue({ data: { id: "ses_fork" } }),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await expect(controller.fork("msg_1")).resolves.toBe("ses_fork");
+    expect(client.session.fork).toHaveBeenCalledWith({
+      sessionID: "ses_1",
+      messageID: "msg_2",
+    });
+  });
+
   it("stages a message locally and sends it later", async () => {
     const client = {
       session: {

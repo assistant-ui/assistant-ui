@@ -27,6 +27,7 @@ import {
   type OpenCodeEventSource,
 } from "./OpenCodeEventSource";
 import { serializeUserParts } from "./serializeUserParts";
+import { forkOpenCodeSession } from "./openCodeThreadListAdapter";
 
 type OpenCodeEventSourceProvider = () => Pick<OpenCodeEventSource, "subscribe">;
 
@@ -443,6 +444,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     await this.client.session.unrevert({
       sessionID: this.sessionId,
     });
+  }
+
+  /** @deprecated Use `aui.threadListItem().fork({ fromMessageId })` instead. */
+  public async fork(messageId: string) {
+    return forkOpenCodeSession(this.client, this.sessionId, messageId);
   }
 
   public async replyToPermission(

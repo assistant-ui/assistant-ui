@@ -219,6 +219,8 @@ export type OpenCodeRuntimeExtras = {
   state: OpenCodeThreadState;
   permissions: OpenCodeThreadState["interactions"]["permissions"]["pending"];
   questions: OpenCodeThreadState["interactions"]["questions"]["pending"];
+  /** @deprecated Use `aui.threadListItem().fork({ fromMessageId })` instead. */
+  fork: (messageId: string) => Promise<string>;
   revert: (messageId: string) => Promise<void>;
   unrevert: () => Promise<void>;
   cancel: () => Promise<void>;
@@ -322,6 +324,8 @@ export type OpenCodeThreadControllerLike = {
   cancel(): Promise<void>;
   revert(messageId: string): Promise<void>;
   unrevert(): Promise<void>;
+  /** @deprecated Use `aui.threadListItem().fork({ fromMessageId })` instead. */
+  fork(messageId: string): Promise<string>;
   replyToPermission(
     permissionId: string,
     response: OpenCodePermissionResponse,

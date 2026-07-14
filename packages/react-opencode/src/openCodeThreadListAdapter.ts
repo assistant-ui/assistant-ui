@@ -1,6 +1,7 @@
 import {
   createOpencodeClient,
   type GlobalSession,
+  type OpencodeClient,
 } from "@opencode-ai/sdk/v2/client";
 
 const isArchivedSession = (session: Pick<GlobalSession, "time">) => {
@@ -19,6 +20,34 @@ const mapThreadMetadata = (session: {
   externalId: session.id,
   title: session.title,
 });
+
+export const forkOpenCodeSession = async (
+  client: OpencodeClient,
+  sessionId: string,
+  fromMessageId: string,
+) => {
+  const messagesResponse = await client.session.messages({
+    sessionID: sessionId,
+  });
+  const messages = messagesResponse.data ?? [];
+  // OpenCode returns session messages in chronological order.
+  const sourceIndex = messages.findIndex(
+    (message) => message.info.id === fromMessageId,
+  );
+  if (sourceIndex === -1) {
+    throw new Error("OpenCode fork source message not found");
+  }
+
+  const boundaryMessageId = messages[sourceIndex + 1]?.info.id;
+  const response = await client.session.fork({
+    sessionID: sessionId,
+    ...(boundaryMessageId ? { messageID: boundaryMessageId } : {}),
+  });
+  if (!response.data?.id) {
+    throw new Error("Failed to fork OpenCode session");
+  }
+  return response.data.id;
+};
 
 export const createOpenCodeThreadListAdapter = (
   client: ReturnType<typeof createOpencodeClient>,
@@ -72,28 +101,14 @@ export const createOpenCodeThreadListAdapter = (
       throw new Error("OpenCode fork requires a source message id");
     }
 
-    const messagesResponse = await client.session.messages({
-      sessionID: remoteId,
-    });
-    const messages = messagesResponse.data ?? [];
-    const sourceIndex = messages.findIndex(
-      (message) => message.info.id === options.fromMessageId,
+    const forkedSessionId = await forkOpenCodeSession(
+      client,
+      remoteId,
+      options.fromMessageId,
     );
-    if (sourceIndex === -1) {
-      throw new Error("OpenCode fork source message not found");
-    }
-
-    const boundaryMessageId = messages[sourceIndex + 1]?.info.id;
-    const response = await client.session.fork({
-      sessionID: remoteId,
-      ...(boundaryMessageId ? { messageID: boundaryMessageId } : {}),
-    });
-    if (!response.data?.id) {
-      throw new Error("Failed to fork OpenCode session");
-    }
     return {
-      remoteId: response.data.id,
-      externalId: response.data.id,
+      remoteId: forkedSessionId,
+      externalId: forkedSessionId,
     };
   },
   initialize: async () => {
