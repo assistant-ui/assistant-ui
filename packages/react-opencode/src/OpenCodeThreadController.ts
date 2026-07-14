@@ -415,6 +415,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     const staged = this.stagedMessages.get(parentId);
     if (!staged) return false;
 
+    if (
+      this.state.pendingUserMessages[staged.pending.clientId]?.status ===
+      "failed"
+    ) {
+      this.dispatch({ type: "local.message.queued", pending: staged.pending });
+    }
+
     await this.promptMessage(
       staged.message,
       staged.pending,

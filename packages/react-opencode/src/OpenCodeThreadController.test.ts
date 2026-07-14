@@ -110,13 +110,14 @@ describe("OpenCodeThreadController", () => {
     ).resolves.toBe(false);
   });
 
-  it("keeps a staged message when sending it fails", async () => {
+  it("resets a failed staged message when retrying", async () => {
+    const retry = createDeferred<unknown>();
     const client = {
       session: {
         promptAsync: vi
           .fn()
           .mockRejectedValueOnce(new Error("boom"))
-          .mockResolvedValueOnce({}),
+          .mockReturnValueOnce(retry.promise),
       },
     };
     const controller = new OpenCodeThreadController(
@@ -140,10 +141,25 @@ describe("OpenCodeThreadController", () => {
     await expect(
       controller.sendStagedMessage(`local:${pendingId}`),
     ).rejects.toThrow("boom");
+    expect(controller.getState().pendingUserMessages[pendingId!]).toMatchObject(
+      {
+        status: "failed",
+        error: expect.any(Error),
+      },
+    );
 
-    await expect(
-      controller.sendStagedMessage(`local:${pendingId}`),
-    ).resolves.toBe(true);
+    const retryRequest = controller.sendStagedMessage(`local:${pendingId}`);
+    expect(controller.getState().pendingUserMessages[pendingId!]).toMatchObject(
+      {
+        status: "pending",
+      },
+    );
+    expect(
+      controller.getState().pendingUserMessages[pendingId!]?.error,
+    ).toBeUndefined();
+
+    retry.resolve({});
+    await expect(retryRequest).resolves.toBe(true);
   });
 
   it("marks a message failed when the OpenCode SDK returns an error", async () => {
