@@ -46,8 +46,13 @@ const OMITTED_STATIC_PROP_NAMES = new Set([
   "priority",
 ]);
 
+export type LLMRenderContext = { flavor: "radix" | "base" };
+
+const DEFAULT_LLM_CONTEXT: LLMRenderContext = { flavor: "base" };
+
 type StaticFunctionComponent = (
   props: Record<string, unknown>,
+  ctx?: LLMRenderContext,
 ) => ReactNode | Promise<ReactNode>;
 
 // Marker that React/Next.js stamp onto `"use client"` module exports. Part of
@@ -133,11 +138,12 @@ function getStaticEntries(props: Record<string, unknown>) {
 
 async function renderDescriptionList(
   entries: Array<[string, unknown]>,
+  ctx: LLMRenderContext,
 ): Promise<ReactNode> {
   const renderedEntries = (
     await Promise.all(
       entries.map(async ([key, value]) => {
-        const rendered = await renderStaticValue(value);
+        const rendered = await renderStaticValue(value, ctx);
         if (isEmptyNode(rendered)) return null;
 
         return (
@@ -153,7 +159,10 @@ async function renderDescriptionList(
   return renderedEntries.length > 0 ? <dl>{renderedEntries}</dl> : null;
 }
 
-async function renderStaticValue(value: unknown): Promise<ReactNode> {
+async function renderStaticValue(
+  value: unknown,
+  ctx: LLMRenderContext,
+): Promise<ReactNode> {
   if (value == null || typeof value === "boolean") return null;
 
   if (
@@ -165,11 +174,13 @@ async function renderStaticValue(value: unknown): Promise<ReactNode> {
   }
 
   if (isValidElement(value)) {
-    return resolveStaticReactNode(value);
+    return resolveStaticReactNode(value, ctx);
   }
 
   if (Array.isArray(value)) {
-    const items = await Promise.all(value.map(renderStaticValue));
+    const items = await Promise.all(
+      value.map((item) => renderStaticValue(item, ctx)),
+    );
     const visibleItems = items.filter((item) => !isEmptyNode(item));
     if (visibleItems.length === 0) return null;
 
@@ -190,6 +201,7 @@ async function renderStaticValue(value: unknown): Promise<ReactNode> {
           typeof entryValue !== "boolean" &&
           typeof entryValue !== "function",
       ),
+      ctx,
     );
   }
 
@@ -199,8 +211,9 @@ async function renderStaticValue(value: unknown): Promise<ReactNode> {
 async function renderClientFallback(
   props: Record<string, unknown>,
   children: ReactNode,
+  ctx: LLMRenderContext,
 ): Promise<ReactNode> {
-  const data = await renderDescriptionList(getStaticEntries(props));
+  const data = await renderDescriptionList(getStaticEntries(props), ctx);
 
   if (!isEmptyNode(children) && !isEmptyNode(data)) {
     return (
@@ -215,7 +228,10 @@ async function renderClientFallback(
   return data;
 }
 
-async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
+async function resolveStaticReactNode(
+  node: ReactNode,
+  ctx: LLMRenderContext,
+): Promise<ReactNode> {
   if (
     node == null ||
     typeof node === "boolean" ||
@@ -228,7 +244,7 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
 
   if (Array.isArray(node)) {
     return withStableArrayKeys(
-      await Promise.all(node.map(resolveStaticReactNode)),
+      await Promise.all(node.map((item) => resolveStaticReactNode(item, ctx))),
     );
   }
 
@@ -242,6 +258,7 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
   if (element.type === Fragment) {
     const resolvedChildren = await resolveStaticReactNode(
       children as ReactNode,
+      ctx,
     );
     return <>{resolvedChildren}</>;
   }
@@ -249,6 +266,7 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
   if (typeof element.type === "string") {
     const resolvedChildren = await resolveStaticReactNode(
       children as ReactNode,
+      ctx,
     );
     return cloneElement(element, props, resolvedChildren);
   }
@@ -256,6 +274,7 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
   if (isClientReference(element.type)) {
     const resolvedChildren = await resolveStaticReactNode(
       children as ReactNode,
+      ctx,
     );
     // Turn links (e.g. next/link) into real anchors so they survive as markdown
     // links, not a dumped `href` entry.
@@ -263,7 +282,7 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
     if (typeof href === "string" && href) {
       return <a href={href}>{resolvedChildren}</a>;
     }
-    const fallback = await renderClientFallback(props, resolvedChildren);
+    const fallback = await renderClientFallback(props, resolvedChildren, ctx);
     if (!isEmptyNode(fallback)) return fallback;
     const name = componentDisplayName(element.type);
     return (
@@ -279,13 +298,17 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
     const Component = (getLLMVariant(element.type) ??
       element.type) as StaticFunctionComponent;
     try {
-      const rendered = Component({ ...props, children: children as ReactNode });
-      return resolveStaticReactNode(await rendered);
+      const rendered = Component(
+        { ...props, children: children as ReactNode },
+        ctx,
+      );
+      return resolveStaticReactNode(await rendered, ctx);
     } catch (error) {
       const resolvedChildren = await resolveStaticReactNode(
         children as ReactNode,
+        ctx,
       );
-      const fallback = await renderClientFallback(props, resolvedChildren);
+      const fallback = await renderClientFallback(props, resolvedChildren, ctx);
       if (!isEmptyNode(fallback)) return fallback;
 
       if (!looksLikeStaticRenderFailure(error)) {
@@ -303,8 +326,11 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
     }
   }
 
-  const resolvedChildren = await resolveStaticReactNode(children as ReactNode);
-  return renderClientFallback(props, resolvedChildren);
+  const resolvedChildren = await resolveStaticReactNode(
+    children as ReactNode,
+    ctx,
+  );
+  return renderClientFallback(props, resolvedChildren, ctx);
 }
 
 type LLMPage =
@@ -312,7 +338,10 @@ type LLMPage =
   | InferPageType<typeof examples>
   | InferPageType<typeof tapDocs>;
 
-export async function getLLMText(page: LLMPage) {
+export async function getLLMText(
+  page: LLMPage,
+  ctx: LLMRenderContext = DEFAULT_LLM_CONTEXT,
+) {
   const Body = page.data.body;
 
   // TODO: Platform-scoped MDX currently renders with the server default
@@ -320,6 +349,7 @@ export async function getLLMText(page: LLMPage) {
   // variants, render once per platform or provide an explicit platform scope.
   const staticBody = await resolveStaticReactNode(
     <Body components={LLM_COMPONENTS} />,
+    ctx,
   );
   const { renderToStaticMarkup } = await import("react-dom/server");
   const html = renderToStaticMarkup(staticBody);

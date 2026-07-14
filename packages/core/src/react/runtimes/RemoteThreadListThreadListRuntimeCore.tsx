@@ -53,6 +53,18 @@ const forkRepositoryAtMessage = (
   };
 };
 
+const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
+  new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
+
+const threadStatusError = (
+  threadIdOrRemoteId: string,
+  status: RemoteThreadData["status"],
+  action: string,
+) =>
+  new Error(
+    `Thread "${threadIdOrRemoteId}" has status "${status}", so it cannot ${action}.`,
+  );
+
 export class RemoteThreadListThreadListRuntimeCore
   extends BaseSubscribable
   implements ThreadListRuntimeCore
@@ -311,10 +323,14 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public getThreadRuntimeCore(threadIdOrRemoteId: string) {
     const data = this.getItemById(threadIdOrRemoteId);
-    if (!data) throw new Error("Thread not found");
+    if (!data)
+      throw threadNotFoundError(threadIdOrRemoteId, "getting its runtime");
 
     const result = this._hookManager.getThreadRuntimeCore(data.id);
-    if (!result) throw new Error("Thread not found");
+    if (!result)
+      throw new Error(
+        `Runtime for thread "${threadIdOrRemoteId}" not found while getting its runtime.`,
+      );
     return result;
   }
 
@@ -386,7 +402,7 @@ export class RemoteThreadListThreadListRuntimeCore
       data = this.getItemById(threadIdOrRemoteId);
     }
 
-    if (!data) throw new Error("Thread not found");
+    if (!data) throw threadNotFoundError(threadIdOrRemoteId, "switching to it");
     if (this._mainThreadId === data.id) return;
 
     const task = this._hookManager.startThreadRuntime(data.id);
@@ -450,8 +466,9 @@ export class RemoteThreadListThreadListRuntimeCore
   public initialize = async (threadId: string) => {
     if (this._state.value.newThreadId !== threadId) {
       const data = this.getItemById(threadId);
-      if (!data) throw new Error("Thread not found");
-      if (data.status === "new") throw new Error("Unexpected new state");
+      if (!data) throw threadNotFoundError(threadId, "initializing it");
+      if (data.status === "new")
+        throw threadStatusError(threadId, data.status, "be initialized here");
       return data.initializeTask;
     }
 
@@ -502,8 +519,9 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public generateTitle = async (threadId: string) => {
     const data = this.getItemById(threadId);
-    if (!data) throw new Error("Thread not found");
-    if (data.status === "new") throw new Error("Thread is not yet initialized");
+    if (!data) throw threadNotFoundError(threadId, "generating its title");
+    if (data.status === "new")
+      throw threadStatusError(threadId, data.status, "generate a title");
 
     const { remoteId } = await data.initializeTask;
 
@@ -536,8 +554,9 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public rename(threadIdOrRemoteId: string, newTitle: string): Promise<void> {
     const data = this.getItemById(threadIdOrRemoteId);
-    if (!data) throw new Error("Thread not found");
-    if (data.status === "new") throw new Error("Thread is not yet initialized");
+    if (!data) throw threadNotFoundError(threadIdOrRemoteId, "renaming it");
+    if (data.status === "new")
+      throw threadStatusError(threadIdOrRemoteId, data.status, "be renamed");
 
     return this._state.optimisticUpdate({
       execute: async () => {
@@ -567,8 +586,17 @@ export class RemoteThreadListThreadListRuntimeCore
     custom: Record<string, unknown> | undefined,
   ): Promise<void> {
     const data = this.getItemById(threadIdOrRemoteId);
-    if (!data) throw new Error("Thread not found");
-    if (data.status === "new") throw new Error("Thread is not yet initialized");
+    if (!data)
+      throw threadNotFoundError(
+        threadIdOrRemoteId,
+        "updating its custom metadata",
+      );
+    if (data.status === "new")
+      throw threadStatusError(
+        threadIdOrRemoteId,
+        data.status,
+        "update custom metadata",
+      );
 
     if (!this._options.adapter.updateCustom) {
       throw new Error(
@@ -616,9 +644,9 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public async archive(threadIdOrRemoteId: string) {
     const data = this.getItemById(threadIdOrRemoteId);
-    if (!data) throw new Error("Thread not found");
+    if (!data) throw threadNotFoundError(threadIdOrRemoteId, "archiving it");
     if (data.status !== "regular")
-      throw new Error("Thread is not yet initialized or already archived");
+      throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
 
     await this._ensureThreadIsNotMain(data.id);
 
@@ -635,8 +663,9 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public unarchive(threadIdOrRemoteId: string): Promise<void> {
     const data = this.getItemById(threadIdOrRemoteId);
-    if (!data) throw new Error("Thread not found");
-    if (data.status !== "archived") throw new Error("Thread is not archived");
+    if (!data) throw threadNotFoundError(threadIdOrRemoteId, "unarchiving it");
+    if (data.status !== "archived")
+      throw threadStatusError(threadIdOrRemoteId, data.status, "be unarchived");
 
     return this._state.optimisticUpdate({
       execute: async () => {
@@ -656,9 +685,9 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public async delete(threadIdOrRemoteId: string) {
     const data = this.getItemById(threadIdOrRemoteId);
-    if (!data) throw new Error("Thread not found");
+    if (!data) throw threadNotFoundError(threadIdOrRemoteId, "deleting it");
     if (data.status !== "regular" && data.status !== "archived")
-      throw new Error("Thread is not yet initialized");
+      throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
 
     await this._ensureThreadIsNotMain(data.id);
     this._hookManager.stopThreadRuntime(data.id);
@@ -778,9 +807,9 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public async detach(threadIdOrRemoteId: string): Promise<void> {
     const data = this.getItemById(threadIdOrRemoteId);
-    if (!data) throw new Error("Thread not found");
+    if (!data) throw threadNotFoundError(threadIdOrRemoteId, "detaching it");
     if (data.status !== "regular" && data.status !== "archived")
-      throw new Error("Thread is not yet initialized");
+      throw threadStatusError(threadIdOrRemoteId, data.status, "be detached");
 
     await this._ensureThreadIsNotMain(data.id);
     this._hookManager.stopThreadRuntime(data.id);

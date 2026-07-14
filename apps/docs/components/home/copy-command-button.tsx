@@ -4,12 +4,12 @@ import { analytics, type AnalyticsProperties } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon, SparklesIcon, TerminalIcon } from "lucide-react";
 import { useState } from "react";
-import { DropdownMenu as DropdownMenuRadix } from "radix-ui";
+import { Menu } from "@base-ui/react/menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-} from "@/components/shared/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import { SETUP_PROMPT } from "./setup-prompt";
 
 export function CopyCommandButton({
@@ -74,27 +74,26 @@ export function CopyCommandButton({
 
   return (
     <DropdownMenu>
-      <DropdownMenuRadix.Trigger asChild aria-label="Copy options">
-        <button
-          type="button"
-          className={cn(wrapperClassName, "cursor-pointer")}
-        >
-          <span className="text-muted-foreground/70">$</span>
-          <span>{command}</span>
-          <div className="ml-1">{copyIcon}</div>
-        </button>
-      </DropdownMenuRadix.Trigger>
+      <Menu.Trigger
+        aria-label="Copy options"
+        render={
+          <button
+            type="button"
+            className={cn(wrapperClassName, "cursor-pointer")}
+          />
+        }
+      >
+        <span className="text-muted-foreground/70">$</span>
+        <span>{command}</span>
+        <div className="ml-1">{copyIcon}</div>
+      </Menu.Trigger>
       <DropdownMenuContent align="start">
-        <DropdownMenuItem
-          icon={<TerminalIcon className="size-3.5" />}
-          onSelect={copyCommand}
-        >
+        <DropdownMenuItem onClick={copyCommand}>
+          <TerminalIcon className="size-3.5" />
           Copy CLI command
         </DropdownMenuItem>
-        <DropdownMenuItem
-          icon={<SparklesIcon className="size-3.5" />}
-          onSelect={copyPrompt}
-        >
+        <DropdownMenuItem onClick={copyPrompt}>
+          <SparklesIcon className="size-3.5" />
           Copy coding agent prompt
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -6,7 +6,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/components/ui/radix/collapsible";
 import { ChevronDownIcon } from "lucide-react";
 
 export function CodeCollapsible({

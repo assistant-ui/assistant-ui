@@ -12,7 +12,7 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/radix/button";
 import { TerminalDemo } from "./terminal-demo";
 
 const ANALYTICS_PAGE = "ink" as const;

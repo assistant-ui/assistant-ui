@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { convertLangChainBaseMessage } from "./convertMessages";
+import type { AppendMessage } from "@assistant-ui/core";
+import {
+  convertLangChainBaseMessage,
+  getMessageContent,
+} from "./convertMessages";
 import type { LangChainBaseMessage, UIMessage } from "./types";
 
 const humanMessage = (content: unknown): LangChainBaseMessage => ({
@@ -59,6 +63,140 @@ describe("convertLangChainBaseMessage file content parts", () => {
         filename: "file",
         data: "ZmFrZQ==",
         mimeType: "application/pdf",
+      },
+    ]);
+  });
+
+  it("converts a url source file block", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([
+        {
+          type: "file",
+          url: "https://r2.example/u/abc/file.pdf",
+          mime_type: "application/pdf",
+          source_type: "url",
+          metadata: { filename: "file.pdf" },
+        },
+      ]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      {
+        type: "file",
+        filename: "file.pdf",
+        data: "https://r2.example/u/abc/file.pdf",
+        mimeType: "application/pdf",
+      },
+    ]);
+  });
+
+  it("converts an id source file block", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([{ type: "file", id: "file-abc123", source_type: "id" }]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      {
+        type: "file",
+        filename: "file",
+        data: "file-abc123",
+        mimeType: "application/octet-stream",
+      },
+    ]);
+  });
+});
+
+describe("getMessageContent file blocks", () => {
+  const appendMessage = (part: Record<string, unknown>) =>
+    ({ content: [part] }) as unknown as AppendMessage;
+
+  it("emits a base64 source block for raw base64 data", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "ZmFrZQ==",
+        mimeType: "application/pdf",
+        filename: "a.pdf",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        data: "ZmFrZQ==",
+        mime_type: "application/pdf",
+        metadata: { filename: "a.pdf" },
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("emits a url source block with the value in the url key for http(s) data", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "https://r2.example/u/abc/file.pdf",
+        mimeType: "application/pdf",
+        filename: "file.pdf",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        url: "https://r2.example/u/abc/file.pdf",
+        mime_type: "application/pdf",
+        metadata: { filename: "file.pdf" },
+        source_type: "url",
+      },
+    ]);
+    expect(content[1]).not.toHaveProperty("data");
+  });
+
+  it("normalizes a base64 data URL to a raw base64 block", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "data:application/pdf;base64,ZmFrZQ==",
+        mimeType: "application/octet-stream",
+        filename: "a.pdf",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        data: "ZmFrZQ==",
+        mime_type: "application/pdf",
+        metadata: { filename: "a.pdf" },
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("keeps non-http schemes on the base64 path", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "blob:https://app.example/123",
+        mimeType: "application/pdf",
+        filename: "a.pdf",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        data: "blob:https://app.example/123",
+        mime_type: "application/pdf",
+        metadata: { filename: "a.pdf" },
+        source_type: "base64",
       },
     ]);
   });

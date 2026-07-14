@@ -3,6 +3,22 @@
   "ignoreCommand": "bash ../../scripts/vercel-ignore-changeset-release.sh",
   "rewrites": [
     {
+      "source": "/styles/base-:variant/:path(.+\\.json)",
+      "destination": "/base/:path"
+    },
+    {
+      "source": "/styles/base-:variant/:path(.+)",
+      "destination": "/base/:path.json"
+    },
+    {
+      "source": "/styles/:style/:path(.+\\.json)",
+      "destination": "/:path"
+    },
+    {
+      "source": "/styles/:style/:path(.+)",
+      "destination": "/:path.json"
+    },
+    {
       "source": "/:path*",
       "destination": "/:path*.json"
     }

@@ -61,6 +61,8 @@ Create a `.env` file with your API key:
 OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
+Developing locally with a ChatGPT Plus or Pro plan? You can skip the API key and run on your subscription instead; see [ChatGPT Subscription](/docs/guides/chatgpt-subscription).
+
   </Step>
   <Step>
 
@@ -76,6 +78,18 @@ npm run dev
 ## Manual Setup
 
 If you prefer not to use the CLI, you can install components manually.
+
+Add the assistant-ui registry to your `components.json` so the shadcn CLI resolves components for your style. Styles whose name starts with `base-` receive Base UI flavored components; all other styles receive the Radix flavored ones. `npx shadcn init` defaults to Base UI styles (for example `base-nova`), so new projects need this style-aware URL for components that compile against that stack.
+
+```json title="components.json"
+{
+  "registries": {
+    "@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"
+  }
+}
+```
+
+Existing Radix projects can keep the plain form `https://r.assistant-ui.com/{name}.json` as a fallback (for example `npx shadcn@latest add https://r.assistant-ui.com/thread.json`).
 
 <Steps>
   <Step>
@@ -431,7 +445,7 @@ export default function MyApp() {
 ```
 
 ```tsx title="/app/page.tsx" tab="AssistantModal"
-// run `npx shadcn@latest add https://r.assistant-ui.com/assistant-modal.json`
+// run `npx shadcn@latest add @assistant-ui/assistant-modal`
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";

@@ -6,11 +6,14 @@ import {
   toJSONSchema,
   type Tool,
   type McpServerConfig,
-  type ToolJSONSchema,
   type ToolModelOutputFunction,
 } from "assistant-stream";
-import type { Toolkit, ToolkitDefinition } from "@assistant-ui/core/react";
-import { frontendTools } from "./frontendTools";
+import type {
+  McpToolkitToolConfig,
+  Toolkit,
+  ToolkitDefinition,
+} from "@assistant-ui/core/react";
+import { frontendTools, type FrontendTools } from "./frontendTools";
 import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
 import {
   unwrapModelContentEnvelope,
@@ -27,6 +30,48 @@ const humanNotSupported = (): never => {
 
 // AI SDK leaves `abortSignal` optional; assistant-ui's execute requires one.
 const neverAbort = new AbortController().signal;
+
+type MCPConnectionTimeoutPhase = "connecting" | "listing tools";
+
+class MCPConnectionTimeoutError extends Error {}
+
+const createMcpConnectionTimeoutError = (
+  name: string,
+  phase: MCPConnectionTimeoutPhase,
+  timeoutMs: number,
+) =>
+  new MCPConnectionTimeoutError(
+    `MCP toolkit entry "${name}" timed out while ${phase} after ${timeoutMs}ms.`,
+  );
+
+const withMcpConnectionTimeout = async <T>(
+  promise: Promise<T>,
+  options: {
+    name: string;
+    config: McpServerConfig;
+    phase: MCPConnectionTimeoutPhase;
+    startedAt: number;
+  },
+): Promise<T> => {
+  const timeoutMs = options.config.connectionTimeout;
+  if (timeoutMs === undefined) return await promise;
+  const remainingMs = timeoutMs - (Date.now() - options.startedAt);
+  const timeoutError = () =>
+    createMcpConnectionTimeoutError(options.name, options.phase, timeoutMs);
+  if (remainingMs <= 0) throw timeoutError();
+
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(timeoutError()), remainingMs);
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
+};
 
 const parametersToInputSchema = (parameters: Tool["parameters"] | undefined) =>
   jsonSchema(parameters ? toJSONSchema(parameters) : EMPTY_SCHEMA);
@@ -48,7 +93,7 @@ export interface GenerativeToolsOptions {
    * alongside the `toolkit`; a server `execute` from `toolkit` takes precedence
    * over an uploaded entry of the same name.
    */
-  frontendTools?: Record<string, ToolJSONSchema>;
+  frontendTools?: FrontendTools;
 }
 
 export type AISDKToolkitOptions = {
@@ -59,7 +104,7 @@ export type AISDKToolkitToolsOptions = {
   /**
    * Tools uploaded by the frontend request body.
    */
-  frontend?: Record<string, ToolJSONSchema>;
+  frontend?: FrontendTools;
 };
 
 /**
@@ -114,30 +159,52 @@ export class AISDKToolkit {
   }
 
   async tools(options: AISDKToolkitToolsOptions = {}): Promise<ToolSet> {
+    const frontendToolSet = options.frontend
+      ? frontendTools(options.frontend)
+      : {};
+    const mcpToolSet = await this.#mcpTools();
+    const providerToolSet = toProviderToolSet(this.#toolkit);
+    const serverToolSet = toServerToolSet(this.#toolkit as ToolkitDefinition);
+
+    assertNoMcpToolNameCollisions(mcpToolSet, [
+      { source: "frontend", tools: frontendToolSet },
+      { source: "provider", tools: providerToolSet },
+      { source: "toolkit", tools: serverToolSet },
+    ]);
+
     return {
-      ...(options.frontend ? frontendTools(options.frontend) : {}),
-      ...(await this.#mcpTools()),
-      ...toProviderToolSet(this.#toolkit),
-      ...toServerToolSet(this.#toolkit as ToolkitDefinition),
+      ...frontendToolSet,
+      ...mcpToolSet.tools,
+      ...providerToolSet,
+      ...serverToolSet,
     };
   }
 
   async close(): Promise<void> {
-    const clientPromises = [...this.#mcpClients.values()];
+    const clientEntries = [...this.#mcpClients.entries()];
+    const clientNames = clientEntries.map(([name]) => name);
     this.#mcpClients.clear();
-    const results = await Promise.allSettled(clientPromises);
-    const clients = results.flatMap((result) =>
-      result.status === "fulfilled" ? [result.value] : [],
+    const clientResults = await Promise.allSettled(
+      clientEntries.map(([, clientPromise]) => clientPromise),
+    );
+    const clients = clientResults.flatMap((result, index) =>
+      result.status === "fulfilled"
+        ? [[clientNames[index]!, result.value] as const]
+        : [],
     );
     const closeResults = await Promise.allSettled(
-      clients.map((client) => client.close()),
+      clients.map(([, client]) => client.close()),
     );
     const errors = [
-      ...results.flatMap((result) =>
-        result.status === "rejected" ? [result.reason] : [],
+      ...clientResults.flatMap((result, index) =>
+        result.status === "rejected"
+          ? [toMcpToolkitError(clientNames[index]!, "connect", result.reason)]
+          : [],
       ),
-      ...closeResults.flatMap((result) =>
-        result.status === "rejected" ? [result.reason] : [],
+      ...closeResults.flatMap((result, index) =>
+        result.status === "rejected"
+          ? [toMcpToolkitError(clients[index]![0], "close", result.reason)]
+          : [],
       ),
     ];
     if (errors.length === 1) throw errors[0];
@@ -149,40 +216,77 @@ export class AISDKToolkit {
     }
   }
 
-  async #mcpTools(): Promise<ToolSet> {
+  async #mcpTools(): Promise<McpToolSet> {
     const toolSets = await Promise.all(
       Object.entries(this.#toolkit)
         .filter((entry): entry is [string, McpToolkitTool] =>
           isMcpToolkitTool(entry[1]),
         )
         .map(async ([name, tool]) => {
-          const client = await this.#mcpClient(name, tool.server);
-          return [name, await client.tools()] as const;
+          const startedAt = Date.now();
+          const client = await this.#mcpClient(
+            name,
+            tool.server,
+            startedAt,
+          ).catch((error: unknown) => {
+            if (error instanceof MCPConnectionTimeoutError) throw error;
+            throw toMcpToolkitError(name, "connect", error);
+          });
+          try {
+            const tools = await withMcpConnectionTimeout(client.tools(), {
+              name,
+              config: tool.server,
+              phase: "listing tools",
+              startedAt,
+            });
+            return [name, tool, tools] as const;
+          } catch (error) {
+            if (error instanceof MCPConnectionTimeoutError) {
+              this.#mcpClients.delete(name);
+              void client.close().catch(() => {});
+              throw error;
+            }
+            throw toMcpToolkitError(name, "list tools", error);
+          }
         }),
     );
 
     const tools: ToolSet = {};
     const toolSources = new Map<string, string>();
-    for (const [serverName, toolSet] of toolSets) {
+    for (const [serverName, mcpTool, toolSet] of toolSets) {
       for (const [toolName, tool] of Object.entries(toolSet)) {
-        const existingServerName = toolSources.get(toolName);
+        if (isDisabledMcpTool(mcpTool.tools?.[toolName])) continue;
+        const exposedName = `${mcpTool.prefix ?? ""}${toolName}`;
+        const existingServerName = toolSources.get(exposedName);
         if (existingServerName) {
           throw new Error(
-            `MCP tool name collision: "${toolName}" is exposed by both "${existingServerName}" and "${serverName}". Rename one of the toolkit entries or expose distinct MCP tool names.`,
+            `MCP tool name collision: "${exposedName}" is exposed by both "${existingServerName}" and "${serverName}". Rename one of the toolkit entries or expose distinct MCP tool names.`,
           );
         }
-        toolSources.set(toolName, serverName);
-        tools[toolName] = tool;
+        toolSources.set(exposedName, serverName);
+        tools[exposedName] = tool as ToolSet[string];
       }
     }
-    return tools;
+    return { tools, sources: toolSources };
   }
 
-  #mcpClient(name: string, config: McpServerConfig): Promise<MCPClient> {
+  #mcpClient(
+    name: string,
+    config: McpServerConfig,
+    startedAt: number,
+  ): Promise<MCPClient> {
     const existing = this.#mcpClients.get(name);
     if (existing) return existing;
     let next: Promise<MCPClient>;
-    next = createMCPClient(toMCPClientConfig(config)).catch((error) => {
+    next = withMcpConnectionTimeout(
+      createMCPClient(toMCPClientConfig(config)),
+      {
+        name,
+        config,
+        phase: "connecting",
+        startedAt,
+      },
+    ).catch((error) => {
       if (this.#mcpClients.get(name) === next) {
         this.#mcpClients.delete(name);
       }
@@ -220,10 +324,48 @@ type ToolkitTool = Toolkit[string];
 type McpToolkitTool = ToolkitTool & {
   type: "mcp";
   server: McpServerConfig;
+  prefix?: string | undefined;
+  tools?: Record<string, McpToolkitToolConfig> | undefined;
+};
+
+type McpToolSet = {
+  tools: ToolSet;
+  sources: Map<string, string>;
+};
+
+const assertNoMcpToolNameCollisions = (
+  mcp: McpToolSet,
+  toolSets: readonly { source: string; tools: ToolSet }[],
+): void => {
+  for (const [toolName, serverName] of mcp.sources) {
+    for (const { source, tools } of toolSets) {
+      if (!Object.prototype.hasOwnProperty.call(tools, toolName)) continue;
+      throw new Error(
+        `MCP tool "${toolName}" from "${serverName}" conflicts with ${source} tool "${toolName}". Rename one of the tools so each model-visible tool name is unique.`,
+      );
+    }
+  }
 };
 
 const isMcpToolkitTool = (tool: ToolkitTool): tool is McpToolkitTool =>
   tool.type === "mcp" && !tool.disabled;
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message || error.name : String(error);
+
+const toMcpToolkitError = (
+  entryName: string,
+  action: "connect" | "list tools" | "close",
+  error: unknown,
+): Error => {
+  return new Error(
+    `MCP toolkit entry "${entryName}" failed to ${action}: ${getErrorMessage(error)}`,
+    { cause: error },
+  );
+};
+
+const isDisabledMcpTool = (config: McpToolkitToolConfig | undefined): boolean =>
+  config?.disabled === true;
 
 const assertNoMcpToolkitTools = (toolkit: Toolkit): void => {
   const mcpToolName = Object.entries(toolkit).find(([, tool]) =>

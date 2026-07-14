@@ -5,6 +5,15 @@ import { sync as spawnSync } from "cross-spawn";
 import { logger } from "../lib/utils/logger";
 import { getInstallCommand } from "../lib/utils/package-manager";
 
+const logPackageJsonParseError = (packageJsonPath: string) => {
+  logger.error("Could not parse package.json.");
+  console.error(`Package path: ${packageJsonPath}`);
+  console.error(
+    "Fix the JSON syntax in that file, then run: assistant-ui update",
+  );
+  console.error("No changes were written.");
+};
+
 export const update = new Command()
   .name("update")
   .description(
@@ -23,7 +32,14 @@ export const update = new Command()
       process.exit(1);
     }
 
-    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+    const packageJsonContent = fs.readFileSync(packageJsonPath, "utf-8");
+    let pkg: Record<string, Record<string, string> | undefined>;
+    try {
+      pkg = JSON.parse(packageJsonContent);
+    } catch {
+      logPackageJsonParseError(packageJsonPath);
+      process.exit(1);
+    }
     const sections = ["dependencies", "devDependencies"];
     const targets: string[] = [];
 

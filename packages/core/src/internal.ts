@@ -33,9 +33,14 @@ export {
 // Message utilities
 export { getThreadMessageText } from "./utils/text";
 export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
+export { consumeSuggestionResult } from "./adapters/suggestion";
 
 // Composite context provider
 export { CompositeContextProvider } from "./utils/composite-context-provider";
+
+// Shared attachment data-URL encoder, reused by framework adapters so the
+// FileReader fallback lives in one place.
+export { getFileDataURL } from "./adapters/attachment";
 
 // Runtime extras helper for external-store adapters. Internal because the
 // tap-native runtime path replaces the `thread.extras` side-channel it wraps.

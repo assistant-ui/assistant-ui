@@ -5,10 +5,10 @@ description: Wire the Vercel AI SDK into a React chat UI with assistant-ui — u
 
 import { VercelIcon } from "@/components/icons/vercel";
 
-[Vercel AI SDK](https://ai-sdk.dev/) is the most common framework people pair with assistant-ui. The full setup, attachments, persistence, tool-call patterns, and version notes are documented under [runtimes/ai-sdk](/docs/runtimes/ai-sdk); this page is the entry point in the integrations tree for discoverability and architecture context.
+[Vercel AI SDK](https://ai-sdk.dev/) is the most common framework people pair with assistant-ui. The full setup, attachments, persistence, tool-call patterns, and version notes are documented under [runtimes/ai-sdk](/docs/runtimes/ai-sdk/overview); this page is the entry point in the integrations tree for discoverability and architecture context.
 
 <Callout type="info">
-If you arrived here looking to wire up your first chat: jump to [AI SDK v6 quickstart](/docs/runtimes/ai-sdk/v6). This page is a high-level pointer.
+If you arrived here looking to wire up your first chat: jump to [AI SDK v7 quickstart](/docs/runtimes/ai-sdk/v7). This page is a high-level pointer.
 </Callout>
 
 ## Where it slots in
@@ -27,14 +27,20 @@ flowchart LR
 
 ## Pick a version
 
-Three versions of `ai` are supported. New projects should pick **v6**; v5 and v4 are documented for migration and existing apps that haven't upgraded.
+Four versions of `ai` are supported. New projects should pick **v7**; v6, v5, and v4 are documented for migration and existing apps that haven't upgraded.
 
 <Cards>
   <Card
     icon={<VercelIcon width={20} height={20} />}
-    title="AI SDK v6 (current)"
+    title="AI SDK v7 (current)"
+    description="Requires ai@^7 and @ai-sdk/react@^4. Async convertToModelMessages, tool inputSchema, toUIMessageStreamResponse."
+    href="/docs/runtimes/ai-sdk/v7"
+  />
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="AI SDK v6 (legacy)"
     description="Requires ai@^6 and @ai-sdk/react@^3. Async convertToModelMessages, tool inputSchema, toUIMessageStreamResponse."
-    href="/docs/runtimes/ai-sdk/v6"
+    href="/docs/runtimes/ai-sdk/v6-legacy"
   />
   <Card
     icon={<VercelIcon width={20} height={20} />}
@@ -58,7 +64,7 @@ AI SDK is the default choice for new projects on Next.js, Remix, or any framewor
 - You will compose with a framework like [Mastra](/docs/integrations/frameworks/mastra/overview), an [observability tool](/docs/integrations/observability/helicone), an [LLM gateway](/docs/integrations/gateways), or [tools through MCP](/docs/tools/mcp), all of which assume an AI SDK route.
 - You want first-party `frontendTools`, attachments, multi-step tool calls, token-usage metadata, and persisted history via `withFormat`.
 
-If you need streaming agent state (subgraph events, generative UI messages), look at [LangGraph](/docs/runtimes/langgraph) instead. If you have a different protocol-shaped backend (A2A, AG-UI, OpenCode), see [pick a runtime](/docs/runtimes/pick-a-runtime).
+If you need streaming agent state (subgraph events, generative UI messages), look at [LangGraph](/docs/runtimes/langgraph/overview) instead. If you have a different protocol-shaped backend (A2A, AG-UI, OpenCode), see [pick a runtime](/docs/runtimes/pick-a-runtime).
 
 ## Related
 
@@ -67,7 +73,7 @@ If you need streaming agent state (subgraph events, generative UI messages), loo
     icon={<VercelIcon width={20} height={20} />}
     title="AI SDK runtime overview"
     description="The full runtime documentation and version selector."
-    href="/docs/runtimes/ai-sdk"
+    href="/docs/runtimes/ai-sdk/overview"
   />
   <Card
     title="Pick a runtime"

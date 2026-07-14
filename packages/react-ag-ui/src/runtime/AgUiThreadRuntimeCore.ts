@@ -8,6 +8,7 @@ import type {
   AssistantRuntime,
   ChatModelRunOptions,
   ChatModelRunResult,
+  ExportedMessageRepository,
   MessageStatus,
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
@@ -36,6 +37,11 @@ const optimisticPrefix = "__optimistic__";
 const generateOptimisticId = () => `${optimisticPrefix}${generateId()}`;
 const isOptimisticId = (id: string) => id.startsWith(optimisticPrefix);
 
+const isResolvedToolCall = (
+  part: ThreadAssistantMessage["content"][number],
+): boolean =>
+  part.type === "tool-call" && "result" in part && part.result !== undefined;
+
 const symbolResumeShim = Symbol("agui-resume-shim");
 
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
@@ -53,6 +59,7 @@ type CoreOptions = {
   agent: AbstractAgent;
   logger: Logger;
   showThinking: boolean;
+  autoCancelPendingToolCalls?: boolean | undefined;
   onError?: (error: Error) => void;
   onCancel?: () => void;
   history?: ThreadHistoryAdapter;
@@ -61,16 +68,69 @@ type CoreOptions = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
+const getRepositoryHeadId = (
+  repository: ExportedMessageRepository,
+): string | null =>
+  repository.headId ?? repository.messages.at(-1)?.message.id ?? null;
+
+const getRepositoryBranchMessages = (
+  repository: ExportedMessageRepository,
+  headId = getRepositoryHeadId(repository),
+): readonly ThreadMessage[] | null => {
+  if (headId === null) return [];
+
+  const byId = new Map<string, ExportedMessageRepository["messages"][number]>();
+  for (const item of repository.messages) {
+    const id = item.message.id;
+    if (byId.has(id)) return null;
+    byId.set(id, item);
+  }
+
+  const branch: ThreadMessage[] = [];
+  const visited = new Set<string>();
+  let item = byId.get(headId);
+
+  if (!item) return null;
+
+  while (true) {
+    const id = item.message.id;
+    if (visited.has(id)) return null;
+
+    visited.add(id);
+    branch.push(item.message);
+
+    if (item.parentId === null) break;
+    item = byId.get(item.parentId);
+    if (!item) return null;
+  }
+
+  return branch.reverse();
+};
+
+const sameMessagePath = (
+  left: readonly ThreadMessage[],
+  right: readonly ThreadMessage[],
+) =>
+  left.length === right.length &&
+  left.every((message, index) => message.id === right[index]?.id);
+
+const repositoryHasMessageId = (
+  repository: ExportedMessageRepository,
+  messageId: string,
+) => repository.messages.some(({ message }) => message.id === messageId);
+
 export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
   private showThinking: boolean;
+  private autoCancelPendingToolCalls: boolean | undefined;
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
   private readonly notifyUpdate: () => void;
 
   private runtime: AssistantRuntime | undefined;
   private messages: ThreadMessage[] = [];
+  private messageRepository: ExportedMessageRepository | undefined;
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
   private stateSnapshot: ReadonlyJSONValue | undefined;
@@ -87,6 +147,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.history = options.history;
@@ -98,6 +159,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.history = options.history;
@@ -114,6 +176,10 @@ export class AgUiThreadRuntimeCore {
 
   getMessages(): readonly ThreadMessage[] {
     return this.messages;
+  }
+
+  getMessageRepository(): ExportedMessageRepository | undefined {
+    return this.messageRepository;
   }
 
   getState(): ReadonlyJSONValue | undefined {
@@ -139,15 +205,14 @@ export class AgUiThreadRuntimeCore {
       .then(async (repo) => {
         if (!repo) return;
 
-        const messages = repo.messages.map((item) => item.message);
-        this.applyExternalMessages(messages);
+        this.applyExternalMessageRepository(repo);
 
         if (repo.state !== undefined) {
           this.loadExternalState(repo.state);
         }
 
         if (repo.unstable_resume) {
-          const parentId = repo.headId ?? messages.at(-1)?.id ?? null;
+          const parentId = repo.headId ?? this.messages.at(-1)?.id ?? null;
           const resumeStream = this.history?.resume?.bind(this.history);
           await this.startRun(
             parentId,
@@ -174,10 +239,24 @@ export class AgUiThreadRuntimeCore {
 
   async append(message: AppendMessage): Promise<void> {
     const startRun = message.startRun ?? message.role === "user";
-    if (startRun) this.assertNoPendingInterrupts();
+    if (startRun) {
+      this.assertNoPendingInterrupts();
+      this.maybeAutoCancelPendingToolCalls();
+    }
     const threadMessageId = this.appendEntry(message);
     if (!startRun) return;
     await this.startRun(threadMessageId, message.runConfig);
+  }
+
+  // Must run before appendEntry/resetHead: a parentId that points at an
+  // ancestor would truncate the pending assistant away before its tool calls
+  // can be cancelled, stranding it with a status that history never persists.
+  private maybeAutoCancelPendingToolCalls(): void {
+    if (this.autoCancelPendingToolCalls === false) return;
+    const pending = this.getPendingToolCalls();
+    if (!pending) return;
+    this.cancelUnresolvedToolCalls(pending.messageId);
+    this.maybeCompleteAfterToolResults(pending.messageId);
   }
 
   private appendEntry(message: AppendMessage): string {
@@ -204,7 +283,8 @@ export class AgUiThreadRuntimeCore {
     config: { runConfig?: RunConfig } = {},
   ): Promise<void> {
     this.assertNoPendingInterrupts();
-    this.resetHead(parentId);
+    this.maybeAutoCancelPendingToolCalls();
+    this.resetHead(parentId, { preserveMessageRepository: true });
     this.notifyUpdate();
     await this.startRun(parentId, config.runConfig);
   }
@@ -255,20 +335,28 @@ export class AgUiThreadRuntimeCore {
     );
   }
 
-  getPendingInterrupts(): {
-    messageId: string;
-    interrupts: readonly AgUiInterrupt[];
-  } | null {
+  private findRequiresActionAssistant(
+    reason: "interrupt" | "tool-calls",
+  ): ThreadAssistantMessage | null {
     const assistant = this.messages.findLast((m) => m.role === "assistant") as
       | ThreadAssistantMessage
       | undefined;
     if (
       !assistant ||
       assistant.status?.type !== "requires-action" ||
-      assistant.status.reason !== "interrupt"
+      assistant.status.reason !== reason
     ) {
       return null;
     }
+    return assistant;
+  }
+
+  getPendingInterrupts(): {
+    messageId: string;
+    interrupts: readonly AgUiInterrupt[];
+  } | null {
+    const assistant = this.findRequiresActionAssistant("interrupt");
+    if (!assistant) return null;
     const stored = (
       assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
         | AgUiCustomMetadata
@@ -276,6 +364,22 @@ export class AgUiThreadRuntimeCore {
     )?.interrupts;
     if (!stored?.length) return null;
     return { messageId: assistant.id, interrupts: stored };
+  }
+
+  getPendingToolCalls(): {
+    messageId: string;
+    toolCallIds: string[];
+  } | null {
+    const assistant = this.findRequiresActionAssistant("tool-calls");
+    if (!assistant) return null;
+    const toolCallIds: string[] = [];
+    for (const part of assistant.content) {
+      if (part.type !== "tool-call") continue;
+      if (isResolvedToolCall(part)) continue;
+      toolCallIds.push(part.toolCallId);
+    }
+    if (toolCallIds.length === 0) return null;
+    return { messageId: assistant.id, toolCallIds };
   }
 
   async submitInterruptResponses(
@@ -359,6 +463,23 @@ export class AgUiThreadRuntimeCore {
   ): Promise<void> {
     const pending = this.getPendingInterrupts();
     if (!pending) {
+      const pendingTools = this.getPendingToolCalls();
+      if (pendingTools) {
+        if (responses?.length) {
+          throw new Error(
+            "[agui] steerAway: responses are only valid for pending interrupts",
+          );
+        }
+        if (this.isRunningFlag) {
+          throw new Error("[agui] steerAway: a run is already in progress");
+        }
+        this.cancelUnresolvedToolCalls(pendingTools.messageId);
+        this.maybeCompleteAfterToolResults(pendingTools.messageId);
+        const normalized = this.toAppendMessage(message);
+        const threadMessageId = this.appendEntry(normalized);
+        await this.startRun(threadMessageId, normalized.runConfig);
+        return;
+      }
       if (responses?.length) {
         throw new Error(
           "[agui] steerAway: no pending interrupts on this thread",
@@ -473,7 +594,10 @@ export class AgUiThreadRuntimeCore {
         metadata: { ...assistant.metadata, custom: newCustom },
       };
     });
-    if (touched) this.notifyUpdate();
+    if (touched) {
+      this.syncMessageRepositoryWithMessages();
+      this.notifyUpdate();
+    }
   }
 
   findMessageIdForToolCall(toolCallId: string): string | undefined {
@@ -484,13 +608,32 @@ export class AgUiThreadRuntimeCore {
       for (const part of message.content) {
         if (part.type !== "tool-call" || part.toolCallId !== toolCallId)
           continue;
-        if (!("result" in part) || part.result === undefined) {
+        if (!isResolvedToolCall(part)) {
           return message.id;
         }
         fallbackMessageId ??= message.id;
       }
     }
     return fallbackMessageId;
+  }
+
+  private cancelUnresolvedToolCalls(messageId: string): void {
+    this.messages = this.messages.map((message) => {
+      if (message.id !== messageId || message.role !== "assistant")
+        return message;
+      const assistant = message as ThreadAssistantMessage;
+      const content = assistant.content.map((part) => {
+        if (part.type !== "tool-call" || isResolvedToolCall(part)) return part;
+        return {
+          ...part,
+          result: { error: "Tool call cancelled by user" },
+          isError: true,
+        };
+      });
+      return { ...assistant, content };
+    });
+    this.syncMessageRepositoryWithMessages();
+    this.notifyUpdate();
   }
 
   addToolResult(options: AddToolResultOptions): void {
@@ -517,6 +660,7 @@ export class AgUiThreadRuntimeCore {
     });
 
     if (!updated) return;
+    this.syncMessageRepositoryWithMessages();
     this.notifyUpdate();
     this.maybeResumeAfterToolResults(options.messageId);
   }
@@ -547,9 +691,7 @@ export class AgUiThreadRuntimeCore {
       return false;
     }
     const allResolved = assistant.content.every(
-      (part) =>
-        part.type !== "tool-call" ||
-        ("result" in part && part.result !== undefined),
+      (part) => part.type !== "tool-call" || isResolvedToolCall(part),
     );
     if (!allResolved) return false;
 
@@ -561,6 +703,7 @@ export class AgUiThreadRuntimeCore {
           }
         : m,
     );
+    this.syncMessageRepositoryWithMessages();
     this.notifyUpdate();
     this.persistAssistantHistory(messageId);
     return true;
@@ -575,11 +718,77 @@ export class AgUiThreadRuntimeCore {
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
     this.assistantHistoryParents.clear();
     this.messages = [...messages];
+    this.messageRepository = this.getUpdatedRepositoryForMessages(messages);
     this.recordedHistoryIds.clear();
-    for (const message of this.messages) {
+    const recordedMessages = this.messageRepository
+      ? this.messageRepository.messages.map((item) => item.message)
+      : this.messages;
+    for (const message of recordedMessages) {
       this.recordedHistoryIds.add(message.id);
     }
     this.notifyUpdate();
+  }
+
+  private applyExternalMessageRepository(
+    repository: ExportedMessageRepository,
+  ): void {
+    const headId = getRepositoryHeadId(repository);
+    const branch = getRepositoryBranchMessages(repository, headId);
+    if (branch === null) {
+      this.applyExternalMessages(
+        repository.messages.map(({ message }) => message),
+      );
+      return;
+    }
+
+    this.assistantHistoryParents.clear();
+    this.messageRepository = { ...repository, headId };
+    this.messages = [...branch];
+    this.recordedHistoryIds.clear();
+    for (const { message } of repository.messages) {
+      this.recordedHistoryIds.add(message.id);
+    }
+    this.notifyUpdate();
+  }
+
+  private getUpdatedRepositoryForMessages(
+    messages: readonly ThreadMessage[],
+  ): ExportedMessageRepository | undefined {
+    if (!this.messageRepository) return undefined;
+    if (messages.length === 0) return undefined;
+
+    const headId = messages[messages.length - 1]!.id;
+    const repositoryMessages = getRepositoryBranchMessages(
+      this.messageRepository,
+      headId,
+    );
+
+    if (
+      repositoryMessages === null ||
+      !sameMessagePath(messages, repositoryMessages)
+    ) {
+      return undefined;
+    }
+
+    const incomingMessages = new Map(
+      messages.map((message) => [message.id, message]),
+    );
+
+    return {
+      ...this.messageRepository,
+      headId,
+      messages: this.messageRepository.messages.map((item) => ({
+        ...item,
+        message: incomingMessages.get(item.message.id) ?? item.message,
+      })),
+    };
+  }
+
+  private syncMessageRepositoryWithMessages(): void {
+    if (!this.messageRepository) return;
+    this.messageRepository = this.getUpdatedRepositoryForMessages(
+      this.messages,
+    );
   }
 
   loadExternalState(state: ReadonlyJSONValue): void {
@@ -595,7 +804,7 @@ export class AgUiThreadRuntimeCore {
   ): Promise<void> {
     const normalizedRunConfig = runConfig ?? {};
     this.lastRunConfig = normalizedRunConfig;
-    this.resetHead(parentId);
+    this.resetHead(parentId, { preserveMessageRepository: true });
     const historicalMessages = [...this.messages];
 
     this.pendingError = null;
@@ -603,7 +812,9 @@ export class AgUiThreadRuntimeCore {
     let assistantMessageId: string | undefined;
     const ensureAssistant = () => {
       if (assistantMessageId) return assistantMessageId;
-      const created = this.insertAssistantPlaceholder();
+      const created = this.insertAssistantPlaceholder(
+        assistantParentId ?? null,
+      );
       assistantMessageId = created;
       this.markPendingAssistantHistory(created, assistantParentId ?? null);
       return created;
@@ -837,7 +1048,7 @@ export class AgUiThreadRuntimeCore {
     this.setRunning(false);
   }
 
-  private insertAssistantPlaceholder(): string {
+  private insertAssistantPlaceholder(parentId: string | null): string {
     const id = generateOptimisticId();
     const assistant: ThreadAssistantMessage = {
       id,
@@ -855,6 +1066,16 @@ export class AgUiThreadRuntimeCore {
       },
     };
     this.messages = [...this.messages, assistant];
+    if (this.messageRepository) {
+      this.messageRepository = {
+        ...this.messageRepository,
+        headId: id,
+        messages: [
+          ...this.messageRepository.messages,
+          { parentId, message: assistant },
+        ],
+      };
+    }
     this.notifyUpdate();
     return id;
   }
@@ -862,11 +1083,15 @@ export class AgUiThreadRuntimeCore {
   private reassignAssistantId(oldId: string, newId: string): void {
     if (oldId === newId) return;
 
-    const collidesWithExisting = this.messages.some((m) => m.id === newId);
+    const collidesWithExisting =
+      this.messages.some((m) => m.id === newId) ||
+      (this.messageRepository
+        ? repositoryHasMessageId(this.messageRepository, newId)
+        : false);
 
     if (collidesWithExisting) {
       this.logger.debug?.(
-        "[agui] reassignAssistantId: server id already present in messages, dropping placeholder",
+        "[agui] reassignAssistantId: server id already present in messages or repository, dropping placeholder",
         { oldId, newId },
       );
       this.messages = this.messages.filter((m) => m.id !== oldId);
@@ -878,17 +1103,49 @@ export class AgUiThreadRuntimeCore {
       });
     }
 
+    if (this.messageRepository) {
+      const oldRepositoryItem = this.messageRepository.messages.find(
+        (item) => item.message.id === oldId,
+      );
+      const messagesById = new Map(
+        this.messages.map((message) => [message.id, message]),
+      );
+      this.messageRepository = {
+        ...this.messageRepository,
+        headId:
+          this.messageRepository.headId === oldId
+            ? collidesWithExisting
+              ? (oldRepositoryItem?.parentId ?? null)
+              : newId
+            : this.messageRepository.headId,
+        messages: this.messageRepository.messages.flatMap((item) => {
+          if (collidesWithExisting && item.message.id === oldId) return [];
+          const id = item.message.id === oldId ? newId : item.message.id;
+          const message = messagesById.get(id) ?? item.message;
+          return [
+            {
+              ...item,
+              parentId: item.parentId === oldId ? newId : item.parentId,
+              message,
+            },
+          ];
+        }),
+      };
+    }
+
     const pendingParent = this.assistantHistoryParents.get(oldId);
     if (pendingParent !== undefined) {
       this.assistantHistoryParents.delete(oldId);
-      if (!this.assistantHistoryParents.has(newId)) {
+      if (!collidesWithExisting && !this.assistantHistoryParents.has(newId)) {
         this.assistantHistoryParents.set(newId, pendingParent);
       }
     }
 
     if (this.recordedHistoryIds.has(oldId)) {
       this.recordedHistoryIds.delete(oldId);
-      this.recordedHistoryIds.add(newId);
+      if (!collidesWithExisting) {
+        this.recordedHistoryIds.add(newId);
+      }
     }
 
     this.notifyUpdate();
@@ -933,6 +1190,7 @@ export class AgUiThreadRuntimeCore {
       this.reassignAssistantId(messageId, stableId);
       resolvedMessageId = stableId;
     } else {
+      this.syncMessageRepositoryWithMessages();
       this.notifyUpdate();
     }
     if (this.isPersistableStatus(latestStatus)) {
@@ -952,11 +1210,7 @@ export class AgUiThreadRuntimeCore {
   ): ThreadAssistantMessage["content"] {
     const resolved = new Map<string, ToolCallMessagePart>();
     for (const part of previous) {
-      if (
-        part.type === "tool-call" &&
-        "result" in part &&
-        part.result !== undefined
-      ) {
+      if (part.type === "tool-call" && isResolvedToolCall(part)) {
         resolved.set(part.toolCallId, part);
       }
     }
@@ -964,8 +1218,7 @@ export class AgUiThreadRuntimeCore {
 
     let changed = false;
     const merged = next.map((part) => {
-      if (part.type !== "tool-call") return part;
-      if ("result" in part && part.result !== undefined) return part;
+      if (part.type !== "tool-call" || isResolvedToolCall(part)) return part;
       const prior = resolved.get(part.toolCallId);
       if (!prior) return part;
       changed = true;
@@ -1081,6 +1334,7 @@ export class AgUiThreadRuntimeCore {
     });
 
     if (!updated) return;
+    this.syncMessageRepositoryWithMessages();
     this.notifyUpdate();
     // Not maybeResumeAfterToolResults: the delivering run is already in
     // flight, and a resume from the owner would reset the head past it.
@@ -1119,7 +1373,30 @@ export class AgUiThreadRuntimeCore {
     );
   }
 
-  private resetHead(parentId: string | null | undefined) {
+  private resetHead(
+    parentId: string | null | undefined,
+    options: { preserveMessageRepository?: boolean } = {},
+  ) {
+    if (
+      options.preserveMessageRepository &&
+      parentId &&
+      this.messageRepository
+    ) {
+      const branch = getRepositoryBranchMessages(
+        this.messageRepository,
+        parentId,
+      );
+      if (branch !== null && branch.at(-1)?.id === parentId) {
+        this.messageRepository = {
+          ...this.messageRepository,
+          headId: parentId,
+        };
+        this.messages = [...branch];
+        return;
+      }
+    }
+
+    this.messageRepository = undefined;
     if (!parentId) {
       if (this.messages.length) {
         this.messages = [];

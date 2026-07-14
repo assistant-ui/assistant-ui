@@ -161,7 +161,10 @@ describe("LocalThreadRuntimeCore", () => {
     expect(assistant.status!.type).toBe("incomplete");
     if (assistant.status!.type === "incomplete") {
       expect(assistant.status!.reason).toBe("error");
-      expect(assistant.status!.error).toBe("Model unavailable");
+      expect(assistant.status!.error).toEqual({
+        code: "unknown",
+        message: "Model unavailable",
+      });
     }
   });
 

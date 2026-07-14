@@ -1,5 +1,17 @@
 # @assistant-ui/react-mcp
 
+## 0.0.17
+
+### Patch Changes
+
+- [#4700](https://github.com/assistant-ui/assistant-ui/pull/4700) [`9ae141c`](https://github.com/assistant-ui/assistant-ui/commit/9ae141ce1ddeeae9b3f23724d902cc93e4b90d7a) - fix: validate duplicate MCP server ids in the React MCP manager ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4684](https://github.com/assistant-ui/assistant-ui/pull/4684) [`4092037`](https://github.com/assistant-ui/assistant-ui/commit/4092037da30e6b04d985dc807a53323daa66a4f4) - feat: support MCP connection timeouts ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`523e0b5`](https://github.com/assistant-ui/assistant-ui/commit/523e0b563a71a656f050473c42c414b26c2d5ab4), [`f833bc1`](https://github.com/assistant-ui/assistant-ui/commit/f833bc118b49641f3f6e0ab22bcfc63bf0a04408)]:
+  - @assistant-ui/core@0.2.20
+  - assistant-stream@0.3.25
+
 ## 0.0.16
 
 ### Patch Changes

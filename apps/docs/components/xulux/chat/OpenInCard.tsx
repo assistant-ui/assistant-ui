@@ -1,7 +1,9 @@
 "use client";
 
+import { useId } from "react";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-streamdown";
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
+import { PreviewCard } from "@base-ui/react/preview-card";
 import { useCopyToClipboard } from "@assistant-ui/ui/hooks/use-copy-to-clipboard";
 import { analytics } from "@/lib/analytics";
 import {
@@ -131,9 +133,18 @@ function ChatGPTLogo() {
   );
 }
 
+function VSCodeLogo() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-3.5 fill-current" aria-hidden>
+      <path d="M16.2 2.5 7.4 10.6 3.2 7.4 1.5 8.2v7.6l1.7.8 4.2-3.2 8.8 8.1 5.3-2.2V4.7l-5.3-2.2ZM4 10.5l2 1.5-2 1.5v-3Zm4.2 1.5 7-5.3v10.6l-7-5.3Zm10.3 5.4-1.5.6V6l1.5.6v10.8Z" />
+    </svg>
+  );
+}
+
 const PLATFORM_LOGOS = [
   { id: "claude", Logo: ClaudeLogo },
   { id: "codex", Logo: CodexLogo },
+  { id: "vscode", Logo: VSCodeLogo },
   { id: "cursor", Logo: CursorLogo },
   { id: "conductor", Logo: ConductorLogo },
   { id: "chatgpt", Logo: ChatGPTLogo },
@@ -155,6 +166,7 @@ export function OpenInCard({
     ? downloadUrl
     : undefined;
   const hasDownload = Boolean(validDownloadUrl);
+  const promptPreviewId = useId();
 
   return (
     <div className="border-border bg-muted/30 my-4 rounded-lg border px-4 py-3 text-sm shadow-sm">
@@ -178,7 +190,7 @@ export function OpenInCard({
       </div>
 
       {/* Row 2: actions */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2.5">
         {hasDownload && (
           <>
             <a
@@ -198,26 +210,57 @@ export function OpenInCard({
             <span className="text-muted-foreground/70 text-xs">or</span>
           </>
         )}
-        <button
-          type="button"
-          onClick={() => {
-            copyToClipboard(prompt);
-            analytics.xulux.converted(
-              withXuluxContext(analyticsCtx, {
-                action: "copy_prompt",
-                surface: "open_in_card",
-              }),
-            );
-          }}
-          className="bg-foreground text-background hover:bg-foreground/90 inline-flex h-8 items-center gap-1.5 rounded-md px-3.5 text-xs font-medium transition-colors"
-        >
-          {isCopied ? (
-            <CheckIcon className="size-3.5" />
-          ) : (
-            <CopyIcon className="size-3.5" />
-          )}
-          {isCopied ? "Copied!" : "Copy prompt"}
-        </button>
+        <PreviewCard.Root>
+          <PreviewCard.Trigger
+            delay={150}
+            closeDelay={150}
+            render={
+              <button
+                type="button"
+                onClick={() => {
+                  copyToClipboard(prompt);
+                  analytics.xulux.converted(
+                    withXuluxContext(analyticsCtx, {
+                      action: "copy_prompt",
+                      surface: "open_in_card",
+                    }),
+                  );
+                }}
+                className="bg-foreground text-background hover:bg-foreground/90 inline-flex h-8 items-center gap-1.5 rounded-md px-3.5 text-xs font-medium transition-colors"
+                aria-describedby={promptPreviewId}
+              />
+            }
+          >
+            {isCopied ? (
+              <CheckIcon className="size-3.5" />
+            ) : (
+              <CopyIcon className="size-3.5" />
+            )}
+            {isCopied ? "Copied!" : "Copy prompt"}
+          </PreviewCard.Trigger>
+          <PreviewCard.Portal>
+            <PreviewCard.Positioner
+              side="bottom"
+              align="start"
+              sideOffset={8}
+              collisionPadding={12}
+              className="z-[2147483647]"
+            >
+              <PreviewCard.Popup
+                id={promptPreviewId}
+                role="tooltip"
+                className="border-border bg-popover text-popover-foreground w-[min(24rem,calc(100vw-2rem))] rounded-lg border p-3 text-xs shadow-lg"
+              >
+                <div className="text-muted-foreground mb-2 font-medium">
+                  Prompt preview
+                </div>
+                <pre className="max-h-56 overflow-auto font-mono leading-normal break-words whitespace-pre-wrap">
+                  {prompt}
+                </pre>
+              </PreviewCard.Popup>
+            </PreviewCard.Positioner>
+          </PreviewCard.Portal>
+        </PreviewCard.Root>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 import chalk from "chalk";
 import { detect } from "detect-package-manager";
+import { satisfies } from "semver";
 
 const ASSISTANT_UI_PACKAGES = [
   // Distribution
@@ -116,6 +117,16 @@ function readProjectDeps(
   };
 }
 
+function getAssistantUiPackageNames(
+  projectPkg: Record<string, unknown>,
+): string[] {
+  const declaredPackages = Object.keys(readProjectDeps(projectPkg))
+    .filter((name) => name.startsWith("@assistant-ui/"))
+    .sort();
+
+  return [...new Set([...ASSISTANT_UI_PACKAGES, ...declaredPackages])];
+}
+
 function getSpecifiedRange(
   pkg: string,
   projectPkg: Record<string, unknown>,
@@ -198,27 +209,18 @@ async function getPackageManagerInfo(
   return { name: pm, version };
 }
 
-function satisfiesRange(version: string, range: string): boolean {
-  if (range === "*" || range === "any") return true;
+export function satisfiesRange(version: string, range: string): boolean {
+  const normalizedRange = range.startsWith("workspace:")
+    ? range.slice("workspace:".length)
+    : range;
 
-  const clean = (v: string) => v.replace(/^[^\d]*/, "");
-  const major = (v: string) => parseInt(clean(v).split(".")[0]!, 10);
-
-  if (range.includes("||")) {
-    return range
-      .split("||")
-      .some((part) => satisfiesRange(version, part.trim()));
-  }
-
-  const rangeMajor = major(range);
-  const versionMajor = major(version);
-
-  if (Number.isNaN(rangeMajor) || Number.isNaN(versionMajor)) return true;
-
-  if (range.startsWith("^")) return versionMajor >= rangeMajor;
-  if (range.startsWith(">=")) return versionMajor >= rangeMajor;
-
-  return versionMajor >= rangeMajor;
+  return (
+    normalizedRange === "" ||
+    normalizedRange === "^" ||
+    normalizedRange === "~" ||
+    normalizedRange === "any" ||
+    satisfies(version, normalizedRange, { includePrerelease: true })
+  );
 }
 
 interface PackageInfo {
@@ -306,7 +308,11 @@ async function collectInfo(
   projectPkg: Record<string, unknown>,
 ): Promise<InfoData> {
   const pm = await getPackageManagerInfo(cwd);
-  const packages = collectPackages(ASSISTANT_UI_PACKAGES, cwd, projectPkg);
+  const packages = collectPackages(
+    getAssistantUiPackageNames(projectPkg),
+    cwd,
+    projectPkg,
+  );
   const ecosystem = collectPackages(ECOSYSTEM_PACKAGES, cwd, projectPkg);
   const warnings = collectWarnings(packages, cwd, projectPkg);
 
