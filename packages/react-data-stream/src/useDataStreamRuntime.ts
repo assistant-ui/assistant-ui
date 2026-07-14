@@ -78,53 +78,63 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
     unstable_parentId,
     unstable_getMessage,
   }: ChatModelRunOptions) {
-    const headersValue =
-      typeof this.options.headers === "function"
-        ? await this.options.headers()
-        : this.options.headers;
+    let result: Response;
+    try {
+      const headersValue =
+        typeof this.options.headers === "function"
+          ? await this.options.headers()
+          : this.options.headers;
 
-    const bodyValue =
-      typeof this.options.body === "function"
-        ? await this.options.body()
-        : this.options.body;
+      const bodyValue =
+        typeof this.options.body === "function"
+          ? await this.options.body()
+          : this.options.body;
 
-    abortSignal.addEventListener(
-      "abort",
-      () => {
-        if (!abortSignal.reason?.detach) this.options.onCancel?.();
-      },
-      { once: true },
-    );
+      abortSignal.addEventListener(
+        "abort",
+        () => {
+          if (!abortSignal.reason?.detach) this.options.onCancel?.();
+        },
+        { once: true },
+      );
 
-    const headers = new Headers(headersValue);
-    headers.set("Content-Type", "application/json");
+      const headers = new Headers(headersValue);
+      headers.set("Content-Type", "application/json");
 
-    const result = await fetch(this.options.api, {
-      method: "POST",
-      headers,
-      credentials: this.options.credentials ?? "same-origin",
-      body: JSON.stringify({
-        system: context.system,
-        messages: toLanguageModelMessages(
-          [...messages, unstable_getMessage()],
-          { unstable_includeId: this.options.sendExtraMessageFields },
-        ) as DataStreamRuntimeRequestOptions["messages"],
-        tools: toToolsJSONSchema(
-          context.tools ?? {},
-        ) as unknown as DataStreamRuntimeRequestOptions["tools"],
-        ...(unstable_assistantMessageId ? { unstable_assistantMessageId } : {}),
-        ...(unstable_threadId ? { threadId: unstable_threadId } : {}),
-        ...(unstable_parentId !== undefined
-          ? { parentId: unstable_parentId }
-          : {}),
-        runConfig,
-        state: unstable_getMessage().metadata.unstable_state || undefined,
-        ...context.callSettings,
-        ...context.config,
-        ...(bodyValue ?? {}),
-      } satisfies DataStreamRuntimeRequestOptions),
-      signal: abortSignal,
-    });
+      result = await fetch(this.options.api, {
+        method: "POST",
+        headers,
+        credentials: this.options.credentials ?? "same-origin",
+        body: JSON.stringify({
+          system: context.system,
+          messages: toLanguageModelMessages(
+            [...messages, unstable_getMessage()],
+            { unstable_includeId: this.options.sendExtraMessageFields },
+          ) as DataStreamRuntimeRequestOptions["messages"],
+          tools: toToolsJSONSchema(
+            context.tools ?? {},
+          ) as unknown as DataStreamRuntimeRequestOptions["tools"],
+          ...(unstable_assistantMessageId
+            ? { unstable_assistantMessageId }
+            : {}),
+          ...(unstable_threadId ? { threadId: unstable_threadId } : {}),
+          ...(unstable_parentId !== undefined
+            ? { parentId: unstable_parentId }
+            : {}),
+          runConfig,
+          state: unstable_getMessage().metadata.unstable_state || undefined,
+          ...context.callSettings,
+          ...context.config,
+          ...(bodyValue ?? {}),
+        } satisfies DataStreamRuntimeRequestOptions),
+        signal: abortSignal,
+      });
+    } catch (error: unknown) {
+      if (!abortSignal.aborted) {
+        this.options.onError?.(error as Error);
+      }
+      throw error;
+    }
 
     await this.options.onResponse?.(result);
 
