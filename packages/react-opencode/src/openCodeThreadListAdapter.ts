@@ -3,6 +3,10 @@ import {
   type GlobalSession,
   type OpencodeClient,
 } from "@opencode-ai/sdk/v2/client";
+import type {
+  RemoteThreadInitializeResponse,
+  ThreadForkOptions,
+} from "@assistant-ui/core";
 import { compareOpenCodeMessageOrder } from "./openCodeMessageOrder";
 
 const isArchivedSession = (session: Pick<GlobalSession, "time">) => {
@@ -97,8 +101,8 @@ export const createOpenCodeThreadListAdapter = (
   },
   fork: async (
     remoteId: string,
-    options?: { fromMessageId?: string | undefined },
-  ) => {
+    options?: ThreadForkOptions,
+  ): Promise<RemoteThreadInitializeResponse> => {
     if (!options?.fromMessageId) {
       throw new Error("OpenCode fork requires a source message id");
     }
