@@ -270,11 +270,9 @@ export type ThreadRuntime = {
    * Export the thread state in the external store format.
    * For AI SDK runtimes, this returns the AI SDK message format.
    * For other runtimes, this may return different formats or throw an error.
-   * @param repository When provided, restricts the export to this repository
-   * snapshot (e.g. a single branch) instead of the thread's full live state.
    * @returns The thread state in the external format (typed as any)
    */
-  exportExternalState(repository?: ExportedMessageRepository): any;
+  exportExternalState(): any;
 
   /**
    * Import thread state from the external store format.
@@ -436,8 +434,8 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding.getState().resumeRun(toResumeRunConfig(config));
   }
 
-  public exportExternalState(repository?: ExportedMessageRepository) {
-    return this._threadBinding.getState().exportExternalState(repository);
+  public exportExternalState() {
+    return this._threadBinding.getState().exportExternalState();
   }
 
   public importExternalState(state: any) {

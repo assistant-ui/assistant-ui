@@ -105,10 +105,6 @@ export class LocalThreadListRuntimeCore
     throw new Error("Method not implemented.");
   }
 
-  public async fork(): Promise<{ threadId: string }> {
-    throw new Error("Thread list runtime does not support forking");
-  }
-
   public initialize(
     threadId: string,
   ): Promise<{ remoteId: string; externalId: string | undefined }> {

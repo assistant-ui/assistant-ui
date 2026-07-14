@@ -3506,7 +3506,7 @@ type ThreadListRuntimeCore = {
   archive(threadId: string): Promise<void>;
   unarchive(threadId: string): Promise<void>;
   delete(threadId: string): Promise<void>;
-  fork(threadId: string, options?: ThreadForkOptions): Promise<{
+  fork?(threadId: string, options?: ThreadForkOptions): Promise<{
     threadId: string;
   }>;
   initialize(threadId: string): Promise<{
@@ -3686,7 +3686,7 @@ type ThreadRuntime = {
   deleteMessage(messageId: string): void | Promise<void>;
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
-  exportExternalState(repository?: ExportedMessageRepository): any;
+  exportExternalState(): any;
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe$1;
   cancelRun(): void;
@@ -3752,7 +3752,7 @@ type ThreadRuntimeCore = Readonly<{
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
   import(repository: ExportedMessageRepository): void;
   export(): ExportedMessageRepository;
-  exportExternalState(repository?: ExportedMessageRepository): any;
+  exportExternalState(): any;
   importExternalState(state: any): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
   unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -3852,7 +3852,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
       import(repository: ExportedMessageRepository): void;
       export(): ExportedMessageRepository;
-      exportExternalState(repository?: ExportedMessageRepository): any;
+      exportExternalState(): any;
       importExternalState(state: any): void;
       reset(initialMessages?: readonly ThreadMessageLike[]): void;
       unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -3873,7 +3873,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   getModelContext(): ModelContext$1;
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
-  exportExternalState(repository?: ExportedMessageRepository): any;
+  exportExternalState(): any;
   importExternalState(state: any): void;
   cancelRun(): void;
   stopSpeaking(): void;

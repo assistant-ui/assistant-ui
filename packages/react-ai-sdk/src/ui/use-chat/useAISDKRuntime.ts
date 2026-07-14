@@ -320,10 +320,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           .filter(Boolean)
           .flat(),
       ),
-    onExportExternalState: (
-      repository,
-    ): MessageFormatRepository<UI_MESSAGE> => {
-      const exported = repository ?? runtimeRef.current.thread.export();
+    onExportExternalState: (): MessageFormatRepository<UI_MESSAGE> => {
+      const exported = runtimeRef.current.thread.export();
+
       const expandedMessages: MessageFormatItem<UI_MESSAGE>[] = [];
       const lastInnerIdMap = new Map<string, string>();
 
@@ -366,8 +365,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         repo,
       );
 
-      // Import into the thread's MessageRepository; the runtime's onImport
-      // callback syncs the imported messages into the AI SDK chat state.
+      // Import into the thread's MessageRepository
       runtimeRef.current.thread.import(exportedRepo);
     },
     onCancel: async () => {

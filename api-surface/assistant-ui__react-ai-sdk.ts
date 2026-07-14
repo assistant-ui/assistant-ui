@@ -674,7 +674,7 @@ type ExternalStoreAdapterBase<T> = {
   setMessages?: ((messages: readonly T[]) => void) | undefined;
   unstable_onBranchChange?: ((event: ExternalStoreBranchChange) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
-  onExportExternalState?: ((repository?: ExportedMessageRepository) => any) | undefined;
+  onExportExternalState?: (() => any) | undefined;
   onLoadExternalState?: ((state: any) => void) | undefined;
   onNew: (message: AppendMessage) => Promise<void>;
   queue?: ExternalThreadQueueAdapter | undefined;
@@ -740,11 +740,6 @@ type ExternalStoreThreadListAdapter = {
   onArchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onUnarchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onDelete?: ((threadId: string) => Promise<void> | void) | undefined;
-  onFork?: ((threadId: string, options?: ThreadForkOptions) => Promise<{
-    threadId: string;
-  }> | {
-    threadId: string;
-  }) | undefined;
 };
 
 type ExternalThreadQueueAdapter = {
@@ -1649,7 +1644,7 @@ type ThreadRuntime = {
   deleteMessage(messageId: string): void | Promise<void>;
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
-  exportExternalState(repository?: ExportedMessageRepository): any;
+  exportExternalState(): any;
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;

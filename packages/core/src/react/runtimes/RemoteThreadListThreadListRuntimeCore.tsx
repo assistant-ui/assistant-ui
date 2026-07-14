@@ -21,37 +21,7 @@ import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
-import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
 import type { ThreadForkOptions } from "../../types/thread-fork";
-
-const forkRepositoryAtMessage = (
-  repository: ExportedMessageRepository,
-  messageId: string | undefined,
-): ExportedMessageRepository => {
-  if (!messageId) return repository;
-
-  const itemsById = new Map(
-    repository.messages.map((item) => [item.message.id, item]),
-  );
-  const firstItem = itemsById.get(messageId);
-  if (!firstItem) throw new Error("Message not found in thread");
-
-  const branchIds = new Set<string>();
-  for (
-    let item: (typeof repository.messages)[number] | undefined = firstItem;
-    item;
-    item = item.parentId ? itemsById.get(item.parentId) : undefined
-  ) {
-    branchIds.add(item.message.id);
-  }
-
-  return {
-    headId: messageId,
-    messages: repository.messages.filter((item) =>
-      branchIds.has(item.message.id),
-    ),
-  };
-};
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
   new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
@@ -718,30 +688,6 @@ export class RemoteThreadListThreadListRuntimeCore
 
     const sourceInitializeTask =
       data.status === "new" ? this.initialize(data.id) : data.initializeTask;
-    const sourceRuntime = this._hookManager.getThreadRuntimeCore(data.id);
-    const forkRepository = sourceRuntime
-      ? forkRepositoryAtMessage(sourceRuntime.export(), options?.fromMessageId)
-      : undefined;
-    let forkExternalState: unknown;
-    let hasForkExternalState = false;
-    if (sourceRuntime && forkRepository) {
-      try {
-        forkExternalState = sourceRuntime.exportExternalState(forkRepository);
-        hasForkExternalState = true;
-      } catch (error) {
-        // Runtimes without an external state format use the assistant-ui
-        // repository import path below; anything else is a real export bug.
-        if (
-          !(error instanceof Error) ||
-          !error.message.includes("does not support")
-        ) {
-          console.warn(
-            "[assistant-ui] exportExternalState failed during fork; falling back to repository import:",
-            error,
-          );
-        }
-      }
-    }
     return this._state
       .optimisticUpdate({
         execute: async () => {
@@ -790,19 +736,7 @@ export class RemoteThreadListThreadListRuntimeCore
           };
         },
       })
-      .then(async ({ forked }) => {
-        if (forkRepository) {
-          const forkRuntime = await this._hookManager.startThreadRuntime(
-            forked.remoteId,
-          );
-          if (hasForkExternalState) {
-            forkRuntime.importExternalState(forkExternalState);
-          } else {
-            forkRuntime.import(forkRepository);
-          }
-        }
-        return { threadId: forked.remoteId };
-      });
+      .then(({ forked }) => ({ threadId: forked.remoteId }));
   }
 
   public async detach(threadIdOrRemoteId: string): Promise<void> {

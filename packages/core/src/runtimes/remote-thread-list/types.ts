@@ -43,7 +43,8 @@ export type RemoteThreadListAdapter = {
   unarchive(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
   /**
-   * Enables `threadListItem().fork()` for this thread list.
+   * Creates the provider-side fork, including its message history. Return
+   * `forkedFrom` from `list()` and `fetch()` to persist lineage across reloads.
    */
   fork?(
     remoteId: string,

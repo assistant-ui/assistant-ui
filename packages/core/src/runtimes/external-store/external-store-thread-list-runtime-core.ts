@@ -5,7 +5,6 @@ import type {
   ThreadListRuntimeCore,
 } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { ExternalStoreThreadListAdapter } from "./external-store-adapter";
-import type { ThreadForkOptions } from "../../types/thread-fork";
 
 export type ExternalStoreThreadFactory = () => ExternalStoreThreadRuntimeCore;
 
@@ -239,17 +238,6 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
       throw new Error("External store adapter does not support deleting");
 
     await onDelete(threadId);
-  }
-
-  public async fork(
-    threadId: string,
-    options?: ThreadForkOptions,
-  ): Promise<{ threadId: string }> {
-    const onFork = this.adapter.onFork;
-    if (!onFork)
-      throw new Error("External store adapter does not support forking");
-
-    return await onFork(threadId, options);
   }
 
   public initialize(

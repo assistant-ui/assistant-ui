@@ -140,6 +140,9 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     options?: ThreadForkOptions,
   ): Promise<{ threadId: string }> {
     const state = this._core.getState();
+    if (!this._threadListBinding.fork) {
+      throw new Error("Thread list runtime does not support forking");
+    }
 
     return await this._threadListBinding.fork(state.id, options);
   }

@@ -18,10 +18,7 @@ import type { ExportedMessageRepository } from "../../runtime/utils/message-repo
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ToolExecutionStatus } from "../tool-invocations/ToolInvocationTracker";
 import type { ExternalThreadQueueAdapter } from "../../runtime/queue/external-thread-queue-adapter";
-import type {
-  ThreadForkedFrom,
-  ThreadForkOptions,
-} from "../../types/thread-fork";
+import type { ThreadForkedFrom } from "../../types/thread-fork";
 
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
   status: TState;
@@ -62,12 +59,6 @@ export type ExternalStoreThreadListAdapter = {
   onArchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onUnarchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onDelete?: ((threadId: string) => Promise<void> | void) | undefined;
-  onFork?:
-    | ((
-        threadId: string,
-        options?: ThreadForkOptions,
-      ) => Promise<{ threadId: string }> | { threadId: string })
-    | undefined;
 };
 
 export type ExternalStoreMessageConverter<T> = (
@@ -142,14 +133,7 @@ type ExternalStoreAdapterBase<T> = {
     | ((event: ExternalStoreBranchChange) => void)
     | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
-  /**
-   * Export the thread state in the external store format. When a repository
-   * snapshot is provided (e.g. a single branch during a thread fork), the
-   * export must be derived from that snapshot rather than the full live state.
-   */
-  onExportExternalState?:
-    | ((repository?: ExportedMessageRepository) => any)
-    | undefined;
+  onExportExternalState?: (() => any) | undefined;
   onLoadExternalState?: ((state: any) => void) | undefined;
   onNew: (message: AppendMessage) => Promise<void>;
   /** Opt in to message queuing. Typically produced by `createMessageQueue`. */

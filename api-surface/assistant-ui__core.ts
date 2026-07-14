@@ -750,7 +750,7 @@ declare abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   abstract resumeToolCall(options: ResumeToolCallOptions): void;
   abstract respondToToolApproval(options: RespondToToolApprovalOptions): void;
   abstract cancelRun(): void;
-  abstract exportExternalState(repository?: ExportedMessageRepository): any;
+  abstract exportExternalState(): any;
   abstract importExternalState(state: any): void;
   protected _voiceMessages: ThreadMessage[];
   protected _voiceGeneration: number;
@@ -1585,7 +1585,7 @@ type ExternalStoreAdapterBase<T> = {
   setMessages?: ((messages: readonly T[]) => void) | undefined;
   unstable_onBranchChange?: ((event: ExternalStoreBranchChange) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
-  onExportExternalState?: ((repository?: ExportedMessageRepository) => any) | undefined;
+  onExportExternalState?: (() => any) | undefined;
   onLoadExternalState?: ((state: any) => void) | undefined;
   onNew: (message: AppendMessage) => Promise<void>;
   queue?: ExternalThreadQueueAdapter | undefined;
@@ -1659,11 +1659,6 @@ type ExternalStoreThreadListAdapter = {
   onArchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onUnarchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onDelete?: ((threadId: string) => Promise<void> | void) | undefined;
-  onFork?: ((threadId: string, options?: ThreadForkOptions) => Promise<{
-    threadId: string;
-  }> | {
-    threadId: string;
-  }) | undefined;
 };
 
 declare class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore {
@@ -1696,9 +1691,6 @@ declare class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCor
   archive(threadId: string): Promise<void>;
   unarchive(threadId: string): Promise<void>;
   delete(threadId: string): Promise<void>;
-  fork(threadId: string, options?: ThreadForkOptions): Promise<{
-    threadId: string;
-  }>;
   initialize(threadId: string): Promise<{
     remoteId: string;
     externalId: string | undefined;
@@ -1748,7 +1740,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   removeQueueItem(queueItemId: string): void;
   startRun(config: StartRunConfig): Promise<void>;
   resumeRun(config: ResumeRunConfig): Promise<void>;
-  exportExternalState(repository?: ExportedMessageRepository): any;
+  exportExternalState(): any;
   importExternalState(state: any): void;
   cancelRun(): void;
   addToolResult(options: AddToolResultOptions): void;
@@ -2170,9 +2162,6 @@ declare class LocalThreadListRuntimeCore extends BaseSubscribable implements Thr
   detach(): Promise<void>;
   unarchive(): Promise<void>;
   delete(): Promise<void>;
-  fork(): Promise<{
-    threadId: string;
-  }>;
   initialize(threadId: string): Promise<{
     remoteId: string;
     externalId: string | undefined;
@@ -3381,7 +3370,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
     export(): ExportedMessageRepository;
-    exportExternalState(repository?: ExportedMessageRepository): any;
+    exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -3432,7 +3421,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
     export(): ExportedMessageRepository;
-    exportExternalState(repository?: ExportedMessageRepository): any;
+    exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -3538,7 +3527,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
     export(): ExportedMessageRepository;
-    exportExternalState(repository?: ExportedMessageRepository): any;
+    exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -3589,7 +3578,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
     import(repository: ExportedMessageRepository): void;
     export(): ExportedMessageRepository;
-    exportExternalState(repository?: ExportedMessageRepository): any;
+    exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -4401,7 +4390,7 @@ type ThreadListRuntimeCore = {
   archive(threadId: string): Promise<void>;
   unarchive(threadId: string): Promise<void>;
   delete(threadId: string): Promise<void>;
-  fork(threadId: string, options?: ThreadForkOptions): Promise<{
+  fork?(threadId: string, options?: ThreadForkOptions): Promise<{
     threadId: string;
   }>;
   initialize(threadId: string): Promise<{
@@ -4618,7 +4607,7 @@ type ThreadRuntime = {
   deleteMessage(messageId: string): void | Promise<void>;
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
-  exportExternalState(repository?: ExportedMessageRepository): any;
+  exportExternalState(): any;
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe$1;
   cancelRun(): void;
@@ -4684,7 +4673,7 @@ type ThreadRuntimeCore = Readonly<{
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
   import(repository: ExportedMessageRepository): void;
   export(): ExportedMessageRepository;
-  exportExternalState(repository?: ExportedMessageRepository): any;
+  exportExternalState(): any;
   importExternalState(state: any): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
   unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -4784,7 +4773,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
       import(repository: ExportedMessageRepository): void;
       export(): ExportedMessageRepository;
-      exportExternalState(repository?: ExportedMessageRepository): any;
+      exportExternalState(): any;
       importExternalState(state: any): void;
       reset(initialMessages?: readonly ThreadMessageLike[]): void;
       unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
@@ -4805,7 +4794,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   getModelContext(): ModelContext$1;
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
-  exportExternalState(repository?: ExportedMessageRepository): any;
+  exportExternalState(): any;
   importExternalState(state: any): void;
   cancelRun(): void;
   stopSpeaking(): void;

@@ -65,9 +65,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     options: RespondToToolApprovalOptions,
   ): void;
   public abstract cancelRun(): void;
-  public abstract exportExternalState(
-    repository?: ExportedMessageRepository,
-  ): any;
+  public abstract exportExternalState(): any;
   public abstract importExternalState(state: any): void;
 
   protected _voiceMessages: ThreadMessage[] = [];

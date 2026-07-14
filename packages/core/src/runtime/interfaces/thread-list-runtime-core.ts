@@ -57,7 +57,7 @@ export type ThreadListRuntimeCore = {
   archive(threadId: string): Promise<void>;
   unarchive(threadId: string): Promise<void>;
   delete(threadId: string): Promise<void>;
-  fork(
+  fork?(
     threadId: string,
     options?: ThreadForkOptions,
   ): Promise<{ threadId: string }>;

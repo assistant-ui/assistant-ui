@@ -45,7 +45,6 @@ const createMockCore = (
   archive: () => Promise.resolve(),
   unarchive: () => Promise.resolve(),
   delete: () => Promise.resolve(),
-  fork: () => Promise.resolve({ threadId: "forked-thread" }),
   initialize: () => Promise.resolve({ remoteId: "r", externalId: undefined }),
   generateTitle: () => Promise.resolve(),
   subscribe: () => () => {},
