@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "pnpm generate:type-docs && pnpm generate:source-snapshot && next build",
-    "check:electron-snippets": "tsc -p ./snippets/electron/tsconfig.json",
     "generate:type-docs": "tsx ./scripts/generate-type-docs.mts",
     "generate:api-reference": "tsx ./scripts/generate-api-reference.mts",
     "generate:source-snapshot": "tsx ./scripts/generate-source-snapshot.mts",
@@ -106,7 +105,6 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "electron": "^43.1.0",
     "postcss": "^8.5.16",
     "react-grab": "^0.1.48",
     "tailwindcss": "^4.3.2",

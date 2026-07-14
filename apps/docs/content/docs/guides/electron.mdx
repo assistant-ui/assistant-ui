@@ -32,7 +32,28 @@ Do not send an SDK client, assistant-ui runtime, callback, `AbortSignal`, or `Fi
 
 This is the smallest integration. Keep your existing AI SDK chat route and point `AssistantChatTransport` at its public URL.
 
-<include meta='title="renderer/assistant-runtime.tsx"'>../../../snippets/electron/remote.tsx</include>
+```tsx title="renderer/assistant-runtime.tsx"
+import type { ReactNode } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
+
+const transport = new AssistantChatTransport({
+  api: "https://api.example.com/chat",
+});
+
+export function ElectronRuntimeProvider({ children }: { children: ReactNode }) {
+  const runtime = useChatRuntime({ transport });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
 
 The URL must be absolute in a packaged app. A relative value such as `/api/chat` targets the renderer's `file://` or custom-protocol origin, not your deployed backend. Configure the backend's CORS policy for the packaged origin, allow the endpoint in `connect-src`, and authenticate requests as you would from any desktop client.
 
@@ -48,17 +69,78 @@ The following example is intentionally text-only. It streams one request over a 
 
 Place the shared types somewhere all three Electron bundles can import.
 
-<include meta='title="shared/assistant-ipc.ts"'>../../../snippets/electron/shared.ts</include>
+```ts title="shared/assistant-ipc.ts"
+export const ASSISTANT_STREAM_CHANNEL = "assistant:stream";
+
+export type ChatMessage =
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string };
+
+export type ChatRequest = {
+  system?: string;
+  messages: ChatMessage[];
+};
+
+export type ChatEvent =
+  | { type: "delta"; text: string }
+  | { type: "done" }
+  | { type: "error"; message: string };
+
+export type AssistantAI = {
+  streamChat(
+    request: ChatRequest,
+    onEvent: (event: ChatEvent) => void,
+  ): () => void;
+};
+```
 
 ### 2. Expose one preload capability
 
 Expose the smallest API the renderer needs, not `ipcRenderer` itself. The callback receives only validated event data, never Electron's privileged IPC event object.
 
-<include meta='title="preload/assistant.ts"'>../../../snippets/electron/preload.ts</include>
+```ts title="preload/assistant.ts"
+import { contextBridge, ipcRenderer } from "electron";
+import {
+  ASSISTANT_STREAM_CHANNEL,
+  type AssistantAI,
+  type ChatEvent,
+} from "./shared";
+
+const assistantAI: AssistantAI = {
+  streamChat(request, onEvent) {
+    const { port1, port2 } = new MessageChannel();
+    const onMessage = (event: MessageEvent<ChatEvent>) => onEvent(event.data);
+
+    port1.addEventListener("message", onMessage);
+    port1.start();
+    ipcRenderer.postMessage(ASSISTANT_STREAM_CHANNEL, request, [port2]);
+
+    let stopped = false;
+    return () => {
+      if (stopped) return;
+      stopped = true;
+      port1.removeEventListener("message", onMessage);
+      port1.close();
+    };
+  },
+};
+
+contextBridge.exposeInMainWorld("assistantAI", assistantAI);
+```
 
 Declare the context-bridge API for renderer TypeScript:
 
-<include meta='title="renderer/electron.d.ts"'>../../../snippets/electron/electron.d.ts</include>
+```ts title="renderer/electron.d.ts"
+import type { AssistantAI } from "./shared";
+
+declare global {
+  interface Window {
+    assistantAI: AssistantAI;
+  }
+}
+
+export {};
+```
 
 ### 3. Stream from the main process
 
@@ -70,7 +152,92 @@ pnpm add ai @ai-sdk/openai
 
 The handler checks both the sending `WebContents` and its main frame, validates the untrusted payload and bounds its size before calling the model. Set `OPENAI_API_KEY` only in the main-process environment.
 
-<include meta='title="main/assistant-ipc.ts"'>../../../snippets/electron/main.ts</include>
+```ts title="main/assistant-ipc.ts"
+import { openai } from "@ai-sdk/openai";
+import { streamText } from "ai";
+import { ipcMain, type BrowserWindow, type IpcMainEvent } from "electron";
+import {
+  ASSISTANT_STREAM_CHANNEL,
+  type ChatEvent,
+  type ChatRequest,
+} from "./shared";
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isChatRequest = (value: unknown): value is ChatRequest => {
+  if (!isRecord(value) || !Array.isArray(value.messages)) return false;
+  if (value.system !== undefined && typeof value.system !== "string") {
+    return false;
+  }
+  if (value.messages.length > 200) return false;
+
+  let totalLength = typeof value.system === "string" ? value.system.length : 0;
+  for (const message of value.messages) {
+    if (!isRecord(message)) return false;
+    if (message.role !== "user" && message.role !== "assistant") return false;
+    if (typeof message.content !== "string") return false;
+    totalLength += message.content.length;
+    if (totalLength > 1_000_000) return false;
+  }
+
+  return true;
+};
+
+export function registerAssistantIpc(mainWindow: BrowserWindow) {
+  const handleStream = (event: IpcMainEvent, request: unknown) => {
+    const [port] = event.ports;
+    if (!port) return;
+
+    if (
+      event.sender !== mainWindow.webContents ||
+      event.senderFrame !== mainWindow.webContents.mainFrame
+    ) {
+      port.close();
+      return;
+    }
+
+    port.start();
+    if (!isChatRequest(request)) {
+      port.postMessage({
+        type: "error",
+        message: "Invalid chat request.",
+      } satisfies ChatEvent);
+      port.close();
+      return;
+    }
+
+    const abortController = new AbortController();
+    port.once("close", () => abortController.abort());
+    const send = (message: ChatEvent) => port.postMessage(message);
+
+    void (async () => {
+      try {
+        const result = streamText({
+          model: openai("gpt-5.4-mini"),
+          messages: request.messages,
+          ...(request.system ? { system: request.system } : {}),
+          abortSignal: abortController.signal,
+        });
+
+        for await (const text of result.textStream) {
+          send({ type: "delta", text });
+        }
+        send({ type: "done" });
+      } catch (error) {
+        if (abortController.signal.aborted) return;
+        console.error("Assistant stream failed", error);
+        send({ type: "error", message: "The model request failed." });
+      }
+    })();
+  };
+
+  ipcMain.on(ASSISTANT_STREAM_CHANNEL, handleStream);
+  mainWindow.once("closed", () => {
+    ipcMain.removeListener(ASSISTANT_STREAM_CHANNEL, handleStream);
+  });
+}
+```
 
 If your app can open more than one trusted assistant window, register a unique channel per window or route requests through one application-level registry. A global `ipcMain.on` listener should not be re-registered under the same channel for every window.
 
@@ -78,7 +245,106 @@ If your app can open more than one trusted assistant window, register a unique c
 
 `ChatModelAdapter` yields complete snapshots, so the renderer accumulates each IPC delta before yielding it. Its cleanup function closes the port on Stop, unmount, or completion.
 
-<include meta='title="renderer/assistant-runtime.tsx"'>../../../snippets/electron/renderer.tsx</include>
+```tsx title="renderer/assistant-runtime.tsx"
+import type { ReactNode } from "react";
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  type ChatModelAdapter,
+} from "@assistant-ui/react";
+import type { ChatMessage } from "./shared";
+
+const ipcChatModel: ChatModelAdapter = {
+  async *run({ messages, context, abortSignal }) {
+    abortSignal.throwIfAborted();
+
+    const system = [context.system];
+    const serializedMessages: ChatMessage[] = [];
+
+    for (const message of messages) {
+      const text = message.content
+        .flatMap((part) => (part.type === "text" ? [part.text] : []))
+        .join("\n");
+      if (!text) continue;
+
+      if (message.role === "system") system.push(text);
+      if (message.role === "user") {
+        serializedMessages.push({ role: "user", content: text });
+      }
+      if (message.role === "assistant") {
+        serializedMessages.push({ role: "assistant", content: text });
+      }
+    }
+
+    const systemText = system.filter(Boolean).join("\n\n");
+    let stop: (() => void) | undefined;
+    let removeAbortListener: (() => void) | undefined;
+    const deltas = new ReadableStream<string>({
+      start(controller) {
+        let settled = false;
+        const close = () => {
+          if (settled) return;
+          settled = true;
+          controller.close();
+        };
+        const fail = (error: unknown) => {
+          if (settled) return;
+          settled = true;
+          controller.error(error);
+        };
+
+        stop = window.assistantAI.streamChat(
+          {
+            ...(systemText ? { system: systemText } : {}),
+            messages: serializedMessages,
+          },
+          (event) => {
+            if (event.type === "delta") controller.enqueue(event.text);
+            if (event.type === "done") close();
+            if (event.type === "error") fail(new Error(event.message));
+          },
+        );
+
+        const onAbort = () => {
+          stop?.();
+          fail(abortSignal.reason);
+        };
+        abortSignal.addEventListener("abort", onAbort, { once: true });
+        removeAbortListener = () =>
+          abortSignal.removeEventListener("abort", onAbort);
+        if (abortSignal.aborted) onAbort();
+      },
+      cancel() {
+        stop?.();
+      },
+    });
+
+    const reader = deltas.getReader();
+    let fullText = "";
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) return;
+        fullText += value;
+        yield { content: [{ type: "text", text: fullText }] };
+      }
+    } finally {
+      removeAbortListener?.();
+      stop?.();
+      reader.releaseLock();
+    }
+  },
+};
+
+export function ElectronRuntimeProvider({ children }: { children: ReactNode }) {
+  const runtime = useLocalRuntime(ipcChatModel);
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
 
 Wrap your existing assistant-ui thread with `ElectronRuntimeProvider`. Primitives and installed UI components work exactly as they do in a browser React app.
 
