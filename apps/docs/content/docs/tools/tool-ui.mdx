@@ -84,7 +84,7 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v6#custom-transport).
+`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
 
 <Callout type="tip">
   Frontend toolkit entries can be passed to your backend using the
@@ -539,7 +539,7 @@ export default defineToolkit({
 
 ### Server-side approval gates
 
-Some runtimes (notably AI SDK v6's `needsApproval` tools) pause on the server and emit an approval request that the client must acknowledge before the tool runs. assistant-ui surfaces this on the tool part as `approval` and exposes `respondToApproval({ approved, reason? })` on the renderer:
+Some runtimes (notably AI SDK v7's `toolApproval`-gated tools) pause on the server and emit an approval request that the client must acknowledge before the tool runs. assistant-ui surfaces this on the tool part as `approval` and exposes `respondToApproval({ approved, reason? })` on the renderer:
 
 ```tsx
 const toolkit = defineToolkit({
@@ -583,9 +583,9 @@ const toolkit = defineToolkit({
 
 `approval.isAutomatic` is `true` when the runtime granted the decision from a server-side policy rather than the user; render a "auto-approved" badge instead of buttons in that case.
 
-Approval gates require a runtime that implements them: the AI SDK v6 runtime emits them for `needsApproval` tools, and `LocalRuntime` supports gates emitted by your `ChatModelAdapter`; see [LocalRuntime approval gates](/docs/runtimes/custom/local-runtime#approval-gates). For tools where the user supplies the result itself, use `unstable_humanToolNames` with `addResult` instead; see [human-in-the-loop tools](/docs/runtimes/custom/local-runtime#human-in-the-loop-tools).
+Approval gates require a runtime that implements them: the AI SDK v7 runtime emits them for `toolApproval`-gated tools, and `LocalRuntime` supports gates emitted by your `ChatModelAdapter`; see [LocalRuntime approval gates](/docs/runtimes/custom/local-runtime#approval-gates). For tools where the user supplies the result itself, use `unstable_humanToolNames` with `addResult` instead; see [human-in-the-loop tools](/docs/runtimes/custom/local-runtime#human-in-the-loop-tools).
 
-For the wire-side setup (`needsApproval`, `sendAutomaticallyWhen`), see [AI SDK v6 server-side tool approval](/docs/runtimes/ai-sdk/v6#server-side-tool-approval).
+For the wire-side setup (`needsApproval`, `sendAutomaticallyWhen`), see [AI SDK v7 server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval).
 
 ### Approval options
 

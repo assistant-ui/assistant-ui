@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/radix/button";
 import { Select } from "@/components/assistant-ui/select";
 import { GitHubIcon } from "@/components/icons/github";
 import { ThemeToggle } from "@/components/shared/theme-toggle";

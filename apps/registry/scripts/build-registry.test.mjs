@@ -5,10 +5,11 @@ import "tsx/esm";
 const {
   createBaseRegistryItem,
   createRadixRegistryItem,
-  getBaseVariantSourcePath,
+  getRadixVariantSourcePath,
+  validateBasePassDidNotReadRadixSources,
   validateBaseTreeRadixImports,
   validateBaseVariantContent,
-  validateRadixPassDidNotReadBaseSources,
+  validateEmittedSpecifierHygiene,
   validateStyleScopedDependencies,
   validateVariantExportParity,
   validateVariantSlotParity,
@@ -18,7 +19,11 @@ const {
 const createBuilt = (
   name,
   files,
-  { readPaths = [], baseVariantOutputPaths, sourceContentsByOutputPath } = {},
+  {
+    readPaths = [],
+    radixVariantOutputPaths = [],
+    sourceContentsByOutputPath,
+  } = {},
 ) => ({
   payload: {
     $schema: "https://ui.shadcn.com/schema/registry-item.json",
@@ -31,8 +36,7 @@ const createBuilt = (
     })),
   },
   readPaths,
-  baseVariantOutputPaths:
-    baseVariantOutputPaths ?? files.map(([filePath]) => filePath),
+  radixVariantOutputPaths,
   sourceContentsByOutputPath:
     sourceContentsByOutputPath ??
     new Map(files.map(([filePath, content]) => [filePath, content])),
@@ -105,21 +109,63 @@ test("radix registry item removes base-only dependencies without rewriting", () 
   );
 });
 
-test("base variant source path replaces only the .tsx suffix", () => {
+test("radix variant source path replaces only the .tsx suffix", () => {
   assert.equal(
-    getBaseVariantSourcePath("components/ui/button.tsx"),
-    "components/ui/button.base.tsx",
+    getRadixVariantSourcePath("components/ui/button.tsx"),
+    "components/ui/button.radix.tsx",
   );
-  assert.equal(getBaseVariantSourcePath("components/ui/button.ts"), null);
-  assert.equal(getBaseVariantSourcePath("components/ui/button.jsx"), null);
-  assert.equal(getBaseVariantSourcePath("components/ui/button"), null);
+  assert.equal(getRadixVariantSourcePath("components/ui/button.ts"), null);
+  assert.equal(getRadixVariantSourcePath("components/ui/button.jsx"), null);
+  assert.equal(getRadixVariantSourcePath("components/ui/button"), null);
 });
 
 test("base variant content validation accepts clean content", () => {
+  const radixBuilt = [
+    createBuilt("clean", [["components/clean.tsx", "radix content"]], {
+      radixVariantOutputPaths: ["components/clean.tsx"],
+    }),
+  ];
+  const baseBuilt = [
+    createBuilt("clean", [
+      ["components/clean.tsx", "export const clean = true;"],
+    ]),
+  ];
+
+  assert.doesNotThrow(() => validateBaseVariantContent(radixBuilt, baseBuilt));
+});
+
+test("emitted specifier hygiene aggregates marked UI specifiers", () => {
+  assert.throws(
+    () =>
+      validateEmittedSpecifierHygiene([
+        createBuilt("radix", [
+          ["components/radix.tsx", 'import "@/components/ui/radix/button";'],
+        ]),
+        createBuilt("base", [
+          ["components/base.tsx", 'import "@/components/ui/base/button";'],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid emitted UI specifiers:/);
+      assert.ok(
+        error.message.includes(
+          "- radix: components/radix.tsx contains @/components/ui/radix/",
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          "- base: components/base.tsx contains @/components/ui/base/",
+        ),
+      );
+      return true;
+    },
+  );
+
   assert.doesNotThrow(() =>
-    validateBaseVariantContent([
+    validateEmittedSpecifierHygiene([
       createBuilt("clean", [
-        ["components/clean.tsx", "export const clean = true;"],
+        ["components/clean.tsx", 'import "@/components/ui/button";'],
       ]),
     ]),
   );
@@ -129,11 +175,9 @@ test("base tree radix import validation catches fallback payloads", () => {
   assert.throws(
     () =>
       validateBaseTreeRadixImports([
-        createBuilt(
-          "fallback",
-          [["components/fallback.tsx", 'import { Tooltip } from "radix-ui";']],
-          { baseVariantOutputPaths: [] },
-        ),
+        createBuilt("fallback", [
+          ["components/fallback.tsx", 'import { Tooltip } from "radix-ui";'],
+        ]),
       ]),
     (error) => {
       assert.equal(error instanceof Error, true);
@@ -150,16 +194,12 @@ test("base tree radix import validation catches fallback payloads", () => {
   assert.throws(
     () =>
       validateBaseTreeRadixImports([
-        createBuilt(
-          "scoped",
+        createBuilt("scoped", [
           [
-            [
-              "components/scoped.tsx",
-              'import { Tooltip } from "@radix-ui/react-tooltip";',
-            ],
+            "components/scoped.tsx",
+            'import { Tooltip } from "@radix-ui/react-tooltip";',
           ],
-          { baseVariantOutputPaths: [] },
-        ),
+        ]),
       ]),
     (error) => {
       assert.equal(error instanceof Error, true);
@@ -175,16 +215,12 @@ test("base tree radix import validation catches fallback payloads", () => {
   assert.throws(
     () =>
       validateBaseTreeRadixImports([
-        createBuilt(
-          "side-effect",
+        createBuilt("side-effect", [
           [
-            [
-              "components/side-effect.tsx",
-              'import "@radix-ui/themes/styles.css";',
-            ],
+            "components/side-effect.tsx",
+            'import "@radix-ui/themes/styles.css";',
           ],
-          { baseVariantOutputPaths: [] },
-        ),
+        ]),
       ]),
     (error) => {
       assert.equal(error instanceof Error, true);
@@ -199,16 +235,12 @@ test("base tree radix import validation catches fallback payloads", () => {
 
   assert.doesNotThrow(() =>
     validateBaseTreeRadixImports([
-      createBuilt(
-        "clean",
+      createBuilt("clean", [
         [
-          [
-            "components/clean.tsx",
-            'export const styles = "data-radix-thing"; export const clean = true;',
-          ],
+          "components/clean.tsx",
+          'export const styles = "data-radix-thing"; export const clean = true;',
         ],
-        { baseVariantOutputPaths: [] },
-      ),
+      ]),
     ]),
   );
 });
@@ -216,11 +248,18 @@ test("base tree radix import validation catches fallback payloads", () => {
 test("base variant content validation reports plain and scoped radix imports", () => {
   assert.throws(
     () =>
-      validateBaseVariantContent([
-        createBuilt("plain", [
-          ["components/plain.tsx", 'import { Tooltip } from "radix-ui";'],
-        ]),
-      ]),
+      validateBaseVariantContent(
+        [
+          createBuilt("plain", [["components/plain.tsx", "radix content"]], {
+            radixVariantOutputPaths: ["components/plain.tsx"],
+          }),
+        ],
+        [
+          createBuilt("plain", [
+            ["components/plain.tsx", 'import { Tooltip } from "radix-ui";'],
+          ]),
+        ],
+      ),
     (error) => {
       assert.equal(error instanceof Error, true);
       assert.ok(
@@ -234,14 +273,21 @@ test("base variant content validation reports plain and scoped radix imports", (
 
   assert.throws(
     () =>
-      validateBaseVariantContent([
-        createBuilt("scoped", [
-          [
-            "components/scoped.tsx",
-            'import { Tooltip } from "@radix-ui/react-tooltip";',
-          ],
-        ]),
-      ]),
+      validateBaseVariantContent(
+        [
+          createBuilt("scoped", [["components/scoped.tsx", "radix content"]], {
+            radixVariantOutputPaths: ["components/scoped.tsx"],
+          }),
+        ],
+        [
+          createBuilt("scoped", [
+            [
+              "components/scoped.tsx",
+              'import { Tooltip } from "@radix-ui/react-tooltip";',
+            ],
+          ]),
+        ],
+      ),
     (error) => {
       assert.equal(error instanceof Error, true);
       assert.ok(
@@ -254,28 +300,44 @@ test("base variant content validation reports plain and scoped radix imports", (
   );
 
   assert.doesNotThrow(() =>
-    validateBaseVariantContent([
-      createBuilt("clean", [
-        ["components/clean.tsx", "export const clean = true;"],
-      ]),
-    ]),
+    validateBaseVariantContent(
+      [
+        createBuilt("clean", [["components/clean.tsx", "radix content"]], {
+          radixVariantOutputPaths: ["components/clean.tsx"],
+        }),
+      ],
+      [
+        createBuilt("clean", [
+          ["components/clean.tsx", "export const clean = true;"],
+        ]),
+      ],
+    ),
   );
 });
 
 test("base variant content validation aggregates forbidden tokens across files", () => {
+  const radixBuilt = [
+    createBuilt("first", [["components/first.tsx", "radix content"]], {
+      radixVariantOutputPaths: ["components/first.tsx"],
+    }),
+    createBuilt("second", [["components/second.tsx", "radix content"]], {
+      radixVariantOutputPaths: ["components/second.tsx"],
+    }),
+  ];
+  const baseBuilt = [
+    createBuilt("first", [
+      ["components/first.tsx", "const trigger = <Button asChild />;"],
+    ]),
+    createBuilt("second", [
+      [
+        "components/second.tsx",
+        'import { Tooltip } from "radix-ui"; const styles = "delayDuration data-[state=open]";',
+      ],
+    ]),
+  ];
+
   assert.throws(
-    () =>
-      validateBaseVariantContent([
-        createBuilt("first", [
-          ["components/first.tsx", "const trigger = <Button asChild />;"],
-        ]),
-        createBuilt("second", [
-          [
-            "components/second.tsx",
-            'import { Tooltip } from "radix-ui"; const styles = "delayDuration data-[state=open]";',
-          ],
-        ]),
-      ]),
+    () => validateBaseVariantContent(radixBuilt, baseBuilt),
     (error) => {
       assert.equal(error instanceof Error, true);
       assert.match(error.message, /^Invalid base variant content:/);
@@ -309,27 +371,27 @@ test("base variant content validation aggregates forbidden tokens across files",
   );
 });
 
-test("radix source validation aggregates every base variant path read", () => {
+test("base source validation aggregates every radix variant path read", () => {
   assert.throws(
     () =>
-      validateRadixPassDidNotReadBaseSources([
+      validateBasePassDidNotReadRadixSources([
         createBuilt("first", [], {
-          readPaths: ["components/first.base.tsx"],
+          readPaths: ["components/first.radix.tsx"],
         }),
         createBuilt("second", [], {
-          readPaths: ["components/second.tsx", "components/second.base.tsx"],
+          readPaths: ["components/second.tsx", "components/second.radix.tsx"],
         }),
       ]),
     (error) => {
       assert.equal(error instanceof Error, true);
       assert.ok(
         error.message.includes(
-          "- first: radix registry pass read base variant path components/first.base.tsx",
+          "- first: base registry pass read radix variant path components/first.radix.tsx",
         ),
       );
       assert.ok(
         error.message.includes(
-          "- second: radix registry pass read base variant path components/second.base.tsx",
+          "- second: base registry pass read radix variant path components/second.radix.tsx",
         ),
       );
       return true;
@@ -339,8 +401,12 @@ test("radix source validation aggregates every base variant path read", () => {
 
 test("variant tree validation aggregates identical radix and base sources", () => {
   const radixBuilt = [
-    createBuilt("first", [["components/first.tsx", "same first"]]),
-    createBuilt("second", [["components/second.tsx", "same second"]]),
+    createBuilt("first", [["components/first.tsx", "same first"]], {
+      radixVariantOutputPaths: ["components/first.tsx"],
+    }),
+    createBuilt("second", [["components/second.tsx", "same second"]], {
+      radixVariantOutputPaths: ["components/second.tsx"],
+    }),
   ];
   const baseBuilt = [
     createBuilt("first", [["components/first.tsx", "same first"]]),
@@ -353,12 +419,12 @@ test("variant tree validation aggregates identical radix and base sources", () =
       assert.equal(error instanceof Error, true);
       assert.ok(
         error.message.includes(
-          "- first: radix and base sources for components/first.tsx are identical despite a .base.tsx variant",
+          "- first: radix and base sources for components/first.tsx are identical despite a .radix.tsx variant",
         ),
       );
       assert.ok(
         error.message.includes(
-          "- second: radix and base sources for components/second.tsx are identical despite a .base.tsx variant",
+          "- second: radix and base sources for components/second.tsx are identical despite a .radix.tsx variant",
         ),
       );
       return true;
@@ -369,6 +435,7 @@ test("variant tree validation aggregates identical radix and base sources", () =
 test("variant tree validation accepts identical emitted content when sources differ", () => {
   const radixBuilt = [
     createBuilt("widget", [["components/widget.tsx", "shared emitted"]], {
+      radixVariantOutputPaths: ["components/widget.tsx"],
       sourceContentsByOutputPath: new Map([
         ["components/widget.tsx", 'import "@/components/ui/collapsible";'],
       ]),
@@ -380,6 +447,17 @@ test("variant tree validation accepts identical emitted content when sources dif
         ["components/widget.tsx", 'import "@/components/ui-base/collapsible";'],
       ]),
     }),
+  ];
+
+  assert.doesNotThrow(() => validateVariantTreesDiffer(radixBuilt, baseBuilt));
+});
+
+test("variant tree validation skips components without a radix variant", () => {
+  const radixBuilt = [
+    createBuilt("plain", [["components/plain.tsx", "same content"]]),
+  ];
+  const baseBuilt = [
+    createBuilt("plain", [["components/plain.tsx", "same content"]]),
   ];
 
   assert.doesNotThrow(() => validateVariantTreesDiffer(radixBuilt, baseBuilt));
@@ -437,12 +515,16 @@ test("base registry item merges baseDependencies and drops radixDependencies", (
 
 test("slot parity reports mismatched data-slot attributes", () => {
   const radixBuilt = [
-    createBuilt("button", [
+    createBuilt(
+      "button",
       [
-        "components/button.tsx",
-        '<button data-slot="button" data-slot="button-icon" />',
+        [
+          "components/button.tsx",
+          '<button data-slot="button" data-slot="button-icon" />',
+        ],
       ],
-    ]),
+      { radixVariantOutputPaths: ["components/button.tsx"] },
+    ),
   ];
   const baseBuilt = [
     createBuilt("button", [
@@ -468,26 +550,22 @@ test("slot parity reports mismatched data-slot attributes", () => {
   );
 });
 
-test("slot parity accepts identical slot sets and skips empty base variants", () => {
+test("slot parity accepts identical slot sets and skips components without a radix variant", () => {
   assert.doesNotThrow(() =>
     validateVariantSlotParity(
       [
-        createBuilt("button", [
-          ["components/button.tsx", '<button data-slot="button" />'],
-        ]),
+        createBuilt(
+          "button",
+          [["components/button.tsx", '<button data-slot="button" />']],
+          { radixVariantOutputPaths: ["components/button.tsx"] },
+        ),
         createBuilt("plain", [["components/plain.tsx", "export const x = 1;"]]),
       ],
       [
         createBuilt("button", [
           ["components/button.tsx", '<div data-slot="button" />'],
         ]),
-        createBuilt(
-          "plain",
-          [["components/plain.tsx", "export const y = 2;"]],
-          {
-            baseVariantOutputPaths: [],
-          },
-        ),
+        createBuilt("plain", [["components/plain.tsx", "export const y = 2;"]]),
       ],
     ),
   );
@@ -497,9 +575,11 @@ test("slot parity counts object-prop slots the same as jsx-attribute slots", () 
   assert.doesNotThrow(() =>
     validateVariantSlotParity(
       [
-        createBuilt("badge", [
-          ["components/badge.tsx", '<span data-slot="badge" />'],
-        ]),
+        createBuilt(
+          "badge",
+          [["components/badge.tsx", '<span data-slot="badge" />']],
+          { radixVariantOutputPaths: ["components/badge.tsx"] },
+        ),
       ],
       [
         createBuilt("badge", [
@@ -515,12 +595,16 @@ test("slot parity counts object-prop slots the same as jsx-attribute slots", () 
 
 test("export parity reports exports present only in the radix content", () => {
   const radixBuilt = [
-    createBuilt("widget", [
+    createBuilt(
+      "widget",
       [
-        "components/widget.tsx",
-        "export function Widget() {}\nexport function Helper() {}",
+        [
+          "components/widget.tsx",
+          "export function Widget() {}\nexport function Helper() {}",
+        ],
       ],
-    ]),
+      { radixVariantOutputPaths: ["components/widget.tsx"] },
+    ),
   ];
   const baseBuilt = [
     createBuilt("widget", [
@@ -551,9 +635,11 @@ test("export parity treats export { A as B } as B and accepts identical sets", (
     () =>
       validateVariantExportParity(
         [
-          createBuilt("alias", [
-            ["components/alias.tsx", "const A = 1;\nexport { A as B };"],
-          ]),
+          createBuilt(
+            "alias",
+            [["components/alias.tsx", "const A = 1;\nexport { A as B };"]],
+            { radixVariantOutputPaths: ["components/alias.tsx"] },
+          ),
         ],
         [
           createBuilt("alias", [
@@ -572,12 +658,16 @@ test("export parity treats export { A as B } as B and accepts identical sets", (
   assert.doesNotThrow(() =>
     validateVariantExportParity(
       [
-        createBuilt("same", [
+        createBuilt(
+          "same",
           [
-            "components/same.tsx",
-            "export function Same() {}\nconst A = 1;\nexport { A as B };",
+            [
+              "components/same.tsx",
+              "export function Same() {}\nconst A = 1;\nexport { A as B };",
+            ],
           ],
-        ]),
+          { radixVariantOutputPaths: ["components/same.tsx"] },
+        ),
       ],
       [
         createBuilt("same", [
@@ -596,9 +686,11 @@ test("export parity records default exports as default regardless of local name"
     () =>
       validateVariantExportParity(
         [
-          createBuilt("widget", [
-            ["components/widget.tsx", "export default function Widget() {}"],
-          ]),
+          createBuilt(
+            "widget",
+            [["components/widget.tsx", "export default function Widget() {}"]],
+            { radixVariantOutputPaths: ["components/widget.tsx"] },
+          ),
         ],
         [
           createBuilt("widget", [
@@ -617,9 +709,16 @@ test("export parity records default exports as default regardless of local name"
   assert.doesNotThrow(() =>
     validateVariantExportParity(
       [
-        createBuilt("widget", [
-          ["components/widget.tsx", "export default function RadixWidget() {}"],
-        ]),
+        createBuilt(
+          "widget",
+          [
+            [
+              "components/widget.tsx",
+              "export default function RadixWidget() {}",
+            ],
+          ],
+          { radixVariantOutputPaths: ["components/widget.tsx"] },
+        ),
       ],
       [
         createBuilt("widget", [
@@ -635,12 +734,16 @@ test("export parity tracks star and namespace re-exports", () => {
     () =>
       validateVariantExportParity(
         [
-          createBuilt("widget", [
+          createBuilt(
+            "widget",
             [
-              "components/widget.tsx",
-              'export function Widget() {}\nexport * from "./extra";',
+              [
+                "components/widget.tsx",
+                'export function Widget() {}\nexport * from "./extra";',
+              ],
             ],
-          ]),
+            { radixVariantOutputPaths: ["components/widget.tsx"] },
+          ),
         ],
         [
           createBuilt("widget", [
@@ -659,12 +762,16 @@ test("export parity tracks star and namespace re-exports", () => {
     () =>
       validateVariantExportParity(
         [
-          createBuilt("widget", [
+          createBuilt(
+            "widget",
             [
-              "components/widget.tsx",
-              'export * as Helpers from "./extra";\nexport function Widget() {}',
+              [
+                "components/widget.tsx",
+                'export * as Helpers from "./extra";\nexport function Widget() {}',
+              ],
             ],
-          ]),
+            { radixVariantOutputPaths: ["components/widget.tsx"] },
+          ),
         ],
         [
           createBuilt("widget", [

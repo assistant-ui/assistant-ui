@@ -3,7 +3,7 @@
 import { CircleAlertIcon, SunIcon, MoonIcon } from "lucide-react";
 
 import { Select } from "@/components/assistant-ui/select";
-import { Switch } from "@/components/shared/switch";
+import { Switch } from "@/components/ui/switch";
 import {
   ThemeColorPicker,
   OptionalThemeColorPicker,
@@ -12,7 +12,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/radix/tooltip";
 import {
   BORDER_RADIUSES,
   CODE_HIGHLIGHT_THEMES,

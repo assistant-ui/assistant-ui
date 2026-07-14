@@ -72,31 +72,31 @@ async function readLocalShadcnComponent(
 ): Promise<string | null> {
   const uiPath = path.join(
     process.cwd(),
-    "../../packages/ui/src/components/ui",
+    "../../packages/ui/src/components/ui/radix",
     `${name}.tsx`,
   );
 
   if (flavor === "base") {
     const vendoredPath = path.join(
       process.cwd(),
-      "../../packages/ui/src/components/ui-base",
+      "../../packages/ui/src/components/ui/base",
       `${name}.tsx`,
     );
     const vendoredContent = await readFile(vendoredPath);
     if (vendoredContent !== null) {
-      return vendoredContent.replaceAll(
-        "@/components/ui-base/",
-        "@/components/ui/",
-      );
+      return vendoredContent;
     }
 
     const fallbackContent = await readFile(uiPath);
     return fallbackContent !== null && !RADIX_IMPORT.test(fallbackContent)
-      ? fallbackContent
+      ? fallbackContent.replaceAll("@/components/ui/radix/", "@/components/ui/")
       : null;
   }
 
-  return readFile(uiPath);
+  const radixContent = await readFile(uiPath);
+  return radixContent !== null
+    ? radixContent.replaceAll("@/components/ui/radix/", "@/components/ui/")
+    : null;
 }
 
 function parseRegistryDependency(dep: string): {

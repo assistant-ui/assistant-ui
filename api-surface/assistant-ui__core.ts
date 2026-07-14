@@ -3830,6 +3830,20 @@ type SpeechSynthesisAdapter = {
   speak: (text: string) => SpeechSynthesisAdapter.Utterance;
 };
 
+type StandardSchemaInput<TSchema> = TSchema extends {
+  readonly "~standard": {
+    readonly types?: {
+      readonly input: infer TInput;
+    } | undefined;
+  };
+} ? TInput extends Record<string, unknown> ? TInput : Record<string, unknown> : Record<string, unknown>;
+
+type StandardSchemaParameters = Extract<NonNullable<Extract<Tool<any>, {
+  parameters: unknown;
+}>["parameters"]>, {
+  readonly "~standard": unknown;
+}>;
+
 type StartRunConfig = {
   parentId: string | null;
   sourceId: string | null;
@@ -5584,6 +5598,10 @@ declare function stubTool(): never;
 declare const symbolInnerMessage: unique symbol;
 
 declare const toAssistantError: (error: unknown) => AssistantError;
+
+declare function tool<const TSchema extends StandardSchemaParameters, TResult = any>(tool: Tool<StandardSchemaInput<TSchema>, TResult> & {
+  parameters: TSchema;
+}): Tool<StandardSchemaInput<TSchema>, TResult>;
 
 declare function tool<TArgs extends Record<string, unknown>, TResult = any>(tool: Tool<TArgs, TResult>): Tool<TArgs, TResult>;
 

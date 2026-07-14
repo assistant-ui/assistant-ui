@@ -2,11 +2,11 @@
 
 # Templates and examples alias packages/ui via tsconfig and carry no copies,
 # except `minimal`, which ships its own. Minimal is a Base UI (base-nova)
-# scaffold, so its copies mirror the base install shape: a component with a
-# `<name>.base.tsx` sibling syncs from that sibling, everything else syncs
-# from the shared source, and `components/ui` copies sync from the vendored
-# `ui-base` stand-ins. Emission rewrites `@/components/ui-base/` imports to
-# `@/components/ui/`, matching what the registry serves to base projects.
+# scaffold, so its copies mirror the base install shape: the unmarked file in
+# packages/ui/src/components/assistant-ui is already the Base UI source, so
+# minimal's assistant-ui copies sync from it directly, and `components/ui`
+# copies sync from the vendored `ui/base` stand-ins. Base sources already use
+# the scaffold import shape.
 #
 # Usage:
 #   bash scripts/sync-templates.sh            # check (CI mode), exits 1 on drift
@@ -20,7 +20,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$SCRIPT_DIR/.."
 SOURCE_DIR="$ROOT_DIR/packages/ui/src/components/assistant-ui"
-UI_BASE_DIR="$ROOT_DIR/packages/ui/src/components/ui-base"
+UI_BASE_DIR="$ROOT_DIR/packages/ui/src/components/ui/base"
 TEMPLATES_ROOT="$ROOT_DIR/templates"
 EXAMPLES_ROOT="$ROOT_DIR/examples"
 
@@ -47,29 +47,21 @@ annotate() {
     fi
 }
 
-# The base install shape: the base variant when one exists, with ui-base
-# imports rewritten to the ui path they occupy in a scaffolded project.
 resolve_aui_source() {
     local file="$1"
-    local base_src="$SOURCE_DIR/${file%.tsx}.base.tsx"
-    if [[ -f "$base_src" ]]; then
-        echo "$base_src"
-    else
-        echo "$SOURCE_DIR/$file"
-    fi
+    echo "$SOURCE_DIR/$file"
 }
 
-# The import rewrite can change line widths, so committed copies (formatted by
-# oxfmt) and raw renders may disagree on import statement layout. The check
-# compares import-normalized forms, which is layout-insensitive but content
-# strict; --write formats the rendered output with oxfmt before copying.
+# Committed copies and raw sources may disagree on import statement layout.
+# The check compares import-normalized forms, which is layout-insensitive but
+# content strict; --write formats the rendered output with oxfmt before copying.
 RENDER_DIR="$(mktemp -d)"
 trap 'rm -rf "$RENDER_DIR"' EXIT
 mkdir -p "$RENDER_DIR/assistant-ui" "$RENDER_DIR/ui"
 
 render_source() {
     local src="$1" out="$2"
-    sed 's|@/components/ui-base/|@/components/ui/|g' "$src" > "$out"
+    cp "$src" "$out"
 }
 
 rendered_aui() {
@@ -226,7 +218,7 @@ fi
 
 if [[ "$MODE" == "--write" ]]; then
     for file in "${ui_missing[@]}"; do
-        echo "✗ cannot sync minimal ui/$file: no ui-base source to render"
+        echo "✗ cannot sync minimal ui/$file: no ui/base source to render"
         exit 1
     done
     for file in "${drift[@]}"; do
@@ -255,10 +247,10 @@ if [[ ${#drift[@]} -gt 0 ]]; then
 fi
 
 if [[ ${#ui_drift[@]} -gt 0 ]]; then
-    echo "✗ drift detected in ${#ui_drift[@]} minimal ui file(s) vs packages/ui ui-base:"
+    echo "✗ drift detected in ${#ui_drift[@]} minimal ui file(s) vs packages/ui ui/base:"
     for file in "${ui_drift[@]}"; do
         echo "    templates/minimal/components/ui/$file"
-        annotate "templates/minimal/components/ui/$file" "out of sync with the rendered packages/ui/src/components/ui-base/$file; run 'pnpm sync-templates --write'"
+        annotate "templates/minimal/components/ui/$file" "out of sync with the rendered packages/ui/src/components/ui/base/$file; run 'pnpm sync-templates --write'"
     done
 fi
 

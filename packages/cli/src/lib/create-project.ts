@@ -293,12 +293,28 @@ function transformTsConfig(projectDir: string): void {
 
   // Remove workspace paths
   if (tsconfig.compilerOptions?.paths) {
-    delete tsconfig.compilerOptions.paths["@/components/assistant-ui/*"];
-    delete tsconfig.compilerOptions.paths["@/components/icons/*"];
-    delete tsconfig.compilerOptions.paths["@/components/ui/*"];
-    delete tsconfig.compilerOptions.paths["@/hooks/*"];
-    delete tsconfig.compilerOptions.paths["@/lib/utils"];
-    delete tsconfig.compilerOptions.paths["@assistant-ui/ui/*"];
+    const workspaceKeys = new Set([
+      "@/components/assistant-ui/*",
+      "@/components/icons/*",
+      "@/components/ui/*",
+      "@/components/ui/radix/*",
+      "@/hooks/*",
+      "@/lib/utils",
+      "@assistant-ui/ui/*",
+    ]);
+    for (const [key, targets] of Object.entries(
+      tsconfig.compilerOptions.paths as Record<string, unknown>,
+    )) {
+      const targetsWorkspace =
+        Array.isArray(targets) &&
+        targets.some(
+          (target) =>
+            typeof target === "string" && target.includes("packages/ui/"),
+        );
+      if (workspaceKeys.has(key) || targetsWorkspace) {
+        delete tsconfig.compilerOptions.paths[key];
+      }
+    }
 
     if (Object.keys(tsconfig.compilerOptions.paths).length === 0) {
       delete tsconfig.compilerOptions.paths;

@@ -5,9 +5,9 @@ import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
-import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
+} from "@/components/ui/radix/sidebar";
+import { Separator } from "@/components/ui/radix/separator";
+import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar.radix";
 import {
   useOpenCodeRuntime,
   useOpenCodeSession,

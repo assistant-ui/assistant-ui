@@ -11,7 +11,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/radix/button";
 import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
 
 const ANALYTICS_PAGE = "cloud-ai-sdk" as const;

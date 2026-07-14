@@ -21,6 +21,9 @@ const BASE_VARIANT_FORBIDDEN_PATTERNS = [
   ["radix import", RADIX_IMPORT_RE],
   ["data-[state=", /data-\[state=/],
 ] as const;
+const MARKED_UI_SPECIFIERS = ["radix", "base"].map(
+  (flavor) => `@/components/ui/${flavor}/`,
+);
 const PROJECT_PACKAGE_IMPORTS = new Set([
   "next",
   "next-themes",
@@ -78,26 +81,36 @@ function throwIfFindings(header: string, findings: Set<string>): void {
   }
 }
 
-export function getBaseVariantSourcePath(sourcePath: string) {
+export function getRadixVariantSourcePath(sourcePath: string) {
   if (!sourcePath.endsWith(".tsx")) return null;
 
-  return `${sourcePath.slice(0, -4)}.base.tsx`;
+  return `${sourcePath.slice(0, -4)}.radix.tsx`;
 }
 
 type BuiltRegistryPayload = {
   payload: RegistryOutputItem;
   readPaths: string[];
-  baseVariantOutputPaths: string[];
+  radixVariantOutputPaths: string[];
   sourceContentsByOutputPath: Map<string, string>;
 };
 
-export function validateBaseVariantContent(built: BuiltRegistryPayload[]) {
+export function validateBaseVariantContent(
+  radixBuilt: BuiltRegistryPayload[],
+  baseBuilt: BuiltRegistryPayload[],
+) {
+  const baseByName = new Map(
+    baseBuilt.map((built) => [built.payload.name, built]),
+  );
   const findings = new Set<string>();
 
-  for (const { payload, baseVariantOutputPaths } of built) {
-    const outputPaths = new Set(baseVariantOutputPaths);
+  for (const { payload, radixVariantOutputPaths } of radixBuilt) {
+    const outputPaths = new Set(radixVariantOutputPaths);
+    if (outputPaths.size === 0) continue;
 
-    for (const file of payload.files ?? []) {
+    const base = baseByName.get(payload.name);
+    if (!base) continue;
+
+    for (const file of base.payload.files ?? []) {
       if (!outputPaths.has(file.path)) continue;
 
       for (const [label, pattern] of BASE_VARIANT_FORBIDDEN_PATTERNS) {
@@ -131,32 +144,49 @@ export function validateBaseTreeRadixImports(
   throwIfFindings("Invalid base tree imports:", findings);
 }
 
+export function validateEmittedSpecifierHygiene(built: BuiltRegistryPayload[]) {
+  const findings = new Set<string>();
+
+  for (const { payload } of built) {
+    for (const file of payload.files ?? []) {
+      for (const token of MARKED_UI_SPECIFIERS) {
+        if (file.content.includes(token)) {
+          findings.add(`${payload.name}: ${file.path} contains ${token}`);
+        }
+      }
+    }
+  }
+
+  throwIfFindings("Invalid emitted UI specifiers:", findings);
+}
+
 function createRegistryPayload(
   item: RegistryBuildItem,
-  useBaseVariants = false,
+  useRadixVariants = false,
 ): BuiltRegistryPayload {
   const readPaths: string[] = [];
-  const baseVariantOutputPaths: string[] = [];
+  const radixVariantOutputPaths: string[] = [];
   const sourceContentsByOutputPath = new Map<string, string>();
   const files = item.files?.map((file) => {
     const sourcePath = file.sourcePath ?? file.path;
-    const baseVariantPath = useBaseVariants
-      ? getBaseVariantSourcePath(sourcePath)
+    const radixVariantPath = useRadixVariants
+      ? getRadixVariantSourcePath(sourcePath)
       : null;
-    const usesBaseVariant = Boolean(
-      baseVariantPath && existsSync(path.join(process.cwd(), baseVariantPath)),
+    const usesRadixVariant = Boolean(
+      radixVariantPath &&
+      existsSync(path.join(process.cwd(), radixVariantPath)),
     );
-    const readPath = usesBaseVariant ? baseVariantPath! : sourcePath;
+    const readPath = usesRadixVariant ? radixVariantPath! : sourcePath;
     readPaths.push(readPath);
-    if (usesBaseVariant) {
-      baseVariantOutputPaths.push(file.path);
+    if (usesRadixVariant) {
+      radixVariantOutputPaths.push(file.path);
     }
     let content = readFileSync(path.join(process.cwd(), readPath), "utf8");
     sourceContentsByOutputPath.set(file.path, content);
 
-    if (usesBaseVariant) {
+    if (useRadixVariants) {
       content = content.replace(
-        /@\/components\/ui-base\//g,
+        /@\/components\/ui\/radix\//g,
         "@/components/ui/",
       );
     }
@@ -179,63 +209,63 @@ function createRegistryPayload(
   return {
     payload: files ? { ...payload, files } : payload,
     readPaths,
-    baseVariantOutputPaths,
+    radixVariantOutputPaths,
     sourceContentsByOutputPath,
   };
 }
 
-export function validateRadixPassDidNotReadBaseSources(
+export function validateBasePassDidNotReadRadixSources(
   built: BuiltRegistryPayload[],
 ) {
   const findings = new Set<string>();
 
   for (const { payload, readPaths } of built) {
     for (const readPath of readPaths) {
-      if (readPath.endsWith(".base.tsx")) {
+      if (readPath.endsWith(".radix.tsx")) {
         findings.add(
-          `${payload.name}: radix registry pass read base variant path ${readPath}`,
+          `${payload.name}: base registry pass read radix variant path ${readPath}`,
         );
       }
     }
   }
 
-  throwIfFindings("Invalid radix registry source reads:", findings);
+  throwIfFindings("Invalid base registry source reads:", findings);
 }
 
 export function validateVariantTreesDiffer(
   radixBuilt: BuiltRegistryPayload[],
   baseBuilt: BuiltRegistryPayload[],
 ) {
-  const radixByName = new Map(
-    radixBuilt.map((built) => [built.payload.name, built]),
+  const baseByName = new Map(
+    baseBuilt.map((built) => [built.payload.name, built]),
   );
   const findings = new Set<string>();
 
-  for (const base of baseBuilt) {
-    if (base.baseVariantOutputPaths.length === 0) continue;
+  for (const radix of radixBuilt) {
+    if (radix.radixVariantOutputPaths.length === 0) continue;
 
-    const radix = radixByName.get(base.payload.name);
-    if (!radix) {
+    const base = baseByName.get(radix.payload.name);
+    if (!base) {
       findings.add(
-        `${base.payload.name}: base variant exists but radix payload is missing`,
+        `${radix.payload.name}: radix variant exists but base payload is missing`,
       );
       continue;
     }
 
-    for (const filePath of base.baseVariantOutputPaths) {
+    for (const filePath of radix.radixVariantOutputPaths) {
       const radixContent = radix.sourceContentsByOutputPath.get(filePath);
       const baseContent = base.sourceContentsByOutputPath.get(filePath);
 
       if (radixContent === undefined || baseContent === undefined) {
         findings.add(
-          `${base.payload.name}: missing source content for ${filePath} while comparing radix and base trees`,
+          `${radix.payload.name}: missing source content for ${filePath} while comparing radix and base trees`,
         );
         continue;
       }
 
       if (radixContent === baseContent) {
         findings.add(
-          `${base.payload.name}: radix and base sources for ${filePath} are identical despite a .base.tsx variant`,
+          `${radix.payload.name}: radix and base sources for ${filePath} are identical despite a .radix.tsx variant`,
         );
       }
     }
@@ -267,23 +297,23 @@ export function validateVariantSlotParity(
   radixBuilt: BuiltRegistryPayload[],
   baseBuilt: BuiltRegistryPayload[],
 ) {
-  const radixByName = new Map(
-    radixBuilt.map((built) => [built.payload.name, built]),
+  const baseByName = new Map(
+    baseBuilt.map((built) => [built.payload.name, built]),
   );
   const findings = new Set<string>();
 
-  for (const base of baseBuilt) {
-    if (base.baseVariantOutputPaths.length === 0) continue;
+  for (const radix of radixBuilt) {
+    if (radix.radixVariantOutputPaths.length === 0) continue;
 
-    const radix = radixByName.get(base.payload.name);
-    if (!radix) {
+    const base = baseByName.get(radix.payload.name);
+    if (!base) {
       findings.add(
-        `${base.payload.name}: base variant exists but radix payload is missing`,
+        `${radix.payload.name}: radix variant exists but base payload is missing`,
       );
       continue;
     }
 
-    for (const filePath of base.baseVariantOutputPaths) {
+    for (const filePath of radix.radixVariantOutputPaths) {
       const radixContent = radix.payload.files?.find(
         (file) => file.path === filePath,
       )?.content;
@@ -293,7 +323,7 @@ export function validateVariantSlotParity(
 
       if (radixContent === undefined || baseContent === undefined) {
         findings.add(
-          `${base.payload.name}: missing emitted content for ${filePath} while comparing radix and base slots`,
+          `${radix.payload.name}: missing emitted content for ${filePath} while comparing radix and base slots`,
         );
         continue;
       }
@@ -309,7 +339,7 @@ export function validateVariantSlotParity(
 
       if (onlyInRadix.length > 0 || onlyInBase.length > 0) {
         findings.add(
-          `${base.payload.name}: data-slot attributes differ for ${filePath} (${formatSetDifference(onlyInRadix, onlyInBase)})`,
+          `${radix.payload.name}: data-slot attributes differ for ${filePath} (${formatSetDifference(onlyInRadix, onlyInBase)})`,
         );
       }
     }
@@ -388,23 +418,23 @@ export function validateVariantExportParity(
   radixBuilt: BuiltRegistryPayload[],
   baseBuilt: BuiltRegistryPayload[],
 ) {
-  const radixByName = new Map(
-    radixBuilt.map((built) => [built.payload.name, built]),
+  const baseByName = new Map(
+    baseBuilt.map((built) => [built.payload.name, built]),
   );
   const findings = new Set<string>();
 
-  for (const base of baseBuilt) {
-    if (base.baseVariantOutputPaths.length === 0) continue;
+  for (const radix of radixBuilt) {
+    if (radix.radixVariantOutputPaths.length === 0) continue;
 
-    const radix = radixByName.get(base.payload.name);
-    if (!radix) {
+    const base = baseByName.get(radix.payload.name);
+    if (!base) {
       findings.add(
-        `${base.payload.name}: base variant exists but radix payload is missing`,
+        `${radix.payload.name}: radix variant exists but base payload is missing`,
       );
       continue;
     }
 
-    for (const filePath of base.baseVariantOutputPaths) {
+    for (const filePath of radix.radixVariantOutputPaths) {
       const radixContent = radix.payload.files?.find(
         (file) => file.path === filePath,
       )?.content;
@@ -414,7 +444,7 @@ export function validateVariantExportParity(
 
       if (radixContent === undefined || baseContent === undefined) {
         findings.add(
-          `${base.payload.name}: missing emitted content for ${filePath} while comparing radix and base exports`,
+          `${radix.payload.name}: missing emitted content for ${filePath} while comparing radix and base exports`,
         );
         continue;
       }
@@ -430,7 +460,7 @@ export function validateVariantExportParity(
 
       if (onlyInRadix.length > 0 || onlyInBase.length > 0) {
         findings.add(
-          `${base.payload.name}: exported symbols differ for ${filePath} (${formatSetDifference(onlyInRadix, onlyInBase)})`,
+          `${radix.payload.name}: exported symbols differ for ${filePath} (${formatSetDifference(onlyInRadix, onlyInBase)})`,
         );
       }
     }
@@ -768,14 +798,15 @@ async function buildRegistry(registry: RegistryItem[]) {
   validateRegistrySchema(baseRegistry);
 
   const radixBuilt = radixRegistry.map((item) =>
-    createRegistryPayload(item, false),
-  );
-  const baseBuilt = baseRegistry.map((item) =>
     createRegistryPayload(item, true),
   );
-  validateBaseVariantContent(baseBuilt);
+  const baseBuilt = baseRegistry.map((item) =>
+    createRegistryPayload(item, false),
+  );
+  validateBaseVariantContent(radixBuilt, baseBuilt);
   validateBaseTreeRadixImports(baseBuilt);
-  validateRadixPassDidNotReadBaseSources(radixBuilt);
+  validateEmittedSpecifierHygiene([...radixBuilt, ...baseBuilt]);
+  validateBasePassDidNotReadRadixSources(baseBuilt);
   validateVariantTreesDiffer(radixBuilt, baseBuilt);
   validateVariantSlotParity(radixBuilt, baseBuilt);
   validateVariantExportParity(radixBuilt, baseBuilt);

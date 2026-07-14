@@ -23,7 +23,6 @@ import { SourceLink } from "@/components/docs/source-link";
 import { DemoIframe } from "@/components/docs/demo-iframe";
 import { Flow } from "@/components/assistant-ui/flow";
 import { MermaidDiagram } from "@/components/docs/mermaid-diagram";
-import { Code } from "@radix-ui/themes";
 
 function Kbd({ children, ...props }: ComponentProps<"kbd">) {
   return (
@@ -33,6 +32,17 @@ function Kbd({ children, ...props }: ComponentProps<"kbd">) {
     >
       {children}
     </kbd>
+  );
+}
+
+function Code({ children, ...props }: ComponentProps<"code">) {
+  return (
+    <code
+      className="bg-muted rounded-md px-1.5 py-0.5 font-mono text-[0.85em] font-medium"
+      {...props}
+    >
+      {children}
+    </code>
   );
 }
 

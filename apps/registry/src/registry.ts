@@ -611,7 +611,7 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:ui",
         path: "components/ui/direction.tsx",
-        sourcePath: "../../packages/ui/src/components/ui/direction.tsx",
+        sourcePath: "../../packages/ui/src/components/ui/radix/direction.tsx",
       },
     ],
     radixDependencies: ["radix-ui"],

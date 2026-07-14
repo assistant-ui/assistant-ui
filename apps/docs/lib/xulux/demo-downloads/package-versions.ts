@@ -16,7 +16,7 @@ export const DEMO_DEPENDENCIES = [
   "@assistant-ui/react-ai-sdk",
   "@assistant-ui/react-lexical",
   "@assistant-ui/react-markdown",
-  "@radix-ui/react-icons",
+  "@base-ui/react",
   "ai",
   "class-variance-authority",
   "clsx",

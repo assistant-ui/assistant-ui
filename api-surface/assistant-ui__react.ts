@@ -3836,6 +3836,20 @@ type SpeechSynthesisAdapter = {
   speak: (text: string) => SpeechSynthesisAdapter.Utterance;
 };
 
+type StandardSchemaInput<TSchema> = TSchema extends {
+  readonly "~standard": {
+    readonly types?: {
+      readonly input: infer TInput;
+    } | undefined;
+  };
+} ? TInput extends Record<string, unknown> ? TInput : Record<string, unknown> : Record<string, unknown>;
+
+type StandardSchemaParameters = Extract<NonNullable<Extract<Tool<any>, {
+  parameters: unknown;
+}>["parameters"]>, {
+  readonly "~standard": unknown;
+}>;
+
 type StartRunConfig = {
   parentId: string | null;
   sourceId: string | null;
@@ -5838,6 +5852,10 @@ declare namespace threadList_d_exports {
 declare namespace thread_d_exports {
   export { ThreadPrimitiveEmpty as Empty, ThreadPrimitiveIf as If, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadPrimitiveMessages as Messages, ThreadPrimitiveRoot as Root, ThreadPrimitiveScrollToBottom as ScrollToBottom, ThreadPrimitiveSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById, ThreadPrimitiveViewport as Viewport, ThreadPrimitiveViewportFooter as ViewportFooter, ThreadPrimitiveViewportProvider as ViewportProvider };
 }
+
+declare function tool<const TSchema extends StandardSchemaParameters, TResult = any>(tool: Tool<StandardSchemaInput<TSchema>, TResult> & {
+  parameters: TSchema;
+}): Tool<StandardSchemaInput<TSchema>, TResult>;
 
 declare function tool<TArgs extends Record<string, unknown>, TResult = any>(tool: Tool<TArgs, TResult>): Tool<TArgs, TResult>;
 

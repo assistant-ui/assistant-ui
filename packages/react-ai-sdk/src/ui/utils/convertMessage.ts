@@ -1,4 +1,10 @@
-import { isToolUIPart, getToolName, type UIMessage } from "ai";
+import {
+  isToolUIPart,
+  isReasoningFileUIPart,
+  isCustomContentUIPart,
+  getToolName,
+  type UIMessage,
+} from "ai";
 import {
   createMessageConverter as unstable_createMessageConverter,
   type useExternalMessageConverter,
@@ -364,6 +370,22 @@ function convertParts(
         } satisfies DataMessagePart;
       }
 
+      if (isReasoningFileUIPart(part)) {
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType,
+        } satisfies FileMessagePart;
+      }
+
+      if (isCustomContentUIPart(part)) {
+        return {
+          type: "data",
+          name: part.kind,
+          data: part.providerMetadata ?? null,
+        } satisfies DataMessagePart;
+      }
+
       console.warn(`Unsupported message part type: ${part.type}`);
       return null;
     })
@@ -393,27 +415,31 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           content,
           attachments: message.parts
             ?.filter((p) => p.type === "file")
-            .map((part, idx) => ({
-              id: idx.toString(),
-              type: part.mediaType.startsWith("image/") ? "image" : "file",
-              name: part.filename ?? "file",
-              content: [
-                part.mediaType.startsWith("image/")
-                  ? {
-                      type: "image",
-                      image: part.url,
-                      filename: part.filename!,
-                    }
-                  : {
-                      type: "file",
-                      filename: part.filename!,
-                      data: part.url,
-                      mimeType: part.mediaType,
-                    },
-              ],
-              contentType: part.mediaType ?? "unknown/unknown",
-              status: { type: "complete" as const },
-            })),
+            .map((part, idx) => {
+              const mediaType = part.mediaType ?? "unknown/unknown";
+              const isImage = mediaType.startsWith("image/");
+              return {
+                id: idx.toString(),
+                type: isImage ? "image" : "file",
+                name: part.filename ?? "file",
+                content: [
+                  isImage
+                    ? {
+                        type: "image",
+                        image: part.url,
+                        filename: part.filename!,
+                      }
+                    : {
+                        type: "file",
+                        filename: part.filename!,
+                        data: part.url,
+                        mimeType: mediaType,
+                      },
+                ],
+                contentType: mediaType,
+                status: { type: "complete" as const },
+              };
+            }),
           metadata: message.metadata as MessageMetadata,
         };
 
