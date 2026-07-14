@@ -746,6 +746,40 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("forwards callProviderMetadata.mcp.app.serverId onto ToolCallMessagePart.mcp.app", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-search",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { query: "hi" },
+            output: { results: [] },
+            callProviderMetadata: {
+              mcp: {
+                app: {
+                  resourceUri: "ui://example/search",
+                  serverId: "search-server",
+                },
+              },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://example/search",
+      serverId: "search-server",
+    });
+  });
+
   it("preserves providerMetadata on text and reasoning parts", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
@@ -842,12 +876,12 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
-  it("memoizes MCP app metadata across conversions by resourceUri", () => {
+  it("memoizes MCP app metadata across conversions by serverId and resourceUri", () => {
     const metadata: AISDKMessageConverterMetadata = {
       mcpAppMetadataCache: new Map(),
     };
 
-    const buildMessage = (id: string) => ({
+    const buildMessage = (id: string, serverId: string) => ({
       id,
       role: "assistant" as const,
       parts: [
@@ -858,19 +892,26 @@ describe("AISDKMessageConverter", () => {
           input: { q: "hi" },
           output: {},
           callProviderMetadata: {
-            mcp: { app: { resourceUri: "ui://example/search" } },
+            mcp: {
+              app: { resourceUri: "ui://example/search", serverId },
+            },
           },
         } as any,
       ],
     });
 
     const first = AISDKMessageConverter.toThreadMessages(
-      [buildMessage("a1")],
+      [buildMessage("a1", "search-server")],
       false,
       metadata,
     );
     const second = AISDKMessageConverter.toThreadMessages(
-      [buildMessage("a2")],
+      [buildMessage("a2", "search-server")],
+      false,
+      metadata,
+    );
+    const third = AISDKMessageConverter.toThreadMessages(
+      [buildMessage("a3", "other-server")],
       false,
       metadata,
     );
@@ -881,8 +922,16 @@ describe("AISDKMessageConverter", () => {
     const secondApp = second[0]?.content.find(
       (p): p is any => p.type === "tool-call",
     )?.mcp?.app;
+    const thirdApp = third[0]?.content.find(
+      (p): p is any => p.type === "tool-call",
+    )?.mcp?.app;
     expect(firstApp).toBeDefined();
     expect(firstApp).toBe(secondApp);
+    expect(thirdApp).not.toBe(firstApp);
+    expect(thirdApp).toEqual({
+      resourceUri: "ui://example/search",
+      serverId: "other-server",
+    });
   });
 
   it("converts a reasoning-file part into a file part", () => {
