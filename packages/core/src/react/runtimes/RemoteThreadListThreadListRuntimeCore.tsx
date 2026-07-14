@@ -14,7 +14,10 @@ import {
   normalizeCursor,
   updateStatusReducer,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
-import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/types";
+import type {
+  RemoteThreadInitializeResponse,
+  RemoteThreadListOptions,
+} from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 import { type FC, Fragment, useEffect, useId } from "react";
 import { create } from "zustand";
@@ -34,6 +37,52 @@ const threadStatusError = (
   new Error(
     `Thread "${threadIdOrRemoteId}" has status "${status}", so it cannot ${action}.`,
   );
+
+const addForkedThreadReducer = (
+  state: RemoteThreadState,
+  sourceThreadIdOrRemoteId: string,
+  forked: RemoteThreadInitializeResponse,
+  source: RemoteThreadInitializeResponse,
+  options: ThreadForkOptions | undefined,
+) => {
+  const stateSource = getThreadData(state, sourceThreadIdOrRemoteId);
+  const forkedRemoteId = forked.remoteId;
+  const mappingId = createThreadMappingId(forkedRemoteId);
+
+  return {
+    ...state,
+    threadIds: [
+      forkedRemoteId,
+      ...state.threadIds.filter((id) => id !== forkedRemoteId),
+    ],
+    archivedThreadIds: state.archivedThreadIds.filter(
+      (id) => id !== forkedRemoteId,
+    ),
+    threadIdMap: {
+      ...state.threadIdMap,
+      [forkedRemoteId]: mappingId,
+    },
+    threadData: {
+      ...state.threadData,
+      [mappingId]: {
+        id: forkedRemoteId,
+        initializeTask: Promise.resolve(forked),
+        remoteId: forkedRemoteId,
+        externalId: forked.externalId,
+        forkedFrom: {
+          threadId: stateSource?.remoteId ?? source.remoteId,
+          ...(options?.fromMessageId
+            ? { messageId: options.fromMessageId }
+            : {}),
+        },
+        status: "regular" as const,
+        title: undefined,
+        lastMessageAt: undefined,
+        custom: undefined,
+      },
+    },
+  };
+};
 
 export class RemoteThreadListThreadListRuntimeCore
   extends BaseSubscribable
@@ -688,52 +737,30 @@ export class RemoteThreadListThreadListRuntimeCore
 
     const sourceInitializeTask =
       data.status === "new" ? this.initialize(data.id) : data.initializeTask;
+    let completedFork:
+      | {
+          forked: RemoteThreadInitializeResponse;
+          source: RemoteThreadInitializeResponse;
+        }
+      | undefined;
+
     return this._state
       .optimisticUpdate({
         execute: async () => {
           const source = await sourceInitializeTask;
           const forked = await forkAdapter(source.remoteId, options);
-          return { forked, source };
+          completedFork = { forked, source };
+          return completedFork;
         },
-        then: (state, { forked, source }) => {
-          const stateSource = getThreadData(state, threadIdOrRemoteId);
-          const forkedRemoteId = forked.remoteId;
-          const mappingId = createThreadMappingId(forkedRemoteId);
-
-          return {
-            ...state,
-            threadIds: [
-              forkedRemoteId,
-              ...state.threadIds.filter((id) => id !== forkedRemoteId),
-            ],
-            archivedThreadIds: state.archivedThreadIds.filter(
-              (id) => id !== forkedRemoteId,
-            ),
-            threadIdMap: {
-              ...state.threadIdMap,
-              [forkedRemoteId]: mappingId,
-            },
-            threadData: {
-              ...state.threadData,
-              [mappingId]: {
-                id: forkedRemoteId,
-                initializeTask: Promise.resolve(forked),
-                remoteId: forkedRemoteId,
-                externalId: forked.externalId,
-                forkedFrom: {
-                  threadId:
-                    stateSource?.remoteId ?? source.remoteId ?? data.remoteId,
-                  ...(options?.fromMessageId
-                    ? { messageId: options.fromMessageId }
-                    : {}),
-                },
-                status: "regular",
-                title: undefined,
-                lastMessageAt: undefined,
-                custom: undefined,
-              },
-            },
-          };
+        optimistic: (state) => {
+          if (!completedFork) return state;
+          return addForkedThreadReducer(
+            state,
+            threadIdOrRemoteId,
+            completedFork.forked,
+            completedFork.source,
+            options,
+          );
         },
       })
       .then(({ forked }) => ({ threadId: forked.remoteId }));
