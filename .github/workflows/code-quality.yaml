@@ -90,7 +90,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install root tooling
-        run: pnpm install --frozen-lockfile --filter .
+        run: pnpm install --frozen-lockfile --filter . --ignore-scripts
 
       - name: Verify templates match packages/ui source
         run: bash scripts/sync-templates.sh
