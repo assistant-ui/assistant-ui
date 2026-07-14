@@ -2511,9 +2511,7 @@ type McpAppsHost = {
     uri: string;
     serverId?: string;
   }) => Promise<unknown>;
-  listResources: (params?: {
-    serverId?: string;
-  } & Record<string, unknown>) => Promise<unknown>;
+  listResources: (params?: unknown) => Promise<unknown>;
 };
 
 declare const McpAppsRemoteHost: Resource<McpAppsHost, [
