@@ -77,10 +77,11 @@ function extractMcpAppMetadata(
   }
   if (typeof a["resourceUri"] !== "string") return undefined;
   if (!isMcpAppUri(a["resourceUri"])) return undefined;
-  const cached = cache?.get(a["resourceUri"]);
+  const cacheKey = `${typeof a["serverId"] === "string" ? a["serverId"] : ""} ${a["resourceUri"]}`;
+  const cached = cache?.get(cacheKey);
   if (cached) {
-    cache!.delete(a["resourceUri"]);
-    cache!.set(a["resourceUri"], cached);
+    cache!.delete(cacheKey);
+    cache!.set(cacheKey, cached);
     return cached;
   }
   const out: { -readonly [K in keyof McpAppMetadata]: McpAppMetadata[K] } = {
@@ -92,12 +93,14 @@ function extractMcpAppMetadata(
       (v): v is "model" | "app" => v === "model" || v === "app",
     );
   }
+  if (typeof a["serverId"] === "string" && a["serverId"].length > 0)
+    out.serverId = a["serverId"];
   if (cache) {
     if (cache.size >= MCP_APP_METADATA_CACHE_MAX) {
       const oldest = cache.keys().next().value;
       if (oldest !== undefined) cache.delete(oldest);
     }
-    cache.set(a["resourceUri"], out);
+    cache.set(cacheKey, out);
   }
   return out;
 }

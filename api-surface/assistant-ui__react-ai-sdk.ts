@@ -9,10 +9,12 @@ import { ComponentType, ReactNode } from "react";
 type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   adapters?: (NonNullable<ExternalStoreAdapter["adapters"]> & {
     history?: ThreadHistoryAdapter | undefined;
+    suggestion?: SuggestionAdapter | undefined;
   }) | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   cancelPendingToolCallsOnSend?: boolean | undefined;
   onResume?: ExternalStoreAdapter["onResume"];
+  onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
   joinStrategy?: JoinStrategy | undefined;
 };
 
@@ -315,6 +317,8 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
   readonly operations: ObjectStreamOperation[];
@@ -950,6 +954,7 @@ type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
   readonly visibility?: readonly ("app" | "model")[];
+  readonly serverId?: string;
 };
 
 type McpServerConfig = {
@@ -1407,6 +1412,15 @@ type StartRunConfig = {
   parentId: string | null;
   sourceId: string | null;
   runConfig: RunConfig;
+};
+
+type SuggestionAdapter = {
+  generate: (options: SuggestionAdapterGenerateOptions) => Promise<readonly ThreadSuggestion[]> | AsyncGenerator<readonly ThreadSuggestion[], void>;
+};
+
+type SuggestionAdapterGenerateOptions = {
+  messages: readonly ThreadMessage[];
+  signal?: AbortSignal;
 };
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
@@ -1969,6 +1983,7 @@ type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatI
   adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   onResume?: AISDKRuntimeAdapter["onResume"];
+  onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
   onResumeError?: ((error: unknown) => void) | undefined;
   joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;

@@ -634,6 +634,8 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
   readonly operations: ObjectStreamOperation[];
@@ -2445,6 +2447,7 @@ type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
   readonly visibility?: readonly ("app" | "model")[];
+  readonly serverId?: string;
 };
 
 declare const McpAppRenderer: Resource<{
@@ -2499,10 +2502,14 @@ type McpAppToolCallParams = {
 type McpAppsHost = {
   loadResource: (params: {
     uri: string;
+    serverId?: string;
   }) => Promise<McpAppResource>;
-  callTool: (params: McpAppToolCallParams) => Promise<unknown>;
+  callTool: (params: McpAppToolCallParams & {
+    serverId?: string;
+  }) => Promise<unknown>;
   readResource: (params: {
     uri: string;
+    serverId?: string;
   }) => Promise<unknown>;
   listResources: (params?: unknown) => Promise<unknown>;
 };
@@ -3878,6 +3885,7 @@ type SuggestionAdapter = {
 
 type SuggestionAdapterGenerateOptions = {
   messages: readonly ThreadMessage[];
+  signal?: AbortSignal;
 };
 
 declare const SuggestionByIndexProvider: FC<SuggestionByIndexProviderProps>;

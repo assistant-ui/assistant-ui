@@ -1,3 +1,4 @@
+import { SSEEventDecoder } from "assistant-stream/utils";
 import { contentToParts } from "./contentToParts";
 import type {
   AdkEvent,
@@ -213,79 +214,27 @@ function messagesToProxyBody(
 async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
-  let lineBuffer = "";
-  let dataLines: string[] = [];
-  let pendingLF = false;
-
-  const flushEvent = (): AdkEvent | null => {
-    if (dataLines.length === 0) return null;
-
-    const event = JSON.parse(dataLines.join("\n")) as AdkEvent;
-    dataLines = [];
-    return event;
-  };
-
-  const processLine = (line: string): AdkEvent | null => {
-    if (line === "") return flushEvent();
-    if (line.startsWith(":")) return null;
-
-    const separator = line.indexOf(":");
-    const field = separator === -1 ? line : line.slice(0, separator);
-    let value = separator === -1 ? "" : line.slice(separator + 1);
-    if (value.startsWith(" ")) value = value.slice(1);
-
-    if (field === "data") {
-      dataLines.push(value);
-    }
-
-    return null;
-  };
-
-  // Lines end with LF, CRLF, or CR. A chunk-trailing "\r" terminates its
-  // line immediately; pendingLF then swallows the leading "\n" of the next
-  // chunk so a CRLF split across chunks is not counted twice.
-  const processText = (text: string): AdkEvent[] => {
-    const events: AdkEvent[] = [];
-    if (text === "") return events;
-
-    if (pendingLF && text.startsWith("\n")) text = text.slice(1);
-    pendingLF = text.endsWith("\r");
-
-    lineBuffer += text;
-    const lines = lineBuffer.split(/\r\n|\r|\n/);
-    lineBuffer = lines.pop()!;
-
-    for (const line of lines) {
-      const event = processLine(line);
-      if (event) events.push(event);
-    }
-
-    return events;
-  };
+  const sseDecoder = new SSEEventDecoder({ trailing: "dispatch" });
 
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
-        for (const event of processText(decoder.decode())) {
-          yield event;
+        for (const event of sseDecoder.push(decoder.decode())) {
+          yield JSON.parse(event.data) as AdkEvent;
         }
         break;
       }
 
-      for (const event of processText(
+      for (const event of sseDecoder.push(
         decoder.decode(value, { stream: true }),
       )) {
-        yield event;
+        yield JSON.parse(event.data) as AdkEvent;
       }
     }
 
-    if (lineBuffer.length > 0) {
-      processLine(lineBuffer);
-    }
-
-    const trailing = flushEvent();
-    if (trailing) yield trailing;
+    const trailing = sseDecoder.flush();
+    if (trailing !== null) yield JSON.parse(trailing.data) as AdkEvent;
   } finally {
     reader.releaseLock();
   }

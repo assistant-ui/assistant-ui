@@ -1,6 +1,7 @@
 "use client";
 
 import { describe, expect, it, vi } from "vitest";
+import { ExportedMessageRepository } from "@assistant-ui/core";
 import type {
   AppendMessage,
   ChatModelRunResult,
@@ -137,6 +138,87 @@ describe("AGUIThreadRuntimeCore", () => {
       toolName: "get_weather",
       result: { temperature: "22C" },
     });
+  });
+
+  it("preserves mcp app snapshot results and model content for subsequent runs", async () => {
+    const runInputs: any[] = [];
+    const callToolResult = {
+      content: [
+        { type: "text", text: "ok" },
+        { type: "image", data: "aGk=", mimeType: "image/png" },
+      ],
+      structuredContent: { ok: true },
+      isError: false,
+    };
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "call-1",
+            toolCallName: "show_map",
+          },
+        });
+        subscriber.onToolCallArgsEvent?.({
+          event: {
+            type: "TOOL_CALL_ARGS",
+            toolCallId: "call-1",
+            delta: '{"city":"sf"}',
+          },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            toolCallId: "call-1",
+            content: "ok",
+            role: "tool",
+          },
+        });
+        subscriber.onActivitySnapshotEvent?.({
+          event: {
+            type: "ACTIVITY_SNAPSHOT",
+            activityType: "mcp-apps",
+            content: {
+              result: callToolResult,
+              resourceUri: "ui://srv/mcp-app.html",
+              serverHash: "h",
+              serverId: "s",
+              toolInput: { city: "sf" },
+            },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find(
+        (message) => message.role === "assistant",
+      ) as ThreadAssistantMessage;
+    const toolPart = assistant.content.find(
+      (part) => part.type === "tool-call",
+    ) as any;
+    expect(toolPart.result).toEqual(callToolResult);
+    expect(toolPart.modelContent).toEqual([{ type: "text", text: "ok" }]);
+    expect(toolPart.mcp.app.serverId).toBe("s");
+
+    await core.resume({
+      parentId: assistant.id,
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+    });
+
+    const toolMessage = runInputs[1]?.messages.find(
+      (message: { role: string }) => message.role === "tool",
+    );
+    expect(toolMessage?.content).toBe("ok");
+    expect(toolMessage?.content).not.toBe(JSON.stringify(callToolResult));
   });
 
   it("preserves tool message IDs when rerunning imported snapshots", async () => {
@@ -1264,6 +1346,368 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getMessages()).toHaveLength(2);
     expect(core.getMessages()[0]?.id).toBe("msg-1");
     expect(core.getMessages()[1]?.id).toBe("msg-2");
+  });
+
+  it("preserves branchable history on __internal_load", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const repository = ExportedMessageRepository.fromBranchableArray(
+      [
+        {
+          message: {
+            id: "msg-1",
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant",
+            content: [{ type: "text", text: "Option A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant",
+            content: [{ type: "text", text: "Option B" }],
+          },
+          parentId: "msg-1",
+        },
+      ],
+      { headId: "msg-2b" },
+    );
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(repository),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.__internal_load();
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2b",
+    ]);
+    expect(
+      core.getMessageRepository()?.messages.map(({ message, parentId }) => ({
+        id: message.id,
+        parentId,
+      })),
+    ).toEqual([
+      { id: "msg-1", parentId: null },
+      { id: "msg-2a", parentId: "msg-1" },
+      { id: "msg-2b", parentId: "msg-1" },
+    ]);
+
+    core.applyExternalMessages([
+      repository.messages[0]!.message,
+      repository.messages[1]!.message,
+    ]);
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2a",
+    ]);
+    expect(core.getMessageRepository()?.headId).toBe("msg-2a");
+    expect(core.getMessageRepository()?.messages).toHaveLength(3);
+
+    core.applyExternalMessages([]);
+
+    expect(core.getMessageRepository()).toBeUndefined();
+  });
+
+  it("preserves branchable history while resuming loaded history", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const repository = ExportedMessageRepository.fromBranchableArray(
+      [
+        {
+          message: {
+            id: "msg-1",
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant",
+            content: [{ type: "text", text: "Option A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant",
+            content: [{ type: "text", text: "Option B" }],
+          },
+          parentId: "msg-1",
+        },
+      ],
+      { headId: "msg-2b" },
+    );
+
+    const resume = vi.fn(async function* (): AsyncGenerator<
+      ChatModelRunResult,
+      void,
+      unknown
+    > {
+      yield {
+        content: [{ type: "text", text: "recovered" }],
+        status: { type: "complete", reason: "unknown" },
+      };
+    });
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        ...repository,
+        unstable_resume: true,
+      }),
+      resume,
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.__internal_load();
+
+    expect(resume).toHaveBeenCalledTimes(1);
+    expect(runAgent).not.toHaveBeenCalled();
+
+    const messages = core.getMessages();
+    const assistant = messages.at(-1) as ThreadAssistantMessage;
+    expect(messages.map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2b",
+      assistant.id,
+    ]);
+    expect(assistant.content.at(-1)).toMatchObject({
+      type: "text",
+      text: "recovered",
+    });
+    expect(assistant.metadata.isOptimistic).toBeUndefined();
+
+    const loadedRepository = core.getMessageRepository();
+    expect(loadedRepository?.headId).toBe(assistant.id);
+    expect(
+      loadedRepository?.messages.map(({ message, parentId }) => ({
+        id: message.id,
+        parentId,
+      })),
+    ).toEqual([
+      { id: "msg-1", parentId: null },
+      { id: "msg-2a", parentId: "msg-1" },
+      { id: "msg-2b", parentId: "msg-1" },
+      { id: assistant.id, parentId: "msg-2b" },
+    ]);
+  });
+
+  it("does not rewrite a hidden branch when a resumed server id collides", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onTextMessageStartEvent?.({
+        event: {
+          type: "TEXT_MESSAGE_START",
+          messageId: "msg-2a",
+          role: "assistant",
+        },
+      });
+      subscriber.onTextMessageContentEvent?.({
+        event: {
+          type: "TEXT_MESSAGE_CONTENT",
+          messageId: "msg-2a",
+          delta: "server reused sibling id",
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const repository = ExportedMessageRepository.fromBranchableArray(
+      [
+        {
+          message: {
+            id: "msg-1",
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant",
+            content: [{ type: "text", text: "Option A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant",
+            content: [{ type: "text", text: "Option B" }],
+          },
+          parentId: "msg-1",
+        },
+      ],
+      { headId: "msg-2b" },
+    );
+    const append = vi.fn().mockResolvedValue(undefined);
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(repository),
+      append,
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+    await core.__internal_load();
+    await core.resume({
+      parentId: "msg-2b",
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+    });
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2b",
+    ]);
+    const loadedRepository = core.getMessageRepository();
+    expect(loadedRepository?.headId).toBe("msg-2b");
+    expect(
+      loadedRepository?.messages.map(({ message, parentId }) => ({
+        id: message.id,
+        parentId,
+        text:
+          message.content[0]?.type === "text" ? message.content[0].text : "",
+      })),
+    ).toEqual([
+      { id: "msg-1", parentId: null, text: "Hello" },
+      { id: "msg-2a", parentId: "msg-1", text: "Option A" },
+      { id: "msg-2b", parentId: "msg-1", text: "Option B" },
+    ]);
+    expect(
+      loadedRepository?.messages.filter(
+        ({ message }) => message.id === "msg-2a",
+      ),
+    ).toHaveLength(1);
+    expect(
+      loadedRepository?.messages.some(({ message }) =>
+        message.id.startsWith("__optimistic__"),
+      ),
+    ).toBe(false);
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it("falls back to flat loaded history when branchable history has duplicate ids", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      metadata: { custom: {} },
+    };
+    const firstAssistant: ThreadAssistantMessage = {
+      id: "msg-2",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "complete", reason: "unknown" },
+      content: [{ type: "text", text: "Option A" }],
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    const secondAssistant: ThreadAssistantMessage = {
+      ...firstAssistant,
+      content: [{ type: "text", text: "Option B" }],
+    };
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: "msg-2",
+        messages: [
+          { message: userMessage, parentId: null },
+          { message: firstAssistant, parentId: "msg-1" },
+          { message: secondAssistant, parentId: "msg-1" },
+        ],
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.__internal_load();
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2",
+      "msg-2",
+    ]);
+    expect(core.getMessageRepository()).toBeUndefined();
+  });
+
+  it("falls back to linear history when a new turn is appended after load", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const repository = ExportedMessageRepository.fromBranchableArray(
+      [
+        {
+          message: {
+            id: "msg-1",
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant",
+            content: [{ type: "text", text: "Option A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant",
+            content: [{ type: "text", text: "Option B" }],
+          },
+          parentId: "msg-1",
+        },
+      ],
+      { headId: "msg-2b" },
+    );
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(repository),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.__internal_load();
+    expect(core.getMessageRepository()).toBeDefined();
+
+    await core.append(createAppendMessage({ parentId: "msg-2b" }));
+
+    expect(core.getMessageRepository()).toBeUndefined();
+    expect(
+      core
+        .getMessages()
+        .map((message) => message.id)
+        .slice(0, 2),
+    ).toEqual(["msg-1", "msg-2b"]);
   });
 
   it("returns existing promise if __internal_load called multiple times", async () => {

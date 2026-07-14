@@ -117,6 +117,16 @@ function readProjectDeps(
   };
 }
 
+function getAssistantUiPackageNames(
+  projectPkg: Record<string, unknown>,
+): string[] {
+  const declaredPackages = Object.keys(readProjectDeps(projectPkg))
+    .filter((name) => name.startsWith("@assistant-ui/"))
+    .sort();
+
+  return [...new Set([...ASSISTANT_UI_PACKAGES, ...declaredPackages])];
+}
+
 function getSpecifiedRange(
   pkg: string,
   projectPkg: Record<string, unknown>,
@@ -206,6 +216,8 @@ export function satisfiesRange(version: string, range: string): boolean {
 
   return (
     normalizedRange === "" ||
+    normalizedRange === "^" ||
+    normalizedRange === "~" ||
     normalizedRange === "any" ||
     satisfies(version, normalizedRange, { includePrerelease: true })
   );
@@ -296,7 +308,11 @@ async function collectInfo(
   projectPkg: Record<string, unknown>,
 ): Promise<InfoData> {
   const pm = await getPackageManagerInfo(cwd);
-  const packages = collectPackages(ASSISTANT_UI_PACKAGES, cwd, projectPkg);
+  const packages = collectPackages(
+    getAssistantUiPackageNames(projectPkg),
+    cwd,
+    projectPkg,
+  );
   const ecosystem = collectPackages(ECOSYSTEM_PACKAGES, cwd, projectPkg);
   const warnings = collectWarnings(packages, cwd, projectPkg);
 

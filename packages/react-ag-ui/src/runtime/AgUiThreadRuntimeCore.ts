@@ -8,6 +8,7 @@ import type {
   AssistantRuntime,
   ChatModelRunOptions,
   ChatModelRunResult,
+  ExportedMessageRepository,
   MessageStatus,
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
@@ -67,6 +68,57 @@ type CoreOptions = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
+const getRepositoryHeadId = (
+  repository: ExportedMessageRepository,
+): string | null =>
+  repository.headId ?? repository.messages.at(-1)?.message.id ?? null;
+
+const getRepositoryBranchMessages = (
+  repository: ExportedMessageRepository,
+  headId = getRepositoryHeadId(repository),
+): readonly ThreadMessage[] | null => {
+  if (headId === null) return [];
+
+  const byId = new Map<string, ExportedMessageRepository["messages"][number]>();
+  for (const item of repository.messages) {
+    const id = item.message.id;
+    if (byId.has(id)) return null;
+    byId.set(id, item);
+  }
+
+  const branch: ThreadMessage[] = [];
+  const visited = new Set<string>();
+  let item = byId.get(headId);
+
+  if (!item) return null;
+
+  while (true) {
+    const id = item.message.id;
+    if (visited.has(id)) return null;
+
+    visited.add(id);
+    branch.push(item.message);
+
+    if (item.parentId === null) break;
+    item = byId.get(item.parentId);
+    if (!item) return null;
+  }
+
+  return branch.reverse();
+};
+
+const sameMessagePath = (
+  left: readonly ThreadMessage[],
+  right: readonly ThreadMessage[],
+) =>
+  left.length === right.length &&
+  left.every((message, index) => message.id === right[index]?.id);
+
+const repositoryHasMessageId = (
+  repository: ExportedMessageRepository,
+  messageId: string,
+) => repository.messages.some(({ message }) => message.id === messageId);
+
 export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
@@ -78,6 +130,7 @@ export class AgUiThreadRuntimeCore {
 
   private runtime: AssistantRuntime | undefined;
   private messages: ThreadMessage[] = [];
+  private messageRepository: ExportedMessageRepository | undefined;
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
   private stateSnapshot: ReadonlyJSONValue | undefined;
@@ -125,6 +178,10 @@ export class AgUiThreadRuntimeCore {
     return this.messages;
   }
 
+  getMessageRepository(): ExportedMessageRepository | undefined {
+    return this.messageRepository;
+  }
+
   getState(): ReadonlyJSONValue | undefined {
     return this.stateSnapshot;
   }
@@ -148,15 +205,14 @@ export class AgUiThreadRuntimeCore {
       .then(async (repo) => {
         if (!repo) return;
 
-        const messages = repo.messages.map((item) => item.message);
-        this.applyExternalMessages(messages);
+        this.applyExternalMessageRepository(repo);
 
         if (repo.state !== undefined) {
           this.loadExternalState(repo.state);
         }
 
         if (repo.unstable_resume) {
-          const parentId = repo.headId ?? messages.at(-1)?.id ?? null;
+          const parentId = repo.headId ?? this.messages.at(-1)?.id ?? null;
           const resumeStream = this.history?.resume?.bind(this.history);
           await this.startRun(
             parentId,
@@ -228,7 +284,7 @@ export class AgUiThreadRuntimeCore {
   ): Promise<void> {
     this.assertNoPendingInterrupts();
     this.maybeAutoCancelPendingToolCalls();
-    this.resetHead(parentId);
+    this.resetHead(parentId, { preserveMessageRepository: true });
     this.notifyUpdate();
     await this.startRun(parentId, config.runConfig);
   }
@@ -538,7 +594,10 @@ export class AgUiThreadRuntimeCore {
         metadata: { ...assistant.metadata, custom: newCustom },
       };
     });
-    if (touched) this.notifyUpdate();
+    if (touched) {
+      this.syncMessageRepositoryWithMessages();
+      this.notifyUpdate();
+    }
   }
 
   findMessageIdForToolCall(toolCallId: string): string | undefined {
@@ -573,6 +632,7 @@ export class AgUiThreadRuntimeCore {
       });
       return { ...assistant, content };
     });
+    this.syncMessageRepositoryWithMessages();
     this.notifyUpdate();
   }
 
@@ -600,6 +660,7 @@ export class AgUiThreadRuntimeCore {
     });
 
     if (!updated) return;
+    this.syncMessageRepositoryWithMessages();
     this.notifyUpdate();
     this.maybeResumeAfterToolResults(options.messageId);
   }
@@ -642,6 +703,7 @@ export class AgUiThreadRuntimeCore {
           }
         : m,
     );
+    this.syncMessageRepositoryWithMessages();
     this.notifyUpdate();
     this.persistAssistantHistory(messageId);
     return true;
@@ -656,11 +718,77 @@ export class AgUiThreadRuntimeCore {
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
     this.assistantHistoryParents.clear();
     this.messages = [...messages];
+    this.messageRepository = this.getUpdatedRepositoryForMessages(messages);
     this.recordedHistoryIds.clear();
-    for (const message of this.messages) {
+    const recordedMessages = this.messageRepository
+      ? this.messageRepository.messages.map((item) => item.message)
+      : this.messages;
+    for (const message of recordedMessages) {
       this.recordedHistoryIds.add(message.id);
     }
     this.notifyUpdate();
+  }
+
+  private applyExternalMessageRepository(
+    repository: ExportedMessageRepository,
+  ): void {
+    const headId = getRepositoryHeadId(repository);
+    const branch = getRepositoryBranchMessages(repository, headId);
+    if (branch === null) {
+      this.applyExternalMessages(
+        repository.messages.map(({ message }) => message),
+      );
+      return;
+    }
+
+    this.assistantHistoryParents.clear();
+    this.messageRepository = { ...repository, headId };
+    this.messages = [...branch];
+    this.recordedHistoryIds.clear();
+    for (const { message } of repository.messages) {
+      this.recordedHistoryIds.add(message.id);
+    }
+    this.notifyUpdate();
+  }
+
+  private getUpdatedRepositoryForMessages(
+    messages: readonly ThreadMessage[],
+  ): ExportedMessageRepository | undefined {
+    if (!this.messageRepository) return undefined;
+    if (messages.length === 0) return undefined;
+
+    const headId = messages[messages.length - 1]!.id;
+    const repositoryMessages = getRepositoryBranchMessages(
+      this.messageRepository,
+      headId,
+    );
+
+    if (
+      repositoryMessages === null ||
+      !sameMessagePath(messages, repositoryMessages)
+    ) {
+      return undefined;
+    }
+
+    const incomingMessages = new Map(
+      messages.map((message) => [message.id, message]),
+    );
+
+    return {
+      ...this.messageRepository,
+      headId,
+      messages: this.messageRepository.messages.map((item) => ({
+        ...item,
+        message: incomingMessages.get(item.message.id) ?? item.message,
+      })),
+    };
+  }
+
+  private syncMessageRepositoryWithMessages(): void {
+    if (!this.messageRepository) return;
+    this.messageRepository = this.getUpdatedRepositoryForMessages(
+      this.messages,
+    );
   }
 
   loadExternalState(state: ReadonlyJSONValue): void {
@@ -676,7 +804,7 @@ export class AgUiThreadRuntimeCore {
   ): Promise<void> {
     const normalizedRunConfig = runConfig ?? {};
     this.lastRunConfig = normalizedRunConfig;
-    this.resetHead(parentId);
+    this.resetHead(parentId, { preserveMessageRepository: true });
     const historicalMessages = [...this.messages];
 
     this.pendingError = null;
@@ -684,7 +812,9 @@ export class AgUiThreadRuntimeCore {
     let assistantMessageId: string | undefined;
     const ensureAssistant = () => {
       if (assistantMessageId) return assistantMessageId;
-      const created = this.insertAssistantPlaceholder();
+      const created = this.insertAssistantPlaceholder(
+        assistantParentId ?? null,
+      );
       assistantMessageId = created;
       this.markPendingAssistantHistory(created, assistantParentId ?? null);
       return created;
@@ -918,7 +1048,7 @@ export class AgUiThreadRuntimeCore {
     this.setRunning(false);
   }
 
-  private insertAssistantPlaceholder(): string {
+  private insertAssistantPlaceholder(parentId: string | null): string {
     const id = generateOptimisticId();
     const assistant: ThreadAssistantMessage = {
       id,
@@ -936,6 +1066,16 @@ export class AgUiThreadRuntimeCore {
       },
     };
     this.messages = [...this.messages, assistant];
+    if (this.messageRepository) {
+      this.messageRepository = {
+        ...this.messageRepository,
+        headId: id,
+        messages: [
+          ...this.messageRepository.messages,
+          { parentId, message: assistant },
+        ],
+      };
+    }
     this.notifyUpdate();
     return id;
   }
@@ -943,11 +1083,15 @@ export class AgUiThreadRuntimeCore {
   private reassignAssistantId(oldId: string, newId: string): void {
     if (oldId === newId) return;
 
-    const collidesWithExisting = this.messages.some((m) => m.id === newId);
+    const collidesWithExisting =
+      this.messages.some((m) => m.id === newId) ||
+      (this.messageRepository
+        ? repositoryHasMessageId(this.messageRepository, newId)
+        : false);
 
     if (collidesWithExisting) {
       this.logger.debug?.(
-        "[agui] reassignAssistantId: server id already present in messages, dropping placeholder",
+        "[agui] reassignAssistantId: server id already present in messages or repository, dropping placeholder",
         { oldId, newId },
       );
       this.messages = this.messages.filter((m) => m.id !== oldId);
@@ -959,17 +1103,49 @@ export class AgUiThreadRuntimeCore {
       });
     }
 
+    if (this.messageRepository) {
+      const oldRepositoryItem = this.messageRepository.messages.find(
+        (item) => item.message.id === oldId,
+      );
+      const messagesById = new Map(
+        this.messages.map((message) => [message.id, message]),
+      );
+      this.messageRepository = {
+        ...this.messageRepository,
+        headId:
+          this.messageRepository.headId === oldId
+            ? collidesWithExisting
+              ? (oldRepositoryItem?.parentId ?? null)
+              : newId
+            : this.messageRepository.headId,
+        messages: this.messageRepository.messages.flatMap((item) => {
+          if (collidesWithExisting && item.message.id === oldId) return [];
+          const id = item.message.id === oldId ? newId : item.message.id;
+          const message = messagesById.get(id) ?? item.message;
+          return [
+            {
+              ...item,
+              parentId: item.parentId === oldId ? newId : item.parentId,
+              message,
+            },
+          ];
+        }),
+      };
+    }
+
     const pendingParent = this.assistantHistoryParents.get(oldId);
     if (pendingParent !== undefined) {
       this.assistantHistoryParents.delete(oldId);
-      if (!this.assistantHistoryParents.has(newId)) {
+      if (!collidesWithExisting && !this.assistantHistoryParents.has(newId)) {
         this.assistantHistoryParents.set(newId, pendingParent);
       }
     }
 
     if (this.recordedHistoryIds.has(oldId)) {
       this.recordedHistoryIds.delete(oldId);
-      this.recordedHistoryIds.add(newId);
+      if (!collidesWithExisting) {
+        this.recordedHistoryIds.add(newId);
+      }
     }
 
     this.notifyUpdate();
@@ -1014,6 +1190,7 @@ export class AgUiThreadRuntimeCore {
       this.reassignAssistantId(messageId, stableId);
       resolvedMessageId = stableId;
     } else {
+      this.syncMessageRepositoryWithMessages();
       this.notifyUpdate();
     }
     if (this.isPersistableStatus(latestStatus)) {
@@ -1157,6 +1334,7 @@ export class AgUiThreadRuntimeCore {
     });
 
     if (!updated) return;
+    this.syncMessageRepositoryWithMessages();
     this.notifyUpdate();
     // Not maybeResumeAfterToolResults: the delivering run is already in
     // flight, and a resume from the owner would reset the head past it.
@@ -1195,7 +1373,30 @@ export class AgUiThreadRuntimeCore {
     );
   }
 
-  private resetHead(parentId: string | null | undefined) {
+  private resetHead(
+    parentId: string | null | undefined,
+    options: { preserveMessageRepository?: boolean } = {},
+  ) {
+    if (
+      options.preserveMessageRepository &&
+      parentId &&
+      this.messageRepository
+    ) {
+      const branch = getRepositoryBranchMessages(
+        this.messageRepository,
+        parentId,
+      );
+      if (branch !== null && branch.at(-1)?.id === parentId) {
+        this.messageRepository = {
+          ...this.messageRepository,
+          headId: parentId,
+        };
+        this.messages = [...branch];
+        return;
+      }
+    }
+
+    this.messageRepository = undefined;
     if (!parentId) {
       if (this.messages.length) {
         this.messages = [];

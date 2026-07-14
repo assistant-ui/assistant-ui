@@ -272,6 +272,8 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
   readonly operations: ObjectStreamOperation[];
@@ -1025,6 +1027,7 @@ type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
   readonly visibility?: readonly ("app" | "model")[];
+  readonly serverId?: string;
 };
 
 type McpServerConfig = {
@@ -2087,6 +2090,8 @@ type Unstable_AudioMessagePart = {
 type Unsubscribe = () => void;
 
 type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
+  initialThreadId?: string | undefined;
+  threadId?: string | undefined;
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;

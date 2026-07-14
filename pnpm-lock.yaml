@@ -3785,6 +3785,9 @@ importers:
       '@assistant-ui/store':
         specifier: ^0.2.19
         version: link:../store
+      assistant-stream:
+        specifier: ^0.3.25
+        version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*

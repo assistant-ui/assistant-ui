@@ -10,10 +10,6 @@ on:
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
 
-concurrency:
-  group: claude-code-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 env:
   # Shared action configuration
   TRACK_PROGRESS: 'true'
@@ -97,7 +93,16 @@ env:
 
 jobs:
   claude-review:
-    if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.sender.type != 'Bot'
+    # Job-level so that runs skipped by the `if` guard never enter the group; a
+    # workflow-level group would cancel the in-flight review of the previous
+    # head before the guard is evaluated (e.g. on autofix.ci pushes).
+    concurrency:
+      group: claude-code-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     permissions:
