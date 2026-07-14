@@ -130,7 +130,7 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         signal: abortSignal,
       });
     } catch (error: unknown) {
-      if (!abortSignal.aborted) {
+      if (!(error instanceof Error && error.name === "AbortError")) {
         this.options.onError?.(error as Error);
       }
       throw error;
