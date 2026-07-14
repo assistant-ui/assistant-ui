@@ -76,6 +76,43 @@ describe("toAISDKContent", () => {
   it("returns an empty value array for empty input", () => {
     expect(toAISDKContent([])).toEqual({ type: "content", value: [] });
   });
+
+  it("falls back to application/octet-stream when mediaType is missing", () => {
+    const parts = [{ type: "file", data: "DDDD" } as any];
+    expect(toAISDKContent(parts)).toEqual({
+      type: "content",
+      value: [
+        {
+          type: "file-data",
+          data: "DDDD",
+          mediaType: "application/octet-stream",
+        },
+      ],
+    });
+  });
+
+  it("falls back to application/octet-stream when mediaType is not a string", () => {
+    const parts = [{ type: "file", data: "EEEE", mediaType: 42 } as any];
+    expect(toAISDKContent(parts)).toEqual({
+      type: "content",
+      value: [
+        {
+          type: "file-data",
+          data: "EEEE",
+          mediaType: "application/octet-stream",
+        },
+      ],
+    });
+  });
+
+  it("does not throw on a part with an unknown type and no mediaType", () => {
+    const parts = [{ type: "widget" } as any];
+    const result = toAISDKContent(parts);
+    expect(result.value[0]).toMatchObject({
+      type: "file-data",
+      mediaType: "application/octet-stream",
+    });
+  });
 });
 
 describe("toAISDKDefaultOutput", () => {
