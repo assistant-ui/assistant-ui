@@ -26,6 +26,7 @@ import {
   STREAM_RECONNECTED_EVENT_TYPE,
   type OpenCodeEventSource,
 } from "./OpenCodeEventSource";
+import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
 import { serializeUserParts } from "./serializeUserParts";
 
 type OpenCodeEventSourceProvider = () => Pick<OpenCodeEventSource, "subscribe">;
@@ -215,7 +216,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     const token = ++this.reconnectSyncToken;
 
     void this.client.session
-      .status()
+      .status(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
       .then((response) => {
         if (!response || token !== this.reconnectSyncToken) return;
@@ -228,7 +229,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       });
 
     void this.client.permission
-      .list()
+      .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
       .then((response) => {
         if (!response || token !== this.reconnectSyncToken) return;
@@ -243,7 +244,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       });
 
     void this.client.question
-      .list()
+      .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
       .then((response) => {
         if (!response || token !== this.reconnectSyncToken) return;
@@ -287,8 +288,14 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.dispatch({ type: "history.loading" });
 
     const request = Promise.all([
-      this.client.session.get({ sessionID: this.sessionId }),
-      this.client.session.messages({ sessionID: this.sessionId }),
+      this.client.session.get(
+        { sessionID: this.sessionId },
+        OPEN_CODE_REQUEST_OPTIONS,
+      ),
+      this.client.session.messages(
+        { sessionID: this.sessionId },
+        OPEN_CODE_REQUEST_OPTIONS,
+      ),
     ])
       .then(([sessionResponse, messagesResponse]) => {
         if (this.loadPromise !== request) return;
@@ -348,16 +355,19 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.dispatch({ type: "run.started" });
 
     try {
-      await this.client.session.promptAsync({
-        sessionID: this.sessionId,
-        // The SDK currently infers a narrower payload shape than the runtime
-        // accepts here, so we cast at the boundary instead of widening types
-        // throughout the caller stack.
-        parts: getPromptParts(message) as never,
-        ...(options?.model ? { model: options.model } : {}),
-        ...(options?.agent ? { agent: options.agent } : {}),
-        ...(options?.noReply ? { noReply: options.noReply } : {}),
-      });
+      await this.client.session.promptAsync(
+        {
+          sessionID: this.sessionId,
+          // The SDK currently infers a narrower payload shape than the runtime
+          // accepts here, so we cast at the boundary instead of widening types
+          // throughout the caller stack.
+          parts: getPromptParts(message) as never,
+          ...(options?.model ? { model: options.model } : {}),
+          ...(options?.agent ? { agent: options.agent } : {}),
+          ...(options?.noReply ? { noReply: options.noReply } : {}),
+        },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
     } catch (error) {
       this.dispatch({
         type: "local.message.failed",
@@ -417,9 +427,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   public async cancel() {
     this.dispatch({ type: "run.cancelling" });
     try {
-      await this.client.session.abort({
-        sessionID: this.sessionId,
-      });
+      await this.client.session.abort(
+        {
+          sessionID: this.sessionId,
+        },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
     } catch (error) {
       this.dispatch({ type: "run.failed", error });
       throw error;
@@ -429,10 +442,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   public async revert(messageId: string) {
     this.dispatch({ type: "run.reverting" });
     try {
-      await this.client.session.revert({
-        sessionID: this.sessionId,
-        messageID: messageId,
-      });
+      await this.client.session.revert(
+        {
+          sessionID: this.sessionId,
+          messageID: messageId,
+        },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
     } catch (error) {
       this.dispatch({ type: "run.failed", error });
       throw error;
@@ -440,16 +456,22 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   public async unrevert() {
-    await this.client.session.unrevert({
-      sessionID: this.sessionId,
-    });
+    await this.client.session.unrevert(
+      {
+        sessionID: this.sessionId,
+      },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
   }
 
   public async fork(messageId: string) {
-    const response = await this.client.session.fork({
-      sessionID: this.sessionId,
-      messageID: messageId,
-    });
+    const response = await this.client.session.fork(
+      {
+        sessionID: this.sessionId,
+        messageID: messageId,
+      },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
     if (!response.data?.id) {
       throw new Error("Failed to fork OpenCode session");
     }
@@ -460,10 +482,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     permissionId: string,
     response: OpenCodePermissionResponse,
   ) {
-    await this.client.permission.reply({
-      requestID: permissionId,
-      reply: response,
-    });
+    await this.client.permission.reply(
+      {
+        requestID: permissionId,
+        reply: response,
+      },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
 
     this.dispatch({
       type: "permission.replied",
@@ -476,10 +501,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     questionId: string,
     answers: readonly QuestionAnswer[],
   ) {
-    await this.client.question.reply({
-      requestID: questionId,
-      answers: answers.slice(),
-    });
+    await this.client.question.reply(
+      {
+        requestID: questionId,
+        answers: answers.slice(),
+      },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
 
     this.dispatch({
       type: "question.replied",
@@ -489,9 +517,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   public async rejectQuestion(questionId: string) {
-    await this.client.question.reject({
-      requestID: questionId,
-    });
+    await this.client.question.reject(
+      {
+        requestID: questionId,
+      },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
 
     this.dispatch({
       type: "question.rejected",

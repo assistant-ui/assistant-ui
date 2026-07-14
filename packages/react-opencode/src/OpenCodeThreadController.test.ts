@@ -15,6 +15,14 @@ const createDeferred = <T>() => {
   return { promise, resolve, reject };
 };
 
+const rejectWhenThrowing = (error: Error) =>
+  vi.fn(
+    (_parameters: unknown, options?: { throwOnError?: boolean | undefined }) =>
+      options?.throwOnError
+        ? Promise.reject(error)
+        : Promise.resolve({ data: undefined, error }),
+  );
+
 const createEventSource = () => {
   let listener: ((event: OpenCodeServerEvent) => void) | undefined;
   const unsubscribe = vi.fn();
@@ -89,11 +97,14 @@ describe("OpenCodeThreadController", () => {
       controller.sendStagedMessage(`local:${pendingId}`),
     ).resolves.toBe(true);
 
-    expect(client.session.promptAsync).toHaveBeenCalledWith({
-      sessionID: "ses_1",
-      parts: [{ type: "text", text: "hello" }],
-      model: { providerID: "anthropic", modelID: "claude" },
-    });
+    expect(client.session.promptAsync).toHaveBeenCalledWith(
+      {
+        sessionID: "ses_1",
+        parts: [{ type: "text", text: "hello" }],
+        model: { providerID: "anthropic", modelID: "claude" },
+      },
+      { throwOnError: true },
+    );
     await expect(
       controller.sendStagedMessage(`local:${pendingId}`),
     ).resolves.toBe(false);
@@ -133,6 +144,40 @@ describe("OpenCodeThreadController", () => {
     await expect(
       controller.sendStagedMessage(`local:${pendingId}`),
     ).resolves.toBe(true);
+  });
+
+  it("marks a message failed when the OpenCode SDK returns an error", async () => {
+    const error = new Error("Unauthorized");
+    const promptAsync = rejectWhenThrowing(error);
+    const controller = new OpenCodeThreadController(
+      { session: { promptAsync } } as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await expect(
+      controller.sendMessage({
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [{ type: "text", text: "hello" }],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      }),
+    ).rejects.toBe(error);
+
+    expect(Object.values(controller.getState().pendingUserMessages)[0]).toEqual(
+      expect.objectContaining({ status: "failed", error }),
+    );
+    expect(promptAsync).toHaveBeenCalledWith(
+      {
+        sessionID: "ses_1",
+        parts: [{ type: "text", text: "hello" }],
+      },
+      { throwOnError: true },
+    );
   });
 
   it("re-subscribes through the provider after dispose", () => {
@@ -527,10 +572,13 @@ describe("OpenCodeThreadController", () => {
 
     await controller.replyToQuestion("question_1", [["Yes"]]);
 
-    expect(client.question.reply).toHaveBeenCalledWith({
-      requestID: "question_1",
-      answers: [["Yes"]],
-    });
+    expect(client.question.reply).toHaveBeenCalledWith(
+      {
+        requestID: "question_1",
+        answers: [["Yes"]],
+      },
+      { throwOnError: true },
+    );
     expect(
       controller.getState().interactions.questions.answered.question_1,
     ).toMatchObject({
@@ -575,9 +623,12 @@ describe("OpenCodeThreadController", () => {
 
     await controller.rejectQuestion("question_1");
 
-    expect(client.question.reject).toHaveBeenCalledWith({
-      requestID: "question_1",
-    });
+    expect(client.question.reject).toHaveBeenCalledWith(
+      {
+        requestID: "question_1",
+      },
+      { throwOnError: true },
+    );
     expect(
       controller.getState().interactions.questions.rejected.question_1,
     ).toBeDefined();
