@@ -93,7 +93,8 @@ function extractMcpAppMetadata(
       (v): v is "model" | "app" => v === "model" || v === "app",
     );
   }
-  if (typeof a["serverId"] === "string") out.serverId = a["serverId"];
+  if (typeof a["serverId"] === "string" && a["serverId"].length > 0)
+    out.serverId = a["serverId"];
   if (cache) {
     if (cache.size >= MCP_APP_METADATA_CACHE_MAX) {
       const oldest = cache.keys().next().value;

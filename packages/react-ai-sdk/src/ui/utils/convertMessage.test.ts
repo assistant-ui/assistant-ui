@@ -780,6 +780,39 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("omits an empty callProviderMetadata.mcp.app.serverId", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-search",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { query: "hi" },
+            output: { results: [] },
+            callProviderMetadata: {
+              mcp: {
+                app: {
+                  resourceUri: "ui://example/search",
+                  serverId: "",
+                },
+              },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://example/search",
+    });
+  });
+
   it("preserves providerMetadata on text and reasoning parts", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
