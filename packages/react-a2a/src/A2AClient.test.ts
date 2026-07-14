@@ -14,18 +14,23 @@ function mockFetchResponse(body: unknown, ok = true, status = 200): Response {
   } as unknown as Response;
 }
 
-function mockSSETextResponse(text: string | string[]): Response {
+function mockSSETextResponse(
+  text: string | string[],
+  contentType: string | null = "text/event-stream",
+): Response {
   const encoder = new TextEncoder();
   const chunks = (Array.isArray(text) ? text : [text]).map((chunk) =>
     encoder.encode(chunk),
   );
   let index = 0;
+  const headers = new Headers();
+  if (contentType !== null) headers.set("content-type", contentType);
 
   return {
     ok: true,
     status: 200,
     statusText: "OK",
-    headers: new Headers({ "content-type": "text/event-stream" }),
+    headers,
     body: {
       getReader: () => ({
         read: vi.fn().mockImplementation(() => {
@@ -43,8 +48,11 @@ function mockSSETextResponse(text: string | string[]): Response {
   } as unknown as Response;
 }
 
-function mockSSEResponse(lines: string[]): Response {
-  return mockSSETextResponse(lines.join("\n"));
+function mockSSEResponse(
+  lines: string[],
+  contentType: string | null = "text/event-stream",
+): Response {
+  return mockSSETextResponse(lines.join("\n"), contentType);
 }
 
 const userMessage: A2AMessage = {
@@ -995,6 +1003,63 @@ describe("A2AClient", () => {
       }
 
       expect(events).toHaveLength(2);
+    });
+
+    it("accepts parameterized event-stream content types", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_COMPLETED" },
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        mockSSEResponse(
+          [`data: ${sseData}`, "", ""],
+          "text/event-stream; charset=utf-8",
+        ),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+    });
+
+    it("rejects successful responses that are not event streams", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSETextResponse(
+          "<html><body>Please sign in</body></html>",
+          "text/html; charset=utf-8",
+        ),
+      );
+
+      const consumeStream = async () => {
+        for await (const event of client.streamMessage(userMessage)) {
+          void event;
+        }
+      };
+
+      await expect(consumeStream()).rejects.toThrow(
+        'Expected A2A stream response Content-Type "text/event-stream", received "text/html; charset=utf-8"',
+      );
+    });
+
+    it("rejects task subscriptions without a content type", async () => {
+      fetchMock.mockResolvedValue(mockSSETextResponse("", null));
+
+      const consumeStream = async () => {
+        for await (const event of client.subscribeToTask("t1")) {
+          void event;
+        }
+      };
+
+      await expect(consumeStream()).rejects.toThrow(
+        'Expected A2A stream response Content-Type "text/event-stream", received no Content-Type header',
+      );
     });
 
     it("normalizes 'content' array from v0.3 server response to 'parts' in SSE artifact update events", async () => {

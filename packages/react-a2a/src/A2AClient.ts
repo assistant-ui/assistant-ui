@@ -494,6 +494,17 @@ export class A2AClient {
   // --- SSE Parsing ---
 
   private async *parseSSE(response: Response): AsyncGenerator<A2AStreamEvent> {
+    const contentType = response.headers.get("Content-Type");
+    const mediaType = contentType?.split(";", 1)[0]?.trim().toLowerCase();
+    if (mediaType !== "text/event-stream") {
+      const received = contentType
+        ? `"${contentType}"`
+        : "no Content-Type header";
+      throw new Error(
+        `Expected A2A stream response Content-Type "text/event-stream", received ${received}`,
+      );
+    }
+
     const reader = response.body?.getReader();
     if (!reader) throw new Error("No response body");
 
