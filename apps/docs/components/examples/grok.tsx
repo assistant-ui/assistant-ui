@@ -15,17 +15,15 @@ import {
   CheckIcon,
   ChevronDownIcon,
   CopyIcon,
-  Cross2Icon,
-  Pencil1Icon,
-  ReloadIcon,
-} from "@radix-ui/react-icons";
-import {
   Mic,
   Moon,
   Paperclip,
+  PencilIcon,
+  RefreshCwIcon,
   Square,
   ThumbsDown,
   ThumbsUp,
+  XIcon,
   Zap,
 } from "lucide-react";
 import { useEffect, useState, type FC } from "react";
@@ -38,7 +36,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/shared/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 
 export const Grok: FC = () => {
   return (
@@ -161,7 +159,7 @@ const GrokModelPicker: FC = () => {
         {GROK_MODELS.map(({ id, name, description, Icon }) => (
           <DropdownMenuItem
             key={id}
-            onSelect={() => setModel(id)}
+            onClick={() => setModel(id)}
             className="flex items-start gap-3"
           >
             <span className="mt-0.5 flex size-4 items-center justify-center text-[#0d0d0d] dark:text-white">
@@ -202,7 +200,7 @@ const ChatMessage: FC = () => {
           <div className="mt-1 flex h-8 items-center justify-end gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
             <ActionBarPrimitive.Root className="flex items-center gap-0.5">
               <ActionBarPrimitive.Edit className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b6b6b] transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white">
-                <Pencil1Icon width={16} height={16} />
+                <PencilIcon width={16} height={16} />
               </ActionBarPrimitive.Edit>
               <ActionBarPrimitive.Copy className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b6b6b] transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white">
                 <CopyIcon width={16} height={16} />
@@ -227,7 +225,7 @@ const ChatMessage: FC = () => {
           <div className="mt-1 flex h-8 w-full items-center justify-start gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
             <ActionBarPrimitive.Root className="-ml-2 flex items-center gap-0.5">
               <ActionBarPrimitive.Reload className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b6b6b] transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white">
-                <ReloadIcon width={16} height={16} />
+                <RefreshCwIcon width={16} height={16} />
               </ActionBarPrimitive.Reload>
               <ActionBarPrimitive.Copy className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b6b6b] transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white">
                 <CopyIcon width={16} height={16} />
@@ -367,7 +365,7 @@ const GrokAttachment: FC = () => {
         </AuiIf>
       </div>
       <AttachmentPrimitive.Remove className="absolute -top-1.5 -right-1.5 flex h-6 w-6 scale-50 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#6b6b6b] opacity-0 transition-all group-hover/attachment:scale-100 group-hover/attachment:opacity-100 hover:bg-[#f5f5f5] hover:text-[#0d0d0d] dark:border-[#3a3a3a] dark:bg-[#1a1a1a] dark:text-[#9a9a9a] dark:hover:bg-[#252525] dark:hover:text-white">
-        <Cross2Icon width={14} height={14} />
+        <XIcon width={14} height={14} />
       </AttachmentPrimitive.Remove>
     </AttachmentPrimitive.Root>
   );

@@ -195,6 +195,14 @@ export type {
 } from "./runtime/interfaces/composer-runtime-core";
 
 export type {
+  ErrorSeverity,
+  ErrorDisplay,
+  AssistantErrorCode,
+  AssistantError,
+} from "./types/error";
+export { toAssistantError, isAssistantError } from "./types/error";
+
+export type {
   RuntimeCapabilities,
   AddToolResultOptions,
   ResumeToolCallOptions,

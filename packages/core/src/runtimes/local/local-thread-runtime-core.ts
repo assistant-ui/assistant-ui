@@ -22,6 +22,7 @@ import type {
   ThreadAssistantMessage,
 } from "../../types/message";
 import type { RunConfig } from "../../types/message";
+import { toAssistantError } from "../../types/error";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
   createMessageQueue,
@@ -540,7 +541,6 @@ export class LocalThreadRuntimeCore
         });
       }
     } catch (e) {
-      // TODO this should be handled by the run result stream
       if (e instanceof AbortError) {
         updateMessage({
           status: { type: "incomplete", reason: "cancelled" },
@@ -554,10 +554,7 @@ export class LocalThreadRuntimeCore
           status: {
             type: "incomplete",
             reason: "error",
-            error:
-              e instanceof Error
-                ? e.message
-                : `[${typeof e}] ${new String(e).toString()}`,
+            error: toAssistantError(e),
           },
         });
 

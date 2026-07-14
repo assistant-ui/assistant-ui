@@ -17,7 +17,8 @@ import { DEFAULT_MODEL_ID, getContextWindow } from "@/constants/model";
 import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { cn } from "@/lib/utils";
-import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui";
+import { ToggleGroup } from "@base-ui/react/toggle-group";
+import { Toggle } from "@base-ui/react/toggle";
 
 const PROVIDER_NAMES: Record<string, string> = {
   openai: "OpenAI",
@@ -111,9 +112,8 @@ function ComposedRow() {
         <ModelSelectorTrigger />
         <ModelSelectorContent>
           <ModelSelectorSearch />
-          <ToggleGroupPrimitive.Root
-            type="multiple"
-            orientation="horizontal"
+          <ToggleGroup
+            multiple
             value={[...providerFilter]}
             onValueChange={(next) => setProviderFilter(new Set(next))}
             aria-label="Filter by provider"
@@ -136,19 +136,19 @@ function ComposedRow() {
             }}
           >
             {[...modelsByProvider.keys()].map((provider) => (
-              <ToggleGroupPrimitive.Item
+              <Toggle
                 key={provider}
                 value={provider}
                 className={cn(
                   "rounded-full border px-2 py-0.5 text-xs transition-colors",
                   "text-muted-foreground hover:text-foreground",
-                  "data-[state=on]:bg-accent data-[state=on]:text-accent-foreground data-[state=on]:border-transparent",
+                  "data-pressed:bg-accent data-pressed:text-accent-foreground data-pressed:border-transparent",
                 )}
               >
                 {provider}
-              </ToggleGroupPrimitive.Item>
+              </Toggle>
             ))}
-          </ToggleGroupPrimitive.Root>
+          </ToggleGroup>
           <ModelSelectorList>
             <ModelSelectorEmpty />
             {visibleGroups.map(([provider, providerModels]) => (

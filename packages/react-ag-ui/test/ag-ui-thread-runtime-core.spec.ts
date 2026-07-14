@@ -139,6 +139,87 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("preserves mcp app snapshot results and model content for subsequent runs", async () => {
+    const runInputs: any[] = [];
+    const callToolResult = {
+      content: [
+        { type: "text", text: "ok" },
+        { type: "image", data: "aGk=", mimeType: "image/png" },
+      ],
+      structuredContent: { ok: true },
+      isError: false,
+    };
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "call-1",
+            toolCallName: "show_map",
+          },
+        });
+        subscriber.onToolCallArgsEvent?.({
+          event: {
+            type: "TOOL_CALL_ARGS",
+            toolCallId: "call-1",
+            delta: '{"city":"sf"}',
+          },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            toolCallId: "call-1",
+            content: "ok",
+            role: "tool",
+          },
+        });
+        subscriber.onActivitySnapshotEvent?.({
+          event: {
+            type: "ACTIVITY_SNAPSHOT",
+            activityType: "mcp-apps",
+            content: {
+              result: callToolResult,
+              resourceUri: "ui://srv/mcp-app.html",
+              serverHash: "h",
+              serverId: "s",
+              toolInput: { city: "sf" },
+            },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find(
+        (message) => message.role === "assistant",
+      ) as ThreadAssistantMessage;
+    const toolPart = assistant.content.find(
+      (part) => part.type === "tool-call",
+    ) as any;
+    expect(toolPart.result).toEqual(callToolResult);
+    expect(toolPart.modelContent).toEqual([{ type: "text", text: "ok" }]);
+    expect(toolPart.mcp.app.serverId).toBe("s");
+
+    await core.resume({
+      parentId: assistant.id,
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+    });
+
+    const toolMessage = runInputs[1]?.messages.find(
+      (message: { role: string }) => message.role === "tool",
+    );
+    expect(toolMessage?.content).toBe("ok");
+    expect(toolMessage?.content).not.toBe(JSON.stringify(callToolResult));
+  });
+
   it("preserves tool message IDs when rerunning imported snapshots", async () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       if (runAgent.mock.calls.length === 1) {

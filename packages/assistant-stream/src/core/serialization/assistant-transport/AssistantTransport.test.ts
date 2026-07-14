@@ -207,4 +207,30 @@ describe("AssistantTransportDecoder", () => {
       "Stream ended abruptly without receiving [DONE] marker",
     );
   });
+
+  it("round-trips error chunks with code and severity", async () => {
+    const originalChunks: AssistantStreamChunk[] = [
+      {
+        type: "error",
+        path: [],
+        error: "rate limited",
+        code: "provider",
+        severity: "warning",
+      },
+    ];
+
+    const stream = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        for (const chunk of originalChunks) {
+          controller.enqueue(chunk);
+        }
+        controller.close();
+      },
+    });
+
+    const decodedStream = await encodeAndDecode(stream);
+    const decodedChunks = await collectChunks(decodedStream);
+
+    expect(decodedChunks).toEqual(originalChunks);
+  });
 });

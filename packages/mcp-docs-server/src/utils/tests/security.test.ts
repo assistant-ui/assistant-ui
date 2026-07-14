@@ -85,7 +85,7 @@ describe("sanitizePath", () => {
       },
       { input: "guides/tools", expected: "guides/tools" },
       { input: "docs/index", expected: "docs/index" },
-      { input: "examples/with-ai-sdk-v6", expected: "examples/with-ai-sdk-v6" },
+      { input: "examples/with-ai-sdk-v7", expected: "examples/with-ai-sdk-v7" },
       { input: "./current-dir-file", expected: "current-dir-file" },
       {
         input: "deeply/nested/path/to/file",

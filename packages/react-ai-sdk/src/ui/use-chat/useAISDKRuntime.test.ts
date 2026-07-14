@@ -464,6 +464,79 @@ describe("useAISDKRuntime", () => {
     ).rejects.toThrow("Runtime does not support resuming runs.");
   });
 
+  it("forwards onResumeToolCall so runtime.thread.resumeToolCall is delivered to the adapter", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-42",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+    const onResumeToolCall = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAISDKRuntime(chat, { onResumeToolCall }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    act(() => {
+      result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-42")
+        .resumeToolCall({ answer: "yes" });
+    });
+
+    expect(onResumeToolCall).toHaveBeenCalledTimes(1);
+    expect(onResumeToolCall).toHaveBeenCalledWith({
+      toolCallId: "tc-42",
+      payload: { answer: "yes" },
+    });
+  });
+
+  it("throws when resumeToolCall is called without an onResumeToolCall adapter", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-missing",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    expect(() =>
+      result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-missing")
+        .resumeToolCall({ answer: "yes" }),
+    ).toThrow("Tool call tc-missing is not waiting for resume.");
+  });
+
   it("reload slices history and regenerates with metadata", async () => {
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },

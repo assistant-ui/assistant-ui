@@ -36,7 +36,10 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     return createNodeCliDemoFileMap(manifest, snapshot);
   }
 
-  const demoSource = assertSnapshotFile(snapshot, manifest.entry);
+  const demoSource = assertSnapshotFile(snapshot, manifest.entry).replaceAll(
+    "@/components/ui/radix/",
+    "@/components/ui/",
+  );
   const files: ZipFileMap = {
     "package.json": packageJson(manifest, snapshot),
     "next.config.ts": nextConfigTs(),
@@ -60,9 +63,15 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
   };
 
   for (const sourceFile of manifest.extraSourceFiles ?? []) {
-    files[targetPathForSourceFile(sourceFile)] = assertSnapshotFile(
-      snapshot,
-      sourceFile,
+    const target = targetPathForSourceFile(sourceFile);
+    if (target in files) {
+      throw new Error(
+        `Demo zip target collision: ${sourceFile} flattens onto ${target}`,
+      );
+    }
+    files[target] = assertSnapshotFile(snapshot, sourceFile).replaceAll(
+      "@/components/ui/radix/",
+      "@/components/ui/",
     );
   }
 
@@ -93,7 +102,8 @@ function targetPathForSourceFile(sourceFile: string) {
   if (sourceFile.startsWith("packages/ui/src/")) {
     return sourceFile
       .replace(/^packages\/ui\/src\//, "")
-      .replace(/^components\/ui\//, "components/ui/")
+      .replace(/^components\/ui\/radix\//, "components/ui/")
+      .replace(/^components\/ui\/base\//, "components/ui/")
       .replace(/^components\/assistant-ui\//, "components/assistant-ui/")
       .replace(/^lib\//, "lib/");
   }
