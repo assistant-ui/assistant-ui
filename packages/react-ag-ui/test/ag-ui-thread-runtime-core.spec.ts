@@ -205,6 +205,7 @@ describe("AGUIThreadRuntimeCore", () => {
     ) as any;
     expect(toolPart.result).toEqual(callToolResult);
     expect(toolPart.modelContent).toEqual([{ type: "text", text: "ok" }]);
+    expect(toolPart.mcp.app.serverId).toBe("s");
 
     await core.resume({
       parentId: assistant.id,

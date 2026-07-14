@@ -29,6 +29,7 @@ type ToolCallState = {
   parentMessageId?: string;
   toolMessageId?: string;
   mcpAppResourceUri?: string;
+  mcpAppServerId?: string;
   modelContent?: ToolModelContentPart[];
   snapshotResultApplied: boolean;
 };
@@ -256,6 +257,13 @@ export class RunAggregator {
           isMcpAppUri(resourceUri)
         ) {
           entry.mcpAppResourceUri = resourceUri;
+          const id = event.content.serverId;
+          const hash = event.content.serverHash;
+          if (typeof id === "string" && id.length > 0) {
+            entry.mcpAppServerId = id;
+          } else if (typeof hash === "string" && hash.length > 0) {
+            entry.mcpAppServerId = hash;
+          }
           const result = event.content.result;
           if (isPlainObject(result)) {
             if (
@@ -509,7 +517,16 @@ export class RunAggregator {
           : {}),
         ...(entry.isError !== undefined ? { isError: entry.isError } : {}),
         ...(entry.mcpAppResourceUri
-          ? { mcp: { app: { resourceUri: entry.mcpAppResourceUri } } }
+          ? {
+              mcp: {
+                app: {
+                  resourceUri: entry.mcpAppResourceUri,
+                  ...(entry.mcpAppServerId
+                    ? { serverId: entry.mcpAppServerId }
+                    : {}),
+                },
+              },
+            }
           : {}),
         ...(entry.parentMessageId ? { parentId: entry.parentMessageId } : {}),
         ...(entry.toolMessageId

@@ -180,7 +180,7 @@ describe("RunAggregator", () => {
     const toolPart = last?.content?.find((part) => part.type === "tool-call");
     expect(toolPart).toBeTruthy();
     expect((toolPart as any).mcp).toEqual({
-      app: { resourceUri: "ui://srv/mcp-app.html" },
+      app: { resourceUri: "ui://srv/mcp-app.html", serverId: "s" },
     });
     expect((toolPart as any).result).toEqual({ ok: true });
   });
@@ -225,6 +225,67 @@ describe("RunAggregator", () => {
       ?.content?.find((part) => part.type === "tool-call") as any;
     expect(toolPart.result).toEqual(result);
     expect(toolPart.modelContent).toEqual([{ type: "text", text: "ok" }]);
+    expect(toolPart.mcp).toEqual({
+      app: { resourceUri: "ui://srv/mcp-app.html", serverId: "s" },
+    });
+  });
+
+  it("normalizes an mcp app serverHash into serverId", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "{}",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: {
+        resourceUri: "ui://srv/mcp-app.html",
+        serverHash: "h",
+      },
+    } as AgUiEvent);
+
+    const toolPart = results
+      .at(-1)
+      ?.content?.find((part) => part.type === "tool-call") as any;
+    expect(toolPart.mcp).toEqual({
+      app: { resourceUri: "ui://srv/mcp-app.html", serverId: "h" },
+    });
+  });
+
+  it("omits mcp app serverId when the snapshot has no server identity", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "{}",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: { resourceUri: "ui://srv/mcp-app.html" },
+    } as AgUiEvent);
+
+    const toolPart = results
+      .at(-1)
+      ?.content?.find((part) => part.type === "tool-call") as any;
     expect(toolPart.mcp).toEqual({
       app: { resourceUri: "ui://srv/mcp-app.html" },
     });
