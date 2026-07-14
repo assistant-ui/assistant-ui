@@ -719,13 +719,10 @@ function convertAssistantMessage(
   for (const { id: toolCallId, part } of toolCalls) {
     if (part.result === undefined) continue;
 
-    const modelContent = part.modelContent?.filter(
-      (content): content is Extract<ToolModelContentPart, { type: "text" }> =>
-        content.type === "text",
-    );
+    const modelText = extractText(part.modelContent);
     const resultContent =
-      modelContent && modelContent.length > 0
-        ? modelContent.map((content) => content.text).join("\n")
+      modelText.length > 0
+        ? modelText
         : typeof part.result === "string"
           ? part.result
           : JSON.stringify(part.result);
