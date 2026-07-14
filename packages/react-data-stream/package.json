@@ -28,7 +28,8 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ai-sdk/provider": "^3.0.10 || ^4.0.0",
@@ -49,7 +50,8 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
     "@types/react": "^19.2.17",
-    "react": "^19.2.7"
+    "react": "^19.2.7",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",
