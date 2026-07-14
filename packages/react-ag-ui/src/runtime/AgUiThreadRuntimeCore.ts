@@ -76,16 +76,13 @@ const getRepositoryHeadId = (
 const getRepositoryBranchMessages = (
   repository: ExportedMessageRepository,
   headId = getRepositoryHeadId(repository),
-): readonly ThreadMessage[] => {
-  const fallbackMessages = () =>
-    repository.messages.map((item) => item.message);
-
+): readonly ThreadMessage[] | null => {
   if (headId === null) return [];
 
   const byId = new Map<string, ExportedMessageRepository["messages"][number]>();
   for (const item of repository.messages) {
     const id = item.message.id;
-    if (byId.has(id)) return fallbackMessages();
+    if (byId.has(id)) return null;
     byId.set(id, item);
   }
 
@@ -93,18 +90,18 @@ const getRepositoryBranchMessages = (
   const visited = new Set<string>();
   let item = byId.get(headId);
 
-  if (!item) return fallbackMessages();
+  if (!item) return null;
 
   while (true) {
     const id = item.message.id;
-    if (visited.has(id)) return fallbackMessages();
+    if (visited.has(id)) return null;
 
     visited.add(id);
     branch.push(item.message);
 
     if (item.parentId === null) break;
     item = byId.get(item.parentId);
-    if (!item) return fallbackMessages();
+    if (!item) return null;
   }
 
   return branch.reverse();
@@ -116,15 +113,6 @@ const sameMessagePath = (
 ) =>
   left.length === right.length &&
   left.every((message, index) => message.id === right[index]?.id);
-
-const hasDuplicateMessageIds = (repository: ExportedMessageRepository) => {
-  const ids = new Set<string>();
-  for (const { message } of repository.messages) {
-    if (ids.has(message.id)) return true;
-    ids.add(message.id);
-  }
-  return false;
-};
 
 const repositoryHasMessageId = (
   repository: ExportedMessageRepository,
@@ -744,17 +732,18 @@ export class AgUiThreadRuntimeCore {
   private applyExternalMessageRepository(
     repository: ExportedMessageRepository,
   ): void {
-    if (hasDuplicateMessageIds(repository)) {
+    const headId = getRepositoryHeadId(repository);
+    const branch = getRepositoryBranchMessages(repository, headId);
+    if (branch === null) {
       this.applyExternalMessages(
         repository.messages.map(({ message }) => message),
       );
       return;
     }
 
-    const headId = getRepositoryHeadId(repository);
     this.assistantHistoryParents.clear();
     this.messageRepository = { ...repository, headId };
-    this.messages = [...getRepositoryBranchMessages(repository, headId)];
+    this.messages = [...branch];
     this.recordedHistoryIds.clear();
     for (const { message } of repository.messages) {
       this.recordedHistoryIds.add(message.id);
@@ -774,7 +763,12 @@ export class AgUiThreadRuntimeCore {
       headId,
     );
 
-    if (!sameMessagePath(messages, repositoryMessages)) return undefined;
+    if (
+      repositoryMessages === null ||
+      !sameMessagePath(messages, repositoryMessages)
+    ) {
+      return undefined;
+    }
 
     const incomingMessages = new Map(
       messages.map((message) => [message.id, message]),
@@ -1392,7 +1386,7 @@ export class AgUiThreadRuntimeCore {
         this.messageRepository,
         parentId,
       );
-      if (branch.at(-1)?.id === parentId) {
+      if (branch !== null && branch.at(-1)?.id === parentId) {
         this.messageRepository = {
           ...this.messageRepository,
           headId: parentId,

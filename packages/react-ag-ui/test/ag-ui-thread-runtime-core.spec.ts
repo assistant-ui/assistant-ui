@@ -1655,6 +1655,61 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getMessageRepository()).toBeUndefined();
   });
 
+  it("falls back to linear history when a new turn is appended after load", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const repository = ExportedMessageRepository.fromBranchableArray(
+      [
+        {
+          message: {
+            id: "msg-1",
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant",
+            content: [{ type: "text", text: "Option A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant",
+            content: [{ type: "text", text: "Option B" }],
+          },
+          parentId: "msg-1",
+        },
+      ],
+      { headId: "msg-2b" },
+    );
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(repository),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.__internal_load();
+    expect(core.getMessageRepository()).toBeDefined();
+
+    await core.append(createAppendMessage({ parentId: "msg-2b" }));
+
+    expect(core.getMessageRepository()).toBeUndefined();
+    expect(
+      core
+        .getMessages()
+        .map((message) => message.id)
+        .slice(0, 2),
+    ).toEqual(["msg-1", "msg-2b"]);
+  });
+
   it("returns existing promise if __internal_load called multiple times", async () => {
     const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
 
