@@ -1441,7 +1441,7 @@ type InteractableStateSchema = NonNullable<Extract<Tool, {
   parameters: unknown;
 }>["parameters"]>;
 
-declare const Interactables: Resource<ClientMethods, [
+declare const Interactables: Resource<ClientOutput<"interactables">, [
 ]>;
 
 interface JSONSchema7 {
