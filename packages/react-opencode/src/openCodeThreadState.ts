@@ -8,6 +8,7 @@ import type {
   PendingUserMessage,
   ThreadUserMessagePart,
 } from "./types";
+import { compareOpenCodeMessageOrder } from "./openCodeMessageOrder";
 import { serializeUserParts } from "./serializeUserParts";
 
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
@@ -44,15 +45,12 @@ const sortMessageIds = (
   messagesById: Readonly<Record<string, OpenCodeServerMessage>>,
   ids: Iterable<string>,
 ) => {
-  return [...ids].sort((leftId, rightId) => {
-    const left = messagesById[leftId];
-    const right = messagesById[rightId];
-    const leftCreated = extractCreatedAt(left?.info) ?? Number.MAX_SAFE_INTEGER;
-    const rightCreated =
-      extractCreatedAt(right?.info) ?? Number.MAX_SAFE_INTEGER;
-    if (leftCreated !== rightCreated) return leftCreated - rightCreated;
-    return leftId.localeCompare(rightId);
-  });
+  return [...ids].sort((leftId, rightId) =>
+    compareOpenCodeMessageOrder(
+      messagesById[leftId]?.info ?? { id: leftId },
+      messagesById[rightId]?.info ?? { id: rightId },
+    ),
+  );
 };
 
 const upsertMessage = (

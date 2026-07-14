@@ -3,6 +3,7 @@ import {
   type GlobalSession,
   type OpencodeClient,
 } from "@opencode-ai/sdk/v2/client";
+import { compareOpenCodeMessageOrder } from "./openCodeMessageOrder";
 
 const isArchivedSession = (session: Pick<GlobalSession, "time">) => {
   return typeof session.time.archived === "number";
@@ -29,12 +30,9 @@ export const forkOpenCodeSession = async (
   const messagesResponse = await client.session.messages({
     sessionID: sessionId,
   });
-  const messages = [...(messagesResponse.data ?? [])].sort((left, right) => {
-    const leftCreated = left.info.time?.created ?? Number.MAX_SAFE_INTEGER;
-    const rightCreated = right.info.time?.created ?? Number.MAX_SAFE_INTEGER;
-    if (leftCreated !== rightCreated) return leftCreated - rightCreated;
-    return left.info.id.localeCompare(right.info.id);
-  });
+  const messages = [...(messagesResponse.data ?? [])].sort((left, right) =>
+    compareOpenCodeMessageOrder(left.info, right.info),
+  );
   const sourceIndex = messages.findIndex(
     (message) => message.info.id === fromMessageId,
   );
