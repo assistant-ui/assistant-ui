@@ -37,6 +37,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const [threadId, setThreadId] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
+  const refreshRequestRef = useRef(0);
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -45,13 +46,17 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   }, []);
 
   const withAction = useCallback(
-    async <T>(action: () => Promise<T>, fallback: T): Promise<T> => {
+    async <T>(
+      action: () => Promise<T>,
+      fallback: T,
+      shouldUpdate: () => boolean = () => true,
+    ): Promise<T> => {
       try {
         const result = await action();
-        if (mountedRef.current) setError(null);
+        if (mountedRef.current && shouldUpdate()) setError(null);
         return result;
       } catch (err) {
-        if (mountedRef.current)
+        if (mountedRef.current && shouldUpdate())
           setError(err instanceof Error ? err : new Error(String(err)));
         return fallback;
       }
@@ -60,20 +65,26 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   );
 
   const refresh = useCallback(async (): Promise<boolean> => {
+    const requestId = ++refreshRequestRef.current;
+    const isLatest = () => requestId === refreshRequestRef.current;
     setIsLoading(true);
 
     try {
-      return await withAction(async () => {
-        const response = await cloud.threads.list(
-          includeArchived ? undefined : { is_archived: false },
-        );
-        if (mountedRef.current) {
-          setThreads(() => response.threads.map(toCloudThread));
-        }
-        return true;
-      }, false);
+      return await withAction(
+        async () => {
+          const response = await cloud.threads.list(
+            includeArchived ? undefined : { is_archived: false },
+          );
+          if (mountedRef.current && isLatest()) {
+            setThreads(() => response.threads.map(toCloudThread));
+          }
+          return true;
+        },
+        false,
+        isLatest,
+      );
     } finally {
-      if (mountedRef.current) {
+      if (mountedRef.current && isLatest()) {
         setIsLoading(false);
       }
     }

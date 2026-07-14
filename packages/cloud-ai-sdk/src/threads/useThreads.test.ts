@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useThreads } from "./useThreads";
 
@@ -15,6 +15,22 @@ function createDeferred<T>(): Deferred<T> {
     resolve = res;
   });
   return { promise, resolve };
+}
+
+function createThreadListResponse(title: string) {
+  return {
+    threads: [
+      {
+        id: "thread-1",
+        title,
+        is_archived: false,
+        external_id: null,
+        last_message_at: new Date("2026-01-01T00:00:00.000Z"),
+        created_at: new Date("2026-01-01T00:00:00.000Z"),
+        updated_at: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ],
+  };
 }
 
 describe("useThreads", () => {
@@ -50,19 +66,9 @@ describe("useThreads", () => {
   it("loads threads when Strict Mode replays effects", async () => {
     const cloud = {
       threads: {
-        list: vi.fn().mockResolvedValue({
-          threads: [
-            {
-              id: "thread-1",
-              title: "Customer support",
-              is_archived: false,
-              external_id: null,
-              last_message_at: new Date("2026-01-01T00:00:00.000Z"),
-              created_at: new Date("2026-01-01T00:00:00.000Z"),
-              updated_at: new Date("2026-01-01T00:00:00.000Z"),
-            },
-          ],
-        }),
+        list: vi
+          .fn()
+          .mockResolvedValue(createThreadListResponse("Customer support")),
         get: vi.fn(),
         create: vi.fn(),
         delete: vi.fn(),
@@ -80,6 +86,45 @@ describe("useThreads", () => {
     expect(result.current.threads).toMatchObject([
       { id: "thread-1", title: "Customer support" },
     ]);
+  });
+
+  it("keeps the latest refresh when requests resolve out of order", async () => {
+    const first = createDeferred<ReturnType<typeof createThreadListResponse>>();
+    const second =
+      createDeferred<ReturnType<typeof createThreadListResponse>>();
+    const cloud = {
+      threads: {
+        list: vi
+          .fn()
+          .mockReturnValueOnce(first.promise)
+          .mockReturnValueOnce(second.promise),
+        get: vi.fn(),
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    } as never;
+
+    const { result } = renderHook(() => useThreads({ cloud, enabled: false }));
+
+    let firstRefresh!: Promise<boolean>;
+    let secondRefresh!: Promise<boolean>;
+    act(() => {
+      firstRefresh = result.current.refresh();
+      secondRefresh = result.current.refresh();
+    });
+
+    await act(async () => {
+      second.resolve(createThreadListResponse("Newest"));
+      await secondRefresh;
+    });
+    expect(result.current.threads[0]?.title).toBe("Newest");
+
+    await act(async () => {
+      first.resolve(createThreadListResponse("Stale"));
+      await firstRefresh;
+    });
+    expect(result.current.threads[0]?.title).toBe("Newest");
   });
 
   it("avoids unmounted state updates during async refresh", async () => {
