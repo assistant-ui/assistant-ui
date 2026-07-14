@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@assistant-ui/agent-launcher": "workspace:*",
-    "@clack/prompts": "^1.6.0",
+    "@clack/prompts": "^1.7.0",
     "chalk": "^5.6.2",
     "cli-progress": "^3.12.0",
     "commander": "^15.0.0",
@@ -42,7 +42,8 @@
     "detect-package-manager": "^3.0.2",
     "giget": "^3.3.0",
     "glob": "^13.0.6",
-    "jscodeshift": "^17.3.0"
+    "jscodeshift": "^17.3.0",
+    "semver": "^7.8.5"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
@@ -50,9 +51,10 @@
     "@types/cross-spawn": "^6.0.6",
     "@types/debug": "^4.1.13",
     "@types/jscodeshift": "^17.3.0",
-    "@types/node": "^26.0.0",
-    "@vitest/coverage-v8": "^4.1.9",
-    "vitest": "^4.1.9"
+    "@types/node": "^26.1.1",
+    "@types/semver": "^7.7.1",
+    "@vitest/coverage-v8": "^4.1.10",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

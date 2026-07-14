@@ -69,6 +69,32 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.attachments?.[1]?.type).toBe("file");
   });
 
+  it("degrades a user file part missing mediaType instead of throwing", () => {
+    const convert = () =>
+      AISDKMessageConverter.toThreadMessages([
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "https://cdn/file.bin",
+              filename: "file.bin",
+            },
+          ],
+        } as any,
+      ]);
+
+    expect(convert).not.toThrow();
+    const attachment = convert()[0]?.attachments?.[0];
+    expect(attachment?.type).toBe("file");
+    expect(attachment?.contentType).toBe("unknown/unknown");
+    expect(attachment?.content[0]).toMatchObject({
+      type: "file",
+      mimeType: "unknown/unknown",
+    });
+  });
+
   it("converts source-document parts into document sources", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
@@ -720,6 +746,141 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("forwards callProviderMetadata.mcp.app.serverId onto ToolCallMessagePart.mcp.app", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-search",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { query: "hi" },
+            output: { results: [] },
+            callProviderMetadata: {
+              mcp: {
+                app: {
+                  resourceUri: "ui://example/search",
+                  serverId: "search-server",
+                },
+              },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://example/search",
+      serverId: "search-server",
+    });
+  });
+
+  it("omits an empty callProviderMetadata.mcp.app.serverId", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-search",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { query: "hi" },
+            output: { results: [] },
+            callProviderMetadata: {
+              mcp: {
+                app: {
+                  resourceUri: "ui://example/search",
+                  serverId: "",
+                },
+              },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://example/search",
+    });
+  });
+
+  it("preserves providerMetadata on text and reasoning parts", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "text",
+            text: "hello",
+            providerMetadata: { acme: { agentName: "researcher" } },
+          },
+          {
+            type: "reasoning",
+            text: "thinking",
+            providerMetadata: { acme: { agentName: "researcher" } },
+          },
+          { type: "text", text: "plain" },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "text",
+      text: "hello",
+      providerMetadata: { acme: { agentName: "researcher" } },
+    });
+    expect(converted[0]?.content[1]).toMatchObject({
+      type: "reasoning",
+      text: "thinking",
+      providerMetadata: { acme: { agentName: "researcher" } },
+    });
+    expect(converted[0]?.content[2]).not.toHaveProperty("providerMetadata");
+  });
+
+  it("forwards callProviderMetadata onto ToolCallMessagePart.providerMetadata", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-search",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { query: "hi" },
+            output: { results: [] },
+            callProviderMetadata: { acme: { agentName: "researcher" } },
+          },
+          {
+            type: "tool-search",
+            toolCallId: "tc-2",
+            state: "output-available",
+            input: { query: "yo" },
+            output: { results: [] },
+          },
+        ],
+      } as any,
+    ]);
+
+    const calls = converted[0]?.content.filter(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(calls?.[0]?.providerMetadata).toEqual({
+      acme: { agentName: "researcher" },
+    });
+    expect(calls?.[1]).not.toHaveProperty("providerMetadata");
+  });
+
   it("extracts MCP app metadata from output._meta['ui/resourceUri']", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
@@ -748,12 +909,12 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
-  it("memoizes MCP app metadata across conversions by resourceUri", () => {
+  it("memoizes MCP app metadata across conversions by serverId and resourceUri", () => {
     const metadata: AISDKMessageConverterMetadata = {
       mcpAppMetadataCache: new Map(),
     };
 
-    const buildMessage = (id: string) => ({
+    const buildMessage = (id: string, serverId: string) => ({
       id,
       role: "assistant" as const,
       parts: [
@@ -764,19 +925,26 @@ describe("AISDKMessageConverter", () => {
           input: { q: "hi" },
           output: {},
           callProviderMetadata: {
-            mcp: { app: { resourceUri: "ui://example/search" } },
+            mcp: {
+              app: { resourceUri: "ui://example/search", serverId },
+            },
           },
         } as any,
       ],
     });
 
     const first = AISDKMessageConverter.toThreadMessages(
-      [buildMessage("a1")],
+      [buildMessage("a1", "search-server")],
       false,
       metadata,
     );
     const second = AISDKMessageConverter.toThreadMessages(
-      [buildMessage("a2")],
+      [buildMessage("a2", "search-server")],
+      false,
+      metadata,
+    );
+    const third = AISDKMessageConverter.toThreadMessages(
+      [buildMessage("a3", "other-server")],
       false,
       metadata,
     );
@@ -787,7 +955,61 @@ describe("AISDKMessageConverter", () => {
     const secondApp = second[0]?.content.find(
       (p): p is any => p.type === "tool-call",
     )?.mcp?.app;
+    const thirdApp = third[0]?.content.find(
+      (p): p is any => p.type === "tool-call",
+    )?.mcp?.app;
     expect(firstApp).toBeDefined();
     expect(firstApp).toBe(secondApp);
+    expect(thirdApp).not.toBe(firstApp);
+    expect(thirdApp).toEqual({
+      resourceUri: "ui://example/search",
+      serverId: "other-server",
+    });
+  });
+
+  it("converts a reasoning-file part into a file part", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "reasoning-file",
+            mediaType: "image/png",
+            url: "data:image/png;base64,abc",
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content).toHaveLength(1);
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "file",
+      data: "data:image/png;base64,abc",
+      mimeType: "image/png",
+    });
+  });
+
+  it("converts a custom part into a data part named by its kind", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "custom",
+            kind: "acme.widget",
+            providerMetadata: { acme: { foo: "bar" } },
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content).toHaveLength(1);
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "data",
+      name: "acme.widget",
+      data: { acme: { foo: "bar" } },
+    });
   });
 });

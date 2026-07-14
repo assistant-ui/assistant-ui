@@ -41,7 +41,7 @@ export const AssistantModal = () => {
     <AssistantModalPrimitive.Root>
       <AssistantModalPrimitive.Anchor className="fixed right-4 bottom-4 size-11">
         <AssistantModalPrimitive.Trigger asChild>
-          <button className="size-full rounded-full bg-primary shadow hover:scale-110 active:scale-90">
+          <button className="size-full rounded-full bg-primary shadow-lg transition-transform duration-150 ease-out hover:scale-105 active:scale-96 motion-reduce:transition-none">
             <BotIcon />
           </button>
         </AssistantModalPrimitive.Trigger>
@@ -49,7 +49,7 @@ export const AssistantModal = () => {
 
       <AssistantModalPrimitive.Content
         sideOffset={16}
-        className="h-[500px] w-[400px] rounded-xl border bg-popover shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out"
+        className="h-[500px] w-[400px] origin-(--radix-popover-content-transform-origin) rounded-[2.5rem] border bg-popover shadow-xl ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-bottom-2 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:slide-out-to-bottom-2 data-[state=closed]:duration-200 motion-reduce:animate-none"
       >
         <Thread />
       </AssistantModalPrimitive.Content>

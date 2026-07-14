@@ -74,6 +74,7 @@ describe("CloudFileAttachmentAdapter", () => {
     expect(yields.at(-1)?.status).toEqual({
       type: "incomplete",
       reason: "error",
+      message: "Failed to upload file: 403 Forbidden",
     });
     expect(errorSpy).toHaveBeenCalledWith(
       "[assistant-ui] Failed to upload attachment:",
@@ -97,6 +98,7 @@ describe("CloudFileAttachmentAdapter", () => {
     expect(yields.at(-1)?.status).toEqual({
       type: "incomplete",
       reason: "error",
+      message: "network down",
     });
     expect(errorSpy).toHaveBeenCalledWith(
       "[assistant-ui] Failed to upload attachment:",

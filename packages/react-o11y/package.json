@@ -34,7 +34,7 @@
   "dependencies": {
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "@radix-ui/react-primitive": "^2.1.6"
+    "@radix-ui/react-primitive": "^2.1.7"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -51,7 +51,7 @@
     "@types/react-dom": "^19.2.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

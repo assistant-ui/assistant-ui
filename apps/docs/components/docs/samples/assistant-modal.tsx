@@ -30,7 +30,7 @@ export function AssistantModal({ container }: { container?: HTMLElement }) {
         sideOffset={16}
         avoidCollisions={false}
         portalProps={{ container }}
-        className="data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-1/2 data-[state=closed]:slide-out-to-right-1/2 data-[state=closed]:zoom-out data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-1/2 data-[state=open]:slide-in-from-right-1/2 data-[state=open]:zoom-in bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in z-50 h-100 w-72 overflow-clip rounded-xl border p-0 shadow-md outline-none md:h-137.5 md:w-105 [&>.aui-thread-root]:bg-inherit [&>.aui-thread-root_.aui-thread-viewport-footer]:bg-inherit"
+        className="bg-popover text-popover-foreground border-border/60 dark:border-muted-foreground/15 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:slide-out-to-bottom-2 [&[data-state=open]_.aui-thread-viewport-footer]:animate-in [&[data-state=open]_.aui-thread-viewport-footer]:fade-in-0 [&[data-state=open]_.aui-thread-viewport-footer]:slide-in-from-bottom-2 [&[data-state=open]_.aui-thread-viewport-footer]:fill-mode-backwards [&>.aui-thread-root_.aui-thread-viewport-footer]:bg-popover z-50 h-100 max-h-(--radix-popover-content-available-height) w-72 max-w-[calc(100vw-2rem)] origin-(--radix-popover-content-transform-origin) overflow-clip rounded-[2.5rem] border p-0 antialiased shadow-xl ease-[cubic-bezier(0.32,0.72,0,1)] outline-none data-[state=closed]:duration-200 data-[state=open]:duration-300 motion-reduce:animate-none md:h-137.5 md:w-105 motion-reduce:[&_.aui-thread-viewport-footer]:animate-none [&_[data-slot=aui\_thread-viewport]]:[scrollbar-gutter:stable_both-edges] [&>.aui-thread-root]:bg-inherit [&[data-state=open]_.aui-thread-viewport-footer]:delay-100 [&[data-state=open]_.aui-thread-viewport-footer]:duration-300 [&[data-state=open]_.aui-thread-viewport-footer]:ease-[cubic-bezier(0.32,0.72,0,1)]"
       >
         <Thread />
       </AssistantModalPrimitive.Content>
@@ -52,16 +52,16 @@ const AssistantModalButton = forwardRef<
       tooltip={tooltip}
       side="left"
       {...rest}
-      className="size-full rounded-full shadow transition-transform hover:scale-110 active:scale-90"
+      className="size-full rounded-full shadow-lg transition-transform duration-150 ease-out hover:scale-105 active:scale-96 motion-reduce:transition-none"
       ref={ref}
     >
       <BotIcon
         data-state={state}
-        className="absolute size-6 transition-all data-[state=closed]:scale-100 data-[state=closed]:rotate-0 data-[state=open]:scale-0 data-[state=open]:rotate-90"
+        className="absolute size-6 transition-[scale,opacity,filter] duration-200 ease-[cubic-bezier(0.2,0,0,1)] data-[state=closed]:scale-100 data-[state=closed]:opacity-100 data-[state=closed]:blur-[0px] data-[state=open]:scale-25 data-[state=open]:opacity-0 data-[state=open]:blur-[4px] motion-reduce:transition-none"
       />
       <ChevronDownIcon
         data-state={state}
-        className="absolute size-6 transition-all data-[state=closed]:scale-0 data-[state=closed]:-rotate-90 data-[state=open]:scale-100 data-[state=open]:rotate-0"
+        className="absolute size-6 transition-[scale,opacity,filter] duration-200 ease-[cubic-bezier(0.2,0,0,1)] data-[state=closed]:scale-25 data-[state=closed]:opacity-0 data-[state=closed]:blur-[4px] data-[state=open]:scale-100 data-[state=open]:opacity-100 data-[state=open]:blur-[0px] motion-reduce:transition-none"
       />
       <span className="sr-only">{tooltip}</span>
     </TooltipIconButton>

@@ -3,6 +3,7 @@
   "icon": "ArrowLeftRight",
   "root": true,
   "pages": [
+    "index",
     "deprecation-policy",
     "toolkit-tools",
     "v0-11",

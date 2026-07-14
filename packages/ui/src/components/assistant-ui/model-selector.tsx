@@ -30,7 +30,8 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
+import { RadioGroup } from "@base-ui/react/radio-group";
+import { Radio } from "@base-ui/react/radio";
 
 export type ModelSelectorEffortOption = {
   id: string;
@@ -405,7 +406,7 @@ function ModelSelectorContent({
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        "bg-popover/95 w-72 min-w-(--radix-popover-trigger-width) overflow-hidden rounded-xl p-0 shadow-lg backdrop-blur-sm",
+        "bg-popover/95 w-72 min-w-(--anchor-width) overflow-hidden rounded-xl p-0 shadow-lg backdrop-blur-sm",
         className,
       )}
       {...props}
@@ -606,26 +607,25 @@ function ModelSelectorEffort({
       {...props}
     >
       <span className="text-muted-foreground text-xs">{label}</span>
-      <RadioGroupPrimitive.Root
+      <RadioGroup
         value={effort ?? ""}
         onValueChange={setEffort}
-        orientation="horizontal"
         aria-label={typeof label === "string" ? label : "Reasoning effort"}
         className="flex items-center gap-0.5"
       >
         {efforts.map((option) => (
-          <RadioGroupPrimitive.Item
+          <Radio.Root
             key={option.id}
             value={option.id}
             className={cn(
               "focus-visible:ring-ring/50 text-muted-foreground hover:text-foreground rounded-md px-2 py-1 text-xs transition-colors outline-none focus-visible:ring-2",
-              "data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground data-[state=checked]:font-medium",
+              "data-checked:bg-accent data-checked:text-accent-foreground data-checked:font-medium",
             )}
           >
             {option.name}
-          </RadioGroupPrimitive.Item>
+          </Radio.Root>
         ))}
-      </RadioGroupPrimitive.Root>
+      </RadioGroup>
     </div>
   );
 }
@@ -634,6 +634,9 @@ export type ModelSelectorProps = Omit<ModelSelectorRootProps, "children"> &
   VariantProps<typeof modelSelectorTriggerVariants> & {
     /** Render a search input above the model list. */
     searchable?: boolean;
+    /** Alignment of the dropdown relative to the trigger. Use `"end"` when the
+     * trigger sits at the right edge of its container. */
+    align?: ModelSelectorContentProps["align"];
     className?: string;
     contentClassName?: string;
   };
@@ -664,6 +667,7 @@ const ModelSelectorImpl = ({
   searchable,
   variant,
   size,
+  align,
   className,
   contentClassName,
   ...rootProps
@@ -677,6 +681,7 @@ const ModelSelectorImpl = ({
         className={className}
       />
       <ModelSelectorContent
+        {...(align !== undefined ? { align } : {})}
         className={contentClassName}
         searchable={searchable ?? false}
       />

@@ -6,10 +6,11 @@ import type { GenerativeUILibrary } from "./types";
 /**
  * Builds the JSON schema for the `present` tool from a {@link GenerativeUILibrary}.
  *
- * The model produces a node `{ $type, ...props }` where `$type` selects a
- * component and the rest are its props. The schema is a flat object: `$type` is
- * an enum of the component names, every component's props are merged into one
- * optional bag, and `children` recurses via `$defs` so the tree can nest.
+ * The model produces a node `{ $type, $key?, ...props }` where `$type` selects
+ * a component, the optional `$key` pins a stable identity for list items that
+ * may reorder, and the rest are its props. The schema is a flat object: `$type`
+ * is an enum of the component names, every component's props are merged into
+ * one optional bag, and `children` recurses via `$defs` so the tree can nest.
  *
  * It is intentionally flat rather than a per-`$type` discriminated union. Tool /
  * function-call schemas (OpenAI and others) require the top-level parameters to
@@ -24,10 +25,10 @@ export function buildPresentParameters(
 ): JSONSchema7 {
   const names = Object.keys(library);
 
-  // Merge every component's props into one optional bag. `$type`/`children` are
-  // framework-reserved, so drop any author-declared copies. On a name clash the
-  // first component's schema wins — props are an advisory hint here, not a
-  // strict per-component contract.
+  // Merge every component's props into one optional bag. `$`-prefixed keys and
+  // `children` are framework-reserved (see ir.ts), so drop any author-declared
+  // copies. On a name clash the first component's schema wins — props are an
+  // advisory hint here, not a strict per-component contract.
   const props: Record<string, JSONSchema7Definition> = {};
   const propOwners = new Map<string, string[]>();
   for (const name of names) {
@@ -39,7 +40,7 @@ export function buildPresentParameters(
       );
     }
     for (const [key, schema] of Object.entries(propsSchema.properties ?? {})) {
-      if (key === TYPE_KEY || key === "children") continue;
+      if (key.startsWith("$") || key === "children") continue;
       if (!(key in props)) {
         props[key] = schema;
       }
@@ -72,6 +73,11 @@ export function buildPresentParameters(
     type: "object",
     properties: {
       [TYPE_KEY]: { type: "string", enum: names, description: typeDescription },
+      $key: {
+        description:
+          "Stable identity for this UI node. Use it for list items that may reorder.",
+        anyOf: [{ type: "string" }, { type: "number" }],
+      },
       ...props,
       children: { $ref: "#/$defs/children" },
     },

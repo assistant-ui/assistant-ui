@@ -6,6 +6,7 @@ import type {
 } from "../../runtime/utils/chat-model-adapter";
 import { shouldContinue } from "./should-continue";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
+import { consumeSuggestionResult } from "../../adapters/suggestion";
 import type {
   AddToolResultOptions,
   ResumeToolCallOptions,
@@ -21,6 +22,7 @@ import type {
   ThreadAssistantMessage,
 } from "../../types/message";
 import type { RunConfig } from "../../types/message";
+import { toAssistantError } from "../../types/error";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
   createMessageQueue,
@@ -375,28 +377,28 @@ export class LocalThreadRuntimeCore
       }
     }
 
-    this._suggestionsController = new AbortController();
-    const signal = this._suggestionsController.signal;
     if (
       this.adapters.suggestion &&
       message.status?.type !== "requires-action"
     ) {
-      const promiseOrGenerator = this.adapters.suggestion?.generate({
-        messages: this.messages,
-      });
-
-      if (Symbol.asyncIterator in promiseOrGenerator) {
-        for await (const r of promiseOrGenerator) {
-          if (signal.aborted) break;
-          this._suggestions = r;
-          this._notifySubscribers();
-        }
-      } else {
-        const result = await promiseOrGenerator;
-        if (signal.aborted) return;
-        this._suggestions = result;
-        this._notifySubscribers();
-      }
+      this._suggestionsController = new AbortController();
+      const signal = this._suggestionsController.signal;
+      const adapter = this.adapters.suggestion;
+      void (async () => {
+        try {
+          const promiseOrGenerator = adapter.generate({
+            messages: this.messages,
+            signal,
+          });
+          await consumeSuggestionResult(promiseOrGenerator, {
+            signal,
+            onUpdate: (r) => {
+              this._suggestions = r;
+              this._notifySubscribers();
+            },
+          });
+        } catch {}
+      })();
     }
   }
 
@@ -539,7 +541,6 @@ export class LocalThreadRuntimeCore
         });
       }
     } catch (e) {
-      // TODO this should be handled by the run result stream
       if (e instanceof AbortError) {
         updateMessage({
           status: { type: "incomplete", reason: "cancelled" },
@@ -553,10 +554,7 @@ export class LocalThreadRuntimeCore
           status: {
             type: "incomplete",
             reason: "error",
-            error:
-              e instanceof Error
-                ? e.message
-                : `[${typeof e}] ${new String(e).toString()}`,
+            error: toAssistantError(e),
           },
         });
 
@@ -584,6 +582,8 @@ export class LocalThreadRuntimeCore
     const error = new AbortError(true);
     this.abortController?.abort(error);
     this.abortController = null;
+    this._suggestionsController?.abort();
+    this._suggestionsController = null;
   }
 
   public cancelRun() {
@@ -591,6 +591,8 @@ export class LocalThreadRuntimeCore
     const error = new AbortError(false);
     this.abortController?.abort(error);
     this.abortController = null;
+    this._suggestionsController?.abort();
+    this._suggestionsController = null;
   }
 
   public addToolResult({

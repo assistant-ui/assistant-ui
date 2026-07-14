@@ -283,6 +283,9 @@ describe("transformProject — hasLocalComponents: false", () => {
             "@/components/assistant-ui/*": ["./components/assistant-ui/*"],
             "@/components/icons/*": ["./components/icons/*"],
             "@/components/ui/*": ["./components/ui/*"],
+            "@/components/ui/radix/*": [
+              "../../packages/ui/src/components/ui/radix/*",
+            ],
             "@/hooks/*": ["./hooks/*"],
             "@/lib/utils": ["./lib/utils"],
             "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
@@ -298,6 +301,7 @@ describe("transformProject — hasLocalComponents: false", () => {
       expect(paths["@/components/assistant-ui/*"]).toBeUndefined();
       expect(paths["@/components/icons/*"]).toBeUndefined();
       expect(paths["@/components/ui/*"]).toBeUndefined();
+      expect(paths["@/components/ui/radix/*"]).toBeUndefined();
       expect(paths["@/hooks/*"]).toBeUndefined();
       expect(paths["@/lib/utils"]).toBeUndefined();
       expect(paths["@assistant-ui/ui/*"]).toBeUndefined();

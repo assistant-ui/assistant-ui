@@ -15,6 +15,7 @@ import {
   createMessageQueue,
   type MessageQueueController,
   type AppendMessage,
+  type CompleteAttachment,
   generateId,
 } from "@assistant-ui/core";
 import type { ToolExecutionStatus } from "@assistant-ui/core";
@@ -73,6 +74,21 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     uiComponents,
   } = options;
   const aui = useAui();
+
+  // Attachments the composer handed to onNew/onEdit, keyed by the staged human
+  // message id. The wire message only carries flattened `content` (so the model
+  // input is unchanged), while the converter reattaches them here so
+  // MessagePrimitive.Attachments can render them as standalone cards.
+  const attachmentsByMessageIdRef = useRef(
+    new Map<string, readonly CompleteAttachment[]>(),
+  );
+  const stageAttachments = (
+    id: string,
+    attachments: readonly CompleteAttachment[] | undefined,
+  ) => {
+    if (attachments?.length)
+      attachmentsByMessageIdRef.current.set(id, attachments);
+  };
 
   // Ref-based reconcile so inline `uiComponents` objects don't re-register
   // every render via `useEffect` dependency identity.
@@ -215,6 +231,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
         uiMessagesByParent,
         messageTiming,
+        attachmentsByMessageId: attachmentsByMessageIdRef.current,
       }) as unknown as useExternalMessageConverter.Metadata,
     [uiMessagesByParent, messageTiming],
   );
@@ -272,10 +289,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           )
         : [];
 
-    return handleSendMessage(
-      [...cancellations, { type: "human", content: getMessageContent(msg) }],
-      { runConfig: msg.runConfig },
-    );
+    const humanMessage = toLangGraphUserMessage(msg);
+    stageAttachments(humanMessage.id, msg.attachments);
+    return handleSendMessage([...cancellations, humanMessage], {
+      runConfig: msg.runConfig,
+    });
   };
 
   const langGraphMessagesRef = useRef(messages);
@@ -312,6 +330,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
   const stageUserMessage = (msg: AppendMessage) => {
     const stagedMessage = toLangGraphUserMessage(msg);
+    stageAttachments(stagedMessage.id, msg.attachments);
     stagedMessagesRef.current.set(stagedMessage.id, {
       message: stagedMessage,
       runConfig: msg.runConfig,
@@ -469,6 +488,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           setInterrupt(undefined);
           if (!(msg.startRun ?? msg.role === "user")) {
             const stagedMessage = toLangGraphUserMessage(msg);
+            stageAttachments(stagedMessage.id, msg.attachments);
             stagedMessagesRef.current.set(stagedMessage.id, {
               message: stagedMessage,
               runConfig: msg.runConfig,
@@ -483,13 +503,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           const checkpointId = externalId
             ? await getCheckpointId(externalId, truncated)
             : null;
-          return handleSendMessage(
-            [{ type: "human", content: getMessageContent(msg) }],
-            {
-              runConfig: msg.runConfig,
-              ...(checkpointId && { checkpointId }),
-            },
-          );
+          const editMessage = toLangGraphUserMessage(msg);
+          stageAttachments(editMessage.id, msg.attachments);
+          return handleSendMessage([editMessage], {
+            runConfig: msg.runConfig,
+            ...(checkpointId && { checkpointId }),
+          });
         }
       : undefined,
     ...(getCheckpointId || hasStagedMessages
@@ -590,6 +609,8 @@ export const useLangGraphRuntime = ({
   create,
   delete: deleteFn,
   onThreadIdChange,
+  threadId,
+  initialThreadId,
   ...options
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
@@ -618,5 +639,7 @@ export const useLangGraphRuntime = ({
     adapter,
     allowNesting: true,
     onThreadIdChange,
+    threadId,
+    initialThreadId,
   });
 };
