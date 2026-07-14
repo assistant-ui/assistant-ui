@@ -135,7 +135,7 @@ The renderer POSTs four method names: `mcp-apps/read-resource`, `tools/call`, `r
 
 ### Multiple MCP servers
 
-When a tool part carries `mcp.app.serverId`, the renderer forwards it to the host operations as `params.serverId` so the route can select the MCP client that owns the resource or tool. The agent stack emits this routable identity in part metadata. For `@ag-ui/mcp-apps-middleware`, assistant-ui uses its configured `serverId`, falling back to `serverHash` when `serverId` is absent or empty. Omitting `serverId` preserves the single-server behavior, as shown by the fallback client in the route example.
+When a tool part carries `mcp.app.serverId`, the renderer forwards it to the host operations as `params.serverId` so the route can select the MCP client that owns the resource or tool. The agent stack emits this routable identity in part metadata. For `@ag-ui/mcp-apps-middleware`, assistant-ui uses its configured `serverId`, falling back to `serverHash` when `serverId` is absent or empty. Match the route's map keys to whichever identity your setup emits: configure an explicit `serverId` on each middleware server, or key the map by the emitted hashes. Omitting `serverId` preserves the single-server behavior, as shown by the fallback client in the route example.
 
 Per-name `setToolUI` registrations always win over the MCP fallback — you can still customize specific tools.
 
