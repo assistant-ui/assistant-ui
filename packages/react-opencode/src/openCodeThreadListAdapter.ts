@@ -29,8 +29,12 @@ export const forkOpenCodeSession = async (
   const messagesResponse = await client.session.messages({
     sessionID: sessionId,
   });
-  const messages = messagesResponse.data ?? [];
-  // OpenCode returns session messages in chronological order.
+  const messages = [...(messagesResponse.data ?? [])].sort((left, right) => {
+    const leftCreated = left.info.time?.created ?? Number.MAX_SAFE_INTEGER;
+    const rightCreated = right.info.time?.created ?? Number.MAX_SAFE_INTEGER;
+    if (leftCreated !== rightCreated) return leftCreated - rightCreated;
+    return left.info.id.localeCompare(right.info.id);
+  });
   const sourceIndex = messages.findIndex(
     (message) => message.info.id === fromMessageId,
   );

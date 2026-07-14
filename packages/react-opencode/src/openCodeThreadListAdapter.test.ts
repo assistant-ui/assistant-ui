@@ -59,6 +59,34 @@ describe("createOpenCodeThreadListAdapter", () => {
     });
   });
 
+  it("matches the rendered message order when history is unordered", async () => {
+    const client = {
+      session: {
+        messages: vi.fn().mockResolvedValue({
+          data: [
+            { info: { id: "msg_3", time: { created: 2 } }, parts: [] },
+            { info: { id: "msg_1", time: { created: 1 } }, parts: [] },
+            { info: { id: "msg_2", time: { created: 2 } }, parts: [] },
+          ],
+        }),
+        fork: vi.fn().mockResolvedValue({ data: { id: "ses_fork" } }),
+      },
+      experimental: {
+        session: {
+          list: vi.fn(),
+        },
+      },
+    };
+    const adapter = createOpenCodeThreadListAdapter(client as never);
+
+    await adapter.fork("ses_1", { fromMessageId: "msg_2" });
+
+    expect(client.session.fork).toHaveBeenCalledWith({
+      sessionID: "ses_1",
+      messageID: "msg_3",
+    });
+  });
+
   it("rejects fork when the source message is not in OpenCode history", async () => {
     const client = {
       session: {
