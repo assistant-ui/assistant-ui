@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import type {
   GenerativeUIDispatch,
   UISpec,
@@ -43,7 +43,10 @@ export function TemplateCodeTabs({
   dispatch,
   actionLog,
 }: TemplateCodeTabsProps) {
-  const reactCode = generativeUIToJSX(tree, { escape: true, pretty: true });
+  const reactCode = useMemo(
+    () => generativeUIToJSX(tree, { escape: true, pretty: true }),
+    [tree],
+  );
 
   return (
     <Tabs defaultValue="preview">

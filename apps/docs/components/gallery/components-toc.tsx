@@ -67,6 +67,7 @@ export function ComponentsToc({
                   <li key={name}>
                     <a
                       href={`#${name}`}
+                      aria-current={isActive ? "location" : undefined}
                       className={`hover:text-foreground block text-sm transition-colors ${
                         isActive ? "text-foreground" : "text-muted-foreground"
                       }`}

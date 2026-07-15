@@ -368,6 +368,9 @@ export const generativeUiVocabularyCss: CssRuleset = {
   '[data-aui="chart"] polyline, [data-aui="chart"] polygon': {
     "stroke-width": "1.5",
   },
+  '[data-aui="chart"][data-aui-color] [data-aui="chart-series"]:only-child': {
+    color: "inherit",
+  },
   '[data-aui="chart"][data-aui-color="emphasis"]': {
     color: "var(--foreground)",
   },

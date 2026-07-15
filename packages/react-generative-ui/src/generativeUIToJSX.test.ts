@@ -1,6 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { generativeUIToJSX } from "./generativeUIToJSX";
 
+describe("generativeUIToJSX pretty depth bound", () => {
+  it("tolerates children nested in arrays beyond the depth bound", () => {
+    let node: unknown = { $type: "Text", value: "leaf" };
+    for (let i = 0; i < 100; i++) node = [node];
+    expect(() =>
+      generativeUIToJSX({ $type: "Card", children: node }, { pretty: true }),
+    ).not.toThrow();
+  });
+});
+
 describe("generativeUIToJSX", () => {
   it("renders a leaf element as a self-closing tag", () => {
     expect(generativeUIToJSX({ $type: "Weather", id: "5d99d2e9" })).toBe(

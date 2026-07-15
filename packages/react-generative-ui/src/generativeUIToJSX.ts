@@ -99,8 +99,10 @@ function toJSX(
   return `${pad}<${type}${attrs}>\n${lines.join("\n")}\n${pad}</${type}>`;
 }
 
-function hasElementChild(node: unknown): boolean {
-  if (Array.isArray(node)) return node.some(hasElementChild);
+function hasElementChild(node: unknown, depth = 0): boolean {
+  if (depth > MAX_DEPTH) return false;
+  if (Array.isArray(node))
+    return node.some((child) => hasElementChild(child, depth + 1));
   return (
     node != null &&
     typeof node === "object" &&

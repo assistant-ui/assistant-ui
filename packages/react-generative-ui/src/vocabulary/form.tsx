@@ -10,6 +10,8 @@ export const formVocabulary = {
     properties: z.object({
       gap: z
         .number()
+        .min(0)
+        .max(8)
         .optional()
         .describe(
           "Gap between children in 4px units. 0 to 8 is the supported range.",

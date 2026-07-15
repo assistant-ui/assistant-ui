@@ -29,6 +29,8 @@ export const layoutVocabulary = {
       title: z.string().optional().describe("Optional card title."),
       padding: z
         .number()
+        .min(0)
+        .max(8)
         .optional()
         .describe(
           "Padding in 4px units (e.g. 2 = 8px). 0 to 8 is the supported range.",
@@ -125,6 +127,8 @@ export const layoutVocabulary = {
     properties: z.object({
       gap: z
         .number()
+        .min(0)
+        .max(8)
         .optional()
         .describe(
           "Gap between children in 4px units. 0 to 8 is the supported range.",
@@ -142,6 +146,8 @@ export const layoutVocabulary = {
     properties: z.object({
       gap: z
         .number()
+        .min(0)
+        .max(8)
         .optional()
         .describe(
           "Gap between children in 4px units. 0 to 8 is the supported range.",

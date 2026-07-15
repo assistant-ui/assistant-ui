@@ -15,6 +15,7 @@ type JsonSchemaLike = {
   const?: unknown;
   anyOf?: JsonSchemaLike[];
   oneOf?: JsonSchemaLike[];
+  items?: JsonSchemaLike;
   properties?: Record<string, JsonSchemaLike>;
   required?: string[];
   description?: string;
@@ -52,7 +53,16 @@ function describeSchema(schema: JsonSchemaLike): {
     return { type: schema.type.join(" | ") };
   }
 
-  if (schema.type === "array") return { type: "array" };
+  if (schema.type === "array") {
+    if (schema.items) {
+      const items = describeSchema(schema.items);
+      return {
+        type: `${items.type}[]`,
+        ...(items.enumValues ? { enumValues: items.enumValues } : {}),
+      };
+    }
+    return { type: "array" };
+  }
   if (schema.type === "object") return { type: "object" };
   if (typeof schema.type === "string") return { type: schema.type };
 

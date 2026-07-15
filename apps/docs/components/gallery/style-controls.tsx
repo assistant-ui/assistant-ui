@@ -10,16 +10,23 @@ export const RADIUS_PRESETS = [
 ] as const;
 
 export const ACCENT_PRESETS = [
-  { label: "Graphite", primary: "oklch(0.205 0 0)", ring: "oklch(0.708 0 0)" },
+  {
+    label: "Graphite",
+    swatch: "oklch(0.205 0 0)",
+    light: { primary: "oklch(0.205 0 0)", ring: "oklch(0.708 0 0)" },
+    dark: { primary: "oklch(0.922 0 0)", ring: "oklch(0.556 0 0)" },
+  },
   {
     label: "Indigo",
-    primary: "oklch(0.5 0.19 264)",
-    ring: "oklch(0.65 0.16 264)",
+    swatch: "oklch(0.5 0.19 264)",
+    light: { primary: "oklch(0.5 0.19 264)", ring: "oklch(0.65 0.16 264)" },
+    dark: { primary: "oklch(0.68 0.17 264)", ring: "oklch(0.55 0.15 264)" },
   },
   {
     label: "Emerald",
-    primary: "oklch(0.6 0.15 149)",
-    ring: "oklch(0.7 0.14 149)",
+    swatch: "oklch(0.6 0.15 149)",
+    light: { primary: "oklch(0.6 0.15 149)", ring: "oklch(0.7 0.14 149)" },
+    dark: { primary: "oklch(0.7 0.15 149)", ring: "oklch(0.6 0.14 149)" },
   },
 ] as const;
 export type AccentPreset = (typeof ACCENT_PRESETS)[number];
@@ -87,7 +94,7 @@ export function StyleControls({
                   ? "ring-ring ring-offset-background ring-2 ring-offset-2"
                   : "border-border/60",
               )}
-              style={{ backgroundColor: preset.primary }}
+              style={{ backgroundColor: preset.swatch }}
             />
           ))}
         </fieldset>
@@ -125,8 +132,8 @@ export function StyleControls({
         style={
           {
             "--radius": radius,
-            "--primary": accent.primary,
-            "--ring": accent.ring,
+            "--primary": accent[previewTheme].primary,
+            "--ring": accent[previewTheme].ring,
           } as CSSProperties
         }
       >

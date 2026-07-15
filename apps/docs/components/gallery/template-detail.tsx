@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import type {
   Action,
@@ -16,7 +16,10 @@ import {
 import { TemplateCodeTabs } from "./template-code-tabs";
 
 export function TemplateDetail({ template }: { template: GalleryTemplate }) {
-  const defaultJson = JSON.stringify(template.tree, null, 2);
+  const defaultJson = useMemo(
+    () => JSON.stringify(template.tree, null, 2),
+    [template.tree],
+  );
 
   const [tree, setTree] = useState(template.tree);
   const [jsonText, setJsonText] = useState(defaultJson);
