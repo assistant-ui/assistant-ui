@@ -2,9 +2,21 @@ import { describe, expect, it } from "vitest";
 import type { PendingAttachment } from "../types/attachment";
 import {
   type AttachmentAdapter,
+  fileMatchesAccept,
   SimpleImageAttachmentAdapter,
   SimpleTextAttachmentAdapter,
 } from "../adapters/attachment";
+
+describe("fileMatchesAccept", () => {
+  it("matches MIME types with parameters", () => {
+    expect(
+      fileMatchesAccept(
+        { name: "data.json", type: "application/json; charset=utf-8" },
+        "application/json",
+      ),
+    ).toBe(true);
+  });
+});
 
 describe("SimpleTextAttachmentAdapter", () => {
   const makeFile = (contents: string, name = "notes.md") =>
