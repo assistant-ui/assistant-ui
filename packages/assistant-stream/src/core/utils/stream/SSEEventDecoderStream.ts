@@ -16,7 +16,7 @@ export class SSEEventDecoderStream extends TransformStream<
     const decoder = new SSEEventDecoder({ trailing: "drop" });
     const normalize = (event: SSEEvent): PipelineSSEEvent => ({
       ...event,
-      event: event.event ?? "message",
+      event: event.event || "message",
     });
 
     super({
