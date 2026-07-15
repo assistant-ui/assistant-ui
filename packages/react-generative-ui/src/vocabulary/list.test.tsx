@@ -73,26 +73,44 @@ describe("listVocabulary $action dispatch", () => {
     expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
   });
 
+  type KeyDownEvent = {
+    key: string;
+    target: { closest: (selector: string) => unknown };
+    preventDefault: () => void;
+  };
+
+  const getOnKeyDown = (dispatch: (a: unknown) => unknown) => {
+    const trigger = rowOut(dispatch).props.children as ReactElement;
+    return (trigger.props as { onKeyDown: (e: KeyDownEvent) => void })
+      .onKeyDown;
+  };
+
   it("Enter and Space keydown both fire $action", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });
-    const trigger = rowOut(registry.dispatch).props.children as ReactElement;
-    const onKeyDown = (
-      trigger.props as { onKeyDown: (e: { key: string }) => void }
-    ).onKeyDown;
-    onKeyDown({ key: "Enter" });
-    onKeyDown({ key: " " });
+    const onKeyDown = getOnKeyDown(registry.dispatch);
+    onKeyDown({
+      key: "Enter",
+      target: { closest: () => null },
+      preventDefault: vi.fn(),
+    });
+    onKeyDown({
+      key: " ",
+      target: { closest: () => null },
+      preventDefault: vi.fn(),
+    });
     expect(handler).toHaveBeenCalledTimes(2);
   });
 
   it("a keydown for any other key does not fire $action", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });
-    const trigger = rowOut(registry.dispatch).props.children as ReactElement;
-    const onKeyDown = (
-      trigger.props as { onKeyDown: (e: { key: string }) => void }
-    ).onKeyDown;
-    onKeyDown({ key: "Tab" });
+    const onKeyDown = getOnKeyDown(registry.dispatch);
+    onKeyDown({
+      key: "Tab",
+      target: { closest: () => null },
+      preventDefault: vi.fn(),
+    });
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -108,5 +126,43 @@ describe("listVocabulary $action dispatch", () => {
     };
     onClick({ target: nestedButton });
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("a keydown Enter whose target sits inside a nested interactive element does not fire the row action", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const onKeyDown = getOnKeyDown(registry.dispatch);
+    const nestedInput = {
+      closest: (selector: string) =>
+        selector.includes("input") ? nestedInput : null,
+    };
+    const preventDefault = vi.fn();
+    onKeyDown({ key: "Enter", target: nestedInput, preventDefault });
+    expect(handler).not.toHaveBeenCalled();
+    expect(preventDefault).not.toHaveBeenCalled();
+  });
+
+  it("Space on the trigger itself fires the row action and prevents default", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const onKeyDown = getOnKeyDown(registry.dispatch);
+    const preventDefault = vi.fn();
+    onKeyDown({ key: " ", target: { closest: () => null }, preventDefault });
+    expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it("Enter on the trigger itself fires without calling preventDefault", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const onKeyDown = getOnKeyDown(registry.dispatch);
+    const preventDefault = vi.fn();
+    onKeyDown({
+      key: "Enter",
+      target: { closest: () => null },
+      preventDefault,
+    });
+    expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
+    expect(preventDefault).not.toHaveBeenCalled();
   });
 });

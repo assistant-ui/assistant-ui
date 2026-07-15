@@ -32,9 +32,11 @@ export const listVocabulary = {
               fire($action, $dispatch);
             }}
             onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                fire($action, $dispatch);
-              }
+              if (event.key !== "Enter" && event.key !== " ") return;
+              const target = event.target as Element;
+              if (target.closest(INTERACTIVE_DESCENDANT_SELECTOR)) return;
+              if (event.key === " ") event.preventDefault();
+              fire($action, $dispatch);
             }}
           >
             {children}
