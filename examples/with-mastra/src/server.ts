@@ -1,9 +1,11 @@
-import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { MastraServer } from "@mastra/hono";
+import { config } from "dotenv";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { mastra } from "./mastra/index.js";
+
+config({ path: [".env.local", ".env"] });
+const { mastra } = await import("./mastra/index.js");
 
 const port = Number(process.env.MASTRA_PORT ?? 4111);
 const app = new Hono();
