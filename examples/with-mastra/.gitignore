@@ -1,0 +1,5 @@
+mastra.db*
+.mastra/
+dist/
+.env*
+!.env.example
