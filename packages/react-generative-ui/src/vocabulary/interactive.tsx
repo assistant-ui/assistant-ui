@@ -170,12 +170,17 @@ export const interactiveVocabulary = {
           placeholder={placeholder}
           onKeyDown={(e) => {
             if (
-              e.key === "Enter" &&
-              (e.ctrlKey || e.metaKey) &&
-              !e.nativeEvent.isComposing &&
-              !e.currentTarget.form
+              e.key !== "Enter" ||
+              !(e.ctrlKey || e.metaKey) ||
+              e.nativeEvent.isComposing
             )
+              return;
+            if (e.currentTarget.form) {
+              e.preventDefault();
+              e.currentTarget.form.requestSubmit();
+            } else {
               submit(e.currentTarget.value);
+            }
           }}
         />
       ) : (

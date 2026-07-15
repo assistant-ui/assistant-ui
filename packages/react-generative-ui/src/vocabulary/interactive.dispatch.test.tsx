@@ -150,6 +150,73 @@ describe("interactiveVocabulary $action dispatch", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  type TextareaKeyDownEvent = {
+    key: string;
+    ctrlKey: boolean;
+    metaKey: boolean;
+    nativeEvent: { isComposing: boolean };
+    currentTarget: {
+      value: string;
+      form: { requestSubmit: () => void } | null;
+    };
+    preventDefault: () => void;
+  };
+
+  it("Input multiline (textarea) Ctrl+Enter inside a form calls form.requestSubmit instead of firing its own $action", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ submit: handler });
+    const out = interactiveVocabulary.Input.render({
+      multiline: true,
+      name: "notes",
+      $status: "done",
+      $action: { type: "submit" },
+      $dispatch: registry.dispatch,
+    }) as ReactNode;
+    const onKeyDown = (
+      out as { props: { onKeyDown: (e: TextareaKeyDownEvent) => void } }
+    ).props.onKeyDown;
+    const requestSubmit = vi.fn();
+    const preventDefault = vi.fn();
+    onKeyDown({
+      key: "Enter",
+      ctrlKey: true,
+      metaKey: false,
+      nativeEvent: { isComposing: false },
+      currentTarget: { value: "typed text", form: { requestSubmit } },
+      preventDefault,
+    });
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(requestSubmit).toHaveBeenCalledTimes(1);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("Input multiline (textarea) Ctrl+Enter without a form still fires its own $action", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ submit: handler });
+    const out = interactiveVocabulary.Input.render({
+      multiline: true,
+      $status: "done",
+      $action: { type: "submit" },
+      $dispatch: registry.dispatch,
+    }) as ReactNode;
+    const onKeyDown = (
+      out as { props: { onKeyDown: (e: TextareaKeyDownEvent) => void } }
+    ).props.onKeyDown;
+    const preventDefault = vi.fn();
+    onKeyDown({
+      key: "Enter",
+      ctrlKey: true,
+      metaKey: false,
+      nativeEvent: { isComposing: false },
+      currentTarget: { value: "typed text", form: null },
+      preventDefault,
+    });
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(handler).toHaveBeenCalledWith({
+      payload: { type: "submit", $input: "typed text" },
+    });
+  });
+
   it("Button with submit set renders no onClick handler, so it never fires $action on click", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ purchase: handler });

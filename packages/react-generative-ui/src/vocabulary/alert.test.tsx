@@ -58,9 +58,15 @@ describe("alertVocabulary", () => {
     expect((html.match(/data-aui="carousel-slide"/g) ?? []).length).toBe(1);
   });
 
-  it("Carousel with no children renders an empty container with a default aria-label", () => {
+  it("Carousel without a label renders role=group, no aria-label, and no double-name landmark", () => {
     expect(render({ $type: "Carousel" })).toBe(
-      '<div data-aui="carousel" role="region" aria-roledescription="carousel" aria-label="carousel" tabindex="0"></div>',
+      '<div data-aui="carousel" role="group" aria-roledescription="carousel" tabindex="0"></div>',
+    );
+  });
+
+  it("Carousel with a label renders role=region and the given aria-label", () => {
+    expect(render({ $type: "Carousel", label: "Featured" })).toBe(
+      '<div data-aui="carousel" role="region" aria-roledescription="carousel" aria-label="Featured" tabindex="0"></div>',
     );
   });
 
@@ -92,6 +98,7 @@ describe("alertVocabulary", () => {
         {renderGenerativeUI(
           {
             $type: "Carousel",
+            label: "Featured items",
             children: [
               { $type: "Card", title: "a" },
               { $type: "Card", title: "b" },

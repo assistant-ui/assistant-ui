@@ -43,9 +43,9 @@ export const alertVocabulary = {
       return (
         <div
           data-aui="carousel"
-          role="region"
+          role={label ? "region" : "group"}
           aria-roledescription="carousel"
-          aria-label={label ?? "carousel"}
+          aria-label={label}
           tabIndex={0}
         >
           {cards.map((card, i) => (

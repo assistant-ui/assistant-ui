@@ -17,7 +17,7 @@ export type FormControlElementLike = {
 export function collectFormValues(
   elements: ArrayLike<FormControlElementLike>,
 ): Record<string, unknown> {
-  const values: Record<string, unknown> = {};
+  const values: Record<string, unknown> = Object.create(null);
 
   for (const element of Array.from(elements)) {
     const { name, disabled } = element;
@@ -25,14 +25,14 @@ export function collectFormValues(
 
     if (element.type === "radio") {
       if (element.checked) values[name] = element.value;
-      else if (!(name in values)) values[name] = undefined;
+      else if (!Object.hasOwn(values, name)) values[name] = undefined;
       continue;
     }
 
     const value: string | boolean =
       element.type === "checkbox" ? (element.checked ?? false) : element.value;
 
-    if (name in values) {
+    if (Object.hasOwn(values, name)) {
       const existing = values[name];
       values[name] = Array.isArray(existing)
         ? [...existing, value]

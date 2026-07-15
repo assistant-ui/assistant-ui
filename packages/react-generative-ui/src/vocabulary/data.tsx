@@ -15,6 +15,9 @@ const CHART_WIDTH = 100;
 const clampValue = (value: unknown): number =>
   typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : 0;
 
+const yFor = (value: number, max: number): number =>
+  max > 0 ? CHART_HEIGHT - (value / max) * CHART_HEIGHT : CHART_HEIGHT;
+
 export const dataVocabulary = {
   Table: {
     description:
@@ -84,7 +87,7 @@ export const dataVocabulary = {
       const points = Array.isArray(data) ? data : [];
       const n = points.length;
       const values = points.map((d) => clampValue(d?.value));
-      const max = Math.max(0, ...values);
+      const max = values.reduce((m, v) => Math.max(m, v), 0);
       const slot = n > 0 ? CHART_WIDTH / n : 0;
       const gap = slot * 0.2;
       const barWidth = slot - gap;
@@ -116,25 +119,14 @@ export const dataVocabulary = {
           ) : n === 1 ? (
             <circle
               cx={CHART_WIDTH / 2}
-              cy={
-                max > 0
-                  ? CHART_HEIGHT - ((values[0] ?? 0) / max) * CHART_HEIGHT
-                  : CHART_HEIGHT
-              }
+              cy={yFor(values[0] ?? 0, max)}
               r={2}
               fill="currentColor"
             />
           ) : n > 1 ? (
             <polyline
               points={values
-                .map((v, i) => {
-                  const x = n > 1 ? (i / (n - 1)) * CHART_WIDTH : 0;
-                  const y =
-                    max > 0
-                      ? CHART_HEIGHT - (v / max) * CHART_HEIGHT
-                      : CHART_HEIGHT;
-                  return `${x},${y}`;
-                })
+                .map((v, i) => `${(i / (n - 1)) * CHART_WIDTH},${yFor(v, max)}`)
                 .join(" ")}
               fill="none"
               stroke="currentColor"

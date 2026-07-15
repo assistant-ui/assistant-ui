@@ -109,4 +109,19 @@ describe("collectFormValues", () => {
   it("returns an empty object for no elements", () => {
     expect(collectFormValues([])).toEqual({});
   });
+
+  it("a field named __proto__ round-trips as an own data key", () => {
+    const values = collectFormValues([
+      el({ name: "__proto__", type: "text", value: "x" }),
+    ]);
+    expect(Object.hasOwn(values, "__proto__")).toBe(true);
+    expect(values["__proto__"]).toBe("x");
+  });
+
+  it("a field named constructor collects as its submitted string, not an array seeded with the inherited function", () => {
+    const values = collectFormValues([
+      el({ name: "constructor", type: "text", value: "hi" }),
+    ]);
+    expect(values["constructor"]).toBe("hi");
+  });
 });
