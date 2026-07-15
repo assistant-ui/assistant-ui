@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import fs, { type PathLike } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -7,6 +7,19 @@ import {
   info,
   satisfiesRange,
 } from "../../src/commands/info";
+
+const existsSyncOverride = vi.hoisted(() =>
+  vi.fn<(candidate: PathLike) => boolean | undefined>(),
+);
+
+vi.mock("node:fs", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...original,
+    existsSync: (candidate: PathLike) =>
+      existsSyncOverride(candidate) ?? original.existsSync(candidate),
+  };
+});
 
 function writePackage(
   root: string,
@@ -107,6 +120,20 @@ describe("findWorkspaceRoot", () => {
       expect(findWorkspaceRoot(root)).toBeNull();
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("checks the filesystem root for workspace markers", () => {
+    const root = path.parse(process.cwd()).root;
+    const workspaceFile = path.join(root, "pnpm-workspace.yaml");
+    existsSyncOverride.mockImplementation((candidate) =>
+      candidate === workspaceFile ? true : undefined,
+    );
+
+    try {
+      expect(findWorkspaceRoot(root)).toBe(root);
+    } finally {
+      existsSyncOverride.mockReset();
     }
   });
 });
