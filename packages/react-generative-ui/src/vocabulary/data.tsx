@@ -119,6 +119,8 @@ function formatTick(value: number): string {
 
 type ChartVariant = "bar" | "line" | "sparkline" | "area";
 
+const SERIES_PALETTE_SIZE = 5;
+
 function renderSeriesMarks(
   variant: ChartVariant,
   series: NormalizedChartSeries[],
@@ -166,7 +168,7 @@ function renderSeriesMarks(
         <g
           key={seriesIndex}
           data-aui="chart-series"
-          data-aui-series={seriesIndex}
+          data-aui-series={seriesIndex % SERIES_PALETTE_SIZE}
         >
           {marks}
         </g>
@@ -178,11 +180,15 @@ function renderSeriesMarks(
     const cumulative = new Array(count).fill(0) as number[];
 
     return series.map((s, seriesIndex) => {
-      const bottoms = cumulative.slice();
-      for (let i = 0; i < count; i++) {
-        cumulative[i] = (cumulative[i] ?? 0) + (s.values[i] ?? 0);
+      const bottoms = stacked
+        ? cumulative.slice()
+        : (new Array(count).fill(0) as number[]);
+      if (stacked) {
+        for (let i = 0; i < count; i++) {
+          cumulative[i] = (cumulative[i] ?? 0) + (s.values[i] ?? 0);
+        }
       }
-      const tops = cumulative.slice();
+      const tops = stacked ? cumulative.slice() : s.values.slice();
 
       if (count === 1) {
         const y = yFor(tops[0] ?? 0, scaleMax);
@@ -190,7 +196,7 @@ function renderSeriesMarks(
           <g
             key={seriesIndex}
             data-aui="chart-series"
-            data-aui-series={seriesIndex}
+            data-aui-series={seriesIndex % SERIES_PALETTE_SIZE}
           >
             <circle cx={CHART_WIDTH / 2} cy={y} r={2} fill="currentColor" />
           </g>
@@ -201,7 +207,7 @@ function renderSeriesMarks(
           <g
             key={seriesIndex}
             data-aui="chart-series"
-            data-aui-series={seriesIndex}
+            data-aui-series={seriesIndex % SERIES_PALETTE_SIZE}
           />
         );
       }
@@ -219,7 +225,7 @@ function renderSeriesMarks(
         <g
           key={seriesIndex}
           data-aui="chart-series"
-          data-aui-series={seriesIndex}
+          data-aui-series={seriesIndex % SERIES_PALETTE_SIZE}
         >
           <polygon
             points={[...topPoints, ...bottomPoints].join(" ")}
@@ -232,9 +238,13 @@ function renderSeriesMarks(
     });
   }
 
-  // line / sparkline: each series is always drawn independently. Stacking a line has no single standard meaning, so `stacked` only affects the shared scale here, not mark positions.
+  // line / sparkline: each series is always drawn independently. Stacking a line has no single standard meaning, so `stacked` is ignored (the caller never passes it for these variants).
   return series.map((s, seriesIndex) => (
-    <g key={seriesIndex} data-aui="chart-series" data-aui-series={seriesIndex}>
+    <g
+      key={seriesIndex}
+      data-aui="chart-series"
+      data-aui-series={seriesIndex % SERIES_PALETTE_SIZE}
+    >
       {count === 1 ? (
         <circle
           cx={CHART_WIDTH / 2}
@@ -328,7 +338,9 @@ export const dataVocabulary = {
       stacked: z
         .boolean()
         .optional()
-        .describe("Accumulate series values instead of overlaying them."),
+        .describe(
+          "Accumulate series values instead of overlaying them (bar and area variants; ignored for line and sparkline).",
+        ),
       showAxis: z
         .boolean()
         .optional()
@@ -416,14 +428,16 @@ export const dataVocabulary = {
       }
 
       const { count, series: normalized } = normalizeSeries(series, data);
-      const rawMax = computeMax(normalized, count, !!stacked);
+      const stackedScale =
+        !!stacked && (variant === "bar" || variant === "area");
+      const rawMax = computeMax(normalized, count, stackedScale);
       const scaleMax = showAxis ? niceMax(rawMax) : rawMax;
       const marks = renderSeriesMarks(
         variant,
         normalized,
         count,
         scaleMax,
-        !!stacked,
+        stackedScale,
       );
 
       const svg = (
@@ -444,21 +458,29 @@ export const dataVocabulary = {
 
       return (
         <div data-aui="chart-frame">
-          <div data-aui="chart-ticks">
-            {tickValues(scaleMax).map((tick, i) => (
-              <div key={i}>{formatTick(tick)}</div>
-            ))}
-          </div>
+          {showAxis ? (
+            <div data-aui="chart-ticks">
+              {tickValues(scaleMax).map((tick, i) => (
+                <div key={i}>{formatTick(tick)}</div>
+              ))}
+            </div>
+          ) : null}
           {svg}
-          <div data-aui="chart-xlabels">
-            {(normalized[0]?.labels ?? []).map((label, i) => (
-              <div key={i}>{label ?? ""}</div>
-            ))}
-          </div>
+          {showAxis ? (
+            <div data-aui="chart-xlabels">
+              {(normalized[0]?.labels ?? []).map((label, i) => (
+                <div key={i}>{label ?? ""}</div>
+              ))}
+            </div>
+          ) : null}
           {showLegend ? (
             <div data-aui="chart-legend">
               {normalized.map((s, i) => (
-                <span key={i} data-aui="chart-legend-item" data-aui-series={i}>
+                <span
+                  key={i}
+                  data-aui="chart-legend-item"
+                  data-aui-series={i % SERIES_PALETTE_SIZE}
+                >
                   <span data-aui="chart-legend-swatch" />
                   {s.label ?? `Series ${i + 1}`}
                 </span>

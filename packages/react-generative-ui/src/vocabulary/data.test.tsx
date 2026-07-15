@@ -473,4 +473,95 @@ describe("dataVocabulary Chart legend and x-labels", () => {
     });
     expect(html).toContain("Series 1");
   });
+
+  it("area series overlay from the baseline when not stacked", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "area",
+      series: [
+        { data: [{ value: 10 }, { value: 20 }] },
+        { data: [{ value: 30 }, { value: 40 }] },
+      ],
+    });
+    const points = [...html.matchAll(/points="([^"]+)"/g)].map((m) => m[1]!);
+    expect(points).toHaveLength(2);
+    for (const polygon of points) {
+      expect(polygon).toContain("100,40");
+      expect(polygon).not.toContain("-");
+    }
+    expect(points[1]).toContain("100,0");
+  });
+
+  it("area series accumulate when stacked", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "area",
+      stacked: true,
+      series: [
+        { data: [{ value: 10 }, { value: 20 }] },
+        { data: [{ value: 30 }, { value: 40 }] },
+      ],
+    });
+    const points = [...html.matchAll(/points="([^"]+)"/g)].map((m) => m[1]!);
+    expect(points).toHaveLength(2);
+    expect(points[1]).toContain("100,0");
+    expect(points[1]).not.toContain("100,40");
+  });
+
+  it("line charts ignore stacked for the scale", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "line",
+      stacked: true,
+      series: [{ data: [{ value: 100 }] }, { data: [{ value: 100 }] }],
+    });
+    expect((html.match(/cy="0"/g) ?? []).length).toBe(2);
+  });
+
+  it("cycles series colors past the palette size", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "bar",
+      showLegend: true,
+      series: Array.from({ length: 6 }, (_, i) => ({
+        label: `S${i + 1}`,
+        data: [{ value: i + 1 }],
+      })),
+    });
+    expect(html).toContain('<g data-aui="chart-series" data-aui-series="4">');
+    expect(
+      (html.match(/<g data-aui="chart-series" data-aui-series="0">/g) ?? [])
+        .length,
+    ).toBe(2);
+    expect(
+      (
+        html.match(
+          /<span data-aui="chart-legend-item" data-aui-series="0">/g,
+        ) ?? []
+      ).length,
+    ).toBe(2);
+  });
+
+  it("legend without axis renders no ticks or x labels", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "bar",
+      showLegend: true,
+      series: [{ label: "A", data: [{ value: 1, label: "Jan" }] }],
+    });
+    expect(html).toContain('data-aui="chart-legend"');
+    expect(html).not.toContain('data-aui="chart-ticks"');
+    expect(html).not.toContain('data-aui="chart-xlabels"');
+  });
+
+  it("axis renders ticks and x labels", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "bar",
+      showAxis: true,
+      series: [{ label: "A", data: [{ value: 1, label: "Jan" }] }],
+    });
+    expect(html).toContain('data-aui="chart-ticks"');
+    expect(html).toContain('data-aui="chart-xlabels"');
+  });
 });
