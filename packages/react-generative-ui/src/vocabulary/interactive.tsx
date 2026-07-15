@@ -172,7 +172,8 @@ export const interactiveVocabulary = {
             if (
               e.key === "Enter" &&
               (e.ctrlKey || e.metaKey) &&
-              !e.nativeEvent.isComposing
+              !e.nativeEvent.isComposing &&
+              !e.currentTarget.form
             )
               submit(e.currentTarget.value);
           }}
@@ -185,7 +186,11 @@ export const interactiveVocabulary = {
           aria-label={label}
           placeholder={placeholder}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing)
+            if (
+              e.key === "Enter" &&
+              !e.nativeEvent.isComposing &&
+              !e.currentTarget.form
+            )
               submit(e.currentTarget.value);
           }}
         />

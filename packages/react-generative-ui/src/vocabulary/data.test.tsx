@@ -78,6 +78,19 @@ describe("dataVocabulary", () => {
     expect(html).toContain('points="0,40 50,20 100,0"');
   });
 
+  it("Chart line variant with a single data point renders a circle, not a polyline", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "line",
+      data: [{ value: 20 }],
+    });
+    expect(html).not.toContain("<polyline");
+    expect((html.match(/<circle/g) ?? []).length).toBe(1);
+    expect(html).toContain('cx="50"');
+    expect(html).toContain('cy="0"');
+    expect(html).toContain('r="2"');
+  });
+
   it("Chart sparkline variant is structurally identical to line, differentiated by the variant attribute", () => {
     const html = render({
       $type: "Chart",

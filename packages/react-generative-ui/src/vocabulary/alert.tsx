@@ -45,7 +45,7 @@ export const alertVocabulary = {
           data-aui="carousel"
           role="region"
           aria-roledescription="carousel"
-          aria-label={label}
+          aria-label={label ?? "carousel"}
           tabIndex={0}
         >
           {cards.map((card, i) => (

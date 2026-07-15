@@ -122,6 +122,34 @@ describe("interactiveVocabulary $action dispatch", () => {
     });
   });
 
+  it("Input onKeyDown (Enter) defers to an ancestor form instead of firing its own $action", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ submit: handler });
+    const out = interactiveVocabulary.Input.render({
+      name: "email",
+      $status: "done",
+      $action: { type: "submit" },
+      $dispatch: registry.dispatch,
+    }) as ReactNode;
+    const onKeyDown = (
+      out as {
+        props: {
+          onKeyDown: (e: {
+            key: string;
+            nativeEvent: { isComposing: boolean };
+            currentTarget: { value: string; form: unknown };
+          }) => void;
+        };
+      }
+    ).props.onKeyDown;
+    onKeyDown({
+      key: "Enter",
+      nativeEvent: { isComposing: false },
+      currentTarget: { value: "typed text", form: {} },
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   it("Button with submit set renders no onClick handler, so it never fires $action on click", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ purchase: handler });

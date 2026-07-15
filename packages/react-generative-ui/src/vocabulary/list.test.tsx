@@ -142,6 +142,33 @@ describe("listVocabulary $action dispatch", () => {
     expect(preventDefault).not.toHaveBeenCalled();
   });
 
+  it('a click whose target sits inside a nested role="button" element does not fire the row action', () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const trigger = rowOut(registry.dispatch).props.children as ReactElement;
+    const onClick = (trigger.props as { onClick: (e: unknown) => void })
+      .onClick;
+    const nestedRoleButton = {
+      closest: (selector: string) =>
+        selector.includes('[role="button"]') ? nestedRoleButton : null,
+    };
+    onClick({ target: nestedRoleButton });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('a keydown Enter whose target sits inside a nested role="button" element (e.g. a nested ListViewItem trigger) does not fire the row action', () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const onKeyDown = getOnKeyDown(registry.dispatch);
+    const nestedRoleButton = {
+      closest: (selector: string) =>
+        selector.includes('[role="button"]') ? nestedRoleButton : null,
+    };
+    const preventDefault = vi.fn();
+    onKeyDown({ key: "Enter", target: nestedRoleButton, preventDefault });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   it("Space on the trigger itself fires the row action and prevents default", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });

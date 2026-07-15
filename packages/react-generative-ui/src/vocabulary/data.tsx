@@ -85,6 +85,9 @@ export const dataVocabulary = {
       const n = points.length;
       const values = points.map((d) => clampValue(d?.value));
       const max = Math.max(0, ...values);
+      const slot = n > 0 ? CHART_WIDTH / n : 0;
+      const gap = slot * 0.2;
+      const barWidth = slot - gap;
 
       return (
         <svg
@@ -98,9 +101,6 @@ export const dataVocabulary = {
         >
           {variant === "bar" ? (
             values.map((v, i) => {
-              const slot = n > 0 ? CHART_WIDTH / n : 0;
-              const gap = slot * 0.2;
-              const barWidth = slot - gap;
               const height = max > 0 ? (v / max) * CHART_HEIGHT : 0;
               return (
                 <rect
@@ -113,7 +113,18 @@ export const dataVocabulary = {
                 />
               );
             })
-          ) : n > 0 ? (
+          ) : n === 1 ? (
+            <circle
+              cx={CHART_WIDTH / 2}
+              cy={
+                max > 0
+                  ? CHART_HEIGHT - ((values[0] ?? 0) / max) * CHART_HEIGHT
+                  : CHART_HEIGHT
+              }
+              r={2}
+              fill="currentColor"
+            />
+          ) : n > 1 ? (
             <polyline
               points={values
                 .map((v, i) => {

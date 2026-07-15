@@ -58,9 +58,9 @@ describe("alertVocabulary", () => {
     expect((html.match(/data-aui="carousel-slide"/g) ?? []).length).toBe(1);
   });
 
-  it("Carousel with no children renders an empty container", () => {
+  it("Carousel with no children renders an empty container with a default aria-label", () => {
     expect(render({ $type: "Carousel" })).toBe(
-      '<div data-aui="carousel" role="region" aria-roledescription="carousel" tabindex="0"></div>',
+      '<div data-aui="carousel" role="region" aria-roledescription="carousel" aria-label="carousel" tabindex="0"></div>',
     );
   });
 

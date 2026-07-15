@@ -3,7 +3,7 @@ import type { GenerativeUILibrary } from "../types";
 import { fire } from "./dispatch";
 
 const INTERACTIVE_DESCENDANT_SELECTOR =
-  "button, a, input, select, textarea, label";
+  'button, a, input, select, textarea, label, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="switch"], [role="textbox"], [role="combobox"], [role="menuitem"]';
 
 export const listVocabulary = {
   ListView: {
