@@ -1246,7 +1246,6 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react-generative-ui",
       "react-markdown",
       "remark-gfm",
-      "zod",
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/generative-ui-style.json",
