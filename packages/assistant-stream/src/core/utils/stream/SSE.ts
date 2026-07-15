@@ -1,5 +1,8 @@
 import { PipeableTransformStream } from "./PipeableTransformStream";
-import { LineDecoderStream } from "./LineDecoderStream";
+import {
+  SSEEventDecoderStream,
+  type PipelineSSEEvent,
+} from "./SSEEventDecoderStream";
 
 export class SSEEncoder<T> extends PipeableTransformStream<
   T,
@@ -28,62 +31,6 @@ export class SSEEncoder<T> extends PipeableTransformStream<
   }
 }
 
-type SSEEvent = {
-  event: string;
-  data: string;
-  id?: string | undefined;
-  retry?: number | undefined;
-};
-
-class SSEEventStream extends TransformStream<string, SSEEvent> {
-  constructor() {
-    let eventBuffer: Partial<SSEEvent> = {};
-    let dataLines: string[] = [];
-
-    super({
-      start() {
-        eventBuffer = {};
-        dataLines = [];
-      },
-      transform(line, controller) {
-        if (line.startsWith(":")) return; // Ignore comments
-
-        if (line === "") {
-          if (dataLines.length > 0) {
-            controller.enqueue({
-              event: eventBuffer.event || "message",
-              data: dataLines.join("\n"),
-              id: eventBuffer.id,
-              retry: eventBuffer.retry,
-            });
-          }
-          eventBuffer = {};
-          dataLines = [];
-          return;
-        }
-
-        const [field, ...rest] = line.split(":");
-        const value = rest.join(":").trimStart();
-
-        switch (field) {
-          case "event":
-            eventBuffer.event = value;
-            break;
-          case "data":
-            dataLines.push(value);
-            break;
-          case "id":
-            eventBuffer.id = value;
-            break;
-          case "retry":
-            eventBuffer.retry = Number(value);
-            break;
-        }
-      },
-    });
-  }
-}
-
 export class SSEDecoder<T> extends PipeableTransformStream<
   Uint8Array<ArrayBuffer>,
   T
@@ -92,10 +39,9 @@ export class SSEDecoder<T> extends PipeableTransformStream<
     super((readable) =>
       readable
         .pipeThrough(new TextDecoderStream())
-        .pipeThrough(new LineDecoderStream())
-        .pipeThrough(new SSEEventStream())
+        .pipeThrough(new SSEEventDecoderStream())
         .pipeThrough(
-          new TransformStream<SSEEvent, T>({
+          new TransformStream<PipelineSSEEvent, T>({
             transform(event, controller) {
               switch (event.event) {
                 case "message":
