@@ -70,7 +70,7 @@
   }
 
   @-moz-document url-prefix() {
-    & {
+    &:not(.shimmer-bg) {
       --_duration: var(--shimmer-duration, calc(375000 / var(--_speed)));
     }
   }
