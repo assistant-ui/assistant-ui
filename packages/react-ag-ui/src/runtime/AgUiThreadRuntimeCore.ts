@@ -181,20 +181,13 @@ export class AgUiThreadRuntimeCore {
     messageId: string,
     replacementId?: string | null,
   ): void {
-    if (replacementId === undefined) {
-      this.repository.deleteMessage(messageId);
-    } else {
-      this.repository.deleteMessage(messageId, replacementId);
-    }
+    this.repository.deleteMessage(messageId, replacementId);
     this.exportedRepository = undefined;
   }
 
-  private tryDeleteMessage(
-    messageId: string,
-    replacementId?: string | null,
-  ): boolean {
+  private tryDeleteMessage(messageId: string): boolean {
     if (!this.hasMessage(messageId)) return false;
-    this.deleteMessage(messageId, replacementId);
+    this.deleteMessage(messageId);
     return true;
   }
 
@@ -300,9 +293,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   private appendEntry(message: AppendMessage): string {
-    if (message.sourceId && this.hasMessage(message.sourceId)) {
-      this.deleteMessage(message.sourceId);
-    }
+    if (message.sourceId) this.tryDeleteMessage(message.sourceId);
 
     const threadMessage = this.toThreadMessage(message);
     const parentId =
