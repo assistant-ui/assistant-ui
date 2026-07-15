@@ -3,10 +3,7 @@ import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
 import { ALIGNS, JUSTIFIES } from "../ir";
 import { fire } from "./dispatch";
-import {
-  collectFormValues,
-  type FormControlElementLike,
-} from "./collectFormValues";
+import { collectFormValuesFromEvent } from "./collectFormValues";
 
 const cardActionSchema = z.looseObject({
   type: z
@@ -95,10 +92,7 @@ export const layoutVocabulary = {
                   fire(
                     confirm?.$action,
                     $dispatch,
-                    collectFormValues(
-                      event.currentTarget
-                        .elements as unknown as ArrayLike<FormControlElementLike>,
-                    ),
+                    collectFormValuesFromEvent(event),
                   );
                 }
               : undefined

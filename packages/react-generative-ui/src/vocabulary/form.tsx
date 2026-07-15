@@ -1,10 +1,7 @@
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
 import { actionAttr, fire } from "./dispatch";
-import {
-  collectFormValues,
-  type FormControlElementLike,
-} from "./collectFormValues";
+import { collectFormValuesFromEvent } from "./collectFormValues";
 
 export const formVocabulary = {
   Form: {
@@ -20,14 +17,7 @@ export const formVocabulary = {
         data-aui-action={actionAttr($action)}
         onSubmit={(event) => {
           event.preventDefault();
-          fire(
-            $action,
-            $dispatch,
-            collectFormValues(
-              event.currentTarget
-                .elements as unknown as ArrayLike<FormControlElementLike>,
-            ),
-          );
+          fire($action, $dispatch, collectFormValuesFromEvent(event));
         }}
       >
         {children}

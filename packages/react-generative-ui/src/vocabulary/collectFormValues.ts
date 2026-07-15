@@ -1,3 +1,5 @@
+import type { FormEvent } from "react";
+
 /**
  * The subset of `HTMLInputElement`/`HTMLSelectElement`/`HTMLTextAreaElement` that {@link collectFormValues} reads. A structural type rather than the DOM interfaces themselves, so a plain object can stand in for a form control in tests.
  */
@@ -41,4 +43,16 @@ export function collectFormValues(
   }
 
   return values;
+}
+
+/**
+ * Convenience wrapper around {@link collectFormValues} for a native form submit event; the cast from `HTMLFormControlsCollection` to `ArrayLike<FormControlElementLike>` lives here once instead of at every call site.
+ */
+export function collectFormValuesFromEvent(
+  event: FormEvent<HTMLFormElement>,
+): Record<string, unknown> {
+  return collectFormValues(
+    event.currentTarget
+      .elements as unknown as ArrayLike<FormControlElementLike>,
+  );
 }
