@@ -2,7 +2,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { info, satisfiesRange } from "../../src/commands/info";
+import {
+  findWorkspaceRoot,
+  info,
+  satisfiesRange,
+} from "../../src/commands/info";
 
 function writePackage(
   root: string,
@@ -52,6 +56,59 @@ describe("satisfiesRange", () => {
       expect(satisfiesRange("19.2.0", range)).toBe(true);
     },
   );
+});
+
+describe("findWorkspaceRoot", () => {
+  it("detects a pnpm workspace from the workspace root", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-workspace-"));
+
+    try {
+      fs.writeFileSync(path.join(root, "pnpm-workspace.yaml"), "packages: []");
+
+      expect(findWorkspaceRoot(root)).toBe(root);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("detects package.json workspaces from the workspace root", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-workspace-"));
+
+    try {
+      fs.writeFileSync(
+        path.join(root, "package.json"),
+        JSON.stringify({ workspaces: ["apps/*"] }),
+      );
+
+      expect(findWorkspaceRoot(root)).toBe(root);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("finds the workspace root from a nested project", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-workspace-"));
+    const project = path.join(root, "apps", "chat");
+
+    try {
+      fs.mkdirSync(project, { recursive: true });
+      fs.writeFileSync(path.join(root, "pnpm-workspace.yaml"), "packages: []");
+
+      expect(findWorkspaceRoot(project)).toBe(root);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns null outside a workspace", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-project-"));
+
+    try {
+      expect(findWorkspaceRoot(root)).toBeNull();
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("info command", () => {

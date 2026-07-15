@@ -89,8 +89,8 @@ function getInstalledVersion(pkg: string, cwd: string): string | null {
   return null;
 }
 
-function findWorkspaceRoot(cwd: string): string | null {
-  let dir = path.dirname(cwd);
+export function findWorkspaceRoot(cwd: string): string | null {
+  let dir = cwd;
   const root = path.parse(dir).root;
   while (dir !== root) {
     if (fs.existsSync(path.join(dir, "pnpm-workspace.yaml"))) return dir;
