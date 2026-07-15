@@ -45,7 +45,7 @@ export function isJSONValue(
 }
 
 export function isJSONArray(value: unknown): value is ReadonlyJSONArray {
-  return Array.isArray(value) && value.every(isJSONValue);
+  return Array.isArray(value) && value.every((item) => isJSONValue(item));
 }
 
 export function isJSONObject(value: unknown): value is ReadonlyJSONObject {
