@@ -177,11 +177,61 @@ Open `http://localhost:3000`, send a message, and confirm:
 
 </Steps>
 
+## Add persisted threads
+
+After the agent has Mastra memory and storage configured, replace the chat-only runtime with `useMastraRuntime`. Install the Mastra adapter and client in the frontend:
+
+<InstallCommand npm={["@assistant-ui/react-mastra@latest", "@mastra/client-js@latest"]} />
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
+import { MastraClient } from "@mastra/client-js";
+import { type PropsWithChildren, useCallback, useState } from "react";
+
+const baseUrl = process.env.NEXT_PUBLIC_MASTRA_URL!;
+const client = new MastraClient({ baseUrl });
+const threadStorageKey = "assistant-ui-mastra-thread-id";
+
+export function MyRuntimeProvider({ children }: PropsWithChildren) {
+  const [threadId, setThreadId] = useState<string | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    return window.localStorage.getItem(threadStorageKey) ?? undefined;
+  });
+  const onThreadIdChange = useCallback((nextId: string | undefined) => {
+    setThreadId(nextId);
+    if (nextId) window.localStorage.setItem(threadStorageKey, nextId);
+    else window.localStorage.removeItem(threadStorageKey);
+  }, []);
+
+  const runtime = useMastraRuntime({
+    client,
+    agentId: "chefAgent",
+    resourceId: "authenticated-user-id",
+    threadId,
+    onThreadIdChange,
+    transportOptions: { api: `${baseUrl}/chat/chefAgent` },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+`agentId` is the Mastra registry key used by the memory API. `resourceId` scopes the thread list and is also sent with each chat request. `threadId` is the selected conversation and becomes Mastra's memory thread ID. Persisting the selected ID restores that conversation after a reload; Mastra remains the source of truth for its messages.
+
+Set `NEXT_PUBLIC_MASTRA_URL` to the server origin, such as `http://localhost:4111`, rather than the individual chat route. Continue with [Threads and workflows](/docs/integrations/frameworks/mastra/threads-and-workflows) for storage setup, workflow suspension, and reconnect behavior.
+
 ## Notes
 
-- **Auth between frontend and Mastra**: the example above is open. In production, gate the Mastra route with a header or cookie check and forward credentials from the frontend (`AssistantChatTransport` accepts `headers` and `credentials` options).
+- **Auth between frontend and Mastra**: the examples above are open. In production, gate every chat, memory, and workflow endpoint. Derive or validate `resourceId` from the authenticated identity; a client-provided resource ID is not an authorization boundary. Forward credentials through `transportOptions` and configure `MastraClient` with the same authenticated request policy.
 - **Single agent vs router**: `chatRoute({ path: "/chat/:agentId" })` works for any agent registered on the `Mastra` instance. Switching agents from the frontend is a matter of pointing `NEXT_PUBLIC_MASTRA_URL` at a different agent ID.
-- **Advanced Mastra features** (memory, tools, workflows, evals) live in the agent definition. The frontend sees only the resulting stream. See the [Mastra docs](https://mastra.ai/docs).
+- **Server-only features** such as tools, RAG, model routing, and evals need no extra frontend integration. Memory thread navigation and workflow suspension use the Mastra-specific client APIs.
 
 ## Related
 

@@ -1,0 +1,173 @@
+---
+title: Threads and workflows
+description: Persist Mastra memory threads and render durable workflow suspension and resume controls.
+platforms: ["react"]
+---
+
+Use `@assistant-ui/react-mastra` when the browser needs more than a streaming chat response. It combines the AI SDK chat runtime with Mastra's memory thread APIs and exposes durable workflows through a separate hook.
+
+<InstallCommand npm={["@assistant-ui/react-mastra@latest", "@mastra/client-js@latest"]} />
+
+## Server prerequisites
+
+The agent must use Mastra memory backed by storage. Register the agent, workflows, and an AI SDK-compatible chat route on the same `Mastra` instance:
+
+```ts title="src/mastra/index.ts"
+import { chatRoute } from "@mastra/ai-sdk";
+import { Agent } from "@mastra/core/agent";
+import { Mastra } from "@mastra/core/mastra";
+import { LibSQLStore } from "@mastra/libsql";
+import { Memory } from "@mastra/memory";
+import { releaseReviewWorkflow } from "./workflows/release-review";
+
+const storage = new LibSQLStore({
+  id: "app-storage",
+  url: "file:./mastra.db",
+});
+const memory = new Memory({ storage, options: { lastMessages: 20 } });
+
+const releaseAssistant = new Agent({
+  id: "release-assistant",
+  name: "Release Assistant",
+  model: "openai/gpt-4o-mini",
+  memory,
+  instructions: "Help users review and publish releases.",
+});
+
+export const mastra = new Mastra({
+  storage,
+  agents: { releaseAssistant },
+  workflows: { releaseReviewWorkflow },
+  server: {
+    apiRoutes: [
+      chatRoute({ path: "/chat", agent: "releaseAssistant", version: "v6" }),
+    ],
+  },
+});
+```
+
+The client needs the Mastra memory and workflow HTTP APIs in addition to `/chat`. A separate Mastra server exposes them directly. In a full-stack deployment, mount or proxy those APIs under the same origin before using the client hooks.
+
+## Persist thread history
+
+Create one `MastraClient` and pass it to `useMastraRuntime`:
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
+import { MastraClient } from "@mastra/client-js";
+import { type PropsWithChildren, useState } from "react";
+
+const baseUrl = process.env.NEXT_PUBLIC_MASTRA_URL ?? "http://localhost:4111";
+const client = new MastraClient({ baseUrl });
+
+export function MyRuntimeProvider({ children }: PropsWithChildren) {
+  const [threadId, setThreadId] = useState<string>();
+  const runtime = useMastraRuntime({
+    client,
+    agentId: "releaseAssistant",
+    resourceId: "authenticated-user-id",
+    threadId,
+    onThreadIdChange: setThreadId,
+    transportOptions: { api: `${baseUrl}/chat` },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The IDs have distinct jobs:
+
+| Value | Purpose |
+| --- | --- |
+| `agentId` | Mastra registry key used to read that agent's memory threads. |
+| `resourceId` | Stable account or tenant scope used to enumerate threads and persist chat memory. |
+| `threadId` | The selected assistant-ui conversation; sent as Mastra's memory thread ID. |
+
+The adapter lists, creates, renames, archives, and deletes Mastra threads. When a thread is selected, it pages through stored messages and converts them with `@mastra/ai-sdk`. Mastra persists new messages while the agent stream runs, so the history adapter does not write a second copy.
+
+Persist `threadId` in your router or local storage if the selected conversation must survive a reload. Do not use client persistence as the message store; it only remembers which Mastra thread to reopen.
+
+## Render workflow suspension
+
+`useMastraWorkflow` is independent from the chat runtime. It starts a run, normalizes suspended steps, resumes the exact step path, and reconnects to an existing run ID.
+
+```tsx title="components/release-approval.tsx"
+"use client";
+
+import { useMastraWorkflow } from "@assistant-ui/react-mastra";
+import { MastraClient } from "@mastra/client-js";
+import { useEffect, useState } from "react";
+
+type Input = { project: string; summary: string };
+type Resume = { approved: boolean; note: string };
+type Result = { outcome: "published" | "changes-requested" };
+type Suspend = { title: string; description: string };
+
+export function ReleaseApproval({ client }: { client: MastraClient }) {
+  const [runId, setRunId] = useState<string>();
+
+  useEffect(() => {
+    setRunId(window.localStorage.getItem("release-run") ?? undefined);
+  }, []);
+
+  const workflow = useMastraWorkflow<Input, Resume, Result, Suspend>({
+    client,
+    workflowId: "releaseReviewWorkflow",
+    runId,
+    resourceId: "authenticated-user-id",
+    onRunIdChange: (nextRunId) => {
+      setRunId(nextRunId);
+      window.localStorage.setItem("release-run", nextRunId);
+    },
+  });
+  const suspended = workflow.state.suspendedSteps[0];
+
+  if (workflow.state.status === "suspended" && suspended) {
+    return (
+      <section>
+        <h2>{suspended.payload.title}</h2>
+        <p>{suspended.payload.description}</p>
+        <button
+          onClick={() =>
+            void workflow.resume(suspended, { approved: true, note: "" })
+          }
+        >
+          Approve
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <button
+      disabled={workflow.state.status === "running"}
+      onClick={() =>
+        void workflow.start({ project: "Web", summary: "Publish release" })
+      }
+    >
+      Start review
+    </button>
+  );
+}
+```
+
+Passing a stored `runId` causes the hook to fetch the current run, so a suspended checkpoint returns after reload. Pass the complete suspended-step object to `resume`; it preserves nested paths and `forEachIndex` for workflows with parallel steps.
+
+The hook exposes `start`, `resume`, `refresh`, and `cancel`. Render from `state.status`, `state.suspendedSteps`, `state.result`, and `state.error`; do not infer workflow state from chat messages.
+
+## Security
+
+The browser-provided `resourceId`, `threadId`, workflow ID, and run ID are identifiers, not authorization. Authenticate every chat, memory, and workflow endpoint, derive or validate resource scope on the server, and verify that the caller owns a run before resume or cancel. Do not expose provider keys to the browser.
+
+## Complete example
+
+The [`with-mastra` example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-mastra) runs a Next.js frontend and official Mastra Hono server together. It includes LibSQL thread persistence, selected-thread restoration, a two-checkpoint workflow, workflow reconnect after reload, and responsive thread/workflow UI.
+
+See the [`@assistant-ui/react-mastra` API reference](/docs/api-reference/integrations/react-mastra) for all hook options and adapter exports.
