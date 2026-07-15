@@ -31,11 +31,12 @@ export interface SseFrame {
 /**
  * Incremental SSE frame parser. `push(chunk)` returns every frame completed by
  * that chunk; partial trailing data is buffered until its terminating blank
- * line arrives. Handles `\n` and `\r\n` line endings, `:`-comment heartbeats,
+ * line arrives. Handles LF, CRLF, and CR line endings, `:`-comment heartbeats,
  * and multi-line `data:`.
  */
 export const createSseDecoder = () => {
   let buffer = "";
+  let skipNextLineFeed = false;
   let dataLines: string[] = [];
   let eventName: string | undefined;
   let lastId: string | undefined;
@@ -84,15 +85,30 @@ export const createSseDecoder = () => {
 
   return {
     push(chunk: string): SseFrame[] {
-      buffer += chunk;
       const out: SseFrame[] = [];
-      let idx: number;
-      while ((idx = buffer.indexOf("\n")) !== -1) {
-        let line = buffer.slice(0, idx);
-        if (line.endsWith("\r")) line = line.slice(0, -1);
-        buffer = buffer.slice(idx + 1);
-        handleLine(line, out);
+      let lineStart = 0;
+
+      for (let index = 0; index < chunk.length; index++) {
+        const character = chunk[index]!;
+
+        if (skipNextLineFeed) {
+          skipNextLineFeed = false;
+          if (character === "\n") {
+            lineStart = index + 1;
+            continue;
+          }
+        }
+
+        if (character === "\n" || character === "\r") {
+          buffer += chunk.slice(lineStart, index);
+          handleLine(buffer, out);
+          buffer = "";
+          skipNextLineFeed = character === "\r";
+          lineStart = index + 1;
+        }
       }
+
+      buffer += chunk.slice(lineStart);
       return out;
     },
   };
