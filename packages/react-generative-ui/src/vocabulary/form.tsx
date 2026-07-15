@@ -8,7 +8,12 @@ export const formVocabulary = {
     description:
       "Wraps named child controls (Select/Input/Checkbox/RadioGroup/DatePicker with a `name`). Carries `$action`; on submit it fires with every named control's value, keyed by `name`.",
     properties: z.object({
-      gap: z.number().optional().describe("Gap between children in 4px units."),
+      gap: z
+        .number()
+        .optional()
+        .describe(
+          "Gap between children in 4px units. 0 to 8 is the supported range.",
+        ),
     }),
     render: ({ gap, $action, $dispatch, children }) => (
       <form

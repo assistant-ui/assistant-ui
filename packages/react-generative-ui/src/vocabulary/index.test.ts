@@ -21,6 +21,7 @@ const EXPECTED_KEYS = [
   "Row",
   "Spacer",
   "Badge",
+  "Box",
   "ListView",
   "ListViewItem",
   "Table",
@@ -28,6 +29,7 @@ const EXPECTED_KEYS = [
   "Chart",
   "Alert",
   "Carousel",
+  "Icon",
 ] as const;
 
 describe("defaultGenerativeUILibrary", () => {

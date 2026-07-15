@@ -1,9 +1,12 @@
-import type { FormEvent } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
 import { ALIGNS, JUSTIFIES } from "../ir";
 import { fire } from "./dispatch";
 import { collectFormValuesFromEvent } from "./collectFormValues";
+
+const toCssLength = (value: string | number): string =>
+  typeof value === "number" ? `${value}px` : value;
 
 const cardActionSchema = z.looseObject({
   type: z
@@ -27,8 +30,15 @@ export const layoutVocabulary = {
       padding: z
         .number()
         .optional()
-        .describe("Padding in 4px units (e.g. 2 = 8px)."),
-      background: z.string().optional().describe("Background token or color."),
+        .describe(
+          "Padding in 4px units (e.g. 2 = 8px). 0 to 8 is the supported range.",
+        ),
+      background: z
+        .string()
+        .optional()
+        .describe(
+          "Background color or gradient (any CSS background value). Setting this also switches the card's own text to white, since a custom background makes the card a tinted surface; children can still opt into a different color explicitly.",
+        ),
       asForm: z
         .boolean()
         .optional()
@@ -84,6 +94,11 @@ export const layoutVocabulary = {
           data-aui="card"
           data-aui-padding={padding}
           data-aui-background={background}
+          style={
+            background !== undefined
+              ? { background, color: "white" }
+              : undefined
+          }
           data-aui-asform={asForm || undefined}
           onSubmit={
             asForm
@@ -108,7 +123,12 @@ export const layoutVocabulary = {
   Col: {
     description: "A vertical stack; children laid out top to bottom.",
     properties: z.object({
-      gap: z.number().optional().describe("Gap between children in 4px units."),
+      gap: z
+        .number()
+        .optional()
+        .describe(
+          "Gap between children in 4px units. 0 to 8 is the supported range.",
+        ),
       align: z.enum(ALIGNS).optional().describe("Cross-axis alignment."),
     }),
     render: ({ gap, align, children }) => (
@@ -120,7 +140,12 @@ export const layoutVocabulary = {
   Row: {
     description: "A horizontal row; children laid out left to right.",
     properties: z.object({
-      gap: z.number().optional().describe("Gap between children in 4px units."),
+      gap: z
+        .number()
+        .optional()
+        .describe(
+          "Gap between children in 4px units. 0 to 8 is the supported range.",
+        ),
       align: z.enum(ALIGNS).optional().describe("Cross-axis alignment."),
       justify: z.enum(JUSTIFIES).optional().describe("Main-axis distribution."),
     }),
@@ -152,5 +177,47 @@ export const layoutVocabulary = {
         {children}
       </span>
     ),
+  },
+  Box: {
+    description:
+      "A generic container for composition, e.g. a progress bar built from an outer track Box containing a partial-width fill Box. Size, radius, and background accept arbitrary values, so they render as inline styles rather than data-attribute hooks.",
+    properties: z.object({
+      width: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe("Width; a number is pixels."),
+      height: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe("Height; a number is pixels."),
+      radius: z
+        .union([z.literal("full"), z.number()])
+        .optional()
+        .describe(
+          'Corner radius; "full" is a pill/circle, a number is pixels.',
+        ),
+      background: z
+        .string()
+        .optional()
+        .describe("Background color or gradient (any CSS background value)."),
+    }),
+    render: ({ width, height, radius, background, children }) => {
+      const style: CSSProperties = {};
+      if (width !== undefined) style.width = toCssLength(width);
+      if (height !== undefined) style.height = toCssLength(height);
+      if (background !== undefined) style.background = background;
+      if (radius === "full") style.borderRadius = "9999px";
+      else if (typeof radius === "number") style.borderRadius = `${radius}px`;
+
+      return (
+        <div
+          data-aui="box"
+          data-aui-radius={radius === "full" ? "full" : undefined}
+          style={style}
+        >
+          {children}
+        </div>
+      );
+    },
   },
 } satisfies GenerativeUILibrary;
