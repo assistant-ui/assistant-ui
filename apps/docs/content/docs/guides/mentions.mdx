@@ -414,7 +414,7 @@ import { LexicalComposerInput } from "@assistant-ui/react-lexical";
 
 ### Custom Lexical Plugins
 
-Children of `LexicalComposerInput` render inside the `LexicalComposer` context after the built-in plugins, so standard Lexical plugin components built on `useLexicalComposerContext` work for editor concerns the mention system does not cover, such as paste normalization or length limits. The example below registers an update listener that flags messages over a maximum length.
+Children of `LexicalComposerInput` render inside the `LexicalComposer` context after the built-in plugins, so standard Lexical plugin components built on `useLexicalComposerContext` work for editor concerns the mention system does not cover, such as paste normalization or length limits. Custom plugins import Lexical APIs directly, so install `lexical` and `@lexical/react` as direct dependencies of your app. The example below registers an update listener that flags messages over a maximum length.
 
 ```tsx
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
