@@ -20,7 +20,7 @@ export type ActionHandler = (
 ) => unknown | Promise<unknown>;
 
 /**
- * The host-provided map from `$action.type` to {@link ActionHandler}. This is the single dispatch target for rendered generative UI: every interactive component fires its `$action` here through the injected `$dispatch`. The payload's `$input` takes one of two shapes: a single value for a standalone control's dispatch (`Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`), or an object keyed by field `name` for a `Form` or a `Card` with `asForm` set. Construct it with {@link createActionRegistry} and pass it to `JSONGenerativeUI`.
+ * The host-provided map from `$action.type` to {@link ActionHandler}. This is the single dispatch target for rendered generative UI: every interactive component fires its `$action` here through the injected `$dispatch` (a submit Button defers to its ancestor form's dispatch instead). The payload's `$input` takes one of two shapes: a single value for a standalone control's dispatch (`Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`), or an object keyed by field `name` for a `Form` or a `Card` with `asForm` set. Construct it with {@link createActionRegistry} and pass it to `JSONGenerativeUI`.
  */
 export type ActionRegistry = {
   dispatch(action: Action): unknown;

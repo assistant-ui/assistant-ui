@@ -200,7 +200,7 @@ const generative = new JSONGenerativeUI({
 }
 ```
 
-`Select`, `Input`, `DatePicker`, `Checkbox`, and `RadioGroup` add the user's value as `$input` when they fire the action; `Form` and a `Card` with `asForm` set add an object keyed by each control's `name` instead. Unknown action types are ignored and warn in development.
+`Select`, `Input`, `DatePicker`, `Checkbox`, and `RadioGroup` add the user's value as `$input` when they fire the action; `Form` and a `Card` with `asForm` set add an object keyed by each control's `name` instead. On a `Card` there is no Card-level `$action`: the collected object is dispatched through `confirm.$action`, while `cancel.$action` always fires without `$input`. Unknown action types are ignored and warn in development.
 
 ## Streaming
 
