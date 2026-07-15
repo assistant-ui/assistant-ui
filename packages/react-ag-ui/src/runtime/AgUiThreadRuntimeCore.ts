@@ -597,8 +597,7 @@ export class AgUiThreadRuntimeCore {
 
   private clearPendingInterrupts(messageId: string): void {
     const touched = this.updateMessage(messageId, (message) => {
-      if (message.id !== messageId || message.role !== "assistant")
-        return message;
+      if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       if (
         assistant.status?.type !== "requires-action" ||
@@ -647,8 +646,7 @@ export class AgUiThreadRuntimeCore {
 
   private cancelUnresolvedToolCalls(messageId: string): void {
     const updated = this.updateMessage(messageId, (message) => {
-      if (message.id !== messageId || message.role !== "assistant")
-        return message;
+      if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       const content = assistant.content.map((part) => {
         if (part.type !== "tool-call" || isResolvedToolCall(part)) return part;
@@ -665,8 +663,7 @@ export class AgUiThreadRuntimeCore {
 
   addToolResult(options: AddToolResultOptions): void {
     const updated = this.updateMessage(options.messageId, (message) => {
-      if (message.id !== options.messageId || message.role !== "assistant")
-        return message;
+      if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       let matchedToolCall = false;
       const content = assistant.content.map((part) => {
@@ -1193,8 +1190,7 @@ export class AgUiThreadRuntimeCore {
   ): string {
     let latestStatus: MessageStatus | undefined;
     const touched = this.updateMessage(messageId, (message) => {
-      if (message.id !== messageId || message.role !== "assistant")
-        return message;
+      if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       const metadata = update.metadata
         ? this.mergeAssistantMetadata(assistant.metadata, update.metadata)
@@ -1343,8 +1339,7 @@ export class AgUiThreadRuntimeCore {
     event: Extract<AgUiEvent, { type: "TOOL_CALL_RESULT" }>,
   ): void {
     const updated = this.updateMessage(messageId, (message) => {
-      if (message.id !== messageId || message.role !== "assistant")
-        return message;
+      if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       let matchedToolCall = false;
       const content = assistant.content.map((part) => {
@@ -1428,7 +1423,7 @@ export class AgUiThreadRuntimeCore {
     if (!this.history) return;
     const parentId = this.assistantHistoryParents.get(messageId);
     if (parentId === undefined) return;
-    const message = this.getMessages().find((item) => item.id === messageId);
+    const message = this.tryGetMessage(messageId)?.message;
     if (!message || message.role !== "assistant") return;
     if (!this.isPersistableStatus(message.status)) return;
     this.assistantHistoryParents.delete(messageId);
