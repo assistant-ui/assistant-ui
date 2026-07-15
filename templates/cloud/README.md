@@ -58,4 +58,4 @@ You can start customizing the UI by modifying components in the `components/assi
 - `app/assistant.tsx` - Renders the chat interface and sets up the runtime provider with Assistant Cloud
 - `app/api/chat/route.ts` - Chat API endpoint
 - `components/assistant-ui/thread.tsx` - Chat thread component
-- `components/assistant-ui/threadlist-sidebar.tsx` - Sidebar with thread list
+- `components/assistant-ui/assistant-shell.tsx` - App shell with collapsible sidebar, thread list, and header
