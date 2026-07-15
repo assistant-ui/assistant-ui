@@ -3,90 +3,21 @@
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
-  Tools,
-  useAui,
-  useAuiState,
   AuiProvider,
   Suggestions,
+  Tools,
+  unstable_Interactables,
+  useAui,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import type { ToolCallMessagePart } from "@assistant-ui/react";
-import { CodeIcon, EyeIcon } from "lucide-react";
-import { useState } from "react";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import { ArtifactSurfaceProvider } from "./artifact-surface";
 import toolkit from "./toolkit";
 
-function ArtifactsView() {
-  const [tab, setTab] = useState<"source" | "preview">("source");
-
-  const lastToolCall = useAuiState((s) => {
-    const messages = s.thread.messages;
-    return messages
-      .flatMap((m) =>
-        m.content.filter(
-          (c): c is ToolCallMessagePart =>
-            c.type === "tool-call" && c.toolName === "render_html",
-        ),
-      )
-      .at(-1);
-  });
-
-  const code = lastToolCall?.args.code as string | undefined;
-  const isComplete = lastToolCall?.result !== undefined;
-
-  if (!code) return null;
-
-  return (
-    <div className="flex flex-grow basis-full justify-stretch p-3">
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-lg border">
-        <div className="flex border-b">
-          <button
-            type="button"
-            onClick={() => setTab("source")}
-            className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-              tab === "source"
-                ? "bg-background text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <CodeIcon className="size-4" />
-            Source Code
-          </button>
-          <button
-            type="button"
-            onClick={() => isComplete && setTab("preview")}
-            disabled={!isComplete}
-            className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-              !isComplete
-                ? "cursor-not-allowed opacity-50"
-                : tab === "preview"
-                  ? "bg-background text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <EyeIcon className="size-4" />
-            Preview
-          </button>
-        </div>
-        {tab === "source" || !isComplete ? (
-          <div className="h-full overflow-y-auto px-4 py-2 font-mono text-sm break-words whitespace-pre-line">
-            {code}
-          </div>
-        ) : (
-          <div className="flex h-full flex-grow px-4 py-2">
-            <iframe
-              className="h-full w-full"
-              title="Artifact Preview"
-              srcDoc={code}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ThreadWithSuggestions() {
+function ArtifactExample() {
   const aui = useAui({
+    tools: Tools({ toolkit }),
+    unstable_interactables: unstable_Interactables(),
     suggestions: Suggestions([
       {
         title: "Build a landing page",
@@ -102,27 +33,24 @@ function ThreadWithSuggestions() {
       },
     ]),
   });
+
   return (
     <AuiProvider value={aui}>
-      <Thread />
+      <ArtifactSurfaceProvider>
+        <Thread />
+      </ArtifactSurfaceProvider>
     </AuiProvider>
   );
 }
 
 export default function Home() {
-  const runtime = useChatRuntime();
-  const aui = useAui({
-    tools: Tools({ toolkit }),
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
-      <main className="flex h-full justify-stretch">
-        <div className="flex-grow basis-full">
-          <ThreadWithSuggestions />
-        </div>
-        <ArtifactsView />
-      </main>
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ArtifactExample />
     </AssistantRuntimeProvider>
   );
 }
