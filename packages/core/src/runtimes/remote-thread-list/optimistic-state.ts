@@ -14,7 +14,13 @@ type Transform<TState, TResult> = {
 };
 
 type PendingTransform<TState, TResult> = Transform<TState, TResult> & {
+  order: number;
   task: Promise<TResult>;
+};
+
+type CompletedOptimistic<TState> = {
+  order: number;
+  optimistic: (state: TState) => TState;
 };
 
 const pipeTransforms = <TState, TExtra>(
@@ -32,14 +38,16 @@ export class OptimisticState<TState> extends BaseSubscribable {
     [];
 
   /**
-   * `optimistic` callbacks from transforms that have already resolved.
-   * Re-applied after every `then` callback so that a wholesale state
-   * replacement (e.g. list()) cannot erase earlier completed effects
-   * (e.g. delete). Cleared when no pending transforms remain.
+   * Completed optimistic callbacks remain active while any transform is
+   * pending, so later state replacements cannot erase them. Invocation order
+   * determines which overlapping optimistic update wins.
    *
    * Correctness requirement: `optimistic` callbacks must be idempotent.
    */
-  private readonly _completedOptimistics: Array<(state: TState) => TState> = [];
+  private readonly _completedOptimistics: Array<CompletedOptimistic<TState>> =
+    [];
+
+  private _nextTransformOrder = 0;
 
   private _baseValue: TState;
   private _cachedValue: TState;
@@ -51,12 +59,25 @@ export class OptimisticState<TState> extends BaseSubscribable {
   }
 
   private _updateState(): void {
-    this._cachedValue = this._pendingTransforms.reduce((state, transform) => {
-      return pipeTransforms(state, transform.task, [
-        transform.loading,
-        transform.optimistic,
-      ]);
-    }, this._baseValue);
+    const activeTransforms = [
+      ...this._pendingTransforms.map((transform) => ({
+        order: transform.order,
+        apply: (state: TState) =>
+          pipeTransforms(state, transform.task, [
+            transform.loading,
+            transform.optimistic,
+          ]),
+      })),
+      ...this._completedOptimistics.map(({ order, optimistic }) => ({
+        order,
+        apply: optimistic,
+      })),
+    ].sort((a, b) => a.order - b.order);
+
+    this._cachedValue = activeTransforms.reduce(
+      (state, transform) => transform.apply(state),
+      this._baseValue,
+    );
 
     this._notifySubscribers();
   }
@@ -77,8 +98,13 @@ export class OptimisticState<TState> extends BaseSubscribable {
   public async optimisticUpdate<TResult>(
     transform: Transform<TState, TResult>,
   ): Promise<TResult> {
+    const order = this._nextTransformOrder++;
     const task = transform.execute();
-    const pendingTransform = { ...transform, task };
+    const pendingTransform = {
+      ...transform,
+      order,
+      task,
+    };
     try {
       this._pendingTransforms.push(pendingTransform);
       this._updateState();
@@ -89,14 +115,18 @@ export class OptimisticState<TState> extends BaseSubscribable {
         transform.then,
       ]);
 
-      // Re-apply previously completed optimistic callbacks so that a
-      // then() that does wholesale replacement cannot erase their effects.
-      for (const fn of this._completedOptimistics) {
-        this._baseValue = fn(this._baseValue);
+      for (const completed of this._completedOptimistics) {
+        if (completed.order > pendingTransform.order) {
+          this._baseValue = completed.optimistic(this._baseValue);
+        }
       }
 
       if (transform.optimistic) {
-        this._completedOptimistics.push(transform.optimistic);
+        this._completedOptimistics.push({
+          order: pendingTransform.order,
+          optimistic: transform.optimistic,
+        });
+        this._completedOptimistics.sort((a, b) => a.order - b.order);
       }
 
       return result;
