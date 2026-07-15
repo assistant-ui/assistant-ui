@@ -7,6 +7,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { Provider } from "./provider";
 import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
+import { GenerativeUIStyle } from "@/components/generative-ui-style";
 
 const getMetadataBase = () => {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -62,10 +63,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/*<script
-          crossOrigin="anonymous"
-          src="//unpkg.com/react-scan/dist/auto.global.js"
-        />*/}
+        <GenerativeUIStyle />
         <script
           defer
           src="/umami/script.js"
