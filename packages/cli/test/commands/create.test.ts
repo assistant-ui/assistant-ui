@@ -57,16 +57,17 @@ describe("resolveProject", () => {
 
   it("returns example metadata when --example is provided", async () => {
     const result = await resolveProject({
-      example: "with-langgraph",
+      example: "with-mastra",
       stdinIsTTY: true,
     });
-    expect(result).toEqual(
-      expect.objectContaining({
-        name: "with-langgraph",
-        category: "example",
-        hasLocalComponents: false,
-      }),
-    );
+    expect(result).toEqual({
+      name: "with-mastra",
+      label: "Mastra",
+      description: "Mastra threads, memory, and workflows",
+      category: "example",
+      path: "examples/with-mastra",
+      hasLocalComponents: false,
+    });
   });
 
   it("supports the cloud-clerk template", async () => {
