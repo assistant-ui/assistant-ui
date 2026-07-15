@@ -1,6 +1,8 @@
 import { CreateUIMessage, UIMessage as UIMessage$1, useChat } from "@ai-sdk/react";
 
-import { MastraClient } from "@mastra/client-js";
+import { GetWorkflowRunByIdResponse, MastraClient, WorkflowRunResult } from "@mastra/client-js";
+
+import { WorkflowRunStatus } from "@mastra/core/workflows";
 
 import "@radix-ui/react-primitive";
 
@@ -1038,6 +1040,13 @@ type MastraHistoryAdapterOptions = {
   getThreadId: () => string | undefined;
 };
 
+type MastraSuspendedStep<TPayload = unknown> = {
+  stepId: string;
+  path: string[];
+  forEachIndex?: number | undefined;
+  payload: TPayload;
+};
+
 type MastraThreadListOptions = {
   client: MastraClient;
   agentId: string;
@@ -1048,6 +1057,25 @@ type MastraThreadListOptions = {
 };
 
 type MastraTitleGenerator = (messages: readonly ThreadMessage[]) => string | Promise<string>;
+
+type MastraWorkflowResumeOptions = {
+  forEachIndex?: number | undefined;
+  requestContext?: Record<string, unknown> | undefined;
+};
+
+type MastraWorkflowStartOptions = {
+  initialState?: Record<string, unknown> | undefined;
+  requestContext?: Record<string, unknown> | undefined;
+};
+
+type MastraWorkflowState<TResult = unknown, TSuspend = unknown> = {
+  runId: string | undefined;
+  status: "idle" | WorkflowRunStatus;
+  result: TResult | undefined;
+  error: Error | undefined;
+  suspendedSteps: MastraSuspendedStep<TSuspend>[];
+  raw: WorkflowRunResult | GetWorkflowRunByIdResponse | undefined;
+};
 
 type McpAppMetadata = {
   readonly resourceUri: string;
@@ -2085,6 +2113,16 @@ type UseMastraRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> = Omit<Us
   transportOptions?: Omit<Parameters<typeof createMastraChatTransport<UI_MESSAGE>>[0], "resourceId">;
 };
 
+type UseMastraWorkflowOptions<TResult = unknown, TSuspend = unknown> = {
+  client: MastraClient;
+  workflowId: string;
+  runId?: string | undefined;
+  resourceId?: string | undefined;
+  requestContext?: Record<string, unknown> | undefined;
+  onRunIdChange?: ((runId: string) => void) | undefined;
+  onStateChange?: ((state: MastraWorkflowState<TResult, TSuspend>) => void) | undefined;
+};
+
 type ValidateClient<K extends keyof ScopeRegistry> = ScopeRegistry[K] extends {
   methods: ClientMethods;
 } ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid methods type`>;
@@ -2122,9 +2160,17 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { MastraChatTransportOptions, MastraThreadListOptions, MastraTitleGenerator, UseMastraRuntimeOptions, createMastraChatTransport, createMastraHistoryAdapter, createMastraThreadListAdapter, useMastraRuntime };
+  export { MastraChatTransportOptions, MastraSuspendedStep, MastraThreadListOptions, MastraTitleGenerator, MastraWorkflowResumeOptions, MastraWorkflowStartOptions, MastraWorkflowState, UseMastraRuntimeOptions, UseMastraWorkflowOptions, createMastraChatTransport, createMastraHistoryAdapter, createMastraThreadListAdapter, useMastraRuntime, useMastraWorkflow };
 }
 
 declare const useMastraRuntime: <UI_MESSAGE extends UIMessage = UIMessage>(_param5: UseMastraRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
+
+declare const useMastraWorkflow: <TInput extends Record<string, unknown> = Record<string, unknown>, TResume extends Record<string, unknown> = Record<string, unknown>, TResult = unknown, TSuspend = unknown>(_param6: UseMastraWorkflowOptions<TResult, TSuspend>) => {
+  state: MastraWorkflowState<TResult, TSuspend>;
+  start: (inputData: TInput, options?: MastraWorkflowStartOptions) => Promise<MastraWorkflowState<TResult, TSuspend>>;
+  resume: (step: string | string[] | MastraSuspendedStep<TSuspend>, resumeData: TResume, options?: MastraWorkflowResumeOptions) => Promise<MastraWorkflowState<TResult, TSuspend>>;
+  cancel: () => Promise<MastraWorkflowState<TResult, TSuspend>>;
+  refresh: () => Promise<MastraWorkflowState<TResult, TSuspend>>;
+};
 
 export { entry_root_exports as entry_root };
