@@ -16,7 +16,7 @@ describe("SimpleTextAttachmentAdapter", () => {
     })) as PendingAttachment;
 
     expect(pending).toMatchObject({
-      id: "notes.md",
+      id: expect.any(String),
       type: "document",
       name: "notes.md",
       contentType: "text/markdown",
@@ -61,7 +61,7 @@ describe("SimpleImageAttachmentAdapter", () => {
     })) as PendingAttachment;
 
     expect(pending).toMatchObject({
-      id: "pixel.png",
+      id: expect.any(String),
       type: "image",
       name: "pixel.png",
       contentType: "image/png",

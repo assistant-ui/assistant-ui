@@ -20,7 +20,7 @@ export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
 
   public async add(state: { file: File }): Promise<PendingAttachment> {
     return {
-      id: state.file.name,
+      id: generateId(),
       type: "image",
       name: state.file.name,
       contentType: state.file.type,
@@ -89,7 +89,7 @@ export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
 
   public async add(state: { file: File }): Promise<PendingAttachment> {
     return {
-      id: state.file.name,
+      id: generateId(),
       type: "document",
       name: state.file.name,
       contentType: state.file.type,
