@@ -1,13 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createOpenCodeThreadListAdapter } from "./openCodeThreadListAdapter";
-
-const rejectWhenThrowing = (error: Error) =>
-  vi.fn(
-    (_parameters: unknown, options?: { throwOnError?: boolean | undefined }) =>
-      options?.throwOnError
-        ? Promise.reject(error)
-        : Promise.resolve({ data: undefined, error }),
-  );
+import { rejectWhenThrowing } from "./testUtils";
 
 describe("createOpenCodeThreadListAdapter", () => {
   it("propagates list errors returned by the OpenCode SDK", async () => {

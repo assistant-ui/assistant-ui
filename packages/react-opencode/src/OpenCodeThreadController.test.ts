@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { STREAM_RECONNECTED_EVENT_TYPE } from "./OpenCodeEventSource";
+import { rejectWhenThrowing } from "./testUtils";
 import type { OpenCodeServerEvent } from "./types";
 
 const createDeferred = <T>() => {
@@ -14,14 +15,6 @@ const createDeferred = <T>() => {
 
   return { promise, resolve, reject };
 };
-
-const rejectWhenThrowing = (error: Error) =>
-  vi.fn(
-    (_parameters: unknown, options?: { throwOnError?: boolean | undefined }) =>
-      options?.throwOnError
-        ? Promise.reject(error)
-        : Promise.resolve({ data: undefined, error }),
-  );
 
 const createEventSource = () => {
   let listener: ((event: OpenCodeServerEvent) => void) | undefined;
@@ -380,6 +373,44 @@ describe("OpenCodeThreadController", () => {
     await vi.waitFor(() => {
       expect(client.session.get).toHaveBeenCalledTimes(1);
       expect(client.session.status).toHaveBeenCalledTimes(1);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().sessionStatus).toMatchObject({
+      type: "busy",
+    });
+  });
+
+  it("keeps current state when reconnect probes fail via throwOnError", async () => {
+    const eventSource = createEventSource();
+    const status = rejectWhenThrowing(new Error("boom"));
+    const permissions = rejectWhenThrowing(new Error("boom"));
+    const questions = rejectWhenThrowing(new Error("boom"));
+    const client = createReconnectClient({ status, permissions, questions });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "session.status",
+      sessionId: "ses_1",
+      properties: { status: { type: "busy" } },
+      raw: {},
+    });
+
+    eventSource.emit(streamReconnected);
+
+    await vi.waitFor(() => {
+      expect(status).toHaveBeenCalledWith(undefined, { throwOnError: true });
+      expect(permissions).toHaveBeenCalledWith(undefined, {
+        throwOnError: true,
+      });
+      expect(questions).toHaveBeenCalledWith(undefined, {
+        throwOnError: true,
+      });
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
