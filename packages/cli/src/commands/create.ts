@@ -104,6 +104,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-mastra",
+    label: "Mastra",
+    description: "Mastra threads, memory, and workflows",
+    category: "example",
+    path: "examples/with-mastra",
+    hasLocalComponents: false,
+  },
+  {
     name: "with-ai-sdk-v7",
     label: "AI SDK v7",
     description: "Vercel AI SDK v7",
