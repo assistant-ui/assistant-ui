@@ -4,8 +4,14 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const runtime = {};
+  const state = { isLoadingHistory: false };
+  const runtime = {
+    thread: {
+      getState: () => ({ isLoading: state.isLoadingHistory }),
+    },
+  };
   return {
+    state,
     runtime,
     useChat: vi.fn(),
     useAISDKRuntime: vi.fn(() => runtime),
@@ -45,6 +51,35 @@ import { useChatRuntime } from "./useChatRuntime";
 describe("useChatRuntime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.state.isLoadingHistory = false;
+  });
+
+  it("waits for external history to load before resuming a stream", async () => {
+    mocks.state.isLoadingHistory = true;
+    const resumeStream = vi.fn().mockResolvedValue(undefined);
+    mocks.useChat.mockReturnValue({ resumeStream });
+
+    const transport = {
+      getResumableAdapter: () => ({
+        storage: {
+          getStreamId: () => "stream-1",
+          setStreamId: vi.fn(),
+          clear: vi.fn(),
+        },
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+
+    const { rerender } = renderHook(() =>
+      useChatRuntime({ transport: transport as never }),
+    );
+
+    expect(resumeStream).not.toHaveBeenCalled();
+
+    mocks.state.isLoadingHistory = false;
+    rerender();
+
+    await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(1));
   });
 
   it("calls onResumeError when automatic resumable stream resume fails", async () => {

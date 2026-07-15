@@ -129,11 +129,12 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   const resumeFiredRef = useRef(false);
   const onResumeErrorRef = useRef(onResumeError);
+  const isLoadingHistory = runtime.thread.getState().isLoading;
   useEffect(() => {
     onResumeErrorRef.current = onResumeError;
   });
   useEffect(() => {
-    if (resumeFiredRef.current) return;
+    if (resumeFiredRef.current || isLoadingHistory) return;
     const adapter = getResumableAdapter(transport);
     if (!adapter) return;
     const pending = adapter.storage.getStreamId();
@@ -155,7 +156,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         adapter.storage.clear();
       }
     });
-  }, [transport, chat]);
+  }, [transport, chat, isLoadingHistory]);
 
   return runtime;
 };

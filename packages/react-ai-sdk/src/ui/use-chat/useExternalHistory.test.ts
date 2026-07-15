@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AssistantRuntime,
   MessageFormatAdapter,
@@ -10,9 +10,16 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 
+const mocks = vi.hoisted(() => ({
+  remoteId: undefined as string | undefined,
+}));
+
 vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({
-    threadListItem: Object.assign(() => null, { source: undefined }),
+    threadListItem: Object.assign(
+      () => ({ getState: () => ({ remoteId: mocks.remoteId }) }),
+      { source: mocks.remoteId ? {} : undefined },
+    ),
   }),
 }));
 
@@ -47,6 +54,10 @@ const toThreadMessages = (_messages: unknown[]): ThreadMessage[] => [];
 const onSetMessages = () => {};
 
 describe("useExternalHistory withFormat contract", () => {
+  beforeEach(() => {
+    mocks.remoteId = undefined;
+  });
+
   it("throws when the adapter omits withFormat", () => {
     const adapterWithoutWithFormat: ThreadHistoryAdapter = {
       load: vi.fn().mockResolvedValue({ headId: null, messages: [] }),
@@ -108,6 +119,44 @@ describe("useExternalHistory withFormat contract", () => {
     ).not.toThrow();
 
     expect(adapter.withFormat).toHaveBeenCalledWith(storageFormat);
+  });
+
+  it("reports loading before an asynchronous history load settles", async () => {
+    mocks.remoteId = "remote-thread";
+    let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
+    const load = vi.fn(
+      () =>
+        new Promise<MessageFormatRepository<unknown>>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const adapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load,
+        append: vi.fn().mockResolvedValue(undefined),
+      }),
+    };
+
+    const { result } = renderHook(() =>
+      useExternalHistory(
+        runtimeRef,
+        adapter,
+        toThreadMessages,
+        storageFormat,
+        onSetMessages,
+      ),
+    );
+
+    expect(result.current.isLoading).toBe(true);
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      resolveLoad({ headId: null, messages: [] });
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 });
 
