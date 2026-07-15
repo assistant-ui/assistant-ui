@@ -159,7 +159,13 @@ export function createAdkSessionAdapter(
 
     generateTitle(): Promise<AssistantStream> {
       // Title generation not supported without assistant-cloud
-      return Promise.resolve(new ReadableStream<AssistantStreamChunk>());
+      return Promise.resolve(
+        new ReadableStream<AssistantStreamChunk>({
+          start(controller) {
+            controller.close();
+          },
+        }),
+      );
     },
 
     async fetch(threadId: string): Promise<RemoteThreadMetadata> {

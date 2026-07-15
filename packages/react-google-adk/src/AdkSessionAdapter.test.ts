@@ -210,10 +210,14 @@ describe("createAdkSessionAdapter - no-op methods", () => {
 // ── adapter.generateTitle ──
 
 describe("createAdkSessionAdapter - generateTitle", () => {
-  it("returns an empty ReadableStream", async () => {
+  it("closes its title stream when title generation is unsupported", async () => {
     const { adapter } = createAdkSessionAdapter(baseOptions);
-    const result = await adapter.generateTitle("s1", []);
-    expect(result).toBeInstanceOf(ReadableStream);
+    const stream = await adapter.generateTitle("s1", []);
+
+    await expect(stream.getReader().read()).resolves.toEqual({
+      done: true,
+      value: undefined,
+    });
   });
 });
 
