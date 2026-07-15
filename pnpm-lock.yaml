@@ -4679,6 +4679,9 @@ importers:
       '@assistant-ui/react-ai-sdk':
         specifier: workspace:*
         version: link:../react-ai-sdk
+      '@assistant-ui/react-generative-ui':
+        specifier: workspace:*
+        version: link:../react-generative-ui
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../react-markdown
@@ -4742,6 +4745,9 @@ importers:
       react-hook-form:
         specifier: ^7.81.0
         version: 7.81.0(react@19.2.7)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@19.2.17)(react@19.2.7)
       react-resizable-panels:
         specifier: ^4.12.1
         version: 4.12.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
