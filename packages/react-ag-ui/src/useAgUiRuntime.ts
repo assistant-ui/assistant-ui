@@ -134,14 +134,11 @@ export function useAgUiRuntime(
   const store = useMemo(
     () => {
       void _version; // rerender on version change
-      const messageRepository = core.getMessageRepository();
 
       return {
         ...shared,
         isLoading: core.isLoading,
-        ...(messageRepository
-          ? { messageRepository }
-          : { messages: core.getMessages() }),
+        messageRepository: core.getMessageRepository(),
         state: core.getState(),
         isRunning: core.isRunning() || hasExecutingTools,
         extras: agUiExtras.provide({
