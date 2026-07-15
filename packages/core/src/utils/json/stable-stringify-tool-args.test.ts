@@ -82,6 +82,9 @@ describe("stableStringifyToolArgs", () => {
     expect(
       stableStringifyToolArgs(cache, "key", { "x[0]": { n: 3, m: 4 } }),
     ).toBe(JSON.stringify({ "x[0]": { n: 3, m: 4 } }));
+    expect(stableStringifyToolArgs(cache, "key", { x: [{ n: 5, m: 6 }] })).toBe(
+      JSON.stringify({ x: [{ m: 6, n: 5 }] }),
+    );
   });
 });
 
