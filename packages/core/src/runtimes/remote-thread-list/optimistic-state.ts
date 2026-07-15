@@ -116,7 +116,7 @@ export class OptimisticState<TState> extends BaseSubscribable {
       ]);
 
       for (const completed of this._completedOptimistics) {
-        if (completed.order > pendingTransform.order) {
+        if (transform.then || completed.order > pendingTransform.order) {
           this._baseValue = completed.optimistic(this._baseValue);
         }
       }
