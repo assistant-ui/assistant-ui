@@ -56,6 +56,9 @@ importers:
       '@mastra/client-js':
         specifier: ^1.32.0
         version: 1.32.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      '@mastra/core':
+        specifier: ^1.51.0
+        version: 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
