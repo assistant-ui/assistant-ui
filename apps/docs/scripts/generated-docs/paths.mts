@@ -60,6 +60,11 @@ export const INTEGRATION_PACKAGES = [
     entry: path.join(REPO_ROOT, "packages/react-data-stream/src/index.ts"),
   },
   {
+    slug: "react-mastra",
+    packageName: "@assistant-ui/react-mastra",
+    entry: path.join(REPO_ROOT, "packages/react-mastra/src/index.ts"),
+  },
+  {
     slug: "cloud-ai-sdk",
     packageName: "@assistant-ui/cloud-ai-sdk",
     entry: path.join(REPO_ROOT, "packages/cloud-ai-sdk/src/index.ts"),
