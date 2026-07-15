@@ -64,6 +64,25 @@ describe("stableStringifyToolArgs", () => {
       JSON.stringify({ b: 3, a: 4 }),
     );
   });
+
+  it("keeps dotted keys independent from nested paths", () => {
+    const cache = new Map<string, Map<string, string[]>>();
+    stableStringifyToolArgs(cache, "key", { a: { b: { p: 1, q: 2 } } });
+    expect(
+      stableStringifyToolArgs(cache, "key", { "a.b": { q: 3, p: 4 } }),
+    ).toBe(JSON.stringify({ "a.b": { q: 3, p: 4 } }));
+    expect(
+      stableStringifyToolArgs(cache, "key", { a: { b: { q: 9, p: 8 } } }),
+    ).toBe(JSON.stringify({ a: { b: { p: 8, q: 9 } } }));
+  });
+
+  it("keeps bracket-mimic keys independent from array paths", () => {
+    const cache = new Map<string, Map<string, string[]>>();
+    stableStringifyToolArgs(cache, "key", { x: [{ m: 1, n: 2 }] });
+    expect(
+      stableStringifyToolArgs(cache, "key", { "x[0]": { n: 3, m: 4 } }),
+    ).toBe(JSON.stringify({ "x[0]": { n: 3, m: 4 } }));
+  });
 });
 
 describe("trackToolArgsKeyOrder", () => {

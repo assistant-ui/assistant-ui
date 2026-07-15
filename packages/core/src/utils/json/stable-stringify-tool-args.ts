@@ -27,7 +27,11 @@ const stabilizeToolArgsValue = (
     return Object.fromEntries(
       nextOrder.map((key) => [
         key,
-        stabilizeToolArgsValue(record[key], `${path}.${key}`, keyOrderByPath),
+        stabilizeToolArgsValue(
+          record[key],
+          `${path}.${JSON.stringify(key)}`,
+          keyOrderByPath,
+        ),
       ]),
     );
   }
