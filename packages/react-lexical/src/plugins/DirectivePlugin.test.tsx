@@ -280,12 +280,17 @@ describe("DirectivePlugin", () => {
       });
     });
 
+    const event = new KeyboardEvent("keydown", {
+      key: "Backspace",
+      cancelable: true,
+    });
     await act(async () => {
-      editor.dispatchCommand(DELETE_CHARACTER_COMMAND, true);
+      editor.dispatchCommand(KEY_BACKSPACE_COMMAND, event);
     });
 
     editor.getEditorState().read(() => {
       expect($getNodeByKey(keys.directive)).toBeNull();
+      expect($getRoot().getTextContent()).toBe("beforeafter");
     });
   });
 

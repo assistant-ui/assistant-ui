@@ -78,8 +78,9 @@ function $removeAdjacentDirectiveNode(isBackward: boolean): boolean {
   }
 
   if ($isElementNode(node)) {
-    const childIndex = isBackward ? anchor.offset - 1 : anchor.offset;
-    const child = childIndex >= 0 ? node.getChildAtIndex(childIndex) : null;
+    const child = node.getChildAtIndex(
+      isBackward ? anchor.offset - 1 : anchor.offset,
+    );
     if ($isDirectiveNode(child)) {
       child.remove();
       return true;
