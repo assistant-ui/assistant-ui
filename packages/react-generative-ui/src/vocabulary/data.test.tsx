@@ -52,16 +52,94 @@ describe("dataVocabulary", () => {
     ).toBe('<div data-aui="markdown">partial</div>');
   });
 
-  it("Chart renders a placeholder div with variant/color/data hooks", () => {
+  it("Chart bar variant renders one rect per data point", () => {
     const html = render({
       $type: "Chart",
       variant: "bar",
-      data: [{ label: "a", value: 1 }],
+      data: [{ value: 1 }, { value: 2 }, { value: 3 }],
       color: "#f00",
     });
     expect(html).toContain('data-aui="chart"');
     expect(html).toContain('data-aui-variant="bar"');
     expect(html).toContain('data-aui-color="#f00"');
-    expect(html).toContain("&quot;value&quot;:1");
+    expect((html.match(/<rect/g) ?? []).length).toBe(3);
+    expect(html).not.toContain("<polyline");
+    expect(html).not.toContain("data-aui-data");
+  });
+
+  it("Chart line variant renders a single polyline through all points", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "line",
+      data: [{ value: 0 }, { value: 20 }, { value: 40 }],
+    });
+    expect((html.match(/<polyline/g) ?? []).length).toBe(1);
+    expect(html).not.toContain("<rect");
+    expect(html).toContain('points="0,40 50,20 100,0"');
+  });
+
+  it("Chart sparkline variant is structurally identical to line, differentiated by the variant attribute", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "sparkline",
+      data: [{ value: 0 }, { value: 20 }, { value: 40 }],
+    });
+    expect((html.match(/<polyline/g) ?? []).length).toBe(1);
+    expect(html).toContain('data-aui-variant="sparkline"');
+    expect(html).toContain('points="0,40 50,20 100,0"');
+  });
+
+  it("Chart renders an aria-label describing the variant and point count", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "bar",
+      data: [{ value: 1 }, { value: 2 }],
+    });
+    expect(html).toContain('aria-label="bar chart with 2 data points"');
+  });
+
+  it("Chart with empty data renders an empty svg without throwing", () => {
+    expect(() =>
+      render({ $type: "Chart", variant: "bar", data: [] }),
+    ).not.toThrow();
+    const html = render({ $type: "Chart", variant: "line", data: [] });
+    expect(html).toContain('data-aui="chart"');
+    expect(html).not.toContain("<rect");
+    expect(html).not.toContain("<polyline");
+    expect(html).toContain('aria-label="line chart with 0 data points"');
+  });
+
+  it("Chart with missing data renders an empty svg without throwing", () => {
+    expect(() => render({ $type: "Chart", variant: "bar" })).not.toThrow();
+    const html = render({ $type: "Chart", variant: "bar" });
+    expect(html).toContain('data-aui="chart"');
+    expect(html).not.toContain("<rect");
+  });
+
+  it("Chart clamps negative and non-finite values to 0", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "bar",
+      data: [{ value: -5 }, { value: Number.NaN }, { value: 10 }],
+    });
+    expect((html.match(/<rect/g) ?? []).length).toBe(3);
+    expect(html).toContain('height="0"');
+    expect(html).toContain('height="40"');
+  });
+
+  it("Chart with all-zero data renders flat baseline marks", () => {
+    const barHtml = render({
+      $type: "Chart",
+      variant: "bar",
+      data: [{ value: 0 }, { value: 0 }],
+    });
+    expect((barHtml.match(/height="0"/g) ?? []).length).toBe(2);
+
+    const lineHtml = render({
+      $type: "Chart",
+      variant: "line",
+      data: [{ value: 0 }, { value: 0 }, { value: 0 }],
+    });
+    expect(lineHtml).toContain('points="0,40 50,40 100,40"');
   });
 });
