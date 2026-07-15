@@ -128,6 +128,22 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("accepts JSON files with the application/json media type", async () => {
+    const composer = makeComposer(new SimpleTextAttachmentAdapter());
+
+    await expect(
+      composer.addAttachment(
+        new File(["{}"], "data.json", { type: "application/json" }),
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(composer.attachments[0]).toMatchObject({
+      type: "document",
+      name: "data.json",
+      contentType: "application/json",
+    });
+  });
+
   it("keeps different files with the same name as separate attachments", async () => {
     const composer = makeComposer(new SimpleTextAttachmentAdapter());
 

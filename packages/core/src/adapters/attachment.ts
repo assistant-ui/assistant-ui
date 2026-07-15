@@ -85,7 +85,7 @@ export const getFileDataURL = async (file: File): Promise<string> => {
 
 export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   public accept =
-    "text/plain,text/html,text/markdown,text/csv,text/xml,text/json,text/css";
+    "text/plain,text/html,text/markdown,text/csv,text/xml,text/json,application/json,text/css";
 
   public async add(state: { file: File }): Promise<PendingAttachment> {
     return {
