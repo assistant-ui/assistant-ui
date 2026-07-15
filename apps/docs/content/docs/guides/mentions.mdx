@@ -412,6 +412,36 @@ import { LexicalComposerInput } from "@assistant-ui/react-lexical";
 
 `LexicalComposerInput` automatically discovers every `Directive` trigger registered under `TriggerPopoverRoot` and renders their selections as inline chips.
 
+### Custom Lexical Plugins
+
+Children of `LexicalComposerInput` render inside the `LexicalComposer` context after the built-in plugins, so standard Lexical plugin components built on `useLexicalComposerContext` work for editor concerns the mention system does not cover, such as paste normalization or length limits. The example below registers an update listener that flags messages over a maximum length.
+
+```tsx
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { useEffect } from "react";
+import { $getRoot } from "lexical";
+
+function MaxLengthPlugin({ maxLength }: { maxLength: number }) {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    return editor.registerUpdateListener(({ editorState }) => {
+      editorState.read(() => {
+        if ($getRoot().getTextContent().length > maxLength) {
+          console.warn(`Message exceeds ${maxLength} characters`);
+        }
+      });
+    });
+  }, [editor, maxLength]);
+
+  return null;
+}
+
+<LexicalComposerInput placeholder="Ask anything...">
+  <MaxLengthPlugin maxLength={2000} />
+</LexicalComposerInput>
+```
+
 ## Rendering Mentions in Messages
 
 Use `DirectiveText` as the `Text` component for user messages so directives render as inline chips instead of raw syntax. See the [Directive Text](/docs/ui/directive-text) guide for setup and customization.
