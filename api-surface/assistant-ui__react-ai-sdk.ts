@@ -1,4 +1,4 @@
-import { CreateUIMessage, UIMessage as UIMessage$1, useChat } from "@ai-sdk/react";
+import { CreateUIMessage, UIMessage as UIMessage$1, UseChatHelpers, useChat } from "@ai-sdk/react";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -2029,14 +2029,20 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, AssistantChatResumableOptions, AssistantChatTransport, FrontendTools, GenerativeToolsOptions, RESUMABLE_STREAM_ID_HEADER, ResumableClientStorage, ThreadTokenUsage, TokenUsageExtractableMessage, UseChatRuntimeOptions, createResumableSessionStorage, frontendTools, generativeTools, getThreadMessageTokenUsage, injectQuoteContext, unstable_injectInteractableContext, useAISDKRuntime, useChatRuntime, useThreadTokenUsage };
+  export { AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, AssistantChatResumableOptions, AssistantChatTransport, FrontendTools, GenerativeToolsOptions, RESUMABLE_STREAM_ID_HEADER, ResumableClientStorage, ThreadTokenUsage, TokenUsageExtractableMessage, UseChatRuntimeOptions, createResumableSessionStorage, frontendTools, generativeTools, getThreadMessageTokenUsage, injectQuoteContext, unstable_injectInteractableContext, useAISDKChat, useAISDKError, useAISDKRuntime, useAISDKStatus, useChatRuntime, useThreadTokenUsage };
 }
 
 declare function injectQuoteContext(messages: UIMessage[]): UIMessage[];
 
 declare function unstable_injectInteractableContext(messages: UIMessage[], format?: (item: Unstable_InteractableSnapshotEntry) => string): UIMessage[];
 
+declare const useAISDKChat: <UI_MESSAGE extends UIMessage = UIMessage>() => UseChatHelpers<UI_MESSAGE> | undefined;
+
+declare const useAISDKError: () => Error | undefined;
+
 declare const useAISDKRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>, adapter?: AISDKRuntimeAdapter) => AssistantRuntime;
+
+declare const useAISDKStatus: () => import("ai").ChatStatus | undefined;
 
 declare const useChatRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(_param2?: UseChatRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
 

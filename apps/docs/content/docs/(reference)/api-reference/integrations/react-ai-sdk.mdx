@@ -101,9 +101,41 @@ export async function POST(req: Request) {
 
 <ParametersTable {...reactAiSdk_unstable_injectInteractableContext} />
 
+### useAISDKChat
+
+The underlying `useChat` helpers handle, for advanced views — reach
+`resumeStream`, `clearError`, or the raw `sendMessage` without forking the
+runtime hook. `undefined` when the current thread is not backed by the AI
+SDK runtime.
+
+```ts
+const useAISDKChat: <UI_MESSAGE extends UIMessage = UIMessage<unknown, UIDataTypes, UITools>>() => UseChatHelpers<UI_MESSAGE>;
+```
+
+### useAISDKError
+
+Read the last AI SDK chat error object from the runtime extras.
+`undefined` when there is no error or the current thread is not backed by
+the AI SDK runtime.
+
+```ts
+const useAISDKError: () => Error;
+```
+
 ### useAISDKRuntime
 
 <ParametersTable {...reactAiSdk_useAISDKRuntime} />
+
+### useAISDKStatus
+
+Read the raw AI SDK chat status (`"submitted" | "streaming" | "ready" |
+"error"`) from the runtime extras. Unlike `thread.isRunning`, this does not
+account for client-side tool executions. `undefined` when the current
+thread is not backed by the AI SDK runtime.
+
+```ts
+const useAISDKStatus: () => ChatStatus;
+```
 
 ### useChatRuntime
 

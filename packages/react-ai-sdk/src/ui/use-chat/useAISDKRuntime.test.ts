@@ -17,6 +17,7 @@ vi.mock("./useExternalHistory", () => ({
 
 import { useExternalHistory } from "./useExternalHistory";
 import { useAISDKRuntime } from "./useAISDKRuntime";
+import { aiSDKExtras } from "../../aiSDKExtras";
 
 const createChatHelpers = (messages: any[] = []) => {
   let currentMessages = [...messages];
@@ -925,5 +926,21 @@ describe("useAISDKRuntime", () => {
       "assistant",
     ]);
     expect(messages.slice(1).map(textOf)).toEqual(["first", "second"]);
+  });
+
+  it("exposes branded extras carrying chat, status, and error", () => {
+    const chat = createChatHelpers();
+    chat.status = "streaming";
+    chat.error = new Error("boom");
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    const extras = result.current.thread.getState().extras;
+    expect(aiSDKExtras.is(extras)).toBe(true);
+    expect(aiSDKExtras.tryGet(extras)).toMatchObject({
+      chat,
+      status: "streaming",
+      error: chat.error,
+    });
   });
 });
