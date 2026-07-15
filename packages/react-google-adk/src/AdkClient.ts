@@ -1,5 +1,6 @@
 import { SSEEventDecoder } from "assistant-stream/utils";
 import { contentToParts } from "./contentToParts";
+import { trimTrailingSlashes } from "./trimTrailingSlashes";
 import type {
   AdkEvent,
   AdkEventPart,
@@ -69,7 +70,7 @@ export function createAdkStream(
 
     if (isDirect) {
       // Direct mode: POST to ADK server's /run_sse
-      url = `${options.api}/run_sse`;
+      url = `${trimTrailingSlashes(options.api)}/run_sse`;
       const { externalId } = await config.initialize();
       body = {
         appName: options.appName,
