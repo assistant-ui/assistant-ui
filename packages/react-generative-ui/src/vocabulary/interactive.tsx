@@ -177,7 +177,9 @@ export const interactiveVocabulary = {
               return;
             if (e.currentTarget.form) {
               e.preventDefault();
-              e.currentTarget.form.requestSubmit();
+              HTMLFormElement.prototype.requestSubmit.call(
+                e.currentTarget.form,
+              );
             } else {
               submit(e.currentTarget.value);
             }

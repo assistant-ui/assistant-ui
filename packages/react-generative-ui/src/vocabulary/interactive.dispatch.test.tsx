@@ -162,7 +162,7 @@ describe("interactiveVocabulary $action dispatch", () => {
     preventDefault: () => void;
   };
 
-  it("Input multiline (textarea) Ctrl+Enter inside a form calls form.requestSubmit instead of firing its own $action", () => {
+  it("Input multiline (textarea) Ctrl+Enter inside a form calls HTMLFormElement.prototype.requestSubmit instead of firing its own $action", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ submit: handler });
     const out = interactiveVocabulary.Input.render({
@@ -175,19 +175,37 @@ describe("interactiveVocabulary $action dispatch", () => {
     const onKeyDown = (
       out as { props: { onKeyDown: (e: TextareaKeyDownEvent) => void } }
     ).props.onKeyDown;
-    const requestSubmit = vi.fn();
-    const preventDefault = vi.fn();
-    onKeyDown({
-      key: "Enter",
-      ctrlKey: true,
-      metaKey: false,
-      nativeEvent: { isComposing: false },
-      currentTarget: { value: "typed text", form: { requestSubmit } },
-      preventDefault,
-    });
-    expect(preventDefault).toHaveBeenCalledTimes(1);
-    expect(requestSubmit).toHaveBeenCalledTimes(1);
-    expect(handler).not.toHaveBeenCalled();
+
+    // This environment has no DOM, so `HTMLFormElement` is not a global; install a minimal stand-in so the fix's `HTMLFormElement.prototype.requestSubmit.call(...)` has a real, spyable target instead of throwing a ReferenceError.
+    class FakeHTMLFormElement {
+      requestSubmit(): void {}
+    }
+    const originalHTMLFormElement = globalThis.HTMLFormElement;
+    globalThis.HTMLFormElement =
+      FakeHTMLFormElement as unknown as typeof HTMLFormElement;
+    const requestSubmitSpy = vi.spyOn(
+      FakeHTMLFormElement.prototype,
+      "requestSubmit",
+    );
+    try {
+      const form = new FakeHTMLFormElement();
+      const preventDefault = vi.fn();
+      onKeyDown({
+        key: "Enter",
+        ctrlKey: true,
+        metaKey: false,
+        nativeEvent: { isComposing: false },
+        currentTarget: { value: "typed text", form },
+        preventDefault,
+      });
+      expect(preventDefault).toHaveBeenCalledTimes(1);
+      expect(requestSubmitSpy).toHaveBeenCalledTimes(1);
+      expect(requestSubmitSpy.mock.contexts[0]).toBe(form);
+      expect(handler).not.toHaveBeenCalled();
+    } finally {
+      requestSubmitSpy.mockRestore();
+      globalThis.HTMLFormElement = originalHTMLFormElement;
+    }
   });
 
   it("Input multiline (textarea) Ctrl+Enter without a form still fires its own $action", () => {
