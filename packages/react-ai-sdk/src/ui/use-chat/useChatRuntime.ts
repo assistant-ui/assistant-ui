@@ -20,7 +20,13 @@ import {
 import type { ChatInit, ChatTransport } from "ai";
 import { AssistantChatTransport } from "./AssistantChatTransport";
 import type { AssistantChatResumableOptions } from "../resumable";
-import { useEffect, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
@@ -127,9 +133,22 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     );
   }
 
+  const subscribeToRuntime = useCallback(
+    (callback: () => void) => runtime.thread.subscribe(callback),
+    [runtime],
+  );
+  const getHistoryLoadingSnapshot = useCallback(
+    () => runtime.thread.getState().isLoading,
+    [runtime],
+  );
+  const isLoadingHistory = useSyncExternalStore(
+    subscribeToRuntime,
+    getHistoryLoadingSnapshot,
+    getHistoryLoadingSnapshot,
+  );
+
   const resumeFiredRef = useRef(false);
   const onResumeErrorRef = useRef(onResumeError);
-  const isLoadingHistory = runtime.thread.getState().isLoading;
   useEffect(() => {
     onResumeErrorRef.current = onResumeError;
   });
