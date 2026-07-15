@@ -116,6 +116,12 @@
   --_bg: transparent;
   --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.06));
 
+  @-moz-document url-prefix() {
+    & {
+      --_duration: var(--shimmer-duration, calc(1500000 / var(--_speed)));
+    }
+  }
+
   @variant dark {
     --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.3));
   }
