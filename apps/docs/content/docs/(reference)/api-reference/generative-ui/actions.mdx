@@ -36,11 +36,7 @@ type ActionHandler = (
 
 ### ActionRegistry
 
-The host-provided map from `$action.type` to [ActionHandler](/docs/api-reference/generative-ui/actions#actionhandler). This is
-the single dispatch target for `$action` on web, shared by the model
-`present` renderer, the synthetic `present` produced from A2A/A2UI, and the
-decoded `block_actions` from Slack. Construct it with
-[createActionRegistry](/docs/api-reference/generative-ui/actions#createactionregistry) and pass it to `JSONGenerativeUI`.
+The host-provided map from `$action.type` to [ActionHandler](/docs/api-reference/generative-ui/actions#actionhandler). This is the single dispatch target for rendered generative UI: every interactive component fires its `$action` here through the injected `$dispatch`. The payload's `$input` takes one of two shapes: a single value for a standalone control's dispatch (`Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`), or an object keyed by field `name` for a `Form` or a `Card` with `asForm` set. Construct it with [createActionRegistry](/docs/api-reference/generative-ui/actions#createactionregistry) and pass it to `JSONGenerativeUI`.
 
 <ParametersTable {...ActionRegistry} />
 

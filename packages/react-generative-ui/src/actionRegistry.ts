@@ -3,11 +3,7 @@ import type { Action } from "./ir";
 /** Context handed to an {@link ActionHandler} when an `$action` fires. */
 export type ActionDispatchContext = {
   /**
-   * The action payload. For fire-and-forget actions this is the `$action` as
-   * the model emitted it. For interactive components (`Select`/`Input`/
-   * `DatePicker`) the user's runtime input is merged in under the reserved
-   * `$input` key, so the handler sees both the model payload and what the user
-   * did; a model-supplied `value` field is never clobbered.
+   * The action payload. For fire-and-forget actions this is the `$action` as the model emitted it. For an interactive component the user's runtime input is merged in under the reserved `$input` key: a single value for a standalone control's dispatch, or an object keyed by each field's `name` for a `Form` or a `Card` with `asForm` set. A model-supplied `value` field is never clobbered.
    */
   readonly payload: Action;
 };
@@ -24,11 +20,7 @@ export type ActionHandler = (
 ) => unknown | Promise<unknown>;
 
 /**
- * The host-provided map from `$action.type` to {@link ActionHandler}. This is
- * the single dispatch target for `$action` on web, shared by the model
- * `present` renderer, the synthetic `present` produced from A2A/A2UI, and the
- * decoded `block_actions` from Slack. Construct it with
- * {@link createActionRegistry} and pass it to `JSONGenerativeUI`.
+ * The host-provided map from `$action.type` to {@link ActionHandler}. This is the single dispatch target for rendered generative UI: every interactive component fires its `$action` here through the injected `$dispatch`. The payload's `$input` takes one of two shapes: a single value for a standalone control's dispatch (`Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`), or an object keyed by field `name` for a `Form` or a `Card` with `asForm` set. Construct it with {@link createActionRegistry} and pass it to `JSONGenerativeUI`.
  */
 export type ActionRegistry = {
   dispatch(action: Action): unknown;

@@ -52,14 +52,11 @@ export const BUTTON_STYLES = [
 export type ButtonStyle = (typeof BUTTON_STYLES)[number];
 
 export const ALERT_TONES = ["info", "success", "warning", "danger"] as const;
-/** Maps to ChatKit `alert` severity levels. */
+/** A severity level, from informational to destructive. */
 export type AlertTone = (typeof ALERT_TONES)[number];
 
 /**
- * Behavior payload carried by an interactive node. `type` is resolved by the
- * host's action registry, not the renderer; keeping behavior as data keeps the
- * tree serializable so the same node renders on web and converts to a native
- * action id on Slack.
+ * Behavior payload carried by an interactive node. `type` is resolved by the host's action registry, not the renderer; keeping behavior as data keeps the tree serializable, so the same node renders on web while converters may bind the type to a native action id on other platforms.
  */
 export interface Action {
   readonly type: string;
