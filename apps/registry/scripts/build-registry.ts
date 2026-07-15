@@ -2,6 +2,11 @@ import { existsSync, promises as fs, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import * as ts from "typescript";
+import {
+  isDeclarationBlock,
+  type CssDeclarationBlock,
+  type CssMediaBlock,
+} from "@assistant-ui/ui/lib/generative-ui-vocabulary-css.ts";
 import { registry } from "../src/registry";
 import { registrySchema, type RegistryItem } from "../src/schema";
 
@@ -552,11 +557,11 @@ export function collectAttributeSelectorValues(
 
   for (const [selectorKey, rule] of Object.entries(css)) {
     visitSelectorKey(selectorKey);
-    const nestedKeys = Object.values(rule as Record<string, unknown>).every(
-      (value) => typeof value === "string",
+    const nestedKeys = isDeclarationBlock(
+      rule as CssDeclarationBlock | CssMediaBlock,
     )
       ? []
-      : Object.keys(rule as Record<string, unknown>);
+      : Object.keys(rule as CssMediaBlock);
     for (const nestedKey of nestedKeys) visitSelectorKey(nestedKey);
   }
 

@@ -2,8 +2,8 @@
  * CSS for the generative-ui vocabulary's `data-aui` markup, shared by the shadcn registry (which emits it as a `registry:style` item) and any host that renders the vocabulary's markup directly and wants to inject the same rules itself, e.g. the docs gallery.
  */
 
-type CssDeclarationBlock = Record<string, string>;
-type CssMediaBlock = Record<string, CssDeclarationBlock>;
+export type CssDeclarationBlock = Record<string, string>;
+export type CssMediaBlock = Record<string, CssDeclarationBlock>;
 type CssRuleset = Record<string, CssDeclarationBlock | CssMediaBlock>;
 
 export const auiHairlineBorder =
@@ -617,7 +617,7 @@ export const generativeUiThemeVars = {
   },
 } as const;
 
-function isDeclarationBlock(
+export function isDeclarationBlock(
   rule: CssDeclarationBlock | CssMediaBlock,
 ): rule is CssDeclarationBlock {
   return Object.values(rule).every((value) => typeof value === "string");
