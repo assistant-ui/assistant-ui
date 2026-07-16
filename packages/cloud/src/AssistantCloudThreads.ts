@@ -1,5 +1,6 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { AssistantCloudThreadMessages } from "./AssistantCloudThreadMessages";
+import { normalizeCloudTimestamp } from "./normalizeCloudTimestamp";
 
 type AssistantCloudThreadsListQuery = {
   is_archived?: boolean;
@@ -20,8 +21,21 @@ type CloudThread = {
   is_archived: boolean;
 };
 
+type CloudThreadResponse = Omit<
+  CloudThread,
+  "last_message_at" | "created_at" | "updated_at"
+> & {
+  last_message_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
 type AssistantCloudThreadsListResponse = {
   threads: CloudThread[];
+};
+
+type AssistantCloudThreadsListAPIResponse = {
+  threads: CloudThreadResponse[];
 };
 
 type AssistantCloudThreadsCreateBody = {
@@ -42,6 +56,16 @@ type AssistantCloudThreadsUpdateBody = {
   is_archived?: boolean | undefined;
 };
 
+const normalizeCloudThread = (thread: CloudThreadResponse): CloudThread => ({
+  ...thread,
+  last_message_at: normalizeCloudTimestamp(
+    thread.last_message_at,
+    "thread.last_message_at",
+  ),
+  created_at: normalizeCloudTimestamp(thread.created_at, "thread.created_at"),
+  updated_at: normalizeCloudTimestamp(thread.updated_at, "thread.updated_at"),
+});
+
 export class AssistantCloudThreads {
   public readonly messages: AssistantCloudThreadMessages;
 
@@ -52,11 +76,22 @@ export class AssistantCloudThreads {
   public async list(
     query?: AssistantCloudThreadsListQuery,
   ): Promise<AssistantCloudThreadsListResponse> {
-    return this.cloud.makeRequest("/threads", { query });
+    const response = (await this.cloud.makeRequest("/threads", {
+      query,
+    })) as AssistantCloudThreadsListAPIResponse;
+
+    return {
+      ...response,
+      threads: response.threads.map(normalizeCloudThread),
+    };
   }
 
   public async get(threadId: string): Promise<CloudThread> {
-    return this.cloud.makeRequest(`/threads/${encodeURIComponent(threadId)}`);
+    const thread = (await this.cloud.makeRequest(
+      `/threads/${encodeURIComponent(threadId)}`,
+    )) as CloudThreadResponse;
+
+    return normalizeCloudThread(thread);
   }
 
   public async create(
