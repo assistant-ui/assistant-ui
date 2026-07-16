@@ -175,6 +175,7 @@ const AttachmentUI: FC = () => {
       <AttachmentPrimitive.Root
         className={cn(
           "aui-attachment-root relative",
+          isComposer && "animate-in fade-in-0 zoom-in-95 duration-200",
           isImage &&
             !isComposer &&
             "aui-attachment-root-message only:*:first:size-24",
@@ -206,7 +207,7 @@ const AttachmentUI: FC = () => {
               {isError && (
                 <div
                   aria-hidden="true"
-                  className="aui-attachment-tile-error bg-background/70 absolute inset-0 flex items-center justify-center backdrop-blur-[2px]"
+                  className="aui-attachment-tile-error bg-background/70 animate-in fade-in-0 absolute inset-0 flex items-center justify-center backdrop-blur-[2px]"
                 >
                   <AlertCircleIcon className="text-destructive size-4" />
                 </div>
@@ -231,7 +232,7 @@ const AttachmentRemove: FC = () => {
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip="Remove file"
-        className="aui-attachment-tile-remove absolute end-1 top-1 size-5 rounded-full bg-black/50! text-white backdrop-blur-sm hover:bg-black/70! hover:text-white!"
+        className="aui-attachment-tile-remove absolute end-1 top-1 size-5 rounded-full bg-black/50! text-white backdrop-blur-sm after:absolute after:-inset-1.5 hover:bg-black/70! hover:text-white! active:scale-[0.96]"
         side="top"
       >
         <XIcon className="aui-attachment-remove-icon size-3 stroke-[2.5]" />
@@ -268,7 +269,7 @@ export const ComposerAddAttachment: FC = () => {
         side="bottom"
         variant="ghost"
         size="icon"
-        className="aui-composer-add-attachment hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-7 rounded-full p-1 text-xs font-semibold"
+        className="aui-composer-add-attachment hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-7 rounded-full p-1 text-xs font-semibold active:scale-[0.96]"
         aria-label="Add Attachment"
       >
         <PlusIcon className="aui-attachment-add-icon size-4.5 stroke-[1.5px]" />
