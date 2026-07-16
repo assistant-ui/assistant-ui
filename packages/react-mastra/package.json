@@ -1,0 +1,85 @@
+{
+  "name": "@assistant-ui/react-mastra",
+  "version": "0.0.0",
+  "description": "Mastra integration for assistant-ui",
+  "keywords": [
+    "mastra",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "agents"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@assistant-ui/core": "^0.2.21",
+    "@assistant-ui/react-ai-sdk": "workspace:^",
+    "@assistant-ui/store": "^0.2.20",
+    "assistant-stream": "^0.3.26"
+  },
+  "peerDependencies": {
+    "@assistant-ui/react": "^0.14.14",
+    "@mastra/ai-sdk": "^1.6.2",
+    "@mastra/client-js": "^1.32.0",
+    "@mastra/core": "^1.51.0",
+    "@types/react": "*",
+    "ai": "^7.0.22",
+    "react": "^18 || ^19",
+    "zod": "^3.25.0 || ^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@mastra/ai-sdk": "^1.6.2",
+    "@mastra/client-js": "^1.32.0",
+    "@mastra/core": "^1.51.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "ai": "^7.0.22",
+    "jsdom": "^29.1.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "vitest": "^4.1.10",
+    "zod": "^4.3.6"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-mastra"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

@@ -1,0 +1,99 @@
+---
+title: Persisted threads
+description: Back assistant-ui thread lists and message history with Mastra memory.
+platforms: ["react"]
+---
+
+Use `@assistant-ui/react-mastra` when the browser needs to enumerate Mastra memory threads and restore their persisted messages. It composes the AI SDK chat runtime with Mastra's memory APIs while keeping Mastra as the source of truth.
+
+<InstallCommand npm={["@assistant-ui/react-mastra@latest", "@mastra/client-js@latest"]} />
+
+## Server prerequisites
+
+Configure storage and memory on the agent, then expose an AI SDK-compatible chat route from the same `Mastra` instance:
+
+```ts title="src/mastra/index.ts"
+import { chatRoute } from "@mastra/ai-sdk";
+import { Agent } from "@mastra/core/agent";
+import { Mastra } from "@mastra/core/mastra";
+import { LibSQLStore } from "@mastra/libsql";
+import { Memory } from "@mastra/memory";
+
+const storage = new LibSQLStore({
+  id: "app-storage",
+  url: "file:./mastra.db",
+});
+const memory = new Memory({ storage, options: { lastMessages: 20 } });
+
+const assistant = new Agent({
+  id: "assistant",
+  name: "Assistant",
+  model: "openai/gpt-4o-mini",
+  memory,
+  instructions: "Be concise and helpful.",
+});
+
+export const mastra = new Mastra({
+  storage,
+  agents: { assistant },
+  server: {
+    apiRoutes: [
+      chatRoute({ path: "/chat", agent: "assistant", version: "v6" }),
+    ],
+  },
+});
+```
+
+The client needs the Mastra memory HTTP APIs in addition to `/chat`. A separate Mastra server exposes them directly. In a full-stack deployment, mount or proxy those APIs under the same origin before using the adapter.
+
+## Configure the runtime
+
+Create one `MastraClient` and pass it to `useMastraRuntime`:
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
+import { MastraClient } from "@mastra/client-js";
+import { type PropsWithChildren, useState } from "react";
+
+const baseUrl = process.env.NEXT_PUBLIC_MASTRA_URL ?? "http://localhost:4111";
+const client = new MastraClient({ baseUrl });
+
+export function MyRuntimeProvider({ children }: PropsWithChildren) {
+  const [threadId, setThreadId] = useState<string>();
+  const runtime = useMastraRuntime({
+    client,
+    agentId: "assistant",
+    resourceId: "authenticated-user-id",
+    threadId,
+    onThreadIdChange: setThreadId,
+    transportOptions: { api: `${baseUrl}/chat` },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The IDs have distinct jobs:
+
+| Value | Purpose |
+| --- | --- |
+| `agentId` | Mastra registry key used to read that agent's memory threads. |
+| `resourceId` | Stable account or tenant scope used to enumerate threads and persist chat memory. |
+| `threadId` | The selected assistant-ui conversation; sent as Mastra's memory thread ID. |
+
+The adapter lists, creates, renames, archives, and deletes Mastra threads. When a thread is selected, it pages through stored messages and converts them with `@mastra/ai-sdk`. Mastra persists new messages while the agent stream runs, so the history adapter does not write a second copy.
+
+Persist `threadId` in your router or local storage if the selected conversation must survive a reload. Client persistence should remember only which Mastra thread to reopen; Mastra remains the message store.
+
+## Security
+
+The browser-provided `resourceId` and `threadId` are identifiers, not authorization. Authenticate every chat and memory endpoint, derive or validate resource scope on the server, and verify that the caller owns a thread before reading or mutating it. Do not expose provider keys to the browser.
+
+See the [`@assistant-ui/react-mastra` API reference](/docs/api-reference/integrations/react-mastra) for all runtime options and adapter exports.
