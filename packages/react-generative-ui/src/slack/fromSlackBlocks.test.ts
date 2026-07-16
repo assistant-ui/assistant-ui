@@ -1061,3 +1061,59 @@ describe("fromSlackBlocks", () => {
     }
   });
 });
+
+describe("fromSlackBlocks checkbox and radio caps", () => {
+  it("marks defaultChecked only when the first option is initially selected", () => {
+    const base = {
+      type: "actions",
+      elements: [
+        {
+          type: "checkboxes",
+          action_id: "toggle",
+          options: [
+            { text: { type: "plain_text", text: "First" }, value: "first" },
+            { text: { type: "plain_text", text: "Second" }, value: "second" },
+          ],
+          initial_options: [
+            { text: { type: "plain_text", text: "Second" }, value: "second" },
+          ],
+        },
+      ],
+    };
+    const { nodes } = fromSlackBlocks([base]);
+    expect(nodes[0]).not.toHaveProperty("defaultChecked");
+
+    const checkedFirst = structuredClone(base);
+    checkedFirst.elements[0]!.initial_options = [
+      { text: { type: "plain_text", text: "First" }, value: "first" },
+    ];
+    const checked = fromSlackBlocks([checkedFirst]);
+    expect(checked.nodes[0]).toMatchObject({ defaultChecked: true });
+  });
+
+  it("clamps inbound radio options to the radio cap", () => {
+    const { nodes, warnings } = fromSlackBlocks([
+      {
+        type: "actions",
+        elements: [
+          {
+            type: "radio_buttons",
+            action_id: "pick",
+            options: Array.from({ length: 30 }, (_, i) => ({
+              text: { type: "plain_text", text: `O${i}` },
+              value: `v${i}`,
+            })),
+          },
+        ],
+      },
+    ]);
+    const radio = nodes[0] as { options: unknown[] };
+    expect(radio.options).toHaveLength(10);
+    expect(
+      warnings.some(
+        (warning) =>
+          warning.component === "RadioGroup" && warning.code === "clamped",
+      ),
+    ).toBe(true);
+  });
+});

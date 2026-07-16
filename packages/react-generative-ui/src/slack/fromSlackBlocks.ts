@@ -8,6 +8,7 @@ import {
   DATA_TABLE_ROW_CAP,
   FACT_FIELD_CAP,
   INBOUND_BLOCK_CAP,
+  RADIO_OPTION_CAP,
   SELECT_OPTION_CAP,
 } from "./constants";
 import type { FromSlackBlocksResult, SlackConversionWarning } from "./types";
@@ -235,14 +236,16 @@ const checkboxFrom = (element: Record<string, unknown>): UIElement => {
   const initialOptions = Array.isArray(element["initial_options"])
     ? element["initial_options"]
     : [];
+  const firstValue =
+    isRecord(first) && typeof first["value"] === "string" ? first["value"] : "";
+  const firstChecked = initialOptions.some(
+    (option) => isRecord(option) && option["value"] === firstValue,
+  );
   return {
     $type: "Checkbox",
     label: isRecord(first) ? textOf(first["text"]) : "",
-    name:
-      isRecord(first) && typeof first["value"] === "string"
-        ? first["value"]
-        : "",
-    ...(initialOptions.length > 0 ? { defaultChecked: true } : {}),
+    name: firstValue,
+    ...(firstChecked ? { defaultChecked: true } : {}),
     $action: decodeAction(element["action_id"], element["value"]),
   };
 };
@@ -253,10 +256,10 @@ const radioGroupFrom = (
 ): UIElement => {
   const options = boundedArray(
     element["options"],
-    SELECT_OPTION_CAP,
+    RADIO_OPTION_CAP,
     warnings,
     "RadioGroup",
-    `options were clamped to ${SELECT_OPTION_CAP} entries.`,
+    `options were clamped to ${RADIO_OPTION_CAP} entries.`,
   );
   const initialOption = element["initial_option"];
   const initialValue =
