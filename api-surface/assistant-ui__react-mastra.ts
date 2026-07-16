@@ -1034,6 +1034,7 @@ type MastraChatTransportOptions<UI_MESSAGE extends UIMessage = UIMessage> = NonN
 type MastraHistoryAdapterOptions = {
   client: MastraClient;
   agentId: string;
+  resourceId: string;
   getThreadId: () => string | undefined;
 };
 
