@@ -194,6 +194,42 @@ describe("A2AThreadRuntimeCore", () => {
       ]);
     });
 
+    it("falls back to linear history when stored parents are invalid", async () => {
+      const user = createHistoryMessage("user", "user", "Question");
+      const assistant = createHistoryMessage(
+        "assistant",
+        "assistant",
+        "Answer",
+      );
+      const history = {
+        load: vi.fn().mockResolvedValue({
+          headId: assistant.id,
+          messages: [
+            { parentId: "missing", message: user },
+            { parentId: user.id, message: assistant },
+          ],
+        }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = createCore({}, { history });
+
+      await expect(core.__internal_load()).resolves.toBeUndefined();
+
+      expect(core.getMessages().map((message) => message.id)).toEqual([
+        user.id,
+        assistant.id,
+      ]);
+      expect(
+        core.getMessageRepository().messages.map(({ message, parentId }) => ({
+          id: message.id,
+          parentId,
+        })),
+      ).toEqual([
+        { id: user.id, parentId: null },
+        { id: assistant.id, parentId: user.id },
+      ]);
+    });
+
     it("keeps hidden siblings when the visible branch changes", async () => {
       const { user, firstAssistant, secondAssistant, history } =
         createBranchedHistory();
@@ -210,6 +246,24 @@ describe("A2AThreadRuntimeCore", () => {
       expect(
         core.getMessageRepository().messages.map(({ message }) => message.id),
       ).toEqual([user.id, firstAssistant.id, secondAssistant.id]);
+    });
+
+    it("replaces stored branches when external messages change parentage", async () => {
+      const { secondAssistant, history } = createBranchedHistory();
+      const core = createCore({}, { history });
+
+      await core.__internal_load();
+      core.applyExternalMessages([secondAssistant]);
+
+      expect(core.getMessages().map((message) => message.id)).toEqual([
+        secondAssistant.id,
+      ]);
+      expect(
+        core.getMessageRepository().messages.map(({ message, parentId }) => ({
+          id: message.id,
+          parentId,
+        })),
+      ).toEqual([{ id: secondAssistant.id, parentId: null }]);
     });
 
     it("adds regenerated responses without dropping loaded siblings", async () => {
@@ -263,6 +317,80 @@ describe("A2AThreadRuntimeCore", () => {
       expect(messages).toHaveLength(2);
       expect(messages[0]!.role).toBe("user");
       expect(messages[1]!.role).toBe("assistant");
+    });
+
+    it("keeps the replaced message subtree as a sibling branch", async () => {
+      const root = createHistoryMessage("root", "user", "First question");
+      const parent = createHistoryMessage(
+        "parent",
+        "assistant",
+        "First answer",
+      );
+      const source = createHistoryMessage(
+        "source",
+        "user",
+        "Original follow-up",
+      );
+      const child = createHistoryMessage(
+        "child",
+        "assistant",
+        "Original response",
+      );
+      const sibling = createHistoryMessage(
+        "sibling",
+        "user",
+        "Alternate follow-up",
+      );
+      const history = {
+        load: vi.fn().mockResolvedValue({
+          headId: child.id,
+          messages: [
+            { parentId: null, message: root },
+            { parentId: root.id, message: parent },
+            { parentId: parent.id, message: source },
+            { parentId: source.id, message: child },
+            { parentId: parent.id, message: sibling },
+          ],
+        }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = createCore({}, { history });
+
+      await core.__internal_load();
+      await core.edit({
+        ...createUserAppendMessage("Edited follow-up"),
+        parentId: parent.id,
+        sourceId: source.id,
+        startRun: false,
+      });
+
+      const edited = core.getMessages().at(-1)!;
+      expect(core.getMessages().map((message) => message.id)).toEqual([
+        root.id,
+        parent.id,
+        edited.id,
+      ]);
+      expect(
+        core.getMessageRepository().messages.map(({ message, parentId }) => ({
+          id: message.id,
+          parentId,
+        })),
+      ).toEqual([
+        { id: root.id, parentId: null },
+        { id: parent.id, parentId: root.id },
+        { id: source.id, parentId: parent.id },
+        { id: child.id, parentId: source.id },
+        { id: sibling.id, parentId: parent.id },
+        { id: edited.id, parentId: parent.id },
+      ]);
+
+      core.applyExternalMessages([root, parent, source, child]);
+      expect(core.getMessages().map((message) => message.id)).toEqual([
+        root.id,
+        parent.id,
+        source.id,
+        child.id,
+      ]);
     });
   });
 

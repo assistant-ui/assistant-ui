@@ -150,13 +150,6 @@ export class A2AThreadRuntimeCore {
     this.exportedRepository = undefined;
   }
 
-  private tryDeleteMessage(messageId: string): boolean {
-    if (!this.hasMessage(messageId)) return false;
-    this.repository.deleteMessage(messageId);
-    this.exportedRepository = undefined;
-    return true;
-  }
-
   private switchToBranch(messageId: string): void {
     this.repository.switchToBranch(messageId);
     this.exportedRepository = undefined;
@@ -237,7 +230,6 @@ export class A2AThreadRuntimeCore {
 
   async append(message: AppendMessage): Promise<void> {
     const startRun = message.startRun ?? message.role === "user";
-    if (message.sourceId) this.tryDeleteMessage(message.sourceId);
 
     const threadMessage = fromThreadMessageLike(
       message as any,
@@ -716,16 +708,14 @@ export class A2AThreadRuntimeCore {
     content: ThreadAssistantMessage["content"],
   ) {
     this.updateMessage(messageId, (message) => {
-      if (message.id !== messageId || message.role !== "assistant")
-        return message;
+      if (message.role !== "assistant") return message;
       return { ...message, content };
     });
   }
 
   private updateAssistantStatus(messageId: string, status: MessageStatus) {
     const touched = this.updateMessage(messageId, (message) => {
-      if (message.id !== messageId || message.role !== "assistant")
-        return message;
+      if (message.role !== "assistant") return message;
       return { ...message, status };
     });
     if (touched) {
@@ -739,7 +729,7 @@ export class A2AThreadRuntimeCore {
   private getAssistantStatus(messageId: string): MessageStatus | undefined {
     const msg = this.tryGetMessage(messageId)?.message;
     if (msg?.role !== "assistant") return undefined;
-    return msg?.status;
+    return msg.status;
   }
 
   // --- Lifecycle helpers ---
