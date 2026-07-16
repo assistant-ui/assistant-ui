@@ -210,22 +210,25 @@ export async function resolvePackageManagerForCwd(
   }
 }
 
+export interface TransformResult {
+  registryInstallFailure?: { retryCommand: string };
+}
+
 export async function transformProject(
   projectDir: string,
   opts: TransformOptions,
-): Promise<void> {
+): Promise<TransformResult> {
   logger.step("Transforming package.json...");
   transformPackageJson(projectDir);
+
+  logger.step("Transforming project files...");
+  transformTsConfig(projectDir);
+  transformCssFiles(projectDir);
 
   let assistantUI: string[] | undefined;
   let shadcnUI: string[] | undefined;
 
   if (!opts.hasLocalComponents) {
-    logger.step("Transforming project files...");
-
-    transformTsConfig(projectDir);
-    transformCssFiles(projectDir);
-
     const components = scanRequiredComponents(projectDir);
     assistantUI = components.assistantUI;
     shadcnUI = components.shadcnUI;
@@ -249,8 +252,15 @@ export async function transformProject(
     const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
     const components = [...allShadcn, ...auiComponents];
     logger.step(`Installing components: ${components.join(", ")}...`);
-    await installShadcnRegistry(projectDir, components, "components", pm);
+    const failure = await installShadcnRegistry(
+      projectDir,
+      components,
+      "components",
+      pm,
+    );
+    if (failure) return { registryInstallFailure: failure };
   }
+  return {};
 }
 
 function transformPackageJson(projectDir: string): void {
@@ -326,7 +336,10 @@ function transformTsConfig(projectDir: string): void {
         Array.isArray(targets) &&
         targets.some(
           (target) =>
-            typeof target === "string" && target.includes("packages/ui/"),
+            typeof target === "string" &&
+            (target.includes("packages/ui/") ||
+              target.includes("../../packages/") ||
+              target.startsWith("../..")),
         );
       if (workspaceKeys.has(key) || targetsWorkspace) {
         delete tsconfig.compilerOptions.paths[key];
@@ -461,7 +474,7 @@ async function installShadcnRegistry(
   components: string[],
   label: string,
   pm: PackageManagerName,
-): Promise<void> {
+): Promise<{ retryCommand: string } | undefined> {
   const [cmd, dlxArgs] = dlxCommand(pm);
   // For npm, dlxArgs may already include `--yes` for npx auto-install.
   // The trailing `--yes` is for shadcn's own confirmation prompt.
@@ -469,12 +482,14 @@ async function installShadcnRegistry(
 
   try {
     await runSpawn(cmd, addArgs, projectDir);
+    return undefined;
   } catch (error) {
     if (error instanceof SpawnExitError) {
+      const retryCommand = `${cmd} ${addArgs.slice(0, -1).join(" ")}`;
       logger.warn(
-        `shadcn exited with code ${error.code}. Run the following to retry:\n  ${cmd} ${addArgs.slice(0, -1).join(" ")}`,
+        `shadcn exited with code ${error.code}. Run the following to retry:\n  ${retryCommand}`,
       );
-      return;
+      return { retryCommand };
     }
 
     const message = error instanceof Error ? error.message : String(error);

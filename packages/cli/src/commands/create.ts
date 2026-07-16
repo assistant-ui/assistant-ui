@@ -12,6 +12,7 @@ import {
   resolvePackageManagerForCwd,
   scaffoldProject,
   transformProject,
+  type TransformResult,
 } from "../lib/create-project";
 import { runSpawn, SpawnExitError } from "../lib/run-spawn";
 import {
@@ -609,6 +610,7 @@ export const create = new Command()
           ? `Copying project from local source: ${localSourceRoot}`
           : "Downloading project...",
       );
+      let transformResult: TransformResult;
       try {
         const source = localSourceRoot
           ? { kind: "local" as const, rootDir: localSourceRoot }
@@ -632,7 +634,7 @@ export const create = new Command()
         }
 
         // 5. Run transform pipeline
-        await transformProject(absoluteProjectDir, {
+        transformResult = await transformProject(absoluteProjectDir, {
           hasLocalComponents: project.hasLocalComponents,
           skipInstall: opts.skipInstall,
           packageManager: pm,
@@ -684,6 +686,15 @@ export const create = new Command()
       }
 
       process.removeListener("exit", cleanupOnExit);
+
+      if (transformResult.registryInstallFailure) {
+        logger.break();
+        logger.error("Project created with missing components.");
+        logger.info("Retry the component install with:");
+        logger.info(`  cd ${resolvedProjectDirectory}`);
+        logger.info(`  ${transformResult.registryInstallFailure.retryCommand}`);
+        process.exit(1);
+      }
 
       logger.break();
       logger.success("Project created successfully!");
