@@ -1,6 +1,6 @@
 ---
 title: Mastra Integration
-description: Connect Mastra agents and persisted memory threads to assistant-ui.
+description: Connect Mastra agents, persisted memory threads, and durable workflows to assistant-ui.
 ---
 
 import { MastraIcon } from "@/components/icons/mastra";
@@ -9,7 +9,7 @@ import { VercelIcon } from "@/components/icons/vercel";
 [Mastra](https://mastra.ai/) is an open-source TypeScript agent framework. It provides primitives for AI applications: agents with memory and tool calling, deterministic LLM workflows, RAG, model routing, workflow graphs, and automated evals.
 
 <Callout type="info">
-For streaming chat only, keep using the standard [AI SDK runtime](/docs/runtimes/ai-sdk/v7). Add `@assistant-ui/react-mastra` when the UI must enumerate Mastra memory threads and restore persisted messages.
+For streaming chat only, keep using the standard [AI SDK runtime](/docs/runtimes/ai-sdk/v7). Add `@assistant-ui/react-mastra` when the UI must enumerate Mastra memory threads, restore persisted messages, or control a durable workflow run.
 </Callout>
 
 ## Pick a pattern
@@ -19,14 +19,17 @@ For streaming chat only, keep using the standard [AI SDK runtime](/docs/runtimes
 | [Full-stack](/docs/integrations/frameworks/mastra/full-stack) | One Next.js app: API routes call Mastra in-process. Simpler deployment, single repo. |
 | [Separate server](/docs/integrations/frameworks/mastra/separate-server) | Mastra runs as its own service; the Next.js frontend hits its API. Independent scaling, clearer separation of concerns. |
 | [Persisted threads](/docs/integrations/frameworks/mastra/threads) | Add Mastra-backed thread navigation and history to either deployment pattern. |
+| [Durable workflows](/docs/integrations/frameworks/mastra/workflows) | Render suspended workflow steps and resume persisted runs after reload. |
 
-Both chat patterns use the AI SDK protocol. `useMastraRuntime` composes that chat runtime with Mastra's memory APIs.
+Both chat patterns use the AI SDK protocol. `useMastraRuntime` composes that chat runtime with Mastra's memory APIs; `useMastraWorkflow` uses Mastra's workflow client directly beside the chat runtime.
 
 ## Architecture
 
 Mastra integrates at the LLM-client layer on the server. assistant-ui talks to a `chatRoute` or custom API route through the AI SDK protocol. `@mastra/ai-sdk` provides the protocol conversion, and `@assistant-ui/react-ai-sdk` renders the streaming chat state.
 
 When persistence is enabled, `@assistant-ui/react-mastra` adds a remote thread-list adapter and history adapter backed by `MastraClient`. It sends the active assistant-ui thread ID as Mastra's memory thread and a stable application identity as the memory resource.
+
+Workflow runs remain a separate lifecycle so a suspended approval can be rendered and resumed without coupling it to a chat message.
 
 ## Requirements
 
@@ -55,5 +58,11 @@ When persistence is enabled, `@assistant-ui/react-mastra` adds a remote thread-l
     title="Persisted threads"
     description="Persist conversations in Mastra memory."
     href="/docs/integrations/frameworks/mastra/threads"
+  />
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="Durable workflows"
+    description="Resume human-in-the-loop workflow runs."
+    href="/docs/integrations/frameworks/mastra/workflows"
   />
 </Cards>
