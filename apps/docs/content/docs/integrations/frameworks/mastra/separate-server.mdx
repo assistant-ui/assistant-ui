@@ -227,11 +227,13 @@ export function MyRuntimeProvider({ children }: PropsWithChildren) {
 
 Set `NEXT_PUBLIC_MASTRA_URL` to the server origin, such as `http://localhost:4111`, rather than the individual chat route. Continue with [Persisted threads](/docs/integrations/frameworks/mastra/threads) for storage setup and identity guidance.
 
+Use `useMastraWorkflow` beside the chat runtime when the UI must start, reconnect to, or resume a durable workflow run. The same server origin exposes the workflow APIs; see [Durable workflows](/docs/integrations/frameworks/mastra/workflows) for the lifecycle contract.
+
 ## Notes
 
-- **Auth between frontend and Mastra**: the examples above are open. In production, gate every chat and memory endpoint. Derive or validate `resourceId` from the authenticated identity; a client-provided resource ID is not an authorization boundary. Forward credentials through `transportOptions` and configure `MastraClient` with the same authenticated request policy.
+- **Auth between frontend and Mastra**: the examples above are open. In production, gate every chat, memory, and workflow endpoint. Derive or validate `resourceId` from the authenticated identity; a client-provided resource ID is not an authorization boundary. Verify workflow run ownership before resume or cancel. Forward credentials through `transportOptions` and configure `MastraClient` with the same authenticated request policy.
 - **Single agent vs router**: `chatRoute({ path: "/chat/:agentId" })` works for any agent registered on the `Mastra` instance. Switching agents from the frontend is a matter of pointing `NEXT_PUBLIC_MASTRA_URL` at a different agent ID.
-- **Server-only features** such as tools, RAG, model routing, workflows, and evals need no extra frontend integration. Memory thread navigation uses the Mastra-specific client APIs.
+- **Server-only features** such as tools, RAG, model routing, and evals need no extra frontend integration. Memory thread navigation and interactive workflow suspension use the Mastra-specific client APIs.
 
 ## Related
 

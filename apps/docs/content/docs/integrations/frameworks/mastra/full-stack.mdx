@@ -164,19 +164,19 @@ Open `http://localhost:3000`, send a message like *"What can I make with eggs an
 </Step>
 </Steps>
 
-## Persisted threads
+## Persisted threads and workflows
 
 The route above is the canonical chat-only setup. Tools, RAG, model routing, and other server-side agent features need no Mastra-specific client code.
 
-Persisted thread lists are different: the browser must call Mastra's memory APIs. Expose those APIs from the same origin or run the [separate Mastra server](/docs/integrations/frameworks/mastra/separate-server), then configure `useMastraRuntime` with a `MastraClient`, an `agentId`, and a stable `resourceId`. See [Persisted threads](/docs/integrations/frameworks/mastra/threads) for the complete client wiring.
+Persisted thread lists and interactive workflow suspension are different: the browser must call Mastra's memory and workflow APIs. Expose those APIs from the same origin or run the [separate Mastra server](/docs/integrations/frameworks/mastra/separate-server), then configure `useMastraRuntime` with a `MastraClient`, an `agentId`, and a stable `resourceId`. See [Persisted threads](/docs/integrations/frameworks/mastra/threads) and [Durable workflows](/docs/integrations/frameworks/mastra/workflows) for the complete client wiring.
 
-Use the authenticated account or tenant ID for `resourceId`, not a random value per render. The active assistant-ui thread ID is sent separately as Mastra's memory thread ID. Your server must authorize both values before reading history.
+Use the authenticated account or tenant ID for `resourceId`, not a random value per render. The active assistant-ui thread ID is sent separately as Mastra's memory thread ID. Your server must authorize thread and workflow run ownership before reading history or resuming a workflow.
 
 ## Notes
 
 - **Errors in the route bubble to the client as a stream error.** Wrap `agent.stream()` in `try/catch` if you need to log structured errors before they reach the client.
 - **Pin compatible versions.** `@mastra/ai-sdk` tracks the AI SDK v6 contract. If you upgrade `ai` to a future major, verify the `toAISdkStream` shape against Mastra's release notes.
-- **Server-only features** such as tools, RAG, model routing, workflows, and evals need no extra frontend integration. Memory thread navigation does require the client APIs described above.
+- **Server-only features** such as tools, RAG, model routing, and evals need no extra frontend integration. Memory thread navigation and interactive workflow suspension require the client APIs described above.
 
 ## Related
 
