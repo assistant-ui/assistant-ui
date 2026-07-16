@@ -181,7 +181,14 @@ Open `http://localhost:3000`, send a message, and confirm:
 
 After the agent has Mastra memory and storage configured, replace the chat-only runtime with `useMastraRuntime`. Install the Mastra adapter and client in the frontend:
 
-<InstallCommand npm={["@assistant-ui/react-mastra@latest", "@mastra/client-js@latest"]} />
+<InstallCommand
+  npm={[
+    "@assistant-ui/react-mastra@latest",
+    "@mastra/client-js@latest",
+    "@mastra/ai-sdk@latest",
+    "@mastra/core@latest",
+  ]}
+/>
 
 ```tsx title="app/MyRuntimeProvider.tsx"
 "use client";
@@ -193,9 +200,12 @@ import { type PropsWithChildren, useCallback, useState } from "react";
 
 const baseUrl = process.env.NEXT_PUBLIC_MASTRA_URL!;
 const client = new MastraClient({ baseUrl });
-const threadStorageKey = "assistant-ui-mastra-thread-id";
 
-export function MyRuntimeProvider({ children }: PropsWithChildren) {
+export function MyRuntimeProvider({
+  children,
+  resourceId,
+}: PropsWithChildren<{ resourceId: string }>) {
+  const threadStorageKey = `assistant-ui-mastra-thread-id:${resourceId}:chefAgent`;
   const [threadId, setThreadId] = useState<string | undefined>(() => {
     if (typeof window === "undefined") return undefined;
     return window.localStorage.getItem(threadStorageKey) ?? undefined;
@@ -204,12 +214,12 @@ export function MyRuntimeProvider({ children }: PropsWithChildren) {
     setThreadId(nextId);
     if (nextId) window.localStorage.setItem(threadStorageKey, nextId);
     else window.localStorage.removeItem(threadStorageKey);
-  }, []);
+  }, [threadStorageKey]);
 
   const runtime = useMastraRuntime({
     client,
     agentId: "chefAgent",
-    resourceId: "authenticated-user-id",
+    resourceId,
     threadId,
     onThreadIdChange,
     transportOptions: { api: `${baseUrl}/chat/chefAgent` },

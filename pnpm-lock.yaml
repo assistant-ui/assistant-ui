@@ -4330,9 +4330,6 @@ importers:
 
   packages/react-mastra:
     dependencies:
-      '@assistant-ui/core':
-        specifier: ^0.2.21
-        version: link:../core
       '@assistant-ui/react-ai-sdk':
         specifier: workspace:^
         version: link:../react-ai-sdk

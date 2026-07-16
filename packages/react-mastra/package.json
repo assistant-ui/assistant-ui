@@ -33,7 +33,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.2.21",
     "@assistant-ui/react-ai-sdk": "workspace:^",
     "@assistant-ui/store": "^0.2.20",
     "assistant-stream": "^0.3.26"
