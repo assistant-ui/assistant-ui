@@ -730,6 +730,7 @@ interface SlackCheckboxesElement {
   readonly type: "checkboxes";
   readonly action_id: string;
   readonly options: readonly SlackOption[];
+  readonly initial_options?: readonly SlackOption[];
 }
 
 interface SlackContextBlock {
