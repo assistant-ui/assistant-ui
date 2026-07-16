@@ -587,21 +587,40 @@ function ModelSelectorEffort({
         "flex items-center justify-between gap-3 border-t px-3 py-2",
         className,
       )}
+      onKeyDownCapture={(e) => {
+        if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+        // Base UI's RadioGroup composite treats vertical arrows as roving-
+        // focus keys (orientation "both", not configurable), so intercept
+        // them in capture before it moves radio focus: the model list owns
+        // vertical navigation. Refocus cmdk's input and re-dispatch the key
+        // so the same press moves the list highlight, and Enter selects
+        // again (cmdk's Enter is inert while a radio has focus, so the
+        // highlight would otherwise move with no way to act).
+        e.preventDefault();
+        e.stopPropagation();
+        const input = e.currentTarget
+          .closest("[cmdk-root]")
+          ?.querySelector<HTMLInputElement>("[cmdk-input]");
+        input?.focus();
+        input?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: e.key, bubbles: true }),
+        );
+      }}
       onKeyDown={(e) => {
         onKeyDown?.(e);
         if (e.defaultPrevented) return;
-        // cmdk's Command root claims Home/End to jump the model list; stop
-        // them here so only the radiogroup reacts.
-        if (e.key === "Home" || e.key === "End") e.stopPropagation();
-        // Vertical arrows refocus cmdk's input before the event bubbles to
-        // the Command root: the same keypress then moves the list highlight,
-        // and Enter selects again (cmdk's Enter is inert while a radio has
-        // focus, so the highlight would otherwise move with no way to act).
-        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-          e.currentTarget
-            .closest("[cmdk-root]")
-            ?.querySelector<HTMLInputElement>("[cmdk-input]")
-            ?.focus();
+        // Base UI's radio composite ignores Home/End and cmdk's Command
+        // root would claim them to jump the model list; move radio focus
+        // here so only the radiogroup reacts.
+        if (e.key === "Home" || e.key === "End") {
+          e.preventDefault();
+          e.stopPropagation();
+          const radios = Array.from(
+            e.currentTarget.querySelectorAll<HTMLElement>(
+              '[role="radio"]:not([data-disabled])',
+            ),
+          );
+          (e.key === "Home" ? radios[0] : radios[radios.length - 1])?.focus();
         }
       }}
       {...props}
