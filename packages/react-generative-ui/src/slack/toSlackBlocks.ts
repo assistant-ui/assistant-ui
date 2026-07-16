@@ -800,27 +800,47 @@ const convertTable = (
     .map((row) =>
       (Array.isArray(row) ? row : [])
         .slice(0, DATA_TABLE_COLUMN_CAP)
-        .map(toDataTableCell)
-        .filter((cell): cell is SlackDataTableCell => cell !== undefined),
+        .map(
+          (value) =>
+            toDataTableCell(value) ?? { type: "raw_text" as const, text: "" },
+        ),
     );
-  const dataWidth = Math.max(0, ...dataRows.map((row) => row.length));
-  const headerRow: SlackDataTableCell[] =
-    columnHeaderRow.length > 0
-      ? columnHeaderRow
-      : Array.from({ length: dataWidth }, () => ({
-          type: "raw_text" as const,
-          text: "",
-        }));
+  const width = Math.max(
+    columnHeaderRow.length,
+    0,
+    ...dataRows.map((row) => row.length),
+  );
+  const padRow = (row: SlackDataTableCell[]): SlackDataTableCell[] =>
+    row.length >= width
+      ? row
+      : [
+          ...row,
+          ...Array.from({ length: width - row.length }, () => ({
+            type: "raw_text" as const,
+            text: "",
+          })),
+        ];
+  const headerRow = padRow(columnHeaderRow);
 
-  const kept: SlackDataTableCell[][] = [];
-  let tableCharacters = 0;
+  const headerCharacters = rowCharacters(headerRow);
+  if (context.dataTableCharacters + headerCharacters > DATA_TABLE_CHAR_BUDGET) {
+    warn(
+      context,
+      "dropped",
+      "Table",
+      `the table was dropped because its header row exceeds the ${DATA_TABLE_CHAR_BUDGET}-character table budget.`,
+    );
+    return [];
+  }
+
+  const kept: SlackDataTableCell[][] = [headerRow];
+  let tableCharacters = headerCharacters;
   let budgetClamped = false;
-  for (const row of [headerRow, ...dataRows]) {
+  for (const row of dataRows.map(padRow)) {
     const chars = rowCharacters(row);
     if (
-      kept.length > 0 &&
       context.dataTableCharacters + tableCharacters + chars >
-        DATA_TABLE_CHAR_BUDGET
+      DATA_TABLE_CHAR_BUDGET
     ) {
       budgetClamped = true;
       break;

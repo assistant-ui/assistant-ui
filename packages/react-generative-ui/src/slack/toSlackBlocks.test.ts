@@ -1787,3 +1787,45 @@ describe("toSlackBlocks", () => {
     });
   });
 });
+
+describe("toSlackBlocks data_table integrity", () => {
+  it("preserves cell positions when a value is unsupported", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "Table",
+      columns: [{ label: "A" }, { label: "B" }],
+      rows: [[{ nested: true }, "kept"]],
+    });
+    const table = blocks[0] as {
+      rows: { type: string; text: string }[][];
+    };
+    expect(table.rows[1]).toEqual([
+      { type: "raw_text", text: "" },
+      { type: "raw_text", text: "kept" },
+    ]);
+  });
+
+  it("pads ragged rows to a uniform width", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "Table",
+      columns: [{ label: "A" }, { label: "B" }, { label: "C" }],
+      rows: [["x"], ["x", "y", "z"]],
+    });
+    const table = blocks[0] as { rows: unknown[][] };
+    expect(new Set(table.rows.map((row) => row.length))).toEqual(new Set([3]));
+  });
+
+  it("drops a table whose header row alone exceeds the character budget", () => {
+    const { blocks, warnings } = toSlackBlocks({
+      $type: "Table",
+      columns: [{ label: "h".repeat(10001) }],
+      rows: [["x"]],
+    });
+    expect(blocks).toEqual([]);
+    expect(
+      warnings.some(
+        (warning) =>
+          warning.component === "Table" && warning.code === "dropped",
+      ),
+    ).toBe(true);
+  });
+});
