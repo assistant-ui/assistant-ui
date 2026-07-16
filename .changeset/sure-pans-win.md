@@ -5,7 +5,6 @@
 "@assistant-ui/eve": patch
 "@assistant-ui/metro": patch
 "@assistant-ui/react-data-stream": patch
-"@assistant-ui/react-lexical": patch
 "@assistant-ui/react-markdown": patch
 "@assistant-ui/react-opencode": patch
 "@assistant-ui/react-pi": patch
