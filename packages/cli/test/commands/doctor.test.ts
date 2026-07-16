@@ -38,6 +38,7 @@ describe("compareSemver", () => {
     expect(compareSemver("1.0.0-alpha", "1.0.0")).toBeLessThan(0);
     expect(compareSemver("1.0.0", "1.0.0-alpha")).toBeGreaterThan(0);
     expect(compareSemver("1.0.0-alpha.1", "1.0.0-alpha.2")).toBeLessThan(0);
+    expect(compareSemver("1.0.0-beta.2", "1.0.0-beta.10")).toBeLessThan(0);
     expect(compareSemver("0.3.0-rc.1", "0.3.0")).toBeLessThan(0);
   });
 
@@ -280,6 +281,27 @@ describe("findOutdated", () => {
       ["@assistant-ui/core", "0.2.5"],
     ]);
     expect(findOutdated(installed, latest)).toEqual([]);
+  });
+
+  it("flags an older numeric prerelease", () => {
+    const installed: DiscoveredPackage[] = [
+      {
+        name: "@assistant-ui/react",
+        version: "1.0.0-beta.2",
+        installPath: "",
+      },
+    ];
+    const latest = new Map<string, string | null>([
+      ["@assistant-ui/react", "1.0.0-beta.10"],
+    ]);
+
+    expect(findOutdated(installed, latest)).toEqual([
+      {
+        name: "@assistant-ui/react",
+        current: "1.0.0-beta.2",
+        latest: "1.0.0-beta.10",
+      },
+    ]);
   });
 
   it("skips packages with no latest version (e.g. network failed)", () => {
