@@ -23,6 +23,15 @@ export const MAX_TRAVERSAL_DEPTH = 64;
  */
 export const CHILDREN_CAP = 200;
 
+/**
+ * The total number of nodes the pre-normalization bounding walk will visit
+ * across one call, regardless of how many times a shared reference recurs.
+ * Bounds the combinatorial work a DAG of shared or self-referential nodes
+ * would otherwise force even though each individual array stays within
+ * {@link CHILDREN_CAP}.
+ */
+export const NODE_BUDGET = 5000;
+
 /** The block limit for a Slack message. */
 export const MESSAGE_BLOCK_CAP = 50;
 

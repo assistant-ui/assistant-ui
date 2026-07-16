@@ -3,6 +3,7 @@ import { toAdaptiveCard } from "./toAdaptiveCard";
 import { toTeamsAttachments } from "./toTeamsAttachments";
 import {
   CAROUSEL_ATTACHMENT_CAP,
+  CHILDREN_CAP,
   PAYLOAD_SOFT_CAP,
   PRIMARY_ACTION_CAP,
   TABLE_COLUMN_CAP,
@@ -452,6 +453,33 @@ describe("toAdaptiveCard", () => {
       const { card } = toAdaptiveCard({ $type: "Select", options: [] });
       expect((card.body[0] as TeamsInputChoiceSet).id).toBe("select");
     });
+
+    it("appends a companion submit ActionSet with a fallback warning when $action is present", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Select",
+        name: "color",
+        options: [{ label: "Red", value: "red" }],
+        $action: { type: "pick", scope: "color" },
+      });
+      expect(card.body).toHaveLength(2);
+      expect(card.body[0]?.type).toBe("Input.ChoiceSet");
+      expect(card.body[1]).toEqual({
+        type: "ActionSet",
+        actions: [
+          {
+            type: "Action.Submit",
+            title: "Submit",
+            data: { aui: { type: "pick", payload: { scope: "color" } } },
+          },
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "fallback",
+        component: "Select",
+        detail:
+          "Teams inputs cannot dispatch on change; a companion submit action was appended.",
+      });
+    });
   });
 
   describe("RadioGroup", () => {
@@ -533,6 +561,11 @@ describe("toAdaptiveCard", () => {
       });
       expect((card.body[0] as TeamsInputText).isMultiline).toBe(true);
     });
+
+    it("emits no ActionSet when $action is absent", () => {
+      const { card } = toAdaptiveCard({ $type: "Input", name: "email" });
+      expect(card.body).toHaveLength(1);
+    });
   });
 
   describe("DatePicker", () => {
@@ -552,6 +585,26 @@ describe("toAdaptiveCard", () => {
         value: "not-a-date",
       });
       expect((card.body[0] as TeamsInputDate).value).toBeUndefined();
+    });
+
+    it("keeps min and max matching YYYY-MM-DD", () => {
+      const { card } = toAdaptiveCard({
+        $type: "DatePicker",
+        name: "date",
+        min: "2026-01-01",
+        max: "2026-12-31",
+      });
+      expect((card.body[0] as TeamsInputDate).min).toBe("2026-01-01");
+      expect((card.body[0] as TeamsInputDate).max).toBe("2026-12-31");
+    });
+
+    it("drops a min that does not match YYYY-MM-DD", () => {
+      const { card } = toAdaptiveCard({
+        $type: "DatePicker",
+        name: "date",
+        min: "tomorrow",
+      });
+      expect((card.body[0] as TeamsInputDate).min).toBeUndefined();
     });
   });
 
@@ -581,6 +634,31 @@ describe("toAdaptiveCard", () => {
       });
       expect((card.body[0] as TeamsInputText).id).toBe("email");
       expect(warnings).toEqual([]);
+    });
+  });
+
+  describe("per-card input id uniqueness", () => {
+    it('uniquifies duplicate unnamed Input ids with a "_2" suffix and a warning', () => {
+      const { card, warnings } = toAdaptiveCard([
+        { $type: "Input" },
+        { $type: "Input" },
+      ]);
+      const ids = (card.body as TeamsInputText[]).map((element) => element.id);
+      expect(ids).toEqual(["input", "input_2"]);
+      expect(warnings).toContainEqual(
+        expect.objectContaining({ code: "clamped", component: "Input" }),
+      );
+    });
+
+    it('keeps ids for "aui", "aui_", and an unnamed input mutually distinct', () => {
+      const { card, warnings } = toAdaptiveCard([
+        { $type: "Input", name: "aui" },
+        { $type: "Input", name: "aui_" },
+        { $type: "Input" },
+      ]);
+      const ids = (card.body as TeamsInputText[]).map((element) => element.id);
+      expect(new Set(ids).size).toBe(3);
+      expect(warnings.some((warning) => warning.code === "clamped")).toBe(true);
     });
   });
 
@@ -1058,9 +1136,17 @@ describe("toAdaptiveCard", () => {
       expect((current as TeamsContainer).items).toEqual([]);
     });
 
-    it(`warns when the serialized card exceeds the ${PAYLOAD_SOFT_CAP}-character soft cap`, () => {
+    it(`warns when the serialized card exceeds the ${PAYLOAD_SOFT_CAP}-byte soft cap`, () => {
       const value = "x".repeat(PAYLOAD_SOFT_CAP + 1000);
       const { warnings } = toAdaptiveCard({ $type: "Text", value });
+      expect(warnings).toContainEqual(
+        expect.objectContaining({ code: "clamped", component: "Root" }),
+      );
+    });
+
+    it("measures the soft cap in UTF-8 bytes rather than UTF-16 code units", () => {
+      const value = "汉".repeat(30000);
+      const { warnings } = toAdaptiveCard({ $type: "Markdown", value });
       expect(warnings).toContainEqual(
         expect.objectContaining({ code: "clamped", component: "Root" }),
       );
@@ -1108,6 +1194,52 @@ describe("toAdaptiveCard", () => {
       expect(warnings).toContainEqual(
         expect.objectContaining({ code: "clamped", component: "Root" }),
       );
+    });
+  });
+
+  describe("node budget and cycle guard", () => {
+    it("bounds a self-referential children array instead of looping forever", () => {
+      const arr: unknown[] = [];
+      const el = { $type: "Card", children: arr };
+      arr.push(el);
+      const { warnings } = toAdaptiveCard(el);
+      expect(warnings.length).toBeGreaterThan(0);
+    });
+
+    it("bounds a shared-reference fan-out across nested levels instead of doing exponential work", () => {
+      let shared: unknown = { $type: "Text", value: "leaf" };
+      for (let level = 0; level < 3; level++) {
+        shared = {
+          $type: "Card",
+          children: Array.from({ length: 200 }, () => shared),
+        };
+      }
+      const { warnings } = toAdaptiveCard(shared);
+      expect(warnings.length).toBeGreaterThan(0);
+    });
+
+    it("clamps a benign tree past the node budget with exactly one budget warning", () => {
+      const rows = Array.from({ length: 60 }, (_, r) => ({
+        $type: "Col",
+        children: Array.from({ length: 100 }, (_, c) => ({
+          $type: "Caption",
+          value: `r${r}c${c}`,
+        })),
+      }));
+      const { card, warnings } = toAdaptiveCard(rows);
+      const totalCaptions = card.body.reduce(
+        (sum, element) => sum + (element as TeamsContainer).items.length,
+        0,
+      );
+      expect(totalCaptions).toBeLessThan(6000);
+      const budgetWarnings = warnings.filter(
+        (warning) =>
+          warning.code === "clamped" &&
+          warning.component === "Root" &&
+          warning.detail ===
+            `children were clamped to ${CHILDREN_CAP} entries.`,
+      );
+      expect(budgetWarnings).toHaveLength(1);
     });
   });
 });
@@ -1176,6 +1308,32 @@ describe("toTeamsAttachments", () => {
       },
     );
     expect(() => toTeamsAttachments(hostile)).not.toThrow();
+  });
+
+  it("keeps the same unnamed input id across separate carousel cards", () => {
+    const { attachments, warnings } = toTeamsAttachments({
+      $type: "Carousel",
+      children: [
+        { $type: "Card", title: "A", children: { $type: "Input" } },
+        { $type: "Card", title: "B", children: { $type: "Input" } },
+      ],
+    });
+    const ids = attachments.map((attachment) => {
+      const container = attachment.content.body.find(
+        (element) => element.type === "Container",
+      ) as TeamsContainer;
+      const input = container.items.find(
+        (item) => item.type === "Input.Text",
+      ) as TeamsInputText;
+      return input.id;
+    });
+    expect(ids).toEqual(["input", "input"]);
+    expect(
+      warnings.some(
+        (warning) =>
+          warning.code === "clamped" && warning.detail.includes("already used"),
+      ),
+    ).toBe(false);
   });
 });
 

@@ -29,6 +29,15 @@ export const MAX_TRAVERSAL_DEPTH = 64;
  */
 export const CHILDREN_CAP = 200;
 
+/**
+ * The total number of nodes {@link boundSpec} will visit across one walk,
+ * regardless of how many times a shared reference recurs. Bounds the
+ * combinatorial work a DAG of shared or self-referential nodes would
+ * otherwise force even though each individual array stays within
+ * {@link CHILDREN_CAP}.
+ */
+export const NODE_BUDGET = 5000;
+
 /** The maximum number of attachments produced from a root-level Carousel. */
 export const CAROUSEL_ATTACHMENT_CAP = 10;
 
@@ -44,8 +53,15 @@ export const TABLE_COLUMN_CAP = 20;
 /** The maximum number of choices in a Select or RadioGroup. */
 export const CHOICE_OPTION_CAP = 100;
 
-/** The soft character-count budget for a serialized card, past which a warning notes Teams' 100 KB bot message limit (the card is never truncated to fit it). */
+/** The soft byte-count budget for a serialized card, past which a warning notes Teams' 100 KB bot message limit (the card is never truncated to fit it). */
 export const PAYLOAD_SOFT_CAP = 80000;
+
+const textEncoder = new TextEncoder();
+
+/** Measures the wire size of `value` in UTF-8 bytes rather than UTF-16 code units. */
+export function utf8ByteLength(value: string): number {
+  return textEncoder.encode(value).byteLength;
+}
 
 /** Builds the fixed-shape Adaptive Card envelope around a converted body. */
 export function buildCard(body: TeamsCardElement[]): TeamsAdaptiveCard {

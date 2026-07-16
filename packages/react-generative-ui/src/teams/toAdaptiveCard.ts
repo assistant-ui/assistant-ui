@@ -14,6 +14,7 @@ import {
   TABLE_ROW_CAP,
   buildCard,
   buildSubmitAction,
+  utf8ByteLength,
 } from "./constants";
 import type {
   AdaptiveCardResult,
@@ -37,6 +38,7 @@ import type {
 /** Shared mutable conversion state threaded through one top-level conversion. */
 export interface ConversionContext {
   readonly warnings: TeamsConversionWarning[];
+  usedInputIds: Set<string>;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -85,8 +87,8 @@ const warn = (
  * The `aui` key is reserved for the submit envelope (see
  * {@link buildSubmitData} and `decodeSubmitData`): Adaptive Cards merge
  * every input's current value into the same submit object keyed by its
- * `id`, so an input id of `aui` would clobber the envelope. Renamed to
- * `aui_` instead of being emitted as-is.
+ * `id`, so an input id of `aui` would clobber the envelope. Renamed to an
+ * unused id derived from `aui_` instead of being emitted as-is.
  */
 const RESERVED_INPUT_ID = "aui";
 
@@ -95,14 +97,31 @@ function reservedSafeId(
   component: string,
   context: ConversionContext,
 ): string {
-  if (id !== RESERVED_INPUT_ID) return id;
-  warn(
-    context,
-    "clamped",
-    component,
-    `the input id "${RESERVED_INPUT_ID}" collides with the submit envelope's reserved key and was renamed to "${RESERVED_INPUT_ID}_".`,
-  );
-  return `${RESERVED_INPUT_ID}_`;
+  const base = id === RESERVED_INPUT_ID ? `${RESERVED_INPUT_ID}_` : id;
+  if (id === RESERVED_INPUT_ID) {
+    warn(
+      context,
+      "clamped",
+      component,
+      `the input id "${RESERVED_INPUT_ID}" collides with the submit envelope's reserved key and was renamed to "${base}".`,
+    );
+  }
+  let candidate = base;
+  let n = 2;
+  while (context.usedInputIds.has(candidate)) {
+    candidate = `${base}_${n}`;
+    n += 1;
+  }
+  if (candidate !== base) {
+    warn(
+      context,
+      "clamped",
+      component,
+      `the input id "${base}" was already used on this card and was renamed to "${candidate}".`,
+    );
+  }
+  context.usedInputIds.add(candidate);
+  return candidate;
 }
 
 /**
@@ -205,6 +224,27 @@ function convertButtons(
     ),
   );
   return { type: "ActionSet", actions };
+}
+
+function withCompanionSubmit(
+  element: NormalizedUIElement,
+  input: TeamsCardElement,
+  context: ConversionContext,
+): TeamsCardElement[] {
+  if (element.action === undefined) return [input];
+  warn(
+    context,
+    "fallback",
+    element.type,
+    "Teams inputs cannot dispatch on change; a companion submit action was appended.",
+  );
+  return [
+    input,
+    {
+      type: "ActionSet",
+      actions: [buildSubmitAction("Submit", element.action)],
+    },
+  ];
 }
 
 function cardFooterActionSet(
@@ -379,61 +419,57 @@ export function convertElement(
       const name = asString(props["name"]);
       const placeholder = asString(props["placeholder"]);
       const label = asString(props["label"]);
-      return [
-        {
-          type: "Input.ChoiceSet",
-          id: reservedSafeId(name || "select", "Select", context),
-          style: "compact",
-          choices: choicesFrom(props["options"], "Select", context),
-          ...(placeholder ? { placeholder } : {}),
-          ...(label ? { label } : {}),
-        },
-      ];
+      const input: TeamsCardElement = {
+        type: "Input.ChoiceSet",
+        id: reservedSafeId(name || "select", "Select", context),
+        style: "compact",
+        choices: choicesFrom(props["options"], "Select", context),
+        ...(placeholder ? { placeholder } : {}),
+        ...(label ? { label } : {}),
+      };
+      return withCompanionSubmit(element, input, context);
     }
     case "RadioGroup": {
       const name = asString(props["name"]);
       const label = asString(props["label"]);
       const defaultValue = props["defaultValue"];
-      return [
-        {
-          type: "Input.ChoiceSet",
-          id: reservedSafeId(name || "radiogroup", "RadioGroup", context),
-          style: "expanded",
-          choices: choicesFrom(props["options"], "RadioGroup", context),
-          ...(typeof defaultValue === "string" && defaultValue
-            ? { value: defaultValue }
-            : {}),
-          ...(label ? { label } : {}),
-        },
-      ];
+      const input: TeamsCardElement = {
+        type: "Input.ChoiceSet",
+        id: reservedSafeId(name || "radiogroup", "RadioGroup", context),
+        style: "expanded",
+        choices: choicesFrom(props["options"], "RadioGroup", context),
+        ...(typeof defaultValue === "string" && defaultValue
+          ? { value: defaultValue }
+          : {}),
+        ...(label ? { label } : {}),
+      };
+      return withCompanionSubmit(element, input, context);
     }
     case "Checkbox": {
       const name = asString(props["name"]);
       const label = asString(props["label"]);
-      return [
-        {
-          type: "Input.Toggle",
-          id: reservedSafeId(name || label || "checkbox", "Checkbox", context),
-          title: label,
-          value: props["defaultChecked"] === true ? "true" : "false",
-          valueOn: "true",
-          valueOff: "false",
-        },
-      ];
+      const input: TeamsCardElement = {
+        type: "Input.Toggle",
+        id: reservedSafeId(name || label || "checkbox", "Checkbox", context),
+        title: label,
+        value: props["defaultChecked"] === true ? "true" : "false",
+        valueOn: "true",
+        valueOff: "false",
+      };
+      return withCompanionSubmit(element, input, context);
     }
     case "Input": {
       const name = asString(props["name"]);
       const label = asString(props["label"]);
       const placeholder = asString(props["placeholder"]);
-      return [
-        {
-          type: "Input.Text",
-          id: reservedSafeId(name || "input", "Input", context),
-          ...(label ? { label } : {}),
-          ...(placeholder ? { placeholder } : {}),
-          ...(props["multiline"] === true ? { isMultiline: true } : {}),
-        },
-      ];
+      const input: TeamsCardElement = {
+        type: "Input.Text",
+        id: reservedSafeId(name || "input", "Input", context),
+        ...(label ? { label } : {}),
+        ...(placeholder ? { placeholder } : {}),
+        ...(props["multiline"] === true ? { isMultiline: true } : {}),
+      };
+      return withCompanionSubmit(element, input, context);
     }
     case "DatePicker": {
       const name = asString(props["name"]);
@@ -443,14 +479,25 @@ export function convertElement(
         typeof rawValue === "string" && DATE_PATTERN.test(rawValue)
           ? rawValue
           : undefined;
-      return [
-        {
-          type: "Input.Date",
-          id: reservedSafeId(name || "datepicker", "DatePicker", context),
-          ...(label ? { label } : {}),
-          ...(value !== undefined ? { value } : {}),
-        },
-      ];
+      const rawMin = props["min"];
+      const min =
+        typeof rawMin === "string" && DATE_PATTERN.test(rawMin)
+          ? rawMin
+          : undefined;
+      const rawMax = props["max"];
+      const max =
+        typeof rawMax === "string" && DATE_PATTERN.test(rawMax)
+          ? rawMax
+          : undefined;
+      const input: TeamsCardElement = {
+        type: "Input.Date",
+        id: reservedSafeId(name || "datepicker", "DatePicker", context),
+        ...(label ? { label } : {}),
+        ...(value !== undefined ? { value } : {}),
+        ...(min !== undefined ? { min } : {}),
+        ...(max !== undefined ? { max } : {}),
+      };
+      return withCompanionSubmit(element, input, context);
     }
     case "Form":
       return [
@@ -662,15 +709,16 @@ export function convertRootToCard(
   root: NormalizedUINode | readonly NormalizedUINode[],
   context: ConversionContext,
 ): TeamsAdaptiveCard {
+  context.usedInputIds = new Set();
   const body = convertSequence(root, context, 0);
   const card = buildCard(body);
-  const size = JSON.stringify(card).length;
+  const size = utf8ByteLength(JSON.stringify(card));
   if (size > PAYLOAD_SOFT_CAP) {
     warn(
       context,
       "clamped",
       "Root",
-      `the card is ${size} characters, exceeding Teams' 100 KB bot message limit.`,
+      `the card is ${size} bytes, exceeding Teams' 100 KB bot message limit.`,
     );
   }
   return card;
@@ -689,7 +737,7 @@ export function toAdaptiveCard(
   node: unknown,
   _options?: ToAdaptiveCardOptions,
 ): AdaptiveCardResult {
-  const context: ConversionContext = { warnings: [] };
+  const context: ConversionContext = { warnings: [], usedInputIds: new Set() };
   try {
     const bounded = boundSpec(node, () =>
       warn(

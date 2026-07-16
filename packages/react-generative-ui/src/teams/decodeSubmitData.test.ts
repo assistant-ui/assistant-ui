@@ -105,6 +105,16 @@ describe("decodeSubmitData", () => {
     expect(decodeSubmitData([1, 2, 3])).toBeUndefined();
   });
 
+  it("returns undefined when aui is inherited rather than owned", () => {
+    const value = Object.create({ aui: { type: "x" } });
+    expect(decodeSubmitData(value)).toBeUndefined();
+  });
+
+  it("returns undefined when the envelope's type is inherited rather than owned", () => {
+    const value = { aui: Object.create({ type: "x" }) };
+    expect(decodeSubmitData(value)).toBeUndefined();
+  });
+
   it("keeps __proto__ and constructor keys from the payload as own data properties without polluting Object.prototype", () => {
     const payload = JSON.parse(
       '{"__proto__": {"evil": true}, "constructor": {"evil": true}}',

@@ -9,6 +9,7 @@ import {
   CARD_SUBTEXT_CAP,
   CARD_TITLE_CAP,
   CAROUSEL_CARD_CAP,
+  CHILDREN_CAP,
   CONTEXT_ELEMENT_CAP,
   CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
@@ -1806,6 +1807,48 @@ describe("toSlackBlocks", () => {
           },
         ],
       });
+    });
+  });
+
+  describe("node budget and cycle guard", () => {
+    it("bounds a self-referential children array instead of looping forever", () => {
+      const arr: unknown[] = [];
+      const el = { $type: "Card", children: arr };
+      arr.push(el);
+      const { warnings } = toSlackBlocks(el);
+      expect(warnings.length).toBeGreaterThan(0);
+    });
+
+    it("bounds a shared-reference fan-out across nested levels instead of doing exponential work", () => {
+      let shared: unknown = { $type: "Text", value: "leaf" };
+      for (let level = 0; level < 3; level++) {
+        shared = {
+          $type: "Card",
+          children: Array.from({ length: 200 }, () => shared),
+        };
+      }
+      const { warnings } = toSlackBlocks(shared);
+      expect(warnings.length).toBeGreaterThan(0);
+    });
+
+    it("clamps a benign tree past the node budget with exactly one budget warning", () => {
+      const rows = Array.from({ length: 60 }, (_, r) => ({
+        $type: "Col",
+        children: Array.from({ length: 100 }, (_, c) => ({
+          $type: "Caption",
+          value: `r${r}c${c}`,
+        })),
+      }));
+      const { blocks, warnings } = toSlackBlocks(rows);
+      expect(blocks.length).toBeLessThan(6000);
+      const budgetWarnings = warnings.filter(
+        (warning) =>
+          warning.code === "clamped" &&
+          warning.component === "Root" &&
+          warning.detail ===
+            `children were clamped to ${CHILDREN_CAP} entries.`,
+      );
+      expect(budgetWarnings).toHaveLength(1);
     });
   });
 });

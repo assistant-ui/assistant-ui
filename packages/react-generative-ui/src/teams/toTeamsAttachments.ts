@@ -7,7 +7,9 @@ import { boundSpec } from "./boundSpec";
 import {
   CAROUSEL_ATTACHMENT_CAP,
   CHILDREN_CAP,
+  PAYLOAD_SOFT_CAP,
   buildAttachment,
+  utf8ByteLength,
 } from "./constants";
 import {
   convertElement,
@@ -82,7 +84,7 @@ export function toTeamsAttachments(
   _options?: ToAdaptiveCardOptions,
 ): TeamsAttachmentsResult {
   const warnings: TeamsConversionWarning[] = [];
-  const context: ConversionContext = { warnings };
+  const context: ConversionContext = { warnings, usedInputIds: new Set() };
   try {
     const bounded = boundSpec(node, () =>
       warnings.push({
@@ -108,6 +110,14 @@ export function toTeamsAttachments(
       const attachments: TeamsCardAttachment[] = items.map((child) =>
         buildAttachment(convertRootToCard(child, context)),
       );
+      const size = utf8ByteLength(JSON.stringify(attachments));
+      if (size > PAYLOAD_SOFT_CAP) {
+        warnings.push({
+          code: "clamped",
+          component: "Carousel",
+          detail: `the carousel attachments total ${size} bytes, exceeding Teams' 100 KB bot message limit.`,
+        });
+      }
       return { attachments, attachmentLayout: "carousel", warnings };
     }
     const attachment = buildAttachment(convertRootToCard(root, context));
