@@ -4331,13 +4331,13 @@ importers:
   packages/react-mastra:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.20
+        specifier: ^0.2.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.19
+        specifier: ^0.2.20
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.25
+        specifier: ^0.3.26
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
