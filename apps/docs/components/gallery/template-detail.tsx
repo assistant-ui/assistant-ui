@@ -85,6 +85,7 @@ export function TemplateDetail({ template }: { template: GalleryTemplate }) {
   return (
     <TemplateCodeTabs
       tree={tree}
+      templateTitle={template.title}
       jsonText={jsonText}
       jsonError={jsonError}
       isEdited={jsonText !== defaultJson}
