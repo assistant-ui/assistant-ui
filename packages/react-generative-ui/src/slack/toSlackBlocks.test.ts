@@ -1763,6 +1763,28 @@ describe("toSlackBlocks", () => {
       }
     });
 
+    it("bounds a hostile root-level Proxy array with a fabricated length instead of hanging", () => {
+      const hostileRoot = new Proxy([], {
+        get(target, prop) {
+          if (prop === "length") return 2 ** 31;
+          if (typeof prop === "string" && /^\d+$/.test(prop)) {
+            return { $type: "Text", value: "x" };
+          }
+          return Reflect.get(target, prop);
+        },
+        has(target, prop) {
+          if (prop === "length") return true;
+          if (typeof prop === "string" && /^\d+$/.test(prop)) return true;
+          return Reflect.has(target, prop);
+        },
+      });
+      const { blocks, warnings } = toSlackBlocks(hostileRoot);
+      expect(Array.isArray(blocks)).toBe(true);
+      expect(warnings).toContainEqual(
+        expect.objectContaining({ code: "clamped", component: "Root" }),
+      );
+    });
+
     it("omits the button value instead of throwing when the action payload is circular", () => {
       const circular: Record<string, unknown> = { type: "loop" };
       circular["self"] = circular;

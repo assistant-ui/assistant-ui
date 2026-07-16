@@ -14,6 +14,15 @@ import type {
 /** The maximum normalized traversal depth. */
 export const MAX_TRAVERSAL_DEPTH = 64;
 
+/**
+ * The maximum number of entries kept at any single level (root, or a
+ * `children` array at any depth) of the raw spec, before it ever reaches
+ * `normalizeSpec`. Bounds a hostile array's reported `length` so the pre-pass
+ * can never be made to walk further than this regardless of what the array
+ * claims about itself.
+ */
+export const CHILDREN_CAP = 200;
+
 /** The block limit for a Slack message. */
 export const MESSAGE_BLOCK_CAP = 50;
 

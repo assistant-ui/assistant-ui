@@ -31,6 +31,10 @@
     "./slack": {
       "types": "./dist/slack.d.ts",
       "default": "./dist/slack.js"
+    },
+    "./teams": {
+      "types": "./dist/teams.d.ts",
+      "default": "./dist/teams.js"
     }
   },
   "main": "./dist/index.js",

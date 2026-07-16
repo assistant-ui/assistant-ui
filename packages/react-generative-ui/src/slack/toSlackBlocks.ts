@@ -14,6 +14,7 @@ import {
   CARD_TITLE_CAP,
   CAROUSEL_CARD_CAP,
   CAROUSEL_CARD_MIN,
+  CHILDREN_CAP,
   CONTEXT_ELEMENT_CAP,
   CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
@@ -1161,6 +1162,50 @@ function convertSequence(
   return blocks;
 }
 
+function boundNode(
+  value: unknown,
+  depth: number,
+  onClamp: () => void,
+): unknown {
+  if (depth > MAX_TRAVERSAL_DEPTH) return null;
+  if (Array.isArray(value)) {
+    const bounded = Array.prototype.slice.call(
+      value,
+      0,
+      CHILDREN_CAP,
+    ) as unknown[];
+    if (value.length > CHILDREN_CAP) onClamp();
+    return bounded.map((item) => boundNode(item, depth + 1, onClamp));
+  }
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    "children" in (value as Record<string, unknown>)
+  ) {
+    const record = value as Record<string, unknown>;
+    return {
+      ...record,
+      children: boundNode(record["children"], depth + 1, onClamp),
+    };
+  }
+  return value;
+}
+
+/**
+ * Produces a bounded plain copy of a raw generative-ui spec before it
+ * reaches `normalizeSpec`, whose own traversal of the root array or any
+ * `children` array walks the full reported length of a hostile proxied
+ * array before any per-field cap downstream ever applies. Every array
+ * (root, or `children` at any depth) is capped to {@link CHILDREN_CAP}
+ * entries via `Array.prototype.slice`, which bounds even a proxy with a
+ * fabricated `length`; recursion itself is capped at
+ * {@link MAX_TRAVERSAL_DEPTH}. `onClamp` fires once per level that was
+ * truncated.
+ */
+function boundSpec(spec: unknown, onClamp: () => void): unknown {
+  return boundNode(spec, 0, onClamp);
+}
+
 /** Converts a generative-UI tree into Slack Block Kit JSON and downgrade warnings. */
 export function toSlackBlocks(
   node: unknown,
@@ -1176,7 +1221,15 @@ export function toSlackBlocks(
     dataTableCharacters: 0,
   };
   try {
-    const { root } = normalizeSpec(node as never);
+    const bounded = boundSpec(node, () =>
+      warn(
+        context,
+        "clamped",
+        "Root",
+        `children were clamped to ${CHILDREN_CAP} entries.`,
+      ),
+    );
+    const { root } = normalizeSpec(bounded as never);
     const converted = convertSequence(root, context, 0);
     if (converted.length <= context.blockCap) {
       return { blocks: converted, warnings: context.warnings };
