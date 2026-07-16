@@ -466,7 +466,8 @@
 @media (max-width: 1050px) {
   .workbench {
     grid-template-columns: 13rem minmax(26rem, 1fr);
-    grid-template-rows: minmax(30rem, 1fr) 21rem;
+    grid-template-rows: minmax(0, 1fr) minmax(12rem, 38dvh);
+    min-height: 0;
   }
 
   .workflow-panel {
@@ -486,7 +487,20 @@
   }
 
   .thread-rail {
+    max-height: 15rem;
+    flex: 0 0 auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem;
+  }
+
+  .brand-lockup,
+  .rail-note {
     display: none;
+  }
+
+  .thread-rail__list {
+    max-height: 11rem;
   }
 
   .chat-stage {
