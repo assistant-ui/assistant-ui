@@ -2490,25 +2490,25 @@ importers:
         version: 2.0.10(hono@4.12.30)
       '@mastra/ai-sdk':
         specifier: ^1.6.2
-        version: 1.6.2(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)
+        version: 1.6.2(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)
       '@mastra/client-js':
         specifier: ^1.32.0
-        version: 1.32.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+        version: 1.32.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
       '@mastra/core':
         specifier: ^1.51.0
-        version: 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+        version: 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
       '@mastra/hono':
         specifier: ^1.5.7
-        version: 1.5.7(@hono/node-server@2.0.10(hono@4.12.30))(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(hono@4.12.30)(zod@4.4.3)
+        version: 1.5.7(@hono/node-server@2.0.10(hono@4.12.30))(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(hono@4.12.30)(zod@4.4.3)
       '@mastra/libsql':
         specifier: ^1.16.0
-        version: 1.16.0(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))
+        version: 1.16.0(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))
       '@mastra/memory':
         specifier: ^1.23.0
-        version: 1.23.0(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))
+        version: 1.23.0(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))
       ai:
         specifier: ^7.0.22
-        version: 7.0.22(zod@4.4.3)
+        version: 7.0.28(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2523,7 +2523,7 @@ importers:
         version: 4.12.30
       lucide-react:
         specifier: ^1.23.0
-        version: 1.23.0(react@19.2.7)
+        version: 1.24.0(react@19.2.7)
       next:
         specifier: ^16.2.10
         version: 16.2.10(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -2563,7 +2563,7 @@ importers:
         version: 10.0.3
       postcss:
         specifier: ^8.5.16
-        version: 8.5.16
+        version: 8.5.19
       tailwindcss:
         specifier: ^4.3.2
         version: 4.3.2
@@ -14516,11 +14516,6 @@ packages:
   lru_map@0.4.1:
     resolution: {integrity: sha512-I+lBvqMMFfqaV8CJCISjI3wbjmwVu/VyOoU7+qtu9d7ioW5klMgsTTiUOUp+DJvfTTzKXoPbyC6YfgkNcyPSOg==}
 
-  lucide-react@1.23.0:
-    resolution: {integrity: sha512-38BpJcD0JhFosxHApP/BYsBetLpQFRoTRzEzstM/XCc3jsAG7wqaY1lgVwxiUe3xqYE+lNxo2PkCmYwXWrwwIw==}
-    peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-
   lucide-react@1.24.0:
     resolution: {integrity: sha512-YT6mBD8lGKkg4nM39enlm94/sfJIiW0YKUT60fBy4YK8tai31ylg1VhGNWxkpSKHo9UagfnZqwIff3HTDQwXeA==}
     peerDependencies:
@@ -15746,10 +15741,6 @@ packages:
     resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
     engines: {node: ^10 || ^12 || >=14}
 
-  postcss@8.5.16:
-    resolution: {integrity: sha512-vuwillviilfKZsg0VGj5R/YwwcHx4SLsIOI/7K6mQkWx+l5cUHTjj5g0AasTBcyXsbfTgrwsUNmVUb5xVwyPwg==}
-    engines: {node: ^10 || ^12 || >=14}
-
   postcss@8.5.19:
     resolution: {integrity: sha512-Mz8SaolMd8nB+G13WkORcxQKHZ/NE4xXevtkJHVuG+guo9/wYKlIMTKAqGdEmYOXR2ijPjTYNHssizdaVSUNdQ==}
     engines: {node: ^10 || ^12 || >=14}
@@ -15784,15 +15775,6 @@ packages:
 
   posthog-js@1.400.1:
     resolution: {integrity: sha512-NGfzNwTu+VBw4FekgYs/aQbEkTFkvmpTFUKDGZw/9K6R/sG2WyuLsnnXySRcNH8RMki0Io8v9flNATrrTfmT+Q==}
-
-  posthog-node@5.40.0:
-    resolution: {integrity: sha512-DrLfHuauO0W6qruF80iqr5JdmLysef74XzOB4eh36oRLRhxCySLraTqsi2Pj161LZnp9/JNdRDxwT8ei8VK2YA==}
-    engines: {node: ^20.20.0 || >=22.22.0}
-    peerDependencies:
-      rxjs: ^7.0.0
-    peerDependenciesMeta:
-      rxjs:
-        optional: true
 
   posthog-node@5.42.0:
     resolution: {integrity: sha512-0lMYZQbRQOexGl7U1Ol+ntWogUnjLbkQeKZmFTwtn0Cgxhnk1DGdHYHVcsUvRcWlWjnAOZZ4SMPMq7aHOHWflQ==}
@@ -20332,7 +20314,7 @@ snapshots:
       jsc-safe-url: 0.2.4
       lightningcss: 1.32.0
       picomatch: 4.0.5
-      postcss: 8.5.16
+      postcss: 8.5.19
       resolve-from: 5.0.0
     optionalDependencies:
       expo: 57.0.4(@babel/core@7.29.7)(@expo/dom-webview@57.0.0)(@expo/metro-runtime@57.0.3)(@typescript/typescript6@6.0.2)(expo-router@57.0.4)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -21505,6 +21487,11 @@ snapshots:
       '@mastra/core': 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
       zod: 4.4.3
 
+  '@mastra/ai-sdk@1.6.2(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)':
+    dependencies:
+      '@mastra/core': 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      zod: 4.4.3
+
   '@mastra/client-js@1.32.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)':
     dependencies:
       '@ai-sdk/ui-utils': 1.2.11(zod@4.4.3)
@@ -21577,7 +21564,7 @@ snapshots:
       p-map: 7.0.5
       p-retry: 7.1.1
       picomatch: 4.0.5
-      posthog-node: 5.40.0(rxjs@7.8.2)
+      posthog-node: 5.42.0(rxjs@7.8.2)
       tokenx: 1.3.0
       ws: 8.21.0
       xxhash-wasm: 1.1.0
@@ -21623,7 +21610,7 @@ snapshots:
       p-map: 7.0.5
       p-retry: 7.1.1
       picomatch: 4.0.5
-      posthog-node: 5.40.0(rxjs@7.8.2)
+      posthog-node: 5.42.0(rxjs@7.8.2)
       tokenx: 1.3.0
       ws: 8.21.0
       xxhash-wasm: 1.1.0
@@ -21639,11 +21626,11 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@mastra/hono@1.5.7(@hono/node-server@2.0.10(hono@4.12.30))(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(hono@4.12.30)(zod@4.4.3)':
+  '@mastra/hono@1.5.7(@hono/node-server@2.0.10(hono@4.12.30))(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(hono@4.12.30)(zod@4.4.3)':
     dependencies:
       '@hono/node-ws': 1.3.1(@hono/node-server@2.0.10(hono@4.12.30))(hono@4.12.30)
-      '@mastra/core': 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
-      '@mastra/server': 1.51.0(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)
+      '@mastra/core': 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      '@mastra/server': 1.51.0(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)
       fetch-to-node: 2.1.0
       hono: 4.12.30
       ws: 8.21.0
@@ -21653,17 +21640,17 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@mastra/libsql@1.16.0(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))':
+  '@mastra/libsql@1.16.0(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))':
     dependencies:
       '@libsql/client': 0.17.4
-      '@mastra/core': 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      '@mastra/core': 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@mastra/memory@1.23.0(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))':
+  '@mastra/memory@1.23.0(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))':
     dependencies:
-      '@mastra/core': 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      '@mastra/core': 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
       '@mastra/schema-compat': 1.3.4(zod@4.4.3)
       async-mutex: 0.5.0
       diff: 8.0.4
@@ -21685,9 +21672,9 @@ snapshots:
       zod-from-json-schema-v3: zod-from-json-schema@0.0.5
       zod-to-json-schema: 3.25.2(zod@4.4.3)
 
-  '@mastra/server@1.51.0(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)':
+  '@mastra/server@1.51.0(@mastra/core@1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)':
     dependencies:
-      '@mastra/core': 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.22(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      '@mastra/core': 1.51.0(@bufbuild/protobuf@2.12.1)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(ai@7.0.28(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
       hono: 4.12.28
       zod: 4.4.3
 
@@ -25318,13 +25305,13 @@ snapshots:
 
   auto-bind@5.0.1: {}
 
-  autoprefixer@10.5.2(postcss@8.5.16):
+  autoprefixer@10.5.2(postcss@8.5.19):
     dependencies:
       browserslist: 4.28.5
       caniuse-lite: 1.0.30001803
       fraction.js: 5.3.4
       picocolors: 1.1.1
-      postcss: 8.5.16
+      postcss: 8.5.19
       postcss-value-parser: 4.2.0
 
   aws-ssl-profiles@1.1.2: {}
@@ -26616,9 +26603,9 @@ snapshots:
   esbuild-plugin-tailwindcss@2.2.0:
     dependencies:
       '@tailwindcss/postcss': 4.3.2
-      autoprefixer: 10.5.2(postcss@8.5.16)
-      postcss: 8.5.16
-      postcss-modules: 6.0.1(postcss@8.5.16)
+      autoprefixer: 10.5.2(postcss@8.5.19)
+      postcss: 8.5.19
+      postcss-modules: 6.0.1(postcss@8.5.19)
 
   esbuild@0.28.1:
     optionalDependencies:
@@ -28106,9 +28093,9 @@ snapshots:
     dependencies:
       safer-buffer: 2.1.2
 
-  icss-utils@5.1.0(postcss@8.5.16):
+  icss-utils@5.1.0(postcss@8.5.19):
     dependencies:
-      postcss: 8.5.16
+      postcss: 8.5.19
 
   ieee754@1.2.1: {}
 
@@ -28924,10 +28911,6 @@ snapshots:
   lru.min@1.1.4: {}
 
   lru_map@0.4.1: {}
-
-  lucide-react@1.23.0(react@19.2.7):
-    dependencies:
-      react: 19.2.7
 
   lucide-react@1.24.0(react@19.2.7):
     dependencies:
@@ -30544,37 +30527,37 @@ snapshots:
       path-data-parser: 0.1.0
       points-on-curve: 0.2.0
 
-  postcss-modules-extract-imports@3.1.0(postcss@8.5.16):
+  postcss-modules-extract-imports@3.1.0(postcss@8.5.19):
     dependencies:
-      postcss: 8.5.16
+      postcss: 8.5.19
 
-  postcss-modules-local-by-default@4.2.0(postcss@8.5.16):
+  postcss-modules-local-by-default@4.2.0(postcss@8.5.19):
     dependencies:
-      icss-utils: 5.1.0(postcss@8.5.16)
-      postcss: 8.5.16
+      icss-utils: 5.1.0(postcss@8.5.19)
+      postcss: 8.5.19
       postcss-selector-parser: 7.1.4
       postcss-value-parser: 4.2.0
 
-  postcss-modules-scope@3.2.1(postcss@8.5.16):
+  postcss-modules-scope@3.2.1(postcss@8.5.19):
     dependencies:
-      postcss: 8.5.16
+      postcss: 8.5.19
       postcss-selector-parser: 7.1.4
 
-  postcss-modules-values@4.0.0(postcss@8.5.16):
+  postcss-modules-values@4.0.0(postcss@8.5.19):
     dependencies:
-      icss-utils: 5.1.0(postcss@8.5.16)
-      postcss: 8.5.16
+      icss-utils: 5.1.0(postcss@8.5.19)
+      postcss: 8.5.19
 
-  postcss-modules@6.0.1(postcss@8.5.16):
+  postcss-modules@6.0.1(postcss@8.5.19):
     dependencies:
       generic-names: 4.0.0
-      icss-utils: 5.1.0(postcss@8.5.16)
+      icss-utils: 5.1.0(postcss@8.5.19)
       lodash.camelcase: 4.3.0
-      postcss: 8.5.16
-      postcss-modules-extract-imports: 3.1.0(postcss@8.5.16)
-      postcss-modules-local-by-default: 4.2.0(postcss@8.5.16)
-      postcss-modules-scope: 3.2.1(postcss@8.5.16)
-      postcss-modules-values: 4.0.0(postcss@8.5.16)
+      postcss: 8.5.19
+      postcss-modules-extract-imports: 3.1.0(postcss@8.5.19)
+      postcss-modules-local-by-default: 4.2.0(postcss@8.5.19)
+      postcss-modules-scope: 3.2.1(postcss@8.5.19)
+      postcss-modules-values: 4.0.0(postcss@8.5.19)
       string-hash: 1.1.3
 
   postcss-selector-parser@7.1.4:
@@ -30585,12 +30568,6 @@ snapshots:
   postcss-value-parser@4.2.0: {}
 
   postcss@8.4.31:
-    dependencies:
-      nanoid: 3.3.15
-      picocolors: 1.1.1
-      source-map-js: 1.2.1
-
-  postcss@8.5.16:
     dependencies:
       nanoid: 3.3.15
       picocolors: 1.1.1
@@ -30630,12 +30607,6 @@ snapshots:
       web-vitals: 5.3.0
     transitivePeerDependencies:
       - preact-render-to-string
-
-  posthog-node@5.40.0(rxjs@7.8.2):
-    dependencies:
-      '@posthog/core': 1.40.0
-    optionalDependencies:
-      rxjs: 7.8.2
 
   posthog-node@5.42.0(rxjs@7.8.2):
     dependencies:
@@ -32942,7 +32913,7 @@ snapshots:
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.5
-      postcss: 8.5.16
+      postcss: 8.5.19
       rolldown: 1.1.5
       tinyglobby: 0.2.17
     optionalDependencies:
