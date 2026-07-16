@@ -21,6 +21,7 @@ For streaming chat only, keep using the standard [AI SDK runtime](/docs/runtimes
 | [Persisted threads](/docs/integrations/frameworks/mastra/threads) | Add Mastra-backed thread navigation and history to either deployment pattern. |
 | [Semantic and working memory](/docs/integrations/frameworks/mastra/memory) | Search semantic recall and manage persistent user context through Mastra's client. |
 | [Durable workflows](/docs/integrations/frameworks/mastra/workflows) | Render suspended workflow steps and resume persisted runs after reload. |
+| [Migration](/docs/integrations/frameworks/mastra/migration) | Move from `useDataStreamRuntime` or a chat-only AI SDK runtime to the dedicated Mastra runtime. |
 
 Both chat patterns use the AI SDK protocol. `useMastraRuntime` composes that chat runtime with Mastra's thread APIs; `useMastraMemory` and `useMastraWorkflow` use Mastra's supported client methods directly beside the chat runtime.
 
@@ -71,5 +72,11 @@ Workflow runs remain a separate lifecycle so a suspended approval can be rendere
     title="Semantic and working memory"
     description="Search recall and manage persistent user context."
     href="/docs/integrations/frameworks/mastra/memory"
+  />
+  <Card
+    icon={<MastraIcon width={20} height={20} />}
+    title="Migration guide"
+    description="Adopt the dedicated runtime without replacing working adapters."
+    href="/docs/integrations/frameworks/mastra/migration"
   />
 </Cards>
