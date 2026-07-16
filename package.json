@@ -36,7 +36,7 @@
     "turbo": "^2.10.5",
     "typescript": "^7.0.2"
   },
-  "packageManager": "pnpm@11.13.0",
+  "packageManager": "pnpm@11.10.0",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,cjs,mjs,cts,mts,json,jsonc}": [
       "oxlint --fix --no-error-on-unmatched-pattern",
