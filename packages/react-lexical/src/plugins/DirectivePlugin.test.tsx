@@ -130,8 +130,13 @@ function modifySelection(
 
   const range = this.getRangeAt(0).cloneRange();
   if (alter === "move") {
-    const offset =
+    const max =
+      range.startContainer.nodeType === Node.TEXT_NODE
+        ? (range.startContainer as Text).length
+        : range.startContainer.childNodes.length;
+    const next =
       direction === "backward" ? range.startOffset - 1 : range.startOffset + 1;
+    const offset = Math.min(Math.max(next, 0), max);
     range.setStart(range.startContainer, offset);
     range.setEnd(range.startContainer, offset);
   } else if (direction === "backward") {
