@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/cloud-ai-sdk",
-  "version": "0.1.24",
+  "version": "0.1.25",
   "description": "Standalone Vercel AI SDK hooks backed by Assistant Cloud persistence",
   "keywords": [
     "assistant",
@@ -54,7 +54,7 @@
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "ai": "^7.0.28",
-    "assistant-stream": "^0.3.25",
+    "assistant-stream": "^0.3.26",
     "jsdom": "^29.1.1",
     "react": "^19.2.7",
     "vitest": "^4.1.10"

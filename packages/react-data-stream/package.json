@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-data-stream",
-  "version": "0.12.18",
+  "version": "0.12.19",
   "description": "Data stream adapter for assistant-ui",
   "keywords": [
     "data-stream",
@@ -33,9 +33,9 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^4.0.3",
-    "@assistant-ui/core": "^0.2.20",
+    "@assistant-ui/core": "^0.2.21",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.25"
+    "assistant-stream": "^0.3.26"
   },
   "peerDependencies": {
     "@types/react": "*",
