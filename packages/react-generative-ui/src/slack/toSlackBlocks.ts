@@ -1167,9 +1167,8 @@ export function toSlackBlocks(
   options?: ToSlackBlocksOptions,
 ): SlackBlocksResult {
   const surface = options?.surface === "modal" ? "modal" : "message";
-  const blockCap = surface === "modal" ? MODAL_BLOCK_CAP : MESSAGE_BLOCK_CAP;
   const context: ConversionContext = {
-    blockCap,
+    blockCap: surface === "modal" ? MODAL_BLOCK_CAP : MESSAGE_BLOCK_CAP,
     surface,
     warnings: [],
     markdownCharacters: 0,
@@ -1179,10 +1178,10 @@ export function toSlackBlocks(
   try {
     const { root } = normalizeSpec(node as never);
     const converted = convertSequence(root, context, 0);
-    if (converted.length <= blockCap) {
+    if (converted.length <= context.blockCap) {
       return { blocks: converted, warnings: context.warnings };
     }
-    const kept = converted.slice(0, blockCap - 1);
+    const kept = converted.slice(0, context.blockCap - 1);
     const omitted = converted.length - kept.length;
     warn(
       context,
