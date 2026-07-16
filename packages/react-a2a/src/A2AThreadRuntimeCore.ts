@@ -4,11 +4,13 @@ import { generateId, fromThreadMessageLike } from "@assistant-ui/core";
 import type {
   AppendMessage,
   AssistantRuntime,
+  ExportedMessageRepository,
   MessageStatus,
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
+import { MessageRepository } from "@assistant-ui/core/internal";
 import type { A2AClient } from "./A2AClient";
 import type {
   A2AArtifact,
@@ -54,7 +56,8 @@ export class A2AThreadRuntimeCore {
   private readonly notifyUpdate: () => void;
 
   private runtime: AssistantRuntime | undefined;
-  private messages: ThreadMessage[] = [];
+  private readonly repository = new MessageRepository();
+  private exportedRepository: ExportedMessageRepository | undefined;
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
   private pendingError: Error | null = null;
@@ -109,7 +112,76 @@ export class A2AThreadRuntimeCore {
   }
 
   getMessages(): readonly ThreadMessage[] {
-    return this.messages;
+    return this.repository.getMessages();
+  }
+
+  getMessageRepository(): ExportedMessageRepository {
+    this.exportedRepository ??= this.repository.export();
+    return this.exportedRepository;
+  }
+
+  private tryGetMessage(messageId: string) {
+    try {
+      return this.repository.getMessage(messageId);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private tryGetMessages(
+    messageId: string,
+  ): readonly ThreadMessage[] | undefined {
+    try {
+      return this.repository.getMessages(messageId);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private hasMessage(messageId: string): boolean {
+    return this.tryGetMessage(messageId) !== undefined;
+  }
+
+  private addOrUpdateMessage(
+    parentId: string | null,
+    message: ThreadMessage,
+  ): void {
+    this.repository.addOrUpdateMessage(parentId, message);
+    this.exportedRepository = undefined;
+  }
+
+  private tryDeleteMessage(messageId: string): boolean {
+    if (!this.hasMessage(messageId)) return false;
+    this.repository.deleteMessage(messageId);
+    this.exportedRepository = undefined;
+    return true;
+  }
+
+  private switchToBranch(messageId: string): void {
+    this.repository.switchToBranch(messageId);
+    this.exportedRepository = undefined;
+  }
+
+  private resetRepositoryHead(messageId: string | null): void {
+    this.repository.resetHead(messageId);
+    this.exportedRepository = undefined;
+  }
+
+  private clearRepository(): void {
+    this.repository.clear();
+    this.exportedRepository = undefined;
+  }
+
+  private updateMessage(
+    messageId: string,
+    updater: (message: ThreadMessage) => ThreadMessage,
+  ): boolean {
+    const item = this.tryGetMessage(messageId);
+    if (!item) return false;
+    const message = updater(item.message);
+    if (message === item.message) return false;
+    this.addOrUpdateMessage(item.parentId, message);
+    return true;
   }
 
   getTask(): A2ATask | undefined {
@@ -146,8 +218,7 @@ export class A2AThreadRuntimeCore {
           this.agentCardValue = agentCard;
         }
         if (repo) {
-          const messages = repo.messages.map((item) => item.message);
-          this.applyExternalMessages(messages);
+          this.applyExternalMessageRepository(repo);
         }
       })
       .catch((error) => {
@@ -166,21 +237,23 @@ export class A2AThreadRuntimeCore {
 
   async append(message: AppendMessage): Promise<void> {
     const startRun = message.startRun ?? message.role === "user";
-    if (message.sourceId) {
-      this.messages = this.messages.filter(
-        (entry) => entry.id !== message.sourceId,
-      );
-    }
-    this.resetHead(message.parentId);
+    if (message.sourceId) this.tryDeleteMessage(message.sourceId);
 
     const threadMessage = fromThreadMessageLike(
       message as any,
       generateId(),
       FALLBACK_USER_STATUS,
     );
-    this.messages = [...this.messages, threadMessage];
+    const parentId =
+      message.parentId === null
+        ? null
+        : message.parentId && this.hasMessage(message.parentId)
+          ? message.parentId
+          : this.repository.headId;
+    this.addOrUpdateMessage(parentId, threadMessage);
+    this.switchToBranch(threadMessage.id);
     this.notifyUpdate();
-    this.recordHistoryEntry(message.parentId ?? null, threadMessage);
+    this.recordHistoryEntry(parentId, threadMessage);
 
     if (!startRun) return;
     await this.startRun(threadMessage);
@@ -194,13 +267,13 @@ export class A2AThreadRuntimeCore {
     parentId: string | null,
     _config: { runConfig?: Record<string, unknown> } = {},
   ): Promise<void> {
-    this.resetHead(parentId);
-    this.notifyUpdate();
-
-    // Find the last user message to re-run
-    for (let i = this.messages.length - 1; i >= 0; i--) {
-      if (this.messages[i]!.role === "user") {
-        await this.startRun(this.messages[i]!);
+    const messages =
+      parentId === null
+        ? []
+        : (this.tryGetMessages(parentId) ?? this.getMessages());
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i]!.role === "user") {
+        await this.startRun(messages[i]!);
         return;
       }
     }
@@ -225,12 +298,115 @@ export class A2AThreadRuntimeCore {
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
     this.assistantHistoryParents.clear();
-    this.messages = [...messages];
+
+    if (messages.length === 0) {
+      this.clearRepository();
+    } else {
+      let expectedParentId: string | null = null;
+      let lastAppliedId: string | null = null;
+      let hardReplace = false;
+      const seen = new Set<string>();
+
+      for (const message of messages) {
+        if (seen.has(message.id)) continue;
+        seen.add(message.id);
+        const existing = this.tryGetMessage(message.id);
+        if (existing && existing.parentId !== expectedParentId) {
+          hardReplace = true;
+          break;
+        }
+        this.addOrUpdateMessage(expectedParentId, message);
+        expectedParentId = message.id;
+        lastAppliedId = message.id;
+      }
+
+      if (hardReplace) {
+        this.clearRepository();
+        expectedParentId = null;
+        lastAppliedId = null;
+        seen.clear();
+        for (const message of messages) {
+          if (seen.has(message.id)) continue;
+          seen.add(message.id);
+          this.addOrUpdateMessage(expectedParentId, message);
+          expectedParentId = message.id;
+          lastAppliedId = message.id;
+        }
+      }
+
+      this.resetRepositoryHead(lastAppliedId);
+    }
+
     this.recordedHistoryIds.clear();
-    for (const message of this.messages) {
+    for (const { message } of this.getMessageRepository().messages) {
       this.recordedHistoryIds.add(message.id);
     }
-    // Reset task-specific state to prevent leaking into new thread
+    this.currentTask = undefined;
+    this.currentArtifacts = [];
+    this.notifyUpdate();
+  }
+
+  private applyExternalMessageRepository(
+    loaded: ExportedMessageRepository,
+  ): void {
+    const headId = loaded.headId ?? loaded.messages.at(-1)?.message.id ?? null;
+    const ids = new Set<string>();
+    let degenerate = false;
+    for (const { message } of loaded.messages) {
+      if (ids.has(message.id)) {
+        degenerate = true;
+        break;
+      }
+      ids.add(message.id);
+    }
+    if (headId !== null && !ids.has(headId)) degenerate = true;
+
+    if (!degenerate) {
+      this.clearRepository();
+      let pending = [...loaded.messages];
+      const importedIds = new Set<string>();
+
+      while (pending.length > 0) {
+        const unresolved: typeof pending = [];
+        let progressed = false;
+        for (const item of pending) {
+          if (item.parentId !== null && !importedIds.has(item.parentId)) {
+            unresolved.push(item);
+            continue;
+          }
+          this.addOrUpdateMessage(item.parentId, item.message);
+          importedIds.add(item.message.id);
+          progressed = true;
+        }
+        if (!progressed) {
+          degenerate = true;
+          break;
+        }
+        pending = unresolved;
+      }
+    }
+
+    if (degenerate) {
+      this.clearRepository();
+      let previousId: string | null = null;
+      for (const { message } of loaded.messages) {
+        const existing = this.tryGetMessage(message.id);
+        this.addOrUpdateMessage(
+          existing ? existing.parentId : previousId,
+          message,
+        );
+        previousId = message.id;
+      }
+      this.resetRepositoryHead(previousId);
+    } else {
+      this.resetRepositoryHead(headId);
+    }
+
+    this.assistantHistoryParents.clear();
+    this.recordedHistoryIds.clear();
+    for (const { message } of loaded.messages) {
+      this.recordedHistoryIds.add(message.id);
+    }
     this.currentTask = undefined;
     this.currentArtifacts = [];
     this.notifyUpdate();
@@ -258,7 +434,7 @@ export class A2AThreadRuntimeCore {
     this.currentArtifacts = [];
 
     const assistantParentId = userThreadMessage.id;
-    const assistantId = this.insertAssistantPlaceholder();
+    const assistantId = this.insertAssistantPlaceholder(assistantParentId);
     this.markPendingAssistantHistory(assistantId, assistantParentId);
 
     const abortController = new AbortController();
@@ -513,7 +689,7 @@ export class A2AThreadRuntimeCore {
     return a2aMsg;
   }
 
-  private insertAssistantPlaceholder(): string {
+  private insertAssistantPlaceholder(parentId: string): string {
     const id = generateId();
     const assistant: ThreadAssistantMessage = {
       id,
@@ -529,7 +705,8 @@ export class A2AThreadRuntimeCore {
         custom: {},
       },
     };
-    this.messages = [...this.messages, assistant];
+    this.addOrUpdateMessage(parentId, assistant);
+    this.switchToBranch(id);
     this.notifyUpdate();
     return id;
   }
@@ -538,7 +715,7 @@ export class A2AThreadRuntimeCore {
     messageId: string,
     content: ThreadAssistantMessage["content"],
   ) {
-    this.messages = this.messages.map((message) => {
+    this.updateMessage(messageId, (message) => {
       if (message.id !== messageId || message.role !== "assistant")
         return message;
       return { ...message, content };
@@ -546,11 +723,9 @@ export class A2AThreadRuntimeCore {
   }
 
   private updateAssistantStatus(messageId: string, status: MessageStatus) {
-    let touched = false;
-    this.messages = this.messages.map((message) => {
+    const touched = this.updateMessage(messageId, (message) => {
       if (message.id !== messageId || message.role !== "assistant")
         return message;
-      touched = true;
       return { ...message, status };
     });
     if (touched) {
@@ -562,9 +737,8 @@ export class A2AThreadRuntimeCore {
   }
 
   private getAssistantStatus(messageId: string): MessageStatus | undefined {
-    const msg = this.messages.find(
-      (m) => m.id === messageId && m.role === "assistant",
-    );
+    const msg = this.tryGetMessage(messageId)?.message;
+    if (msg?.role !== "assistant") return undefined;
     return msg?.status;
   }
 
@@ -580,18 +754,6 @@ export class A2AThreadRuntimeCore {
       this.abortController = null;
     }
     this.setRunning(false);
-  }
-
-  private resetHead(parentId: string | null | undefined) {
-    if (!parentId) {
-      if (this.messages.length) {
-        this.messages = [];
-      }
-      return;
-    }
-    const idx = this.messages.findIndex((message) => message.id === parentId);
-    if (idx === -1) return;
-    this.messages = this.messages.slice(0, idx + 1);
   }
 
   // --- History persistence ---
@@ -612,7 +774,7 @@ export class A2AThreadRuntimeCore {
     if (!this.history) return;
     const parentId = this.assistantHistoryParents.get(messageId);
     if (parentId === undefined) return;
-    const message = this.messages.find((m) => m.id === messageId);
+    const message = this.tryGetMessage(messageId)?.message;
     if (!message || message.role !== "assistant") return;
     if (
       message.status?.type !== "complete" &&

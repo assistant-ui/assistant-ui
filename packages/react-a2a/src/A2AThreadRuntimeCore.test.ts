@@ -40,6 +40,57 @@ function createUserAppendMessage(text: string): AppendMessage {
   } as unknown as AppendMessage;
 }
 
+function createHistoryMessage(
+  id: string,
+  role: "user" | "assistant",
+  text: string,
+): ThreadMessage {
+  return {
+    id,
+    role,
+    createdAt: new Date(),
+    content: [{ type: "text", text }],
+    status: { type: "complete", reason: "stop" },
+    ...(role === "assistant"
+      ? {
+          metadata: {
+            unstable_state: null,
+            unstable_annotations: [],
+            unstable_data: [],
+            steps: [],
+            custom: {},
+          },
+        }
+      : {}),
+  } as ThreadMessage;
+}
+
+function createBranchedHistory() {
+  const user = createHistoryMessage("user", "user", "Question");
+  const firstAssistant = createHistoryMessage(
+    "assistant-a",
+    "assistant",
+    "First answer",
+  );
+  const secondAssistant = createHistoryMessage(
+    "assistant-b",
+    "assistant",
+    "Second answer",
+  );
+  const history = {
+    load: vi.fn().mockResolvedValue({
+      headId: secondAssistant.id,
+      messages: [
+        { parentId: null, message: user },
+        { parentId: user.id, message: firstAssistant },
+        { parentId: user.id, message: secondAssistant },
+      ],
+    }),
+    append: vi.fn().mockResolvedValue(undefined),
+  };
+  return { user, firstAssistant, secondAssistant, history };
+}
+
 function statusUpdateEvent(state: string, text?: string): A2AStreamEvent {
   return {
     type: "statusUpdate",
@@ -116,6 +167,83 @@ describe("A2AThreadRuntimeCore", () => {
     it("starts with no artifacts", () => {
       const core = createCore();
       expect(core.getArtifacts()).toEqual([]);
+    });
+  });
+
+  describe("history loading", () => {
+    it("preserves sibling branches and selects the persisted head", async () => {
+      const { user, firstAssistant, secondAssistant, history } =
+        createBranchedHistory();
+      const core = createCore({}, { history });
+
+      await core.__internal_load();
+
+      expect(core.getMessages().map((message) => message.id)).toEqual([
+        user.id,
+        secondAssistant.id,
+      ]);
+      expect(
+        core.getMessageRepository().messages.map(({ message, parentId }) => ({
+          id: message.id,
+          parentId,
+        })),
+      ).toEqual([
+        { id: user.id, parentId: null },
+        { id: firstAssistant.id, parentId: user.id },
+        { id: secondAssistant.id, parentId: user.id },
+      ]);
+    });
+
+    it("keeps hidden siblings when the visible branch changes", async () => {
+      const { user, firstAssistant, secondAssistant, history } =
+        createBranchedHistory();
+      const core = createCore({}, { history });
+
+      await core.__internal_load();
+      core.applyExternalMessages([user, firstAssistant]);
+
+      expect(core.getMessages().map((message) => message.id)).toEqual([
+        user.id,
+        firstAssistant.id,
+      ]);
+      expect(core.getMessageRepository().headId).toBe(firstAssistant.id);
+      expect(
+        core.getMessageRepository().messages.map(({ message }) => message.id),
+      ).toEqual([user.id, firstAssistant.id, secondAssistant.id]);
+    });
+
+    it("adds regenerated responses without dropping loaded siblings", async () => {
+      const { user, firstAssistant, secondAssistant, history } =
+        createBranchedHistory();
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield statusUpdateEvent("completed", "Regenerated answer");
+          }),
+        },
+        { history },
+      );
+
+      await core.__internal_load();
+      await core.reload(user.id);
+
+      const visibleMessages = core.getMessages();
+      const regenerated = visibleMessages[1]!;
+      expect(visibleMessages.map((message) => message.id)).toEqual([
+        user.id,
+        regenerated.id,
+      ]);
+      expect(regenerated.content).toEqual([
+        { type: "text", text: "Regenerated answer" },
+      ]);
+      expect(
+        core.getMessageRepository().messages.map(({ message }) => message.id),
+      ).toEqual([
+        user.id,
+        firstAssistant.id,
+        secondAssistant.id,
+        regenerated.id,
+      ]);
     });
   });
 
