@@ -231,6 +231,11 @@ type FileMessagePart = {
   readonly parentId?: string;
 };
 
+interface FromSlackBlocksResult {
+  readonly nodes: UIElement[];
+  readonly warnings: SlackConversionWarning[];
+}
+
 type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "frontend";
   description?: string | undefined;
@@ -1256,6 +1261,8 @@ declare function defineGenerativeComponents(_library: GenerativeUILibrary): Gene
 
 declare const emptyActionRegistry: ActionRegistry;
 
+declare function fromSlackBlocks(blocks: unknown): FromSlackBlocksResult;
+
 declare function generativeUIToJSX(node: unknown, options?: GenerativeUIToJSXOptions): string;
 
 declare global {
@@ -1292,7 +1299,7 @@ declare function normalizeUINode(node: unknown, partialPath?: readonly string[] 
 declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
 
 declare namespace entry_slack_exports {
-  export { SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, ToSlackBlocksOptions, decodeBlockAction, toSlackBlocks };
+  export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
 }
 
 declare function toSlackBlocks(node: unknown, options?: ToSlackBlocksOptions): SlackBlocksResult;
