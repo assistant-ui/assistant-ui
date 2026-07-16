@@ -1099,7 +1099,7 @@ function convertSequence(
   }
   const nodes = Array.isArray(node) ? node : [node];
   const blocks: SlackBlock[] = [];
-  for (let index = 0; index < nodes.length; ) {
+  for (let index = 0; index < nodes.length;) {
     const current = nodes[index];
     if (current === undefined || current === null) {
       index += 1;
