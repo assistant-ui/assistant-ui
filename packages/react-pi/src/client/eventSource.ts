@@ -142,6 +142,7 @@ const validateEventStreamContentType = (response: Response): void => {
     const received = contentType
       ? `"${contentType}"`
       : "no Content-Type header";
+    void response.body?.cancel().catch(() => undefined);
     throw new Error(
       `Expected Pi event stream Content-Type "text/event-stream", received ${received}`,
     );

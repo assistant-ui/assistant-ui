@@ -185,10 +185,19 @@ describe("openPiEventStream", () => {
 
   it("reconnects after an invalid response content type", async () => {
     let calls = 0;
+    const cancelBody = vi.fn();
     const fetchImpl = (async () => {
       calls += 1;
       if (calls === 1) {
-        return streamResponse(["<html>Please sign in</html>"], "text/html");
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(encoder.encode("<html>Please sign in</html>"));
+            },
+            cancel: cancelBody,
+          }),
+          { status: 200, headers: { "content-type": "text/html" } },
+        );
       }
       return sseResponse([
         sseFrame({ type: "agent_start", threadId: "t1", seq: 1 }),
@@ -210,6 +219,7 @@ describe("openPiEventStream", () => {
     });
 
     expect(calls).toBe(2);
+    expect(cancelBody).toHaveBeenCalledOnce();
     expect(errors).toEqual([
       new Error(
         'Expected Pi event stream Content-Type "text/event-stream", received "text/html"',
