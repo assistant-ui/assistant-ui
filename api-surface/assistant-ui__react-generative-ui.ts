@@ -1020,6 +1020,8 @@ interface TeamsInputDate {
   readonly id: string;
   readonly label?: string;
   readonly value?: string;
+  readonly min?: string;
+  readonly max?: string;
   readonly separator?: true;
   readonly spacing?: "large";
 }
