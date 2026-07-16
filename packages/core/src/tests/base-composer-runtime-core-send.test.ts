@@ -21,8 +21,7 @@ const makeAdapter = (
   ...overrides,
 });
 
-const makeComposer = (adapter?: AttachmentAdapter) => {
-  const append = vi.fn();
+const makeComposer = (adapter?: AttachmentAdapter, append = vi.fn()) => {
   const runtime = {
     append,
     cancelRun: vi.fn(),
@@ -141,5 +140,47 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(append.mock.calls[0]![0].content).toEqual([
       { type: "text", text: "hello" },
     ]);
+  });
+
+  it("observes asynchronous send tasks without waiting for them", async () => {
+    const sendTask = new Promise<void>(() => {});
+    const catchSpy = vi.spyOn(sendTask, "catch");
+    const { composer } = makeComposer();
+    vi.spyOn(composer, "handleSend").mockReturnValue(sendTask);
+
+    composer.setText("hello");
+    await expect(composer.send()).resolves.toBeUndefined();
+
+    expect(catchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("tracks the append task returned by the thread runtime", async () => {
+    let resolveAppend!: () => void;
+    const appendTask = new Promise<void>((resolve) => {
+      resolveAppend = resolve;
+    });
+    const { composer } = makeComposer(
+      undefined,
+      vi.fn(() => appendTask),
+    );
+
+    const sendTask = composer.handleSend({
+      createdAt: new Date(),
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+      attachments: [],
+      runConfig: {},
+      metadata: { custom: {} },
+    });
+    let settled = false;
+    void sendTask.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+
+    expect(settled).toBe(false);
+
+    resolveAppend();
+    await sendTask;
   });
 });
