@@ -55,6 +55,7 @@ export class AssistantChatTransport<
 
         const optionsEx = {
           ...options,
+          id,
           body: {
             callSettings: context?.callSettings,
             system: context?.system,
