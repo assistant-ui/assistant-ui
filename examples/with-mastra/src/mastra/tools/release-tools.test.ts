@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assessRolloutRisk, draftReleaseBrief } from "./release-tools";
+import { assessRolloutRisk, draftReleaseBrief } from "./release-tools.js";
 
 describe("release tools", () => {
   it("builds a release brief from validated tool input", async () => {
