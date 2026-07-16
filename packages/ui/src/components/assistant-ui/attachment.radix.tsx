@@ -189,6 +189,17 @@ const AttachmentUI: FC = () => {
               )}
               role="button"
               tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  e.currentTarget.click();
+                } else if (e.key === " ") {
+                  e.preventDefault();
+                }
+              }}
+              onKeyUp={(e) => {
+                if (e.key === " ") e.currentTarget.click();
+              }}
               aria-label={`${typeLabel} attachment${
                 isError ? ", upload failed" : isUploading ? ", uploading" : ""
               }`}
