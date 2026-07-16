@@ -231,6 +231,17 @@ describe("createAdkStream - proxy mode", () => {
 // ── Direct mode ──
 
 describe("createAdkStream - direct mode", () => {
+  it("rejects direct mode with an empty appName", () => {
+    expect(() =>
+      createAdkStream({
+        api: "http://localhost:8000",
+        appName: "",
+        userId: "user-1",
+      }),
+    ).toThrow('createAdkStream direct mode requires a non-empty "appName".');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["missing", undefined],
     ["empty", ""],
