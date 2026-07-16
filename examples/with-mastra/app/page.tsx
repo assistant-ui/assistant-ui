@@ -4,25 +4,73 @@ import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { Thread } from "@/components/assistant-ui/thread";
 import { WorkflowPanel } from "@/components/workflow-panel";
 import { AuiProvider, Suggestions, useAui } from "@assistant-ui/react";
-import { DatabaseIcon, GitBranchIcon, SparklesIcon } from "lucide-react";
-import { MyRuntimeProvider } from "./MyRuntimeProvider";
+import {
+  DatabaseIcon,
+  FileTextIcon,
+  GitBranchIcon,
+  ShieldCheckIcon,
+  SparklesIcon,
+  WrenchIcon,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  type MastraExampleAgentId,
+  MyRuntimeProvider,
+} from "./MyRuntimeProvider";
 
-function ChatSurface() {
-  const aui = useAui({
-    suggestions: Suggestions([
+const agents = {
+  releaseAssistant: {
+    name: "Release Assistant",
+    eyebrow: "Release communications",
+    icon: FileTextIcon,
+    suggestions: [
       {
         title: "Draft release notes",
-        label: "from a short change summary",
+        label: "with the release brief tool",
         prompt:
-          "Draft concise release notes for a new Mastra integration with persistent threads and workflow approvals.",
+          "Use the draft release brief tool for a new Mastra integration aimed at developers, then write concise release notes.",
       },
       {
-        title: "Review rollout risk",
-        label: "for a framework adapter",
+        title: "Write an announcement",
+        label: "for persisted threads",
         prompt:
-          "Give me a practical rollout checklist for a new framework adapter package.",
+          "Use the draft release brief tool to structure an end-user announcement for persisted conversation threads.",
       },
-    ]),
+    ],
+  },
+  riskAnalyst: {
+    name: "Risk Analyst",
+    eyebrow: "Rollout assurance",
+    icon: ShieldCheckIcon,
+    suggestions: [
+      {
+        title: "Assess rollout risk",
+        label: "for a persistence change",
+        prompt:
+          "Use the rollout risk tool to assess a persistence migration with no tested rollback path.",
+      },
+      {
+        title: "Define release gates",
+        label: "for a reversible UI change",
+        prompt:
+          "Use the rollout risk tool to define release gates for a UI-only change with a tested rollback.",
+      },
+    ],
+  },
+} as const;
+
+const agentStorageKey = "assistant-ui-mastra-agent-id";
+const agentIds: readonly MastraExampleAgentId[] = [
+  "releaseAssistant",
+  "riskAnalyst",
+];
+
+const isAgentId = (value: string | null): value is MastraExampleAgentId =>
+  value === "releaseAssistant" || value === "riskAnalyst";
+
+function ChatSurface({ agentId }: { agentId: MastraExampleAgentId }) {
+  const aui = useAui({
+    suggestions: Suggestions([...agents[agentId].suggestions]),
   });
 
   return (
@@ -32,7 +80,44 @@ function ChatSurface() {
   );
 }
 
-function Workbench() {
+function AgentSelector({
+  agentId,
+  onAgentChange,
+}: {
+  agentId: MastraExampleAgentId;
+  onAgentChange: (agentId: MastraExampleAgentId) => void;
+}) {
+  return (
+    <div className="agent-selector" role="tablist" aria-label="Mastra agent">
+      {agentIds.map((id) => {
+        const agent = agents[id];
+        const Icon = agent.icon;
+        return (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={agentId === id}
+            onClick={() => onAgentChange(id)}
+          >
+            <Icon className="size-3.5" />
+            {agent.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function Workbench({
+  agentId,
+  onAgentChange,
+}: {
+  agentId: MastraExampleAgentId;
+  onAgentChange: (agentId: MastraExampleAgentId) => void;
+}) {
+  const agent = agents[agentId];
+
   return (
     <main className="workbench">
       <aside className="thread-rail" aria-label="Mastra memory threads">
@@ -56,12 +141,13 @@ function Workbench() {
         </div>
       </aside>
 
-      <section className="chat-stage" aria-label="Release assistant chat">
+      <section className="chat-stage" aria-label={`${agent.name} chat`}>
         <header className="chat-stage__header">
           <div>
-            <p className="eyebrow">Release operations</p>
-            <h1>Release Assistant</h1>
+            <p className="eyebrow">{agent.eyebrow}</p>
+            <h1>{agent.name}</h1>
           </div>
+          <AgentSelector agentId={agentId} onAgentChange={onAgentChange} />
           <div className="capability-list" aria-label="Enabled features">
             <span>
               <SparklesIcon className="size-3.5" /> AI SDK stream
@@ -69,10 +155,13 @@ function Workbench() {
             <span>
               <GitBranchIcon className="size-3.5" /> Mastra memory
             </span>
+            <span>
+              <WrenchIcon className="size-3.5" /> Typed tools
+            </span>
           </div>
         </header>
         <div className="chat-stage__body">
-          <ChatSurface />
+          <ChatSurface agentId={agentId} />
         </div>
       </section>
 
@@ -82,9 +171,20 @@ function Workbench() {
 }
 
 export default function Home() {
+  const [agentId, setAgentId] =
+    useState<MastraExampleAgentId>("releaseAssistant");
+  useEffect(() => {
+    const stored = window.localStorage.getItem(agentStorageKey);
+    if (isAgentId(stored)) setAgentId(stored);
+  }, []);
+  const handleAgentChange = useCallback((nextAgentId: MastraExampleAgentId) => {
+    setAgentId(nextAgentId);
+    window.localStorage.setItem(agentStorageKey, nextAgentId);
+  }, []);
+
   return (
-    <MyRuntimeProvider>
-      <Workbench />
+    <MyRuntimeProvider agentId={agentId}>
+      <Workbench agentId={agentId} onAgentChange={handleAgentChange} />
     </MyRuntimeProvider>
   );
 }

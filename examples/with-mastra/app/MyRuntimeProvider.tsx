@@ -9,6 +9,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -17,10 +18,22 @@ export const mastraUrl =
 
 export const mastraClient = new MastraClient({ baseUrl: mastraUrl });
 
-const transportOptions = { api: `${mastraUrl}/chat` };
-const threadStorageKey = "assistant-ui-mastra-thread-id";
+export type MastraExampleAgentId = "releaseAssistant" | "riskAnalyst";
+
+const threadStorageKey = (agentId: MastraExampleAgentId) =>
+  `assistant-ui-mastra-thread-id:${agentId}`;
 const resourceStorageKey = "assistant-ui-mastra-resource-id";
 const ResourceIdContext = createContext<string | null>(null);
+
+const readThreadIds = () => {
+  if (typeof window === "undefined") return {};
+  return Object.fromEntries(
+    (["releaseAssistant", "riskAnalyst"] as const).flatMap((agentId) => {
+      const threadId = window.localStorage.getItem(threadStorageKey(agentId));
+      return threadId ? [[agentId, threadId]] : [];
+    }),
+  ) as Partial<Record<MastraExampleAgentId, string>>;
+};
 
 export const useMastraResourceId = () => {
   const resourceId = useContext(ResourceIdContext);
@@ -32,42 +45,53 @@ export const useMastraResourceId = () => {
   return resourceId;
 };
 
-function MastraRuntimeProvider({
+function AgentRuntimeProvider({
+  agentId,
   children,
   resourceId,
-}: PropsWithChildren<{ resourceId: string }>) {
-  const [threadId, setThreadId] = useState<string | undefined>(() => {
-    return window.localStorage.getItem(threadStorageKey) ?? undefined;
-  });
+}: PropsWithChildren<{
+  agentId: MastraExampleAgentId;
+  resourceId: string;
+}>) {
+  const [threadIds, setThreadIds] =
+    useState<Partial<Record<MastraExampleAgentId, string>>>(readThreadIds);
+  const threadId = threadIds[agentId];
   const handleThreadIdChange = useCallback(
     (nextThreadId: string | undefined) => {
-      setThreadId(nextThreadId);
+      setThreadIds((current) => ({ ...current, [agentId]: nextThreadId }));
       if (nextThreadId) {
-        window.localStorage.setItem(threadStorageKey, nextThreadId);
+        window.localStorage.setItem(threadStorageKey(agentId), nextThreadId);
       } else {
-        window.localStorage.removeItem(threadStorageKey);
+        window.localStorage.removeItem(threadStorageKey(agentId));
       }
     },
-    [],
+    [agentId],
+  );
+  const transportOptions = useMemo(
+    () => ({ api: `${mastraUrl}/chat/${agentId}` }),
+    [agentId],
   );
 
   const runtime = useMastraRuntime({
     client: mastraClient,
-    agentId: "releaseAssistant",
-    resourceId,
+    agentId,
+    resourceId: `${resourceId}:${agentId}`,
     threadId,
     onThreadIdChange: handleThreadIdChange,
     transportOptions,
   });
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AssistantRuntimeProvider key={agentId} runtime={runtime}>
       {children}
     </AssistantRuntimeProvider>
   );
 }
 
-export function MyRuntimeProvider({ children }: PropsWithChildren) {
+export function MyRuntimeProvider({
+  agentId,
+  children,
+}: PropsWithChildren<{ agentId: MastraExampleAgentId }>) {
   const [resourceId, setResourceId] = useState<string>();
   useEffect(() => {
     const stored = window.localStorage.getItem(resourceStorageKey);
@@ -80,9 +104,9 @@ export function MyRuntimeProvider({ children }: PropsWithChildren) {
 
   return (
     <ResourceIdContext.Provider value={resourceId}>
-      <MastraRuntimeProvider resourceId={resourceId}>
+      <AgentRuntimeProvider agentId={agentId} resourceId={resourceId}>
         {children}
-      </MastraRuntimeProvider>
+      </AgentRuntimeProvider>
     </ResourceIdContext.Provider>
   );
 }
