@@ -7,7 +7,8 @@ This example runs assistant-ui against a local Mastra server. It demonstrates:
 - a durable workflow with two human approval checkpoints
 - workflow run restoration after a browser reload
 
-Create `examples/with-mastra/.env.local` from `.env.example`, then run:
+Create `examples/with-mastra/.env.local` from `.env.example`, replace the
+placeholder `OPENAI_API_KEY`, then run:
 
 ```bash
 pnpm --filter with-mastra dev

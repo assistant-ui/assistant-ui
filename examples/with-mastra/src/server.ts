@@ -8,6 +8,9 @@ config({ path: [".env.local", ".env"] });
 const { mastra } = await import("./mastra/index.js");
 
 const port = Number(process.env.MASTRA_PORT ?? 4111);
+if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+  throw new Error("MASTRA_PORT must be an integer between 1 and 65535.");
+}
 const app = new Hono();
 
 app.use(
