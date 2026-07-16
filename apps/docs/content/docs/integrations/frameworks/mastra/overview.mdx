@@ -33,6 +33,10 @@ When persistence is enabled, `@assistant-ui/react-mastra` adds a remote thread-l
 
 Workflow runs remain a separate lifecycle so a suspended approval can be rendered and resumed without coupling it to a chat message.
 
+## Complete example
+
+The [`with-mastra` example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-mastra) runs a Next.js frontend and the official Mastra Hono server together. It includes LibSQL thread persistence, selected-thread restoration, a two-checkpoint workflow, workflow reconnect after reload, and responsive thread and workflow controls.
+
 ## Requirements
 
 - A Next.js project, or another framework that can run AI SDK route handlers.

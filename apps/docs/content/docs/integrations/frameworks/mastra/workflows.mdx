@@ -104,4 +104,6 @@ The hook exposes `start`, `resume`, `refresh`, and `cancel`. Render from `state.
 
 Workflow IDs and run IDs are identifiers, not authorization. Authenticate every workflow endpoint, derive or validate `resourceId` from the caller, and verify that the caller owns a run before reading, resuming, or cancelling it. Do not expose provider keys to the browser.
 
+The [`with-mastra` example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-mastra) demonstrates two consecutive suspensions, run restoration after reload, resume, cancel, and final result rendering.
+
 See the [`@assistant-ui/react-mastra` API reference](/docs/api-reference/integrations/react-mastra) for the complete hook contract.
