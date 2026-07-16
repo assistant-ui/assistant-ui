@@ -128,6 +128,34 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
       "text",
     ]);
   });
+
+  it.each([
+    ["false", false],
+    ["zero", 0],
+    ["an empty string", ""],
+    ["null", null],
+  ])("resumes when the tool result is %s", async (_label, result) => {
+    const { thread, runs } = createApprovalThread(toolCallResult("send_email"));
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result,
+      isError: false,
+    });
+    await flush();
+
+    expect(runs).toHaveLength(2);
+    const toolCall = runs[1]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(toolCall?.result).toEqual(result);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
 });
 
 describe("LocalThreadRuntimeCore tool approvals", () => {
