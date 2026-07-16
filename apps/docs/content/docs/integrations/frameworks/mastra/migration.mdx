@@ -19,7 +19,13 @@ Both layouts must return an AI SDK UI message stream. Do not point the new runti
 
 Install the integration and Mastra client. Keep `@assistant-ui/react-ai-sdk`; `useMastraRuntime` builds on it.
 
-<InstallCommand npm={["@assistant-ui/react-mastra@latest", "@mastra/client-js@latest"]} />
+<InstallCommand
+  npm={[
+    "@assistant-ui/react-mastra@latest",
+    "@mastra/client-js@latest",
+    "@mastra/ai-sdk@latest",
+  ]}
+/>
 
 Replace a generic data-stream runtime:
 
@@ -45,7 +51,10 @@ const baseUrl = "http://localhost:4111";
 const client = new MastraClient({ baseUrl });
 const storageKey = "selected-mastra-thread";
 
-export function RuntimeProvider({ children }: PropsWithChildren) {
+export function RuntimeProvider({
+  children,
+  resourceId,
+}: PropsWithChildren<{ resourceId: string }>) {
   const [threadId, setThreadId] = useState<string | undefined>(() => {
     if (typeof window === "undefined") return undefined;
     return window.localStorage.getItem(storageKey) ?? undefined;
@@ -59,7 +68,7 @@ export function RuntimeProvider({ children }: PropsWithChildren) {
   const runtime = useMastraRuntime({
     client,
     agentId: "releaseAssistant",
-    resourceId: "authenticated-user-id",
+    resourceId,
     threadId,
     onThreadIdChange,
     transportOptions: {
@@ -75,7 +84,7 @@ export function RuntimeProvider({ children }: PropsWithChildren) {
 }
 ```
 
-`resourceId` identifies the authenticated account or tenant. `threadId` identifies one conversation and must be updated through `onThreadIdChange`. Authorize both values on the server; local storage is selection state, not an access-control boundary.
+Pass `resourceId` from the authenticated server session so every account or tenant has its own value. `threadId` identifies one conversation and must be updated through `onThreadIdChange`. Authorize both values on the server; local storage is selection state, not an access-control boundary.
 
 ## Keep existing UI adapters
 
