@@ -316,15 +316,23 @@ await aui.mcp().addCustomServer({ name, url, auth: { type: "bearer", token } });
 await aui.mcp().server({ id }).connect();
 await aui.mcp().server({ id }).callTool("echo", { text: "hi" });
 
-// Build a resource browser/preview UI for servers that expose resources.
-const { resources } = (await aui.mcp().server({ id }).listResources()) as {
+// Build a paginated resource browser/preview UI.
+type ResourcePage = {
   resources: Array<{ uri: string; name?: string }>;
+  nextCursor?: string;
 };
+
+const server = aui.mcp().server({ id });
+const firstPage = (await server.listResources()) as ResourcePage;
+const secondPage = firstPage.nextCursor
+  ? ((await server.listResources({
+      cursor: firstPage.nextCursor,
+    })) as ResourcePage)
+  : undefined;
+const resources = [...firstPage.resources, ...(secondPage?.resources ?? [])];
 const firstResource = resources[0];
 if (firstResource) {
-  const preview = await aui.mcp()
-    .server({ id })
-    .readResource(firstResource.uri);
+  const preview = await server.readResource(firstResource.uri);
 }
 ```
 
