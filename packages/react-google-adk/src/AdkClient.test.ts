@@ -231,11 +231,15 @@ describe("createAdkStream - proxy mode", () => {
 // ── Direct mode ──
 
 describe("createAdkStream - direct mode", () => {
-  it("rejects direct mode without a userId", () => {
+  it.each([
+    ["missing", undefined],
+    ["empty", ""],
+  ])("rejects direct mode with a %s userId", (_label, userId) => {
     expect(() =>
       createAdkStream({
         api: "http://localhost:8000",
         appName: "my-app",
+        userId,
       }),
     ).toThrow(
       'createAdkStream direct mode requires "userId" when "appName" is provided.',
