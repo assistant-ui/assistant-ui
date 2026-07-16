@@ -11,10 +11,33 @@ import {
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { ArtifactSurfaceProvider } from "./artifact-surface";
+import {
+  ArtifactSurface,
+  ArtifactSurfaceProvider,
+  useArtifactSurface,
+} from "./artifact-surface";
 import toolkit from "./toolkit";
 
-function ArtifactExample() {
+function ArtifactExperience() {
+  const { active } = useArtifactSurface();
+
+  return (
+    <main className="flex h-full min-h-0 overflow-hidden bg-white">
+      <section
+        className={
+          active
+            ? "hidden min-w-0 bg-white md:block md:w-[min(44vw,42rem)] md:shrink-0"
+            : "min-w-0 flex-1 bg-white"
+        }
+      >
+        <Thread />
+      </section>
+      <ArtifactSurface />
+    </main>
+  );
+}
+
+function ArtifactScopes() {
   const aui = useAui({
     tools: Tools({ toolkit }),
     unstable_interactables: unstable_Interactables(),
@@ -37,7 +60,7 @@ function ArtifactExample() {
   return (
     <AuiProvider value={aui}>
       <ArtifactSurfaceProvider>
-        <Thread />
+        <ArtifactExperience />
       </ArtifactSurfaceProvider>
     </AuiProvider>
   );
@@ -50,7 +73,7 @@ export default function Home() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ArtifactExample />
+      <ArtifactScopes />
     </AssistantRuntimeProvider>
   );
 }
