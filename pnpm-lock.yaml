@@ -4333,6 +4333,9 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.2.21
         version: link:../core
+      '@assistant-ui/react-ai-sdk':
+        specifier: workspace:^
+        version: link:../react-ai-sdk
       '@assistant-ui/store':
         specifier: ^0.2.20
         version: link:../store
@@ -4343,9 +4346,6 @@ importers:
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../react-ai-sdk
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils

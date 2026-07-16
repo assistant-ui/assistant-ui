@@ -34,12 +34,12 @@
   },
   "dependencies": {
     "@assistant-ui/core": "^0.2.21",
+    "@assistant-ui/react-ai-sdk": "workspace:^",
     "@assistant-ui/store": "^0.2.20",
     "assistant-stream": "^0.3.26"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.14.14",
-    "@assistant-ui/react-ai-sdk": "^1.3.42",
     "@mastra/ai-sdk": "^1.6.2",
     "@mastra/client-js": "^1.32.0",
     "@mastra/core": "^1.51.0",
@@ -55,7 +55,6 @@
   },
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@mastra/ai-sdk": "^1.6.2",
     "@mastra/client-js": "^1.32.0",
