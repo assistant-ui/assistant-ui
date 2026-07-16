@@ -29,7 +29,7 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "jiti": "^2.7.0",
     "rolldown": "^1.1.5",
-    "tsdown": "^0.22.5",
+    "tsdown": "^0.22.7",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "devDependencies": {

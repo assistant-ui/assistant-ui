@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@assistant-ui/next": "workspace:*",
-    "@langchain/core": "^1.2.2",
+    "@langchain/core": "^1.2.3",
     "@langchain/langgraph-cli": "^1.4.2",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^26.1.1",
@@ -43,7 +43,7 @@
     "@types/react-dom": "^19.2.3",
     "concurrently": "^10.0.3",
     "oxfmt": "^0.58.0",
-    "oxlint": "^1.73.0",
+    "oxlint": "^1.74.0",
     "tailwindcss": "^4.3.2",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-7": "npm:typescript@^7.0.2"

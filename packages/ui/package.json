@@ -35,7 +35,7 @@
     "react-day-picker": "^10.0.1",
     "react-hook-form": "^7.81.0",
     "react-markdown": "^10.1.0",
-    "react-resizable-panels": "^4.12.1",
+    "react-resizable-panels": "^4.12.2",
     "react-shiki": "^0.11.0",
     "react-syntax-highlighter": "^16.1.1",
     "recharts": "^3.9.2",

@@ -12,14 +12,14 @@
     "lint:fix": "oxlint --fix && oxfmt"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.11",
+    "@ai-sdk/openai": "^4.0.14",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@base-ui/react": "^1.6.0",
-    "@clerk/nextjs": "^7.5.17",
+    "@clerk/nextjs": "^7.5.18",
     "@clerk/themes": "^2.4.57",
-    "ai": "^7.0.22",
+    "ai": "^7.0.28",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.24.0",
@@ -39,7 +39,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "oxfmt": "^0.58.0",
-    "oxlint": "^1.73.0",
+    "oxlint": "^1.74.0",
     "tailwindcss": "^4.3.2",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-7": "npm:typescript@^7.0.2"
