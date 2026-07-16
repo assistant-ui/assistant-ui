@@ -231,6 +231,18 @@ describe("createAdkStream - proxy mode", () => {
 // ── Direct mode ──
 
 describe("createAdkStream - direct mode", () => {
+  it("rejects direct mode without a userId", () => {
+    expect(() =>
+      createAdkStream({
+        api: "http://localhost:8000",
+        appName: "my-app",
+      }),
+    ).toThrow(
+      'createAdkStream direct mode requires "userId" when "appName" is provided.',
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("POSTs to /run_sse with ADK-native body", async () => {
     mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
 

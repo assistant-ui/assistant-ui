@@ -61,6 +61,11 @@ export function createAdkStream(
   options: CreateAdkStreamOptions,
 ): AdkStreamCallback {
   const isDirect = options.appName != null;
+  if (isDirect && options.userId == null) {
+    throw new Error(
+      'createAdkStream direct mode requires "userId" when "appName" is provided.',
+    );
+  }
 
   return async function* (messages, config) {
     const headers = await resolveHeaders(options.headers);
