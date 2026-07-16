@@ -25,7 +25,7 @@ type CloudThreadResponse = Omit<
   CloudThread,
   "last_message_at" | "created_at" | "updated_at"
 > & {
-  last_message_at: string;
+  last_message_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -56,15 +56,25 @@ type AssistantCloudThreadsUpdateBody = {
   is_archived?: boolean | undefined;
 };
 
-const normalizeCloudThread = (thread: CloudThreadResponse): CloudThread => ({
-  ...thread,
-  last_message_at: normalizeCloudTimestamp(
-    thread.last_message_at,
-    "thread.last_message_at",
-  ),
-  created_at: normalizeCloudTimestamp(thread.created_at, "thread.created_at"),
-  updated_at: normalizeCloudTimestamp(thread.updated_at, "thread.updated_at"),
-});
+const normalizeCloudThread = (thread: CloudThreadResponse): CloudThread => {
+  const createdAt = normalizeCloudTimestamp(
+    thread.created_at,
+    "thread.created_at",
+  );
+
+  return {
+    ...thread,
+    last_message_at:
+      thread.last_message_at == null
+        ? createdAt
+        : normalizeCloudTimestamp(
+            thread.last_message_at,
+            "thread.last_message_at",
+          ),
+    created_at: createdAt,
+    updated_at: normalizeCloudTimestamp(thread.updated_at, "thread.updated_at"),
+  };
+};
 
 export class AssistantCloudThreads {
   public readonly messages: AssistantCloudThreadMessages;

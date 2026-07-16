@@ -60,6 +60,18 @@ describe("AssistantCloudThreads response timestamps", () => {
     expect(result.created_at.toISOString()).toBe("2026-07-16T12:00:00.000Z");
   });
 
+  it("uses created_at when last_message_at is missing", async () => {
+    const { threads, makeRequest } = createCloudThreads();
+    makeRequest.mockResolvedValue({
+      ...threadResponse,
+      last_message_at: null,
+    });
+
+    const result = await threads.get("thread-1");
+
+    expect(result.last_message_at).toEqual(result.created_at);
+  });
+
   it("normalizes message timestamps without changing content", async () => {
     const { threads, makeRequest } = createCloudThreads();
     makeRequest.mockResolvedValue({
@@ -90,6 +102,18 @@ describe("AssistantCloudThreads response timestamps", () => {
     makeRequest.mockResolvedValue({
       ...threadResponse,
       created_at: "not-a-timestamp",
+    });
+
+    await expect(threads.get("thread-1")).rejects.toThrow(
+      'Invalid Assistant Cloud response timestamp for "thread.created_at"',
+    );
+  });
+
+  it("rejects impossible calendar timestamps", async () => {
+    const { threads, makeRequest } = createCloudThreads();
+    makeRequest.mockResolvedValue({
+      ...threadResponse,
+      created_at: "2026-02-30T12:00:00.000Z",
     });
 
     await expect(threads.get("thread-1")).rejects.toThrow(
