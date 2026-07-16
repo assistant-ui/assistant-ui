@@ -126,10 +126,15 @@ function modifySelection(
   alter: string,
   direction: string,
 ): void {
-  if (this.rangeCount === 0 || alter !== "extend") return;
+  if (this.rangeCount === 0) return;
 
   const range = this.getRangeAt(0).cloneRange();
-  if (direction === "backward") {
+  if (alter === "move") {
+    const offset =
+      direction === "backward" ? range.startOffset - 1 : range.startOffset + 1;
+    range.setStart(range.startContainer, offset);
+    range.setEnd(range.startContainer, offset);
+  } else if (direction === "backward") {
     range.setStart(range.startContainer, range.startOffset - 1);
   } else {
     range.setEnd(range.endContainer, range.endOffset + 1);
