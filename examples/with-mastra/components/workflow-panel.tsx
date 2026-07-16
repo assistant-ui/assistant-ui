@@ -12,7 +12,7 @@ import {
   SquareIcon,
 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
-import { mastraClient } from "../app/MyRuntimeProvider";
+import { mastraClient, useMastraResourceId } from "../app/MyRuntimeProvider";
 
 type ReleaseInput = { project: string; summary: string };
 type ResumeInput = { approved: boolean; note: string };
@@ -43,6 +43,7 @@ const StatusIcon = ({ status }: { status: string }) => {
 };
 
 export function WorkflowPanel() {
+  const resourceId = useMastraResourceId();
   const [initialRunId, setInitialRunId] = useState<string>();
   const [isHydrated, setIsHydrated] = useState(false);
   const [project, setProject] = useState("Desktop release");
@@ -64,7 +65,7 @@ export function WorkflowPanel() {
     client: mastraClient,
     workflowId: "releaseReviewWorkflow",
     runId: initialRunId,
-    resourceId: "assistant-ui-mastra-example",
+    resourceId,
     onRunIdChange: (runId) => {
       window.localStorage.setItem(RUN_STORAGE_KEY, runId);
     },
@@ -76,14 +77,18 @@ export function WorkflowPanel() {
     !isHydrated || (Boolean(initialRunId) && state.status === "idle");
   const isRunning = state.status === "running";
 
-  const start = async (event: FormEvent) => {
-    event.preventDefault();
+  const startRun = async () => {
     setNote("");
     try {
       await workflow.start({ project, summary });
     } catch {
       // The hook exposes the request error in state.
     }
+  };
+
+  const start = (event: FormEvent) => {
+    event.preventDefault();
+    void startRun();
   };
 
   const resume = async (approved: boolean) => {
@@ -227,13 +232,18 @@ export function WorkflowPanel() {
             <strong>Workflow request failed</strong>
             <p>{state.error?.message}</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void workflow.refresh()}
-          >
-            Retry
-          </Button>
+          <div className="workflow-actions">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void workflow.refresh()}
+            >
+              Retry
+            </Button>
+            <Button size="sm" onClick={() => void startRun()}>
+              Start new run
+            </Button>
+          </div>
         </div>
       )}
 

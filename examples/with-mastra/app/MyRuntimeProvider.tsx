@@ -3,7 +3,14 @@
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useMastraRuntime } from "@assistant-ui/react-mastra";
 import { MastraClient } from "@mastra/client-js";
-import { type PropsWithChildren, useCallback, useState } from "react";
+import {
+  createContext,
+  type PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 export const mastraUrl =
   process.env.NEXT_PUBLIC_MASTRA_URL ?? "http://localhost:4111";
@@ -12,10 +19,24 @@ export const mastraClient = new MastraClient({ baseUrl: mastraUrl });
 
 const transportOptions = { api: `${mastraUrl}/chat` };
 const threadStorageKey = "assistant-ui-mastra-thread-id";
+const resourceStorageKey = "assistant-ui-mastra-resource-id";
+const ResourceIdContext = createContext<string | null>(null);
 
-export function MyRuntimeProvider({ children }: PropsWithChildren) {
+export const useMastraResourceId = () => {
+  const resourceId = useContext(ResourceIdContext);
+  if (!resourceId) {
+    throw new Error(
+      "useMastraResourceId must be used within MyRuntimeProvider.",
+    );
+  }
+  return resourceId;
+};
+
+function MastraRuntimeProvider({
+  children,
+  resourceId,
+}: PropsWithChildren<{ resourceId: string }>) {
   const [threadId, setThreadId] = useState<string | undefined>(() => {
-    if (typeof window === "undefined") return undefined;
     return window.localStorage.getItem(threadStorageKey) ?? undefined;
   });
   const handleThreadIdChange = useCallback(
@@ -33,7 +54,7 @@ export function MyRuntimeProvider({ children }: PropsWithChildren) {
   const runtime = useMastraRuntime({
     client: mastraClient,
     agentId: "releaseAssistant",
-    resourceId: "assistant-ui-mastra-example",
+    resourceId,
     threadId,
     onThreadIdChange: handleThreadIdChange,
     transportOptions,
@@ -43,5 +64,25 @@ export function MyRuntimeProvider({ children }: PropsWithChildren) {
     <AssistantRuntimeProvider runtime={runtime}>
       {children}
     </AssistantRuntimeProvider>
+  );
+}
+
+export function MyRuntimeProvider({ children }: PropsWithChildren) {
+  const [resourceId, setResourceId] = useState<string>();
+  useEffect(() => {
+    const stored = window.localStorage.getItem(resourceStorageKey);
+    const nextResourceId = stored ?? window.crypto.randomUUID();
+    window.localStorage.setItem(resourceStorageKey, nextResourceId);
+    setResourceId(nextResourceId);
+  }, []);
+
+  if (!resourceId) return null;
+
+  return (
+    <ResourceIdContext.Provider value={resourceId}>
+      <MastraRuntimeProvider resourceId={resourceId}>
+        {children}
+      </MastraRuntimeProvider>
+    </ResourceIdContext.Provider>
   );
 }
