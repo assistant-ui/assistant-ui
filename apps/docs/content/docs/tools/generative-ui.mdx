@@ -287,6 +287,8 @@ user's runtime selection (a picked option, a typed value) carried under
 decoded action to your handler stay the host app's responsibility; the
 converter only speaks JSON in and JSON out.
 
+The inverse direction is `fromSlackBlocks`: it maps a Block Kit payload back into vocabulary nodes, back-mapping each element's `action_id` to `$action.type` and reparsing serialized payload values. The round trip is faithful on the plain building blocks (text, images, facts, controls, tables, simple cards) and documented-lossy elsewhere: context elements all return as `Caption`, button styles beyond `primary` and `danger` are dropped, an alert's title and description come back as one description, and card layouts flatten to the fields the `card` block carries.
+
 A few conversion caveats worth knowing:
 
 - `Alert` has no message-surface equivalent upstream (Slack only supports it

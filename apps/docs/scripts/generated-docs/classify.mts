@@ -316,6 +316,8 @@ export const GENERATIVE_UI_PACKAGE_EXPORTS = new Map<
   ["AlertTone", { page: "tokens", role: "supporting-type" }],
 
   ["toSlackBlocks", { page: "slack", role: "primary" }],
+  ["fromSlackBlocks", { page: "slack", role: "primary" }],
+  ["FromSlackBlocksResult", { page: "slack", role: "primary" }],
   ["decodeBlockAction", { page: "slack", role: "primary" }],
   ["ToSlackBlocksOptions", { page: "slack", role: "primary" }],
   ["SlackBlocksResult", { page: "slack", role: "primary" }],
