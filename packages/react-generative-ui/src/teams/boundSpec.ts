@@ -25,7 +25,10 @@ function boundNode(
     return null;
   }
   state.remaining -= 1;
-  if (depth > MAX_TRAVERSAL_DEPTH) return null;
+  if (depth > MAX_TRAVERSAL_DEPTH) {
+    onClamp("depth");
+    return null;
+  }
   if (Array.isArray(value)) {
     if (ancestors.has(value)) {
       onClamp("cycle");
@@ -80,10 +83,10 @@ function boundNode(
  * entries via `Array.prototype.slice`, which bounds even a proxy with a
  * fabricated `length`; recursion itself is capped at
  * {@link MAX_TRAVERSAL_DEPTH}. `onClamp` fires once per level that was
- * truncated, receiving the reason for that truncation. The walk also spends
- * a total budget of {@link NODE_BUDGET} nodes, so shared references cannot
- * multiply work exponentially, and a node that is its own ancestor is cut to
- * `null`.
+ * truncated, receiving the reason for that truncation: `"children"`,
+ * `"depth"`, `"budget"`, or `"cycle"`. The walk also spends a total budget of
+ * {@link NODE_BUDGET} nodes, so shared references cannot multiply work
+ * exponentially, and a node that is its own ancestor is cut to `null`.
  */
 export function boundSpec(
   spec: unknown,

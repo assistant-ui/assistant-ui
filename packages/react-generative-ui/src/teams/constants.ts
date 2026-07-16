@@ -38,13 +38,16 @@ export const CHILDREN_CAP = 200;
  */
 export const NODE_BUDGET = 5000;
 
-export type ClampReason = "children" | "budget" | "cycle";
+export type ClampReason = "children" | "budget" | "cycle" | "depth";
 
 export function clampReasonDetail(reason: ClampReason): string {
   if (reason === "budget") {
     return `the tree was truncated after ${NODE_BUDGET} nodes.`;
   }
   if (reason === "cycle") return "a self-referencing node was dropped.";
+  if (reason === "depth") {
+    return `nodes deeper than ${MAX_TRAVERSAL_DEPTH} levels were dropped.`;
+  }
   return `children were clamped to ${CHILDREN_CAP} entries.`;
 }
 

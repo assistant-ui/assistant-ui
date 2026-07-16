@@ -1284,6 +1284,20 @@ describe("toAdaptiveCard", () => {
         warnings.some((warning) => warning.detail.includes("self-referencing")),
       ).toBe(false);
     });
+
+    it("converts a 70-level-deep chain successfully and reports the depth detail", () => {
+      let node: unknown = { $type: "Caption", value: "x" };
+      for (let i = 0; i < 70; i++) {
+        node = { $type: "Card", children: [node] };
+      }
+      expect(() => toAdaptiveCard(node)).not.toThrow();
+      const { warnings } = toAdaptiveCard(node);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Root",
+        detail: "nodes deeper than 64 levels were dropped.",
+      });
+    });
   });
 });
 

@@ -1168,7 +1168,7 @@ interface BoundState {
   exhausted: boolean;
 }
 
-type ClampReason = "children" | "budget" | "cycle";
+type ClampReason = "children" | "budget" | "cycle" | "depth";
 
 function boundNode(
   value: unknown,
@@ -1185,7 +1185,10 @@ function boundNode(
     return null;
   }
   state.remaining -= 1;
-  if (depth > MAX_TRAVERSAL_DEPTH) return null;
+  if (depth > MAX_TRAVERSAL_DEPTH) {
+    onClamp("depth");
+    return null;
+  }
   if (Array.isArray(value)) {
     if (ancestors.has(value)) {
       onClamp("cycle");
@@ -1240,10 +1243,10 @@ function boundNode(
  * entries via `Array.prototype.slice`, which bounds even a proxy with a
  * fabricated `length`; recursion itself is capped at
  * {@link MAX_TRAVERSAL_DEPTH}. `onClamp` fires once per level that was
- * truncated, receiving the reason for that truncation. The walk also spends
- * a total budget of {@link NODE_BUDGET} nodes, so shared references cannot
- * multiply work exponentially, and a node that is its own ancestor is cut to
- * `null`.
+ * truncated, receiving the reason for that truncation: `"children"`,
+ * `"depth"`, `"budget"`, or `"cycle"`. The walk also spends a total budget of
+ * {@link NODE_BUDGET} nodes, so shared references cannot multiply work
+ * exponentially, and a node that is its own ancestor is cut to `null`.
  */
 function boundSpec(
   spec: unknown,
@@ -1279,7 +1282,9 @@ export function toSlackBlocks(
           ? `the tree was truncated after ${NODE_BUDGET} nodes.`
           : reason === "cycle"
             ? "a self-referencing node was dropped."
-            : `children were clamped to ${CHILDREN_CAP} entries.`;
+            : reason === "depth"
+              ? `nodes deeper than ${MAX_TRAVERSAL_DEPTH} levels were dropped.`
+              : `children were clamped to ${CHILDREN_CAP} entries.`;
       warn(context, "clamped", "Root", detail);
     });
     const { root } = normalizeSpec(bounded as never);
