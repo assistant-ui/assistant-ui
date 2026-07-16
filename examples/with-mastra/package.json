@@ -16,7 +16,7 @@
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-mastra": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "@hono/node-server": "2.0.9",
+    "@hono/node-server": "2.0.10",
     "@mastra/ai-sdk": "^1.6.2",
     "@mastra/client-js": "^1.32.0",
     "@mastra/core": "^1.51.0",
