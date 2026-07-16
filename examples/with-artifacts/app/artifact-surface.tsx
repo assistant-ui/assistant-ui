@@ -58,6 +58,7 @@ export function ArtifactTrigger({
 }
 
 function ArtifactPanel({ id }: { id: string }) {
+  const [view, setView] = useState<"source" | "preview">("preview");
   const [state] = unstable_useInteractable("artifact", {
     id,
     description: artifactDescription,
@@ -74,14 +75,38 @@ function ArtifactPanel({ id }: { id: string }) {
         <h2 className="truncate text-sm font-medium">
           {state.title || "Untitled artifact"}
         </h2>
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            aria-pressed={view === "source"}
+            onClick={() => setView("source")}
+            className="aria-pressed:bg-muted rounded-md px-3 py-1.5 text-xs font-medium"
+          >
+            Source
+          </button>
+          <button
+            type="button"
+            aria-pressed={view === "preview"}
+            onClick={() => setView("preview")}
+            className="aria-pressed:bg-muted rounded-md px-3 py-1.5 text-xs font-medium"
+          >
+            Preview
+          </button>
+        </div>
       </header>
-      <iframe
-        data-testid="artifact-preview"
-        title={`Preview of ${state.title || "artifact"}`}
-        srcDoc={state.code}
-        sandbox="allow-scripts"
-        className="min-h-0 flex-1 bg-white"
-      />
+      {view === "source" ? (
+        <pre className="min-h-0 flex-1 overflow-auto p-4 font-mono text-sm whitespace-pre-wrap">
+          {state.code}
+        </pre>
+      ) : (
+        <iframe
+          data-testid="artifact-preview"
+          title={`Preview of ${state.title || "artifact"}`}
+          srcDoc={state.code}
+          sandbox="allow-scripts"
+          className="min-h-0 flex-1 bg-white"
+        />
+      )}
     </aside>
   );
 }

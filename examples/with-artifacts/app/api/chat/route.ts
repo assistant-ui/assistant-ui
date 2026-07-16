@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     ),
     stopWhen: stepCountIs(10),
     tools,
-  } as Parameters<typeof streamText>[0]);
+  });
 
   return result.toUIMessageStreamResponse();
 }
