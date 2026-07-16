@@ -1117,3 +1117,29 @@ describe("fromSlackBlocks checkbox and radio caps", () => {
     ).toBe(true);
   });
 });
+
+it("bounds hostile initial_options arrays when deriving defaultChecked", () => {
+  const hostile = new Proxy([], {
+    get(target, prop) {
+      if (prop === "length") return 2 ** 31;
+      if (prop === "slice") return Array.prototype.slice.bind(target);
+      return Reflect.get(target, prop);
+    },
+  });
+  const { nodes } = fromSlackBlocks([
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "checkboxes",
+          action_id: "toggle",
+          options: [
+            { text: { type: "plain_text", text: "First" }, value: "first" },
+          ],
+          initial_options: hostile,
+        },
+      ],
+    },
+  ]);
+  expect(nodes[0]).not.toHaveProperty("defaultChecked");
+});

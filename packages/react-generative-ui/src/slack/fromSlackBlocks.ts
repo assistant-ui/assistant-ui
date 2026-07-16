@@ -238,9 +238,9 @@ const checkboxFrom = (element: Record<string, unknown>): UIElement => {
     : [];
   const firstValue =
     isRecord(first) && typeof first["value"] === "string" ? first["value"] : "";
-  const firstChecked = initialOptions.some(
-    (option) => isRecord(option) && option["value"] === firstValue,
-  );
+  const firstChecked = initialOptions
+    .slice(0, SELECT_OPTION_CAP)
+    .some((option) => isRecord(option) && option["value"] === firstValue);
   return {
     $type: "Checkbox",
     label: isRecord(first) ? textOf(first["text"]) : "",
