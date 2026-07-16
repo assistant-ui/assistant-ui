@@ -58,6 +58,15 @@ describe("decodeBlockAction", () => {
     });
   });
 
+  it("treats a value that parses to a non-object JSON literal as the raw-string $input instead of swallowing it", () => {
+    for (const value of ["42", "true", "null", "[1]"]) {
+      expect(decodeBlockAction({ action_id: "note", value })).toEqual({
+        type: "note",
+        $input: value,
+      });
+    }
+  });
+
   it("uses the raw value as $input when it is not JSON", () => {
     const action = { action_id: "leave_note", value: "hello world" };
     expect(decodeBlockAction(action)).toEqual({

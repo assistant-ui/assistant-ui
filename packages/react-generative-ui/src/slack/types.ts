@@ -48,6 +48,7 @@ export interface SlackCheckboxesElement {
   readonly type: "checkboxes";
   readonly action_id: string;
   readonly options: readonly SlackOption[];
+  readonly initial_options?: readonly SlackOption[];
 }
 
 /** A Slack radio-button element. */

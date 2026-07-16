@@ -1,23 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { toSlackBlocks } from "./toSlackBlocks";
 import {
+  ACTION_ID_CAP,
   ACTIONS_ELEMENT_CAP,
   ALERT_TEXT_CAP,
+  BUTTON_VALUE_CAP,
   CARD_BODY_CAP,
   CARD_SUBTEXT_CAP,
   CARD_TITLE_CAP,
   CAROUSEL_CARD_CAP,
   CONTEXT_ELEMENT_CAP,
+  CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
   DATA_TABLE_COLUMN_CAP,
   DATA_TABLE_ROW_CAP,
   FACT_FIELD_CAP,
   FACT_FIELD_TEXT_CAP,
   HEADER_TEXT_CAP,
+  INPUT_LABEL_CAP,
   INTERACTIVE_TEXT_CAP,
   MARKDOWN_TEXT_BUDGET,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
+  PLACEHOLDER_TEXT_CAP,
+  RADIO_OPTION_CAP,
   SECTION_TEXT_CAP,
   SELECT_OPTION_CAP,
   TABLE_CAPTION,
@@ -27,9 +33,11 @@ import type {
   SlackAlertBlock,
   SlackCardBlock,
   SlackCarouselBlock,
+  SlackCheckboxesElement,
   SlackContextBlock,
   SlackDataTableBlock,
   SlackInputBlock,
+  SlackRadioButtonsElement,
   SlackSectionBlock,
   SlackStaticSelectElement,
 } from "./types";
@@ -281,6 +289,40 @@ describe("toSlackBlocks", () => {
         },
       ]);
     });
+
+    it(`clamps action_id to ${ACTION_ID_CAP} characters and warns`, () => {
+      const longType = "a".repeat(ACTION_ID_CAP + 20);
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Button",
+        label: "Go",
+        $action: { type: longType },
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        action_id: "a".repeat(ACTION_ID_CAP),
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Button",
+        detail: `action_id was clamped to ${ACTION_ID_CAP} characters.`,
+      });
+    });
+
+    it(`omits value instead of truncating and warns when the serialized action payload exceeds ${BUTTON_VALUE_CAP} characters`, () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Button",
+        label: "Go",
+        $action: { type: "go", blob: "z".repeat(BUTTON_VALUE_CAP) },
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).not.toHaveProperty(
+        "value",
+      );
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Button",
+        detail:
+          "value was dropped because the action payload was too large to round-trip.",
+      });
+    });
   });
 
   describe("Select", () => {
@@ -348,6 +390,24 @@ describe("toSlackBlocks", () => {
         detail: `option label was clamped to ${INTERACTIVE_TEXT_CAP} characters.`,
       });
     });
+
+    it(`clamps the placeholder to ${PLACEHOLDER_TEXT_CAP} characters and warns`, () => {
+      const placeholder = "p".repeat(PLACEHOLDER_TEXT_CAP + 20);
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Select",
+        placeholder,
+        options: [{ label: "A", value: "a" }],
+        $action: { type: "pick" },
+      });
+      const element = (blocks[0] as SlackActionsBlock)
+        .elements[0] as SlackStaticSelectElement;
+      expect(element.placeholder?.text).toHaveLength(PLACEHOLDER_TEXT_CAP);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Select",
+        detail: `placeholder was clamped to ${PLACEHOLDER_TEXT_CAP} characters.`,
+      });
+    });
   });
 
   describe("Input", () => {
@@ -381,6 +441,32 @@ describe("toSlackBlocks", () => {
         "multiline",
       );
     });
+
+    it(`clamps label to ${INPUT_LABEL_CAP} and placeholder to ${PLACEHOLDER_TEXT_CAP} characters, warning on each`, () => {
+      const label = "l".repeat(INPUT_LABEL_CAP + 10);
+      const placeholder = "p".repeat(PLACEHOLDER_TEXT_CAP + 10);
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Input",
+        label,
+        placeholder,
+        $action: { type: "notes" },
+      });
+      const input = blocks[0] as SlackInputBlock;
+      expect(input.label.text).toHaveLength(INPUT_LABEL_CAP);
+      expect(input.element.placeholder?.text).toHaveLength(
+        PLACEHOLDER_TEXT_CAP,
+      );
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Input",
+        detail: `label was clamped to ${INPUT_LABEL_CAP} characters.`,
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Input",
+        detail: `placeholder was clamped to ${PLACEHOLDER_TEXT_CAP} characters.`,
+      });
+    });
   });
 
   describe("DatePicker", () => {
@@ -403,13 +489,30 @@ describe("toSlackBlocks", () => {
     });
 
     it("omits initial_date when value is absent", () => {
-      const { blocks } = toSlackBlocks({
+      const { blocks, warnings } = toSlackBlocks({
         $type: "DatePicker",
         $action: { type: "pick_date" },
       });
       expect((blocks[0] as SlackActionsBlock).elements[0]).not.toHaveProperty(
         "initial_date",
       );
+      expect(warnings).toEqual([]);
+    });
+
+    it("drops a value that does not match YYYY-MM-DD and warns", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "DatePicker",
+        value: "07/15/2026",
+        $action: { type: "pick_date" },
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).not.toHaveProperty(
+        "initial_date",
+      );
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "DatePicker",
+        detail: "value did not match the YYYY-MM-DD format and was dropped.",
+      });
     });
   });
 
@@ -444,6 +547,32 @@ describe("toSlackBlocks", () => {
       expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
         options: [{ value: "Agree" }],
       });
+    });
+
+    it("emits initial_options with its single option when defaultChecked is true", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Checkbox",
+        label: "Agree",
+        name: "agree",
+        defaultChecked: true,
+        $action: { type: "toggle" },
+      });
+      const element = (blocks[0] as SlackActionsBlock)
+        .elements[0] as SlackCheckboxesElement;
+      expect(element.initial_options).toEqual([
+        { text: { type: "plain_text", text: "Agree" }, value: "agree" },
+      ]);
+    });
+
+    it("omits initial_options when defaultChecked is absent or false", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Checkbox",
+        label: "Agree",
+        $action: { type: "toggle" },
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).not.toHaveProperty(
+        "initial_options",
+      );
     });
   });
 
@@ -486,6 +615,26 @@ describe("toSlackBlocks", () => {
       expect((blocks[0] as SlackActionsBlock).elements[0]).not.toHaveProperty(
         "initial_option",
       );
+    });
+
+    it(`clamps options past ${RADIO_OPTION_CAP} entries and warns`, () => {
+      const manyOptions = Array.from(
+        { length: RADIO_OPTION_CAP + 3 },
+        (_, i) => ({ label: `L${i}`, value: `v${i}` }),
+      );
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "RadioGroup",
+        options: manyOptions,
+        $action: { type: "size" },
+      });
+      const element = (blocks[0] as SlackActionsBlock)
+        .elements[0] as SlackRadioButtonsElement;
+      expect(element.options).toHaveLength(RADIO_OPTION_CAP);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "RadioGroup",
+        detail: `options were clamped to ${RADIO_OPTION_CAP} entries.`,
+      });
     });
   });
 
@@ -873,6 +1022,7 @@ describe("toSlackBlocks", () => {
       const value = "s".repeat(CARD_SUBTEXT_CAP + 50);
       const { blocks, warnings } = toSlackBlocks({
         $type: "Card",
+        title: "Order",
         children: [{ $type: "Caption", value }],
       });
       const card = blocks[0] as SlackCardBlock;
@@ -881,6 +1031,17 @@ describe("toSlackBlocks", () => {
         code: "clamped",
         component: "Card",
         detail: `subtext was clamped to ${CARD_SUBTEXT_CAP} characters.`,
+      });
+    });
+
+    it("drops a card with none of hero_image, title, body, or actions instead of emitting an invalid block", () => {
+      const { blocks, warnings } = toSlackBlocks({ $type: "Card" });
+      expect(blocks).toEqual([]);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Card",
+        detail:
+          "A card with none of hero_image, title, body, or actions was dropped.",
       });
     });
   });
@@ -1025,6 +1186,25 @@ describe("toSlackBlocks", () => {
         detail: "A carousel without renderable cards was dropped.",
       });
     });
+
+    it("drops a child card that degrades to empty, which then trips the zero-renderable-cards carousel drop", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [{ $type: "Card", children: [{ $type: "Divider" }] }],
+      });
+      expect(blocks).toEqual([]);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Card",
+        detail:
+          "A card with none of hero_image, title, body, or actions was dropped.",
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Carousel",
+        detail: "A carousel without renderable cards was dropped.",
+      });
+    });
   });
 
   describe("Col and Box", () => {
@@ -1115,6 +1295,48 @@ describe("toSlackBlocks", () => {
           detail: `context elements were clamped to ${CONTEXT_ELEMENT_CAP} entries.`,
         },
       ]);
+    });
+  });
+
+  describe("context text cap", () => {
+    it(`clamps Caption, standalone Badge, and Row-merged badge/caption text to ${CONTEXT_TEXT_CAP} characters, warning on each`, () => {
+      const long = "c".repeat(CONTEXT_TEXT_CAP + 50);
+
+      const caption = toSlackBlocks({ $type: "Caption", value: long });
+      expect(
+        (caption.blocks[0] as SlackContextBlock).elements[0]?.text,
+      ).toHaveLength(CONTEXT_TEXT_CAP);
+      expect(caption.warnings).toContainEqual({
+        code: "clamped",
+        component: "Caption",
+        detail: `value was clamped to ${CONTEXT_TEXT_CAP} characters.`,
+      });
+
+      const badge = toSlackBlocks({ $type: "Badge", value: long });
+      expect(
+        (badge.blocks[0] as SlackContextBlock).elements[0]?.text,
+      ).toHaveLength(CONTEXT_TEXT_CAP);
+      expect(badge.warnings).toContainEqual({
+        code: "clamped",
+        component: "Badge",
+        detail: `value was clamped to ${CONTEXT_TEXT_CAP} characters.`,
+      });
+
+      const row = toSlackBlocks({
+        $type: "Row",
+        children: [
+          { $type: "Badge", value: long },
+          { $type: "Caption", value: "short" },
+        ],
+      });
+      expect(
+        (row.blocks[0] as SlackContextBlock).elements[0]?.text,
+      ).toHaveLength(CONTEXT_TEXT_CAP);
+      expect(row.warnings).toContainEqual({
+        code: "clamped",
+        component: "Badge",
+        detail: `value was clamped to ${CONTEXT_TEXT_CAP} characters.`,
+      });
     });
   });
 
@@ -1247,6 +1469,44 @@ describe("toSlackBlocks", () => {
         component: "Table",
         detail: `rows were clamped to fit the ${DATA_TABLE_CHAR_BUDGET}-character table budget.`,
       });
+    });
+
+    it("synthesizes an empty-cell header row matching the data width when rows are given without columns", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Table",
+        rows: [
+          ["Ada", 36],
+          ["Bob", 24],
+        ],
+      });
+      const table = blocks[0] as SlackDataTableBlock;
+      expect(table.rows[0]).toEqual([
+        { type: "raw_text", text: "" },
+        { type: "raw_text", text: "" },
+      ]);
+      expect(table.rows).toEqual([
+        table.rows[0],
+        [
+          { type: "raw_text", text: "Ada" },
+          { type: "raw_number", text: "36" },
+        ],
+        [
+          { type: "raw_text", text: "Bob" },
+          { type: "raw_number", text: "24" },
+        ],
+      ]);
+    });
+
+    it(`counts the header row's own cell text toward the ${DATA_TABLE_CHAR_BUDGET}-character budget`, () => {
+      const bigHeader = "H".repeat(DATA_TABLE_CHAR_BUDGET - 1);
+      const rows = Array.from({ length: 50 }, () => ["y"]);
+      const { blocks } = toSlackBlocks({
+        $type: "Table",
+        columns: [{ label: bigHeader }],
+        rows,
+      });
+      const table = blocks[0] as SlackDataTableBlock;
+      expect(table.rows).toHaveLength(2);
     });
   });
 

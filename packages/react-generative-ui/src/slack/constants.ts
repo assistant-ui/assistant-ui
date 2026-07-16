@@ -35,14 +35,32 @@ export const FACT_FIELD_TEXT_CAP = 2000;
 /** The character limit for button labels and option labels. */
 export const INTERACTIVE_TEXT_CAP = 75;
 
+/** The character limit for an action_id. */
+export const ACTION_ID_CAP = 255;
+
+/** The character limit for a button's serialized value payload. */
+export const BUTTON_VALUE_CAP = 2000;
+
 /** The maximum number of elements in one actions block. */
 export const ACTIONS_ELEMENT_CAP = 25;
 
 /** The maximum number of options in a static select. */
 export const SELECT_OPTION_CAP = 100;
 
+/** The maximum number of options in a radio-button group. */
+export const RADIO_OPTION_CAP = 10;
+
+/** The character limit for a select or input placeholder. */
+export const PLACEHOLDER_TEXT_CAP = 150;
+
+/** The character limit for an input's label. */
+export const INPUT_LABEL_CAP = 2000;
+
 /** The maximum number of elements in one context block. */
 export const CONTEXT_ELEMENT_CAP = 10;
+
+/** The character limit for one context element's text. */
+export const CONTEXT_TEXT_CAP = 3000;
 
 /** The character limit for card titles and subtitles. */
 export const CARD_TITLE_CAP = 150;

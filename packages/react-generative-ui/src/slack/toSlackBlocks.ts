@@ -4,8 +4,10 @@ import {
   type NormalizedUINode,
 } from "../ir";
 import {
+  ACTION_ID_CAP,
   ACTIONS_ELEMENT_CAP,
   ALERT_TEXT_CAP,
+  BUTTON_VALUE_CAP,
   CARD_ACTIONS_CAP,
   CARD_BODY_CAP,
   CARD_SUBTEXT_CAP,
@@ -13,17 +15,21 @@ import {
   CAROUSEL_CARD_CAP,
   CAROUSEL_CARD_MIN,
   CONTEXT_ELEMENT_CAP,
+  CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
   DATA_TABLE_COLUMN_CAP,
   DATA_TABLE_ROW_CAP,
   FACT_FIELD_CAP,
   FACT_FIELD_TEXT_CAP,
   HEADER_TEXT_CAP,
+  INPUT_LABEL_CAP,
   INTERACTIVE_TEXT_CAP,
   MARKDOWN_TEXT_BUDGET,
   MAX_TRAVERSAL_DEPTH,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
+  PLACEHOLDER_TEXT_CAP,
+  RADIO_OPTION_CAP,
   SECTION_TEXT_CAP,
   SELECT_OPTION_CAP,
   buildAlertBlock,
@@ -65,6 +71,8 @@ const INTERACTIVE_TYPES = new Set([
   "RadioGroup",
 ]);
 
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -73,11 +81,6 @@ const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
 
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
-
-const asActionId = (action: unknown): string =>
-  isRecord(action) && typeof action["type"] === "string"
-    ? action["type"]
-    : "action";
 
 const warn = (
   context: ConversionContext,
@@ -105,6 +108,21 @@ const clampText = (
   return value.slice(0, cap);
 };
 
+const asActionId = (
+  action: unknown,
+  component: string,
+  context: ConversionContext,
+): string =>
+  clampText(
+    isRecord(action) && typeof action["type"] === "string"
+      ? action["type"]
+      : "action",
+    ACTION_ID_CAP,
+    component,
+    "action_id",
+    context,
+  );
+
 const plainText = (text: string): SlackPlainText => ({
   type: "plain_text",
   text,
@@ -129,7 +147,17 @@ const buttonElement = (
   component: string,
   context: ConversionContext,
 ): SlackButtonElement => {
-  const value = actionValue(action);
+  const serializedValue = actionValue(action);
+  let value = serializedValue;
+  if (value !== undefined && value.length > BUTTON_VALUE_CAP) {
+    warn(
+      context,
+      "dropped",
+      component,
+      "value was dropped because the action payload was too large to round-trip.",
+    );
+    value = undefined;
+  }
   const style =
     buttonStyle === "primary" || buttonStyle === "danger"
       ? buttonStyle
@@ -139,7 +167,7 @@ const buttonElement = (
     text: plainText(
       clampText(label, INTERACTIVE_TEXT_CAP, component, "label", context),
     ),
-    action_id: asActionId(action),
+    action_id: asActionId(action, component, context),
     ...(value !== undefined ? { value } : {}),
     ...(style !== undefined ? { style } : {}),
   };
@@ -201,20 +229,35 @@ const toActionElement = (
         .slice(0, SELECT_OPTION_CAP)
         .map((option) => optionFrom(option, "Select", context))
         .filter((option): option is SlackOption => option !== undefined);
-      const placeholder = asString(props["placeholder"]);
+      const placeholder = clampText(
+        asString(props["placeholder"]),
+        PLACEHOLDER_TEXT_CAP,
+        "Select",
+        "placeholder",
+        context,
+      );
       return {
         type: "static_select",
-        action_id: asActionId(action),
+        action_id: asActionId(action, "Select", context),
         options,
         ...(placeholder ? { placeholder: plainText(placeholder) } : {}),
       };
     }
     case "DatePicker": {
-      const initialDate = asString(props["value"]);
+      const rawDate = asString(props["value"]);
+      const initialDate = DATE_PATTERN.test(rawDate) ? rawDate : undefined;
+      if (rawDate && initialDate === undefined) {
+        warn(
+          context,
+          "dropped",
+          "DatePicker",
+          "value did not match the YYYY-MM-DD format and was dropped.",
+        );
+      }
       return {
         type: "datepicker",
-        action_id: asActionId(action),
-        ...(initialDate ? { initial_date: initialDate } : {}),
+        action_id: asActionId(action, "DatePicker", context),
+        ...(initialDate !== undefined ? { initial_date: initialDate } : {}),
       };
     }
     case "Checkbox": {
@@ -226,14 +269,33 @@ const toActionElement = (
         context,
       );
       const name = asString(props["name"]);
+      const option: SlackOption = {
+        text: plainText(label),
+        value: name || label,
+      };
       return {
         type: "checkboxes",
-        action_id: asActionId(action),
-        options: [{ text: plainText(label), value: name || label }],
+        action_id: asActionId(action, "Checkbox", context),
+        options: [option],
+        ...(props["defaultChecked"] === true
+          ? { initial_options: [option] }
+          : {}),
       };
     }
     case "RadioGroup": {
-      const options = (Array.isArray(props["options"]) ? props["options"] : [])
+      const rawOptions = Array.isArray(props["options"])
+        ? props["options"]
+        : [];
+      if (rawOptions.length > RADIO_OPTION_CAP) {
+        warn(
+          context,
+          "clamped",
+          "RadioGroup",
+          `options were clamped to ${RADIO_OPTION_CAP} entries.`,
+        );
+      }
+      const options = rawOptions
+        .slice(0, RADIO_OPTION_CAP)
         .map((option) => optionFrom(option, "RadioGroup", context))
         .filter((option): option is SlackOption => option !== undefined);
       const selectedValue =
@@ -245,7 +307,7 @@ const toActionElement = (
       );
       return {
         type: "radio_buttons",
-        action_id: asActionId(action),
+        action_id: asActionId(action, "RadioGroup", context),
         options,
         ...(initialOption !== undefined
           ? { initial_option: initialOption }
@@ -468,6 +530,17 @@ const assembleCleanCard = (
   });
 };
 
+/**
+ * A card requires at least one of `hero_image`, `title`, `body`, or `actions`
+ * (see {@link SlackCardBlock}); a card with none of them is not a valid
+ * native block and must be dropped instead of emitted.
+ */
+const isEmptyCard = (card: SlackCardBlock): boolean =>
+  card.hero_image === undefined &&
+  card.title === undefined &&
+  card.body === undefined &&
+  (card.actions === undefined || card.actions.length === 0);
+
 const convertCard = (
   element: NormalizedUIElement,
   context: ConversionContext,
@@ -494,7 +567,17 @@ const convertCard = (
         : []),
     ];
   }
-  return [assembleCleanCard(titleText, fields, buttons, context)];
+  const card = assembleCleanCard(titleText, fields, buttons, context);
+  if (isEmptyCard(card)) {
+    warn(
+      context,
+      "dropped",
+      "Card",
+      "A card with none of hero_image, title, body, or actions was dropped.",
+    );
+    return [];
+  }
+  return [card];
 };
 
 /**
@@ -529,14 +612,27 @@ const convertCarouselCard = (
   element: NormalizedUIElement,
   context: ConversionContext,
   depth: number,
-): SlackCardBlock => {
+): SlackCardBlock | undefined => {
   const fields = extractCardFields(element);
-  if (fields.leftover.length === 0) {
-    const titleText = cardTitleText(element.props, context);
-    const buttons = cardActionButtons(element.props, context);
-    return assembleCleanCard(titleText, fields, buttons, context);
+  const card =
+    fields.leftover.length === 0
+      ? assembleCleanCard(
+          cardTitleText(element.props, context),
+          fields,
+          cardActionButtons(element.props, context),
+          context,
+        )
+      : degradeCard(element, context, depth);
+  if (isEmptyCard(card)) {
+    warn(
+      context,
+      "dropped",
+      "Card",
+      "A card with none of hero_image, title, body, or actions was dropped.",
+    );
+    return undefined;
   }
-  return degradeCard(element, context, depth);
+  return card;
 };
 
 const isBadgeOrCaption = (
@@ -566,7 +662,13 @@ const contextRow = (
       type: "context",
       elements: children.slice(0, CONTEXT_ELEMENT_CAP).map((child) => ({
         type: "mrkdwn",
-        text: asString(child.props["value"]),
+        text: clampText(
+          asString(child.props["value"]),
+          CONTEXT_TEXT_CAP,
+          child.type,
+          "value",
+          context,
+        ),
       })),
     },
   ];
@@ -632,7 +734,8 @@ const convertCarousel = (
   }
   const cards = cardChildren
     .slice(0, CAROUSEL_CARD_CAP)
-    .map((card) => convertCarouselCard(card, context, depth + 1));
+    .map((card) => convertCarouselCard(card, context, depth + 1))
+    .filter((card): card is SlackCardBlock => card !== undefined);
   if (cards.length < CAROUSEL_CARD_MIN) {
     warn(
       context,
@@ -685,7 +788,7 @@ const convertTable = (
     );
   }
 
-  const headerRow: SlackDataTableCell[] = rawColumns
+  const columnHeaderRow: SlackDataTableCell[] = rawColumns
     .slice(0, DATA_TABLE_COLUMN_CAP)
     .filter(isRecord)
     .map((column) => ({
@@ -700,6 +803,14 @@ const convertTable = (
         .map(toDataTableCell)
         .filter((cell): cell is SlackDataTableCell => cell !== undefined),
     );
+  const dataWidth = Math.max(0, ...dataRows.map((row) => row.length));
+  const headerRow: SlackDataTableCell[] =
+    columnHeaderRow.length > 0
+      ? columnHeaderRow
+      : Array.from({ length: dataWidth }, () => ({
+          type: "raw_text" as const,
+          text: "",
+        }));
 
   const kept: SlackDataTableCell[][] = [];
   let tableCharacters = 0;
@@ -773,7 +884,18 @@ const convertElement = (
       return [
         {
           type: "context",
-          elements: [{ type: "mrkdwn", text: asString(props["value"]) }],
+          elements: [
+            {
+              type: "mrkdwn",
+              text: clampText(
+                asString(props["value"]),
+                CONTEXT_TEXT_CAP,
+                element.type,
+                "value",
+                context,
+              ),
+            },
+          ],
         },
       ];
     case "Fact":
@@ -795,14 +917,27 @@ const convertElement = (
     case "RadioGroup":
       return convertActions([element], context);
     case "Input": {
-      const placeholder = asString(props["placeholder"]);
+      const label = clampText(
+        asString(props["label"]),
+        INPUT_LABEL_CAP,
+        "Input",
+        "label",
+        context,
+      );
+      const placeholder = clampText(
+        asString(props["placeholder"]),
+        PLACEHOLDER_TEXT_CAP,
+        "Input",
+        "placeholder",
+        context,
+      );
       return [
         {
           type: "input",
-          label: plainText(asString(props["label"])),
+          label: plainText(label),
           element: {
             type: "plain_text_input",
-            action_id: asActionId(element.action),
+            action_id: asActionId(element.action, "Input", context),
             ...(props["multiline"] === true ? { multiline: true } : {}),
             ...(placeholder ? { placeholder: plainText(placeholder) } : {}),
           },

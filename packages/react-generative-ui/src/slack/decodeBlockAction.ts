@@ -24,7 +24,11 @@ export function decodeBlockAction(action: unknown): Action | undefined {
     if (typeof rawValue === "string") {
       try {
         const parsed: unknown = JSON.parse(rawValue);
-        if (isRecord(parsed)) payload = parsed;
+        if (isRecord(parsed)) {
+          payload = parsed;
+        } else {
+          plainValue = rawValue;
+        }
       } catch {
         plainValue = rawValue;
       }
