@@ -11,7 +11,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * besides `aui` is collected into `$input` (omitted when there are none).
  * `aui` is reserved for the envelope: `toAdaptiveCard` renames any input
  * whose id would collide to `aui_` before encoding, so a same-card input
- * value can never land on this key. Every collected key (in `payload` or
+ * value can never land on this key. `$input` and `type` are reserved on the
+ * way out: a `$input` key inside the envelope payload is dropped so the slot
+ * only ever reflects same-card input values, and the envelope's own `type`
+ * wins over a payload key of the same name. Every collected key (in `payload` or
  * `$input`) is kept as an own data property of the returned object, even a
  * `__proto__` or `constructor` key, since the object is always built by
  * spreading and `Object.fromEntries` rather than by keyed assignment.
@@ -25,13 +28,16 @@ export function decodeSubmitData(value: unknown): Action | undefined {
     const type = aui["type"];
 
     const payload = isRecord(aui["payload"]) ? aui["payload"] : {};
+    const payloadEntries = Object.entries(payload).filter(
+      ([key]) => key !== "$input",
+    );
     const inputEntries = Object.entries(value).filter(([key]) => key !== "aui");
     const input =
       inputEntries.length > 0 ? Object.fromEntries(inputEntries) : undefined;
 
     return {
+      ...Object.fromEntries(payloadEntries),
       type,
-      ...payload,
       ...(input !== undefined ? { $input: input } : {}),
     };
   } catch {

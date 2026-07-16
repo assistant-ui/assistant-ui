@@ -17,6 +17,8 @@ import { FromSlackBlocksResult, SlackBlocksResult, SlackConversionWarning, ToSla
 ### decodeBlockAction
 
 Decodes one structural entry from a Slack `block_actions` payload.
+`$input` is reserved for the runtime selection: a `$input` key inside the
+button's JSON `value` payload is dropped rather than spread into the result.
 
 <ParametersTable {...decodeBlockAction} />
 

@@ -29,7 +29,10 @@ value into the same submit object keyed by its `id`, so every top-level key
 besides `aui` is collected into `$input` (omitted when there are none).
 `aui` is reserved for the envelope: `toAdaptiveCard` renames any input
 whose id would collide to `aui_` before encoding, so a same-card input
-value can never land on this key. Every collected key (in `payload` or
+value can never land on this key. `$input` and `type` are reserved on the
+way out: a `$input` key inside the envelope payload is dropped so the slot
+only ever reflects same-card input values, and the envelope's own `type`
+wins over a payload key of the same name. Every collected key (in `payload` or
 `$input`) is kept as an own data property of the returned object, even a
 `__proto__` or `constructor` key, since the object is always built by
 spreading and `Object.fromEntries` rather than by keyed assignment.

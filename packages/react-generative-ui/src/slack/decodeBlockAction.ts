@@ -8,7 +8,11 @@ const optionValue = (value: unknown): string | undefined =>
     ? value["value"]
     : undefined;
 
-/** Decodes one structural entry from a Slack `block_actions` payload. */
+/**
+ * Decodes one structural entry from a Slack `block_actions` payload.
+ * `$input` is reserved for the runtime selection: a `$input` key inside the
+ * button's JSON `value` payload is dropped rather than spread into the result.
+ */
 export function decodeBlockAction(action: unknown): Action | undefined {
   try {
     if (!isRecord(action) || typeof action["action_id"] !== "string") {
@@ -50,7 +54,9 @@ export function decodeBlockAction(action: unknown): Action | undefined {
       (selectedOptions !== undefined ? selectedOptions : plainValue);
 
     return {
-      ...payload,
+      ...Object.fromEntries(
+        Object.entries(payload).filter(([key]) => key !== "$input"),
+      ),
       type: actionId,
       ...(input !== undefined ? { $input: input } : {}),
     };

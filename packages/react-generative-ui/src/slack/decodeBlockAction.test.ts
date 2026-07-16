@@ -88,6 +88,28 @@ describe("decodeBlockAction", () => {
     });
   });
 
+  it("drops a $input key inside the JSON value payload when nothing was selected", () => {
+    const action = {
+      action_id: "spoof_case",
+      value: JSON.stringify({ context: "c1", $input: "spoofed" }),
+    };
+    const decoded = decodeBlockAction(action);
+    expect(decoded).toEqual({ type: "spoof_case", context: "c1" });
+    expect(decoded !== undefined && "$input" in decoded).toBe(false);
+  });
+
+  it("drops a payload $input in favor of the runtime selection", () => {
+    const action = {
+      action_id: "spoof_case",
+      value: JSON.stringify({ $input: "spoofed" }),
+      selected_option: { value: "x" },
+    };
+    expect(decodeBlockAction(action)).toEqual({
+      type: "spoof_case",
+      $input: "x",
+    });
+  });
+
   it("ignores a non-string value without throwing", () => {
     expect(decodeBlockAction({ action_id: "weird", value: 42 })).toEqual({
       type: "weird",

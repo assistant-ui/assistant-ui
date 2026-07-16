@@ -37,6 +37,34 @@ describe("decodeSubmitData", () => {
     });
   });
 
+  it("drops a $input key inside the envelope payload, keeping the slot for collected inputs", () => {
+    const value = {
+      aui: { type: "approve", payload: { requestId: "r1", $input: "spoofed" } },
+      email: "a@b.com",
+    };
+    expect(decodeSubmitData(value)).toEqual({
+      type: "approve",
+      requestId: "r1",
+      $input: { email: "a@b.com" },
+    });
+  });
+
+  it("drops a payload $input even when no input values were collected", () => {
+    const value = {
+      aui: { type: "approve", payload: { $input: "spoofed" } },
+    };
+    const decoded = decodeSubmitData(value);
+    expect(decoded).toEqual({ type: "approve" });
+    expect(decoded !== undefined && "$input" in decoded).toBe(false);
+  });
+
+  it("keeps the envelope type over a payload key of the same name", () => {
+    const value = {
+      aui: { type: "approve", payload: { type: "spoofed" } },
+    };
+    expect(decodeSubmitData(value)).toEqual({ type: "approve" });
+  });
+
   it("returns undefined when aui is missing", () => {
     expect(decodeSubmitData({ email: "a@b.com" })).toBeUndefined();
   });
