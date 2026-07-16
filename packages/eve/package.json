@@ -37,7 +37,7 @@
   },
   "peerDependencies": {
     "@types/react": "*",
-    "eve": "^0.22.0",
+    "eve": "^0.22.0 || ^0.23.0 || ^0.24.0",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
@@ -48,7 +48,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.17",
-    "eve": "^0.22.6",
+    "eve": "^0.24.3",
     "react": "^19.2.7",
     "vitest": "^4.1.10"
   },
