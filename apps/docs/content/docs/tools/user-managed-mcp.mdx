@@ -323,13 +323,17 @@ type ResourcePage = {
 };
 
 const server = aui.mcp().server({ id });
-const firstPage = (await server.listResources()) as ResourcePage;
-const secondPage = firstPage.nextCursor
-  ? ((await server.listResources({
-      cursor: firstPage.nextCursor,
-    })) as ResourcePage)
-  : undefined;
-const resources = [...firstPage.resources, ...(secondPage?.resources ?? [])];
+const resources: ResourcePage["resources"] = [];
+let nextCursor: string | undefined;
+
+do {
+  const page = (await (nextCursor === undefined
+    ? server.listResources()
+    : server.listResources({ cursor: nextCursor }))) as ResourcePage;
+  resources.push(...page.resources);
+  nextCursor = page.nextCursor;
+} while (nextCursor !== undefined);
+
 const firstResource = resources[0];
 if (firstResource) {
   const preview = await server.readResource(firstResource.uri);
