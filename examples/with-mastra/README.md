@@ -3,6 +3,7 @@
 This example runs assistant-ui against a local Mastra server. It demonstrates:
 
 - AI SDK-compatible agent streaming
+- two selectable Mastra agents with distinct typed server tools
 - LibSQL-backed thread creation, switching, and message restoration
 - a durable workflow with two human approval checkpoints
 - workflow run restoration after a browser reload
@@ -21,3 +22,8 @@ by Git.
 The local example creates a persistent resource ID per browser. Production apps
 must derive that identity from an authenticated server session and authorize
 resource, thread, and workflow access on the server.
+
+The release assistant calls `draftReleaseBrief` before writing release copy.
+The risk analyst calls `assessRolloutRisk` before recommending release gates.
+Both stream through Mastra's dynamic `/chat/:agentId` route, and assistant-ui
+renders their tool parts through the canonical thread component.
