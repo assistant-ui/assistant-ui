@@ -13,6 +13,7 @@ class ObjectStreamControllerImpl implements ObjectStreamController {
   private _controller: ReadableStreamDefaultController<ObjectStreamChunk>;
   private _abortController = new AbortController();
   private _accumulator: ObjectStreamAccumulator;
+  private _cancelled = false;
 
   get abortSignal() {
     return this._abortController.signal;
@@ -27,6 +28,8 @@ class ObjectStreamControllerImpl implements ObjectStreamController {
   }
 
   enqueue(operations: readonly ObjectStreamOperation[]) {
+    if (this._cancelled) return;
+
     this._accumulator.append(operations);
 
     this._controller.enqueue({
@@ -36,14 +39,17 @@ class ObjectStreamControllerImpl implements ObjectStreamController {
   }
 
   __internalError(error: unknown) {
+    if (this._cancelled) return;
     this._controller.error(error);
   }
 
   __internalClose() {
+    if (this._cancelled) return;
     this._controller.close();
   }
 
   __internalCancel(reason?: unknown) {
+    this._cancelled = true;
     this._abortController.abort(reason);
   }
 }
