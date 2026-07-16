@@ -96,7 +96,7 @@ export const createMastraThreadListAdapter = ({
       const currentMetadata = splitMetadata(thread.metadata);
       await resource.update({
         title: update.title ?? thread.title ?? "",
-        resourceId,
+        resourceId: thread.resourceId,
         metadata: {
           ...(update.custom ?? currentMetadata.custom),
           [STATUS_KEY]: update.status ?? currentMetadata.status,
