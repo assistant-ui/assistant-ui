@@ -1,6 +1,7 @@
 import type {
   GetWorkflowRunByIdResponse,
   MastraClient,
+  MemorySearchResponse,
   WorkflowRunResult,
 } from "@mastra/client-js";
 import type { WorkflowRunStatus } from "@mastra/core/workflows";
@@ -79,4 +80,39 @@ export type MastraWorkflowStartOptions = {
 export type MastraWorkflowResumeOptions = {
   forEachIndex?: number | undefined;
   requestContext?: Record<string, unknown> | undefined;
+};
+
+export type MastraMemoryOperationOptions = {
+  threadId?: string | undefined;
+  resourceId?: string | undefined;
+  requestContext?: Record<string, unknown> | undefined;
+};
+
+export type MastraMemorySearchOptions = MastraMemoryOperationOptions & {
+  memoryConfig?: unknown;
+};
+
+export type UseMastraMemoryOptions = {
+  client: MastraClient;
+  agentId: string;
+  resourceId: string;
+  threadId?: string | undefined;
+  requestContext?: Record<string, unknown> | undefined;
+};
+
+export type UseMastraMemoryResult = {
+  isSearching: boolean;
+  isReadingWorkingMemory: boolean;
+  isUpdatingWorkingMemory: boolean;
+  searchMemory: (
+    searchQuery: string,
+    options?: MastraMemorySearchOptions,
+  ) => Promise<MemorySearchResponse>;
+  getWorkingMemory: (
+    options?: MastraMemoryOperationOptions,
+  ) => Promise<unknown>;
+  updateWorkingMemory: (
+    workingMemory: string,
+    options?: MastraMemoryOperationOptions,
+  ) => Promise<unknown>;
 };
