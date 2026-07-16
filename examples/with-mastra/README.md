@@ -16,3 +16,7 @@ pnpm --filter with-mastra dev
 The command starts Next.js on `http://localhost:3000` and a Mastra Hono server
 on `http://localhost:4111`. Local environment and `mastra.db*` files are ignored
 by Git.
+
+The local example creates a persistent resource ID per browser. Production apps
+must derive that identity from an authenticated server session and authorize
+resource, thread, and workflow access on the server.
