@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import {
+  mastraExampleAgentIds,
   type MastraExampleAgentId,
   MyRuntimeProvider,
 } from "./MyRuntimeProvider";
@@ -60,13 +61,10 @@ const agents = {
 } as const;
 
 const agentStorageKey = "assistant-ui-mastra-agent-id";
-const agentIds: readonly MastraExampleAgentId[] = [
-  "releaseAssistant",
-  "riskAnalyst",
-];
 
 const isAgentId = (value: string | null): value is MastraExampleAgentId =>
-  value === "releaseAssistant" || value === "riskAnalyst";
+  value !== null &&
+  (mastraExampleAgentIds as readonly string[]).includes(value);
 
 function ChatSurface({ agentId }: { agentId: MastraExampleAgentId }) {
   const aui = useAui({
@@ -88,16 +86,15 @@ function AgentSelector({
   onAgentChange: (agentId: MastraExampleAgentId) => void;
 }) {
   return (
-    <div className="agent-selector" role="tablist" aria-label="Mastra agent">
-      {agentIds.map((id) => {
+    <div className="agent-selector" role="group" aria-label="Select agent">
+      {mastraExampleAgentIds.map((id) => {
         const agent = agents[id];
         const Icon = agent.icon;
         return (
           <button
             key={id}
             type="button"
-            role="tab"
-            aria-selected={agentId === id}
+            aria-pressed={agentId === id}
             onClick={() => onAgentChange(id)}
           >
             <Icon className="size-3.5" />

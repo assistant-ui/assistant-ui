@@ -18,7 +18,11 @@ export const mastraUrl =
 
 export const mastraClient = new MastraClient({ baseUrl: mastraUrl });
 
-export type MastraExampleAgentId = "releaseAssistant" | "riskAnalyst";
+export const mastraExampleAgentIds = [
+  "releaseAssistant",
+  "riskAnalyst",
+] as const;
+export type MastraExampleAgentId = (typeof mastraExampleAgentIds)[number];
 
 const threadStorageKey = (agentId: MastraExampleAgentId) =>
   `assistant-ui-mastra-thread-id:${agentId}`;
@@ -28,7 +32,7 @@ const ResourceIdContext = createContext<string | null>(null);
 const readThreadIds = () => {
   if (typeof window === "undefined") return {};
   return Object.fromEntries(
-    (["releaseAssistant", "riskAnalyst"] as const).flatMap((agentId) => {
+    mastraExampleAgentIds.flatMap((agentId) => {
       const threadId = window.localStorage.getItem(threadStorageKey(agentId));
       return threadId ? [[agentId, threadId]] : [];
     }),
