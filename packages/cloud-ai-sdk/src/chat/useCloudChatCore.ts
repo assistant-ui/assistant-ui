@@ -33,12 +33,12 @@ export function useCloudChatCore(
 
   // Track component lifetime for safe async operations
   const mountedRef = useRef(true);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
       mountedRef.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
   core.mountedRef = mountedRef;
 
   const fallbackTransport = useRef<ChatTransport<UIMessage>>(

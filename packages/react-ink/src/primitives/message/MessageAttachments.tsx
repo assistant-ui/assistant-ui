@@ -2,16 +2,11 @@ import {
   MessagePrimitiveAttachments,
   MessagePrimitiveAttachmentByIndex,
 } from "@assistant-ui/core/react";
-import type { AttachmentComponents } from "../composer/ComposerAttachments";
 
-export type MessageAttachmentsProps = {
-  components: AttachmentComponents | undefined;
-};
+export type MessageAttachmentsProps = MessagePrimitiveAttachments.Props;
 
-export type MessageAttachmentByIndexProps = {
-  index: number;
-  components?: AttachmentComponents | undefined;
-};
+export type MessageAttachmentByIndexProps =
+  MessagePrimitiveAttachmentByIndex.Props;
 
 export const MessageAttachmentByIndex = MessagePrimitiveAttachmentByIndex;
 

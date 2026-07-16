@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
 import { isToolUIPart, generateId } from "ai";
 import {
@@ -8,7 +8,11 @@ import {
   useRuntimeAdapters,
   type JoinStrategy,
 } from "@assistant-ui/core/react";
-import type { ToolExecutionStatus } from "@assistant-ui/core";
+import type {
+  SuggestionAdapter,
+  ThreadSuggestion,
+  ToolExecutionStatus,
+} from "@assistant-ui/core";
 import type {
   ExternalStoreAdapter,
   ExternalStoreSharedOptions,
@@ -26,6 +30,7 @@ import {
   getExternalStoreMessages,
   pickExternalStoreSharedOptions,
 } from "@assistant-ui/core";
+import { consumeSuggestionResult } from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
@@ -63,6 +68,7 @@ export type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   adapters?:
     | (NonNullable<ExternalStoreAdapter["adapters"]> & {
         history?: ThreadHistoryAdapter | undefined;
+        suggestion?: SuggestionAdapter | undefined;
       })
     | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
@@ -84,6 +90,13 @@ export type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
    */
   onResume?: ExternalStoreAdapter["onResume"];
   /**
+   * Called when `runtime.thread.resumeToolCall(options)` is invoked for a tool call the in-process tracker does not own.
+   *
+   * When omitted, `resumeToolCall` throws `"Tool call ${toolCallId} is not waiting for resume."`.
+   * Provide this to bridge resume-tool-call invocations into a custom handler.
+   */
+  onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
+  /**
    * How consecutive assistant messages are rendered.
    *
    * `"concat-content"` (the default) merges them into a single thread message.
@@ -92,6 +105,81 @@ export type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
    * as separate entries.
    */
   joinStrategy?: JoinStrategy | undefined;
+};
+
+const EMPTY_SUGGESTIONS: readonly ThreadSuggestion[] = [];
+
+const useGeneratedSuggestions = (
+  suggestionAdapter: SuggestionAdapter | undefined,
+  messages: readonly ThreadMessage[],
+  isRunning: boolean,
+): readonly ThreadSuggestion[] => {
+  const [suggestions, setSuggestions] =
+    useState<readonly ThreadSuggestion[]>(EMPTY_SUGGESTIONS);
+  const controllerRef = useRef<AbortController | null>(null);
+  const wasRunningRef = useRef(false);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const adapterRef = useRef(suggestionAdapter);
+  adapterRef.current = suggestionAdapter;
+  const hasAdapter = suggestionAdapter != null;
+
+  useEffect(() => {
+    const clearSuggestions = () => {
+      controllerRef.current?.abort();
+      controllerRef.current = null;
+      setSuggestions((prev) => (prev.length === 0 ? prev : EMPTY_SUGGESTIONS));
+    };
+
+    const adapter = adapterRef.current;
+    if (!adapter) {
+      clearSuggestions();
+      wasRunningRef.current = isRunning;
+      return;
+    }
+
+    if (isRunning) {
+      if (!wasRunningRef.current) {
+        clearSuggestions();
+      }
+      wasRunningRef.current = true;
+      return;
+    }
+
+    if (!wasRunningRef.current) return;
+    wasRunningRef.current = false;
+
+    const currentMessages = messagesRef.current;
+    const last = currentMessages.at(-1);
+    if (last?.role !== "assistant") return;
+    if (last.status?.type === "requires-action") return;
+
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    const { signal } = controller;
+
+    void (async () => {
+      try {
+        const promiseOrGenerator = adapter.generate({
+          messages: currentMessages,
+          signal,
+        });
+
+        await consumeSuggestionResult(promiseOrGenerator, {
+          signal,
+          onUpdate: setSuggestions,
+        });
+      } catch {}
+    })();
+  }, [hasAdapter, isRunning]);
+
+  useEffect(() => {
+    return () => {
+      controllerRef.current?.abort();
+    };
+  }, []);
+
+  return suggestions;
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -103,8 +191,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     toCreateMessage: customToCreateMessage,
     cancelPendingToolCallsOnSend = true,
     onResume,
+    onResumeToolCall,
     joinStrategy,
   } = adapter;
+  const suggestionAdapter = adapters?.suggestion;
   const contextAdapters = useRuntimeAdapters();
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -151,6 +241,12 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       [toolStatuses, messageTiming, optimisticMessageId, chatHelpers.error],
     ),
   });
+
+  const generatedSuggestions = useGeneratedSuggestions(
+    suggestionAdapter,
+    messages,
+    isRunning,
+  );
 
   const [runtimeRef] = useState(() => ({
     get current(): AssistantRuntime {
@@ -379,7 +475,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       });
     },
     ...pickExternalStoreSharedOptions(adapter),
+    ...(suggestionAdapter ? { suggestions: generatedSuggestions } : {}),
     ...(onResume && { onResume }),
+    ...(onResumeToolCall && { onResumeToolCall }),
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...contextAdapters,

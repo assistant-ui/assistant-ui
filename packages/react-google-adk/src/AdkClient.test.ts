@@ -261,6 +261,30 @@ describe("createAdkStream - direct mode", () => {
     });
   });
 
+  it.each(["http://localhost:8000/", "http://localhost:8000//"])(
+    "normalizes trailing slashes in the api URL: %s",
+    async (api) => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(sseBody(""), { status: 200 }),
+      );
+
+      const stream = createAdkStream({
+        api,
+        appName: "my-app",
+        userId: "user-1",
+      });
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hello" }],
+        makeConfig(),
+      );
+      for await (const _ of gen) {
+        /* noop */
+      }
+
+      expect(mockFetch.mock.calls[0]![0]).toBe("http://localhost:8000/run_sse");
+    },
+  );
+
   it("calls config.initialize() to get the sessionId", async () => {
     const initialize = vi
       .fn()

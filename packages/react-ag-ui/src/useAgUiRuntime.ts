@@ -138,7 +138,7 @@ export function useAgUiRuntime(
       return {
         ...shared,
         isLoading: core.isLoading,
-        messages: core.getMessages(),
+        messageRepository: core.getMessageRepository(),
         state: core.getState(),
         isRunning: core.isRunning() || hasExecutingTools,
         extras: agUiExtras.provide({

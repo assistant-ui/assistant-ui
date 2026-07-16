@@ -7,6 +7,7 @@ import type {
 } from "@assistant-ui/core";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import type { AdkEvent, AdkMessage } from "./types";
+import { trimTrailingSlashes } from "./trimTrailingSlashes";
 
 export type AdkSessionAdapterOptions = {
   /**
@@ -79,7 +80,8 @@ export function createAdkSessionAdapter(
   options: AdkSessionAdapterOptions,
 ): AdkSessionAdapterResult {
   const { apiUrl, appName, userId } = options;
-  const baseUrl = `${apiUrl}/apps/${encodeURIComponent(appName)}/users/${encodeURIComponent(userId)}/sessions`;
+  const normalizedApiUrl = trimTrailingSlashes(apiUrl);
+  const baseUrl = `${normalizedApiUrl}/apps/${encodeURIComponent(appName)}/users/${encodeURIComponent(userId)}/sessions`;
 
   const getHeaders = async (): Promise<Record<string, string>> => {
     if (!options.headers) return {};
@@ -152,7 +154,13 @@ export function createAdkSessionAdapter(
 
     generateTitle(): Promise<AssistantStream> {
       // Title generation not supported without assistant-cloud
-      return Promise.resolve(new ReadableStream<AssistantStreamChunk>());
+      return Promise.resolve(
+        new ReadableStream<AssistantStreamChunk>({
+          start(controller) {
+            controller.close();
+          },
+        }),
+      );
     },
 
     async fetch(threadId: string): Promise<RemoteThreadMetadata> {

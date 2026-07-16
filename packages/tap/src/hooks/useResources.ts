@@ -14,7 +14,7 @@ import {
   hasContextDepsChanged,
 } from "../core/context";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 import { depsShallowEqual } from "./utils/depsShallowEqual";
 
@@ -73,7 +73,7 @@ const hasAnyChildContextDepsChanged = (
 export function useResources<E extends ResourceElement<any, any[]>>(
   elements: readonly E[],
 ): ExtractResourceReturnType<E>[] {
-  const fibers = useMemo(() => new Map<string | number, FiberState>(), []);
+  const [fibers] = useState(() => new Map<string | number, FiberState>());
 
   // Process each element
 

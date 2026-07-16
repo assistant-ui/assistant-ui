@@ -12,7 +12,7 @@ import {
   setRootVersion,
 } from "../core/helpers/root";
 import { cloneCurrentTapContext, withTapContextRoot } from "../core/context";
-import { useEffect, useEffectEvent, useMemo, useRef } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useDevStrictMode } from "./utils/useDevStrictMode";
 
 export namespace useTapRoot {
@@ -34,14 +34,12 @@ export namespace useTapRoot {
 const useHostRoot = <R>(render: () => R): R => render();
 
 export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
-  const scheduler = useMemo(
-    () => new UpdateScheduler(() => handleUpdate()),
-    [],
-  );
-  const queue = useMemo(() => [] as (() => boolean)[], []);
+  // oxlint-disable-next-line react-hooks/rules-of-hooks -- updates run through the component's Effect Event after the scheduler is initialized
+  const [scheduler] = useState(() => new UpdateScheduler(() => handleUpdate()));
+  const [queue] = useState<(() => boolean)[]>(() => []);
 
   const getDevStrictMode = useDevStrictMode();
-  const fiber = useMemo(() => {
+  const [fiber] = useState(() => {
     const root = createResourceFiberRoot((evaluate, apply) => {
       if (!scheduler.isDirty) {
         if (!evaluate()) return;
@@ -58,7 +56,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
       undefined,
       getDevStrictMode(),
     );
-  }, [queue, scheduler, getDevStrictMode]);
+  });
 
   const context = cloneCurrentTapContext();
 
@@ -70,7 +68,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   const isMountedRef = useRef(false);
   const committedArgsRef = useRef([render] as const);
   const valueRef = useRef<R>(render2);
-  const subscribers = useMemo(() => new Set<() => void>(), []);
+  const [subscribers] = useState(() => new Set<() => void>());
 
   const publish = (output: R) => {
     if (scheduler.isDirty || valueRef.current === output) return;

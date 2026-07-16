@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
 import { IMAGE_SIZE_TOKENS } from "../ir";
@@ -12,15 +13,33 @@ export const mediaVocabulary = {
         .union([z.enum(IMAGE_SIZE_TOKENS), z.number()])
         .optional()
         .describe("Size token or pixel value."),
+      round: z
+        .boolean()
+        .optional()
+        .describe(
+          "Render as a circular avatar (fully rounded, cropped to a square).",
+        ),
     }),
-    render: ({ src, alt, size }) => (
-      <img
-        data-aui="image"
-        data-aui-size={typeof size === "number" ? `${size}px` : size}
-        src={src}
-        alt={alt}
-      />
-    ),
+    render: ({ src, alt, size, round }) => {
+      const numericSize = typeof size === "number" ? size : undefined;
+      const style: CSSProperties | undefined =
+        numericSize === undefined
+          ? undefined
+          : round
+            ? { width: `${numericSize}px`, height: `${numericSize}px` }
+            : { maxWidth: `${numericSize}px` };
+
+      return (
+        <img
+          data-aui="image"
+          data-aui-size={numericSize === undefined ? size : undefined}
+          data-aui-round={round || undefined}
+          src={src}
+          alt={alt}
+          style={style}
+        />
+      );
+    },
   },
   Divider: {
     description: "A horizontal rule between sections.",

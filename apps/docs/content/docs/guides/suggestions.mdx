@@ -163,6 +163,30 @@ const runtime = useLocalRuntime(myChatModel, {
 });
 ```
 
+For LLM-powered follow ups, use `createSuggestionAdapter`. It builds a deterministic transcript prompt from recent messages and calls your `complete` function. Forward the optional `signal` so in-flight generation can be cancelled when a new run starts.
+
+```tsx
+import { createSuggestionAdapter, useLocalRuntime } from "@assistant-ui/react";
+
+const suggestionAdapter = createSuggestionAdapter({
+  async complete({ prompt, signal }) {
+    const response = await fetch("/api/suggestions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+      signal,
+    });
+    const data: string[] = await response.json();
+    return data;
+  },
+  count: 3,
+});
+
+const runtime = useLocalRuntime(myChatModel, {
+  adapters: { suggestion: suggestionAdapter },
+});
+```
+
 ### External store runtime
 
 `useExternalStoreRuntime` exposes a `suggestions` field, so you can drive follow ups straight from your application state.
@@ -190,7 +214,52 @@ const [suggestions, setSuggestions] = useState<ThreadSuggestion[]>([]);
 const runtime = useChatRuntime({ suggestions });
 ```
 
-The local runtime clears its suggestions when a new run starts. External store and AI SDK runtimes keep whatever state you push, so you control the lifetime.
+They also accept the same `suggestion` adapter as the local runtime under `adapters`, so one adapter works across both runtimes. When set, the adapter owns `thread.suggestions` after each run settles, and any static `suggestions` option is ignored. Pair it with `createSuggestionAdapter` for built-in prompt construction:
+
+```tsx
+import { createSuggestionAdapter } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+const runtime = useChatRuntime({
+  adapters: {
+    suggestion: createSuggestionAdapter({
+      async complete({ prompt, signal }) {
+        const response = await fetch("/api/suggestions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+          signal,
+        });
+        return response.json();
+      },
+    }),
+  },
+});
+```
+
+Example route that returns suggestion strings with the AI SDK:
+
+```ts
+// app/api/suggestions/route.ts
+import { generateObject } from "ai";
+import { z } from "zod";
+
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+
+  const { object } = await generateObject({
+    model: yourModel,
+    schema: z.object({
+      suggestions: z.array(z.string()).min(1).max(5),
+    }),
+    prompt,
+  });
+
+  return Response.json(object.suggestions);
+}
+```
+
+The local runtime clears its suggestions when a new run starts. External store runtimes keep whatever state you push, so you control the lifetime. With `adapters.suggestion` on the AI SDK runtime, suggestions clear on run start and regenerate after settle, matching the local runtime.
 
 ### Rendering runtime suggestions
 

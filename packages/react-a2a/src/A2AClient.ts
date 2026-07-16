@@ -1,3 +1,4 @@
+import { SSEEventDecoder, type SSEEvent } from "assistant-stream/utils";
 import type {
   A2AAgentCard,
   A2AErrorInfo,
@@ -493,19 +494,26 @@ export class A2AClient {
   // --- SSE Parsing ---
 
   private async *parseSSE(response: Response): AsyncGenerator<A2AStreamEvent> {
+    const contentType = response.headers.get("Content-Type");
+    const mediaType = contentType?.split(";", 1)[0]?.trim().toLowerCase();
+    if (mediaType !== "text/event-stream") {
+      const received = contentType
+        ? `"${contentType}"`
+        : "no Content-Type header";
+      throw new Error(
+        `Expected A2A stream response Content-Type "text/event-stream", received ${received}`,
+      );
+    }
+
     const reader = response.body?.getReader();
     if (!reader) throw new Error("No response body");
 
     const decoder = new TextDecoder();
-    let lineBuffer = "";
-    let dataLines: string[] = [];
-    let pendingLF = false;
+    const sseDecoder = new SSEEventDecoder();
 
-    const readEvent = (): A2AStreamEvent | null => {
-      if (dataLines.length === 0) return null;
-
+    const readEvent = (event: SSEEvent): A2AStreamEvent | null => {
       try {
-        let parsed = JSON.parse(dataLines.join("\n"));
+        let parsed = JSON.parse(event.data);
 
         if (
           parsed &&
@@ -523,63 +531,22 @@ export class A2AClient {
       }
     };
 
-    const processLine = (line: string): A2AStreamEvent | null => {
-      if (line === "") {
-        const event = readEvent();
-        dataLines = [];
-        return event;
-      }
-
-      if (line.startsWith(":")) return null;
-
-      const separator = line.indexOf(":");
-      const field = separator === -1 ? line : line.slice(0, separator);
-      let value = separator === -1 ? "" : line.slice(separator + 1);
-      if (value.startsWith(" ")) value = value.slice(1);
-
-      if (field === "data") {
-        dataLines.push(value);
-      }
-
-      return null;
-    };
-
-    // Lines end with LF, CRLF, or CR. A chunk-trailing "\r" terminates its
-    // line immediately; pendingLF then swallows the leading "\n" of the next
-    // chunk so a CRLF split across chunks is not counted twice.
-    const processText = (text: string): A2AStreamEvent[] => {
-      const events: A2AStreamEvent[] = [];
-      if (text === "") return events;
-
-      if (pendingLF && text.startsWith("\n")) text = text.slice(1);
-      pendingLF = text.endsWith("\r");
-
-      lineBuffer += text;
-      const lines = lineBuffer.split(/\r\n|\r|\n/);
-      lineBuffer = lines.pop()!;
-
-      for (const line of lines) {
-        const event = processLine(line);
-        if (event) events.push(event);
-      }
-
-      return events;
-    };
-
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
-          for (const event of processText(decoder.decode())) {
-            yield event;
+          for (const event of sseDecoder.push(decoder.decode())) {
+            const parsed = readEvent(event);
+            if (parsed) yield parsed;
           }
           break;
         }
 
-        for (const event of processText(
+        for (const event of sseDecoder.push(
           decoder.decode(value, { stream: true }),
         )) {
-          yield event;
+          const parsed = readEvent(event);
+          if (parsed) yield parsed;
         }
       }
     } finally {

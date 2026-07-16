@@ -52,14 +52,40 @@ export const BUTTON_STYLES = [
 export type ButtonStyle = (typeof BUTTON_STYLES)[number];
 
 export const ALERT_TONES = ["info", "success", "warning", "danger"] as const;
-/** Maps to ChatKit `alert` severity levels. */
+/** A severity level, from informational to destructive. */
 export type AlertTone = (typeof ALERT_TONES)[number];
 
+export const ICON_NAMES = [
+  "sun",
+  "moon",
+  "cloud",
+  "rain",
+  "snow",
+  "wind",
+  "play",
+  "pause",
+  "check",
+  "x",
+  "star",
+  "heart",
+  "arrow-right",
+  "arrow-up-right",
+  "chevron-right",
+  "calendar",
+  "clock",
+  "map-pin",
+  "plane",
+  "truck",
+  "credit-card",
+  "user",
+  "search",
+  "bell",
+] as const;
+/** A name from the built-in icon set; the closed enum lets the model see exactly which icons exist. */
+export type IconName = (typeof ICON_NAMES)[number];
+
 /**
- * Behavior payload carried by an interactive node. `type` is resolved by the
- * host's action registry, not the renderer; keeping behavior as data keeps the
- * tree serializable so the same node renders on web and converts to a native
- * action id on Slack.
+ * Behavior payload carried by an interactive node. `type` is resolved by the host's action registry, not the renderer; keeping behavior as data keeps the tree serializable, so the same node renders on web while converters may bind the type to a native action id on other platforms.
  */
 export interface Action {
   readonly type: string;

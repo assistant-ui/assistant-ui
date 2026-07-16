@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { LocalRuntimeCore } from "./local-runtime-core";
 import type {
   ChatModelAdapter,
@@ -6,13 +6,24 @@ import type {
   ChatModelRunResult,
 } from "../../runtime/utils/chat-model-adapter";
 import type { AppendMessage } from "../../types/message";
+import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
-const createThread = (adapter: ChatModelAdapter) => {
+const createThread = (
+  adapter: ChatModelAdapter,
+  options?: {
+    suggestion?: LocalRuntimeOptionsBase["adapters"]["suggestion"];
+  },
+) => {
   const core = new LocalRuntimeCore(
     {
-      adapters: { chatModel: adapter },
+      adapters: {
+        chatModel: adapter,
+        ...(options?.suggestion !== undefined && {
+          suggestion: options.suggestion,
+        }),
+      },
       unstable_humanToolNames: ["send_email"],
     },
     undefined,
@@ -116,6 +127,34 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
       "tool-call",
       "text",
     ]);
+  });
+
+  it.each([
+    ["false", false],
+    ["zero", 0],
+    ["an empty string", ""],
+    ["null", null],
+  ])("resumes when the tool result is %s", async (_label, result) => {
+    const { thread, runs } = createApprovalThread(toolCallResult("send_email"));
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result,
+      isError: false,
+    });
+    await flush();
+
+    expect(runs).toHaveLength(2);
+    const toolCall = runs[1]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(toolCall?.result).toEqual(result);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
   });
 });
 
@@ -366,5 +405,90 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
     expect(() =>
       thread.resumeToolCall({ toolCallId: "call-send_email", payload: {} }),
     ).toThrowError(/unstable_humanToolNames/);
+  });
+});
+
+describe("LocalThreadRuntimeCore suggestions", () => {
+  it("cancelRun aborts pending suggestion generation", async () => {
+    const generate = vi.fn().mockImplementation(
+      ({ signal }: { signal?: AbortSignal }) =>
+        new Promise<readonly { prompt: string }[]>((resolve) => {
+          signal?.addEventListener("abort", () => {
+            resolve([{ prompt: "stale" }]);
+          });
+        }),
+    );
+
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "hello" }] };
+        },
+      },
+      { suggestion: { generate } },
+    );
+
+    const appendPromise = thread.append(userMessage("hi"));
+    await appendPromise;
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    const signal = generate.mock.calls[0]![0].signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+
+    thread.cancelRun();
+    expect(signal.aborted).toBe(true);
+    expect(thread.suggestions).toEqual([]);
+  });
+
+  it("completes the run when suggestion generation rejects", async () => {
+    const generate = vi.fn().mockRejectedValue(new Error("suggestion failed"));
+
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "hello" }] };
+        },
+      },
+      { suggestion: { generate } },
+    );
+
+    await thread.append(userMessage("hi"));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+    expect(thread.suggestions).toEqual([]);
+  });
+
+  it("resolves append before suggestion generation completes", async () => {
+    let resolveSuggestions!: (value: readonly { prompt: string }[]) => void;
+    const suggestionsDeferred = new Promise<readonly { prompt: string }[]>(
+      (resolve) => {
+        resolveSuggestions = resolve;
+      },
+    );
+    const generate = vi.fn().mockReturnValue(suggestionsDeferred);
+
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "hello" }] };
+        },
+      },
+      { suggestion: { generate } },
+    );
+
+    await thread.append(userMessage("hi"));
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+    expect(thread.suggestions).toEqual([]);
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(thread.suggestions).toEqual([]);
+
+    resolveSuggestions([{ prompt: "follow up" }]);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
   });
 });

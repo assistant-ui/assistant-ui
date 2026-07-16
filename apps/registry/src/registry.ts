@@ -1,3 +1,7 @@
+import {
+  generativeUiThemeVars,
+  generativeUiVocabularyCss,
+} from "@assistant-ui/ui/lib/generative-ui-vocabulary-css.ts";
 import type { RegistryItem } from "./schema";
 
 const collapsibleStateCss = {
@@ -734,5 +738,31 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: ["https://r.assistant-ui.com/badge.json"],
+  },
+  {
+    name: "generative-ui-style",
+    type: "registry:style",
+    cssVars: generativeUiThemeVars,
+    css: generativeUiVocabularyCss,
+  },
+  {
+    name: "generative-ui",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/generative-ui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/generative-ui.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react-generative-ui",
+      "react-markdown",
+      "remark-gfm",
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/generative-ui-style.json",
+    ],
   },
 ];

@@ -39,6 +39,24 @@ describe("createSseDecoder", () => {
     ]);
   });
 
+  it("handles CRLF line endings split across chunks", () => {
+    const decoder = createSseDecoder();
+    const frames = [
+      ...decoder.push("data: hello\r"),
+      ...decoder.push("\n\r"),
+      ...decoder.push("\n"),
+    ];
+
+    expect(frames).toEqual([{ data: "hello" }]);
+  });
+
+  it("handles CR-only line endings across chunks", () => {
+    const decoder = createSseDecoder();
+    expect(decoder.push("data: a\r")).toEqual([]);
+    expect(decoder.push("data: b\r")).toEqual([]);
+    expect(decoder.push("\r")).toEqual([{ data: "a\nb" }]);
+  });
+
   it("emits several frames from one chunk", () => {
     const decoder = createSseDecoder();
     expect(decoder.push("data: 1\n\ndata: 2\n\n")).toEqual([
