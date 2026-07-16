@@ -135,6 +135,19 @@ export interface PiEventStreamOptions {
 const defaultReconnectDelay = () =>
   new Promise<void>((resolve) => setTimeout(resolve, 1000));
 
+const validateEventStreamContentType = (response: Response): void => {
+  const contentType = response.headers.get("Content-Type");
+  const mediaType = contentType?.split(";", 1)[0]?.trim().toLowerCase();
+  if (mediaType !== "text/event-stream") {
+    const received = contentType
+      ? `"${contentType}"`
+      : "no Content-Type header";
+    throw new Error(
+      `Expected Pi event stream Content-Type "text/event-stream", received ${received}`,
+    );
+  }
+};
+
 /**
  * Open a reconnecting SSE stream. Returns a synchronous unsubscribe that aborts
  * the in-flight request and stops reconnecting. Frames named `ping` and empty
@@ -167,6 +180,7 @@ export const openPiEventStream = (
         if (!response.ok || !response.body) {
           throw new Error(`Pi event stream failed: HTTP ${response.status}`);
         }
+        validateEventStreamContentType(response);
 
         const decoder = createSseDecoder();
         const reader = response.body.getReader();

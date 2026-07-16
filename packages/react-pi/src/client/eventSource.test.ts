@@ -73,17 +73,28 @@ describe("createSseDecoder", () => {
 
 const encoder = new TextEncoder();
 
-/** A fresh SSE `Response` whose body streams `chunks` then closes. */
-const sseResponse = (chunks: string[]): Response =>
-  new Response(
+const streamResponse = (chunks: string[], contentType?: string): Response => {
+  const init: ResponseInit = { status: 200 };
+  if (contentType !== undefined) {
+    init.headers = { "content-type": contentType };
+  }
+
+  return new Response(
     new ReadableStream<Uint8Array>({
       start(controller) {
         for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
         controller.close();
       },
     }),
-    { status: 200, headers: { "content-type": "text/event-stream" } },
+    init,
   );
+};
+
+/** A fresh SSE `Response` whose body streams `chunks` then closes. */
+const sseResponse = (
+  chunks: string[],
+  contentType = "text/event-stream",
+): Response => streamResponse(chunks, contentType);
 
 const sseFrame = (event: PiAnyClientEvent): string =>
   `data: ${JSON.stringify(event)}\n\n`;
@@ -114,6 +125,96 @@ describe("openPiEventStream", () => {
 
     expect(events.map((e) => e.type)).toEqual(["agent_start", "agent_end"]);
     expect(events[0]).toMatchObject({ threadId: "t1", seq: 1 });
+  });
+
+  it("accepts parameterized event stream content types", async () => {
+    const fetchImpl = (async () =>
+      sseResponse(
+        [sseFrame({ type: "agent_start", threadId: "t1", seq: 1 })],
+        "Text/Event-Stream; charset=utf-8",
+      )) as unknown as typeof fetch;
+
+    const event = await new Promise<PiAnyClientEvent>((resolve) => {
+      const close = openPiEventStream({
+        url: "/events",
+        fetchImpl,
+        reconnectDelay: () => Promise.resolve(),
+        onEvent: (value) => {
+          close();
+          resolve(value);
+        },
+      });
+    });
+
+    expect(event).toMatchObject({ type: "agent_start", threadId: "t1" });
+  });
+
+  it.each([
+    ["HTML", "text/html; charset=utf-8", '"text/html; charset=utf-8"'],
+    ["JSON", "application/json", '"application/json"'],
+    ["a missing content type", undefined, "no Content-Type header"],
+  ])(
+    "reports %s responses through onError",
+    async (_label, contentType, received) => {
+      const fetchImpl = vi.fn(async () =>
+        streamResponse(["not an event stream"], contentType),
+      ) as unknown as typeof fetch;
+
+      const error = await new Promise<unknown>((resolve) => {
+        let close!: () => void;
+        close = openPiEventStream({
+          url: "/events",
+          fetchImpl,
+          reconnectDelay: () => Promise.resolve(),
+          onEvent: vi.fn(),
+          onError: (value) => {
+            close();
+            resolve(value);
+          },
+        });
+      });
+
+      expect(error).toEqual(
+        new Error(
+          `Expected Pi event stream Content-Type "text/event-stream", received ${received}`,
+        ),
+      );
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("reconnects after an invalid response content type", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      if (calls === 1) {
+        return streamResponse(["<html>Please sign in</html>"], "text/html");
+      }
+      return sseResponse([
+        sseFrame({ type: "agent_start", threadId: "t1", seq: 1 }),
+      ]);
+    }) as unknown as typeof fetch;
+
+    const errors: unknown[] = [];
+    await new Promise<void>((resolve) => {
+      const close = openPiEventStream({
+        url: "/events",
+        fetchImpl,
+        reconnectDelay: () => Promise.resolve(),
+        onError: (error) => errors.push(error),
+        onEvent: () => {
+          close();
+          resolve();
+        },
+      });
+    });
+
+    expect(calls).toBe(2);
+    expect(errors).toEqual([
+      new Error(
+        'Expected Pi event stream Content-Type "text/event-stream", received "text/html"',
+      ),
+    ]);
   });
 
   it("uses the controlled fetch stream even when native EventSource exists", async () => {
@@ -244,7 +345,7 @@ describe("openPiEventStream", () => {
       new Response(
         // A body that never enqueues — only an abort can end the read.
         new ReadableStream<Uint8Array>({ start() {} }),
-        { status: 200 },
+        { status: 200, headers: { "content-type": "text/event-stream" } },
       )) as unknown as typeof fetch;
 
     const close = openPiEventStream({
