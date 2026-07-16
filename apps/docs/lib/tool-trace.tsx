@@ -68,14 +68,14 @@ export function ToolTraceCard({
         <span className="text-muted-foreground/60 truncate text-xs">
           {description}
         </span>
-        <ChevronRight className="size-3.5 shrink-0 transition-transform group-data-[state=open]/tool-trace:rotate-90" />
+        <ChevronRight className="size-3.5 shrink-0 transition-transform group-data-open/tool-trace:rotate-90" />
       </CollapsibleTrigger>
       <CollapsibleContent
         className={cn(
           "relative overflow-hidden outline-none",
-          "data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down ease-out",
-          "data-[state=closed]:fill-mode-forwards data-[state=closed]:pointer-events-none",
-          "data-[state=closed]:duration-(--animation-duration) data-[state=open]:duration-(--animation-duration)",
+          "data-closed:animate-collapsible-up data-open:animate-collapsible-down ease-out",
+          "data-closed:fill-mode-forwards data-closed:pointer-events-none",
+          "data-closed:duration-(--animation-duration) data-open:duration-(--animation-duration)",
         )}
       >
         <div className="my-1 ml-6 space-y-2">
@@ -162,14 +162,14 @@ export function ToolErrorCard({
           {signature}
         </span>
         <span className="text-destructive/70 truncate text-xs">{message}</span>
-        <ChevronRight className="size-3.5 shrink-0 transition-transform group-data-[state=open]/tool-error:rotate-90" />
+        <ChevronRight className="size-3.5 shrink-0 transition-transform group-data-open/tool-error:rotate-90" />
       </CollapsibleTrigger>
       <CollapsibleContent
         className={cn(
           "relative overflow-hidden outline-none",
-          "data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down ease-out",
-          "data-[state=closed]:fill-mode-forwards data-[state=closed]:pointer-events-none",
-          "data-[state=closed]:duration-(--animation-duration) data-[state=open]:duration-(--animation-duration)",
+          "data-closed:animate-collapsible-up data-open:animate-collapsible-down ease-out",
+          "data-closed:fill-mode-forwards data-closed:pointer-events-none",
+          "data-closed:duration-(--animation-duration) data-open:duration-(--animation-duration)",
         )}
       >
         <div className="my-1 ml-6 space-y-2">
