@@ -8,6 +8,7 @@
     "actions",
     "spec",
     "rendering",
+    "slack",
     "tokens"
   ]
 }
