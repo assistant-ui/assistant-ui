@@ -38,6 +38,16 @@ export const CHILDREN_CAP = 200;
  */
 export const NODE_BUDGET = 5000;
 
+export type ClampReason = "children" | "budget" | "cycle";
+
+export function clampReasonDetail(reason: ClampReason): string {
+  if (reason === "budget") {
+    return `the tree was truncated after ${NODE_BUDGET} nodes.`;
+  }
+  if (reason === "cycle") return "a self-referencing node was dropped.";
+  return `children were clamped to ${CHILDREN_CAP} entries.`;
+}
+
 /** The maximum number of attachments produced from a root-level Carousel. */
 export const CAROUSEL_ATTACHMENT_CAP = 10;
 

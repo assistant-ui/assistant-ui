@@ -6,9 +6,9 @@ import {
 import { boundSpec } from "./boundSpec";
 import {
   CAROUSEL_ATTACHMENT_CAP,
-  CHILDREN_CAP,
   PAYLOAD_SOFT_CAP,
   buildAttachment,
+  clampReasonDetail,
   utf8ByteLength,
 } from "./constants";
 import {
@@ -86,11 +86,11 @@ export function toTeamsAttachments(
   const warnings: TeamsConversionWarning[] = [];
   const context: ConversionContext = { warnings, usedInputIds: new Set() };
   try {
-    const bounded = boundSpec(node, () =>
+    const bounded = boundSpec(node, (reason) =>
       warnings.push({
         code: "clamped",
         component: "Root",
-        detail: `children were clamped to ${CHILDREN_CAP} entries.`,
+        detail: clampReasonDetail(reason),
       }),
     );
     const { root } = normalizeSpec(bounded as never);

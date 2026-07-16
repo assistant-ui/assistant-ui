@@ -1168,17 +1168,19 @@ interface BoundState {
   exhausted: boolean;
 }
 
+type ClampReason = "children" | "budget" | "cycle";
+
 function boundNode(
   value: unknown,
   depth: number,
-  onClamp: () => void,
+  onClamp: (reason: ClampReason) => void,
   state: BoundState,
   ancestors: WeakSet<object>,
 ): unknown {
   if (state.remaining <= 0) {
     if (!state.exhausted) {
       state.exhausted = true;
-      onClamp();
+      onClamp("budget");
     }
     return null;
   }
@@ -1186,7 +1188,7 @@ function boundNode(
   if (depth > MAX_TRAVERSAL_DEPTH) return null;
   if (Array.isArray(value)) {
     if (ancestors.has(value)) {
-      onClamp();
+      onClamp("cycle");
       return null;
     }
     ancestors.add(value);
@@ -1195,7 +1197,7 @@ function boundNode(
       0,
       CHILDREN_CAP,
     ) as unknown[];
-    if (value.length > CHILDREN_CAP) onClamp();
+    if (value.length > CHILDREN_CAP) onClamp("children");
     const result = bounded.map((item) =>
       boundNode(item, depth + 1, onClamp, state, ancestors),
     );
@@ -1208,7 +1210,7 @@ function boundNode(
     "children" in (value as Record<string, unknown>)
   ) {
     if (ancestors.has(value)) {
-      onClamp();
+      onClamp("cycle");
       return null;
     }
     ancestors.add(value);
@@ -1238,11 +1240,15 @@ function boundNode(
  * entries via `Array.prototype.slice`, which bounds even a proxy with a
  * fabricated `length`; recursion itself is capped at
  * {@link MAX_TRAVERSAL_DEPTH}. `onClamp` fires once per level that was
- * truncated. The walk also spends a total budget of {@link NODE_BUDGET}
- * nodes, so shared references cannot multiply work exponentially, and a node
- * that is its own ancestor is cut to `null`.
+ * truncated, receiving the reason for that truncation. The walk also spends
+ * a total budget of {@link NODE_BUDGET} nodes, so shared references cannot
+ * multiply work exponentially, and a node that is its own ancestor is cut to
+ * `null`.
  */
-function boundSpec(spec: unknown, onClamp: () => void): unknown {
+function boundSpec(
+  spec: unknown,
+  onClamp: (reason: ClampReason) => void,
+): unknown {
   return boundNode(
     spec,
     0,
@@ -1267,14 +1273,15 @@ export function toSlackBlocks(
     dataTableCharacters: 0,
   };
   try {
-    const bounded = boundSpec(node, () =>
-      warn(
-        context,
-        "clamped",
-        "Root",
-        `children were clamped to ${CHILDREN_CAP} entries.`,
-      ),
-    );
+    const bounded = boundSpec(node, (reason) => {
+      const detail =
+        reason === "budget"
+          ? `the tree was truncated after ${NODE_BUDGET} nodes.`
+          : reason === "cycle"
+            ? "a self-referencing node was dropped."
+            : `children were clamped to ${CHILDREN_CAP} entries.`;
+      warn(context, "clamped", "Root", detail);
+    });
     const { root } = normalizeSpec(bounded as never);
     const converted = convertSequence(root, context, 0);
     if (converted.length <= context.blockCap) {

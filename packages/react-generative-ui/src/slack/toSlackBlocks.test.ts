@@ -23,6 +23,7 @@ import {
   MARKDOWN_TEXT_BUDGET,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
+  NODE_BUDGET,
   PLACEHOLDER_TEXT_CAP,
   RADIO_OPTION_CAP,
   SECTION_TEXT_CAP,
@@ -1816,10 +1817,14 @@ describe("toSlackBlocks", () => {
       const el = { $type: "Card", children: arr };
       arr.push(el);
       const { warnings } = toSlackBlocks(el);
-      expect(warnings.length).toBeGreaterThan(0);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Root",
+        detail: "a self-referencing node was dropped.",
+      });
     });
 
-    it("bounds a shared-reference fan-out across nested levels instead of doing exponential work", () => {
+    it("bounds a shared-reference fan-out across nested levels with a budget warning instead of doing exponential work", () => {
       let shared: unknown = { $type: "Text", value: "leaf" };
       for (let level = 0; level < 3; level++) {
         shared = {
@@ -1828,7 +1833,11 @@ describe("toSlackBlocks", () => {
         };
       }
       const { warnings } = toSlackBlocks(shared);
-      expect(warnings.length).toBeGreaterThan(0);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Root",
+        detail: `the tree was truncated after ${NODE_BUDGET} nodes.`,
+      });
     });
 
     it("clamps a benign tree past the node budget with exactly one budget warning", () => {
@@ -1846,9 +1855,26 @@ describe("toSlackBlocks", () => {
           warning.code === "clamped" &&
           warning.component === "Root" &&
           warning.detail ===
-            `children were clamped to ${CHILDREN_CAP} entries.`,
+            `the tree was truncated after ${NODE_BUDGET} nodes.`,
       );
       expect(budgetWarnings).toHaveLength(1);
+    });
+
+    it("clamps a shared-reference array past the children cap without treating the reuse as a cycle", () => {
+      const card = { $type: "Card", title: "shared" };
+      let node: unknown = Array.from({ length: 201 }, () => card);
+      for (let level = 0; level < 3; level++) {
+        node = { $type: "Col", children: node };
+      }
+      const { warnings } = toSlackBlocks(node);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Root",
+        detail: `children were clamped to ${CHILDREN_CAP} entries.`,
+      });
+      expect(
+        warnings.some((warning) => warning.detail.includes("self-referencing")),
+      ).toBe(false);
     });
   });
 });

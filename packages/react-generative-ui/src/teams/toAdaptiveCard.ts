@@ -5,7 +5,6 @@ import {
 } from "../ir";
 import { boundSpec } from "./boundSpec";
 import {
-  CHILDREN_CAP,
   CHOICE_OPTION_CAP,
   MAX_TRAVERSAL_DEPTH,
   PAYLOAD_SOFT_CAP,
@@ -14,6 +13,7 @@ import {
   TABLE_ROW_CAP,
   buildCard,
   buildSubmitAction,
+  clampReasonDetail,
   utf8ByteLength,
 } from "./constants";
 import type {
@@ -97,22 +97,22 @@ function reservedSafeId(
   component: string,
   context: ConversionContext,
 ): string {
-  const base = id === RESERVED_INPUT_ID ? `${RESERVED_INPUT_ID}_` : id;
-  if (id === RESERVED_INPUT_ID) {
-    warn(
-      context,
-      "clamped",
-      component,
-      `the input id "${RESERVED_INPUT_ID}" collides with the submit envelope's reserved key and was renamed to "${base}".`,
-    );
-  }
+  const reserved = id === RESERVED_INPUT_ID;
+  const base = reserved ? `${RESERVED_INPUT_ID}_` : id;
   let candidate = base;
   let n = 2;
   while (context.usedInputIds.has(candidate)) {
     candidate = `${base}_${n}`;
     n += 1;
   }
-  if (candidate !== base) {
+  if (reserved) {
+    warn(
+      context,
+      "clamped",
+      component,
+      `the input id "${RESERVED_INPUT_ID}" collides with the submit envelope's reserved key and was renamed to "${candidate}".`,
+    );
+  } else if (candidate !== base) {
     warn(
       context,
       "clamped",
@@ -739,13 +739,8 @@ export function toAdaptiveCard(
 ): AdaptiveCardResult {
   const context: ConversionContext = { warnings: [], usedInputIds: new Set() };
   try {
-    const bounded = boundSpec(node, () =>
-      warn(
-        context,
-        "clamped",
-        "Root",
-        `children were clamped to ${CHILDREN_CAP} entries.`,
-      ),
+    const bounded = boundSpec(node, (reason) =>
+      warn(context, "clamped", "Root", clampReasonDetail(reason)),
     );
     const { root } = normalizeSpec(bounded as never);
     return {
