@@ -142,6 +142,9 @@ describe("info command", () => {
   it("includes declared assistant-ui integrations and their peer warnings", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-"));
     const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    const cliPackageJson = JSON.parse(
+      fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+    ) as { version: string };
 
     try {
       fs.writeFileSync(
@@ -173,6 +176,7 @@ describe("info command", () => {
       });
 
       const output = consoleLog.mock.calls.flat().join("\n");
+      expect(output).toContain(`assistant-ui CLI: ${cliPackageJson.version}`);
       expect(output).toContain("@assistant-ui/react-mcp");
       expect(output).toContain("@assistant-ui/react-generative-ui");
       expect(output).toContain("assistant-stream");
