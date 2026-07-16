@@ -1,3 +1,5 @@
+import type { UIElement } from "../ir";
+
 /** A Slack plain-text composition object. */
 export interface SlackPlainText {
   readonly type: "plain_text";
@@ -218,5 +220,11 @@ export interface SlackConversionWarning {
 /** The blocks and non-fatal warnings produced by Slack conversion. */
 export interface SlackBlocksResult {
   readonly blocks: SlackBlock[];
+  readonly warnings: SlackConversionWarning[];
+}
+
+/** The IR nodes and non-fatal warnings produced by converting Slack Block Kit JSON back into generative UI. */
+export interface FromSlackBlocksResult {
+  readonly nodes: UIElement[];
   readonly warnings: SlackConversionWarning[];
 }

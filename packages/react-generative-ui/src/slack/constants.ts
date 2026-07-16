@@ -20,6 +20,13 @@ export const MESSAGE_BLOCK_CAP = 50;
 /** The block limit for a Slack modal. */
 export const MODAL_BLOCK_CAP = 100;
 
+/**
+ * The maximum number of top-level blocks accepted when parsing Slack Block
+ * Kit JSON back into generative UI, guarding against a hostile or malformed
+ * payload.
+ */
+export const INBOUND_BLOCK_CAP = 200;
+
 /** The character limit for header text. */
 export const HEADER_TEXT_CAP = 150;
 

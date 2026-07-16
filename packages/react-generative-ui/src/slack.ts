@@ -1,6 +1,8 @@
 export { decodeBlockAction } from "./slack/decodeBlockAction";
+export { fromSlackBlocks } from "./slack/fromSlackBlocks";
 export { toSlackBlocks } from "./slack/toSlackBlocks";
 export type {
+  FromSlackBlocksResult,
   SlackActionElement,
   SlackActionsBlock,
   SlackAlertBlock,
