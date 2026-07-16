@@ -276,6 +276,42 @@ describe("transformProject — hasLocalComponents: false", () => {
 
   // tsconfig tests
   describe("tsconfig transforms", () => {
+    it("accepts comments and trailing commas", async () => {
+      writeFile(
+        "tsconfig.json",
+        `{
+  // Paths inherited from the monorepo scaffold
+  "compilerOptions": {
+    "paths": {
+      "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
+      "@/*": ["./*"],
+    },
+  },
+}`,
+      );
+
+      await run();
+
+      const tsconfig = readJSON("tsconfig.json");
+      expect(
+        tsconfig.compilerOptions.paths["@/components/ui/*"],
+      ).toBeUndefined();
+      expect(tsconfig.compilerOptions.paths["@/*"]).toEqual(["./*"]);
+    });
+
+    it("rejects malformed JSONC", async () => {
+      writeFile(
+        "tsconfig.json",
+        `{
+  "compilerOptions": {
+    "strict": true,,
+  },
+}`,
+      );
+
+      await expect(run()).rejects.toThrow("Invalid tsconfig.json");
+    });
+
     it("removes workspace paths", async () => {
       writeJSON("tsconfig.json", {
         compilerOptions: {

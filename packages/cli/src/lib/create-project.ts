@@ -3,6 +3,11 @@ import * as path from "node:path";
 import { downloadTemplate } from "giget";
 import { sync as globSync } from "glob";
 import { detect } from "detect-package-manager";
+import {
+  parse as parseJsonc,
+  printParseErrorCode,
+  type ParseError,
+} from "jsonc-parser";
 import { logger } from "./utils/logger";
 import { runSpawn, SpawnExitError } from "./run-spawn";
 
@@ -281,6 +286,18 @@ function transformPackageJson(projectDir: string): void {
   fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
+function parseTsConfig(content: string): any {
+  const errors: ParseError[] = [];
+  const tsconfig = parseJsonc(content, errors, { allowTrailingComma: true });
+  const error = errors[0];
+  if (error) {
+    throw new SyntaxError(
+      `Invalid tsconfig.json: ${printParseErrorCode(error.error)} at offset ${error.offset}`,
+    );
+  }
+  return tsconfig;
+}
+
 function transformTsConfig(projectDir: string): void {
   const tsconfigPath = path.join(projectDir, "tsconfig.json");
 
@@ -289,7 +306,7 @@ function transformTsConfig(projectDir: string): void {
   }
 
   const content = fs.readFileSync(tsconfigPath, "utf-8");
-  const tsconfig = JSON.parse(content);
+  const tsconfig = parseTsConfig(content);
 
   // Remove workspace paths
   if (tsconfig.compilerOptions?.paths) {
