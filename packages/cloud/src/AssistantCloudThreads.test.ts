@@ -1,14 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { AssistantCloudThreads } from "./AssistantCloudThreads";
+import { OriginalDate } from "./tests/setup";
 
 const mockedDate = globalThis.Date;
-const NativeDate = Object.getPrototypeOf(
-  (mockedDate as unknown as () => Date)(),
-).constructor as DateConstructor;
 
 beforeAll(() => {
-  globalThis.Date = NativeDate;
+  globalThis.Date = OriginalDate;
 });
 
 afterAll(() => {
@@ -42,9 +40,9 @@ describe("AssistantCloudThreads response timestamps", () => {
     const result = await threads.list();
 
     expect(result.threads[0]).toMatchObject({
-      last_message_at: new NativeDate("2026-07-16T12:30:00.000Z"),
-      created_at: new NativeDate("2026-07-16T12:00:00.000Z"),
-      updated_at: new NativeDate("2026-07-16T12:15:00.000Z"),
+      last_message_at: new OriginalDate("2026-07-16T12:30:00.000Z"),
+      created_at: new OriginalDate("2026-07-16T12:00:00.000Z"),
+      updated_at: new OriginalDate("2026-07-16T12:15:00.000Z"),
       metadata: { created_at: "leave-this-string-untouched" },
     });
     expect(threadResponse.created_at).toBe("2026-07-16T12:00:00.000Z");
@@ -56,7 +54,7 @@ describe("AssistantCloudThreads response timestamps", () => {
 
     const result = await threads.get("thread-1");
 
-    expect(result.created_at).toBeInstanceOf(NativeDate);
+    expect(result.created_at).toBeInstanceOf(OriginalDate);
     expect(result.created_at.toISOString()).toBe("2026-07-16T12:00:00.000Z");
   });
 
@@ -91,8 +89,8 @@ describe("AssistantCloudThreads response timestamps", () => {
     const result = await threads.messages.list("thread-1");
 
     expect(result.messages[0]).toMatchObject({
-      created_at: new NativeDate("2026-07-16T13:00:00.000Z"),
-      updated_at: new NativeDate("2026-07-16T13:05:00.000Z"),
+      created_at: new OriginalDate("2026-07-16T13:00:00.000Z"),
+      updated_at: new OriginalDate("2026-07-16T13:05:00.000Z"),
       content: { created_at: "leave-this-string-untouched" },
     });
   });
