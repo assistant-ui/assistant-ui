@@ -8,15 +8,23 @@ import type {
 type MastraHistoryAdapterOptions = {
   client: MastraClient;
   agentId: string;
+  resourceId: string;
   getThreadId: () => string | undefined;
 };
 
 const loadAllMessages = async (
   client: MastraClient,
   agentId: string,
+  resourceId: string,
   threadId: string,
 ) => {
   const thread = client.getMemoryThread({ threadId, agentId });
+  const storedThread = await thread.get();
+  if (storedThread.resourceId !== resourceId) {
+    throw new Error(
+      `Mastra thread ${threadId} does not belong to this resource.`,
+    );
+  }
   const messages = [];
   let page = 0;
 
@@ -35,6 +43,7 @@ const loadAllMessages = async (
 export const createMastraHistoryAdapter = ({
   client,
   agentId,
+  resourceId,
   getThreadId,
 }: MastraHistoryAdapterOptions): ThreadHistoryAdapter => ({
   async load() {
@@ -46,7 +55,12 @@ export const createMastraHistoryAdapter = ({
       const threadId = getThreadId();
       if (!threadId) return { messages: [] };
 
-      const storedMessages = await loadAllMessages(client, agentId, threadId);
+      const storedMessages = await loadAllMessages(
+        client,
+        agentId,
+        resourceId,
+        threadId,
+      );
       const messages = toAISdkMessages(storedMessages, { version: "v6" });
       let parentId: string | null = null;
       const repository = messages.map((message) => {

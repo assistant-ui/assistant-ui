@@ -56,8 +56,32 @@ export const createMastraThreadListAdapter = ({
   metadata: initialMetadata,
   titleGenerator = defaultTitleGenerator,
 }: MastraThreadListOptions): RemoteThreadListAdapter => {
+  const mutationQueues = new Map<string, Promise<void>>();
   const getThread = (threadId: string) =>
     client.getMemoryThread({ threadId, agentId });
+
+  const getOwnedThread = async (threadId: string) => {
+    const resource = getThread(threadId);
+    const thread = await resource.get();
+    if (thread.resourceId !== resourceId) {
+      throw new Error(
+        `Mastra thread ${threadId} does not belong to this resource.`,
+      );
+    }
+    return { resource, thread };
+  };
+
+  const queueMutation = (threadId: string, mutation: () => Promise<void>) => {
+    const queued = (mutationQueues.get(threadId) ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(mutation);
+    mutationQueues.set(threadId, queued);
+    return queued.finally(() => {
+      if (mutationQueues.get(threadId) === queued) {
+        mutationQueues.delete(threadId);
+      }
+    });
+  };
 
   const updateThread = async (
     threadId: string,
@@ -66,19 +90,19 @@ export const createMastraThreadListAdapter = ({
       status?: "regular" | "archived";
       custom?: Record<string, unknown>;
     },
-  ) => {
-    const resource = getThread(threadId);
-    const current = await resource.get();
-    const currentMetadata = splitMetadata(current.metadata);
-    await resource.update({
-      title: update.title ?? current.title ?? "",
-      resourceId: current.resourceId,
-      metadata: {
-        ...(update.custom ?? currentMetadata.custom),
-        [STATUS_KEY]: update.status ?? currentMetadata.status,
-      },
+  ) =>
+    queueMutation(threadId, async () => {
+      const { resource, thread } = await getOwnedThread(threadId);
+      const currentMetadata = splitMetadata(thread.metadata);
+      await resource.update({
+        title: update.title ?? thread.title ?? "",
+        resourceId,
+        metadata: {
+          ...(update.custom ?? currentMetadata.custom),
+          [STATUS_KEY]: update.status ?? currentMetadata.status,
+        },
+      });
     });
-  };
 
   const Provider: FC<PropsWithChildren> = ({ children }) => {
     const aui = useAui();
@@ -87,6 +111,7 @@ export const createMastraThreadListAdapter = ({
         createMastraHistoryAdapter({
           client,
           agentId,
+          resourceId,
           getThreadId: () => aui.threadListItem().getState().remoteId,
         }),
       [aui],
@@ -143,10 +168,14 @@ export const createMastraThreadListAdapter = ({
       await updateThread(threadId, { status: "regular" });
     },
     async delete(threadId) {
-      await getThread(threadId).delete();
+      await queueMutation(threadId, async () => {
+        const { resource } = await getOwnedThread(threadId);
+        await resource.delete();
+      });
     },
     async fetch(threadId) {
-      return toRemoteThread(await getThread(threadId).get());
+      await mutationQueues.get(threadId)?.catch(() => undefined);
+      return toRemoteThread((await getOwnedThread(threadId)).thread);
     },
     async generateTitle(threadId, messages) {
       const title = await titleGenerator(messages);

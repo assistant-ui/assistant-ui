@@ -39,11 +39,15 @@ describe("createMastraHistoryAdapter", () => {
         hasMore: false,
       });
     const client = {
-      getMemoryThread: vi.fn(() => ({ listMessages })),
+      getMemoryThread: vi.fn(() => ({
+        get: vi.fn(async () => ({ resourceId: "user-1" })),
+        listMessages,
+      })),
     } as unknown as MastraClient;
     const adapter = createMastraHistoryAdapter({
       client,
       agentId: "agent-1",
+      resourceId: "user-1",
       getThreadId: () => "thread-1",
     }).withFormat!(formatAdapter);
 
@@ -78,10 +82,32 @@ describe("createMastraHistoryAdapter", () => {
     const adapter = createMastraHistoryAdapter({
       client,
       agentId: "agent-1",
+      resourceId: "user-1",
       getThreadId: () => undefined,
     }).withFormat!(formatAdapter);
 
     await expect(adapter.load()).resolves.toEqual({ messages: [] });
     expect(client.getMemoryThread).not.toHaveBeenCalled();
+  });
+
+  it("rejects history from another resource", async () => {
+    const listMessages = vi.fn();
+    const client = {
+      getMemoryThread: vi.fn(() => ({
+        get: vi.fn(async () => ({ resourceId: "user-2" })),
+        listMessages,
+      })),
+    } as unknown as MastraClient;
+    const adapter = createMastraHistoryAdapter({
+      client,
+      agentId: "agent-1",
+      resourceId: "user-1",
+      getThreadId: () => "thread-1",
+    }).withFormat!(formatAdapter);
+
+    await expect(adapter.load()).rejects.toThrow(
+      "Mastra thread thread-1 does not belong to this resource.",
+    );
+    expect(listMessages).not.toHaveBeenCalled();
   });
 });

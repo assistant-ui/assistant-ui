@@ -14,8 +14,12 @@ const makeThread = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const makeClient = () => {
-  const get = vi.fn(async () => makeThread());
-  const update = vi.fn(async (input) => makeThread(input));
+  let storedThread = makeThread();
+  const get = vi.fn(async () => storedThread);
+  const update = vi.fn(async (input) => {
+    storedThread = makeThread({ ...storedThread, ...input });
+    return storedThread;
+  });
   const deleteThread = vi.fn(async () => ({ result: "deleted" }));
   const listMessages = vi.fn(async () => ({
     messages: [],
@@ -127,5 +131,53 @@ describe("createMastraThreadListAdapter", () => {
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Summarize the quarterly results" }),
     );
+  });
+
+  it("serializes metadata mutations for the same thread", async () => {
+    const { client, get, update } = makeClient();
+    const adapter = createMastraThreadListAdapter({
+      client,
+      agentId: "agent-1",
+      resourceId: "user-1",
+    });
+
+    await Promise.all([
+      adapter.archive("thread-1"),
+      adapter.updateCustom("thread-1", { priority: "high" }),
+    ]);
+
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(update).toHaveBeenLastCalledWith({
+      title: "Hello",
+      resourceId: "user-1",
+      metadata: {
+        priority: "high",
+        assistantUiStatus: "archived",
+      },
+    });
+  });
+
+  it("rejects mutations and fetches for another resource", async () => {
+    const { client, get, update, deleteThread } = makeClient();
+    get.mockResolvedValue(
+      makeThread({ resourceId: "user-2" }) as Awaited<ReturnType<typeof get>>,
+    );
+    const adapter = createMastraThreadListAdapter({
+      client,
+      agentId: "agent-1",
+      resourceId: "user-1",
+    });
+
+    await expect(adapter.rename("thread-1", "Denied")).rejects.toThrow(
+      "Mastra thread thread-1 does not belong to this resource.",
+    );
+    await expect(adapter.fetch("thread-1")).rejects.toThrow(
+      "Mastra thread thread-1 does not belong to this resource.",
+    );
+    await expect(adapter.delete("thread-1")).rejects.toThrow(
+      "Mastra thread thread-1 does not belong to this resource.",
+    );
+    expect(update).not.toHaveBeenCalled();
+    expect(deleteThread).not.toHaveBeenCalled();
   });
 });
