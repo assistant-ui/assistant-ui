@@ -96,4 +96,6 @@ Persist `threadId` in your router or local storage if the selected conversation 
 
 The browser-provided `resourceId` and `threadId` are identifiers, not authorization. Authenticate every chat and memory endpoint, derive or validate resource scope on the server, and verify that the caller owns a thread before reading or mutating it. Do not expose provider keys to the browser.
 
+The [`with-mastra` example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-mastra) demonstrates persisted thread creation, switching, reload restoration, archive, and delete against a real Mastra server.
+
 See the [`@assistant-ui/react-mastra` API reference](/docs/api-reference/integrations/react-mastra) for all runtime options and adapter exports.
