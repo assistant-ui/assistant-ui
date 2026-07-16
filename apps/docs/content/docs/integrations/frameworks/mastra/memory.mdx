@@ -1,0 +1,85 @@
+---
+title: Semantic and working memory
+description: Search Mastra semantic memory and manage persistent working memory from assistant-ui.
+platforms: ["react"]
+---
+
+`useMastraMemory` exposes Mastra's supported semantic-search and working-memory client methods beside `useMastraRuntime`. The hook does not cache threads or messages; Mastra remains the source of truth, and the runtime continues to own thread selection and history.
+
+<InstallCommand npm={["@assistant-ui/react-mastra@latest", "@mastra/client-js@latest"]} />
+
+## Configure memory on the agent
+
+Working memory must be enabled in the agent's `Memory` options. Semantic recall also requires an embedder and vector store supported by your Mastra deployment. The exact provider configuration is server-only; never expose model or database credentials to the browser.
+
+```ts title="src/mastra/index.ts"
+const memory = new Memory({
+  storage,
+  vector,
+  embedder,
+  options: {
+    lastMessages: 20,
+    semanticRecall: {
+      topK: 5,
+      messageRange: 2,
+      scope: "resource",
+    },
+    workingMemory: {
+      enabled: true,
+      scope: "resource",
+      template: `# User profile
+- Preferred release window:
+- Risk tolerance:`,
+    },
+  },
+});
+```
+
+See Mastra's [semantic recall](https://mastra.ai/docs/memory/semantic-recall) and [working memory](https://mastra.ai/docs/memory/working-memory) guides for current server configuration.
+
+## Use the selected thread
+
+Pass the same client, agent, resource, and selected thread used by `useMastraRuntime`:
+
+```tsx
+"use client";
+
+import { useMastraMemory } from "@assistant-ui/react-mastra";
+
+const memory = useMastraMemory({
+  client,
+  agentId: "assistant",
+  resourceId: "authenticated-user-id",
+  threadId,
+});
+```
+
+Search semantic memory with `searchMemory`. When the hook has no `threadId`, Mastra can search across the resource according to the server's semantic-recall scope. Pass a thread ID to search from a selected conversation.
+
+```tsx
+const response = await memory.searchMemory("What release risks did we accept?", {
+  threadId,
+});
+
+for (const match of response.results) {
+  console.log(match.content, match.threadId);
+}
+```
+
+Read or replace working memory with the selected thread. These operations require a thread ID because Mastra uses it to resolve thread- or resource-scoped memory configuration.
+
+```tsx
+const profile = await memory.getWorkingMemory();
+
+await memory.updateWorkingMemory(`# User profile
+- Preferred release window: Tuesday
+- Risk tolerance: low`);
+```
+
+Each operation accepts `resourceId`, `threadId`, and `requestContext` overrides. `searchMemory` also accepts Mastra's `memoryConfig` override. The hook rethrows client failures and resets its corresponding `isSearching`, `isReadingWorkingMemory`, or `isUpdatingWorkingMemory` flag in all outcomes.
+
+## Security
+
+Treat browser-provided resource and thread IDs as untrusted. Authenticate Mastra's memory endpoints and derive or validate the resource scope on the server before returning search results or working memory.
+
+See the [`@assistant-ui/react-mastra` API reference](/docs/api-reference/integrations/react-mastra) for the complete hook contract.

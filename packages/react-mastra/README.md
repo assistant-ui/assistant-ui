@@ -1,6 +1,7 @@
 # `@assistant-ui/react-mastra`
 
-Mastra thread persistence and workflow integration for assistant-ui.
+Mastra thread persistence, memory actions, and workflow integration for
+assistant-ui.
 
 ```tsx
 import { MastraClient } from "@mastra/client-js";
@@ -42,4 +43,20 @@ await workflow.start({ request: "Review this change" });
 await workflow.resume(workflow.state.suspendedSteps[0], {
   approved: true,
 });
+```
+
+Use `useMastraMemory` for Mastra's semantic and working-memory APIs without
+duplicating thread state:
+
+```tsx
+const memory = useMastraMemory({
+  client,
+  agentId: "assistant",
+  resourceId: "user-1",
+  threadId,
+});
+
+const matches = await memory.searchMemory("preferred release window");
+const profile = await memory.getWorkingMemory();
+await memory.updateWorkingMemory(`${profile}\n- Release window: Tuesday`);
 ```

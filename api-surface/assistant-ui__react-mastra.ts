@@ -1,6 +1,6 @@
 import { CreateUIMessage, UIMessage as UIMessage$1, useChat } from "@ai-sdk/react";
 
-import { GetWorkflowRunByIdResponse, MastraClient, WorkflowRunResult } from "@mastra/client-js";
+import { GetWorkflowRunByIdResponse, MastraClient, MemorySearchResponse, WorkflowRunResult } from "@mastra/client-js";
 
 import { WorkflowRunStatus } from "@mastra/core/workflows";
 
@@ -1038,6 +1038,16 @@ type MastraHistoryAdapterOptions = {
   agentId: string;
   resourceId: string;
   getThreadId: () => string | undefined;
+};
+
+type MastraMemoryOperationOptions = {
+  threadId?: string | undefined;
+  resourceId?: string | undefined;
+  requestContext?: Record<string, unknown> | undefined;
+};
+
+type MastraMemorySearchOptions = MastraMemoryOperationOptions & {
+  memoryConfig?: unknown;
 };
 
 type MastraSuspendedStep<TPayload = unknown> = {
@@ -2107,6 +2117,23 @@ type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatI
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
 };
 
+type UseMastraMemoryOptions = {
+  client: MastraClient;
+  agentId: string;
+  resourceId: string;
+  threadId?: string | undefined;
+  requestContext?: Record<string, unknown> | undefined;
+};
+
+type UseMastraMemoryResult = {
+  isSearching: boolean;
+  isReadingWorkingMemory: boolean;
+  isUpdatingWorkingMemory: boolean;
+  searchMemory: (searchQuery: string, options?: MastraMemorySearchOptions) => Promise<MemorySearchResponse>;
+  getWorkingMemory: (options?: MastraMemoryOperationOptions) => Promise<unknown>;
+  updateWorkingMemory: (workingMemory: string, options?: MastraMemoryOperationOptions) => Promise<unknown>;
+};
+
 type UseMastraRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> = Omit<UseChatRuntimeOptions<UI_MESSAGE>, "cloud" | "transport"> & MastraThreadListOptions & {
   threadId?: string | undefined;
   transport?: ChatTransport<UI_MESSAGE> | undefined;
@@ -2160,12 +2187,14 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { MastraChatTransportOptions, MastraSuspendedStep, MastraThreadListOptions, MastraTitleGenerator, MastraWorkflowResumeOptions, MastraWorkflowStartOptions, MastraWorkflowState, UseMastraRuntimeOptions, UseMastraWorkflowOptions, createMastraChatTransport, createMastraHistoryAdapter, createMastraThreadListAdapter, useMastraRuntime, useMastraWorkflow };
+  export { MastraChatTransportOptions, MastraMemoryOperationOptions, MastraMemorySearchOptions, MastraSuspendedStep, MastraThreadListOptions, MastraTitleGenerator, MastraWorkflowResumeOptions, MastraWorkflowStartOptions, MastraWorkflowState, UseMastraMemoryOptions, UseMastraMemoryResult, UseMastraRuntimeOptions, UseMastraWorkflowOptions, createMastraChatTransport, createMastraHistoryAdapter, createMastraThreadListAdapter, useMastraMemory, useMastraRuntime, useMastraWorkflow };
 }
 
-declare const useMastraRuntime: <UI_MESSAGE extends UIMessage = UIMessage>(_param5: UseMastraRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
+declare const useMastraMemory: (_param5: UseMastraMemoryOptions) => UseMastraMemoryResult;
 
-declare const useMastraWorkflow: <TInput extends Record<string, unknown> = Record<string, unknown>, TResume extends Record<string, unknown> = Record<string, unknown>, TResult = unknown, TSuspend = unknown>(_param6: UseMastraWorkflowOptions<TResult, TSuspend>) => {
+declare const useMastraRuntime: <UI_MESSAGE extends UIMessage = UIMessage>(_param6: UseMastraRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
+
+declare const useMastraWorkflow: <TInput extends Record<string, unknown> = Record<string, unknown>, TResume extends Record<string, unknown> = Record<string, unknown>, TResult = unknown, TSuspend = unknown>(_param7: UseMastraWorkflowOptions<TResult, TSuspend>) => {
   state: MastraWorkflowState<TResult, TSuspend>;
   start: (inputData: TInput, options?: MastraWorkflowStartOptions) => Promise<MastraWorkflowState<TResult, TSuspend>>;
   resume: (step: string | string[] | MastraSuspendedStep<TSuspend>, resumeData: TResume, options?: MastraWorkflowResumeOptions) => Promise<MastraWorkflowState<TResult, TSuspend>>;

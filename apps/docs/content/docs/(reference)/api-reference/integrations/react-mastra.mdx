@@ -3,7 +3,7 @@ title: "@assistant-ui/react-mastra"
 description: Mastra memory thread adapters, chat transport, and durable workflow hooks for assistant-ui React applications.
 ---
 
-import { reactMastra_useMastraRuntime, reactMastra_useMastraWorkflow } from "@/generated/integrationTypeDocs";
+import { reactMastra_useMastraMemory, reactMastra_useMastraRuntime, reactMastra_useMastraWorkflow } from "@/generated/integrationTypeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -31,6 +31,13 @@ const createMastraHistoryAdapter: ({ client, agentId, resourceId, getThreadId, }
 ```ts
 const createMastraThreadListAdapter: ({ client, agentId, resourceId, perPage, metadata: initialMetadata, titleGenerator, }: MastraThreadListOptions) => RemoteThreadListAdapter;
 ```
+
+### useMastraMemory
+
+Accesses Mastra semantic search and working memory beside a Mastra-backed
+assistant-ui runtime.
+
+<ParametersTable {...reactMastra_useMastraMemory} />
 
 ### useMastraRuntime
 
