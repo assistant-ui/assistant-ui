@@ -24,20 +24,39 @@ This initializes shadcn and installs the default assistant-ui chat components.
 Install components via the shadcn registry:
 
 ```bash
-npx shadcn@latest add "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json"
+npx shadcn@latest add "https://r.assistant-ui.com/base/chat/b/ai-sdk-quick-start/json"
 ```
+
+For Radix-styled projects (`components.json` style not starting with `base-`), use `https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json` instead.
 
 Available component presets:
 
 | Preset | Registry URL |
 |--------|-------------|
-| AI SDK Quick Start | `https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json` |
+| AI SDK Quick Start | `https://r.assistant-ui.com/base/chat/b/ai-sdk-quick-start/json` |
 
-You can also add individual assistant-ui shadcn components:
+You can also add individual assistant-ui components with the assistant-ui CLI, which picks the right flavor from `components.json`:
 
 ```bash
-npx shadcn@latest add assistant-ui/thread
-npx shadcn@latest add assistant-ui/markdown-text
+npx assistant-ui add thread
+npx assistant-ui add markdown-text
+```
+
+To use the shadcn CLI directly instead, add the assistant-ui registry to `components.json`:
+
+```json
+{
+  "registries": {
+    "@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"
+  }
+}
+```
+
+Then add components with the namespaced form:
+
+```bash
+npx shadcn@latest add @assistant-ui/thread
+npx shadcn@latest add @assistant-ui/markdown-text
 ```
 
 ## Step 3: Runtime Setup

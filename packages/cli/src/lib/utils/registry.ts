@@ -31,7 +31,11 @@ export function resolveRegistryItemUrl(
   component: string,
   style?: string,
 ): string {
-  const registryUrl = style?.startsWith("base-")
+  if (style === undefined) {
+    return `${REGISTRY_BASE_URL}/base/${encodeURIComponent(component)}.json`;
+  }
+
+  const registryUrl = style.startsWith("base-")
     ? `${REGISTRY_BASE_URL}/styles/${encodeURIComponent(style)}`
     : REGISTRY_BASE_URL;
 
