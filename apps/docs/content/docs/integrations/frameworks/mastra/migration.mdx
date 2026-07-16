@@ -1,0 +1,114 @@
+---
+title: Migrate to the Mastra runtime
+description: Replace a generic stream runtime with Mastra-backed threads, memory actions, and durable workflows.
+platforms: ["react"]
+---
+
+The dedicated `@assistant-ui/react-mastra` runtime adds Mastra-owned thread history and lifecycle APIs around the same AI SDK chat protocol. Migrate when the browser needs persisted thread navigation, semantic or working memory, or durable workflow controls. A chat-only application can keep using `useChatRuntime`.
+
+## Before you start
+
+Choose the server layout first:
+
+- [Full-stack](/docs/integrations/frameworks/mastra/full-stack) keeps Mastra and the frontend in one application.
+- [Separate server](/docs/integrations/frameworks/mastra/separate-server) exposes Mastra's client API and `chatRoute` from another service.
+
+Both layouts must return an AI SDK UI message stream. Do not point the new runtime at an older custom Mastra stream format.
+
+## Replace the runtime
+
+Install the integration and Mastra client. Keep `@assistant-ui/react-ai-sdk`; `useMastraRuntime` builds on it.
+
+<InstallCommand npm={["@assistant-ui/react-mastra@latest", "@mastra/client-js@latest"]} />
+
+Replace a generic data-stream runtime:
+
+```tsx title="Before"
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+
+const runtime = useDataStreamRuntime({
+  api: "http://localhost:4111/chat/releaseAssistant",
+});
+```
+
+with a Mastra client, a stable resource identity, and the selected thread ID:
+
+```tsx title="After"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMastraRuntime } from "@assistant-ui/react-mastra";
+import { MastraClient } from "@mastra/client-js";
+import { type PropsWithChildren, useCallback, useState } from "react";
+
+const baseUrl = "http://localhost:4111";
+const client = new MastraClient({ baseUrl });
+const storageKey = "selected-mastra-thread";
+
+export function RuntimeProvider({ children }: PropsWithChildren) {
+  const [threadId, setThreadId] = useState<string | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    return window.localStorage.getItem(storageKey) ?? undefined;
+  });
+  const onThreadIdChange = useCallback((nextId: string | undefined) => {
+    setThreadId(nextId);
+    if (nextId) window.localStorage.setItem(storageKey, nextId);
+    else window.localStorage.removeItem(storageKey);
+  }, []);
+
+  const runtime = useMastraRuntime({
+    client,
+    agentId: "releaseAssistant",
+    resourceId: "authenticated-user-id",
+    threadId,
+    onThreadIdChange,
+    transportOptions: {
+      api: `${baseUrl}/chat/releaseAssistant`,
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+`resourceId` identifies the authenticated account or tenant. `threadId` identifies one conversation and must be updated through `onThreadIdChange`. Authorize both values on the server; local storage is selection state, not an access-control boundary.
+
+## Keep existing UI adapters
+
+`UseMastraRuntimeOptions` includes the supported `useChatRuntime` options. Existing assistant-ui behavior stays on the standard runtime surface:
+
+| Existing behavior | Migration |
+| --- | --- |
+| Tool UIs | Keep `makeAssistantToolUI`, `useAssistantToolUI`, or the thread's tool fallback. Mastra tool parts arrive through the AI SDK stream. |
+| Attachments | Pass the existing `adapters.attachments` option to `useMastraRuntime`. |
+| Feedback | Pass the existing `adapters.feedback` option to `useMastraRuntime`. |
+| Speech synthesis | Pass the existing `adapters.speech` option to `useMastraRuntime`. |
+| Headers, credentials, or request body | Configure them in `transportOptions`, or pass a custom AI SDK `transport`. |
+
+Do not add Mastra-specific attachment, feedback, speech, or tool converters. The runtime forwards these options to `useChatRuntime`, and `@mastra/ai-sdk` owns server-stream conversion.
+
+## Add Mastra capabilities separately
+
+After chat and thread selection work, add only the capabilities your UI uses:
+
+- [Persisted threads](/docs/integrations/frameworks/mastra/threads) covers list, create, rename, archive, delete, and history restore.
+- [Semantic and working memory](/docs/integrations/frameworks/mastra/memory) adds `useMastraMemory` beside the runtime.
+- [Durable workflows](/docs/integrations/frameworks/mastra/workflows) adds `useMastraWorkflow` with reconnect, resume, and cancel.
+
+Memory and workflows are not nested configuration on `useMastraRuntime`. They use current `MastraClient` methods so each lifecycle remains independently testable and resumable.
+
+## Remove abandoned APIs
+
+The old integration proposal documented hooks for events, RAG, observability, automatic workflow configuration, and Mastra-specific adapter factories. Those APIs never shipped and are not part of this migration. Keep server-side RAG, tracing, evals, model routing, and agent tools in Mastra; expose only the resulting AI SDK message parts and the client actions the browser needs.
+
+## Verify the migration
+
+1. Send a message and confirm the response streams from the Mastra `chatRoute`.
+2. Create two threads and confirm their histories remain isolated after reload.
+3. Rename, archive, restore, and delete a thread from the assistant-ui thread list.
+4. If enabled, search memory or resume a suspended workflow after a full page reload.
+5. Confirm server authorization rejects a resource, thread, or workflow run owned by another user.
