@@ -3,6 +3,7 @@ import { alertVocabulary } from "./alert";
 import { dataVocabulary } from "./data";
 import { factVocabulary } from "./fact";
 import { formVocabulary } from "./form";
+import { iconVocabulary } from "./icon";
 import { interactiveVocabulary } from "./interactive";
 import { layoutVocabulary } from "./layout";
 import { listVocabulary } from "./list";
@@ -28,4 +29,5 @@ export const defaultGenerativeUILibrary: GenerativeUILibrary = {
   ...listVocabulary,
   ...dataVocabulary,
   ...alertVocabulary,
+  ...iconVocabulary,
 };

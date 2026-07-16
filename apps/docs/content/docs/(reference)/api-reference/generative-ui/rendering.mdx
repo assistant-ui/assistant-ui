@@ -59,16 +59,13 @@ default. Pass `Fallback` to opt into a soft-fail UX.
 
 ### generativeUIToJSX
 
-Serializes a generative-UI node to a JSX-like string for display — the
-"view source" of a model-produced tree. The wire form
-`{ $type: "Weather", id: "x" }` becomes `<Weather id="x" />`, and nested
-`children` render between tags: `<Card title="Hi"><Text>hello</Text></Card>`.
-A model-provided `$key` becomes the JSX `key` attribute.
+Serializes a generative-UI node to a JSX-like string for display: the "view source" of a model-produced tree. The wire form `{ $type: "Weather", id: "x" }` becomes `<Weather id="x" />`, and nested `children` render between tags: `<Card title="Hi"><Text>hello</Text></Card>`. A model-provided `$key` becomes the JSX `key` attribute.
 
-It is a faithful textual rendering, not a parser: text children are emitted
-verbatim (not HTML/JSX-escaped), so the result is meant to be shown, not
-re-parsed. Returns `""` for nodes that aren't renderable (no `$type` yet,
-`null`, booleans).
+By default this is a faithful textual rendering, not a parser: text children are emitted verbatim (not HTML/JSX-escaped), so the result is meant to be shown, not re-parsed. Returns `""` for nodes that aren't renderable (no `$type` yet, `null`, booleans).
+
+Pass `{ escape: true }` to make the output safe to paste back into JSX: any string child containing `<`, `>`, `&`, `{`, or `}` is emitted as a JSON-stringified expression (`{JSON.stringify(child)}`) instead of verbatim, while a string child with none of those characters still renders verbatim.
+
+Pass `{ pretty: true }` to pretty-print nested element trees with two-space indentation, while pure text children stay on one line.
 
 <ParametersTable {...generativeUIToJSX} />
 

@@ -27,6 +27,10 @@
     "./ir": {
       "types": "./dist/ir.d.ts",
       "default": "./dist/ir.js"
+    },
+    "./slack": {
+      "types": "./dist/slack.d.ts",
+      "default": "./dist/slack.js"
     }
   },
   "main": "./dist/index.js",

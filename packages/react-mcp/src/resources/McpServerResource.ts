@@ -310,12 +310,12 @@ const useMcpServerResource = (
         arguments: args as Record<string, unknown> | undefined,
       });
     },
-    listResources: async () => {
+    listResources: async (params) => {
       const client = clientRef.current;
       if (!client) {
         throw new Error(`MCP server "${props.id}" is not connected`);
       }
-      return await client.listResources();
+      return await client.listResources(params);
     },
     readResource: async (uri) => {
       const client = clientRef.current;

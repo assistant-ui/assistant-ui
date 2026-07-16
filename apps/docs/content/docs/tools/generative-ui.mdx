@@ -173,6 +173,8 @@ action registry to let interactive nodes call back into your app. This path uses
 the flat `{ "$type": ... }` node shape; the model puts an `$action` object on
 the node, and its `type` is matched against your registered handlers.
 
+Browse the [gallery](/gallery) to see every default vocabulary component rendered live, next to its IR JSON, generated React code, and a usage snippet.
+
 ```tsx
 import {
   JSONGenerativeUI,
@@ -248,3 +250,52 @@ Tool-call UI is great when the agent already invoked a known tool. Generative
 UI flips it: the agent _composes_ UI from a vocabulary you ship. Useful for
 dashboards, status panels, and structured layouts — not for collecting user
 input (use Tool UI for that).
+
+## Slack Block Kit
+
+`toSlackBlocks` from `@assistant-ui/react-generative-ui/slack` converts a
+generative-UI tree into Slack's Block Kit JSON. It is pure and React-free, so
+it runs equally well in a server action, a queue worker, or a webhook
+handler. Components the converter doesn't recognize are skipped and reported
+as warnings instead of throwing, and content that exceeds Slack's published
+size and count budgets is clamped or downgraded to a simpler block rather
+than producing an invalid payload.
+
+```tsx
+import { WebClient } from "@slack/web-api";
+import { toSlackBlocks } from "@assistant-ui/react-generative-ui/slack";
+
+const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
+
+const { blocks } = toSlackBlocks({
+  $type: "Card",
+  title: "Order #48213",
+  children: [{ $type: "Text", value: "Shipped, arriving Thursday." }],
+});
+
+await slack.chat.postMessage({
+  channel: "#orders",
+  blocks,
+});
+```
+
+Slack posts interactive elements back as a `block_actions` payload.
+`decodeBlockAction` takes one entry from that payload's `actions` array and
+decodes it back into the `$action` shape your tree dispatched, with the
+user's runtime selection (a picked option, a typed value) carried under
+`$input`. Receiving the webhook, verifying its signature, and routing the
+decoded action to your handler stay the host app's responsibility; the
+converter only speaks JSON in and JSON out.
+
+A few conversion caveats worth knowing:
+
+- `Alert` has no message-surface equivalent upstream (Slack only supports it
+  in modals), so messages get a context block plus section block fallback
+  instead.
+- `Card` and `Carousel` have tight text budgets; a card whose content
+  overflows its budget falls back to plain blocks rather than the card
+  layout.
+- `Chart` has no Slack Block Kit mapping and is replaced by a note block.
+- The Block Kit Builder deep link format
+  (`https://app.slack.com/block-kit-builder/#<payload>`) is an observed
+  convention, not an officially documented API.

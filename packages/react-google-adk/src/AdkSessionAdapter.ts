@@ -7,6 +7,7 @@ import type {
 } from "@assistant-ui/core";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import type { AdkEvent, AdkMessage } from "./types";
+import { trimTrailingSlashes } from "./trimTrailingSlashes";
 
 export type AdkSessionAdapterOptions = {
   /**
@@ -54,12 +55,6 @@ type AdkSessionAdapterResult = {
     ) => Promise<number[]>;
     delete: (sessionId: string, artifactName: string) => Promise<void>;
   };
-};
-
-const trimTrailingSlashes = (value: string) => {
-  let end = value.length;
-  while (end > 0 && value[end - 1] === "/") end -= 1;
-  return value.slice(0, end);
 };
 
 /**
@@ -159,7 +154,13 @@ export function createAdkSessionAdapter(
 
     generateTitle(): Promise<AssistantStream> {
       // Title generation not supported without assistant-cloud
-      return Promise.resolve(new ReadableStream<AssistantStreamChunk>());
+      return Promise.resolve(
+        new ReadableStream<AssistantStreamChunk>({
+          start(controller) {
+            controller.close();
+          },
+        }),
+      );
     },
 
     async fetch(threadId: string): Promise<RemoteThreadMetadata> {

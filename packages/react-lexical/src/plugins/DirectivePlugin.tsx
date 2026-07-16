@@ -9,7 +9,9 @@ import {
   $isRangeSelection,
   $isTextNode,
   COMMAND_PRIORITY_LOW,
+  DELETE_CHARACTER_COMMAND,
   KEY_BACKSPACE_COMMAND,
+  KEY_DELETE_COMMAND,
   type TextNode,
 } from "lexical";
 import { mergeRegister } from "@lexical/utils";
@@ -38,6 +40,65 @@ type TriggerMatch = {
 };
 
 const WHITESPACE_RE = /\s/u;
+
+function $removeSelectedDirectiveNodes(): boolean {
+  const selection = $getSelection();
+  if (!$isNodeSelection(selection)) return false;
+
+  let handled = false;
+  for (const node of selection.getNodes()) {
+    if ($isDirectiveNode(node)) {
+      node.remove();
+      handled = true;
+    }
+  }
+  return handled;
+}
+
+function $removeAdjacentDirectiveNode(isBackward: boolean): boolean {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+
+  const anchor = selection.anchor;
+  const node = anchor.getNode();
+
+  if ($isTextNode(node)) {
+    const isAtEdge = isBackward
+      ? anchor.offset === 0
+      : anchor.offset === node.getTextContentSize();
+    if (!isAtEdge) return false;
+
+    const sibling = isBackward
+      ? node.getPreviousSibling()
+      : node.getNextSibling();
+    if ($isDirectiveNode(sibling)) {
+      sibling.remove();
+      return true;
+    }
+  }
+
+  if ($isElementNode(node)) {
+    const child = node.getChildAtIndex(
+      isBackward ? anchor.offset - 1 : anchor.offset,
+    );
+    if ($isDirectiveNode(child)) {
+      child.remove();
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function $removeSelectedDirectiveNodesFromKeyEvent(
+  event: KeyboardEvent | null,
+): boolean {
+  if (!$removeSelectedDirectiveNodes()) return false;
+
+  // Unprevented forward Delete reaches beforeinput deleteContentForward, which Lexical maps to DELETE_LINE_COMMAND.
+  event?.preventDefault();
+  return true;
+}
 
 export function findTriggerMatch(
   trigger: string,
@@ -128,50 +189,22 @@ export function DirectivePlugin({
       }),
 
       editor.registerCommand(
+        DELETE_CHARACTER_COMMAND,
+        (isBackward) =>
+          $removeSelectedDirectiveNodes() ||
+          $removeAdjacentDirectiveNode(isBackward),
+        COMMAND_PRIORITY_LOW,
+      ),
+
+      editor.registerCommand(
         KEY_BACKSPACE_COMMAND,
-        () => {
-          const selection = $getSelection();
+        $removeSelectedDirectiveNodesFromKeyEvent,
+        COMMAND_PRIORITY_LOW,
+      ),
 
-          if ($isNodeSelection(selection)) {
-            const nodes = selection.getNodes();
-            let handled = false;
-            for (const node of nodes) {
-              if ($isDirectiveNode(node)) {
-                node.remove();
-                handled = true;
-              }
-            }
-            return handled;
-          }
-
-          if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
-            return false;
-          }
-
-          const anchor = selection.anchor;
-          const node = anchor.getNode();
-
-          if ($isTextNode(node) && anchor.offset === 0) {
-            const prev = node.getPreviousSibling();
-            if ($isDirectiveNode(prev)) {
-              prev.remove();
-              return true;
-            }
-          }
-
-          if ($isElementNode(node)) {
-            const childBefore =
-              anchor.offset > 0
-                ? node.getChildAtIndex(anchor.offset - 1)
-                : null;
-            if ($isDirectiveNode(childBefore)) {
-              childBefore.remove();
-              return true;
-            }
-          }
-
-          return false;
-        },
+      editor.registerCommand(
+        KEY_DELETE_COMMAND,
+        $removeSelectedDirectiveNodesFromKeyEvent,
         COMMAND_PRIORITY_LOW,
       ),
     );

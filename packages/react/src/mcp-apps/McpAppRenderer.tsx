@@ -26,7 +26,7 @@ import type {
   McpAppsHost,
 } from "./types";
 import { getMcpAppFromToolPart } from "./utils";
-import { isRecord } from "../utils/json/is-json";
+import { isRecord } from "@assistant-ui/core/internal";
 
 export type McpAppRendererOptions = {
   /**

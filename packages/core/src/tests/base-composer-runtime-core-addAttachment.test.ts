@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { DefaultThreadComposerRuntimeCore } from "../runtime/base/default-thread-composer-runtime-core";
-import type { AttachmentAdapter } from "../adapters/attachment";
+import {
+  SimpleTextAttachmentAdapter,
+  type AttachmentAdapter,
+} from "../adapters/attachment";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
 import type { PendingAttachment } from "../types/attachment";
 
@@ -123,6 +126,40 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
 
     expect(onAdd).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("accepts JSON files with the application/json media type", async () => {
+    const composer = makeComposer(new SimpleTextAttachmentAdapter());
+
+    await expect(
+      composer.addAttachment(
+        new File(["{}"], "data.json", { type: "application/json" }),
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(composer.attachments[0]).toMatchObject({
+      type: "document",
+      name: "data.json",
+      contentType: "application/json",
+    });
+  });
+
+  it("keeps different files with the same name as separate attachments", async () => {
+    const composer = makeComposer(new SimpleTextAttachmentAdapter());
+
+    await composer.addAttachment(
+      new File(["first"], "notes.txt", { type: "text/plain" }),
+    );
+    await composer.addAttachment(
+      new File(["second"], "notes.txt", { type: "text/plain" }),
+    );
+
+    expect(composer.attachments).toHaveLength(2);
+    expect(composer.attachments[0]!.id).not.toBe(composer.attachments[1]!.id);
+    expect(composer.attachments.map((attachment) => attachment.name)).toEqual([
+      "notes.txt",
+      "notes.txt",
+    ]);
   });
 
   it("does not let subscriber errors mask the original throw", async () => {
