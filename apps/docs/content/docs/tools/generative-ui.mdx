@@ -301,3 +301,9 @@ A few conversion caveats worth knowing:
 - The Block Kit Builder deep link format
   (`https://app.slack.com/block-kit-builder/#<payload>`) is an observed
   convention, not an officially documented API.
+
+## Microsoft Teams
+
+The same tree converts to an Adaptive Card with `toAdaptiveCard` from `@assistant-ui/react-generative-ui/teams`: pure, React-free, pinned to Adaptive Cards 1.5 (the Teams desktop ceiling; mobile clients cap at 1.2), and total in the same way as the Slack converter, so unknown components degrade with warnings instead of failing. Interactive components encode their `$action` inside the submit payload's reserved `aui` key, and `decodeSubmitData` splits a bot's incoming `activity.value` back into the `$action` shape with the card's input values under `$input`. A root `Carousel` is an activity-level construct on Teams, so `toTeamsAttachments` returns up to ten card attachments with `attachmentLayout: "carousel"` instead of one card.
+
+Caveats mirror the platform: Teams ignores positive and destructive action styling, TextBlock markdown is a subset (no headings, tables, or images), `Divider` and `Spacer` become `separator` and `spacing` properties on the following element, and `Chart` has no Teams mapping and is replaced by a note.

@@ -24,6 +24,10 @@ export const REACT_GENERATIVE_UI_SLACK_INDEX = path.join(
   REACT_GENERATIVE_UI_PKG,
   "slack.ts",
 );
+export const REACT_GENERATIVE_UI_TEAMS_INDEX = path.join(
+  REACT_GENERATIVE_UI_PKG,
+  "teams.ts",
+);
 
 export const TYPE_DOCS_INPUT = path.join(
   DOCS_ROOT,

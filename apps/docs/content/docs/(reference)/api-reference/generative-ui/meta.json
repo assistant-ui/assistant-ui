@@ -9,6 +9,7 @@
     "spec",
     "rendering",
     "slack",
+    "teams",
     "tokens"
   ]
 }

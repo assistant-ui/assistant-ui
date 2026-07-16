@@ -8,6 +8,7 @@ import * as path from "node:path";
 import {
   REACT_GENERATIVE_UI_INDEX,
   REACT_GENERATIVE_UI_SLACK_INDEX,
+  REACT_GENERATIVE_UI_TEAMS_INDEX,
   REACT_INDEX,
   REPO_ROOT,
 } from "./paths.mts";
@@ -354,6 +355,7 @@ function getReactGenerativeUIApiInputs(): ClassifiedExportInput[] {
   reactGenerativeUIApiInputs ??= classifyExportInputs([
     ...collectExportInputs(REACT_GENERATIVE_UI_INDEX),
     ...collectExportInputs(REACT_GENERATIVE_UI_SLACK_INDEX),
+    ...collectExportInputs(REACT_GENERATIVE_UI_TEAMS_INDEX),
   ]).filter((item) => GENERATIVE_UI_PACKAGE_EXPORTS.has(item.name));
   return reactGenerativeUIApiInputs;
 }
