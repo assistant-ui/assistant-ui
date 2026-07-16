@@ -681,6 +681,164 @@ interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
 
+type SlackActionElement = SlackButtonElement | SlackStaticSelectElement | SlackDatePickerElement | SlackCheckboxesElement | SlackRadioButtonsElement;
+
+interface SlackActionsBlock {
+  readonly type: "actions";
+  readonly elements: readonly SlackActionElement[];
+}
+
+interface SlackAlertBlock {
+  readonly type: "alert";
+  readonly text: SlackTextObject;
+  readonly level?: SlackAlertLevel;
+}
+
+type SlackAlertLevel = "default" | "error" | "info" | "success" | "warning";
+
+type SlackBlock = SlackHeaderBlock | SlackSectionBlock | SlackContextBlock | SlackImageBlock | SlackDividerBlock | SlackActionsBlock | SlackInputBlock | SlackCardBlock | SlackCarouselBlock | SlackDataTableBlock | SlackMarkdownBlock | SlackAlertBlock;
+
+interface SlackBlocksResult {
+  readonly blocks: SlackBlock[];
+  readonly warnings: SlackConversionWarning[];
+}
+
+interface SlackButtonElement {
+  readonly type: "button";
+  readonly text: SlackPlainText;
+  readonly action_id: string;
+  readonly value?: string;
+  readonly style?: "danger" | "primary";
+}
+
+interface SlackCardBlock {
+  readonly type: "card";
+  readonly hero_image?: SlackImageBlock;
+  readonly title?: SlackTextObject;
+  readonly subtitle?: SlackTextObject;
+  readonly body?: SlackTextObject;
+  readonly subtext?: SlackTextObject;
+  readonly actions?: readonly SlackButtonElement[];
+}
+
+interface SlackCarouselBlock {
+  readonly type: "carousel";
+  readonly elements: readonly SlackCardBlock[];
+}
+
+interface SlackCheckboxesElement {
+  readonly type: "checkboxes";
+  readonly action_id: string;
+  readonly options: readonly SlackOption[];
+}
+
+interface SlackContextBlock {
+  readonly type: "context";
+  readonly elements: readonly SlackMrkdwnText[];
+}
+
+interface SlackConversionWarning {
+  readonly code: "clamped" | "dropped" | "fallback";
+  readonly component: string;
+  readonly detail: string;
+}
+
+interface SlackDataTableBlock {
+  readonly type: "data_table";
+  readonly caption: string;
+  readonly rows: readonly (readonly SlackDataTableCell[])[];
+  readonly page_size?: number;
+}
+
+type SlackDataTableCell = SlackDataTableRawTextCell | SlackDataTableRawNumberCell;
+
+interface SlackDataTableRawNumberCell {
+  readonly type: "raw_number";
+  readonly text: string;
+}
+
+interface SlackDataTableRawTextCell {
+  readonly type: "raw_text";
+  readonly text: string;
+}
+
+interface SlackDatePickerElement {
+  readonly type: "datepicker";
+  readonly action_id: string;
+  readonly initial_date?: string;
+}
+
+interface SlackDividerBlock {
+  readonly type: "divider";
+}
+
+interface SlackHeaderBlock {
+  readonly type: "header";
+  readonly text: SlackPlainText;
+}
+
+interface SlackImageBlock {
+  readonly type: "image";
+  readonly image_url: string;
+  readonly alt_text: string;
+}
+
+interface SlackInputBlock {
+  readonly type: "input";
+  readonly label: SlackPlainText;
+  readonly element: SlackPlainTextInputElement;
+}
+
+interface SlackMarkdownBlock {
+  readonly type: "markdown";
+  readonly text: string;
+}
+
+interface SlackMrkdwnText {
+  readonly type: "mrkdwn";
+  readonly text: string;
+}
+
+interface SlackOption {
+  readonly text: SlackPlainText;
+  readonly value: string;
+}
+
+interface SlackPlainText {
+  readonly type: "plain_text";
+  readonly text: string;
+}
+
+interface SlackPlainTextInputElement {
+  readonly type: "plain_text_input";
+  readonly action_id: string;
+  readonly multiline?: boolean;
+  readonly placeholder?: SlackPlainText;
+}
+
+interface SlackRadioButtonsElement {
+  readonly type: "radio_buttons";
+  readonly action_id: string;
+  readonly options: readonly SlackOption[];
+  readonly initial_option?: SlackOption;
+}
+
+interface SlackSectionBlock {
+  readonly type: "section";
+  readonly text?: SlackMrkdwnText;
+  readonly fields?: readonly SlackMrkdwnText[];
+  readonly accessory?: SlackButtonElement;
+}
+
+interface SlackStaticSelectElement {
+  readonly type: "static_select";
+  readonly action_id: string;
+  readonly options: readonly SlackOption[];
+  readonly placeholder?: SlackPlainText;
+}
+
+type SlackTextObject = SlackPlainText | SlackMrkdwnText;
+
 type SourceMessagePart = {
   readonly type: "source";
   readonly sourceType: "url";
@@ -819,6 +977,10 @@ type ThreadUserMessage = MessageCommonProps & {
 };
 
 type ThreadUserMessagePart = TextMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | Unstable_AudioMessagePart;
+
+interface ToSlackBlocksOptions {
+  readonly surface?: "message" | "modal";
+}
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
@@ -1085,6 +1247,8 @@ declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchem
 
 declare function createActionRegistry(handlers: Readonly<Record<string, ActionHandler>>): ActionRegistry;
 
+declare function decodeBlockAction(action: unknown): Action | undefined;
+
 declare const defaultGenerativeUILibrary: GenerativeUILibrary;
 
 declare function defineGenerativeComponents(_library: GenerativeUILibrary): GenerativeUILibrary;
@@ -1126,4 +1290,10 @@ declare function normalizeUINode(node: unknown, partialPath?: readonly string[] 
 
 declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
 
-export { entry_ir_exports as entry_ir, entry_root_default_exports as entry_root_default, entry_root_react_server_exports as entry_root_react_server };
+declare namespace entry_slack_exports {
+  export { SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, ToSlackBlocksOptions, decodeBlockAction, toSlackBlocks };
+}
+
+declare function toSlackBlocks(node: unknown, options?: ToSlackBlocksOptions): SlackBlocksResult;
+
+export { entry_ir_exports as entry_ir, entry_root_default_exports as entry_root_default, entry_root_react_server_exports as entry_root_react_server, entry_slack_exports as entry_slack };
