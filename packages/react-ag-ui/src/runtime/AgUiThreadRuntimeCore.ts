@@ -476,8 +476,8 @@ export class AgUiThreadRuntimeCore {
       }
     }
 
-    const resume: AgUiResumeEntry[] = openIds.map(
-      (id) => responsesById.get(id)!,
+    const resume: AgUiResumeEntry[] = openIds.map((id) =>
+      responsesById.get(id)!,
     );
 
     if (this.isRunningFlag) {
