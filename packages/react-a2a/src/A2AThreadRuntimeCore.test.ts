@@ -230,6 +230,72 @@ describe("A2AThreadRuntimeCore", () => {
       ]);
     });
 
+    it("falls back to linear history when stored ids are duplicated", async () => {
+      const first = createHistoryMessage("duplicate", "user", "First");
+      const replacement = createHistoryMessage(
+        "duplicate",
+        "assistant",
+        "Replacement",
+      );
+      const tail = createHistoryMessage("tail", "user", "Tail");
+      const history = {
+        load: vi.fn().mockResolvedValue({
+          headId: tail.id,
+          messages: [
+            { parentId: null, message: first },
+            { parentId: null, message: replacement },
+            { parentId: replacement.id, message: tail },
+          ],
+        }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = createCore({}, { history });
+
+      await expect(core.__internal_load()).resolves.toBeUndefined();
+
+      const repository = core.getMessageRepository();
+      expect(
+        repository.messages.map(({ message, parentId }) => ({
+          id: message.id,
+          parentId,
+        })),
+      ).toEqual([
+        { id: replacement.id, parentId: null },
+        { id: tail.id, parentId: replacement.id },
+      ]);
+      expect(repository.messages[0]!.message.content).toEqual(
+        replacement.content,
+      );
+    });
+
+    it("falls back to linear history when stored parents form a cycle", async () => {
+      const first = createHistoryMessage("first", "user", "First");
+      const second = createHistoryMessage("second", "assistant", "Second");
+      const history = {
+        load: vi.fn().mockResolvedValue({
+          headId: second.id,
+          messages: [
+            { parentId: second.id, message: first },
+            { parentId: first.id, message: second },
+          ],
+        }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = createCore({}, { history });
+
+      await expect(core.__internal_load()).resolves.toBeUndefined();
+
+      expect(
+        core.getMessageRepository().messages.map(({ message, parentId }) => ({
+          id: message.id,
+          parentId,
+        })),
+      ).toEqual([
+        { id: first.id, parentId: null },
+        { id: second.id, parentId: first.id },
+      ]);
+    });
+
     it("keeps hidden siblings when the visible branch changes", async () => {
       const { user, firstAssistant, secondAssistant, history } =
         createBranchedHistory();

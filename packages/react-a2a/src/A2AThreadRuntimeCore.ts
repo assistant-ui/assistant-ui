@@ -288,9 +288,34 @@ export class A2AThreadRuntimeCore {
     }
   }
 
-  applyExternalMessages(messages: readonly ThreadMessage[]): void {
-    this.assistantHistoryParents.clear();
+  private appendLinearChain(messages: readonly ThreadMessage[]): string | null {
+    let parentId: string | null = null;
+    let lastId: string | null = null;
+    const seen = new Set<string>();
 
+    for (const message of messages) {
+      if (seen.has(message.id)) continue;
+      seen.add(message.id);
+      this.addOrUpdateMessage(parentId, message);
+      parentId = message.id;
+      lastId = message.id;
+    }
+
+    return lastId;
+  }
+
+  private finalizeExternalApply(): void {
+    this.assistantHistoryParents.clear();
+    this.recordedHistoryIds.clear();
+    for (const { message } of this.getMessageRepository().messages) {
+      this.recordedHistoryIds.add(message.id);
+    }
+    this.currentTask = undefined;
+    this.currentArtifacts = [];
+    this.notifyUpdate();
+  }
+
+  applyExternalMessages(messages: readonly ThreadMessage[]): void {
     if (messages.length === 0) {
       this.clearRepository();
     } else {
@@ -314,28 +339,13 @@ export class A2AThreadRuntimeCore {
 
       if (hardReplace) {
         this.clearRepository();
-        expectedParentId = null;
-        lastAppliedId = null;
-        seen.clear();
-        for (const message of messages) {
-          if (seen.has(message.id)) continue;
-          seen.add(message.id);
-          this.addOrUpdateMessage(expectedParentId, message);
-          expectedParentId = message.id;
-          lastAppliedId = message.id;
-        }
+        lastAppliedId = this.appendLinearChain(messages);
       }
 
       this.resetRepositoryHead(lastAppliedId);
     }
 
-    this.recordedHistoryIds.clear();
-    for (const { message } of this.getMessageRepository().messages) {
-      this.recordedHistoryIds.add(message.id);
-    }
-    this.currentTask = undefined;
-    this.currentArtifacts = [];
-    this.notifyUpdate();
+    this.finalizeExternalApply();
   }
 
   private applyExternalMessageRepository(
@@ -394,14 +404,7 @@ export class A2AThreadRuntimeCore {
       this.resetRepositoryHead(headId);
     }
 
-    this.assistantHistoryParents.clear();
-    this.recordedHistoryIds.clear();
-    for (const { message } of loaded.messages) {
-      this.recordedHistoryIds.add(message.id);
-    }
-    this.currentTask = undefined;
-    this.currentArtifacts = [];
-    this.notifyUpdate();
+    this.finalizeExternalApply();
   }
 
   // --- Run logic ---
