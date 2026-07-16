@@ -1,0 +1,107 @@
+---
+title: Durable workflows
+description: Render and resume persisted Mastra workflow suspensions.
+platforms: ["react"]
+---
+
+`useMastraWorkflow` exposes a Mastra workflow run beside the chat runtime. It starts a run, normalizes suspended steps, resumes the exact step path, and reconnects to an existing run ID after reload.
+
+<InstallCommand npm={["@assistant-ui/react-mastra@latest", "@mastra/client-js@latest"]} />
+
+## Register the workflow
+
+Register the workflow and storage on the same `Mastra` instance that serves its HTTP APIs:
+
+```ts title="src/mastra/index.ts"
+import { Mastra } from "@mastra/core/mastra";
+import { LibSQLStore } from "@mastra/libsql";
+import { releaseReviewWorkflow } from "./workflows/release-review";
+
+const storage = new LibSQLStore({
+  id: "app-storage",
+  url: "file:./mastra.db",
+});
+
+export const mastra = new Mastra({
+  storage,
+  workflows: { releaseReviewWorkflow },
+});
+```
+
+The browser must be able to reach Mastra's workflow APIs. A separate Mastra server exposes them directly. In a full-stack deployment, mount or proxy those APIs under the same origin.
+
+## Render workflow suspension
+
+Store the run ID independently from the selected chat thread. Passing it back to the hook reconnects to the persisted run:
+
+```tsx title="components/release-approval.tsx"
+"use client";
+
+import { useMastraWorkflow } from "@assistant-ui/react-mastra";
+import { MastraClient } from "@mastra/client-js";
+import { useEffect, useState } from "react";
+
+type Input = { project: string; summary: string };
+type Resume = { approved: boolean; note: string };
+type Result = { outcome: "published" | "changes-requested" };
+type Suspend = { title: string; description: string };
+
+const client = new MastraClient({ baseUrl: "http://localhost:4111" });
+
+export function ReleaseApproval() {
+  const [runId, setRunId] = useState<string>();
+
+  useEffect(() => {
+    setRunId(window.localStorage.getItem("release-run") ?? undefined);
+  }, []);
+
+  const workflow = useMastraWorkflow<Input, Resume, Result, Suspend>({
+    client,
+    workflowId: "releaseReviewWorkflow",
+    runId,
+    resourceId: "authenticated-user-id",
+    onRunIdChange: (nextRunId) => {
+      setRunId(nextRunId);
+      window.localStorage.setItem("release-run", nextRunId);
+    },
+  });
+  const suspended = workflow.state.suspendedSteps[0];
+
+  if (workflow.state.status === "suspended" && suspended) {
+    return (
+      <section>
+        <h2>{suspended.payload.title}</h2>
+        <p>{suspended.payload.description}</p>
+        <button
+          onClick={() =>
+            void workflow.resume(suspended, { approved: true, note: "" })
+          }
+        >
+          Approve
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <button
+      disabled={workflow.state.status === "running"}
+      onClick={() =>
+        void workflow.start({ project: "Web", summary: "Publish release" })
+      }
+    >
+      Start review
+    </button>
+  );
+}
+```
+
+Passing a stored `runId` causes the hook to fetch the current run, so a suspended checkpoint returns after reload. Pass the complete suspended-step object to `resume`; it preserves nested paths and `forEachIndex` for workflows with parallel steps.
+
+The hook exposes `start`, `resume`, `refresh`, and `cancel`. Render from `state.status`, `state.suspendedSteps`, `state.result`, and `state.error`; do not infer workflow state from chat messages.
+
+## Security
+
+Workflow IDs and run IDs are identifiers, not authorization. Authenticate every workflow endpoint, derive or validate `resourceId` from the caller, and verify that the caller owns a run before reading, resuming, or cancelling it. Do not expose provider keys to the browser.
+
+See the [`@assistant-ui/react-mastra` API reference](/docs/api-reference/integrations/react-mastra) for the complete hook contract.

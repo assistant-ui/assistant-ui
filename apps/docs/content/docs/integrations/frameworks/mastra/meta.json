@@ -2,5 +2,5 @@
   "title": "Mastra",
   "description": "Mastra integration docs for wiring Mastra agents to assistant-ui through Next.js API routes or a separate server.",
   "platforms": ["react"],
-  "pages": ["overview", "full-stack", "separate-server", "threads"]
+  "pages": ["overview", "full-stack", "separate-server", "threads", "workflows"]
 }
