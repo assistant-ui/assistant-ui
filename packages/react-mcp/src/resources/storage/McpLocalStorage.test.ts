@@ -33,10 +33,27 @@ describe("normalizeCustomServerRecords", () => {
         { ...validRecord, name: 123 },
         { ...validRecord, url: null },
         { ...validRecord, createdAt: Number.NaN },
+        { ...validRecord, connectionTimeout: "10000" },
+        { ...validRecord, connectionTimeout: null },
+        { ...validRecord, connectionTimeout: -1 },
+        { ...validRecord, connectionTimeout: Number.NaN },
+        { ...validRecord, connectionTimeout: Number.POSITIVE_INFINITY },
         { ...validRecord, auth: { type: "bearer", token: "" } },
         { ...validRecord, auth: { type: "bearer", token: 123 } },
       ]),
     ).toEqual([validRecord]);
+  });
+
+  it("accepts finite non-negative connection timeouts", () => {
+    expect(
+      normalizeCustomServerRecords([
+        { ...validRecord, connectionTimeout: 0 },
+        { ...validRecord, connectionTimeout: 10_000 },
+      ]),
+    ).toEqual([
+      { ...validRecord, connectionTimeout: 0 },
+      { ...validRecord, connectionTimeout: 10_000 },
+    ]);
   });
 
   it("accepts persisted bearer and oauth auth configs", () => {
@@ -164,6 +181,27 @@ const loadStorage = (storage: Storage) =>
       }),
     );
   }).getValue();
+
+describe("McpLocalStorage custom servers", () => {
+  it("filters malformed connection timeouts when loading", async () => {
+    const storage = createStorage();
+    storage.setItem(
+      "test-mcp:custom-servers",
+      JSON.stringify([
+        validRecord,
+        {
+          ...validRecord,
+          id: "bad-timeout",
+          connectionTimeout: "immediately",
+        },
+      ]),
+    );
+
+    await expect(loadStorage(storage).loadCustomServers()).resolves.toEqual([
+      validRecord,
+    ]);
+  });
+});
 
 describe("McpLocalStorage auth state", () => {
   it("normalizes loaded auth state from localStorage", async () => {

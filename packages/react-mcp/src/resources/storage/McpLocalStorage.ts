@@ -45,6 +45,12 @@ const isOptionalStringArray = (value: unknown): value is string[] | undefined =>
   value === undefined ||
   (Array.isArray(value) && value.every((item) => typeof item === "string"));
 
+const isOptionalConnectionTimeout = (
+  value: unknown,
+): value is number | undefined =>
+  value === undefined ||
+  (typeof value === "number" && Number.isFinite(value) && value >= 0);
+
 const isValidServerId = (id: string): boolean => {
   try {
     assertValidServerId(id);
@@ -87,7 +93,8 @@ const isCustomServerRecord = (
     isNonEmptyString(value.name) &&
     isNonEmptyString(value.url) &&
     Number.isFinite(value.createdAt) &&
-    isMCPAuthConfig(value.auth)
+    isMCPAuthConfig(value.auth) &&
+    isOptionalConnectionTimeout(value.connectionTimeout)
   );
 };
 
