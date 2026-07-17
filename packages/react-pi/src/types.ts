@@ -177,11 +177,15 @@ export type PiTranscriptMessage = PiAgentMessage;
 // ---------------------------------------------------------------------------
 
 type PiSessionEntryBase = {
-  type: string;
   id: string;
   parentId: string | null;
   timestamp: string;
 };
+
+export interface PiUnknownSessionEntry extends PiSessionEntryBase {
+  type: string;
+  [key: string]: unknown;
+}
 
 export type PiSessionEntry =
   | (PiSessionEntryBase & {
@@ -227,12 +231,13 @@ export type PiSessionEntry =
   | (PiSessionEntryBase & {
       type: "label";
       targetId: string;
-      label: string | undefined;
+      label?: string | undefined;
     })
   | (PiSessionEntryBase & {
       type: "session_info";
       name?: string;
-    });
+    })
+  | PiUnknownSessionEntry;
 
 // ---------------------------------------------------------------------------
 // Streaming delta — mirror of `AssistantMessageEvent` (the `contentIndex`
