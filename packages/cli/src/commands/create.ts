@@ -659,6 +659,16 @@ export const create = new Command()
         throw err;
       }
 
+      if (transformResult.registryInstallFailure) {
+        process.removeListener("exit", cleanupOnExit);
+        logger.break();
+        logger.error("Project created with missing components.");
+        logger.info("Retry the component install with:");
+        logger.info(`  cd ${resolvedProjectDirectory}`);
+        logger.info(`  ${transformResult.registryInstallFailure.retryCommand}`);
+        process.exit(1);
+      }
+
       // 6. Apply preset if provided
       if (scaffoldSelector.preset) {
         const presetUrl = resolvePresetUrl(scaffoldSelector.preset);
@@ -686,15 +696,6 @@ export const create = new Command()
       }
 
       process.removeListener("exit", cleanupOnExit);
-
-      if (transformResult.registryInstallFailure) {
-        logger.break();
-        logger.error("Project created with missing components.");
-        logger.info("Retry the component install with:");
-        logger.info(`  cd ${resolvedProjectDirectory}`);
-        logger.info(`  ${transformResult.registryInstallFailure.retryCommand}`);
-        process.exit(1);
-      }
 
       logger.break();
       logger.success("Project created successfully!");

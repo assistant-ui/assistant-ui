@@ -405,6 +405,7 @@ describe("transformProject — hasLocalComponents: false", () => {
             "@/*": ["./*"],
             "@assistant-ui/*": ["../../packages/*/src"],
             "@assistant-ui/core/*": ["../../packages/core/src/*"],
+            "@shared/*": ["../shared/*"],
             "assistant-stream": ["../../packages/assistant-stream/src"],
             "assistant-stream/*": ["../../packages/assistant-stream/src/*"],
           },
@@ -416,6 +417,7 @@ describe("transformProject — hasLocalComponents: false", () => {
       const paths = readJSON("tsconfig.json").compilerOptions.paths;
       expect(paths["@assistant-ui/*"]).toBeUndefined();
       expect(paths["@assistant-ui/core/*"]).toBeUndefined();
+      expect(paths["@shared/*"]).toBeUndefined();
       expect(paths["assistant-stream"]).toBeUndefined();
       expect(paths["assistant-stream/*"]).toBeUndefined();
       expect(paths["@/*"]).toEqual(["./*"]);

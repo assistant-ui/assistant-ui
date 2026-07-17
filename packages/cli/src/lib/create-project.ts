@@ -337,9 +337,7 @@ function transformTsConfig(projectDir: string): void {
         targets.some(
           (target) =>
             typeof target === "string" &&
-            (target.includes("packages/ui/") ||
-              target.includes("../../packages/") ||
-              target.startsWith("../..")),
+            (target.includes("packages/ui/") || target.startsWith("../")),
         );
       if (workspaceKeys.has(key) || targetsWorkspace) {
         delete tsconfig.compilerOptions.paths[key];
