@@ -574,6 +574,7 @@ function ModelSelectorEffort({
   label = "Thinking",
   className,
   onKeyDown,
+  onKeyDownCapture,
   ...props
 }: ModelSelectorEffortProps) {
   const { efforts, effort, setEffort } = useModelSelectorEfforts();
@@ -588,21 +589,23 @@ function ModelSelectorEffort({
         className,
       )}
       onKeyDownCapture={(e) => {
+        onKeyDownCapture?.(e);
+        if (e.defaultPrevented) return;
         if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-        // Base UI's RadioGroup composite treats vertical arrows as roving-
-        // focus keys (orientation "both", not configurable), so intercept
-        // them in capture before it moves radio focus: the model list owns
-        // vertical navigation. Refocus cmdk's input and re-dispatch the key
-        // so the same press moves the list highlight, and Enter selects
-        // again (cmdk's Enter is inert while a radio has focus, so the
-        // highlight would otherwise move with no way to act).
-        e.preventDefault();
-        e.stopPropagation();
+        // Base UI's RadioGroup composite claims vertical arrows for roving
+        // focus (orientation "both", not configurable), so intercept them in
+        // capture and hand the keypress to cmdk: the model list owns vertical
+        // navigation, and cmdk's Enter is inert while a radio has focus.
         const input = e.currentTarget
           .closest("[cmdk-root]")
           ?.querySelector<HTMLInputElement>("[cmdk-input]");
-        input?.focus();
-        input?.dispatchEvent(
+        if (!input) return;
+        onKeyDown?.(e);
+        if (e.defaultPrevented) return;
+        e.preventDefault();
+        e.stopPropagation();
+        input.focus();
+        input.dispatchEvent(
           new KeyboardEvent("keydown", { key: e.key, bubbles: true }),
         );
       }}
