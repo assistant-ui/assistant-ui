@@ -18,18 +18,18 @@ An open-source implementation of Claude Artifacts that allows users to generate 
 
 ## Features
 
-- **Real-time Preview**: Generated artifacts render instantly in a sandboxed iframe
+- **Real-time Preview**: Generated artifacts render instantly in an isolated sandboxed iframe
 - **Code Generation**: Creates complete HTML, CSS, and JavaScript applications
 - **Interactive Elements**: Artifacts can include buttons, forms, and animations
 - **Iteration Support**: Ask the AI to modify and improve generated artifacts
-- **Safe Execution**: Code runs in a sandboxed environment for security
+- **Safe Execution**: Code runs in a sandboxed iframe with scripts enabled but no access to the parent documentation page
 - **Export Options**: Download generated artifacts as standalone files
 
 ## How It Works
 
 1. **Request**: Ask the AI to create something (e.g., "Create a calculator app")
 2. **Generation**: The AI generates the necessary HTML, CSS, and JavaScript
-3. **Rendering**: Code is safely rendered in a preview panel
+3. **Rendering**: Code is safely rendered in an isolated preview panel
 4. **Iteration**: Request changes and see updates in real-time
 
 ## Use Cases

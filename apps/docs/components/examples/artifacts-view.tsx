@@ -51,6 +51,7 @@ export const ArtifactsView = () => {
               <iframe
                 title="artifact-preview"
                 className="h-full w-full"
+                sandbox="allow-scripts"
                 srcDoc={artifact}
               />
             )}
