@@ -520,7 +520,7 @@ describe("transformProject — hasLocalComponents: false", () => {
     it("installs shadcn and root-level assistant-ui components in a single shadcn add call", async () => {
       writeFile(
         "app/page.tsx",
-        'import { Thread } from "@/components/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
+        'import { Thread } from "@/components/assistant-ui/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
       );
 
       await transformProject(testDir, {
@@ -542,6 +542,9 @@ describe("transformProject — hasLocalComponents: false", () => {
       expect(args).toContain("@assistant-ui/thread");
       expect(args).not.toContain("button.tsx");
       expect(args).not.toContain("@assistant-ui/thread.tsx");
+      expect(readFile("app/page.tsx")).toContain(
+        'from "@/components/thread.tsx"',
+      );
     });
 
     it("does not install root-level components that already exist in the scaffold", async () => {

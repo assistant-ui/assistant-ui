@@ -1,14 +1,14 @@
 "use client";
 
-import { MarkdownText } from "@/components/markdown-text";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
   VoiceOrb,
   VoiceConnectButton,
   VoiceMuteButton,
   VoiceDisconnectButton,
   deriveVoiceOrbState,
-} from "@/components/voice";
-import { TooltipIconButton } from "@/components/tooltip-icon-button";
+} from "@/components/assistant-ui/voice";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
   AuiIf,
   MessagePrimitive,

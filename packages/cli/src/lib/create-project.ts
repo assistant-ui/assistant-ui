@@ -224,6 +224,9 @@ export async function transformProject(
   logger.step("Transforming project files...");
   transformTsConfig(projectDir);
   transformCssFiles(projectDir);
+  if (!opts.hasLocalComponents) {
+    transformAssistantUIComponentImports(projectDir);
+  }
 
   let assistantUI: string[] | undefined;
   let shadcnUI: string[] | undefined;
@@ -397,6 +400,30 @@ function transformCssFiles(projectDir: string): void {
       const newContent = content.replace(
         /@source\s+["'][^"']*packages\/ui\/src[^"']*["'];\s*\n?/g,
         "",
+      );
+
+      if (newContent !== content) {
+        fs.writeFileSync(fullPath, newContent);
+      }
+    } catch {
+      // Ignore files that cannot be read/written
+    }
+  }
+}
+
+function transformAssistantUIComponentImports(projectDir: string): void {
+  const files = globSync("**/*.{ts,tsx}", {
+    cwd: projectDir,
+    ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
+  });
+
+  for (const file of files) {
+    const fullPath = path.join(projectDir, file);
+    try {
+      const content = fs.readFileSync(fullPath, "utf-8");
+      const newContent = content.replace(
+        /@\/components\/assistant-ui\//g,
+        "@/components/",
       );
 
       if (newContent !== content) {
