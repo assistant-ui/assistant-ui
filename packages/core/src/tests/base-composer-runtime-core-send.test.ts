@@ -183,4 +183,43 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     resolveAppend();
     await sendTask;
   });
+
+  it("does not leak a rejected append task as an unhandled rejection", async () => {
+    // A vi.fn mock attaches settled-result handlers to returned promises,
+    // marking the rejection as handled; a plain function keeps it unobserved.
+    let appendCalls = 0;
+    const runtime = {
+      append: () => {
+        appendCalls += 1;
+        return Promise.reject(new Error("append failed"));
+      },
+      cancelRun: () => {},
+      subscribe: () => () => {},
+      capabilities: { cancel: false },
+      messages: [],
+      getModelContext: () => ({ unstable_composerMetadata: undefined }),
+    } as unknown as Omit<ThreadRuntimeCore, "composer">;
+    const composer = new DefaultThreadComposerRuntimeCore(runtime);
+
+    const rejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => {
+      rejections.push(reason);
+    };
+    const priorListeners = process.listeners("unhandledRejection");
+    process.removeAllListeners("unhandledRejection");
+    process.on("unhandledRejection", onUnhandledRejection);
+    try {
+      composer.setText("hello");
+      await composer.send();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    } finally {
+      process.removeListener("unhandledRejection", onUnhandledRejection);
+      for (const listener of priorListeners) {
+        process.on("unhandledRejection", listener);
+      }
+    }
+
+    expect(appendCalls).toBe(1);
+    expect(rejections).toEqual([]);
+  });
 });
