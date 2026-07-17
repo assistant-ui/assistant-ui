@@ -417,6 +417,21 @@ function stripImportExtension(component: string): string {
   return component.replace(/\.[cm]?[tj]sx?$/, "");
 }
 
+function hasLocalComponent(projectDir: string, component: string): boolean {
+  const componentPath = path.join(projectDir, "components", component);
+  const candidates = [
+    componentPath,
+    ...[".ts", ".tsx", ".js", ".jsx"].map(
+      (extension) => `${componentPath}${extension}`,
+    ),
+    ...["index.ts", "index.tsx", "index.js", "index.jsx"].map((filename) =>
+      path.join(componentPath, filename),
+    ),
+  ];
+
+  return candidates.some((candidate) => fs.existsSync(candidate));
+}
+
 function scanRequiredComponents(projectDir: string): RequiredComponents {
   const files = globSync("**/*.{ts,tsx}", {
     cwd: projectDir,
@@ -440,7 +455,10 @@ function scanRequiredComponents(projectDir: string): RequiredComponents {
       const rootAssistantUIRegex =
         /from\s+["']@\/components\/(?!assistant-ui\/|ui\/)([^"']+)["']/g;
       for (const match of content.matchAll(rootAssistantUIRegex)) {
-        assistantUIComponents.add(stripImportExtension(match[1]!));
+        const component = stripImportExtension(match[1]!);
+        if (!hasLocalComponent(projectDir, component)) {
+          assistantUIComponents.add(component);
+        }
       }
 
       const uiRegex = /from\s+["']@\/components\/ui\/([^"']+)["']/g;

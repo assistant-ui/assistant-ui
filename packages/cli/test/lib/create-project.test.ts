@@ -544,6 +544,35 @@ describe("transformProject — hasLocalComponents: false", () => {
       expect(args).not.toContain("@assistant-ui/thread.tsx");
     });
 
+    it("does not install root-level components that already exist in the scaffold", async () => {
+      writeFile(
+        "components/SignupForm.tsx",
+        "export function SignupForm() { return null; }\n",
+      );
+      writeFile(
+        "app/page.tsx",
+        'import { Thread } from "@/components/thread";\nimport { SignupForm } from "@/components/SignupForm";\nexport default function Page() { return <><Thread /><SignupForm /></>; }\n',
+      );
+
+      await transformProject(testDir, {
+        ...defaultOpts,
+        skipInstall: false,
+        hasLocalComponents: false,
+      });
+
+      const addCalls = (spawn as Mock).mock.calls.filter(
+        ([cmd, args]: [string, string[]]) =>
+          cmd === TEST_DLX_CMD &&
+          args.includes("shadcn@latest") &&
+          args.includes("add"),
+      );
+      expect(addCalls).toHaveLength(1);
+
+      const args = addCalls[0]![1] as string[];
+      expect(args).toContain("@assistant-ui/thread");
+      expect(args).not.toContain("@assistant-ui/SignupForm");
+    });
+
     it("skips shadcn when skipInstall is true even without local components", async () => {
       writeFile(
         "app/page.tsx",
