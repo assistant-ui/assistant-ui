@@ -1,5 +1,6 @@
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
+import { normalizeCloudTimestamp } from "./normalizeCloudTimestamp";
 
 export type CloudMessage = {
   id: string;
@@ -11,12 +12,21 @@ export type CloudMessage = {
   content: ReadonlyJSONObject;
 };
 
+type CloudMessageResponse = Omit<CloudMessage, "created_at" | "updated_at"> & {
+  created_at: string;
+  updated_at: string;
+};
+
 type AssistantCloudThreadMessageListQuery = {
   format?: string;
 };
 
 type AssistantCloudThreadMessageListResponse = {
   messages: CloudMessage[];
+};
+
+type AssistantCloudThreadMessageListAPIResponse = {
+  messages: CloudMessageResponse[];
 };
 
 type AssistantCloudThreadMessageCreateBody = {
@@ -33,6 +43,14 @@ type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
 };
 
+const normalizeCloudMessage = (
+  message: CloudMessageResponse,
+): CloudMessage => ({
+  ...message,
+  created_at: normalizeCloudTimestamp(message.created_at, "message.created_at"),
+  updated_at: normalizeCloudTimestamp(message.updated_at, "message.updated_at"),
+});
+
 export class AssistantCloudThreadMessages {
   constructor(private cloud: AssistantCloudAPI) {}
 
@@ -40,10 +58,15 @@ export class AssistantCloudThreadMessages {
     threadId: string,
     query?: AssistantCloudThreadMessageListQuery,
   ): Promise<AssistantCloudThreadMessageListResponse> {
-    return this.cloud.makeRequest(
+    const response = (await this.cloud.makeRequest(
       `/threads/${encodeURIComponent(threadId)}/messages`,
       { query },
-    );
+    )) as AssistantCloudThreadMessageListAPIResponse;
+
+    return {
+      ...response,
+      messages: response.messages.map(normalizeCloudMessage),
+    };
   }
 
   public async create(
