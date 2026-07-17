@@ -33,15 +33,32 @@ describe("normalizeCustomServerRecords", () => {
         { ...validRecord, name: 123 },
         { ...validRecord, url: null },
         { ...validRecord, createdAt: Number.NaN },
-        { ...validRecord, connectionTimeout: "10000" },
-        { ...validRecord, connectionTimeout: null },
-        { ...validRecord, connectionTimeout: -1 },
-        { ...validRecord, connectionTimeout: Number.NaN },
-        { ...validRecord, connectionTimeout: Number.POSITIVE_INFINITY },
         { ...validRecord, auth: { type: "bearer", token: "" } },
         { ...validRecord, auth: { type: "bearer", token: 123 } },
       ]),
     ).toEqual([validRecord]);
+  });
+
+  it("strips malformed connection timeouts without dropping servers", () => {
+    expect(
+      normalizeCustomServerRecords([
+        { ...validRecord, id: "string-timeout", connectionTimeout: "10000" },
+        { ...validRecord, id: "null-timeout", connectionTimeout: null },
+        { ...validRecord, id: "negative-timeout", connectionTimeout: -1 },
+        { ...validRecord, id: "nan-timeout", connectionTimeout: Number.NaN },
+        {
+          ...validRecord,
+          id: "infinite-timeout",
+          connectionTimeout: Number.POSITIVE_INFINITY,
+        },
+      ]),
+    ).toEqual([
+      { ...validRecord, id: "string-timeout" },
+      { ...validRecord, id: "null-timeout" },
+      { ...validRecord, id: "negative-timeout" },
+      { ...validRecord, id: "nan-timeout" },
+      { ...validRecord, id: "infinite-timeout" },
+    ]);
   });
 
   it("accepts finite non-negative connection timeouts", () => {
@@ -183,7 +200,7 @@ const loadStorage = (storage: Storage) =>
   }).getValue();
 
 describe("McpLocalStorage custom servers", () => {
-  it("filters malformed connection timeouts when loading", async () => {
+  it("strips malformed connection timeouts when loading", async () => {
     const storage = createStorage();
     storage.setItem(
       "test-mcp:custom-servers",
@@ -199,6 +216,7 @@ describe("McpLocalStorage custom servers", () => {
 
     await expect(loadStorage(storage).loadCustomServers()).resolves.toEqual([
       validRecord,
+      { ...validRecord, id: "bad-timeout" },
     ]);
   });
 });

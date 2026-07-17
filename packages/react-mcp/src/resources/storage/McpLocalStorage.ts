@@ -98,11 +98,25 @@ const isCustomServerRecord = (
   );
 };
 
+const normalizeCustomServerRecord = (
+  value: unknown,
+): MCPCustomServerRecord | null => {
+  if (isCustomServerRecord(value)) return value;
+  if (!isRecord(value)) return null;
+
+  const record = { ...value };
+  delete record.connectionTimeout;
+  return isCustomServerRecord(record) ? record : null;
+};
+
 export const normalizeCustomServerRecords = (
   value: unknown,
 ): MCPCustomServerRecord[] => {
   if (!Array.isArray(value)) return [];
-  return value.filter(isCustomServerRecord);
+  return value.flatMap((item) => {
+    const record = normalizeCustomServerRecord(item);
+    return record === null ? [] : [record];
+  });
 };
 
 const normalizeOAuthTokens = (
