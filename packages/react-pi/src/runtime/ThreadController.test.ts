@@ -406,7 +406,7 @@ describe("PiThreadController", () => {
     expect(controller.getState().messages).toHaveLength(1);
   });
 
-  it("does not refresh snapshots for settled or appended session events", async () => {
+  it("does not refresh snapshots for settled or custom entry events", async () => {
     const client = createFakeClient();
     const getThread = vi.spyOn(client, "getThread");
     const controller = new PiThreadController(client, THREAD);
@@ -434,6 +434,34 @@ describe("PiThreadController", () => {
     await Promise.resolve();
     expect(getThread).not.toHaveBeenCalled();
     expect(controller.getState().lastSeq).toBe(2);
+  });
+
+  it("refreshes snapshots for appended entry variants without companion events", async () => {
+    const client = createFakeClient();
+    const getThread = vi.spyOn(client, "getThread");
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    client.emit(
+      ev(
+        {
+          type: "entry_appended",
+          entry: {
+            type: "model_change",
+            id: "entry-1",
+            parentId: null,
+            timestamp: "2026-07-18T00:00:00.000Z",
+            provider: "anthropic",
+            modelId: "claude-sonnet-4-5",
+          },
+        },
+        1,
+      ),
+    );
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(getThread).toHaveBeenCalledOnce();
   });
 
   it("shows an optimistic user message before send resolves", async () => {

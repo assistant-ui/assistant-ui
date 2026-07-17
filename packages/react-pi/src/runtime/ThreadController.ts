@@ -590,10 +590,12 @@ export class PiThreadController implements PiThreadControllerLike {
       }
     }
 
-    // Forward-compat fallback: the reducer tolerates unknown event types but
-    // can't act on them; reconcile from a fresh snapshot so nothing the
-    // reducer ignored leaves local state stale.
-    if (!KNOWN_EVENT_TYPES.has(event.type)) this.refreshInBackground();
+    // Pi 0.80.7 emits entry_appended only for custom extension entries. Keep
+    // snapshot reconciliation for other variants if Pi broadens that event.
+    const needsSnapshotRefresh =
+      !KNOWN_EVENT_TYPES.has(event.type) ||
+      (event.type === "entry_appended" && event.entry.type !== "custom");
+    if (needsSnapshotRefresh) this.refreshInBackground();
   }
 
   private setState(next: PiThreadState) {
