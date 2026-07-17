@@ -1,5 +1,12 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { AssistantCloudThreadMessages } from "./AssistantCloudThreadMessages";
+import {
+  readCloudArray,
+  readCloudBoolean,
+  readCloudNullableString,
+  readCloudRecord,
+  readCloudString,
+} from "./cloudResponse";
 import { normalizeCloudTimestamp } from "./normalizeCloudTimestamp";
 
 type AssistantCloudThreadsListQuery = {
@@ -21,21 +28,21 @@ type CloudThread = {
   is_archived: boolean;
 };
 
-type CloudThreadResponse = Omit<
-  CloudThread,
-  "last_message_at" | "created_at" | "updated_at"
-> & {
-  last_message_at?: string | null;
+type CloudThreadResponse = {
+  title: string | null;
+  last_message_at: string;
+  metadata: unknown;
+  external_id: string | null;
+  id: string;
+  project_id: string;
   created_at: string;
   updated_at: string;
+  workspace_id: string;
+  is_archived: boolean;
 };
 
 type AssistantCloudThreadsListResponse = {
   threads: CloudThread[];
-};
-
-type AssistantCloudThreadsListAPIResponse = {
-  threads: CloudThreadResponse[];
 };
 
 type AssistantCloudThreadsCreateBody = {
@@ -56,23 +63,42 @@ type AssistantCloudThreadsUpdateBody = {
   is_archived?: boolean | undefined;
 };
 
-const normalizeCloudThread = (thread: CloudThreadResponse): CloudThread => {
-  const createdAt = normalizeCloudTimestamp(
-    thread.created_at,
-    "thread.created_at",
-  );
+const decodeCloudThread = (value: unknown, field: string): CloudThread => {
+  const thread = readCloudRecord(value, field);
+  const response: CloudThreadResponse = {
+    title: readCloudNullableString(thread.title, `${field}.title`),
+    last_message_at: readCloudString(
+      thread.last_message_at,
+      `${field}.last_message_at`,
+    ),
+    metadata: thread.metadata,
+    external_id: readCloudNullableString(
+      thread.external_id,
+      `${field}.external_id`,
+    ),
+    id: readCloudString(thread.id, `${field}.id`),
+    project_id: readCloudString(thread.project_id, `${field}.project_id`),
+    created_at: readCloudString(thread.created_at, `${field}.created_at`),
+    updated_at: readCloudString(thread.updated_at, `${field}.updated_at`),
+    workspace_id: readCloudString(thread.workspace_id, `${field}.workspace_id`),
+    is_archived: readCloudBoolean(thread.is_archived, `${field}.is_archived`),
+  };
 
   return {
-    ...thread,
-    last_message_at:
-      thread.last_message_at == null
-        ? createdAt
-        : normalizeCloudTimestamp(
-            thread.last_message_at,
-            "thread.last_message_at",
-          ),
-    created_at: createdAt,
-    updated_at: normalizeCloudTimestamp(thread.updated_at, "thread.updated_at"),
+    ...response,
+    title: response.title ?? "",
+    last_message_at: normalizeCloudTimestamp(
+      response.last_message_at,
+      `${field}.last_message_at`,
+    ),
+    created_at: normalizeCloudTimestamp(
+      response.created_at,
+      `${field}.created_at`,
+    ),
+    updated_at: normalizeCloudTimestamp(
+      response.updated_at,
+      `${field}.updated_at`,
+    ),
   };
 };
 
@@ -86,22 +112,26 @@ export class AssistantCloudThreads {
   public async list(
     query?: AssistantCloudThreadsListQuery,
   ): Promise<AssistantCloudThreadsListResponse> {
-    const response = (await this.cloud.makeRequest("/threads", {
-      query,
-    })) as AssistantCloudThreadsListAPIResponse;
+    const response = readCloudRecord(
+      await this.cloud.makeRequest("/threads", { query }),
+      "thread list response",
+    );
+    const threads = readCloudArray(response.threads, "threads");
 
     return {
-      ...response,
-      threads: response.threads.map(normalizeCloudThread),
+      threads: threads.map((thread, index) =>
+        decodeCloudThread(thread, `threads[${index}]`),
+      ),
     };
   }
 
   public async get(threadId: string): Promise<CloudThread> {
-    const thread = (await this.cloud.makeRequest(
-      `/threads/${encodeURIComponent(threadId)}`,
-    )) as CloudThreadResponse;
+    const response = readCloudRecord(
+      await this.cloud.makeRequest(`/threads/${encodeURIComponent(threadId)}`),
+      "thread response",
+    );
 
-    return normalizeCloudThread(thread);
+    return decodeCloudThread(response.thread, "thread");
   }
 
   public async create(

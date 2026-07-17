@@ -1,5 +1,12 @@
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
+import {
+  readCloudArray,
+  readCloudInteger,
+  readCloudNullableString,
+  readCloudRecord,
+  readCloudString,
+} from "./cloudResponse";
 import { normalizeCloudTimestamp } from "./normalizeCloudTimestamp";
 
 export type CloudMessage = {
@@ -12,9 +19,14 @@ export type CloudMessage = {
   content: ReadonlyJSONObject;
 };
 
-type CloudMessageResponse = Omit<CloudMessage, "created_at" | "updated_at"> & {
+type CloudMessageResponse = {
+  id: string;
+  parent_id: string | null;
+  height: number;
   created_at: string;
   updated_at: string;
+  format: string;
+  content: ReadonlyJSONObject;
 };
 
 type AssistantCloudThreadMessageListQuery = {
@@ -23,10 +35,6 @@ type AssistantCloudThreadMessageListQuery = {
 
 type AssistantCloudThreadMessageListResponse = {
   messages: CloudMessage[];
-};
-
-type AssistantCloudThreadMessageListAPIResponse = {
-  messages: CloudMessageResponse[];
 };
 
 type AssistantCloudThreadMessageCreateBody = {
@@ -43,13 +51,30 @@ type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
 };
 
-const normalizeCloudMessage = (
-  message: CloudMessageResponse,
-): CloudMessage => ({
-  ...message,
-  created_at: normalizeCloudTimestamp(message.created_at, "message.created_at"),
-  updated_at: normalizeCloudTimestamp(message.updated_at, "message.updated_at"),
-});
+const normalizeCloudMessage = (value: unknown, field: string): CloudMessage => {
+  const message = readCloudRecord(value, field);
+  const response: CloudMessageResponse = {
+    id: readCloudString(message.id, `${field}.id`),
+    parent_id: readCloudNullableString(message.parent_id, `${field}.parent_id`),
+    height: readCloudInteger(message.height, `${field}.height`),
+    created_at: readCloudString(message.created_at, `${field}.created_at`),
+    updated_at: readCloudString(message.updated_at, `${field}.updated_at`),
+    format: readCloudString(message.format, `${field}.format`),
+    content: readCloudRecord(message.content, `${field}.content`),
+  };
+
+  return {
+    ...response,
+    created_at: normalizeCloudTimestamp(
+      response.created_at,
+      `${field}.created_at`,
+    ),
+    updated_at: normalizeCloudTimestamp(
+      response.updated_at,
+      `${field}.updated_at`,
+    ),
+  };
+};
 
 export class AssistantCloudThreadMessages {
   constructor(private cloud: AssistantCloudAPI) {}
@@ -58,14 +83,19 @@ export class AssistantCloudThreadMessages {
     threadId: string,
     query?: AssistantCloudThreadMessageListQuery,
   ): Promise<AssistantCloudThreadMessageListResponse> {
-    const response = (await this.cloud.makeRequest(
-      `/threads/${encodeURIComponent(threadId)}/messages`,
-      { query },
-    )) as AssistantCloudThreadMessageListAPIResponse;
+    const response = readCloudRecord(
+      await this.cloud.makeRequest(
+        `/threads/${encodeURIComponent(threadId)}/messages`,
+        { query },
+      ),
+      "thread message list response",
+    );
+    const messages = readCloudArray(response.messages, "messages");
 
     return {
-      ...response,
-      messages: response.messages.map(normalizeCloudMessage),
+      messages: messages.map((message, index) =>
+        normalizeCloudMessage(message, `messages[${index}]`),
+      ),
     };
   }
 

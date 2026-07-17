@@ -2,4 +2,4 @@
 "assistant-cloud": patch
 ---
 
-fix: normalize ISO and database response timestamps to Date objects
+fix: decode canonical Cloud thread and message timestamps as Date objects
