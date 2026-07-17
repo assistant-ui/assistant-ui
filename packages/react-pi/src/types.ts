@@ -182,11 +182,6 @@ type PiSessionEntryBase = {
   timestamp: string;
 };
 
-export interface PiUnknownSessionEntry extends PiSessionEntryBase {
-  type: string;
-  [key: string]: unknown;
-}
-
 export type PiSessionEntry =
   | (PiSessionEntryBase & {
       type: "message";
@@ -236,8 +231,34 @@ export type PiSessionEntry =
   | (PiSessionEntryBase & {
       type: "session_info";
       name?: string;
-    })
-  | PiUnknownSessionEntry;
+    });
+
+export interface PiUnknownSessionEntry extends PiSessionEntryBase {
+  type: string;
+  [key: string]: unknown;
+}
+
+export type PiAnySessionEntry = PiSessionEntry | PiUnknownSessionEntry;
+
+const KNOWN_PI_SESSION_ENTRY_TYPES = {
+  message: true,
+  thinking_level_change: true,
+  model_change: true,
+  compaction: true,
+  branch_summary: true,
+  custom: true,
+  custom_message: true,
+  label: true,
+  session_info: true,
+} satisfies Record<PiSessionEntry["type"], true>;
+
+export const isKnownPiSessionEntry = (
+  entry: PiAnySessionEntry,
+): entry is PiSessionEntry =>
+  Object.prototype.hasOwnProperty.call(
+    KNOWN_PI_SESSION_ENTRY_TYPES,
+    entry.type,
+  );
 
 // ---------------------------------------------------------------------------
 // Streaming delta — mirror of `AssistantMessageEvent` (the `contentIndex`
@@ -497,7 +518,7 @@ export type PiClientEventBody =
     }
   | { type: "compaction_start"; reason: "manual" | "threshold" | "overflow" }
   | { type: "compaction_end"; aborted: boolean; willRetry: boolean }
-  | { type: "entry_appended"; entry: PiSessionEntry }
+  | { type: "entry_appended"; entry: PiAnySessionEntry }
   | { type: "auto_retry_start"; attempt: number; delayMs: number }
   | { type: "auto_retry_end"; success: boolean }
   | { type: "session_info_changed"; name?: string }
