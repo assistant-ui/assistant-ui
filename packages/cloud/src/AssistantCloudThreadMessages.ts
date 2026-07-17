@@ -3,6 +3,7 @@ import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import {
   readCloudArray,
   readCloudInteger,
+  readCloudJSONObject,
   readCloudNullableString,
   readCloudRecord,
   readCloudString,
@@ -60,7 +61,7 @@ const normalizeCloudMessage = (value: unknown, field: string): CloudMessage => {
     created_at: readCloudString(message.created_at, `${field}.created_at`),
     updated_at: readCloudString(message.updated_at, `${field}.updated_at`),
     format: readCloudString(message.format, `${field}.format`),
-    content: readCloudRecord(message.content, `${field}.content`),
+    content: readCloudJSONObject(message.content, `${field}.content`),
   };
 
   return {
