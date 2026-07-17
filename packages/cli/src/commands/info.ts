@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 import chalk from "chalk";
 import { detect } from "detect-package-manager";
+import { satisfies } from "semver";
 
 const ASSISTANT_UI_PACKAGES = [
   // Distribution
@@ -88,10 +89,10 @@ function getInstalledVersion(pkg: string, cwd: string): string | null {
   return null;
 }
 
-function findWorkspaceRoot(cwd: string): string | null {
-  let dir = path.dirname(cwd);
+export function findWorkspaceRoot(cwd: string): string | null {
+  let dir = cwd;
   const root = path.parse(dir).root;
-  while (dir !== root) {
+  while (true) {
     if (fs.existsSync(path.join(dir, "pnpm-workspace.yaml"))) return dir;
     const pkgPath = path.join(dir, "package.json");
     if (fs.existsSync(pkgPath)) {
@@ -102,9 +103,9 @@ function findWorkspaceRoot(cwd: string): string | null {
         // ignore
       }
     }
+    if (dir === root) return null;
     dir = path.dirname(dir);
   }
-  return null;
 }
 
 function readProjectDeps(
@@ -114,6 +115,16 @@ function readProjectDeps(
     ...((projectPkg.dependencies ?? {}) as Record<string, string>),
     ...((projectPkg.devDependencies ?? {}) as Record<string, string>),
   };
+}
+
+function getAssistantUiPackageNames(
+  projectPkg: Record<string, unknown>,
+): string[] {
+  const declaredPackages = Object.keys(readProjectDeps(projectPkg))
+    .filter((name) => name.startsWith("@assistant-ui/"))
+    .sort();
+
+  return [...new Set([...ASSISTANT_UI_PACKAGES, ...declaredPackages])];
 }
 
 function getSpecifiedRange(
@@ -186,6 +197,19 @@ function getOsInfo(): string {
   }
 }
 
+function getCliVersion(): string {
+  try {
+    const packageJson = JSON.parse(
+      fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+    ) as { version?: unknown };
+    return typeof packageJson.version === "string"
+      ? packageJson.version
+      : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 async function getPackageManagerInfo(
   cwd: string,
 ): Promise<{ name: string; version: string }> {
@@ -198,27 +222,18 @@ async function getPackageManagerInfo(
   return { name: pm, version };
 }
 
-function satisfiesRange(version: string, range: string): boolean {
-  if (range === "*" || range === "any") return true;
+export function satisfiesRange(version: string, range: string): boolean {
+  const normalizedRange = range.startsWith("workspace:")
+    ? range.slice("workspace:".length)
+    : range;
 
-  const clean = (v: string) => v.replace(/^[^\d]*/, "");
-  const major = (v: string) => parseInt(clean(v).split(".")[0]!, 10);
-
-  if (range.includes("||")) {
-    return range
-      .split("||")
-      .some((part) => satisfiesRange(version, part.trim()));
-  }
-
-  const rangeMajor = major(range);
-  const versionMajor = major(version);
-
-  if (Number.isNaN(rangeMajor) || Number.isNaN(versionMajor)) return true;
-
-  if (range.startsWith("^")) return versionMajor >= rangeMajor;
-  if (range.startsWith(">=")) return versionMajor >= rangeMajor;
-
-  return versionMajor >= rangeMajor;
+  return (
+    normalizedRange === "" ||
+    normalizedRange === "^" ||
+    normalizedRange === "~" ||
+    normalizedRange === "any" ||
+    satisfies(version, normalizedRange, { includePrerelease: true })
+  );
 }
 
 interface PackageInfo {
@@ -228,6 +243,7 @@ interface PackageInfo {
 }
 
 interface InfoData {
+  cliVersion: string;
   os: string;
   node: string;
   pm: { name: string; version: string };
@@ -306,11 +322,16 @@ async function collectInfo(
   projectPkg: Record<string, unknown>,
 ): Promise<InfoData> {
   const pm = await getPackageManagerInfo(cwd);
-  const packages = collectPackages(ASSISTANT_UI_PACKAGES, cwd, projectPkg);
+  const packages = collectPackages(
+    getAssistantUiPackageNames(projectPkg),
+    cwd,
+    projectPkg,
+  );
   const ecosystem = collectPackages(ECOSYSTEM_PACKAGES, cwd, projectPkg);
   const warnings = collectWarnings(packages, cwd, projectPkg);
 
   return {
+    cliVersion: getCliVersion(),
     os: getOsInfo(),
     node: process.version,
     pm,
@@ -338,6 +359,7 @@ function renderPlain(data: InfoData): string[] {
   const lines: string[] = [];
 
   lines.push("Environment:");
+  lines.push(`  assistant-ui CLI: ${data.cliVersion}`);
   lines.push(`  OS:               ${data.os}`);
   lines.push(`  Node.js:          ${data.node}`);
   lines.push(`  Package Manager:  ${data.pm.name} ${data.pm.version}`);
@@ -364,6 +386,7 @@ function renderColored(data: InfoData): string[] {
   const lines: string[] = [];
 
   lines.push(chalk.bold("Environment:"));
+  lines.push(`  assistant-ui CLI: ${data.cliVersion}`);
   lines.push(`  OS:               ${data.os}`);
   lines.push(`  Node.js:          ${data.node}`);
   lines.push(`  Package Manager:  ${data.pm.name} ${data.pm.version}`);

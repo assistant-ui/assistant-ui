@@ -6,6 +6,7 @@ import {
   type MessageTiming,
   type ThreadAssistantMessagePart,
   type ToolCallMessagePart,
+  type ToolModelContentPart,
 } from "@assistant-ui/core";
 import type { AgUiEvent, AgUiInterrupt } from "../types";
 import type { Logger } from "../logger";
@@ -28,9 +29,15 @@ type ToolCallState = {
   parentMessageId?: string;
   toolMessageId?: string;
   mcpAppResourceUri?: string;
+  mcpAppServerId?: string;
+  modelContent?: ToolModelContentPart[];
+  snapshotResultApplied: boolean;
 };
 
 const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
 
 export type RunAggregatorOptions = {
   showThinking: boolean;
@@ -236,8 +243,13 @@ export class RunAggregator {
       }
       case "ACTIVITY_SNAPSHOT": {
         if (event.activityType !== MCP_APPS_ACTIVITY_TYPE) break;
-        const id = this.lastResolvedToolCallId;
-        const entry = id ? this.toolCalls.get(id) : undefined;
+        const toolCallId = event.content.toolCallId;
+        const entry =
+          typeof toolCallId === "string"
+            ? this.toolCalls.get(toolCallId)
+            : this.lastResolvedToolCallId
+              ? this.toolCalls.get(this.lastResolvedToolCallId)
+              : undefined;
         const resourceUri = event.content.resourceUri;
         if (
           entry &&
@@ -245,6 +257,35 @@ export class RunAggregator {
           isMcpAppUri(resourceUri)
         ) {
           entry.mcpAppResourceUri = resourceUri;
+          const id = event.content.serverId;
+          const hash = event.content.serverHash;
+          if (typeof id === "string" && id.length > 0) {
+            entry.mcpAppServerId = id;
+          } else if (typeof hash === "string" && hash.length > 0) {
+            entry.mcpAppServerId = hash;
+          }
+          const result = event.content.result;
+          if (isPlainObject(result)) {
+            if (
+              entry.result !== undefined &&
+              entry.modelContent === undefined
+            ) {
+              entry.modelContent = [
+                {
+                  type: "text",
+                  text:
+                    typeof entry.result === "string"
+                      ? entry.result
+                      : JSON.stringify(entry.result),
+                },
+              ];
+            }
+            entry.result = result;
+            entry.snapshotResultApplied = true;
+            if (typeof result.isError === "boolean") {
+              entry.isError = result.isError;
+            }
+          }
           this.emit();
         }
         break;
@@ -343,6 +384,7 @@ export class RunAggregator {
       parsedArgs: undefined,
       result: undefined,
       isError: undefined,
+      snapshotResultApplied: false,
     };
     if (parentMessageId) {
       state.parentMessageId = parentMessageId;
@@ -411,6 +453,7 @@ export class RunAggregator {
         parsedArgs: undefined,
         result: undefined,
         isError: undefined,
+        snapshotResultApplied: false,
       };
       this.toolCalls.set(id, entry);
     }
@@ -421,8 +464,17 @@ export class RunAggregator {
     ) {
       this.partOrder.push({ kind: "tool-call", toolCallId: id });
     }
-    entry.result = tryParseJSON(content);
-    entry.isError = isError;
+    if (entry.snapshotResultApplied) {
+      if (entry.modelContent === undefined) {
+        entry.modelContent = [{ type: "text", text: content }];
+      }
+      if (entry.isError === undefined) {
+        entry.isError = isError;
+      }
+    } else {
+      entry.result = tryParseJSON(content);
+      entry.isError = isError;
+    }
     if (toolMessageId) {
       entry.toolMessageId = toolMessageId;
     }
@@ -460,9 +512,21 @@ export class RunAggregator {
         args: (entry.parsedArgs ?? {}) as any,
         argsText: entry.argsText,
         ...(entry.result !== undefined ? { result: entry.result } : {}),
+        ...(entry.modelContent !== undefined
+          ? { modelContent: entry.modelContent }
+          : {}),
         ...(entry.isError !== undefined ? { isError: entry.isError } : {}),
         ...(entry.mcpAppResourceUri
-          ? { mcp: { app: { resourceUri: entry.mcpAppResourceUri } } }
+          ? {
+              mcp: {
+                app: {
+                  resourceUri: entry.mcpAppResourceUri,
+                  ...(entry.mcpAppServerId
+                    ? { serverId: entry.mcpAppServerId }
+                    : {}),
+                },
+              },
+            }
           : {}),
         ...(entry.parentMessageId ? { parentId: entry.parentMessageId } : {}),
         ...(entry.toolMessageId

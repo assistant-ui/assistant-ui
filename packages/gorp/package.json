@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/gorp",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "State-sync primitive: client/server replicas with optimistic updates over a tiny wire protocol",
   "keywords": [
     "state-sync",
@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

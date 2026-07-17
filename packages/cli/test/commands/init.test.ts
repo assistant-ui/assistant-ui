@@ -22,26 +22,20 @@ describe("init command", () => {
     );
   });
 
-  it("uses interactive add flow when --yes is not passed", () => {
+  it("uses interactive init and add flow when --yes is not passed", () => {
     const plan = createExistingProjectInitPlan({
       yes: false,
       overwrite: false,
-      registryUrl: "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json",
     });
 
-    expect(plan.initArgs).toBeNull();
-    expect(plan.addArgs).toEqual([
-      "shadcn@latest",
-      "add",
-      "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json",
-    ]);
+    expect(plan.initArgs).toEqual(["shadcn@latest", "init"]);
+    expect(plan.addArgs).toEqual(["shadcn@latest", "add"]);
   });
 
   it("uses non-interactive init+add flow when --yes is passed and config is missing", () => {
     const plan = createExistingProjectInitPlan({
       yes: true,
       overwrite: true,
-      registryUrl: "https://example.com/registry.json",
     });
 
     expect(plan.initArgs).toEqual([
@@ -55,7 +49,6 @@ describe("init command", () => {
       "add",
       "--yes",
       "--overwrite",
-      "https://example.com/registry.json",
     ]);
   });
 

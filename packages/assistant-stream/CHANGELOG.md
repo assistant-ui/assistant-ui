@@ -1,5 +1,33 @@
 # assistant-stream
 
+## 0.3.26
+
+### Patch Changes
+
+- [#4883](https://github.com/assistant-ui/assistant-ui/pull/4883) [`43b8ce8`](https://github.com/assistant-ui/assistant-ui/commit/43b8ce862520e1f53d837407c5fcd7106c9ffd7c) - fix: accept parameterized event-stream content types ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4949](https://github.com/assistant-ui/assistant-ui/pull/4949) [`1e926b6`](https://github.com/assistant-ui/assistant-ui/commit/1e926b68a8f61d5d099a53c89ad25b168872b853) - refactor: back the internal SSE pipelines with the shared SSEEventDecoder ([@okisdev](https://github.com/okisdev))
+
+- [#4880](https://github.com/assistant-ui/assistant-ui/pull/4880) [`d6c7571`](https://github.com/assistant-ui/assistant-ui/commit/d6c757149df4cc66aa3261a3bd3beb041cac6c49) - feat: export a spec-complete SSE event decoder from assistant-stream/utils ([@okisdev](https://github.com/okisdev))
+
+- [#4876](https://github.com/assistant-ui/assistant-ui/pull/4876) [`4d7a447`](https://github.com/assistant-ui/assistant-ui/commit/4d7a4479b2dd673e3f5a356c4dd763f3aa72053d) - fix: parse all standard SSE line endings ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4875](https://github.com/assistant-ui/assistant-ui/pull/4875) [`ca751f4`](https://github.com/assistant-ui/assistant-ui/commit/ca751f41905a82e9b1622d100af62b8b31314a5c) - fix: discard unterminated SSE frames ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4755](https://github.com/assistant-ui/assistant-ui/pull/4755) [`38bf104`](https://github.com/assistant-ui/assistant-ui/commit/38bf1045406da7eff1b9c5847e4e7db96d327c2c) - feat: detect data stream protocol from response headers ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4854](https://github.com/assistant-ui/assistant-ui/pull/4854) [`19b2a00`](https://github.com/assistant-ui/assistant-ui/commit/19b2a00add7f1900bc3fed579759400fc241747c) - fix: accept the AI SDK v5+ `delta` text chunks, `source-url`, flat `file`, and bare lifecycle chunks in UIMessageStreamDecoder ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4955](https://github.com/assistant-ui/assistant-ui/pull/4955) [`c2d2271`](https://github.com/assistant-ui/assistant-ui/commit/c2d2271b9709c235da18036a0edd5283ce279916) - refactor: remove the dead is-json copy ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4842](https://github.com/assistant-ui/assistant-ui/pull/4842) [`84e8ddf`](https://github.com/assistant-ui/assistant-ui/commit/84e8ddf548d808d74d84b6be5a8ed28642baad3d) - feat: optional code and severity metadata on error chunks ([@okisdev](https://github.com/okisdev))
+
+- [#4887](https://github.com/assistant-ui/assistant-ui/pull/4887) [`d03e5cf`](https://github.com/assistant-ui/assistant-ui/commit/d03e5cf0e6efada832503fedc565a1fb8f14676a) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.25
 
 ### Patch Changes

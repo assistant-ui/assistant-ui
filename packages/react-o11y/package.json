@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-o11y",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "Observability primitives for @assistant-ui",
   "keywords": [
     "observability",
@@ -51,7 +51,7 @@
     "@types/react-dom": "^19.2.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

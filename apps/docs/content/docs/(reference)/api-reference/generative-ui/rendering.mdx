@@ -18,10 +18,11 @@ import { GenerativeUIRender, GenerativeUIRenderContext, GenerativeUIRenderError,
 
 Builds the JSON schema for the `present` tool from a [GenerativeUILibrary](/docs/api-reference/generative-ui/components#generativeuilibrary).
 
-The model produces a node `{ $type,...props }` where `$type` selects a
-component and the rest are its props. The schema is a flat object: `$type` is
-an enum of the component names, every component's props are merged into one
-optional bag, and `children` recurses via `$defs` so the tree can nest.
+The model produces a node `{ $type, $key?,...props }` where `$type` selects
+a component, the optional `$key` pins a stable identity for list items that
+may reorder, and the rest are its props. The schema is a flat object: `$type`
+is an enum of the component names, every component's props are merged into
+one optional bag, and `children` recurses via `$defs` so the tree can nest.
 
 It is intentionally flat rather than a per-`$type` discriminated union. Tool /
 function-call schemas (OpenAI and others) require the top-level parameters to
@@ -58,15 +59,13 @@ default. Pass `Fallback` to opt into a soft-fail UX.
 
 ### generativeUIToJSX
 
-Serializes a generative-UI node to a JSX-like string for display — the
-"view source" of a model-produced tree. The wire form
-`{ $type: "Weather", id: "x" }` becomes `<Weather id="x" />`, and nested
-`children` render between tags: `<Card title="Hi"><Text>hello</Text></Card>`.
+Serializes a generative-UI node to a JSX-like string for display: the "view source" of a model-produced tree. The wire form `{ $type: "Weather", id: "x" }` becomes `<Weather id="x" />`, and nested `children` render between tags: `<Card title="Hi"><Text>hello</Text></Card>`. A model-provided `$key` becomes the JSX `key` attribute.
 
-It is a faithful textual rendering, not a parser: text children are emitted
-verbatim (not HTML/JSX-escaped), so the result is meant to be shown, not
-re-parsed. Returns `""` for nodes that aren't renderable (no `$type` yet,
-`null`, booleans).
+By default this is a faithful textual rendering, not a parser: text children are emitted verbatim (not HTML/JSX-escaped), so the result is meant to be shown, not re-parsed. Returns `""` for nodes that aren't renderable (no `$type` yet, `null`, booleans).
+
+Pass `{ escape: true }` to make the output safe to paste back into JSX: any string child containing `<`, `>`, `&`, `{`, or `}` is emitted as a JSON-stringified expression (`{JSON.stringify(child)}`) instead of verbatim, while a string child with none of those characters still renders verbatim.
+
+Pass `{ pretty: true }` to pretty-print nested element trees with two-space indentation, while pure text children stay on one line.
 
 <ParametersTable {...generativeUIToJSX} />
 

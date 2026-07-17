@@ -9,10 +9,12 @@ import { ComponentType, ReactNode } from "react";
 type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   adapters?: (NonNullable<ExternalStoreAdapter["adapters"]> & {
     history?: ThreadHistoryAdapter | undefined;
+    suggestion?: SuggestionAdapter | undefined;
   }) | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   cancelPendingToolCallsOnSend?: boolean | undefined;
   onResume?: ExternalStoreAdapter["onResume"];
+  onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
   joinStrategy?: JoinStrategy | undefined;
 };
 
@@ -315,6 +317,8 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
   readonly operations: ObjectStreamOperation[];
@@ -950,6 +954,7 @@ type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
   readonly visibility?: readonly ("app" | "model")[];
+  readonly serverId?: string;
 };
 
 type McpServerConfig = {
@@ -1169,6 +1174,10 @@ type PartInit = {
   readonly parentId?: string;
 };
 
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
 type PdfToImagesRequestBody = {
   file_blob?: string | undefined;
   file_url?: string | undefined;
@@ -1270,6 +1279,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1359,9 +1369,7 @@ type SourceMessagePart = {
   readonly parentId?: string;
 };
 
-type SourceProviderMetadata = {
-  readonly [providerName: string]: ReadonlyJSONObject;
-};
+type SourceProviderMetadata = PartProviderMetadata;
 
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
@@ -1406,11 +1414,21 @@ type StartRunConfig = {
   runConfig: RunConfig;
 };
 
+type SuggestionAdapter = {
+  generate: (options: SuggestionAdapterGenerateOptions) => Promise<readonly ThreadSuggestion[]> | AsyncGenerator<readonly ThreadSuggestion[], void>;
+};
+
+type SuggestionAdapterGenerateOptions = {
+  messages: readonly ThreadMessage[];
+  signal?: AbortSignal;
+};
+
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1573,6 +1591,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
       readonly approved?: boolean;
@@ -1781,6 +1800,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
   readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: {
     type: "human";
@@ -1963,6 +1983,7 @@ type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatI
   adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   onResume?: AISDKRuntimeAdapter["onResume"];
+  onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
   onResumeError?: ((error: unknown) => void) | undefined;
   joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;

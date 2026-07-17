@@ -66,7 +66,7 @@ Use `--example` to create a project from one of the monorepo examples with full 
 
 | Example | Description | Command |
 |---------|-------------|---------|
-| `with-ai-sdk-v6` | Vercel AI SDK v6 integration | `npx assistant-ui create my-app -e with-ai-sdk-v6` |
+| `with-ai-sdk-v7` | Vercel AI SDK v7 integration | `npx assistant-ui create my-app -e with-ai-sdk-v7` |
 | `with-eve` | Eve agent integration | `npx assistant-ui create my-app -e with-eve` |
 | `with-artifacts` | HTML artifact rendering with live preview | `npx assistant-ui create my-app -e with-artifacts` |
 | `with-langgraph` | LangGraph agent with custom tools | `npx assistant-ui create my-app -e with-langgraph` |
@@ -356,6 +356,7 @@ npx assistant-ui@latest info
 ```
 
 This command collects and prints:
+- The running `assistant-ui` CLI version
 - OS, Node.js version, package manager, and framework
 - All installed `@assistant-ui/*` and `assistant-*` package versions
 - Key ecosystem dependency versions (React, Next.js, AI SDK, etc.)
@@ -365,6 +366,7 @@ This command collects and prints:
 
 ```
 Environment:
+  assistant-ui CLI: 0.0.106
   OS:               macOS 15.3 (arm64)
   Node.js:          v22.14.0
   Package Manager:  pnpm 10.32.1
@@ -454,6 +456,18 @@ npx assistant-ui@latest update
 ## Component Registry
 
 The CLI pulls components from our public registry at [r.assistant-ui.com](https://r.assistant-ui.com).
+
+Configure the style-aware URL in `components.json` so `@assistant-ui/*` installs match your shadcn style:
+
+```json title="components.json"
+{
+  "registries": {
+    "@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"
+  }
+}
+```
+
+The `{style}` placeholder is filled from your `components.json` `style` field. Styles whose name starts with `base-` resolve to Base UI flavored components; every other style resolves to Radix. Existing Radix projects can keep `https://r.assistant-ui.com/{name}.json` as a fallback.
 
 Each component includes:
 - Full TypeScript source code

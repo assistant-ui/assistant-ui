@@ -56,6 +56,7 @@ export async function POST(req: Request) {
           {
             toolCallId: `mcp-apps-bridge-${crypto.randomUUID()}`,
             messages: [],
+            context: undefined,
           },
         );
         return Response.json(result);

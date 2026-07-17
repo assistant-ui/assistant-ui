@@ -1,4 +1,6 @@
+import { SSEEventDecoder } from "assistant-stream/utils";
 import { contentToParts } from "./contentToParts";
+import { trimTrailingSlashes } from "./trimTrailingSlashes";
 import type {
   AdkEvent,
   AdkEventPart,
@@ -58,7 +60,18 @@ export type CreateAdkStreamOptions = {
 export function createAdkStream(
   options: CreateAdkStreamOptions,
 ): AdkStreamCallback {
+  if (options.appName === "") {
+    throw new Error(
+      'createAdkStream direct mode requires a non-empty "appName".',
+    );
+  }
+
   const isDirect = options.appName != null;
+  if (isDirect && (options.userId == null || options.userId === "")) {
+    throw new Error(
+      'createAdkStream direct mode requires "userId" when "appName" is provided.',
+    );
+  }
 
   return async function* (messages, config) {
     const headers = await resolveHeaders(options.headers);
@@ -68,7 +81,7 @@ export function createAdkStream(
 
     if (isDirect) {
       // Direct mode: POST to ADK server's /run_sse
-      url = `${options.api}/run_sse`;
+      url = `${trimTrailingSlashes(options.api)}/run_sse`;
       const { externalId } = await config.initialize();
       body = {
         appName: options.appName,
@@ -213,34 +226,27 @@ function messagesToProxyBody(
 async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
+  const sseDecoder = new SSEEventDecoder({ trailing: "dispatch" });
 
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const parts = buffer.split("\n\n");
-      buffer = parts.pop() ?? "";
-
-      for (const part of parts) {
-        for (const line of part.split("\n")) {
-          if (line.startsWith("data: ")) {
-            yield JSON.parse(line.slice(6)) as AdkEvent;
-          }
+      if (done) {
+        for (const event of sseDecoder.push(decoder.decode())) {
+          yield JSON.parse(event.data) as AdkEvent;
         }
+        break;
+      }
+
+      for (const event of sseDecoder.push(
+        decoder.decode(value, { stream: true }),
+      )) {
+        yield JSON.parse(event.data) as AdkEvent;
       }
     }
 
-    // Handle remaining buffer
-    if (buffer.trim()) {
-      for (const line of buffer.split("\n")) {
-        if (line.startsWith("data: ")) {
-          yield JSON.parse(line.slice(6)) as AdkEvent;
-        }
-      }
-    }
+    const trailing = sseDecoder.flush();
+    if (trailing !== null) yield JSON.parse(trailing.data) as AdkEvent;
   } finally {
     reader.releaseLock();
   }

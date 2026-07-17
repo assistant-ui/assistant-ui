@@ -26,7 +26,7 @@ const useResourceFiberHostUtilsTap = () => {
 };
 
 const useResourceFiberHostUtilsReact = () => {
-  const root = useMemo(() => {
+  const [root] = useState(() => {
     return createResourceFiberRoot((evaluateUpdate, applyUpdate) => {
       let eagerBail = false;
 
@@ -39,7 +39,7 @@ const useResourceFiberHostUtilsReact = () => {
         apply(applyUpdate);
       }
     });
-  }, []);
+  });
 
   const [version, apply] = useReducer(
     (v: number, applyUpdate: () => boolean) => {

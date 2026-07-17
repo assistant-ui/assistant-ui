@@ -210,10 +210,14 @@ describe("createAdkSessionAdapter - no-op methods", () => {
 // ── adapter.generateTitle ──
 
 describe("createAdkSessionAdapter - generateTitle", () => {
-  it("returns an empty ReadableStream", async () => {
+  it("closes its title stream when title generation is unsupported", async () => {
     const { adapter } = createAdkSessionAdapter(baseOptions);
-    const result = await adapter.generateTitle("s1", []);
-    expect(result).toBeInstanceOf(ReadableStream);
+    const stream = await adapter.generateTitle("s1", []);
+
+    await expect(stream.getReader().read()).resolves.toEqual({
+      done: true,
+      value: undefined,
+    });
   });
 });
 
@@ -339,9 +343,26 @@ describe("createAdkSessionAdapter - load", () => {
   });
 });
 
-// ── URL encoding ──
+// ── URL construction ──
 
-describe("createAdkSessionAdapter - URL encoding", () => {
+describe("createAdkSessionAdapter - URL construction", () => {
+  it.each(["http://localhost:8000/", "http://localhost:8000//"])(
+    "normalizes trailing slashes in apiUrl: %s",
+    async (apiUrl) => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 }),
+      );
+
+      const { adapter } = createAdkSessionAdapter({
+        ...baseOptions,
+        apiUrl,
+      });
+      await adapter.list();
+
+      expect(mockFetch.mock.calls[0]![0]).toBe(expectedBaseUrl);
+    },
+  );
+
   it("encodes special characters in appName and userId", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify([]), { status: 200 }),

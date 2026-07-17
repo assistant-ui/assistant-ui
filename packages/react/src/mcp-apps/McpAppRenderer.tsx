@@ -26,6 +26,7 @@ import type {
   McpAppsHost,
 } from "./types";
 import { getMcpAppFromToolPart } from "./utils";
+import { isRecord } from "@assistant-ui/core/internal";
 
 export type McpAppRendererOptions = {
   /**
@@ -55,6 +56,7 @@ export type McpAppRendererOptions = {
 
 type LoadedResourceState = {
   resourceUri: string;
+  serverId?: string;
   resource?: McpAppResource;
   error?: Error;
 };
@@ -100,7 +102,11 @@ function InlineRenderer({
   const aui = useAui();
   const app = getMcpAppFromToolPart(part);
   const cachedAppRef = useRef<McpAppMetadata | undefined>(undefined);
-  if (app != null && cachedAppRef.current?.resourceUri !== app.resourceUri) {
+  if (
+    app != null &&
+    (cachedAppRef.current?.resourceUri !== app.resourceUri ||
+      cachedAppRef.current?.serverId !== app.serverId)
+  ) {
     cachedAppRef.current = app;
   }
   const appForRender = app ?? cachedAppRef.current;
@@ -108,21 +114,37 @@ function InlineRenderer({
   const [loadedResource, setLoadedResource] = useState<LoadedResourceState>();
 
   const resourceUri = appForRender?.resourceUri;
+  const serverId = appForRender?.serverId;
+  const serverIdRef = useRef<string | undefined>(undefined);
+  serverIdRef.current = serverId;
   useEffect(() => {
     if (appForRender == null || resourceUri == null) return;
     let cancelled = false;
     const targetUri = resourceUri;
+    const targetServerId = serverId;
 
     internalsRef.current.host
-      .loadResource({ uri: targetUri })
+      .loadResource({
+        uri: targetUri,
+        ...(targetServerId ? { serverId: targetServerId } : {}),
+      })
       .then((res) => {
         if (!cancelled)
-          setLoadedResource({ resourceUri: targetUri, resource: res });
+          setLoadedResource({
+            resourceUri: targetUri,
+            ...(targetServerId !== undefined
+              ? { serverId: targetServerId }
+              : {}),
+            resource: res,
+          });
       })
       .catch((error: unknown) => {
         if (!cancelled) {
           setLoadedResource({
             resourceUri: targetUri,
+            ...(targetServerId !== undefined
+              ? { serverId: targetServerId }
+              : {}),
             error: error instanceof Error ? error : new Error(String(error)),
           });
         }
@@ -131,8 +153,8 @@ function InlineRenderer({
     return () => {
       cancelled = true;
     };
-    // oxlint-disable-next-line react/exhaustive-deps -- re-fetch only when URI changes; appForRender identity is unstable and internalsRef is a stable ref
-  }, [resourceUri]);
+    // oxlint-disable-next-line react/exhaustive-deps -- re-fetch only when URI or server identity changes; appForRender identity is unstable and internalsRef is a stable ref
+  }, [resourceUri, serverId]);
 
   const bridgeHandlers = useMemo<McpAppBridgeHandlers>(
     () => ({
@@ -143,16 +165,32 @@ function InlineRenderer({
         aui.thread().append({ content: [{ type: "text", text }] });
         return { ok: true };
       },
-      callTool: (params) => internalsRef.current.host.callTool(params),
-      readResource: (params) => internalsRef.current.host.readResource(params),
-      listResources: (params) =>
-        internalsRef.current.host.listResources(params),
+      callTool: (params) =>
+        internalsRef.current.host.callTool({
+          ...params,
+          ...(serverIdRef.current ? { serverId: serverIdRef.current } : {}),
+        }),
+      readResource: (params) =>
+        internalsRef.current.host.readResource({
+          ...params,
+          ...(serverIdRef.current ? { serverId: serverIdRef.current } : {}),
+        }),
+      listResources: (params) => {
+        if (!serverIdRef.current) {
+          return internalsRef.current.host.listResources(params);
+        }
+        return internalsRef.current.host.listResources({
+          ...(isRecord(params) ? params : {}),
+          serverId: serverIdRef.current,
+        });
+      },
     }),
     [aui, internalsRef],
   );
 
   const loadedResourceForApp =
-    loadedResource?.resourceUri === appForRender?.resourceUri
+    loadedResource?.resourceUri === appForRender?.resourceUri &&
+    loadedResource?.serverId === appForRender?.serverId
       ? loadedResource
       : undefined;
   const appResource = loadedResourceForApp?.resource;

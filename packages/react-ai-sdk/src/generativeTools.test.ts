@@ -266,12 +266,50 @@ describe("AISDKToolkit", () => {
 
     const toolsPromise = toolkit.tools();
     await expect(toolkit.close()).rejects.toMatchObject({
-      errors: [error, closeError],
+      errors: [
+        {
+          message:
+            'MCP toolkit entry "second" failed to connect: connect failed',
+          cause: error,
+        },
+        {
+          message: 'MCP toolkit entry "first" failed to close: close failed',
+          cause: closeError,
+        },
+      ],
     });
-    await expect(toolsPromise).rejects.toThrow(error);
+    await expect(toolsPromise).rejects.toMatchObject({
+      message: 'MCP toolkit entry "second" failed to connect: connect failed',
+      cause: error,
+    });
     expect(close).toHaveBeenCalledTimes(1);
 
     await expect(toolkit.close()).resolves.toBeUndefined();
+  });
+
+  it("includes the MCP toolkit entry name when closing a client fails", async () => {
+    const closeError = new Error("close failed");
+    mocks.tools.mockResolvedValue({});
+    mocks.createMCPClient.mockResolvedValue({
+      tools: mocks.tools,
+      close: vi.fn().mockRejectedValue(closeError),
+    });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        github: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+        },
+      },
+    });
+
+    await toolkit.tools();
+
+    await expect(toolkit.close()).rejects.toMatchObject({
+      message: 'MCP toolkit entry "github" failed to close: close failed',
+      cause: closeError,
+    });
   });
 
   it("evicts failed MCP client initialization so later calls can retry", async () => {
@@ -290,7 +328,10 @@ describe("AISDKToolkit", () => {
       },
     });
 
-    await expect(toolkit.tools()).rejects.toThrow(error);
+    await expect(toolkit.tools()).rejects.toMatchObject({
+      message: 'MCP toolkit entry "local" failed to connect: connect failed',
+      cause: error,
+    });
     await expect(toolkit.tools()).resolves.toHaveProperty("echo");
     expect(mocks.createMCPClient).toHaveBeenCalledTimes(2);
   });
@@ -370,6 +411,48 @@ describe("AISDKToolkit", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("includes the MCP toolkit entry name when client initialization fails", async () => {
+    const error = new Error("connect failed");
+    mocks.createMCPClient.mockRejectedValue(error);
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        github: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+        },
+      },
+    });
+
+    await expect(toolkit.tools()).rejects.toMatchObject({
+      message: 'MCP toolkit entry "github" failed to connect: connect failed',
+      cause: error,
+    });
+  });
+
+  it("includes the MCP toolkit entry name when listing tools fails", async () => {
+    const error = new Error("list failed");
+    mocks.tools.mockRejectedValue(error);
+    mocks.createMCPClient.mockResolvedValue({
+      tools: mocks.tools,
+      close: mocks.close,
+    });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+        },
+      },
+    });
+
+    await expect(toolkit.tools()).rejects.toMatchObject({
+      message: 'MCP toolkit entry "docs" failed to list tools: list failed',
+      cause: error,
+    });
   });
 
   it("rejects duplicate MCP tool names", async () => {

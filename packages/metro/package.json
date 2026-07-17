@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/metro",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Metro / Expo integration for assistant-ui: the \"use generative\" directive compiler that colocates a tool's schema, server execute, and client render in one file. Works with Expo and bare React Native.",
   "keywords": [
     "assistant-ui",
@@ -37,18 +37,18 @@
   },
   "dependencies": {
     "@babel/generator": "^8.0.0",
-    "@babel/parser": "^8.0.0",
-    "@babel/traverse": "^8.0.0",
-    "@babel/types": "^8.0.0"
+    "@babel/parser": "^8.0.4",
+    "@babel/traverse": "^8.0.4",
+    "@babel/types": "^8.0.4"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-generative-compiler": "workspace:^",
-    "@types/node": "^26.1.0",
-    "tsdown": "^0.22.3",
+    "@types/node": "^26.1.1",
+    "tsdown": "^0.22.7",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-7": "npm:typescript@^7.0.2",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

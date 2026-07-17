@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-pi",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Pi coding-agent runtime adapter for assistant-ui",
   "keywords": [
     "pi",
@@ -52,8 +52,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.2.20",
-    "@assistant-ui/store": "^0.2.19",
+    "@assistant-ui/core": "^0.2.21",
+    "@assistant-ui/store": "^0.2.20",
     "use-effect-event": "^2.0.3"
   },
   "peerDependencies": {
@@ -73,10 +73,10 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@earendil-works/pi-coding-agent": "^0.80.3",
-    "@types/node": "^26.1.0",
+    "@earendil-works/pi-coding-agent": "^0.80.7",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "react": "^19.2.7",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   }
 }

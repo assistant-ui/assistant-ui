@@ -10,6 +10,10 @@ import type {
   ToolCallMessagePart,
 } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
+import {
+  stableStringifyToolArgs,
+  trackToolArgsKeyOrder,
+} from "@assistant-ui/core/internal";
 import type {
   LangChainMessage,
   LangChainToolCall,
@@ -34,73 +38,6 @@ const uiMessageToDataPart = (ui: UIMessage): DataMessagePart => ({
   name: ui.name,
   data: ui.props,
 });
-
-const hasOwn = (value: object, key: string) => Object.hasOwn(value, key);
-
-const stabilizeToolArgsValue = (
-  value: unknown,
-  path: string,
-  keyOrderByPath: Map<string, string[]>,
-): unknown => {
-  if (Array.isArray(value)) {
-    return value.map((item, idx) =>
-      stabilizeToolArgsValue(item, `${path}[${idx}]`, keyOrderByPath),
-    );
-  }
-
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    const currentKeys = Object.keys(record);
-    const previousOrder = keyOrderByPath.get(path) ?? [];
-    const previousOrderSet = new Set(previousOrder);
-    const nextOrder = [
-      ...previousOrder.filter((key) => hasOwn(record, key)),
-      ...currentKeys.filter((key) => !previousOrderSet.has(key)),
-    ];
-    keyOrderByPath.set(path, nextOrder);
-
-    return Object.fromEntries(
-      nextOrder.map((key) => [
-        key,
-        stabilizeToolArgsValue(record[key], `${path}.${key}`, keyOrderByPath),
-      ]),
-    );
-  }
-
-  return value;
-};
-
-const getToolArgsKeyOrder = (
-  keyOrderCache: Map<string, Map<string, string[]>> | undefined,
-  cacheKey: string,
-): Map<string, string[]> => {
-  const keyOrderByPath = keyOrderCache?.get(cacheKey) ?? new Map();
-  keyOrderCache?.set(cacheKey, keyOrderByPath);
-  return keyOrderByPath;
-};
-
-const trackToolArgsKeyOrder = (
-  keyOrderCache: Map<string, Map<string, string[]>> | undefined,
-  cacheKey: string,
-  args: ReadonlyJSONObject,
-) => {
-  const keyOrderByPath = getToolArgsKeyOrder(keyOrderCache, cacheKey);
-  stabilizeToolArgsValue(args, "$", keyOrderByPath);
-};
-
-const stableStringifyToolArgs = (
-  keyOrderCache: Map<string, Map<string, string[]>> | undefined,
-  cacheKey: string,
-  args: ReadonlyJSONObject,
-): string => {
-  const keyOrderByPath = getToolArgsKeyOrder(keyOrderCache, cacheKey);
-  const stableArgs = stabilizeToolArgsValue(
-    args,
-    "$",
-    keyOrderByPath,
-  ) as ReadonlyJSONObject;
-  return JSON.stringify(stableArgs);
-};
 
 const getToolArgsCacheKey = (
   messageId: string | undefined,
@@ -196,8 +133,13 @@ const contentToParts = (
             return {
               type: "file",
               filename: part.metadata?.filename ?? "file",
-              data: part.data,
-              mimeType: part.mime_type,
+              data:
+                part.source_type === "url"
+                  ? part.url
+                  : part.source_type === "id"
+                    ? part.id
+                    : part.data,
+              mimeType: part.mime_type ?? "application/octet-stream",
             };
 
           case "thinking":
@@ -345,6 +287,16 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
   }
 };
 
+const parseDataUrl = (
+  value: string,
+): { mimeType: string; data: string } | null => {
+  const match = value.match(/^data:([^;,]+)(?:;[^;,]+)*;base64,(.+)$/);
+  if (!match) return null;
+  return { mimeType: match[1]!, data: match[2]! };
+};
+
+const httpUrlPattern = /^https?:\/\//i;
+
 export const getMessageContent = (msg: AppendMessage) => {
   const allContent = [
     ...msg.content,
@@ -366,16 +318,26 @@ export const getMessageContent = (msg: AppendMessage) => {
         return { type: "text" as const, text: part.text };
       case "image":
         return { type: "image_url" as const, image_url: { url: part.image } };
-      case "file":
+      case "file": {
+        const metadata = { filename: part.filename ?? "file" };
+        if (httpUrlPattern.test(part.data)) {
+          return {
+            type: "file" as const,
+            url: part.data,
+            mime_type: part.mimeType,
+            metadata,
+            source_type: "url" as const,
+          };
+        }
+        const parsed = parseDataUrl(part.data);
         return {
           type: "file" as const,
-          data: part.data,
-          mime_type: part.mimeType,
-          metadata: {
-            filename: part.filename ?? "file",
-          },
+          data: parsed?.data ?? part.data,
+          mime_type: parsed?.mimeType ?? part.mimeType,
+          metadata,
           source_type: "base64" as const,
         };
+      }
 
       case "tool-call":
         throw new Error("Tool call appends are not supported.");

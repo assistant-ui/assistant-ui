@@ -1,5 +1,7 @@
 import { UIMessage, UseChatHelpers } from "@ai-sdk/react";
 
+import "@standard-schema/spec";
+
 import { ChatInit } from "ai";
 
 declare class AssistantCloud {
@@ -240,6 +242,8 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
   readonly operations: ObjectStreamOperation[];

@@ -5,7 +5,7 @@ import { areNodesEqual } from "./memoization";
 const createNode = (overrides: Partial<Element> = {}): Element => ({
   type: "element",
   tagName: "p",
-  properties: { className: "foo" },
+  properties: { className: ["foo"] },
   children: [],
   ...overrides,
 });
@@ -17,8 +17,12 @@ describe("areNodesEqual", () => {
   });
 
   it("ignores position when comparing properties", () => {
-    const prev = createNode({ properties: { className: "foo", position: 1 } });
-    const next = createNode({ properties: { className: "foo", position: 2 } });
+    const prev = createNode({
+      properties: { className: ["foo"], position: 1 },
+    });
+    const next = createNode({
+      properties: { className: ["foo"], position: 2 },
+    });
     expect(areNodesEqual(prev, next)).toBe(true);
   });
 

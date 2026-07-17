@@ -181,21 +181,30 @@ export class AISDKToolkit {
   }
 
   async close(): Promise<void> {
-    const clientPromises = [...this.#mcpClients.values()];
+    const clientEntries = [...this.#mcpClients.entries()];
+    const clientNames = clientEntries.map(([name]) => name);
     this.#mcpClients.clear();
-    const results = await Promise.allSettled(clientPromises);
-    const clients = results.flatMap((result) =>
-      result.status === "fulfilled" ? [result.value] : [],
+    const clientResults = await Promise.allSettled(
+      clientEntries.map(([, clientPromise]) => clientPromise),
+    );
+    const clients = clientResults.flatMap((result, index) =>
+      result.status === "fulfilled"
+        ? [[clientNames[index]!, result.value] as const]
+        : [],
     );
     const closeResults = await Promise.allSettled(
-      clients.map((client) => client.close()),
+      clients.map(([, client]) => client.close()),
     );
     const errors = [
-      ...results.flatMap((result) =>
-        result.status === "rejected" ? [result.reason] : [],
+      ...clientResults.flatMap((result, index) =>
+        result.status === "rejected"
+          ? [toMcpToolkitError(clientNames[index]!, "connect", result.reason)]
+          : [],
       ),
-      ...closeResults.flatMap((result) =>
-        result.status === "rejected" ? [result.reason] : [],
+      ...closeResults.flatMap((result, index) =>
+        result.status === "rejected"
+          ? [toMcpToolkitError(clients[index]![0], "close", result.reason)]
+          : [],
       ),
     ];
     if (errors.length === 1) throw errors[0];
@@ -215,7 +224,14 @@ export class AISDKToolkit {
         )
         .map(async ([name, tool]) => {
           const startedAt = Date.now();
-          const client = await this.#mcpClient(name, tool.server, startedAt);
+          const client = await this.#mcpClient(
+            name,
+            tool.server,
+            startedAt,
+          ).catch((error: unknown) => {
+            if (error instanceof MCPConnectionTimeoutError) throw error;
+            throw toMcpToolkitError(name, "connect", error);
+          });
           try {
             const tools = await withMcpConnectionTimeout(client.tools(), {
               name,
@@ -228,8 +244,9 @@ export class AISDKToolkit {
             if (error instanceof MCPConnectionTimeoutError) {
               this.#mcpClients.delete(name);
               void client.close().catch(() => {});
+              throw error;
             }
-            throw error;
+            throw toMcpToolkitError(name, "list tools", error);
           }
         }),
     );
@@ -247,7 +264,7 @@ export class AISDKToolkit {
           );
         }
         toolSources.set(exposedName, serverName);
-        tools[exposedName] = tool;
+        tools[exposedName] = tool as ToolSet[string];
       }
     }
     return { tools, sources: toolSources };
@@ -332,6 +349,20 @@ const assertNoMcpToolNameCollisions = (
 
 const isMcpToolkitTool = (tool: ToolkitTool): tool is McpToolkitTool =>
   tool.type === "mcp" && !tool.disabled;
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message || error.name : String(error);
+
+const toMcpToolkitError = (
+  entryName: string,
+  action: "connect" | "list tools" | "close",
+  error: unknown,
+): Error => {
+  return new Error(
+    `MCP toolkit entry "${entryName}" failed to ${action}: ${getErrorMessage(error)}`,
+    { cause: error },
+  );
+};
 
 const isDisabledMcpTool = (config: McpToolkitToolConfig | undefined): boolean =>
   config?.disabled === true;

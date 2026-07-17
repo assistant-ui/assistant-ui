@@ -329,6 +329,27 @@ describe("McpServerResource resource methods", () => {
     }
   });
 
+  it("forwards the resource pagination cursor", async () => {
+    const result = {
+      resources: [{ uri: "docs://page-two", name: "Page two" }],
+    };
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      mocks.clients[0].listResources.mockResolvedValueOnce(result);
+
+      await expect(
+        root.getValue().listResources({ cursor: "next-page" }),
+      ).resolves.toBe(result);
+      expect(mocks.clients[0].listResources).toHaveBeenCalledWith({
+        cursor: "next-page",
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("rejects listResources when the server is disconnected", async () => {
     const root = mount();
 

@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/x-buildutils",
   "private": false,
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "Internal build utilities for assistant-ui packages",
   "keywords": [
     "build",
@@ -28,13 +28,13 @@
     "@tsconfig/strictest": "^2.0.8",
     "babel-plugin-react-compiler": "^1.0.0",
     "jiti": "^2.7.0",
-    "rolldown": "^1.1.4",
-    "tsdown": "^0.22.3",
+    "rolldown": "^1.1.5",
+    "tsdown": "^0.22.7",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
-    "@types/node": "^26.1.0"
+    "@types/node": "^26.1.1"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {

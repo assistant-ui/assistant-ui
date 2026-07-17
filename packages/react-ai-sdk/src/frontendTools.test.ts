@@ -49,16 +49,16 @@ describe("frontendTools", () => {
       value: [
         { type: "text", text: "PDF contents:" },
         {
-          type: "file-data",
+          type: "file",
           mediaType: "application/pdf",
-          data: "JVBERi0xLjQK",
+          data: { type: "data", data: "JVBERi0xLjQK" },
           filename: "doc.pdf",
         },
       ],
     });
   });
 
-  it("emits image-data for image media types", async () => {
+  it("emits a file part for image media types", async () => {
     const tools = frontendTools({
       screenshot: {
         parameters: { type: "object" },
@@ -86,8 +86,8 @@ describe("frontendTools", () => {
       type: "content",
       value: [
         {
-          type: "image-data",
-          data: "iVBORw0KGgo=",
+          type: "file",
+          data: { type: "data", data: "iVBORw0KGgo=" },
           mediaType: "image/png",
         },
       ],

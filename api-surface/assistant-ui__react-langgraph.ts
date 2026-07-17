@@ -272,6 +272,8 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
   readonly operations: ObjectStreamOperation[];
@@ -975,6 +977,7 @@ type LangGraphSendMessageConfig = {
   command?: LangGraphCommand;
   runConfig?: unknown;
   checkpointId?: string;
+  state?: Record<string, unknown>;
 };
 
 type LangGraphStateAccumulatorConfig<TMessage> = {
@@ -1025,6 +1028,7 @@ type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
   readonly visibility?: readonly ("app" | "model")[];
+  readonly serverId?: string;
 };
 
 type McpServerConfig = {
@@ -1077,6 +1081,22 @@ type MessageContentFile = {
   data: string;
   mime_type: string;
   source_type?: "base64";
+  metadata?: {
+    filename?: string;
+  };
+} | {
+  type: "file";
+  url: string;
+  mime_type?: string;
+  source_type: "url";
+  metadata?: {
+    filename?: string;
+  };
+} | {
+  type: "file";
+  id: string;
+  mime_type?: string;
+  source_type: "id";
   metadata?: {
     filename?: string;
   };
@@ -1291,6 +1311,10 @@ type PartInit = {
   readonly parentId?: string;
 };
 
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
 type PdfToImagesRequestBody = {
   file_blob?: string | undefined;
   file_url?: string | undefined;
@@ -1390,6 +1414,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1514,9 +1539,7 @@ type SourceMessagePart = {
   readonly parentId?: string;
 };
 
-type SourceProviderMetadata = {
-  readonly [providerName: string]: ReadonlyJSONObject;
-};
+type SourceProviderMetadata = PartProviderMetadata;
 
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
@@ -1568,6 +1591,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1719,6 +1743,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
       readonly approved?: boolean;
@@ -1909,6 +1934,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
   readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: {
     type: "human";
@@ -2065,6 +2091,8 @@ type Unstable_AudioMessagePart = {
 type Unsubscribe = () => void;
 
 type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
+  initialThreadId?: string | undefined;
+  threadId?: string | undefined;
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
@@ -2132,7 +2160,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { CreateLangGraphStreamOptions, LangChainEvent, LangChainMessage, LangChainMessageChunk, LangChainToolCall, LangChainToolCallChunk, LangGraphCommand, LangGraphInterruptState, LangGraphMessageAccumulator, LangGraphMessagesEvent, LangGraphSendMessageConfig, LangGraphStreamCallback, LangGraphStreamClient, LangGraphTupleMetadata, OnCustomEventCallback, OnErrorEventCallback, OnInfoEventCallback, OnMessageChunkCallback, OnMetadataEventCallback, OnSubgraphErrorEventCallback, OnSubgraphUpdatesEventCallback, OnSubgraphValuesEventCallback, OnUpdatesEventCallback, OnValuesEventCallback, RemoveUIMessage, UIMessage, UseLangGraphRuntimeOptions, appendLangChainChunk, convertLangChainMessages, unstable_createLangGraphStream, useLangGraphInterruptState, useLangGraphMessageMetadata, useLangGraphMessages, useLangGraphRuntime, useLangGraphSend, useLangGraphSendCommand, useLangGraphStreamingTiming, useLangGraphUIMessages };
+  export { CreateLangGraphStreamOptions, LangChainEvent, LangChainMessage, LangChainMessageChunk, LangChainToolCall, LangChainToolCallChunk, LangGraphCommand, LangGraphInterruptState, LangGraphMessageAccumulator, LangGraphMessagesEvent, LangGraphSendMessageConfig, LangGraphStreamCallback, LangGraphStreamClient, LangGraphTupleMetadata, OnCustomEventCallback, OnErrorEventCallback, OnInfoEventCallback, OnMessageChunkCallback, OnMetadataEventCallback, OnSubgraphErrorEventCallback, OnSubgraphUpdatesEventCallback, OnSubgraphValuesEventCallback, OnUpdatesEventCallback, OnValuesEventCallback, RemoveUIMessage, UIMessage, UseLangGraphRuntimeOptions, appendLangChainChunk, convertLangChainMessages, unstable_createLangGraphStream, useLangGraphInterruptState, useLangGraphMessageMetadata, useLangGraphMessages, useLangGraphRuntime, useLangGraphSend, useLangGraphSendCommand, useLangGraphSetState, useLangGraphState, useLangGraphStreamingTiming, useLangGraphUIMessages };
 }
 
 declare const unstable_createLangGraphStream: (_param3: CreateLangGraphStreamOptions) => LangGraphStreamCallback<LangChainMessage>;
@@ -2191,12 +2219,14 @@ declare const useLangGraphMessages: <TMessage extends {
   };
 }) => {
   interrupt: LangGraphInterruptState | undefined;
+  values: Record<string, unknown> | undefined;
   messages: TMessage[];
   messageMetadata: Map<string, LangGraphTupleMetadata>;
   uiMessages: UIMessage[];
   sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: () => void) => Promise<void>;
   cancel: () => void;
   setInterrupt: import("react").Dispatch<import("react").SetStateAction<LangGraphInterruptState | undefined>>;
+  setValues: import("react").Dispatch<import("react").SetStateAction<Record<string, unknown> | undefined>>;
   setMessages: (msgs: TMessage[]) => void;
   setUIMessages: (next: UIMessage[]) => void;
 };
@@ -2206,6 +2236,10 @@ declare const useLangGraphRuntime: (_param6: UseLangGraphRuntimeOptions) => Assi
 declare const useLangGraphSend: () => (messages: LangChainMessage[], config: LangGraphSendMessageConfig) => Promise<void>;
 
 declare const useLangGraphSendCommand: () => (command: LangGraphCommand) => Promise<void>;
+
+declare const useLangGraphSetState: <TState extends Record<string, unknown> = Record<string, unknown>>() => (next: TState | ((prev: TState | undefined) => TState)) => void;
+
+declare const useLangGraphState: <TState extends Record<string, unknown> = Record<string, unknown>>() => TState | undefined;
 
 declare const useLangGraphStreamingTiming: (messages: readonly LangChainMessage[], isRunning: boolean) => Record<string, MessageTiming>;
 

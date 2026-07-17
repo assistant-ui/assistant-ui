@@ -223,7 +223,8 @@ export abstract class BaseComposerRuntimeCore
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
-    this.handleSend(message, options);
+    const sendTask = this.handleSend(message, options);
+    if (sendTask) void sendTask.catch(() => {});
     this._notifyEventSubscribers("send", {});
   }
 
@@ -241,7 +242,7 @@ export abstract class BaseComposerRuntimeCore
   protected abstract handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
-  ): void;
+  ): void | Promise<void>;
   protected abstract handleCancel(): void;
 
   async addAttachment(fileOrAttachment: File | CreateAttachment) {

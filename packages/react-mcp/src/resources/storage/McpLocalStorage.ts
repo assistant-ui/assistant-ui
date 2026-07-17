@@ -1,4 +1,8 @@
 import { resource } from "@assistant-ui/tap";
+import {
+  OAuthClientInformationFullSchema,
+  OAuthTokensSchema,
+} from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
 import { assertValidServerId } from "../../utils/serverId";
@@ -94,6 +98,40 @@ export const normalizeCustomServerRecords = (
   return value.filter(isCustomServerRecord);
 };
 
+const normalizeOAuthTokens = (
+  value: unknown,
+): MCPPersistedAuthState["tokens"] | undefined => {
+  const result = OAuthTokensSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const normalizeClientInformation = (
+  value: unknown,
+): MCPPersistedAuthState["clientInformation"] | undefined => {
+  const result = OAuthClientInformationFullSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+export const normalizePersistedAuthState = (
+  value: unknown,
+): MCPPersistedAuthState | null => {
+  if (!isRecord(value)) return null;
+
+  const state: MCPPersistedAuthState = {};
+  if (isNonEmptyString(value.token)) state.token = value.token;
+  if (isNonEmptyString(value.codeVerifier)) {
+    state.codeVerifier = value.codeVerifier;
+  }
+
+  const tokens = normalizeOAuthTokens(value.tokens);
+  if (tokens) state.tokens = tokens;
+
+  const clientInformation = normalizeClientInformation(value.clientInformation);
+  if (clientInformation) state.clientInformation = clientInformation;
+
+  return Object.keys(state).length > 0 ? state : null;
+};
+
 const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
   const prefix = opts.keyPrefix ?? "aui-mcp";
   const customServersKey = `${prefix}:custom-servers`;
@@ -136,7 +174,7 @@ const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
       write(customServersKey, records);
     },
     loadAuthState: async (id) =>
-      read<MCPPersistedAuthState | null>(authKey(id), null),
+      normalizePersistedAuthState(read<unknown>(authKey(id), null)),
     saveAuthState: async (id, state) => {
       write(authKey(id), state);
     },

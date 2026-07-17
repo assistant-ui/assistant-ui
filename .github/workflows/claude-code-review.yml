@@ -10,10 +10,6 @@ on:
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
 
-concurrency:
-  group: claude-code-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 env:
   # Shared action configuration
   TRACK_PROGRESS: 'true'
@@ -90,14 +86,20 @@ env:
   # - mcp__github_inline_comment__create_inline_comment: Create inline code comments
   # - Bash(gh ...): Read-only GitHub CLI commands for PR/issue info
   # Note: gh pr comment is NOT allowed - Claude must use update_claude_comment only
-  # Temporarily on Opus 4.8 while Fable usage credits are exhausted; swap back to
-  # `--model fable` when access returns. The Fable-specific machinery below
-  # (Opus-fallback flagging) stays in place for that switch-back.
-  CLAUDE_ARGS: '--model claude-opus-4-8 --effort high --allowedTools "Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+  CLAUDE_ARGS: '--model fable --effort high --allowedTools "Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
 
 jobs:
   claude-review:
-    if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.sender.type != 'Bot'
+    # Job-level so that runs skipped by the `if` guard never enter the group; a
+    # workflow-level group would cancel the in-flight review of the previous
+    # head before the guard is evaluated (e.g. on autofix.ci pushes).
+    concurrency:
+      group: claude-code-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     permissions:
@@ -116,7 +118,7 @@ jobs:
 
       - name: Review
         id: review
-        uses: anthropics/claude-code-action@428971d2ecd6e3a7cb0ee0da2a3a8b33fdb3678d # ratchet:anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@536f2c32a39763739000b0e1ac69ca2647d97ce9 # ratchet:anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ env.REVIEW_PROMPT }}

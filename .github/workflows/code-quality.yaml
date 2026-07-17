@@ -73,12 +73,24 @@ jobs:
   template-sync:
     name: Template Sync
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
       - name: Checkout code repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
         with:
           fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # ratchet:pnpm/action-setup@v6.0.9
+
+      - name: Setup node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Install root tooling
+        run: pnpm install --frozen-lockfile --filter . --ignore-scripts
 
       - name: Verify templates match packages/ui source
         run: bash scripts/sync-templates.sh
@@ -103,7 +115,7 @@ jobs:
           cache: "pnpm"
 
       - name: Cache turbo build setup
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # ratchet:actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # ratchet:actions/cache@v5
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-build-${{ github.ref }}-${{ github.sha }}
@@ -119,10 +131,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Build packages changed compared to base branch
-            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]"
+            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
           else
             # Push to main: Build packages changed in last commit
-            pnpm turbo build --filter="...[HEAD^1]"
+            pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
           fi
 
       - name: Check API surface
@@ -137,6 +149,84 @@ jobs:
 
       - name: Test API surface generator
         run: pnpm run api-surface:test
+
+  build-apps:
+    name: Build Changed Apps
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # ratchet:pnpm/action-setup@v6.0.9
+
+      - name: Setup node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Cache turbo build setup
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # ratchet:actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-build-apps-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-build-apps-${{ github.ref }}-
+            ${{ runner.os }}-turbo-build-apps-
+            ${{ runner.os }}-turbo-build-
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # apps/docs is excluded: the Vercel deployment check already builds it on every pull request.
+      - name: Build apps
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # PR: Build apps, examples, and templates affected by changes compared to base branch
+            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs"
+          else
+            # Push to main: Build apps, examples, and templates affected by the last commit
+            pnpm turbo build --filter="...[HEAD^1]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs"
+          fi
+
+  api-reference-drift:
+    name: API Reference Drift
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # ratchet:pnpm/action-setup@v6.0.9
+
+      - name: Setup node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # ratchet:actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate API reference (strict)
+        run: pnpm -C apps/docs generate:api-reference -- --strict
+
+      - name: Fail on API reference drift
+        run: |
+          if git status --porcelain -- 'apps/docs/content/docs/(reference)/api-reference' | grep -q .; then
+            echo "API reference drift detected. Move durable prose into source JSDoc (or api-manual slots), then re-run pnpm -C apps/docs generate:api-reference."
+            git status --porcelain -- 'apps/docs/content/docs/(reference)/api-reference'
+            git diff -- 'apps/docs/content/docs/(reference)/api-reference'
+            exit 1
+          fi
 
   test:
     name: Test Changed Packages
@@ -159,7 +249,7 @@ jobs:
           cache: "pnpm"
 
       - name: Cache turbo build setup
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # ratchet:actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # ratchet:actions/cache@v5
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-test-${{ github.ref }}-${{ github.sha }}

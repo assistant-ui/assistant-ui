@@ -1,5 +1,11 @@
 # @assistant-ui/gorp
 
+## 0.0.5
+
+### Patch Changes
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.4
 
 ### Patch Changes

@@ -33,6 +33,7 @@ export {
 // Message utilities
 export { getThreadMessageText } from "./utils/text";
 export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
+export { consumeSuggestionResult } from "./adapters/suggestion";
 
 // Composite context provider
 export { CompositeContextProvider } from "./utils/composite-context-provider";
@@ -40,6 +41,17 @@ export { CompositeContextProvider } from "./utils/composite-context-provider";
 // Shared attachment data-URL encoder, reused by framework adapters so the
 // FileReader fallback lives in one place.
 export { getFileDataURL } from "./adapters/attachment";
+
+// Streaming-stable tool-args stringifier, reused by framework adapters so the
+// key-order stabilization lives in one place.
+export {
+  stableStringifyToolArgs,
+  trackToolArgsKeyOrder,
+} from "./utils/json/stable-stringify-tool-args";
+
+// JSON type guards, reused by framework bindings so the depth-guarded
+// validation lives in one place.
+export { isJSONValue, isRecord } from "./utils/json/is-json";
 
 // Runtime extras helper for external-store adapters. Internal because the
 // tap-native runtime path replaces the `thread.extras` side-channel it wraps.

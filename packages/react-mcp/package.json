@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-mcp",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "MCP server configuration and connection primitives for @assistant-ui",
   "keywords": [
     "mcp",
@@ -52,7 +52,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.17",
     "react": "^19.2.7",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

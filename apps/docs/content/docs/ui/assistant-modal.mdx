@@ -5,10 +5,14 @@ platforms: ["react"]
 ---
 
 import { AssistantModalSample } from "@/components/docs/samples/assistant-modal";
+import * as AssistantModalRadixSamples from "@/components/docs/samples/assistant-modal.radix";
+import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-A floating chat modal built on Radix UI Popover. Ideal for support widgets, help desks, and embedded assistants.
+A floating chat modal built on the popover primitive of your configured style (Radix UI Popover on Radix styles, Base UI Popover on `base-*` styles). Ideal for support widgets, help desks, and embedded assistants.
 
-<AssistantModalSample />
+<FlavorSwitcher />
+
+<Flavored radix={<AssistantModalRadixSamples.AssistantModalSample />} base={<AssistantModalSample />} />
 
 ## Getting Started
 
@@ -43,7 +47,7 @@ export default function Home() {
 
 ## Anatomy
 
-The `AssistantModal` component is built with the following primitives:
+The Radix flavor of `AssistantModal` is built with the following primitives. The Base UI flavor composes your project's Base UI Popover instead.
 
 ```tsx
 import { AssistantModalPrimitive } from "@assistant-ui/react";
@@ -61,7 +65,7 @@ import { AssistantModalPrimitive } from "@assistant-ui/react";
 
 ### Root
 
-Contains all parts of the modal. Based on Radix UI Popover.
+Contains all parts of the modal when using `AssistantModalPrimitive` (the Radix flavor). The Base UI flavor uses your project's Base UI Popover instead.
 
 <ParametersTable
   type="AssistantModalPrimitiveRootProps"

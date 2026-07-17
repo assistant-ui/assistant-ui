@@ -1,4 +1,46 @@
+import {
+  generativeUiThemeVars,
+  generativeUiVocabularyCss,
+} from "@assistant-ui/ui/lib/generative-ui-vocabulary-css.ts";
 import type { RegistryItem } from "./schema";
+
+const collapsibleStateCss = {
+  '@custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])))':
+    {},
+  '@custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])))':
+    {},
+  "@keyframes collapsible-down": {
+    from: { height: "0" },
+    to: {
+      height:
+        "var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto))",
+    },
+  },
+  "@keyframes collapsible-up": {
+    from: {
+      height:
+        "var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto))",
+    },
+    to: { height: "0" },
+  },
+};
+
+const accordionKeyframesCss = {
+  "@keyframes accordion-down": {
+    from: { height: "0" },
+    to: {
+      height:
+        "var(--radix-accordion-content-height, var(--accordion-panel-height, auto))",
+    },
+  },
+  "@keyframes accordion-up": {
+    from: {
+      height:
+        "var(--radix-accordion-content-height, var(--accordion-panel-height, auto))",
+    },
+    to: { height: "0" },
+  },
+};
 
 export const registry: RegistryItem[] = [
   {
@@ -53,6 +95,39 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["ai", "@ai-sdk/openai", "@assistant-ui/react-ai-sdk"],
+  },
+  {
+    name: "ai-sdk-backend-resumable",
+    type: "registry:page",
+    files: [
+      {
+        type: "registry:page",
+        path: "app/api/chat/route.ts",
+        sourcePath: "templates/ai-sdk-backend-resumable/app/api/chat/route.ts",
+        target: "app/api/chat/route.ts",
+      },
+      {
+        type: "registry:page",
+        path: "app/api/chat/resume/[streamId]/route.ts",
+        sourcePath:
+          "templates/ai-sdk-backend-resumable/app/api/chat/resume/[streamId]/route.ts",
+        target: "app/api/chat/resume/[streamId]/route.ts",
+      },
+      {
+        type: "registry:lib",
+        path: "lib/resumable-context.ts",
+        sourcePath:
+          "templates/ai-sdk-backend-resumable/lib/resumable-context.ts",
+        target: "lib/resumable-context.ts",
+      },
+    ],
+    dependencies: [
+      "ai",
+      "@ai-sdk/openai",
+      "@assistant-ui/react-ai-sdk",
+      "assistant-stream",
+      "next",
+    ],
   },
   {
     name: "thread",
@@ -135,6 +210,7 @@ export const registry: RegistryItem[] = [
     ],
     css: {
       '@import "tw-shimmer"': {},
+      ...collapsibleStateCss,
     },
   },
   {
@@ -253,7 +329,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/tooltip-icon-button.tsx",
       },
     ],
-    dependencies: ["radix-ui"],
+    radixDependencies: ["radix-ui"],
     registryDependencies: ["tooltip", "button"],
   },
   {
@@ -264,11 +340,12 @@ export const registry: RegistryItem[] = [
         type: "registry:component",
         path: "components/assistant-ui/syntax-highlighter.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/syntax-highlighter.ts",
+          "../../packages/ui/src/components/assistant-ui/syntax-highlighter.tsx",
       },
     ],
     dependencies: [
       "@assistant-ui/react-syntax-highlighter",
+      "@assistant-ui/react-markdown",
       "react-syntax-highlighter",
       "@types/react-syntax-highlighter",
     ],
@@ -289,6 +366,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/thread.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
+    baseRegistryDependencies: ["popover"],
   },
   {
     name: "assistant-sidebar",
@@ -322,6 +400,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: ["button", "collapsible"],
     css: {
       '@import "tw-shimmer"': {},
+      ...collapsibleStateCss,
     },
   },
   {
@@ -344,6 +423,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: ["collapsible"],
     css: {
       '@import "tw-shimmer"': {},
+      ...collapsibleStateCss,
     },
   },
   {
@@ -495,8 +575,9 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react",
       "lucide-react",
       "class-variance-authority",
-      "radix-ui",
     ],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
     registryDependencies: ["command", "popover"],
   },
   {
@@ -522,7 +603,9 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/select.tsx",
       },
     ],
-    dependencies: ["radix-ui", "lucide-react", "class-variance-authority"],
+    dependencies: ["lucide-react", "class-variance-authority"],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
   },
   {
@@ -532,10 +615,11 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:ui",
         path: "components/ui/direction.tsx",
-        sourcePath: "../../packages/ui/src/components/ui/direction.tsx",
+        sourcePath: "../../packages/ui/src/components/ui/radix/direction.tsx",
       },
     ],
-    dependencies: ["radix-ui"],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
   },
   {
@@ -548,7 +632,9 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/badge.tsx",
       },
     ],
-    dependencies: ["radix-ui", "class-variance-authority"],
+    dependencies: ["class-variance-authority"],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
   },
   {
@@ -561,7 +647,9 @@ export const registry: RegistryItem[] = [
         sourcePath: "../../packages/ui/src/components/assistant-ui/tabs.tsx",
       },
     ],
-    dependencies: ["radix-ui", "class-variance-authority"],
+    dependencies: ["class-variance-authority"],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
   },
   {
@@ -575,8 +663,11 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/accordion.tsx",
       },
     ],
-    dependencies: ["radix-ui", "lucide-react", "class-variance-authority"],
+    dependencies: ["lucide-react", "class-variance-authority"],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
+    css: accordionKeyframesCss,
   },
   {
     name: "dot-matrix",
@@ -647,5 +738,31 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: ["https://r.assistant-ui.com/badge.json"],
+  },
+  {
+    name: "generative-ui-style",
+    type: "registry:style",
+    cssVars: generativeUiThemeVars,
+    css: generativeUiVocabularyCss,
+  },
+  {
+    name: "generative-ui",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/generative-ui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/generative-ui.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react-generative-ui",
+      "react-markdown",
+      "remark-gfm",
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/generative-ui-style.json",
+    ],
   },
 ];
