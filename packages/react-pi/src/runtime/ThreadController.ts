@@ -594,7 +594,7 @@ export class PiThreadController implements PiThreadControllerLike {
     // snapshot reconciliation for other variants if Pi broadens that event.
     const needsSnapshotRefresh =
       !KNOWN_EVENT_TYPES.has(event.type) ||
-      (event.type === "entry_appended" && event.entry.type !== "custom");
+      (event.type === "entry_appended" && event.entry?.type !== "custom");
     if (needsSnapshotRefresh) this.refreshInBackground();
   }
 

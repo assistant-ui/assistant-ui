@@ -464,6 +464,23 @@ describe("PiThreadController", () => {
     expect(getThread).toHaveBeenCalledOnce();
   });
 
+  it("refreshes when an older server omits the appended entry payload", async () => {
+    const client = createFakeClient();
+    const getThread = vi.spyOn(client, "getThread");
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    client.emit({
+      type: "entry_appended",
+      threadId: THREAD,
+      seq: 1,
+    } as unknown as PiClientEvent);
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(getThread).toHaveBeenCalledOnce();
+  });
+
   it("shows an optimistic user message before send resolves", async () => {
     const client = createFakeClient();
     let resolveSend!: () => void;
