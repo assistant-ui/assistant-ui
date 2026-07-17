@@ -32,6 +32,27 @@ describe("mapSessionEvent", () => {
     ).toEqual({ type: "agent_end", willRetry: true });
   });
 
+  it("maps agent_settled and preserves appended session entries", () => {
+    const entry = {
+      type: "custom",
+      id: "entry-1",
+      parentId: null,
+      timestamp: "2026-07-18T00:00:00.000Z",
+      customType: "extension-state",
+      data: { enabled: true },
+    } as const satisfies Extract<
+      AgentSessionEvent,
+      { type: "entry_appended" }
+    >["entry"];
+
+    expect(
+      mapSessionEvent({ type: "agent_settled" }, { turnIndex: 0 }),
+    ).toEqual({ type: "agent_settled" });
+    expect(
+      mapSessionEvent({ type: "entry_appended", entry }, { turnIndex: 0 }),
+    ).toEqual({ type: "entry_appended", entry });
+  });
+
   it("stamps the supervisor-derived turnIndex on turn_start/turn_end", () => {
     expect(
       mapSessionEvent(ev({ type: "turn_start" }), { turnIndex: 2 }),

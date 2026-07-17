@@ -127,6 +127,8 @@ const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
   "turn_start",
   "turn_end",
   "tool_execution_start",
+  "agent_settled",
+  "entry_appended",
 ]);
 
 /** Parse a `data:<mime>;base64,<data>` URL into Pi `ImageContent`. Non-data-URL

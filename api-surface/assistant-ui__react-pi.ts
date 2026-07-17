@@ -1004,6 +1004,8 @@ type PiClientEventBody = {
   type: "agent_end";
   willRetry?: boolean;
 } | {
+  type: "agent_settled";
+} | {
   type: "turn_start";
   turnIndex: number;
 } | {
@@ -1045,6 +1047,9 @@ type PiClientEventBody = {
   type: "compaction_end";
   aborted: boolean;
   willRetry: boolean;
+} | {
+  type: "entry_appended";
+  entry: PiSessionEntry;
 } | {
   type: "auto_retry_start";
   attempt: number;
@@ -1276,6 +1281,55 @@ type PiSendMessageInput = {
 
 type PiSendOptions = {
   streamingBehavior?: "followUp" | "steer";
+};
+
+type PiSessionEntry = (PiSessionEntryBase & {
+  type: "message";
+  message: PiAgentMessage;
+}) | (PiSessionEntryBase & {
+  type: "thinking_level_change";
+  thinkingLevel: string;
+}) | (PiSessionEntryBase & {
+  type: "model_change";
+  provider: string;
+  modelId: string;
+}) | (PiSessionEntryBase & {
+  type: "compaction";
+  summary: string;
+  firstKeptEntryId: string;
+  tokensBefore: number;
+  details?: unknown;
+  fromHook?: boolean;
+}) | (PiSessionEntryBase & {
+  type: "branch_summary";
+  fromId: string;
+  summary: string;
+  details?: unknown;
+  fromHook?: boolean;
+}) | (PiSessionEntryBase & {
+  type: "custom";
+  customType: string;
+  data?: unknown;
+}) | (PiSessionEntryBase & {
+  type: "custom_message";
+  customType: string;
+  content: string | (PiTextContent | PiImageContent)[];
+  details?: unknown;
+  display: boolean;
+}) | (PiSessionEntryBase & {
+  type: "label";
+  targetId: string;
+  label: string | undefined;
+}) | (PiSessionEntryBase & {
+  type: "session_info";
+  name?: string;
+});
+
+type PiSessionEntryBase = {
+  type: string;
+  id: string;
+  parentId: string | null;
+  timestamp: string;
 };
 
 type PiSessionModel = NonNullable<Parameters<typeof createAgentSession>[0]>["model"];
@@ -2327,13 +2381,13 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { PiAgentMessage, PiAnyClientEvent, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiEventStreamOptions, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiHttpClientOptions, PiImageContent, PiInputAttachment, PiInterruptAnswer, PiKnownAgentMessage, PiLoadState, PiModelInfo, ContentPart as PiProjectedContentPart, PiProjectionInput, PiQueueMode, PiQueuedMessage, PiRunStatus, PiRuntimeExtras, PiRuntimeOptions, PiRuntimeReadiness, PiSendMessageInput, PiSendOptions, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadController, PiThreadControllerLike, PiThreadMetadata, PiThreadSnapshot, PiThreadState, PiThreadStatus, PiToolCall, PiToolExecutionState, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUsage, PiUserContent, PiUserMessage, SplitHostUiRequests, SseFrame, createPiHttpClient, createPiThreadState, createSseDecoder, isPiSteerQueueItemId, openPiEventStream, piQueueItemId, projectPiThreadMessages, projectPiThreadRepository, reducePiThreadState, responseForApproval, responseForInterrupt, responseForRequest, splitHostUiRequests, usePiHostUiRequests, usePiRuntime, usePiRuntimeExtras, usePiSession, usePiThreadState };
+  export { PiAgentMessage, PiAnyClientEvent, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiEventStreamOptions, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiHttpClientOptions, PiImageContent, PiInputAttachment, PiInterruptAnswer, PiKnownAgentMessage, PiLoadState, PiModelInfo, ContentPart as PiProjectedContentPart, PiProjectionInput, PiQueueMode, PiQueuedMessage, PiRunStatus, PiRuntimeExtras, PiRuntimeOptions, PiRuntimeReadiness, PiSendMessageInput, PiSendOptions, PiSessionEntry, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadController, PiThreadControllerLike, PiThreadMetadata, PiThreadSnapshot, PiThreadState, PiThreadStatus, PiToolCall, PiToolExecutionState, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUsage, PiUserContent, PiUserMessage, SplitHostUiRequests, SseFrame, createPiHttpClient, createPiThreadState, createSseDecoder, isPiSteerQueueItemId, openPiEventStream, piQueueItemId, projectPiThreadMessages, projectPiThreadRepository, reducePiThreadState, responseForApproval, responseForInterrupt, responseForRequest, splitHostUiRequests, usePiHostUiRequests, usePiRuntime, usePiRuntimeExtras, usePiSession, usePiThreadState };
 }
 
 declare const isPiSteerQueueItemId: (id: string) => boolean;
 
 declare namespace entry_node_exports {
-  export { PiAgentMessage, PiAnyClientEvent, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiImageContent, PiInputAttachment, PiKnownAgentMessage, PiModelInfo, PiNodeClientOptions, PiQueuedMessage, PiRuntimeReadiness, PiSendMessageInput, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadMetadata, PiThreadSnapshot, PiThreadStatus, PiThreadSupervisor, PiThreadSupervisorOptions, PiToolCall, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUnsupportedHostUiError, PiUsage, PiUserContent, PiUserMessage, createPiNodeClient, getPiThreadSupervisor };
+  export { PiAgentMessage, PiAnyClientEvent, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiImageContent, PiInputAttachment, PiKnownAgentMessage, PiModelInfo, PiNodeClientOptions, PiQueuedMessage, PiRuntimeReadiness, PiSendMessageInput, PiSessionEntry, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadMetadata, PiThreadSnapshot, PiThreadStatus, PiThreadSupervisor, PiThreadSupervisorOptions, PiToolCall, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUnsupportedHostUiError, PiUsage, PiUserContent, PiUserMessage, createPiNodeClient, getPiThreadSupervisor };
 }
 
 declare const openPiEventStream: (options: PiEventStreamOptions) => (() => void);

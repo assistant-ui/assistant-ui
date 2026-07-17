@@ -173,6 +173,68 @@ export type PiAgentMessage = PiKnownAgentMessage | PiUnknownAgentMessage;
 export type PiTranscriptMessage = PiAgentMessage;
 
 // ---------------------------------------------------------------------------
+// Session entries — mirror of Pi's persisted SessionEntry union.
+// ---------------------------------------------------------------------------
+
+type PiSessionEntryBase = {
+  type: string;
+  id: string;
+  parentId: string | null;
+  timestamp: string;
+};
+
+export type PiSessionEntry =
+  | (PiSessionEntryBase & {
+      type: "message";
+      message: PiAgentMessage;
+    })
+  | (PiSessionEntryBase & {
+      type: "thinking_level_change";
+      thinkingLevel: string;
+    })
+  | (PiSessionEntryBase & {
+      type: "model_change";
+      provider: string;
+      modelId: string;
+    })
+  | (PiSessionEntryBase & {
+      type: "compaction";
+      summary: string;
+      firstKeptEntryId: string;
+      tokensBefore: number;
+      details?: unknown;
+      fromHook?: boolean;
+    })
+  | (PiSessionEntryBase & {
+      type: "branch_summary";
+      fromId: string;
+      summary: string;
+      details?: unknown;
+      fromHook?: boolean;
+    })
+  | (PiSessionEntryBase & {
+      type: "custom";
+      customType: string;
+      data?: unknown;
+    })
+  | (PiSessionEntryBase & {
+      type: "custom_message";
+      customType: string;
+      content: string | (PiTextContent | PiImageContent)[];
+      details?: unknown;
+      display: boolean;
+    })
+  | (PiSessionEntryBase & {
+      type: "label";
+      targetId: string;
+      label: string | undefined;
+    })
+  | (PiSessionEntryBase & {
+      type: "session_info";
+      name?: string;
+    });
+
+// ---------------------------------------------------------------------------
 // Streaming delta — mirror of `AssistantMessageEvent` (the `contentIndex`
 // structural discriminator). Every variant carries `partial`, the current
 // assistant message, so the projection can read `partial.content[contentIndex]`
@@ -395,6 +457,7 @@ export type PiClientEventBody =
   | { type: "snapshot"; snapshot: PiThreadSnapshot }
   | { type: "agent_start" }
   | { type: "agent_end"; willRetry?: boolean }
+  | { type: "agent_settled" }
   | { type: "turn_start"; turnIndex: number }
   | { type: "turn_end"; turnIndex: number }
   | { type: "message_start"; message: PiAgentMessage }
@@ -429,6 +492,7 @@ export type PiClientEventBody =
     }
   | { type: "compaction_start"; reason: "manual" | "threshold" | "overflow" }
   | { type: "compaction_end"; aborted: boolean; willRetry: boolean }
+  | { type: "entry_appended"; entry: PiSessionEntry }
   | { type: "auto_retry_start"; attempt: number; delayMs: number }
   | { type: "auto_retry_end"; success: boolean }
   | { type: "session_info_changed"; name?: string }

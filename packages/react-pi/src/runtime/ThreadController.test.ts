@@ -406,6 +406,36 @@ describe("PiThreadController", () => {
     expect(controller.getState().messages).toHaveLength(1);
   });
 
+  it("does not refresh snapshots for settled or appended session events", async () => {
+    const client = createFakeClient();
+    const getThread = vi.spyOn(client, "getThread");
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    client.emit(ev({ type: "agent_settled" }, 1));
+    client.emit(
+      ev(
+        {
+          type: "entry_appended",
+          entry: {
+            type: "custom",
+            id: "entry-1",
+            parentId: null,
+            timestamp: "2026-07-18T00:00:00.000Z",
+            customType: "extension-state",
+            data: { enabled: true },
+          },
+        },
+        2,
+      ),
+    );
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(getThread).not.toHaveBeenCalled();
+    expect(controller.getState().lastSeq).toBe(2);
+  });
+
   it("shows an optimistic user message before send resolves", async () => {
     const client = createFakeClient();
     let resolveSend!: () => void;

@@ -370,6 +370,10 @@ export const reducePiThreadState = (
         metadata: withMetadataStatus(state.metadata, "failed"),
       });
 
+    case "agent_settled":
+    case "entry_appended":
+      return stamped(state);
+
     default:
       // Forward-compatible: unknown event types are tolerated (seq bumped via
       // `stamped`), the controller decides whether to full-refresh.
