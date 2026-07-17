@@ -76,6 +76,7 @@ function ArtifactsView() {
             <iframe
               className="h-full w-full"
               title="Artifact Preview"
+              sandbox="allow-scripts allow-forms"
               srcDoc={code}
             />
           </div>
