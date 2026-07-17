@@ -247,6 +247,7 @@ export async function transformProject(
       ? shadcnUI
       : [...shadcnUI, "utils"];
     const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
+
     const components = [...allShadcn, ...auiComponents];
     logger.step(`Installing components: ${components.join(", ")}...`);
     await installShadcnRegistry(projectDir, components, "components", pm);
@@ -326,7 +327,7 @@ function transformTsConfig(projectDir: string): void {
         Array.isArray(targets) &&
         targets.some(
           (target) =>
-            typeof target === "string" && target.includes("packages/ui/"),
+            typeof target === "string" && target.includes("packages/"),
         );
       if (workspaceKeys.has(key) || targetsWorkspace) {
         delete tsconfig.compilerOptions.paths[key];
@@ -422,6 +423,12 @@ function scanRequiredComponents(projectDir: string): RequiredComponents {
       const assistantUIRegex =
         /from\s+["']@\/components\/assistant-ui\/([^"']+)["']/g;
       for (const match of content.matchAll(assistantUIRegex)) {
+        assistantUIComponents.add(stripImportExtension(match[1]!));
+      }
+
+      const rootAssistantUIRegex =
+        /from\s+["']@\/components\/(?!assistant-ui\/|ui\/)([^"']+)["']/g;
+      for (const match of content.matchAll(rootAssistantUIRegex)) {
         assistantUIComponents.add(stripImportExtension(match[1]!));
       }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/thread";
 import {
   AssistantRuntimeProvider,
   AuiProvider,

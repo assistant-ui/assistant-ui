@@ -325,6 +325,8 @@ describe("transformProject — hasLocalComponents: false", () => {
             "@/hooks/*": ["./hooks/*"],
             "@/lib/utils": ["./lib/utils"],
             "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
+            "@assistant-ui/*": ["../../packages/*/src"],
+            "assistant-stream": ["../../packages/assistant-stream/src"],
             "@/*": ["./*"],
           },
         },
@@ -341,6 +343,8 @@ describe("transformProject — hasLocalComponents: false", () => {
       expect(paths["@/hooks/*"]).toBeUndefined();
       expect(paths["@/lib/utils"]).toBeUndefined();
       expect(paths["@assistant-ui/ui/*"]).toBeUndefined();
+      expect(paths["@assistant-ui/*"]).toBeUndefined();
+      expect(paths["assistant-stream"]).toBeUndefined();
       expect(paths["@/*"]).toEqual(["./*"]);
     });
 
@@ -434,10 +438,10 @@ describe("transformProject — hasLocalComponents: false", () => {
 
   // Component scanning tests
   describe("component scanning", () => {
-    it("installs shadcn and assistant-ui components in a single shadcn add call", async () => {
+    it("installs shadcn and root-level assistant-ui components in a single shadcn add call", async () => {
       writeFile(
         "app/page.tsx",
-        'import { Thread } from "@/components/assistant-ui/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
+        'import { Thread } from "@/components/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
       );
 
       await transformProject(testDir, {
