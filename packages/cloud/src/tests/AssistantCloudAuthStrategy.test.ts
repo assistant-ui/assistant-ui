@@ -102,7 +102,9 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
   it("returns an anonymous access token when storage methods throw", async () => {
     const getItem = vi
       .fn<(key: string) => string | null>()
-      .mockReturnValueOnce(JSON.stringify(refreshToken))
+      .mockReturnValueOnce(
+        JSON.stringify({ token: "expired", expires_at: "2022-01-01" }),
+      )
       .mockImplementation(() => {
         throw new DOMException("blocked", "SecurityError");
       });
@@ -115,26 +117,12 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     installLocalStorage({ getItem, setItem, removeItem } as Storage);
     mockAnonymousTokenFetch();
 
-    const originalDate = globalThis.Date;
-    const fixedDate = (originalDate as unknown as () => Date)();
-    const fixedTime = originalDate.now();
-    globalThis.Date = Object.assign(
-      function Date() {
-        return fixedDate;
-      },
-      { now: () => fixedTime },
-    ) as unknown as DateConstructor;
-
-    try {
-      await expect(
-        new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
-      ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
-      await expect(
-        new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
-      ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
-    } finally {
-      globalThis.Date = originalDate;
-    }
+    await expect(
+      new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
+    ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
+    await expect(
+      new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
+    ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
     expect(getItem).toHaveBeenCalledTimes(2);
     expect(setItem).toHaveBeenCalledTimes(2);
     expect(removeItem).toHaveBeenCalledTimes(1);

@@ -1,6 +1,5 @@
-const calendarDatePattern = /^(\d{4})-(\d{2})-(\d{2})[T ]/;
-const postgresTimestampPattern =
-  /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})(?:\.(\d+))?$/;
+const timestampPattern =
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}(?::\d{2})?)?$/;
 
 const isLeapYear = (year: number) =>
   year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
@@ -13,12 +12,18 @@ const daysInMonth = (year: number, month: number) =>
 const invalidTimestamp = (field: string) =>
   new Error(`Invalid Assistant Cloud response timestamp for "${field}"`);
 
-const normalizePostgresTimestamp = (value: string) => {
-  const match = postgresTimestampPattern.exec(value);
-  if (!match) return value;
+const normalizeTimestamp = (match: RegExpExecArray) => {
+  const fraction = match[5] ? `.${match[5].slice(0, 3).padEnd(3, "0")}` : "";
+  const rawOffset = match[6];
 
-  const fraction = match[3] ? `.${match[3].slice(0, 3).padEnd(3, "0")}` : "";
-  return `${match[1]}T${match[2]}${fraction}Z`;
+  // Assistant Cloud stores timezone-less database timestamps in UTC.
+  const offset = rawOffset
+    ? rawOffset.length === 3
+      ? `${rawOffset}:00`
+      : rawOffset
+    : "Z";
+
+  return `${match[1]}-${match[2]}-${match[3]}T${match[4]}${fraction}${offset}`;
 };
 
 export const normalizeCloudTimestamp = (
@@ -28,7 +33,7 @@ export const normalizeCloudTimestamp = (
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
   if (typeof value !== "string") throw invalidTimestamp(field);
 
-  const match = calendarDatePattern.exec(value);
+  const match = timestampPattern.exec(value);
   if (!match) throw invalidTimestamp(field);
 
   const year = Number(match[1]);
@@ -39,7 +44,7 @@ export const normalizeCloudTimestamp = (
     throw invalidTimestamp(field);
   }
 
-  const date = new Date(normalizePostgresTimestamp(value));
+  const date = new Date(normalizeTimestamp(match));
   if (Number.isNaN(date.getTime())) throw invalidTimestamp(field);
 
   return date;

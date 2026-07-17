@@ -1,17 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { AssistantCloudThreads } from "./AssistantCloudThreads";
-import { OriginalDate } from "./tests/setup";
-
-const mockedDate = globalThis.Date;
-
-beforeAll(() => {
-  globalThis.Date = OriginalDate;
-});
-
-afterAll(() => {
-  globalThis.Date = mockedDate;
-});
 
 const createCloudThreads = () => {
   const makeRequest = vi.fn();
@@ -40,12 +29,12 @@ describe("AssistantCloudThreads response timestamps", () => {
     const result = await threads.list();
     const thread = result.threads[0]!;
 
-    expect(thread.created_at).toBeInstanceOf(OriginalDate);
-    expect(thread.updated_at).toBeInstanceOf(OriginalDate);
-    expect(thread.last_message_at).toBeInstanceOf(OriginalDate);
+    expect(thread.created_at).toBeInstanceOf(Date);
+    expect(thread.updated_at).toBeInstanceOf(Date);
+    expect(thread.last_message_at).toBeInstanceOf(Date);
     expect(thread.updated_at.toISOString()).toBe("2026-07-16T12:15:00.123Z");
     expect(thread.updated_at.getTime()).toBe(
-      OriginalDate.parse("2026-07-16T12:15:00.123Z"),
+      Date.parse("2026-07-16T12:15:00.123Z"),
     );
     expect(thread.metadata).toEqual({
       created_at: "leave-this-string-untouched",
@@ -58,7 +47,7 @@ describe("AssistantCloudThreads response timestamps", () => {
 
     const result = await threads.get("thread-1");
 
-    expect(result.created_at).toBeInstanceOf(OriginalDate);
+    expect(result.created_at).toBeInstanceOf(Date);
     expect(result.created_at.toISOString()).toBe("2026-07-16T12:00:00.000Z");
   });
 
@@ -93,8 +82,8 @@ describe("AssistantCloudThreads response timestamps", () => {
     const result = await threads.messages.list("thread-1");
     const message = result.messages[0]!;
 
-    expect(message.created_at).toBeInstanceOf(OriginalDate);
-    expect(message.updated_at).toBeInstanceOf(OriginalDate);
+    expect(message.created_at).toBeInstanceOf(Date);
+    expect(message.updated_at).toBeInstanceOf(Date);
     expect(message.updated_at.toISOString()).toBe("2026-07-16T13:05:00.987Z");
     expect(message.content).toEqual({
       created_at: "leave-this-string-untouched",
