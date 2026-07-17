@@ -1,3 +1,8 @@
+import type {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "assistant-stream/utils";
+
 const invalidCloudResponse = (field: string, expected: string) =>
   new Error(
     `Invalid Assistant Cloud response for "${field}": expected ${expected}`,
@@ -67,7 +72,3 @@ export const readCloudJSONObject = (
   }
   return object;
 };
-import type {
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
-} from "assistant-stream/utils";

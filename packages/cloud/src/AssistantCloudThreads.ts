@@ -28,19 +28,6 @@ type CloudThread = {
   is_archived: boolean;
 };
 
-type CloudThreadResponse = {
-  title: string | null;
-  last_message_at: string;
-  metadata: unknown;
-  external_id: string | null;
-  id: string;
-  project_id: string;
-  created_at: string;
-  updated_at: string;
-  workspace_id: string;
-  is_archived: boolean;
-};
-
 type AssistantCloudThreadsListResponse = {
   threads: CloudThread[];
 };
@@ -65,9 +52,9 @@ type AssistantCloudThreadsUpdateBody = {
 
 const decodeCloudThread = (value: unknown, field: string): CloudThread => {
   const thread = readCloudRecord(value, field);
-  const response: CloudThreadResponse = {
-    title: readCloudNullableString(thread.title, `${field}.title`),
-    last_message_at: readCloudString(
+  return {
+    title: readCloudNullableString(thread.title, `${field}.title`) ?? "",
+    last_message_at: normalizeCloudTimestamp(
       thread.last_message_at,
       `${field}.last_message_at`,
     ),
@@ -78,27 +65,16 @@ const decodeCloudThread = (value: unknown, field: string): CloudThread => {
     ),
     id: readCloudString(thread.id, `${field}.id`),
     project_id: readCloudString(thread.project_id, `${field}.project_id`),
-    created_at: readCloudString(thread.created_at, `${field}.created_at`),
-    updated_at: readCloudString(thread.updated_at, `${field}.updated_at`),
-    workspace_id: readCloudString(thread.workspace_id, `${field}.workspace_id`),
-    is_archived: readCloudBoolean(thread.is_archived, `${field}.is_archived`),
-  };
-
-  return {
-    ...response,
-    title: response.title ?? "",
-    last_message_at: normalizeCloudTimestamp(
-      response.last_message_at,
-      `${field}.last_message_at`,
-    ),
     created_at: normalizeCloudTimestamp(
-      response.created_at,
+      thread.created_at,
       `${field}.created_at`,
     ),
     updated_at: normalizeCloudTimestamp(
-      response.updated_at,
+      thread.updated_at,
       `${field}.updated_at`,
     ),
+    workspace_id: readCloudString(thread.workspace_id, `${field}.workspace_id`),
+    is_archived: readCloudBoolean(thread.is_archived, `${field}.is_archived`),
   };
 };
 
