@@ -106,6 +106,12 @@ export type AgUiRuntimeExtras = {
     message: CreateAppendMessage,
     responses?: readonly AgUiResumeEntry[],
   ) => Promise<void>;
+  state: ReadonlyJSONValue | undefined;
+  setState: (
+    next:
+      | ReadonlyJSONValue
+      | ((prev: ReadonlyJSONValue | undefined) => ReadonlyJSONValue),
+  ) => void;
 };
 
 export type AgUiRunFinishedOutcome =

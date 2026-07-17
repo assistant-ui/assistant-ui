@@ -33,7 +33,7 @@ describe("createAddComponentsPlan", () => {
         "--yes",
         "shadcn@latest",
         "add",
-        "https://r.assistant-ui.com/thread.json",
+        "https://r.assistant-ui.com/base/thread.json",
         "--yes",
         "--cwd",
         "/repo",
@@ -56,8 +56,8 @@ describe("createAddComponentsPlan", () => {
         "dlx",
         "shadcn@latest",
         "add",
-        "https://r.assistant-ui.com/thread.json",
-        "https://r.assistant-ui.com/markdown-text.json",
+        "https://r.assistant-ui.com/base/thread.json",
+        "https://r.assistant-ui.com/base/markdown-text.json",
         "--overwrite",
         "--cwd",
         "/repo",
@@ -75,7 +75,11 @@ describe("createAddComponentsPlan", () => {
       }),
     ).toEqual({
       command: "bunx",
-      args: ["shadcn@latest", "add", "https://r.assistant-ui.com/thread.json"],
+      args: [
+        "shadcn@latest",
+        "add",
+        "https://r.assistant-ui.com/base/thread.json",
+      ],
     });
   });
 

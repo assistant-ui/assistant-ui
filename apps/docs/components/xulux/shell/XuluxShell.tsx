@@ -71,6 +71,7 @@ type CanvasState = {
 };
 type PromptStart = {
   source: "typed_prompt" | "suggestion";
+  suggestionId?: string;
   suggestionGroup?: string;
   suggestionLabel?: string;
 };
@@ -148,11 +149,21 @@ export function XuluxShell({
       setCanvas({ status: "empty", url: null, source: null, error: null });
       setViewMode("chat");
       setTemplatesOpen(false);
-      askAI(prompt);
+      aui.thread().append({
+        role: "user",
+        content: [{ type: "text", text: prompt }],
+        ...(start.suggestionId
+          ? {
+              runConfig: {
+                custom: { xuluxSuggestionId: start.suggestionId },
+              },
+            }
+          : {}),
+      });
     },
     [
       analyticsCtx,
-      askAI,
+      aui,
       currentRemoteId,
       onSetActivePreviewContext,
       onSetSelectedTemplateContext,

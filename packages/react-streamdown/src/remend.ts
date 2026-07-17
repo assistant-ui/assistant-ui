@@ -31,7 +31,7 @@ export function findRemendWindowStart(text: string): number {
   let boundary = 0;
   let pending = -1;
 
-  for (let lineStart = 0; lineStart <= n; ) {
+  for (let lineStart = 0; lineStart <= n;) {
     let lineEnd = text.indexOf("\n", lineStart);
     if (lineEnd === -1) lineEnd = n;
 

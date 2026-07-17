@@ -3,7 +3,10 @@ import type { ToolCallStreamController } from "../../modules/tool-call";
 import type { TextStreamController } from "../../modules/text";
 import { AssistantTransformStream } from "../../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
-import { LineDecoderStream } from "../../utils/stream/LineDecoderStream";
+import {
+  SSEEventDecoderStream,
+  type PipelineSSEEvent,
+} from "../../utils/stream/SSEEventDecoderStream";
 import type {
   UIMessageStreamChunk,
   UIMessageStreamDataChunk,
@@ -20,72 +23,6 @@ export type UIMessageStreamDecoderOptions = {
     transient?: boolean;
   }) => void;
 };
-
-type SSEEvent = {
-  event: string;
-  data: string;
-  id?: string | undefined;
-  retry?: number | undefined;
-};
-
-class SSEEventStream extends TransformStream<string, SSEEvent> {
-  constructor() {
-    let eventBuffer: Partial<SSEEvent> = {};
-    let dataLines: string[] = [];
-
-    super({
-      start() {
-        eventBuffer = {};
-        dataLines = [];
-      },
-      transform(line, controller) {
-        if (line.startsWith(":")) return;
-
-        if (line === "") {
-          if (dataLines.length > 0) {
-            controller.enqueue({
-              event: eventBuffer.event || "message",
-              data: dataLines.join("\n"),
-              id: eventBuffer.id,
-              retry: eventBuffer.retry,
-            });
-          }
-          eventBuffer = {};
-          dataLines = [];
-          return;
-        }
-
-        const [field, ...rest] = line.split(":");
-        const value = rest.join(":").trimStart();
-
-        switch (field) {
-          case "event":
-            eventBuffer.event = value;
-            break;
-          case "data":
-            dataLines.push(value);
-            break;
-          case "id":
-            eventBuffer.id = value;
-            break;
-          case "retry":
-            eventBuffer.retry = Number(value);
-            break;
-        }
-      },
-      flush(controller) {
-        if (dataLines.length > 0) {
-          controller.enqueue({
-            event: eventBuffer.event || "message",
-            data: dataLines.join("\n"),
-            id: eventBuffer.id,
-            retry: eventBuffer.retry,
-          });
-        }
-      },
-    });
-  }
-}
 
 const isDataChunk = (
   chunk: UIMessageStreamChunk,
@@ -271,10 +208,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
 
       return readable
         .pipeThrough(new TextDecoderStream())
-        .pipeThrough(new LineDecoderStream())
-        .pipeThrough(new SSEEventStream())
+        .pipeThrough(new SSEEventDecoderStream())
         .pipeThrough(
-          new TransformStream<SSEEvent, UIMessageStreamChunk>({
+          new TransformStream<PipelineSSEEvent, UIMessageStreamChunk>({
             transform(event, controller) {
               if (event.event !== "message") {
                 throw new Error(`Unknown SSE event type: ${event.event}`);

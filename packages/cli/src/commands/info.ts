@@ -89,10 +89,10 @@ function getInstalledVersion(pkg: string, cwd: string): string | null {
   return null;
 }
 
-function findWorkspaceRoot(cwd: string): string | null {
-  let dir = path.dirname(cwd);
+export function findWorkspaceRoot(cwd: string): string | null {
+  let dir = cwd;
   const root = path.parse(dir).root;
-  while (dir !== root) {
+  while (true) {
     if (fs.existsSync(path.join(dir, "pnpm-workspace.yaml"))) return dir;
     const pkgPath = path.join(dir, "package.json");
     if (fs.existsSync(pkgPath)) {
@@ -103,9 +103,9 @@ function findWorkspaceRoot(cwd: string): string | null {
         // ignore
       }
     }
+    if (dir === root) return null;
     dir = path.dirname(dir);
   }
-  return null;
 }
 
 function readProjectDeps(
@@ -197,6 +197,19 @@ function getOsInfo(): string {
   }
 }
 
+function getCliVersion(): string {
+  try {
+    const packageJson = JSON.parse(
+      fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+    ) as { version?: unknown };
+    return typeof packageJson.version === "string"
+      ? packageJson.version
+      : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 async function getPackageManagerInfo(
   cwd: string,
 ): Promise<{ name: string; version: string }> {
@@ -230,6 +243,7 @@ interface PackageInfo {
 }
 
 interface InfoData {
+  cliVersion: string;
   os: string;
   node: string;
   pm: { name: string; version: string };
@@ -317,6 +331,7 @@ async function collectInfo(
   const warnings = collectWarnings(packages, cwd, projectPkg);
 
   return {
+    cliVersion: getCliVersion(),
     os: getOsInfo(),
     node: process.version,
     pm,
@@ -344,6 +359,7 @@ function renderPlain(data: InfoData): string[] {
   const lines: string[] = [];
 
   lines.push("Environment:");
+  lines.push(`  assistant-ui CLI: ${data.cliVersion}`);
   lines.push(`  OS:               ${data.os}`);
   lines.push(`  Node.js:          ${data.node}`);
   lines.push(`  Package Manager:  ${data.pm.name} ${data.pm.version}`);
@@ -370,6 +386,7 @@ function renderColored(data: InfoData): string[] {
   const lines: string[] = [];
 
   lines.push(chalk.bold("Environment:"));
+  lines.push(`  assistant-ui CLI: ${data.cliVersion}`);
   lines.push(`  OS:               ${data.os}`);
   lines.push(`  Node.js:          ${data.node}`);
   lines.push(`  Package Manager:  ${data.pm.name} ${data.pm.version}`);

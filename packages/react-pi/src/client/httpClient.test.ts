@@ -220,7 +220,7 @@ describe("createPiHttpClient", () => {
             controller.close();
           },
         }),
-        { status: 200 },
+        { status: 200, headers: { "content-type": "text/event-stream" } },
       );
     }) as unknown as typeof fetch;
 

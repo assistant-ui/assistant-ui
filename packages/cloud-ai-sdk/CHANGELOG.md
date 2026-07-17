@@ -1,5 +1,24 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.25
+
+### Patch Changes
+
+- [#4654](https://github.com/assistant-ui/assistant-ui/pull/4654) [`c980086`](https://github.com/assistant-ui/assistant-ui/commit/c98008682d993d03cfb20d5daef6fbaa0f3b4e10) - feat: widen AI SDK peer range to allow v7 alongside v6 (ai@^6 || ^7, @ai-sdk/react@^3 || ^4) ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4921](https://github.com/assistant-ui/assistant-ui/pull/4921) [`5d888e7`](https://github.com/assistant-ui/assistant-ui/commit/5d888e7971c902dc39ff43a8b0badd14d0008241) - fix: preserve mounted state and ignore superseded thread refreshes when Strict Mode replays effects ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4887](https://github.com/assistant-ui/assistant-ui/pull/4887) [`d03e5cf`](https://github.com/assistant-ui/assistant-ui/commit/d03e5cf0e6efada832503fedc565a1fb8f14676a) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4887](https://github.com/assistant-ui/assistant-ui/pull/4887) [`d03e5cf`](https://github.com/assistant-ui/assistant-ui/commit/d03e5cf0e6efada832503fedc565a1fb8f14676a) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`0ea628f`](https://github.com/assistant-ui/assistant-ui/commit/0ea628fedba37d2e95195e250c60129d43af213c), [`7cf5acc`](https://github.com/assistant-ui/assistant-ui/commit/7cf5acc8ae31bc01102d170b854aaaf7c260eff9), [`7a85307`](https://github.com/assistant-ui/assistant-ui/commit/7a85307390287a341618ac58b8967395df38a56b), [`e4da8c5`](https://github.com/assistant-ui/assistant-ui/commit/e4da8c57e259e7276570ff05ea605e59321b1a3f), [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98), [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac)]:
+  - assistant-cloud@0.1.35
+
 ## 0.1.24
 
 ### Patch Changes

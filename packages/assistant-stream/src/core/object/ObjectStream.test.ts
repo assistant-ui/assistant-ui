@@ -50,6 +50,50 @@ async function encodeAndDecode(
 }
 
 describe("ObjectStream serialization and deserialization", () => {
+  it("does not settle the stream after cancellation", async () => {
+    let finishExecution!: () => void;
+    let abortSignal!: AbortSignal;
+    const execution = new Promise<void>((resolve) => {
+      finishExecution = resolve;
+    });
+    const stream = createObjectStream({
+      execute: (controller) => {
+        abortSignal = controller.abortSignal;
+        return execution;
+      },
+    });
+    const reader = stream.getReader();
+
+    await reader.cancel("consumer stopped");
+
+    expect(abortSignal.aborted).toBe(true);
+    expect(abortSignal.reason).toBe("consumer stopped");
+
+    finishExecution();
+    await execution;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+
+  it("should discard an unterminated SSE event", async () => {
+    const operations: ObjectStreamChunk["operations"] = [
+      { type: "set", path: ["status"], value: "complete" },
+    ];
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(`data: ${JSON.stringify(operations)}\n`),
+        );
+        controller.close();
+      },
+    });
+
+    const chunks = await collectChunks(
+      stream.pipeThrough(new ObjectStreamDecoder()),
+    );
+
+    expect(chunks).toEqual([]);
+  });
+
   it("should correctly serialize and deserialize simple objects", async () => {
     // Create an object stream with simple operations
     const stream = createObjectStream({

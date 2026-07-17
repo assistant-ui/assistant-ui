@@ -86,10 +86,7 @@ env:
   # - mcp__github_inline_comment__create_inline_comment: Create inline code comments
   # - Bash(gh ...): Read-only GitHub CLI commands for PR/issue info
   # Note: gh pr comment is NOT allowed - Claude must use update_claude_comment only
-  # Temporarily on Opus 4.8 while Fable usage credits are exhausted; swap back to
-  # `--model fable` when access returns. The Fable-specific machinery below
-  # (Opus-fallback flagging) stays in place for that switch-back.
-  CLAUDE_ARGS: '--model claude-opus-4-8 --effort high --allowedTools "Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+  CLAUDE_ARGS: '--model fable --effort high --allowedTools "Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
 
 jobs:
   claude-review:

@@ -620,7 +620,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   get queue(): readonly QueueItemState[];
   steerQueueItem(_queueItemId: string): void;
   removeQueueItem(_queueItemId: string): void;
-  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void;
+  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void | Promise<void>;
   protected abstract handleCancel(): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   private _safeEmitAttachmentAddError;
@@ -868,6 +868,8 @@ type ComposerAddAttachmentProps = Omit<PressableProps, "onPress"> & {
 
 declare const ComposerAttachmentByIndex: import("react").FC<ComposerPrimitiveAttachmentByIndex.Props>;
 
+type ComposerAttachmentByIndexProps = ComposerPrimitiveAttachmentByIndex.Props;
+
 declare const ComposerAttachmentByIndexProvider: FC<PropsWithChildren<{
   index: number;
 }>>;
@@ -886,6 +888,8 @@ type ComposerAttachmentsComponentConfig = {
   File?: ComponentType | undefined;
   Attachment?: ComponentType | undefined;
 };
+
+type ComposerAttachmentsProps = ComposerPrimitiveAttachments.Props;
 
 declare const ComposerCancel: (_param14: ComposerCancelProps) => import("react").JSX.Element;
 
@@ -1618,6 +1622,8 @@ type McpToolkitToolConfig = {
 
 declare const MessageAttachmentByIndex: import("react").FC<MessagePrimitiveAttachmentByIndex.Props>;
 
+type MessageAttachmentByIndexProps = MessagePrimitiveAttachmentByIndex.Props;
+
 declare const MessageAttachmentByIndexProvider: FC<PropsWithChildren<{
   index: number;
 }>>;
@@ -1639,6 +1645,8 @@ type MessageAttachmentsComponentConfig = {
   File?: ComponentType | undefined;
   Attachment?: ComponentType | undefined;
 };
+
+type MessageAttachmentsProps = MessagePrimitiveAttachments.Props;
 
 declare const MessageByIndexProvider: FC<PropsWithChildren<{
   index: number;
@@ -3932,7 +3940,7 @@ declare namespace chainOfThought_d_exports {
 }
 
 declare namespace composer_d_exports {
-  export { ComposerAddAttachment as AddAttachment, ComposerAddAttachmentProps as AddAttachmentProps, ComposerAttachmentByIndex as AttachmentByIndex, ComposerAttachments as Attachments, ComposerCancel as Cancel, ComposerCancelProps as CancelProps, ComposerPrimitiveIf as If, ComposerInput as Input, ComposerInputProps as InputProps, ComposerRoot as Root, ComposerRootProps as RootProps, ComposerSend as Send, ComposerSendProps as SendProps };
+  export { ComposerAddAttachment as AddAttachment, ComposerAddAttachmentProps as AddAttachmentProps, ComposerAttachmentByIndex as AttachmentByIndex, ComposerAttachmentByIndexProps as AttachmentByIndexProps, ComposerAttachments as Attachments, ComposerAttachmentsProps as AttachmentsProps, ComposerCancel as Cancel, ComposerCancelProps as CancelProps, ComposerPrimitiveIf as If, ComposerInput as Input, ComposerInputProps as InputProps, ComposerRoot as Root, ComposerRootProps as RootProps, ComposerSend as Send, ComposerSendProps as SendProps };
 }
 
 declare function createVoiceSession(options: {
@@ -3999,7 +4007,7 @@ declare const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<T
 declare const mergeModelContexts: (configSet: Set<ModelContextProvider>) => ModelContext$1;
 
 declare namespace message_d_exports {
-  export { MessageAttachmentByIndex as AttachmentByIndex, MessageAttachments as Attachments, MessageContent as Content, MessageContentProps as ContentProps, MessagePrimitiveGroupedParts as GroupedParts, MessageIf as If, MessageIfProps as IfProps, MessagePrimitivePartByIndex as PartByIndex, MessagePrimitiveParts as Parts, MessageRoot as Root, MessageRootProps as RootProps };
+  export { MessageAttachmentByIndex as AttachmentByIndex, MessageAttachmentByIndexProps as AttachmentByIndexProps, MessageAttachments as Attachments, MessageAttachmentsProps as AttachmentsProps, MessageContent as Content, MessageContentProps as ContentProps, MessagePrimitiveGroupedParts as GroupedParts, MessageIf as If, MessageIfProps as IfProps, MessagePrimitivePartByIndex as PartByIndex, MessagePrimitiveParts as Parts, MessageRoot as Root, MessageRootProps as RootProps };
 }
 
 declare function providerTool(_config: ProviderToolConfig): never;

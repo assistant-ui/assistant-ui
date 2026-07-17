@@ -1,0 +1,181 @@
+---
+title: Agent state
+description: Read and optimistically update graph state with useLangGraphState and useLangGraphSetState in LangGraph.
+---
+
+`useLangGraphState` mirrors the graph's values object that LangGraph streams to the client. It updates live while the agent runs (when the `values` stream mode is enabled). `useLangGraphSetState` lets you apply optimistic local updates that ride the next send.
+
+## Enable the `values` stream mode
+
+<Callout type="warn">
+The default stream setup does **not** include the `values` stream mode. Without it, `useLangGraphState` never receives live graph state.
+</Callout>
+
+When you call `client.runs.stream` yourself, request `values` alongside the modes you already use:
+
+```ts
+client.runs.stream(threadId, assistantId, {
+  input,
+  streamMode: ["messages", "updates", "custom", "values"],
+});
+```
+
+If you use `unstable_createLangGraphStream`, its default stream modes do **not** include `values` either. Pass the option explicitly:
+
+```ts
+const stream = unstable_createLangGraphStream({
+  client,
+  assistantId: ASSISTANT_ID,
+  streamMode: ["messages", "updates", "custom", "values"],
+});
+```
+
+## Basic usage
+
+```tsx
+import {
+  useLangGraphState,
+  useLangGraphSetState,
+} from "@assistant-ui/react-langgraph";
+import { useAuiState } from "@assistant-ui/react";
+
+type GraphState = {
+  messages: unknown[];
+  filters: { region: string; maxResults: number };
+};
+
+const state = useLangGraphState<GraphState>();
+// state: GraphState | undefined  (latest agent state; updates live while the agent runs)
+
+const setState = useLangGraphSetState<GraphState>();
+// setState(next | (prev) => next)   (optimistic local update; sent with the NEXT run)
+
+const isRunning = useAuiState((s) => s.thread.isRunning);
+// isRunning: boolean                (whether the thread is currently running)
+```
+
+## Example
+
+Render graph state beside the chat and stage an optimistic filter update:
+
+```tsx
+"use client";
+
+import {
+  useLangGraphState,
+  useLangGraphSetState,
+} from "@assistant-ui/react-langgraph";
+import { useAuiState } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
+
+type GraphState = {
+  filters: { region: string; maxResults: number };
+  lastQuery?: string;
+};
+
+export function CatalogAssistant() {
+  const state = useLangGraphState<GraphState>();
+  const setState = useLangGraphSetState<GraphState>();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  return (
+    <div className="flex h-full">
+      <aside className="w-72 border-r p-4">
+        <h2>Graph state</h2>
+        {state ? (
+          <ul>
+            <li>Region: {state.filters.region}</li>
+            <li>Max results: {state.filters.maxResults}</li>
+            {state.lastQuery && <li>Last query: {state.lastQuery}</li>}
+          </ul>
+        ) : (
+          <p>No graph state yet. Ensure streamMode includes "values".</p>
+        )}
+        <button
+          type="button"
+          disabled={isRunning}
+          onClick={() =>
+            setState((prev) => ({
+              ...prev,
+              filters: {
+                region: "eu",
+                maxResults: prev?.filters.maxResults ?? 10,
+              },
+            }))
+          }
+        >
+          Prefer EU region
+        </button>
+        {isRunning && <p>Agent is running…</p>}
+      </aside>
+      <main className="flex-1">
+        <Thread />
+      </main>
+    </div>
+  );
+}
+```
+
+The panel tracks the latest `values` events from the graph. The button updates the local overlay immediately; that update object is merged into the run `input` on the next send so LangGraph applies it through the graph's state reducers and input schema.
+
+## How state is synced
+
+LangGraph state is the graph's values object. When `streamMode` includes `"values"`, each `values` event updates the client-side snapshot that `useLangGraphState` exposes.
+
+The setter from `useLangGraphSetState` overlays that snapshot locally. On the next send, the runtime merges the update object into the run `input`, so LangGraph reduces it through the graph's state reducers and input schema.
+
+If you supply a custom `stream` callback, the staged update is available as `config.state`. Forward it into your run input yourself:
+
+```ts
+const runtime = useLangGraphRuntime({
+  stream: async (messages, { initialize, ...config }) => {
+    const { externalId } = await initialize();
+    if (!externalId) throw new Error("Thread not found");
+
+    const client = createClient();
+    return client.runs.stream(externalId, ASSISTANT_ID, {
+      input: {
+        ...(config.state ?? {}),
+        messages,
+      },
+      streamMode: ["messages", "updates", "custom", "values"],
+    });
+  },
+});
+```
+
+The built-in path that uses the package helpers performs this merge for you. Custom `stream` callbacks must do it explicitly.
+
+## Write-back timing
+
+`useLangGraphSetState` is optimistic and local first. The value reaches the agent only when the next run starts. It is not a live channel into a run that is already in progress. Stage filters, preferences, or other graph fields that the next turn should apply through reducers; do not expect an in-flight run to observe mid-run setter calls.
+
+## Relationship to other state
+
+Keep the three state layers distinct:
+
+- **Your app state** stays yours (React state, URL, a store). assistant-ui does not own it.
+- **`useAuiState`** reads assistant-ui's client state (messages, composer, thread status).
+- **`useLangGraphState` / `useLangGraphSetState`** mirror state the **agent** (your LangGraph graph) owns, synced over the wire via `values` events.
+
+Use `useLangGraphState` and `useLangGraphSetState` for fields that live in the graph state schema. Use `useAuiState` for UI that depends on the chat thread itself. Use your own state for everything else.
+
+## Next
+
+<Cards>
+  <Card
+    title="Streaming"
+    description="Event handlers, message metadata, generative UI."
+    href="/docs/runtimes/langgraph/streaming"
+  />
+  <Card
+    title="Quickstart"
+    description="From-template and manual setup paths."
+    href="/docs/runtimes/langgraph/quickstart"
+  />
+  <Card
+    title="Generative UI"
+    description="Structured UI components emitted by your graph."
+    href="/docs/runtimes/langgraph/generative-ui"
+  />
+</Cards>

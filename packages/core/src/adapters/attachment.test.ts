@@ -78,6 +78,20 @@ describe("getFileDataURL", () => {
 });
 
 describe("SimpleImageAttachmentAdapter", () => {
+  it("assigns unique IDs to files with the same name", async () => {
+    const adapter = new SimpleImageAttachmentAdapter();
+    const first = await adapter.add({
+      file: new File(["first"], "image.png", { type: "image/png" }),
+    });
+    const second = await adapter.add({
+      file: new File(["second"], "image.png", { type: "image/png" }),
+    });
+
+    expect(first.id).not.toBe(second.id);
+    expect(first.name).toBe("image.png");
+    expect(second.name).toBe("image.png");
+  });
+
   it("sends an image as a data URL", async () => {
     globalThis.FileReader = undefined as unknown as typeof FileReader;
 

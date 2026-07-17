@@ -1,8 +1,25 @@
-import fs from "node:fs";
+import fs, { type PathLike } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { info, satisfiesRange } from "../../src/commands/info";
+import {
+  findWorkspaceRoot,
+  info,
+  satisfiesRange,
+} from "../../src/commands/info";
+
+const existsSyncOverride = vi.hoisted(() =>
+  vi.fn<(candidate: PathLike) => boolean | undefined>(),
+);
+
+vi.mock("node:fs", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...original,
+    existsSync: (candidate: PathLike) =>
+      existsSyncOverride(candidate) ?? original.existsSync(candidate),
+  };
+});
 
 function writePackage(
   root: string,
@@ -54,10 +71,80 @@ describe("satisfiesRange", () => {
   );
 });
 
+describe("findWorkspaceRoot", () => {
+  it("detects a pnpm workspace from the workspace root", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-workspace-"));
+
+    try {
+      fs.writeFileSync(path.join(root, "pnpm-workspace.yaml"), "packages: []");
+
+      expect(findWorkspaceRoot(root)).toBe(root);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("detects package.json workspaces from the workspace root", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-workspace-"));
+
+    try {
+      fs.writeFileSync(
+        path.join(root, "package.json"),
+        JSON.stringify({ workspaces: ["apps/*"] }),
+      );
+
+      expect(findWorkspaceRoot(root)).toBe(root);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("finds the workspace root from a nested project", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-workspace-"));
+    const project = path.join(root, "apps", "chat");
+
+    try {
+      fs.mkdirSync(project, { recursive: true });
+      fs.writeFileSync(path.join(root, "pnpm-workspace.yaml"), "packages: []");
+
+      expect(findWorkspaceRoot(project)).toBe(root);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns null outside a workspace", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-project-"));
+
+    try {
+      expect(findWorkspaceRoot(root)).toBeNull();
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("checks the filesystem root for workspace markers", () => {
+    const root = path.parse(process.cwd()).root;
+    const workspaceFile = path.join(root, "pnpm-workspace.yaml");
+    existsSyncOverride.mockImplementation((candidate) =>
+      candidate === workspaceFile ? true : undefined,
+    );
+
+    try {
+      expect(findWorkspaceRoot(root)).toBe(root);
+    } finally {
+      existsSyncOverride.mockReset();
+    }
+  });
+});
+
 describe("info command", () => {
   it("includes declared assistant-ui integrations and their peer warnings", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-"));
     const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    const cliPackageJson = JSON.parse(
+      fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+    ) as { version: string };
 
     try {
       fs.writeFileSync(
@@ -89,6 +176,7 @@ describe("info command", () => {
       });
 
       const output = consoleLog.mock.calls.flat().join("\n");
+      expect(output).toContain(`assistant-ui CLI: ${cliPackageJson.version}`);
       expect(output).toContain("@assistant-ui/react-mcp");
       expect(output).toContain("@assistant-ui/react-generative-ui");
       expect(output).toContain("assistant-stream");

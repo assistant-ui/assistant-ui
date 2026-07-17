@@ -94,9 +94,15 @@ describe("resolveRegistryItemUrl", () => {
     );
   });
 
-  it("uses the plain URL without a style", () => {
+  it("uses the base URL without a style", () => {
     expect(resolveRegistryItemUrl("thread")).toBe(
-      "https://r.assistant-ui.com/thread.json",
+      "https://r.assistant-ui.com/base/thread.json",
+    );
+  });
+
+  it("uses the base URL for an explicit undefined style", () => {
+    expect(resolveRegistryItemUrl("thread", undefined)).toBe(
+      "https://r.assistant-ui.com/base/thread.json",
     );
   });
 

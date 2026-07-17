@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/x-generative-compiler",
   "private": false,
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Internal: the framework-agnostic \"use generative\" compiler that splits a colocated tool (schema + server-only execute + client-only render) into per-target builds. Shared by @assistant-ui/next and @assistant-ui/vite.",
   "keywords": [
     "assistant-ui",
@@ -35,9 +35,9 @@
   },
   "dependencies": {
     "@babel/generator": "^8.0.0",
-    "@babel/parser": "^8.0.0",
-    "@babel/traverse": "^8.0.0",
-    "@babel/types": "^8.0.0",
+    "@babel/parser": "^8.0.4",
+    "@babel/traverse": "^8.0.4",
+    "@babel/types": "^8.0.4",
     "semver": "^7.8.5"
   },
   "devDependencies": {

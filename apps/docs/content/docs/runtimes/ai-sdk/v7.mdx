@@ -3,7 +3,7 @@ title: AI SDK v7
 description: Integrate Vercel AI SDK v7 with assistant-ui for streaming chat.
 ---
 
-Current-version integration. Requires `ai@^7` and `@ai-sdk/react@^4`. For older versions see the [overview](/docs/runtimes/ai-sdk).
+Current-version integration. Requires `ai@^7` and `@ai-sdk/react@^4`. For older versions see the [overview](/docs/runtimes/ai-sdk/overview).
 
 ## Quickstart
 
@@ -595,6 +595,56 @@ const runtime = useChatRuntime({
 
 If you need a transport that does not inherit from `AssistantChatTransport`, you forfeit automatic system-message and frontend-tool forwarding; the transport is then a regular AI SDK `ChatTransport` and you control everything explicitly.
 
+## Runtime options
+
+Beyond transports and adapters, `useChatRuntime` accepts options that control thread routing, message grouping, and run resumption.
+
+### onThreadIdChange
+
+Called whenever the active thread's settled ID changes, e.g. to sync the active thread to a URL query param:
+
+```tsx
+const runtime = useChatRuntime({
+  onThreadIdChange: (threadId) => {
+    const url = new URL(window.location.href);
+    if (threadId) {
+      url.searchParams.set("thread", threadId);
+    } else {
+      url.searchParams.delete("thread");
+    }
+    window.history.replaceState(null, "", url);
+  },
+});
+```
+
+Only the settled ID is emitted: while a freshly created thread has not been initialized yet, the value is `undefined`, and the real ID is emitted once the thread initializes (with [AssistantCloud](/docs/cloud/ai-sdk-assistant-ui), this is the cloud thread ID). The transient local ID is never surfaced.
+
+### joinStrategy
+
+Controls how consecutive assistant messages are rendered:
+
+```tsx
+const runtime = useChatRuntime({
+  joinStrategy: "none",
+});
+```
+
+`"concat-content"` (the default) merges consecutive assistant messages into a single thread message. `"none"` keeps each assistant message as its own thread message, which is useful when a backend persists proactive or consecutive assistant messages as separate entries. See the [external store guide](/docs/runtimes/custom/external-store#useexternalmessageconverter-with-join-strategy) for the underlying join semantics.
+
+### onResume
+
+Called when `runtime.thread.resumeRun(config)` is invoked. Provide it to bridge resume invocations into a custom replay channel, for example an SSE reconnect endpoint keyed by turn id:
+
+```tsx
+const runtime = useChatRuntime({
+  onResume: async (config) => {
+    await reconnectToRun(config.runConfig);
+  },
+});
+```
+
+When omitted, `resumeRun` throws `"Runtime does not support resuming runs."`. For streams that should survive a page reload without a custom channel, use the built-in transport-level path instead: see [Resumable streams](/docs/guides/resumable-streams), which reconnects automatically on mount and reports failures via `onResumeError`.
+
 ## Advanced: useAISDKRuntime
 
 When you need direct access to the `useChat` instance (e.g. to share it with non-assistant-ui code), drop down to `useAISDKRuntime`:
@@ -608,6 +658,16 @@ const runtime = useAISDKRuntime(chat);
 ```
 
 `useAISDKRuntime` does not provide `cloud` or the higher-level adapter slots; those are part of `useChatRuntime`. If you need both your own `useChat` access AND cloud thread support, you generally want `useChatRuntime` and to read the chat state through assistant-ui hooks instead.
+
+`useAISDKRuntime` accepts `joinStrategy` and `onResume` (see [Runtime options](#runtime-options)) plus one option of its own, `cancelPendingToolCallsOnSend`:
+
+```tsx
+const runtime = useAISDKRuntime(chat, {
+  cancelPendingToolCallsOnSend: false,
+});
+```
+
+When enabled (the default), sending a new message marks any pending interactive tool calls as failed with an error indicating the user cancelled them. Set it to `false` to leave pending tool calls untouched when the user sends a new message.
 
 ## Adapter support
 

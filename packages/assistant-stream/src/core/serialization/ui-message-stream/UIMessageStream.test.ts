@@ -541,6 +541,21 @@ describe("UIMessageStreamDecoder", () => {
     );
   });
 
+  it("should discard an unterminated [DONE] event", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("data: [DONE]\n"));
+        controller.close();
+      },
+    });
+
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+
+    await expect(collectChunks(decodedStream)).rejects.toThrow(
+      "Stream ended abruptly without receiving [DONE] marker",
+    );
+  });
+
   it("should ignore unknown chunk types for forward compatibility", async () => {
     const events = [
       JSON.stringify({ type: "start", messageId: "msg_123" }),

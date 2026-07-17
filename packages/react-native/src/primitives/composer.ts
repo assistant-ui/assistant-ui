@@ -4,7 +4,9 @@ export {
 } from "./composer/ComposerRoot";
 export {
   ComposerAttachments as Attachments,
+  type ComposerAttachmentsProps as AttachmentsProps,
   ComposerAttachmentByIndex as AttachmentByIndex,
+  type ComposerAttachmentByIndexProps as AttachmentByIndexProps,
 } from "./composer/ComposerAttachments";
 export {
   ComposerInput as Input,

@@ -231,6 +231,33 @@ describe("createAdkStream - proxy mode", () => {
 // ── Direct mode ──
 
 describe("createAdkStream - direct mode", () => {
+  it("rejects direct mode with an empty appName", () => {
+    expect(() =>
+      createAdkStream({
+        api: "http://localhost:8000",
+        appName: "",
+        userId: "user-1",
+      }),
+    ).toThrow('createAdkStream direct mode requires a non-empty "appName".');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["empty", ""],
+  ])("rejects direct mode with a %s userId", (_label, userId) => {
+    expect(() =>
+      createAdkStream({
+        api: "http://localhost:8000",
+        appName: "my-app",
+        userId,
+      }),
+    ).toThrow(
+      'createAdkStream direct mode requires "userId" when "appName" is provided.',
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("POSTs to /run_sse with ADK-native body", async () => {
     mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
 
@@ -260,6 +287,30 @@ describe("createAdkStream - direct mode", () => {
       parts: [{ text: "Hello" }],
     });
   });
+
+  it.each(["http://localhost:8000/", "http://localhost:8000//"])(
+    "normalizes trailing slashes in the api URL: %s",
+    async (api) => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(sseBody(""), { status: 200 }),
+      );
+
+      const stream = createAdkStream({
+        api,
+        appName: "my-app",
+        userId: "user-1",
+      });
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hello" }],
+        makeConfig(),
+      );
+      for await (const _ of gen) {
+        /* noop */
+      }
+
+      expect(mockFetch.mock.calls[0]![0]).toBe("http://localhost:8000/run_sse");
+    },
+  );
 
   it("calls config.initialize() to get the sessionId", async () => {
     const initialize = vi

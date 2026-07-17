@@ -186,6 +186,21 @@ describe("AssistantTransportDecoder", () => {
     });
   });
 
+  it("should discard an unterminated [DONE] event", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("data: [DONE]\n"));
+        controller.close();
+      },
+    });
+
+    const decodedStream = stream.pipeThrough(new AssistantTransportDecoder());
+
+    await expect(collectChunks(decodedStream)).rejects.toThrow(
+      "Stream ended abruptly without receiving [DONE] marker",
+    );
+  });
+
   it("should throw error when stream ends without [DONE]", async () => {
     // Manually create an SSE stream without [DONE]
     const sseText =

@@ -1,5 +1,6 @@
 import { SSEEventDecoder } from "assistant-stream/utils";
 import { contentToParts } from "./contentToParts";
+import { trimTrailingSlashes } from "./trimTrailingSlashes";
 import type {
   AdkEvent,
   AdkEventPart,
@@ -59,7 +60,18 @@ export type CreateAdkStreamOptions = {
 export function createAdkStream(
   options: CreateAdkStreamOptions,
 ): AdkStreamCallback {
+  if (options.appName === "") {
+    throw new Error(
+      'createAdkStream direct mode requires a non-empty "appName".',
+    );
+  }
+
   const isDirect = options.appName != null;
+  if (isDirect && (options.userId == null || options.userId === "")) {
+    throw new Error(
+      'createAdkStream direct mode requires "userId" when "appName" is provided.',
+    );
+  }
 
   return async function* (messages, config) {
     const headers = await resolveHeaders(options.headers);
@@ -69,7 +81,7 @@ export function createAdkStream(
 
     if (isDirect) {
       // Direct mode: POST to ADK server's /run_sse
-      url = `${options.api}/run_sse`;
+      url = `${trimTrailingSlashes(options.api)}/run_sse`;
       const { externalId } = await config.initialize();
       body = {
         appName: options.appName,
