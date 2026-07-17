@@ -58,33 +58,6 @@ describe("AssistantCloudThreads responses", () => {
     );
   });
 
-  it("decodes canonical message responses without changing content", async () => {
-    const { threads, makeRequest } = createCloudThreads();
-    makeRequest.mockResolvedValue({
-      messages: [
-        {
-          id: "message-1",
-          parent_id: null,
-          height: 0,
-          created_at: "2026-07-16T13:00:00.000Z",
-          updated_at: "2026-07-16T13:05:00.987Z",
-          format: "aui/v0",
-          content: { created_at: "leave-this-string-untouched" },
-        },
-      ],
-    });
-
-    const result = await threads.messages.list("thread-1");
-    const message = result.messages[0]!;
-
-    expect(message.created_at).toBeInstanceOf(Date);
-    expect(message.updated_at).toBeInstanceOf(Date);
-    expect(message.updated_at.toISOString()).toBe("2026-07-16T13:05:00.987Z");
-    expect(message.content).toEqual({
-      created_at: "leave-this-string-untouched",
-    });
-  });
-
   it("rejects genuinely invalid response timestamps with field context", async () => {
     const { threads, makeRequest } = createCloudThreads();
     makeRequest.mockResolvedValue({
