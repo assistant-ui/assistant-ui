@@ -596,20 +596,19 @@ function ModelSelectorEffort({
         // focus (orientation "both", not configurable), so intercept them in
         // capture and hand the keypress to cmdk: the model list owns vertical
         // navigation, and cmdk's Enter is inert while a radio has focus.
+        onKeyDown?.(e);
+        if (e.defaultPrevented) return;
         const input = e.currentTarget
           .closest("[cmdk-root]")
           ?.querySelector<HTMLInputElement>("[cmdk-input]");
         if (!input) return;
-        onKeyDown?.(e);
-        if (e.defaultPrevented) return;
         e.preventDefault();
         e.stopPropagation();
         input.focus();
-        input.dispatchEvent(
-          new KeyboardEvent("keydown", { key: e.key, bubbles: true }),
-        );
+        input.dispatchEvent(new KeyboardEvent("keydown", e.nativeEvent));
       }}
       onKeyDown={(e) => {
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") return;
         onKeyDown?.(e);
         if (e.defaultPrevented) return;
         // Base UI's radio composite ignores Home/End and cmdk's Command
