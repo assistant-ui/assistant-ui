@@ -476,18 +476,16 @@ async function installShadcnRegistry(
   const [cmd, dlxArgs] = dlxCommand(pm);
   // For npm, dlxArgs may already include `--yes` for npx auto-install.
   // The trailing `--yes` is for shadcn's own confirmation prompt.
-  const addArgs = [...dlxArgs, "shadcn@latest", "add", ...components, "--yes"];
+  const retryArgs = [...dlxArgs, "shadcn@latest", "add", ...components];
+  const addArgs = [...retryArgs, "--yes"];
 
   try {
     await runSpawn(cmd, addArgs, projectDir);
     return undefined;
   } catch (error) {
     if (error instanceof SpawnExitError) {
-      const retryCommand = `${cmd} ${addArgs.slice(0, -1).join(" ")}`;
-      logger.warn(
-        `shadcn exited with code ${error.code}. Run the following to retry:\n  ${retryCommand}`,
-      );
-      return { retryCommand };
+      logger.warn(`shadcn exited with code ${error.code}.`);
+      return { retryCommand: `${cmd} ${retryArgs.join(" ")}` };
     }
 
     const message = error instanceof Error ? error.message : String(error);
