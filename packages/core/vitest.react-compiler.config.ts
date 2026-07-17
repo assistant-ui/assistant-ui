@@ -20,8 +20,6 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    include: [
-      "src/react/runtimes/**/external-message-converter.react-compiler.test.tsx",
-    ],
+    include: ["src/react/runtimes/**/external-message-converter.test.tsx"],
   },
 });

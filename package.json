@@ -21,7 +21,7 @@
     "format:fix": "pnpm exec oxfmt",
     "sync-templates": "bash scripts/sync-templates.sh",
     "test": "turbo test && pnpm test:react-compiler && pnpm test:types",
-    "test:react-compiler": "turbo build --filter=@assistant-ui/core && pnpm --filter @assistant-ui/core exec vitest run --config vitest.react-compiler.config.ts",
+    "test:react-compiler": "turbo test:react-compiler --filter=@assistant-ui/core",
     "test:types": "pnpm -r --workspace-concurrency=4 --no-bail exec sh -c '! test -f tsconfig.json || tsc --noEmit'",
     "prepare": "husky && pnpm --filter @assistant-ui/react-devtools run build:css",
     "deps:check": "npx taze major -f -r",
