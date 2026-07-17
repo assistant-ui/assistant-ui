@@ -6,7 +6,7 @@
  * testable seam of the node host — exercised with hand-built fakes in
  * `mapping.test.ts`, no live `AgentSession` required.
  *
- * The mirror in `types` is structurally faithful to Pi `0.78` (verified
+ * The mirror in `types` is structurally faithful to Pi `0.78`–`0.80` (verified
  * against the real `.d.ts`), so most of the mapping is an identity cast at the
  * type boundary plus the few places the supervisor must enrich (turn index, live
  * run status, readiness).

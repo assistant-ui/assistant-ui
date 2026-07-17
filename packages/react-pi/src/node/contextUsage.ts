@@ -5,7 +5,7 @@
  * this touches the Pi SDK at runtime (the token-estimation helpers), so it lives
  * in its own node-only module.
  *
- * The logic mirrors the SDK's `getContextUsage()` (pi `0.78`): trust the latest
+ * The logic mirrors the SDK's `getContextUsage()` (pi `0.78`–`0.80`): trust the latest
  * assistant `usage` (real API token counts), estimate only the messages after
  * it, and fall back to `{ tokens: null }` when a compaction boundary has no
  * trustworthy post-compaction usage yet. The one piece this re-implements is

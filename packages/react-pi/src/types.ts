@@ -5,10 +5,11 @@
  * The Pi message/content/event shapes are mirrored here as plain serializable
  * types so they can travel over an arbitrary transport (HTTP/SSE, RPC
  * subprocess, Electron IPC). The shapes are kept structurally faithful to
- * Pi `0.78.0` so the node host (`./node`) can assign real Pi values into them
+ * Pi `0.78`–`0.80` so the node host (`./node`) can assign real Pi values into them
  * without conversion.
  *
- * Provenance (verified against `@earendil-works/pi-coding-agent@0.78.0`):
+ * Provenance (verified against `@earendil-works/pi-coding-agent` 0.78.0,
+ * 0.79.0, 0.79.10, and 0.80.7):
  * - content/message shapes: `@earendil-works/pi-ai/dist/types.d.ts`
  * - custom message roles:    `pi-coding-agent/dist/core/messages.d.ts`
  * - agent/session events:    `pi-agent-core/dist/types.d.ts` (`AgentEvent`),
