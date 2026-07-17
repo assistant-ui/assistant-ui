@@ -7,8 +7,8 @@ import {
   readCloudNullableString,
   readCloudRecord,
   readCloudString,
+  readCloudTimestamp,
 } from "./cloudResponse";
-import { decodeCloudTimestamp } from "./decodeCloudTimestamp";
 
 export type CloudMessage = {
   id: string;
@@ -48,8 +48,8 @@ const decodeCloudMessage = (value: unknown, field: string): CloudMessage => {
     id: readCloudString(message.id, `${field}.id`),
     parent_id: readCloudNullableString(message.parent_id, `${field}.parent_id`),
     height: readCloudInteger(message.height, `${field}.height`),
-    created_at: decodeCloudTimestamp(message.created_at, `${field}.created_at`),
-    updated_at: decodeCloudTimestamp(message.updated_at, `${field}.updated_at`),
+    created_at: readCloudTimestamp(message.created_at, `${field}.created_at`),
+    updated_at: readCloudTimestamp(message.updated_at, `${field}.updated_at`),
     format: readCloudString(message.format, `${field}.format`),
     content: readCloudJSONObject(message.content, `${field}.content`),
   };

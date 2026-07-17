@@ -95,7 +95,7 @@ describe("AssistantCloudThreads responses", () => {
     });
 
     await expect(threads.get("thread-1")).rejects.toThrow(
-      'Invalid Assistant Cloud response timestamp for "thread.updated_at"',
+      'Invalid Assistant Cloud response for "thread.updated_at": expected a canonical ISO timestamp',
     );
   });
 });

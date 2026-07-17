@@ -45,6 +45,20 @@ export const readCloudInteger = (value: unknown, field: string): number => {
   return value as number;
 };
 
+export const readCloudTimestamp = (value: unknown, field: string): Date => {
+  if (typeof value !== "string") {
+    throw invalidCloudResponse(field, "a canonical ISO timestamp");
+  }
+
+  const date = new Date(value);
+  // The round trip pins the backend DTO's Date#toISOString() wire contract.
+  if (Number.isNaN(date.getTime()) || date.toISOString() !== value) {
+    throw invalidCloudResponse(field, "a canonical ISO timestamp");
+  }
+
+  return date;
+};
+
 export const readCloudJSONObject = (
   value: unknown,
   field: string,
