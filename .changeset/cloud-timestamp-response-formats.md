@@ -2,4 +2,4 @@
 "assistant-cloud": patch
 ---
 
-fix: decode canonical Cloud thread and message timestamps as Date objects
+fix: align Cloud thread and message decoding with the canonical API response contract, including response envelopes, nullable titles, and ISO timestamps

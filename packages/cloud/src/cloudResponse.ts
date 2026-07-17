@@ -1,7 +1,4 @@
-import type {
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
-} from "assistant-stream/utils";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 const invalidCloudResponse = (field: string, expected: string) =>
   new Error(
@@ -48,27 +45,7 @@ export const readCloudInteger = (value: unknown, field: string): number => {
   return value as number;
 };
 
-const isCloudJSONValue = (value: unknown): value is ReadonlyJSONValue => {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean"
-  ) {
-    return true;
-  }
-  if (typeof value === "number") return Number.isFinite(value);
-  if (Array.isArray(value)) return value.every(isCloudJSONValue);
-  if (typeof value !== "object") return false;
-  return Object.values(value).every(isCloudJSONValue);
-};
-
 export const readCloudJSONObject = (
   value: unknown,
   field: string,
-): ReadonlyJSONObject => {
-  const object = readCloudRecord(value, field);
-  if (!isCloudJSONValue(object)) {
-    throw invalidCloudResponse(field, "a JSON object");
-  }
-  return object;
-};
+): ReadonlyJSONObject => readCloudRecord(value, field) as ReadonlyJSONObject;

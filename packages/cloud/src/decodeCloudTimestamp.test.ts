@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { normalizeCloudTimestamp } from "./normalizeCloudTimestamp";
+import { decodeCloudTimestamp } from "./decodeCloudTimestamp";
 
-describe("normalizeCloudTimestamp", () => {
+describe("decodeCloudTimestamp", () => {
   it("decodes a canonical Cloud timestamp", () => {
     expect(
-      normalizeCloudTimestamp(
+      decodeCloudTimestamp(
         "2026-07-16T12:15:00.123Z",
         "thread.updated_at",
       ).toISOString(),
@@ -19,7 +19,7 @@ describe("normalizeCloudTimestamp", () => {
     new Date("2026-07-16T12:15:00.123Z"),
     "not-a-timestamp",
   ])("rejects invalid timestamp %s", (value) => {
-    expect(() => normalizeCloudTimestamp(value, "thread.updated_at")).toThrow(
+    expect(() => decodeCloudTimestamp(value, "thread.updated_at")).toThrow(
       'Invalid Assistant Cloud response timestamp for "thread.updated_at"',
     );
   });

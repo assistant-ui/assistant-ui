@@ -7,7 +7,7 @@ import {
   readCloudRecord,
   readCloudString,
 } from "./cloudResponse";
-import { normalizeCloudTimestamp } from "./normalizeCloudTimestamp";
+import { decodeCloudTimestamp } from "./decodeCloudTimestamp";
 
 type AssistantCloudThreadsListQuery = {
   is_archived?: boolean;
@@ -54,7 +54,7 @@ const decodeCloudThread = (value: unknown, field: string): CloudThread => {
   const thread = readCloudRecord(value, field);
   return {
     title: readCloudNullableString(thread.title, `${field}.title`) ?? "",
-    last_message_at: normalizeCloudTimestamp(
+    last_message_at: decodeCloudTimestamp(
       thread.last_message_at,
       `${field}.last_message_at`,
     ),
@@ -65,14 +65,8 @@ const decodeCloudThread = (value: unknown, field: string): CloudThread => {
     ),
     id: readCloudString(thread.id, `${field}.id`),
     project_id: readCloudString(thread.project_id, `${field}.project_id`),
-    created_at: normalizeCloudTimestamp(
-      thread.created_at,
-      `${field}.created_at`,
-    ),
-    updated_at: normalizeCloudTimestamp(
-      thread.updated_at,
-      `${field}.updated_at`,
-    ),
+    created_at: decodeCloudTimestamp(thread.created_at, `${field}.created_at`),
+    updated_at: decodeCloudTimestamp(thread.updated_at, `${field}.updated_at`),
     workspace_id: readCloudString(thread.workspace_id, `${field}.workspace_id`),
     is_archived: readCloudBoolean(thread.is_archived, `${field}.is_archived`),
   };

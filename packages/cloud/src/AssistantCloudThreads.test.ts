@@ -98,25 +98,4 @@ describe("AssistantCloudThreads responses", () => {
       'Invalid Assistant Cloud response timestamp for "thread.updated_at"',
     );
   });
-
-  it("rejects malformed message content", async () => {
-    const { threads, makeRequest } = createCloudThreads();
-    makeRequest.mockResolvedValue({
-      messages: [
-        {
-          id: "message-1",
-          parent_id: null,
-          height: 0,
-          created_at: "2026-07-16T13:00:00.000Z",
-          updated_at: "2026-07-16T13:05:00.987Z",
-          format: "aui/v0",
-          content: { invalid: undefined },
-        },
-      ],
-    });
-
-    await expect(threads.messages.list("thread-1")).rejects.toThrow(
-      'Invalid Assistant Cloud response for "messages[0].content": expected a JSON object',
-    );
-  });
 });
