@@ -166,7 +166,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Realtime voice with ElevenLabs",
     category: "example",
     path: "examples/with-elevenlabs-conversational",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "with-elevenlabs-scribe",
@@ -182,7 +182,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Realtime voice with LiveKit",
     category: "example",
     path: "examples/with-livekit",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "with-expo",
@@ -198,7 +198,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "AI-driven interactive UI components",
     category: "example",
     path: "examples/with-interactables",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "with-external-store",

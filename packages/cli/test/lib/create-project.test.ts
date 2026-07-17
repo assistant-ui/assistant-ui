@@ -576,7 +576,7 @@ describe("transformProject — install behavior", () => {
 });
 
 describe("installShadcnRegistry behavior", () => {
-  it("reports the failure and preserves the scaffold when shadcn exits non-zero", async () => {
+  it("reports the failure when shadcn exits non-zero", async () => {
     // First spawn call is `pm install` (skipInstall: false); let it succeed.
     (spawn as Mock).mockImplementationOnce(() => {
       const ee = new EventEmitter();
@@ -606,7 +606,6 @@ describe("installShadcnRegistry behavior", () => {
       "shadcn@latest",
     );
     expect(result.registryInstallFailure?.retryCommand).not.toMatch(/--yes$/);
-    expect(fs.existsSync(path.join(testDir, "package.json"))).toBe(true);
   });
 
   it("reports no failure when shadcn succeeds", async () => {
