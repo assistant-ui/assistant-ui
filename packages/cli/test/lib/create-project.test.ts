@@ -260,6 +260,60 @@ describe("transformProject — hasLocalComponents: true", () => {
     expect(pkg.devDependencies.typescript).toBe("^5.0.0");
     expect(pkg.name).toBe(path.basename(testDir));
   });
+
+  it("sanitizes tsconfig and css files", async () => {
+    writeJSON("package.json", { name: "test", dependencies: {} });
+    writeJSON("tsconfig.json", {
+      extends: "@assistant-ui/x-buildutils/ts/base",
+      compilerOptions: {
+        paths: {
+          "@/*": ["./*"],
+          "@/components/assistant-ui/*": [
+            "../../packages/ui/src/components/assistant-ui/*",
+          ],
+          "@assistant-ui/*": ["../../packages/*/src"],
+        },
+      },
+    });
+    writeFile(
+      "app/globals.css",
+      '@source "../../packages/ui/src";\nbody { margin: 0; }\n',
+    );
+
+    await transformProject(testDir, {
+      ...defaultOpts,
+      hasLocalComponents: true,
+    });
+
+    const tsconfig = readJSON("tsconfig.json");
+    expect(tsconfig.extends).toBeUndefined();
+    expect(tsconfig.compilerOptions.target).toBe("ESNext");
+    const paths = tsconfig.compilerOptions.paths;
+    expect(paths["@/components/assistant-ui/*"]).toBeUndefined();
+    expect(paths["@assistant-ui/*"]).toBeUndefined();
+    expect(paths["@/*"]).toEqual(["./*"]);
+    expect(readFile("app/globals.css")).not.toContain("packages/ui/src");
+  });
+
+  it("does not install registry components", async () => {
+    writeJSON("package.json", { name: "test", dependencies: {} });
+    writeFile(
+      "app/page.tsx",
+      'import { Button } from "@/components/ui/button";\n',
+    );
+
+    await transformProject(testDir, {
+      ...defaultOpts,
+      skipInstall: false,
+      hasLocalComponents: true,
+    });
+
+    const shadcnCalls = (spawn as Mock).mock.calls.filter(
+      ([cmd, args]: [string, string[]]) =>
+        cmd === TEST_DLX_CMD && args.includes("shadcn@latest"),
+    );
+    expect(shadcnCalls).toHaveLength(0);
+  });
 });
 
 describe("transformProject — hasLocalComponents: false", () => {
@@ -345,6 +399,31 @@ describe("transformProject — hasLocalComponents: false", () => {
       expect(paths["@assistant-ui/ui/*"]).toBeUndefined();
       expect(paths["@assistant-ui/*"]).toBeUndefined();
       expect(paths["assistant-stream"]).toBeUndefined();
+      expect(paths["@/*"]).toEqual(["./*"]);
+    });
+
+    it("removes monorepo-escaping path targets", async () => {
+      writeJSON("tsconfig.json", {
+        compilerOptions: {
+          paths: {
+            "@/*": ["./*"],
+            "@assistant-ui/*": ["../../packages/*/src"],
+            "@assistant-ui/core/*": ["../../packages/core/src/*"],
+            "@shared/*": ["../shared/*"],
+            "assistant-stream": ["../../packages/assistant-stream/src"],
+            "assistant-stream/*": ["../../packages/assistant-stream/src/*"],
+          },
+        },
+      });
+
+      await run();
+
+      const paths = readJSON("tsconfig.json").compilerOptions.paths;
+      expect(paths["@assistant-ui/*"]).toBeUndefined();
+      expect(paths["@assistant-ui/core/*"]).toBeUndefined();
+      expect(paths["@shared/*"]).toBeUndefined();
+      expect(paths["assistant-stream"]).toBeUndefined();
+      expect(paths["assistant-stream/*"]).toBeUndefined();
       expect(paths["@/*"]).toEqual(["./*"]);
     });
 
@@ -501,7 +580,7 @@ describe("transformProject — install behavior", () => {
 });
 
 describe("installShadcnRegistry behavior", () => {
-  it("resolves with a warning when shadcn exits non-zero", async () => {
+  it("reports the failure and preserves the scaffold when shadcn exits non-zero", async () => {
     // First spawn call is `pm install` (skipInstall: false); let it succeed.
     (spawn as Mock).mockImplementationOnce(() => {
       const ee = new EventEmitter();
@@ -521,11 +600,32 @@ describe("installShadcnRegistry behavior", () => {
       'import { Button } from "@/components/ui/button";\n',
     );
 
-    // Should NOT throw — warn-and-continue behavior
-    await transformProject(testDir, {
+    const result = await transformProject(testDir, {
       ...defaultOpts,
       skipInstall: false,
       hasLocalComponents: false,
     });
+
+    expect(result.registryInstallFailure?.retryCommand).toContain(
+      "shadcn@latest",
+    );
+    expect(result.registryInstallFailure?.retryCommand).not.toMatch(/--yes$/);
+    expect(fs.existsSync(path.join(testDir, "package.json"))).toBe(true);
+  });
+
+  it("reports no failure when shadcn succeeds", async () => {
+    writeJSON("package.json", { name: "test", dependencies: {} });
+    writeFile(
+      "app/page.tsx",
+      'import { Button } from "@/components/ui/button";\n',
+    );
+
+    const result = await transformProject(testDir, {
+      ...defaultOpts,
+      skipInstall: false,
+      hasLocalComponents: false,
+    });
+
+    expect(result.registryInstallFailure).toBeUndefined();
   });
 });
