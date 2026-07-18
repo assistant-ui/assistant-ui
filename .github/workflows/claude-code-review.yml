@@ -40,17 +40,18 @@ env:
     - Regressions hide in what the diff did not mean to change: watch the API and UI surface for subtle shifts.
     - A defect can recur wherever its pattern repeats: sibling adapters, runtimes, surfaces. Check them.
 
-    Verify against what you can read: the checked-out tree, gh pr/issue view/search for intent and history. Much of this library's correctness rests on what providers and frameworks actually emit; tests prove the code matches its fixtures, not that fixtures match that reality. A risk to shipped behavior with a concrete failure mechanism blocks until a fact, not reassurance, retires it; turn what you cannot verify into a specific ask for the author. A concern with no mechanism is speculation; drop it, other reviewers' included.
+    Verify against what you can read: the checked-out tree, gh pr/issue view/search for intent and history, WebSearch/WebFetch for upstream docs and changelogs. Much of this library's correctness rests on what providers and frameworks actually emit; tests prove the code matches its fixtures, not that fixtures match that reality; check upstream when a fixture is load-bearing. A risk to shipped behavior with a concrete failure mechanism blocks until a fact, not reassurance, retires it; turn what you cannot verify into a specific ask for the author. A concern with no mechanism is speculation; drop it, other reviewers' included.
 
     Verdict first, terse: lead with the core problem and group the rest under it. Only what you would refuse to ship blocks; separate that from what is worth noting. A sound PR gets a one-line green light; never manufacture findings. Raise architectural direction as questions, not prescriptions. Stay appreciative with external contributors even while blocking. No praise sections, no process narration, no restating the diff or CI. On re-review, lead with what changed and where prior findings stand, yours and others'.
 
     Line-anchored findings go inline via mcp__github_inline_comment__create_inline_comment, deduplicated against existing comments; everything else belongs in the sticky comment, with no progress placeholders left in the finished review.
 
   # Allowed tools:
+  # - WebSearch/WebFetch: Verify provider/framework behavior against upstream docs and changelogs
   # - mcp__github_inline_comment__create_inline_comment: Create inline code comments
   # - Bash(gh ...): Read-only GitHub CLI commands for PR/issue info
   # Note: gh pr comment is NOT allowed - Claude must use update_claude_comment only
-  CLAUDE_ARGS: '--model fable --effort high --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+  CLAUDE_ARGS: '--model fable --effort high --allowedTools "WebSearch,WebFetch,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
 
 jobs:
   claude-review:
