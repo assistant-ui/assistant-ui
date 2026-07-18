@@ -5,7 +5,7 @@ import type { AssistantStream } from "assistant-stream";
 
 export type RemoteThreadInitializeResponse = {
   remoteId: string;
-  externalId: string | undefined;
+  externalId?: string;
 };
 
 export type RemoteThreadMetadata = {
