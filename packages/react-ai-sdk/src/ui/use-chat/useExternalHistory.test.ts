@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type {
   AssistantRuntime,
@@ -9,6 +9,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
+import { bindExternalStoreMessage } from "@assistant-ui/core";
 
 vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({
@@ -162,5 +163,134 @@ describe("toExportedMessageRepository", () => {
     expect(result.messages).toHaveLength(0);
     expect(result.headId).toBeNull();
     expect(() => new MessageRepository().import(result)).not.toThrow();
+  });
+});
+
+describe("useExternalHistory persistence", () => {
+  it("only updates persisted messages that participate in the active run", async () => {
+    type StoredMessage = { id: string; text: string };
+
+    const append = vi.fn().mockResolvedValue(undefined);
+    const update = vi.fn().mockResolvedValue(undefined);
+    const reportTelemetry = vi.fn();
+    const formattedAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+      update,
+      reportTelemetry,
+    };
+    const historyAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue(formattedAdapter),
+    } as unknown as ThreadHistoryAdapter;
+
+    const makeMessage = (
+      id: string,
+      innerId: string,
+      text: string,
+    ): ThreadMessage => {
+      const message: ThreadMessage = {
+        id,
+        role: "assistant",
+        content: [{ type: "text", text }],
+        status: { type: "complete", reason: "stop" },
+        createdAt: new Date(),
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      };
+      bindExternalStoreMessage(message, { id: innerId, text });
+      return message;
+    };
+
+    let messages = [
+      makeMessage("old", "inner-old", "old"),
+      makeMessage("active", "inner-active", "initial"),
+    ];
+    let isRunning = false;
+    let notify: (() => void) | undefined;
+    const thread = {
+      subscribe: vi.fn((listener: () => void) => {
+        notify = listener;
+        return () => {};
+      }),
+      getState: () => ({ isRunning, messages }),
+      import: vi.fn(),
+      export: vi.fn(),
+    } as unknown as AssistantRuntime["thread"];
+    const testRuntimeRef = {
+      current: { thread } as AssistantRuntime,
+    };
+    const testStorageFormat: MessageFormatAdapter<
+      StoredMessage,
+      Record<string, unknown>
+    > = {
+      format: "test",
+      encode: ({ message }) => message,
+      decode: (stored) => ({
+        parentId: stored.parent_id,
+        message: stored.content as StoredMessage,
+      }),
+      getId: (message) => message.id,
+    };
+
+    renderHook(() =>
+      useExternalHistory(
+        testRuntimeRef,
+        historyAdapter,
+        () => messages,
+        testStorageFormat,
+        () => {},
+      ),
+    );
+
+    const setRunning = (value: boolean) => {
+      act(() => {
+        isRunning = value;
+        notify?.();
+      });
+    };
+
+    setRunning(true);
+    setRunning(false);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+
+    append.mockClear();
+    update.mockClear();
+    reportTelemetry.mockClear();
+    messages = [
+      messages[0]!,
+      makeMessage("active", "inner-active", "completed"),
+    ];
+
+    setRunning(true);
+    setRunning(false);
+    setRunning(true);
+    setRunning(false);
+
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(append).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(
+      {
+        parentId: "inner-old",
+        message: { id: "inner-active", text: "completed" },
+      },
+      "inner-active",
+    );
+    expect(reportTelemetry).toHaveBeenCalledTimes(1);
+    expect(reportTelemetry).toHaveBeenCalledWith(
+      [
+        {
+          parentId: "inner-old",
+          message: { id: "inner-active", text: "completed" },
+        },
+      ],
+      expect.objectContaining({ durationMs: expect.any(Number) }),
+    );
   });
 });

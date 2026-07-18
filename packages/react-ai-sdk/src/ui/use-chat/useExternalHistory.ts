@@ -124,20 +124,33 @@ export const useExternalHistory = <TMessage>(
   const stepBoundariesRef = useRef<number[]>([]);
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
+  const activeRunMessageIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (!formatAdapter) return;
 
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
-      const { isRunning } = runtimeRef.current.thread.getState();
+      const threadState = runtimeRef.current.thread.getState();
+      const { isRunning } = threadState;
       const wasRunning = wasRunningRef.current;
       wasRunningRef.current = isRunning;
 
+      if (isRunning && runStartRef.current == null) {
+        runStartRef.current = Date.now();
+        stepBoundariesRef.current = [];
+        toolCallCountRef.current = 0;
+        activeRunMessageIdsRef.current = new Set();
+      }
+
+      const lastMessage = threadState.messages.at(-1);
+      if (runStartRef.current != null && lastMessage?.role === "assistant") {
+        activeRunMessageIdsRef.current.add(lastMessage.id);
+      }
+
       // Track step boundaries by content changes (more reliable than isRunning)
       if (runStartRef.current != null) {
-        const lastMsg = runtimeRef.current.thread.getState().messages.at(-1);
-        if (lastMsg?.role === "assistant") {
-          const currentToolCallCount = lastMsg.content.filter(
+        if (lastMessage?.role === "assistant") {
+          const currentToolCallCount = lastMessage.content.filter(
             (p) => p.type === "tool-call",
           ).length;
           while (toolCallCountRef.current < currentToolCallCount) {
@@ -148,11 +161,6 @@ export const useExternalHistory = <TMessage>(
       }
 
       if (isRunning) {
-        if (runStartRef.current == null) {
-          runStartRef.current = Date.now();
-          stepBoundariesRef.current = [];
-          toolCallCountRef.current = 0;
-        }
         // Cancel any pending persist — isRunning went back to true
         if (persistTimerRef.current) {
           clearTimeout(persistTimerRef.current);
@@ -212,6 +220,8 @@ export const useExternalHistory = <TMessage>(
               }))
             : undefined;
 
+        const activeRunMessageIds = activeRunMessageIdsRef.current;
+        activeRunMessageIdsRef.current = new Set();
         runStartRef.current = null;
         stepBoundariesRef.current = [];
 
@@ -250,19 +260,19 @@ export const useExternalHistory = <TMessage>(
           }
 
           if (historyIds.current.has(message.id)) {
-            if (durationMs !== undefined) {
-              let parentId = lastInnerMessageId;
-              for (const innerMessage of innerMessages) {
+            if (activeRunMessageIds.has(message.id)) {
+              const batchItems = toBatchItems(innerMessages);
+              for (const item of batchItems) {
                 try {
                   await formatAdapter.update?.(
-                    { parentId, message: innerMessage },
-                    storageFormatAdapter.getId(innerMessage),
+                    item,
+                    storageFormatAdapter.getId(item.message),
                   );
                 } catch {
                   // ignore update failures to avoid breaking the message processing loop
                 }
-                parentId = storageFormatAdapter.getId(innerMessage);
               }
+              formatAdapter.reportTelemetry?.(batchItems, telemetryOptions);
             }
             lastInnerMessageId =
               getLastInnerId(innerMessages) ?? lastInnerMessageId;
