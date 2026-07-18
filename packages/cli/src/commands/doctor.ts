@@ -40,13 +40,7 @@ function processPackageDir(
   results: DiscoveredPackage[],
   visited: ProcessedDir,
 ): void {
-  const real = (() => {
-    try {
-      return fs.realpathSync(pkgDir);
-    } catch {
-      return pkgDir;
-    }
-  })();
+  const real = resolveProjectPath(pkgDir);
   if (visited.set.has(real)) return;
   visited.set.add(real);
 
