@@ -5,7 +5,11 @@ import type {
   ThreadMessageLike as CoreThreadMessageLike,
   ToolModelContentPart,
 } from "@assistant-ui/core";
-import { getAutoStatus } from "@assistant-ui/core/internal";
+import {
+  getAutoStatus,
+  httpUrlPattern,
+  parseDataUrl,
+} from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
@@ -128,16 +132,6 @@ function extractText(content: unknown): string {
     .map((part) => part.text)
     .join("\n");
 }
-
-function parseDataUrl(
-  value: string,
-): { mimeType: string; data: string } | null {
-  const match = value.match(/^data:([^;,]+)(?:;[^;,]+)*;base64,(.+)$/);
-  if (!match) return null;
-  return { mimeType: match[1]!, data: match[2]! };
-}
-
-const httpUrlPattern = /^https?:\/\//i;
 
 type InputContentSource =
   | { type: "data"; value: string; mimeType: string }

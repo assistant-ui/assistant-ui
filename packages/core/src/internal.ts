@@ -53,6 +53,10 @@ export {
 // validation lives in one place.
 export { isJSONValue, isRecord } from "./utils/json/is-json";
 
+// Data-URL decoder and http(s) matcher, reused by framework adapters so the
+// outbound part conversion lives in one place.
+export { httpUrlPattern, parseDataUrl } from "./utils/data-url";
+
 // Runtime extras helper for external-store adapters. Internal because the
 // tap-native runtime path replaces the `thread.extras` side-channel it wraps.
 export {
