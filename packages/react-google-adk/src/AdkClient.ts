@@ -110,11 +110,26 @@ export function createAdkStream(
       );
     }
 
+    validateEventStreamContentType(response);
     yield* parseSSEResponse(response);
   };
 }
 
 // ── Internal helpers ──
+
+function validateEventStreamContentType(response: Response): void {
+  const contentType = response.headers.get("Content-Type");
+  const mediaType = contentType?.split(";", 1)[0]?.trim().toLowerCase();
+  if (mediaType !== "text/event-stream") {
+    const received = contentType
+      ? `"${contentType}"`
+      : "no Content-Type header";
+    void response.body?.cancel().catch(() => undefined);
+    throw new Error(
+      `Expected ADK stream response Content-Type "text/event-stream", received ${received}`,
+    );
+  }
+}
 
 async function resolveHeaders(
   headers:
