@@ -159,3 +159,20 @@ jobs:
           > **Fable's cybersecurity safeguard triggered — this review was served by Opus 4.8.** Ignore it and re-review with Fable locally.
 
           $(jq -r .body <<<"$COMMENT")"
+
+      # A run can also end cleanly without ever posting the final review,
+      # leaving the sticky comment stuck on its progress todos under a green
+      # check. The unchecked todos are written by the action's own progress
+      # tracking, so their presence in the last claude[bot] comment means the
+      # review never completed.
+      - name: Fail on unfinished review
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMMENT=$(gh api --paginate "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq '.[] | select(.user.login == "claude[bot]")' | jq -s 'last')
+          [ -n "$COMMENT" ] && [ "$COMMENT" != "null" ] || exit 0
+          jq -r .body <<<"$COMMENT" | grep -qE '^- \[ \]' || exit 0
+          echo "::error::Claude review ended without posting the final review (progress todos left unchecked)"
+          exit 1
