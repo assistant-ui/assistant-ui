@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   createAssistantStream,
   createAssistantStreamResponse,
@@ -89,6 +89,52 @@ describe("createAssistantStream task settlement", () => {
     });
 
     expect(unhandledRejections).toEqual([]);
+  });
+
+  it("reports callback failures after the controller is explicitly closed", async () => {
+    const error = new Error("cleanup failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const chunks = await collectChunks(
+        createAssistantStream((controller) => {
+          controller.close();
+          throw error;
+        }),
+      );
+
+      expect(chunks).toEqual([]);
+      expect(consoleError).toHaveBeenCalledOnce();
+      expect(consoleError).toHaveBeenCalledWith(error);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("does not report callback failures caused after cancellation", async () => {
+    let failCallback!: (error: Error) => void;
+    const callbackPending = new Promise<void>((_, reject) => {
+      failCallback = reject;
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const unhandledRejections = await captureUnhandledRejections(async () => {
+        const reader = createAssistantStream(() => callbackPending).getReader();
+        await reader.cancel("consumer stopped");
+        failCallback(new Error("provider stopped"));
+        await callbackPending.catch(() => undefined);
+      });
+
+      expect(unhandledRejections).toEqual([]);
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });
 

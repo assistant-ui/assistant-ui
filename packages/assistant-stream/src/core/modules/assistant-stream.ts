@@ -118,6 +118,10 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     return this._state.merger.isSealed();
   }
 
+  get __internal_isCancelled() {
+    return this._state.merger.isCancelled();
+  }
+
   __internal_getReadable() {
     return this._state.merger.readable;
   }
@@ -303,6 +307,8 @@ export function createAssistantStream(
           path: [],
           error: String(e),
         });
+      } else if (!controller.__internal_isCancelled) {
+        console.error(e);
       }
     } finally {
       if (!controller.__internal_isClosed) {

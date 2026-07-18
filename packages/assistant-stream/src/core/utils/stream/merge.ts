@@ -13,6 +13,13 @@ export const createMergeStream = () => {
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
 
+  const cancelAllReaders = () => {
+    list.forEach((item) => {
+      void item.reader.cancel().catch(() => undefined);
+    });
+    list.length = 0;
+  };
+
   const handlePull = (item: MergeStreamItem) => {
     if (!item.promise) {
       // TODO for most streams, we can directly pipeTo to avoid the microTask queue
@@ -42,11 +49,7 @@ export const createMergeStream = () => {
           if (cancelled) return;
 
           console.error(e);
-
-          list.forEach((item) => {
-            item.reader.cancel();
-          });
-          list.length = 0;
+          cancelAllReaders();
 
           controller.error(e);
 
@@ -70,10 +73,7 @@ export const createMergeStream = () => {
     },
     cancel() {
       cancelled = true;
-      list.forEach((item) => {
-        void item.reader.cancel().catch(() => undefined);
-      });
-      list.length = 0;
+      cancelAllReaders();
       currentPull?.resolve();
       currentPull = undefined;
     },
@@ -83,6 +83,9 @@ export const createMergeStream = () => {
     readable,
     isSealed() {
       return sealed || cancelled;
+    },
+    isCancelled() {
+      return cancelled;
     },
     seal() {
       if (cancelled) return;
