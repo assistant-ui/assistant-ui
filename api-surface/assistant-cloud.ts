@@ -276,6 +276,10 @@ declare class CloudMessagePersistence {
   reset(): void;
 }
 
+declare class CloudResponseError extends Error {
+  constructor(message: string);
+}
+
 type CloudThread = {
   title: string;
   last_message_at: Date;
@@ -471,7 +475,7 @@ declare function createSamplingCollector(): {
 };
 
 declare namespace entry_root_exports {
-  export { AssistantCloud, AssistantCloudRunReport, AssistantCloudTelemetryConfig, CloudAPIError, CloudMessage, CloudMessagePersistence, McpSamplingHandler, MessageFormatAdapter, SamplingCallData, createFormattedPersistence, createSamplingCollector, wrapSamplingHandler };
+  export { AssistantCloud, AssistantCloudRunReport, AssistantCloudTelemetryConfig, CloudAPIError, CloudMessage, CloudMessagePersistence, CloudResponseError, McpSamplingHandler, MessageFormatAdapter, SamplingCallData, createFormattedPersistence, createSamplingCollector, wrapSamplingHandler };
 }
 
 declare function wrapSamplingHandler(handler: McpSamplingHandler, onSamplingCall: (data: SamplingCallData) => void): McpSamplingHandler;
