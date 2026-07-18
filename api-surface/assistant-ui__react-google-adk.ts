@@ -1583,7 +1583,7 @@ type ReloadConfig = {
 
 type RemoteThreadInitializeResponse = {
   remoteId: string;
-  externalId: string | undefined;
+  externalId?: string;
 };
 
 type RemoteThreadListAdapter = {
