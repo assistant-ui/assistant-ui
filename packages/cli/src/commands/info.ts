@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import chalk from "chalk";
 import { detect } from "detect-package-manager";
 import { satisfies } from "semver";
-import { findWorkspaceRoot } from "../lib/utils/workspace";
+import { findWorkspaceRoot, resolveProjectPath } from "../lib/utils/workspace";
 
 export { findWorkspaceRoot };
 
@@ -416,7 +416,7 @@ export const info = new Command()
     process.cwd(),
   )
   .action(async (opts) => {
-    const cwd = path.resolve(opts.cwd);
+    const cwd = resolveProjectPath(opts.cwd);
     const packageJsonPath = path.join(cwd, "package.json");
 
     if (!fs.existsSync(packageJsonPath)) {

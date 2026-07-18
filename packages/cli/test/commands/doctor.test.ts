@@ -154,9 +154,15 @@ describe("doctor — workspace package discovery", () => {
     );
     const root = path.join(fixture, "workspace");
     const app = path.join(root, "packages", "app");
+    const linkedApp = path.join(fixture, "linked-app");
 
     try {
       fs.mkdirSync(app, { recursive: true });
+      fs.symlinkSync(
+        app,
+        linkedApp,
+        process.platform === "win32" ? "junction" : "dir",
+      );
       fs.writeFileSync(
         path.join(root, "package.json"),
         JSON.stringify({
@@ -183,18 +189,22 @@ describe("doctor — workspace package discovery", () => {
         installPath: "node_modules/@assistant-ui/core",
       });
 
-      expect(discoverInstalledPackages(app)).toEqual([
+      const realRoot = fs.realpathSync(root);
+      const expected = [
         {
           name: "@assistant-ui/react",
           version: "0.14.5",
           installPath: path.join(
-            root,
+            realRoot,
             "node_modules",
             "@assistant-ui",
             "react",
           ),
         },
-      ]);
+      ];
+
+      expect(discoverInstalledPackages(app)).toEqual(expected);
+      expect(discoverInstalledPackages(linkedApp)).toEqual(expected);
     } finally {
       fs.rmSync(fixture, { recursive: true, force: true });
     }
