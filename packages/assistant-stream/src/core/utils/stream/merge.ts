@@ -82,7 +82,7 @@ export const createMergeStream = () => {
   return {
     readable,
     isSealed() {
-      return sealed || cancelled;
+      return sealed;
     },
     isCancelled() {
       return cancelled;
