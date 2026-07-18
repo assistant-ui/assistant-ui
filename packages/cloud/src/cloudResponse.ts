@@ -1,7 +1,14 @@
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
+export class CloudResponseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CloudResponseError";
+  }
+}
+
 const invalidCloudResponse = (field: string, expected: string) =>
-  new Error(
+  new CloudResponseError(
     `Invalid Assistant Cloud response for "${field}": expected ${expected}`,
   );
 

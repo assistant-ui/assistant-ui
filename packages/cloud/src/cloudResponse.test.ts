@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readCloudTimestamp } from "./cloudResponse";
+import { CloudResponseError, readCloudTimestamp } from "./cloudResponse";
 
 describe("readCloudTimestamp", () => {
   it("decodes a canonical Cloud timestamp", () => {
@@ -19,7 +19,9 @@ describe("readCloudTimestamp", () => {
     new Date("2026-07-16T12:15:00.123Z"),
     "not-a-timestamp",
   ])("rejects invalid timestamp %s", (value) => {
-    expect(() => readCloudTimestamp(value, "thread.updated_at")).toThrow(
+    const decode = () => readCloudTimestamp(value, "thread.updated_at");
+    expect(decode).toThrow(CloudResponseError);
+    expect(decode).toThrow(
       'Invalid Assistant Cloud response for "thread.updated_at": expected a canonical ISO timestamp',
     );
   });
