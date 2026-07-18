@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import chalk from "chalk";
 import { compare, valid } from "semver";
+import { findWorkspaceRoot } from "../lib/utils/workspace";
 
 const ASSISTANT_UI_PACKAGE_NAMES = new Set([
   "assistant-stream",
@@ -183,14 +184,23 @@ function walkPnpmStore(
 }
 
 // Discover every installation of an assistant-ui-family package reachable
-// from `cwd`. Recurses into nested node_modules so transitive copies
-// (the real source of duplicate-version bugs) are not missed, and scans the
-// pnpm `.pnpm` virtual store, which the hoisted walk cannot reach.
+// from `cwd`. Node resolves packages through ancestor node_modules directories,
+// so inspect each level to include workspace-hoisted installs. Nested installs
+// and pnpm virtual stores are scanned to catch duplicate transitive copies.
 export function discoverInstalledPackages(cwd: string): DiscoveredPackage[] {
   const results: DiscoveredPackage[] = [];
   const visited: ProcessedDir = { set: new Set() };
-  walkNodeModulesAt(cwd, results, visited);
-  walkPnpmStore(cwd, results, visited);
+  let dir = path.resolve(cwd);
+  const scanRoot = findWorkspaceRoot(dir) ?? dir;
+
+  while (true) {
+    walkNodeModulesAt(dir, results, visited);
+    walkPnpmStore(dir, results, visited);
+
+    if (dir === scanRoot) break;
+    dir = path.dirname(dir);
+  }
+
   return results;
 }
 

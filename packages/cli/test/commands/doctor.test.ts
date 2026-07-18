@@ -147,6 +147,60 @@ describe("doctor — package discovery", () => {
   });
 });
 
+describe("doctor — workspace package discovery", () => {
+  it("finds packages hoisted above the selected workspace package", () => {
+    const fixture = fs.mkdtempSync(
+      path.join(os.tmpdir(), "aui-doctor-workspace-"),
+    );
+    const root = path.join(fixture, "workspace");
+    const app = path.join(root, "packages", "app");
+
+    try {
+      fs.mkdirSync(app, { recursive: true });
+      fs.writeFileSync(
+        path.join(root, "package.json"),
+        JSON.stringify({
+          name: "workspace",
+          private: true,
+          workspaces: ["packages/*"],
+        }),
+      );
+      fs.writeFileSync(
+        path.join(app, "package.json"),
+        JSON.stringify({
+          name: "app",
+          dependencies: { "@assistant-ui/react": "0.14.5" },
+        }),
+      );
+      writePackage(root, {
+        name: "@assistant-ui/react",
+        version: "0.14.5",
+        installPath: "node_modules/@assistant-ui/react",
+      });
+      writePackage(fixture, {
+        name: "@assistant-ui/core",
+        version: "0.2.0",
+        installPath: "node_modules/@assistant-ui/core",
+      });
+
+      expect(discoverInstalledPackages(app)).toEqual([
+        {
+          name: "@assistant-ui/react",
+          version: "0.14.5",
+          installPath: path.join(
+            root,
+            "node_modules",
+            "@assistant-ui",
+            "react",
+          ),
+        },
+      ]);
+    } finally {
+      fs.rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("doctor — pnpm store discovery", () => {
   let root: string;
 

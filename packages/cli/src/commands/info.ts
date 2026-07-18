@@ -6,6 +6,9 @@ import { spawnSync } from "node:child_process";
 import chalk from "chalk";
 import { detect } from "detect-package-manager";
 import { satisfies } from "semver";
+import { findWorkspaceRoot } from "../lib/utils/workspace";
+
+export { findWorkspaceRoot };
 
 const ASSISTANT_UI_PACKAGES = [
   // Distribution
@@ -87,25 +90,6 @@ function getInstalledVersion(pkg: string, cwd: string): string | null {
     // ignore
   }
   return null;
-}
-
-export function findWorkspaceRoot(cwd: string): string | null {
-  let dir = cwd;
-  const root = path.parse(dir).root;
-  while (true) {
-    if (fs.existsSync(path.join(dir, "pnpm-workspace.yaml"))) return dir;
-    const pkgPath = path.join(dir, "package.json");
-    if (fs.existsSync(pkgPath)) {
-      try {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
-        if (pkg.workspaces) return dir;
-      } catch {
-        // ignore
-      }
-    }
-    if (dir === root) return null;
-    dir = path.dirname(dir);
-  }
 }
 
 function readProjectDeps(
