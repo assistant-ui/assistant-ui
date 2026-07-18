@@ -62,6 +62,30 @@ describe("createAdkSessionAdapter - list", () => {
     expect(result.threads).toHaveLength(0);
   });
 
+  it("rejects a successful response that is not a session array", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+
+    const { adapter } = createAdkSessionAdapter(baseOptions);
+
+    await expect(adapter.list()).rejects.toThrow(
+      "Invalid ADK session list response: expected an array of sessions.",
+    );
+  });
+
+  it("rejects session list entries without a valid id", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify([{ id: "s1" }, {}]), { status: 200 }),
+    );
+
+    const { adapter } = createAdkSessionAdapter(baseOptions);
+
+    await expect(adapter.list()).rejects.toThrow(
+      'Invalid ADK session list response: session at index 1 must have a non-empty string "id".',
+    );
+  });
+
   it("throws when response is not ok", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response("Server error", { status: 500 }),
@@ -137,6 +161,18 @@ describe("createAdkSessionAdapter - initialize", () => {
     const { adapter } = createAdkSessionAdapter(baseOptions);
     await expect(adapter.initialize("thread-1")).rejects.toThrow(
       "Failed to create session: 403",
+    );
+  });
+
+  it("rejects a successful response without a session id", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+
+    const { adapter } = createAdkSessionAdapter(baseOptions);
+
+    await expect(adapter.initialize("thread-1")).rejects.toThrow(
+      'Invalid ADK session create response: expected an object with a non-empty string "id".',
     );
   });
 });
@@ -250,6 +286,18 @@ describe("createAdkSessionAdapter - fetch", () => {
       "Session not found: 404",
     );
   });
+
+  it("rejects a successful response without a session id", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+
+    const { adapter } = createAdkSessionAdapter(baseOptions);
+
+    await expect(adapter.fetch("s1")).rejects.toThrow(
+      'Invalid ADK session fetch response: expected an object with a non-empty string "id".',
+    );
+  });
 });
 
 // ── load() ──
@@ -303,6 +351,30 @@ describe("createAdkSessionAdapter - load", () => {
     const result = await load("s1");
 
     expect(result.messages).toEqual([]);
+  });
+
+  it("rejects a successful response without a session id", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+
+    await expect(load("s1")).rejects.toThrow(
+      'Invalid ADK session load response: expected an object with a non-empty string "id".',
+    );
+  });
+
+  it("rejects a session with a malformed events field", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "s1", events: {} }), { status: 200 }),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+
+    await expect(load("s1")).rejects.toThrow(
+      'Invalid ADK session load response: expected "events" to be an array when present.',
+    );
   });
 
   it("throws when session fetch fails", async () => {
