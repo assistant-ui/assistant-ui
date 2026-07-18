@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-export function resolveProjectPath(cwd: string): string {
-  const resolved = path.resolve(cwd);
+export function resolveRealPath(inputPath: string): string {
+  const resolved = path.resolve(inputPath);
 
   try {
     return fs.realpathSync(resolved);

@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import chalk from "chalk";
 import { compare, valid } from "semver";
-import { findWorkspaceRoot, resolveProjectPath } from "../lib/utils/workspace";
+import { findWorkspaceRoot, resolveRealPath } from "../lib/utils/workspace";
 
 const ASSISTANT_UI_PACKAGE_NAMES = new Set([
   "assistant-stream",
@@ -40,7 +40,7 @@ function processPackageDir(
   results: DiscoveredPackage[],
   visited: ProcessedDir,
 ): void {
-  const real = resolveProjectPath(pkgDir);
+  const real = resolveRealPath(pkgDir);
   if (visited.set.has(real)) return;
   visited.set.add(real);
 
@@ -184,7 +184,7 @@ function walkPnpmStore(
 export function discoverInstalledPackages(cwd: string): DiscoveredPackage[] {
   const results: DiscoveredPackage[] = [];
   const visited: ProcessedDir = { set: new Set() };
-  let dir = resolveProjectPath(cwd);
+  let dir = resolveRealPath(cwd);
   const scanRoot = findWorkspaceRoot(dir) ?? dir;
 
   while (true) {
@@ -373,7 +373,7 @@ export const doctor = new Command()
   )
   .option("--no-network", "Skip the npm registry check for latest versions.")
   .action(async (opts: { cwd: string; network: boolean }) => {
-    const cwd = resolveProjectPath(opts.cwd);
+    const cwd = resolveRealPath(opts.cwd);
     const packageJsonPath = path.join(cwd, "package.json");
 
     if (!fs.existsSync(packageJsonPath)) {
