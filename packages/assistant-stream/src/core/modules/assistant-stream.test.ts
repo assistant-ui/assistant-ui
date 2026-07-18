@@ -136,6 +136,41 @@ describe("createAssistantStream task settlement", () => {
       consoleError.mockRestore();
     }
   });
+
+  it("does not settle the outer stream again after a merged stream errors", async () => {
+    let finishCallback!: () => void;
+    const callbackPending = new Promise<void>((resolve) => {
+      finishCallback = resolve;
+    });
+    const streamError = new Error("merged stream failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const unhandledRejections = await captureUnhandledRejections(async () => {
+        const stream = createAssistantStream(async (controller) => {
+          controller.merge(
+            new ReadableStream({
+              start(streamController) {
+                streamController.error(streamError);
+              },
+            }),
+          );
+          await callbackPending;
+        });
+
+        await expect(collectChunks(stream)).rejects.toBe(streamError);
+        finishCallback();
+        await callbackPending;
+      });
+
+      expect(unhandledRejections).toEqual([]);
+      expect(consoleError).toHaveBeenCalledWith(streamError);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
 });
 
 describe("AssistantStreamController withParentId", () => {

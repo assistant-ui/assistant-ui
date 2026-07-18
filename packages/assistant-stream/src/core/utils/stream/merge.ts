@@ -10,6 +10,7 @@ export const createMergeStream = () => {
   const list: MergeStreamItem[] = [];
   let sealed = false;
   let cancelled = false;
+  let errored = false;
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
 
@@ -31,7 +32,7 @@ export const createMergeStream = () => {
         .read()
         .then(({ done, value }) => {
           item.promise = undefined;
-          if (cancelled) return;
+          if (cancelled || errored) return;
 
           if (done) {
             list.splice(list.indexOf(item), 1);
@@ -46,8 +47,9 @@ export const createMergeStream = () => {
           currentPull = undefined;
         })
         .catch((e) => {
-          if (cancelled) return;
+          if (cancelled || errored) return;
 
+          errored = true;
           console.error(e);
           cancelAllReaders();
 
@@ -87,13 +89,16 @@ export const createMergeStream = () => {
     isCancelled() {
       return cancelled;
     },
+    isErrored() {
+      return errored;
+    },
     seal() {
-      if (cancelled) return;
+      if (cancelled || errored) return;
       sealed = true;
       if (list.length === 0) controller.close();
     },
     addStream(stream: ReadableStream<AssistantStreamChunk>) {
-      if (cancelled) {
+      if (cancelled || errored) {
         void stream.cancel().catch(() => undefined);
         return;
       }

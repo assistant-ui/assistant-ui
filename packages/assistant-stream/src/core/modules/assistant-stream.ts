@@ -115,7 +115,11 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   get __internal_isClosed() {
-    return this._state.merger.isSealed() || this._state.merger.isCancelled();
+    return (
+      this._state.merger.isSealed() ||
+      this._state.merger.isCancelled() ||
+      this._state.merger.isErrored()
+    );
   }
 
   get __internal_isCancelled() {
