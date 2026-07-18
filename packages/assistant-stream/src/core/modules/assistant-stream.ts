@@ -285,9 +285,8 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
  * {@link AssistantStreamController}.
  *
  * The callback may write synchronously or asynchronously. If it throws, an
- * `error` chunk is emitted before the error is rethrown; when the callback
- * settles, the stream is closed automatically unless the controller was
- * already closed.
+ * `error` chunk is emitted; when the callback settles, the stream is closed
+ * automatically unless the controller was already closed.
  */
 export function createAssistantStream(
   callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
@@ -305,7 +304,6 @@ export function createAssistantStream(
           error: String(e),
         });
       }
-      throw e;
     } finally {
       if (!controller.__internal_isClosed) {
         controller.close();

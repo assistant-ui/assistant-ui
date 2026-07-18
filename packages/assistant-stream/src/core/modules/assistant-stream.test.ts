@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { createAssistantStreamResponse } from "./assistant-stream";
+import {
+  createAssistantStream,
+  createAssistantStreamResponse,
+} from "./assistant-stream";
 import { AssistantStream } from "../AssistantStream";
+import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { DataStreamDecoder } from "../serialization/data-stream/DataStream";
 import { AssistantMessageAccumulator } from "../accumulators/assistant-message-accumulator";
 import type { AssistantMessage } from "../utils/types";
@@ -20,6 +24,73 @@ const accumulate = async (response: Response): Promise<AssistantMessage> => {
   );
   return last!;
 };
+
+const collectChunks = async (
+  stream: AssistantStream,
+): Promise<AssistantStreamChunk[]> => {
+  const chunks: AssistantStreamChunk[] = [];
+  await stream.pipeTo(
+    new WritableStream({
+      write(chunk) {
+        chunks.push(chunk);
+      },
+    }),
+  );
+  return chunks;
+};
+
+const captureUnhandledRejections = async (
+  callback: () => Promise<void>,
+): Promise<unknown[]> => {
+  const reasons: unknown[] = [];
+  const listener = (reason: unknown) => reasons.push(reason);
+  process.on("unhandledRejection", listener);
+  try {
+    await callback();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return reasons;
+  } finally {
+    process.off("unhandledRejection", listener);
+  }
+};
+
+describe("createAssistantStream task settlement", () => {
+  it("emits callback failures without leaking an unhandled rejection", async () => {
+    let chunks: AssistantStreamChunk[] = [];
+    const unhandledRejections = await captureUnhandledRejections(async () => {
+      chunks = await collectChunks(
+        createAssistantStream(async () => {
+          throw new Error("provider failed");
+        }),
+      );
+    });
+
+    expect(chunks).toEqual([
+      {
+        type: "error",
+        path: [],
+        error: "Error: provider failed",
+      },
+    ]);
+    expect(unhandledRejections).toEqual([]);
+  });
+
+  it("does not settle the stream again after cancellation", async () => {
+    let finishCallback!: () => void;
+    const callbackPending = new Promise<void>((resolve) => {
+      finishCallback = resolve;
+    });
+
+    const unhandledRejections = await captureUnhandledRejections(async () => {
+      const reader = createAssistantStream(() => callbackPending).getReader();
+      await reader.cancel("consumer stopped");
+      finishCallback();
+      await callbackPending;
+    });
+
+    expect(unhandledRejections).toEqual([]);
+  });
+});
 
 describe("AssistantStreamController withParentId", () => {
   it("attaches parentId to text parts across a data-stream round trip", async () => {

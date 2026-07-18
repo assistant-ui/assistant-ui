@@ -9,6 +9,7 @@ type MergeStreamItem = {
 export const createMergeStream = () => {
   const list: MergeStreamItem[] = [];
   let sealed = false;
+  let cancelled = false;
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
 
@@ -23,6 +24,8 @@ export const createMergeStream = () => {
         .read()
         .then(({ done, value }) => {
           item.promise = undefined;
+          if (cancelled) return;
+
           if (done) {
             list.splice(list.indexOf(item), 1);
             if (sealed && list.length === 0) {
@@ -36,6 +39,8 @@ export const createMergeStream = () => {
           currentPull = undefined;
         })
         .catch((e) => {
+          if (cancelled) return;
+
           console.error(e);
 
           list.forEach((item) => {
@@ -64,23 +69,32 @@ export const createMergeStream = () => {
       return currentPull.promise;
     },
     cancel() {
+      cancelled = true;
       list.forEach((item) => {
-        item.reader.cancel();
+        void item.reader.cancel().catch(() => undefined);
       });
       list.length = 0;
+      currentPull?.resolve();
+      currentPull = undefined;
     },
   });
 
   return {
     readable,
     isSealed() {
-      return sealed;
+      return sealed || cancelled;
     },
     seal() {
+      if (cancelled) return;
       sealed = true;
       if (list.length === 0) controller.close();
     },
     addStream(stream: ReadableStream<AssistantStreamChunk>) {
+      if (cancelled) {
+        void stream.cancel().catch(() => undefined);
+        return;
+      }
+
       if (sealed)
         throw new Error(
           "Cannot add streams after the run callback has settled.",
