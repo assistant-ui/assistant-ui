@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createPiHttpClient } from "./httpClient";
 import type {
   PiAnyClientEvent,
@@ -240,6 +240,55 @@ describe("createPiHttpClient", () => {
     });
 
     expect(events).toEqual([{ type: "agent_start", threadId: "t1", seq: 1 }]);
+  });
+
+  it("isolates listener errors while delivering shared stream events", async () => {
+    const event: PiAnyClientEvent = {
+      type: "agent_start",
+      threadId: "t1",
+      seq: 1,
+    };
+    const fn = (async () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(
+              new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
+            );
+          },
+        }),
+        { status: 200, headers: { "content-type": "text/event-stream" } },
+      )) as unknown as typeof fetch;
+    const onStreamError = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const client = createPiHttpClient({
+      fetchImpl: fn,
+      onStreamError,
+      streamCloseDelayMs: 0,
+    });
+
+    const listenerError = new Error("listener failed");
+    const unsubscribeFirst = client.subscribe("t1", () => {
+      throw listenerError;
+    });
+
+    const received = await new Promise<PiAnyClientEvent>((resolve) => {
+      const unsubscribeSecond = client.subscribe("t1", (receivedEvent) => {
+        unsubscribeFirst();
+        unsubscribeSecond();
+        resolve(receivedEvent);
+      });
+    });
+
+    expect(received).toEqual(event);
+    expect(onStreamError).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[react-pi] Listener threw an error",
+      listenerError,
+    );
+    consoleError.mockRestore();
   });
 
   it("can subscribe to live events without an initial snapshot", async () => {

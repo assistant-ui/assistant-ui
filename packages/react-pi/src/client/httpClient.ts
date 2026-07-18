@@ -218,7 +218,13 @@ export const createPiHttpClient = (
             ...(reconnectDelay ? { reconnectDelay } : {}),
             ...(onStreamError ? { onError: onStreamError } : {}),
             onEvent: (event) => {
-              for (const l of [...listeners]) l(event as PiClientEvent);
+              for (const listener of [...listeners]) {
+                try {
+                  listener(event as PiClientEvent);
+                } catch (error) {
+                  console.error("[react-pi] Listener threw an error", error);
+                }
+              }
             },
           }),
         };
