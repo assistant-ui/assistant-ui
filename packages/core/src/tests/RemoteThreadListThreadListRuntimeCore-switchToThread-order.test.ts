@@ -4,6 +4,7 @@ import {
   createCore,
   deferred,
   makeAdapter,
+  setStartThreadRuntime,
 } from "./remote-thread-list-test-helpers";
 
 const thread = (id: string): RemoteThreadMetadata => ({
@@ -46,16 +47,11 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread order", () => {
     const core = createCore(adapter);
     await core.getLoadThreadsPromise();
 
-    (
-      core as unknown as {
-        _hookManager: {
-          startThreadRuntime: (id: string) => Promise<unknown>;
-        };
-      }
-    )._hookManager.startThreadRuntime = (id) =>
+    setStartThreadRuntime(core, (id) =>
       id === core.getItemById("thread-b")?.id
         ? runtimeB.promise
-        : runtimeC.promise;
+        : runtimeC.promise,
+    );
 
     const switchToB = core.switchToThread("thread-b");
     const switchToC = core.switchToThread("thread-c");
@@ -85,14 +81,9 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread order", () => {
     if (!initialNewThreadId) throw new Error("Expected an initial new thread");
 
     const threadBId = core.getItemById("thread-b")?.id;
-    (
-      core as unknown as {
-        _hookManager: {
-          startThreadRuntime: (id: string) => Promise<unknown>;
-        };
-      }
-    )._hookManager.startThreadRuntime = (id) =>
-      id === threadBId ? runtimeB.promise : Promise.resolve({});
+    setStartThreadRuntime(core, (id) =>
+      id === threadBId ? runtimeB.promise : Promise.resolve({}),
+    );
 
     const initialize = core.initialize(initialNewThreadId);
     const switchToB = core.switchToThread("thread-b");
@@ -157,16 +148,11 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread order", () => {
     const newThreadId = core.newThreadId;
     if (!newThreadId) throw new Error("Expected an initial new thread");
 
-    (
-      core as unknown as {
-        _hookManager: {
-          startThreadRuntime: (id: string) => Promise<unknown>;
-        };
-      }
-    )._hookManager.startThreadRuntime = (id) =>
+    setStartThreadRuntime(core, (id) =>
       id === core.getItemById(newThreadId)?.id
         ? newThreadRuntime.promise
-        : Promise.resolve({});
+        : Promise.resolve({}),
+    );
 
     const deleteA = core.delete("thread-a");
     const switchToB = core.switchToThread("thread-b");
@@ -196,21 +182,37 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread order", () => {
     const newThreadId = core.newThreadId;
     if (!newThreadId) throw new Error("Expected an initial new thread");
 
-    (
-      core as unknown as {
-        _hookManager: {
-          startThreadRuntime: (id: string) => Promise<unknown>;
-        };
-      }
-    )._hookManager.startThreadRuntime = (id) =>
+    setStartThreadRuntime(core, (id) =>
       id === core.getItemById(newThreadId)?.id
         ? newThreadRuntime.promise
-        : Promise.resolve({});
+        : Promise.resolve({}),
+    );
 
     const deleteA = core.delete("thread-a");
     const switchToB = core.switchToThread("thread-b");
 
     newThreadRuntime.resolve({});
+    fetchB.resolve(thread("thread-b"));
+
+    await switchToB;
+    await deleteA;
+
+    expect(core.mainThreadId).toBe(core.getItemById("thread-b")?.id);
+  });
+
+  it("does not let a mutation cancel an existing pending switch", async () => {
+    const fetchB = deferred<RemoteThreadMetadata>();
+    const adapter = makeAdapter({
+      fetch: vi.fn(() => fetchB.promise),
+      list: vi.fn(async () => ({ threads: [thread("thread-a")] })),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("thread-a");
+
+    const switchToB = core.switchToThread("thread-b");
+    const deleteA = core.delete("thread-a");
+
     fetchB.resolve(thread("thread-b"));
 
     await switchToB;
