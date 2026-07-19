@@ -211,7 +211,19 @@ describe("createPiHttpClient", () => {
     await expect(
       createPiHttpClient({ fetchImpl: fn }).listThreads(),
     ).rejects.toThrow(
-      'Invalid Pi HTTP response while listing threads: thread at index 0 must have a non-empty string "id", a string "status", and structurally valid queued messages when present.',
+      'Invalid Pi HTTP response while listing threads: thread at index 0 must have a non-empty string "id", a string "status", and correctly typed known fields.',
+    );
+  });
+
+  it("rejects malformed known thread metadata fields", async () => {
+    const { fn } = fakeFetch(() =>
+      json([{ id: "t1", status: "idle", archived: "yes" }]),
+    );
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).listThreads(),
+    ).rejects.toThrow(
+      'Invalid Pi HTTP response while listing threads: thread at index 0 must have a non-empty string "id", a string "status", and correctly typed known fields.',
     );
   });
 
@@ -239,6 +251,21 @@ describe("createPiHttpClient", () => {
 
   it("rejects malformed thread snapshots", async () => {
     const { fn } = fakeFetch(() => json({ metadata: snapshot.metadata }));
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).getThread("t1"),
+    ).rejects.toThrow(
+      'Invalid Pi HTTP response while fetching a thread: expected a thread snapshot with valid "metadata", a "messages" array, and valid host UI requests when present.',
+    );
+  });
+
+  it("rejects malformed known transcript messages", async () => {
+    const { fn } = fakeFetch(() =>
+      json({
+        ...snapshot,
+        messages: [{ role: "assistant" }],
+      }),
+    );
 
     await expect(
       createPiHttpClient({ fetchImpl: fn }).getThread("t1"),

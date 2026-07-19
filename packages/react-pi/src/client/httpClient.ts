@@ -106,6 +106,15 @@ const readJson = async (
   }
 };
 
+const isOptionalString = (value: unknown): boolean =>
+  value === undefined || typeof value === "string";
+
+const isOptionalBoolean = (value: unknown): boolean =>
+  value === undefined || typeof value === "boolean";
+
+const isOptionalNumber = (value: unknown): boolean =>
+  value === undefined || typeof value === "number";
+
 const isQueuedMessage = (value: unknown): boolean => {
   if (!isRecord(value)) return false;
   return (
@@ -115,6 +124,20 @@ const isQueuedMessage = (value: unknown): boolean => {
   );
 };
 
+const isThreadConfig = (value: unknown): boolean =>
+  value === undefined ||
+  (isRecord(value) &&
+    isOptionalString(value.provider) &&
+    isOptionalString(value.modelId) &&
+    isOptionalString(value.thinkingLevel));
+
+const isContextUsage = (value: unknown): boolean =>
+  value === undefined ||
+  (isRecord(value) &&
+    (value.tokens === null || typeof value.tokens === "number") &&
+    typeof value.contextWindow === "number" &&
+    (value.percent === null || typeof value.percent === "number"));
+
 const isThreadMetadata = (value: unknown): value is PiThreadMetadata => {
   if (!isRecord(value)) return false;
   return (
@@ -123,7 +146,18 @@ const isThreadMetadata = (value: unknown): value is PiThreadMetadata => {
     typeof value.status === "string" &&
     (value.queuedMessages === undefined ||
       (Array.isArray(value.queuedMessages) &&
-        value.queuedMessages.every(isQueuedMessage)))
+        value.queuedMessages.every(isQueuedMessage))) &&
+    isOptionalString(value.title) &&
+    isOptionalString(value.workspacePath) &&
+    isOptionalBoolean(value.archived) &&
+    isOptionalString(value.runningRunId) &&
+    isThreadConfig(value.config) &&
+    isContextUsage(value.contextUsage) &&
+    isOptionalString(value.sessionFile) &&
+    isOptionalString(value.parentSessionPath) &&
+    isOptionalNumber(value.messageCount) &&
+    isOptionalString(value.createdAt) &&
+    isOptionalString(value.updatedAt)
   );
 };
 
@@ -136,19 +170,97 @@ const parseThreadListResponse = (value: unknown): PiThreadMetadata[] => {
     if (!isThreadMetadata(thread)) {
       throw invalidResponse(
         "listing threads",
-        `thread at index ${index} must have a non-empty string "id", a string "status", and structurally valid queued messages when present.`,
+        `thread at index ${index} must have a non-empty string "id", a string "status", and correctly typed known fields.`,
       );
     }
   }
   return value;
 };
 
-const isTranscriptMessage = (value: unknown): boolean =>
-  isRecord(value) && typeof value.role === "string";
+const isUserContentPart = (value: unknown): boolean => {
+  if (!isRecord(value) || typeof value.type !== "string") return false;
+  if (value.type === "text") return typeof value.text === "string";
+  if (value.type === "image") {
+    return typeof value.data === "string" && typeof value.mimeType === "string";
+  }
+  return true;
+};
+
+const isUserContent = (value: unknown): boolean =>
+  typeof value === "string" ||
+  (Array.isArray(value) && value.every(isUserContentPart));
+
+const isAssistantContentPart = (value: unknown): boolean => {
+  if (!isRecord(value) || typeof value.type !== "string") return false;
+  if (value.type === "text") return typeof value.text === "string";
+  if (value.type === "thinking") return typeof value.thinking === "string";
+  if (value.type === "toolCall") {
+    return (
+      typeof value.id === "string" &&
+      typeof value.name === "string" &&
+      isRecord(value.arguments)
+    );
+  }
+  return true;
+};
+
+const isTranscriptMessage = (value: unknown): boolean => {
+  if (!isRecord(value) || typeof value.role !== "string") return false;
+  if (value.role === "user") return isUserContent(value.content);
+  if (value.role === "assistant") {
+    return (
+      Array.isArray(value.content) &&
+      value.content.every(isAssistantContentPart)
+    );
+  }
+  if (value.role === "toolResult") {
+    return (
+      typeof value.toolCallId === "string" &&
+      typeof value.toolName === "string" &&
+      Array.isArray(value.content) &&
+      value.content.every(isUserContentPart) &&
+      typeof value.isError === "boolean"
+    );
+  }
+  if (value.role === "bashExecution") {
+    return (
+      typeof value.command === "string" &&
+      typeof value.output === "string" &&
+      (value.exitCode === undefined || typeof value.exitCode === "number") &&
+      typeof value.cancelled === "boolean" &&
+      typeof value.truncated === "boolean"
+    );
+  }
+  if (value.role === "custom") {
+    return (
+      typeof value.customType === "string" &&
+      isUserContent(value.content) &&
+      typeof value.display === "boolean"
+    );
+  }
+  if (value.role === "branchSummary") {
+    return (
+      typeof value.summary === "string" && typeof value.fromId === "string"
+    );
+  }
+  if (value.role === "compactionSummary") {
+    return (
+      typeof value.summary === "string" &&
+      typeof value.tokensBefore === "number"
+    );
+  }
+  return true;
+};
 
 const isHostUiRequest = (value: unknown): boolean => {
   if (!isRecord(value)) return false;
   if (typeof value.id !== "string" || typeof value.kind !== "string") {
+    return false;
+  }
+  if (
+    !isOptionalString(value.toolCallId) ||
+    !isOptionalNumber(value.timeoutMs)
+  ) {
     return false;
   }
 
@@ -162,8 +274,13 @@ const isHostUiRequest = (value: unknown): boolean => {
       value.options.every((option) => typeof option === "string")
     );
   }
-  if (value.kind === "input" || value.kind === "editor") {
-    return typeof value.title === "string";
+  if (value.kind === "input") {
+    return (
+      typeof value.title === "string" && isOptionalString(value.placeholder)
+    );
+  }
+  if (value.kind === "editor") {
+    return typeof value.title === "string" && isOptionalString(value.prefill);
   }
   return true;
 };
