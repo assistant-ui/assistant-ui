@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   AssistantRuntime,
   MessageFormatAdapter,
@@ -9,6 +9,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
+import { bindExternalStoreMessage } from "@assistant-ui/core";
 
 vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({
@@ -45,6 +46,10 @@ const storageFormat: MessageFormatAdapter<unknown, Record<string, unknown>> = {
 
 const toThreadMessages = (_messages: unknown[]): ThreadMessage[] => [];
 const onSetMessages = () => {};
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("useExternalHistory withFormat contract", () => {
   it("throws when the adapter omits withFormat", () => {
@@ -162,5 +167,124 @@ describe("toExportedMessageRepository", () => {
     expect(result.messages).toHaveLength(0);
     expect(result.headId).toBeNull();
     expect(() => new MessageRepository().import(result)).not.toThrow();
+  });
+});
+
+describe("useExternalHistory persistence", () => {
+  it("retries a failed append before persisting descendant messages", async () => {
+    const failure = new Error("temporary storage failure");
+    const append = vi
+      .fn()
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValue(undefined);
+    const formattedAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+    };
+    const historyAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue(formattedAdapter),
+    } as unknown as ThreadHistoryAdapter;
+
+    const makeMessage = (id: string, innerId: string): ThreadMessage => {
+      const message: ThreadMessage = {
+        id,
+        role: "assistant",
+        content: [{ type: "text", text: id }],
+        status: { type: "complete", reason: "stop" },
+        createdAt: new Date(),
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      };
+      bindExternalStoreMessage(message, { id: innerId });
+      return message;
+    };
+
+    const messages = [
+      makeMessage("parent", "inner-parent"),
+      makeMessage("child", "inner-child"),
+    ];
+    let isRunning = false;
+    let notify: (() => void) | undefined;
+    const thread = {
+      subscribe: vi.fn((listener: () => void) => {
+        notify = listener;
+        return () => {};
+      }),
+      getState: () => ({ isRunning, messages }),
+      import: vi.fn(),
+      export: vi.fn(),
+    } as unknown as AssistantRuntime["thread"];
+    const testRuntimeRef = {
+      current: { thread } as AssistantRuntime,
+    };
+    const storageAdapter: MessageFormatAdapter<
+      { id: string },
+      Record<string, unknown>
+    > = {
+      format: "test",
+      encode: ({ message }) => message,
+      decode: (stored) => ({
+        parentId: stored.parent_id,
+        message: stored.content as { id: string },
+      }),
+      getId: (message) => message.id,
+    };
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    renderHook(() =>
+      useExternalHistory(
+        testRuntimeRef,
+        historyAdapter,
+        () => messages,
+        storageAdapter,
+        () => {},
+      ),
+    );
+
+    const finishRun = () => {
+      act(() => {
+        isRunning = true;
+        notify?.();
+        isRunning = false;
+        notify?.();
+      });
+    };
+
+    finishRun();
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: { id: "inner-parent" },
+    });
+
+    finishRun();
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(3));
+    expect(append.mock.calls).toEqual([
+      [
+        {
+          parentId: null,
+          message: { id: "inner-parent" },
+        },
+      ],
+      [
+        {
+          parentId: null,
+          message: { id: "inner-parent" },
+        },
+      ],
+      [
+        {
+          parentId: "inner-parent",
+          message: { id: "inner-child" },
+        },
+      ],
+    ]);
   });
 });
