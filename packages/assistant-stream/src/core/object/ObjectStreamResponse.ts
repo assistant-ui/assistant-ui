@@ -18,26 +18,15 @@ export class ObjectStreamEncoder extends PipeableTransformStream<
             > {
               #isFirstChunk = true;
 
-              start() {
-                // Nothing needed here since we initialize in the field declaration
-              }
-
               transform(
                 chunk: ObjectStreamChunk,
                 controller: TransformStreamDefaultController<
                   readonly ObjectStreamOperation[]
                 >,
               ) {
-                if (
-                  this.#isFirstChunk &&
-                  chunk.snapshot &&
-                  Object.keys(chunk.snapshot).length > 0
-                ) {
-                  // For the first chunk, if there's an initial state that's not empty,
-                  // prepend a set operation for the initial state
+                if (this.#isFirstChunk) {
                   controller.enqueue([
                     { type: "set", path: [], value: chunk.snapshot },
-                    ...chunk.operations,
                   ]);
                 } else {
                   controller.enqueue(chunk.operations);
