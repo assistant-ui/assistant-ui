@@ -179,11 +179,7 @@ const parseThreadListResponse = (value: unknown): PiThreadMetadata[] => {
 
 const isUserContentPart = (value: unknown): boolean => {
   if (!isRecord(value) || typeof value.type !== "string") return false;
-  if (value.type === "text") {
-    return (
-      typeof value.text === "string" && isOptionalString(value.textSignature)
-    );
-  }
+  if (value.type === "text") return typeof value.text === "string";
   if (value.type === "image") {
     return typeof value.data === "string" && typeof value.mimeType === "string";
   }
@@ -196,105 +192,31 @@ const isUserContent = (value: unknown): boolean =>
 
 const isAssistantContentPart = (value: unknown): boolean => {
   if (!isRecord(value) || typeof value.type !== "string") return false;
-  if (value.type === "text") {
-    return (
-      typeof value.text === "string" && isOptionalString(value.textSignature)
-    );
-  }
-  if (value.type === "thinking") {
-    return (
-      typeof value.thinking === "string" &&
-      isOptionalString(value.thinkingSignature) &&
-      isOptionalBoolean(value.redacted)
-    );
-  }
+  if (value.type === "text") return typeof value.text === "string";
+  if (value.type === "thinking") return typeof value.thinking === "string";
   if (value.type === "toolCall") {
     return (
       typeof value.id === "string" &&
       typeof value.name === "string" &&
-      isRecord(value.arguments) &&
-      isOptionalString(value.thoughtSignature)
+      (value.arguments == null || isRecord(value.arguments))
     );
   }
   return true;
 };
 
-const isUsage = (value: unknown): boolean =>
-  isRecord(value) &&
-  typeof value.input === "number" &&
-  typeof value.output === "number" &&
-  typeof value.cacheRead === "number" &&
-  typeof value.cacheWrite === "number" &&
-  typeof value.totalTokens === "number" &&
-  isRecord(value.cost) &&
-  typeof value.cost.input === "number" &&
-  typeof value.cost.output === "number" &&
-  typeof value.cost.cacheRead === "number" &&
-  typeof value.cost.cacheWrite === "number" &&
-  typeof value.cost.total === "number";
-
 const isTranscriptMessage = (value: unknown): boolean => {
   if (!isRecord(value) || typeof value.role !== "string") return false;
-  if (value.role === "user") {
-    return isUserContent(value.content) && typeof value.timestamp === "number";
-  }
+  if (value.role === "user" || value.role === "custom")
+    return isUserContent(value.content);
   if (value.role === "assistant") {
     return (
       Array.isArray(value.content) &&
-      value.content.every(isAssistantContentPart) &&
-      typeof value.api === "string" &&
-      typeof value.provider === "string" &&
-      typeof value.model === "string" &&
-      isOptionalString(value.responseModel) &&
-      isOptionalString(value.responseId) &&
-      isUsage(value.usage) &&
-      typeof value.stopReason === "string" &&
-      isOptionalString(value.errorMessage) &&
-      typeof value.timestamp === "number"
+      value.content.every(isAssistantContentPart)
     );
   }
   if (value.role === "toolResult") {
     return (
-      typeof value.toolCallId === "string" &&
-      typeof value.toolName === "string" &&
-      Array.isArray(value.content) &&
-      value.content.every(isUserContentPart) &&
-      typeof value.isError === "boolean" &&
-      typeof value.timestamp === "number"
-    );
-  }
-  if (value.role === "bashExecution") {
-    return (
-      typeof value.command === "string" &&
-      typeof value.output === "string" &&
-      (value.exitCode === undefined || typeof value.exitCode === "number") &&
-      typeof value.cancelled === "boolean" &&
-      typeof value.truncated === "boolean" &&
-      isOptionalString(value.fullOutputPath) &&
-      typeof value.timestamp === "number" &&
-      isOptionalBoolean(value.excludeFromContext)
-    );
-  }
-  if (value.role === "custom") {
-    return (
-      typeof value.customType === "string" &&
-      isUserContent(value.content) &&
-      typeof value.display === "boolean" &&
-      typeof value.timestamp === "number"
-    );
-  }
-  if (value.role === "branchSummary") {
-    return (
-      typeof value.summary === "string" &&
-      typeof value.fromId === "string" &&
-      typeof value.timestamp === "number"
-    );
-  }
-  if (value.role === "compactionSummary") {
-    return (
-      typeof value.summary === "string" &&
-      typeof value.tokensBefore === "number" &&
-      typeof value.timestamp === "number"
+      Array.isArray(value.content) && value.content.every(isUserContentPart)
     );
   }
   return true;

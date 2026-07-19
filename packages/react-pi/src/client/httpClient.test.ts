@@ -263,7 +263,7 @@ describe("createPiHttpClient", () => {
     const { fn } = fakeFetch(() =>
       json({
         ...snapshot,
-        messages: [{ role: "assistant", content: [] }],
+        messages: [{ role: "assistant" }],
       }),
     );
 
@@ -274,29 +274,12 @@ describe("createPiHttpClient", () => {
     );
   });
 
-  it("accepts complete known transcript messages", async () => {
+  it("accepts renderable messages with missing or null scalar metadata", async () => {
     const message = {
       role: "assistant",
       content: [{ type: "text", text: "Hello" }],
-      api: "messages",
-      provider: "anthropic",
-      model: "claude",
-      usage: {
-        input: 1,
-        output: 1,
-        cacheRead: 0,
-        cacheWrite: 0,
-        totalTokens: 2,
-        cost: {
-          input: 0,
-          output: 0,
-          cacheRead: 0,
-          cacheWrite: 0,
-          total: 0,
-        },
-      },
-      stopReason: "stop",
-      timestamp: 1,
+      responseModel: null,
+      errorMessage: null,
     };
     const response = { ...snapshot, messages: [message] };
     const { fn } = fakeFetch(() => json(response));
