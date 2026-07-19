@@ -49,6 +49,16 @@ const isAwaitingToolApproval = (message: ThreadMessage) =>
   message.status?.type === "requires-action" &&
   message.status.reason === "tool-calls";
 
+const snapshotExternalMessages = <TMessage>(
+  messages: readonly ThreadMessage[],
+) =>
+  new Map<string, TMessage[]>(
+    messages.map((message) => [
+      message.id,
+      [...getExternalStoreMessages<TMessage>(message)],
+    ]),
+  );
+
 export const useExternalHistory = <TMessage>(
   runtimeRef: RefObject<AssistantRuntime>,
   historyAdapter: ThreadHistoryAdapter | undefined,
@@ -69,6 +79,7 @@ export const useExternalHistory = <TMessage>(
   const historyIds = useRef(new Set<string>());
   const persistedInnerIds = useRef(new Set<string>());
   const deferredTelemetryIds = useRef(new Set<string>());
+  const persistedExternalMessages = useRef(new Map<string, TMessage[]>());
 
   const onSetMessagesRef = useRef(onSetMessages);
   useEffect(() => {
@@ -116,6 +127,10 @@ export const useExternalHistory = <TMessage>(
               deferredTelemetryIds.current.add(m.message.id);
             }
           }
+          persistedExternalMessages.current =
+            snapshotExternalMessages<TMessage>(
+              converted.messages.map((m) => m.message),
+            );
         }
       } catch (error) {
         console.error("Failed to load message history:", error);
@@ -150,13 +165,14 @@ export const useExternalHistory = <TMessage>(
     if (!formatAdapter) return;
 
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
-      const { isRunning } = runtimeRef.current.thread.getState();
+      const threadState = runtimeRef.current.thread.getState();
+      const { isRunning } = threadState;
       const wasRunning = wasRunningRef.current;
       wasRunningRef.current = isRunning;
 
       // Track step boundaries by content changes (more reliable than isRunning)
       if (runStartRef.current != null) {
-        const lastMsg = runtimeRef.current.thread.getState().messages.at(-1);
+        const lastMsg = threadState.messages.at(-1);
         if (lastMsg?.role === "assistant") {
           const currentToolCallCount = lastMsg.content.filter(
             (p) => p.type === "tool-call",
@@ -198,6 +214,20 @@ export const useExternalHistory = <TMessage>(
         // Re-read latest state — may have changed since the timeout was scheduled
         const latest = runtimeRef.current.thread.getState();
         if (latest.isRunning) return; // was just a flicker
+
+        const changedRunMessageIds = new Set<string>();
+        for (const message of latest.messages) {
+          if (message.role !== "assistant") continue;
+          const externalMessages = getExternalStoreMessages<TMessage>(message);
+          const previous = persistedExternalMessages.current.get(message.id);
+          if (
+            previous === undefined ||
+            previous.length !== externalMessages.length ||
+            externalMessages.some((item, index) => item !== previous[index])
+          ) {
+            changedRunMessageIds.add(message.id);
+          }
+        }
 
         // Derive durationMs from the last boundary (covers all steps)
         const boundaries = stepBoundariesRef.current;
@@ -243,6 +273,7 @@ export const useExternalHistory = <TMessage>(
 
         const { messages } = latest;
         let lastInnerMessageId: string | null = null;
+        const failedUpdateIds = new Set<string>();
 
         const getLastInnerId = (msgs: TMessage[]): string | null =>
           msgs.length > 0 ? storageFormatAdapter.getId(msgs.at(-1)!) : null;
@@ -276,23 +307,26 @@ export const useExternalHistory = <TMessage>(
           }
 
           if (historyIds.current.has(message.id)) {
-            const items = toBatchItems(innerMessages);
-            for (const item of items) {
-              const innerId = storageFormatAdapter.getId(item.message);
-              if (!persistedInnerIds.current.has(innerId)) {
-                await formatAdapter.append(item);
-                persistedInnerIds.current.add(innerId);
-              } else if (durationMs !== undefined) {
-                try {
-                  await formatAdapter.update?.(item, innerId);
-                } catch {
-                  // ignore update failures to avoid breaking the message processing loop
+            if (changedRunMessageIds.has(message.id)) {
+              const items = toBatchItems(innerMessages);
+              for (const item of items) {
+                const innerId = storageFormatAdapter.getId(item.message);
+                if (!persistedInnerIds.current.has(innerId)) {
+                  await formatAdapter.append(item);
+                  persistedInnerIds.current.add(innerId);
+                } else if (durationMs !== undefined) {
+                  try {
+                    await formatAdapter.update?.(item, innerId);
+                  } catch {
+                    // ignore update failures to avoid breaking the message processing loop
+                    failedUpdateIds.add(message.id);
+                  }
                 }
               }
-            }
-            if (deferredTelemetryIds.current.has(message.id) && isTerminal) {
-              deferredTelemetryIds.current.delete(message.id);
-              formatAdapter.reportTelemetry?.(items, telemetryOptions);
+              if (deferredTelemetryIds.current.has(message.id) && isTerminal) {
+                deferredTelemetryIds.current.delete(message.id);
+                formatAdapter.reportTelemetry?.(items, telemetryOptions);
+              }
             }
             lastInnerMessageId =
               getLastInnerId(innerMessages) ?? lastInnerMessageId;
@@ -317,6 +351,14 @@ export const useExternalHistory = <TMessage>(
             deferredTelemetryIds.current.add(message.id);
           }
         }
+
+        const nextSnapshot = snapshotExternalMessages<TMessage>(
+          latest.messages,
+        );
+        for (const id of failedUpdateIds) {
+          nextSnapshot.delete(id);
+        }
+        persistedExternalMessages.current = nextSnapshot;
       }, 0);
     });
 
@@ -355,6 +397,7 @@ export const useExternalHistory = <TMessage>(
 
       historyIds.current.delete(messageId);
       deferredTelemetryIds.current.delete(messageId);
+      persistedExternalMessages.current.delete(messageId);
       for (const item of itemsToDelete) {
         persistedInnerIds.current.delete(
           storageFormatAdapter.getId(item.message),
