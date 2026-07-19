@@ -195,6 +195,70 @@ describe("createPiHttpClient", () => {
     ).rejects.toThrow(/404.*session not found/s);
   });
 
+  it("rejects a malformed thread list response", async () => {
+    const { fn } = fakeFetch(() => json({}));
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).listThreads(),
+    ).rejects.toThrow(
+      "Invalid Pi HTTP response while listing threads: expected an array of threads.",
+    );
+  });
+
+  it("identifies malformed thread metadata by index", async () => {
+    const { fn } = fakeFetch(() => json([{ id: "t1" }]));
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).listThreads(),
+    ).rejects.toThrow(
+      'Invalid Pi HTTP response while listing threads: thread at index 0 must have a non-empty string "id", a valid "status", and valid queued messages when present.',
+    );
+  });
+
+  it("rejects malformed thread snapshots", async () => {
+    const { fn } = fakeFetch(() => json({ metadata: snapshot.metadata }));
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).getThread("t1"),
+    ).rejects.toThrow(
+      'Invalid Pi HTTP response while fetching a thread: expected a thread snapshot with valid "metadata", a "messages" array, and valid host UI requests when present.',
+    );
+  });
+
+  it("rejects malformed queue and model responses", async () => {
+    const queueFetch = fakeFetch(() =>
+      json({ steering: [1], followUp: [] }),
+    ).fn;
+    const modelFetch = fakeFetch(() => json([{ provider: "anthropic" }])).fn;
+
+    await expect(
+      createPiHttpClient({ fetchImpl: queueFetch }).clearQueue("t1"),
+    ).rejects.toThrow(
+      'Invalid Pi HTTP response while clearing a thread queue: expected an object with string arrays "steering" and "followUp".',
+    );
+    await expect(
+      createPiHttpClient({ fetchImpl: modelFetch }).getAvailableModels(),
+    ).rejects.toThrow(
+      'Invalid Pi HTTP response while listing models: model at index 0 must have non-empty string "provider" and "modelId" fields.',
+    );
+  });
+
+  it("adds operation context to invalid JSON errors", async () => {
+    const { fn } = fakeFetch(
+      () =>
+        new Response("not json", {
+          status: 200,
+          headers: { "content-type": "text/plain" },
+        }),
+    );
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).listThreads(),
+    ).rejects.toThrow(
+      "Invalid Pi HTTP response while listing threads: expected valid JSON.",
+    );
+  });
+
   it("honors a custom baseUrl", async () => {
     const { fn, calls } = fakeFetch(() => json([]));
     await createPiHttpClient({

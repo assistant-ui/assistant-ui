@@ -83,9 +83,145 @@ const assertOk = async (response: Response): Promise<void> => {
   );
 };
 
-const readJson = async <T>(response: Response): Promise<T> => {
+const invalidResponse = (
+  operation: string,
+  expectation: string,
+  cause?: unknown,
+): Error =>
+  new Error(
+    `Invalid Pi HTTP response while ${operation}: ${expectation}`,
+    cause === undefined ? undefined : { cause },
+  );
+
+const readJson = async (
+  response: Response,
+  operation: string,
+): Promise<unknown> => {
   await assertOk(response);
-  return (await response.json()) as T;
+  try {
+    return await response.json();
+  } catch (error) {
+    throw invalidResponse(operation, "expected valid JSON.", error);
+  }
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isThreadStatus = (value: unknown): value is PiThreadMetadata["status"] =>
+  value === "idle" || value === "running" || value === "failed";
+
+const isQueuedMessage = (value: unknown): boolean => {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    (value.mode === "followUp" || value.mode === "steer") &&
+    typeof value.content === "string"
+  );
+};
+
+const isThreadMetadata = (value: unknown): value is PiThreadMetadata => {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    value.id.length > 0 &&
+    isThreadStatus(value.status) &&
+    (value.queuedMessages === undefined ||
+      (Array.isArray(value.queuedMessages) &&
+        value.queuedMessages.every(isQueuedMessage)))
+  );
+};
+
+const parseThreadListResponse = (value: unknown): PiThreadMetadata[] => {
+  if (!Array.isArray(value)) {
+    throw invalidResponse("listing threads", "expected an array of threads.");
+  }
+
+  for (const [index, thread] of value.entries()) {
+    if (!isThreadMetadata(thread)) {
+      throw invalidResponse(
+        "listing threads",
+        `thread at index ${index} must have a non-empty string "id", a valid "status", and valid queued messages when present.`,
+      );
+    }
+  }
+  return value;
+};
+
+const isTranscriptMessage = (value: unknown): boolean =>
+  isRecord(value) && typeof value.role === "string";
+
+const isHostUiRequest = (value: unknown): boolean => {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    (value.kind === "confirm" ||
+      value.kind === "select" ||
+      value.kind === "input" ||
+      value.kind === "editor")
+  );
+};
+
+const parseThreadSnapshotResponse = (
+  value: unknown,
+  operation: "creating a thread" | "fetching a thread",
+): PiThreadSnapshot => {
+  if (
+    !isRecord(value) ||
+    !isThreadMetadata(value.metadata) ||
+    !Array.isArray(value.messages) ||
+    !value.messages.every(isTranscriptMessage) ||
+    (value.hostUiRequests !== undefined &&
+      (!Array.isArray(value.hostUiRequests) ||
+        !value.hostUiRequests.every(isHostUiRequest)))
+  ) {
+    throw invalidResponse(
+      operation,
+      'expected a thread snapshot with valid "metadata", a "messages" array, and valid host UI requests when present.',
+    );
+  }
+  return value as PiThreadSnapshot;
+};
+
+const parseClearQueueResponse = (
+  value: unknown,
+): { steering: string[]; followUp: string[] } => {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.steering) ||
+    !value.steering.every((item) => typeof item === "string") ||
+    !Array.isArray(value.followUp) ||
+    !value.followUp.every((item) => typeof item === "string")
+  ) {
+    throw invalidResponse(
+      "clearing a thread queue",
+      'expected an object with string arrays "steering" and "followUp".',
+    );
+  }
+  return value as { steering: string[]; followUp: string[] };
+};
+
+const isModelInfo = (value: unknown): value is PiModelInfo =>
+  isRecord(value) &&
+  typeof value.provider === "string" &&
+  value.provider.length > 0 &&
+  typeof value.modelId === "string" &&
+  value.modelId.length > 0;
+
+const parseModelListResponse = (value: unknown): PiModelInfo[] => {
+  if (!Array.isArray(value)) {
+    throw invalidResponse("listing models", "expected an array of models.");
+  }
+
+  for (const [index, model] of value.entries()) {
+    if (!isModelInfo(model)) {
+      throw invalidResponse(
+        "listing models",
+        `model at index ${index} must have non-empty string "provider" and "modelId" fields.`,
+      );
+    }
+  }
+  return value;
 };
 
 export const createPiHttpClient = (
@@ -127,18 +263,31 @@ export const createPiHttpClient = (
         params.set("workspacePath", input.workspacePath);
       if (input?.includeArchived) params.set("includeArchived", "true");
       const query = params.toString();
-      return readJson<PiThreadMetadata[]>(
-        await send(`${base}/threads${query ? `?${query}` : ""}`, "GET"),
+      return parseThreadListResponse(
+        await readJson(
+          await send(`${base}/threads${query ? `?${query}` : ""}`, "GET"),
+          "listing threads",
+        ),
       );
     },
 
     createThread: async (input) =>
-      readJson<PiThreadSnapshot>(
-        await send(`${base}/threads`, "POST", input ?? {}),
+      parseThreadSnapshotResponse(
+        await readJson(
+          await send(`${base}/threads`, "POST", input ?? {}),
+          "creating a thread",
+        ),
+        "creating a thread",
       ),
 
     getThread: async (threadId) =>
-      readJson<PiThreadSnapshot>(await send(threadUrl(threadId), "GET")),
+      parseThreadSnapshotResponse(
+        await readJson(
+          await send(threadUrl(threadId), "GET"),
+          "fetching a thread",
+        ),
+        "fetching a thread",
+      ),
 
     sendMessage: async (threadId, input: PiSendMessageInput) => {
       await assertOk(
@@ -151,8 +300,11 @@ export const createPiHttpClient = (
     },
 
     clearQueue: async (threadId) =>
-      readJson<{ steering: string[]; followUp: string[] }>(
-        await send(`${threadUrl(threadId)}/queue/clear`, "POST"),
+      parseClearQueueResponse(
+        await readJson(
+          await send(`${threadUrl(threadId)}/queue/clear`, "POST"),
+          "clearing a thread queue",
+        ),
       ),
 
     getAvailableModels: async (input) => {
@@ -160,8 +312,11 @@ export const createPiHttpClient = (
       if (input?.workspacePath)
         params.set("workspacePath", input.workspacePath);
       const query = params.toString();
-      return readJson<PiModelInfo[]>(
-        await send(`${base}/models${query ? `?${query}` : ""}`, "GET"),
+      return parseModelListResponse(
+        await readJson(
+          await send(`${base}/models${query ? `?${query}` : ""}`, "GET"),
+          "listing models",
+        ),
       );
     },
 
