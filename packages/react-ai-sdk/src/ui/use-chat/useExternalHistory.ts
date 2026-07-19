@@ -45,6 +45,10 @@ export const toExportedMessageRepository = <TMessage>(
   };
 };
 
+const isAwaitingToolApproval = (message: ThreadMessage) =>
+  message.status?.type === "requires-action" &&
+  message.status.reason === "tool-calls";
+
 export const useExternalHistory = <TMessage>(
   runtimeRef: RefObject<AssistantRuntime>,
   historyAdapter: ThreadHistoryAdapter | undefined,
@@ -105,15 +109,10 @@ export const useExternalHistory = <TMessage>(
             messages.flatMap(getExternalStoreMessages<TMessage>),
           );
 
-          historyIds.current = new Set(
-            converted.messages.map((m) => m.message.id),
-          );
-
+          historyIds.current = new Set();
           for (const m of converted.messages) {
-            if (
-              m.message.status?.type === "requires-action" &&
-              m.message.status.reason === "tool-calls"
-            ) {
+            historyIds.current.add(m.message.id);
+            if (isAwaitingToolApproval(m.message)) {
               deferredTelemetryIds.current.add(m.message.id);
             }
           }
@@ -264,9 +263,7 @@ export const useExternalHistory = <TMessage>(
             message.status === undefined ||
             message.status.type === "complete" ||
             message.status.type === "incomplete";
-          const isAwaitingToolCalls =
-            message.status?.type === "requires-action" &&
-            message.status.reason === "tool-calls";
+          const isAwaitingToolCalls = isAwaitingToolApproval(message);
           // A paused message's later content can only reach storage via update, so it is persisted early only when the adapter supports update.
           const isReady =
             isTerminal ||

@@ -14,7 +14,10 @@ import type {
 
 vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({
-    threadListItem: Object.assign(() => null, { source: undefined }),
+    threadListItem: Object.assign(
+      () => ({ getState: () => ({ remoteId: "remote-1" }) }),
+      { source: {} },
+    ),
   }),
 }));
 
@@ -205,7 +208,13 @@ describe("useExternalHistory persistence", () => {
     return message;
   };
 
-  const createPersistenceHarness = (supportsUpdate: boolean) => {
+  const createPersistenceHarness = (
+    supportsUpdate: boolean,
+    options?: {
+      loadMessages?: MessageFormatRepository<InnerMessage>;
+      toThreadMessages?: (messages: InnerMessage[]) => ThreadMessage[];
+    },
+  ) => {
     const append = vi.fn(
       async (_item: { parentId: string | null; message: InnerMessage }) => {},
     );
@@ -216,8 +225,11 @@ describe("useExternalHistory persistence", () => {
       ) => {},
     );
     const reportTelemetry = vi.fn();
+    const load = vi
+      .fn()
+      .mockResolvedValue(options?.loadMessages ?? { messages: [] });
     const formattedAdapter = {
-      load: vi.fn().mockResolvedValue({ messages: [] }),
+      load,
       append,
       reportTelemetry,
       ...(supportsUpdate ? { update } : {}),
@@ -249,7 +261,7 @@ describe("useExternalHistory persistence", () => {
       useExternalHistory(
         persistenceRuntimeRef,
         historyAdapter,
-        () => [],
+        options?.toThreadMessages ?? (() => []),
         persistenceStorageFormat,
         () => {},
       ),
@@ -272,7 +284,7 @@ describe("useExternalHistory persistence", () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
-    return { append, update, reportTelemetry, runCycle, flush };
+    return { append, update, reportTelemetry, load, runCycle, flush };
   };
 
   it("persists assistant messages awaiting tool approval when the adapter supports update", async () => {
@@ -413,6 +425,58 @@ describe("useExternalHistory persistence", () => {
     ]);
     await flush();
 
+    expect(reportTelemetry).toHaveBeenCalledTimes(1);
+    expect(reportTelemetry).toHaveBeenCalledWith(
+      [
+        { parentId: null, message: finalInnerMessage },
+        { parentId: "inner-a", message: continuationInnerMessage },
+      ],
+      expect.any(Object),
+    );
+  });
+
+  it("restores deferred telemetry for reloaded paused messages", async () => {
+    const { append, update, reportTelemetry, load, runCycle, flush } =
+      createPersistenceHarness(true, {
+        loadMessages: {
+          messages: [
+            {
+              parentId: null,
+              message: { id: "inner-a", parts: ["pending"] },
+            },
+          ],
+        },
+        toThreadMessages: (msgs) => [
+          createAssistantMessage(
+            { type: "requires-action", reason: "tool-calls" },
+            msgs,
+          ),
+        ],
+      });
+
+    await waitFor(() => expect(load).toHaveBeenCalled());
+    await flush();
+
+    const finalInnerMessage = { id: "inner-a", parts: ["pending", "final"] };
+    const continuationInnerMessage = { id: "inner-b", parts: ["answer"] };
+
+    await runCycle([
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        finalInnerMessage,
+        continuationInnerMessage,
+      ]),
+    ]);
+    await flush();
+
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append).toHaveBeenCalledWith({
+      parentId: "inner-a",
+      message: continuationInnerMessage,
+    });
+    expect(update).toHaveBeenCalledWith(
+      { parentId: null, message: finalInnerMessage },
+      "inner-a",
+    );
     expect(reportTelemetry).toHaveBeenCalledTimes(1);
     expect(reportTelemetry).toHaveBeenCalledWith(
       [
