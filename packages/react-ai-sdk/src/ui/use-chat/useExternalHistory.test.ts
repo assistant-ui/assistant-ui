@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { bindExternalStoreMessage } from "@assistant-ui/core";
 import type {
   AssistantRuntime,
   MessageFormatAdapter,
   MessageFormatRepository,
+  ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
@@ -162,5 +164,224 @@ describe("toExportedMessageRepository", () => {
     expect(result.messages).toHaveLength(0);
     expect(result.headId).toBeNull();
     expect(() => new MessageRepository().import(result)).not.toThrow();
+  });
+});
+
+describe("useExternalHistory persistence", () => {
+  type InnerMessage = { id: string; parts: string[] };
+
+  const persistenceStorageFormat: MessageFormatAdapter<
+    InnerMessage,
+    Record<string, unknown>
+  > = {
+    format: "test",
+    encode: (item) => ({ data: item.message }),
+    decode: (stored) => ({
+      parentId: stored.parent_id,
+      message: stored.content as unknown as InnerMessage,
+    }),
+    getId: (message) => message.id,
+  };
+
+  const createAssistantMessage = (
+    status: ThreadAssistantMessage["status"],
+    innerMessages: InnerMessage[],
+  ): ThreadMessage => {
+    const message: ThreadAssistantMessage = {
+      id: "assistant-a",
+      role: "assistant",
+      content: [],
+      createdAt: new Date(),
+      status,
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    bindExternalStoreMessage(message, innerMessages);
+    return message;
+  };
+
+  const createPersistenceHarness = (supportsUpdate: boolean) => {
+    const append = vi.fn(
+      async (_item: { parentId: string | null; message: InnerMessage }) => {},
+    );
+    const update = vi.fn(
+      async (
+        _item: { parentId: string | null; message: InnerMessage },
+        _localMessageId: string,
+      ) => {},
+    );
+    const formattedAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+      ...(supportsUpdate ? { update } : {}),
+    };
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue(formattedAdapter),
+    };
+
+    let listener: (() => void) | undefined;
+    let isRunning = false;
+    let messages: ThreadMessage[] = [];
+    const getState = vi.fn(() => ({ isRunning, messages }));
+    const thread = {
+      subscribe: (nextListener: () => void) => {
+        listener = nextListener;
+        return () => {};
+      },
+      getState,
+      import: vi.fn(),
+      export: vi.fn(() => ({ headId: null, messages: [] })),
+    } as unknown as AssistantRuntime["thread"];
+    const persistenceRuntimeRef = {
+      current: { thread } as AssistantRuntime,
+    };
+
+    renderHook(() =>
+      useExternalHistory(
+        persistenceRuntimeRef,
+        historyAdapter,
+        () => [],
+        persistenceStorageFormat,
+        () => {},
+      ),
+    );
+
+    const runCycle = async (nextMessages: ThreadMessage[]) => {
+      await act(async () => {
+        messages = nextMessages;
+        isRunning = true;
+        listener?.();
+      });
+      await act(async () => {
+        isRunning = false;
+        listener?.();
+      });
+    };
+
+    return { append, update, getState, runCycle };
+  };
+
+  it("persists assistant messages awaiting tool approval when the adapter supports update", async () => {
+    const { append, runCycle } = createPersistenceHarness(true);
+    const innerMessage = { id: "inner-a", parts: ["pending"] };
+
+    await runCycle([
+      createAssistantMessage(
+        { type: "requires-action", reason: "tool-calls" },
+        [innerMessage],
+      ),
+    ]);
+
+    await waitFor(() =>
+      expect(append).toHaveBeenCalledWith({
+        parentId: null,
+        message: innerMessage,
+      }),
+    );
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps paused messages unpersisted when the adapter lacks update", async () => {
+    const { append, getState, runCycle } = createPersistenceHarness(false);
+    const finalInnerMessage = { id: "inner-a", parts: ["pending", "final"] };
+
+    await runCycle([
+      createAssistantMessage(
+        { type: "requires-action", reason: "tool-calls" },
+        [{ id: "inner-a", parts: ["pending"] }],
+      ),
+    ]);
+
+    await waitFor(() => {
+      expect(getState).toHaveBeenCalledTimes(4);
+      expect(append).not.toHaveBeenCalled();
+    });
+
+    await runCycle([
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        finalInnerMessage,
+      ]),
+    ]);
+
+    await waitFor(() =>
+      expect(append).toHaveBeenCalledWith({
+        parentId: null,
+        message: finalInnerMessage,
+      }),
+    );
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it("updates the previously persisted message when its run completes", async () => {
+    const { append, update, runCycle } = createPersistenceHarness(true);
+    const pendingInnerMessage = { id: "inner-a", parts: ["pending"] };
+    const finalInnerMessage = { id: "inner-a", parts: ["pending", "final"] };
+
+    await runCycle([
+      createAssistantMessage(
+        { type: "requires-action", reason: "tool-calls" },
+        [pendingInnerMessage],
+      ),
+    ]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+    await runCycle([
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        finalInnerMessage,
+      ]),
+    ]);
+
+    await waitFor(() =>
+      expect(update).toHaveBeenCalledWith(
+        { parentId: null, message: finalInnerMessage },
+        "inner-a",
+      ),
+    );
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it("appends continuation inner messages after approval", async () => {
+    const { append, update, runCycle } = createPersistenceHarness(true);
+    const pendingInnerMessage = { id: "inner-a", parts: ["pending"] };
+    const finalInnerMessage = { id: "inner-a", parts: ["pending", "final"] };
+    const continuationInnerMessage = { id: "inner-b", parts: ["answer"] };
+
+    await runCycle([
+      createAssistantMessage(
+        { type: "requires-action", reason: "tool-calls" },
+        [pendingInnerMessage],
+      ),
+    ]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+    await runCycle([
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        finalInnerMessage,
+        continuationInnerMessage,
+      ]),
+    ]);
+
+    await waitFor(() =>
+      expect(append).toHaveBeenCalledWith({
+        parentId: "inner-a",
+        message: continuationInnerMessage,
+      }),
+    );
+    expect(append.mock.calls.map(([item]) => item.message.id)).toEqual([
+      "inner-a",
+      "inner-b",
+    ]);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith(
+      { parentId: null, message: finalInnerMessage },
+      "inner-a",
+    );
   });
 });
