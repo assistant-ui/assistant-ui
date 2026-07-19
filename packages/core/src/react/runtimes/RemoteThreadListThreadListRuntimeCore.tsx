@@ -308,11 +308,19 @@ export class RemoteThreadListThreadListRuntimeCore
     return getThreadData(this._state.value, threadIdOrRemoteId);
   }
 
-  public async switchToThread(
+  public switchToThread(
     threadIdOrRemoteId: string,
     options?: { unarchive?: boolean },
   ): Promise<void> {
     const generation = ++this._switchGeneration;
+    return this._switchToThread(threadIdOrRemoteId, options, generation);
+  }
+
+  private async _switchToThread(
+    threadIdOrRemoteId: string,
+    options: { unarchive?: boolean } | undefined,
+    generation: number,
+  ): Promise<void> {
     let data = this.getItemById(threadIdOrRemoteId);
 
     if (!data) {
@@ -397,12 +405,15 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public async switchToNewThread(): Promise<void> {
+    const generation = ++this._switchGeneration;
+
     // an initialization transaction is in progress, wait for it to settle
     while (
       this._state.baseValue.newThreadId !== undefined &&
       this._state.value.newThreadId === undefined
     ) {
       await this._state.waitForUpdate();
+      if (generation !== this._switchGeneration) return;
     }
 
     const state = this._state.value;
@@ -434,7 +445,7 @@ export class RemoteThreadListThreadListRuntimeCore
       });
     }
 
-    return this.switchToThread(id);
+    return this._switchToThread(id, undefined, generation);
   }
 
   public initialize = async (threadId: string) => {

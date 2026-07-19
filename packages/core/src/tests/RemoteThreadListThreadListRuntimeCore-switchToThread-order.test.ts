@@ -67,4 +67,78 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread order", () => {
 
     expect(core.mainThreadId).toBe(core.getItemById("thread-c")?.id);
   });
+
+  it("invalidates an earlier switch while a new thread request is pending", async () => {
+    const initializeThread = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const runtimeB = deferred<unknown>();
+    const adapter = makeAdapter({
+      initialize: vi.fn(() => initializeThread.promise),
+      list: vi.fn(async () => ({ threads: [thread("thread-b")] })),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+
+    const initialNewThreadId = core.newThreadId;
+    if (!initialNewThreadId) throw new Error("Expected an initial new thread");
+
+    const threadBId = core.getItemById("thread-b")?.id;
+    (
+      core as unknown as {
+        _hookManager: {
+          startThreadRuntime: (id: string) => Promise<unknown>;
+        };
+      }
+    )._hookManager.startThreadRuntime = (id) =>
+      id === threadBId ? runtimeB.promise : Promise.resolve({});
+
+    const initialize = core.initialize(initialNewThreadId);
+    const switchToB = core.switchToThread("thread-b");
+    const switchToNewThread = core.switchToNewThread();
+
+    runtimeB.resolve({});
+    await switchToB;
+
+    expect(core.mainThreadId).not.toBe(threadBId);
+
+    initializeThread.resolve({
+      remoteId: "initialized-thread",
+      externalId: "initialized-thread",
+    });
+    await initialize;
+    await switchToNewThread;
+
+    expect(core.mainThreadId).toBe(core.getItemById(core.newThreadId!)?.id);
+  });
+
+  it("does not let a pending new thread request override a later switch", async () => {
+    const initializeThread = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const adapter = makeAdapter({
+      initialize: vi.fn(() => initializeThread.promise),
+      list: vi.fn(async () => ({ threads: [thread("thread-c")] })),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+
+    const initialNewThreadId = core.newThreadId;
+    if (!initialNewThreadId) throw new Error("Expected an initial new thread");
+
+    const initialize = core.initialize(initialNewThreadId);
+    const switchToNewThread = core.switchToNewThread();
+    await core.switchToThread("thread-c");
+
+    initializeThread.resolve({
+      remoteId: "initialized-thread",
+      externalId: "initialized-thread",
+    });
+    await initialize;
+    await switchToNewThread;
+
+    expect(core.mainThreadId).toBe(core.getItemById("thread-c")?.id);
+  });
 });
