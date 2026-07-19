@@ -267,7 +267,12 @@ describe("useExternalHistory persistence", () => {
       });
     };
 
-    return { append, update, reportTelemetry, runCycle };
+    const flush = () =>
+      act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+    return { append, update, reportTelemetry, runCycle, flush };
   };
 
   it("persists assistant messages awaiting tool approval when the adapter supports update", async () => {
@@ -291,7 +296,7 @@ describe("useExternalHistory persistence", () => {
   });
 
   it("keeps paused messages unpersisted when the adapter lacks update", async () => {
-    const { append, runCycle } = createPersistenceHarness(false);
+    const { append, runCycle, flush } = createPersistenceHarness(false);
     const finalInnerMessage = { id: "inner-a", parts: ["pending", "final"] };
 
     await runCycle([
@@ -301,9 +306,7 @@ describe("useExternalHistory persistence", () => {
       ),
     ]);
 
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    await flush();
     expect(append).not.toHaveBeenCalled();
 
     await runCycle([
@@ -388,7 +391,7 @@ describe("useExternalHistory persistence", () => {
   });
 
   it("defers run telemetry until the paused message completes", async () => {
-    const { reportTelemetry, runCycle } = createPersistenceHarness(true);
+    const { reportTelemetry, runCycle, flush } = createPersistenceHarness(true);
     const pendingInnerMessage = { id: "inner-a", parts: ["pending"] };
     const finalInnerMessage = { id: "inner-a", parts: ["pending", "final"] };
     const continuationInnerMessage = { id: "inner-b", parts: ["answer"] };
@@ -399,9 +402,7 @@ describe("useExternalHistory persistence", () => {
         [pendingInnerMessage],
       ),
     ]);
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    await flush();
     expect(reportTelemetry).not.toHaveBeenCalled();
 
     await runCycle([
@@ -410,9 +411,7 @@ describe("useExternalHistory persistence", () => {
         continuationInnerMessage,
       ]),
     ]);
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    await flush();
 
     expect(reportTelemetry).toHaveBeenCalledTimes(1);
     expect(reportTelemetry).toHaveBeenCalledWith(

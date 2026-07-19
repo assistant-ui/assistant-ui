@@ -108,6 +108,15 @@ export const useExternalHistory = <TMessage>(
           historyIds.current = new Set(
             converted.messages.map((m) => m.message.id),
           );
+
+          for (const m of converted.messages) {
+            if (
+              m.message.status?.type === "requires-action" &&
+              m.message.status.reason === "tool-calls"
+            ) {
+              deferredTelemetryIds.current.add(m.message.id);
+            }
+          }
         }
       } catch (error) {
         console.error("Failed to load message history:", error);
@@ -348,6 +357,7 @@ export const useExternalHistory = <TMessage>(
       await formatAdapter.delete(itemsToDelete);
 
       historyIds.current.delete(messageId);
+      deferredTelemetryIds.current.delete(messageId);
       for (const item of itemsToDelete) {
         persistedInnerIds.current.delete(
           storageFormatAdapter.getId(item.message),
