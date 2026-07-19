@@ -289,6 +289,21 @@ describe("createPiHttpClient", () => {
     ).resolves.toEqual(response);
   });
 
+  it("rejects tool results without a tool call id", async () => {
+    const { fn } = fakeFetch(() =>
+      json({
+        ...snapshot,
+        messages: [{ role: "toolResult", content: [] }],
+      }),
+    );
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).getThread("t1"),
+    ).rejects.toThrow(
+      'Invalid Pi HTTP response while fetching a thread: expected a thread snapshot with valid "metadata", a "messages" array, and valid host UI requests when present.',
+    );
+  });
+
   it("rejects malformed known host UI request shapes", async () => {
     const { fn } = fakeFetch(() =>
       json({

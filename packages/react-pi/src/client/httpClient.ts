@@ -216,7 +216,9 @@ const isTranscriptMessage = (value: unknown): boolean => {
   }
   if (value.role === "toolResult") {
     return (
-      Array.isArray(value.content) && value.content.every(isUserContentPart)
+      typeof value.toolCallId === "string" &&
+      Array.isArray(value.content) &&
+      value.content.every(isUserContentPart)
     );
   }
   return true;
