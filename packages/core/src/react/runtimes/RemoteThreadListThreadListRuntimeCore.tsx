@@ -45,6 +45,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _loadMorePromise: Promise<void> | undefined;
   private _loadGeneration = 0;
   private _switchGeneration = 0;
+  private _switchTask: Promise<void> | undefined;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>({
@@ -313,7 +314,9 @@ export class RemoteThreadListThreadListRuntimeCore
     options?: { unarchive?: boolean },
   ): Promise<void> {
     const generation = ++this._switchGeneration;
-    return this._switchToThread(threadIdOrRemoteId, options, generation);
+    const task = this._switchToThread(threadIdOrRemoteId, options, generation);
+    this._switchTask = task;
+    return task;
   }
 
   private async _switchToThread(
@@ -404,9 +407,14 @@ export class RemoteThreadListThreadListRuntimeCore
     this._notifyThreadIdChange();
   }
 
-  public async switchToNewThread(): Promise<void> {
+  public switchToNewThread(): Promise<void> {
     const generation = ++this._switchGeneration;
+    const task = this._switchToNewThread(generation);
+    this._switchTask = task;
+    return task;
+  }
 
+  private async _switchToNewThread(generation: number): Promise<void> {
     // an initialization transaction is in progress, wait for it to settle
     while (
       this._state.baseValue.newThreadId !== undefined &&
@@ -622,8 +630,30 @@ export class RemoteThreadListThreadListRuntimeCore
     if (threadId === this.newThreadId)
       throw new Error("Cannot ensure new thread is not main");
 
-    if (threadId === this._mainThreadId) {
-      await this.switchToNewThread();
+    if (threadId !== this._mainThreadId) return;
+
+    let fallbackTask = this.switchToNewThread();
+    let switchTask = fallbackTask;
+
+    while (threadId === this._mainThreadId) {
+      try {
+        await switchTask;
+      } catch (error) {
+        if (switchTask === fallbackTask && this._switchTask === switchTask) {
+          throw error;
+        }
+      }
+
+      if (threadId !== this._mainThreadId) return;
+
+      const latestSwitchTask = this._switchTask;
+      if (latestSwitchTask && latestSwitchTask !== switchTask) {
+        switchTask = latestSwitchTask;
+        continue;
+      }
+
+      fallbackTask = this.switchToNewThread();
+      switchTask = fallbackTask;
     }
   }
 
