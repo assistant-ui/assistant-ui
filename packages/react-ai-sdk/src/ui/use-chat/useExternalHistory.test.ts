@@ -167,7 +167,7 @@ describe("toExportedMessageRepository", () => {
 });
 
 describe("useExternalHistory persistence", () => {
-  it("only updates persisted messages that participate in the active run", async () => {
+  it("only updates persisted messages that change during the active run", async () => {
     type StoredMessage = { id: string; text: string };
 
     const append = vi.fn().mockResolvedValue(undefined);
@@ -211,6 +211,7 @@ describe("useExternalHistory persistence", () => {
     let messages = [
       makeMessage("old", "inner-old", "old"),
       makeMessage("active", "inner-active", "initial"),
+      makeMessage("tail", "inner-tail", "tail"),
     ];
     let isRunning = false;
     let notify: (() => void) | undefined;
@@ -258,17 +259,20 @@ describe("useExternalHistory persistence", () => {
 
     setRunning(true);
     setRunning(false);
-    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(3));
 
     append.mockClear();
     update.mockClear();
     reportTelemetry.mockClear();
-    messages = [
-      messages[0]!,
-      makeMessage("active", "inner-active", "completed"),
-    ];
-
     setRunning(true);
+    act(() => {
+      messages = [
+        messages[0]!,
+        makeMessage("active", "inner-active", "completed"),
+        messages[2]!,
+      ];
+      notify?.();
+    });
     setRunning(false);
     setRunning(true);
     setRunning(false);

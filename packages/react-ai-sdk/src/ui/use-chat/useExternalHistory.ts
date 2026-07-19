@@ -124,10 +124,21 @@ export const useExternalHistory = <TMessage>(
   const stepBoundariesRef = useRef<number[]>([]);
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
-  const activeRunMessageIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (!formatAdapter) return;
+
+    const snapshotExternalMessages = (messages: readonly ThreadMessage[]) =>
+      new Map<string, TMessage[]>(
+        messages.map((message) => [
+          message.id,
+          [...getExternalStoreMessages<TMessage>(message)],
+        ]),
+      );
+    let idleExternalMessages = snapshotExternalMessages(
+      runtimeRef.current.thread.getState().messages,
+    );
+    let runStartExternalMessages = idleExternalMessages;
 
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const threadState = runtimeRef.current.thread.getState();
@@ -139,14 +150,10 @@ export const useExternalHistory = <TMessage>(
         runStartRef.current = Date.now();
         stepBoundariesRef.current = [];
         toolCallCountRef.current = 0;
-        activeRunMessageIdsRef.current = new Set();
+        runStartExternalMessages = idleExternalMessages;
       }
 
       const lastMessage = threadState.messages.at(-1);
-      if (runStartRef.current != null && lastMessage?.role === "assistant") {
-        activeRunMessageIdsRef.current.add(lastMessage.id);
-      }
-
       // Track step boundaries by content changes (more reliable than isRunning)
       if (runStartRef.current != null) {
         if (lastMessage?.role === "assistant") {
@@ -170,7 +177,10 @@ export const useExternalHistory = <TMessage>(
       }
 
       // Only act on the true→false transition
-      if (!wasRunning) return;
+      if (!wasRunning) {
+        idleExternalMessages = snapshotExternalMessages(threadState.messages);
+        return;
+      }
 
       // Record step boundary offset (synchronous for accuracy)
       if (runStartRef.current != null) {
@@ -220,8 +230,20 @@ export const useExternalHistory = <TMessage>(
               }))
             : undefined;
 
-        const activeRunMessageIds = activeRunMessageIdsRef.current;
-        activeRunMessageIdsRef.current = new Set();
+        const changedRunMessageIds = new Set<string>();
+        for (const message of latest.messages) {
+          if (message.role !== "assistant") continue;
+          const externalMessages = getExternalStoreMessages<TMessage>(message);
+          const previous = runStartExternalMessages.get(message.id);
+          if (
+            previous === undefined ||
+            previous.length !== externalMessages.length ||
+            externalMessages.some((item, index) => item !== previous[index])
+          ) {
+            changedRunMessageIds.add(message.id);
+          }
+        }
+        idleExternalMessages = snapshotExternalMessages(latest.messages);
         runStartRef.current = null;
         stepBoundariesRef.current = [];
 
@@ -260,7 +282,7 @@ export const useExternalHistory = <TMessage>(
           }
 
           if (historyIds.current.has(message.id)) {
-            if (activeRunMessageIds.has(message.id)) {
+            if (changedRunMessageIds.has(message.id)) {
               const batchItems = toBatchItems(innerMessages);
               for (const item of batchItems) {
                 try {
