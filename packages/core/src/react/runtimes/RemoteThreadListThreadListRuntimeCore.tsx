@@ -44,6 +44,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _loadThreadsPromise: Promise<void> | undefined;
   private _loadMorePromise: Promise<void> | undefined;
   private _loadGeneration = 0;
+  private _switchGeneration = 0;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>({
@@ -311,11 +312,14 @@ export class RemoteThreadListThreadListRuntimeCore
     threadIdOrRemoteId: string,
     options?: { unarchive?: boolean },
   ): Promise<void> {
+    const generation = ++this._switchGeneration;
     let data = this.getItemById(threadIdOrRemoteId);
 
     if (!data) {
       const remoteMetadata =
         await this._options.adapter.fetch(threadIdOrRemoteId);
+      if (generation !== this._switchGeneration) return;
+
       const state = this._state.value;
       const mappingId = createThreadMappingId(remoteMetadata.remoteId);
 
@@ -380,8 +384,11 @@ export class RemoteThreadListThreadListRuntimeCore
       task.then(() => this._notifySubscribers());
     }
 
+    if (generation !== this._switchGeneration) return;
+
     if (data.status === "archived" && options?.unarchive !== false) {
       await this.unarchive(data.id);
+      if (generation !== this._switchGeneration) return;
     }
     this._mainThreadId = data.id;
 
