@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type {
   AssistantRuntime,
@@ -9,6 +9,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
+import { bindExternalStoreMessage } from "@assistant-ui/core";
 
 vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({
@@ -162,5 +163,87 @@ describe("toExportedMessageRepository", () => {
     expect(result.messages).toHaveLength(0);
     expect(result.headId).toBeNull();
     expect(() => new MessageRepository().import(result)).not.toThrow();
+  });
+});
+
+describe("useExternalHistory persistence", () => {
+  it("persists assistant messages waiting for tool approval", async () => {
+    const append = vi.fn().mockResolvedValue(undefined);
+    const formattedAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+    };
+    const historyAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue(formattedAdapter),
+    } as unknown as ThreadHistoryAdapter;
+
+    const message: ThreadMessage = {
+      id: "approval-message",
+      role: "assistant",
+      content: [{ type: "text", text: "Approve the tool call" }],
+      status: { type: "requires-action", reason: "tool-calls" },
+      createdAt: new Date(),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    bindExternalStoreMessage(message, { id: "inner-approval-message" });
+
+    let isRunning = false;
+    let notify: (() => void) | undefined;
+    const thread = {
+      subscribe: vi.fn((listener: () => void) => {
+        notify = listener;
+        return () => {};
+      }),
+      getState: () => ({ isRunning, messages: [message] }),
+      import: vi.fn(),
+      export: vi.fn(),
+    } as unknown as AssistantRuntime["thread"];
+    const testRuntimeRef = {
+      current: { thread } as AssistantRuntime,
+    };
+    const storageAdapter: MessageFormatAdapter<
+      { id: string },
+      Record<string, unknown>
+    > = {
+      format: "test",
+      encode: ({ message }) => message,
+      decode: (stored) => ({
+        parentId: stored.parent_id,
+        message: stored.content as { id: string },
+      }),
+      getId: (storedMessage) => storedMessage.id,
+    };
+
+    renderHook(() =>
+      useExternalHistory(
+        testRuntimeRef,
+        historyAdapter,
+        () => [message],
+        storageAdapter,
+        () => {},
+      ),
+    );
+
+    act(() => {
+      isRunning = true;
+      notify?.();
+      isRunning = false;
+      notify?.();
+    });
+
+    await waitFor(() =>
+      expect(append).toHaveBeenCalledWith({
+        parentId: null,
+        message: { id: "inner-approval-message" },
+      }),
+    );
   });
 });

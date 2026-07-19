@@ -240,6 +240,8 @@ export const useExternalHistory = <TMessage>(
 
           const isReady =
             message.status === undefined ||
+            (message.status.type === "requires-action" &&
+              message.status.reason === "tool-calls") ||
             message.status.type === "complete" ||
             message.status.type === "incomplete";
 
