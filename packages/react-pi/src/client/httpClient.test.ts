@@ -263,7 +263,7 @@ describe("createPiHttpClient", () => {
     const { fn } = fakeFetch(() =>
       json({
         ...snapshot,
-        messages: [{ role: "assistant" }],
+        messages: [{ role: "assistant", content: [] }],
       }),
     );
 
@@ -272,6 +272,38 @@ describe("createPiHttpClient", () => {
     ).rejects.toThrow(
       'Invalid Pi HTTP response while fetching a thread: expected a thread snapshot with valid "metadata", a "messages" array, and valid host UI requests when present.',
     );
+  });
+
+  it("accepts complete known transcript messages", async () => {
+    const message = {
+      role: "assistant",
+      content: [{ type: "text", text: "Hello" }],
+      api: "messages",
+      provider: "anthropic",
+      model: "claude",
+      usage: {
+        input: 1,
+        output: 1,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 2,
+        cost: {
+          input: 0,
+          output: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+          total: 0,
+        },
+      },
+      stopReason: "stop",
+      timestamp: 1,
+    };
+    const response = { ...snapshot, messages: [message] };
+    const { fn } = fakeFetch(() => json(response));
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).getThread("t1"),
+    ).resolves.toEqual(response);
   });
 
   it("rejects malformed known host UI request shapes", async () => {
