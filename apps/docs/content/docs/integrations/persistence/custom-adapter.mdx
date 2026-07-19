@@ -592,6 +592,32 @@ The top-level `load`/`append` on the history adapter are required by the type bu
 </Step>
 <Step>
 
+### Support in-place updates (optional)
+
+The optional `update(item, localMessageId)` method on the object returned from `withFormat` lets the runtime rewrite an already-persisted message in place. It receives the same `{ parentId, message }` item shape as `append`, plus the id of the row to rewrite.
+
+The runtime calls `update` after a run for persisted messages whose content changed, to finalize assistant messages persisted early while waiting for tool call approval, and to refresh run timing metadata.
+
+`update` is opt-in. When it is absent, messages paused for tool approval are not persisted until the run reaches a terminal status, so a page refresh during the pause loses the pending approval state. Implementing `update` enables early persistence.
+
+```tsx title="runtime/thread-adapter.tsx"
+async update(item, localMessageId) {
+  const { remoteId } = await aui.threadListItem().initialize();
+  await fetch(`${API_URL}/threads/${remoteId}/messages/${localMessageId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      format: fmt.format,
+      content: fmt.encode(item),
+    }),
+  });
+},
+```
+
+The backend needs a matching update route keyed by message id, mirroring the append route from the earlier step.
+
+</Step>
+<Step>
+
 ### Mount the runtime
 
 Wrap the app in a `useRemoteThreadListRuntime` that delegates per-thread runtime to `useChatRuntime`:
@@ -705,6 +731,7 @@ Send a message in a fresh thread. Check the database:
 - **First-message race.** `append` may fire before the thread row exists. The `unstable_Provider` example above always awaits `aui.threadListItem().initialize()` before writing; do the same in any custom implementation.
 - **Reload after async auth.** If `auth()` resolves after the initial `list()` call, threads won't appear until the user refreshes. Call `aui.threads().reload()` from a `useEffect` watching the session. Pattern is documented in [threads](/docs/runtimes/concepts/threads#reloading-after-async-authentication).
 - **Format string.** The `format` column is *not* a free-text label; it identifies the on-disk shape so multiple runtimes can coexist. Don't strip it. Don't make assumptions about its value (`useChatRuntime` is responsible for setting and decoding it).
+- **Pending approvals need `update`.** Tool call approvals persist across reloads only when the formatted adapter implements `update`; omitting it keeps the pre-approval snapshot out of storage by design.
 - **`unstable_Provider` synchronous-children rule.** The Provider must render `children` on first commit; do not gate them behind suspense, loading state, or `useEffect`. Load data inside an always-rendered child.
 
 ## Related
