@@ -26,6 +26,7 @@
  *   POST   /threads/:id/host-ui     → 204                   (body: { response })
  *   GET    /threads/:id/events      → SSE of PiClientEvent (?snapshot=false skips initial snapshot)
  */
+import { isRecord } from "@assistant-ui/core/internal";
 import { openPiEventStream } from "./eventSource";
 import type {
   PiClient,
@@ -105,17 +106,11 @@ const readJson = async (
   }
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isThreadStatus = (value: unknown): value is PiThreadMetadata["status"] =>
-  value === "idle" || value === "running" || value === "failed";
-
 const isQueuedMessage = (value: unknown): boolean => {
   if (!isRecord(value)) return false;
   return (
     typeof value.id === "string" &&
-    (value.mode === "followUp" || value.mode === "steer") &&
+    typeof value.mode === "string" &&
     typeof value.content === "string"
   );
 };
@@ -125,7 +120,7 @@ const isThreadMetadata = (value: unknown): value is PiThreadMetadata => {
   return (
     typeof value.id === "string" &&
     value.id.length > 0 &&
-    isThreadStatus(value.status) &&
+    typeof value.status === "string" &&
     (value.queuedMessages === undefined ||
       (Array.isArray(value.queuedMessages) &&
         value.queuedMessages.every(isQueuedMessage)))
@@ -141,7 +136,7 @@ const parseThreadListResponse = (value: unknown): PiThreadMetadata[] => {
     if (!isThreadMetadata(thread)) {
       throw invalidResponse(
         "listing threads",
-        `thread at index ${index} must have a non-empty string "id", a valid "status", and valid queued messages when present.`,
+        `thread at index ${index} must have a non-empty string "id", a string "status", and structurally valid queued messages when present.`,
       );
     }
   }
@@ -153,13 +148,24 @@ const isTranscriptMessage = (value: unknown): boolean =>
 
 const isHostUiRequest = (value: unknown): boolean => {
   if (!isRecord(value)) return false;
-  return (
-    typeof value.id === "string" &&
-    (value.kind === "confirm" ||
-      value.kind === "select" ||
-      value.kind === "input" ||
-      value.kind === "editor")
-  );
+  if (typeof value.id !== "string" || typeof value.kind !== "string") {
+    return false;
+  }
+
+  if (value.kind === "confirm") {
+    return typeof value.title === "string" && typeof value.message === "string";
+  }
+  if (value.kind === "select") {
+    return (
+      typeof value.title === "string" &&
+      Array.isArray(value.options) &&
+      value.options.every((option) => typeof option === "string")
+    );
+  }
+  if (value.kind === "input" || value.kind === "editor") {
+    return typeof value.title === "string";
+  }
+  return true;
 };
 
 const parseThreadSnapshotResponse = (

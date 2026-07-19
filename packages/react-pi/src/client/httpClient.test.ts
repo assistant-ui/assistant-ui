@@ -211,12 +211,49 @@ describe("createPiHttpClient", () => {
     await expect(
       createPiHttpClient({ fetchImpl: fn }).listThreads(),
     ).rejects.toThrow(
-      'Invalid Pi HTTP response while listing threads: thread at index 0 must have a non-empty string "id", a valid "status", and valid queued messages when present.',
+      'Invalid Pi HTTP response while listing threads: thread at index 0 must have a non-empty string "id", a string "status", and structurally valid queued messages when present.',
     );
+  });
+
+  it("accepts unknown enum values from newer Pi servers", async () => {
+    const thread = {
+      id: "t1",
+      status: "paused",
+      queuedMessages: [{ id: "q1", mode: "priority", content: "later" }],
+    };
+    const listFetch = fakeFetch(() => json([thread])).fn;
+    const snapshotWithUnknownValues = {
+      metadata: thread,
+      messages: [{ role: "futureRole" }],
+      hostUiRequests: [{ id: "r1", kind: "form" }],
+    };
+    const snapshotFetch = fakeFetch(() => json(snapshotWithUnknownValues)).fn;
+
+    await expect(
+      createPiHttpClient({ fetchImpl: listFetch }).listThreads(),
+    ).resolves.toEqual([thread]);
+    await expect(
+      createPiHttpClient({ fetchImpl: snapshotFetch }).getThread("t1"),
+    ).resolves.toEqual(snapshotWithUnknownValues);
   });
 
   it("rejects malformed thread snapshots", async () => {
     const { fn } = fakeFetch(() => json({ metadata: snapshot.metadata }));
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).getThread("t1"),
+    ).rejects.toThrow(
+      'Invalid Pi HTTP response while fetching a thread: expected a thread snapshot with valid "metadata", a "messages" array, and valid host UI requests when present.',
+    );
+  });
+
+  it("rejects malformed known host UI request shapes", async () => {
+    const { fn } = fakeFetch(() =>
+      json({
+        ...snapshot,
+        hostUiRequests: [{ id: "r1", kind: "select", title: "Choose" }],
+      }),
+    );
 
     await expect(
       createPiHttpClient({ fetchImpl: fn }).getThread("t1"),
