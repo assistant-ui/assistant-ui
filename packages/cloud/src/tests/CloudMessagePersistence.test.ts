@@ -121,6 +121,19 @@ describe("CloudMessagePersistence", () => {
     );
   });
 
+  it("warns and skips update when no remote id is mapped", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await persistence.update("thread-1", "unmapped-1", "aui/v0", {
+      text: "x",
+    });
+
+    expect(cloud.threads.messages.update).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      "Skipping update for message unmapped-1: no remote id is mapped.",
+    );
+  });
+
   it("cleans up ID mapping on append failure", async () => {
     vi.mocked(cloud.threads.messages.create).mockRejectedValue(
       new Error("network error"),
