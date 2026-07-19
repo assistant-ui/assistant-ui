@@ -317,7 +317,7 @@ export const useExternalHistory = <TMessage>(
                   try {
                     await formatAdapter.update?.(item, innerId);
                   } catch {
-                    // ignore update failures to avoid breaking the message processing loop
+                    // A failed update drops the message from the refreshed baseline so it retries on the next run stop.
                     failedUpdateIds.add(message.id);
                   }
                 }
