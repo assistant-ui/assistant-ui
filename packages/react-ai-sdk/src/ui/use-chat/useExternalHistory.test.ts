@@ -215,9 +215,11 @@ describe("useExternalHistory persistence", () => {
         _localMessageId: string,
       ) => {},
     );
+    const reportTelemetry = vi.fn();
     const formattedAdapter = {
       load: vi.fn().mockResolvedValue({ messages: [] }),
       append,
+      reportTelemetry,
       ...(supportsUpdate ? { update } : {}),
     };
     const historyAdapter: ThreadHistoryAdapter = {
@@ -265,7 +267,7 @@ describe("useExternalHistory persistence", () => {
       });
     };
 
-    return { append, update, getState, runCycle };
+    return { append, update, reportTelemetry, runCycle };
   };
 
   it("persists assistant messages awaiting tool approval when the adapter supports update", async () => {
@@ -289,7 +291,7 @@ describe("useExternalHistory persistence", () => {
   });
 
   it("keeps paused messages unpersisted when the adapter lacks update", async () => {
-    const { append, getState, runCycle } = createPersistenceHarness(false);
+    const { append, runCycle } = createPersistenceHarness(false);
     const finalInnerMessage = { id: "inner-a", parts: ["pending", "final"] };
 
     await runCycle([
@@ -299,10 +301,10 @@ describe("useExternalHistory persistence", () => {
       ),
     ]);
 
-    await waitFor(() => {
-      expect(getState).toHaveBeenCalledTimes(4);
-      expect(append).not.toHaveBeenCalled();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
+    expect(append).not.toHaveBeenCalled();
 
     await runCycle([
       createAssistantMessage({ type: "complete", reason: "stop" }, [
@@ -382,6 +384,43 @@ describe("useExternalHistory persistence", () => {
     expect(update).toHaveBeenCalledWith(
       { parentId: null, message: finalInnerMessage },
       "inner-a",
+    );
+  });
+
+  it("defers run telemetry until the paused message completes", async () => {
+    const { reportTelemetry, runCycle } = createPersistenceHarness(true);
+    const pendingInnerMessage = { id: "inner-a", parts: ["pending"] };
+    const finalInnerMessage = { id: "inner-a", parts: ["pending", "final"] };
+    const continuationInnerMessage = { id: "inner-b", parts: ["answer"] };
+
+    await runCycle([
+      createAssistantMessage(
+        { type: "requires-action", reason: "tool-calls" },
+        [pendingInnerMessage],
+      ),
+    ]);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(reportTelemetry).not.toHaveBeenCalled();
+
+    await runCycle([
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        finalInnerMessage,
+        continuationInnerMessage,
+      ]),
+    ]);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(reportTelemetry).toHaveBeenCalledTimes(1);
+    expect(reportTelemetry).toHaveBeenCalledWith(
+      [
+        { parentId: null, message: finalInnerMessage },
+        { parentId: "inner-a", message: continuationInnerMessage },
+      ],
+      expect.any(Object),
     );
   });
 });

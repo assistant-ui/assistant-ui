@@ -64,6 +64,7 @@ export const useExternalHistory = <TMessage>(
 
   const historyIds = useRef(new Set<string>());
   const persistedInnerIds = useRef(new Set<string>());
+  const deferredTelemetryIds = useRef(new Set<string>());
 
   const onSetMessagesRef = useRef(onSetMessages);
   useEffect(() => {
@@ -250,14 +251,17 @@ export const useExternalHistory = <TMessage>(
         for (const message of messages) {
           const innerMessages = getExternalStoreMessages<TMessage>(message);
 
-          const isReady =
+          const isTerminal =
             message.status === undefined ||
             message.status.type === "complete" ||
-            message.status.type === "incomplete" ||
-            // A paused message's later content can only reach storage via update, so it is persisted early only when the adapter supports update.
-            (message.status.type === "requires-action" &&
-              message.status.reason === "tool-calls" &&
-              formatAdapter.update !== undefined);
+            message.status.type === "incomplete";
+          const isAwaitingToolCalls =
+            message.status?.type === "requires-action" &&
+            message.status.reason === "tool-calls";
+          // A paused message's later content can only reach storage via update, so it is persisted early only when the adapter supports update.
+          const isReady =
+            isTerminal ||
+            (isAwaitingToolCalls && formatAdapter.update !== undefined);
 
           if (!isReady) {
             lastInnerMessageId =
@@ -266,23 +270,23 @@ export const useExternalHistory = <TMessage>(
           }
 
           if (historyIds.current.has(message.id)) {
-            let parentId = lastInnerMessageId;
-            for (const innerMessage of innerMessages) {
-              const innerMessageId = storageFormatAdapter.getId(innerMessage);
-              if (!persistedInnerIds.current.has(innerMessageId)) {
-                await formatAdapter.append({ parentId, message: innerMessage });
-                persistedInnerIds.current.add(innerMessageId);
+            const items = toBatchItems(innerMessages);
+            for (const item of items) {
+              const innerId = storageFormatAdapter.getId(item.message);
+              if (!persistedInnerIds.current.has(innerId)) {
+                await formatAdapter.append(item);
+                persistedInnerIds.current.add(innerId);
               } else if (durationMs !== undefined) {
                 try {
-                  await formatAdapter.update?.(
-                    { parentId, message: innerMessage },
-                    innerMessageId,
-                  );
+                  await formatAdapter.update?.(item, innerId);
                 } catch {
                   // ignore update failures to avoid breaking the message processing loop
                 }
               }
-              parentId = innerMessageId;
+            }
+            if (deferredTelemetryIds.current.has(message.id) && isTerminal) {
+              deferredTelemetryIds.current.delete(message.id);
+              formatAdapter.reportTelemetry?.(items, telemetryOptions);
             }
             lastInnerMessageId =
               getLastInnerId(innerMessages) ?? lastInnerMessageId;
@@ -301,7 +305,11 @@ export const useExternalHistory = <TMessage>(
           lastInnerMessageId =
             getLastInnerId(innerMessages) ?? lastInnerMessageId;
 
-          formatAdapter.reportTelemetry?.(batchItems, telemetryOptions);
+          if (isTerminal) {
+            formatAdapter.reportTelemetry?.(batchItems, telemetryOptions);
+          } else {
+            deferredTelemetryIds.current.add(message.id);
+          }
         }
       }, 0);
     });
