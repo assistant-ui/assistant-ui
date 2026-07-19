@@ -217,7 +217,6 @@ export const useExternalHistory = <TMessage>(
 
         const changedRunMessageIds = new Set<string>();
         for (const message of latest.messages) {
-          if (message.role !== "assistant") continue;
           const externalMessages = getExternalStoreMessages<TMessage>(message);
           const previous = persistedExternalMessages.current.get(message.id);
           if (

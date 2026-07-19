@@ -501,10 +501,10 @@ describe("useExternalHistory persistence", () => {
   it("skips unchanged persisted messages on later runs", async () => {
     const { append, update, reportTelemetry, runCycle, flush } =
       createPersistenceHarness(true);
-    const completeStatus = {
+    const completeStatus: ThreadAssistantMessage["status"] = {
       type: "complete",
       reason: "stop",
-    } as ThreadAssistantMessage["status"];
+    };
     const old = createAssistantMessage(
       completeStatus,
       [{ id: "inner-old", parts: ["old"] }],
@@ -551,10 +551,10 @@ describe("useExternalHistory persistence", () => {
   it("absorbs agentic flickers without losing change detection", async () => {
     const { append, update, reportTelemetry, runCycle, flush, step } =
       createPersistenceHarness(true);
-    const completeStatus = {
+    const completeStatus: ThreadAssistantMessage["status"] = {
       type: "complete",
       reason: "stop",
-    } as ThreadAssistantMessage["status"];
+    };
     const old = createAssistantMessage(
       completeStatus,
       [{ id: "inner-old", parts: ["old"] }],
@@ -684,6 +684,51 @@ describe("useExternalHistory persistence", () => {
         message: { id: "inner-a", parts: ["changed"] },
       },
       "inner-a",
+    );
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it("detects changes on non-assistant messages", async () => {
+    const { append, update, runCycle, flush } = createPersistenceHarness(true);
+    const makeUserMessage = (inner: InnerMessage): ThreadMessage => {
+      const message: ThreadMessage = {
+        id: "user-1",
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        attachments: [],
+        createdAt: new Date(),
+        metadata: { custom: {} },
+      };
+      bindExternalStoreMessage(message, [inner]);
+      return message;
+    };
+    const assistant = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["answer"] }],
+    );
+
+    await runCycle([
+      makeUserMessage({ id: "inner-user", parts: ["hi"] }),
+      assistant,
+    ]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+
+    append.mockClear();
+    update.mockClear();
+
+    await runCycle([
+      makeUserMessage({ id: "inner-user", parts: ["hi", "attachment"] }),
+      assistant,
+    ]);
+    await flush();
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith(
+      {
+        parentId: null,
+        message: { id: "inner-user", parts: ["hi", "attachment"] },
+      },
+      "inner-user",
     );
     expect(append).not.toHaveBeenCalled();
   });
