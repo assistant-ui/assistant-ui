@@ -3,6 +3,7 @@ import { GorpStreamAccumulator } from "./GorpStreamAccumulator";
 import type { GorpStreamOperation } from "./types";
 import {
   type ChangeNode,
+  createChangeNode,
   diffKeys,
   lookupChange,
   lookupValue,
@@ -12,7 +13,7 @@ import {
 export class GorpStreamDeltaTracker {
   private readonly accumulator: GorpStreamAccumulator;
   private previousState: ReadonlyJSONValue;
-  private changes: ChangeNode = {};
+  private changes: ChangeNode = createChangeNode();
 
   constructor(initialValue: ReadonlyJSONValue = null) {
     this.accumulator = new GorpStreamAccumulator(initialValue);
@@ -25,7 +26,7 @@ export class GorpStreamDeltaTracker {
 
   append(operations: readonly GorpStreamOperation[]): void {
     const previousState = this.accumulator.state;
-    let changes: ChangeNode = {};
+    let changes: ChangeNode = createChangeNode();
     for (const op of operations) {
       changes = markChanged(changes, op.path);
     }

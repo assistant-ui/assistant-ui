@@ -1,5 +1,9 @@
 export type ChangeNode = true | { [key: string]: ChangeNode };
 
+export function createChangeNode(): { [key: string]: ChangeNode } {
+  return Object.create(null);
+}
+
 const UNSAFE_PATH_SEGMENTS = new Set(["__proto__", "constructor", "prototype"]);
 
 export function assertSafePathSegment(segment: string): void {
@@ -19,7 +23,7 @@ export function markChanged(
     assertSafePathSegment(key);
     const next = Object.hasOwn(cursor, key) ? cursor[key] : undefined;
     if (next === true) return node;
-    if (next === undefined) cursor[key] = {};
+    if (next === undefined) cursor[key] = createChangeNode();
     cursor = cursor[key] as { [k: string]: ChangeNode };
   }
   const leaf = path[path.length - 1]!;
@@ -47,7 +51,7 @@ export function mergeChanged(
 
 function cloneChangeNode(source: ChangeNode): ChangeNode {
   if (source === true) return true;
-  const clone: { [key: string]: ChangeNode } = {};
+  const clone = createChangeNode();
   for (const key of Object.keys(source)) {
     assertSafePathSegment(key);
     clone[key] = cloneChangeNode(source[key]!);
