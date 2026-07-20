@@ -102,4 +102,6 @@ lifecycle (cleanup on dispose, reactive options). A custom transport is
 `HttpHarnessTransport(options)` is the built-in resource for the
 assistant-transport wire: POST to `api` (or `resumeApi`), decode the response
 with assistant-stream, and yield each `unstable_state` snapshot. `resume` is
-defined only when `resumeApi` is set.
+defined only when `resumeApi` is set. Its decode pipeline intentionally
+duplicates the legacy assistant-transport runtime's; it stands alone so the
+legacy runtime can be removed without touching this package.

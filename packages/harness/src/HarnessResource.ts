@@ -154,7 +154,7 @@ const useHarnessImpl = (options: HarnessOptions): HarnessApi => {
   };
 
   const run = async (kind: RunKind): Promise<void> => {
-    const { transport, onFinish, onError } = self;
+    const { transport } = self;
     const commands = kind === "commands" ? self.queued.splice(0) : [];
     const batch = commands.filter(
       (c): c is SendMessageCommand => c.type === "send-message",
@@ -187,13 +187,13 @@ const useHarnessImpl = (options: HarnessOptions): HarnessApi => {
         });
       }
       drop(batch);
-      onFinish?.();
+      self.onFinish?.();
     } catch (e) {
       drop(batch);
       if (!abort.signal.aborted) {
         const error = e instanceof Error ? e : new Error(String(e));
         update({ error: { message: error.message } });
-        onError?.(error);
+        self.onError?.(error);
       }
     } finally {
       self.abort = null;
