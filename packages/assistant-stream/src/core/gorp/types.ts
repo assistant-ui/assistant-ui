@@ -1,6 +1,6 @@
 import type { ReadonlyJSONValue } from "../../utils";
 
-export type ObjectStreamOperation =
+export type GorpStreamOperation =
   | {
       readonly type: "set";
       readonly path: readonly string[];
@@ -12,7 +12,7 @@ export type ObjectStreamOperation =
       readonly value: string;
     };
 
-export type ObjectStreamChunk = {
+export type GorpStreamChunk = {
   readonly snapshot: ReadonlyJSONValue;
-  readonly operations: readonly ObjectStreamOperation[];
+  readonly operations: readonly GorpStreamOperation[];
 };

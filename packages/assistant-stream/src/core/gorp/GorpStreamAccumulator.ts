@@ -1,7 +1,7 @@
 import type { ReadonlyJSONValue, ReadonlyJSONObject } from "../../utils";
-import type { ObjectStreamOperation } from "./types";
+import type { GorpStreamOperation } from "./types";
 
-export class ObjectStreamAccumulator {
+export class GorpStreamAccumulator {
   private _state: ReadonlyJSONValue;
 
   constructor(initialValue: ReadonlyJSONValue = null) {
@@ -12,24 +12,20 @@ export class ObjectStreamAccumulator {
     return this._state;
   }
 
-  append(ops: readonly ObjectStreamOperation[]) {
+  append(ops: readonly GorpStreamOperation[]) {
     this._state = ops.reduce(
-      (state, op) => ObjectStreamAccumulator.apply(state, op),
+      (state, op) => GorpStreamAccumulator.apply(state, op),
       this._state,
     );
   }
 
-  private static apply(state: ReadonlyJSONValue, op: ObjectStreamOperation) {
+  private static apply(state: ReadonlyJSONValue, op: GorpStreamOperation) {
     const type = op.type;
     switch (type) {
       case "set":
-        return ObjectStreamAccumulator.updatePath(
-          state,
-          op.path,
-          () => op.value,
-        );
+        return GorpStreamAccumulator.updatePath(state, op.path, () => op.value);
       case "append-text":
-        return ObjectStreamAccumulator.updatePath(state, op.path, (current) => {
+        return GorpStreamAccumulator.updatePath(state, op.path, (current) => {
           if (typeof current !== "string")
             throw new Error(`Expected string at path [${op.path.join(", ")}]`);
           return current + op.value;
@@ -65,7 +61,7 @@ export class ObjectStreamAccumulator {
         throw new Error(`Insert array index out of bounds`);
 
       const nextState = [...state];
-      nextState[idx] = ObjectStreamAccumulator.updatePath(
+      nextState[idx] = GorpStreamAccumulator.updatePath(
         nextState[idx],
         rest,
         updater,
@@ -75,7 +71,7 @@ export class ObjectStreamAccumulator {
     }
 
     const nextState = { ...(state as ReadonlyJSONObject) };
-    nextState[key] = ObjectStreamAccumulator.updatePath(
+    nextState[key] = GorpStreamAccumulator.updatePath(
       nextState[key],
       rest,
       updater,

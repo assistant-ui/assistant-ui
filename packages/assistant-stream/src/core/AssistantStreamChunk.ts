@@ -1,5 +1,5 @@
 import type { ReadonlyJSONValue } from "../utils/json/json-value";
-import type { ObjectStreamOperation } from "./object/types";
+import type { GorpStreamOperation } from "./gorp/types";
 import type { ToolModelContentPart } from "./tool/tool-types";
 
 /**
@@ -138,6 +138,6 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
   | {
       /** Applies object-stream operations to state carried by this stream. */
       readonly type: "update-state";
-      readonly operations: ObjectStreamOperation[];
+      readonly operations: GorpStreamOperation[];
     }
 );

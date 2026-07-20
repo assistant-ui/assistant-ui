@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createObjectStream } from "./createObjectStream";
-import {
-  ObjectStreamEncoder,
-  ObjectStreamDecoder,
-} from "./ObjectStreamResponse";
+import { createGorpStream } from "./createGorpStream";
+import { GorpStreamEncoder, GorpStreamDecoder } from "./GorpStreamResponse";
 import type { ReadonlyJSONValue } from "../../utils";
-import type { ObjectStreamChunk } from "./types";
+import type { GorpStreamChunk } from "./types";
 
 // Helper function to collect all chunks from a stream
 async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
@@ -27,10 +24,10 @@ async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
 
 // Helper function to encode and decode a stream
 async function encodeAndDecode(
-  stream: ReadableStream<ObjectStreamChunk>,
-): Promise<ReadableStream<ObjectStreamChunk>> {
+  stream: ReadableStream<GorpStreamChunk>,
+): Promise<ReadableStream<GorpStreamChunk>> {
   // Encode the stream to Uint8Array (simulating network transmission)
-  const encodedStream = stream.pipeThrough(new ObjectStreamEncoder());
+  const encodedStream = stream.pipeThrough(new GorpStreamEncoder());
 
   // Collect all encoded chunks
   const encodedChunks = await collectChunks(encodedStream);
@@ -45,18 +42,18 @@ async function encodeAndDecode(
     },
   });
 
-  // Decode the stream back to ObjectStreamChunk
-  return reconstructedStream.pipeThrough(new ObjectStreamDecoder());
+  // Decode the stream back to GorpStreamChunk
+  return reconstructedStream.pipeThrough(new GorpStreamDecoder());
 }
 
-describe("ObjectStream serialization and deserialization", () => {
+describe("GorpStream serialization and deserialization", () => {
   it("does not settle the stream after cancellation", async () => {
     let finishExecution!: () => void;
     let abortSignal!: AbortSignal;
     const execution = new Promise<void>((resolve) => {
       finishExecution = resolve;
     });
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       execute: (controller) => {
         abortSignal = controller.abortSignal;
         return execution;
@@ -75,7 +72,7 @@ describe("ObjectStream serialization and deserialization", () => {
   });
 
   it("should discard an unterminated SSE event", async () => {
-    const operations: ObjectStreamChunk["operations"] = [
+    const operations: GorpStreamChunk["operations"] = [
       { type: "set", path: ["status"], value: "complete" },
     ];
     const stream = new ReadableStream<Uint8Array>({
@@ -88,7 +85,7 @@ describe("ObjectStream serialization and deserialization", () => {
     });
 
     const chunks = await collectChunks(
-      stream.pipeThrough(new ObjectStreamDecoder()),
+      stream.pipeThrough(new GorpStreamDecoder()),
     );
 
     expect(chunks).toEqual([]);
@@ -96,7 +93,7 @@ describe("ObjectStream serialization and deserialization", () => {
 
   it("should correctly serialize and deserialize simple objects", async () => {
     // Create an object stream with simple operations
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       execute: (controller) => {
         controller.enqueue([
           { type: "set", path: ["name"], value: "John" },
@@ -120,7 +117,7 @@ describe("ObjectStream serialization and deserialization", () => {
   });
 
   it("should correctly handle nested objects", async () => {
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       execute: (controller) => {
         controller.enqueue([
           { type: "set", path: ["user", "profile", "name"], value: "Jane" },
@@ -152,7 +149,7 @@ describe("ObjectStream serialization and deserialization", () => {
   });
 
   it("should correctly handle arrays", async () => {
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       execute: (controller) => {
         controller.enqueue([
           { type: "set", path: ["items"], value: [] },
@@ -173,7 +170,7 @@ describe("ObjectStream serialization and deserialization", () => {
   });
 
   it("should correctly handle mixed arrays and objects", async () => {
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       execute: (controller) => {
         controller.enqueue([
           { type: "set", path: ["users"], value: [] },
@@ -200,7 +197,7 @@ describe("ObjectStream serialization and deserialization", () => {
   });
 
   it("should correctly handle append-text operations", async () => {
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       execute: (controller) => {
         controller.enqueue([
           { type: "set", path: ["message"], value: "Hello" },
@@ -221,7 +218,7 @@ describe("ObjectStream serialization and deserialization", () => {
   });
 
   it("should correctly handle special characters and Unicode", async () => {
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       execute: (controller) => {
         controller.enqueue([
           {
@@ -253,7 +250,7 @@ describe("ObjectStream serialization and deserialization", () => {
   });
 
   it("should correctly handle null and undefined values", async () => {
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       execute: (controller) => {
         controller.enqueue([
           { type: "set", path: ["nullValue"], value: null },
@@ -276,7 +273,7 @@ describe("ObjectStream serialization and deserialization", () => {
 
   it("should correctly handle large nested structures", async () => {
     // Create a deep nested structure
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       execute: (controller) => {
         controller.enqueue([
           { type: "set", path: ["level1"], value: {} },
@@ -314,7 +311,7 @@ describe("ObjectStream serialization and deserialization", () => {
   });
 
   it("should correctly handle operations in multiple enqueue calls", async () => {
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       execute: (controller) => {
         // First batch of operations
         controller.enqueue([
@@ -363,7 +360,7 @@ describe("ObjectStream serialization and deserialization", () => {
   });
 
   it("should correctly handle overwriting existing values", async () => {
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       execute: (controller) => {
         controller.enqueue([
           { type: "set", path: ["value"], value: "initial" },
@@ -395,7 +392,7 @@ describe("ObjectStream serialization and deserialization", () => {
       },
     };
 
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       defaultValue: initialValue,
       execute: (controller) => {
         controller.enqueue([

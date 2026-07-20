@@ -1,10 +1,10 @@
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
-import { ObjectStreamAccumulator } from "./ObjectStreamAccumulator";
+import { GorpStreamAccumulator } from "./GorpStreamAccumulator";
 import { SSEDecoder, SSEEncoder } from "../utils/stream/SSE";
-import type { ObjectStreamChunk, ObjectStreamOperation } from "./types";
+import type { GorpStreamChunk, GorpStreamOperation } from "./types";
 
-export class ObjectStreamEncoder extends PipeableTransformStream<
-  ObjectStreamChunk,
+export class GorpStreamEncoder extends PipeableTransformStream<
+  GorpStreamChunk,
   Uint8Array
 > {
   constructor() {
@@ -12,9 +12,9 @@ export class ObjectStreamEncoder extends PipeableTransformStream<
       readable
         .pipeThrough(
           (() => {
-            class ObjectStreamTransformer implements Transformer<
-              ObjectStreamChunk,
-              readonly ObjectStreamOperation[]
+            class GorpStreamTransformer implements Transformer<
+              GorpStreamChunk,
+              readonly GorpStreamOperation[]
             > {
               #isFirstChunk = true;
 
@@ -23,9 +23,9 @@ export class ObjectStreamEncoder extends PipeableTransformStream<
               }
 
               transform(
-                chunk: ObjectStreamChunk,
+                chunk: GorpStreamChunk,
                 controller: TransformStreamDefaultController<
-                  readonly ObjectStreamOperation[]
+                  readonly GorpStreamOperation[]
                 >,
               ) {
                 if (
@@ -45,7 +45,7 @@ export class ObjectStreamEncoder extends PipeableTransformStream<
                 this.#isFirstChunk = false;
               }
             }
-            return new TransformStream(new ObjectStreamTransformer());
+            return new TransformStream(new GorpStreamTransformer());
           })(),
         )
         .pipeThrough(new SSEEncoder()),
@@ -53,20 +53,17 @@ export class ObjectStreamEncoder extends PipeableTransformStream<
   }
 }
 
-export class ObjectStreamDecoder extends PipeableTransformStream<
+export class GorpStreamDecoder extends PipeableTransformStream<
   Uint8Array<ArrayBuffer>,
-  ObjectStreamChunk
+  GorpStreamChunk
 > {
   constructor() {
-    const accumulator = new ObjectStreamAccumulator();
+    const accumulator = new GorpStreamAccumulator();
     super((readable) =>
       readable
-        .pipeThrough(new SSEDecoder<readonly ObjectStreamOperation[]>())
+        .pipeThrough(new SSEDecoder<readonly GorpStreamOperation[]>())
         .pipeThrough(
-          new TransformStream<
-            readonly ObjectStreamOperation[],
-            ObjectStreamChunk
-          >({
+          new TransformStream<readonly GorpStreamOperation[], GorpStreamChunk>({
             transform(operations, controller) {
               accumulator.append(operations);
               controller.enqueue({
@@ -80,9 +77,9 @@ export class ObjectStreamDecoder extends PipeableTransformStream<
   }
 }
 
-export class ObjectStreamResponse extends Response {
-  constructor(body: ReadableStream<ObjectStreamChunk>) {
-    super(body.pipeThrough(new ObjectStreamEncoder()), {
+export class GorpStreamResponse extends Response {
+  constructor(body: ReadableStream<GorpStreamChunk>) {
+    super(body.pipeThrough(new GorpStreamEncoder()), {
       headers: new Headers({
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
@@ -93,9 +90,9 @@ export class ObjectStreamResponse extends Response {
   }
 }
 
-export const fromObjectStreamResponse = (
+export const fromGorpStreamResponse = (
   response: Response,
-): ReadableStream<ObjectStreamChunk> => {
+): ReadableStream<GorpStreamChunk> => {
   if (!response.ok)
     throw new Error(`Response failed, status ${response.status}`);
   if (!response.body) throw new Error("Response body is null");
@@ -110,5 +107,5 @@ export const fromObjectStreamResponse = (
   if (response.headers.get("Assistant-Stream-Format") !== "object-stream/v0") {
     throw new Error("Unsupported Assistant-Stream-Format header");
   }
-  return response.body.pipeThrough(new ObjectStreamDecoder());
+  return response.body.pipeThrough(new GorpStreamDecoder());
 };

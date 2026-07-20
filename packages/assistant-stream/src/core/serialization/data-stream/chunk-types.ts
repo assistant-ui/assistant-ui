@@ -2,7 +2,7 @@ import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../../../utils/json/json-value";
-import type { ObjectStreamOperation } from "../../object/types";
+import type { GorpStreamOperation } from "../../gorp/types";
 
 export type DataStreamChunk = {
   [K in DataStreamStreamChunkType]: {
@@ -100,7 +100,7 @@ type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.File]: { data: string; mimeType: string };
 
   // aui-extensions
-  [DataStreamStreamChunkType.AuiUpdateStateOperations]: ObjectStreamOperation[];
+  [DataStreamStreamChunkType.AuiUpdateStateOperations]: GorpStreamOperation[];
   [DataStreamStreamChunkType.AuiTextDelta]: {
     textDelta: string;
     parentId: string;

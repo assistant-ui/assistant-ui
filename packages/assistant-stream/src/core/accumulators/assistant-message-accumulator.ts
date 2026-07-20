@@ -13,7 +13,7 @@ import type {
   FilePart,
   DataPart,
 } from "../utils/types";
-import { ObjectStreamAccumulator } from "../object/ObjectStreamAccumulator";
+import { GorpStreamAccumulator } from "../gorp/GorpStreamAccumulator";
 import type { ReadonlyJSONValue } from "../../utils";
 import { TimingTracker } from "./TimingTracker";
 
@@ -388,7 +388,7 @@ const handleUpdateState = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "update-state" },
 ): AssistantMessage => {
-  const acc = new ObjectStreamAccumulator(message.metadata.unstable_state);
+  const acc = new GorpStreamAccumulator(message.metadata.unstable_state);
   acc.append(chunk.operations);
 
   return {

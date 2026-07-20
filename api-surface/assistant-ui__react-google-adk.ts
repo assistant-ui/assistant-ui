@@ -636,7 +636,7 @@ type AssistantStreamChunk = {
   readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: GorpStreamOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
@@ -1129,6 +1129,16 @@ type GenerativeUISpec = {
   readonly root: GenerativeUINode | readonly GenerativeUINode[];
 };
 
+type GorpStreamOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
+};
+
 type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "human";
   description?: string | undefined;
@@ -1408,16 +1418,6 @@ type ModelContextProvider = {
 };
 
 type ObjectKey<T> = keyof T & (string | number);
-
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
-};
 
 type OnAdkAgentTransferCallback = (toAgent: string) => void | Promise<void>;
 

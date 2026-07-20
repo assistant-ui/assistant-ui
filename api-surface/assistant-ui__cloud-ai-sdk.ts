@@ -246,7 +246,7 @@ type AssistantStreamChunk = {
   readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: GorpStreamOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
@@ -297,14 +297,7 @@ type GeneratePresignedUploadUrlResponse = {
   publicUrl: string;
 };
 
-type MakeRequestOptions = {
-  method?: "POST" | "PUT" | "DELETE" | undefined;
-  headers?: Record<string, string> | undefined;
-  query?: Record<string, string | number | boolean> | undefined;
-  body?: object | undefined;
-};
-
-type ObjectStreamOperation = {
+type GorpStreamOperation = {
   readonly type: "set";
   readonly path: readonly string[];
   readonly value: ReadonlyJSONValue;
@@ -312,6 +305,13 @@ type ObjectStreamOperation = {
   readonly type: "append-text";
   readonly path: readonly string[];
   readonly value: string;
+};
+
+type MakeRequestOptions = {
+  method?: "POST" | "PUT" | "DELETE" | undefined;
+  headers?: Record<string, string> | undefined;
+  query?: Record<string, string | number | boolean> | undefined;
+  body?: object | undefined;
 };
 
 type PartInit = {
