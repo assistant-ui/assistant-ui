@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "main": "../dist/gorp.js",
+  "types": "../dist/gorp.d.ts"
+}

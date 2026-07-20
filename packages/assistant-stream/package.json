@@ -46,6 +46,7 @@
     "dist",
     "src",
     "utils",
+    "gorp",
     "README.md"
   ],
   "sideEffects": false,
