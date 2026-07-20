@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-feat: add assistant-stream/gorp subpath entry exposing the Gorp-over-SSE surface (createGorpStream, GorpStreamEncoder/Decoder, GorpStreamResponse, fromGorpStreamResponse, GorpStreamAccumulator, GorpStreamDeltaTracker, and the chunk/operation types)
+feat: export the full Gorp-over-SSE surface from the main entry (GorpStreamEncoder, GorpStreamDecoder, and GorpStreamAccumulator alongside the existing createGorpStream, GorpStreamResponse, fromGorpStreamResponse, GorpStreamDeltaTracker, and the chunk/operation types)

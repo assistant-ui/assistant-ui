@@ -23,10 +23,6 @@
       "types": "./dist/utils.d.ts",
       "default": "./dist/utils.js"
     },
-    "./gorp": {
-      "types": "./dist/gorp.d.ts",
-      "default": "./dist/gorp.js"
-    },
     "./resumable": {
       "types": "./dist/resumable/index.d.ts",
       "default": "./dist/resumable/index.js"
@@ -46,7 +42,6 @@
     "dist",
     "src",
     "utils",
-    "gorp",
     "README.md"
   ],
   "sideEffects": false,

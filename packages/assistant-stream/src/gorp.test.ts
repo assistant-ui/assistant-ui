@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import * as gorp from "./gorp";
+import * as gorp from "./index";
 
-describe("gorp entry", () => {
-  it("exposes the Gorp-over-SSE surface", () => {
+describe("gorp exports", () => {
+  it("exposes the Gorp-over-SSE surface from the main entry", () => {
     expect(typeof gorp.createGorpStream).toBe("function");
     expect(typeof gorp.GorpStreamEncoder).toBe("function");
     expect(typeof gorp.GorpStreamDecoder).toBe("function");

@@ -64,16 +64,22 @@ export type { ToolCallStreamController } from "./core/modules/tool-call";
 
 import { createGorpStream } from "./core/gorp/createGorpStream";
 import {
+  GorpStreamEncoder,
+  GorpStreamDecoder,
   GorpStreamResponse,
   fromGorpStreamResponse,
 } from "./core/gorp/GorpStreamResponse";
 import type { GorpStreamChunk, GorpStreamOperation } from "./core/gorp/types";
+import { GorpStreamAccumulator } from "./core/gorp/GorpStreamAccumulator";
 import { GorpStreamDeltaTracker } from "./core/gorp/GorpStreamDeltaTracker";
 
 export {
   createGorpStream,
+  GorpStreamEncoder,
+  GorpStreamDecoder,
   GorpStreamResponse,
   fromGorpStreamResponse,
+  GorpStreamAccumulator,
   GorpStreamDeltaTracker,
 };
 export type { GorpStreamChunk, GorpStreamOperation };
