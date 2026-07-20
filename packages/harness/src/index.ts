@@ -1,5 +1,4 @@
 export { Harness } from "./Harness";
-export { HarnessManager } from "./HarnessManager";
 export { useHarness } from "./react/useHarness";
 export {
   HarnessResource,

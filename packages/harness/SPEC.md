@@ -2,7 +2,7 @@
 
 A framework-agnostic client for agent harnesses. One tap resource owns all
 logic; `useHarness` (React) and `new Harness()` (anywhere else) are thin
-bindings over it, and `HarnessManager` keys one `Harness` per thread id.
+bindings over it.
 
 ## State
 
