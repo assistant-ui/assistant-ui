@@ -24,8 +24,8 @@ class AssistantStreamResponse(StreamingResponse):
         stream_encoder: StreamEncoder,
         heartbeat: Union[float, int, bool, None] = True,
     ):
-        body = stream_encoder.encode_stream(stream)
         heartbeat_interval = resolve_heartbeat_interval(heartbeat)
+        body = stream_encoder.encode_stream(stream)
         if (
             heartbeat_interval is not None
             and stream_encoder.get_media_type() == "text/event-stream"

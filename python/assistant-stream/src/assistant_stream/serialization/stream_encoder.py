@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 import math
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator, Optional, Union
@@ -57,8 +56,7 @@ async def add_sse_heartbeat(
     finally:
         if task is not None and not task.done():
             task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
-                await task
+            await asyncio.wait({task})
         await stream.aclose()
 
 
