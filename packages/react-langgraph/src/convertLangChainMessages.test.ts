@@ -210,6 +210,38 @@ describe("convertLangChainMessages metadata", () => {
     expect(nextToolCallPart).toMatchObject({ argsText: '{"url":' });
   });
 
+  it("serializes completed tool args when an argless chunk remains", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "tool-1",
+          name: "fetch_page_content",
+          args: { url: "https://example.com" },
+          index: 0,
+        },
+      ],
+      tool_call_chunks: [
+        {
+          id: "tool-1",
+          index: 0,
+          name: "fetch_page_content",
+        },
+      ],
+    });
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+
+    expect(toolCallPart).toMatchObject({
+      args: { url: "https://example.com" },
+      argsText: '{"url":"https://example.com"}',
+    });
+  });
+
   it("keeps key order from partial_json when final snapshot falls back to args", () => {
     const metadata = {
       toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
