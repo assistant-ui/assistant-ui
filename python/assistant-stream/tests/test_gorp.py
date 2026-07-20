@@ -165,6 +165,10 @@ def test_draft_mutating_list_methods_raise() -> None:
         draft["items"].remove("a")
     with pytest.raises(NotImplementedError):
         draft["items"].insert(0, "x")
+    with pytest.raises(NotImplementedError):
+        draft["items"].sort()
+    with pytest.raises(NotImplementedError):
+        draft["items"].reverse()
 
 
 def test_draft_rejects_storing_proxy_in_state() -> None:

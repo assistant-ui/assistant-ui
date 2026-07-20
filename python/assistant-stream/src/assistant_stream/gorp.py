@@ -33,22 +33,19 @@ def lookup_state(state: Any, path: Sequence[str]) -> Any:
     if not path:
         return state
 
-    if state is None:
-        raise KeyError(path[0])
-
     current = state
     for key in path:
-        try:
-            if isinstance(current, list):
+        if isinstance(current, list):
+            try:
                 idx = int(key)
-                if idx < 0 or idx >= len(current):
-                    raise KeyError(key)
-                current = current[idx]
-            elif isinstance(current, dict):
-                current = current[key]
-            else:
+            except ValueError:
                 raise KeyError(key)
-        except (ValueError, KeyError, IndexError):
+            if idx < 0 or idx >= len(current):
+                raise KeyError(key)
+            current = current[idx]
+        elif isinstance(current, dict):
+            current = current[key]
+        else:
             raise KeyError(key)
 
     return current
@@ -318,29 +315,27 @@ class GorpProxy:
         # List extension
         if isinstance(current_value, list):
             try:
-                # Ensure other is iterable
                 iterator = iter(other)
-
-                # Add each item at the end of the list
-                operations = []
-                current_len = len(current_value)
-
-                for i, item in enumerate(iterator):
-                    operations.append(
-                        {
-                            "type": "set",
-                            "path": self._path + [str(current_len + i)],
-                            "value": item,
-                        }
-                    )
-
-                if operations:
-                    self._manager.add_operations(operations)
-                return self
             except TypeError:
                 raise TypeError(
                     f"can only concatenate list (not '{type(other).__name__}') to list"
                 )
+
+            operations = []
+            current_len = len(current_value)
+
+            for i, item in enumerate(iterator):
+                operations.append(
+                    {
+                        "type": "set",
+                        "path": self._path + [str(current_len + i)],
+                        "value": item,
+                    }
+                )
+
+            if operations:
+                self._manager.add_operations(operations)
+            return self
 
         raise TypeError(
             f"unsupported operand type(s) for +=: '{type(current_value).__name__}' and '{type(other).__name__}'"
@@ -414,14 +409,7 @@ class GorpProxy:
                 return method_wrapper
             return attr
 
-        try:
-            return getattr(value, name)
-        except (AttributeError, TypeError):
-            pass
-
-        raise AttributeError(
-            f"'{type(value).__name__}' object has no attribute '{name}'"
-        )
+        return getattr(value, name)
 
     def __iter__(self):
         """Make the proxy iterable."""
@@ -515,6 +503,18 @@ class GorpProxy:
         )
 
     def remove(self, item: Any) -> None:
+        """Not supported - would require sending entire list."""
+        raise NotImplementedError(
+            "Would require sending the entire list over the network"
+        )
+
+    def sort(self, *args, **kwargs) -> None:
+        """Not supported - would require sending entire list."""
+        raise NotImplementedError(
+            "Would require sending the entire list over the network"
+        )
+
+    def reverse(self) -> None:
         """Not supported - would require sending entire list."""
         raise NotImplementedError(
             "Would require sending the entire list over the network"
