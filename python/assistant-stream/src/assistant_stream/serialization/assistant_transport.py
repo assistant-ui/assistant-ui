@@ -4,7 +4,7 @@ from assistant_stream.serialization.assistant_stream_response import (
 )
 from assistant_stream.serialization.stream_encoder import StreamEncoder
 from assistant_stream.state_proxy import StateProxy
-from typing import AsyncGenerator, Any, Union
+from typing import AsyncGenerator, Any
 import json
 
 
@@ -55,15 +55,8 @@ class AssistantTransportEncoder(StreamEncoder):
 
 
 class AssistantTransportResponse(AssistantStreamResponse):
-    """
-    Pass `heartbeat=True` (15s) or `heartbeat=<seconds>` to emit SSE comment
-    lines while the stream is idle, keeping proxies from timing out the
-    connection. 0, False, and None disable heartbeats.
-    """
-
     def __init__(
         self,
         stream: AsyncGenerator[AssistantStreamChunk, None],
-        heartbeat: Union[float, int, bool, None] = None,
     ):
-        super().__init__(stream, AssistantTransportEncoder(), heartbeat=heartbeat)
+        super().__init__(stream, AssistantTransportEncoder())

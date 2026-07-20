@@ -3,7 +3,7 @@ import json
 import time
 import string
 import random
-from typing import AsyncGenerator, Union
+from typing import AsyncGenerator
 from assistant_stream.serialization.assistant_stream_response import (
     AssistantStreamResponse,
 )
@@ -75,9 +75,8 @@ class OpenAIStreamResponse(AssistantStreamResponse):
     def __init__(
         self,
         stream: AsyncGenerator[AssistantStreamChunk, None],
-        heartbeat: Union[float, int, bool, None] = None,
     ):
         """
         Initializes the response with the OpenAI SSE encoder.
         """
-        super().__init__(stream, OpenAIStreamEncoder(), heartbeat=heartbeat)
+        super().__init__(stream, OpenAIStreamEncoder())
