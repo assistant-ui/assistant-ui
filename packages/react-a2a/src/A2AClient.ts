@@ -153,6 +153,41 @@ function discriminateStreamResponse(
   return null;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isTask = (value: unknown): value is A2ATask =>
+  isRecord(value) &&
+  typeof value.id === "string" &&
+  value.id.length > 0 &&
+  isRecord(value.status) &&
+  typeof value.status.state === "string" &&
+  value.status.state.length > 0;
+
+const isMessage = (value: unknown): value is A2AMessage =>
+  isRecord(value) &&
+  typeof value.messageId === "string" &&
+  value.messageId.length > 0 &&
+  typeof value.role === "string" &&
+  value.role.length > 0 &&
+  Array.isArray(value.parts);
+
+const parseSendMessageResponse = (value: unknown): A2ATask | A2AMessage => {
+  if (isRecord(value)) {
+    if (value.task != null) {
+      if (isTask(value.task)) return value.task;
+    } else if (value.message != null) {
+      if (isMessage(value.message)) return value.message;
+    } else if (isTask(value) || isMessage(value)) {
+      return value;
+    }
+  }
+
+  throw new Error(
+    "Invalid A2A message:send response: expected a valid task or message payload.",
+  );
+};
+
 function signalInit(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
@@ -297,7 +332,7 @@ export class A2AClient {
     if (configuration) body.configuration = configuration;
     if (metadata) body.metadata = metadata;
 
-    const result = await this.fetchJSON<Record<string, unknown>>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/message:send`,
       {
         method: "POST",
@@ -306,11 +341,7 @@ export class A2AClient {
       },
     );
 
-    // Unwrap SendMessageResponse: {task: Task} | {message: Message}
-    if ("task" in result && result.task) return result.task as A2ATask;
-    if ("message" in result && result.message)
-      return result.message as A2AMessage;
-    return result as unknown as A2ATask | A2AMessage;
+    return parseSendMessageResponse(result);
   }
 
   async *streamMessage(

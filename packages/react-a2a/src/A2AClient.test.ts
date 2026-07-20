@@ -442,6 +442,34 @@ describe("A2AClient", () => {
       expect((result as any).role).toBe("agent");
     });
 
+    it.each([
+      ["an empty object", {}],
+      ["a malformed task", { task: {} }],
+      ["a malformed message", { message: {} }],
+    ])("rejects %s returned with a successful status", async (_name, body) => {
+      fetchMock.mockResolvedValue(mockFetchResponse(body));
+
+      await expect(client.sendMessage(userMessage)).rejects.toThrow(
+        "Invalid A2A message:send response: expected a valid task or message payload.",
+      );
+    });
+
+    it.each([
+      ["task", { id: "t1", status: { state: "completed" } }],
+      [
+        "message",
+        {
+          messageId: "m2",
+          role: "agent",
+          parts: [{ text: "Hi" }],
+        },
+      ],
+    ])("accepts a direct %s response", async (_name, body) => {
+      fetchMock.mockResolvedValue(mockFetchResponse(body));
+
+      await expect(client.sendMessage(userMessage)).resolves.toEqual(body);
+    });
+
     it("normalizes 'content' array from v0.3 server response to internal 'parts'", async () => {
       fetchMock.mockResolvedValue(
         mockFetchResponse({
