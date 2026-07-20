@@ -1,4 +1,5 @@
 import { SSEEventDecoder, type SSEEvent } from "assistant-stream/utils";
+import { isRecord } from "@assistant-ui/core/internal";
 import type {
   A2AAgentCard,
   A2AErrorInfo,
@@ -153,9 +154,6 @@ function discriminateStreamResponse(
   return null;
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 const isTask = (value: unknown): value is A2ATask =>
   isRecord(value) &&
   typeof value.id === "string" &&
@@ -174,13 +172,8 @@ const isMessage = (value: unknown): value is A2AMessage =>
 
 const parseSendMessageResponse = (value: unknown): A2ATask | A2AMessage => {
   if (isRecord(value)) {
-    if (value.task != null) {
-      if (isTask(value.task)) return value.task;
-    } else if (value.message != null) {
-      if (isMessage(value.message)) return value.message;
-    } else if (isTask(value) || isMessage(value)) {
-      return value;
-    }
+    const candidate = value.task ?? value.message ?? value;
+    if (isTask(candidate) || isMessage(candidate)) return candidate;
   }
 
   throw new Error(
