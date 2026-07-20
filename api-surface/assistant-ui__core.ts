@@ -291,6 +291,7 @@ declare class AssistantFrameHost implements ModelContextProvider {
   private _requestCounter;
   private _iframeWindow;
   private _targetOrigin;
+  private _disposed;
   constructor(iframeWindow: Window, targetOrigin?: string);
   private handleMessage;
   private updateContext;
