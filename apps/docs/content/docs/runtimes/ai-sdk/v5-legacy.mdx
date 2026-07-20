@@ -6,12 +6,12 @@ description: Reference for projects still on AI SDK v5. New projects should use 
 import { VercelIcon } from "@/components/icons/vercel";
 
 <Callout type="warn">
-AI SDK v5 is a legacy version. New projects should use [AI SDK v7](/docs/runtimes/ai-sdk/v7). v5 users stay on `@assistant-ui/react-ai-sdk@0.x`; the latest line targets v7+.
+AI SDK v5 is a legacy version. New projects should use [AI SDK v7](/docs/runtimes/ai-sdk/v7). v5 users pin `@assistant-ui/react-ai-sdk@1.1.21` (the last v5-compatible release); later releases target newer AI SDK majors.
 </Callout>
 
 ## Why legacy
 
-AI SDK v6 introduced major API changes: async `convertToModelMessages`, a new tool schema, and `toUIMessageStreamResponse()`. v5 still works but no longer receives new features in `@assistant-ui/react-ai-sdk`. Pinning to `@0.x` keeps you on the v5-compatible surface.
+AI SDK v6 introduced major API changes: async `convertToModelMessages`, a new tool schema, and `toUIMessageStreamResponse()`. v5 still works but no longer receives new features in `@assistant-ui/react-ai-sdk`. Pinning to `1.1.21` keeps you on the v5-compatible surface.
 
 This page is reference for existing v5 projects. Plan to migrate to v7 when feasible.
 
@@ -22,7 +22,7 @@ This page is reference for existing v5 projects. Plan to migrate to v7 when feas
 
 ### Install v5-compatible versions
 
-<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk@0.x", "ai@^5", "@ai-sdk/openai@^1", "zod"]} />
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk@1.1.21", "ai@^5", "@ai-sdk/openai@^1", "zod"]} />
 
 </Step>
 <Step>
@@ -98,7 +98,7 @@ const runtime = useVercelUseChatRuntime(chat);
 | Feature | v5 | v6 |
 | --- | --- | --- |
 | `ai` package | `ai@^5` | `ai@^6` |
-| `@assistant-ui/react-ai-sdk` | `@0.x` | `@latest` |
+| `@assistant-ui/react-ai-sdk` | `@1.1.21` | `@1.3.40` |
 | `@ai-sdk/openai` | `^1` | `^3` |
 | Message type | `Message` | `UIMessage` |
 | `convertToModelMessages` | Sync | Async (`await`) |

@@ -720,7 +720,7 @@ Send a message in a fresh thread. Check the database:
 
 - The `threads` table has a new row with the current `userId`.
 - The `messages` table has at least two rows (user + assistant) for that thread.
-- `format` matches what `fmt.format` wrote (`"ai-sdk/v6"` for AI SDK v6) and `content` is the encoded `UIMessage` (a `role` plus `parts`), not a placeholder blob.
+- `format` matches what `fmt.format` wrote (`"ai-sdk/v6"`) and `content` is the encoded `UIMessage` (a `role` plus `parts`), not a placeholder blob. The format string names the stored `UIMessage` shape, not the installed AI SDK major; it stays `"ai-sdk/v6"` on AI SDK v7 and must never be renamed, or previously stored history stops matching.
 - Reload the page; the thread list and the messages survive.
 
 </Step>
