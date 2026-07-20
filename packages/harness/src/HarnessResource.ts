@@ -81,151 +81,17 @@ type CoreSnapshot = {
   readonly error: HarnessErrorInfo | null;
 };
 
-class HarnessCore {
-  transport!: HarnessTransport;
+type Mutable = {
+  snapshot: CoreSnapshot;
+  queued: HarnessCommand[];
+  abort: AbortController | null;
+  scheduled: RunKind | null;
+  followUp: RunKind | null;
+  disposed: boolean;
+  transport: HarnessTransport;
   onFinish: (() => void) | undefined;
   onError: ((error: Error) => void) | undefined;
-
-  snapshot: CoreSnapshot = {
-    state: createInitialState(),
-    optimistic: [],
-    phase: "idle",
-    error: null,
-  };
-
-  #queued: HarnessCommand[] = [];
-  #abortController: AbortController | null = null;
-  #scheduled: RunKind | null = null;
-  #followUp: RunKind | null = null;
-  readonly #listeners = new Set<() => void>();
-
-  constructor(readonly threadId: string) {}
-
-  subscribe = (listener: () => void): (() => void) => {
-    this.#listeners.add(listener);
-    return () => void this.#listeners.delete(listener);
-  };
-
-  send(command: HarnessCommand): void {
-    this.#queued.push(command);
-    const optimistic =
-      command.type === "send-message"
-        ? [...this.snapshot.optimistic, command]
-        : this.snapshot.optimistic;
-    this.#update({ optimistic, error: null });
-    this.#schedule("commands");
-  }
-
-  stop(): void {
-    if (this.#abortController) {
-      this.#queued.push({ type: "cancel" });
-      this.#schedule("commands");
-      this.#abortController.abort();
-      return;
-    }
-    // Nothing sent yet: drop the scheduled batch locally.
-    this.#scheduled = null;
-    const batch = this.#queued
-      .splice(0)
-      .filter((c): c is SendMessageCommand => c.type === "send-message");
-    this.#drop(batch);
-  }
-
-  resumeRun(): void {
-    this.#schedule("resume");
-  }
-
-  dispose(): void {
-    this.#scheduled = null;
-    this.#followUp = null;
-    this.#queued.length = 0;
-    this.#abortController?.abort();
-  }
-
-  #update(patch: Partial<CoreSnapshot>): void {
-    this.snapshot = { ...this.snapshot, ...patch };
-    for (const listener of this.#listeners) listener();
-  }
-
-  #schedule(kind: RunKind): void {
-    if (this.#scheduled) {
-      if (kind === "commands") this.#scheduled = kind;
-      return;
-    }
-    if (this.#abortController) {
-      if (this.#followUp !== "commands") this.#followUp = kind;
-      return;
-    }
-    this.#scheduled = kind;
-    // Defer so same-tick commands batch into a single request.
-    queueMicrotask(() => {
-      const scheduled = this.#scheduled;
-      this.#scheduled = null;
-      if (scheduled) void this.#run(scheduled);
-    });
-  }
-
-  async #run(kind: RunKind): Promise<void> {
-    const { transport, onFinish, onError } = this;
-    const commands = kind === "commands" ? this.#queued.splice(0) : [];
-    const batch = commands.filter(
-      (c): c is SendMessageCommand => c.type === "send-message",
-    );
-    const abortController = new AbortController();
-    this.#abortController = abortController;
-    this.#update({ phase: "submitted", error: null });
-
-    try {
-      const input = {
-        threadId: this.threadId,
-        state: this.snapshot.state,
-        signal: abortController.signal,
-      };
-      if (kind === "resume" && !transport.resume)
-        throw new Error("Transport does not support resume");
-      const stream =
-        kind === "resume"
-          ? transport.resume!(input)
-          : transport.run({ ...input, commands });
-
-      for await (const snapshot of stream) {
-        const state = normalizeState(snapshot);
-        this.#update({
-          state,
-          optimistic: this.snapshot.optimistic.filter(
-            (c) =>
-              !(c.id in state.messages) &&
-              !state.queue.some((q) => q.id === c.id),
-          ),
-          phase: "streaming",
-        });
-      }
-      this.#drop(batch);
-      onFinish?.();
-    } catch (e) {
-      this.#drop(batch);
-      if (!abortController.signal.aborted) {
-        const error = e instanceof Error ? e : new Error(String(e));
-        this.#update({ error: { message: error.message } });
-        onError?.(error);
-      }
-    } finally {
-      this.#abortController = null;
-      const followUp = this.#followUp;
-      this.#followUp = null;
-      if (followUp) void this.#run(followUp);
-      else this.#update({ phase: "idle" });
-    }
-  }
-
-  /** The batch settled: every echo that will ever arrive has arrived. */
-  #drop(batch: readonly SendMessageCommand[]): void {
-    if (batch.length === 0) return;
-    this.#update({
-      optimistic: this.snapshot.optimistic.filter((c) => !batch.includes(c)),
-    });
-  }
-}
+};
 
 const toSendMessageCommand = (input: SendMessageInput): SendMessageCommand => {
   const message =
@@ -241,26 +107,158 @@ const toSendMessageCommand = (input: SendMessageInput): SendMessageCommand => {
 };
 
 const useHarnessImpl = (options: HarnessOptions): HarnessApi => {
-  const [core] = useState(
-    () => new HarnessCore(options.id ?? crypto.randomUUID()),
-  );
-  const [snapshot, setSnapshot] = useState(core.snapshot);
+  const [threadId] = useState(() => options.id ?? crypto.randomUUID());
   const transport = useResource(options.transport);
+  const [self] = useState(
+    (): Mutable => ({
+      snapshot: {
+        state: createInitialState(),
+        optimistic: [],
+        phase: "idle",
+        error: null,
+      },
+      queued: [],
+      abort: null,
+      scheduled: null,
+      followUp: null,
+      disposed: false,
+      transport: null as never,
+      onFinish: undefined,
+      onError: undefined,
+    }),
+  );
+  const [snapshot, setSnapshot] = useState(self.snapshot);
 
   useEffect(() => {
-    core.transport = transport;
-    core.onFinish = options.onFinish;
-    core.onError = options.onError;
+    self.transport = transport;
+    self.onFinish = options.onFinish;
+    self.onError = options.onError;
   });
 
-  useEffect(() => core.subscribe(() => setSnapshot(core.snapshot)), [core]);
+  const update = (patch: Partial<CoreSnapshot>): void => {
+    self.snapshot = { ...self.snapshot, ...patch };
+    if (!self.disposed) setSnapshot(self.snapshot);
+  };
 
-  useEffect(() => () => core.dispose(), [core]);
+  /** The batch settled: every echo that will ever arrive has arrived. */
+  const drop = (batch: readonly SendMessageCommand[]): void => {
+    if (batch.length === 0) return;
+    update({
+      optimistic: self.snapshot.optimistic.filter((c) => !batch.includes(c)),
+    });
+  };
+
+  const run = async (kind: RunKind): Promise<void> => {
+    const { transport, onFinish, onError } = self;
+    const commands = kind === "commands" ? self.queued.splice(0) : [];
+    const batch = commands.filter(
+      (c): c is SendMessageCommand => c.type === "send-message",
+    );
+    const abort = new AbortController();
+    self.abort = abort;
+    update({ phase: "submitted", error: null });
+
+    try {
+      const input = {
+        threadId,
+        state: self.snapshot.state,
+        signal: abort.signal,
+      };
+      if (kind === "resume" && !transport.resume)
+        throw new Error("Transport does not support resume");
+      const stream =
+        kind === "resume"
+          ? transport.resume!(input)
+          : transport.run({ ...input, commands });
+
+      for await (const snapshot of stream) {
+        const state = normalizeState(snapshot);
+        update({
+          state,
+          optimistic: self.snapshot.optimistic.filter(
+            (c) =>
+              !(c.id in state.messages) &&
+              !state.queue.some((q) => q.id === c.id),
+          ),
+          phase: "streaming",
+        });
+      }
+      drop(batch);
+      onFinish?.();
+    } catch (e) {
+      drop(batch);
+      if (!abort.signal.aborted) {
+        const error = e instanceof Error ? e : new Error(String(e));
+        update({ error: { message: error.message } });
+        onError?.(error);
+      }
+    } finally {
+      self.abort = null;
+      const followUp = self.followUp;
+      self.followUp = null;
+      if (followUp) void run(followUp);
+      else update({ phase: "idle" });
+    }
+  };
+
+  const schedule = (kind: RunKind): void => {
+    if (self.scheduled) {
+      if (kind === "commands") self.scheduled = kind;
+      return;
+    }
+    if (self.abort) {
+      if (self.followUp !== "commands") self.followUp = kind;
+      return;
+    }
+    self.scheduled = kind;
+    // Defer so same-tick commands batch into a single request.
+    queueMicrotask(() => {
+      const scheduled = self.scheduled;
+      self.scheduled = null;
+      if (scheduled) void run(scheduled);
+    });
+  };
+
+  const send = (command: HarnessCommand): void => {
+    self.queued.push(command);
+    const optimistic =
+      command.type === "send-message"
+        ? [...self.snapshot.optimistic, command]
+        : self.snapshot.optimistic;
+    update({ optimistic, error: null });
+    schedule("commands");
+  };
+
+  const stop = (): void => {
+    if (self.abort) {
+      self.queued.push({ type: "cancel" });
+      schedule("commands");
+      self.abort.abort();
+      return;
+    }
+    // Nothing sent yet: drop the scheduled batch locally.
+    self.scheduled = null;
+    const batch = self.queued
+      .splice(0)
+      .filter((c): c is SendMessageCommand => c.type === "send-message");
+    drop(batch);
+  };
+
+  useEffect(() => {
+    self.disposed = false;
+    return () => {
+      self.disposed = true;
+      self.scheduled = null;
+      self.followUp = null;
+      self.queued.length = 0;
+      self.abort?.abort();
+    };
+  }, [self]);
 
   const resume = options.resume === true;
   useEffect(() => {
-    if (resume) core.resumeRun();
-  }, [core, resume]);
+    if (resume) schedule("resume");
+  }, [self, resume]);
 
   const state = useMemo(
     () => applyOptimistic(snapshot.state, snapshot.optimistic),
@@ -280,7 +278,7 @@ const useHarnessImpl = (options: HarnessOptions): HarnessApi => {
             : "ready";
 
   return {
-    id: core.threadId,
+    id: threadId,
     state,
     messages: views.messages,
     subagents: views.subagents,
@@ -291,20 +289,20 @@ const useHarnessImpl = (options: HarnessOptions): HarnessApi => {
     todos: state.todos,
     interrupt: state.interrupt,
     title: state.title,
-    sendMessage: (input) => core.send(toSendMessageCommand(input)),
+    sendMessage: (input) => send(toSendMessageCommand(input)),
     addToolResult: ({ toolCallId, output, isError }) =>
-      core.send({
+      send({
         type: "add-tool-result",
         toolCallId,
         output,
         ...(isError !== undefined && { isError }),
       }),
     resume: (interruptId, value) =>
-      core.send({ type: "resume", interruptId, value }),
-    stop: () => core.stop(),
-    cancelQueued: (id) => core.send({ type: "cancel-queued", id }),
-    sendNow: (id) => core.send({ type: "send-now", id }),
-    sendCommand: (command) => core.send(command),
+      send({ type: "resume", interruptId, value }),
+    stop,
+    cancelQueued: (id) => send({ type: "cancel-queued", id }),
+    sendNow: (id) => send({ type: "send-now", id }),
+    sendCommand: send,
   };
 };
 
