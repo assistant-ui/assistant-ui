@@ -1,9 +1,9 @@
 from assistant_stream.assistant_stream_chunk import AssistantStreamChunk
-from assistant_stream.serialization.stream_encoder import (
-    StreamEncoder,
+from assistant_stream.serialization.heartbeat import (
     add_sse_heartbeat,
     resolve_heartbeat_interval,
 )
+from assistant_stream.serialization.stream_encoder import StreamEncoder
 from typing import AsyncGenerator, Union
 
 from starlette.responses import StreamingResponse

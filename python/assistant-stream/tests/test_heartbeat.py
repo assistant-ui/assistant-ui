@@ -11,7 +11,7 @@ from assistant_stream.serialization.assistant_transport import (
     AssistantTransportEncoder,
 )
 from assistant_stream.serialization.data_stream import DataStreamEncoder
-from assistant_stream.serialization.stream_encoder import (
+from assistant_stream.serialization.heartbeat import (
     DEFAULT_HEARTBEAT_INTERVAL,
     SSE_HEARTBEAT_LINE,
     add_sse_heartbeat,
