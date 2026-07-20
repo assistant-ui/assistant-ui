@@ -445,7 +445,21 @@ describe("A2AClient", () => {
     it.each([
       ["an empty object", {}],
       ["a malformed task", { task: {} }],
+      [
+        "a task with an unknown state",
+        { task: { id: "t1", status: { state: "typo" } } },
+      ],
       ["a malformed message", { message: {} }],
+      [
+        "a message with a malformed part",
+        {
+          message: {
+            messageId: "m2",
+            role: "agent",
+            parts: [null],
+          },
+        },
+      ],
     ])("rejects %s returned with a successful status", async (_name, body) => {
       fetchMock.mockResolvedValue(mockFetchResponse(body));
 

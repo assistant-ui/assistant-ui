@@ -154,13 +154,27 @@ function discriminateStreamResponse(
   return null;
 }
 
+const TASK_STATES: ReadonlySet<string> = new Set<A2ATaskState>([
+  "unspecified",
+  "submitted",
+  "working",
+  "completed",
+  "failed",
+  "canceled",
+  "input_required",
+  "rejected",
+  "auth_required",
+]);
+
+const isTaskState = (value: unknown): value is A2ATaskState =>
+  typeof value === "string" && TASK_STATES.has(value);
+
 const isTask = (value: unknown): value is A2ATask =>
   isRecord(value) &&
   typeof value.id === "string" &&
   value.id.length > 0 &&
   isRecord(value.status) &&
-  typeof value.status.state === "string" &&
-  value.status.state.length > 0;
+  isTaskState(value.status.state);
 
 const isMessage = (value: unknown): value is A2AMessage =>
   isRecord(value) &&
@@ -168,7 +182,8 @@ const isMessage = (value: unknown): value is A2AMessage =>
   value.messageId.length > 0 &&
   typeof value.role === "string" &&
   value.role.length > 0 &&
-  Array.isArray(value.parts);
+  Array.isArray(value.parts) &&
+  value.parts.every(isRecord);
 
 const parseSendMessageResponse = (value: unknown): A2ATask | A2AMessage => {
   if (isRecord(value)) {
