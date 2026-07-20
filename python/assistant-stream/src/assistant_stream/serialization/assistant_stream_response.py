@@ -19,6 +19,10 @@ class AssistantStreamResponse(StreamingResponse):
         body = stream_encoder.encode_stream(stream)
         heartbeat_interval = resolve_heartbeat_interval(heartbeat)
         if heartbeat_interval is not None:
+            if stream_encoder.get_media_type() != "text/event-stream":
+                raise ValueError(
+                    "heartbeat is only supported for text/event-stream encoders"
+                )
             body = add_sse_heartbeat(body, heartbeat_interval)
         super().__init__(
             body,

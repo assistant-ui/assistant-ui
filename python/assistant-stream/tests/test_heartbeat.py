@@ -7,6 +7,10 @@ from assistant_stream.assistant_stream_chunk import TextDeltaChunk
 from assistant_stream.serialization.assistant_transport import (
     AssistantTransportResponse,
 )
+from assistant_stream.serialization.assistant_stream_response import (
+    AssistantStreamResponse,
+)
+from assistant_stream.serialization.data_stream import DataStreamEncoder
 from assistant_stream.serialization.openai_stream import OpenAIStreamResponse
 from assistant_stream.serialization.stream_encoder import (
     DEFAULT_HEARTBEAT_INTERVAL,
@@ -74,6 +78,15 @@ async def test_heartbeat_emitted_when_idle_openai():
     heartbeats = [line for line in lines if line == SSE_HEARTBEAT_LINE]
     assert len(heartbeats) >= 2
     assert lines[-1] == "data: [DONE]\n\n"
+
+
+@pytest.mark.anyio
+async def test_heartbeat_rejected_for_non_sse_encoder():
+    async def stream():
+        yield TextDeltaChunk(text_delta="hello")
+
+    with pytest.raises(ValueError, match="text/event-stream"):
+        AssistantStreamResponse(stream(), DataStreamEncoder(), heartbeat=0.05)
 
 
 @pytest.mark.anyio
