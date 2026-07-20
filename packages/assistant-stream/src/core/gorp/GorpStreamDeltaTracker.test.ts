@@ -105,6 +105,46 @@ describe("GorpStreamDeltaTracker getChangedKeys", () => {
   });
 });
 
+describe("GorpStreamDeltaTracker inherited object members", () => {
+  it("does not treat inherited members as changes on a fresh tracker", () => {
+    const tracker = new GorpStreamDeltaTracker({ items: {} });
+    expect(tracker.isChangedAt(["toString"])).toBe(false);
+    expect(tracker.isChangedAt(["hasOwnProperty"])).toBe(false);
+    expect(tracker.getChangedKeys(["toString"])).toEqual([]);
+  });
+
+  it("does not treat inherited members as changes on a populated tree", () => {
+    const tracker = new GorpStreamDeltaTracker({ items: {} });
+    tracker.append([{ type: "set", path: ["items", "a"], value: 1 }]);
+    expect(tracker.isChangedAt(["toString"])).toBe(false);
+    expect(tracker.isChangedAt(["items", "toString"])).toBe(false);
+    expect(tracker.isChangedAt(["items", "valueOf", "deep"])).toBe(false);
+    expect(tracker.getChangedKeys([])).toEqual(["items"]);
+    expect(tracker.getChangedKeys(["items"])).toEqual(["a"]);
+  });
+});
+
+describe("GorpStreamDeltaTracker failed append", () => {
+  it("leaves state and the change frame untouched when an operation throws", () => {
+    const tracker = new GorpStreamDeltaTracker({ count: 5, message: "hi" });
+    tracker.append([{ type: "set", path: ["message"], value: "hello" }]);
+    const stateBefore = tracker.state;
+
+    expect(() =>
+      tracker.append([
+        { type: "set", path: ["other"], value: 1 },
+        { type: "append-text", path: ["count"], value: "!" },
+      ]),
+    ).toThrow(/Expected string/);
+
+    expect(tracker.state).toBe(stateBefore);
+    expect(tracker.isChangedAt(["message"])).toBe(true);
+    expect(tracker.isChangedAt(["other"])).toBe(false);
+    expect(tracker.isChangedAt(["count"])).toBe(false);
+    expect(tracker.getChangedKeys([])).toEqual(["message"]);
+  });
+});
+
 describe("GorpStreamDeltaTracker streamed accumulation", () => {
   it("tracks one frame per streamed chunk", async () => {
     const stream = createGorpStream({

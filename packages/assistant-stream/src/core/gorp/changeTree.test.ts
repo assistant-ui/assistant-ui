@@ -122,6 +122,29 @@ describe("lookupChange", () => {
     const node: ChangeNode = { a: true };
     expect(lookupChange(node, [])).toBe(node);
   });
+
+  it("returns false for inherited object members", () => {
+    expect(lookupChange({}, ["toString"])).toBe(false);
+    expect(lookupChange({ a: {} }, ["a", "hasOwnProperty"])).toBe(false);
+    expect(lookupChange({ a: true }, ["constructor"])).toBe(false);
+  });
+});
+
+describe("inherited object members", () => {
+  it("markChanged does not descend into inherited members", () => {
+    const node: ChangeNode = {};
+    markChanged(node, ["toString", "x"]);
+    expect(node).toEqual({ toString: { x: true } });
+    expect(lookupChange(node, ["toString", "x"])).toBe(true);
+    expect(lookupChange(node, ["valueOf"])).toBe(false);
+  });
+
+  it("mergeChanged ignores inherited target members", () => {
+    const target: ChangeNode = {};
+    const source: ChangeNode = { toString: { x: true } };
+    mergeChanged(target, source);
+    expect(target).toEqual({ toString: { x: true } });
+  });
 });
 
 describe("diffKeys", () => {

@@ -17,7 +17,7 @@ export function markChanged(
   for (let i = 0; i < path.length - 1; i++) {
     const key = path[i]!;
     assertSafePathSegment(key);
-    const next = cursor[key];
+    const next = Object.hasOwn(cursor, key) ? cursor[key] : undefined;
     if (next === true) return node;
     if (next === undefined) cursor[key] = {};
     cursor = cursor[key] as { [k: string]: ChangeNode };
@@ -36,7 +36,7 @@ export function mergeChanged(
   for (const key of Object.keys(source)) {
     assertSafePathSegment(key);
     const sChild = source[key]!;
-    const tChild = target[key];
+    const tChild = Object.hasOwn(target, key) ? target[key] : undefined;
     target[key] =
       tChild === undefined
         ? cloneChangeNode(sChild)
@@ -61,7 +61,7 @@ export function lookupChange(
 ): ChangeNode | false {
   for (const key of path) {
     if (node === true) return true;
-    const next = node[key];
+    const next = Object.hasOwn(node, key) ? node[key] : undefined;
     if (next === undefined) return false;
     node = next;
   }
@@ -73,7 +73,9 @@ export function lookupValue(state: unknown, path: readonly string[]): unknown {
   for (const key of path) {
     assertSafePathSegment(key);
     if (typeof node !== "object" || node === null) return undefined;
-    node = (node as Record<string, unknown>)[key];
+    node = Object.hasOwn(node, key)
+      ? (node as Record<string, unknown>)[key]
+      : undefined;
   }
   return node;
 }

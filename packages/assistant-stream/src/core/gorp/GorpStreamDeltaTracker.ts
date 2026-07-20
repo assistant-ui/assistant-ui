@@ -24,12 +24,14 @@ export class GorpStreamDeltaTracker {
   }
 
   append(operations: readonly GorpStreamOperation[]): void {
-    this.previousState = this.accumulator.state;
-    this.changes = {};
+    const previousState = this.accumulator.state;
+    let changes: ChangeNode = {};
     for (const op of operations) {
-      this.changes = markChanged(this.changes, op.path);
+      changes = markChanged(changes, op.path);
     }
     this.accumulator.append(operations);
+    this.previousState = previousState;
+    this.changes = changes;
   }
 
   isChangedAt(path: readonly string[]): boolean {
