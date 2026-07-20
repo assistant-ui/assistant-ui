@@ -1,7 +1,7 @@
-from assistant_stream.gorp import GorpProxy
+from assistant_stream.state import StateProxy as BaseStateProxy
 
 
-class StateProxy(GorpProxy):
+class StateProxy(BaseStateProxy):
     """Proxy object for state access and updates using dictionary-style access.
 
     Example:

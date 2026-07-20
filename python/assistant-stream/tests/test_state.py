@@ -2,11 +2,11 @@ from typing import Any
 
 import pytest
 
-from assistant_stream.gorp import (
+from assistant_stream.state import (
     Flusher,
-    Gorp,
-    GorpDraft,
-    GorpProxy,
+    AssistantState,
+    StateDraft,
+    StateProxy,
     deep_apply,
     lookup_state,
 )
@@ -90,37 +90,37 @@ def test_lookup_state_raises_for_invalid_paths() -> None:
         lookup_state(None, ["anything"])
 
 
-def test_gorp_apply_updates_state() -> None:
-    gorp = Gorp({"count": 0})
-    gorp.apply([{"type": "set", "path": ["count"], "value": 1}])
-    assert gorp.state == {"count": 1}
+def test_state_apply_updates_state() -> None:
+    state = AssistantState({"count": 0})
+    state.apply([{"type": "set", "path": ["count"], "value": 1}])
+    assert state.state == {"count": 1}
 
 
 def test_draft_writes_apply_and_forward_ops() -> None:
     ops: list[dict[str, Any]] = []
-    gorp = Gorp({"user": {"name": "John"}})
-    draft = gorp.draft(ops.extend)
+    state = AssistantState({"user": {"name": "John"}})
+    draft = state.draft(ops.extend)
 
     draft["user"]["name"] = "Bob"
 
-    assert gorp.state == {"user": {"name": "Bob"}}
+    assert state.state == {"user": {"name": "Bob"}}
     assert ops == [{"type": "set", "path": ["user", "name"], "value": "Bob"}]
 
 
 def test_draft_reads_through_live_state() -> None:
-    gorp = Gorp({"user": {"name": "John"}})
-    draft = gorp.draft(lambda _ops: None)
+    state = AssistantState({"user": {"name": "John"}})
+    draft = state.draft(lambda _ops: None)
     user = draft["user"]
 
-    gorp.apply([{"type": "set", "path": ["user", "name"], "value": "Jane"}])
+    state.apply([{"type": "set", "path": ["user", "name"], "value": "Jane"}])
 
     assert user["name"] == "Jane"
 
 
 def test_draft_string_extension_infers_append_text() -> None:
     ops: list[dict[str, Any]] = []
-    gorp = Gorp({"messages": [{"text": ""}]})
-    draft = gorp.draft(ops.extend)
+    state = AssistantState({"messages": [{"text": ""}]})
+    draft = state.draft(ops.extend)
 
     draft["messages"][0]["text"] = "Hel"
     draft["messages"][0]["text"] = "Hello"
@@ -131,13 +131,13 @@ def test_draft_string_extension_infers_append_text() -> None:
         {"type": "append-text", "path": ["messages", "0", "text"], "value": "lo"},
         {"type": "append-text", "path": ["messages", "0", "text"], "value": "!"},
     ]
-    assert gorp.state["messages"][0]["text"] == "Hello!"
+    assert state.state["messages"][0]["text"] == "Hello!"
 
 
 def test_draft_string_non_extension_emits_set() -> None:
     ops: list[dict[str, Any]] = []
-    gorp = Gorp({"text": "hello"})
-    draft = gorp.draft(ops.extend)
+    state = AssistantState({"text": "hello"})
+    draft = state.draft(ops.extend)
 
     draft["text"] = "goodbye"
 
@@ -146,18 +146,18 @@ def test_draft_string_non_extension_emits_set() -> None:
 
 def test_draft_list_append_emits_index_set() -> None:
     ops: list[dict[str, Any]] = []
-    gorp = Gorp({"items": ["a"]})
-    draft = gorp.draft(ops.extend)
+    state = AssistantState({"items": ["a"]})
+    draft = state.draft(ops.extend)
 
     draft["items"].append("b")
 
     assert ops == [{"type": "set", "path": ["items", "1"], "value": "b"}]
-    assert gorp.state["items"] == ["a", "b"]
+    assert state.state["items"] == ["a", "b"]
 
 
 def test_draft_mutating_list_methods_raise() -> None:
-    gorp = Gorp({"items": ["a", "b"]})
-    draft = gorp.draft(lambda _ops: None)
+    state = AssistantState({"items": ["a", "b"]})
+    draft = state.draft(lambda _ops: None)
 
     with pytest.raises(NotImplementedError):
         draft["items"].pop()
@@ -172,8 +172,8 @@ def test_draft_mutating_list_methods_raise() -> None:
 
 
 def test_draft_rejects_storing_proxy_in_state() -> None:
-    gorp = Gorp({"orig": {"a": 1}, "copy": None, "items": []})
-    draft = gorp.draft(lambda _ops: None)
+    state = AssistantState({"orig": {"a": 1}, "copy": None, "items": []})
+    draft = state.draft(lambda _ops: None)
 
     with pytest.raises(ValueError):
         draft["copy"] = draft["orig"]
@@ -184,13 +184,13 @@ def test_draft_rejects_storing_proxy_in_state() -> None:
     with pytest.raises(ValueError):
         draft["items"] += [draft["orig"]]
 
-    assert gorp.state == {"orig": {"a": 1}, "copy": None, "items": []}
+    assert state.state == {"orig": {"a": 1}, "copy": None, "items": []}
 
 
 def test_draft_list_iadd_plain_values_emits_indexed_sets() -> None:
     ops: list[dict[str, Any]] = []
-    gorp = Gorp({"items": ["a"]})
-    draft = gorp.draft(ops.extend)
+    state = AssistantState({"items": ["a"]})
+    draft = state.draft(ops.extend)
 
     draft["items"] += ["b", "c"]
 
@@ -198,13 +198,13 @@ def test_draft_list_iadd_plain_values_emits_indexed_sets() -> None:
         {"type": "set", "path": ["items", "1"], "value": "b"},
         {"type": "set", "path": ["items", "2"], "value": "c"},
     ]
-    assert gorp.state["items"] == ["a", "b", "c"]
+    assert state.state["items"] == ["a", "b", "c"]
 
 
 def test_add_operations_rejects_proxy_values() -> None:
-    gorp = Gorp({"orig": {"a": 1}, "copy": None})
-    proxy = gorp.draft(lambda _ops: None)["orig"]
-    host = GorpDraft(gorp, lambda _ops: None)
+    state = AssistantState({"orig": {"a": 1}, "copy": None})
+    proxy = state.draft(lambda _ops: None)["orig"]
+    host = StateDraft(state, lambda _ops: None)
 
     with pytest.raises(ValueError):
         host.add_operations([{"type": "set", "path": ["copy"], "value": proxy}])
@@ -213,13 +213,13 @@ def test_add_operations_rejects_proxy_values() -> None:
             [{"type": "set", "path": [], "value": {"copy": proxy}}]
         )
 
-    assert gorp.state == {"orig": {"a": 1}, "copy": None}
+    assert state.state == {"orig": {"a": 1}, "copy": None}
 
 
 def test_add_operations_skips_same_path_writeback_proxy() -> None:
     ops: list[dict[str, Any]] = []
-    gorp = Gorp(["a"])
-    proxy = gorp.draft(ops.extend)
+    state = AssistantState(["a"])
+    proxy = state.draft(ops.extend)
     host = proxy._manager
 
     proxy.__iadd__(["b", "c"])
@@ -229,12 +229,12 @@ def test_add_operations_skips_same_path_writeback_proxy() -> None:
         {"type": "set", "path": ["1"], "value": "b"},
         {"type": "set", "path": ["2"], "value": "c"},
     ]
-    assert gorp.state == ["a", "b", "c"]
+    assert state.state == ["a", "b", "c"]
 
 
-def test_draft_returns_gorp_proxy() -> None:
-    gorp = Gorp({"user": {}})
-    assert isinstance(gorp.draft(lambda _ops: None), GorpProxy)
+def test_draft_returns_state_proxy() -> None:
+    state = AssistantState({"user": {}})
+    assert isinstance(state.draft(lambda _ops: None), StateProxy)
 
 
 def test_flusher_batches_until_flush() -> None:

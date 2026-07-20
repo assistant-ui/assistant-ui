@@ -10,10 +10,6 @@ from assistant_stream.serialization.assistant_transport import (
     AssistantTransportEncoder,
     AssistantTransportResponse,
 )
-from assistant_stream.serialization.gorp_stream import (
-    GorpStreamEncoder,
-    GorpStreamResponse,
-)
 
 __all__ = [
     "DataStreamEncoder",
@@ -22,6 +18,4 @@ __all__ = [
     "OpenAIStreamResponse",
     "AssistantTransportEncoder",
     "AssistantTransportResponse",
-    "GorpStreamEncoder",
-    "GorpStreamResponse",
 ]

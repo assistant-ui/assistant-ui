@@ -1,9 +1,8 @@
-"""Python port of the gorp state-sync server slice.
+"""Authoritative state container, mutation proxy, and op batcher.
 
-Ports the authoritative state container (deep_apply/lookup path semantics),
-the mutation proxy, and an op batcher from packages/gorp. The client, relay,
-and session layers are not ported; assistant-stream only needs the server
-side of the wire (ops-only envelopes, no ack).
+Backs assistant-transport state streaming: proxy writes become update-state
+operations (deep_apply/lookup path semantics) batched for emission. Only the
+server side of the wire is implemented (ops-only, no ack).
 """
 
 import threading
@@ -11,13 +10,13 @@ from typing import Any, Callable, List, Optional, Protocol, Sequence, Union
 
 from assistant_stream.assistant_stream_chunk import ObjectStreamOperation
 
-GorpOperation = ObjectStreamOperation
+StateOperation = ObjectStreamOperation
 
 
-class GorpOpHost(Protocol):
+class StateOpHost(Protocol):
     def get_value_at_path(self, path: List[str]) -> Any: ...
 
-    def add_operations(self, operations: List[GorpOperation]) -> None: ...
+    def add_operations(self, operations: List[StateOperation]) -> None: ...
 
     def append_text(self, path: Sequence[Union[str, int]], value: str) -> None: ...
 
@@ -45,7 +44,7 @@ def lookup_state(state: Any, path: Sequence[str]) -> Any:
     return current
 
 
-def deep_apply(target: Any, path: Sequence[str], op: GorpOperation) -> Any:
+def deep_apply(target: Any, path: Sequence[str], op: StateOperation) -> Any:
     """Apply an operation at a path, returning the updated value.
 
     Containers along the path are copied rather than mutated. Missing dict
@@ -85,7 +84,7 @@ def deep_apply(target: Any, path: Sequence[str], op: GorpOperation) -> Any:
     return {**obj, head: deep_apply(obj.get(head), rest, op)}
 
 
-class Gorp:
+class AssistantState:
     """Authoritative state container. Applies ops; hands out mutation proxies."""
 
     def __init__(self, initial_state: Any | None = None):
@@ -95,41 +94,41 @@ class Gorp:
     def state(self) -> Any:
         return self._state
 
-    def apply(self, operations: Sequence[GorpOperation]) -> None:
+    def apply(self, operations: Sequence[StateOperation]) -> None:
         for op in operations:
             self._state = deep_apply(self._state, op["path"], op)
 
     def lookup(self, path: Sequence[str]) -> Any:
         return lookup_state(self._state, path)
 
-    def draft(self, on_operations: Callable[[List[GorpOperation]], None]) -> "GorpProxy":
+    def draft(self, on_operations: Callable[[List[StateOperation]], None]) -> "StateProxy":
         """Return a mutation proxy whose writes apply to this container and
         forward the resulting ops to on_operations."""
-        return GorpProxy(GorpDraft(self, on_operations), [])
+        return StateProxy(StateDraft(self, on_operations), [])
 
 
-class GorpDraft:
-    def __init__(self, gorp: Gorp, on_operations: Callable[[List[GorpOperation]], None]):
-        self._gorp = gorp
+class StateDraft:
+    def __init__(self, state: AssistantState, on_operations: Callable[[List[StateOperation]], None]):
+        self._state = state
         self._on_operations = on_operations
 
     def get_value_at_path(self, path: List[str]) -> Any:
-        return self._gorp.lookup(path)
+        return self._state.lookup(path)
 
-    def add_operations(self, operations: List[GorpOperation]) -> None:
+    def add_operations(self, operations: List[StateOperation]) -> None:
         operations = [op for op in operations if not self._is_writeback(op)]
         if not operations:
             return
         for op in operations:
             if op["type"] == "set":
                 _ensure_no_proxy(op["value"])
-        self._gorp.apply(operations)
+        self._state.apply(operations)
         self._on_operations(operations)
 
-    def _is_writeback(self, op: GorpOperation) -> bool:
+    def _is_writeback(self, op: StateOperation) -> bool:
         return (
             op["type"] == "set"
-            and isinstance(op["value"], GorpProxy)
+            and isinstance(op["value"], StateProxy)
             and op["value"]._manager is self
             and op["value"]._path == op["path"]
         )
@@ -160,16 +159,16 @@ class Flusher:
 
     def __init__(
         self,
-        emit: Callable[[List[GorpOperation]], None],
+        emit: Callable[[List[StateOperation]], None],
         schedule: Optional[Callable[[Callable[[], None]], None]] = None,
     ):
         self._emit = emit
         self._schedule = schedule
         self._lock = threading.Lock()
-        self._pending: List[GorpOperation] = []
+        self._pending: List[StateOperation] = []
         self._scheduled = False
 
-    def add(self, operations: Sequence[GorpOperation]) -> None:
+    def add(self, operations: Sequence[StateOperation]) -> None:
         with self._lock:
             self._pending.extend(operations)
             if self._schedule is None or self._scheduled:
@@ -187,9 +186,9 @@ class Flusher:
 
 
 def _ensure_no_proxy(value: Any) -> None:
-    if isinstance(value, GorpProxy):
+    if isinstance(value, StateProxy):
         raise ValueError(
-            "Cannot store a GorpProxy in state; assign a plain value instead"
+            "Cannot store a StateProxy in state; assign a plain value instead"
         )
     if isinstance(value, dict):
         for item in value.values():
@@ -199,7 +198,7 @@ def _ensure_no_proxy(value: Any) -> None:
             _ensure_no_proxy(item)
 
 
-class GorpProxy:
+class StateProxy:
     """Mutation proxy over live state using dictionary-style access.
 
     Reads resolve through the current state; writes emit set/append-text ops.
@@ -218,7 +217,7 @@ class GorpProxy:
 
     def __init__(
         self,
-        manager: GorpOpHost,
+        manager: StateOpHost,
         path: Optional[List[str]] = None,
     ) -> None:
         """Initialize with an op host and current path."""
@@ -246,7 +245,7 @@ class GorpProxy:
             raise KeyError(key)
         return str_key
 
-    def __getitem__(self, key: Union[str, int]) -> Union["GorpProxy", Any]:
+    def __getitem__(self, key: Union[str, int]) -> Union["StateProxy", Any]:
         """Access nested values with dict-style syntax. Returns primitives directly."""
         current_value = self._get_value()
         str_key = self._resolve_key(current_value, key, require_existing=True)
@@ -292,7 +291,7 @@ class GorpProxy:
             [{"type": "set", "path": target_path, "value": value}]
         )
 
-    def __iadd__(self, other: Any) -> "GorpProxy":
+    def __iadd__(self, other: Any) -> "StateProxy":
         """Support += on list-valued proxies.
 
         String += on a leaf goes through __setitem__ instead, since
@@ -426,7 +425,7 @@ class GorpProxy:
 
     def extend(self, iterable: Any) -> None:
         """Extend a list with items from an iterable."""
-        if isinstance(iterable, GorpProxy):
+        if isinstance(iterable, StateProxy):
             iterable = iterable._get_value()
         self.__iadd__(iterable)
 

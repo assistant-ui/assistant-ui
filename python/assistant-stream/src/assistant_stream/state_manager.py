@@ -5,7 +5,7 @@ from assistant_stream.assistant_stream_chunk import (
     ObjectStreamOperation,
     UpdateStateChunk,
 )
-from assistant_stream.gorp import Flusher, Gorp, GorpDraft
+from assistant_stream.state import Flusher, AssistantState, StateDraft
 from assistant_stream.state_proxy import StateProxy
 
 
@@ -18,11 +18,11 @@ class StateManager:
         state_data: Any | None = None,
     ):
         """Initialize with callback for sending state updates."""
-        self._gorp = Gorp(state_data)
+        self._state = AssistantState(state_data)
         self._put_chunk_callback = put_chunk_callback
         self._loop = asyncio.get_running_loop()
         self._flusher = Flusher(self._emit_operations, self._loop.call_soon_threadsafe)
-        self._draft = GorpDraft(self._gorp, self._flusher.add)
+        self._draft = StateDraft(self._state, self._flusher.add)
         self._state_proxy = StateProxy(self._draft, [])
 
     @property
@@ -32,14 +32,14 @@ class StateManager:
         If state is None, returns None directly instead of a proxy.
         Otherwise returns a proxy object for the state.
         """
-        if self._gorp.state is None:
+        if self._state.state is None:
             return None
         return self._state_proxy
 
     @property
     def state_data(self) -> Dict[str, Any]:
         """Current state data."""
-        return self._gorp.state
+        return self._state.state
 
     def add_operations(self, operations: List[ObjectStreamOperation]) -> None:
         """Apply operations locally and add them to the pending batch."""
