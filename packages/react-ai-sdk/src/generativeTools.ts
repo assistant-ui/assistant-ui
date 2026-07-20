@@ -277,18 +277,19 @@ export class AISDKToolkit {
   ): Promise<MCPClient> {
     const existing = this.#mcpClients.get(name);
     if (existing) return existing;
+    const createPromise = createMCPClient(toMCPClientConfig(config));
     let next: Promise<MCPClient>;
-    next = withMcpConnectionTimeout(
-      createMCPClient(toMCPClientConfig(config)),
-      {
-        name,
-        config,
-        phase: "connecting",
-        startedAt,
-      },
-    ).catch((error) => {
+    next = withMcpConnectionTimeout(createPromise, {
+      name,
+      config,
+      phase: "connecting",
+      startedAt,
+    }).catch((error) => {
       if (this.#mcpClients.get(name) === next) {
         this.#mcpClients.delete(name);
+      }
+      if (error instanceof MCPConnectionTimeoutError) {
+        void createPromise.then((client) => client.close()).catch(() => {});
       }
       throw error;
     });
