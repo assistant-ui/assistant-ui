@@ -49,8 +49,10 @@ async def test_encoder_prepends_snapshot_to_first_frame_only():
     )
 
     assert frames == [
-        'data: [{"type":"set","path":[],"value":{"count":0}},'
-        '{"type":"set","path":["count"],"value":1}]\n\n',
+        (
+            'data: [{"type":"set","path":[],"value":{"count":0}},'
+            + '{"type":"set","path":["count"],"value":1}]\n\n'
+        ),
         'data: [{"type":"set","path":["count"],"value":2}]\n\n',
     ]
 
