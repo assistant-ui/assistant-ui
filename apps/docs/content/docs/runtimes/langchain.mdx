@@ -5,7 +5,7 @@ description: Use LangChain's useStream hook with a React chat UI through assista
 
 import { LangGraphIcon } from "@/components/icons/langgraph";
 
-`@assistant-ui/react-langchain` wraps [`useStream`](https://docs.langchain.com/oss/javascript/langgraph-sdk/react-stream) from `@langchain/react` and exposes it as an assistant-ui runtime. It targets the same backend as [`@assistant-ui/react-langgraph`](/docs/runtimes/langgraph/overview) (LangGraph Cloud) but at a higher level, delegating stream plumbing to the upstream hook.
+`@assistant-ui/react-langchain` wraps [`useStream`](https://docs.langchain.com/oss/javascript/langgraph/streaming) from `@langchain/react` and exposes it as an assistant-ui runtime. It targets the same backend as [`@assistant-ui/react-langgraph`](/docs/runtimes/langgraph/overview) (LangGraph Cloud) but at a higher level, delegating stream plumbing to the upstream hook.
 
 ## When to use it
 
@@ -32,7 +32,7 @@ Shared adapters (attachments, speech, feedback) work the same way described in [
 
 ## Requirements
 
-- A LangGraph Cloud API server (locally via [LangGraph Studio](https://github.com/langchain-ai/langgraph-studio) or hosted via [LangSmith](https://www.langchain.com/langsmith)).
+- A LangGraph Cloud API server (locally via [LangGraph Studio](https://docs.langchain.com/langsmith/quick-start-studio) or hosted via [LangSmith](https://www.langchain.com/langsmith)).
 - The graph state must include a `messages` key with LangChain-alike messages, or pass a custom `messagesKey`.
 
 ## Quickstart
