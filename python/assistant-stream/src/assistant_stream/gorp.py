@@ -6,6 +6,8 @@ and session layers are not ported; assistant-stream only needs the server
 side of the wire (ops-only envelopes, no ack).
 """
 
+import threading
+from contextlib import suppress
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 GorpSetOperation = Dict[str, Any]
@@ -143,25 +145,28 @@ class Flusher:
     ):
         self._emit = emit
         self._schedule = schedule
+        self._lock = threading.Lock()
         self._pending: List[GorpOperation] = []
         self._scheduled = False
 
     def add(self, operations: Sequence[GorpOperation]) -> None:
-        self._pending.extend(operations)
-        if self._schedule is not None and not self._scheduled:
+        with self._lock:
+            self._pending.extend(operations)
+            if self._schedule is None or self._scheduled:
+                return
             self._scheduled = True
-            self._schedule(self._flush_scheduled)
+        self._schedule(self._flush_scheduled)
 
     def flush(self) -> None:
-        if self._pending:
-            self._flush_scheduled()
+        self._flush_scheduled()
 
     def _flush_scheduled(self) -> None:
-        if self._pending:
-            operations = self._pending.copy()
-            self._pending.clear()
+        with self._lock:
+            operations = self._pending
+            self._pending = []
+            self._scheduled = False
+        if operations:
             self._emit(operations)
-        self._scheduled = False
 
 
 class GorpProxy:
@@ -263,7 +268,7 @@ class GorpProxy:
 
         # Encode string extensions as append-text. Skip empty current values:
         # any.startswith("") matches all strings and would convert first writes too.
-        try:
+        with suppress(KeyError):
             current_target_value = self._manager.get_value_at_path(target_path)
             if (
                 isinstance(current_target_value, str)
@@ -275,8 +280,6 @@ class GorpProxy:
                 if delta:
                     self._manager.append_text(target_path, delta)
                     return
-        except KeyError:
-            pass
 
         self._manager.add_operations(
             [{"type": "set", "path": target_path, "value": value}]

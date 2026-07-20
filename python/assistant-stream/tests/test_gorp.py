@@ -207,6 +207,30 @@ def test_flusher_schedules_once_per_batch() -> None:
     assert len(scheduled) == 2
 
 
+def test_flusher_add_during_drain_reschedules_and_emits() -> None:
+    emitted: list[list[dict[str, Any]]] = []
+    scheduled: list[Any] = []
+
+    def emit(operations: list[dict[str, Any]]) -> None:
+        emitted.append(operations)
+        if len(emitted) == 1:
+            flusher.add([{"type": "set", "path": ["b"], "value": 2}])
+
+    flusher = Flusher(emit, scheduled.append)
+    flusher.add([{"type": "set", "path": ["a"], "value": 1}])
+    assert len(scheduled) == 1
+
+    scheduled[0]()
+    assert emitted == [[{"type": "set", "path": ["a"], "value": 1}]]
+    assert len(scheduled) == 2
+
+    scheduled[1]()
+    assert emitted == [
+        [{"type": "set", "path": ["a"], "value": 1}],
+        [{"type": "set", "path": ["b"], "value": 2}],
+    ]
+
+
 def test_flusher_manual_flush_before_scheduled_callback() -> None:
     emitted: list[list[dict[str, Any]]] = []
     scheduled: list[Any] = []
