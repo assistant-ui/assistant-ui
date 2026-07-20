@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { resource } from "@assistant-ui/tap";
 import { Harness } from "../Harness";
 import type {
   HarnessRunInput,
@@ -95,9 +96,15 @@ class MockTransport implements HarnessTransport {
   }
 }
 
+const MockTransportResource = resource((transport: MockTransport) => transport);
+
 const createHarness = (options?: { resume?: boolean }) => {
   const transport = new MockTransport();
-  const harness = new Harness({ transport, id: "thread-1", ...options });
+  const harness = new Harness({
+    transport: MockTransportResource(transport),
+    id: "thread-1",
+    ...options,
+  });
   return { transport, harness };
 };
 
@@ -180,7 +187,10 @@ describe("Harness", () => {
   it("surfaces transport errors and clears them on the next run", async () => {
     const onError = vi.fn();
     const transport = new MockTransport();
-    const harness = new Harness({ transport, onError });
+    const harness = new Harness({
+      transport: MockTransportResource(transport),
+      onError,
+    });
 
     harness.sendMessage("hello");
     await flush();

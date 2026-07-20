@@ -90,6 +90,12 @@ still active server-side. Passing `resume: true` to the harness calls it once
 on mount (snapshot-on-connect); the thread `id` keys the server checkpoint, so
 persist it to have something to reconnect to.
 
-`HttpHarnessTransport` implements the assistant-transport wire: POST to `api`
-(or `resumeApi`), decode the response with assistant-stream, and yield each
-`unstable_state` snapshot.
+Transports are tap resources: the `transport` option takes a resource element
+producing a `HarnessTransport`, mounted inside the harness so it shares its
+lifecycle (cleanup on dispose, reactive options). A custom transport is
+`resource((options) => ({ run, resume? }))`.
+
+`HttpHarnessTransport(options)` is the built-in resource for the
+assistant-transport wire: POST to `api` (or `resumeApi`), decode the response
+with assistant-stream, and yield each `unstable_state` snapshot. `resume` is
+defined only when `resumeApi` is set.

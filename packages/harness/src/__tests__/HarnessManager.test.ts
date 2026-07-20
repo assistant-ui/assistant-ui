@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+import { resource } from "@assistant-ui/tap";
 import { HarnessManager } from "../HarnessManager";
 import type { HarnessTransport } from "../transport/HarnessTransport";
 
-const transport: HarnessTransport = {
-  async *run() {},
-};
+const NullTransport = resource((): HarnessTransport => ({ async *run() {} }));
+const transport = NullTransport();
 
 describe("HarnessManager", () => {
   it("returns the same instance per id and disposes on remove", () => {

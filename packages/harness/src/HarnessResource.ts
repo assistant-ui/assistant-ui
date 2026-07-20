@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { resource } from "@assistant-ui/tap";
+import { resource, useResource } from "@assistant-ui/tap";
+import type { ResourceElement } from "@assistant-ui/tap";
 import type { HarnessTransport } from "./transport/HarnessTransport";
 import {
   createInitialState,
@@ -20,7 +21,7 @@ import { applyOptimistic, buildViews, type HarnessSubagent } from "./views";
 export type HarnessStatus = "submitted" | "streaming" | "ready" | "error";
 
 export type HarnessOptions = {
-  transport: HarnessTransport;
+  transport: ResourceElement<HarnessTransport>;
   /** Thread id; keys the server-side checkpoint. Generated when omitted. */
   id?: string;
   /** Reconnect on mount via transport.resume (snapshot-on-connect). */
@@ -244,9 +245,10 @@ const useHarnessImpl = (options: HarnessOptions): HarnessApi => {
     () => new HarnessCore(options.id ?? crypto.randomUUID()),
   );
   const [snapshot, setSnapshot] = useState(core.snapshot);
+  const transport = useResource(options.transport);
 
   useEffect(() => {
-    core.transport = options.transport;
+    core.transport = transport;
     core.onFinish = options.onFinish;
     core.onError = options.onError;
   });
