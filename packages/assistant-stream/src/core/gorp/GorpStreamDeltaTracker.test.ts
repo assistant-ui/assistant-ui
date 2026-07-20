@@ -29,10 +29,13 @@ describe("GorpStreamDeltaTracker frames", () => {
 
   it("reports an empty change set before the first append and after an empty append", () => {
     const tracker = new GorpStreamDeltaTracker({ count: 0 });
+    expect(tracker.isChangedAt([])).toBe(false);
     expect(tracker.isChangedAt(["count"])).toBe(false);
     expect(tracker.getChangedKeys([])).toEqual([]);
     tracker.append([{ type: "set", path: ["count"], value: 1 }]);
+    expect(tracker.isChangedAt([])).toBe(true);
     tracker.append([]);
+    expect(tracker.isChangedAt([])).toBe(false);
     expect(tracker.isChangedAt(["count"])).toBe(false);
     expect(tracker.getChangedKeys([])).toEqual([]);
   });

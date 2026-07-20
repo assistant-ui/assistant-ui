@@ -36,7 +36,9 @@ export class GorpStreamDeltaTracker {
   }
 
   isChangedAt(path: readonly string[]): boolean {
-    return !!lookupChange(this.changes, path);
+    const node = lookupChange(this.changes, path);
+    if (node === true) return true;
+    return node !== false && Object.keys(node).length > 0;
   }
 
   getChangedKeys(path: readonly string[]): string[] {
