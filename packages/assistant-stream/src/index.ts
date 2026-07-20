@@ -67,10 +67,16 @@ import {
   GorpStreamResponse,
   fromGorpStreamResponse,
 } from "./core/gorp/GorpStreamResponse";
-import type { GorpStreamChunk } from "./core/gorp/types";
+import type { GorpStreamChunk, GorpStreamOperation } from "./core/gorp/types";
+import { GorpStreamDeltaTracker } from "./core/gorp/GorpStreamDeltaTracker";
 
-export { createGorpStream, GorpStreamResponse, fromGorpStreamResponse };
-export type { GorpStreamChunk };
+export {
+  createGorpStream,
+  GorpStreamResponse,
+  fromGorpStreamResponse,
+  GorpStreamDeltaTracker,
+};
+export type { GorpStreamChunk, GorpStreamOperation };
 
 /** @deprecated Use `createGorpStream` instead. */
 export const createObjectStream = createGorpStream;
