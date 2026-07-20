@@ -160,6 +160,22 @@ def test_draft_mutating_list_methods_raise() -> None:
         draft["items"].insert(0, "x")
 
 
+def test_draft_rejects_storing_proxy_in_state() -> None:
+    gorp = Gorp({"orig": {"a": 1}, "copy": None, "items": []})
+    draft = gorp.draft(lambda _ops: None)
+
+    with pytest.raises(ValueError):
+        draft["copy"] = draft["orig"]
+    with pytest.raises(ValueError):
+        draft["copy"] = {"nested": draft["orig"]}
+    with pytest.raises(ValueError):
+        draft["items"].append(draft["orig"])
+    with pytest.raises(ValueError):
+        draft["items"] += [draft["orig"]]
+
+    assert gorp.state == {"orig": {"a": 1}, "copy": None, "items": []}
+
+
 def test_draft_returns_gorp_proxy() -> None:
     gorp = Gorp({"user": {}})
     assert isinstance(gorp.draft(lambda _ops: None), GorpProxy)

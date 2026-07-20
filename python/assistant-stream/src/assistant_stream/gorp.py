@@ -59,6 +59,8 @@ def deep_apply(target: Any, path: Sequence[str], op: GorpOperation) -> Any:
 
     Containers along the path are copied rather than mutated. Missing dict
     entries are created; a list index equal to the list length appends.
+    Rebuilding the list per operation makes large batched extensions
+    quadratic; state lists are expected to stay small.
     """
     if not path:
         op_type = op["type"]
@@ -168,18 +170,28 @@ class Flusher:
             if self._schedule is None or self._scheduled:
                 return
             self._scheduled = True
-        self._schedule(self._flush_scheduled)
+        self._schedule(self.flush)
 
     def flush(self) -> None:
-        self._flush_scheduled()
-
-    def _flush_scheduled(self) -> None:
         with self._lock:
             operations = self._pending
             self._pending = []
             self._scheduled = False
         if operations:
             self._emit(operations)
+
+
+def _ensure_no_proxy(value: Any) -> None:
+    if isinstance(value, GorpProxy):
+        raise ValueError(
+            "Cannot store a GorpProxy in state; assign a plain value instead"
+        )
+    if isinstance(value, dict):
+        for item in value.values():
+            _ensure_no_proxy(item)
+    elif isinstance(value, list):
+        for item in value:
+            _ensure_no_proxy(item)
 
 
 class GorpProxy:
@@ -247,6 +259,7 @@ class GorpProxy:
 
     def __setitem__(self, key: Union[str, int], value: Any) -> None:
         """Set value with dict-style syntax."""
+        _ensure_no_proxy(value)
         current_value = self._get_value()
         str_key = self._resolve_key(current_value, key, require_existing=False)
         target_path = self._path + [str_key]
@@ -304,6 +317,7 @@ class GorpProxy:
                 current_len = len(current_value)
 
                 for i, item in enumerate(iterator):
+                    _ensure_no_proxy(item)
                     operations.append(
                         {
                             "type": "set",
@@ -392,12 +406,8 @@ class GorpProxy:
                 return method_wrapper
             return attr
 
-        # Forward non-modifying methods for lists and dicts
         try:
-            attr = getattr(value, name)
-            if callable(attr):
-                return lambda *args, **kwargs: attr(*args, **kwargs)
-            return attr
+            return getattr(value, name)
         except (AttributeError, TypeError):
             pass
 
@@ -412,6 +422,7 @@ class GorpProxy:
     # Efficient list operations
     def append(self, item: Any) -> None:
         """Append an item to a list."""
+        _ensure_no_proxy(item)
         value = self._get_value()
         if not isinstance(value, list):
             raise TypeError(f"'append' not supported for type {type(value).__name__}")
