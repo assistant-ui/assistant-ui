@@ -42,7 +42,7 @@
     "detect-package-manager": "^3.0.2",
     "giget": "^3.3.0",
     "glob": "^13.0.6",
-    "jscodeshift": "^17.3.0",
+    "jscodeshift": "^17.4.0",
     "jsonc-parser": "^3.3.1",
     "semver": "^7.8.5"
   },

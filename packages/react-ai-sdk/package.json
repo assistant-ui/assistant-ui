@@ -51,11 +51,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/mcp": "^2.0.13",
-    "@ai-sdk/react": "^4.0.30",
+    "@ai-sdk/mcp": "^2.0.15",
+    "@ai-sdk/react": "^4.0.34",
     "@assistant-ui/core": "^0.2.21",
     "@assistant-ui/store": "^0.2.20",
-    "ai": "^7.0.28",
+    "ai": "^7.0.31",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.26"
   },

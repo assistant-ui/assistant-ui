@@ -55,13 +55,13 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@tailwindcss/cli": "^4.3.2",
+    "@tailwindcss/cli": "^4.3.3",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "tailwindcss": "^4.3.2",
+    "tailwindcss": "^4.3.3",
     "vitest": "^4.1.10"
   },
   "publishConfig": {

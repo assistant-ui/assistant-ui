@@ -48,7 +48,7 @@
   "dependencies": {
     "@assistant-ui/core": "^0.2.21",
     "@assistant-ui/store": "^0.2.20",
-    "@opencode-ai/sdk": "^1.18.1"
+    "@opencode-ai/sdk": "^1.18.3"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.14.14",
