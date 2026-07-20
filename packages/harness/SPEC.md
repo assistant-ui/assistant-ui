@@ -37,6 +37,10 @@ as ordinary messages parented under the dispatching tool call id, recursively.
 The client derives `subagents`, a recursive record keyed by tool call id, from
 this alone. On branch points the latest child wins.
 
+Sibling order is the key insertion order of `messages`. JavaScript enumerates
+integer-like string keys numerically before all others, so ids must not be
+integer-like ("2", "10"); use UUIDs or prefixed ids ("msg_2").
+
 ## Commands
 
 Commands are delivered in batches: `POST { commands, state, threadId }`. The
