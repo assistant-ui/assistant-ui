@@ -62,7 +62,8 @@ const resolveToolCallArgs = ({
   const providedArgsText =
     chunk.partial_json ??
     matchingToolCallChunk?.args ??
-    matchingToolCallChunk?.args_json;
+    matchingToolCallChunk?.args_json ??
+    (matchingToolCallChunk ? "" : undefined);
   const argsText =
     providedArgsText ??
     stableStringifyToolArgs(toolArgsKeyOrderCache, cacheKey, chunk.args);

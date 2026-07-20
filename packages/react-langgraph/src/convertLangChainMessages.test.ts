@@ -155,6 +155,61 @@ describe("convertLangChainMessages metadata", () => {
     });
   });
 
+  it("keeps Bedrock tool args prefix-monotonic when the first chunk has no args", () => {
+    const firstResult = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "tool-1",
+          name: "fetch_page_content",
+          args: {},
+          index: 0,
+        },
+      ],
+      tool_call_chunks: [
+        {
+          id: "tool-1",
+          index: 0,
+          name: "fetch_page_content",
+        },
+      ],
+    });
+
+    const nextResult = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "tool-1",
+          name: "fetch_page_content",
+          args: {},
+          index: 0,
+        },
+      ],
+      tool_call_chunks: [
+        {
+          id: "tool-1",
+          index: 0,
+          name: "fetch_page_content",
+          args: '{"url":',
+        },
+      ],
+    });
+
+    const firstToolCallPart = firstResult.content.find(
+      (part) => part.type === "tool-call",
+    );
+    const nextToolCallPart = nextResult.content.find(
+      (part) => part.type === "tool-call",
+    );
+
+    expect(firstToolCallPart).toMatchObject({ argsText: "" });
+    expect(nextToolCallPart).toMatchObject({ argsText: '{"url":' });
+  });
+
   it("keeps key order from partial_json when final snapshot falls back to args", () => {
     const metadata = {
       toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
