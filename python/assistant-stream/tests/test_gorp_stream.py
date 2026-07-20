@@ -39,6 +39,15 @@ async def test_encoder_emits_one_sse_frame_per_batch():
 
 
 @pytest.mark.anyio
+async def test_encoder_rejects_non_finite_floats():
+    with pytest.raises(ValueError):
+        await _encode(
+            GorpStreamEncoder(),
+            [[{"type": "set", "path": ["x"], "value": float("nan")}]],
+        )
+
+
+@pytest.mark.anyio
 async def test_encoder_prepends_snapshot_to_first_frame_only():
     frames = await _encode(
         GorpStreamEncoder({"count": 0}),

@@ -45,7 +45,7 @@ class GorpStreamEncoder(StreamEncoder):
                 ]
             is_first = False
             payload = json.dumps(
-                operations, separators=(",", ":"), ensure_ascii=False
+                operations, separators=(",", ":"), ensure_ascii=False, allow_nan=False
             )
             yield f"data: {payload}\n\n"
 
