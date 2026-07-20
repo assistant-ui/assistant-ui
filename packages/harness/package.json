@@ -1,0 +1,57 @@
+{
+  "name": "@assistant-ui/harness",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Framework-agnostic client for agent harnesses (queue, subagents, files, interrupts)",
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "assistant-stream": "workspace:^"
+  },
+  "peerDependencies": {
+    "@assistant-ui/tap": "^0.9.0",
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/tap": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/react": "^19.2.17",
+    "react": "^19.2.7",
+    "vitest": "^4.1.10"
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/harness"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
