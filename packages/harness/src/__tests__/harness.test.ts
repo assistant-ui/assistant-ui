@@ -239,6 +239,29 @@ describe("Harness", () => {
     await flush();
     expect(run.input.signal.aborted).toBe(true);
     expect(transport.runs).toHaveLength(1);
+
+    harness.sendMessage("after dispose");
+    await flush();
+    expect(transport.runs).toHaveLength(1);
+  });
+
+  it("normalizes explicit null fields to their defaults", async () => {
+    const { transport, harness } = createHarness();
+
+    harness.sendMessage("hello");
+    await flush();
+    transport.last.stream.push({
+      queue: null as never,
+      files: null as never,
+      todos: null as never,
+    });
+    transport.last.stream.end();
+    await flush();
+
+    const state = harness.getState();
+    expect(state.queue).toEqual([]);
+    expect(state.files).toEqual({});
+    expect(state.todos).toEqual([]);
   });
 
   it("exposes interrupts and answers them via resume", async () => {

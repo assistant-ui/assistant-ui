@@ -202,6 +202,7 @@ const useHarnessImpl = (options: HarnessOptions): HarnessApi => {
   };
 
   const schedule = (kind: RunKind): void => {
+    if (self.disposed) return;
     if (self.scheduled) {
       if (kind === "commands") self.scheduled = kind;
       return;
@@ -220,6 +221,7 @@ const useHarnessImpl = (options: HarnessOptions): HarnessApi => {
   };
 
   const send = (command: HarnessCommand): void => {
+    if (self.disposed) return;
     self.queued.push(command);
     const optimistic =
       command.type === "send-message"

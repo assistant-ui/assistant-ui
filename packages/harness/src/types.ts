@@ -114,10 +114,13 @@ export const createInitialState = (): HarnessState => ({
   error: null,
 });
 
-export const normalizeState = (snapshot: unknown): HarnessState => ({
-  ...createInitialState(),
-  ...(snapshot as Partial<HarnessState>),
-});
+export const normalizeState = (snapshot: unknown): HarnessState => {
+  const state = createInitialState() as Record<string, unknown>;
+  for (const [key, value] of Object.entries(snapshot ?? {})) {
+    if (value != null) state[key] = value;
+  }
+  return state as unknown as HarnessState;
+};
 
 // --- Commands ---
 

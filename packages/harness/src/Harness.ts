@@ -18,7 +18,9 @@ export class Harness<TExtras = unknown> implements HarnessMethods {
   readonly #root: ReturnType<typeof createTapRoot<HarnessApi>>;
 
   constructor(options: HarnessOptions) {
-    this.#root = createTapRoot(() => useResource(HarnessResource(options)));
+    this.#root = createTapRoot(function HarnessRoot() {
+      return useResource(HarnessResource(options));
+    });
   }
 
   get id(): string {
