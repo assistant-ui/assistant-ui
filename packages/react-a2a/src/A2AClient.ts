@@ -154,17 +154,19 @@ function discriminateStreamResponse(
   return null;
 }
 
-const TASK_STATES: ReadonlySet<string> = new Set<A2ATaskState>([
-  "unspecified",
-  "submitted",
-  "working",
-  "completed",
-  "failed",
-  "canceled",
-  "input_required",
-  "rejected",
-  "auth_required",
-]);
+const TASK_STATES: ReadonlySet<string> = new Set(
+  Object.keys({
+    unspecified: true,
+    submitted: true,
+    working: true,
+    completed: true,
+    failed: true,
+    canceled: true,
+    input_required: true,
+    rejected: true,
+    auth_required: true,
+  } satisfies Record<A2ATaskState, true>),
+);
 
 const isTaskState = (value: unknown): value is A2ATaskState =>
   typeof value === "string" && TASK_STATES.has(value);
