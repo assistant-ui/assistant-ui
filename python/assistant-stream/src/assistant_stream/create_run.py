@@ -47,7 +47,7 @@ class RunController:
 
     def with_parent_id(self, parent_id: str) -> 'RunController':
         """Create a new RunController instance with the specified parent_id."""
-        controller = RunController(self._queue, self._state_manager._state_data, parent_id)
+        controller = RunController(self._queue, self._state_manager.state_data, parent_id)
         controller._loop = self._loop
         controller._dispose_callbacks = self._dispose_callbacks
         controller._stream_tasks = self._stream_tasks
