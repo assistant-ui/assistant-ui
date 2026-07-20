@@ -227,6 +227,21 @@ describe("Harness", () => {
     expect(harness.getState().status).toBe("ready");
   });
 
+  it("stop() before dispatch drops pending sends but keeps other commands", async () => {
+    const { transport, harness } = createHarness();
+
+    harness.sendMessage("hello");
+    harness.addToolResult({ toolCallId: "tc", output: "ok" });
+    harness.stop();
+    await flush();
+
+    expect(harness.getState().messages).toHaveLength(0);
+    expect(transport.runs).toHaveLength(1);
+    expect(transport.last.commands).toEqual([
+      { type: "add-tool-result", toolCallId: "tc", output: "ok" },
+    ]);
+  });
+
   it("dispose() aborts an in-flight run", async () => {
     const { transport, harness } = createHarness();
 

@@ -241,11 +241,12 @@ const useHarnessImpl = (options: HarnessOptions): HarnessApi => {
       self.abort.abort();
       return;
     }
-    // Nothing sent yet: drop the scheduled batch locally.
-    self.scheduled = null;
-    const batch = self.queued
-      .splice(0)
-      .filter((c): c is SendMessageCommand => c.type === "send-message");
+    // Nothing sent yet: drop pending sends locally, keep other commands.
+    const batch = self.queued.filter(
+      (c): c is SendMessageCommand => c.type === "send-message",
+    );
+    self.queued = self.queued.filter((c) => c.type !== "send-message");
+    if (self.queued.length === 0) self.scheduled = null;
     drop(batch);
   };
 
