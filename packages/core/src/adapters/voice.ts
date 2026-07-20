@@ -57,6 +57,22 @@ export type VoiceSessionHelpers = {
   isDisposed: () => boolean;
 };
 
+const notifyListeners = <T>(
+  listeners: ReadonlySet<(value: T) => void>,
+  value: T,
+) => {
+  for (const listener of listeners) {
+    try {
+      listener(value);
+    } catch (error) {
+      console.error(
+        "[assistant-ui] Voice session listener threw an error",
+        error,
+      );
+    }
+  }
+};
+
 export function createVoiceSession(
   options: { abortSignal?: AbortSignal },
   setup: (helpers: VoiceSessionHelpers) => Promise<VoiceSessionControls>,
@@ -85,25 +101,25 @@ export function createVoiceSession(
     setStatus: (status) => {
       if (disposed) return;
       currentStatus = status;
-      for (const cb of statusCbs) cb(status);
+      notifyListeners(statusCbs, status);
     },
     end: (reason, error?) => {
       if (disposed) return;
       currentStatus = { type: "ended", reason, error };
-      for (const cb of statusCbs) cb(currentStatus);
+      notifyListeners(statusCbs, currentStatus);
       cleanup();
     },
     emitTranscript: (item) => {
       if (disposed) return;
-      for (const cb of transcriptCbs) cb(item);
+      notifyListeners(transcriptCbs, item);
     },
     emitMode: (mode) => {
       if (disposed) return;
-      for (const cb of modeCbs) cb(mode);
+      notifyListeners(modeCbs, mode);
     },
     emitVolume: (volume) => {
       if (disposed) return;
-      for (const cb of volumeCbs) cb(volume);
+      notifyListeners(volumeCbs, volume);
     },
     isDisposed: () => disposed,
   };
