@@ -216,6 +216,22 @@ def test_add_operations_rejects_proxy_values() -> None:
     assert gorp.state == {"orig": {"a": 1}, "copy": None}
 
 
+def test_add_operations_skips_same_path_writeback_proxy() -> None:
+    ops: list[dict[str, Any]] = []
+    gorp = Gorp(["a"])
+    proxy = gorp.draft(ops.extend)
+    host = proxy._manager
+
+    proxy.__iadd__(["b", "c"])
+    host.add_operations([{"type": "set", "path": [], "value": proxy}])
+
+    assert ops == [
+        {"type": "set", "path": ["1"], "value": "b"},
+        {"type": "set", "path": ["2"], "value": "c"},
+    ]
+    assert gorp.state == ["a", "b", "c"]
+
+
 def test_draft_returns_gorp_proxy() -> None:
     gorp = Gorp({"user": {}})
     assert isinstance(gorp.draft(lambda _ops: None), GorpProxy)

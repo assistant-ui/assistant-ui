@@ -9,14 +9,8 @@ side of the wire (ops-only envelopes, no ack).
 import threading
 from typing import Any, Callable, List, Optional, Protocol, Sequence, Union
 
-from assistant_stream.assistant_stream_chunk import (
-    ObjectStreamAppendTextOperation,
-    ObjectStreamOperation,
-    ObjectStreamSetOperation,
-)
+from assistant_stream.assistant_stream_chunk import ObjectStreamOperation
 
-GorpSetOperation = ObjectStreamSetOperation
-GorpAppendTextOperation = ObjectStreamAppendTextOperation
 GorpOperation = ObjectStreamOperation
 
 
@@ -123,11 +117,22 @@ class GorpDraft:
         return self._gorp.lookup(path)
 
     def add_operations(self, operations: List[GorpOperation]) -> None:
+        operations = [op for op in operations if not self._is_writeback(op)]
+        if not operations:
+            return
         for op in operations:
             if op["type"] == "set":
                 _ensure_no_proxy(op["value"])
         self._gorp.apply(operations)
         self._on_operations(operations)
+
+    def _is_writeback(self, op: GorpOperation) -> bool:
+        return (
+            op["type"] == "set"
+            and isinstance(op["value"], GorpProxy)
+            and op["value"]._manager is self
+            and op["value"]._path == op["path"]
+        )
 
     def append_text(self, path: Sequence[Union[str, int]], value: str) -> None:
         if not isinstance(value, str):
@@ -262,13 +267,6 @@ class GorpProxy:
         current_value = self._get_value()
         str_key = self._resolve_key(current_value, key, require_existing=False)
         target_path = self._path + [str_key]
-
-        if (
-            isinstance(value, GorpProxy)
-            and value._manager is self._manager
-            and value._path == target_path
-        ):
-            return
 
         if isinstance(current_value, list):
             current_target_value = current_value[int(str_key)]
