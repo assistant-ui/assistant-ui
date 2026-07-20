@@ -59,13 +59,13 @@ const resolveToolCallArgs = ({
   toolCallId: string;
 }): Pick<ToolCallMessagePart, "args" | "argsText"> => {
   const cacheKey = getToolArgsCacheKey(messageId, "tool", toolCallId);
+  const isStreamingArglessChunk =
+    matchingToolCallChunk !== undefined && Object.keys(chunk.args).length === 0;
   const providedArgsText =
     chunk.partial_json ??
     matchingToolCallChunk?.args ??
     matchingToolCallChunk?.args_json ??
-    (matchingToolCallChunk && Object.keys(chunk.args).length === 0
-      ? ""
-      : undefined);
+    (isStreamingArglessChunk ? "" : undefined);
   const argsText =
     providedArgsText ??
     stableStringifyToolArgs(toolArgsKeyOrderCache, cacheKey, chunk.args);
