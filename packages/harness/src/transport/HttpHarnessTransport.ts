@@ -64,10 +64,10 @@ export class HttpHarnessTransport implements HarnessTransport {
       method: "POST",
       headers,
       body: JSON.stringify({
+        ...body,
         commands,
         state: input.state,
         threadId: input.threadId,
-        ...body,
       }),
       signal: input.signal,
     });

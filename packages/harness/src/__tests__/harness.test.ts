@@ -324,4 +324,46 @@ describe("Harness", () => {
     expect(tc1.messages.map((m) => m.id)).toEqual(["s1"]);
     expect(tc1.subagents["tc2"]!.messages.map((m) => m.id)).toEqual(["s2"]);
   });
+
+  it("drops subagents rooted in discarded branches", async () => {
+    const { transport, harness } = createHarness();
+
+    const messages: Record<string, HarnessMessage> = {
+      old: {
+        id: "old",
+        parentId: null,
+        role: "assistant",
+        parts: [
+          {
+            type: "tool",
+            toolCallId: "tc-old",
+            toolName: "task",
+            state: "complete",
+          },
+        ],
+      },
+      sOld: {
+        id: "sOld",
+        parentId: "tc-old",
+        role: "assistant",
+        parts: [{ type: "text", text: "stale" }],
+      },
+      current: {
+        id: "current",
+        parentId: null,
+        role: "assistant",
+        parts: [{ type: "text", text: "active branch" }],
+      },
+    };
+
+    harness.sendMessage("go");
+    await flush();
+    transport.last.stream.push({ messages });
+    transport.last.stream.end();
+    await flush();
+
+    const state = harness.getState();
+    expect(state.messages.map((m) => m.id)).toEqual(["current"]);
+    expect(state.subagents).toEqual({});
+  });
 });

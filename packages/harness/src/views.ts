@@ -108,9 +108,9 @@ export const buildViews = (state: HarnessState): HarnessThreadViews => {
 
   const main: Record<string, HarnessSubagent> = {};
   for (const [key, node] of nodes) {
-    const owner = ownerRoot.get(key) ?? null;
-    const target =
-      owner !== null && nodes.has(owner) ? nodes.get(owner)!.subagents : main;
+    const owner = ownerRoot.get(key);
+    if (owner === undefined) continue;
+    const target = owner === null ? main : nodes.get(owner)!.subagents;
     target[key] = node;
   }
 
