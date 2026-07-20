@@ -36,12 +36,11 @@ async def add_sse_heartbeat(
     Yield SSE comment heartbeats whenever the encoded stream is idle for
     `interval` seconds. Any real chunk resets the timer.
     """
-    iterator = stream.__aiter__()
     task: Optional[asyncio.Task] = None
     try:
         while True:
             if task is None:
-                task = asyncio.ensure_future(iterator.__anext__())
+                task = asyncio.create_task(stream.__anext__())
             done, _ = await asyncio.wait({task}, timeout=interval)
             if not done:
                 yield SSE_HEARTBEAT_LINE
