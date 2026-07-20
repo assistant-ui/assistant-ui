@@ -7,12 +7,17 @@ side of the wire (ops-only envelopes, no ack).
 """
 
 import threading
-from contextlib import suppress
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, List, Optional, Sequence, Union
 
-GorpSetOperation = Dict[str, Any]
-GorpAppendTextOperation = Dict[str, Any]
-GorpOperation = Union[GorpSetOperation, GorpAppendTextOperation]
+from assistant_stream.assistant_stream_chunk import (
+    ObjectStreamAppendTextOperation,
+    ObjectStreamOperation,
+    ObjectStreamSetOperation,
+)
+
+GorpSetOperation = ObjectStreamSetOperation
+GorpAppendTextOperation = ObjectStreamAppendTextOperation
+GorpOperation = ObjectStreamOperation
 
 
 def lookup_state(state: Any, path: Sequence[str]) -> Any:
@@ -195,91 +200,68 @@ class GorpProxy:
         self._manager = manager
         self._path = path or []
 
-    def __getitem__(self, key: Union[str, int]) -> Union["GorpProxy", Any]:
-        """Access nested values with dict-style syntax. Returns primitives directly."""
-        current_value = self._manager.get_value_at_path(self._path)
-
-        # Handle list indexing
+    def _resolve_key(
+        self, current_value: Any, key: Union[str, int], require_existing: bool
+    ) -> str:
         if isinstance(current_value, list):
             try:
                 index = int(key)
-                list_len = len(current_value)
-
-                # Handle negative indices
-                if index < 0:
-                    index = list_len + index
-
-                # Validate index is in bounds
-                if index < 0 or index >= list_len:
-                    raise KeyError(key)
-
-                # Use the normalized index as string key
-                str_key = str(index)
             except (ValueError, TypeError):
                 raise KeyError(key)
-        else:
-            # For dicts, use string representation of key
-            str_key = str(key)
-
-            # Validate key exists
-            if isinstance(current_value, dict):
-                if str_key not in current_value:
-                    raise KeyError(key)
-            elif not isinstance(current_value, list):
+            if index < 0:
+                index += len(current_value)
+            if index < 0 or index >= len(current_value):
                 raise KeyError(key)
+            return str(index)
 
-        # Get value at path
-        value = self._manager.get_value_at_path(self._path + [str_key])
+        str_key = str(key)
+        if require_existing and (
+            not isinstance(current_value, dict) or str_key not in current_value
+        ):
+            raise KeyError(key)
+        return str_key
 
-        # Return primitives directly (including strings)
+    def __getitem__(self, key: Union[str, int]) -> Union["GorpProxy", Any]:
+        """Access nested values with dict-style syntax. Returns primitives directly."""
+        current_value = self._manager.get_value_at_path(self._path)
+        str_key = self._resolve_key(current_value, key, require_existing=True)
+
+        value = (
+            current_value[int(str_key)]
+            if isinstance(current_value, list)
+            else current_value[str_key]
+        )
+
         if value is None or isinstance(value, (int, float, bool, str)):
             return value
 
-        # Return proxy only for collections
         return type(self)(self._manager, self._path + [str_key])
 
     def __setitem__(self, key: Union[str, int], value: Any) -> None:
         """Set value with dict-style syntax."""
         current_value = self._manager.get_value_at_path(self._path)
-
-        # Handle list indexing
-        if isinstance(current_value, list):
-            try:
-                index = int(key)
-                list_len = len(current_value)
-
-                # Handle negative indices
-                if index < 0:
-                    index = list_len + index
-
-                # Validate index is in bounds
-                if index < 0 or index >= list_len:
-                    raise KeyError(key)
-
-                # Use the normalized index as string key
-                str_key = str(index)
-            except (ValueError, TypeError):
-                raise KeyError(key)
-        else:
-            # For dicts and other types, use string representation of key
-            str_key = str(key)
-
+        str_key = self._resolve_key(current_value, key, require_existing=False)
         target_path = self._path + [str_key]
+
+        if isinstance(current_value, list):
+            current_target_value = current_value[int(str_key)]
+        elif isinstance(current_value, dict):
+            current_target_value = current_value.get(str_key)
+        else:
+            current_target_value = None
 
         # Encode string extensions as append-text. Skip empty current values:
         # any.startswith("") matches all strings and would convert first writes too.
-        with suppress(KeyError):
-            current_target_value = self._manager.get_value_at_path(target_path)
-            if (
-                isinstance(current_target_value, str)
-                and isinstance(value, str)
-                and current_target_value
-                and value.startswith(current_target_value)
-            ):
-                delta = value[len(current_target_value) :]
-                if delta:
-                    self._manager.append_text(target_path, delta)
-                    return
+        if (
+            isinstance(current_target_value, str)
+            and isinstance(value, str)
+            and current_target_value
+            and value.startswith(current_target_value)
+        ):
+            delta = value[len(current_target_value) :]
+            if delta:
+                self._manager.append_text(target_path, delta)
+                return
 
         self._manager.add_operations(
             [{"type": "set", "path": target_path, "value": value}]

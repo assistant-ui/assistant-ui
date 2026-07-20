@@ -5,7 +5,7 @@ from assistant_stream.assistant_stream_chunk import (
     ObjectStreamOperation,
     UpdateStateChunk,
 )
-from assistant_stream.gorp import Flusher, Gorp
+from assistant_stream.gorp import Flusher, Gorp, _Draft
 from assistant_stream.state_proxy import StateProxy
 
 
@@ -22,6 +22,7 @@ class StateManager:
         self._put_chunk_callback = put_chunk_callback
         self._loop = asyncio.get_running_loop()
         self._flusher = Flusher(self._emit_operations, self._loop.call_soon_threadsafe)
+        self._draft = _Draft(self._gorp, self._flusher.add)
         self._state_proxy = StateProxy(self, [])
 
     @property
@@ -42,25 +43,11 @@ class StateManager:
 
     def add_operations(self, operations: List[ObjectStreamOperation]) -> None:
         """Apply operations locally and add them to the pending batch."""
-        self._gorp.apply(operations)
-        self._flusher.add(operations)
+        self._draft.add_operations(operations)
 
     def append_text(self, path: Sequence[Union[str, int]], value: str) -> None:
         """Append text at a path using an explicit append-text delta operation."""
-        if not isinstance(value, str):
-            raise TypeError(
-                f"Can only append str (not '{type(value).__name__}') as text delta"
-            )
-
-        self.add_operations(
-            [
-                {
-                    "type": "append-text",
-                    "path": [str(segment) for segment in path],
-                    "value": value,
-                }
-            ]
-        )
+        self._draft.append_text(path, value)
 
     def flush(self) -> None:
         """Explicitly flush any pending operations.
@@ -71,7 +58,7 @@ class StateManager:
 
     def get_value_at_path(self, path: List[str]) -> Any:
         """Get value at path, raising KeyError for invalid paths."""
-        return self._gorp.lookup(path)
+        return self._draft.get_value_at_path(path)
 
     def _emit_operations(self, operations: List[ObjectStreamOperation]) -> None:
         self._put_chunk_callback(UpdateStateChunk(operations=operations))
