@@ -50,6 +50,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 }: useThreadViewportAutoScroll.Options): RefCallback<TElement> => {
   const divRef = useRef<TElement>(null);
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   const initializeScrollRequestedRef = useRef(false);
   const scheduledFrameRef = useRef<number | null>(null);
 
@@ -172,7 +173,11 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       scrollingToBottomBehaviorRef.current = null;
     } else if (scrollBehavior) {
       scrollToBottom(scrollBehavior);
-    } else if (autoScroll && threadViewportStore.getState().isAtBottom) {
+    } else if (
+      autoScroll &&
+      !(isRunning && hasActiveTopAnchor()) &&
+      threadViewportStore.getState().isAtBottom
+    ) {
       scrollToBottom("instant");
     }
 
