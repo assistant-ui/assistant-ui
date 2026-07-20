@@ -20,6 +20,9 @@ def test_resolve_heartbeat_interval():
     assert resolve_heartbeat_interval(True) == DEFAULT_HEARTBEAT_INTERVAL
     assert resolve_heartbeat_interval(5) == 5.0
     assert resolve_heartbeat_interval(0.5) == 0.5
+    for invalid in (-1, -0.5, float("inf"), float("nan")):
+        with pytest.raises(ValueError):
+            resolve_heartbeat_interval(invalid)
 
 
 @pytest.mark.anyio

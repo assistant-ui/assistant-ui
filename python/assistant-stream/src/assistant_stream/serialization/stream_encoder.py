@@ -1,4 +1,5 @@
 import asyncio
+import math
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator, Optional, Union
 from assistant_stream.assistant_stream_chunk import AssistantStreamChunk
@@ -21,7 +22,10 @@ def resolve_heartbeat_interval(
         return DEFAULT_HEARTBEAT_INTERVAL
     if not heartbeat:
         return None
-    return float(heartbeat)
+    interval = float(heartbeat)
+    if not math.isfinite(interval) or interval <= 0:
+        raise ValueError(f"heartbeat interval must be a positive finite number, got {heartbeat!r}")
+    return interval
 
 
 async def add_sse_heartbeat(
