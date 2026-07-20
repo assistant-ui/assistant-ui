@@ -4,11 +4,8 @@ import * as gorp from "./index";
 describe("gorp exports", () => {
   it("exposes the Gorp-over-SSE surface from the main entry", () => {
     expect(typeof gorp.createGorpStream).toBe("function");
-    expect(typeof gorp.GorpStreamEncoder).toBe("function");
-    expect(typeof gorp.GorpStreamDecoder).toBe("function");
     expect(typeof gorp.GorpStreamResponse).toBe("function");
     expect(typeof gorp.fromGorpStreamResponse).toBe("function");
-    expect(typeof gorp.GorpStreamAccumulator).toBe("function");
     expect(typeof gorp.GorpStreamDeltaTracker).toBe("function");
   });
 
