@@ -2,9 +2,13 @@ from assistant_stream.assistant_stream_chunk import AssistantStreamChunk
 from assistant_stream.serialization.assistant_stream_response import (
     AssistantStreamResponse,
 )
-from assistant_stream.serialization.stream_encoder import StreamEncoder
+from assistant_stream.serialization.stream_encoder import (
+    StreamEncoder,
+    add_sse_heartbeat,
+    resolve_heartbeat_interval,
+)
 from assistant_stream.state_proxy import StateProxy
-from typing import AsyncGenerator, Any
+from typing import AsyncGenerator, Any, Optional, Union
 import json
 
 
@@ -21,7 +25,16 @@ class AssistantTransportEncoder(StreamEncoder):
     """
     AssistantTransportEncoder encodes AssistantStreamChunks into SSE format
     and emits [DONE] when the stream completes.
+
+    Pass `heartbeat=True` (15s) or `heartbeat=<seconds>` to emit SSE comment
+    lines while the stream is idle, keeping proxies from timing out the
+    connection. 0, False, and None disable heartbeats.
     """
+
+    def __init__(self, heartbeat: Union[float, int, bool, None] = None):
+        self._heartbeat_interval: Optional[float] = resolve_heartbeat_interval(
+            heartbeat
+        )
 
     def get_media_type(self) -> str:
         return "text/event-stream"
@@ -42,7 +55,7 @@ class AssistantTransportEncoder(StreamEncoder):
         components = snake_str.split("_")
         return components[0] + "".join(x.title() for x in components[1:])
 
-    async def encode_stream(
+    async def _encode_chunks(
         self, stream: AsyncGenerator[AssistantStreamChunk, None]
     ) -> AsyncGenerator[str, None]:
         async for chunk in stream:
@@ -53,10 +66,19 @@ class AssistantTransportEncoder(StreamEncoder):
         # Emit [DONE] marker when stream completes
         yield "data: [DONE]\n\n"
 
+    def encode_stream(
+        self, stream: AsyncGenerator[AssistantStreamChunk, None]
+    ) -> AsyncGenerator[str, None]:
+        encoded = self._encode_chunks(stream)
+        if self._heartbeat_interval is not None:
+            return add_sse_heartbeat(encoded, self._heartbeat_interval)
+        return encoded
+
 
 class AssistantTransportResponse(AssistantStreamResponse):
     def __init__(
         self,
         stream: AsyncGenerator[AssistantStreamChunk, None],
+        heartbeat: Union[float, int, bool, None] = None,
     ):
-        super().__init__(stream, AssistantTransportEncoder())
+        super().__init__(stream, AssistantTransportEncoder(heartbeat=heartbeat))
