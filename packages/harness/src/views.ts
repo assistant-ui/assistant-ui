@@ -41,6 +41,13 @@ const chainFrom = (
   return chain;
 };
 
+/** The server accepted the send: its id appears as a message or queue item. */
+export const isEchoed = (
+  state: HarnessState,
+  command: SendMessageCommand,
+): boolean =>
+  command.id in state.messages || state.queue.some((q) => q.id === command.id);
+
 /**
  * Append pending optimistic sends at the leaf of the main thread. A command
  * whose id the server already echoed (as a message or a queue item) is
@@ -50,9 +57,7 @@ export const applyOptimistic = (
   state: HarnessState,
   optimistic: readonly SendMessageCommand[],
 ): HarnessState => {
-  const pending = optimistic.filter(
-    (c) => !(c.id in state.messages) && !state.queue.some((q) => q.id === c.id),
-  );
+  const pending = optimistic.filter((c) => !isEchoed(state, c));
   if (pending.length === 0) return state;
 
   const chain = chainFrom(indexChildren(state.messages), null);

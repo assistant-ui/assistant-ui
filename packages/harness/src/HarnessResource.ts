@@ -16,7 +16,12 @@ import {
   type HarnessUserPart,
   type SendMessageCommand,
 } from "./types";
-import { applyOptimistic, buildViews, type HarnessSubagent } from "./views";
+import {
+  applyOptimistic,
+  buildViews,
+  isEchoed,
+  type HarnessSubagent,
+} from "./views";
 
 export type HarnessStatus = "submitted" | "streaming" | "ready" | "error";
 
@@ -176,9 +181,7 @@ const useHarnessImpl = (options: HarnessOptions): HarnessApi => {
         update({
           state,
           optimistic: self.snapshot.optimistic.filter(
-            (c) =>
-              !(c.id in state.messages) &&
-              !state.queue.some((q) => q.id === c.id),
+            (c) => !isEchoed(state, c),
           ),
           phase: "streaming",
         });
