@@ -7,7 +7,7 @@ side of the wire (ops-only envelopes, no ack).
 """
 
 import threading
-from typing import Any, Callable, List, Optional, Sequence, Union
+from typing import Any, Callable, List, Optional, Protocol, Sequence, Union
 
 from assistant_stream.assistant_stream_chunk import (
     ObjectStreamAppendTextOperation,
@@ -18,6 +18,14 @@ from assistant_stream.assistant_stream_chunk import (
 GorpSetOperation = ObjectStreamSetOperation
 GorpAppendTextOperation = ObjectStreamAppendTextOperation
 GorpOperation = ObjectStreamOperation
+
+
+class GorpOpHost(Protocol):
+    def get_value_at_path(self, path: List[str]) -> Any: ...
+
+    def add_operations(self, operations: List[GorpOperation]) -> None: ...
+
+    def append_text(self, path: Sequence[Union[str, int]], value: str) -> None: ...
 
 
 def lookup_state(state: Any, path: Sequence[str]) -> Any:
@@ -104,10 +112,10 @@ class Gorp:
     def draft(self, on_operations: Callable[[List[GorpOperation]], None]) -> "GorpProxy":
         """Return a mutation proxy whose writes apply to this container and
         forward the resulting ops to on_operations."""
-        return GorpProxy(_Draft(self, on_operations), [])
+        return GorpProxy(GorpDraft(self, on_operations), [])
 
 
-class _Draft:
+class GorpDraft:
     def __init__(self, gorp: Gorp, on_operations: Callable[[List[GorpOperation]], None]):
         self._gorp = gorp
         self._on_operations = on_operations
@@ -193,8 +201,8 @@ class GorpProxy:
 
     def __init__(
         self,
-        manager: Any,
-        path: Optional[List[str]] | None = None,
+        manager: GorpOpHost,
+        path: Optional[List[str]] = None,
     ) -> None:
         """Initialize with an op host and current path."""
         self._manager = manager
@@ -223,7 +231,7 @@ class GorpProxy:
 
     def __getitem__(self, key: Union[str, int]) -> Union["GorpProxy", Any]:
         """Access nested values with dict-style syntax. Returns primitives directly."""
-        current_value = self._manager.get_value_at_path(self._path)
+        current_value = self._get_value()
         str_key = self._resolve_key(current_value, key, require_existing=True)
 
         value = (
@@ -239,7 +247,7 @@ class GorpProxy:
 
     def __setitem__(self, key: Union[str, int], value: Any) -> None:
         """Set value with dict-style syntax."""
-        current_value = self._manager.get_value_at_path(self._path)
+        current_value = self._get_value()
         str_key = self._resolve_key(current_value, key, require_existing=False)
         target_path = self._path + [str_key]
 
@@ -273,7 +281,7 @@ class GorpProxy:
         String += on a leaf goes through __setitem__ instead, since
         __getitem__ returns the raw str rather than a proxy.
         """
-        current_value = self._manager.get_value_at_path(self._path)
+        current_value = self._get_value()
 
         # String concatenation
         if isinstance(current_value, str):
@@ -318,50 +326,50 @@ class GorpProxy:
 
     def __repr__(self) -> str:
         """String representation of the value."""
-        return repr(self._manager.get_value_at_path(self._path))
+        return repr(self._get_value())
 
     def __str__(self) -> str:
         """String representation of the value."""
-        return str(self._manager.get_value_at_path(self._path))
+        return str(self._get_value())
 
     def __len__(self) -> int:
         """Length of the value."""
-        return len(self._manager.get_value_at_path(self._path))
+        return len(self._get_value())
 
     def __contains__(self, item: Any) -> bool:
         """Check if item is in the value."""
-        return item in self._manager.get_value_at_path(self._path)
+        return item in self._get_value()
 
     def __eq__(self, other: Any) -> bool:
         """Compare equality with another value."""
-        return self._manager.get_value_at_path(self._path) == other
+        return self._get_value() == other
 
     def __ne__(self, other: Any) -> bool:
         """Compare inequality with another value."""
-        return self._manager.get_value_at_path(self._path) != other
+        return self._get_value() != other
 
     def __hash__(self) -> int:
         """Hash the underlying value if hashable."""
-        value = self._manager.get_value_at_path(self._path)
+        value = self._get_value()
         if isinstance(value, (str, int, float, bool, tuple)):
             return hash(value)
         raise TypeError(f"unhashable type: '{type(value).__name__}'")
 
     def __bool__(self) -> bool:
         """Truth value of the underlying value."""
-        return bool(self._manager.get_value_at_path(self._path))
+        return bool(self._get_value())
 
     def __int__(self) -> int:
         """Convert to int if possible."""
-        return int(self._manager.get_value_at_path(self._path))
+        return int(self._get_value())
 
     def __float__(self) -> float:
         """Convert to float if possible."""
-        return float(self._manager.get_value_at_path(self._path))
+        return float(self._get_value())
 
     def __add__(self, other: Any) -> Any:
         """Add operation for strings and lists."""
-        value = self._manager.get_value_at_path(self._path)
+        value = self._get_value()
         if isinstance(value, str) and isinstance(other, str):
             return value + other
         if isinstance(value, list) and hasattr(other, "__iter__"):
@@ -370,7 +378,7 @@ class GorpProxy:
 
     def __getattr__(self, name: str) -> Any:
         """Forward attribute access to the underlying value."""
-        value = self._manager.get_value_at_path(self._path)
+        value = self._get_value()
 
         # Handle string methods
         if isinstance(value, str):
@@ -399,12 +407,12 @@ class GorpProxy:
 
     def __iter__(self):
         """Make the proxy iterable."""
-        return iter(self._manager.get_value_at_path(self._path))
+        return iter(self._get_value())
 
     # Efficient list operations
     def append(self, item: Any) -> None:
         """Append an item to a list."""
-        value = self._manager.get_value_at_path(self._path)
+        value = self._get_value()
         if not isinstance(value, list):
             raise TypeError(f"'append' not supported for type {type(value).__name__}")
 
@@ -415,12 +423,12 @@ class GorpProxy:
     def extend(self, iterable: Any) -> None:
         """Extend a list with items from an iterable."""
         if isinstance(iterable, GorpProxy):
-            iterable = iterable._manager.get_value_at_path(iterable._path)
+            iterable = iterable._get_value()
         self.__iadd__(iterable)
 
     def clear(self) -> None:
         """Clear a list or dictionary."""
-        value = self._manager.get_value_at_path(self._path)
+        value = self._get_value()
 
         if isinstance(value, (list, dict)):
             empty_value = [] if isinstance(value, list) else {}
@@ -433,7 +441,7 @@ class GorpProxy:
     # Dictionary operations
     def get(self, key: Any, default: Any = None) -> Any:
         """Get dictionary value with default."""
-        value = self._manager.get_value_at_path(self._path)
+        value = self._get_value()
         if not isinstance(value, dict):
             raise TypeError(f"'get' not supported for type {type(value).__name__}")
 
@@ -444,28 +452,28 @@ class GorpProxy:
 
     def keys(self):
         """Dictionary keys view."""
-        value = self._manager.get_value_at_path(self._path)
+        value = self._get_value()
         if not isinstance(value, dict):
             raise TypeError(f"'keys' not supported for type {type(value).__name__}")
         return value.keys()
 
     def values(self):
         """Dictionary values view."""
-        value = self._manager.get_value_at_path(self._path)
+        value = self._get_value()
         if not isinstance(value, dict):
             raise TypeError(f"'values' not supported for type {type(value).__name__}")
         return value.values()
 
     def items(self):
         """Dictionary items view."""
-        value = self._manager.get_value_at_path(self._path)
+        value = self._get_value()
         if not isinstance(value, dict):
             raise TypeError(f"'items' not supported for type {type(value).__name__}")
         return value.items()
 
     def setdefault(self, key, default=None):
         """Set default value if key doesn't exist."""
-        value = self._manager.get_value_at_path(self._path)
+        value = self._get_value()
         if not isinstance(value, dict):
             raise TypeError(
                 f"'setdefault' not supported for type {type(value).__name__}"
