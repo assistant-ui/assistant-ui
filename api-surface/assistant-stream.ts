@@ -191,7 +191,7 @@ type AssistantStreamChunk = {
   readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: GorpStreamOperation[];
+  readonly operations: AssistantTransportStateOperation[];
 });
 
 type AssistantStreamController = {
@@ -237,6 +237,16 @@ declare class AssistantTransportEncoder extends PipeableTransformStream<Assistan
   headers: Headers;
   constructor();
 }
+
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
+};
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
@@ -601,11 +611,6 @@ interface ConnectorConstructor {
   new (options: unknown): AbstractConnector;
 }
 
-type CreateGorpStreamOptions = {
-  execute: (controller: GorpStreamController) => void | PromiseLike<void>;
-  defaultValue?: ReadonlyJSONValue;
-};
-
 type CreateResumableAssistantStreamResponseOptions = {
   readonly context: ResumableStreamContext;
   readonly streamId: string;
@@ -742,11 +747,6 @@ type GorpStreamChunk = {
   readonly operations: readonly GorpStreamOperation[];
 };
 
-type GorpStreamController = {
-  readonly abortSignal: AbortSignal;
-  enqueue(operations: readonly GorpStreamOperation[]): void;
-};
-
 declare class GorpStreamDeltaTracker {
   private readonly accumulator;
   private previousState;
@@ -758,15 +758,7 @@ declare class GorpStreamDeltaTracker {
   getChangedKeys(path: readonly string[]): string[];
 }
 
-type GorpStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
-};
+type GorpStreamOperation = AssistantTransportStateOperation;
 
 declare class GorpStreamResponse extends Response {
   constructor(body: ReadableStream<GorpStreamChunk>);
@@ -11933,19 +11925,17 @@ declare function createAssistantStreamController(): readonly [
 
 declare function createAssistantStreamResponse(callback: (controller: AssistantStreamController) => PromiseLike<void> | void): Response;
 
-declare const createGorpStream: (_param1: CreateGorpStreamOptions) => ReadableStream<GorpStreamChunk>;
-
 declare function createInMemoryResumableStreamStore(options?: InMemoryResumableStreamStoreOptions): ResumableStreamStore & {
   dispose: () => void;
 };
 
-declare const createInitialMessage: (_param2?: {
+declare const createInitialMessage: (_param1?: {
   unstable_state?: ReadonlyJSONValue;
 }) => AssistantMessage;
 
 declare function createIoredisResumableStreamStore(client: IoRedisLike, options?: RedisResumableStreamStoreOptions): ResumableStreamStore;
 
-declare const createObjectStream: (_param3: {
+declare const createObjectStream: (_param2: {
   execute: (controller: {
     readonly abortSignal: AbortSignal;
     enqueue(operations: readonly GorpStreamOperation[]): void;
@@ -11961,8 +11951,6 @@ declare function createResumableStreamContext(options: ResumableStreamContextOpt
 
 declare function createResumeAssistantStreamResponse(options: CreateResumeAssistantStreamResponseOptions): Promise<Response>;
 
-declare const fromGorpStreamResponse: (response: Response) => ReadableStream<GorpStreamChunk>;
-
 declare const fromObjectStreamResponse: (response: Response) => ReadableStream<GorpStreamChunk>;
 
 declare const getPartialJsonObjectFieldState: (obj: Record<string, unknown>, fieldPath: (string | number)[]) => FieldState;
@@ -11974,7 +11962,7 @@ declare namespace entry_resumable_exports {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, AssistantTransportEncoder, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, GorpStreamChunk, GorpStreamDeltaTracker, GorpStreamOperation, GorpStreamResponse, McpServerConfig, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createGorpStream, createObjectStream, fromGorpStreamResponse, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
+  export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
 }
 
 declare namespace entry_resumable_ioredis_exports {

@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
-import * as gorp from "./index";
+import * as entry from "./index";
 
-describe("gorp exports", () => {
-  it("exposes the Gorp-over-SSE surface from the main entry", () => {
-    expect(typeof gorp.createGorpStream).toBe("function");
-    expect(typeof gorp.GorpStreamResponse).toBe("function");
-    expect(typeof gorp.fromGorpStreamResponse).toBe("function");
-    expect(typeof gorp.GorpStreamDeltaTracker).toBe("function");
+describe("assistant-transport state exports", () => {
+  it("exposes the assistant-transport surface and no gorp-shaped names", () => {
+    expect(typeof entry.AssistantTransportDeltaTracker).toBe("function");
+    expect(typeof entry.createObjectStream).toBe("function");
+    expect(typeof entry.ObjectStreamResponse).toBe("function");
+    expect(typeof entry.fromObjectStreamResponse).toBe("function");
+    for (const name of Object.keys(entry)) {
+      expect(name.toLowerCase()).not.toContain("gorp");
+    }
   });
 
   it("streams operations end to end through the SSE wire", async () => {
-    const stream = gorp.createGorpStream({
+    const stream = entry.createObjectStream({
       execute: (controller) => {
         controller.enqueue([
           { type: "set", path: ["message"], value: "Hello" },
@@ -21,10 +24,10 @@ describe("gorp exports", () => {
       },
     });
 
-    const response = new gorp.GorpStreamResponse(stream);
-    const decoded = gorp.fromGorpStreamResponse(response);
+    const response = new entry.ObjectStreamResponse(stream);
+    const decoded = entry.fromObjectStreamResponse(response);
 
-    const tracker = new gorp.GorpStreamDeltaTracker();
+    const tracker = new entry.AssistantTransportDeltaTracker();
     const reader = decoded.getReader();
     while (true) {
       const { done, value } = await reader.read();

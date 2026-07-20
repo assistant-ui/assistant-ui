@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-feat: end-to-end coverage for the Gorp-over-SSE surface on the main entry (createGorpStream, GorpStreamResponse, fromGorpStreamResponse, GorpStreamDeltaTracker, and the chunk/operation types)
+refactor: consolidate on a single wire protocol name (assistant-transport). Remove the unpublished gorp-shaped exports, expose diff tracking as AssistantTransportDeltaTracker and the state operation type as AssistantTransportStateOperation, and keep the published ObjectStream aliases working as deprecated delegates.

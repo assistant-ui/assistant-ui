@@ -67,26 +67,21 @@ import {
   GorpStreamResponse,
   fromGorpStreamResponse,
 } from "./core/gorp/GorpStreamResponse";
-import type { GorpStreamChunk, GorpStreamOperation } from "./core/gorp/types";
+import type { GorpStreamChunk } from "./core/gorp/types";
 import { GorpStreamDeltaTracker } from "./core/gorp/GorpStreamDeltaTracker";
 
-export {
-  createGorpStream,
-  GorpStreamResponse,
-  fromGorpStreamResponse,
-  GorpStreamDeltaTracker,
-};
-export type { GorpStreamChunk, GorpStreamOperation };
+export { GorpStreamDeltaTracker as AssistantTransportDeltaTracker };
+export type { AssistantTransportStateOperation } from "./core/gorp/types";
 
-/** @deprecated Use `createGorpStream` instead. */
+/** @deprecated Use the assistant-transport surface instead. */
 export const createObjectStream = createGorpStream;
-/** @deprecated Use `GorpStreamResponse` instead. */
+/** @deprecated Use the assistant-transport surface instead. */
 export const ObjectStreamResponse = GorpStreamResponse;
-/** @deprecated Use `GorpStreamResponse` instead. */
+/** @deprecated Use the assistant-transport surface instead. */
 export type ObjectStreamResponse = GorpStreamResponse;
-/** @deprecated Use `fromGorpStreamResponse` instead. */
+/** @deprecated Use the assistant-transport surface instead. */
 export const fromObjectStreamResponse = fromGorpStreamResponse;
-/** @deprecated Use `GorpStreamChunk` instead. */
+/** @deprecated Use the assistant-transport surface instead. */
 export type ObjectStreamChunk = GorpStreamChunk;
 
 export {
