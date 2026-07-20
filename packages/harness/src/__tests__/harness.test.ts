@@ -217,6 +217,20 @@ describe("Harness", () => {
     expect(harness.getState().status).toBe("ready");
   });
 
+  it("dispose() aborts an in-flight run", async () => {
+    const { transport, harness } = createHarness();
+
+    harness.sendMessage("hello");
+    await flush();
+    const run = transport.last;
+    expect(run.input.signal.aborted).toBe(false);
+
+    harness.dispose();
+    await flush();
+    expect(run.input.signal.aborted).toBe(true);
+    expect(transport.runs).toHaveLength(1);
+  });
+
   it("exposes interrupts and answers them via resume", async () => {
     const { transport, harness } = createHarness();
 

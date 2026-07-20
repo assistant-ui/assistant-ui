@@ -134,6 +134,13 @@ class HarnessCore {
     this.#schedule("resume");
   }
 
+  dispose(): void {
+    this.#scheduled = null;
+    this.#followUp = null;
+    this.#queued.length = 0;
+    this.#abortController?.abort();
+  }
+
   #update(patch: Partial<CoreSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...patch };
     for (const listener of this.#listeners) listener();
@@ -245,6 +252,8 @@ const useHarnessImpl = (options: HarnessOptions): HarnessApi => {
   });
 
   useEffect(() => core.subscribe(() => setSnapshot(core.snapshot)), [core]);
+
+  useEffect(() => () => core.dispose(), [core]);
 
   const resume = options.resume === true;
   useEffect(() => {
