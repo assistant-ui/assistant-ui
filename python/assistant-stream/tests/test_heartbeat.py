@@ -9,6 +9,7 @@ from assistant_stream.serialization.assistant_stream_response import (
 )
 from assistant_stream.serialization.assistant_transport import (
     AssistantTransportEncoder,
+    AssistantTransportResponse,
 )
 from assistant_stream.serialization.data_stream import DataStreamEncoder
 from assistant_stream.serialization.heartbeat import (
@@ -62,6 +63,20 @@ async def test_heartbeat_false_disables():
     response = AssistantStreamResponse(
         stream(), AssistantTransportEncoder(), heartbeat=False
     )
+    lines = [line async for line in response.body_iterator]
+
+    assert all(not line.startswith(":") for line in lines)
+    assert lines[-1] == "data: [DONE]\n\n"
+
+
+@pytest.mark.anyio
+async def test_subclass_forwards_heartbeat_kwarg():
+    async def stream():
+        yield TextDeltaChunk(text_delta="hello")
+        await asyncio.sleep(0.15)
+        yield TextDeltaChunk(text_delta="world")
+
+    response = AssistantTransportResponse(stream(), heartbeat=False)
     lines = [line async for line in response.body_iterator]
 
     assert all(not line.startswith(":") for line in lines)

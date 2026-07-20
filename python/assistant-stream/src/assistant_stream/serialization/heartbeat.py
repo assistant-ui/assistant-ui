@@ -51,7 +51,7 @@ async def add_sse_heartbeat(
             task = None
             yield item
     finally:
-        if task is not None and not task.done():
+        if task is not None:
             task.cancel()
             await asyncio.wait({task})
             if not task.cancelled():

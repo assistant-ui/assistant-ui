@@ -4,7 +4,7 @@ from assistant_stream.serialization.assistant_stream_response import (
 )
 from assistant_stream.serialization.stream_encoder import StreamEncoder
 from assistant_stream.state_proxy import StateProxy
-from typing import AsyncGenerator, Any
+from typing import AsyncGenerator, Any, Union
 import json
 
 
@@ -58,5 +58,6 @@ class AssistantTransportResponse(AssistantStreamResponse):
     def __init__(
         self,
         stream: AsyncGenerator[AssistantStreamChunk, None],
+        heartbeat: Union[float, int, bool, None] = True,
     ):
-        super().__init__(stream, AssistantTransportEncoder())
+        super().__init__(stream, AssistantTransportEncoder(), heartbeat=heartbeat)
