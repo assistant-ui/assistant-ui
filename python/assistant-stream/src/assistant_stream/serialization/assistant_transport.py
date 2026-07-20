@@ -2,9 +2,10 @@ from assistant_stream.assistant_stream_chunk import AssistantStreamChunk
 from assistant_stream.serialization.assistant_stream_response import (
     AssistantStreamResponse,
 )
+from assistant_stream.serialization.heartbeat import HeartbeatOption
 from assistant_stream.serialization.stream_encoder import StreamEncoder
 from assistant_stream.state_proxy import StateProxy
-from typing import AsyncGenerator, Any, Union
+from typing import AsyncGenerator, Any
 import json
 
 
@@ -58,6 +59,6 @@ class AssistantTransportResponse(AssistantStreamResponse):
     def __init__(
         self,
         stream: AsyncGenerator[AssistantStreamChunk, None],
-        heartbeat: Union[float, int, bool, None] = True,
+        heartbeat: HeartbeatOption = True,
     ):
         super().__init__(stream, AssistantTransportEncoder(), heartbeat=heartbeat)

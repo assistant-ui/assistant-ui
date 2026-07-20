@@ -6,9 +6,11 @@ DEFAULT_HEARTBEAT_INTERVAL = 15.0
 
 SSE_HEARTBEAT_LINE = ": heartbeat\n\n"
 
+HeartbeatOption = Union[float, int, bool, None]
+
 
 def resolve_heartbeat_interval(
-    heartbeat: Union[float, int, bool, None],
+    heartbeat: HeartbeatOption,
 ) -> Optional[float]:
     """
     Normalize a heartbeat option to an interval in seconds.
@@ -55,5 +57,5 @@ async def add_sse_heartbeat(
             task.cancel()
             await asyncio.wait({task})
             if not task.cancelled():
-                task.exception()
+                task.exception()  # retrieve the outcome so asyncio does not log "Task exception was never retrieved"
         await stream.aclose()

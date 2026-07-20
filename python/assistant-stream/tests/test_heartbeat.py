@@ -36,7 +36,7 @@ def test_resolve_heartbeat_interval():
 async def test_heartbeat_emitted_when_idle():
     async def stream():
         yield TextDeltaChunk(text_delta="hello")
-        await asyncio.sleep(0.18)
+        await asyncio.sleep(0.55)
         yield TextDeltaChunk(text_delta="world")
 
     response = AssistantStreamResponse(
