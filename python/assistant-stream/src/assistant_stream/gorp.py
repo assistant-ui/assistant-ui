@@ -126,6 +126,9 @@ class GorpDraft:
         return self._gorp.lookup(path)
 
     def add_operations(self, operations: List[GorpOperation]) -> None:
+        for op in operations:
+            if op["type"] == "set":
+                _ensure_no_proxy(op["value"])
         self._gorp.apply(operations)
         self._on_operations(operations)
 
@@ -259,10 +262,16 @@ class GorpProxy:
 
     def __setitem__(self, key: Union[str, int], value: Any) -> None:
         """Set value with dict-style syntax."""
-        _ensure_no_proxy(value)
         current_value = self._get_value()
         str_key = self._resolve_key(current_value, key, require_existing=False)
         target_path = self._path + [str_key]
+
+        if (
+            isinstance(value, GorpProxy)
+            and value._manager is self._manager
+            and value._path == target_path
+        ):
+            return
 
         if isinstance(current_value, list):
             current_target_value = current_value[int(str_key)]
@@ -317,7 +326,6 @@ class GorpProxy:
                 current_len = len(current_value)
 
                 for i, item in enumerate(iterator):
-                    _ensure_no_proxy(item)
                     operations.append(
                         {
                             "type": "set",
@@ -422,7 +430,6 @@ class GorpProxy:
     # Efficient list operations
     def append(self, item: Any) -> None:
         """Append an item to a list."""
-        _ensure_no_proxy(item)
         value = self._get_value()
         if not isinstance(value, list):
             raise TypeError(f"'append' not supported for type {type(value).__name__}")

@@ -2,7 +2,14 @@ from typing import Any
 
 import pytest
 
-from assistant_stream.gorp import Flusher, Gorp, GorpProxy, deep_apply, lookup_state
+from assistant_stream.gorp import (
+    Flusher,
+    Gorp,
+    GorpDraft,
+    GorpProxy,
+    deep_apply,
+    lookup_state,
+)
 
 
 def test_deep_apply_set_root() -> None:
@@ -174,6 +181,35 @@ def test_draft_rejects_storing_proxy_in_state() -> None:
         draft["items"] += [draft["orig"]]
 
     assert gorp.state == {"orig": {"a": 1}, "copy": None, "items": []}
+
+
+def test_draft_list_iadd_plain_values_emits_indexed_sets() -> None:
+    ops: list[dict[str, Any]] = []
+    gorp = Gorp({"items": ["a"]})
+    draft = gorp.draft(ops.extend)
+
+    draft["items"] += ["b", "c"]
+
+    assert ops == [
+        {"type": "set", "path": ["items", "1"], "value": "b"},
+        {"type": "set", "path": ["items", "2"], "value": "c"},
+    ]
+    assert gorp.state["items"] == ["a", "b", "c"]
+
+
+def test_add_operations_rejects_proxy_values() -> None:
+    gorp = Gorp({"orig": {"a": 1}, "copy": None})
+    proxy = gorp.draft(lambda _ops: None)["orig"]
+    host = GorpDraft(gorp, lambda _ops: None)
+
+    with pytest.raises(ValueError):
+        host.add_operations([{"type": "set", "path": ["copy"], "value": proxy}])
+    with pytest.raises(ValueError):
+        host.add_operations(
+            [{"type": "set", "path": [], "value": {"copy": proxy}}]
+        )
+
+    assert gorp.state == {"orig": {"a": 1}, "copy": None}
 
 
 def test_draft_returns_gorp_proxy() -> None:
