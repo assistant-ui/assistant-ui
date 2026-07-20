@@ -54,8 +54,13 @@ async def add_sse_heartbeat(
             task = None
             yield item
     finally:
-        if task is not None:
+        if task is not None and not task.done():
             task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, StopAsyncIteration):
+                pass
+        await stream.aclose()
 
 
 class StreamEncoder(ABC):

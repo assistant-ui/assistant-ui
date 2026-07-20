@@ -4,7 +4,10 @@ import json
 import pytest
 
 from assistant_stream.assistant_stream_chunk import TextDeltaChunk
-from assistant_stream.serialization.assistant_transport import AssistantTransportEncoder
+from assistant_stream.serialization.assistant_transport import (
+    AssistantTransportResponse,
+)
+from assistant_stream.serialization.openai_stream import OpenAIStreamResponse
 from assistant_stream.serialization.stream_encoder import (
     DEFAULT_HEARTBEAT_INTERVAL,
     SSE_HEARTBEAT_LINE,
@@ -27,14 +30,13 @@ def test_resolve_heartbeat_interval():
 
 @pytest.mark.anyio
 async def test_heartbeat_disabled_by_default():
-    encoder = AssistantTransportEncoder()
-
     async def stream():
         yield TextDeltaChunk(text_delta="hello")
         await asyncio.sleep(0.15)
         yield TextDeltaChunk(text_delta="world")
 
-    lines = [line async for line in encoder.encode_stream(stream())]
+    response = AssistantTransportResponse(stream())
+    lines = [line async for line in response.body_iterator]
 
     assert all(not line.startswith(":") for line in lines)
     assert lines[-1] == "data: [DONE]\n\n"
@@ -42,14 +44,13 @@ async def test_heartbeat_disabled_by_default():
 
 @pytest.mark.anyio
 async def test_heartbeat_emitted_when_idle():
-    encoder = AssistantTransportEncoder(heartbeat=0.05)
-
     async def stream():
         yield TextDeltaChunk(text_delta="hello")
         await asyncio.sleep(0.18)
         yield TextDeltaChunk(text_delta="world")
 
-    lines = [line async for line in encoder.encode_stream(stream())]
+    response = AssistantTransportResponse(stream(), heartbeat=0.05)
+    lines = [line async for line in response.body_iterator]
 
     heartbeats = [line for line in lines if line == SSE_HEARTBEAT_LINE]
     assert len(heartbeats) >= 2
@@ -61,15 +62,29 @@ async def test_heartbeat_emitted_when_idle():
 
 
 @pytest.mark.anyio
-async def test_no_heartbeat_when_chunks_are_frequent():
-    encoder = AssistantTransportEncoder(heartbeat=0.2)
+async def test_heartbeat_emitted_when_idle_openai():
+    async def stream():
+        yield TextDeltaChunk(text_delta="hello")
+        await asyncio.sleep(0.18)
+        yield TextDeltaChunk(text_delta="world")
 
+    response = OpenAIStreamResponse(stream(), heartbeat=0.05)
+    lines = [line async for line in response.body_iterator]
+
+    heartbeats = [line for line in lines if line == SSE_HEARTBEAT_LINE]
+    assert len(heartbeats) >= 2
+    assert lines[-1] == "data: [DONE]\n\n"
+
+
+@pytest.mark.anyio
+async def test_no_heartbeat_when_chunks_are_frequent():
     async def stream():
         for i in range(5):
             await asyncio.sleep(0.01)
             yield TextDeltaChunk(text_delta=str(i))
 
-    lines = [line async for line in encoder.encode_stream(stream())]
+    response = AssistantTransportResponse(stream(), heartbeat=0.5)
+    lines = [line async for line in response.body_iterator]
 
     assert all(line.startswith("data: ") for line in lines)
     assert lines[-1] == "data: [DONE]\n\n"
@@ -77,14 +92,13 @@ async def test_no_heartbeat_when_chunks_are_frequent():
 
 @pytest.mark.anyio
 async def test_real_chunk_resets_heartbeat_timer():
-    encoder = AssistantTransportEncoder(heartbeat=0.1)
-
     async def stream():
         for i in range(3):
-            await asyncio.sleep(0.07)
+            await asyncio.sleep(0.05)
             yield TextDeltaChunk(text_delta=str(i))
 
-    lines = [line async for line in encoder.encode_stream(stream())]
+    response = AssistantTransportResponse(stream(), heartbeat=0.5)
+    lines = [line async for line in response.body_iterator]
 
     assert SSE_HEARTBEAT_LINE not in lines
 
@@ -107,4 +121,21 @@ async def test_add_sse_heartbeat_cancels_pending_read_on_close():
     assert await gen.__anext__() == "data: 1\n\n"
     assert await gen.__anext__() == SSE_HEARTBEAT_LINE
     await gen.aclose()
-    await asyncio.wait_for(cancelled.wait(), timeout=1)
+    assert cancelled.is_set()
+
+
+@pytest.mark.anyio
+async def test_add_sse_heartbeat_closes_upstream_when_no_read_pending():
+    closed = asyncio.Event()
+
+    async def stream():
+        try:
+            yield "data: 1\n\n"
+            yield "data: 2\n\n"
+        finally:
+            closed.set()
+
+    gen = add_sse_heartbeat(stream(), 10)
+    assert await gen.__anext__() == "data: 1\n\n"
+    await gen.aclose()
+    assert closed.is_set()
