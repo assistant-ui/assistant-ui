@@ -136,7 +136,7 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
       readonly severity?: "critical" | "warning" | "info";
     }
   | {
-      /** Applies object-stream operations to state carried by this stream. */
+      /** Applies gorp-stream operations to state carried by this stream. */
       readonly type: "update-state";
       readonly operations: GorpStreamOperation[];
     }

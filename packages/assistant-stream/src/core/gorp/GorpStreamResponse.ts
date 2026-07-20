@@ -18,10 +18,6 @@ export class GorpStreamEncoder extends PipeableTransformStream<
             > {
               #isFirstChunk = true;
 
-              start() {
-                // Nothing needed here since we initialize in the field declaration
-              }
-
               transform(
                 chunk: GorpStreamChunk,
                 controller: TransformStreamDefaultController<
