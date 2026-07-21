@@ -547,7 +547,8 @@ import { ActionBarPrimitive } from "@assistant-ui/react-native";
 import * as Clipboard from "expo-clipboard";
 
 const copyToClipboard = async (text: string) => {
-  await Clipboard.setStringAsync(text);
+  const didCopy = await Clipboard.setStringAsync(text);
+  if (!didCopy) throw new Error("Clipboard write failed");
 };
 
 <ActionBarPrimitive.Copy
