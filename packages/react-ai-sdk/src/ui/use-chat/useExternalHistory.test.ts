@@ -225,6 +225,11 @@ describe("useExternalHistory persistence", () => {
         _localMessageId: string,
       ) => {},
     );
+    const deleteItems = vi.fn(
+      async (
+        _items: { parentId: string | null; message: InnerMessage }[],
+      ) => {},
+    );
     const reportTelemetry = vi.fn();
     const load = vi
       .fn()
@@ -232,6 +237,7 @@ describe("useExternalHistory persistence", () => {
     const formattedAdapter = {
       load,
       append,
+      delete: deleteItems,
       reportTelemetry,
       ...(supportsUpdate ? { update } : {}),
     };
@@ -258,7 +264,7 @@ describe("useExternalHistory persistence", () => {
       current: { thread } as AssistantRuntime,
     };
 
-    const { unmount } = renderHook(() =>
+    const { result, unmount } = renderHook(() =>
       useExternalHistory(
         persistenceRuntimeRef,
         historyAdapter,
@@ -298,6 +304,8 @@ describe("useExternalHistory persistence", () => {
     return {
       append,
       update,
+      deleteItems,
+      deleteMessage: result.current.deleteMessage,
       reportTelemetry,
       load,
       runCycle,
@@ -606,7 +614,7 @@ describe("useExternalHistory persistence", () => {
     }
   });
 
-  it("skips queued persistence passes after unmount", async () => {
+  it("finishes queued persistence passes after unmount", async () => {
     const { append, runCycle, flush, unmount } =
       createPersistenceHarness(false);
     let releaseFirstAppend!: () => void;
@@ -639,7 +647,63 @@ describe("useExternalHistory persistence", () => {
 
     expect(append.mock.calls.map(([item]) => item.message.id)).toEqual([
       "inner-a",
+      "inner-b",
     ]);
+  });
+
+  it("serializes deletion after pending persistence passes", async () => {
+    const { append, deleteItems, deleteMessage, runCycle, flush } =
+      createPersistenceHarness(false);
+    const events: string[] = [];
+    let releaseFirstAppend!: () => void;
+    const firstAppend = new Promise<void>((resolve) => {
+      releaseFirstAppend = resolve;
+    });
+    append.mockImplementation(async (item) => {
+      events.push(`append:${item.message.id}`);
+    });
+    append.mockImplementationOnce(async (item) => {
+      events.push(`append:${item.message.id}:start`);
+      await firstAppend;
+      events.push(`append:${item.message.id}:end`);
+    });
+    deleteItems.mockImplementation(async (items) => {
+      events.push(`delete:${items[0]?.message.id}`);
+    });
+
+    const firstMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+      "assistant-a",
+    );
+    const secondMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-b", parts: ["second"] }],
+      "assistant-b",
+    );
+
+    try {
+      await runCycle([firstMessage]);
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+      await runCycle([firstMessage, secondMessage]);
+      await flush();
+      const deletion = deleteMessage("assistant-a");
+      await flush();
+      expect(deleteItems).not.toHaveBeenCalled();
+
+      releaseFirstAppend();
+      await deletion;
+
+      expect(events).toEqual([
+        "append:inner-a:start",
+        "append:inner-a:end",
+        "append:inner-b",
+        "delete:inner-a",
+      ]);
+    } finally {
+      releaseFirstAppend();
+    }
   });
 
   it("reports telemetry after retrying a failed append", async () => {

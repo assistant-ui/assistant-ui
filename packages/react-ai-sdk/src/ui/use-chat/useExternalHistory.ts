@@ -165,7 +165,6 @@ export const useExternalHistory = <TMessage>(
   useEffect(() => {
     if (!formatAdapter) return;
 
-    let disposed = false;
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const threadState = runtimeRef.current.thread.getState();
       const { isRunning } = threadState;
@@ -259,8 +258,6 @@ export const useExternalHistory = <TMessage>(
 
         persistInFlightRef.current = persistInFlightRef.current
           .then(async () => {
-            if (disposed) return;
-
             const changedRunMessageIds = new Set<string>();
             for (const message of latest.messages) {
               const externalMessages =
@@ -363,7 +360,6 @@ export const useExternalHistory = <TMessage>(
     });
 
     return () => {
-      disposed = true;
       unsubscribe();
       if (persistTimerRef.current) {
         clearTimeout(persistTimerRef.current);
@@ -374,36 +370,42 @@ export const useExternalHistory = <TMessage>(
 
   const deleteMessage = useCallback(
     async (messageId: string) => {
-      if (!formatAdapter?.delete) return;
+      const deleteMessages = formatAdapter?.delete;
+      if (!deleteMessages) return;
 
-      const messages = runtimeRef.current.thread.getState().messages;
-      const messageIndex = messages.findIndex((m) => m.id === messageId);
-      if (messageIndex === -1) return;
+      const deletion = persistInFlightRef.current.then(async () => {
+        const messages = runtimeRef.current.thread.getState().messages;
+        const messageIndex = messages.findIndex((m) => m.id === messageId);
+        if (messageIndex === -1) return;
 
-      const previousInnerMessages = messages
-        .slice(0, messageIndex)
-        .flatMap(getExternalStoreMessages<TMessage>);
-      let parentId = previousInnerMessages.at(-1)
-        ? storageFormatAdapter.getId(previousInnerMessages.at(-1)!)
-        : null;
-      const itemsToDelete = getExternalStoreMessages<TMessage>(
-        messages[messageIndex]!,
-      ).map((message) => {
-        const item = { parentId, message };
-        parentId = storageFormatAdapter.getId(message);
-        return item;
+        const previousInnerMessages = messages
+          .slice(0, messageIndex)
+          .flatMap(getExternalStoreMessages<TMessage>);
+        let parentId = previousInnerMessages.at(-1)
+          ? storageFormatAdapter.getId(previousInnerMessages.at(-1)!)
+          : null;
+        const itemsToDelete = getExternalStoreMessages<TMessage>(
+          messages[messageIndex]!,
+        ).map((message) => {
+          const item = { parentId, message };
+          parentId = storageFormatAdapter.getId(message);
+          return item;
+        });
+
+        await deleteMessages(itemsToDelete);
+
+        historyIds.current.delete(messageId);
+        deferredTelemetryIds.current.delete(messageId);
+        persistedExternalMessages.current.delete(messageId);
+        for (const item of itemsToDelete) {
+          persistedInnerIds.current.delete(
+            storageFormatAdapter.getId(item.message),
+          );
+        }
       });
 
-      await formatAdapter.delete(itemsToDelete);
-
-      historyIds.current.delete(messageId);
-      deferredTelemetryIds.current.delete(messageId);
-      persistedExternalMessages.current.delete(messageId);
-      for (const item of itemsToDelete) {
-        persistedInnerIds.current.delete(
-          storageFormatAdapter.getId(item.message),
-        );
-      }
+      persistInFlightRef.current = deletion.catch(() => {});
+      await deletion;
     },
     [formatAdapter, runtimeRef, storageFormatAdapter],
   );
