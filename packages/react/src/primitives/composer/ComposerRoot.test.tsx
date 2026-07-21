@@ -160,6 +160,22 @@ describe("ComposerPrimitiveRoot click-to-focus", () => {
     expect(document.activeElement).toBe(getByTestId("composer-input"));
   });
 
+  it("still focuses the textarea when the form is hosted inside a tabindex=-1 wrapper", () => {
+    const { getByTestId } = render(
+      <div tabIndex={-1}>
+        <ComposerPrimitiveRoot>
+          <div data-testid="blank-space">
+            <textarea data-testid="composer-input" />
+          </div>
+        </ComposerPrimitiveRoot>
+      </div>,
+    );
+
+    fireEvent.mouseDown(getByTestId("blank-space"), { button: 0 });
+
+    expect(document.activeElement).toBe(getByTestId("composer-input"));
+  });
+
   it("ignores mousedown on portaled descendants rendered outside the form's DOM", () => {
     const { getByTestId } = render(
       <ComposerPrimitiveRoot>

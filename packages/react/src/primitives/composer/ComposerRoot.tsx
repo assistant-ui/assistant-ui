@@ -110,7 +110,10 @@ export const ComposerPrimitiveRoot = forwardRef<
     // the React tree while their DOM nodes live outside the form.
     if (!(target instanceof Element) || !e.currentTarget.contains(target))
       return;
-    if (target.closest(INTERACTIVE_ELEMENT_SELECTOR)) return;
+    // Bound the ancestor walk to the form: hosts like AssistantModal render
+    // the composer inside a wrapper carrying tabindex="-1" (Radix FocusScope).
+    const interactive = target.closest(INTERACTIVE_ELEMENT_SELECTOR);
+    if (interactive && e.currentTarget.contains(interactive)) return;
     const input = e.currentTarget.querySelector<HTMLElement>(
       COMPOSER_INPUT_SELECTOR,
     );
