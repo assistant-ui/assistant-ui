@@ -71,9 +71,18 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
       return;
     }
 
-    if (!anchor || !target || !clamp) {
+    if (!anchor && !target && !clamp) {
       observers.disconnect();
       if (reserve?.parentElement) reserve.parentElement.append(reserve);
+      return;
+    }
+
+    if (!anchor || !target || !clamp) {
+      observers.disconnect();
+      if (reserve) {
+        setReserveHeight(reserve, 0);
+        reserve.remove();
+      }
       return;
     }
 

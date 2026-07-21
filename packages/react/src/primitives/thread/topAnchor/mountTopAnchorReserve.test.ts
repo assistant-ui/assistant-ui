@@ -150,6 +150,45 @@ describe("mountTopAnchorReserve", () => {
     expect(reserve.isConnected).toBe(false);
   });
 
+  it("removes the reserve when only the registered anchor unmounts", () => {
+    const viewport = document.createElement("div");
+    const anchor = document.createElement("div");
+    const target = document.createElement("div");
+    const reserveHost = document.createElement("div");
+    reserveHost.append(target);
+    document.body.append(reserveHost);
+
+    defineReadonlyNumber(viewport, "offsetTop", 0);
+    defineReadonlyNumber(viewport, "clientHeight", 400);
+    defineReadonlyNumber(viewport, "scrollHeight", 560);
+    defineReadonlyNumber(anchor, "offsetTop", 220);
+    defineReadonlyNumber(anchor, "offsetHeight", 64);
+    viewport.scrollTo = vi.fn();
+
+    const { store, setState } = makeStore({
+      turnAnchor: "top",
+      element: { viewport, anchor, target },
+      targetConfig: numericClamp,
+    });
+
+    mountTopAnchorReserve(store);
+    vi.runOnlyPendingTimers();
+
+    const reserve = reserveHost.querySelector(
+      "[data-aui-top-anchor-reserve]",
+    ) as HTMLElement;
+
+    setState({
+      turnAnchor: "top",
+      element: { viewport, anchor: null, target },
+      targetConfig: numericClamp,
+    });
+    vi.runOnlyPendingTimers();
+
+    expect(reserve.isConnected).toBe(false);
+    expect(reserve.style.height).toBe("0px");
+  });
+
   it("removes the reserve when the viewport is unavailable", () => {
     const viewport = document.createElement("div");
     const anchor = document.createElement("div");
