@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { DefaultThreadComposerRuntimeCore } from "../runtime/base/default-thread-composer-runtime-core";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
-import type { PendingAttachment } from "../types/attachment";
+import type {
+  CompleteAttachment,
+  PendingAttachment,
+} from "../types/attachment";
 
 const makeAdapter = (
   overrides: Partial<AttachmentAdapter> = {},
@@ -82,7 +85,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await expect(sendPromise).rejects.toThrow("upload failed");
 
     expect(composer.text).toBe("new draft");
-    expect(composer.attachments).toHaveLength(0);
+    expect(composer.attachments).toHaveLength(1);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -107,7 +110,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     expect(composer.quote).toEqual({ text: "new quote", messageId: "m-2" });
     expect(composer.text).toBe("");
-    expect(composer.attachments).toHaveLength(0);
+    expect(composer.attachments).toHaveLength(1);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -221,5 +224,66 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     expect(appendCalls).toBe(1);
     expect(rejections).toEqual([]);
+  });
+
+  it("keeps attachment chips visible and clears text while an upload is in flight", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+
+    const sendPromise = composer.send();
+
+    expect(composer.text).toBe("");
+    expect(composer.attachments).toHaveLength(1);
+    expect(append).not.toHaveBeenCalled();
+
+    resolveSend();
+    await sendPromise;
+
+    expect(composer.attachments).toHaveLength(0);
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0].attachments).toHaveLength(1);
+  });
+
+  it("preserves an attachment added while an upload is in flight", async () => {
+    let addCount = 0;
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      add: async ({ file }: { file: File }): Promise<PendingAttachment> => ({
+        id: `att-${++addCount}`,
+        type: "image",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      send: (a) =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    await composer.addAttachment(textFile());
+    const sendPromise = composer.send();
+    await composer.addAttachment(textFile());
+
+    resolveSend();
+    await sendPromise;
+
+    expect(composer.attachments).toHaveLength(1);
+    expect(composer.attachments[0]!.id).toBe("att-2");
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0].attachments).toHaveLength(1);
   });
 });

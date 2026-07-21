@@ -195,18 +195,17 @@ export abstract class BaseComposerRuntimeCore
           )
         : [];
 
-    const originalAttachments = this.attachments;
     const text = this.text;
     const quote = this._quote;
     this._quote = undefined;
-    this._emptyTextAndAttachments();
+    this._text = "";
+    this._notifySubscribers();
 
     let resolvedAttachments: Awaited<typeof attachments>;
     try {
       resolvedAttachments = await attachments;
     } catch (e) {
-      if (this.isEmpty && this._quote === undefined) {
-        this._attachments = originalAttachments;
+      if (!this.text.trim() && this._quote === undefined) {
         this._text = text;
         this._quote = quote;
         this._notifySubscribers();
@@ -225,6 +224,13 @@ export abstract class BaseComposerRuntimeCore
 
     const sendTask = this.handleSend(message, options);
     if (sendTask) void sendTask.catch(() => {});
+
+    if (resolvedAttachments.length > 0) {
+      const sentIds = new Set(resolvedAttachments.map((a) => a.id));
+      this._attachments = this._attachments.filter((a) => !sentIds.has(a.id));
+      this._notifySubscribers();
+    }
+
     this._notifyEventSubscribers("send", {});
   }
 
