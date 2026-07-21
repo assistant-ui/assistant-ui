@@ -3,34 +3,28 @@ title: Claude Artifacts Example
 description: Open-source Claude Artifacts implementation in React — generate websites and components in a side panel from chat messages, built on assistant-ui.
 ---
 
-import { Artifacts } from "@/components/examples/artifacts";
-import { ArtifactsRuntimeProvider } from "@/contexts/ArtifactsRuntimeProvider";
+The canonical runnable implementation lives in [`examples/with-artifacts`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-artifacts). The preview below is a static snapshot of the chat and artifact work panel.
 
-<div className="not-prose h-[600px]">
-  <ArtifactsRuntimeProvider>
-    <Artifacts />
-  </ArtifactsRuntimeProvider>
-</div>
+[![The Artifacts example showing chat alongside an HTML preview](/screenshot/examples/artifacts.png)](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-artifacts)
 
 ## Overview
 
-An open-source implementation of Claude Artifacts that allows users to generate interactive content like websites, documents, and applications directly within the chat interface. The AI generates HTML, CSS, and JavaScript code that renders in a live preview panel alongside the conversation.
+An open-source implementation of Claude Artifacts that allows users to generate interactive HTML content directly within the chat interface. The AI creates an artifact that users can open in a work panel alongside the conversation.
 
 ## Features
 
-- **Real-time Preview**: Generated artifacts render instantly in an isolated sandboxed iframe
-- **Code Generation**: Creates complete HTML, CSS, and JavaScript applications
-- **Interactive Elements**: Artifacts can include buttons, forms, and animations
-- **Iteration Support**: Ask the AI to modify and improve generated artifacts
-- **Safe Execution**: Code runs in a sandboxed iframe with scripts enabled but no access to the parent documentation page
-- **Export Options**: Download generated artifacts as standalone files
+- **Chat + Work Panel**: Open generated artifacts beside the conversation
+- **Source and Preview Modes**: Inspect the generated HTML or run it in the preview
+- **Interactive Elements**: Artifacts can include scripts, forms, and animations
+- **Iteration Support**: Ask the AI to update an existing artifact in place
+- **Safe Execution**: Code runs in a sandboxed iframe with scripts enabled but no access to the parent application
 
 ## How It Works
 
-1. **Request**: Ask the AI to create something (e.g., "Create a calculator app")
-2. **Generation**: The AI generates the necessary HTML, CSS, and JavaScript
-3. **Rendering**: Code is safely rendered in an isolated preview panel
-4. **Iteration**: Request changes and see updates in real-time
+1. **Request**: Ask the AI to create something (for example, "Create a calculator app")
+2. **Generation**: The AI calls the artifact tool with a complete HTML document
+3. **Inspection**: Open the artifact and switch between its source and sandboxed preview
+4. **Iteration**: Request changes and the AI updates the existing artifact state
 
 ## Use Cases
 
@@ -42,6 +36,6 @@ An open-source implementation of Claude Artifacts that allows users to generate 
 
 ## Source
 
-The implementation for this example is available in the docs:
+The canonical implementation for this example is available here:
 
 <SourceLink href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-artifacts" />

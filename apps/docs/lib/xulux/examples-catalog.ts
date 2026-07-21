@@ -34,7 +34,6 @@ const CATEGORIES: XuluxTemplateCategory[] = [
 // and template-friendly tech labels.
 const PREVIEW_COMPONENT_SLUGS = new Set([
   "ai-sdk",
-  "artifacts",
   "chatgpt",
   "claude",
   "gemini",
