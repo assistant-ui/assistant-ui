@@ -258,7 +258,7 @@ describe("useExternalHistory persistence", () => {
       current: { thread } as AssistantRuntime,
     };
 
-    renderHook(() =>
+    const { unmount } = renderHook(() =>
       useExternalHistory(
         persistenceRuntimeRef,
         historyAdapter,
@@ -295,7 +295,16 @@ describe("useExternalHistory persistence", () => {
         listener?.();
       });
 
-    return { append, update, reportTelemetry, load, runCycle, flush, step };
+    return {
+      append,
+      update,
+      reportTelemetry,
+      load,
+      runCycle,
+      flush,
+      step,
+      unmount,
+    };
   };
 
   it("persists assistant messages awaiting tool approval when the adapter supports update", async () => {
@@ -524,6 +533,142 @@ describe("useExternalHistory persistence", () => {
 
     expect(callsWhileFirstAppendWasPending).toBe(1);
     expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves telemetry timing for runs queued behind a pending append", async () => {
+    const { append, reportTelemetry, step, flush } =
+      createPersistenceHarness(false);
+    let releaseFirstAppend!: () => void;
+    const firstAppend = new Promise<void>((resolve) => {
+      releaseFirstAppend = resolve;
+    });
+    append.mockImplementationOnce(() => firstAppend);
+
+    let now = 0;
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    const firstMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+      "assistant-a",
+    );
+    const secondMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-b", parts: ["second"] }],
+      "assistant-b",
+    );
+    const thirdMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-c", parts: ["third"] }],
+      "assistant-c",
+    );
+
+    try {
+      await step({ isRunning: true, messages: [firstMessage] });
+      now = 10;
+      await step({ isRunning: false });
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+      now = 100;
+      await step({
+        isRunning: true,
+        messages: [firstMessage, secondMessage],
+      });
+      now = 110;
+      await step({ isRunning: false });
+      await flush();
+
+      now = 200;
+      await step({
+        isRunning: true,
+        messages: [firstMessage, secondMessage, thirdMessage],
+      });
+      now = 230;
+      await step({ isRunning: false });
+      await flush();
+
+      releaseFirstAppend();
+      await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(3));
+
+      const durations = Object.fromEntries(
+        reportTelemetry.mock.calls.map(([items, options]) => [
+          items[0]?.message.id,
+          options.durationMs,
+        ]),
+      );
+      expect(durations).toEqual({
+        "inner-a": 10,
+        "inner-b": 10,
+        "inner-c": 30,
+      });
+    } finally {
+      releaseFirstAppend();
+      nowSpy.mockRestore();
+    }
+  });
+
+  it("skips queued persistence passes after unmount", async () => {
+    const { append, runCycle, flush, unmount } =
+      createPersistenceHarness(false);
+    let releaseFirstAppend!: () => void;
+    const firstAppend = new Promise<void>((resolve) => {
+      releaseFirstAppend = resolve;
+    });
+    append.mockImplementationOnce(() => firstAppend);
+
+    const firstMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+      "assistant-a",
+    );
+    const secondMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-b", parts: ["second"] }],
+      "assistant-b",
+    );
+
+    await runCycle([firstMessage]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+    await runCycle([firstMessage, secondMessage]);
+    await flush();
+    unmount();
+
+    releaseFirstAppend();
+    await flush();
+    await flush();
+
+    expect(append.mock.calls.map(([item]) => item.message.id)).toEqual([
+      "inner-a",
+    ]);
+  });
+
+  it("reports telemetry after retrying a failed append", async () => {
+    const { append, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(false);
+    append.mockRejectedValueOnce(new Error("temporary storage failure"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["answer"] }],
+    );
+
+    try {
+      await runCycle([message]);
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+      await flush();
+      expect(reportTelemetry).not.toHaveBeenCalled();
+
+      await runCycle([message]);
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(1));
+
+      expect(reportTelemetry).toHaveBeenCalledWith(
+        [{ parentId: null, message: { id: "inner-a", parts: ["answer"] } }],
+        expect.any(Object),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("does not reappend a stored inner message whose outer message was filtered", async () => {

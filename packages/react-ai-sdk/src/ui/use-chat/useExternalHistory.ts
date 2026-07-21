@@ -165,6 +165,7 @@ export const useExternalHistory = <TMessage>(
   useEffect(() => {
     if (!formatAdapter) return;
 
+    let disposed = false;
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const threadState = runtimeRef.current.thread.getState();
       const { isRunning } = threadState;
@@ -211,11 +212,54 @@ export const useExternalHistory = <TMessage>(
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
       persistTimerRef.current = setTimeout(() => {
         persistTimerRef.current = null;
+
+        const latest = runtimeRef.current.thread.getState();
+        if (latest.isRunning) return;
+
+        const boundaries = stepBoundariesRef.current;
+        const durationMs =
+          boundaries.length > 0 ? boundaries.at(-1) : undefined;
+
+        // Fallback: if only 1 boundary but message has multiple steps, distribute evenly
+        if (boundaries.length === 1 && durationMs != null) {
+          const lastAssistant = latest.messages.findLast(
+            (m) => m.role === "assistant",
+          );
+          if (lastAssistant) {
+            const tcCount = lastAssistant.content.filter(
+              (p) => p.type === "tool-call",
+            ).length;
+            if (tcCount > 0) {
+              const totalSteps = tcCount + 1;
+              const stepDur = durationMs / totalSteps;
+              boundaries.length = 0;
+              for (let i = 0; i < totalSteps; i++) {
+                boundaries.push(Math.round((i + 1) * stepDur));
+              }
+            }
+          }
+        }
+
+        // Build per-step timestamps when there are multiple steps
+        const stepTimestamps =
+          boundaries.length > 1
+            ? boundaries.map((endMs, i) => ({
+                start_ms: i === 0 ? 0 : boundaries[i - 1]!,
+                end_ms: endMs,
+              }))
+            : undefined;
+
+        runStartRef.current = null;
+        stepBoundariesRef.current = [];
+
+        const telemetryOptions = {
+          ...(durationMs != null ? { durationMs } : undefined),
+          ...(stepTimestamps != null ? { stepTimestamps } : undefined),
+        };
+
         persistInFlightRef.current = persistInFlightRef.current
           .then(async () => {
-            // Re-read latest state — may have changed since the timeout was scheduled
-            const latest = runtimeRef.current.thread.getState();
-            if (latest.isRunning) return; // was just a flicker
+            if (disposed) return;
 
             const changedRunMessageIds = new Set<string>();
             for (const message of latest.messages) {
@@ -232,48 +276,6 @@ export const useExternalHistory = <TMessage>(
                 changedRunMessageIds.add(message.id);
               }
             }
-
-            // Derive durationMs from the last boundary (covers all steps)
-            const boundaries = stepBoundariesRef.current;
-            const durationMs =
-              boundaries.length > 0 ? boundaries.at(-1) : undefined;
-
-            // Fallback: if only 1 boundary but message has multiple steps, distribute evenly
-            if (boundaries.length === 1 && durationMs != null) {
-              const lastAssistant = latest.messages.findLast(
-                (m) => m.role === "assistant",
-              );
-              if (lastAssistant) {
-                const tcCount = lastAssistant.content.filter(
-                  (p) => p.type === "tool-call",
-                ).length;
-                if (tcCount > 0) {
-                  const totalSteps = tcCount + 1;
-                  const stepDur = durationMs / totalSteps;
-                  boundaries.length = 0;
-                  for (let i = 0; i < totalSteps; i++) {
-                    boundaries.push(Math.round((i + 1) * stepDur));
-                  }
-                }
-              }
-            }
-
-            // Build per-step timestamps when there are multiple steps
-            const stepTimestamps =
-              boundaries.length > 1
-                ? boundaries.map((endMs, i) => ({
-                    start_ms: i === 0 ? 0 : boundaries[i - 1]!,
-                    end_ms: endMs,
-                  }))
-                : undefined;
-
-            runStartRef.current = null;
-            stepBoundariesRef.current = [];
-
-            const telemetryOptions = {
-              ...(durationMs != null ? { durationMs } : undefined),
-              ...(stepTimestamps != null ? { stepTimestamps } : undefined),
-            };
 
             const { messages } = latest;
             let lastInnerMessageId: string | null = null;
@@ -316,7 +318,10 @@ export const useExternalHistory = <TMessage>(
                   getLastInnerId(innerMessages) ?? lastInnerMessageId;
                 continue;
               }
-              if (!isPersistedMessage) historyIds.current.add(message.id);
+              if (!isPersistedMessage) {
+                historyIds.current.add(message.id);
+                deferredTelemetryIds.current.add(message.id);
+              }
 
               const batchItems = toBatchItems(innerMessages);
               for (const item of batchItems) {
@@ -337,18 +342,9 @@ export const useExternalHistory = <TMessage>(
               lastInnerMessageId =
                 getLastInnerId(innerMessages) ?? lastInnerMessageId;
 
-              if (isPersistedMessage) {
-                if (
-                  deferredTelemetryIds.current.has(message.id) &&
-                  isTerminal
-                ) {
-                  deferredTelemetryIds.current.delete(message.id);
-                  formatAdapter.reportTelemetry?.(batchItems, telemetryOptions);
-                }
-              } else if (isTerminal) {
+              if (deferredTelemetryIds.current.has(message.id) && isTerminal) {
+                deferredTelemetryIds.current.delete(message.id);
                 formatAdapter.reportTelemetry?.(batchItems, telemetryOptions);
-              } else {
-                deferredTelemetryIds.current.add(message.id);
               }
             }
 
@@ -367,6 +363,7 @@ export const useExternalHistory = <TMessage>(
     });
 
     return () => {
+      disposed = true;
       unsubscribe();
       if (persistTimerRef.current) {
         clearTimeout(persistTimerRef.current);
