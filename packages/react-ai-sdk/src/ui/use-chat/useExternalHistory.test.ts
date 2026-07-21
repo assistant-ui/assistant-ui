@@ -706,6 +706,44 @@ describe("useExternalHistory persistence", () => {
     }
   });
 
+  it("uses the requested deletion snapshot after runtime state changes", async () => {
+    const { append, deleteItems, deleteMessage, runCycle, flush, step } =
+      createPersistenceHarness(false);
+    let releaseAppend!: () => void;
+    const pendingAppend = new Promise<void>((resolve) => {
+      releaseAppend = resolve;
+    });
+    append.mockImplementationOnce(() => pendingAppend);
+
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+      "assistant-a",
+    );
+
+    try {
+      await runCycle([message]);
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+      const deletion = deleteMessage("assistant-a");
+      await step({ messages: [] });
+      await flush();
+      expect(deleteItems).not.toHaveBeenCalled();
+
+      releaseAppend();
+      await deletion;
+
+      expect(deleteItems).toHaveBeenCalledWith([
+        {
+          parentId: null,
+          message: { id: "inner-a", parts: ["first"] },
+        },
+      ]);
+    } finally {
+      releaseAppend();
+    }
+  });
+
   it("reports telemetry after retrying a failed append", async () => {
     const { append, reportTelemetry, runCycle, flush } =
       createPersistenceHarness(false);
