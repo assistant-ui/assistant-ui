@@ -136,16 +136,31 @@ export class SafeContentFrame {
     iframe.setAttribute("sandbox", this.getSandbox());
     iframe.style.cssText = "border:none;width:100%;height:100%";
 
+    let mountElement: HTMLElement = iframe;
     if (this.options.useShadowDom) {
       const host = document.createElement("div");
       host.attachShadow({ mode: "closed" }).appendChild(iframe);
       container.appendChild(host);
+      mountElement = host;
     } else {
       container.appendChild(iframe);
     }
 
     return new Promise((resolve, reject) => {
       const channel = new MessageChannel();
+      let channelTransferred = false;
+      let cleanedUp = false;
+      const cleanup = () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
+        iframe.onload = null;
+        iframe.onerror = null;
+        channel.port1.onmessage = null;
+        channel.port1.close();
+        if (!channelTransferred) channel.port2.close();
+        mountElement.remove();
+      };
+
       let onLoaded: () => void;
       const loaded = new Promise<void>((r) => {
         onLoaded = r;
@@ -160,19 +175,30 @@ export class SafeContentFrame {
       iframe.onload = () => {
         if (loadHandled) return;
         loadHandled = true;
-        iframe.contentWindow?.postMessage(
-          {
-            body: content.buffer.slice(
-              content.byteOffset,
-              content.byteOffset + content.byteLength,
-            ),
-            mimeType,
-            salt,
-            unsafeDocumentWrite: opts?.unsafeDocumentWrite,
-          },
-          iframeOrigin,
-          [channel.port2],
-        );
+        try {
+          const contentWindow = iframe.contentWindow;
+          if (!contentWindow) throw new Error("Failed to access iframe window");
+          contentWindow.postMessage(
+            {
+              body: content.buffer.slice(
+                content.byteOffset,
+                content.byteOffset + content.byteLength,
+              ),
+              mimeType,
+              salt,
+              unsafeDocumentWrite: opts?.unsafeDocumentWrite,
+            },
+            iframeOrigin,
+            [channel.port2],
+          );
+          channelTransferred = true;
+        } catch (error) {
+          cleanup();
+          reject(error);
+          return;
+        }
+        iframe.onload = null;
+        iframe.onerror = null;
         resolve({
           iframe,
           origin: iframeOrigin,
@@ -185,10 +211,13 @@ export class SafeContentFrame {
                 setTimeout(() => rej(new Error("Timeout")), ms),
               ),
             ]),
-          dispose: () => iframe.remove(),
+          dispose: cleanup,
         });
       };
-      iframe.onerror = () => reject(new Error("Failed to load iframe"));
+      iframe.onerror = () => {
+        cleanup();
+        reject(new Error("Failed to load iframe"));
+      };
       iframe.src = shimUrl;
     });
   }
