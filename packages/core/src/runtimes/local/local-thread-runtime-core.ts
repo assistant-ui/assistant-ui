@@ -537,7 +537,9 @@ export class LocalThreadRuntimeCore
 
       if (message.status.type === "running") {
         updateMessage({
-          status: { type: "complete", reason: "unknown" },
+          status: abortSignal.aborted
+            ? { type: "incomplete", reason: "cancelled" }
+            : { type: "complete", reason: "unknown" },
         });
       }
     } catch (e) {

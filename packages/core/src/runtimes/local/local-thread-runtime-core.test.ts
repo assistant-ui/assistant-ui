@@ -408,6 +408,74 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
   });
 });
 
+describe("LocalThreadRuntimeCore cancellation", () => {
+  it("marks the message cancelled when a streaming adapter returns after abort", async () => {
+    let released!: () => void;
+    const streaming = new Promise<void>((resolve) => {
+      released = resolve;
+    });
+
+    const thread = createThread({
+      async *run({ abortSignal }) {
+        yield { content: [{ type: "text", text: "partial" }] };
+        await streaming;
+        if (abortSignal.aborted) return;
+        yield { content: [{ type: "text", text: "partial answer" }] };
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("hi"));
+    await flush();
+
+    thread.cancelRun();
+    released();
+    await appendPromise;
+
+    expect(thread.messages.at(-1)?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("marks the message cancelled when a non-streaming adapter resolves after abort", async () => {
+    let released!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      released = resolve;
+    });
+
+    const thread = createThread({
+      async run() {
+        await pending;
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("hi"));
+    await flush();
+
+    thread.cancelRun();
+    released();
+    await appendPromise;
+
+    expect(thread.messages.at(-1)?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("keeps a completed run complete", async () => {
+    const thread = createThread({
+      async *run() {
+        yield { content: [{ type: "text", text: "hello" }] };
+      },
+    });
+
+    await thread.append(userMessage("hi"));
+
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+});
+
 describe("LocalThreadRuntimeCore suggestions", () => {
   it("cancelRun aborts pending suggestion generation", async () => {
     const generate = vi.fn().mockImplementation(
