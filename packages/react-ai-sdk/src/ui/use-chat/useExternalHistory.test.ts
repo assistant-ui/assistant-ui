@@ -498,6 +498,56 @@ describe("useExternalHistory persistence", () => {
     );
   });
 
+  it("serializes overlapping persistence passes", async () => {
+    const { append, runCycle, flush } = createPersistenceHarness(true);
+    let releaseFirstAppend!: () => void;
+    const firstAppend = new Promise<void>((resolve) => {
+      releaseFirstAppend = resolve;
+    });
+    append.mockImplementationOnce(() => firstAppend);
+
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["answer"] }],
+    );
+
+    await runCycle([message]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+    await runCycle([message]);
+    await flush();
+    const callsWhileFirstAppendWasPending = append.mock.calls.length;
+
+    releaseFirstAppend();
+    await flush();
+    await flush();
+
+    expect(callsWhileFirstAppendWasPending).toBe(1);
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reappend a stored inner message whose outer message was filtered", async () => {
+    const innerMessage = { id: "inner-a", parts: ["stored"] };
+    const { append, load, runCycle, flush } = createPersistenceHarness(false, {
+      loadMessages: {
+        messages: [{ parentId: null, message: innerMessage }],
+      },
+      toThreadMessages: () => [],
+    });
+
+    await waitFor(() => expect(load).toHaveBeenCalled());
+    await flush();
+
+    await runCycle([
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+    ]);
+    await flush();
+
+    expect(append).not.toHaveBeenCalled();
+  });
+
   it("skips unchanged persisted messages on later runs", async () => {
     const { append, update, reportTelemetry, runCycle, flush } =
       createPersistenceHarness(true);
