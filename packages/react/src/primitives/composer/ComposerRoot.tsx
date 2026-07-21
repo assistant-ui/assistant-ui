@@ -18,7 +18,7 @@ import { ComposerCompactContext } from "./ComposerCompactContext";
 const CONTENT_EDITABLE_SELECTOR =
   "[contenteditable]:not([contenteditable='false'])";
 
-const COMPOSER_INPUT_SELECTOR = `textarea, ${CONTENT_EDITABLE_SELECTOR}`;
+const COMPOSER_INPUT_SELECTOR = `textarea:not(:disabled), ${CONTENT_EDITABLE_SELECTOR}`;
 
 // Keeps tabindex="-1": roving-tabindex widgets click-focus items at -1.
 const INTERACTIVE_ELEMENT_SELECTOR = [
@@ -105,7 +105,12 @@ export const ComposerPrimitiveRoot = forwardRef<
 
   const handleMouseDown = (e: MouseEvent<HTMLFormElement>) => {
     if (e.button !== 0) return;
-    if ((e.target as Element).closest(INTERACTIVE_ELEMENT_SELECTOR)) return;
+    const target = e.target;
+    // Portaled descendants (e.g. a dialog overlay) propagate mousedown through
+    // the React tree while their DOM nodes live outside the form.
+    if (!(target instanceof Element) || !e.currentTarget.contains(target))
+      return;
+    if (target.closest(INTERACTIVE_ELEMENT_SELECTOR)) return;
     const input = e.currentTarget.querySelector<HTMLElement>(
       COMPOSER_INPUT_SELECTOR,
     );

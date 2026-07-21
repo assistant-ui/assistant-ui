@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { act } from "react";
 import type { MouseEvent, ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import type * as AssistantStore from "@assistant-ui/store";
@@ -149,6 +150,54 @@ describe("ComposerPrimitiveRoot click-to-focus", () => {
     const { getByTestId } = render(
       <ComposerPrimitiveRoot>
         <div data-testid="blank-space">
+          <div contentEditable data-testid="composer-input" tabIndex={0} />
+        </div>
+      </ComposerPrimitiveRoot>,
+    );
+
+    fireEvent.mouseDown(getByTestId("blank-space"), { button: 0 });
+
+    expect(document.activeElement).toBe(getByTestId("composer-input"));
+  });
+
+  it("ignores mousedown on portaled descendants rendered outside the form's DOM", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        {createPortal(<div data-testid="portal-blank" />, document.body)}
+        <textarea data-testid="composer-input" />
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("portal-blank"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(getByTestId("composer-input"));
+  });
+
+  it("keeps the mousedown default when the only textarea is disabled", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <div data-testid="blank-space">
+          <textarea disabled data-testid="composer-input" />
+        </div>
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("blank-space"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(getByTestId("composer-input"));
+  });
+
+  it("skips a disabled textarea and focuses the next composer input", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <div data-testid="blank-space">
+          <textarea disabled data-testid="disabled-input" />
           <div contentEditable data-testid="composer-input" tabIndex={0} />
         </div>
       </ComposerPrimitiveRoot>,
