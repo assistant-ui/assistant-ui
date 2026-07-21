@@ -8,15 +8,16 @@ import {
   CodeIcon,
   PencilLineIcon,
 } from "lucide-react";
-import { useEffect } from "react";
+import type { ReactNode } from "react";
 import {
-  useWelcomeSuggestions,
   WelcomeSuggestionsPicker,
   WelcomeSuggestionsPills,
   WelcomeSuggestionsRoot,
+  WelcomeSuggestionsStack,
   type SuggestionEntry,
 } from "@/components/assistant-ui/welcome-suggestions";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
+import { cn } from "@/lib/utils";
 import { SampleRuntimeProvider } from "./sample-runtime-provider";
 
 const SUGGESTIONS: SuggestionEntry[] = [
@@ -91,47 +92,107 @@ const SUGGESTIONS: SuggestionEntry[] = [
   },
 ];
 
-const PreviewFirstItem = () => {
-  const { moveHighlight } = useWelcomeSuggestions();
-  // Deferred: child effects run before the state hook's typing-detection
-  // effect, which would read the still-empty composer against the ref
-  // moveHighlight sets as a user edit and close the picker.
-  useEffect(() => {
-    const timer = setTimeout(() => moveHighlight(1), 0);
-    return () => clearTimeout(timer);
-  }, [moveHighlight]);
-  return null;
-};
+const Hint = ({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) => (
+  <div
+    data-hint
+    className={cn(
+      "text-muted-foreground/60 pointer-events-none mt-2 flex items-start gap-1.5 pl-5 select-none",
+      className,
+    )}
+  >
+    <svg
+      aria-hidden
+      viewBox="0 0 24 28"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-6 shrink-0"
+    >
+      <path d="M21.5 25.5 C 12 24.5, 6.5 17, 5.5 5.5" />
+      <path d="m1.5 10.5 4-6.5 5 5" />
+    </svg>
+    <span className="translate-y-2.5 -rotate-2 [font-family:'Segoe_Print','Bradley_Hand','Comic_Sans_MS',cursive] text-[13px]">
+      {children}
+    </span>
+  </div>
+);
+
+const SampleComposer = () => (
+  <ComposerPrimitive.Root
+    data-slot="composer"
+    className="border-border bg-background dark:border-muted-foreground/15 relative flex w-full flex-col rounded-3xl border shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)]"
+  >
+    <ComposerPrimitive.Input
+      placeholder="Ask anything..."
+      className="field-sizing-content min-h-10 w-full resize-none bg-transparent px-5 pt-4 pb-3 text-sm leading-relaxed focus:outline-none"
+      rows={1}
+    />
+    <div className="flex items-center justify-end px-3 pb-3">
+      <ComposerPrimitive.Send className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-full transition-opacity disabled:opacity-30">
+        <ArrowUpIcon className="size-4" />
+      </ComposerPrimitive.Send>
+    </div>
+  </ComposerPrimitive.Root>
+);
+
+const VariantColumn = ({
+  label,
+  hint,
+  hintClassName,
+  children,
+}: {
+  label: string;
+  hint: ReactNode;
+  hintClassName?: string;
+  children: ReactNode;
+}) => (
+  <div className="flex min-w-0 flex-col gap-2">
+    <span className="text-muted-foreground/70 px-1 text-xs font-medium">
+      {label}
+    </span>
+    <SampleRuntimeProvider messages={[]}>
+      <div className="flex w-full flex-col gap-3">
+        <SampleComposer />
+        <div className="min-h-56 [&:has([data-open])_[data-hint]]:hidden">
+          {children}
+          <Hint className={hintClassName}>{hint}</Hint>
+        </div>
+      </div>
+    </SampleRuntimeProvider>
+  </div>
+);
 
 export const WelcomeSuggestionsSample = () => {
   return (
-    <SampleFrame className="bg-muted/40 flex h-auto min-h-72 items-center justify-center p-6">
-      <SampleRuntimeProvider messages={[]}>
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-3">
-          <ComposerPrimitive.Root
-            data-slot="composer"
-            className="border-border bg-background dark:border-muted-foreground/15 relative flex w-full flex-col rounded-3xl border shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)]"
-          >
-            <ComposerPrimitive.Input
-              placeholder="Ask anything..."
-              className="field-sizing-content min-h-10 w-full resize-none bg-transparent px-5 pt-4 pb-3 text-sm leading-relaxed focus:outline-none"
-              rows={1}
-            />
-            <div className="flex items-center justify-end px-3 pb-3">
-              <ComposerPrimitive.Send className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-full transition-opacity disabled:opacity-30">
-                <ArrowUpIcon className="size-4" />
-              </ComposerPrimitive.Send>
-            </div>
-          </ComposerPrimitive.Root>
-          <div className="min-h-56">
-            <WelcomeSuggestionsRoot suggestions={SUGGESTIONS} defaultOpen="Weather">
-              <WelcomeSuggestionsPills />
-              <WelcomeSuggestionsPicker />
-              <PreviewFirstItem />
-            </WelcomeSuggestionsRoot>
-          </div>
-        </div>
-      </SampleRuntimeProvider>
+    <SampleFrame className="bg-muted/40 h-auto p-6">
+      <div className="mx-auto grid w-full max-w-4xl gap-8 md:grid-cols-2">
+        <VariantColumn
+          label="Pills + picker"
+          hint={<>click a pill, or Tab to one; ← → move, ↓ opens</>}
+          hintClassName="translate-x-5"
+        >
+          <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
+            <WelcomeSuggestionsPills />
+            <WelcomeSuggestionsPicker />
+          </WelcomeSuggestionsRoot>
+        </VariantColumn>
+        <VariantColumn
+          label="Stacked"
+          hint={<>Tab to the list, ↑ ↓ move, → opens</>}
+        >
+          <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
+            <WelcomeSuggestionsStack />
+          </WelcomeSuggestionsRoot>
+        </VariantColumn>
+      </div>
     </SampleFrame>
   );
 };

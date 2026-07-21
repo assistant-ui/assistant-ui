@@ -8,7 +8,7 @@ import { WelcomeSuggestionsSample } from "@/components/docs/samples/welcome-sugg
 
 <WelcomeSuggestionsSample />
 
-`ThreadWelcomeSuggestions` renders starter prompts for an empty thread. Grouped entries render as a pill row that opens a composer-coupled picker panel; flat entries render as an always-open vertical list. Place it next to any composer — no wrapper elements or thread layout changes are required.
+`ThreadWelcomeSuggestions` renders starter prompts for an empty thread. Grouped entries render as a pill row that opens a composer-coupled picker panel; flat entries render as an always-open vertical list. A second layout, the [stacked variant](#stacked-layout), keeps every group visible as a vertical list. Place either next to any composer — no wrapper elements or thread layout changes are required.
 
 <Callout type="info">
   For runtime-generated prompts that appear after an assistant response, use
@@ -93,7 +93,18 @@ In the pill row, pills are tab stops: <kbd>←</kbd>/<kbd>→</kbd> move focus a
 
 - `suggestions` — the entries to render; falls back to the static `Suggestions(...)` scope. Pass the prop for grouped entries.
 - `send` — default `true`. Whether selecting an item sends the prompt immediately or places it in the composer.
-- `defaultOpen` — label of a group to render open initially. Useful for previews; omit for the normal closed pill row.
+
+## Stacked layout
+
+`WelcomeSuggestionsStack` renders everything as one vertical list, ChatGPT-style. Top-level rows are always visible and never intercept typing; clicking a group swaps its items in place (no header). The sub-level behaves exactly like the picker: arrows preview into the composer, and <kbd>Esc</kbd>, editing the text, or clicking outside return to the top level.
+
+The top level is a single tab stop with one highlight shared by hover and the arrow keys: <kbd>↓</kbd>/<kbd>↑</kbd> move it, and <kbd>→</kbd> or <kbd>Enter</kbd> opens the highlighted group (<kbd>Enter</kbd> on a flat row sends it). <kbd>Esc</kbd> inside a group returns focus to the list with that group's row highlighted, so arrow navigation continues where you left off.
+
+```tsx
+<WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
+  <WelcomeSuggestionsStack />
+</WelcomeSuggestionsRoot>
+```
 
 ## Custom composition
 

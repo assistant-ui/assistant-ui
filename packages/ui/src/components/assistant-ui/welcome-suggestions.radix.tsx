@@ -6,7 +6,7 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
-import { XIcon } from "lucide-react";
+import { ChevronRightIcon, XIcon } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -19,6 +19,7 @@ import {
   type ComponentPropsWithoutRef,
   type FC,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
 import { Direction } from "radix-ui";
@@ -80,11 +81,14 @@ const [PillCollection, usePillCollection] =
 const [ListCollection, useListCollection] =
   CollectionPrimitive.createCollection<HTMLButtonElement>("ThreadWelcomeList");
 
+const [StackCollection, useStackCollection] =
+  CollectionPrimitive.createCollection<HTMLButtonElement>("ThreadWelcomeStack");
+
 const pillClass =
   "text-foreground hover:bg-muted border-border/60 inline-flex h-auto items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors [&_svg]:size-4";
 
 const pickerItemClass =
-  "aui-thread-welcome-picker-item text-foreground/80 hover:text-foreground data-[highlighted]:bg-muted/70 data-[highlighted]:text-foreground after:border-border/50 relative flex w-full items-center gap-2.5 rounded-lg px-3 py-3 text-left text-sm after:pointer-events-none after:absolute after:inset-x-[1.5%] after:bottom-0 after:border-b last:after:hidden data-[highlighted]:after:hidden [&:has(+[data-highlighted])]:after:hidden [&_svg]:size-4";
+  "text-foreground/80 hover:text-foreground data-[highlighted]:bg-muted/70 data-[highlighted]:text-foreground after:border-border/50 relative flex w-full items-center gap-2.5 rounded-lg px-3 py-3 text-left text-sm after:pointer-events-none after:absolute after:inset-x-[1.5%] after:bottom-0 after:border-b last:after:hidden data-[highlighted]:after:hidden [&:has(+[data-highlighted])]:after:hidden [&_svg]:size-4";
 
 type WelcomeSuggestionsContextValue = {
   entries: readonly SuggestionEntry[];
@@ -116,11 +120,9 @@ export function useWelcomeSuggestions(): WelcomeSuggestionsContextValue {
 const useWelcomeSuggestionsState = ({
   suggestions,
   send,
-  defaultOpen,
 }: {
   suggestions: readonly SuggestionEntry[] | undefined;
   send: boolean;
-  defaultOpen: string | undefined;
 }) => {
   const aui = useAui();
   const registry = unstable_useComposerInputPluginRegistry();
@@ -134,9 +136,7 @@ const useWelcomeSuggestionsState = ({
     [suggestions, staticSuggestions],
   );
 
-  const [openLabel, setOpenLabel] = useState<string | null>(
-    defaultOpen ?? null,
-  );
+  const [openLabel, setOpenLabel] = useState<string | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const expectedTextRef = useRef("");
   const draftRef = useRef("");
@@ -207,55 +207,6 @@ const useWelcomeSuggestionsState = ({
     if (group && composerText !== expectedTextRef.current) close();
   }, [group, composerText, close]);
 
-  // The composer keeps focus while the panel is open; this plugin routes its
-  // keydowns to panel navigation. Tab returns false so the native focus move
-  // proceeds (the previewed prompt stays: Tab reads as accept-without-send).
-  useEffect(() => {
-    if (!group || !registry) return undefined;
-    return registry.register({
-      handleKeyDown(e) {
-        if (e.key === "ArrowDown") {
-          moveHighlight(1);
-          e.preventDefault();
-          return true;
-        }
-        if (e.key === "ArrowUp") {
-          moveHighlight(-1);
-          e.preventDefault();
-          return true;
-        }
-        if (e.key === "Enter" && currentIdRef.current) {
-          selectCurrent();
-          e.preventDefault();
-          return true;
-        }
-        if (e.key === "Escape") {
-          close({ restoreDraft: true });
-          return true;
-        }
-        if (e.key === "Tab") {
-          close();
-          return false;
-        }
-        return false;
-      },
-      setCursorPosition() {},
-    });
-  }, [registry, group, moveHighlight, selectCurrent, close]);
-
-  useEffect(() => {
-    if (!registry || !group) return undefined;
-    return () => registry.setActiveDescendant("welcome-suggestions", null);
-  }, [registry, group]);
-
-  useEffect(() => {
-    if (!registry || !group) return;
-    registry.setActiveDescendant("welcome-suggestions", {
-      popoverId,
-      highlightedItemId: currentId ?? undefined,
-    });
-  }, [registry, group, popoverId, currentId]);
-
   return useMemo<WelcomeSuggestionsContextValue>(
     () => ({
       entries,
@@ -288,20 +239,19 @@ const useWelcomeSuggestionsState = ({
 const WelcomeSuggestionsState: FC<{
   suggestions: readonly SuggestionEntry[] | undefined;
   send: boolean;
-  defaultOpen: string | undefined;
   children: ReactNode;
-}> = ({ suggestions, send, defaultOpen, children }) => {
-  const value = useWelcomeSuggestionsState({
-    suggestions,
-    send,
-    defaultOpen,
-  });
+}> = ({ suggestions, send, children }) => {
+  const value = useWelcomeSuggestionsState({ suggestions, send });
 
   if (value.entries.length === 0) return null;
 
   return (
     <WelcomeSuggestionsContext.Provider value={value}>
-      <div className="aui-thread-welcome-suggestions relative mt-1 w-full">
+      <div
+        data-slot="aui_thread-welcome-suggestions"
+        data-open={value.group ? "" : undefined}
+        className="relative mt-1 w-full"
+      >
         {children}
       </div>
     </WelcomeSuggestionsContext.Provider>
@@ -311,19 +261,16 @@ const WelcomeSuggestionsState: FC<{
 export const WelcomeSuggestionsRoot: FC<{
   suggestions?: readonly SuggestionEntry[] | undefined;
   send?: boolean | undefined;
-  defaultOpen?: string | undefined;
   children: ReactNode;
-}> = ({ suggestions, send = true, defaultOpen, children }) => (
+}> = ({ suggestions, send = true, children }) => (
   <PickerCollection.Provider scope={undefined}>
     <PillCollection.Provider scope={undefined}>
       <ListCollection.Provider scope={undefined}>
-        <WelcomeSuggestionsState
-          suggestions={suggestions}
-          send={send}
-          defaultOpen={defaultOpen}
-        >
-          {children}
-        </WelcomeSuggestionsState>
+        <StackCollection.Provider scope={undefined}>
+          <WelcomeSuggestionsState suggestions={suggestions} send={send}>
+            {children}
+          </WelcomeSuggestionsState>
+        </StackCollection.Provider>
       </ListCollection.Provider>
     </PillCollection.Provider>
   </PickerCollection.Provider>
@@ -368,7 +315,7 @@ export const WelcomeSuggestionsPills: FC = () => {
       )}
     >
       <PillCollection.Slot scope={undefined}>
-        <div className="mx-auto flex w-max items-center gap-2">
+        <div className="mx-auto flex w-max max-w-full flex-wrap items-center justify-center gap-2">
           {entries.map((entry, idx) => (
             <PillCollection.ItemSlot key={idx} scope={undefined}>
               {isGroup(entry) ? (
@@ -419,12 +366,16 @@ export const WelcomeSuggestionsList: FC = () => {
 
   return (
     <ListCollection.Slot scope={undefined}>
-      <div className="aui-thread-welcome-suggestions-list flex w-full flex-col">
+      <div
+        data-slot="aui_thread-welcome-suggestions-list"
+        className="flex w-full flex-col"
+      >
         {items.map((item, idx) => (
           <ListCollection.ItemSlot key={idx} scope={undefined}>
             <ThreadPrimitive.Suggestion
               prompt={promptOf(item)}
               send={send}
+              data-slot="aui_thread-welcome-list-item"
               className={cn(pickerItemClass)}
               onKeyDown={onItemKeyDown}
             >
@@ -457,6 +408,7 @@ export const WelcomeSuggestionsPickerItem: FC<
         id={id}
         prompt={prompt}
         send={send}
+        data-slot="aui_thread-welcome-picker-item"
         role="option"
         aria-selected={highlighted}
         data-highlighted={highlighted || undefined}
@@ -471,6 +423,67 @@ export const WelcomeSuggestionsPickerItem: FC<
   );
 };
 
+// Mounted by surfaces whose open group is composer-driven (Picker, Stack's
+// sub-level). The composer keeps focus while the group is open; this plugin
+// routes its keydowns to panel navigation. Tab returns false so the native
+// focus move proceeds (the previewed prompt stays: Tab reads as
+// accept-without-send). Surfaces with their own keyboard home (the Stack's
+// top-level listbox) pass onEscape to also take focus back on cancel.
+const useComposerCoupling = (onEscape?: () => void) => {
+  const registry = unstable_useComposerInputPluginRegistry();
+  const { group, moveHighlight, selectCurrent, close, currentId, popoverId } =
+    useWelcomeSuggestions();
+  const currentIdRef = useRef(currentId);
+  currentIdRef.current = currentId;
+
+  useEffect(() => {
+    if (!group || !registry) return undefined;
+    return registry.register({
+      handleKeyDown(e) {
+        if (e.key === "ArrowDown") {
+          moveHighlight(1);
+          e.preventDefault();
+          return true;
+        }
+        if (e.key === "ArrowUp") {
+          moveHighlight(-1);
+          e.preventDefault();
+          return true;
+        }
+        if (e.key === "Enter" && currentIdRef.current) {
+          selectCurrent();
+          e.preventDefault();
+          return true;
+        }
+        if (e.key === "Escape") {
+          if (onEscape) onEscape();
+          else close({ restoreDraft: true });
+          return true;
+        }
+        if (e.key === "Tab") {
+          close();
+          return false;
+        }
+        return false;
+      },
+      setCursorPosition() {},
+    });
+  }, [registry, group, moveHighlight, selectCurrent, close, onEscape]);
+
+  useEffect(() => {
+    if (!registry || !group) return undefined;
+    return () => registry.setActiveDescendant("welcome-suggestions", null);
+  }, [registry, group]);
+
+  useEffect(() => {
+    if (!registry || !group) return;
+    registry.setActiveDescendant("welcome-suggestions", {
+      popoverId,
+      highlightedItemId: currentId ?? undefined,
+    });
+  }, [registry, group, popoverId, currentId]);
+};
+
 export const WelcomeSuggestionsPicker: FC<{ children?: ReactNode }> = ({
   children,
 }) => {
@@ -483,6 +496,7 @@ export const WelcomeSuggestionsPicker: FC<{ children?: ReactNode }> = ({
     popoverId,
     hasRegistry,
   } = useWelcomeSuggestions();
+  useComposerCoupling();
   const listboxRef = useRef<HTMLDivElement>(null);
 
   // Without a registry the composer cannot drive the panel, so the panel
@@ -519,8 +533,14 @@ export const WelcomeSuggestionsPicker: FC<{ children?: ReactNode }> = ({
       }}
       onDismiss={() => close()}
     >
-      <div className="aui-thread-welcome-picker fade-in slide-in-from-top-1 animate-in absolute inset-x-[2.5%] top-0 z-10 duration-150">
-        <div className="aui-thread-welcome-picker-header text-muted-foreground/80 flex items-center justify-between gap-2 px-3 pb-2 text-xs font-medium">
+      <div
+        data-slot="aui_thread-welcome-picker"
+        className="fade-in slide-in-from-top-1 animate-in absolute inset-x-[2.5%] top-0 z-10 duration-150"
+      >
+        <div
+          data-slot="aui_thread-welcome-picker-header"
+          className="text-muted-foreground/80 flex items-center justify-between gap-2 px-3 pb-2 text-xs font-medium"
+        >
           <span className="inline-flex items-center gap-1.5 [&_svg]:size-3.5">
             {group.icon}
             {group.label}
@@ -560,6 +580,211 @@ export const WelcomeSuggestionsPicker: FC<{ children?: ReactNode }> = ({
   );
 };
 
+// ChatGPT-style vertical layout: top-level rows stay visible and passive
+// (typing is never intercepted); opening a group swaps its items in place
+// and hands navigation to the composer, exactly like the Picker.
+//
+// Both levels are the same listbox: one persistent container holds DOM focus
+// (the composer holds it while a group is open) and a single highlighted row
+// tracks pointer and arrows alike, so hover and keyboard can never light two
+// rows, and Escape can hand focus back for arrow nav to continue. The
+// DismissableLayer wraps only the sub-level's children, not the container:
+// remounting the container on close would drop the restored focus.
+export const WelcomeSuggestionsStack: FC = () => {
+  const {
+    entries,
+    group,
+    openGroup,
+    close,
+    send,
+    moveHighlight,
+    selectCurrent,
+    currentId,
+    popoverId,
+    hasRegistry,
+  } = useWelcomeSuggestions();
+  const direction = Direction.useDirection();
+  const getStackRows = useStackCollection(undefined);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [topIdx, setTopIdx] = useState<number | null>(null);
+  const rowId = (idx: number) => `${popoverId}t${idx}`;
+
+  // Escape is cancel-and-return: the group's own row comes back highlighted
+  // with the listbox focused, so the arrows keep working after backing out.
+  const cancelClose = useCallback(() => {
+    if (group) {
+      const idx = entries.indexOf(group);
+      if (idx !== -1) setTopIdx(idx);
+      listRef.current?.focus({ preventScroll: true });
+    }
+    close({ restoreDraft: true });
+  }, [group, entries, close]);
+
+  useComposerCoupling(cancelClose);
+
+  useEffect(() => {
+    if (group) setTopIdx(null);
+  }, [group]);
+
+  useEffect(() => {
+    if (group && !hasRegistry) listRef.current?.focus();
+  }, [group, hasRegistry]);
+
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (group) {
+      if (hasRegistry) return;
+      if (e.key === "ArrowDown") {
+        moveHighlight(1);
+        e.preventDefault();
+      } else if (e.key === "ArrowUp") {
+        moveHighlight(-1);
+        e.preventDefault();
+      } else if (e.key === "Enter") {
+        selectCurrent();
+        e.preventDefault();
+      } else if (e.key === "Tab") {
+        close();
+      }
+      return;
+    }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      const last = entries.length - 1;
+      setTopIdx((idx) =>
+        idx === null
+          ? e.key === "ArrowDown"
+            ? 0
+            : last
+          : e.key === "ArrowDown"
+            ? idx >= last
+              ? 0
+              : idx + 1
+            : idx <= 0
+              ? last
+              : idx - 1,
+      );
+      e.preventDefault();
+      return;
+    }
+    const openKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
+    if (e.key !== openKey && e.key !== "Enter") return;
+    if (topIdx === null) return;
+    const entry = entries[topIdx];
+    if (!entry) return;
+    if (isGroup(entry)) {
+      openGroup(entry);
+      e.preventDefault();
+    } else if (e.key === "Enter") {
+      getStackRows()[topIdx]?.ref.current?.click();
+      e.preventDefault();
+    }
+  };
+
+  // Rows never take DOM focus (mousedown is prevented, tabIndex -1): the
+  // container is the only tab stop and the highlight is the only indicator.
+  const rowProps = (idx: number) => ({
+    id: rowId(idx),
+    "data-slot": "aui_thread-welcome-stack-row",
+    role: "option",
+    "aria-selected": topIdx === idx,
+    "data-highlighted": topIdx === idx || undefined,
+    tabIndex: -1,
+    onMouseDown: (e: ReactMouseEvent) => e.preventDefault(),
+    onMouseMove: () => setTopIdx(idx),
+  });
+
+  return (
+    <div
+      ref={listRef}
+      id={popoverId}
+      role="listbox"
+      aria-label={group ? group.label : "Suggestions"}
+      aria-activedescendant={
+        group
+          ? (currentId ?? undefined)
+          : topIdx !== null
+            ? rowId(topIdx)
+            : undefined
+      }
+      tabIndex={group ? -1 : 0}
+      onKeyDown={onKeyDown}
+      onFocus={() => {
+        if (!group) setTopIdx((idx) => idx ?? 0);
+      }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setTopIdx(null);
+      }}
+      onMouseLeave={() => {
+        if (!group && document.activeElement !== listRef.current)
+          setTopIdx(null);
+      }}
+      data-slot="aui_thread-welcome-stack"
+      className="flex w-full flex-col outline-none"
+    >
+      {group ? (
+        <DismissableLayerPrimitive.Root
+          asChild
+          onEscapeKeyDown={() => cancelClose()}
+          onFocusOutside={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => {
+            const target = e.detail.originalEvent.target as Element | null;
+            if (target?.closest('[data-slot*="composer"]')) e.preventDefault();
+          }}
+          onDismiss={() => close()}
+        >
+          <PickerCollection.Slot scope={undefined}>
+            <div
+              key={group.label}
+              role="presentation"
+              className="fade-in animate-in flex w-full flex-col duration-150"
+            >
+              {group.suggestions.map((item, idx) => (
+                <WelcomeSuggestionsPickerItem
+                  key={idx}
+                  prompt={promptOf(item)}
+                  label={item.label}
+                />
+              ))}
+            </div>
+          </PickerCollection.Slot>
+        </DismissableLayerPrimitive.Root>
+      ) : (
+        <StackCollection.Slot scope={undefined}>
+          <div
+            role="presentation"
+            className="fade-in animate-in flex w-full flex-col duration-150"
+          >
+            {entries.map((entry, idx) => (
+              <StackCollection.ItemSlot key={idx} scope={undefined}>
+                {isGroup(entry) ? (
+                  <button
+                    type="button"
+                    {...rowProps(idx)}
+                    className={cn(pickerItemClass, "group")}
+                    onClick={() => openGroup(entry)}
+                  >
+                    {entry.icon}
+                    {entry.label}
+                    <ChevronRightIcon className="text-muted-foreground/30 group-data-[highlighted]:text-muted-foreground/70 ml-auto size-4 transition-colors" />
+                  </button>
+                ) : (
+                  <ThreadPrimitive.Suggestion
+                    prompt={promptOf(entry)}
+                    send={send}
+                    {...rowProps(idx)}
+                    className={cn(pickerItemClass)}
+                  >
+                    {entry.label}
+                  </ThreadPrimitive.Suggestion>
+                )}
+              </StackCollection.ItemSlot>
+            ))}
+          </div>
+        </StackCollection.Slot>
+      )}
+    </div>
+  );
+};
+
 const WelcomeSuggestionsContent: FC = () => {
   const { entries } = useWelcomeSuggestions();
   if (entries.some(isGroup)) {
@@ -576,13 +801,8 @@ const WelcomeSuggestionsContent: FC = () => {
 export const ThreadWelcomeSuggestions: FC<{
   suggestions?: readonly SuggestionEntry[] | undefined;
   send?: boolean | undefined;
-  defaultOpen?: string | undefined;
-}> = ({ suggestions, send, defaultOpen }) => (
-  <WelcomeSuggestionsRoot
-    suggestions={suggestions}
-    send={send}
-    defaultOpen={defaultOpen}
-  >
+}> = ({ suggestions, send }) => (
+  <WelcomeSuggestionsRoot suggestions={suggestions} send={send}>
     <WelcomeSuggestionsContent />
   </WelcomeSuggestionsRoot>
 );
