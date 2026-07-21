@@ -768,9 +768,11 @@ import { ActionBarPrimitive } from "@assistant-ui/react-ink";
 Pressable that copies the message content. Pass a platform clipboard writer through `copyToClipboard`. Supports function-as-children for copy state feedback.
 
 ```tsx
+import clipboard from "clipboardy";
+
 <ActionBarPrimitive.Copy
   copiedDuration={3000}
-  copyToClipboard={copyToClipboard}
+  copyToClipboard={clipboard.write}
 >
   {({ isCopied }) => <Text>{isCopied ? "[Copied!]" : "[Copy]"}</Text>}
 </ActionBarPrimitive.Copy>
@@ -779,7 +781,7 @@ Pressable that copies the message content. Pass a platform clipboard writer thro
 | Prop | Type | Description |
 |------|------|-------------|
 | `copiedDuration` | `number` | Duration in ms to show "copied" state (default: 3000) |
-| `copyToClipboard` | `(text: string) => void` | Platform clipboard writer |
+| `copyToClipboard` | `(text: string) => void \| Promise<void>` | Platform clipboard writer |
 
 ### Edit
 

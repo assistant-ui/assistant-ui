@@ -47,11 +47,12 @@ afterEach(() => {
 
 describe("useActionBarCopy", () => {
   it("does not report copy success without a clipboard handler", async () => {
-    const { copy } = useActionBarCopy();
+    const { copy, disabled } = useActionBarCopy();
 
     copy();
     await Promise.resolve();
 
+    expect(disabled).toBe(true);
     expect(mocks.setIsCopied).not.toHaveBeenCalled();
   });
 

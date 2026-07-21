@@ -39,5 +39,5 @@ export const useActionBarCopy = ({
     );
   }, [aui, isEditing, composerValue, copiedDuration, copyToClipboard]);
 
-  return { copy, disabled, isCopied };
+  return { copy, disabled: disabled || !copyToClipboard, isCopied };
 };

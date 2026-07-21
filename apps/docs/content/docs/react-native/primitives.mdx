@@ -544,6 +544,12 @@ import { ActionBarPrimitive } from "@assistant-ui/react-native";
 `Pressable` that copies the message content. Pass a platform clipboard writer through `copyToClipboard`. Supports function-as-children for copy state feedback.
 
 ```tsx
+import * as Clipboard from "expo-clipboard";
+
+const copyToClipboard = async (text: string) => {
+  await Clipboard.setStringAsync(text);
+};
+
 <ActionBarPrimitive.Copy
   copiedDuration={3000}
   copyToClipboard={copyToClipboard}
@@ -555,7 +561,7 @@ import { ActionBarPrimitive } from "@assistant-ui/react-native";
 | Prop | Type | Description |
 |------|------|-------------|
 | `copiedDuration` | `number` | Duration in ms to show "copied" state (default: 3000) |
-| `copyToClipboard` | `(text: string) => void` | Platform clipboard writer |
+| `copyToClipboard` | `(text: string) => void \| Promise<void>` | Platform clipboard writer |
 
 ### ActionBarPrimitive.Edit
 
