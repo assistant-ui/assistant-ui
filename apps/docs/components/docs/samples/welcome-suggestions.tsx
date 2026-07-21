@@ -5,10 +5,15 @@ import {
   ArrowUpIcon,
   ChartColumnIcon,
   CloudSunIcon,
+  CodeIcon,
   PencilLineIcon,
 } from "lucide-react";
+import { useEffect } from "react";
 import {
-  ThreadWelcomeSuggestions,
+  useWelcomeSuggestions,
+  WelcomeSuggestionsPicker,
+  WelcomeSuggestionsPills,
+  WelcomeSuggestionsRoot,
   type SuggestionEntry,
 } from "@/components/assistant-ui/welcome-suggestions";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
@@ -25,6 +30,7 @@ const SUGGESTIONS: SuggestionEntry[] = [
       },
       { label: "in Singapore", prompt: "What's the weather in Singapore?" },
       { label: "in Tokyo", prompt: "What's the weather in Tokyo?" },
+      { label: "this weekend", prompt: "Will it rain this weekend?" },
     ],
   },
   {
@@ -40,6 +46,11 @@ const SUGGESTIONS: SuggestionEntry[] = [
         prompt:
           "Write release notes for a bugfix release of a React component library",
       },
+      {
+        label: "A pull request description",
+        prompt:
+          "Write a pull request description for a change that adds keyboard navigation to a menu",
+      },
     ],
   },
   {
@@ -54,9 +65,43 @@ const SUGGESTIONS: SuggestionEntry[] = [
         label: "Pros and cons of SSR",
         prompt: "What are the pros and cons of server-side rendering?",
       },
+      {
+        label: "Monorepo tradeoffs",
+        prompt: "When is a monorepo the wrong choice?",
+      },
+    ],
+  },
+  {
+    label: "Code",
+    icon: <CodeIcon />,
+    suggestions: [
+      {
+        label: "A debounce hook",
+        prompt: "Write a useDebounce React hook in TypeScript",
+      },
+      {
+        label: "Type a fetch wrapper",
+        prompt: "Write a typed fetch wrapper with error handling",
+      },
+      {
+        label: "Explain a regex",
+        prompt: "Explain what this regex does: ^(?=.*\\d)(?=.*[a-z]).{8,}$",
+      },
     ],
   },
 ];
+
+const PreviewFirstItem = () => {
+  const { moveHighlight } = useWelcomeSuggestions();
+  // Deferred: child effects run before the state hook's typing-detection
+  // effect, which would read the still-empty composer against the ref
+  // moveHighlight sets as a user edit and close the picker.
+  useEffect(() => {
+    const timer = setTimeout(() => moveHighlight(1), 0);
+    return () => clearTimeout(timer);
+  }, [moveHighlight]);
+  return null;
+};
 
 export const WelcomeSuggestionsSample = () => {
   return (
@@ -78,8 +123,12 @@ export const WelcomeSuggestionsSample = () => {
               </ComposerPrimitive.Send>
             </div>
           </ComposerPrimitive.Root>
-          <div className="min-h-40">
-            <ThreadWelcomeSuggestions suggestions={SUGGESTIONS} />
+          <div className="min-h-56">
+            <WelcomeSuggestionsRoot suggestions={SUGGESTIONS} defaultOpen="Weather">
+              <WelcomeSuggestionsPills />
+              <WelcomeSuggestionsPicker />
+              <PreviewFirstItem />
+            </WelcomeSuggestionsRoot>
           </div>
         </div>
       </SampleRuntimeProvider>

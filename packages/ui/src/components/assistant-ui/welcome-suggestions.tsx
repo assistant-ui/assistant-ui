@@ -92,13 +92,12 @@ type WelcomeSuggestionsContextValue = {
   entries: readonly SuggestionEntry[];
   group: SuggestionGroup | undefined;
   openGroup: (group: SuggestionGroup) => void;
-  close: () => void;
+  close: (options?: { restoreDraft?: boolean }) => void;
   moveHighlight: (delta: 1 | -1) => void;
   selectCurrent: () => void;
   currentId: string | null;
   setCurrentId: (id: string | null) => void;
   send: boolean;
-  clearComposer: boolean;
   popoverId: string;
   hasRegistry: boolean;
 };
@@ -119,9 +118,11 @@ export function useWelcomeSuggestions(): WelcomeSuggestionsContextValue {
 const useWelcomeSuggestionsState = ({
   suggestions,
   send,
+  defaultOpen,
 }: {
   suggestions: readonly SuggestionEntry[] | undefined;
   send: boolean;
+  defaultOpen: string | undefined;
 }) => {
   const aui = useAui();
   const registry = unstable_useComposerInputPluginRegistry();
@@ -135,25 +136,12 @@ const useWelcomeSuggestionsState = ({
     [suggestions, staticSuggestions],
   );
 
-  // Prompts across all entries. Composer text equal to one of them is
-  // picker-owned: navigation may overwrite it, a user draft it may not.
-  const knownPrompts = useMemo(() => {
-    const prompts = new Set<string>();
-    for (const entry of entries) {
-      if (isGroup(entry)) {
-        for (const item of entry.suggestions) prompts.add(promptOf(item));
-      } else {
-        prompts.add(promptOf(entry));
-      }
-    }
-    return prompts;
-  }, [entries]);
-  const knownPromptsRef = useRef(knownPrompts);
-  knownPromptsRef.current = knownPrompts;
-
-  const [openLabel, setOpenLabel] = useState<string | null>(null);
+  const [openLabel, setOpenLabel] = useState<string | null>(
+    defaultOpen ?? null,
+  );
   const [currentId, setCurrentId] = useState<string | null>(null);
   const expectedTextRef = useRef("");
+  const draftRef = useRef("");
   const currentIdRef = useRef(currentId);
   currentIdRef.current = currentId;
 
@@ -161,20 +149,24 @@ const useWelcomeSuggestionsState = ({
     (e): e is SuggestionGroup => isGroup(e) && e.label === openLabel,
   );
 
-  const userDraft = composerText !== "" && !knownPrompts.has(composerText);
-  const clearComposer = !(send && userDraft);
-
-  const close = useCallback(() => {
-    setOpenLabel(null);
-    setCurrentId(null);
-  }, []);
+  // Escape is cancel: it puts back the draft captured at open time. Tab and
+  // selection keep whatever the picker wrote.
+  const close = useCallback(
+    (options?: { restoreDraft?: boolean }) => {
+      setOpenLabel(null);
+      setCurrentId(null);
+      if (options?.restoreDraft) aui.composer().setText(draftRef.current);
+    },
+    [aui],
+  );
 
   const openGroup = useCallback(
     (g: SuggestionGroup) => {
       setOpenLabel(g.label);
       setCurrentId(null);
       currentIdRef.current = null;
-      expectedTextRef.current = aui.composer().getState().text;
+      draftRef.current = aui.composer().getState().text;
+      expectedTextRef.current = draftRef.current;
       registry?.requestFocus();
     },
     [aui, registry],
@@ -208,11 +200,10 @@ const useWelcomeSuggestionsState = ({
       setCurrentId(next.id);
       const prompt = pickerPrompts.get(next.id);
       if (prompt === undefined) return;
-      const text = aui.composer().getState().text;
-      if (text === "" || knownPromptsRef.current.has(text)) {
-        expectedTextRef.current = prompt;
-        aui.composer().setText(prompt);
-      }
+      // Overwriting is safe while open: typing closes the panel, so the
+      // composer only holds the open-time draft or a previous preview.
+      expectedTextRef.current = prompt;
+      aui.composer().setText(prompt);
     },
     [aui, popoverId, pickerPrompts],
   );
@@ -246,7 +237,7 @@ const useWelcomeSuggestionsState = ({
           return true;
         }
         if (e.key === "Escape") {
-          close();
+          close({ restoreDraft: true });
           return true;
         }
         if (e.key === "Tab") {
@@ -283,7 +274,6 @@ const useWelcomeSuggestionsState = ({
       currentId,
       setCurrentId,
       send,
-      clearComposer,
       popoverId,
       hasRegistry: registry !== null,
     }),
@@ -296,7 +286,6 @@ const useWelcomeSuggestionsState = ({
       selectCurrent,
       currentId,
       send,
-      clearComposer,
       popoverId,
       registry,
     ],
@@ -306,9 +295,14 @@ const useWelcomeSuggestionsState = ({
 const WelcomeSuggestionsState: FC<{
   suggestions: readonly SuggestionEntry[] | undefined;
   send: boolean;
+  defaultOpen: string | undefined;
   children: ReactNode;
-}> = ({ suggestions, send, children }) => {
-  const value = useWelcomeSuggestionsState({ suggestions, send });
+}> = ({ suggestions, send, defaultOpen, children }) => {
+  const value = useWelcomeSuggestionsState({
+    suggestions,
+    send,
+    defaultOpen,
+  });
 
   if (value.entries.length === 0) return null;
 
@@ -324,12 +318,17 @@ const WelcomeSuggestionsState: FC<{
 export const WelcomeSuggestionsRoot: FC<{
   suggestions?: readonly SuggestionEntry[] | undefined;
   send?: boolean | undefined;
+  defaultOpen?: string | undefined;
   children: ReactNode;
-}> = ({ suggestions, send = true, children }) => {
+}> = ({ suggestions, send = true, defaultOpen, children }) => {
   const [prompts] = useState(() => new Map<string, string>());
   return (
     <PickerPromptsContext.Provider value={prompts}>
-      <WelcomeSuggestionsState suggestions={suggestions} send={send}>
+      <WelcomeSuggestionsState
+        suggestions={suggestions}
+        send={send}
+        defaultOpen={defaultOpen}
+      >
         {children}
       </WelcomeSuggestionsState>
     </PickerPromptsContext.Provider>
@@ -337,8 +336,7 @@ export const WelcomeSuggestionsRoot: FC<{
 };
 
 export const WelcomeSuggestionsPills: FC = () => {
-  const { entries, group, openGroup, send, clearComposer } =
-    useWelcomeSuggestions();
+  const { entries, group, openGroup, send } = useWelcomeSuggestions();
   const direction = useDirection();
   const pillsRef = useRef<HTMLDivElement>(null);
 
@@ -393,7 +391,6 @@ export const WelcomeSuggestionsPills: FC = () => {
               key={idx}
               prompt={promptOf(entry)}
               send={send}
-              clearComposer={clearComposer}
               className={cn(pillClass)}
               onKeyDown={(e) => onPillKeyDown(e, entry)}
             >
@@ -407,7 +404,7 @@ export const WelcomeSuggestionsPills: FC = () => {
 };
 
 export const WelcomeSuggestionsList: FC = () => {
-  const { entries, send, clearComposer } = useWelcomeSuggestions();
+  const { entries, send } = useWelcomeSuggestions();
   const listRef = useRef<HTMLDivElement>(null);
   const items = entries.filter((e): e is SuggestionItem => !isGroup(e));
 
@@ -434,7 +431,6 @@ export const WelcomeSuggestionsList: FC = () => {
           key={idx}
           prompt={promptOf(item)}
           send={send}
-          clearComposer={clearComposer}
           className={cn(pickerItemClass)}
           onKeyDown={onItemKeyDown}
         >
@@ -457,8 +453,7 @@ export const WelcomeSuggestionsPickerItem: FC<
   WelcomeSuggestionsPickerItemProps
 > = ({ prompt, label, children, className, ...props }) => {
   const id = useId();
-  const { currentId, setCurrentId, close, send, clearComposer } =
-    useWelcomeSuggestions();
+  const { currentId, setCurrentId, close, send } = useWelcomeSuggestions();
   const prompts = usePickerPrompts();
   const highlighted = currentId === id;
 
@@ -474,11 +469,10 @@ export const WelcomeSuggestionsPickerItem: FC<
       id={id}
       prompt={prompt}
       send={send}
-      clearComposer={clearComposer}
       role="option"
       aria-selected={highlighted}
       data-highlighted={highlighted || undefined}
-      onClick={close}
+      onClick={() => close()}
       onMouseMove={() => setCurrentId(id)}
       className={cn(pickerItemClass, className)}
       {...props}
@@ -520,7 +514,7 @@ export const WelcomeSuggestionsPicker: FC<{ children?: ReactNode }> = ({
       close();
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") close({ restoreDraft: true });
     };
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -560,7 +554,7 @@ export const WelcomeSuggestionsPicker: FC<{ children?: ReactNode }> = ({
         <button
           type="button"
           aria-label="Close suggestions"
-          onClick={close}
+          onClick={() => close({ restoreDraft: true })}
           className="hover:text-foreground rounded-md p-0.5 transition-colors"
         >
           <XIcon className="size-3.5" />
@@ -605,8 +599,13 @@ const WelcomeSuggestionsContent: FC = () => {
 export const ThreadWelcomeSuggestions: FC<{
   suggestions?: readonly SuggestionEntry[] | undefined;
   send?: boolean | undefined;
-}> = ({ suggestions, send }) => (
-  <WelcomeSuggestionsRoot suggestions={suggestions} send={send}>
+  defaultOpen?: string | undefined;
+}> = ({ suggestions, send, defaultOpen }) => (
+  <WelcomeSuggestionsRoot
+    suggestions={suggestions}
+    send={send}
+    defaultOpen={defaultOpen}
+  >
     <WelcomeSuggestionsContent />
   </WelcomeSuggestionsRoot>
 );

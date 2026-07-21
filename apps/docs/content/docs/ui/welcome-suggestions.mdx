@@ -79,13 +79,13 @@ While a group panel is open, the composer keeps focus and drives the panel:
 
 | Key                          | Action                                                                   |
 | ---------------------------- | ------------------------------------------------------------------------ |
-| <kbd>↑</kbd> / <kbd>↓</kbd>  | Move the highlight; live-preview the prompt in an empty composer          |
+| <kbd>↑</kbd> / <kbd>↓</kbd>  | Move the highlight and live-preview the prompt in the composer            |
 | <kbd>Enter</kbd>             | Select the highlighted item (plain composer submit when nothing is highlighted) |
-| <kbd>Esc</kbd>               | Close the panel                                                           |
+| <kbd>Esc</kbd>               | Close the panel and restore the composer text from before it opened       |
 | <kbd>Tab</kbd>               | Close the panel and move focus on; the previewed prompt stays in the composer |
 | Characters                   | Type into the composer; the panel dismisses                               |
 
-Navigation never destroys user text: the preview only writes over an empty composer or text the picker wrote itself. A draft you typed stays untouched while you browse, and sending a highlighted suggestion over a draft preserves the draft.
+Previewing writes over the composer, but a draft is never silently lost: <kbd>Esc</kbd> (or the close button) is cancel and puts the pre-open draft back, while <kbd>Tab</kbd> and selection accept what the picker wrote.
 
 In the pill row, pills are tab stops: <kbd>←</kbd>/<kbd>→</kbd> move focus and <kbd>↓</kbd> or <kbd>Enter</kbd> opens a group. In the flat list, items are tab stops navigated with <kbd>↑</kbd>/<kbd>↓</kbd>.
 
@@ -93,6 +93,7 @@ In the pill row, pills are tab stops: <kbd>←</kbd>/<kbd>→</kbd> move focus a
 
 - `suggestions` — the entries to render; falls back to the static `Suggestions(...)` scope. Pass the prop for grouped entries.
 - `send` — default `true`. Whether selecting an item sends the prompt immediately or places it in the composer.
+- `defaultOpen` — label of a group to render open initially. Useful for previews; omit for the normal closed pill row.
 
 ## Custom composition
 
