@@ -15,6 +15,29 @@ import {
 import { useComposerSend } from "./ComposerSend";
 import { ComposerCompactContext } from "./ComposerCompactContext";
 
+const CONTENT_EDITABLE_SELECTOR =
+  "[contenteditable]:not([contenteditable='false'])";
+
+const COMPOSER_INPUT_SELECTOR = `textarea, ${CONTENT_EDITABLE_SELECTOR}`;
+
+// Keeps tabindex="-1": roving-tabindex widgets click-focus items at -1.
+const INTERACTIVE_ELEMENT_SELECTOR = [
+  "a",
+  "audio[controls]",
+  "button",
+  "details",
+  "embed",
+  "iframe",
+  "input",
+  "label",
+  "select",
+  "summary",
+  "textarea",
+  "video[controls]",
+  CONTENT_EDITABLE_SELECTOR,
+  "[tabindex]",
+].join(", ");
+
 export namespace ComposerPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.form>;
   /**
@@ -41,13 +64,10 @@ export namespace ComposerPrimitiveRoot {
  * is submitted (e.g., via Enter key or submit button). It automatically prevents the
  * default form submission and triggers the composer's send functionality.
  *
- * Clicking blank space inside the form focuses the composer input (the first
- * textarea or contenteditable element), so the whole composer surface acts as a
- * click target. Interactive children (buttons, links, inputs, menu items) keep
- * their own behavior. Because focusing happens on mousedown, text selection
- * cannot start from non-interactive areas inside the form; consumers rendering
- * selectable content there should opt out by calling `preventDefault()` in
- * their own `onMouseDown` handler.
+ * Clicking blank form space focuses the composer input (the first textarea or
+ * contenteditable inside the form). Text selection cannot start from blank
+ * areas; descendants that need native mousedown defaults can call
+ * `stopPropagation()` in their own `onMouseDown`.
  *
  * @example
  * ```tsx
@@ -85,14 +105,9 @@ export const ComposerPrimitiveRoot = forwardRef<
 
   const handleMouseDown = (e: MouseEvent<HTMLFormElement>) => {
     if (e.button !== 0) return;
-    if (
-      (e.target as HTMLElement).closest(
-        "button, a, input, textarea, select, label, [contenteditable]:not([contenteditable='false']), [role='button'], [role='menuitem'], [role='combobox'], [role='option']",
-      )
-    )
-      return;
+    if ((e.target as Element).closest(INTERACTIVE_ELEMENT_SELECTOR)) return;
     const input = e.currentTarget.querySelector<HTMLElement>(
-      "textarea, [contenteditable]:not([contenteditable='false'])",
+      COMPOSER_INPUT_SELECTOR,
     );
     if (!input) return;
     e.preventDefault();

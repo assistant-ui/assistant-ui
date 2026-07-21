@@ -62,16 +62,22 @@ describe("ComposerPrimitiveRoot click-to-focus", () => {
     resetStoreState();
   });
 
-  it("focuses the textarea when primary-button mousedown starts on blank form space", () => {
+  const setupComposer = (props?: ComposerPrimitiveRoot.Props) => {
     const { getByTestId } = render(
-      <ComposerPrimitiveRoot>
+      <ComposerPrimitiveRoot {...props}>
         <div data-testid="blank-space">
           <textarea data-testid="composer-input" />
         </div>
       </ComposerPrimitiveRoot>,
     );
-    const blankSpace = getByTestId("blank-space");
-    const textarea = getByTestId("composer-input");
+    return {
+      blankSpace: getByTestId("blank-space"),
+      textarea: getByTestId("composer-input"),
+    };
+  };
+
+  it("focuses the textarea when primary-button mousedown starts on blank form space", () => {
+    const { blankSpace, textarea } = setupComposer();
 
     fireEvent.mouseDown(blankSpace, { button: 0 });
 
@@ -87,27 +93,55 @@ describe("ComposerPrimitiveRoot click-to-focus", () => {
         <textarea data-testid="composer-input" />
       </ComposerPrimitiveRoot>,
     );
-    const button = getByTestId("interactive-child");
-    const textarea = getByTestId("composer-input");
 
-    fireEvent.mouseDown(button, { button: 0 });
+    const notPrevented = fireEvent.mouseDown(getByTestId("interactive-child"), {
+      button: 0,
+    });
 
-    expect(document.activeElement).not.toBe(textarea);
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(getByTestId("composer-input"));
+  });
+
+  it("does not steal focus from a role-based widget carrying a tabindex", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <div role="slider" tabIndex={0} data-testid="widget" />
+        <textarea data-testid="composer-input" />
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("widget"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(getByTestId("composer-input"));
+  });
+
+  it("does not steal focus from a roving-tabindex child with tabindex=-1", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <span tabIndex={-1} data-testid="roving-item">
+          Item
+        </span>
+        <textarea data-testid="composer-input" />
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("roving-item"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(getByTestId("composer-input"));
   });
 
   it("does not move focus to the textarea on non-primary mousedown", () => {
-    const { getByTestId } = render(
-      <ComposerPrimitiveRoot>
-        <div data-testid="blank-space">
-          <textarea data-testid="composer-input" />
-        </div>
-      </ComposerPrimitiveRoot>,
-    );
-    const blankSpace = getByTestId("blank-space");
-    const textarea = getByTestId("composer-input");
+    const { blankSpace, textarea } = setupComposer();
 
-    fireEvent.mouseDown(blankSpace, { button: 2 });
+    const notPrevented = fireEvent.mouseDown(blankSpace, { button: 2 });
 
+    expect(notPrevented).toBe(true);
     expect(document.activeElement).not.toBe(textarea);
   });
 
@@ -119,27 +153,49 @@ describe("ComposerPrimitiveRoot click-to-focus", () => {
         </div>
       </ComposerPrimitiveRoot>,
     );
-    const blankSpace = getByTestId("blank-space");
-    const composerInput = getByTestId("composer-input");
 
-    fireEvent.mouseDown(blankSpace, { button: 0 });
+    fireEvent.mouseDown(getByTestId("blank-space"), { button: 0 });
 
-    expect(document.activeElement).toBe(composerInput);
+    expect(document.activeElement).toBe(getByTestId("composer-input"));
+  });
+
+  it("keeps the mousedown default when the form contains no composer input", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <div data-testid="blank-space" />
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("blank-space"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+  });
+
+  it("lets descendants keep native mousedown defaults via stopPropagation", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <div data-testid="selectable" onMouseDown={(e) => e.stopPropagation()}>
+          Selectable content
+        </div>
+        <textarea data-testid="composer-input" />
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("selectable"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(getByTestId("composer-input"));
   });
 
   it("lets consumer onMouseDown prevent the default focus behavior", () => {
     const onMouseDown = vi.fn((event: MouseEvent<HTMLFormElement>) => {
       event.preventDefault();
     });
-    const { getByTestId } = render(
-      <ComposerPrimitiveRoot onMouseDown={onMouseDown}>
-        <div data-testid="blank-space">
-          <textarea data-testid="composer-input" />
-        </div>
-      </ComposerPrimitiveRoot>,
-    );
-    const blankSpace = getByTestId("blank-space");
-    const textarea = getByTestId("composer-input");
+    const { blankSpace, textarea } = setupComposer({ onMouseDown });
 
     fireEvent.mouseDown(blankSpace, { button: 0 });
 
@@ -149,15 +205,7 @@ describe("ComposerPrimitiveRoot click-to-focus", () => {
 
   it("runs consumer onMouseDown and preserves default focus behavior when it does not prevent default", () => {
     const onMouseDown = vi.fn();
-    const { getByTestId } = render(
-      <ComposerPrimitiveRoot onMouseDown={onMouseDown}>
-        <div data-testid="blank-space">
-          <textarea data-testid="composer-input" />
-        </div>
-      </ComposerPrimitiveRoot>,
-    );
-    const blankSpace = getByTestId("blank-space");
-    const textarea = getByTestId("composer-input");
+    const { blankSpace, textarea } = setupComposer({ onMouseDown });
 
     fireEvent.mouseDown(blankSpace, { button: 0 });
 
