@@ -158,6 +158,25 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
   });
 });
 
+describe("LocalThreadRuntimeCore state", () => {
+  it.each([
+    ["false", false],
+    ["zero", 0],
+    ["an empty string", ""],
+  ])("preserves %s model state", async (_label, state) => {
+    const thread = createThread({
+      async run() {
+        return { metadata: { unstable_state: state } };
+      },
+    });
+
+    await thread.append(userMessage("update state"));
+    await flush();
+
+    expect(thread.messages.at(-1)?.metadata.unstable_state).toBe(state);
+  });
+});
+
 describe("LocalThreadRuntimeCore tool approvals", () => {
   it("pauses the run while an approval is pending, even for unlisted tools", async () => {
     const { thread, runs } = createApprovalThread(
