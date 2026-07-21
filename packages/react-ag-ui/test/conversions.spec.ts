@@ -106,7 +106,7 @@ describe("adapter conversions", () => {
     });
   });
 
-  it("uses modelContent text for completed tool messages", () => {
+  it("does not serialize Host-only data when modelContent is empty", () => {
     const result = toAgUiMessages([
       {
         id: "assistant-1",
@@ -125,7 +125,7 @@ describe("adapter conversions", () => {
               structuredContent: { ok: true },
               isError: false,
             },
-            modelContent: [{ type: "text", text: "joined text" }],
+            modelContent: [],
           },
         ],
       },
@@ -134,7 +134,7 @@ describe("adapter conversions", () => {
     expect(result[1]).toMatchObject({
       role: "tool",
       toolCallId: "call-42",
-      content: "joined text",
+      content: "",
     });
   });
 
@@ -164,7 +164,10 @@ describe("adapter conversions", () => {
         id: "msg-3",
         role: "tool",
         tool_call_id: "call-1",
-        content: '{"temperature":"22C"}',
+        content: [{ type: "text", text: "Map ready" }],
+        structuredContent: { temperature: "22C" },
+        _meta: { audience: "widget" },
+        isError: true,
       },
     ] as any);
 
@@ -178,7 +181,14 @@ describe("adapter conversions", () => {
       toolCallId: "call-1",
       toolName: "get_weather",
       argsText: '{"city":"Paris"}',
-      result: { temperature: "22C" },
+      result: {
+        content: [{ type: "text", text: "Map ready" }],
+        structuredContent: { temperature: "22C" },
+        _meta: { audience: "widget" },
+        isError: true,
+      },
+      modelContent: [{ type: "text", text: "Map ready" }],
+      isError: true,
     });
   });
 

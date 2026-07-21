@@ -2744,8 +2744,11 @@ describe("AGUIThreadRuntimeCore", () => {
           type: "TOOL_CALL_RESULT",
           messageId: "tool-msg-1",
           toolCallId: "call-1",
-          content: '{"answer":"yes"}',
+          content: "yes",
           role: "tool",
+          structuredContent: { answer: "yes" },
+          _meta: { auditId: "audit-1" },
+          isError: true,
         },
       });
       subscriber.onTextMessageContentEvent?.({
@@ -2779,7 +2782,14 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(toolPart).toMatchObject({
       toolCallId: "call-1",
       toolName: "ask_question",
-      result: { answer: "yes" },
+      result: {
+        content: [{ type: "text", text: "yes" }],
+        structuredContent: { answer: "yes" },
+        _meta: { auditId: "audit-1" },
+        isError: true,
+      },
+      modelContent: [{ type: "text", text: "yes" }],
+      isError: true,
       unstable_toolMessageId: "tool-msg-1",
     });
     expect(second!.content.filter((p) => p.type === "tool-call")).toHaveLength(

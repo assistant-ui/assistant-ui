@@ -1363,8 +1363,16 @@ export class AgUiThreadRuntimeCore {
         matchedToolCall = true;
         return {
           ...part,
-          result: tryParseJSON(event.content ?? "") as ReadonlyJSONValue,
-          ...(event.role === "tool" ? { isError: false } : {}),
+          result: (event.mcpResult ??
+            tryParseJSON(event.content ?? "")) as ReadonlyJSONValue,
+          ...(event.mcpResult !== undefined
+            ? { modelContent: [{ type: "text" as const, text: event.content }] }
+            : {}),
+          ...(typeof event.mcpResult?.isError === "boolean"
+            ? { isError: event.mcpResult.isError }
+            : event.role === "tool"
+              ? { isError: false }
+              : {}),
           ...(event.messageId
             ? { unstable_toolMessageId: event.messageId }
             : {}),
