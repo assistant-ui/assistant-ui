@@ -8,7 +8,6 @@ import {
   type FormEvent,
   forwardRef,
   type ComponentPropsWithoutRef,
-  type MouseEvent,
   useMemo,
   useState,
 } from "react";
@@ -41,14 +40,6 @@ export namespace ComposerPrimitiveRoot {
  * is submitted (e.g., via Enter key or submit button). It automatically prevents the
  * default form submission and triggers the composer's send functionality.
  *
- * Clicking blank space inside the form focuses the composer input (the first
- * textarea or contenteditable element), so the whole composer surface acts as a
- * click target. Interactive children (buttons, links, inputs, menu items) keep
- * their own behavior. Because focusing happens on mousedown, text selection
- * cannot start from non-interactive areas inside the form; consumers rendering
- * selectable content there should opt out by calling `preventDefault()` in
- * their own `onMouseDown` handler.
- *
  * @example
  * ```tsx
  * <ComposerPrimitive.Root>
@@ -60,7 +51,7 @@ export namespace ComposerPrimitiveRoot {
 export const ComposerPrimitiveRoot = forwardRef<
   ComposerPrimitiveRoot.Element,
   ComposerPrimitiveRoot.Props
->(({ onSubmit, onMouseDown, compact, ...rest }, forwardedRef) => {
+>(({ onSubmit, compact, ...rest }, forwardedRef) => {
   const send = useComposerSend();
 
   const [multiline, setMultiline] = useState(false);
@@ -83,22 +74,6 @@ export const ComposerPrimitiveRoot = forwardRef<
     send();
   };
 
-  const handleMouseDown = (e: MouseEvent<HTMLFormElement>) => {
-    if (e.button !== 0) return;
-    if (
-      (e.target as HTMLElement).closest(
-        "button, a, input, textarea, select, label, [contenteditable]:not([contenteditable='false']), [role='button'], [role='menuitem'], [role='combobox'], [role='option']",
-      )
-    )
-      return;
-    const input = e.currentTarget.querySelector<HTMLElement>(
-      "textarea, [contenteditable]:not([contenteditable='false'])",
-    );
-    if (!input) return;
-    e.preventDefault();
-    input.focus();
-  };
-
   return (
     <ComposerCompactContext.Provider value={compact ? compactContext : null}>
       <Primitive.form
@@ -106,7 +81,6 @@ export const ComposerPrimitiveRoot = forwardRef<
         data-compact={isCompact ? "" : undefined}
         ref={forwardedRef}
         onSubmit={composeEventHandlers(onSubmit, handleSubmit)}
-        onMouseDown={composeEventHandlers(onMouseDown, handleMouseDown)}
       />
     </ComposerCompactContext.Provider>
   );
