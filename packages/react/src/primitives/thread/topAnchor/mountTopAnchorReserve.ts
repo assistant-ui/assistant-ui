@@ -62,18 +62,18 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     const { viewport, anchor, target } = state.element;
     const clamp = state.targetConfig;
 
-    if (
-      state.turnAnchor !== "top" ||
-      !viewport ||
-      !anchor ||
-      !target ||
-      !clamp
-    ) {
+    if (state.turnAnchor !== "top" || !viewport) {
       observers.disconnect();
       if (reserve) {
         setReserveHeight(reserve, 0);
         reserve.remove();
       }
+      return;
+    }
+
+    if (!anchor || !target || !clamp) {
+      observers.disconnect();
+      if (reserve?.parentElement) reserve.parentElement.append(reserve);
       return;
     }
 
