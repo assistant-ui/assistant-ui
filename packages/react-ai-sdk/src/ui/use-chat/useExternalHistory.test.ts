@@ -305,6 +305,7 @@ describe("useExternalHistory persistence", () => {
       append,
       update,
       deleteItems,
+      formattedAdapter,
       deleteMessage: result.current.deleteMessage,
       reportTelemetry,
       load,
@@ -742,6 +743,22 @@ describe("useExternalHistory persistence", () => {
     } finally {
       releaseAppend();
     }
+  });
+
+  it("preserves the history adapter receiver during deletion", async () => {
+    const { deleteItems, formattedAdapter, deleteMessage, step } =
+      createPersistenceHarness(false);
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+      "assistant-a",
+    );
+
+    await step({ messages: [message] });
+    await deleteMessage("assistant-a");
+
+    expect(deleteItems).toHaveBeenCalledOnce();
+    expect(deleteItems.mock.contexts[0]).toBe(formattedAdapter);
   });
 
   it("reports telemetry after retrying a failed append", async () => {

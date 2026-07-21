@@ -370,7 +370,7 @@ export const useExternalHistory = <TMessage>(
 
   const deleteMessage = useCallback(
     async (messageId: string) => {
-      const deleteMessages = formatAdapter?.delete;
+      const deleteMessages = formatAdapter?.delete?.bind(formatAdapter);
       if (!deleteMessages) return;
 
       const messages = runtimeRef.current.thread.getState().messages;
