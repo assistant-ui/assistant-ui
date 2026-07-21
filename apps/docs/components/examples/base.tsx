@@ -494,7 +494,7 @@ const Composer: FC = () => {
         <ComposerPrimitive.AttachmentDropzone asChild>
           <div
             data-slot="aui_composer-shell"
-            className="data-[dragging=true]:border-ring flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border border-transparent bg-(--composer-bg) p-(--composer-padding) shadow-[0_2px_12px_rgba(0,0,0,0.04)] ring-1 ring-black/10 transition-[box-shadow] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.04),0_2px_12px_rgba(0,0,0,0.04)] focus-within:ring-black/45 hover:ring-black/15 data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))] dark:shadow-none dark:ring-white/10 dark:focus-within:shadow-none dark:focus-within:ring-white/45 dark:hover:ring-white/15"
+            className="data-[dragging=true]:border-ring focus-within:border-border dark:focus-within:border-muted-foreground/30 dark:data-[dragging=true]:border-ring flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border border-black/10 bg-(--composer-bg) p-(--composer-padding) shadow-[0_2px_12px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.04),0_2px_12px_rgba(0,0,0,0.04)] not-focus-within:hover:border-black/15 data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))] dark:border-white/10 dark:shadow-none dark:focus-within:shadow-none dark:not-focus-within:hover:border-white/15"
           >
             <ComposerQuotePreview />
             <ComposerAttachments />
@@ -567,7 +567,7 @@ const ComposerAction: FC = () => {
               type="button"
               variant="default"
               size="icon"
-              className="aui-composer-send hover:bg-primary/80 size-7 rounded-full"
+              className="aui-composer-send size-7 rounded-full"
               aria-label="Send message"
             >
               <ArrowUpIcon className="aui-composer-send-icon size-4" />
@@ -580,7 +580,7 @@ const ComposerAction: FC = () => {
               type="button"
               variant="default"
               size="icon"
-              className="aui-composer-cancel hover:bg-primary/80 size-7 rounded-full"
+              className="aui-composer-cancel size-7 rounded-full"
               aria-label="Stop generating"
             >
               <SquareIcon className="aui-composer-cancel-icon size-3.5 fill-current" />
@@ -806,7 +806,7 @@ const EditComposer: FC = () => {
       className="mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2"
     >
       <ComposerPrimitive.Unstable_TriggerPopoverRoot>
-        <ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-[85%] flex-col rounded-(--composer-radius) bg-(--composer-bg) shadow-[0_2px_12px_rgba(0,0,0,0.04)] ring-1 ring-black/10 transition-[box-shadow] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.04),0_2px_12px_rgba(0,0,0,0.04)] focus-within:ring-black/45 dark:shadow-none dark:ring-white/10 dark:focus-within:shadow-none dark:focus-within:ring-white/45">
+        <ComposerPrimitive.Root className="aui-edit-composer-root focus-within:border-border dark:focus-within:border-muted-foreground/30 ml-auto flex w-full max-w-[85%] flex-col rounded-(--composer-radius) border border-black/10 bg-(--composer-bg) shadow-[0_2px_12px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.04),0_2px_12px_rgba(0,0,0,0.04)] dark:border-white/10 dark:shadow-none dark:focus-within:shadow-none">
           <LexicalComposerInput
             directiveChip={DirectiveChip}
             autoFocus
