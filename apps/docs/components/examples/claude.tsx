@@ -31,6 +31,7 @@ import {
 import { useEffect, useState, type FC } from "react";
 import { useShallow } from "zustand/shallow";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { CloneThreadShell } from "./clone-thread-shell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,26 +45,28 @@ const messageActionButtonClassName =
 
 export const Claude: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#F0ECE0] font-serif text-[#1a1a18] dark:bg-[#2b2a27] dark:text-[#eee]">
-      <AuiIf condition={(s) => s.thread.isEmpty}>
-        <EmptyState />
-      </AuiIf>
+    <CloneThreadShell>
+      <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#F0ECE0] font-serif text-[#1a1a18] dark:bg-[#2b2a27] dark:text-[#eee]">
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <EmptyState />
+        </AuiIf>
 
-      <AuiIf condition={(s) => !s.thread.isEmpty}>
-        <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-auto px-4 pt-12">
-          <ThreadPrimitive.Messages>
-            {() => <ChatMessage />}
-          </ThreadPrimitive.Messages>
+        <AuiIf condition={(s) => !s.thread.isEmpty}>
+          <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-auto px-4 pt-12">
+            <ThreadPrimitive.Messages>
+              {() => <ChatMessage />}
+            </ThreadPrimitive.Messages>
 
-          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-[#F0ECE0]/85 to-[#F0ECE0] pt-4 pb-2 dark:via-[#2b2a27]/85 dark:to-[#2b2a27]">
-            <Composer />
-            <p className="pt-2 text-center text-xs text-[#8a8780] dark:text-[#a3a098]">
-              Claude can make mistakes. Please double-check responses.
-            </p>
-          </ThreadPrimitive.ViewportFooter>
-        </ThreadPrimitive.Viewport>
-      </AuiIf>
-    </ThreadPrimitive.Root>
+            <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-[#F0ECE0]/85 to-[#F0ECE0] pt-4 pb-2 dark:via-[#2b2a27]/85 dark:to-[#2b2a27]">
+              <Composer />
+              <p className="pt-2 text-center text-xs text-[#8a8780] dark:text-[#a3a098]">
+                Claude can make mistakes. Please double-check responses.
+              </p>
+            </ThreadPrimitive.ViewportFooter>
+          </ThreadPrimitive.Viewport>
+        </AuiIf>
+      </ThreadPrimitive.Root>
+    </CloneThreadShell>
   );
 };
 

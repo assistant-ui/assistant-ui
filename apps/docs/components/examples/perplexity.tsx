@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { CloneThreadShell } from "./clone-thread-shell";
 import {
   ActionBarPrimitive,
   AuiIf,
@@ -50,28 +51,30 @@ const messageActionClassName =
 
 export const Perplexity: FC = () => {
   return (
-    <ThreadPrimitive.Root
-      className="flex h-full flex-col bg-[#f6f2ec] text-[#1f1b17] dark:bg-[#171615] dark:text-[#f5f2ed]"
-      style={{
-        ["--thread-max-width" as string]: "40rem",
-      }}
-    >
-      <AuiIf condition={(s) => s.thread.isEmpty}>
-        <EmptyState />
-      </AuiIf>
+    <CloneThreadShell>
+      <ThreadPrimitive.Root
+        className="flex h-full flex-col bg-[#f6f2ec] text-[#1f1b17] dark:bg-[#171615] dark:text-[#f5f2ed]"
+        style={{
+          ["--thread-max-width" as string]: "40rem",
+        }}
+      >
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <EmptyState />
+        </AuiIf>
 
-      <AuiIf condition={(s) => !s.thread.isEmpty}>
-        <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-auto px-4 pt-12">
-          <ThreadPrimitive.Messages>
-            {() => <ChatMessage />}
-          </ThreadPrimitive.Messages>
+        <AuiIf condition={(s) => !s.thread.isEmpty}>
+          <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-auto px-4 pt-12">
+            <ThreadPrimitive.Messages>
+              {() => <ChatMessage />}
+            </ThreadPrimitive.Messages>
 
-          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-(--thread-max-width) bg-linear-to-b from-transparent via-[#f6f2ec]/85 to-[#f6f2ec] pt-6 pb-4 dark:via-[#171615]/85 dark:to-[#171615]">
-            <Composer placeholder="Ask a follow-up..." />
-          </ThreadPrimitive.ViewportFooter>
-        </ThreadPrimitive.Viewport>
-      </AuiIf>
-    </ThreadPrimitive.Root>
+            <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-(--thread-max-width) bg-linear-to-b from-transparent via-[#f6f2ec]/85 to-[#f6f2ec] pt-6 pb-4 dark:via-[#171615]/85 dark:to-[#171615]">
+              <Composer placeholder="Ask a follow-up..." />
+            </ThreadPrimitive.ViewportFooter>
+          </ThreadPrimitive.Viewport>
+        </AuiIf>
+      </ThreadPrimitive.Root>
+    </CloneThreadShell>
   );
 };
 
