@@ -3,6 +3,7 @@ import { createAssistantStreamController } from "./assistant-stream";
 import { ToolResponse } from "../tool/ToolResponse";
 import { toolResultStream } from "../tool/toolResultStream";
 import type { ToolCallReader } from "../tool/tool-types";
+import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 
 type Reader = ToolCallReader<Record<string, unknown>, unknown>;
 
@@ -30,7 +31,14 @@ describe("ToolCallStreamController", () => {
         async () => undefined,
       ),
     );
-    const drain = output.pipeTo(new WritableStream());
+    const chunks: AssistantStreamChunk[] = [];
+    const drain = output.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          chunks.push(chunk);
+        },
+      }),
+    );
 
     const toolCall = controller.addToolCallPart({
       toolCallId: "tool-1",
@@ -49,5 +57,11 @@ describe("ToolCallStreamController", () => {
     expect(response.isError).toBe(false);
     expect(execute).not.toHaveBeenCalled();
     await drain;
+    const results = chunks.filter((chunk) => chunk.type === "result");
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({
+      result: { source: "backend" },
+      isError: false,
+    });
   });
 });
