@@ -277,12 +277,15 @@ describe("createResumableStreamContext", () => {
   });
 
   it("continues acquisition when onAcquire throws", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const hookError = new Error("acquire observer failed");
     const store = createInMemoryResumableStreamStore();
     const ctx = createResumableStreamContext({
       store,
       onAcquire: () => {
-        throw new Error("acquire observer failed");
+        throw hookError;
       },
     });
 
@@ -290,6 +293,10 @@ describe("createResumableStreamContext", () => {
 
     expect(await collect(stream)).toBe("hello");
     expect(await ctx.status("a")).toBe("done");
+    expect(consoleError).toHaveBeenCalledWith(
+      "resumable stream onAcquire hook failed:",
+      hookError,
+    );
   });
 
   it("continues streaming when onAppend throws", async () => {
@@ -308,6 +315,31 @@ describe("createResumableStreamContext", () => {
 
     expect(await collect(stream)).toBe("hello world");
     expect(await ctx.status("a")).toBe("done");
+  });
+
+  it("continues streaming when async onAppend rejects", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const hookError = new Error("async append observer failed");
+    const store = createInMemoryResumableStreamStore();
+    const ctx = createResumableStreamContext({
+      store,
+      onAppend: async () => {
+        throw hookError;
+      },
+    });
+
+    const stream = await ctx.run("a", () => makeStringStream(["hello"]));
+
+    expect(await collect(stream)).toBe("hello");
+    expect(await ctx.status("a")).toBe("done");
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "resumable stream onAppend hook failed:",
+        hookError,
+      );
+    });
   });
 
   it("keeps successful completion when onFinalize throws", async () => {

@@ -143,7 +143,7 @@ Per-tenant prefixes also make incident response cheaper. A `SCAN MATCH aui:app:t
 
 ## Observability hooks
 
-`ResumableStreamContextOptions` exposes lifecycle hooks for structured logging, metrics, and tracing. Each hook is invoked synchronously around the underlying store call; throwing inside a hook surfaces as a producer error.
+`ResumableStreamContextOptions` exposes lifecycle hooks for structured logging, metrics, and tracing. Hook exceptions and rejected promises are reported through `console.error` without affecting stream output or stored lifecycle status.
 
 ```ts title="/lib/resumable-context.ts"
 import { createResumableStreamContext } from "assistant-stream/resumable";
@@ -170,7 +170,7 @@ export const resumableContext = createResumableStreamContext({
 });
 ```
 
-Keep hook bodies cheap. They run on the producer's hot path and any latency they add becomes streaming latency seen by the client.
+Keep synchronous hook work cheap because invocation runs on the producer's hot path. Returned promises are observed for failures but are not awaited.
 
 ## Resource limits
 

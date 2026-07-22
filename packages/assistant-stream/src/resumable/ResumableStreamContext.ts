@@ -1,4 +1,5 @@
 import { ResumableStreamError } from "./errors";
+import { withPromiseOrValue } from "../core/utils/withPromiseOrValue";
 import type {
   ResumableStreamRole,
   ResumableStreamStatus,
@@ -48,14 +49,13 @@ const invokeObservabilityHook = <TArgs extends unknown[]>(
   ...args: TArgs
 ): void => {
   if (!hook) return;
-  try {
-    hook(...args);
-  } catch (error) {
-    console.error(
-      `[assistant-ui] Resumable stream ${name} hook threw an error`,
-      error,
-    );
-  }
+  void withPromiseOrValue(
+    () => hook(...args),
+    () => {},
+    (error) => {
+      console.error(`resumable stream ${name} hook failed:`, error);
+    },
+  );
 };
 
 export function createResumableStreamContext(
