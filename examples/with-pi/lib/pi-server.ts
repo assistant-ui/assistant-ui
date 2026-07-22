@@ -18,8 +18,8 @@
  * (~/.pi/agent by default); when set, every Pi config source below points at it.
  */
 import {
-  AuthStorage,
   ModelRegistry,
+  ModelRuntime,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import {
@@ -38,10 +38,10 @@ const env = (key: string): string | undefined => {
 const workspacePath = env("PI_WORKSPACE_PATH") ?? process.cwd();
 const agentDir = env("PI_CODING_AGENT_DIR");
 
-const authStorage = AuthStorage.create(
-  agentDir ? `${agentDir}/auth.json` : undefined,
+const modelRuntime = await ModelRuntime.create(
+  agentDir ? { authPath: `${agentDir}/auth.json` } : {},
 );
-const modelRegistry = ModelRegistry.create(authStorage);
+const modelRegistry = new ModelRegistry(modelRuntime);
 const settingsManager = SettingsManager.create(workspacePath, agentDir);
 
 // Env wins; otherwise fall back to Pi's configured default (settings.json).

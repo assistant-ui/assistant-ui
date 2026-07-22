@@ -193,7 +193,11 @@ export class PiThreadSupervisor {
 
   async getAvailableModels(): Promise<PiModelInfo[]> {
     const runtime = await this.getModelRuntime();
-    await runtime.refresh();
+    try {
+      await runtime.refresh();
+    } catch {
+      // A failed availability refresh must not hide the cached catalog.
+    }
     const available = runtime.getAvailableSnapshot();
     const catalog = available.length > 0 ? available : runtime.getModels();
     return catalog.map(mapModelInfo);

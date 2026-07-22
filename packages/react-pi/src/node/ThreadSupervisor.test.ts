@@ -164,4 +164,30 @@ describe("PiThreadSupervisor", () => {
     expect(manager.appendSessionInfo).toHaveBeenCalledWith("Renamed");
     expect(sdk.createAgentSession).not.toHaveBeenCalled();
   });
+
+  it("falls back to the cached catalog when the availability refresh fails", async () => {
+    const model = {
+      provider: "anthropic",
+      id: "claude-opus-4-5",
+      name: "Claude Opus 4.5",
+    };
+    sdk.modelRuntimeCreate.mockResolvedValueOnce({
+      refresh: vi.fn(async () => {
+        throw new Error("offline");
+      }),
+      getAvailableSnapshot: vi.fn(() => []),
+      getModels: vi.fn(() => [model]),
+      getModel: vi.fn(),
+    });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    await expect(supervisor.getAvailableModels()).resolves.toEqual([
+      {
+        provider: "anthropic",
+        modelId: "claude-opus-4-5",
+        name: "Claude Opus 4.5",
+        supportsThinking: false,
+      },
+    ]);
+  });
 });
