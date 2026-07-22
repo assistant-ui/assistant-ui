@@ -34,9 +34,11 @@ type ToolCallState = {
   snapshotResultApplied: boolean;
 };
 
-const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
+export const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+export const isPlainObject = (
+  value: unknown,
+): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 
 export type RunAggregatorOptions = {
