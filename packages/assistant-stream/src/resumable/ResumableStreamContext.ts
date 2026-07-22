@@ -42,6 +42,22 @@ export interface ResumableStreamContext {
   delete(streamId: string): Promise<void>;
 }
 
+const invokeObservabilityHook = <TArgs extends unknown[]>(
+  name: string,
+  hook: ((...args: TArgs) => void) | undefined,
+  ...args: TArgs
+): void => {
+  if (!hook) return;
+  try {
+    hook(...args);
+  } catch (error) {
+    console.error(
+      `[assistant-ui] Resumable stream ${name} hook threw an error`,
+      error,
+    );
+  }
+};
+
 export function createResumableStreamContext(
   options: ResumableStreamContextOptions,
 ): ResumableStreamContext {
@@ -53,7 +69,7 @@ export function createResumableStreamContext(
   return {
     async run(streamId, makeStream) {
       const role = await store.acquire(streamId, acquireOptions);
-      onAcquire?.(streamId, role);
+      invokeObservabilityHook("onAcquire", onAcquire, streamId, role);
       if (role === "producer") {
         startProducerTask(store, streamId, makeStream, {
           waitUntil,
@@ -119,13 +135,18 @@ function startProducerTask(
         const { done, value } = await reader.read();
         if (done) break;
         await store.append(streamId, value);
-        onAppend?.(streamId, value.byteLength);
+        invokeObservabilityHook(
+          "onAppend",
+          onAppend,
+          streamId,
+          value.byteLength,
+        );
       }
       await store.finalize(streamId, "done");
-      onFinalize?.(streamId, "done");
+      invokeObservabilityHook("onFinalize", onFinalize, streamId, "done");
     } catch (err) {
       cancelled = true;
-      onError?.(streamId, err);
+      invokeObservabilityHook("onError", onError, streamId, err);
       const message = err instanceof Error ? err.message : String(err);
       try {
         await reader?.cancel(err);
@@ -134,7 +155,13 @@ function startProducerTask(
       }
       try {
         await store.finalize(streamId, "error", message);
-        onFinalize?.(streamId, "error", message);
+        invokeObservabilityHook(
+          "onFinalize",
+          onFinalize,
+          streamId,
+          "error",
+          message,
+        );
       } catch (finalizeErr) {
         console.error("resumable stream finalize failed:", finalizeErr);
       }
