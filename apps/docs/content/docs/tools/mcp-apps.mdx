@@ -204,6 +204,59 @@ Your `mcp-apps/read-resource` handler reads the `ui://` resource as in the route
 
 The cleaner long-term fix is upstream: if `@ai-sdk/mcp`'s `getMCPAppToolMeta` also read `openai/outputTemplate`, then `callProviderMetadata.mcp.app` would populate automatically and this bridge would be unnecessary.
 
+## AG-UI integration
+
+With `@assistant-ui/react-ag-ui`, the backend associates an MCP App with a tool call through an `ACTIVITY_SNAPSHOT`. Include the tool call ID, the app's `ui://` resource URI, and the MCP server identity when routing across multiple servers:
+
+```json
+{
+  "type": "ACTIVITY_SNAPSHOT",
+  "activityType": "mcp-apps",
+  "content": {
+    "toolCallId": "call-1",
+    "resourceUri": "ui://maps/result.html",
+    "serverId": "maps",
+    "result": {
+      "content": [{ "type": "text", "text": "Map ready" }],
+      "structuredContent": { "center": [37.77, -122.42] },
+      "_meta": { "initialView": "street" },
+      "isError": false
+    }
+  }
+}
+```
+
+`serverId` is optional. If it is absent, the runtime accepts `serverHash` as a fallback. Older middleware may omit `toolCallId`, in which case the snapshot applies to the last resolved tool call; new integrations should include it so concurrent tool calls are correlated unambiguously.
+
+Send the normal `TOOL_CALL_RESULT` with a concise, model-visible summary:
+
+```json
+{
+  "type": "TOOL_CALL_RESULT",
+  "toolCallId": "call-1",
+  "content": "Map ready"
+}
+```
+
+The snapshot's `result` becomes the widget-visible `part.result`, while the `TOOL_CALL_RESULT.content` string is retained as `part.modelContent` for the model.
+
+Alternatively, AG-UI servers can place MCP host fields directly on `TOOL_CALL_RESULT`:
+
+```json
+{
+  "type": "TOOL_CALL_RESULT",
+  "toolCallId": "call-1",
+  "content": "Map ready",
+  "structuredContent": { "center": [37.77, -122.42] },
+  "_meta": { "initialView": "street" },
+  "isError": false
+}
+```
+
+In this form, the runtime assembles a `CallToolResult`-shaped `part.result` from `content`, `structuredContent`, `_meta`, and `isError`. An `ACTIVITY_SNAPSHOT` is still required to provide the app's `resourceUri` and optional server identity, but it does not need to repeat `result`.
+
+The visibility split follows the MCP Apps contract: `content` is model-visible; `structuredContent` and `_meta` are available only to the host and widget. When assistant-ui serializes history into a later AG-UI request, it sends the saved model-visible text and never includes `structuredContent` or `_meta`.
+
 ## Bridge protocol
 
 The bridge implements the MCP UI JSON-RPC protocol over `window.postMessage`, filtered by both `event.source === frame.iframe.contentWindow` AND `event.origin === frame.origin` — the cross-origin domain `SafeContentFrame` issues per render. Messages from any other origin or window are dropped silently.
