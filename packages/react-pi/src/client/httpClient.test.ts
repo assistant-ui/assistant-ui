@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createPiHttpClient } from "./httpClient";
 import type {
   PiAnyClientEvent,
@@ -413,5 +413,50 @@ describe("createPiHttpClient", () => {
     unsubscribe();
 
     expect(calls[0]!.url).toBe("/api/pi/threads/t1/events?snapshot=false");
+  });
+
+  it("shares cookie-authenticated streams only within one client", async () => {
+    let browserIdentity = "user-a";
+    const openedAs: string[] = [];
+    const fetchImpl = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        openedAs.push(browserIdentity);
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              init?.signal?.addEventListener(
+                "abort",
+                () => controller.close(),
+                { once: true },
+              );
+            },
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "text/event-stream" },
+          },
+        );
+      },
+    ) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetchImpl);
+
+    const unsubscribers: (() => void)[] = [];
+    try {
+      const clientA = createPiHttpClient({ streamCloseDelayMs: 0 });
+      unsubscribers.push(clientA.subscribe("t1", () => {}));
+      unsubscribers.push(clientA.subscribe("t1", () => {}));
+
+      await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+
+      browserIdentity = "user-b";
+      const clientB = createPiHttpClient({ streamCloseDelayMs: 0 });
+      unsubscribers.push(clientB.subscribe("t1", () => {}));
+
+      await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+      expect(openedAs).toEqual(["user-a", "user-b"]);
+    } finally {
+      for (const unsubscribe of unsubscribers) unsubscribe();
+      vi.unstubAllGlobals();
+    }
   });
 });

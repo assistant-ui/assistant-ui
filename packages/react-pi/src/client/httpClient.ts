@@ -45,16 +45,6 @@ type SharedStream = {
   closeTimer: ReturnType<typeof setTimeout> | undefined;
 };
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __assistantUiPiHttpStreams: Map<string, SharedStream> | undefined;
-}
-
-const getDefaultBrowserStreams = () => {
-  globalThis.__assistantUiPiHttpStreams ??= new Map<string, SharedStream>();
-  return globalThis.__assistantUiPiHttpStreams;
-};
-
 export interface PiHttpClientOptions {
   /** Base path/URL of the route layer. Default: `/api/pi`. */
   baseUrl?: string;
@@ -336,10 +326,7 @@ export const createPiHttpClient = (
     `${base}/threads/${encodeURIComponent(threadId)}`;
 
   const jsonHeaders = { "content-type": "application/json", ...headers };
-  const streams =
-    fetchImpl === globalThis.fetch && headers === undefined
-      ? getDefaultBrowserStreams()
-      : new Map<string, SharedStream>();
+  const streams = new Map<string, SharedStream>();
 
   const send = (url: string, method: string, body?: unknown) =>
     fetchImpl(url, {
