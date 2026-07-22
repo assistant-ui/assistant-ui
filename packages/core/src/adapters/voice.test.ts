@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createVoiceSession, type VoiceSessionHelpers } from "./voice";
+import {
+  createVoiceSession,
+  type VoiceSessionControls,
+  type VoiceSessionHelpers,
+} from "./voice";
 
 const createTestSession = () => {
   let helpers: VoiceSessionHelpers | undefined;
@@ -16,11 +20,59 @@ const createTestSession = () => {
   return { helpers, session };
 };
 
+const createPendingTestSession = () => {
+  let resolveControls!: (controls: VoiceSessionControls) => void;
+  const controlsPromise = new Promise<VoiceSessionControls>((resolve) => {
+    resolveControls = resolve;
+  });
+  const controls = {
+    disconnect: vi.fn(),
+    mute: vi.fn(),
+    unmute: vi.fn(),
+  };
+  const session = createVoiceSession({}, () => controlsPromise);
+
+  return {
+    controls,
+    controlsPromise,
+    resolveControls: () => resolveControls(controls),
+    session,
+  };
+};
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 describe("createVoiceSession", () => {
+  it("applies mute requested while setup is pending", async () => {
+    const { controls, controlsPromise, resolveControls, session } =
+      createPendingTestSession();
+
+    session.mute();
+
+    expect(session.isMuted).toBe(true);
+    expect(controls.mute).not.toHaveBeenCalled();
+
+    resolveControls();
+    await controlsPromise;
+
+    expect(controls.mute).toHaveBeenCalledOnce();
+  });
+
+  it("does not apply stale mute after unmuting during setup", async () => {
+    const { controls, controlsPromise, resolveControls, session } =
+      createPendingTestSession();
+
+    session.mute();
+    session.unmute();
+    resolveControls();
+    await controlsPromise;
+
+    expect(session.isMuted).toBe(false);
+    expect(controls.mute).not.toHaveBeenCalled();
+  });
+
   it("continues notifying listeners when one throws", () => {
     const listenerError = new Error("listener failed");
     const consoleError = vi
