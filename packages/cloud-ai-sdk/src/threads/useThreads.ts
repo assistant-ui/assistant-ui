@@ -33,8 +33,14 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const [threads, setThreads] = useState<CloudThread[]>([]);
   const [isLoading, setIsLoading] = useState(enabled);
+  const [previousEnabled, setPreviousEnabled] = useState(enabled);
   const [error, setError] = useState<Error | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
+
+  if (enabled !== previousEnabled) {
+    setPreviousEnabled(enabled);
+    if (enabled) setIsLoading(true);
+  }
 
   const mountedRef = useRef(true);
   const refreshRequestRef = useRef(0);
