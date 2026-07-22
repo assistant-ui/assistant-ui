@@ -58,7 +58,7 @@
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.14.11",
-    "@earendil-works/pi-coding-agent": ">=0.78.0 <0.80.8",
+    "@earendil-works/pi-coding-agent": ">=0.80.8",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -73,7 +73,7 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@earendil-works/pi-coding-agent": "^0.80.7",
+    "@earendil-works/pi-coding-agent": "^0.80.8",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "react": "^19.2.7",

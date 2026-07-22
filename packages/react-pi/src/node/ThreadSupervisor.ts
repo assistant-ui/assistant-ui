@@ -15,11 +15,10 @@
  * explicit `cancelRun` or process exit stops it.
  */
 import {
-  AuthStorage,
   type AgentSession,
   type AgentSessionEvent,
   createAgentSession,
-  ModelRegistry,
+  ModelRuntime,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import { unlink } from "node:fs/promises";
@@ -29,6 +28,7 @@ import {
   mapReadonlyMetadata,
   mapSessionEvent,
   mapSessionInfo,
+  type PiRegistryModel,
   readinessFromSessionContext,
   toPiMessages,
 } from "./mapping";
@@ -57,7 +57,7 @@ import type {
 
 /** The `model` shape `createAgentSession` accepts (a Pi `Model`), derived from
  * the SDK so the supervisor stays the only file that names it. The host resolves
- * it (e.g. env-seeded via `ModelRegistry.find`) and forwards it opaquely. */
+ * it (e.g. env-seeded via `ModelRuntime.getModel`) and forwards it opaquely. */
 type PiSessionModel = NonNullable<
   Parameters<typeof createAgentSession>[0]
 >["model"];
@@ -106,7 +106,11 @@ export class PiThreadSupervisor {
   private readonly workspacePath: string;
   private readonly agentDir: string | undefined;
   private readonly model: PiSessionModel | undefined;
-  private readonly modelRegistry: ModelRegistry;
+  /** Lazily-created Pi model/auth runtime backing the model catalog, picker, and
+   *  cold-snapshot context-window lookups. `ModelRuntime.create` is async (it
+   *  loads models.json and runs an availability refresh), so the promise is
+   *  cached and shared by every caller, keeping the supervisor constructor sync. */
+  private modelRuntimePromise: Promise<ModelRuntime> | undefined;
   private readonly archivedSessionFiles = new Set<string>();
   private readonly catalogCache = new Map<string, CatalogCacheEntry>();
   private readonly catalogInfoByThreadId = new Map<string, PiSessionInfo>();
@@ -115,11 +119,6 @@ export class PiThreadSupervisor {
     this.workspacePath = options.workspacePath ?? process.cwd();
     this.agentDir = options.agentDir;
     this.model = options.model;
-    this.modelRegistry = ModelRegistry.create(
-      AuthStorage.create(
-        options.agentDir ? `${options.agentDir}/auth.json` : undefined,
-      ),
-    );
   }
 
   // --- Catalog ---------------------------------------------------------------
@@ -193,10 +192,10 @@ export class PiThreadSupervisor {
   }
 
   async getAvailableModels(): Promise<PiModelInfo[]> {
-    this.modelRegistry.refresh();
-    const available = this.modelRegistry.getAvailable();
-    const catalog =
-      available.length > 0 ? available : this.modelRegistry.getAll();
+    const runtime = await this.getModelRuntime();
+    await runtime.refresh();
+    const available = runtime.getAvailableSnapshot();
+    const catalog = available.length > 0 ? available : runtime.getModels();
     return catalog.map(mapModelInfo);
   }
 
@@ -205,7 +204,8 @@ export class PiThreadSupervisor {
     input: { provider: string; modelId: string },
   ): Promise<void> {
     const record = await this.ensureOpen(threadId);
-    const model = this.modelRegistry.find(input.provider, input.modelId);
+    const runtime = await this.getModelRuntime();
+    const model = runtime.getModel(input.provider, input.modelId);
     if (!model) {
       throw new Error(
         `${input.provider}/${input.modelId} is not in Pi's model registry`,
@@ -346,6 +346,24 @@ export class PiThreadSupervisor {
   }
 
   // --- Internals -------------------------------------------------------------
+
+  /** The process-wide Pi model/auth runtime, created on first use and shared by
+   *  every catalog/picker/snapshot call. Passing `authPath` makes `ModelRuntime`
+   *  back the credentials at `agentDir/auth.json`, so auth orchestration lives
+   *  inside the runtime rather than an explicit credential store. A creation
+   *  failure (e.g. the async availability refresh timing out) clears the cache so
+   *  the next call retries instead of rejecting forever. */
+  private getModelRuntime(): Promise<ModelRuntime> {
+    if (!this.modelRuntimePromise) {
+      this.modelRuntimePromise = ModelRuntime.create(
+        this.agentDir ? { authPath: `${this.agentDir}/auth.json` } : undefined,
+      ).catch((error) => {
+        this.modelRuntimePromise = undefined;
+        throw error;
+      });
+    }
+    return this.modelRuntimePromise;
+  }
 
   private async openSession(
     sessionManager: SessionManager,
@@ -658,13 +676,24 @@ export class PiThreadSupervisor {
     };
   }
 
-  private snapshotFromSessionFile(info: PiSessionInfo): PiThreadSnapshot {
+  private async snapshotFromSessionFile(
+    info: PiSessionInfo,
+  ): Promise<PiThreadSnapshot> {
     const sessionManager = SessionManager.open(info.path);
     const branch = sessionManager.getBranch();
     const context = sessionManager.buildSessionContext();
-    const model = context.model
-      ? this.modelRegistry.find(context.model.provider, context.model.modelId)
-      : undefined;
+    // The model lookup only feeds `contextWindow` for context-usage estimation;
+    // a model-runtime failure (e.g. the async availability refresh timing out)
+    // must not break a cold read, so fall back to no model rather than throw.
+    let model: PiRegistryModel | undefined;
+    if (context.model) {
+      try {
+        const runtime = await this.getModelRuntime();
+        model = runtime.getModel(context.model.provider, context.model.modelId);
+      } catch {
+        model = undefined;
+      }
+    }
     const contextUsage = deriveContextUsage(
       model?.contextWindow ?? 0,
       branch,

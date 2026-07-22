@@ -3,24 +3,22 @@ import type { SessionInfo } from "@earendil-works/pi-coding-agent";
 import { PiThreadSupervisor } from "./ThreadSupervisor";
 
 const sdk = vi.hoisted(() => ({
-  authCreate: vi.fn(() => ({})),
   createAgentSession: vi.fn(),
   list: vi.fn(),
   listAll: vi.fn(),
-  modelRegistryCreate: vi.fn(() => ({
-    refresh: vi.fn(),
-    getAvailable: vi.fn(() => []),
-    getAll: vi.fn(() => []),
-    find: vi.fn(),
+  modelRuntimeCreate: vi.fn(async () => ({
+    refresh: vi.fn(async () => ({})),
+    getAvailableSnapshot: vi.fn(() => []),
+    getModels: vi.fn(() => []),
+    getModel: vi.fn(),
   })),
   open: vi.fn(),
   create: vi.fn(),
 }));
 
 vi.mock("@earendil-works/pi-coding-agent", () => ({
-  AuthStorage: { create: sdk.authCreate },
   createAgentSession: sdk.createAgentSession,
-  ModelRegistry: { create: sdk.modelRegistryCreate },
+  ModelRuntime: { create: sdk.modelRuntimeCreate },
   SessionManager: {
     create: sdk.create,
     list: sdk.list,
