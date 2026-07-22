@@ -32,7 +32,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const { cloud, includeArchived = false, enabled = true } = options;
 
   const [threads, setThreads] = useState<CloudThread[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<Error | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
 
