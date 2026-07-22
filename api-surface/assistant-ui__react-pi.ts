@@ -1511,7 +1511,7 @@ declare class PiThreadSupervisor {
   private readonly workspacePath;
   private readonly agentDir;
   private readonly model;
-  private readonly modelRegistry;
+  private modelRuntimePromise;
   private readonly archivedSessionFiles;
   private readonly catalogCache;
   private readonly catalogInfoByThreadId;
@@ -1547,6 +1547,7 @@ declare class PiThreadSupervisor {
     includeSnapshot?: boolean;
   }): () => void;
   dispose(): Promise<void>;
+  private getModelRuntime;
   private openSession;
   private ensureOpen;
   private openCold;
