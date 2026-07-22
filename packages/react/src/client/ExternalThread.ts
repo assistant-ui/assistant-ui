@@ -24,6 +24,7 @@ import type { QueueItemState } from "@assistant-ui/core/store";
 import type { ComposerSendOptions } from "@assistant-ui/core/store";
 import {
   getThreadMessageText,
+  isCreateAttachment,
   resolveToolApprovalResponse,
 } from "@assistant-ui/core/internal";
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
@@ -422,7 +423,7 @@ const useComposerClientResource = ({
     setRole,
     setRunConfig,
     addAttachment: async (fileOrAttachment: File | CreateAttachment) => {
-      if (fileOrAttachment instanceof File) {
+      if (!isCreateAttachment(fileOrAttachment)) {
         const newAttachment: Attachment = {
           id: Math.random().toString(36).substring(7),
           type: "file",

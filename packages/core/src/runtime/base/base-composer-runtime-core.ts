@@ -1,8 +1,9 @@
-import type {
-  Attachment,
-  CompleteAttachment,
-  CreateAttachment,
-  PendingAttachment,
+import {
+  isCreateAttachment,
+  type Attachment,
+  type CompleteAttachment,
+  type CreateAttachment,
+  type PendingAttachment,
 } from "../../types/attachment";
 import type { MessageRole, AppendMessage } from "../../types/message";
 import type { QuoteInfo } from "../../types/quote";
@@ -246,7 +247,7 @@ export abstract class BaseComposerRuntimeCore
   protected abstract handleCancel(): void;
 
   async addAttachment(fileOrAttachment: File | CreateAttachment) {
-    if (!(fileOrAttachment instanceof File)) {
+    if (isCreateAttachment(fileOrAttachment)) {
       const adapter = this.getAttachmentAdapter();
       if (
         adapter &&
