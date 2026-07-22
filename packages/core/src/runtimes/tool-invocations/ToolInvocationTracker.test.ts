@@ -152,63 +152,6 @@ describe("ToolInvocationTracker", () => {
     }
   });
 
-  it("delivers a backend result before a stale args parse failure after divergence", async () => {
-    const execute = vi.fn(async () => ({ source: "client" }));
-    let streamedQuery: Promise<unknown> | undefined;
-    const streamCall = vi.fn((reader) => {
-      streamedQuery = reader.args.get("query");
-    });
-    const getTools = () => ({
-      weatherSearch: {
-        parameters: { type: "object", properties: {} },
-        execute,
-        streamCall,
-      } satisfies Tool,
-    });
-    const onResult = vi.fn();
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    try {
-      const tracker = new ToolInvocationTracker(getTools, {
-        onResult,
-        onStatusesChange: () => {},
-      });
-      tracker.setState(createState([]));
-      tracker.setState(
-        createState([
-          createAssistantMessage('{"query":"London","longitude":0', {
-            query: "London",
-            longitude: 0,
-          }),
-        ]),
-      );
-
-      await waitFor(() => {
-        expect(streamCall).toHaveBeenCalledTimes(1);
-      });
-      expect(await streamedQuery).toBe("London");
-
-      tracker.setState(
-        createState([
-          createAssistantMessage(
-            '{"query":"Paris"}',
-            { query: "Paris" },
-            { result: { source: "backend" } },
-          ),
-        ]),
-      );
-
-      const [reader] = streamCall.mock.calls[0]!;
-      const response = await reader.response.get();
-      expect(response.result).toEqual({ source: "backend" });
-      expect(response.isError).toBe(false);
-      expect(execute).not.toHaveBeenCalled();
-      expect(onResult).not.toHaveBeenCalled();
-    } finally {
-      warnSpy.mockRestore();
-    }
-  });
-
   it("clears executing status under the logical toolCallId when reset() lands while execute is pending", async () => {
     // Tests the F.1 lifecycle: reset() aborts in-flight execute() invocations
     // and clears their executing status. The status key is the logical
@@ -1005,7 +948,8 @@ describe("ToolInvocationTracker", () => {
     // result replacement) and verifying streamCall fires exactly once.
     //
     // The pathological mid-stream regression case (A.2) is covered by
-    // the dedicated regression test above.
+    // the assistant-stream ordering regression test in
+    // packages/assistant-stream/src/core/modules/tool-call.test.ts.
     const streamCall = vi.fn();
     const execute = vi.fn(async () => ({ forecast: "ok" }));
     const getTools = () => ({
