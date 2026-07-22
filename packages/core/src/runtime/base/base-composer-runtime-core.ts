@@ -133,6 +133,8 @@ export abstract class BaseComposerRuntimeCore
     this._notifySubscribers();
   }
 
+  private _isSending = false;
+
   private _emptyTextAndAttachments() {
     this._attachments = [];
     this._text = "";
@@ -175,7 +177,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async send(options?: SendOptions) {
-    if (!this.canSend) return;
+    if (!this.canSend || this._isSending) return;
 
     if (this._dictationSession) {
       this._dictationSession.cancel();
@@ -199,20 +201,29 @@ export abstract class BaseComposerRuntimeCore
     const text = this.text;
     const quote = this._quote;
     this._quote = undefined;
-    this._emptyTextAndAttachments();
+    this._text = "";
+    this._isSending = true;
+    this._notifySubscribers();
 
     let resolvedAttachments: Awaited<typeof attachments>;
     try {
       resolvedAttachments = await attachments;
     } catch (e) {
-      if (this.isEmpty && this._quote === undefined) {
-        this._attachments = originalAttachments;
+      if (!this.text.trim() && this._quote === undefined) {
         this._text = text;
         this._quote = quote;
-        this._notifySubscribers();
       }
+      this._isSending = false;
+      this._notifySubscribers();
       throw e;
     }
+
+    // Drop by id, not wholesale: the user may have added or removed chips while
+    // the upload was in flight.
+    const sentIds = new Set(originalAttachments.map((a) => a.id));
+    this._attachments = this._attachments.filter((a) => !sentIds.has(a.id));
+    this._isSending = false;
+    this._notifySubscribers();
 
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
