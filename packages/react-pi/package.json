@@ -58,7 +58,7 @@
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.14.11",
-    "@earendil-works/pi-coding-agent": "^0.78.0 || ^0.79.0 || ^0.80.0",
+    "@earendil-works/pi-coding-agent": ">=0.78.0",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

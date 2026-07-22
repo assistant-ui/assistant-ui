@@ -2,4 +2,4 @@
 "@assistant-ui/react-pi": patch
 ---
 
-fix: widen pi-coding-agent peer range to include 0.79.x and 0.80.x
+fix: widen the pi-coding-agent peer to a >=0.78.0 floor so 0.79.x and 0.80.x installs stop warning
