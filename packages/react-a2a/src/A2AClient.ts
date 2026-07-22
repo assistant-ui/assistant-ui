@@ -187,6 +187,43 @@ const isMessage = (value: unknown): value is A2AMessage =>
   Array.isArray(value.parts) &&
   value.parts.every(isRecord);
 
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === "string");
+
+const isAgentInterface = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.url === "string" &&
+  typeof value.protocolBinding === "string" &&
+  typeof value.protocolVersion === "string";
+
+const isAgentSkill = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.id === "string" &&
+  typeof value.name === "string" &&
+  typeof value.description === "string" &&
+  isStringArray(value.tags);
+
+const isAgentCard = (value: unknown): value is A2AAgentCard =>
+  isRecord(value) &&
+  typeof value.name === "string" &&
+  typeof value.description === "string" &&
+  typeof value.version === "string" &&
+  Array.isArray(value.supportedInterfaces) &&
+  value.supportedInterfaces.every(isAgentInterface) &&
+  isRecord(value.capabilities) &&
+  isStringArray(value.defaultInputModes) &&
+  isStringArray(value.defaultOutputModes) &&
+  Array.isArray(value.skills) &&
+  value.skills.every(isAgentSkill);
+
+const parseAgentCardResponse = (value: unknown): A2AAgentCard => {
+  if (isAgentCard(value)) return value;
+
+  throw new Error(
+    "Invalid A2A agent card response: expected a valid agent card payload.",
+  );
+};
+
 const parseSendMessageResponse = (value: unknown): A2ATask | A2AMessage => {
   if (isRecord(value)) {
     const candidate = value.task ?? value.message ?? value;
@@ -318,14 +355,15 @@ export class A2AClient {
       await this.throwResponseError(response);
     }
     const json = await response.json();
-    return normalizeKeys(json) as A2AAgentCard;
+    return parseAgentCardResponse(normalizeKeys(json));
   }
 
   async getExtendedAgentCard(signal?: AbortSignal): Promise<A2AAgentCard> {
-    return this.fetchJSON<A2AAgentCard>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/extendedAgentCard`,
       signalInit(signal),
     );
+    return parseAgentCardResponse(result);
   }
 
   // --- Message ---
