@@ -31,8 +31,7 @@ const EMPTY_IMAGE_PART: MessagePartState & ImageMessagePart = Object.freeze({
  * See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useMessagePartImage = () => {
-  // Tolerate a part-type mismatch instead of throwing; see useMessagePartText
-  // for the getSnapshot/thread-switch invariant this guards.
+  // Sentinel instead of throw: see useMessagePartText for the invariant.
   const image = useAuiState((s) => {
     if (s.part.type !== "image") return EMPTY_IMAGE_PART;
 

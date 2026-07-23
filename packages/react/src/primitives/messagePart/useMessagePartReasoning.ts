@@ -32,8 +32,7 @@ const EMPTY_REASONING_PART: MessagePartState & ReasoningMessagePart =
  * See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useMessagePartReasoning = () => {
-  // Tolerate a part-type mismatch instead of throwing; see useMessagePartText
-  // for the getSnapshot/thread-switch invariant this guards.
+  // Sentinel instead of throw: see useMessagePartText for the invariant.
   const text = useAuiState((s) => {
     if (s.part.type !== "reasoning") return EMPTY_REASONING_PART;
 

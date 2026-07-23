@@ -33,8 +33,7 @@ const EMPTY_SOURCE_PART: MessagePartState & SourceMessagePart = Object.freeze({
  * See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useMessagePartSource = () => {
-  // Tolerate a part-type mismatch instead of throwing; see useMessagePartText
-  // for the getSnapshot/thread-switch invariant this guards.
+  // Sentinel instead of throw: see useMessagePartText for the invariant.
   const source = useAuiState((s) => {
     if (s.part.type !== "source") return EMPTY_SOURCE_PART;
 

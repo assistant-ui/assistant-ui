@@ -32,8 +32,7 @@ const EMPTY_FILE_PART: MessagePartState & FileMessagePart = Object.freeze({
  * See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useMessagePartFile = () => {
-  // Tolerate a part-type mismatch instead of throwing; see useMessagePartText
-  // for the getSnapshot/thread-switch invariant this guards.
+  // Sentinel instead of throw: see useMessagePartText for the invariant.
   const file = useAuiState((s) => {
     if (s.part.type !== "file") return EMPTY_FILE_PART;
 

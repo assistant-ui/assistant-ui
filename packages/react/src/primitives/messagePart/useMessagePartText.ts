@@ -32,13 +32,8 @@ const EMPTY_TEXT_PART: MessagePartState & TextMessagePart = Object.freeze({
  * See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useMessagePartText = () => {
-  // Tolerate a part-type mismatch instead of throwing. This selector runs
-  // inside useSyncExternalStore's getSnapshot (via useAuiState), where a throw
-  // tears down the React root past any error boundary. During a thread switch
-  // a still-mounted part consumer can transiently read the new thread's part
-  // at the same index before reconciliation unmounts it; the frozen sentinel is
-  // referentially stable so getSnapshot does not loop, and the stale consumer
-  // renders empty until it unmounts on the next render.
+  // Runs inside useSyncExternalStore's getSnapshot, where a throw tears down
+  // the React root; the module-level frozen sentinel keeps snapshots stable.
   const text = useAuiState((s) => {
     if (s.part.type !== "text" && s.part.type !== "reasoning")
       return EMPTY_TEXT_PART;
