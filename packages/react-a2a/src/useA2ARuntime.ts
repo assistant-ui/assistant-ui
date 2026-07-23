@@ -119,7 +119,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
     return {
       ...shared,
       isLoading: core.isLoading,
-      messages: core.getMessages(),
+      messageRepository: core.getMessageRepository(),
       isRunning: core.isRunning(),
       extras: a2aExtras.provide({
         task: core.getTask(),
