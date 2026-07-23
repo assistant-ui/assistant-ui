@@ -1,7 +1,20 @@
 "use client";
 
-import type { FileMessagePart, MessagePartState } from "@assistant-ui/core";
+import type {
+  FileMessagePart,
+  MessagePartState,
+  MessagePartStatus,
+} from "@assistant-ui/core";
 import { useAuiState } from "@assistant-ui/store";
+
+const COMPLETE_STATUS: MessagePartStatus = Object.freeze({ type: "complete" });
+
+const EMPTY_FILE_PART: MessagePartState & FileMessagePart = Object.freeze({
+  type: "file",
+  data: "",
+  mimeType: "",
+  status: COMPLETE_STATUS,
+});
 
 /**
  * @deprecated Use {@link useAuiState} to select and narrow `s.part`.
@@ -19,11 +32,10 @@ import { useAuiState } from "@assistant-ui/store";
  * See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useMessagePartFile = () => {
+  // Tolerate a part-type mismatch instead of throwing; see useMessagePartText
+  // for the getSnapshot/thread-switch invariant this guards.
   const file = useAuiState((s) => {
-    if (s.part.type !== "file")
-      throw new Error(
-        "MessagePartFile can only be used inside file message parts.",
-      );
+    if (s.part.type !== "file") return EMPTY_FILE_PART;
 
     return s.part as MessagePartState & FileMessagePart;
   });

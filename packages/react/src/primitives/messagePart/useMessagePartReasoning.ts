@@ -3,8 +3,18 @@
 import type {
   ReasoningMessagePart,
   MessagePartState,
+  MessagePartStatus,
 } from "@assistant-ui/core";
 import { useAuiState } from "@assistant-ui/store";
+
+const COMPLETE_STATUS: MessagePartStatus = Object.freeze({ type: "complete" });
+
+const EMPTY_REASONING_PART: MessagePartState & ReasoningMessagePart =
+  Object.freeze({
+    type: "reasoning",
+    text: "",
+    status: COMPLETE_STATUS,
+  });
 
 /**
  * @deprecated Use {@link useAuiState} to select and narrow `s.part`.
@@ -22,11 +32,10 @@ import { useAuiState } from "@assistant-ui/store";
  * See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useMessagePartReasoning = () => {
+  // Tolerate a part-type mismatch instead of throwing; see useMessagePartText
+  // for the getSnapshot/thread-switch invariant this guards.
   const text = useAuiState((s) => {
-    if (s.part.type !== "reasoning")
-      throw new Error(
-        "MessagePartReasoning can only be used inside reasoning message parts.",
-      );
+    if (s.part.type !== "reasoning") return EMPTY_REASONING_PART;
 
     return s.part as MessagePartState & ReasoningMessagePart;
   });
