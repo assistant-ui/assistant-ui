@@ -16,9 +16,14 @@ import { auiV0Decode, auiV0Encode } from "./auiV0";
 import { type AssistantClient, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 
+type CloudPersistenceEntry = {
+  cloud: AssistantCloud;
+  persistence: CloudMessagePersistence;
+};
+
 const globalPersistence = new WeakMap<
   ThreadListItemMethods,
-  CloudMessagePersistence
+  CloudPersistenceEntry
 >();
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
@@ -29,33 +34,42 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
   private get _persistence(): CloudMessagePersistence {
     const key = this.aui.threadListItem();
-    if (!globalPersistence.has(key)) {
-      globalPersistence.set(
-        key,
-        new CloudMessagePersistence(this.cloudRef.current),
-      );
+    const cloud = this.cloudRef.current;
+    let entry = globalPersistence.get(key);
+    if (!entry || entry.cloud !== cloud) {
+      entry = {
+        cloud,
+        persistence: new CloudMessagePersistence(cloud),
+      };
+      globalPersistence.set(key, entry);
     }
-    return globalPersistence.get(key)!;
+    return entry.persistence;
   }
 
   withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
     const adapter = this;
-    const formatted = createFormattedPersistence(
-      this._persistence,
-      formatAdapter,
-    );
+    let persistence = adapter._persistence;
+    let formatted = createFormattedPersistence(persistence, formatAdapter);
+    const getFormatted = () => {
+      const nextPersistence = adapter._persistence;
+      if (nextPersistence !== persistence) {
+        persistence = nextPersistence;
+        formatted = createFormattedPersistence(persistence, formatAdapter);
+      }
+      return formatted;
+    };
     return {
       // Note: callers must also call reportTelemetry() for run tracking
       async append(item: MessageFormatItem<TMessage>) {
         const { remoteId } = await adapter.aui.threadListItem().initialize();
-        await formatted.append(remoteId, item);
+        await getFormatted().append(remoteId, item);
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
         const remoteId = adapter.aui.threadListItem().getState().remoteId;
         if (!remoteId) return;
-        await formatted.update?.(remoteId, item, localMessageId);
+        await getFormatted().update?.(remoteId, item, localMessageId);
       },
       async delete() {
         throw new Error(
@@ -81,7 +95,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       async load(): Promise<MessageFormatRepository<TMessage>> {
         const remoteId = adapter.aui.threadListItem().getState().remoteId;
         if (!remoteId) return { messages: [] };
-        return formatted.load(remoteId);
+        return getFormatted().load(remoteId);
       },
     };
   }
