@@ -68,6 +68,13 @@ export class LocalThreadRuntimeCore
   private _queue: MessageQueueController | null = null;
   private _queueRunInFlight = false;
 
+  /**
+   * Ids of assistant messages already written to history while their run was
+   * paused for tool approval. A later run for the same message must rewrite that
+   * entry instead of appending a second copy of it.
+   */
+  private _pausedPersistedIds = new Set<string>();
+
   public readonly isDisabled = false;
   public readonly isSendDisabled = false;
 
@@ -200,6 +207,13 @@ export class LocalThreadRuntimeCore
       .then((repo) => {
         if (!repo) return;
         this.repository.import(repo);
+        if (this.adapters.history?.update) {
+          for (const { message } of repo.messages) {
+            if (message.status?.type === "requires-action") {
+              this._pausedPersistedIds.add(message.id);
+            }
+          }
+        }
         if (repo.messages.length > 0) {
           this.ensureInitialized();
         }
@@ -565,15 +579,27 @@ export class LocalThreadRuntimeCore
     } finally {
       this.abortController = null;
 
-      if (
+      const history = this._options.adapters.history;
+      const item = {
+        parentId,
+        message: message,
+        runConfig: this._lastRunConfig,
+      };
+      const isTerminal =
         message.status.type === "complete" ||
-        message.status.type === "incomplete"
-      ) {
-        await this._options.adapters.history?.append({
-          parentId,
-          message: message,
-          runConfig: this._lastRunConfig,
-        });
+        message.status.type === "incomplete";
+
+      if (this._pausedPersistedIds.has(message.id)) {
+        if (isTerminal) this._pausedPersistedIds.delete(message.id);
+        await history?.update?.(item);
+      } else if (isTerminal) {
+        await history?.append(item);
+      } else if (message.status.type === "requires-action" && history?.update) {
+        // Persisting the pause is only safe for adapters that can rewrite the
+        // entry later; an append-only adapter would strand a half-finished run
+        // in history with no way to finalize it once the approval resolves.
+        this._pausedPersistedIds.add(message.id);
+        await history.append(item);
       }
     }
     return message;
