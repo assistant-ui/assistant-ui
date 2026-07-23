@@ -14,10 +14,6 @@ const mocks = vi.hoisted(() => {
     assistantClient: {
       threadListItem: () => threadListItem,
     },
-    persistenceInstances: [] as Array<{
-      cloud: unknown;
-      load: ReturnType<typeof vi.fn>;
-    }>,
   };
 });
 
@@ -26,18 +22,14 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   useAui: () => mocks.assistantClient,
 }));
 
-vi.mock("assistant-cloud", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("assistant-cloud")>()),
-  CloudMessagePersistence: class {
-    readonly load = vi.fn().mockResolvedValue([]);
-
-    constructor(readonly cloud: unknown) {
-      mocks.persistenceInstances.push(this);
-    }
-  },
-}));
-
-const makeCloud = () => ({}) as AssistantCloud;
+const makeCloud = () =>
+  ({
+    threads: {
+      messages: {
+        list: vi.fn().mockResolvedValue({ messages: [] }),
+      },
+    },
+  }) as unknown as AssistantCloud;
 
 describe("useAssistantCloudThreadHistoryAdapter", () => {
   it("refreshes formatted persistence when the Cloud client changes", async () => {
@@ -63,19 +55,15 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     await formatted.load();
     await formatted.load();
 
-    expect(mocks.persistenceInstances).toHaveLength(1);
-    expect(mocks.persistenceInstances[0]?.cloud).toBe(firstCloud);
-    expect(mocks.persistenceInstances[0]?.load).toHaveBeenCalledTimes(2);
+    expect(firstCloud.threads.messages.list).toHaveBeenCalledTimes(2);
 
     cloudRef.current = secondCloud;
     await formatted.load();
 
-    expect(mocks.persistenceInstances).toHaveLength(2);
-    expect(mocks.persistenceInstances[1]?.cloud).toBe(secondCloud);
-    expect(mocks.persistenceInstances[1]?.load).toHaveBeenCalledTimes(1);
-    expect(mocks.persistenceInstances[1]?.load).toHaveBeenCalledWith(
-      "thread-1",
-      "test",
-    );
+    expect(firstCloud.threads.messages.list).toHaveBeenCalledTimes(2);
+    expect(secondCloud.threads.messages.list).toHaveBeenCalledOnce();
+    expect(secondCloud.threads.messages.list).toHaveBeenCalledWith("thread-1", {
+      format: "test",
+    });
   });
 });

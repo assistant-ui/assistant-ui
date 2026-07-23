@@ -275,9 +275,10 @@ type CloudMessage = {
 };
 
 declare class CloudMessagePersistence {
-  private cloud;
   private idMapping;
+  private getCloud;
   constructor(cloud: AssistantCloud);
+  constructor(getCloud: () => AssistantCloud);
   append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject): Promise<void>;
   update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject): Promise<void>;
   isPersisted(messageId: string): boolean;
