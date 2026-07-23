@@ -57,6 +57,22 @@ describe("CloudFileAttachmentAdapter", () => {
     ]);
   });
 
+  it("uploads when Web Crypto is unavailable", async () => {
+    vi.stubGlobal("crypto", undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    const adapter = new CloudFileAttachmentAdapter(makeCloud());
+
+    const yields = await drain(adapter);
+
+    expect(yields).toHaveLength(2);
+    expect(yields[0]?.id).toBeTruthy();
+    expect(yields[1]?.id).toBe(yields[0]?.id);
+    expect(yields.at(-1)?.status).toEqual({
+      type: "requires-action",
+      reason: "composer-send",
+    });
+  });
+
   it("marks the attachment incomplete when the upload returns an HTTP error", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal(

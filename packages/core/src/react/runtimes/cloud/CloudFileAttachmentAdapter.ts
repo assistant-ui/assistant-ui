@@ -6,6 +6,7 @@ import type {
 } from "../../../types/attachment";
 import type { ThreadUserMessagePart } from "../../../types/message";
 import type { AttachmentAdapter } from "../../../adapters/attachment";
+import { generateId } from "../../../utils/id";
 
 const guessAttachmentType = (
   contentType: string,
@@ -27,7 +28,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   }: {
     file: File;
   }): AsyncGenerator<PendingAttachment, void> {
-    const id = crypto.randomUUID();
+    const id = generateId();
     const type = guessAttachmentType(file.type);
     let attachment: PendingAttachment = {
       id,
