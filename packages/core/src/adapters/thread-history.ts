@@ -65,6 +65,12 @@ export type ThreadHistoryAdapter = {
     options: ChatModelRunOptions,
   ): AsyncGenerator<ChatModelRunResult, void, unknown>;
   append(item: ExportedMessageRepositoryItem): Promise<void>;
+  /**
+   * Rewrites an already appended message in place. Adapters that implement this
+   * let a runtime persist a run that is paused for tool approval and finalize
+   * the same message once the run resumes.
+   */
+  update?(item: ExportedMessageRepositoryItem): Promise<void>;
   delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
   /** Required when used with `useAISDKRuntime` / `useChatRuntime`. */
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(
