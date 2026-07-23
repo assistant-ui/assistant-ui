@@ -4,8 +4,8 @@ import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { flushSync } from "react-dom";
 import { useEffect, useState, type FC } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { useAui } from "@assistant-ui/store";
-import { AssistantRuntimeProvider } from "../context";
+import { useAui, useAuiState } from "@assistant-ui/store";
+import { AssistantRuntimeProvider, PartByIndexProvider } from "../context";
 import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
 import type { ChatModelAdapter } from "../legacy-runtime/runtime-cores/local/ChatModelAdapter";
 import * as ThreadPrimitive from "../primitives/thread";
@@ -34,6 +34,13 @@ const toolMessages: readonly ThreadMessageLike[] = [
       { type: "tool-call", toolCallId: "tc-1", toolName: "search", args: {} },
       { type: "tool-call", toolCallId: "tc-2", toolName: "search", args: {} },
     ],
+  },
+];
+
+const shorterTextMessages: readonly ThreadMessageLike[] = [
+  {
+    role: "assistant",
+    content: [{ type: "text", text: "shorter" }],
   },
 ];
 
@@ -69,14 +76,31 @@ const Message: FC = () => (
   />
 );
 
-const App: FC = () => {
+const ChildrenMessage: FC = () => (
+  <MessagePrimitive.Parts>
+    {({ part }) => (part.type === "text" ? <TextLeaf /> : null)}
+  </MessagePrimitive.Parts>
+);
+
+const InvalidPartReader: FC = () => {
+  useAuiState((s) => s.part.type);
+  return null;
+};
+
+const InvalidPartMessage: FC = () => (
+  <PartByIndexProvider index={2}>
+    <InvalidPartReader />
+  </PartByIndexProvider>
+);
+
+const App: FC<{ MessageComponent?: FC }> = ({ MessageComponent = Message }) => {
   const runtime = useLocalRuntime(noOpAdapter, {
     initialMessages: textMessages,
   });
   harness.runtime = runtime;
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ThreadPrimitive.Messages components={{ Message }} />
+      <ThreadPrimitive.Messages components={{ Message: MessageComponent }} />
     </AssistantRuntimeProvider>
   );
 };
@@ -101,5 +125,34 @@ describe("part hooks under a thread-switch race (#5118)", () => {
 
     await waitFor(() => expect(view.getAllByTestId("tool")).toHaveLength(2));
     expect(view.queryAllByTestId("text")).toHaveLength(0);
+  });
+
+  it.each([
+    ["components API", Message],
+    ["children API", ChildrenMessage],
+  ])(
+    "does not crash when the incoming message has fewer parts with the %s",
+    async (_label, MessageComponent) => {
+      let view!: ReturnType<typeof render>;
+      await act(async () => {
+        view = render(<App MessageComponent={MessageComponent} />);
+      });
+      await waitFor(() => expect(view.getAllByTestId("text")).toHaveLength(2));
+
+      await act(async () => {
+        harness.runtime!.thread.reset(shorterTextMessages);
+      });
+
+      await waitFor(() => expect(view.getAllByTestId("text")).toHaveLength(1));
+      expect(view.getByTestId("text").textContent).toBe("shorter");
+    },
+  );
+
+  it("still rejects an index that was never valid", async () => {
+    await expect(
+      act(async () => {
+        render(<App MessageComponent={InvalidPartMessage} />);
+      }),
+    ).rejects.toThrow("useClientLookup: Index 2 out of bounds (length: 2)");
   });
 });
