@@ -266,6 +266,7 @@ export const fromThreadMessageLike = (
         })),
         metadata: {
           custom: metadata?.custom ?? {},
+          ...(metadata?.isOptimistic && { isOptimistic: true }),
         },
       } satisfies ThreadUserMessage;
 
