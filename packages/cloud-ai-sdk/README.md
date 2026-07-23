@@ -18,11 +18,11 @@ npm install @assistant-ui/cloud-ai-sdk assistant-cloud ai @ai-sdk/react
 import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
 
 export function Chat() {
-  const { messages, sendMessage, threadId } = useCloudChat();
+  const { messages, sendMessage } = useCloudChat();
   return (
     <div>
       {messages.map((m) => (
-        <div key={m.id}>{m.content}</div>
+        <div key={m.id}>{m.parts.map((p) => p.type === "text" && p.text)}</div>
       ))}
       <button onClick={() => sendMessage({ text: "Hello" })}>Send</button>
     </div>
