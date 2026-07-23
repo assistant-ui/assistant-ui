@@ -2196,6 +2196,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   private abortController;
   private _queue;
   private _queueRunInFlight;
+  private _pausedPersistedIds;
   readonly isDisabled = false;
   readonly isSendDisabled = false;
   private _isLoading;
@@ -4093,6 +4094,7 @@ type ThreadHistoryAdapter = {
   }>;
   resume?(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void, unknown>;
   append(item: ExportedMessageRepositoryItem): Promise<void>;
+  update?(item: ExportedMessageRepositoryItem): Promise<void>;
   delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>): GenericThreadHistoryAdapter<TMessage>;
 };
