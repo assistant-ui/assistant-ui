@@ -13,9 +13,9 @@ function AttachmentTileStatic({ name, isImage }: AttachmentTileStaticProps) {
   const attachmentType = isImage ? "Image" : "Document";
 
   return (
-    <div className="aui-attachment-root relative">
+    <div className="aui-attachment-root animate-in fade-in-0 zoom-in-95 relative duration-200 motion-reduce:animate-none">
       <div
-        className="aui-attachment-tile aui-attachment-tile-composer border-foreground/20 bg-muted size-14 cursor-pointer overflow-hidden rounded-[14px] border transition-opacity hover:opacity-75"
+        className="aui-attachment-tile aui-attachment-tile-composer bg-muted hover:after:bg-foreground/10 focus-visible:ring-ring/50 relative size-14 cursor-pointer overflow-hidden rounded-[14px] transition-transform outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:transition-colors after:ring-inset focus-visible:ring-3 active:scale-[0.96] motion-reduce:transition-none dark:after:ring-white/10"
         role="button"
         tabIndex={0}
         aria-label={`${attachmentType} attachment: ${name}`}
@@ -24,16 +24,16 @@ function AttachmentTileStatic({ name, isImage }: AttachmentTileStaticProps) {
           {isImage ? (
             <div className="h-full w-full bg-linear-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800" />
           ) : (
-            <FileText className="aui-attachment-tile-fallback-icon text-muted-foreground size-8" />
+            <FileText className="aui-attachment-tile-fallback-icon text-muted-foreground/80 size-6 stroke-[1.5]" />
           )}
         </div>
       </div>
       <TooltipIconButton
         tooltip="Remove file"
-        className="aui-attachment-tile-remove text-muted-foreground hover:[&_svg]:text-destructive absolute end-1.5 top-1.5 size-3.5 rounded-full bg-white opacity-100 shadow-sm hover:bg-white! [&_svg]:text-black"
+        className="aui-attachment-tile-remove absolute end-1 top-1 size-5 rounded-full bg-black/50! text-white backdrop-blur-sm after:absolute after:-inset-1.5 hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
         side="top"
       >
-        <XIcon className="aui-attachment-remove-icon size-3 dark:stroke-[2.5px]" />
+        <XIcon className="aui-attachment-remove-icon size-3 stroke-[2.5]" />
       </TooltipIconButton>
     </div>
   );
@@ -59,7 +59,7 @@ export function AttachmentSample() {
               side="bottom"
               variant="ghost"
               size="icon"
-              className="aui-composer-add-attachment hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-8.5 rounded-full p-1 text-xs font-semibold"
+              className="aui-composer-add-attachment hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-8.5 rounded-full p-1 text-xs font-semibold active:scale-[0.96] motion-reduce:transition-none"
               aria-label="Add Attachment"
             >
               <PlusIcon className="aui-attachment-add-icon size-5 stroke-[1.5px]" />
