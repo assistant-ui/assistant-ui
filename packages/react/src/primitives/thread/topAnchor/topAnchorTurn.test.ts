@@ -3,6 +3,7 @@ import {
   getActiveTopAnchorAnchorId,
   getActiveTopAnchorTargetId,
   getActiveTopAnchorTurn,
+  isTopAnchorTurnValid,
 } from "./topAnchorTurn";
 
 describe("topAnchorTurn", () => {
@@ -42,5 +43,31 @@ describe("topAnchorTurn", () => {
     ];
 
     expect(getActiveTopAnchorTurn({ isRunning: true, messages })).toBe(null);
+  });
+
+  it("keeps a completed turn valid while its messages remain in the branch", () => {
+    const turn = { anchorId: "user-2", targetId: "assistant-2" };
+
+    expect(
+      isTopAnchorTurnValid(turn, [
+        { id: "assistant-1" },
+        { id: "user-2" },
+        { id: "assistant-2" },
+      ]),
+    ).toBe(true);
+  });
+
+  it.each([
+    ["thread switch", [{ id: "other-user" }, { id: "other-assistant" }]],
+    ["new chat", []],
+    ["last-turn deletion", [{ id: "older-assistant" }]],
+    ["branch swap", [{ id: "branch-user" }, { id: "branch-assistant" }]],
+  ])("invalidates a stored turn after %s", (_transition, messages) => {
+    expect(
+      isTopAnchorTurnValid(
+        { anchorId: "user-2", targetId: "assistant-2" },
+        messages,
+      ),
+    ).toBe(false);
   });
 });

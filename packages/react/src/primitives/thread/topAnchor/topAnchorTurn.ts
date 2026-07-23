@@ -5,6 +5,23 @@ type TopAnchorTurnMessage = {
   readonly role: string;
 };
 
+export type TopAnchorTurn = {
+  readonly anchorId: string;
+  readonly targetId: string;
+};
+
+export const isTopAnchorTurnValid = (
+  turn: TopAnchorTurn | null,
+  messages: readonly Pick<TopAnchorTurnMessage, "id">[],
+) => {
+  if (!turn) return false;
+
+  return (
+    messages.some((message) => message.id === turn.anchorId) &&
+    messages.some((message) => message.id === turn.targetId)
+  );
+};
+
 export const getActiveTopAnchorTurn = ({
   isRunning,
   messages,

@@ -43,6 +43,7 @@ const makeStore = (state: ReturnType<TopAnchorStore["getState"]>) => {
 };
 
 const numericClamp = { tallerThan: 160, visibleHeight: 96 };
+const activeTopAnchorTurn = { anchorId: "user-1", targetId: "assistant-1" };
 
 describe("mountTopAnchorReserve", () => {
   beforeEach(() => {
@@ -76,6 +77,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor, target },
       targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
     });
 
     mountTopAnchorReserve(store);
@@ -109,6 +111,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor, target },
       targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
     });
 
     const unmount = mountTopAnchorReserve(store);
@@ -124,6 +127,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor: null, target: null },
       targetConfig: null,
+      topAnchorTurn: activeTopAnchorTurn,
     });
     vi.runOnlyPendingTimers();
 
@@ -141,6 +145,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor: nextAnchor, target: nextTarget },
       targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
     });
     vi.runOnlyPendingTimers();
 
@@ -148,6 +153,47 @@ describe("mountTopAnchorReserve", () => {
 
     unmount();
     expect(reserve.isConnected).toBe(false);
+  });
+
+  it("removes the reserve when the active turn is no longer valid", () => {
+    const viewport = document.createElement("div");
+    const anchor = document.createElement("div");
+    const target = document.createElement("div");
+    const reserveHost = document.createElement("div");
+    reserveHost.append(target);
+    document.body.append(reserveHost);
+
+    defineReadonlyNumber(viewport, "offsetTop", 0);
+    defineReadonlyNumber(viewport, "clientHeight", 400);
+    defineReadonlyNumber(viewport, "scrollHeight", 560);
+    defineReadonlyNumber(anchor, "offsetTop", 220);
+    defineReadonlyNumber(anchor, "offsetHeight", 64);
+    viewport.scrollTo = vi.fn();
+
+    const { store, setState } = makeStore({
+      turnAnchor: "top",
+      element: { viewport, anchor, target },
+      targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+
+    mountTopAnchorReserve(store);
+    vi.runOnlyPendingTimers();
+
+    const reserve = reserveHost.querySelector(
+      "[data-aui-top-anchor-reserve]",
+    ) as HTMLElement;
+
+    setState({
+      turnAnchor: "top",
+      element: { viewport, anchor: null, target: null },
+      targetConfig: null,
+      topAnchorTurn: null,
+    });
+    vi.runOnlyPendingTimers();
+
+    expect(reserve.isConnected).toBe(false);
+    expect(reserve.style.height).toBe("0px");
   });
 
   it("removes the reserve when only the registered anchor unmounts", () => {
@@ -169,6 +215,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor, target },
       targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
     });
 
     mountTopAnchorReserve(store);
@@ -182,6 +229,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor: null, target },
       targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
     });
     vi.runOnlyPendingTimers();
 
@@ -208,6 +256,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor, target },
       targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
     });
 
     mountTopAnchorReserve(store);
@@ -221,6 +270,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport: null, anchor: null, target: null },
       targetConfig: null,
+      topAnchorTurn: null,
     });
     vi.runOnlyPendingTimers();
 
@@ -247,6 +297,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor, target },
       targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
     });
 
     mountTopAnchorReserve(store);
@@ -260,6 +311,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "bottom",
       element: { viewport, anchor: null, target: null },
       targetConfig: null,
+      topAnchorTurn: null,
     });
     vi.runOnlyPendingTimers();
 
@@ -285,6 +337,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor, target },
       targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
     });
 
     mountTopAnchorReserve(store);
@@ -300,6 +353,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor, target },
       targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
     });
     vi.runOnlyPendingTimers();
 

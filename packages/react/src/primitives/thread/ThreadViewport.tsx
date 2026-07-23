@@ -23,6 +23,7 @@ import { useTopAnchorReserve } from "./topAnchor/useTopAnchorReserve";
 import {
   getActiveTopAnchorAnchorId,
   getActiveTopAnchorTargetId,
+  isTopAnchorTurnValid,
 } from "./topAnchor/topAnchorTurn";
 
 export namespace ThreadPrimitiveViewport {
@@ -110,10 +111,23 @@ const useTopAnchorTurn = (enabled: boolean) => {
     if (!enabled) return undefined;
     return getActiveTopAnchorTargetId(s.thread);
   });
+  const threadMessages = useAuiState((s) => s.thread.messages);
+  const topAnchorTurn = useThreadViewport((s) => s.topAnchorTurn);
   const activeTurn = useMemo(() => {
     if (!activeAnchorId || !activeTargetId) return null;
     return { anchorId: activeAnchorId, targetId: activeTargetId };
   }, [activeAnchorId, activeTargetId]);
+
+  const topAnchorTurnIsValid = useMemo(
+    () => isTopAnchorTurnValid(topAnchorTurn, threadMessages),
+    [threadMessages, topAnchorTurn],
+  );
+
+  useLayoutEffect(() => {
+    if (!topAnchorTurn || topAnchorTurnIsValid) return;
+
+    threadViewportStore.getState().setTopAnchorTurn(null);
+  }, [threadViewportStore, topAnchorTurn, topAnchorTurnIsValid]);
 
   useLayoutEffect(() => {
     if (!activeTurn) return;
