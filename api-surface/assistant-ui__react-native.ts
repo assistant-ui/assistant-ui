@@ -3114,9 +3114,18 @@ type ThreadMessageLike = {
   } | undefined;
 };
 
-declare const ThreadMessages: import("react").ForwardRefExoticComponent<ThreadMessagesProps & import("react").RefAttributes<FlatList<ThreadMessage>>>;
+declare const ThreadMessages: import("react").ForwardRefExoticComponent<ThreadMessagesFlatListProps & import("react").RefAttributes<FlatList<ThreadMessage>>>;
 
-type ThreadMessagesProps = Omit<FlatListProps<ThreadMessage>, "children" | "data" | "renderItem"> & MessagesContent;
+declare const ThreadMessagesFlatList: import("react").ForwardRefExoticComponent<ThreadMessagesFlatListProps & import("react").RefAttributes<FlatList<ThreadMessage>>>;
+
+type ThreadMessagesFlatListProps = Omit<FlatListProps<ThreadMessage>, "children" | "data" | "renderItem"> & MessagesContent & {
+  autoScroll?: boolean | undefined;
+  scrollToBottomOnRunStart?: boolean | undefined;
+  scrollToBottomOnInitialize?: boolean | undefined;
+  scrollToBottomOnThreadSwitch?: boolean | undefined;
+};
+
+type ThreadMessagesProps = ThreadMessagesFlatListProps;
 
 declare namespace ThreadPrimitiveMessageByIndex {
   type Props = {
@@ -4027,7 +4036,7 @@ declare namespace threadList_d_exports {
 }
 
 declare namespace thread_d_exports {
-  export { ThreadEmpty as Empty, ThreadEmptyProps as EmptyProps, ThreadIf as If, ThreadIfProps as IfProps, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadMessages as Messages, ThreadMessagesProps as MessagesProps, ThreadRoot as Root, ThreadRootProps as RootProps, ThreadSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadSuggestionProps as SuggestionProps, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById };
+  export { ThreadEmpty as Empty, ThreadEmptyProps as EmptyProps, ThreadIf as If, ThreadIfProps as IfProps, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadMessages as Messages, ThreadMessagesFlatList as MessagesFlatList, ThreadMessagesFlatListProps as MessagesFlatListProps, ThreadMessagesProps as MessagesProps, ThreadRoot as Root, ThreadRootProps as RootProps, ThreadSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadSuggestionProps as SuggestionProps, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById };
 }
 
 declare function tool<const TSchema extends StandardSchemaParameters, TResult = any>(tool: Tool<StandardSchemaInput<TSchema>, TResult> & {
