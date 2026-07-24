@@ -18,8 +18,9 @@ const EMPTY_REASONING_PART: MessagePartState & ReasoningMessagePart =
 
 /**
  * @deprecated Use {@link useAuiState} to select and narrow `s.part`.
- * Return `null` for optional rendering, or throw inside the selector to
- * preserve the old hook's strict behavior.
+ * Return `null` for optional rendering. Do not throw inside the selector:
+ * selectors run inside `useSyncExternalStore`'s `getSnapshot`, so a transient
+ * part mismatch during thread switches can unmount the React root.
  *
  * @example
  * ```tsx
