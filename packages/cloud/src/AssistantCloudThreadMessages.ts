@@ -1,5 +1,14 @@
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
+import {
+  readCloudArray,
+  readCloudInteger,
+  readCloudJSONObject,
+  readCloudNullableString,
+  readCloudRecord,
+  readCloudString,
+  readCloudTimestamp,
+} from "./cloudResponse";
 
 export type CloudMessage = {
   id: string;
@@ -33,6 +42,19 @@ type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
 };
 
+const decodeCloudMessage = (value: unknown, field: string): CloudMessage => {
+  const message = readCloudRecord(value, field);
+  return {
+    id: readCloudString(message.id, `${field}.id`),
+    parent_id: readCloudNullableString(message.parent_id, `${field}.parent_id`),
+    height: readCloudInteger(message.height, `${field}.height`),
+    created_at: readCloudTimestamp(message.created_at, `${field}.created_at`),
+    updated_at: readCloudTimestamp(message.updated_at, `${field}.updated_at`),
+    format: readCloudString(message.format, `${field}.format`),
+    content: readCloudJSONObject(message.content, `${field}.content`),
+  };
+};
+
 export class AssistantCloudThreadMessages {
   constructor(private cloud: AssistantCloudAPI) {}
 
@@ -40,10 +62,20 @@ export class AssistantCloudThreadMessages {
     threadId: string,
     query?: AssistantCloudThreadMessageListQuery,
   ): Promise<AssistantCloudThreadMessageListResponse> {
-    return this.cloud.makeRequest(
-      `/threads/${encodeURIComponent(threadId)}/messages`,
-      { query },
+    const response = readCloudRecord(
+      await this.cloud.makeRequest(
+        `/threads/${encodeURIComponent(threadId)}/messages`,
+        { query },
+      ),
+      "thread message list response",
     );
+    const messages = readCloudArray(response.messages, "messages");
+
+    return {
+      messages: messages.map((message, index) =>
+        decodeCloudMessage(message, `messages[${index}]`),
+      ),
+    };
   }
 
   public async create(
