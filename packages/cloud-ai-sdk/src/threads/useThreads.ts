@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type {
   CloudThread,
   UseThreadsOptions,
@@ -49,10 +55,10 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     );
   }, [cloud]);
 
-  const activeScopeRef = useRef(scope);
-  useEffect(() => {
-    activeScopeRef.current = scope;
-  }, [scope]);
+  const activeScopeRef = useRef<typeof scope | null>(scope);
+  useLayoutEffect(() => {
+    activeScopeRef.current = scope.cloud === cloud ? scope : null;
+  }, [cloud, scope]);
   const isCurrentCloud = useCallback(
     () => scope.cloud === cloud && activeScopeRef.current === scope,
     [cloud, scope],
