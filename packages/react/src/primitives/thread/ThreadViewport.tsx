@@ -111,16 +111,17 @@ const useTopAnchorTurn = (enabled: boolean) => {
     if (!enabled) return undefined;
     return getActiveTopAnchorTargetId(s.thread);
   });
-  const threadMessages = useAuiState((s) => s.thread.messages);
   const topAnchorTurn = useThreadViewport((s) => s.topAnchorTurn);
   const activeTurn = useMemo(() => {
     if (!activeAnchorId || !activeTargetId) return null;
     return { anchorId: activeAnchorId, targetId: activeTargetId };
   }, [activeAnchorId, activeTargetId]);
 
-  const topAnchorTurnIsValid = useMemo(
-    () => isTopAnchorTurnValid(topAnchorTurn, threadMessages),
-    [threadMessages, topAnchorTurn],
+  const topAnchorTurnIsValid = useAuiState(
+    (s) =>
+      enabled &&
+      !!topAnchorTurn &&
+      isTopAnchorTurnValid(topAnchorTurn, s.thread.messages),
   );
 
   useLayoutEffect(() => {

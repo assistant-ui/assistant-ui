@@ -122,6 +122,7 @@ describe("mountTopAnchorReserve", () => {
     ) as HTMLElement;
     const optimisticUserMessage = document.createElement("div");
     reserveHost.append(optimisticUserMessage);
+    const appendSpy = vi.spyOn(reserveHost, "append");
 
     setState({
       turnAnchor: "top",
@@ -134,6 +135,17 @@ describe("mountTopAnchorReserve", () => {
     expect(reserve.isConnected).toBe(true);
     expect(reserve.style.height).toBe("60px");
     expect(reserve.previousElementSibling).toBe(optimisticUserMessage);
+    expect(appendSpy).toHaveBeenCalledTimes(1);
+
+    setState({
+      turnAnchor: "top",
+      element: { viewport, anchor: null, target: null },
+      targetConfig: null,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+    vi.runOnlyPendingTimers();
+
+    expect(appendSpy).toHaveBeenCalledTimes(1);
 
     const nextAnchor = document.createElement("div");
     const nextTarget = document.createElement("div");

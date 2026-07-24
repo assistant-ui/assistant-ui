@@ -78,7 +78,12 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     if (!anchor && !target && !clamp && state.topAnchorTurn) {
       // ThreadViewport clears this state when either ID leaves the current branch.
       observers.disconnect();
-      if (reserve?.parentElement) reserve.parentElement.append(reserve);
+      if (
+        reserve?.parentElement &&
+        reserve.parentElement.lastElementChild !== reserve
+      ) {
+        reserve.parentElement.append(reserve);
+      }
       return;
     }
 
