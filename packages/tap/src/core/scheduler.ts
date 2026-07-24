@@ -80,9 +80,18 @@ const flushScheduled = () => {
   }
 };
 
-// Use MessageChannel to schedule flushes as macrotasks (like React's scheduler).
-// This allows more state updates to batch into a single re-render.
+// Schedule flushes as macrotasks so more state updates batch into one render.
 const scheduleMacrotask = (() => {
+  const setImmediate = (
+    globalThis as typeof globalThis & {
+      setImmediate?: (callback: () => void) => void;
+    }
+  ).setImmediate;
+
+  if (setImmediate) {
+    return () => setImmediate(flushScheduled);
+  }
+
   if (typeof MessageChannel !== "undefined") {
     const channel = new MessageChannel();
     channel.port1.onmessage = flushScheduled;
