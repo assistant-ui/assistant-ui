@@ -37,6 +37,9 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "test:react-compiler": {
+      "dependsOn": ["build"]
+    },
     "deploy": {
       "dependsOn": ["build", "lint", "test"]
     },

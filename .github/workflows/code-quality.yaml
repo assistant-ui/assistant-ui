@@ -270,3 +270,6 @@ jobs:
             # Push to main: Test packages changed in last commit
             pnpm turbo test --filter="...[HEAD^1]"
           fi
+
+      - name: Run React Compiler tests
+        run: pnpm test:react-compiler
