@@ -82,7 +82,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await expect(sendPromise).rejects.toThrow("upload failed");
 
     expect(composer.text).toBe("new draft");
-    expect(composer.attachments).toHaveLength(0);
+    expect(composer.attachments).toHaveLength(1);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -107,7 +107,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     expect(composer.quote).toEqual({ text: "new quote", messageId: "m-2" });
     expect(composer.text).toBe("");
-    expect(composer.attachments).toHaveLength(0);
+    expect(composer.attachments).toHaveLength(1);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -126,6 +126,88 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(message.content).toEqual([{ type: "text", text: "hello" }]);
     expect(message.attachments).toHaveLength(1);
     expect(message.attachments[0].status).toEqual({ type: "complete" });
+  });
+
+  it("keeps the attachments visible until the upload resolves", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+
+    const sendPromise = composer.send();
+    await Promise.resolve();
+
+    expect(composer.text).toBe("");
+    expect(composer.attachments).toHaveLength(1);
+    expect(append).not.toHaveBeenCalled();
+
+    resolveSend();
+    await sendPromise;
+
+    expect(composer.attachments).toHaveLength(0);
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an attachment added while the upload was in flight", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      add: async ({ file }: { file: File }): Promise<PendingAttachment> => ({
+        id: `att-${file.name}`,
+        type: "image",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      send: (a) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer } = makeComposer(adapter);
+
+    await composer.addAttachment(textFile());
+
+    const sendPromise = composer.send();
+    await composer.addAttachment(new File(["x"], "later.txt"));
+    resolveSend();
+    await sendPromise;
+
+    expect(composer.attachments.map((a) => a.name)).toEqual(["later.txt"]);
+  });
+
+  it("ignores a second send while the first upload is still running", async () => {
+    let sendCalls = 0;
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) => {
+        sendCalls += 1;
+        return new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        });
+      },
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    await composer.addAttachment(textFile());
+
+    const sendPromise = composer.send();
+    await composer.send();
+    resolveSend();
+    await sendPromise;
+
+    expect(sendCalls).toBe(1);
+    expect(append).toHaveBeenCalledTimes(1);
   });
 
   it("sends a text-only message with no attachment adapter", async () => {
