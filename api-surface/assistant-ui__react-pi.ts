@@ -1766,12 +1766,6 @@ type SendOptions = {
   steer?: boolean;
 };
 
-type SharedStream = {
-  listeners: Set<(event: PiClientEvent) => void>;
-  close: () => void;
-  closeTimer: ReturnType<typeof setTimeout> | undefined;
-};
-
 type SourceMessagePart = {
   readonly type: "source";
   readonly sourceType: "url";
@@ -2369,10 +2363,6 @@ declare const createSseDecoder: () => {
 };
 
 declare const getPiThreadSupervisor: (options?: PiNodeClientOptions) => PiThreadSupervisor;
-
-declare global {
-  var __assistantUiPiHttpStreams: Map<string, SharedStream> | undefined;
-}
 
 declare global {
   interface Window {
