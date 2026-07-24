@@ -29,6 +29,10 @@ export type TopAnchorStore = {
       tallerThan: number;
       visibleHeight: number;
     } | null;
+    topAnchorTurn: {
+      readonly anchorId: string;
+      readonly targetId: string;
+    } | null;
   };
   subscribe(fn: () => void): () => void;
 };
@@ -62,13 +66,28 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     const { viewport, anchor, target } = state.element;
     const clamp = state.targetConfig;
 
-    if (
-      state.turnAnchor !== "top" ||
-      !viewport ||
-      !anchor ||
-      !target ||
-      !clamp
-    ) {
+    if (state.turnAnchor !== "top" || !viewport) {
+      observers.disconnect();
+      if (reserve) {
+        setReserveHeight(reserve, 0);
+        reserve.remove();
+      }
+      return;
+    }
+
+    if (!anchor && !target && !clamp && state.topAnchorTurn) {
+      // ThreadViewport clears this state when either ID leaves the current branch.
+      observers.disconnect();
+      if (
+        reserve?.parentElement &&
+        reserve.parentElement.lastElementChild !== reserve
+      ) {
+        reserve.parentElement.append(reserve);
+      }
+      return;
+    }
+
+    if (!anchor || !target || !clamp) {
       observers.disconnect();
       if (reserve) {
         setReserveHeight(reserve, 0);

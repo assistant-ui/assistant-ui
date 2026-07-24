@@ -43,6 +43,7 @@ const makeStore = (state: ReturnType<TopAnchorStore["getState"]>) => {
 };
 
 const numericClamp = { tallerThan: 160, visibleHeight: 96 };
+const activeTopAnchorTurn = { anchorId: "user-1", targetId: "assistant-1" };
 
 describe("mountTopAnchorReserve", () => {
   beforeEach(() => {
@@ -76,6 +77,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor, target },
       targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
     });
 
     mountTopAnchorReserve(store);
@@ -88,6 +90,245 @@ describe("mountTopAnchorReserve", () => {
     expect(reserve).not.toBe(null);
     expect(reserve.previousElementSibling).toBe(target);
     expect(reserve.style.height).toBe("60px");
+  });
+
+  it("preserves the reserve across a transient between-turns anchor gap", () => {
+    const viewport = document.createElement("div");
+    const anchor = document.createElement("div");
+    const target = document.createElement("div");
+    const reserveHost = document.createElement("div");
+    reserveHost.append(target);
+    document.body.append(reserveHost);
+
+    defineReadonlyNumber(viewport, "offsetTop", 0);
+    defineReadonlyNumber(viewport, "clientHeight", 400);
+    defineReadonlyNumber(viewport, "scrollHeight", 560);
+    defineReadonlyNumber(anchor, "offsetTop", 220);
+    defineReadonlyNumber(anchor, "offsetHeight", 64);
+    viewport.scrollTo = vi.fn();
+
+    const { store, setState } = makeStore({
+      turnAnchor: "top",
+      element: { viewport, anchor, target },
+      targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+
+    const unmount = mountTopAnchorReserve(store);
+    vi.runOnlyPendingTimers();
+
+    const reserve = reserveHost.querySelector(
+      "[data-aui-top-anchor-reserve]",
+    ) as HTMLElement;
+    const optimisticUserMessage = document.createElement("div");
+    reserveHost.append(optimisticUserMessage);
+    const appendSpy = vi.spyOn(reserveHost, "append");
+
+    setState({
+      turnAnchor: "top",
+      element: { viewport, anchor: null, target: null },
+      targetConfig: null,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+    vi.runOnlyPendingTimers();
+
+    expect(reserve.isConnected).toBe(true);
+    expect(reserve.style.height).toBe("60px");
+    expect(reserve.previousElementSibling).toBe(optimisticUserMessage);
+    expect(appendSpy).toHaveBeenCalledTimes(1);
+
+    setState({
+      turnAnchor: "top",
+      element: { viewport, anchor: null, target: null },
+      targetConfig: null,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+    vi.runOnlyPendingTimers();
+
+    expect(appendSpy).toHaveBeenCalledTimes(1);
+
+    const nextAnchor = document.createElement("div");
+    const nextTarget = document.createElement("div");
+    reserveHost.append(nextTarget);
+    defineReadonlyNumber(nextAnchor, "offsetTop", 236);
+    defineReadonlyNumber(nextAnchor, "offsetHeight", 64);
+
+    setState({
+      turnAnchor: "top",
+      element: { viewport, anchor: nextAnchor, target: nextTarget },
+      targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+    vi.runOnlyPendingTimers();
+
+    expect(reserve.previousElementSibling).toBe(nextTarget);
+
+    unmount();
+    expect(reserve.isConnected).toBe(false);
+  });
+
+  it("removes the reserve when the active turn is no longer valid", () => {
+    const viewport = document.createElement("div");
+    const anchor = document.createElement("div");
+    const target = document.createElement("div");
+    const reserveHost = document.createElement("div");
+    reserveHost.append(target);
+    document.body.append(reserveHost);
+
+    defineReadonlyNumber(viewport, "offsetTop", 0);
+    defineReadonlyNumber(viewport, "clientHeight", 400);
+    defineReadonlyNumber(viewport, "scrollHeight", 560);
+    defineReadonlyNumber(anchor, "offsetTop", 220);
+    defineReadonlyNumber(anchor, "offsetHeight", 64);
+    viewport.scrollTo = vi.fn();
+
+    const { store, setState } = makeStore({
+      turnAnchor: "top",
+      element: { viewport, anchor, target },
+      targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+
+    mountTopAnchorReserve(store);
+    vi.runOnlyPendingTimers();
+
+    const reserve = reserveHost.querySelector(
+      "[data-aui-top-anchor-reserve]",
+    ) as HTMLElement;
+
+    setState({
+      turnAnchor: "top",
+      element: { viewport, anchor: null, target: null },
+      targetConfig: null,
+      topAnchorTurn: null,
+    });
+    vi.runOnlyPendingTimers();
+
+    expect(reserve.isConnected).toBe(false);
+    expect(reserve.style.height).toBe("0px");
+  });
+
+  it("removes the reserve when only the registered anchor unmounts", () => {
+    const viewport = document.createElement("div");
+    const anchor = document.createElement("div");
+    const target = document.createElement("div");
+    const reserveHost = document.createElement("div");
+    reserveHost.append(target);
+    document.body.append(reserveHost);
+
+    defineReadonlyNumber(viewport, "offsetTop", 0);
+    defineReadonlyNumber(viewport, "clientHeight", 400);
+    defineReadonlyNumber(viewport, "scrollHeight", 560);
+    defineReadonlyNumber(anchor, "offsetTop", 220);
+    defineReadonlyNumber(anchor, "offsetHeight", 64);
+    viewport.scrollTo = vi.fn();
+
+    const { store, setState } = makeStore({
+      turnAnchor: "top",
+      element: { viewport, anchor, target },
+      targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+
+    mountTopAnchorReserve(store);
+    vi.runOnlyPendingTimers();
+
+    const reserve = reserveHost.querySelector(
+      "[data-aui-top-anchor-reserve]",
+    ) as HTMLElement;
+
+    setState({
+      turnAnchor: "top",
+      element: { viewport, anchor: null, target },
+      targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+    vi.runOnlyPendingTimers();
+
+    expect(reserve.isConnected).toBe(false);
+    expect(reserve.style.height).toBe("0px");
+  });
+
+  it("removes the reserve when the viewport is unavailable", () => {
+    const viewport = document.createElement("div");
+    const anchor = document.createElement("div");
+    const target = document.createElement("div");
+    const reserveHost = document.createElement("div");
+    reserveHost.append(target);
+    document.body.append(reserveHost);
+
+    defineReadonlyNumber(viewport, "offsetTop", 0);
+    defineReadonlyNumber(viewport, "clientHeight", 400);
+    defineReadonlyNumber(viewport, "scrollHeight", 560);
+    defineReadonlyNumber(anchor, "offsetTop", 220);
+    defineReadonlyNumber(anchor, "offsetHeight", 64);
+    viewport.scrollTo = vi.fn();
+
+    const { store, setState } = makeStore({
+      turnAnchor: "top",
+      element: { viewport, anchor, target },
+      targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+
+    mountTopAnchorReserve(store);
+    vi.runOnlyPendingTimers();
+
+    const reserve = reserveHost.querySelector(
+      "[data-aui-top-anchor-reserve]",
+    ) as HTMLElement;
+
+    setState({
+      turnAnchor: "top",
+      element: { viewport: null, anchor: null, target: null },
+      targetConfig: null,
+      topAnchorTurn: null,
+    });
+    vi.runOnlyPendingTimers();
+
+    expect(reserve.isConnected).toBe(false);
+    expect(reserve.style.height).toBe("0px");
+  });
+
+  it("removes the reserve when top anchoring is disabled", () => {
+    const viewport = document.createElement("div");
+    const anchor = document.createElement("div");
+    const target = document.createElement("div");
+    const reserveHost = document.createElement("div");
+    reserveHost.append(target);
+    document.body.append(reserveHost);
+
+    defineReadonlyNumber(viewport, "offsetTop", 0);
+    defineReadonlyNumber(viewport, "clientHeight", 400);
+    defineReadonlyNumber(viewport, "scrollHeight", 560);
+    defineReadonlyNumber(anchor, "offsetTop", 220);
+    defineReadonlyNumber(anchor, "offsetHeight", 64);
+    viewport.scrollTo = vi.fn();
+
+    const { store, setState } = makeStore({
+      turnAnchor: "top",
+      element: { viewport, anchor, target },
+      targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+
+    mountTopAnchorReserve(store);
+    vi.runOnlyPendingTimers();
+
+    const reserve = reserveHost.querySelector(
+      "[data-aui-top-anchor-reserve]",
+    ) as HTMLElement;
+
+    setState({
+      turnAnchor: "bottom",
+      element: { viewport, anchor: null, target: null },
+      targetConfig: null,
+      topAnchorTurn: null,
+    });
+    vi.runOnlyPendingTimers();
+
+    expect(reserve.isConnected).toBe(false);
+    expect(reserve.style.height).toBe("0px");
   });
 
   it("does not repeat the smooth top-anchor scroll for the same message", () => {
@@ -108,6 +349,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor, target },
       targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
     });
 
     mountTopAnchorReserve(store);
@@ -123,6 +365,7 @@ describe("mountTopAnchorReserve", () => {
       turnAnchor: "top",
       element: { viewport, anchor, target },
       targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
     });
     vi.runOnlyPendingTimers();
 
