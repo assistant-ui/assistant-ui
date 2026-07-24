@@ -3453,6 +3453,8 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   private _loadThreadsPromise;
   private _loadMorePromise;
   private _loadGeneration;
+  private _switchGeneration;
+  private _switchTask;
   private _mainThreadId;
   private readonly _state;
   get threadItems(): Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;
@@ -3581,7 +3583,9 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   switchToThread(threadIdOrRemoteId: string, options?: {
     unarchive?: boolean;
   }): Promise<void>;
+  private _switchToThread;
   switchToNewThread(): Promise<void>;
+  private _switchToNewThread;
   initialize: (threadId: string) => Promise<RemoteThreadInitializeResponse>;
   generateTitle: (threadId: string) => Promise<void>;
   rename(threadIdOrRemoteId: string, newTitle: string): Promise<void>;
