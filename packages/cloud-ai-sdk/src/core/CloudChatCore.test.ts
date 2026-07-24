@@ -21,6 +21,19 @@ const { persistMock, loadMessagesMock, MessagePersistenceMock } = vi.hoisted(
   },
 );
 
+const chatOptionsRef = vi.hoisted(() => ({
+  current: null as Record<string, unknown> | null,
+}));
+
+vi.mock("@ai-sdk/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@ai-sdk/react")>()),
+  Chat: class {
+    constructor(options: Record<string, unknown>) {
+      chatOptionsRef.current = options;
+    }
+  },
+}));
+
 vi.mock("../chat/MessagePersistence", () => ({
   MessagePersistence: MessagePersistenceMock,
 }));
@@ -28,13 +41,14 @@ vi.mock("../chat/MessagePersistence", () => ({
 function createCore(overrides?: {
   onSyncError?: (...args: unknown[]) => void;
   generateTitle?: (...args: unknown[]) => void;
+  chatConfig?: Record<string, unknown>;
 }) {
   const generateTitle = overrides?.generateTitle ?? vi.fn();
   const onSyncError = overrides?.onSyncError;
 
   const refs = {
     threads: { generateTitle } as never,
-    chatConfig: {} as never,
+    chatConfig: (overrides?.chatConfig ?? {}) as never,
     callbacks: {} as never,
     onSyncError: onSyncError as ((error: Error) => void) | undefined,
   };
@@ -48,6 +62,24 @@ describe("CloudChatCore", () => {
     vi.clearAllMocks();
     persistMock.mockResolvedValue(undefined);
     loadMessagesMock.mockResolvedValue([]);
+    chatOptionsRef.current = null;
+  });
+
+  it("forwards async tool call completion to the AI SDK chat", () => {
+    const completion = Promise.resolve();
+    const onToolCall = vi.fn(() => completion);
+    const core = createCore({ chatConfig: { onToolCall } });
+
+    core.createChat("chat-1", {} as never);
+
+    const wrappedOnToolCall = chatOptionsRef.current?.onToolCall;
+    expect(wrappedOnToolCall).toBeTypeOf("function");
+    const result = (
+      wrappedOnToolCall as (options: unknown) => PromiseLike<void> | void
+    )({ toolCall: {} });
+
+    expect(onToolCall).toHaveBeenCalledWith({ toolCall: {} });
+    expect(result).toBe(completion);
   });
 
   it("generates a title once for a newly created thread after assistant output", async () => {
