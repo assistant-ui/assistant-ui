@@ -3465,6 +3465,9 @@ importers:
       '@ai-sdk/react-v3':
         specifier: npm:@ai-sdk/react@^3.0.211
         version: '@ai-sdk/react@3.0.232(react@19.2.7)(zod@4.4.3)'
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../core
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils

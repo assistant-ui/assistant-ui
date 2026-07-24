@@ -88,6 +88,38 @@ describe("useThreads", () => {
     ]);
   });
 
+  it("stays idle until automatic thread fetching is enabled", async () => {
+    const deferred = createDeferred<{ threads: never[] }>();
+    const list = vi.fn().mockReturnValue(deferred.promise);
+    const cloud = {
+      threads: {
+        list,
+        get: vi.fn(),
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    } as never;
+
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useThreads({ cloud, enabled }),
+      { initialProps: { enabled: false } },
+    );
+
+    expect(result.current.isLoading).toBe(false);
+    expect(list).not.toHaveBeenCalled();
+
+    rerender({ enabled: true });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(list).toHaveBeenCalledOnce();
+
+    deferred.resolve({ threads: [] });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+  });
+
   it("keeps the latest refresh when requests resolve out of order", async () => {
     const first = createDeferred<ReturnType<typeof createThreadListResponse>>();
     const second =
