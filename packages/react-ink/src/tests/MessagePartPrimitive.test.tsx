@@ -32,6 +32,33 @@ describe("MessagePartPrimitive", () => {
     expect(frame).toBe("hello terminal");
   });
 
+  it.each([
+    ["text", () => <MessagePartPrimitive.Text />],
+    ["image", () => <MessagePartPrimitive.Image />],
+    ["file", () => <MessagePartPrimitive.File />],
+    ["source", () => <MessagePartPrimitive.Source />],
+    ["reasoning", () => <MessagePartPrimitive.Reasoning />],
+    ["data", () => <MessagePartPrimitive.Data />],
+  ] as const)(
+    "returns empty %s output during transient part-type mismatches",
+    async (_name, renderPrimitive) => {
+      let selectPart: UseAuiStateSelector | undefined;
+      mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) => {
+        selectPart = selector;
+        return "";
+      });
+
+      await renderFrame(renderPrimitive());
+
+      expect(selectPart).toBeDefined();
+      expect(
+        selectPart!({
+          part: { type: "tool-call" },
+        } as never),
+      ).toBe("");
+    },
+  );
+
   it("renders in-progress children only for running parts", async () => {
     mockPart(mockUseAuiState, {
       type: "text",

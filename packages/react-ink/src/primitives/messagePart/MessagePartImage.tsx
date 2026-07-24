@@ -14,16 +14,11 @@ export namespace MessagePartPrimitiveImage {
 export const MessagePartPrimitiveImage = (
   props: MessagePartPrimitiveImage.Props,
 ) => {
-  const filename = useAuiState((s) => {
-    if (s.part.type !== "image")
-      throw new Error(
-        "MessagePartPrimitive.Image can only be used inside image message parts.",
-      );
-    return s.part.filename;
+  const label = useAuiState((s) => {
+    if (s.part.type !== "image") return "";
+    return s.part.filename ? `[image: ${s.part.filename}]` : "[image]";
   });
-  return (
-    <Text {...props}>{filename ? `[image: ${filename}]` : "[image]"}</Text>
-  );
+  return <Text {...props}>{label}</Text>;
 };
 
 MessagePartPrimitiveImage.displayName = "MessagePartPrimitive.Image";
