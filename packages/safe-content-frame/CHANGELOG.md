@@ -1,5 +1,11 @@
 # safe-content-frame
 
+## 0.0.24
+
+### Patch Changes
+
+- [#5096](https://github.com/assistant-ui/assistant-ui/pull/5096) [`7492368`](https://github.com/assistant-ui/assistant-ui/commit/7492368638500f23f4baf9c62d730b479a5f4978) - fix: clean up frame resources after disposal and load failures ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.23
 
 ### Patch Changes
