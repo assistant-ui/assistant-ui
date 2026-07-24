@@ -149,8 +149,10 @@ describe("useThreads", () => {
     await waitFor(() => {
       expect(result.current.threads[0]?.id).toBe("thread-a");
     });
+    const selectThreadA = result.current.selectThread;
+    const refreshA = result.current.refresh;
     act(() => {
-      result.current.selectThread("thread-a");
+      selectThreadA("thread-a");
     });
 
     rerender({ cloud: cloudB });
@@ -159,6 +161,21 @@ describe("useThreads", () => {
     await waitFor(() => {
       expect(result.current.threads[0]?.id).toBe("thread-b");
     });
+    expect(result.current.threadId).toBeNull();
+
+    act(() => {
+      selectThreadA("late-thread-a");
+    });
+    expect(result.current.threadId).toBeNull();
+
+    let staleRefreshResult: boolean | undefined;
+    await act(async () => {
+      staleRefreshResult = await refreshA();
+    });
+    expect(staleRefreshResult).toBe(false);
+    expect(result.current.threads[0]?.id).toBe("thread-b");
+
+    rerender({ cloud: cloudA });
     expect(result.current.threadId).toBeNull();
   });
 
