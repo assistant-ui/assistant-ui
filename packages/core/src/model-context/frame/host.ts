@@ -53,6 +53,7 @@ export class AssistantFrameHost implements ModelContextProvider {
   private _requestCounter = 0;
   private _iframeWindow: Window;
   private _targetOrigin: string;
+  private _disposed = false;
 
   constructor(iframeWindow: Window, targetOrigin: string = "*") {
     this._iframeWindow = iframeWindow;
@@ -130,6 +131,10 @@ export class AssistantFrameHost implements ModelContextProvider {
     timeout = 30000,
     timeoutMessage = "Request timed out",
   ): Promise<any> {
+    if (this._disposed) {
+      return Promise.reject(new Error("AssistantFrameHost has been disposed"));
+    }
+
     return new Promise((resolve, reject) => {
       this._pendingRequests.set(message.id, { resolve, reject });
 
@@ -188,8 +193,13 @@ export class AssistantFrameHost implements ModelContextProvider {
   }
 
   dispose() {
+    this._disposed = true;
     window.removeEventListener("message", this.handleMessage);
     this._subscribers.clear();
+    const error = new Error("AssistantFrameHost has been disposed");
+    for (const pending of this._pendingRequests.values()) {
+      pending.reject(error);
+    }
     this._pendingRequests.clear();
   }
 }
