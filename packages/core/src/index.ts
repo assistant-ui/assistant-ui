@@ -63,6 +63,8 @@ export type {
 
 export type { Unsubscribe } from "./types/unsubscribe";
 
+export type { ThreadForkedFrom, ThreadForkOptions } from "./types/thread-fork";
+
 export type { QuoteInfo } from "./types/quote";
 
 export type {

@@ -12,6 +12,8 @@ import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
 
 const RESOLVED_PROMISE = Promise.resolve();
+const rejectUnsupportedFork = () =>
+  Promise.reject(new Error("Thread list runtime does not support forking"));
 
 export type InMemoryThreadListProps = {
   thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;
@@ -57,6 +59,7 @@ const useThreadListItemClient = (props: {
     archive: onArchive,
     unarchive: onUnarchive,
     delete: onDelete,
+    fork: rejectUnsupportedFork,
     generateTitle: () => {},
     initialize: async () => ({ remoteId: data.id, externalId: undefined }),
     detach: () => {},

@@ -69,6 +69,7 @@ export class LocalThreadListRuntimeCore
         id: this.mainThreadId,
         remoteId: this.mainThreadId,
         externalId: undefined,
+        forkedFrom: undefined,
         title: undefined,
         isMain: true,
       };

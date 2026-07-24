@@ -86,6 +86,7 @@ const getThreadListItemState = (
     id: threadData.id,
     remoteId: threadData.remoteId,
     externalId: threadData.externalId,
+    forkedFrom: threadData.forkedFrom,
     title: threadData.title,
     status: threadData.status,
     lastMessageAt: threadData.lastMessageAt,

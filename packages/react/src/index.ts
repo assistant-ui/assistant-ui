@@ -40,6 +40,8 @@ export type {
   ThreadListState,
   ThreadListItemRuntime,
   ThreadListItemState,
+  ThreadForkedFrom,
+  ThreadForkOptions,
 } from "@assistant-ui/core";
 
 export { useCloudThreadListRuntime } from "./legacy-runtime/cloud/useCloudThreadListRuntime";

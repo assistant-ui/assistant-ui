@@ -2,12 +2,14 @@ import type {
   RemoteThreadInitializeResponse,
   RemoteThreadMetadata,
 } from "./types";
+import type { ThreadForkedFrom } from "../../types/thread-fork";
 
 export type RemoteThreadData =
   | {
       readonly id: string;
       readonly remoteId: undefined;
       readonly externalId: undefined;
+      readonly forkedFrom?: undefined;
       readonly status: "new";
       readonly title: undefined;
       readonly custom: undefined;
@@ -17,6 +19,7 @@ export type RemoteThreadData =
       readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
       readonly remoteId: undefined;
       readonly externalId: undefined;
+      readonly forkedFrom?: ThreadForkedFrom | undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
       readonly custom: undefined;
@@ -26,6 +29,7 @@ export type RemoteThreadData =
       readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
       readonly remoteId: string;
       readonly externalId: string | undefined;
+      readonly forkedFrom?: ThreadForkedFrom | undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
       readonly lastMessageAt?: Date | undefined;
@@ -74,6 +78,7 @@ export const classifyThreads = (
       id: thread.remoteId,
       remoteId: thread.remoteId,
       externalId: thread.externalId,
+      forkedFrom: thread.forkedFrom,
       status: thread.status,
       title: thread.title,
       lastMessageAt: thread.lastMessageAt,

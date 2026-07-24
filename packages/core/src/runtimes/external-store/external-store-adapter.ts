@@ -18,12 +18,14 @@ import type { ExportedMessageRepository } from "../../runtime/utils/message-repo
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ToolExecutionStatus } from "../tool-invocations/ToolInvocationTracker";
 import type { ExternalThreadQueueAdapter } from "../../runtime/queue/external-thread-queue-adapter";
+import type { ThreadForkedFrom } from "../../types/thread-fork";
 
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
   status: TState;
   id: string;
   remoteId?: string | undefined;
   externalId?: string | undefined;
+  forkedFrom?: ThreadForkedFrom | undefined;
   title?: string | undefined;
   custom?: Record<string, unknown> | undefined;
 };

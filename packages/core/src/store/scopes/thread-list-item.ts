@@ -1,10 +1,15 @@
 import type { ThreadListItemRuntime } from "../../runtime/api/thread-list-item-runtime";
 import type { ThreadListItemStatus } from "../../runtime/interfaces/thread-list-runtime-core";
+import type {
+  ThreadForkedFrom,
+  ThreadForkOptions,
+} from "../../types/thread-fork";
 
 export type ThreadListItemState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
+  readonly forkedFrom?: ThreadForkedFrom | undefined;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
   readonly status: ThreadListItemStatus;
@@ -19,6 +24,7 @@ export type ThreadListItemMethods = {
   archive(): void;
   unarchive(): void;
   delete(): void;
+  fork(options?: ThreadForkOptions): Promise<{ threadId: string }>;
   generateTitle(): void;
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
   detach(): void;

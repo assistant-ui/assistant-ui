@@ -7,6 +7,7 @@ import type {
 } from "../interfaces/composer-runtime-core";
 import type { SpeechState } from "../interfaces/thread-runtime-core";
 import type { ComposerRuntimePath, MessageRuntimePath } from "./paths";
+import type { ThreadForkedFrom } from "../../types/thread-fork";
 
 export type ComposerRuntimeCoreBinding = SubscribableWithState<
   ComposerRuntimeCore | undefined,
@@ -40,6 +41,7 @@ export type ThreadListItemState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
+  readonly forkedFrom?: ThreadForkedFrom | undefined;
   readonly status: import("../interfaces/thread-list-runtime-core").ThreadListItemStatus;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;

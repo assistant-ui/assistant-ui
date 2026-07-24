@@ -1,5 +1,9 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ThreadRuntimeCore } from "./thread-runtime-core";
+import type {
+  ThreadForkedFrom,
+  ThreadForkOptions,
+} from "../../types/thread-fork";
 
 export type ThreadListItemStatus = "archived" | "regular" | "new" | "deleted";
 
@@ -7,6 +11,7 @@ export type ThreadListItemCoreState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
+  readonly forkedFrom?: ThreadForkedFrom | undefined;
 
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
@@ -52,6 +57,10 @@ export type ThreadListRuntimeCore = {
   archive(threadId: string): Promise<void>;
   unarchive(threadId: string): Promise<void>;
   delete(threadId: string): Promise<void>;
+  fork?(
+    threadId: string,
+    options?: ThreadForkOptions,
+  ): Promise<{ threadId: string }>;
 
   initialize(
     threadId: string,

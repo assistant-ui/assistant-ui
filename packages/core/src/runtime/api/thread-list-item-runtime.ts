@@ -26,6 +26,7 @@ export type ThreadListItemEventCallback<E extends ThreadListItemEventType> = (
 
 import type { ThreadListItemState } from "./bindings";
 import type { ThreadListItemStatus } from "../interfaces/thread-list-runtime-core";
+import type { ThreadForkOptions } from "../../types/thread-fork";
 
 export type { ThreadListItemState, ThreadListItemStatus };
 
@@ -42,6 +43,7 @@ export type ThreadListItemRuntime = {
   archive(): Promise<void>;
   unarchive(): Promise<void>;
   delete(): Promise<void>;
+  fork(options?: ThreadForkOptions): Promise<{ threadId: string }>;
 
   detach(): void;
 
@@ -79,6 +81,7 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     this.archive = this.archive.bind(this);
     this.unarchive = this.unarchive.bind(this);
     this.delete = this.delete.bind(this);
+    this.fork = this.fork.bind(this);
     this.initialize = this.initialize.bind(this);
     this.generateTitle = this.generateTitle.bind(this);
     this.subscribe = this.subscribe.bind(this);
@@ -131,6 +134,17 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     const state = this._core.getState();
 
     return this._threadListBinding.delete(state.id);
+  }
+
+  public async fork(
+    options?: ThreadForkOptions,
+  ): Promise<{ threadId: string }> {
+    const state = this._core.getState();
+    if (!this._threadListBinding.fork) {
+      throw new Error("Thread list runtime does not support forking");
+    }
+
+    return await this._threadListBinding.fork(state.id, options);
   }
 
   public initialize(): Promise<{

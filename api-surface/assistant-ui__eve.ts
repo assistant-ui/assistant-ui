@@ -399,6 +399,7 @@ type ExternalStoreThreadData<TState extends "archived" | "regular"> = {
   id: string;
   remoteId?: string | undefined;
   externalId?: string | undefined;
+  forkedFrom?: ThreadForkedFrom | undefined;
   title?: string | undefined;
   custom?: Record<string, unknown> | undefined;
 };
@@ -995,6 +996,15 @@ type ThreadComposerState = BaseComposerState & {
   readonly type: "thread";
 };
 
+type ThreadForkOptions = {
+  fromMessageId?: string | undefined;
+};
+
+type ThreadForkedFrom = {
+  readonly threadId: string;
+  readonly messageId?: string | undefined;
+};
+
 type ThreadListItemEventCallback<E extends ThreadListItemEventType> = (payload: ThreadListItemEventPayload[E]) => void;
 
 type ThreadListItemEventPayload = {
@@ -1020,6 +1030,9 @@ type ThreadListItemRuntime = {
   archive(): Promise<void>;
   unarchive(): Promise<void>;
   delete(): Promise<void>;
+  fork(options?: ThreadForkOptions): Promise<{
+    threadId: string;
+  }>;
   detach(): void;
   subscribe(callback: () => void): Unsubscribe;
   unstable_on<E extends ThreadListItemEventType>(event: E, callback: ThreadListItemEventCallback<E>): Unsubscribe;
@@ -1047,6 +1060,7 @@ type ThreadListItemState = {
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
+  readonly forkedFrom?: ThreadForkedFrom | undefined;
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;

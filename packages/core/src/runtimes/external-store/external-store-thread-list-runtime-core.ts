@@ -15,6 +15,7 @@ const DEFAULT_THREAD = Object.freeze({
   id: DEFAULT_THREAD_ID,
   remoteId: undefined,
   externalId: undefined,
+  forkedFrom: undefined,
   status: "regular",
 });
 const RESOLVED_PROMISE = Promise.resolve();
@@ -158,6 +159,7 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
           id: this._mainThreadId,
           remoteId: undefined,
           externalId: undefined,
+          forkedFrom: undefined,
           status: "regular",
         },
       };

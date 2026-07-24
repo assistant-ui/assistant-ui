@@ -48,6 +48,7 @@ const useThreadListItemClient = ({
     archive: runtime.archive,
     unarchive: runtime.unarchive,
     delete: runtime.delete,
+    fork: runtime.fork,
     generateTitle: runtime.generateTitle,
     initialize: runtime.initialize,
     detach: runtime.detach,
