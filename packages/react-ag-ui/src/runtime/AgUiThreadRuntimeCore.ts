@@ -425,38 +425,17 @@ export class AgUiThreadRuntimeCore {
       );
     }
 
-    const responsesById = new Map<string, AgUiResumeEntry>();
-    for (const entry of responses) {
-      if (!entry || typeof entry.interruptId !== "string") {
-        throw new Error(
-          "[agui] submitInterruptResponses: every entry must have an interruptId",
-        );
-      }
-      if (entry.status !== "resolved" && entry.status !== "cancelled") {
-        throw new Error(
-          `[agui] submitInterruptResponses: invalid status "${entry.status}" for interrupt ${entry.interruptId}`,
-        );
-      }
-      if (responsesById.has(entry.interruptId)) {
-        throw new Error(
-          `[agui] submitInterruptResponses: duplicate response for interrupt ${entry.interruptId}`,
-        );
-      }
-      responsesById.set(entry.interruptId, entry);
-    }
+    const responsesById = this.collectInterruptResponses(
+      "submitInterruptResponses",
+      pending.interrupts,
+      responses,
+    );
 
     const openIds = pending.interrupts.map((i) => i.id);
     const missing = openIds.filter((id) => !responsesById.has(id));
     if (missing.length > 0) {
       throw new Error(
         `[agui] submitInterruptResponses: missing responses for open interrupts: ${missing.join(", ")}`,
-      );
-    }
-    const known = new Set(openIds);
-    const unknownIds = [...responsesById.keys()].filter((id) => !known.has(id));
-    if (unknownIds.length > 0) {
-      throw new Error(
-        `[agui] submitInterruptResponses: unknown interrupt ids: ${unknownIds.join(", ")}`,
       );
     }
 
@@ -538,35 +517,51 @@ export class AgUiThreadRuntimeCore {
     interrupts: readonly AgUiInterrupt[],
     responses: readonly AgUiResumeEntry[] | undefined,
   ): AgUiResumeEntry[] {
-    const openIds = interrupts.map((interrupt) => interrupt.id);
-    const known = new Set(openIds);
+    const responsesById = this.collectInterruptResponses(
+      "steerAway",
+      interrupts,
+      responses ?? [],
+    );
+    return interrupts.map(
+      (interrupt) =>
+        responsesById.get(interrupt.id) ?? {
+          interruptId: interrupt.id,
+          status: "cancelled",
+        },
+    );
+  }
+
+  private collectInterruptResponses(
+    method: "submitInterruptResponses" | "steerAway",
+    interrupts: readonly AgUiInterrupt[],
+    responses: readonly AgUiResumeEntry[],
+  ): Map<string, AgUiResumeEntry> {
+    const known = new Set(interrupts.map((interrupt) => interrupt.id));
     const responsesById = new Map<string, AgUiResumeEntry>();
-    for (const entry of responses ?? []) {
+    for (const entry of responses) {
       if (!entry || typeof entry.interruptId !== "string") {
         throw new Error(
-          "[agui] steerAway: every response must have an interruptId",
+          `[agui] ${method}: every entry must have an interruptId`,
         );
       }
       if (entry.status !== "resolved" && entry.status !== "cancelled") {
         throw new Error(
-          `[agui] steerAway: invalid status "${entry.status}" for interrupt ${entry.interruptId}`,
+          `[agui] ${method}: invalid status "${entry.status}" for interrupt ${entry.interruptId}`,
         );
       }
       if (!known.has(entry.interruptId)) {
         throw new Error(
-          `[agui] steerAway: unknown interrupt id ${entry.interruptId}`,
+          `[agui] ${method}: unknown interrupt id ${entry.interruptId}`,
         );
       }
       if (responsesById.has(entry.interruptId)) {
         throw new Error(
-          `[agui] steerAway: duplicate response for interrupt ${entry.interruptId}`,
+          `[agui] ${method}: duplicate response for interrupt ${entry.interruptId}`,
         );
       }
       responsesById.set(entry.interruptId, entry);
     }
-    return openIds.map(
-      (id) => responsesById.get(id) ?? { interruptId: id, status: "cancelled" },
-    );
+    return responsesById;
   }
 
   private toAppendMessage(message: CreateAppendMessage): AppendMessage {
