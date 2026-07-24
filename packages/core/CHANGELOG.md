@@ -1,5 +1,34 @@
 # @assistant-ui/core
 
+## 0.2.22
+
+### Patch Changes
+
+- [#5066](https://github.com/assistant-ui/assistant-ui/pull/5066) [`79034bb`](https://github.com/assistant-ui/assistant-ui/commit/79034bbfe8da82c3739969bf7b4cc744910d203a) - fix: settle thread runtime starts when stopped before mounting ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5090](https://github.com/assistant-ui/assistant-ui/pull/5090) [`b17d392`](https://github.com/assistant-ui/assistant-ui/commit/b17d3929d785cb418615d18b739fb9e3b7b53728) - fix: mark a cancelled local runtime run incomplete when the adapter returns without throwing ([@VihaanAgarwal](https://github.com/VihaanAgarwal))
+
+- [#5091](https://github.com/assistant-ui/assistant-ui/pull/5091) [`20643e2`](https://github.com/assistant-ui/assistant-ui/commit/20643e299a3d9eeb73d73dca72d4b70220f4dc0b) - fix nested message runtime path references ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5132](https://github.com/assistant-ui/assistant-ui/pull/5132) [`33924df`](https://github.com/assistant-ui/assistant-ui/commit/33924df40ad3463f4e589617876d2496f48936ec) - fix: stop auto-submitting a parse-error tool result when divergent argsText closes without a backend result ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5067](https://github.com/assistant-ui/assistant-ui/pull/5067) [`19cfdcd`](https://github.com/assistant-ui/assistant-ui/commit/19cfdcdfdc6778a3ed3f607f694787fe1ef54612) - fix: detect removed keys in shallow memoized state ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4981](https://github.com/assistant-ui/assistant-ui/pull/4981) [`ca80153`](https://github.com/assistant-ui/assistant-ui/commit/ca801537e02bbab09532d0f505992778d282dddb) - fix: handle failed composer append tasks ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5117](https://github.com/assistant-ui/assistant-ui/pull/5117) [`f2f5e83`](https://github.com/assistant-ui/assistant-ui/commit/f2f5e8361fa5cee5c67ede5b5dac239416aa32ac) - fix: handle failed local history loads ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5107](https://github.com/assistant-ui/assistant-ui/pull/5107) [`666aaab`](https://github.com/assistant-ui/assistant-ui/commit/666aaab6ac3a64ec0f58c3ae958186a9880d8764) - fix: prioritize backend tool results over stale argument parse errors ([@Solaris-star](https://github.com/Solaris-star))
+
+- [#5078](https://github.com/assistant-ui/assistant-ui/pull/5078) [`c1b1750`](https://github.com/assistant-ui/assistant-ui/commit/c1b175040e49ecb82b43d2713536aef7a1f2300e) - fix: isolate realtime voice session listener errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5127](https://github.com/assistant-ui/assistant-ui/pull/5127) [`61518b9`](https://github.com/assistant-ui/assistant-ui/commit/61518b99c11c49f439fc9411187b1cb148777b79) - fix: keep derived part scopes stable while removed parts unmount ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5120](https://github.com/assistant-ui/assistant-ui/pull/5120) [`1eb7275`](https://github.com/assistant-ui/assistant-ui/commit/1eb72757257d1919b2c198c8700deb79ff280253) - fix: generate Cloud attachment IDs without requiring Web Crypto ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`5e4dd9f`](https://github.com/assistant-ui/assistant-ui/commit/5e4dd9fd00161fd79df60821d2b9af0cd7ebcefd), [`85d4976`](https://github.com/assistant-ui/assistant-ui/commit/85d49764ca3585fc553257dafa00a47830727e36), [`5135400`](https://github.com/assistant-ui/assistant-ui/commit/5135400d054297889312b9ae03fe803443ee2fae), [`9a343db`](https://github.com/assistant-ui/assistant-ui/commit/9a343db871ceab7e574bfcec9ab22af0ddaf1841), [`666aaab`](https://github.com/assistant-ui/assistant-ui/commit/666aaab6ac3a64ec0f58c3ae958186a9880d8764), [`ba948d8`](https://github.com/assistant-ui/assistant-ui/commit/ba948d8192b8c4bf12cbe60ece4d0f2d11506aa6)]:
+  - assistant-stream@0.3.27
+
 ## 0.2.21
 
 ### Patch Changes

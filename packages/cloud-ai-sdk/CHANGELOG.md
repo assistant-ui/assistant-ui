@@ -1,5 +1,14 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.26
+
+### Patch Changes
+
+- [#5076](https://github.com/assistant-ui/assistant-ui/pull/5076) [`aec9c3a`](https://github.com/assistant-ui/assistant-ui/commit/aec9c3a056c98e5d2ff7b6f574d6b22cc62b92b5) - test: exercise the ai v6 leg of the peer union in CI ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`7fde141`](https://github.com/assistant-ui/assistant-ui/commit/7fde141c094d122034804f9b9e19b4f17fb516ba)]:
+  - assistant-cloud@0.1.36
+
 ## 0.1.25
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # assistant-cloud
 
+## 0.1.36
+
+### Patch Changes
+
+- [#5058](https://github.com/assistant-ui/assistant-ui/pull/5058) [`7fde141`](https://github.com/assistant-ui/assistant-ui/commit/7fde141c094d122034804f9b9e19b4f17fb516ba) - fix(assistant-cloud): warn when an update targets a message without a remote id ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`5e4dd9f`](https://github.com/assistant-ui/assistant-ui/commit/5e4dd9fd00161fd79df60821d2b9af0cd7ebcefd), [`85d4976`](https://github.com/assistant-ui/assistant-ui/commit/85d49764ca3585fc553257dafa00a47830727e36), [`5135400`](https://github.com/assistant-ui/assistant-ui/commit/5135400d054297889312b9ae03fe803443ee2fae), [`9a343db`](https://github.com/assistant-ui/assistant-ui/commit/9a343db871ceab7e574bfcec9ab22af0ddaf1841), [`666aaab`](https://github.com/assistant-ui/assistant-ui/commit/666aaab6ac3a64ec0f58c3ae958186a9880d8764), [`ba948d8`](https://github.com/assistant-ui/assistant-ui/commit/ba948d8192b8c4bf12cbe60ece4d0f2d11506aa6)]:
+  - assistant-stream@0.3.27
+
 ## 0.1.35
 
 ### Patch Changes

@@ -1,5 +1,22 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.18
+
+### Patch Changes
+
+- [#5011](https://github.com/assistant-ui/assistant-ui/pull/5011) [`c430f19`](https://github.com/assistant-ui/assistant-ui/commit/c430f1982f76c2f52ad0b3959c3c8738909ba432) - fix: reject incomplete direct stream options ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5032](https://github.com/assistant-ui/assistant-ui/pull/5032) [`6153ff8`](https://github.com/assistant-ui/assistant-ui/commit/6153ff86b1a28a0a3984541fc910550ca0e022dd) - fix: validate session API response shapes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5031](https://github.com/assistant-ui/assistant-ui/pull/5031) [`5bf7cbf`](https://github.com/assistant-ui/assistant-ui/commit/5bf7cbfa5dcba44a12b48817bac0607728ef89a7) - fix: validate event stream response content types ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5092](https://github.com/assistant-ui/assistant-ui/pull/5092) [`e18eb87`](https://github.com/assistant-ui/assistant-ui/commit/e18eb871ba368ce72c4fd5f97804e83f91552439) - fix: validate Google ADK artifact API responses ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`79034bb`](https://github.com/assistant-ui/assistant-ui/commit/79034bbfe8da82c3739969bf7b4cc744910d203a), [`b17d392`](https://github.com/assistant-ui/assistant-ui/commit/b17d3929d785cb418615d18b739fb9e3b7b53728), [`20643e2`](https://github.com/assistant-ui/assistant-ui/commit/20643e299a3d9eeb73d73dca72d4b70220f4dc0b), [`7fde141`](https://github.com/assistant-ui/assistant-ui/commit/7fde141c094d122034804f9b9e19b4f17fb516ba), [`33924df`](https://github.com/assistant-ui/assistant-ui/commit/33924df40ad3463f4e589617876d2496f48936ec), [`19cfdcd`](https://github.com/assistant-ui/assistant-ui/commit/19cfdcdfdc6778a3ed3f607f694787fe1ef54612), [`5e4dd9f`](https://github.com/assistant-ui/assistant-ui/commit/5e4dd9fd00161fd79df60821d2b9af0cd7ebcefd), [`85d4976`](https://github.com/assistant-ui/assistant-ui/commit/85d49764ca3585fc553257dafa00a47830727e36), [`5135400`](https://github.com/assistant-ui/assistant-ui/commit/5135400d054297889312b9ae03fe803443ee2fae), [`ca80153`](https://github.com/assistant-ui/assistant-ui/commit/ca801537e02bbab09532d0f505992778d282dddb), [`f2f5e83`](https://github.com/assistant-ui/assistant-ui/commit/f2f5e8361fa5cee5c67ede5b5dac239416aa32ac), [`9a343db`](https://github.com/assistant-ui/assistant-ui/commit/9a343db871ceab7e574bfcec9ab22af0ddaf1841), [`666aaab`](https://github.com/assistant-ui/assistant-ui/commit/666aaab6ac3a64ec0f58c3ae958186a9880d8764), [`c1b1750`](https://github.com/assistant-ui/assistant-ui/commit/c1b175040e49ecb82b43d2713536aef7a1f2300e), [`61518b9`](https://github.com/assistant-ui/assistant-ui/commit/61518b99c11c49f439fc9411187b1cb148777b79), [`1eb7275`](https://github.com/assistant-ui/assistant-ui/commit/1eb72757257d1919b2c198c8700deb79ff280253), [`ba948d8`](https://github.com/assistant-ui/assistant-ui/commit/ba948d8192b8c4bf12cbe60ece4d0f2d11506aa6)]:
+  - @assistant-ui/core@0.2.22
+  - assistant-cloud@0.1.36
+  - assistant-stream@0.3.27
+
 ## 0.0.17
 
 ### Patch Changes

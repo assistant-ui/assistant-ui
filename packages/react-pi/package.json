@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-pi",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Pi coding-agent runtime adapter for assistant-ui",
   "keywords": [
     "pi",
@@ -52,7 +52,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.2.21",
+    "@assistant-ui/core": "^0.2.22",
     "@assistant-ui/store": "^0.2.20",
     "use-effect-event": "^2.0.3"
   },

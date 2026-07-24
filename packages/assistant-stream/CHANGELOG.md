@@ -1,5 +1,21 @@
 # assistant-stream
 
+## 0.3.27
+
+### Patch Changes
+
+- [#5063](https://github.com/assistant-ui/assistant-ui/pull/5063) [`5e4dd9f`](https://github.com/assistant-ui/assistant-ui/commit/5e4dd9fd00161fd79df60821d2b9af0cd7ebcefd) - feat: add GorpStreamDeltaTracker, migrating gorp's delta-tracking (change frames, isChangedAt, getChangedKeys) into GorpStream ([@Yonom](https://github.com/Yonom))
+
+- [#5064](https://github.com/assistant-ui/assistant-ui/pull/5064) [`85d4976`](https://github.com/assistant-ui/assistant-ui/commit/85d49764ca3585fc553257dafa00a47830727e36) - refactor: consolidate on a single wire protocol name (assistant-transport). Remove the unpublished gorp-shaped exports, expose diff tracking as AssistantTransportDeltaTracker and the state operation type as AssistantTransportStateOperation, and keep the published ObjectStream aliases working as deprecated delegates. ([@Yonom](https://github.com/Yonom))
+
+- [#5061](https://github.com/assistant-ui/assistant-ui/pull/5061) [`5135400`](https://github.com/assistant-ui/assistant-ui/commit/5135400d054297889312b9ae03fe803443ee2fae) - feat: rename ObjectStream to GorpStream (old names remain as deprecated aliases) ([@Yonom](https://github.com/Yonom))
+
+- [#4988](https://github.com/assistant-ui/assistant-ui/pull/4988) [`9a343db`](https://github.com/assistant-ui/assistant-ui/commit/9a343db871ceab7e574bfcec9ab22af0ddaf1841) - fix: guard object stream settlement after cancellation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5107](https://github.com/assistant-ui/assistant-ui/pull/5107) [`666aaab`](https://github.com/assistant-ui/assistant-ui/commit/666aaab6ac3a64ec0f58c3ae958186a9880d8764) - fix: prioritize backend tool results over stale argument parse errors ([@Solaris-star](https://github.com/Solaris-star))
+
+- [#5129](https://github.com/assistant-ui/assistant-ui/pull/5129) [`ba948d8`](https://github.com/assistant-ui/assistant-ui/commit/ba948d8192b8c4bf12cbe60ece4d0f2d11506aa6) - fix: cancel polyfilled async iterators when consumers stop early ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.26
 
 ### Patch Changes
