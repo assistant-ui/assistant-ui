@@ -102,6 +102,17 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     }
   }
 
+  async update({ message }: ExportedMessageRepositoryItem) {
+    const remoteId = this.aui.threadListItem().getState().remoteId;
+    if (!remoteId) return;
+    await this._persistence.update(
+      remoteId,
+      message.id,
+      "aui/v0",
+      auiV0Encode(message),
+    );
+  }
+
   async delete() {
     throw new Error(
       "Assistant Cloud does not support deleting thread messages yet.",

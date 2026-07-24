@@ -7,6 +7,7 @@ import type {
 } from "../../runtime/utils/chat-model-adapter";
 import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
+import type { ExportedMessageRepositoryItem } from "../../runtime/utils/message-repository";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -14,6 +15,7 @@ const createThread = (
   adapter: ChatModelAdapter,
   options?: {
     suggestion?: LocalRuntimeOptionsBase["adapters"]["suggestion"];
+    history?: LocalRuntimeOptionsBase["adapters"]["history"];
   },
 ) => {
   const core = new LocalRuntimeCore(
@@ -22,6 +24,9 @@ const createThread = (
         chatModel: adapter,
         ...(options?.suggestion !== undefined && {
           suggestion: options.suggestion,
+        }),
+        ...(options?.history !== undefined && {
+          history: options.history,
         }),
       },
       unstable_humanToolNames: ["send_email"],
@@ -558,5 +563,176 @@ describe("LocalThreadRuntimeCore suggestions", () => {
     resolveSuggestions([{ prompt: "follow up" }]);
     await new Promise((r) => setTimeout(r, 0));
     expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
+  });
+});
+
+describe("LocalThreadRuntimeCore tool approval persistence", () => {
+  const createHistory = (options?: { update?: boolean }) => {
+    const appended: ExportedMessageRepositoryItem[] = [];
+    const updated: ExportedMessageRepositoryItem[] = [];
+    const history = {
+      async load() {
+        return { messages: [] };
+      },
+      async append(item: ExportedMessageRepositoryItem) {
+        appended.push(item);
+      },
+      ...(options?.update !== false && {
+        async update(item: ExportedMessageRepositoryItem) {
+          updated.push(item);
+        },
+      }),
+    };
+    return { history, appended, updated };
+  };
+
+  const createApprovalThreadWithHistory = (
+    history: LocalRuntimeOptionsBase["adapters"]["history"],
+  ) => {
+    const runs: ChatModelRunOptions[] = [];
+    return createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          if (runs.length === 1)
+            return toolCallResult("send_email", { id: "a1" });
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { history },
+    );
+  };
+
+  it("persists a run paused for approval and rewrites it once the run finishes", async () => {
+    const { history, appended, updated } = createHistory();
+    const thread = createApprovalThreadWithHistory(history);
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    const assistant = appended.find((i) => i.message.role === "assistant");
+    expect(assistant?.message.status?.type).toBe("requires-action");
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+    expect(
+      appended.filter((i) => i.message.id === assistant?.message.id),
+    ).toHaveLength(1);
+    expect(updated.at(-1)?.message.id).toBe(assistant?.message.id);
+    expect(updated.at(-1)?.message.status?.type).toBe("complete");
+  });
+
+  it("keeps the append-only behavior for adapters without update", async () => {
+    const { history, appended } = createHistory({ update: false });
+    const thread = createApprovalThreadWithHistory(history);
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    expect(appended.some((i) => i.message.role === "assistant")).toBe(false);
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    const assistants = appended.filter((i) => i.message.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(assistants[0]?.message.status?.type).toBe("complete");
+  });
+
+  it("rewrites a restored paused message instead of appending a duplicate", async () => {
+    const { history, appended, updated } = createHistory();
+    const runs: ChatModelRunOptions[] = [];
+    const paused: ExportedMessageRepositoryItem = {
+      parentId: null,
+      message: {
+        id: "restored",
+        role: "assistant",
+        content: [toolCallPart("send_email", { id: "a1" })],
+        status: { type: "requires-action", reason: "tool-calls" },
+        createdAt: new Date(),
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      },
+    };
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      {
+        history: {
+          ...history,
+          async load() {
+            return { headId: "restored", messages: [paused] };
+          },
+        },
+      },
+    );
+
+    thread.__internal_load();
+    await flush();
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    expect(appended).toHaveLength(0);
+    expect(updated.at(-1)?.message.id).toBe("restored");
+    expect(updated.at(-1)?.message.status?.type).toBe("complete");
+  });
+
+  it("still appends a restored paused message when the adapter cannot update", async () => {
+    const { history, appended } = createHistory({ update: false });
+    const paused: ExportedMessageRepositoryItem = {
+      parentId: null,
+      message: {
+        id: "restored",
+        role: "assistant",
+        content: [toolCallPart("send_email", { id: "a1" })],
+        status: { type: "requires-action", reason: "tool-calls" },
+        createdAt: new Date(),
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      },
+    };
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      {
+        history: {
+          ...history,
+          async load() {
+            return { headId: "restored", messages: [paused] };
+          },
+        },
+      },
+    );
+
+    thread.__internal_load();
+    await flush();
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(appended).toHaveLength(1);
+    expect(appended[0]?.message.id).toBe("restored");
+    expect(appended[0]?.message.status?.type).toBe("complete");
   });
 });
