@@ -22,6 +22,21 @@ export type SpeechSynthesisAdapter = {
   speak: (text: string) => SpeechSynthesisAdapter.Utterance;
 };
 
+const notifySpeechSynthesisListeners = (
+  listeners: ReadonlySet<() => void>,
+): void => {
+  for (const listener of listeners) {
+    try {
+      listener();
+    } catch (error) {
+      console.error(
+        "[assistant-ui] Speech synthesis listener threw an error",
+        error,
+      );
+    }
+  }
+};
+
 export namespace DictationAdapter {
   export type Status =
     | {
@@ -64,7 +79,7 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
       if (res.status.type === "ended") return;
 
       res.status = { type: "ended", reason, error };
-      subscribers.forEach((handler) => handler());
+      notifySpeechSynthesisListeners(subscribers);
     };
 
     utterance.addEventListener("end", () => handleEnd("finished"));
