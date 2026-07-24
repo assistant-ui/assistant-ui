@@ -171,7 +171,11 @@ export function createVoiceSession(
     try {
       if (disposed) return;
       controls = await setup(helpers);
-      if (disposed) controls.disconnect();
+      if (disposed) {
+        controls.disconnect();
+      } else if (isMuted) {
+        controls.mute();
+      }
     } catch (error) {
       helpers.end("error", error);
     }
