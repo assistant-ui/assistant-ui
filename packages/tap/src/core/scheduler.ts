@@ -1,5 +1,10 @@
 type Task = () => void;
 
+type RefableMessagePort = MessagePort & {
+  ref?: () => void;
+  unref?: () => void;
+};
+
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
   isScheduled: boolean;
@@ -82,20 +87,30 @@ const flushScheduled = () => {
 
 // Schedule flushes as macrotasks so more state updates batch into one render.
 const scheduleMacrotask = (() => {
-  const setImmediate = (
-    globalThis as typeof globalThis & {
-      setImmediate?: (callback: () => void) => void;
-    }
-  ).setImmediate;
-
-  if (setImmediate) {
-    return () => setImmediate(flushScheduled);
-  }
-
   if (typeof MessageChannel !== "undefined") {
     const channel = new MessageChannel();
-    channel.port1.onmessage = flushScheduled;
-    return () => channel.port2.postMessage(null);
+    const receiver = channel.port1 as RefableMessagePort;
+    const sender = channel.port2 as RefableMessagePort;
+
+    const unref = () => {
+      receiver.unref?.();
+      sender.unref?.();
+    };
+
+    receiver.onmessage = () => {
+      try {
+        flushScheduled();
+      } finally {
+        unref();
+      }
+    };
+    unref();
+
+    return () => {
+      receiver.ref?.();
+      sender.ref?.();
+      sender.postMessage(null);
+    };
   }
   // Fallback for environments without MessageChannel
   return () => setTimeout(flushScheduled, 0);

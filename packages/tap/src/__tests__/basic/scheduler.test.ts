@@ -9,31 +9,46 @@ describe("UpdateScheduler", () => {
     vi.unstubAllGlobals();
   });
 
-  it("prefers setImmediate when available", async () => {
-    let scheduled: (() => void) | undefined;
-    const setImmediateMock = vi.fn((callback: () => void) => {
-      scheduled = callback;
-    });
-    const messageChannelMock = vi.fn();
+  it("only refs Node MessageChannel ports while a flush is pending", async () => {
+    const receiver = {
+      onmessage: null as (() => void) | null,
+      ref: vi.fn(),
+      unref: vi.fn(),
+    };
+    const sender = {
+      postMessage: vi.fn(),
+      ref: vi.fn(),
+      unref: vi.fn(),
+    };
 
-    vi.stubGlobal("setImmediate", setImmediateMock);
-    vi.stubGlobal("MessageChannel", messageChannelMock);
+    class MessageChannelMock {
+      readonly port1 = receiver;
+      readonly port2 = sender;
+    }
+
+    vi.stubGlobal("MessageChannel", MessageChannelMock);
 
     const { UpdateScheduler } = await import("../../core/scheduler");
     const task = vi.fn();
 
+    expect(receiver.unref).toHaveBeenCalledOnce();
+    expect(sender.unref).toHaveBeenCalledOnce();
+
     new UpdateScheduler(task).markDirty();
 
-    expect(setImmediateMock).toHaveBeenCalledOnce();
-    expect(messageChannelMock).not.toHaveBeenCalled();
+    expect(receiver.ref).toHaveBeenCalledOnce();
+    expect(sender.ref).toHaveBeenCalledOnce();
+    expect(sender.postMessage).toHaveBeenCalledOnce();
     expect(task).not.toHaveBeenCalled();
 
-    scheduled?.();
+    receiver.onmessage?.();
 
     expect(task).toHaveBeenCalledOnce();
+    expect(receiver.unref).toHaveBeenCalledTimes(2);
+    expect(sender.unref).toHaveBeenCalledTimes(2);
   });
 
-  it("uses MessageChannel when setImmediate is unavailable", async () => {
+  it("supports browser MessageChannel ports without lifecycle methods", async () => {
     const port1 = {
       onmessage: null as (() => void) | null,
     };
@@ -44,7 +59,6 @@ describe("UpdateScheduler", () => {
       readonly port2 = { postMessage };
     }
 
-    vi.stubGlobal("setImmediate", undefined);
     vi.stubGlobal("MessageChannel", MessageChannelMock);
 
     const { UpdateScheduler } = await import("../../core/scheduler");
