@@ -14,7 +14,7 @@ describe("sliceMessagesUntil", () => {
 
   it("throws when the message id is not found", () => {
     expect(() => sliceMessagesUntil([msg("u1", "user")], "missing")).toThrow(
-      "Message not found",
+      'sliceMessagesUntil: Message "missing" not found in AI SDK messages. This is likely an internal bug in assistant-ui.',
     );
   });
 
