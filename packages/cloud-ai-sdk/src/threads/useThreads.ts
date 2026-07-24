@@ -34,7 +34,17 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const [threads, setThreads] = useState<CloudThread[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [threadId, setThreadId] = useState<string | null>(null);
+  const [selection, setSelection] = useState(() => ({
+    cloud,
+    threadId: null as string | null,
+  }));
+  const threadId = selection.cloud === cloud ? selection.threadId : null;
+
+  useEffect(() => {
+    setSelection((current) =>
+      current.cloud === cloud ? current : { cloud, threadId: null },
+    );
+  }, [cloud]);
 
   const mountedRef = useRef(true);
   const refreshRequestRef = useRef(0);
@@ -195,9 +205,12 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     [cloud, withAction],
   );
 
-  const selectThread = useCallback((id: string | null) => {
-    setThreadId(id);
-  }, []);
+  const selectThread = useCallback(
+    (id: string | null) => {
+      setSelection({ cloud, threadId: id });
+    },
+    [cloud],
+  );
 
   const generateTitle = useCallback(
     async (tid: string): Promise<string | null> => {

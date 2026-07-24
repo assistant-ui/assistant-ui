@@ -46,6 +46,7 @@ export function useCloudChat(
   });
 
   const { registry, activeChat } = useChatRegistry({
+    scope: threads.cloud,
     threadId: threads.threadId,
     createChat: (chatKey, reg) => core.createChat(chatKey, reg),
   });

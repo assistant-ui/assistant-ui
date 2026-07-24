@@ -17,11 +17,11 @@ function createDeferred<T>(): Deferred<T> {
   return { promise, resolve };
 }
 
-function createThreadListResponse(title: string) {
+function createThreadListResponse(title: string, id = "thread-1") {
   return {
     threads: [
       {
-        id: "thread-1",
+        id,
         title,
         is_archived: false,
         external_id: null,
@@ -125,6 +125,41 @@ describe("useThreads", () => {
       await firstRefresh;
     });
     expect(result.current.threads[0]?.title).toBe("Newest");
+  });
+
+  it("clears the selected thread when the cloud changes", async () => {
+    const createCloud = (id: string) =>
+      ({
+        threads: {
+          list: vi.fn().mockResolvedValue(createThreadListResponse(id, id)),
+          get: vi.fn(),
+          create: vi.fn(),
+          delete: vi.fn(),
+          update: vi.fn(),
+        },
+      }) as never;
+    const cloudA = createCloud("thread-a");
+    const cloudB = createCloud("thread-b");
+
+    const { result, rerender } = renderHook(
+      ({ cloud }) => useThreads({ cloud }),
+      { initialProps: { cloud: cloudA } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.threads[0]?.id).toBe("thread-a");
+    });
+    act(() => {
+      result.current.selectThread("thread-a");
+    });
+
+    rerender({ cloud: cloudB });
+
+    expect(result.current.threadId).toBeNull();
+    await waitFor(() => {
+      expect(result.current.threads[0]?.id).toBe("thread-b");
+    });
+    expect(result.current.threadId).toBeNull();
   });
 
   it("avoids unmounted state updates during async refresh", async () => {

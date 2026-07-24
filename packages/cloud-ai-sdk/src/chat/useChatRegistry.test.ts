@@ -6,6 +6,7 @@ import { useChatRegistry } from "./useChatRegistry";
 
 describe("useChatRegistry", () => {
   it("reuses the same chat for the same selected thread", () => {
+    const scope = {};
     const createChat = vi.fn().mockImplementation((chatKey: string) => ({
       id: chatKey,
       messages: [],
@@ -14,6 +15,7 @@ describe("useChatRegistry", () => {
     const { rerender } = renderHook(
       ({ threadId }) =>
         useChatRegistry({
+          scope,
           threadId,
           createChat: createChat as never,
         }),
@@ -29,6 +31,7 @@ describe("useChatRegistry", () => {
   });
 
   it("creates a fresh session key after leaving a selected thread", () => {
+    const scope = {};
     const createChat = vi.fn().mockImplementation((chatKey: string) => ({
       id: chatKey,
       messages: [],
@@ -37,6 +40,7 @@ describe("useChatRegistry", () => {
     const { rerender } = renderHook(
       ({ threadId }) =>
         useChatRegistry({
+          scope,
           threadId,
           createChat: createChat as never,
         }),
@@ -56,6 +60,7 @@ describe("useChatRegistry", () => {
   });
 
   it("creates a brand-new key immediately when leaving a thread that reused the previous new-chat key", () => {
+    const scope = {};
     const createChat = vi.fn().mockImplementation((chatKey: string) => ({
       id: chatKey,
       messages: [],
@@ -64,6 +69,7 @@ describe("useChatRegistry", () => {
     const { result, rerender } = renderHook(
       ({ threadId }) =>
         useChatRegistry({
+          scope,
           threadId,
           createChat: createChat as never,
         }),
@@ -82,5 +88,31 @@ describe("useChatRegistry", () => {
 
     rerender({ threadId: null });
     expect(result.current.activeChat.id).not.toBe(initialNewChatKey);
+  });
+
+  it("creates a new registry and chat when the scope changes", () => {
+    const createChat = vi
+      .fn()
+      .mockImplementation((chatKey: string) => ({ id: chatKey, messages: [] }));
+    const scopeA = {};
+    const scopeB = {};
+
+    const { result, rerender } = renderHook(
+      ({ scope }) =>
+        useChatRegistry({
+          scope,
+          threadId: "thread-1",
+          createChat: createChat as never,
+        }),
+      { initialProps: { scope: scopeA } },
+    );
+    const registryA = result.current.registry;
+    const chatA = result.current.activeChat;
+
+    rerender({ scope: scopeB });
+
+    expect(result.current.registry).not.toBe(registryA);
+    expect(result.current.activeChat).not.toBe(chatA);
+    expect(createChat).toHaveBeenCalledTimes(2);
   });
 });
