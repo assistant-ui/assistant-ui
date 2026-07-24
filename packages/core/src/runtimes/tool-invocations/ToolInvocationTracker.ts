@@ -687,14 +687,18 @@ export class ToolInvocationTracker {
     }
 
     if (!entry.argsComplete && entry.controller) {
+      // Gate the close on the controller's actual streamed content, not the
+      // snapshot's argsText. ToolExecutionStream parses the streamed prefix on
+      // close; a divergent snapshot (A.2) can be complete while the controller
+      // still holds an incomplete stale prefix. Closing on the snapshot would
+      // parse the stale prefix and auto-submit a bogus parse-error result.
       const shouldClose = this._shouldCloseArgsStream({
         toolName: content.toolName,
-        argsText: content.argsText,
+        argsText: entry.argsText,
         hasResult,
       });
       if (shouldClose) {
         entry.controller.argsText.close();
-        entry.argsText = content.argsText;
         entry.argsComplete = true;
       }
     }

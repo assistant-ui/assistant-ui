@@ -41,6 +41,15 @@ Subsequent snapshots that *are* prefixes of the new (regressed) snapshot
 also won't be appended, because `entry.argsText` still points at the
 pre-regression value used for delta calculation.
 
+The args stream closes only when the controller's *streamed* content
+(`entry.argsText`) is complete, not when a later snapshot is. A divergent
+snapshot can be complete while the controller still holds an incomplete
+stale prefix; closing on the snapshot would parse that stale prefix and
+auto-submit a bogus parse-error result (resuming the host graph and
+abandoning a pending interrupt). Gating the close on the streamed content
+leaves the stream open until the prefix itself completes, so no stale
+parse runs and no error result is fabricated from divergent args.
+
 ### A.3. Args complete then equivalent-JSON key reorder
 Both old and new `argsText` parse to equivalent JSON values (e.g. keys
 reordered by the backend). The tracker updates its tracked `argsText`
