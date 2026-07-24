@@ -35,22 +35,27 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [selection, setSelection] = useState(() => ({
-    cloud,
+    scope: { cloud },
     threadId: null as string | null,
   }));
-  const threadId = selection.cloud === cloud ? selection.threadId : null;
+  const scope = selection.scope;
+  const threadId = scope.cloud === cloud ? selection.threadId : null;
 
   useEffect(() => {
     setSelection((current) =>
-      current.cloud === cloud ? current : { cloud, threadId: null },
+      current.scope.cloud === cloud
+        ? current
+        : { scope: { cloud }, threadId: null },
     );
   }, [cloud]);
 
-  const activeCloudRef = useRef(cloud);
-  activeCloudRef.current = cloud;
+  const activeScopeRef = useRef(scope);
+  useEffect(() => {
+    activeScopeRef.current = scope;
+  }, [scope]);
   const isCurrentCloud = useCallback(
-    () => activeCloudRef.current === cloud,
-    [cloud],
+    () => scope.cloud === cloud && activeScopeRef.current === scope,
+    [cloud, scope],
   );
 
   const mountedRef = useRef(true);
@@ -242,10 +247,12 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const selectThread = useCallback(
     (id: string | null) => {
       setSelection((current) =>
-        current.cloud === cloud ? { cloud, threadId: id } : current,
+        scope.cloud === cloud && current.scope === scope
+          ? { scope, threadId: id }
+          : current,
       );
     },
-    [cloud],
+    [cloud, scope],
   );
 
   const generateTitle = useCallback(
