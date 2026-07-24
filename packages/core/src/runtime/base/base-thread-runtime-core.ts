@@ -182,14 +182,26 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) return;
 
+    const reportError = (error: unknown) => {
+      console.error(
+        `[assistant-ui] Thread runtime "${event}" listener threw an error`,
+        error,
+      );
+    };
+
     for (const callback of subscribers) {
       try {
-        callback(payload);
+        const result = callback(payload) as unknown;
+        if (
+          typeof result === "object" &&
+          result !== null &&
+          "then" in result &&
+          typeof result.then === "function"
+        ) {
+          void Promise.resolve(result).catch(reportError);
+        }
       } catch (error) {
-        console.error(
-          `[assistant-ui] Thread runtime "${event}" listener threw an error`,
-          error,
-        );
+        reportError(error);
       }
     }
   }

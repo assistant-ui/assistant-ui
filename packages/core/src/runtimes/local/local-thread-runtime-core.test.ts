@@ -105,6 +105,35 @@ describe("LocalThreadRuntimeCore events", () => {
       listenerError,
     );
   });
+
+  it("isolates async runEnd listener rejections", async () => {
+    const listenerError = new Error("async telemetry failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const laterListener = vi.fn();
+    const thread = createThread({
+      async run() {
+        return { content: [{ type: "text", text: "done" }] };
+      },
+    });
+
+    thread.unstable_on("runEnd", async () => {
+      throw listenerError;
+    });
+    thread.unstable_on("runEnd", laterListener);
+
+    await expect(thread.append(userMessage("hello"))).resolves.toBeUndefined();
+
+    expect(laterListener).toHaveBeenCalledOnce();
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        '[assistant-ui] Thread runtime "runEnd" listener threw an error',
+        listenerError,
+      );
+    });
+  });
 });
 
 describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
