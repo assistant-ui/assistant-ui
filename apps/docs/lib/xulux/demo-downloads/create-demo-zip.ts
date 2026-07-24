@@ -36,10 +36,9 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     return createNodeCliDemoFileMap(manifest, snapshot);
   }
 
-  const demoSource = assertSnapshotFile(snapshot, manifest.entry).replaceAll(
-    "@/components/ui/radix/",
-    "@/components/ui/",
-  );
+  const demoSource = assertSnapshotFile(snapshot, manifest.entry)
+    .replaceAll("@/components/ui/radix/", "@/components/ui/")
+    .replaceAll("@/components/ui/base/", "@/components/ui/");
   const files: ZipFileMap = {
     "package.json": packageJson(manifest, snapshot),
     "next.config.ts": nextConfigTs(),
@@ -69,10 +68,9 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
         `Demo zip target collision: ${sourceFile} flattens onto ${target}`,
       );
     }
-    files[target] = assertSnapshotFile(snapshot, sourceFile).replaceAll(
-      "@/components/ui/radix/",
-      "@/components/ui/",
-    );
+    files[target] = assertSnapshotFile(snapshot, sourceFile)
+      .replaceAll("@/components/ui/radix/", "@/components/ui/")
+      .replaceAll("@/components/ui/base/", "@/components/ui/");
   }
 
   return files;
@@ -253,7 +251,7 @@ function readme(manifest: DemoDownloadManifest) {
 }
 
 function globalsCss() {
-  return `@import "tailwindcss";\n\n@theme inline {\n  --color-background: var(--background);\n  --color-foreground: var(--foreground);\n  --color-muted: var(--muted);\n  --color-muted-foreground: var(--muted-foreground);\n  --color-border: var(--border);\n  --color-input: var(--input);\n  --color-ring: var(--ring);\n  --color-primary: var(--primary);\n  --color-primary-foreground: var(--primary-foreground);\n  --color-accent: var(--accent);\n  --color-accent-foreground: var(--accent-foreground);\n  --color-popover: var(--popover);\n  --color-popover-foreground: var(--popover-foreground);\n}\n\n:root {\n  --background: #ffffff;\n  --foreground: #171717;\n  --muted: #f4f4f5;\n  --muted-foreground: #71717a;\n  --border: #e4e4e7;\n  --input: #e4e4e7;\n  --ring: #18181b;\n  --primary: #18181b;\n  --primary-foreground: #fafafa;\n  --accent: #f4f4f5;\n  --accent-foreground: #18181b;\n  --popover: #ffffff;\n  --popover-foreground: #18181b;\n}\n\n.dark {\n  --background: #09090b;\n  --foreground: #fafafa;\n  --muted: #27272a;\n  --muted-foreground: #a1a1aa;\n  --border: #27272a;\n  --input: #27272a;\n  --ring: #fafafa;\n  --primary: #fafafa;\n  --primary-foreground: #18181b;\n  --accent: #27272a;\n  --accent-foreground: #fafafa;\n  --popover: #18181b;\n  --popover-foreground: #fafafa;\n}\n\nhtml, body {\n  height: 100%;\n}\n\nbody {\n  margin: 0;\n  background: var(--background);\n  color: var(--foreground);\n}\n\nbutton, input, textarea, select {\n  font: inherit;\n}\n`;
+  return `@import "tailwindcss";\n@import "tw-animate-css";\n\n@custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));\n@custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));\n\n@theme inline {\n  @keyframes collapsible-down {\n    from {\n      height: 0;\n    }\n    to {\n      height: var(\n        --radix-collapsible-content-height,\n        var(--collapsible-panel-height, auto)\n      );\n    }\n  }\n  @keyframes collapsible-up {\n    from {\n      height: var(\n        --radix-collapsible-content-height,\n        var(--collapsible-panel-height, auto)\n      );\n    }\n    to {\n      height: 0;\n    }\n  }\n}\n\n@theme inline {\n  --color-background: var(--background);\n  --color-foreground: var(--foreground);\n  --color-muted: var(--muted);\n  --color-muted-foreground: var(--muted-foreground);\n  --color-border: var(--border);\n  --color-input: var(--input);\n  --color-ring: var(--ring);\n  --color-primary: var(--primary);\n  --color-primary-foreground: var(--primary-foreground);\n  --color-accent: var(--accent);\n  --color-accent-foreground: var(--accent-foreground);\n  --color-popover: var(--popover);\n  --color-popover-foreground: var(--popover-foreground);\n}\n\n:root {\n  --background: #ffffff;\n  --foreground: #171717;\n  --muted: #f4f4f5;\n  --muted-foreground: #71717a;\n  --border: #e4e4e7;\n  --input: #e4e4e7;\n  --ring: #18181b;\n  --primary: #18181b;\n  --primary-foreground: #fafafa;\n  --accent: #f4f4f5;\n  --accent-foreground: #18181b;\n  --popover: #ffffff;\n  --popover-foreground: #18181b;\n}\n\n.dark {\n  --background: #09090b;\n  --foreground: #fafafa;\n  --muted: #27272a;\n  --muted-foreground: #a1a1aa;\n  --border: #27272a;\n  --input: #27272a;\n  --ring: #fafafa;\n  --primary: #fafafa;\n  --primary-foreground: #18181b;\n  --accent: #27272a;\n  --accent-foreground: #fafafa;\n  --popover: #18181b;\n  --popover-foreground: #fafafa;\n}\n\nhtml, body {\n  height: 100%;\n}\n\nbody {\n  margin: 0;\n  background: var(--background);\n  color: var(--foreground);\n}\n\nbutton, input, textarea, select {\n  font: inherit;\n}\n`;
 }
 
 function layoutTsx(manifest: DemoDownloadManifest) {
