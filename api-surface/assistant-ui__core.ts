@@ -2894,6 +2894,7 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TRe
 declare class OptimisticState<TState> extends BaseSubscribable {
   private readonly _pendingTransforms;
   private readonly _completedOptimistics;
+  private _nextTransformOrder;
   private _baseValue;
   private _cachedValue;
   constructor(initialState: TState);
