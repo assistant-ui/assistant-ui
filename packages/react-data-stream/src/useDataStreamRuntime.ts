@@ -118,7 +118,7 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
           ? { parentId: unstable_parentId }
           : {}),
         runConfig,
-        state: unstable_getMessage().metadata.unstable_state || undefined,
+        state: unstable_getMessage().metadata.unstable_state ?? undefined,
         ...context.callSettings,
         ...context.config,
         ...(bodyValue ?? {}),

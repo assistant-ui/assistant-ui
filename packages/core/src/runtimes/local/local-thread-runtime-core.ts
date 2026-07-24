@@ -442,7 +442,7 @@ export class LocalThreadRuntimeCore
           ? {
               metadata: {
                 ...message.metadata,
-                ...(m.metadata.unstable_state
+                ...(m.metadata.unstable_state !== undefined
                   ? { unstable_state: m.metadata.unstable_state }
                   : undefined),
                 ...(annotations
