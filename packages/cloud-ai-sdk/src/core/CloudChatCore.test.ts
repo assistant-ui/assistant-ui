@@ -27,9 +27,13 @@ vi.mock("../chat/MessagePersistence", () => ({
 
 function createCore(overrides?: {
   onSyncError?: (...args: unknown[]) => void;
-  generateTitle?: (...args: unknown[]) => void;
+  generateTitle?: (...args: unknown[]) => Promise<string | null>;
 }) {
-  const generateTitle = overrides?.generateTitle ?? vi.fn();
+  const generateTitle =
+    overrides?.generateTitle ??
+    vi
+      .fn<(...args: unknown[]) => Promise<string | null>>()
+      .mockResolvedValue("Generated title");
   const onSyncError = overrides?.onSyncError;
 
   const refs = {
@@ -51,7 +55,7 @@ describe("CloudChatCore", () => {
   });
 
   it("generates a title once for a newly created thread after assistant output", async () => {
-    const generateTitle = vi.fn();
+    const generateTitle = vi.fn().mockResolvedValue("Generated title");
     const core = createCore({ generateTitle });
 
     const meta = { threadId: "thread-1", loading: null, loaded: false };

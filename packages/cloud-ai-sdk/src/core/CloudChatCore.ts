@@ -107,8 +107,19 @@ export class CloudChatCore {
       .catch(() => {});
 
     if (this.titlePolicy.shouldGenerateTitle(threadId, messages)) {
-      this.titlePolicy.markTitleGenerated(threadId);
-      void this.options.threads.generateTitle(threadId);
+      this.titlePolicy.markTitleGenerationStarted(threadId);
+      void this.options.threads.generateTitle(threadId).then(
+        (title) => {
+          if (title) {
+            this.titlePolicy.markTitleGenerated(threadId);
+          } else {
+            this.titlePolicy.markTitleGenerationFailed(threadId);
+          }
+        },
+        () => {
+          this.titlePolicy.markTitleGenerationFailed(threadId);
+        },
+      );
     }
   }
 

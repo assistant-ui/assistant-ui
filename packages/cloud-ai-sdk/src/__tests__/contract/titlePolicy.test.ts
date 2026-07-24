@@ -23,7 +23,7 @@ vi.mock("../../chat/MessagePersistence", () => ({
 }));
 
 function createCore() {
-  const generateTitle = vi.fn();
+  const generateTitle = vi.fn().mockResolvedValue("Generated title");
 
   const refs = {
     threads: { generateTitle } as never,
@@ -66,6 +66,71 @@ describe("Contract: Title policy", () => {
 
     expect(generateTitle).toHaveBeenCalledTimes(1);
     expect(generateTitle).toHaveBeenCalledWith("thread-1");
+  });
+
+  it("retries title generation after a failed attempt", async () => {
+    const { core, generateTitle } = createCore();
+    generateTitle
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce("Recovered title");
+
+    const registry = mockRegistry("thread-1", [
+      { id: "m-1", role: "assistant" },
+    ]);
+
+    core.titlePolicy.markNewThread("thread-1");
+
+    await core.persistChatMessages("chat-1", registry);
+    await core.persistChatMessages("chat-1", registry);
+    await core.persistChatMessages("chat-1", registry);
+
+    expect(generateTitle).toHaveBeenCalledTimes(2);
+    expect(generateTitle).toHaveBeenNthCalledWith(1, "thread-1");
+    expect(generateTitle).toHaveBeenNthCalledWith(2, "thread-1");
+  });
+
+  it("does not duplicate title generation while an attempt is pending", async () => {
+    const { core, generateTitle } = createCore();
+    let resolveTitle!: (title: string) => void;
+    const pendingTitle = new Promise<string>((resolve) => {
+      resolveTitle = resolve;
+    });
+    generateTitle.mockReturnValue(pendingTitle);
+
+    const registry = mockRegistry("thread-1", [
+      { id: "m-1", role: "assistant" },
+    ]);
+
+    core.titlePolicy.markNewThread("thread-1");
+
+    await core.persistChatMessages("chat-1", registry);
+    await core.persistChatMessages("chat-1", registry);
+
+    expect(generateTitle).toHaveBeenCalledTimes(1);
+
+    resolveTitle("Generated title");
+    await pendingTitle;
+    await core.persistChatMessages("chat-1", registry);
+
+    expect(generateTitle).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries title generation after a rejected attempt", async () => {
+    const { core, generateTitle } = createCore();
+    generateTitle
+      .mockRejectedValueOnce(new Error("title generation failed"))
+      .mockResolvedValueOnce("Recovered title");
+
+    const registry = mockRegistry("thread-1", [
+      { id: "m-1", role: "assistant" },
+    ]);
+
+    core.titlePolicy.markNewThread("thread-1");
+
+    await core.persistChatMessages("chat-1", registry);
+    await core.persistChatMessages("chat-1", registry);
+
+    expect(generateTitle).toHaveBeenCalledTimes(2);
   });
 
   it("does not generate title for threads not marked as new", async () => {
