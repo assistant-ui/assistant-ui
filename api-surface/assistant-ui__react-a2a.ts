@@ -1843,9 +1843,12 @@ declare function a2aPartsToContent(parts: A2APart[]): ThreadAssistantMessage["co
 
 declare function contentPartsToA2AParts(content: ReadonlyArray<{
   type: string;
-  text?: string;
-  image?: string;
-}>): A2APart[];
+  text?: string | undefined;
+  image?: string | undefined;
+  data?: string | undefined;
+  mimeType?: string | undefined;
+  filename?: string | undefined;
+}>, fallbackMimeType?: string): A2APart[];
 
 declare global {
   interface Window {

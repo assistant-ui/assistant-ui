@@ -245,17 +245,124 @@ describe("contentPartsToA2AParts", () => {
     expect(result).toEqual([{ text: "hi" }]);
   });
 
-  it("converts image parts", () => {
+  it("converts image URL parts without stamping a mediaType", () => {
     const result = contentPartsToA2AParts([
       { type: "image", image: "https://img.com/a.png" },
     ]);
+    expect(result).toEqual([{ url: "https://img.com/a.png" }]);
+  });
+
+  it("applies the fallback MIME type to image URL parts", () => {
+    const result = contentPartsToA2AParts(
+      [{ type: "image", image: "https://img.com/a.png" }],
+      "image/png",
+    );
     expect(result).toEqual([
-      { url: "https://img.com/a.png", mediaType: "image/*" },
+      { url: "https://img.com/a.png", mediaType: "image/png" },
+    ]);
+  });
+
+  it("applies the fallback MIME type and filename to image URL parts together", () => {
+    const result = contentPartsToA2AParts(
+      [{ type: "image", image: "https://img.com/a.png", filename: "a.png" }],
+      "image/png",
+    );
+    expect(result).toEqual([
+      {
+        url: "https://img.com/a.png",
+        mediaType: "image/png",
+        filename: "a.png",
+      },
+    ]);
+  });
+
+  it("passes non-base64 data URLs through as URLs for image parts", () => {
+    const result = contentPartsToA2AParts([
+      { type: "image", image: "data:text/plain,hello" },
+    ]);
+    expect(result).toEqual([{ url: "data:text/plain,hello" }]);
+  });
+
+  it("converts image data URLs to raw bytes with the embedded MIME type", () => {
+    const result = contentPartsToA2AParts([
+      { type: "image", image: "data:image/png;base64,aGVsbG8=" },
+    ]);
+    expect(result).toEqual([{ raw: "aGVsbG8=", mediaType: "image/png" }]);
+  });
+
+  it("propagates image filenames", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "image",
+        image: "data:image/png;base64,aGVsbG8=",
+        filename: "a.png",
+      },
+    ]);
+    expect(result).toEqual([
+      { raw: "aGVsbG8=", mediaType: "image/png", filename: "a.png" },
     ]);
   });
 
   it("skips image parts with no URL", () => {
     const result = contentPartsToA2AParts([{ type: "image" }]);
+    expect(result).toEqual([]);
+  });
+
+  it("converts file parts with http URLs", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "https://files.com/doc.pdf",
+        mimeType: "application/pdf",
+        filename: "doc.pdf",
+      },
+    ]);
+    expect(result).toEqual([
+      {
+        url: "https://files.com/doc.pdf",
+        mediaType: "application/pdf",
+        filename: "doc.pdf",
+      },
+    ]);
+  });
+
+  it("converts file parts with data URLs to raw bytes", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "data:application/pdf;base64,ZmlsZQ==",
+        mimeType: "application/pdf",
+      },
+    ]);
+    expect(result).toEqual([{ raw: "ZmlsZQ==", mediaType: "application/pdf" }]);
+  });
+
+  it("converts file parts with raw base64 data", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", data: "ZmlsZQ==", mimeType: "text/csv" },
+    ]);
+    expect(result).toEqual([{ raw: "ZmlsZQ==", mediaType: "text/csv" }]);
+  });
+
+  it("falls back to the attachment MIME type when the file part MIME is empty", () => {
+    const result = contentPartsToA2AParts(
+      [{ type: "file", data: "ZmlsZQ==", mimeType: "" }],
+      "application/pdf",
+    );
+    expect(result).toEqual([{ raw: "ZmlsZQ==", mediaType: "application/pdf" }]);
+  });
+
+  it("omits mediaType when no MIME type is known", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", data: "ZmlsZQ==", mimeType: "" },
+    ]);
+    expect(result).toEqual([{ raw: "ZmlsZQ==" }]);
+  });
+
+  it("skips file parts with no data", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", mimeType: "application/pdf" },
+    ]);
     expect(result).toEqual([]);
   });
 

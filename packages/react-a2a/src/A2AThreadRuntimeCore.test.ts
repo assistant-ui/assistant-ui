@@ -690,3 +690,139 @@ describe("A2AThreadRuntimeCore", () => {
     });
   });
 });
+
+describe("outbound message conversion", () => {
+  function createCoreWithStream() {
+    const streamMessage = vi.fn().mockImplementation(async function* () {});
+    const core = new A2AThreadRuntimeCore({
+      client: createMockClient({ streamMessage }),
+      notifyUpdate: vi.fn() as unknown as () => void,
+    });
+    return { core, streamMessage };
+  }
+
+  it("forwards attachment content to the wire with the attachment MIME type", async () => {
+    const { core, streamMessage } = createCoreWithStream();
+
+    await core.append({
+      parentId: null,
+      role: "user",
+      content: [{ type: "text", text: "See attached" }],
+      attachments: [
+        {
+          id: "att-1",
+          type: "document",
+          name: "doc.pdf",
+          contentType: "application/pdf",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "file",
+              data: "https://files.com/doc.pdf",
+              mimeType: "",
+              filename: "doc.pdf",
+            },
+          ],
+        },
+      ],
+    } as unknown as AppendMessage);
+
+    const sent = streamMessage.mock.calls[0]![0] as A2AMessage;
+    expect(sent.parts).toEqual([
+      { text: "See attached" },
+      {
+        url: "https://files.com/doc.pdf",
+        mediaType: "application/pdf",
+        filename: "doc.pdf",
+      },
+    ]);
+  });
+
+  it("forwards file parts in message content to the wire", async () => {
+    const { core, streamMessage } = createCoreWithStream();
+
+    await core.append({
+      parentId: null,
+      role: "user",
+      content: [
+        {
+          type: "file",
+          data: "data:text/csv;base64,ZmlsZQ==",
+          mimeType: "text/csv",
+        },
+      ],
+    } as unknown as AppendMessage);
+
+    const sent = streamMessage.mock.calls[0]![0] as A2AMessage;
+    expect(sent.parts).toEqual([{ raw: "ZmlsZQ==", mediaType: "text/csv" }]);
+  });
+
+  it("does not throw for user messages missing attachments at runtime", async () => {
+    const { core, streamMessage } = createCoreWithStream();
+    const message = {
+      id: "u1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Loaded" }],
+      status: { type: "complete", reason: "stop" },
+    } as unknown as ThreadMessage;
+
+    core.applyExternalMessages([message]);
+    await core.reload("u1");
+
+    const sent = streamMessage.mock.calls[0]![0] as A2AMessage;
+    expect(sent.parts).toEqual([{ text: "Loaded" }]);
+  });
+
+  it("forwards data URL image attachments as raw bytes", async () => {
+    const { core, streamMessage } = createCoreWithStream();
+
+    await core.append({
+      parentId: null,
+      role: "user",
+      content: [{ type: "text", text: "See image" }],
+      attachments: [
+        {
+          id: "att-2",
+          type: "image",
+          name: "a.png",
+          contentType: "image/png",
+          status: { type: "complete" },
+          content: [{ type: "image", image: "data:image/png;base64,aGVsbG8=" }],
+        },
+      ],
+    } as unknown as AppendMessage);
+
+    const sent = streamMessage.mock.calls[0]![0] as A2AMessage;
+    expect(sent.parts).toEqual([
+      { text: "See image" },
+      { raw: "aGVsbG8=", mediaType: "image/png" },
+    ]);
+  });
+
+  it("does not throw for attachments missing content at runtime", async () => {
+    const { core, streamMessage } = createCoreWithStream();
+    const message = {
+      id: "u2",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Loaded" }],
+      attachments: [
+        {
+          id: "att-3",
+          type: "file",
+          name: "x.txt",
+          contentType: "text/plain",
+          status: { type: "complete" },
+        },
+      ],
+      status: { type: "complete", reason: "stop" },
+    } as unknown as ThreadMessage;
+
+    core.applyExternalMessages([message]);
+    await core.reload("u2");
+
+    const sent = streamMessage.mock.calls[0]![0] as A2AMessage;
+    expect(sent.parts).toEqual([{ text: "Loaded" }]);
+  });
+});
