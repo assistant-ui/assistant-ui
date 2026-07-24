@@ -11,6 +11,8 @@ import type {
 } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
 import {
+  httpUrlPattern,
+  parseDataUrl,
   stableStringifyToolArgs,
   trackToolArgsKeyOrder,
 } from "@assistant-ui/core/internal";
@@ -292,16 +294,6 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       };
   }
 };
-
-const parseDataUrl = (
-  value: string,
-): { mimeType: string; data: string } | null => {
-  const match = value.match(/^data:([^;,]+)(?:;[^;,]+)*;base64,(.+)$/);
-  if (!match) return null;
-  return { mimeType: match[1]!, data: match[2]! };
-};
-
-const httpUrlPattern = /^https?:\/\//i;
 
 export const getMessageContent = (msg: AppendMessage) => {
   const allContent = [
