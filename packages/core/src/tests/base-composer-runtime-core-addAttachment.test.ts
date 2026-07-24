@@ -128,6 +128,50 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("adds prepared attachments when File is unavailable", async () => {
+    const composer = makeComposer();
+    const fileConstructor = globalThis.File;
+    vi.stubGlobal("File", undefined);
+
+    try {
+      await composer.addAttachment({
+        name: "notes.txt",
+        contentType: "text/plain",
+        content: [{ type: "text", text: "hello" }],
+      });
+    } finally {
+      vi.stubGlobal("File", fileConstructor);
+    }
+
+    expect(composer.attachments[0]).toMatchObject({
+      type: "document",
+      name: "notes.txt",
+      contentType: "text/plain",
+      content: [{ type: "text", text: "hello" }],
+      status: { type: "complete" },
+    });
+  });
+
+  it("uses the adapter for foreign files that expose content", async () => {
+    const add = vi.fn(makeAdapter().add);
+    const composer = makeComposer(makeAdapter({ add }));
+    const foreignFile = {
+      name: "photo.png",
+      type: "image/png",
+      lastModified: 0,
+      content: [{ type: "text", text: "implementation detail" }],
+    } as File;
+
+    await composer.addAttachment(foreignFile);
+
+    expect(add).toHaveBeenCalledWith({ file: foreignFile });
+    expect(composer.attachments[0]).toMatchObject({
+      type: "image",
+      name: "photo.png",
+      contentType: "image/png",
+    });
+  });
+
   it("accepts JSON files with the application/json media type", async () => {
     const composer = makeComposer(new SimpleTextAttachmentAdapter());
 
