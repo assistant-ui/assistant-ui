@@ -813,6 +813,42 @@ describe("A2AClient", () => {
       expect(card.supportedInterfaces).toHaveLength(1);
       expect(card.supportedInterfaces[0]!.protocolBinding).toBe("HTTP+JSON");
     });
+
+    it.each([
+      ["missing required fields", {}],
+      [
+        "an invalid supported interface",
+        {
+          name: "Test Agent",
+          description: "A test",
+          version: "1.0",
+          supportedInterfaces: [{}],
+          capabilities: {},
+          defaultInputModes: ["text"],
+          defaultOutputModes: ["text"],
+          skills: [],
+        },
+      ],
+      [
+        "an invalid skill",
+        {
+          name: "Test Agent",
+          description: "A test",
+          version: "1.0",
+          supportedInterfaces: [],
+          capabilities: {},
+          defaultInputModes: ["text"],
+          defaultOutputModes: ["text"],
+          skills: [{}],
+        },
+      ],
+    ])("rejects %s", async (_name, body) => {
+      fetchMock.mockResolvedValue(mockFetchResponse(body));
+
+      await expect(client.getAgentCard()).rejects.toThrow(
+        "Invalid A2A agent card response: expected a valid agent card payload.",
+      );
+    });
   });
 
   // --- SSE streaming ---
@@ -1292,6 +1328,14 @@ describe("A2AClient", () => {
 
       const [url] = fetchMock.mock.calls[0]!;
       expect(url).toBe("https://agent.test/extendedAgentCard");
+    });
+
+    it("rejects malformed cards returned with a successful status", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(client.getExtendedAgentCard()).rejects.toThrow(
+        "Invalid A2A agent card response: expected a valid agent card payload.",
+      );
     });
   });
 });
