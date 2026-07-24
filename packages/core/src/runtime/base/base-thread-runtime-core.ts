@@ -182,7 +182,16 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) return;
 
-    for (const callback of subscribers) callback(payload);
+    for (const callback of subscribers) {
+      try {
+        callback(payload);
+      } catch (error) {
+        console.error(
+          `[assistant-ui] Thread runtime "${event}" listener threw an error`,
+          error,
+        );
+      }
+    }
   }
 
   public subscribe(callback: () => void): Unsubscribe {

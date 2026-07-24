@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { LocalRuntimeCore } from "./local-runtime-core";
 import type {
   ChatModelAdapter,
@@ -9,6 +9,10 @@ import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const createThread = (
   adapter: ChatModelAdapter,
@@ -73,6 +77,35 @@ const createApprovalThread = (firstResult: ChatModelRunResult) => {
   });
   return { thread, runs };
 };
+
+describe("LocalThreadRuntimeCore events", () => {
+  it("isolates runEnd listener errors", async () => {
+    const listenerError = new Error("telemetry failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const laterListener = vi.fn();
+    const thread = createThread({
+      async run() {
+        return { content: [{ type: "text", text: "done" }] };
+      },
+    });
+
+    thread.unstable_on("runEnd", () => {
+      throw listenerError;
+    });
+    thread.unstable_on("runEnd", laterListener);
+
+    await expect(thread.append(userMessage("hello"))).resolves.toBeUndefined();
+
+    expect(laterListener).toHaveBeenCalledOnce();
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+    expect(consoleError).toHaveBeenCalledWith(
+      '[assistant-ui] Thread runtime "runEnd" listener threw an error',
+      listenerError,
+    );
+  });
+});
 
 describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
   it("pauses on requires-action while a listed tool call has no result", async () => {
