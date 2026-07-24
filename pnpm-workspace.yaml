@@ -7,6 +7,8 @@ packages:
 
 linkWorkspacePackages: true
 preferWorkspacePackages: true
+overrides:
+  '@types/hast': 3.0.5
 publicHoistPattern:
   - '@types/*'
 

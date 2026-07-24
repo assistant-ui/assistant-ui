@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@types/hast': 3.0.5
+
 importers:
 
   .:
@@ -4316,7 +4319,7 @@ importers:
         specifier: workspace:*
         version: link:../x-buildutils
       '@types/hast':
-        specifier: ^3.0.5
+        specifier: 3.0.5
         version: 3.0.5
       '@types/react':
         specifier: ^19.2.17
@@ -4556,7 +4559,7 @@ importers:
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@types/hast':
-        specifier: ^3.0.5
+        specifier: 3.0.5
         version: 3.0.5
       '@types/react':
         specifier: ^19.2.17
@@ -12785,7 +12788,7 @@ packages:
       '@oramacloud/client': 2.x.x
       '@tanstack/react-router': 1.x.x
       '@types/estree-jsx': '*'
-      '@types/hast': '*'
+      '@types/hast': 3.0.5
       '@types/mdast': '*'
       '@types/react': '*'
       algoliasearch: 5.x.x
