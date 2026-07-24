@@ -32,26 +32,32 @@ describe("MessagePartPrimitive", () => {
     expect(frame).toBe("hello terminal");
   });
 
-  it("returns empty text during transient part-type mismatches", async () => {
-    let selectText: UseAuiStateSelector | undefined;
-    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) => {
-      selectText = selector;
-      return "";
-    });
+  it.each([
+    ["text", () => <MessagePartPrimitive.Text />],
+    ["image", () => <MessagePartPrimitive.Image />],
+    ["file", () => <MessagePartPrimitive.File />],
+    ["source", () => <MessagePartPrimitive.Source />],
+    ["reasoning", () => <MessagePartPrimitive.Reasoning />],
+    ["data", () => <MessagePartPrimitive.Data />],
+  ] as const)(
+    "returns empty %s output during transient part-type mismatches",
+    async (_name, renderPrimitive) => {
+      let selectPart: UseAuiStateSelector | undefined;
+      mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) => {
+        selectPart = selector;
+        return "";
+      });
 
-    await renderFrame(<MessagePartPrimitive.Text />);
+      await renderFrame(renderPrimitive());
 
-    expect(selectText).toBeDefined();
-    expect(
-      selectText!({
-        part: {
-          type: "image",
-          image: "data:image/png;base64,raw-image-bytes",
-          status: { type: "complete" },
-        },
-      } as never),
-    ).toBe("");
-  });
+      expect(selectPart).toBeDefined();
+      expect(
+        selectPart!({
+          part: { type: "tool-call" },
+        } as never),
+      ).toBe("");
+    },
+  );
 
   it("renders in-progress children only for running parts", async () => {
     mockPart(mockUseAuiState, {

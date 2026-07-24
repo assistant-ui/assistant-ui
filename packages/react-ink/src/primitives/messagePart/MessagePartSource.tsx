@@ -28,10 +28,7 @@ export const MessagePartPrimitiveSource = (
   props: MessagePartPrimitiveSource.Props,
 ) => {
   const label = useAuiState((s) => {
-    if (s.part.type !== "source")
-      throw new Error(
-        "MessagePartPrimitive.Source can only be used inside source message parts.",
-      );
+    if (s.part.type !== "source") return "";
     return formatSource(s.part);
   });
   return <Text {...props}>{label}</Text>;
