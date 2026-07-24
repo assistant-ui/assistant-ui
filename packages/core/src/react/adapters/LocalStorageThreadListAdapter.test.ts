@@ -207,6 +207,88 @@ describe("createLocalStorageAdapter", () => {
     ]);
   });
 
+  it("preserves concurrent metadata mutations across adapters", async () => {
+    const threadsKey = "@assistant-ui:threads";
+    const values = new Map<string, string>();
+    let metadataReads = 0;
+    let metadataWrites = 0;
+    let markFirstWriteStarted!: () => void;
+    let releaseFirstWrite!: () => void;
+    const firstWriteStarted = new Promise<void>((resolve) => {
+      markFirstWriteStarted = resolve;
+    });
+    const firstWriteCanFinish = new Promise<void>((resolve) => {
+      releaseFirstWrite = resolve;
+    });
+    const storage: AsyncStorageLike = {
+      getItem: async (key) => {
+        if (key === threadsKey) metadataReads += 1;
+        return values.get(key) ?? null;
+      },
+      setItem: async (key, value) => {
+        if (key === threadsKey) {
+          metadataWrites += 1;
+          if (metadataWrites === 1) {
+            markFirstWriteStarted();
+            await firstWriteCanFinish;
+          }
+        }
+        values.set(key, value);
+      },
+      removeItem: async (key) => {
+        values.delete(key);
+      },
+    };
+    const firstAdapter = createLocalStorageAdapter({ storage });
+    const secondAdapter = createLocalStorageAdapter({ storage });
+
+    const firstInitialization = firstAdapter.initialize("thread-1");
+    await firstWriteStarted;
+    const secondInitialization = secondAdapter.initialize("thread-2");
+    const readsWhileFirstWritePending = metadataReads;
+
+    releaseFirstWrite();
+    await Promise.all([firstInitialization, secondInitialization]);
+
+    expect(readsWhileFirstWritePending).toBe(1);
+    expect(JSON.parse(values.get(threadsKey) ?? "")).toEqual([
+      { remoteId: "thread-2", status: "regular" },
+      { remoteId: "thread-1", status: "regular" },
+    ]);
+  });
+
+  it("continues processing mutations after a storage failure", async () => {
+    const threadsKey = "@assistant-ui:threads";
+    const values = new Map<string, string>();
+    let shouldFail = true;
+    const storage: AsyncStorageLike = {
+      getItem: async (key) => values.get(key) ?? null,
+      setItem: async (key, value) => {
+        if (shouldFail) {
+          shouldFail = false;
+          throw new Error("Storage unavailable");
+        }
+        values.set(key, value);
+      },
+      removeItem: async (key) => {
+        values.delete(key);
+      },
+    };
+    const adapter = createLocalStorageAdapter({ storage });
+
+    await expect(adapter.initialize("thread-1")).rejects.toThrow(
+      "Storage unavailable",
+    );
+    await expect(adapter.initialize("thread-2")).resolves.toEqual({
+      remoteId: "thread-2",
+      externalId: undefined,
+    });
+
+    expect(JSON.parse(values.get(threadsKey) ?? "")).toEqual([
+      { remoteId: "thread-2", status: "regular" },
+    ]);
+  });
+
   it("includes the thread id when a stored thread cannot be fetched", async () => {
     const storage = createStorage({
       "@assistant-ui:threads": JSON.stringify([
