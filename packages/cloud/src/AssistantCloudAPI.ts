@@ -65,26 +65,31 @@ type MakeRequestOptions = {
   body?: object | undefined;
 };
 
+const normalizeBaseUrl = (baseUrl: string) => {
+  if (!baseUrl || !baseUrl.endsWith("/")) return baseUrl;
+  return baseUrl.slice(0, -1);
+};
+
 export class AssistantCloudAPI {
   public _auth: AssistantCloudAuthStrategy;
   public _baseUrl;
 
   constructor(config: AssistantCloudConfig) {
     if ("authToken" in config) {
-      this._baseUrl = config.baseUrl;
+      this._baseUrl = normalizeBaseUrl(config.baseUrl);
       this._auth = new AssistantCloudJWTAuthStrategy(config.authToken);
     } else if ("apiKey" in config) {
-      this._baseUrl = (
-        config.baseUrl ?? "https://backend.assistant-api.com"
-      ).replace(/\/$/, "");
+      this._baseUrl = normalizeBaseUrl(
+        config.baseUrl ?? "https://backend.assistant-api.com",
+      );
       this._auth = new AssistantCloudAPIKeyAuthStrategy(
         config.apiKey,
         config.userId,
         config.workspaceId,
       );
     } else if ("anonymous" in config) {
-      this._baseUrl = config.baseUrl;
-      this._auth = new AssistantCloudAnonymousAuthStrategy(config.baseUrl);
+      this._baseUrl = normalizeBaseUrl(config.baseUrl);
+      this._auth = new AssistantCloudAnonymousAuthStrategy(this._baseUrl);
     } else {
       throw new Error(
         "Invalid configuration: Must provide authToken, apiKey, or anonymous configuration",
