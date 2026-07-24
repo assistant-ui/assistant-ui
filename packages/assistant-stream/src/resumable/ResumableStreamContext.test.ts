@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createResumableStreamContext } from "./ResumableStreamContext";
 import { ResumableStreamError } from "./errors";
 import { createInMemoryResumableStreamStore } from "./stores/InMemoryResumableStreamStore";
@@ -7,6 +7,10 @@ const enc = new TextEncoder();
 const dec = new TextDecoder();
 
 const bytes = (s: string): Uint8Array => enc.encode(s);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 async function collect(stream: ReadableStream<Uint8Array>): Promise<string> {
   const reader = stream.getReader();
@@ -270,5 +274,116 @@ describe("createResumableStreamContext", () => {
     expect(errors).toHaveLength(1);
     expect(errors[0]!.id).toBe("a");
     expect((errors[0]!.error as Error).message).toBe("boom");
+  });
+
+  it("continues acquisition when onAcquire throws", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const hookError = new Error("acquire observer failed");
+    const store = createInMemoryResumableStreamStore();
+    const ctx = createResumableStreamContext({
+      store,
+      onAcquire: () => {
+        throw hookError;
+      },
+    });
+
+    const stream = await ctx.run("a", () => makeStringStream(["hello"]));
+
+    expect(await collect(stream)).toBe("hello");
+    expect(await ctx.status("a")).toBe("done");
+    expect(consoleError).toHaveBeenCalledWith(
+      "resumable stream onAcquire hook failed:",
+      hookError,
+    );
+  });
+
+  it("continues streaming when onAppend throws", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const store = createInMemoryResumableStreamStore();
+    const ctx = createResumableStreamContext({
+      store,
+      onAppend: () => {
+        throw new Error("append observer failed");
+      },
+    });
+
+    const stream = await ctx.run("a", () =>
+      makeStringStream(["hello ", "world"]),
+    );
+
+    expect(await collect(stream)).toBe("hello world");
+    expect(await ctx.status("a")).toBe("done");
+  });
+
+  it("continues streaming when async onAppend rejects", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const hookError = new Error("async append observer failed");
+    const store = createInMemoryResumableStreamStore();
+    const ctx = createResumableStreamContext({
+      store,
+      onAppend: async () => {
+        throw hookError;
+      },
+    });
+
+    const stream = await ctx.run("a", () => makeStringStream(["hello"]));
+
+    expect(await collect(stream)).toBe("hello");
+    expect(await ctx.status("a")).toBe("done");
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "resumable stream onAppend hook failed:",
+        hookError,
+      );
+    });
+  });
+
+  it("keeps successful completion when onFinalize throws", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const onError = vi.fn();
+    const onFinalize = vi.fn(() => {
+      throw new Error("finalize observer failed");
+    });
+    const store = createInMemoryResumableStreamStore();
+    const ctx = createResumableStreamContext({ store, onError, onFinalize });
+
+    const stream = await ctx.run("a", () => makeStringStream(["hello"]));
+
+    expect(await collect(stream)).toBe("hello");
+    expect(await ctx.status("a")).toBe("done");
+    expect(onFinalize).toHaveBeenCalledOnce();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("finalizes producer errors when onError throws", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const tasks: Promise<unknown>[] = [];
+    const store = createInMemoryResumableStreamStore();
+    const ctx = createResumableStreamContext({
+      store,
+      waitUntil: (task) => tasks.push(task),
+      onError: () => {
+        throw new Error("error observer failed");
+      },
+    });
+    const producerError = new Error("producer failed");
+
+    const stream = await ctx.run(
+      "a",
+      () =>
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.error(producerError);
+          },
+        }),
+    );
+    await Promise.allSettled(tasks);
+
+    expect(await ctx.status("a")).toBe("error");
+    await expect(collect(stream)).rejects.toThrow("producer failed");
   });
 });
