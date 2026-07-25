@@ -264,6 +264,8 @@ function ReasoningText({
     if (!scrollEl || !contentEl) return;
 
     let pinned = true;
+    let lastScrollTop = scrollEl.scrollTop;
+    let lastScrollHeight = scrollEl.scrollHeight;
     const isAtBottom = () =>
       Math.abs(
         scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight,
@@ -273,8 +275,20 @@ function ReasoningText({
       if (!pinned) return;
       scrollEl.scrollTop = scrollEl.scrollHeight;
     };
+    // A pin's own scroll event can arrive after new content grew the scroll
+    // height and read as "not at bottom"; only an upward move at unchanged
+    // scroll height is user intent.
     const onScroll = () => {
-      pinned = isAtBottom();
+      if (isAtBottom()) {
+        pinned = true;
+      } else if (
+        scrollEl.scrollTop < lastScrollTop &&
+        scrollEl.scrollHeight === lastScrollHeight
+      ) {
+        pinned = false;
+      }
+      lastScrollTop = scrollEl.scrollTop;
+      lastScrollHeight = scrollEl.scrollHeight;
     };
 
     pin();
