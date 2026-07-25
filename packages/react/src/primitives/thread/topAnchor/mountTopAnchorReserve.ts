@@ -76,7 +76,9 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     }
 
     if (!anchor && !target && !clamp && state.topAnchorTurn) {
-      // ThreadViewport clears this state when either ID leaves the current branch.
+      // ThreadViewport clears this state once the stored pair stops being the
+      // trailing turn (followed at most by pending user messages), so reaching
+      // here means the anchor gap is transient and the next run is imminent.
       observers.disconnect();
       if (
         reserve?.parentElement &&

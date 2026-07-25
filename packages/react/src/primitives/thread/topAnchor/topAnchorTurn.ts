@@ -10,15 +10,27 @@ export type TopAnchorTurn = {
   readonly targetId: string;
 };
 
+/**
+ * A stored turn stays valid only while it is still the trailing turn: the
+ * anchor immediately precedes the target, and anything after the target is a
+ * pending user message awaiting the next run. An assistant message after the
+ * target means the turn was superseded (e.g. an external store synced in a
+ * turn completed elsewhere), so the reserve must be torn down, not preserved.
+ */
 export const isTopAnchorTurnValid = (
   turn: TopAnchorTurn | null,
-  messages: readonly Pick<TopAnchorTurnMessage, "id">[],
+  messages: readonly TopAnchorTurnMessage[],
 ) => {
   if (!turn) return false;
 
+  const targetIndex = messages.findIndex(
+    (message) => message.id === turn.targetId,
+  );
+  if (targetIndex < 1) return false;
+
   return (
-    messages.some((message) => message.id === turn.anchorId) &&
-    messages.some((message) => message.id === turn.targetId)
+    messages[targetIndex - 1]?.id === turn.anchorId &&
+    messages.slice(targetIndex + 1).every((message) => message.role === "user")
   );
 };
 
