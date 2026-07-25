@@ -1,7 +1,57 @@
+import sjson from "secure-json-parse";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
-import { LineDecoderStream } from "../../utils/stream/LineDecoderStream";
+import {
+  SSEEventDecoderStream,
+  type PipelineSSEEvent,
+} from "../../utils/stream/SSEEventDecoderStream";
 import type { AssistantStreamEncoder } from "../../AssistantStream";
+
+const KNOWN_CHUNK_TYPES: Record<
+  AssistantStreamChunk["type"],
+  "message" | "part-addressed"
+> = {
+  "part-start": "message",
+  "part-finish": "part-addressed",
+  "tool-call-args-text-finish": "part-addressed",
+  "text-delta": "part-addressed",
+  annotations: "message",
+  data: "message",
+  "step-start": "message",
+  "step-finish": "message",
+  "message-finish": "message",
+  result: "part-addressed",
+  error: "message",
+  "update-state": "message",
+};
+
+const parseChunk = (data: string): AssistantStreamChunk | string => {
+  let value: unknown;
+  try {
+    value = sjson.parse(data);
+  } catch {
+    return "unparseable";
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return "not-an-object";
+  const { type, path } = value as { type?: unknown; path?: unknown };
+  if (
+    typeof type !== "string" ||
+    !Object.prototype.hasOwnProperty.call(KNOWN_CHUNK_TYPES, type)
+  )
+    return "unknown-type";
+  if (path === undefined) {
+    if (KNOWN_CHUNK_TYPES[type as AssistantStreamChunk["type"]] !== "message")
+      return `missing-path:${type}`;
+    return { ...value, path: [] } as unknown as AssistantStreamChunk;
+  }
+  if (
+    !Array.isArray(path) ||
+    !path.every((entry) => Number.isInteger(entry) && entry >= 0)
+  )
+    return "invalid-path";
+  return value as AssistantStreamChunk;
+};
 
 /**
  * AssistantTransportEncoder encodes AssistantStreamChunks into SSE format
@@ -35,72 +85,6 @@ export class AssistantTransportEncoder
   }
 }
 
-type SSEEvent = {
-  event: string;
-  data: string;
-  id?: string | undefined;
-  retry?: number | undefined;
-};
-
-class SSEEventStream extends TransformStream<string, SSEEvent> {
-  constructor() {
-    let eventBuffer: Partial<SSEEvent> = {};
-    let dataLines: string[] = [];
-
-    super({
-      start() {
-        eventBuffer = {};
-        dataLines = [];
-      },
-      transform(line, controller) {
-        if (line.startsWith(":")) return; // Ignore comments
-
-        if (line === "") {
-          if (dataLines.length > 0) {
-            controller.enqueue({
-              event: eventBuffer.event || "message",
-              data: dataLines.join("\n"),
-              id: eventBuffer.id,
-              retry: eventBuffer.retry,
-            });
-          }
-          eventBuffer = {};
-          dataLines = [];
-          return;
-        }
-
-        const [field, ...rest] = line.split(":");
-        const value = rest.join(":").trimStart();
-
-        switch (field) {
-          case "event":
-            eventBuffer.event = value;
-            break;
-          case "data":
-            dataLines.push(value);
-            break;
-          case "id":
-            eventBuffer.id = value;
-            break;
-          case "retry":
-            eventBuffer.retry = Number(value);
-            break;
-        }
-      },
-      flush(controller) {
-        if (dataLines.length > 0) {
-          controller.enqueue({
-            event: eventBuffer.event || "message",
-            data: dataLines.join("\n"),
-            id: eventBuffer.id,
-            retry: eventBuffer.retry,
-          });
-        }
-      },
-    });
-  }
-}
-
 /**
  * AssistantTransportDecoder decodes SSE format into AssistantStreamChunks.
  * It stops decoding when it encounters [DONE].
@@ -112,13 +96,13 @@ export class AssistantTransportDecoder extends PipeableTransformStream<
   constructor() {
     super((readable) => {
       let receivedDone = false;
+      const warnedReasons = new Set<string>();
 
       return readable
         .pipeThrough(new TextDecoderStream())
-        .pipeThrough(new LineDecoderStream())
-        .pipeThrough(new SSEEventStream())
+        .pipeThrough(new SSEEventDecoderStream())
         .pipeThrough(
-          new TransformStream<SSEEvent, AssistantStreamChunk>({
+          new TransformStream<PipelineSSEEvent, AssistantStreamChunk>({
             transform(event, controller) {
               switch (event.event) {
                 case "message":
@@ -128,7 +112,17 @@ export class AssistantTransportDecoder extends PipeableTransformStream<
                     // Stop processing when we encounter [DONE]
                     controller.terminate();
                   } else {
-                    controller.enqueue(JSON.parse(event.data));
+                    const chunk = parseChunk(event.data);
+                    if (typeof chunk === "string") {
+                      if (!warnedReasons.has(chunk)) {
+                        warnedReasons.add(chunk);
+                        console.warn(
+                          `Dropped invalid assistant-transport chunk (${chunk}): ${event.data.slice(0, 200)}`,
+                        );
+                      }
+                    } else {
+                      controller.enqueue(chunk);
+                    }
                   }
                   break;
                 default:

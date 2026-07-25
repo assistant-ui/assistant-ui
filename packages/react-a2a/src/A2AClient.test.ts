@@ -14,18 +14,23 @@ function mockFetchResponse(body: unknown, ok = true, status = 200): Response {
   } as unknown as Response;
 }
 
-function mockSSETextResponse(text: string | string[]): Response {
+function mockSSETextResponse(
+  text: string | string[],
+  contentType: string | null = "text/event-stream",
+): Response {
   const encoder = new TextEncoder();
   const chunks = (Array.isArray(text) ? text : [text]).map((chunk) =>
     encoder.encode(chunk),
   );
   let index = 0;
+  const headers = new Headers();
+  if (contentType !== null) headers.set("content-type", contentType);
 
   return {
     ok: true,
     status: 200,
     statusText: "OK",
-    headers: new Headers({ "content-type": "text/event-stream" }),
+    headers,
     body: {
       getReader: () => ({
         read: vi.fn().mockImplementation(() => {
@@ -43,8 +48,11 @@ function mockSSETextResponse(text: string | string[]): Response {
   } as unknown as Response;
 }
 
-function mockSSEResponse(lines: string[]): Response {
-  return mockSSETextResponse(lines.join("\n"));
+function mockSSEResponse(
+  lines: string[],
+  contentType: string | null = "text/event-stream",
+): Response {
+  return mockSSETextResponse(lines.join("\n"), contentType);
 }
 
 const userMessage: A2AMessage = {
@@ -434,6 +442,48 @@ describe("A2AClient", () => {
       expect((result as any).role).toBe("agent");
     });
 
+    it.each([
+      ["an empty object", {}],
+      ["a malformed task", { task: {} }],
+      [
+        "a task with an unknown state",
+        { task: { id: "t1", status: { state: "typo" } } },
+      ],
+      ["a malformed message", { message: {} }],
+      [
+        "a message with a malformed part",
+        {
+          message: {
+            messageId: "m2",
+            role: "agent",
+            parts: [null],
+          },
+        },
+      ],
+    ])("rejects %s returned with a successful status", async (_name, body) => {
+      fetchMock.mockResolvedValue(mockFetchResponse(body));
+
+      await expect(client.sendMessage(userMessage)).rejects.toThrow(
+        "Invalid A2A message:send response: expected a valid task or message payload.",
+      );
+    });
+
+    it.each([
+      ["task", { id: "t1", status: { state: "completed" } }],
+      [
+        "message",
+        {
+          messageId: "m2",
+          role: "agent",
+          parts: [{ text: "Hi" }],
+        },
+      ],
+    ])("accepts a direct %s response", async (_name, body) => {
+      fetchMock.mockResolvedValue(mockFetchResponse(body));
+
+      await expect(client.sendMessage(userMessage)).resolves.toEqual(body);
+    });
+
     it("normalizes 'content' array from v0.3 server response to internal 'parts'", async () => {
       fetchMock.mockResolvedValue(
         mockFetchResponse({
@@ -763,6 +813,83 @@ describe("A2AClient", () => {
       expect(card.supportedInterfaces).toHaveLength(1);
       expect(card.supportedInterfaces[0]!.protocolBinding).toBe("HTTP+JSON");
     });
+
+    it.each([
+      ["an empty payload", {}],
+      ["a payload without a name", { version: "1.0", skills: [] }],
+      ["a non-object payload", "not a card"],
+      [
+        "a wrong-typed supportedInterfaces",
+        { name: "Test Agent", supportedInterfaces: "invalid" },
+      ],
+      ["a wrong-typed skill entry", { name: "Test Agent", skills: ["nope"] }],
+      [
+        "a wrong-typed skill tags field",
+        { name: "Test Agent", skills: [{ id: "s", tags: "broken" }] },
+      ],
+    ])("rejects %s", async (_name, body) => {
+      fetchMock.mockResolvedValue(mockFetchResponse(body));
+
+      await expect(client.getAgentCard()).rejects.toThrow(
+        "Invalid A2A agent card response: expected a valid agent card payload.",
+      );
+    });
+
+    it("treats explicit null fields as defaults", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          name: "Test Agent",
+          description: null,
+          skills: null,
+        }),
+      );
+
+      const card = await client.getAgentCard();
+
+      expect(card.description).toBe("");
+      expect(card.skills).toEqual([]);
+    });
+
+    it("fills defaults for fields omitted by proto3 JSON serialization", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({ name: "Test Agent" }));
+
+      const card = await client.getAgentCard();
+
+      expect(card).toMatchObject({
+        name: "Test Agent",
+        description: "",
+        version: "",
+        supportedInterfaces: [],
+        capabilities: {},
+        defaultInputModes: [],
+        defaultOutputModes: [],
+        skills: [],
+      });
+    });
+
+    it("fills defaults inside interfaces and skills", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          name: "Test Agent",
+          supported_interfaces: [{ url: "https://agent.test/a2a" }],
+          skills: [{ id: "recipes", name: "Recipes" }],
+        }),
+      );
+
+      const card = await client.getAgentCard();
+
+      expect(card.supportedInterfaces[0]).toMatchObject({
+        url: "https://agent.test/a2a",
+        protocolBinding: "",
+        protocolVersion: "",
+      });
+      expect(card.skills[0]).toMatchObject({
+        id: "recipes",
+        name: "Recipes",
+        description: "",
+        tags: [],
+      });
+    });
   });
 
   // --- SSE streaming ---
@@ -997,6 +1124,63 @@ describe("A2AClient", () => {
       expect(events).toHaveLength(2);
     });
 
+    it("accepts parameterized event-stream content types", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_COMPLETED" },
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        mockSSEResponse(
+          [`data: ${sseData}`, "", ""],
+          "text/event-stream; charset=utf-8",
+        ),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+    });
+
+    it("rejects successful responses that are not event streams", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSETextResponse(
+          "<html><body>Please sign in</body></html>",
+          "text/html; charset=utf-8",
+        ),
+      );
+
+      const consumeStream = async () => {
+        for await (const event of client.streamMessage(userMessage)) {
+          void event;
+        }
+      };
+
+      await expect(consumeStream()).rejects.toThrow(
+        'Expected A2A stream response Content-Type "text/event-stream", received "text/html; charset=utf-8"',
+      );
+    });
+
+    it("rejects task subscriptions without a content type", async () => {
+      fetchMock.mockResolvedValue(mockSSETextResponse("", null));
+
+      const consumeStream = async () => {
+        for await (const event of client.subscribeToTask("t1")) {
+          void event;
+        }
+      };
+
+      await expect(consumeStream()).rejects.toThrow(
+        'Expected A2A stream response Content-Type "text/event-stream", received no Content-Type header',
+      );
+    });
+
     it("normalizes 'content' array from v0.3 server response to 'parts' in SSE artifact update events", async () => {
       const sseData = JSON.stringify({
         artifact_update: {
@@ -1185,6 +1369,29 @@ describe("A2AClient", () => {
 
       const [url] = fetchMock.mock.calls[0]!;
       expect(url).toBe("https://agent.test/extendedAgentCard");
+    });
+
+    it.each([
+      ["an empty payload", {}],
+      ["a payload without a name", { version: "1.0" }],
+    ])("rejects %s", async (_name, body) => {
+      fetchMock.mockResolvedValue(mockFetchResponse(body));
+
+      await expect(client.getExtendedAgentCard()).rejects.toThrow(
+        "Invalid A2A agent card response: expected a valid agent card payload.",
+      );
+    });
+
+    it("fills defaults for omitted fields", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({ name: "Extended Agent", skills: [{ id: "s" }] }),
+      );
+
+      const card = await client.getExtendedAgentCard();
+
+      expect(card.name).toBe("Extended Agent");
+      expect(card.supportedInterfaces).toEqual([]);
+      expect(card.skills[0]).toMatchObject({ id: "s", tags: [] });
     });
   });
 });

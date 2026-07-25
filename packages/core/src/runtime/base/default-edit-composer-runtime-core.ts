@@ -80,6 +80,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
   ) {
+    let appendTask: void | Promise<void> = undefined;
     const text = getThreadMessageText(message as AppendMessage);
     const attachmentsChanged = !attachmentsEqual(
       message.attachments ?? [],
@@ -114,7 +115,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
         message,
         composerMetadata,
       );
-      this.runtime.append({
+      appendTask = this.runtime.append({
         ...enriched,
         content,
         parentId: this._parentId,
@@ -124,6 +125,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     }
 
     this.handleCancel();
+    return appendTask;
   }
 
   public handleCancel() {

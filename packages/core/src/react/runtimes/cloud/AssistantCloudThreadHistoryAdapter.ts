@@ -32,7 +32,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     if (!globalPersistence.has(key)) {
       globalPersistence.set(
         key,
-        new CloudMessagePersistence(this.cloudRef.current),
+        new CloudMessagePersistence(() => this.cloudRef.current),
       );
     }
     return globalPersistence.get(key)!;

@@ -406,6 +406,81 @@ describe("PiThreadController", () => {
     expect(controller.getState().messages).toHaveLength(1);
   });
 
+  it("does not refresh snapshots for settled or custom entry events", async () => {
+    const client = createFakeClient();
+    const getThread = vi.spyOn(client, "getThread");
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    client.emit(ev({ type: "agent_settled" }, 1));
+    client.emit(
+      ev(
+        {
+          type: "entry_appended",
+          entry: {
+            type: "custom",
+            id: "entry-1",
+            parentId: null,
+            timestamp: "2026-07-18T00:00:00.000Z",
+            customType: "extension-state",
+            data: { enabled: true },
+          },
+        },
+        2,
+      ),
+    );
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(getThread).not.toHaveBeenCalled();
+    expect(controller.getState().lastSeq).toBe(2);
+  });
+
+  it("refreshes snapshots for appended entry variants without companion events", async () => {
+    const client = createFakeClient();
+    const getThread = vi.spyOn(client, "getThread");
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    client.emit(
+      ev(
+        {
+          type: "entry_appended",
+          entry: {
+            type: "model_change",
+            id: "entry-1",
+            parentId: null,
+            timestamp: "2026-07-18T00:00:00.000Z",
+            provider: "anthropic",
+            modelId: "claude-sonnet-4-5",
+          },
+        },
+        1,
+      ),
+    );
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(getThread).toHaveBeenCalledOnce();
+  });
+
+  it("refreshes when an older server omits the appended entry payload", async () => {
+    const client = createFakeClient();
+    const getThread = vi.spyOn(client, "getThread");
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    client.emit({
+      type: "entry_appended",
+      threadId: THREAD,
+      seq: 1,
+    } as unknown as PiClientEvent);
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(getThread).toHaveBeenCalledOnce();
+  });
+
   it("shows an optimistic user message before send resolves", async () => {
     const client = createFakeClient();
     let resolveSend!: () => void;

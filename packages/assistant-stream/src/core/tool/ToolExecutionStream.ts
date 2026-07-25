@@ -51,6 +51,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
       string,
       ToolCallReaderImpl<ReadonlyJSONObject, ReadonlyJSONValue>
     >();
+    const toolCallIdsWithBackendResult = new Set<string>();
 
     super((readable) => {
       const transform = new TransformStream<
@@ -109,6 +110,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   modelContent: chunk.modelContent,
                 }),
               );
+              toolCallIdsWithBackendResult.add(toolCallId);
               break;
             }
             case "tool-call-args-text-finish": {
@@ -122,6 +124,11 @@ export class ToolExecutionStream extends PipeableTransformStream<
               // Args fully streamed: close the reader so awaited absent fields
               // resolve. Awaited so the close settles before the writer is reused.
               await streamController.finishArgsText();
+
+              // A backend result is authoritative. Closing the args stream still
+              // emits this finish chunk, but must not parse stale/incomplete args,
+              // execute the frontend tool, or enqueue a second result.
+              if (toolCallIdsWithBackendResult.has(toolCallId)) break;
 
               let isExecuting = false;
               const promise = withPromiseOrValue(
@@ -206,10 +213,13 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 toolCallPromise.then(() => {
                   toolCallPromises.delete(toolCallId);
                   toolCallControllers.delete(toolCallId);
+                  toolCallIdsWithBackendResult.delete(toolCallId);
 
                   controller.enqueue(chunk);
                 });
               } else {
+                toolCallControllers.delete(toolCallId);
+                toolCallIdsWithBackendResult.delete(toolCallId);
                 controller.enqueue(chunk);
               }
             }

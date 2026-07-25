@@ -17,6 +17,56 @@ const createDelayedTool = (delay: number, result?: string): Tool => ({
 });
 
 describe("unstable_runPendingTools", () => {
+  it("removes the abort listener after tool execution settles", async () => {
+    const abortController = new AbortController();
+    const addEventListener = vi.spyOn(
+      abortController.signal,
+      "addEventListener",
+    );
+    const removeEventListener = vi.spyOn(
+      abortController.signal,
+      "removeEventListener",
+    );
+    const message: AssistantMessage = {
+      role: "assistant",
+      status: { type: "requires-action", reason: "tool-calls" },
+      parts: [
+        {
+          type: "tool-call",
+          toolCallId: "1",
+          toolName: "tool",
+          args: {},
+        } as ToolCallPart,
+      ],
+      content: [],
+      metadata: {
+        unstable_state: {},
+        unstable_data: [],
+        unstable_annotations: [],
+        steps: [],
+        custom: {},
+      },
+    };
+
+    await unstable_runPendingTools(
+      message,
+      {
+        tool: {
+          parameters: { type: "object", properties: {} },
+          execute: async () => "done",
+        },
+      },
+      abortController.signal,
+      async () => {},
+    );
+
+    expect(addEventListener).toHaveBeenCalledOnce();
+    expect(removeEventListener).toHaveBeenCalledWith(
+      "abort",
+      addEventListener.mock.calls[0]![1],
+    );
+  });
+
   describe("parallel execution", () => {
     it("should run tool calls in parallel", async () => {
       const tool1 = createDelayedTool(100, "Tool 1");

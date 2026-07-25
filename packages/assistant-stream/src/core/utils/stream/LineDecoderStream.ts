@@ -1,25 +1,35 @@
 export class LineDecoderStream extends TransformStream<string, string> {
   private buffer = "";
+  private skipNextLineFeed = false;
 
   constructor() {
     super({
       transform: (chunk, controller) => {
-        this.buffer += chunk;
-        const lines = this.buffer.split("\n");
+        let lineStart = 0;
 
-        // Process all complete lines
-        for (let i = 0; i < lines.length - 1; i++) {
-          // Strip trailing \r to handle \r\n (CRLF) line endings per the SSE spec.
-          const line = lines[i]!;
-          controller.enqueue(line.endsWith("\r") ? line.slice(0, -1) : line);
+        for (let i = 0; i < chunk.length; i++) {
+          const character = chunk[i]!;
+
+          if (this.skipNextLineFeed) {
+            this.skipNextLineFeed = false;
+            if (character === "\n") {
+              lineStart = i + 1;
+              continue;
+            }
+          }
+
+          if (character === "\n" || character === "\r") {
+            this.buffer += chunk.slice(lineStart, i);
+            controller.enqueue(this.buffer);
+            this.buffer = "";
+            this.skipNextLineFeed = character === "\r";
+            lineStart = i + 1;
+          }
         }
 
-        // Keep the last incomplete line in the buffer
-        this.buffer = lines[lines.length - 1] || "";
+        this.buffer += chunk.slice(lineStart);
       },
       flush: () => {
-        // If there's content in the buffer when the stream ends, it means
-        // the stream ended with an incomplete line (no trailing newline)
         if (this.buffer) {
           throw new Error(
             `Stream ended with an incomplete line: "${this.buffer}"`,

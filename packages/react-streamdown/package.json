@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-streamdown",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Streamdown-based markdown rendering for assistant-ui",
   "keywords": [
     "markdown",
@@ -71,7 +71,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@streamdown/code": "^1.1.1",
     "@testing-library/react": "^16.3.2",
-    "@types/hast": "^3.0.4",
+    "@types/hast": "^3.0.5",
     "@types/react": "^19.2.17",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

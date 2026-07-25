@@ -19,16 +19,27 @@ describe("mediaVocabulary", () => {
     );
   });
 
-  it("Image renders a numeric size as px", () => {
+  it("Image renders a numeric size as an inline max-width style, not a dead data-aui-size attribute", () => {
     const html = render({
       $type: "Image",
       src: "/a.png",
       alt: "alt",
       size: 128,
     });
-    expect(html).toContain(
-      '<img data-aui="image" data-aui-size="128px" src="/a.png" alt="alt"/>',
-    );
+    expect(html).not.toContain("data-aui-size");
+    expect(html).toContain('style="max-width:128px"');
+  });
+
+  it("Image renders a numeric size on a round avatar as an inline width/height square", () => {
+    const html = render({
+      $type: "Image",
+      src: "/a.png",
+      alt: "avatar",
+      size: 64,
+      round: true,
+    });
+    expect(html).not.toContain("data-aui-size");
+    expect(html).toContain('style="width:64px;height:64px"');
   });
 
   it("Image `alt` is required by the schema (not optional)", () => {
@@ -37,6 +48,27 @@ describe("mediaVocabulary", () => {
     };
     expect(schema.safeParse({ src: "/a.png" }).success).toBe(false);
     expect(schema.safeParse({ src: "/a.png", alt: "x" }).success).toBe(true);
+  });
+
+  it("Image omits data-aui-round when round is not set", () => {
+    const html = render({ $type: "Image", src: "/a.png", alt: "alt" });
+    expect(html).not.toContain("data-aui-round");
+  });
+
+  it("Image renders data-aui-round when round is true", () => {
+    const html = render({
+      $type: "Image",
+      src: "/a.png",
+      alt: "avatar",
+      round: true,
+    });
+    expect(html).toContain('data-aui-round="true"');
+  });
+
+  it("Image with a missing alt still renders (defensive: schema validation is not runtime enforcement)", () => {
+    expect(() =>
+      render({ $type: "Image", src: "/a.png" } as never),
+    ).not.toThrow();
   });
 
   it("Divider omits data-aui-flush when flush is false", () => {

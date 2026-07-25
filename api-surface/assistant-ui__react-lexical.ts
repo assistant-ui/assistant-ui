@@ -49,7 +49,7 @@ type DirectivePluginProps = {
   onDirectiveSelect?: ((item: Unstable_TriggerItem) => void) | undefined;
 };
 
-declare const LexicalComposerInput: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").DetailedHTMLProps<import("react").HTMLAttributes<HTMLDivElement>, HTMLDivElement>, "ref">, "autoFocus"> & {
+declare const LexicalComposerInput: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").DetailedHTMLProps<import("react").HTMLAttributes<HTMLDivElement>, HTMLDivElement>, "ref">, "autoFocus" | "children"> & {
   submitMode?: "enter" | "ctrlEnter" | "none" | undefined;
   cancelOnEscape?: boolean | undefined;
   placeholder?: string | undefined;
@@ -57,9 +57,10 @@ declare const LexicalComposerInput: import("react").ForwardRefExoticComponent<Om
   directivePluginProps?: DirectivePluginProps | undefined;
   directiveChip?: FC<DirectiveChipProps> | undefined;
   formatter?: Unstable_DirectiveFormatter | undefined;
+  children?: ReactNode | undefined;
 } & import("react").RefAttributes<HTMLDivElement>>;
 
-type LexicalComposerInputProps = Omit<ComponentPropsWithoutRef<"div">, "autoFocus"> & {
+type LexicalComposerInputProps = Omit<ComponentPropsWithoutRef<"div">, "autoFocus" | "children"> & {
   submitMode?: "enter" | "ctrlEnter" | "none" | undefined;
   cancelOnEscape?: boolean | undefined;
   placeholder?: string | undefined;
@@ -67,6 +68,7 @@ type LexicalComposerInputProps = Omit<ComponentPropsWithoutRef<"div">, "autoFocu
   directivePluginProps?: DirectivePluginProps | undefined;
   directiveChip?: FC<DirectiveChipProps> | undefined;
   formatter?: Unstable_DirectiveFormatter | undefined;
+  children?: ReactNode | undefined;
 };
 
 type ReadonlyJSONArray = readonly ReadonlyJSONValue[];

@@ -195,7 +195,7 @@ export class CloudChatCore {
         this.options.chatConfig.onData?.(data);
       },
       onToolCall: (toolCall) => {
-        this.options.chatConfig.onToolCall?.(toolCall);
+        return this.options.chatConfig.onToolCall?.(toolCall);
       },
       sendAutomaticallyWhen: (arg) =>
         this.options.chatConfig.sendAutomaticallyWhen?.(arg) ?? false,

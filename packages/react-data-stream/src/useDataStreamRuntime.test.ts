@@ -1,6 +1,7 @@
 import type {
   ChatModelAdapter,
   ChatModelRunOptions,
+  ThreadAssistantMessage,
   ThreadMessage,
 } from "@assistant-ui/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -158,5 +159,60 @@ describe("useDataStreamRuntime request errors", () => {
     await expect(result).rejects.toBe(abortError);
     expect(onCancel).toHaveBeenCalledOnce();
     expect(onError).not.toHaveBeenCalled();
+  });
+});
+
+const createAssistantMessage = (
+  state: ThreadAssistantMessage["metadata"]["unstable_state"],
+): ThreadAssistantMessage => ({
+  id: "assistant",
+  role: "assistant",
+  content: [],
+  status: { type: "running" },
+  createdAt: new Date(),
+  metadata: {
+    unstable_state: state,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+});
+
+const runWithState = async (
+  state: ThreadAssistantMessage["metadata"]["unstable_state"],
+) => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(new Response("failed", { status: 500 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const adapter = createAdapter({ api: "/api/chat" });
+  const message = createAssistantMessage(state);
+  const result = adapter.run({
+    messages: [],
+    runConfig: {},
+    abortSignal: new AbortController().signal,
+    context: {},
+    unstable_getMessage: () => message,
+  } satisfies ChatModelRunOptions) as AsyncGenerator;
+
+  await expect(result.next()).rejects.toThrow("Status 500");
+
+  const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+  return JSON.parse(request?.body as string) as Record<string, unknown>;
+};
+
+describe("useDataStreamRuntime request state", () => {
+  it.each([
+    ["false", false],
+    ["zero", 0],
+    ["an empty string", ""],
+  ])("sends %s state", async (_label, state) => {
+    await expect(runWithState(state)).resolves.toMatchObject({ state });
+  });
+
+  it("omits null state", async () => {
+    await expect(runWithState(null)).resolves.not.toHaveProperty("state");
   });
 });

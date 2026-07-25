@@ -574,6 +574,7 @@ function ModelSelectorEffort({
   label = "Thinking",
   className,
   onKeyDown,
+  onKeyDownCapture,
   ...props
 }: ModelSelectorEffortProps) {
   const { efforts, effort, setEffort } = useModelSelectorEfforts();
@@ -584,24 +585,44 @@ function ModelSelectorEffort({
     <div
       data-slot="model-selector-effort"
       className={cn(
-        "flex items-center justify-between gap-3 border-t px-3 py-2",
+        "flex cursor-default items-center justify-between gap-3 border-t px-3 py-2",
         className,
       )}
-      onKeyDown={(e) => {
+      onKeyDownCapture={(e) => {
+        onKeyDownCapture?.(e);
+        if (e.defaultPrevented) return;
+        if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+        // Base UI's RadioGroup composite claims vertical arrows for roving
+        // focus (orientation "both", not configurable), so intercept them in
+        // capture and hand the keypress to cmdk: the model list owns vertical
+        // navigation, and cmdk's Enter is inert while a radio has focus.
         onKeyDown?.(e);
         if (e.defaultPrevented) return;
-        // cmdk's Command root claims Home/End to jump the model list; stop
-        // them here so only the radiogroup reacts.
-        if (e.key === "Home" || e.key === "End") e.stopPropagation();
-        // Vertical arrows refocus cmdk's input before the event bubbles to
-        // the Command root: the same keypress then moves the list highlight,
-        // and Enter selects again (cmdk's Enter is inert while a radio has
-        // focus, so the highlight would otherwise move with no way to act).
-        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-          e.currentTarget
-            .closest("[cmdk-root]")
-            ?.querySelector<HTMLInputElement>("[cmdk-input]")
-            ?.focus();
+        const input = e.currentTarget
+          .closest("[cmdk-root]")
+          ?.querySelector<HTMLInputElement>("[cmdk-input]");
+        if (!input) return;
+        e.preventDefault();
+        e.stopPropagation();
+        input.focus();
+        input.dispatchEvent(new KeyboardEvent("keydown", e.nativeEvent));
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") return;
+        onKeyDown?.(e);
+        if (e.defaultPrevented) return;
+        // Base UI's radio composite ignores Home/End and cmdk's Command
+        // root would claim them to jump the model list; move radio focus
+        // here so only the radiogroup reacts.
+        if (e.key === "Home" || e.key === "End") {
+          e.preventDefault();
+          e.stopPropagation();
+          const radios = Array.from(
+            e.currentTarget.querySelectorAll<HTMLElement>(
+              '[role="radio"]:not([data-disabled])',
+            ),
+          );
+          (e.key === "Home" ? radios[0] : radios[radios.length - 1])?.focus();
         }
       }}
       {...props}

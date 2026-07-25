@@ -4,10 +4,13 @@ description: Inspect runtime state, context, and events in the browser.
 platforms: ["react"]
 ---
 
+import { DevToolsSample, DevToolsModalSample } from "@/components/docs/samples/devtools";
 
 The assistant-ui DevTools allows you to debug the assistant-ui state and context, and events without resorting to `console.log`. It's an easy way to see how data flows to the assistant-ui's runtime layer.
 
-![Screenshot of the DevTools UI showing logs and state panels](../../../../../.github/assets/devtoolsui.png)
+Try it below — the chat on top is a live assistant-ui app, and the panel underneath is the real DevTools inspecting it. Send a message, trigger a tool call, and switch between the Thread, Context, and Activity tabs.
+
+<DevToolsSample />
 
 ## Setup
 
@@ -45,7 +48,9 @@ export function AssistantApp() {
 
 That's it! In development builds you should now see the DevTools launcher in the lower-right corner of your site. The panel renders inline in an isolated shadow root, and the whole component is stripped from production builds.
 
-![DevTools floating launcher anchored in the lower-right corner of a page](../../../../../.github/assets/devtoolsmodal.png)
+Try it here — click the launcher in the lower-right corner of the frame, then use "Run a demo turn" to watch events stream into the open panel. In your app the window opens over a dimmed, click-to-close backdrop; the demo omits it so the app stays usable while the panel is open:
+
+<DevToolsModalSample />
 
   </Step>
 </Steps>
