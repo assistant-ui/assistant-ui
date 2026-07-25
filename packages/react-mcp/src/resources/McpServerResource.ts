@@ -98,6 +98,11 @@ const useMcpServerResource = (
   const isCurrentConnection = (generation: number) =>
     mountedRef.current && generation === connectionGenerationRef.current;
 
+  const createInterruptedAuthError = () =>
+    new Error(
+      `MCP server "${props.id}" authorization was interrupted before completion.`,
+    );
+
   const withConnectionTimeout = useEffectEvent(
     async <T>(
       promise: Promise<T>,
@@ -156,7 +161,10 @@ const useMcpServerResource = (
   );
 
   const finalizeConnect = useEffectEvent(
-    async (transport: StreamableHTTPClientTransport, generation: number) => {
+    async (
+      transport: StreamableHTTPClientTransport,
+      generation: number,
+    ): Promise<boolean> => {
       const client = new Client({
         name: "assistant-ui-mcp",
         version: "0.0.0",
@@ -171,7 +179,7 @@ const useMcpServerResource = (
         "connecting",
         startedAt,
       );
-      if (!isCurrentConnection(generation)) return;
+      if (!isCurrentConnection(generation)) return false;
       // Defer ref assignment until listTools() also succeeds — otherwise a
       // post-connect failure leaves stale refs that `callTool()` would
       // happily walk into, producing confusing SDK errors instead of
@@ -181,7 +189,7 @@ const useMcpServerResource = (
         "listing tools",
         startedAt,
       );
-      if (!isCurrentConnection(generation)) return;
+      if (!isCurrentConnection(generation)) return false;
 
       pendingTransportRef.current = null;
       clientRef.current = client;
@@ -197,6 +205,7 @@ const useMcpServerResource = (
         }),
       );
       setConnectionState("connected");
+      return true;
     },
   );
 
@@ -258,7 +267,7 @@ const useMcpServerResource = (
   const doCompleteAuth = useEffectEvent(async (callbackUrl: string) => {
     const generation = ++connectionGenerationRef.current;
     await closePendingTransport();
-    if (!isCurrentConnection(generation)) return;
+    if (!isCurrentConnection(generation)) throw createInterruptedAuthError();
 
     setConnectionState("authPending");
     setLastError(null);
@@ -271,21 +280,22 @@ const useMcpServerResource = (
         transport = await buildTransport();
         if (!isCurrentConnection(generation)) {
           await closeQueuedTransports([transport]);
-          return;
+          throw createInterruptedAuthError();
         }
       }
       transportRef.current = null;
       clientRef.current = null;
       pendingTransportRef.current = transport;
       await transport.finishAuth(code);
-      if (!isCurrentConnection(generation)) return;
+      if (!isCurrentConnection(generation)) throw createInterruptedAuthError();
       setAuthorizationUrl(null);
-      await finalizeConnect(transport, generation);
+      const connected = await finalizeConnect(transport, generation);
+      if (!connected) throw createInterruptedAuthError();
     } catch (err) {
-      if (!isCurrentConnection(generation)) return;
+      const error = err instanceof Error ? err : new Error(String(err));
+      if (!isCurrentConnection(generation)) throw error;
 
       await closeTransports();
-      const error = err instanceof Error ? err : new Error(String(err));
       setLastError({
         message: error.message,
       });

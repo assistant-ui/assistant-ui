@@ -371,6 +371,37 @@ describe("McpServerResource completeAuth", () => {
       root.unmount();
     }
   });
+
+  it("rejects when the resource unmounts during auth completion", async () => {
+    let resolveFinishAuth!: () => void;
+    mocks.finishAuthResults.push(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFinishAuth = resolve;
+        }),
+    );
+    const root = mount({ auth: { type: "oauth" } });
+    let didUnmount = false;
+
+    try {
+      const completeAuth = root
+        .getValue()
+        .completeAuth("https://example.com/callback?code=abc");
+      await waitFor(
+        () => mocks.transports[0]?.finishAuth.mock.calls.length === 1,
+      );
+
+      root.unmount();
+      didUnmount = true;
+      resolveFinishAuth();
+
+      await expect(completeAuth).rejects.toThrow(
+        'MCP server "docs" authorization was interrupted before completion.',
+      );
+    } finally {
+      if (!didUnmount) root.unmount();
+    }
+  });
 });
 
 describe("McpServerResource resource methods", () => {
