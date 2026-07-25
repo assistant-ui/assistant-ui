@@ -133,7 +133,8 @@ export abstract class BaseComposerRuntimeCore
     this._notifySubscribers();
   }
 
-  private _isSending = false;
+  protected _isSending = false;
+  private _removedDuringSend = new Set<string>();
 
   private _emptyTextAndAttachments() {
     this._attachments = [];
@@ -185,17 +186,12 @@ export abstract class BaseComposerRuntimeCore
     }
 
     const adapter = this.getAttachmentAdapter();
-    const attachments =
-      this.attachments.length > 0
-        ? Promise.all(
-            this.attachments.map(async (a) => {
-              if (isAttachmentComplete(a)) return a;
-              if (!adapter) throw new Error("Attachments are not supported");
-              const result = await adapter.send(a);
-              return result as CompleteAttachment;
-            }),
-          )
-        : [];
+    const attachmentTasks = this.attachments.map(async (a) => {
+      if (isAttachmentComplete(a)) return a;
+      if (!adapter) throw new Error("Attachments are not supported");
+      const result = await adapter.send(a);
+      return result as CompleteAttachment;
+    });
 
     const originalAttachments = this.attachments;
     const text = this.text;
@@ -205,14 +201,19 @@ export abstract class BaseComposerRuntimeCore
     this._isSending = true;
     this._notifySubscribers();
 
-    let resolvedAttachments: Awaited<typeof attachments>;
+    let resolvedAttachments: CompleteAttachment[];
     try {
-      resolvedAttachments = await attachments;
+      resolvedAttachments = await Promise.all(attachmentTasks);
     } catch (e) {
+      // Promise.all rejects on the first failure, but sibling uploads from this
+      // batch keep running; wait for them to settle before unlocking retries, or
+      // a retry could re-send attachments that are still in flight.
+      await Promise.allSettled(attachmentTasks);
       if (!this.text.trim() && this._quote === undefined) {
         this._text = text;
         this._quote = quote;
       }
+      this._removedDuringSend.clear();
       this._isSending = false;
       this._notifySubscribers();
       throw e;
@@ -225,11 +226,18 @@ export abstract class BaseComposerRuntimeCore
     this._isSending = false;
     this._notifySubscribers();
 
+    // An attachment removed mid-upload can't be cancelled, but it can still be
+    // dropped from the outgoing message instead of silently being sent anyway.
+    const finalAttachments = resolvedAttachments.filter(
+      (a) => !this._removedDuringSend.has(a.id),
+    );
+    this._removedDuringSend.clear();
+
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
       role: this.role,
       content: text ? [{ type: "text", text }] : [],
-      attachments: resolvedAttachments,
+      attachments: finalAttachments,
       runConfig: this.runConfig,
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
@@ -410,6 +418,9 @@ export abstract class BaseComposerRuntimeCore
       await adapter.remove(attachment);
     }
 
+    // A send in flight may already be uploading this attachment; the upload
+    // can't be cancelled, so mark it to be dropped from the outgoing message.
+    if (this._isSending) this._removedDuringSend.add(attachmentId);
     this._attachments = this._attachments.filter((a) => a.id !== attachmentId);
     this._notifySubscribers();
   }

@@ -210,6 +210,99 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(append).toHaveBeenCalledTimes(1);
   });
 
+  it("reports canSend as false while a send is in flight", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer } = makeComposer(adapter);
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    expect(composer.canSend).toBe(true);
+
+    const sendPromise = composer.send();
+    await Promise.resolve();
+
+    expect(composer.canSend).toBe(false);
+
+    resolveSend();
+    await sendPromise;
+  });
+
+  it("keeps sending blocked until every upload in a failed batch settles", async () => {
+    let resolveA!: () => void;
+    let sendCallsForA = 0;
+    const adapter = makeAdapter({
+      add: async ({ file }: { file: File }): Promise<PendingAttachment> => ({
+        id: `att-${file.name}`,
+        type: "image",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      send: (a) => {
+        if (a.id === "att-a.txt") {
+          sendCallsForA += 1;
+          return new Promise((resolve) => {
+            resolveA = () =>
+              resolve({ ...a, status: { type: "complete" }, content: [] });
+          });
+        }
+        return Promise.reject(new Error("b failed"));
+      },
+    });
+    const { composer } = makeComposer(adapter);
+
+    await composer.addAttachment(new File(["a"], "a.txt"));
+    await composer.addAttachment(new File(["b"], "b.txt"));
+
+    const sendPromise = composer.send();
+    const caught = sendPromise.catch(() => {});
+
+    // b's rejection has already surfaced from Promise.all, but a's upload is
+    // still running — sending must stay blocked so a retry can't fire a second
+    // adapter.send for the attachment that's still in flight.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(composer.canSend).toBe(false);
+
+    resolveA();
+    await caught;
+
+    expect(composer.canSend).toBe(true);
+    expect(sendCallsForA).toBe(1);
+  });
+
+  it("excludes an attachment removed while its upload was still in flight", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    await composer.addAttachment(textFile());
+
+    const sendPromise = composer.send();
+    await composer.removeAttachment("att-1");
+    resolveSend();
+    await sendPromise;
+
+    expect(append).toHaveBeenCalledTimes(1);
+    const message = append.mock.calls[0]![0];
+    expect(message.attachments).toHaveLength(0);
+  });
+
   it("sends a text-only message with no attachment adapter", async () => {
     const { composer, append } = makeComposer();
 
