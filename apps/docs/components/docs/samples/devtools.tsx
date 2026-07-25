@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTheme } from "next-themes";
 import {
   ArrowUpIcon,
   CloudSunIcon,
@@ -15,14 +16,15 @@ import {
   DevToolsProviderApi,
   MessagePrimitive,
   ThreadPrimitive,
+  Tools,
   useAssistantInstructions,
-  useAssistantTool,
   useAui,
   useAuiState,
   useLocalRuntime,
   type ChatModelAdapter,
   type ThreadAssistantMessagePart,
   type ThreadMessageLike,
+  type Toolkit,
 } from "@assistant-ui/react";
 import {
   DevToolsPanel,
@@ -39,52 +41,76 @@ const RESPONSES = [
   "The Context tab lists the system instructions and the get_weather tool this demo registered — exactly what would be sent to your model provider.",
 ];
 
-let responseIndex = 0;
-
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-const adapter: ChatModelAdapter = {
-  async *run({ messages, abortSignal }) {
-    const lastText =
-      messages[messages.length - 1]?.content
-        .filter((part) => part.type === "text")
-        .map((part) => part.text)
-        .join(" ") ?? "";
+const createAdapter = (): ChatModelAdapter => {
+  let responseIndex = 0;
+  return {
+    async *run({ messages, abortSignal }) {
+      const lastText =
+        messages[messages.length - 1]?.content
+          .filter((part) => part.type === "text")
+          .map((part) => part.text)
+          .join(" ") ?? "";
 
-    await sleep(300);
-    if (abortSignal.aborted) return;
-
-    const parts: ThreadAssistantMessagePart[] = [];
-    let reply = RESPONSES[responseIndex++ % RESPONSES.length]!;
-
-    if (/weather/i.test(lastText)) {
-      const toolCall = {
-        type: "tool-call" as const,
-        toolCallId: `call_${Date.now()}`,
-        toolName: "get_weather",
-        args: { city: "San Francisco" },
-        argsText: '{"city":"San Francisco"}',
-      };
-      yield { content: [toolCall] };
-      await sleep(600);
+      await sleep(300);
       if (abortSignal.aborted) return;
-      parts.push({
-        ...toolCall,
-        result: { city: "San Francisco", tempC: 18, condition: "Foggy" },
-      });
-      yield { content: [...parts] };
-      reply =
-        "That was a real tool call — check the Thread tab to inspect its args and result, and the Activity tab for the events it fired.";
-    }
 
-    let text = "";
-    for (const word of reply.split(" ")) {
-      await sleep(35);
-      if (abortSignal.aborted) return;
-      text += (text ? " " : "") + word;
-      yield { content: [...parts, { type: "text", text }] };
-    }
+      const parts: ThreadAssistantMessagePart[] = [];
+      let reply = RESPONSES[responseIndex++ % RESPONSES.length]!;
+
+      if (/weather/i.test(lastText)) {
+        const toolCall = {
+          type: "tool-call" as const,
+          toolCallId: `call_${Date.now()}`,
+          toolName: "get_weather",
+          args: { city: "San Francisco" },
+          argsText: '{"city":"San Francisco"}',
+        };
+        yield { content: [toolCall] };
+        await sleep(600);
+        if (abortSignal.aborted) return;
+        parts.push({
+          ...toolCall,
+          result: { city: "San Francisco", tempC: 18, condition: "Foggy" },
+        });
+        yield { content: [...parts] };
+        reply =
+          "That was a real tool call — check the Thread tab to inspect its args and result, and the Activity tab for the events it fired.";
+      }
+
+      let text = "";
+      for (const word of reply.split(" ")) {
+        await sleep(35);
+        if (abortSignal.aborted) return;
+        text += (text ? " " : "") + word;
+        yield { content: [...parts, { type: "text", text }] };
+      }
+    },
+  };
+};
+
+const toolkit: Toolkit = {
+  get_weather: {
+    type: "frontend",
+    description: "Get the current weather for a city",
+    parameters: {
+      type: "object",
+      properties: {
+        city: { type: "string", description: "City name" },
+      },
+      required: ["city"],
+    },
+    render: ({ args, result }) => (
+      <div className="border-border/50 bg-muted/50 my-1 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
+        <CloudSunIcon className="text-muted-foreground size-3.5 shrink-0" />
+        <span>
+          get_weather({args.city ?? "…"})
+          {result ? ` → ${result.tempC}°C, ${result.condition}` : " running…"}
+        </span>
+      </div>
+    ),
   },
 };
 
@@ -108,20 +134,6 @@ const modalSeed = [
     "Click the launcher in the lower-right corner of this frame — the same button DevToolsModal renders in your app during development.",
   ),
 ];
-
-const isDarkMode = (): boolean =>
-  typeof document !== "undefined" &&
-  document.documentElement.classList.contains("dark");
-
-const subscribeToThemeChanges = (callback: () => void) => {
-  if (typeof MutationObserver === "undefined") return () => {};
-  const observer = new MutationObserver(callback);
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["class"],
-  });
-  return () => observer.disconnect();
-};
 
 const EMPTY_SNAPSHOT: DevToolsSnapshot = { apiIds: [], byId: new Map() };
 
@@ -156,14 +168,20 @@ const createScopedClient = (apiId: number | null): DevToolsClient => {
 
 /** Identical stateful wiring shared by both exported samples. */
 const useDevToolsDemo = () => {
+  const [adapter] = useState(createAdapter);
   const [apiId, setApiId] = useState<number | null>(null);
   const client = useMemo(() => createScopedClient(apiId), [apiId]);
-  const darkMode = useSyncExternalStore(
-    subscribeToThemeChanges,
-    isDarkMode,
-    () => false,
-  );
-  return { client, setApiId, theme: darkMode ? "dark" : "light" } as const;
+  const aui = useAui({ tools: Tools({ toolkit }) }, { parent: null });
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  return {
+    adapter,
+    aui,
+    client,
+    setApiId,
+    theme: mounted && resolvedTheme === "dark" ? "dark" : "light",
+  } as const;
 };
 
 /**
@@ -181,29 +199,6 @@ function DevToolsWiring({
   useAssistantInstructions(
     "You are the assistant-ui docs demo assistant. Keep replies short and reference the assistant-ui DevTools.",
   );
-  useAssistantTool<
-    { city: string },
-    { city: string; tempC: number; condition: string }
-  >({
-    toolName: "get_weather",
-    description: "Get the current weather for a city",
-    parameters: {
-      type: "object",
-      properties: {
-        city: { type: "string", description: "City name" },
-      },
-      required: ["city"],
-    },
-    render: ({ args, result }) => (
-      <div className="border-border/50 bg-muted/50 my-1 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
-        <CloudSunIcon className="text-muted-foreground size-3.5 shrink-0" />
-        <span>
-          get_weather({args.city ?? "…"})
-          {result ? ` → ${result.tempC}°C, ${result.condition}` : " running…"}
-        </span>
-      </div>
-    ),
-  });
   useEffect(() => {
     const unregister = DevToolsProviderApi.register(aui);
     let apiId: number | null = null;
@@ -295,12 +290,12 @@ function Composer() {
 }
 
 export function DevToolsSample() {
+  const { adapter, aui, client, setApiId, theme } = useDevToolsDemo();
   const runtime = useLocalRuntime(adapter, { initialMessages: panelSeed });
-  const { client, setApiId, theme } = useDevToolsDemo();
 
   return (
     <SampleFrame className="bg-muted/40 flex h-auto flex-col overflow-hidden">
-      <AssistantRuntimeProvider runtime={runtime}>
+      <AssistantRuntimeProvider aui={aui} runtime={runtime}>
         <DevToolsWiring onApiId={setApiId} />
         <ThreadPrimitive.Root className="flex h-72 flex-col">
           <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col gap-1 overflow-y-auto px-4 pt-4">
@@ -322,6 +317,20 @@ export function DevToolsSample() {
   );
 }
 
+function DemoTurnSuggestion() {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  return (
+    <ThreadPrimitive.Suggestion
+      prompt="What's the weather in San Francisco?"
+      send
+      disabled={isRunning}
+      className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-40"
+    >
+      Run a demo turn
+    </ThreadPrimitive.Suggestion>
+  );
+}
+
 /**
  * Recreates the DevToolsModal launcher-and-window experience contained inside
  * the sample frame. The shipped DevToolsModal cannot be used here: it renders
@@ -329,8 +338,8 @@ export function DevToolsSample() {
  * whole page. The panel inside the window is the real DevToolsPanel.
  */
 export function DevToolsModalSample() {
+  const { adapter, aui, client, setApiId, theme } = useDevToolsDemo();
   const runtime = useLocalRuntime(adapter, { initialMessages: modalSeed });
-  const { client, setApiId, theme } = useDevToolsDemo();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -344,20 +353,12 @@ export function DevToolsModalSample() {
 
   return (
     <SampleFrame className="bg-muted/40 relative h-120 overflow-hidden">
-      <AssistantRuntimeProvider runtime={runtime}>
+      <AssistantRuntimeProvider aui={aui} runtime={runtime}>
         <DevToolsWiring onApiId={setApiId} />
         <div className="flex h-full flex-col">
           <div className="border-border/50 bg-background flex items-center justify-between gap-2 rounded-t-xl border-b px-4 py-2.5">
             <span className="text-sm font-medium">Your app</span>
-            <AuiIf condition={(s) => !s.thread.isRunning}>
-              <ThreadPrimitive.Suggestion
-                prompt="What's the weather in San Francisco?"
-                send
-                className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-full border px-3 py-1 text-xs transition-colors"
-              >
-                Run a demo turn
-              </ThreadPrimitive.Suggestion>
-            </AuiIf>
+            <DemoTurnSuggestion />
           </div>
           <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
             <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col gap-1 overflow-y-auto px-4 py-4">
