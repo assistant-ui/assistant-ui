@@ -311,13 +311,13 @@ export const WelcomeSuggestionsPills: FC = () => {
     <div
       aria-hidden={group ? true : undefined}
       className={cn(
-        "scrollbar-none w-full overflow-x-auto",
+        "scrollbar-none mx-1.5 w-[calc(100%-0.75rem)] overflow-x-auto [mask-image:linear-gradient(to_right,transparent,black_0.375rem,black_calc(100%-0.375rem),transparent)]",
         group && "invisible",
       )}
     >
       <div
         ref={pillsRef}
-        className="mx-auto flex w-max max-w-full flex-wrap items-center justify-center gap-2"
+        className="mx-auto flex w-max items-center justify-center gap-2 px-1.5"
       >
         {entries.map((entry, idx) =>
           isGroup(entry) ? (
