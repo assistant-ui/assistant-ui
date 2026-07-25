@@ -463,6 +463,9 @@ const useComposerCoupling = (onEscape?: () => void) => {
           return true;
         }
         if (e.key === "Escape") {
+          // Consume the event like a Radix layer would, so enclosing Escape
+          // handlers (dialogs, fullscreen panels) see it as already handled.
+          e.preventDefault();
           if (onEscape) onEscape();
           else close({ restoreDraft: true });
           return true;
@@ -523,14 +526,18 @@ export const WelcomeSuggestionsPicker: FC<{ children?: ReactNode }> = ({
       if (target.closest('[data-slot*="composer"]')) return;
       close();
     };
+    // Capture phase with preventDefault, like Radix's DismissableLayer:
+    // enclosing Escape handlers check defaultPrevented to yield to us.
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close({ restoreDraft: true });
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault();
+      close({ restoreDraft: true });
     };
     document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown, true);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onKeyDown, true);
     };
   }, [group, close]);
 
@@ -654,14 +661,18 @@ export const WelcomeSuggestionsStack: FC = () => {
       if (target.closest('[data-slot*="composer"]')) return;
       close();
     };
+    // Capture phase with preventDefault, like Radix's DismissableLayer:
+    // enclosing Escape handlers check defaultPrevented to yield to us.
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") cancelClose();
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault();
+      cancelClose();
     };
     document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown, true);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onKeyDown, true);
     };
   }, [group, close, cancelClose]);
 

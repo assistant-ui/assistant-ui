@@ -456,6 +456,9 @@ const useComposerCoupling = (onEscape?: () => void) => {
           return true;
         }
         if (e.key === "Escape") {
+          // Consume the event like a Radix layer would, so enclosing Escape
+          // handlers (dialogs, fullscreen panels) see it as already handled.
+          e.preventDefault();
           if (onEscape) onEscape();
           else close({ restoreDraft: true });
           return true;
