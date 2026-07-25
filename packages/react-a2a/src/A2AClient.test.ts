@@ -815,39 +815,56 @@ describe("A2AClient", () => {
     });
 
     it.each([
-      ["missing required fields", {}],
-      [
-        "an invalid supported interface",
-        {
-          name: "Test Agent",
-          description: "A test",
-          version: "1.0",
-          supportedInterfaces: [{}],
-          capabilities: {},
-          defaultInputModes: ["text"],
-          defaultOutputModes: ["text"],
-          skills: [],
-        },
-      ],
-      [
-        "an invalid skill",
-        {
-          name: "Test Agent",
-          description: "A test",
-          version: "1.0",
-          supportedInterfaces: [],
-          capabilities: {},
-          defaultInputModes: ["text"],
-          defaultOutputModes: ["text"],
-          skills: [{}],
-        },
-      ],
+      ["an empty payload", {}],
+      ["a payload without a name", { version: "1.0", skills: [] }],
+      ["a non-object payload", "not a card"],
     ])("rejects %s", async (_name, body) => {
       fetchMock.mockResolvedValue(mockFetchResponse(body));
 
       await expect(client.getAgentCard()).rejects.toThrow(
         "Invalid A2A agent card response: expected a valid agent card payload.",
       );
+    });
+
+    it("fills defaults for fields omitted by proto3 JSON serialization", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({ name: "Test Agent" }));
+
+      const card = await client.getAgentCard();
+
+      expect(card).toMatchObject({
+        name: "Test Agent",
+        description: "",
+        version: "",
+        supportedInterfaces: [],
+        capabilities: {},
+        defaultInputModes: [],
+        defaultOutputModes: [],
+        skills: [],
+      });
+    });
+
+    it("fills defaults inside interfaces and skills", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          name: "Test Agent",
+          supported_interfaces: [{ url: "https://agent.test/a2a" }],
+          skills: [{ id: "recipes", name: "Recipes" }],
+        }),
+      );
+
+      const card = await client.getAgentCard();
+
+      expect(card.supportedInterfaces[0]).toMatchObject({
+        url: "https://agent.test/a2a",
+        protocolBinding: "",
+        protocolVersion: "",
+      });
+      expect(card.skills[0]).toMatchObject({
+        id: "recipes",
+        name: "Recipes",
+        description: "",
+        tags: [],
+      });
     });
   });
 
@@ -1330,12 +1347,27 @@ describe("A2AClient", () => {
       expect(url).toBe("https://agent.test/extendedAgentCard");
     });
 
-    it("rejects malformed cards returned with a successful status", async () => {
-      fetchMock.mockResolvedValue(mockFetchResponse({}));
+    it.each([
+      ["an empty payload", {}],
+      ["a payload without a name", { version: "1.0" }],
+    ])("rejects %s", async (_name, body) => {
+      fetchMock.mockResolvedValue(mockFetchResponse(body));
 
       await expect(client.getExtendedAgentCard()).rejects.toThrow(
         "Invalid A2A agent card response: expected a valid agent card payload.",
       );
+    });
+
+    it("fills defaults for omitted fields", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({ name: "Extended Agent", skills: [{ id: "s" }] }),
+      );
+
+      const card = await client.getExtendedAgentCard();
+
+      expect(card.name).toBe("Extended Agent");
+      expect(card.supportedInterfaces).toEqual([]);
+      expect(card.skills[0]).toMatchObject({ id: "s", tags: [] });
     });
   });
 });

@@ -2,4 +2,4 @@
 "@assistant-ui/react-a2a": patch
 ---
 
-fix: validate required fields in A2A agent card responses
+fix: reject unrecognizable agent card responses and fill proto3-omitted fields

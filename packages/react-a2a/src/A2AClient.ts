@@ -190,38 +190,53 @@ const isMessage = (value: unknown): value is A2AMessage =>
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
 
-const isAgentInterface = (value: unknown): boolean =>
-  isRecord(value) &&
-  typeof value.url === "string" &&
-  typeof value.protocolBinding === "string" &&
-  typeof value.protocolVersion === "string";
+const asString = (value: unknown): string =>
+  typeof value === "string" ? value : "";
 
-const isAgentSkill = (value: unknown): boolean =>
-  isRecord(value) &&
-  typeof value.id === "string" &&
-  typeof value.name === "string" &&
-  typeof value.description === "string" &&
-  isStringArray(value.tags);
+const asStringArray = (value: unknown): string[] =>
+  isStringArray(value) ? value : [];
 
-const isAgentCard = (value: unknown): value is A2AAgentCard =>
-  isRecord(value) &&
-  typeof value.name === "string" &&
-  typeof value.description === "string" &&
-  typeof value.version === "string" &&
-  Array.isArray(value.supportedInterfaces) &&
-  value.supportedInterfaces.every(isAgentInterface) &&
-  isRecord(value.capabilities) &&
-  isStringArray(value.defaultInputModes) &&
-  isStringArray(value.defaultOutputModes) &&
-  Array.isArray(value.skills) &&
-  value.skills.every(isAgentSkill);
+const asRecordArray = (value: unknown): Record<string, unknown>[] =>
+  Array.isArray(value) ? value.filter(isRecord) : [];
 
+// Proto3 JSON serialization omits default-valued fields, so a valid card may
+// arrive without its empty lists, strings, or capabilities. Fill defaults the
+// way AgentCard.fromJSON does instead of rejecting; only a missing name rejects.
 const parseAgentCardResponse = (value: unknown): A2AAgentCard => {
-  if (isAgentCard(value)) return value;
+  if (
+    !isRecord(value) ||
+    typeof value.name !== "string" ||
+    value.name.length === 0
+  ) {
+    throw new Error(
+      "Invalid A2A agent card response: expected a valid agent card payload.",
+    );
+  }
 
-  throw new Error(
-    "Invalid A2A agent card response: expected a valid agent card payload.",
-  );
+  return {
+    ...value,
+    name: value.name,
+    description: asString(value.description),
+    version: asString(value.version),
+    supportedInterfaces: asRecordArray(value.supportedInterfaces).map(
+      (entry) => ({
+        ...entry,
+        url: asString(entry.url),
+        protocolBinding: asString(entry.protocolBinding),
+        protocolVersion: asString(entry.protocolVersion),
+      }),
+    ),
+    capabilities: isRecord(value.capabilities) ? value.capabilities : {},
+    defaultInputModes: asStringArray(value.defaultInputModes),
+    defaultOutputModes: asStringArray(value.defaultOutputModes),
+    skills: asRecordArray(value.skills).map((entry) => ({
+      ...entry,
+      id: asString(entry.id),
+      name: asString(entry.name),
+      description: asString(entry.description),
+      tags: asStringArray(entry.tags),
+    })),
+  } as A2AAgentCard;
 };
 
 const parseSendMessageResponse = (value: unknown): A2ATask | A2AMessage => {
