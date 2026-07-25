@@ -2377,7 +2377,7 @@ type ReloadConfig = {
 
 type RemoteThreadInitializeResponse = {
   remoteId: string;
-  externalId?: string;
+  externalId?: string | undefined;
 };
 
 type RemoteThreadListAdapter = {
@@ -3020,7 +3020,7 @@ type ThreadListRuntimeCore = {
   delete(threadId: string): Promise<void>;
   initialize(threadId: string): Promise<{
     remoteId: string;
-    externalId: string | undefined;
+    externalId?: string | undefined;
   }>;
   generateTitle(threadId: string): Promise<void>;
   subscribe(callback: () => void): Unsubscribe$1;
