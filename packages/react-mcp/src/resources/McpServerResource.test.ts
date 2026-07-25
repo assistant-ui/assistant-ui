@@ -247,6 +247,34 @@ describe("McpServerResource connectionTimeout", () => {
   });
 });
 
+describe("McpServerResource connection lifecycle", () => {
+  beforeEach(resetMocks);
+
+  it("closes a pending connection when the resource unmounts", async () => {
+    let resolveConnect!: () => void;
+    mocks.connectResults.push(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveConnect = resolve;
+        }),
+    );
+    const root = mount({ connectionTimeout: undefined });
+    const connectPromise = root.getValue().connect();
+    await waitFor(() => mocks.clients[0]?.connect.mock.calls.length === 1);
+
+    root.unmount();
+    await flushMacrotask();
+
+    expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
+
+    resolveConnect();
+    await connectPromise;
+
+    expect(mocks.clients[0].listTools).not.toHaveBeenCalled();
+    expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("McpServerResource completeAuth", () => {
   beforeEach(resetMocks);
 

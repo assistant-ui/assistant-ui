@@ -46,6 +46,46 @@ const useMcpServerResource = (
 
   const clientRef = useRef<Client | null>(null);
   const transportRef = useRef<StreamableHTTPClientTransport | null>(null);
+  const pendingTransportRef = useRef<StreamableHTTPClientTransport | null>(
+    null,
+  );
+  const connectionGenerationRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  const closeTransportSafely = async (
+    transport: StreamableHTTPClientTransport,
+  ): Promise<void> => {
+    try {
+      await transport.close();
+    } catch {
+      // ignore close errors
+    }
+  };
+
+  const closePendingTransport = async () => {
+    const transport = pendingTransportRef.current;
+    pendingTransportRef.current = null;
+    if (transport) await closeTransportSafely(transport);
+  };
+
+  const closeTransports = async () => {
+    const pendingTransport = pendingTransportRef.current;
+    const activeTransport = transportRef.current;
+    pendingTransportRef.current = null;
+    transportRef.current = null;
+    clientRef.current = null;
+
+    const transports = new Set(
+      [pendingTransport, activeTransport].filter(
+        (transport): transport is StreamableHTTPClientTransport =>
+          transport !== null,
+      ),
+    );
+    await Promise.all([...transports].map(closeTransportSafely));
+  };
+
+  const isCurrentConnection = (generation: number) =>
+    mountedRef.current && generation === connectionGenerationRef.current;
 
   const withConnectionTimeout = useEffectEvent(
     async <T>(
@@ -105,7 +145,7 @@ const useMcpServerResource = (
   );
 
   const finalizeConnect = useEffectEvent(
-    async (transport: StreamableHTTPClientTransport) => {
+    async (transport: StreamableHTTPClientTransport, generation: number) => {
       const client = new Client({
         name: "assistant-ui-mcp",
         version: "0.0.0",
@@ -120,6 +160,7 @@ const useMcpServerResource = (
         "connecting",
         startedAt,
       );
+      if (!isCurrentConnection(generation)) return;
       // Defer ref assignment until listTools() also succeeds — otherwise a
       // post-connect failure leaves stale refs that `callTool()` would
       // happily walk into, producing confusing SDK errors instead of
@@ -129,6 +170,9 @@ const useMcpServerResource = (
         "listing tools",
         startedAt,
       );
+      if (!isCurrentConnection(generation)) return;
+
+      pendingTransportRef.current = null;
       clientRef.current = client;
       transportRef.current = transport;
       setTools(
@@ -145,22 +189,12 @@ const useMcpServerResource = (
     },
   );
 
-  const closeTransport = async () => {
-    const t = transportRef.current;
-    transportRef.current = null;
-    clientRef.current = null;
-    if (t) {
-      try {
-        await t.close();
-      } catch {
-        // ignore close errors
-      }
-    }
-  };
-
   const doConnect = useEffectEvent(async () => {
+    const generation = ++connectionGenerationRef.current;
     // Close any prior transport/client so a re-connect doesn't leak.
-    await closeTransport();
+    await closeTransports();
+    if (!isCurrentConnection(generation)) return;
+
     setConnectionState("connecting");
     setLastError(null);
     setAuthorizationUrl(null);
@@ -170,24 +204,29 @@ const useMcpServerResource = (
     let transport: StreamableHTTPClientTransport | null = null;
     try {
       transport = await buildTransport();
+      if (!isCurrentConnection(generation)) {
+        await closeTransportSafely(transport);
+        return;
+      }
+      pendingTransportRef.current = transport;
       // Don't assign to transportRef until connect succeeds — otherwise a
       // failed `listTools()` leaves an orphaned transport that future
       // doConnect / doDisconnect calls treat as live.
-      await finalizeConnect(transport);
+      await finalizeConnect(transport, generation);
     } catch (err) {
+      if (!isCurrentConnection(generation)) return;
+
       if (err instanceof UnauthorizedError) {
         // OAuth: keep the transport alive so completeAuth can call
         // finishAuth on it. Closing it before storing would leave a
         // closed transport on transportRef.
+        pendingTransportRef.current = null;
         transportRef.current = transport;
         setConnectionState("authRequired");
       } else {
         if (transport) {
-          try {
-            await transport.close();
-          } catch {
-            // ignore close errors
-          }
+          pendingTransportRef.current = null;
+          await closeTransportSafely(transport);
         }
         setLastError({
           message: err instanceof Error ? err.message : String(err),
@@ -198,13 +237,18 @@ const useMcpServerResource = (
   });
 
   const doDisconnect = useEffectEvent(async () => {
+    connectionGenerationRef.current += 1;
     setTools([]);
     setAuthorizationUrl(null);
     setConnectionState("disconnected");
-    await closeTransport();
+    await closeTransports();
   });
 
   const doCompleteAuth = useEffectEvent(async (callbackUrl: string) => {
+    const generation = ++connectionGenerationRef.current;
+    await closePendingTransport();
+    if (!isCurrentConnection(generation)) return;
+
     setConnectionState("authPending");
     setLastError(null);
     try {
@@ -214,13 +258,22 @@ const useMcpServerResource = (
       let transport = transportRef.current;
       if (!transport) {
         transport = await buildTransport();
-        transportRef.current = transport;
+        if (!isCurrentConnection(generation)) {
+          await closeTransportSafely(transport);
+          return;
+        }
       }
+      transportRef.current = null;
+      clientRef.current = null;
+      pendingTransportRef.current = transport;
       await transport.finishAuth(code);
+      if (!isCurrentConnection(generation)) return;
       setAuthorizationUrl(null);
-      await finalizeConnect(transport);
+      await finalizeConnect(transport, generation);
     } catch (err) {
-      await closeTransport();
+      if (!isCurrentConnection(generation)) return;
+
+      await closeTransports();
       const error = err instanceof Error ? err : new Error(String(err));
       setLastError({
         message: error.message,
@@ -255,14 +308,14 @@ const useMcpServerResource = (
 
   // Auto-connect on mount when usable auth exists.
   useEffect(() => {
+    mountedRef.current = true;
     const signal = { cancelled: false };
     void tryAutoConnect(signal);
     return () => {
+      mountedRef.current = false;
+      connectionGenerationRef.current += 1;
       signal.cancelled = true;
-      const t = transportRef.current;
-      transportRef.current = null;
-      clientRef.current = null;
-      if (t) t.close().catch(() => {});
+      void closeTransports();
     };
   }, []);
 
