@@ -3328,7 +3328,7 @@ type ThreadListItemRuntime = {
   getState(): ThreadListItemState$1;
   initialize(): Promise<{
     remoteId: string;
-    externalId: string | undefined;
+    externalId?: string | undefined;
   }>;
   generateTitle(): Promise<void>;
   switchTo(options?: {
@@ -3364,7 +3364,7 @@ declare class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
   delete(): Promise<void>;
   initialize(): Promise<{
     remoteId: string;
-    externalId: string | undefined;
+    externalId?: string | undefined;
   }>;
   generateTitle(): Promise<void>;
   unstable_on<E extends ThreadListItemEventType>(event: E, callback: ThreadListItemEventCallback<E>): Unsubscribe$1;

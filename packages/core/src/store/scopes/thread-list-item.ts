@@ -20,7 +20,7 @@ export type ThreadListItemMethods = {
   unarchive(): void;
   delete(): void;
   generateTitle(): void;
-  initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
+  initialize(): Promise<{ remoteId: string; externalId?: string | undefined }>;
   detach(): void;
   __internal_getRuntime?(): ThreadListItemRuntime;
 };
