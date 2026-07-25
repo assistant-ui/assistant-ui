@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { ArrowUpIcon, CloudSunIcon, SquareIcon } from "lucide-react";
+import {
+  ArrowUpIcon,
+  CloudSunIcon,
+  MessageSquareIcon,
+  SquareIcon,
+} from "lucide-react";
 import {
   AssistantRuntimeProvider,
   AuiIf,
@@ -15,6 +20,7 @@ import {
   useAui,
   useLocalRuntime,
   type ChatModelAdapter,
+  type ThreadAssistantMessagePart,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
 import {
@@ -39,9 +45,8 @@ const sleep = (ms: number) =>
 
 const adapter: ChatModelAdapter = {
   async *run({ messages, abortSignal }) {
-    const last = messages[messages.length - 1];
     const lastText =
-      last?.content
+      messages[messages.length - 1]?.content
         .filter((part) => part.type === "text")
         .map((part) => part.text)
         .join(" ") ?? "";
@@ -49,57 +54,58 @@ const adapter: ChatModelAdapter = {
     await sleep(300);
     if (abortSignal.aborted) return;
 
+    const parts: ThreadAssistantMessagePart[] = [];
+    let reply = RESPONSES[responseIndex++ % RESPONSES.length]!;
+
     if (/weather/i.test(lastText)) {
       const toolCall = {
         type: "tool-call" as const,
         toolCallId: `call_${Date.now()}`,
         toolName: "get_weather",
         args: { city: "San Francisco" },
-        argsText: JSON.stringify({ city: "San Francisco" }),
+        argsText: '{"city":"San Francisco"}',
       };
       yield { content: [toolCall] };
       await sleep(600);
       if (abortSignal.aborted) return;
-      const completedCall = {
+      parts.push({
         ...toolCall,
         result: { city: "San Francisco", tempC: 18, condition: "Foggy" },
-      };
-      yield { content: [completedCall] };
-
-      const reply =
+      });
+      yield { content: [...parts] };
+      reply =
         "That was a real tool call — check the Thread tab to inspect its args and result, and the Activity tab for the events it fired.";
-      let text = "";
-      for (const word of reply.split(" ")) {
-        await sleep(35);
-        if (abortSignal.aborted) return;
-        text += (text ? " " : "") + word;
-        yield { content: [completedCall, { type: "text", text }] };
-      }
-      return;
     }
 
-    const reply = RESPONSES[responseIndex++ % RESPONSES.length]!;
     let text = "";
     for (const word of reply.split(" ")) {
       await sleep(35);
       if (abortSignal.aborted) return;
       text += (text ? " " : "") + word;
-      yield { content: [{ type: "text", text }] };
+      yield { content: [...parts, { type: "text", text }] };
     }
   },
 };
 
-const initialMessages: ThreadMessageLike[] = [
-  { role: "user", content: [{ type: "text", text: "What am I looking at?" }] },
-  {
-    role: "assistant",
-    content: [
-      {
-        type: "text",
-        text: "A live assistant-ui app (top) inspected by the real DevTools panel (bottom). Send a message and watch the Thread and Activity tabs react in real time.",
-      },
-    ],
-  },
+const msg = (role: "user" | "assistant", text: string): ThreadMessageLike => ({
+  role,
+  content: [{ type: "text", text }],
+});
+
+const panelSeed = [
+  msg("user", "What am I looking at?"),
+  msg(
+    "assistant",
+    "A live assistant-ui app (top) inspected by the real DevTools panel (bottom). Send a message and watch the Thread and Activity tabs react in real time.",
+  ),
+];
+
+const modalSeed = [
+  msg("user", "Where are the DevTools?"),
+  msg(
+    "assistant",
+    "Click the launcher in the lower-right corner of this frame — the same button DevToolsModal renders in your app during development.",
+  ),
 ];
 
 const isDarkMode = (): boolean =>
@@ -118,20 +124,15 @@ const subscribeToThemeChanges = (callback: () => void) => {
 
 const EMPTY_SNAPSHOT: DevToolsSnapshot = { apiIds: [], byId: new Map() };
 
-const emptyClient: DevToolsClient = {
-  subscribe: () => () => {},
-  getSnapshot: () => EMPTY_SNAPSHOT,
-  clearEvents: () => {},
-};
-
 /**
  * Wraps the default in-process client but only surfaces the demo's own
  * instance, so the panel never lists the docs site's assistants (which also
  * register with the shared DevToolsHooks registry in development builds).
+ * A null apiId yields an empty snapshot until registration reports one.
  */
-const createScopedClient = (apiId: number): DevToolsClient => {
+const createScopedClient = (apiId: number | null): DevToolsClient => {
   let lastInput: DevToolsSnapshot | null = null;
-  let lastOutput: DevToolsSnapshot = EMPTY_SNAPSHOT;
+  let lastOutput = EMPTY_SNAPSHOT;
   return {
     subscribe: (listener) => inProcessClient.subscribe(listener),
     getSnapshot: () => {
@@ -150,6 +151,18 @@ const createScopedClient = (apiId: number): DevToolsClient => {
     switchToThread: (id, threadId) =>
       inProcessClient.switchToThread?.(id, threadId),
   };
+};
+
+/** Identical stateful wiring shared by both exported samples. */
+const useDevToolsDemo = () => {
+  const [apiId, setApiId] = useState<number | null>(null);
+  const client = useMemo(() => createScopedClient(apiId), [apiId]);
+  const darkMode = useSyncExternalStore(
+    subscribeToThemeChanges,
+    isDarkMode,
+    () => false,
+  );
+  return { client, setApiId, theme: darkMode ? "dark" : "light" } as const;
 };
 
 /**
@@ -183,15 +196,10 @@ function DevToolsWiring({
     render: ({ args, result }) => (
       <div className="border-border/50 bg-muted/50 my-1 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
         <CloudSunIcon className="text-muted-foreground size-3.5 shrink-0" />
-        {result ? (
-          <span>
-            get_weather({args.city}) → {result.tempC}°C, {result.condition}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">
-            get_weather({args.city ?? "…"}) running…
-          </span>
-        )}
+        <span>
+          get_weather({args.city ?? "…"})
+          {result ? ` → ${result.tempC}°C, ${result.condition}` : " running…"}
+        </span>
       </div>
     ),
   });
@@ -278,18 +286,8 @@ function Composer() {
 }
 
 export function DevToolsSample() {
-  const runtime = useLocalRuntime(adapter, { initialMessages });
-  const [apiId, setApiId] = useState<number | null>(null);
-  const client = useMemo(
-    () => (apiId === null ? emptyClient : createScopedClient(apiId)),
-    [apiId],
-  );
-  const darkMode = useSyncExternalStore(
-    subscribeToThemeChanges,
-    isDarkMode,
-    () => false,
-  );
-  const theme = darkMode ? "dark" : "light";
+  const runtime = useLocalRuntime(adapter, { initialMessages: panelSeed });
+  const { client, setApiId, theme } = useDevToolsDemo();
 
   return (
     <SampleFrame className="bg-muted/40 flex h-auto flex-col overflow-hidden">
@@ -315,22 +313,6 @@ export function DevToolsSample() {
   );
 }
 
-const modalInitialMessages: ThreadMessageLike[] = [
-  {
-    role: "user",
-    content: [{ type: "text", text: "Where are the DevTools?" }],
-  },
-  {
-    role: "assistant",
-    content: [
-      {
-        type: "text",
-        text: "Click the launcher in the lower-right corner of this frame — the same button DevToolsModal renders in your app during development.",
-      },
-    ],
-  },
-];
-
 /**
  * Recreates the DevToolsModal launcher-and-window experience contained inside
  * the sample frame. The shipped DevToolsModal cannot be used here: it renders
@@ -338,20 +320,8 @@ const modalInitialMessages: ThreadMessageLike[] = [
  * whole page. The panel inside the window is the real DevToolsPanel.
  */
 export function DevToolsModalSample() {
-  const runtime = useLocalRuntime(adapter, {
-    initialMessages: modalInitialMessages,
-  });
-  const [apiId, setApiId] = useState<number | null>(null);
-  const client = useMemo(
-    () => (apiId === null ? emptyClient : createScopedClient(apiId)),
-    [apiId],
-  );
-  const darkMode = useSyncExternalStore(
-    subscribeToThemeChanges,
-    isDarkMode,
-    () => false,
-  );
-  const theme = darkMode ? "dark" : "light";
+  const runtime = useLocalRuntime(adapter, { initialMessages: modalSeed });
+  const { client, setApiId, theme } = useDevToolsDemo();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -395,21 +365,7 @@ export function DevToolsModalSample() {
             title="Open assistant-ui DevTools"
             className="bg-foreground text-background absolute right-5 bottom-5 flex size-9 items-center justify-center rounded-full shadow-lg transition-transform duration-150 ease-out hover:scale-105 active:scale-95"
           >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <MessageSquareIcon className="size-4.5" strokeWidth={1.75} />
           </button>
         )}
         {open && (
