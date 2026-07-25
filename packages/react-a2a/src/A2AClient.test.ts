@@ -818,12 +818,36 @@ describe("A2AClient", () => {
       ["an empty payload", {}],
       ["a payload without a name", { version: "1.0", skills: [] }],
       ["a non-object payload", "not a card"],
+      [
+        "a wrong-typed supportedInterfaces",
+        { name: "Test Agent", supportedInterfaces: "invalid" },
+      ],
+      ["a wrong-typed skill entry", { name: "Test Agent", skills: ["nope"] }],
+      [
+        "a wrong-typed skill tags field",
+        { name: "Test Agent", skills: [{ id: "s", tags: "broken" }] },
+      ],
     ])("rejects %s", async (_name, body) => {
       fetchMock.mockResolvedValue(mockFetchResponse(body));
 
       await expect(client.getAgentCard()).rejects.toThrow(
         "Invalid A2A agent card response: expected a valid agent card payload.",
       );
+    });
+
+    it("treats explicit null fields as defaults", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          name: "Test Agent",
+          description: null,
+          skills: null,
+        }),
+      );
+
+      const card = await client.getAgentCard();
+
+      expect(card.description).toBe("");
+      expect(card.skills).toEqual([]);
     });
 
     it("fills defaults for fields omitted by proto3 JSON serialization", async () => {

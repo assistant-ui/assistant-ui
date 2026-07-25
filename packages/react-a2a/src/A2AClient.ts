@@ -190,51 +190,63 @@ const isMessage = (value: unknown): value is A2AMessage =>
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
 
-const asString = (value: unknown): string =>
-  typeof value === "string" ? value : "";
+const invalidAgentCard = (): never => {
+  throw new Error(
+    "Invalid A2A agent card response: expected a valid agent card payload.",
+  );
+};
 
-const asStringArray = (value: unknown): string[] =>
-  isStringArray(value) ? value : [];
+const parseCardString = (value: unknown): string =>
+  value == null ? "" : typeof value === "string" ? value : invalidAgentCard();
 
-const asRecordArray = (value: unknown): Record<string, unknown>[] =>
-  Array.isArray(value) ? value.filter(isRecord) : [];
+const parseCardStringArray = (value: unknown): string[] =>
+  value == null ? [] : isStringArray(value) ? value : invalidAgentCard();
 
-// Proto3 JSON serialization omits default-valued fields, so a valid card may
-// arrive without its empty lists, strings, or capabilities. Fill defaults the
-// way AgentCard.fromJSON does instead of rejecting; only a missing name rejects.
+const parseCardRecordArray = (value: unknown): Record<string, unknown>[] =>
+  value == null
+    ? []
+    : Array.isArray(value) && value.every(isRecord)
+      ? (value as Record<string, unknown>[])
+      : invalidAgentCard();
+
+const parseCardRecord = (value: unknown): Record<string, unknown> =>
+  value == null ? {} : isRecord(value) ? value : invalidAgentCard();
+
+// Proto3 JSON parsing treats omitted and null fields as defaults, so a valid
+// card may arrive without its empty lists, strings, or capabilities. Fill
+// those per the proto3 JSON mapping rules; a payload without a name or with a
+// present field of the wrong type rejects.
 const parseAgentCardResponse = (value: unknown): A2AAgentCard => {
   if (
     !isRecord(value) ||
     typeof value.name !== "string" ||
     value.name.length === 0
   ) {
-    throw new Error(
-      "Invalid A2A agent card response: expected a valid agent card payload.",
-    );
+    return invalidAgentCard();
   }
 
   return {
     ...value,
     name: value.name,
-    description: asString(value.description),
-    version: asString(value.version),
-    supportedInterfaces: asRecordArray(value.supportedInterfaces).map(
+    description: parseCardString(value.description),
+    version: parseCardString(value.version),
+    supportedInterfaces: parseCardRecordArray(value.supportedInterfaces).map(
       (entry) => ({
         ...entry,
-        url: asString(entry.url),
-        protocolBinding: asString(entry.protocolBinding),
-        protocolVersion: asString(entry.protocolVersion),
+        url: parseCardString(entry.url),
+        protocolBinding: parseCardString(entry.protocolBinding),
+        protocolVersion: parseCardString(entry.protocolVersion),
       }),
     ),
-    capabilities: isRecord(value.capabilities) ? value.capabilities : {},
-    defaultInputModes: asStringArray(value.defaultInputModes),
-    defaultOutputModes: asStringArray(value.defaultOutputModes),
-    skills: asRecordArray(value.skills).map((entry) => ({
+    capabilities: parseCardRecord(value.capabilities),
+    defaultInputModes: parseCardStringArray(value.defaultInputModes),
+    defaultOutputModes: parseCardStringArray(value.defaultOutputModes),
+    skills: parseCardRecordArray(value.skills).map((entry) => ({
       ...entry,
-      id: asString(entry.id),
-      name: asString(entry.name),
-      description: asString(entry.description),
-      tags: asStringArray(entry.tags),
+      id: parseCardString(entry.id),
+      name: parseCardString(entry.name),
+      description: parseCardString(entry.description),
+      tags: parseCardStringArray(entry.tags),
     })),
   } as A2AAgentCard;
 };
