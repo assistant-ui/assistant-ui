@@ -14,6 +14,7 @@ import {
   ComposerPrimitive,
   DevToolsHooks,
   DevToolsProviderApi,
+  defineToolkit,
   MessagePrimitive,
   ThreadPrimitive,
   Tools,
@@ -24,7 +25,7 @@ import {
   type ChatModelAdapter,
   type ThreadAssistantMessagePart,
   type ThreadMessageLike,
-  type Toolkit,
+  type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import {
   DevToolsPanel,
@@ -91,7 +92,7 @@ const createAdapter = (): ChatModelAdapter => {
   };
 };
 
-const toolkit: Toolkit = {
+const toolkit = defineToolkit({
   get_weather: {
     type: "frontend",
     description: "Get the current weather for a city",
@@ -102,7 +103,13 @@ const toolkit: Toolkit = {
       },
       required: ["city"],
     },
-    render: ({ args, result }) => (
+    render: ({
+      args,
+      result,
+    }: ToolCallMessagePartProps<
+      { city?: string },
+      { city: string; tempC: number; condition: string }
+    >) => (
       <div className="border-border/50 bg-muted/50 my-1 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
         <CloudSunIcon className="text-muted-foreground size-3.5 shrink-0" />
         <span>
@@ -112,7 +119,7 @@ const toolkit: Toolkit = {
       </div>
     ),
   },
-};
+});
 
 const msg = (role: "user" | "assistant", text: string): ThreadMessageLike => ({
   role,
