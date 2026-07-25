@@ -357,8 +357,8 @@ describe("AssistantMessageAccumulator part path bounds", () => {
         part: { type: "tool-call", toolCallId: "t1", toolName: "f" },
       },
       { type: "text-delta", path: [0], textDelta: "{}" },
-      { type: "result", path: [7], result: { ok: true } },
-      { type: "result", path: [0], result: { ok: true } },
+      { type: "result", path: [7], result: { ok: true }, isError: false },
+      { type: "result", path: [0], result: { ok: true }, isError: false },
     ]);
     const last = messages.at(-1)!;
 

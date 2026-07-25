@@ -1,3 +1,4 @@
+import sjson from "secure-json-parse";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
 import {
@@ -27,7 +28,7 @@ const KNOWN_CHUNK_TYPES: Record<
 const parseChunk = (data: string): AssistantStreamChunk | null => {
   let value: unknown;
   try {
-    value = JSON.parse(data);
+    value = sjson.parse(data);
   } catch {
     return null;
   }
