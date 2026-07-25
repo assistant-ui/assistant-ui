@@ -436,10 +436,11 @@ export class RemoteThreadListThreadListRuntimeCore
       if (!data) throw threadNotFoundError(threadId, "initializing it");
       if (data.status === "new")
         throw threadStatusError(threadId, data.status, "be initialized here");
-      return data.initializeTask;
+      const { remoteId, externalId } = await data.initializeTask;
+      return { remoteId, externalId };
     }
 
-    return this._state.optimisticUpdate({
+    const { remoteId, externalId } = await this._state.optimisticUpdate({
       execute: () => {
         return this._options.adapter.initialize(threadId);
       },
@@ -482,6 +483,7 @@ export class RemoteThreadListThreadListRuntimeCore
         };
       },
     });
+    return { remoteId, externalId };
   };
 
   public generateTitle = async (threadId: string) => {

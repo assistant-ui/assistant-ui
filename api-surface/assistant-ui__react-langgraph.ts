@@ -1648,7 +1648,7 @@ type ThreadListItemRuntime = {
   getState(): ThreadListItemState;
   initialize(): Promise<{
     remoteId: string;
-    externalId?: string | undefined;
+    externalId: string | undefined;
   }>;
   generateTitle(): Promise<void>;
   switchTo(options?: {
