@@ -155,4 +155,14 @@ describe("escapeCurrencyDollars", () => {
       "see `unclosed then \\$5 and \\$7 later",
     );
   });
+
+  it("escapes currency glued to a preceding word", () => {
+    expect(escapeCurrencyDollars("Prices range from US$50 to US$100")).toBe(
+      "Prices range from US\\$50 to US\\$100",
+    );
+  });
+
+  it("escapes an amount whose next dollar opens another amount", () => {
+    expect(escapeCurrencyDollars("$50 to US$60")).toBe("\\$50 to US\\$60");
+  });
 });

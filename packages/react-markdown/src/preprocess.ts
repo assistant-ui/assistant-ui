@@ -150,7 +150,10 @@ function endOfVerbatimRun(text: string, index: number): number {
   if (dollars >= 2) return index + dollars;
 
   const close = findClosingDollar(text, index);
-  const opensMath = close !== -1 && isMathBody(text.slice(index + 1, close));
+  const opensMath =
+    close !== -1 &&
+    !opensCurrencyAmount(text, close) &&
+    isMathBody(text.slice(index + 1, close));
   return opensMath ? close + 1 : index;
 }
 
