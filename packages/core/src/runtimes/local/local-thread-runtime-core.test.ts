@@ -735,4 +735,105 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     expect(appended[0]?.message.id).toBe("restored");
     expect(appended[0]?.message.status?.type).toBe("complete");
   });
+
+  it("persists a partial approval decision while another tool call is still pending", async () => {
+    const { history, updated } = createHistory();
+    const runs: ChatModelRunOptions[] = [];
+    const twoPendingApprovals: ChatModelRunResult = {
+      content: [
+        { ...toolCallPart("send_email", { id: "a1" }), toolCallId: "call-1" },
+        { ...toolCallPart("send_email", { id: "a2" }), toolCallId: "call-2" },
+      ],
+      status: { type: "requires-action", reason: "tool-calls" },
+    };
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          if (runs.length === 1) return twoPendingApprovals;
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { history },
+    );
+
+    await thread.append(userMessage("send two emails"));
+    await flush();
+
+    const assistant = thread.messages.at(-1)!;
+    expect(assistant.status?.type).toBe("requires-action");
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    // The second approval is still pending, so the run must not resume yet —
+    // but the first decision has to survive a refresh in the meantime.
+    expect(runs).toHaveLength(1);
+    const persisted = updated
+      .at(-1)
+      ?.message.content.find(
+        (c) => c.type === "tool-call" && c.toolCallId === "call-1",
+      );
+    expect(
+      persisted?.type === "tool-call" && persisted.approval?.approved,
+    ).toBe(true);
+  });
+
+  it("persists a partial tool result while another human tool call is still pending", async () => {
+    const { history, updated } = createHistory();
+    const runs: ChatModelRunOptions[] = [];
+    const twoHumanTools: ChatModelRunResult = {
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "send_email",
+          args: {},
+          argsText: "{}",
+        },
+        {
+          type: "tool-call",
+          toolCallId: "call-2",
+          toolName: "send_email",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+      status: { type: "requires-action", reason: "tool-calls" },
+    };
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          if (runs.length === 1) return twoHumanTools;
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { history },
+    );
+
+    await thread.append(userMessage("send two emails"));
+    await flush();
+
+    const assistant = thread.messages.at(-1)!;
+
+    thread.addToolResult({
+      messageId: assistant.id,
+      toolName: "send_email",
+      toolCallId: "call-1",
+      result: { ok: true },
+      isError: false,
+    });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    const persisted = updated
+      .at(-1)
+      ?.message.content.find(
+        (c) => c.type === "tool-call" && c.toolCallId === "call-1",
+      );
+    expect(persisted?.type === "tool-call" && persisted.result).toEqual({
+      ok: true,
+    });
+  });
 });

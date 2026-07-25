@@ -590,16 +590,21 @@ export class LocalThreadRuntimeCore
         message.status.type === "incomplete";
 
       if (this._pausedPersistedIds.has(message.id)) {
-        if (isTerminal) this._pausedPersistedIds.delete(message.id);
+        // Only drop the id once the write actually lands — if update rejects,
+        // the id must stay so the next attempt retries via update, not append
+        // (which would duplicate the message).
         await history?.update?.(item);
+        if (isTerminal) this._pausedPersistedIds.delete(message.id);
       } else if (isTerminal) {
         await history?.append(item);
       } else if (message.status.type === "requires-action" && history?.update) {
         // Persisting the pause is only safe for adapters that can rewrite the
         // entry later; an append-only adapter would strand a half-finished run
         // in history with no way to finalize it once the approval resolves.
-        this._pausedPersistedIds.add(message.id);
+        // Mark it only once the append confirms, or a failed append would
+        // leave the id in the set with nothing in the store to update.
         await history.append(item);
+        this._pausedPersistedIds.add(message.id);
       }
     }
     return message;
@@ -669,6 +674,13 @@ export class LocalThreadRuntimeCore
       shouldContinue(message, this._options.unstable_humanToolNames)
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
+    } else if (added && this._pausedPersistedIds.has(message.id)) {
+      // Other tool calls on this message are still awaiting approval, so the
+      // run won't resume (and persist) yet — write this decision now, or a
+      // refresh before the rest resolve would restore the pre-decision message.
+      this._options.adapters.history
+        ?.update?.({ parentId, message, runConfig: this._lastRunConfig })
+        .catch(() => {});
     }
   }
 
@@ -747,6 +759,13 @@ export class LocalThreadRuntimeCore
       shouldContinue(message, this._options.unstable_humanToolNames)
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
+    } else if (this._pausedPersistedIds.has(message.id)) {
+      // Other tool calls on this message are still awaiting approval, so the
+      // run won't resume (and persist) yet — write this decision now, or a
+      // refresh before the rest resolve would restore the pre-decision message.
+      this._options.adapters.history
+        ?.update?.({ parentId, message, runConfig: this._lastRunConfig })
+        .catch(() => {});
     }
   }
 }
