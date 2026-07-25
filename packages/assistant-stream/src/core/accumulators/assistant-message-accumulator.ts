@@ -42,15 +42,17 @@ const updatePartForPath = (
   chunk: AssistantStreamChunk,
   updater: (part: AssistantMessagePart) => AssistantMessagePart,
 ): AssistantMessage => {
-  if (message.parts.length === 0) {
-    throw new Error("No parts available to update.");
+  const part =
+    chunk.path.length === 1 ? message.parts[chunk.path[0]!] : undefined;
+  if (part === undefined) {
+    console.warn(
+      `Dropped ${chunk.type} chunk: no part at path [${chunk.path.join(", ")}]`,
+    );
+    return message;
   }
 
-  if (chunk.path.length !== 1)
-    throw new Error("Nested paths are not supported yet.");
-
   const partIndex = chunk.path[0]!;
-  const updatedPart = updater(message.parts[partIndex]!);
+  const updatedPart = updater(part);
   return {
     ...message,
     parts: [

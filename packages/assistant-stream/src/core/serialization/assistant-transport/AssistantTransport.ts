@@ -6,6 +6,52 @@ import {
 } from "../../utils/stream/SSEEventDecoderStream";
 import type { AssistantStreamEncoder } from "../../AssistantStream";
 
+const KNOWN_CHUNK_TYPES: Record<
+  AssistantStreamChunk["type"],
+  "message" | "part-addressed"
+> = {
+  "part-start": "message",
+  "part-finish": "part-addressed",
+  "tool-call-args-text-finish": "part-addressed",
+  "text-delta": "part-addressed",
+  annotations: "message",
+  data: "message",
+  "step-start": "message",
+  "step-finish": "message",
+  "message-finish": "message",
+  result: "part-addressed",
+  error: "message",
+  "update-state": "message",
+};
+
+const parseChunk = (data: string): AssistantStreamChunk | null => {
+  let value: unknown;
+  try {
+    value = JSON.parse(data);
+  } catch {
+    return null;
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return null;
+  const { type, path } = value as { type?: unknown; path?: unknown };
+  if (
+    typeof type !== "string" ||
+    !Object.prototype.hasOwnProperty.call(KNOWN_CHUNK_TYPES, type)
+  )
+    return null;
+  if (path === undefined) {
+    if (KNOWN_CHUNK_TYPES[type as AssistantStreamChunk["type"]] !== "message")
+      return null;
+    return { ...value, path: [] } as unknown as AssistantStreamChunk;
+  }
+  if (
+    !Array.isArray(path) ||
+    !path.every((entry) => Number.isInteger(entry) && entry >= 0)
+  )
+    return null;
+  return value as AssistantStreamChunk;
+};
+
 /**
  * AssistantTransportEncoder encodes AssistantStreamChunks into SSE format
  * and emits [DONE] when the stream completes.
@@ -64,7 +110,14 @@ export class AssistantTransportDecoder extends PipeableTransformStream<
                     // Stop processing when we encounter [DONE]
                     controller.terminate();
                   } else {
-                    controller.enqueue(JSON.parse(event.data));
+                    const chunk = parseChunk(event.data);
+                    if (chunk) {
+                      controller.enqueue(chunk);
+                    } else {
+                      console.warn(
+                        `Dropped invalid assistant-transport chunk: ${event.data.slice(0, 200)}`,
+                      );
+                    }
                   }
                   break;
                 default:
