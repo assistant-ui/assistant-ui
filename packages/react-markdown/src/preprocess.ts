@@ -57,7 +57,7 @@ export function normalizeMathDelimiters(text: string): string {
 const LATEX_SYNTAX = /\\[a-zA-Z]|[_^{}]/;
 const BLANK_LINE = /\n[ \t]*\n/;
 const ADJACENT_WORDS = /[A-Za-z]{3,}\s+[A-Za-z]{3,}/;
-const TRAILING_OPERATOR = /[-+*/=<>,;:([\u2013\u2014]$/;
+const TRAILING_OPERATOR = /[-+*/=<>,;:([\u2013\u2014\u2212]$/;
 
 /** Length of the run of `char` starting at `start`. */
 function runLength(text: string, start: number, char: string): number {
@@ -68,12 +68,13 @@ function runLength(text: string, start: number, char: string): number {
 
 /**
  * End index (exclusive) of the code span or fence whose backtick run starts at
- * `start`, or the end of the text when that run is never closed.
+ * `start`, or -1 when that run is never closed and its backticks read as literal
+ * text.
  */
 function codeSpanEnd(text: string, start: number): number {
   const fence = "`".repeat(runLength(text, start, "`"));
   const closed = text.indexOf(fence, start + fence.length);
-  return closed === -1 ? text.length : closed + fence.length;
+  return closed === -1 ? -1 : closed + fence.length;
 }
 
 /**
@@ -87,8 +88,10 @@ function findClosingDollar(text: string, openIndex: number): number {
     const char = text[index];
     if (char === "$") return index;
     if (char === "\\") index += 2;
-    else if (char === "`") index = codeSpanEnd(text, index);
-    else index += 1;
+    else if (char === "`") {
+      const end = codeSpanEnd(text, index);
+      index = end === -1 ? index + runLength(text, index, "`") : end;
+    } else index += 1;
   }
   return -1;
 }
@@ -110,25 +113,18 @@ function endsOnOperator(body: string): boolean {
 }
 
 /**
- * Whether the body reads as the text between two currency amounts rather than as an
- * expression: running prose (`5 and `), a range (`5-`), or two adjacent words.
- */
-function separatesTwoAmounts(body: string): boolean {
-  return (
-    endsMidSentence(body) || endsOnOperator(body) || ADJACENT_WORDS.test(body)
-  );
-}
-
-/**
  * Whether the text between two single `$` reads as an inline math expression rather
- * than the text separating two currency amounts. LaTeX syntax settles it; failing
- * that, anything that reads as surrounding text is rejected.
+ * than the text separating two currency amounts. A body that ends the way prose
+ * between two amounts does (mid-sentence space, dangling operator) is rejected even
+ * when it carries LaTeX syntax, since that prose may itself contain `_` or `\word`;
+ * otherwise LaTeX syntax accepts the span and two adjacent words reject it.
  */
 function isMathBody(body: string): boolean {
   if (body.length === 0) return false;
   if (BLANK_LINE.test(body)) return false;
+  if (endsMidSentence(body) || endsOnOperator(body)) return false;
   if (LATEX_SYNTAX.test(body)) return true;
-  return !separatesTwoAmounts(body);
+  return !ADJACENT_WORDS.test(body);
 }
 
 /** Whether the `$` at `index` opens a currency amount such as `$5` or `$1,299`. */
@@ -144,7 +140,10 @@ function opensCurrencyAmount(text: string, index: number): boolean {
 function endOfVerbatimRun(text: string, index: number): number {
   const char = text[index];
   if (char === "\\") return Math.min(index + 2, text.length);
-  if (char === "`") return codeSpanEnd(text, index);
+  if (char === "`") {
+    const end = codeSpanEnd(text, index);
+    return end === -1 ? index + runLength(text, index, "`") : end;
+  }
   if (char !== "$") return index + 1;
 
   const dollars = runLength(text, index, "$");

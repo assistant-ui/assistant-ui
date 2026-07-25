@@ -131,4 +131,28 @@ describe("escapeCurrencyDollars", () => {
       "```\nconst price = $5;\n```",
     );
   });
+
+  it("escapes an amount when the prose before the next span carries latex syntax", () => {
+    expect(
+      escapeCurrencyDollars("Pay $20 when x_1 rises, then $n$ holds"),
+    ).toBe("Pay \\$20 when x_1 rises, then $n$ holds");
+  });
+
+  it("keeps digit-initial math that carries latex syntax", () => {
+    expect(escapeCurrencyDollars("Solve $5x_2 = 10$ now")).toBe(
+      "Solve $5x_2 = 10$ now",
+    );
+  });
+
+  it("escapes a currency range written with a unicode minus", () => {
+    expect(escapeCurrencyDollars("Prices: $5\u2212$10 each")).toBe(
+      "Prices: \\$5\u2212\\$10 each",
+    );
+  });
+
+  it("escapes currency after an unclosed backtick", () => {
+    expect(escapeCurrencyDollars("see `unclosed then $5 and $7 later")).toBe(
+      "see `unclosed then \\$5 and \\$7 later",
+    );
+  });
 });
