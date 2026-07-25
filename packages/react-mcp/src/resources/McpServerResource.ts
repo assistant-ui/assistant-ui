@@ -49,6 +49,7 @@ const useMcpServerResource = (
   const pendingTransportRef = useRef<StreamableHTTPClientTransport | null>(
     null,
   );
+  const transportCloseQueueRef = useRef(Promise.resolve());
   const connectionGenerationRef = useRef(0);
   const mountedRef = useRef(true);
 
@@ -62,10 +63,20 @@ const useMcpServerResource = (
     }
   };
 
+  const closeQueuedTransports = (
+    transports: StreamableHTTPClientTransport[],
+  ): Promise<void> => {
+    const task = transportCloseQueueRef.current.then(async () => {
+      await Promise.all(transports.map(closeTransportSafely));
+    });
+    transportCloseQueueRef.current = task;
+    return task;
+  };
+
   const closePendingTransport = async () => {
     const transport = pendingTransportRef.current;
     pendingTransportRef.current = null;
-    if (transport) await closeTransportSafely(transport);
+    await closeQueuedTransports(transport ? [transport] : []);
   };
 
   const closeTransports = async () => {
@@ -81,7 +92,7 @@ const useMcpServerResource = (
           transport !== null,
       ),
     );
-    await Promise.all([...transports].map(closeTransportSafely));
+    await closeQueuedTransports([...transports]);
   };
 
   const isCurrentConnection = (generation: number) =>
@@ -205,7 +216,7 @@ const useMcpServerResource = (
     try {
       transport = await buildTransport();
       if (!isCurrentConnection(generation)) {
-        await closeTransportSafely(transport);
+        await closeQueuedTransports([transport]);
         return;
       }
       pendingTransportRef.current = transport;
@@ -226,7 +237,7 @@ const useMcpServerResource = (
       } else {
         if (transport) {
           pendingTransportRef.current = null;
-          await closeTransportSafely(transport);
+          await closeQueuedTransports([transport]);
         }
         setLastError({
           message: err instanceof Error ? err.message : String(err),
@@ -259,7 +270,7 @@ const useMcpServerResource = (
       if (!transport) {
         transport = await buildTransport();
         if (!isCurrentConnection(generation)) {
-          await closeTransportSafely(transport);
+          await closeQueuedTransports([transport]);
           return;
         }
       }

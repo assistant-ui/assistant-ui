@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => {
     }>
   > = [];
   const finishAuthResults: Array<() => Promise<void>> = [];
+  const closeResults: Array<() => Promise<void>> = [];
 
   const Client = vi.fn().mockImplementation(function Client(this: any) {
     const index = clients.length;
@@ -34,7 +35,7 @@ const mocks = vi.hoisted(() => {
     .fn()
     .mockImplementation(function StreamableHTTPClientTransport(this: any) {
       const index = transports.length;
-      this.close = vi.fn(() => Promise.resolve());
+      this.close = vi.fn(() => closeResults[index]?.() ?? Promise.resolve());
       this.finishAuth = vi.fn(
         () => finishAuthResults[index]?.() ?? Promise.resolve(),
       );
@@ -49,6 +50,7 @@ const mocks = vi.hoisted(() => {
     connectResults,
     listToolsResults,
     finishAuthResults,
+    closeResults,
   };
 });
 
@@ -102,6 +104,7 @@ const resetMocks = () => {
   mocks.connectResults.length = 0;
   mocks.listToolsResults.length = 0;
   mocks.finishAuthResults.length = 0;
+  mocks.closeResults.length = 0;
   mocks.Client.mockClear();
   mocks.StreamableHTTPClientTransport.mockClear();
 };
@@ -259,19 +262,65 @@ describe("McpServerResource connection lifecycle", () => {
         }),
     );
     const root = mount({ connectionTimeout: undefined });
-    const connectPromise = root.getValue().connect();
-    await waitFor(() => mocks.clients[0]?.connect.mock.calls.length === 1);
+    let didUnmount = false;
+    try {
+      const connectPromise = root.getValue().connect();
+      await waitFor(() => mocks.clients[0]?.connect.mock.calls.length === 1);
 
-    root.unmount();
-    await flushMacrotask();
+      root.unmount();
+      didUnmount = true;
+      await flushMacrotask();
 
-    expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
+      expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
 
-    resolveConnect();
-    await connectPromise;
+      resolveConnect();
+      await connectPromise;
 
-    expect(mocks.clients[0].listTools).not.toHaveBeenCalled();
-    expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
+      expect(mocks.clients[0].listTools).not.toHaveBeenCalled();
+      expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
+    } finally {
+      if (!didUnmount) root.unmount();
+    }
+  });
+
+  it("waits for pending transports to close before a newer reconnect", async () => {
+    let resolveFirstConnect!: () => void;
+    let resolveFirstClose!: () => void;
+    mocks.connectResults.push(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFirstConnect = resolve;
+        }),
+    );
+    mocks.closeResults.push(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFirstClose = resolve;
+        }),
+    );
+    const root = mount({ connectionTimeout: undefined });
+
+    try {
+      const firstConnect = root.getValue().connect();
+      await waitFor(() => mocks.clients[0]?.connect.mock.calls.length === 1);
+
+      const supersededReconnect = root.getValue().connect();
+      await waitFor(() => mocks.transports[0]?.close.mock.calls.length === 1);
+
+      const latestReconnect = root.getValue().connect();
+      await flushMacrotask();
+      expect(mocks.transports).toHaveLength(1);
+
+      resolveFirstClose();
+      await supersededReconnect;
+      await waitFor(() => mocks.clients[1]?.connect.mock.calls.length === 1);
+      await latestReconnect;
+
+      resolveFirstConnect();
+      await firstConnect;
+    } finally {
+      root.unmount();
+    }
   });
 });
 
