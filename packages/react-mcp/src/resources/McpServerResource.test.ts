@@ -424,11 +424,14 @@ describe("McpServerResource completeAuth", () => {
 
       root.unmount();
       didUnmount = true;
-      rejectFinishAuth(new Error("Connection closed"));
+      const finishAuthError = new Error("Connection closed");
+      rejectFinishAuth(finishAuthError);
 
-      await expect(completeAuth).rejects.toThrow(
-        'MCP server "docs" authorization was interrupted before completion.',
-      );
+      await expect(completeAuth).rejects.toMatchObject({
+        message:
+          'MCP server "docs" authorization was interrupted before completion.',
+        cause: finishAuthError,
+      });
     } finally {
       if (!didUnmount) root.unmount();
     }

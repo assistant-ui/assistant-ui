@@ -98,9 +98,10 @@ const useMcpServerResource = (
   const isCurrentConnection = (generation: number) =>
     mountedRef.current && generation === connectionGenerationRef.current;
 
-  const createInterruptedAuthError = () =>
+  const createInterruptedAuthError = (cause?: unknown) =>
     new Error(
       `MCP server "${props.id}" authorization was interrupted before completion.`,
+      cause === undefined ? undefined : { cause },
     );
 
   const withConnectionTimeout = useEffectEvent(
@@ -293,7 +294,8 @@ const useMcpServerResource = (
       if (!connected) throw createInterruptedAuthError();
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      if (!isCurrentConnection(generation)) throw createInterruptedAuthError();
+      if (!isCurrentConnection(generation))
+        throw createInterruptedAuthError(error);
 
       await closeTransports();
       setLastError({
