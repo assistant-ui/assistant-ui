@@ -138,7 +138,7 @@ const mount = (
     );
     useEffect(() => {
       onMount?.(server);
-    }, [onMount, server]);
+    }, [server]);
     return server;
   });
 };
