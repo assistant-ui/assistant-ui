@@ -36,9 +36,9 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     return createNodeCliDemoFileMap(manifest, snapshot);
   }
 
-  const demoSource = assertSnapshotFile(snapshot, manifest.entry)
-    .replaceAll("@/components/ui/radix/", "@/components/ui/")
-    .replaceAll("@/components/ui/base/", "@/components/ui/");
+  const demoSource = flattenUiFlavorImports(
+    assertSnapshotFile(snapshot, manifest.entry),
+  );
   const files: ZipFileMap = {
     "package.json": packageJson(manifest, snapshot),
     "next.config.ts": nextConfigTs(),
@@ -68,9 +68,9 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
         `Demo zip target collision: ${sourceFile} flattens onto ${target}`,
       );
     }
-    files[target] = assertSnapshotFile(snapshot, sourceFile)
-      .replaceAll("@/components/ui/radix/", "@/components/ui/")
-      .replaceAll("@/components/ui/base/", "@/components/ui/");
+    files[target] = flattenUiFlavorImports(
+      assertSnapshotFile(snapshot, sourceFile),
+    );
   }
 
   return files;
@@ -94,6 +94,13 @@ function assertSnapshotFile(snapshot: SourceSnapshot, snapshotKey: string) {
     throw new Error(`Missing source snapshot entry: ${snapshotKey}`);
   }
   return contents;
+}
+
+function flattenUiFlavorImports(source: string) {
+  return source.replace(
+    /@\/components\/ui\/(?:radix|base)\//g,
+    "@/components/ui/",
+  );
 }
 
 function targetPathForSourceFile(sourceFile: string) {
