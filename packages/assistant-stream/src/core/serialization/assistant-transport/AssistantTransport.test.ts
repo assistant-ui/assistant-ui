@@ -250,7 +250,10 @@ describe("AssistantTransportDecoder", () => {
     expect(decodedChunks).toEqual([
       { type: "text-delta", textDelta: "Hello", path: [] },
     ]);
-    expect(warn).toHaveBeenCalledTimes(4);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("(not-an-object)"),
+    );
     warn.mockRestore();
   });
 
@@ -267,6 +270,7 @@ describe("AssistantTransportDecoder", () => {
     );
 
     expect(decodedChunks).toEqual([{ type: "part-finish", path: [] }]);
+    expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
 
@@ -285,6 +289,7 @@ describe("AssistantTransportDecoder", () => {
     expect(decodedChunks).toEqual([
       { type: "text-delta", textDelta: "f", path: [0] },
     ]);
+    expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
 
@@ -337,6 +342,7 @@ describe("AssistantTransportDecoder", () => {
     expect(decodedChunks).toEqual([
       { type: "text-delta", textDelta: "ok", path: [0] },
     ]);
+    expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
 
