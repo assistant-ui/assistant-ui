@@ -24,8 +24,8 @@ const App: FC = () => {
       threadList: {
         threadId: "t-1",
         threads: [
-          { id: "t-1", title: "First" },
-          { id: "t-2", title: "Second" },
+          { id: "t-1", title: "First", status: "regular" },
+          { id: "t-2", title: "Second", status: "regular" },
         ],
         onSwitchToThread: async () => {},
       },
