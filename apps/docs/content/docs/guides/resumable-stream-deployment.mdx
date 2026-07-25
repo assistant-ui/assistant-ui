@@ -170,7 +170,7 @@ export const resumableContext = createResumableStreamContext({
 });
 ```
 
-Keep synchronous hook work cheap because invocation runs on the producer's hot path. Returned promises are observed for failures but are not awaited.
+Keep synchronous hook work cheap. `onAcquire` runs on the `run()` request path for producers and consumers alike, while the remaining hooks run on the producer's streaming hot path. Returned promises are observed for failures but are not awaited.
 
 ## Resource limits
 
