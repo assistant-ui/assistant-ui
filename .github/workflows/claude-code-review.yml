@@ -16,6 +16,19 @@ env:
   ADDITIONAL_PERMISSIONS: |
     actions: read
 
+  # jq program over the execution transcript that names the model which actually
+  # served the review. A safeguard trip swaps the session to a fallback model
+  # mid-run while the model's own context still claims the original, so the
+  # transcript is the only reliable record. Both names come from the fallback
+  # event itself, so this holds for whatever pair the classifier routes between.
+  REVIEW_MODEL_NOTE: |
+    (map(select(.type == "assistant") | .message.model) | last) as $served
+    | (map(select(.subtype == "model_refusal_fallback")) | last) as $fallback
+    | if $fallback
+      then "⚠️ Reviewed by `\($fallback.fallbackModel)` — safeguard fallback from `\($fallback.originalModel)`"
+      else "Reviewed by `\($served // "an unrecorded model")`"
+      end
+
   # The background simplify pass (subagent prompt kept in .github/prompts/simplify-review.md,
   # findings merged as a "## Simplify" section) is disabled: it mostly restated the main
   # review's findings or went unactioned. The prompt file is kept for now; delete it if the
@@ -50,12 +63,12 @@ env:
   # - mcp__github_inline_comment__create_inline_comment: Create inline code comments
   # - Bash(gh ...): Read-only GitHub CLI commands for PR/issue info
   # Note: gh pr comment is NOT allowed - Claude must use update_claude_comment only
-  CLAUDE_ARGS: '--model fable --effort high --allowedTools "WebSearch,WebFetch,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+  CLAUDE_ARGS: '--model claude-opus-5 --effort high --allowedTools "WebSearch,WebFetch,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
 
   # Fork reviews run in agent mode with no shell, filesystem, web, subagent, or
   # code-writing tools. The GitHub MCP tools below are individually read-only;
   # the inline-comment tool is the only model-controlled write capability.
-  FORK_CLAUDE_ARGS: '--model fable --effort high --permission-mode dontAsk --allowedTools "mcp__github__get_pull_request,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_file_contents,mcp__github__get_commit,mcp__github__list_commits,mcp__github_inline_comment__create_inline_comment" --disallowedTools "Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch,Agent,NotebookEdit"'
+  FORK_CLAUDE_ARGS: '--model claude-opus-5 --effort high --permission-mode dontAsk --allowedTools "mcp__github__get_pull_request,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_file_contents,mcp__github__get_commit,mcp__github__list_commits,mcp__github_inline_comment__create_inline_comment" --disallowedTools "Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch,Agent,NotebookEdit"'
 
 jobs:
   claude-review:
@@ -110,25 +123,31 @@ jobs:
           echo "::error::Claude review failed: $(jq -r 'last(.[] | select(.type == "result")) | .result // "no error text"' "$FILE" | tr '\n' ' ' | head -c 500)"
           exit 1
 
-      # Fable's cybersecurity classifier can silently swap the session to Opus
-      # mid-run; the model's own context still claims Fable, so the transcript
-      # is the only reliable signal of the downgrade.
-      - name: Flag Opus fallback
-        if: always()
+      # Attribute every review to the model that served it, so a safeguard
+      # fallback is visible in the comment itself rather than only in the run
+      # log. Runs after the error gate so a failed run is not annotated.
+      - name: Attribute review model
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           FILE='${{ steps.review.outputs.execution_file }}'
-          [ -f "$FILE" ] && grep -q '"model_refusal_fallback"' "$FILE" || exit 0
-          echo "::warning::Fable safeguard triggered — review served by Opus fallback"
+          [ -f "$FILE" ] || exit 0
+          NOTE=$(jq -r "$REVIEW_MODEL_NOTE" "$FILE")
+          jq -e 'any(.[]; .subtype == "model_refusal_fallback")' "$FILE" >/dev/null \
+            && echo "::warning::$NOTE"
+
           COMMENT=$(gh api --paginate "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq '.[] | select(.user.login == "claude[bot]")' | jq -s 'last')
           [ -n "$COMMENT" ] && [ "$COMMENT" != "null" ] || exit 0
-          gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$(jq -r .id <<<"$COMMENT")" \
-            -f body="> [!WARNING]
-          > **Fable's cybersecurity safeguard triggered — this review was served by Opus 4.8.** Ignore it and re-review with Fable locally.
 
-          $(jq -r .body <<<"$COMMENT")"
+          BODY_FILE="$RUNNER_TEMP/claude-review.md"
+          {
+            jq -r .body <<<"$COMMENT" | sed '/<!-- review-model -->/,$d'
+            printf '\n<!-- review-model -->\n<sub>%s</sub>\n' "$NOTE"
+          } > "$BODY_FILE"
+          jq -n --rawfile body "$BODY_FILE" '{ body: $body }' > "$RUNNER_TEMP/claude-review.json"
+          gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$(jq -r .id <<<"$COMMENT")" \
+            --input "$RUNNER_TEMP/claude-review.json" >/dev/null
 
       # A run can also end cleanly without ever posting the final review,
       # leaving the sticky comment stuck on its progress todos under a green
@@ -204,15 +223,15 @@ jobs:
             exit 1
           }
 
+          NOTE=$(jq -r "$REVIEW_MODEL_NOTE" "$REVIEW_FILE")
+          jq -e 'any(.[]; .subtype == "model_refusal_fallback")' "$REVIEW_FILE" >/dev/null \
+            && echo "::warning::$NOTE"
+
           BODY_FILE="$RUNNER_TEMP/claude-fork-review.md"
           {
             echo '<!-- claude-fork-review -->'
-            if grep -q '"model_refusal_fallback"' "$REVIEW_FILE"; then
-              echo '> [!WARNING]'
-              echo "> **Fable's cybersecurity safeguard triggered — this review was served by Opus 4.8.** Ignore it and re-review with Fable locally."
-              echo
-            fi
             jq -r 'last(.[] | select(.type == "result")) | .result' "$REVIEW_FILE"
+            printf '\n<sub>%s</sub>\n' "$NOTE"
           } > "$BODY_FILE"
 
           COMMENT_ID=$(gh api --paginate "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
