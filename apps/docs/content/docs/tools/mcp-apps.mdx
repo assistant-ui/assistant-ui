@@ -238,7 +238,7 @@ Send the normal `TOOL_CALL_RESULT` with a concise, model-visible summary:
 }
 ```
 
-The snapshot's `result` becomes the widget-visible `part.result`, while the `TOOL_CALL_RESULT.content` string is retained as `part.modelContent` for the model.
+The snapshot's `result` becomes the widget-visible `part.result`, while the `TOOL_CALL_RESULT.content` string is retained for the model as `part.modelContent`, a text content-part array (`[{ "type": "text", "text": "Map ready" }]`).
 
 Alternatively, AG-UI servers can place MCP host fields directly on `TOOL_CALL_RESULT`:
 
@@ -253,7 +253,7 @@ Alternatively, AG-UI servers can place MCP host fields directly on `TOOL_CALL_RE
 }
 ```
 
-In this form, the runtime assembles a `CallToolResult`-shaped `part.result` from `content`, `structuredContent`, `_meta`, and `isError`. An `ACTIVITY_SNAPSHOT` is still required to provide the app's `resourceUri` and optional server identity, but it does not need to repeat `result`.
+In this form, the runtime assembles a `CallToolResult`-shaped `part.result` from `content`, `structuredContent`, `_meta`, and `isError`. At least one of `structuredContent` or `_meta` must be present; when both are absent the enriched path does not activate and the result falls back to the plain `content` string. An `ACTIVITY_SNAPSHOT` is still required to provide the app's `resourceUri` and optional server identity, but it does not need to repeat `result`.
 
 The visibility split follows the MCP Apps contract: `content` is model-visible; `structuredContent` and `_meta` are available only to the host and widget. When assistant-ui serializes history into a later AG-UI request, it sends the saved model-visible text and never includes `structuredContent` or `_meta`.
 
