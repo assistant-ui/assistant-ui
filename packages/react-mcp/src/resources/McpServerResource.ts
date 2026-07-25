@@ -293,7 +293,7 @@ const useMcpServerResource = (
       if (!connected) throw createInterruptedAuthError();
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      if (!isCurrentConnection(generation)) throw error;
+      if (!isCurrentConnection(generation)) throw createInterruptedAuthError();
 
       await closeTransports();
       setLastError({
