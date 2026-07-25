@@ -202,9 +202,7 @@ function TabsTrigger({
   value,
   asChild = false,
   ...props
-}: Omit<ComponentProps<typeof TabsPrimitive.Trigger>, "asChild"> & {
-  asChild?: boolean;
-}) {
+}: ComponentProps<typeof TabsPrimitive.Trigger>) {
   const context = useContext(TabsListContext);
   const ref = useRef<HTMLButtonElement>(null);
 
