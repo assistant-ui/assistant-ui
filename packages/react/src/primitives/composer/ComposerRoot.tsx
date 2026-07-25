@@ -8,11 +8,35 @@ import {
   type FormEvent,
   forwardRef,
   type ComponentPropsWithoutRef,
+  type MouseEvent,
   useMemo,
   useState,
 } from "react";
 import { useComposerSend } from "./ComposerSend";
 import { ComposerCompactContext } from "./ComposerCompactContext";
+
+const CONTENT_EDITABLE_SELECTOR =
+  "[contenteditable]:not([contenteditable='false'])";
+
+const COMPOSER_INPUT_SELECTOR = `textarea:not(:disabled), ${CONTENT_EDITABLE_SELECTOR}`;
+
+// Keeps tabindex="-1": roving-tabindex widgets click-focus items at -1.
+const INTERACTIVE_ELEMENT_SELECTOR = [
+  "a",
+  "audio[controls]",
+  "button",
+  "details",
+  "embed",
+  "iframe",
+  "input",
+  "label",
+  "select",
+  "summary",
+  "textarea",
+  "video[controls]",
+  CONTENT_EDITABLE_SELECTOR,
+  "[tabindex]",
+].join(", ");
 
 export namespace ComposerPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.form>;
@@ -40,6 +64,11 @@ export namespace ComposerPrimitiveRoot {
  * is submitted (e.g., via Enter key or submit button). It automatically prevents the
  * default form submission and triggers the composer's send functionality.
  *
+ * Clicking blank form space focuses the composer input (the first textarea or
+ * contenteditable inside the form). Text selection cannot start from blank
+ * areas; descendants that need native mousedown defaults can call
+ * `stopPropagation()` in their own `onMouseDown`.
+ *
  * @example
  * ```tsx
  * <ComposerPrimitive.Root>
@@ -51,7 +80,7 @@ export namespace ComposerPrimitiveRoot {
 export const ComposerPrimitiveRoot = forwardRef<
   ComposerPrimitiveRoot.Element,
   ComposerPrimitiveRoot.Props
->(({ onSubmit, compact, ...rest }, forwardedRef) => {
+>(({ onSubmit, onMouseDown, compact, ...rest }, forwardedRef) => {
   const send = useComposerSend();
 
   const [multiline, setMultiline] = useState(false);
@@ -74,6 +103,25 @@ export const ComposerPrimitiveRoot = forwardRef<
     send();
   };
 
+  const handleMouseDown = (e: MouseEvent<HTMLFormElement>) => {
+    if (e.button !== 0) return;
+    const target = e.target;
+    // Portaled descendants (e.g. a dialog overlay) propagate mousedown through
+    // the React tree while their DOM nodes live outside the form.
+    if (!(target instanceof Element) || !e.currentTarget.contains(target))
+      return;
+    // Bound the ancestor walk to the form: hosts like AssistantModal render
+    // the composer inside a wrapper carrying tabindex="-1" (Radix FocusScope).
+    const interactive = target.closest(INTERACTIVE_ELEMENT_SELECTOR);
+    if (interactive && e.currentTarget.contains(interactive)) return;
+    const input = e.currentTarget.querySelector<HTMLElement>(
+      COMPOSER_INPUT_SELECTOR,
+    );
+    if (!input) return;
+    e.preventDefault();
+    input.focus();
+  };
+
   return (
     <ComposerCompactContext.Provider value={compact ? compactContext : null}>
       <Primitive.form
@@ -81,6 +129,7 @@ export const ComposerPrimitiveRoot = forwardRef<
         data-compact={isCompact ? "" : undefined}
         ref={forwardedRef}
         onSubmit={composeEventHandlers(onSubmit, handleSubmit)}
+        onMouseDown={composeEventHandlers(onMouseDown, handleMouseDown)}
       />
     </ComposerCompactContext.Provider>
   );

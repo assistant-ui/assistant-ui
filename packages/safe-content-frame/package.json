@@ -34,11 +34,14 @@
   "sideEffects": false,
   "scripts": {
     "build": "aui-build",
-    "dev": "vite demo"
+    "dev": "vite demo",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "vite": "^8.1.4"
+    "jsdom": "^29.1.1",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

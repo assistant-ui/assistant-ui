@@ -158,6 +158,25 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
   });
 });
 
+describe("LocalThreadRuntimeCore state", () => {
+  it.each([
+    ["false", false],
+    ["zero", 0],
+    ["an empty string", ""],
+  ])("preserves %s model state", async (_label, state) => {
+    const thread = createThread({
+      async run() {
+        return { metadata: { unstable_state: state } };
+      },
+    });
+
+    await thread.append(userMessage("update state"));
+    await flush();
+
+    expect(thread.messages.at(-1)?.metadata.unstable_state).toBe(state);
+  });
+});
+
 describe("LocalThreadRuntimeCore tool approvals", () => {
   it("pauses the run while an approval is pending, even for unlisted tools", async () => {
     const { thread, runs } = createApprovalThread(
@@ -405,6 +424,74 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
     expect(() =>
       thread.resumeToolCall({ toolCallId: "call-send_email", payload: {} }),
     ).toThrowError(/unstable_humanToolNames/);
+  });
+});
+
+describe("LocalThreadRuntimeCore cancellation", () => {
+  it("marks the message cancelled when a streaming adapter returns after abort", async () => {
+    let released!: () => void;
+    const streaming = new Promise<void>((resolve) => {
+      released = resolve;
+    });
+
+    const thread = createThread({
+      async *run({ abortSignal }) {
+        yield { content: [{ type: "text", text: "partial" }] };
+        await streaming;
+        if (abortSignal.aborted) return;
+        yield { content: [{ type: "text", text: "partial answer" }] };
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("hi"));
+    await flush();
+
+    thread.cancelRun();
+    released();
+    await appendPromise;
+
+    expect(thread.messages.at(-1)?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("marks the message cancelled when a non-streaming adapter resolves after abort", async () => {
+    let released!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      released = resolve;
+    });
+
+    const thread = createThread({
+      async run() {
+        await pending;
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("hi"));
+    await flush();
+
+    thread.cancelRun();
+    released();
+    await appendPromise;
+
+    expect(thread.messages.at(-1)?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("keeps a completed run complete", async () => {
+    const thread = createThread({
+      async *run() {
+        yield { content: [{ type: "text", text: "hello" }] };
+      },
+    });
+
+    await thread.append(userMessage("hi"));
+
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
   });
 });
 

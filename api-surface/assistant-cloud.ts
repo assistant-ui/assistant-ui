@@ -242,11 +242,21 @@ type AssistantStreamChunk = {
   readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: AssistantTransportStateOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
   headers?: Headers;
+};
+
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
 };
 
 declare class CloudAPIError extends Error {
@@ -274,6 +284,10 @@ declare class CloudMessagePersistence {
   getRemoteId(messageId: string): Promise<string | undefined>;
   load(threadId: string, format?: string): Promise<CloudMessage[]>;
   reset(): void;
+}
+
+declare class CloudResponseError extends Error {
+  constructor(message: string);
 }
 
 type CloudThread = {
@@ -353,16 +367,6 @@ type MessageFormatAdapter<TMessage, TStorageFormat> = {
     message: TMessage;
   };
   getId(message: TMessage): string;
-};
-
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
 };
 
 type PartInit = {
@@ -471,7 +475,7 @@ declare function createSamplingCollector(): {
 };
 
 declare namespace entry_root_exports {
-  export { AssistantCloud, AssistantCloudRunReport, AssistantCloudTelemetryConfig, CloudAPIError, CloudMessage, CloudMessagePersistence, McpSamplingHandler, MessageFormatAdapter, SamplingCallData, createFormattedPersistence, createSamplingCollector, wrapSamplingHandler };
+  export { AssistantCloud, AssistantCloudRunReport, AssistantCloudTelemetryConfig, CloudAPIError, CloudMessage, CloudMessagePersistence, CloudResponseError, McpSamplingHandler, MessageFormatAdapter, SamplingCallData, createFormattedPersistence, createSamplingCollector, wrapSamplingHandler };
 }
 
 declare function wrapSamplingHandler(handler: McpSamplingHandler, onSamplingCall: (data: SamplingCallData) => void): McpSamplingHandler;

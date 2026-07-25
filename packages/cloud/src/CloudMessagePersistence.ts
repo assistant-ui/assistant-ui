@@ -71,7 +71,12 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
   ): Promise<void> {
     const remoteId = await this.getRemoteId(messageId);
-    if (!remoteId) return; // not persisted yet, skip
+    if (!remoteId) {
+      console.warn(
+        `Skipping update for message ${messageId}: no remote id is mapped.`,
+      );
+      return;
+    }
     await this.cloud.threads.messages.update(threadId, remoteId, { content });
   }
 

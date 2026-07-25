@@ -139,6 +139,46 @@ describe("findWorkspaceRoot", () => {
 });
 
 describe("info command", () => {
+  it("finds hoisted packages from a symlinked workspace project", async () => {
+    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-link-"));
+    const root = path.join(fixture, "workspace");
+    const app = path.join(root, "packages", "app");
+    const linkedApp = path.join(fixture, "linked-app");
+    const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      fs.mkdirSync(app, { recursive: true });
+      fs.writeFileSync(
+        path.join(root, "package.json"),
+        JSON.stringify({ private: true, workspaces: ["packages/*"] }),
+      );
+      fs.writeFileSync(
+        path.join(app, "package.json"),
+        JSON.stringify({
+          name: "app",
+          dependencies: { "@assistant-ui/react": "0.14.5" },
+        }),
+      );
+      writePackage(root, "@assistant-ui/react", { version: "0.14.5" });
+      fs.symlinkSync(
+        app,
+        linkedApp,
+        process.platform === "win32" ? "junction" : "dir",
+      );
+
+      await info.parseAsync(["node", "info", "--cwd", linkedApp], {
+        from: "node",
+      });
+
+      const output = consoleLog.mock.calls.flat().join("\n");
+      expect(output).toContain("Monorepo:         yes");
+      expect(output).toContain("@assistant-ui/react");
+    } finally {
+      consoleLog.mockRestore();
+      fs.rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   it("includes declared assistant-ui integrations and their peer warnings", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-"));
     const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});

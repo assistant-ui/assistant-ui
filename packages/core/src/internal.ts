@@ -41,6 +41,7 @@ export { CompositeContextProvider } from "./utils/composite-context-provider";
 // Shared attachment data-URL encoder, reused by framework adapters so the
 // FileReader fallback lives in one place.
 export { getFileDataURL } from "./adapters/attachment";
+export { isCreateAttachment } from "./types/attachment";
 
 // Streaming-stable tool-args stringifier, reused by framework adapters so the
 // key-order stabilization lives in one place.

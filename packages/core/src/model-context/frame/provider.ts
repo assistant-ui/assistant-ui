@@ -59,6 +59,7 @@ export class AssistantFrameProvider {
   private handleMessage(event: MessageEvent) {
     if (this._targetOrigin !== "*" && event.origin !== this._targetOrigin)
       return;
+    if (event.source !== window.parent) return;
     if (event.data?.channel !== FRAME_MESSAGE_CHANNEL) return;
 
     const message = event.data.message as FrameMessage;
