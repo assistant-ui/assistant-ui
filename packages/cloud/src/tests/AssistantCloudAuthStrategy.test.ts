@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AssistantCloudAnonymousAuthStrategy } from "../AssistantCloudAuthStrategy";
+import {
+  AssistantCloudAnonymousAuthStrategy,
+  AssistantCloudJWTAuthStrategy,
+} from "../AssistantCloudAuthStrategy";
 
 const baseUrl = "https://test.example.com";
 const accessToken = `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800 })).toString("base64url")}.sig`;
@@ -70,6 +73,25 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       `${baseUrl}/v1/auth/tokens/anonymous`,
       { method: "POST" },
     );
+  });
+
+  it("deduplicates concurrent anonymous token requests", async () => {
+    delete (globalThis as { localStorage?: Storage }).localStorage;
+    const fetchMock = mockAnonymousTokenFetch();
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(
+      Promise.all([
+        strategy.getAuthHeaders(),
+        strategy.getAuthHeaders(),
+        strategy.getAuthHeaders(),
+      ]),
+    ).resolves.toEqual([
+      { Authorization: `Bearer ${accessToken}` },
+      { Authorization: `Bearer ${accessToken}` },
+      { Authorization: `Bearer ${accessToken}` },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns an anonymous access token without localStorage", async () => {
@@ -147,5 +169,23 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       Authorization: `Bearer ${accessToken}`,
     });
     expect(values.get("aui:refresh_token")).toBe(JSON.stringify(refreshToken));
+  });
+});
+
+describe("AssistantCloudJWTAuthStrategy", () => {
+  it("retries token acquisition after a failed request", async () => {
+    const authToken = vi
+      .fn<() => Promise<string | null>>()
+      .mockRejectedValueOnce(new Error("authentication unavailable"))
+      .mockResolvedValueOnce(accessToken);
+    const strategy = new AssistantCloudJWTAuthStrategy(authToken);
+
+    await expect(strategy.getAuthHeaders()).rejects.toThrow(
+      "authentication unavailable",
+    );
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    expect(authToken).toHaveBeenCalledTimes(2);
   });
 });
