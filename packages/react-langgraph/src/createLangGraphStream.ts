@@ -39,7 +39,11 @@ export const unstable_createLangGraphStream = ({
     }
 
     const payload = {
-      input: messages.length ? { messages } : null,
+      input: config.state
+        ? { ...config.state, ...(messages.length ? { messages } : {}) }
+        : messages.length
+          ? { messages }
+          : null,
       streamMode,
       signal: config.abortSignal,
       onDisconnect,

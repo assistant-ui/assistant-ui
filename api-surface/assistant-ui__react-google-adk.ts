@@ -636,11 +636,21 @@ type AssistantStreamChunk = {
   readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: AssistantTransportStateOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
   headers?: Headers;
+};
+
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
 };
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
@@ -1409,16 +1419,6 @@ type ModelContextProvider = {
 
 type ObjectKey<T> = keyof T & (string | number);
 
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
-};
-
 type OnAdkAgentTransferCallback = (toAgent: string) => void | Promise<void>;
 
 type OnAdkCustomEventCallback = (type: string, data: unknown) => void | Promise<void>;
@@ -2029,6 +2029,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };

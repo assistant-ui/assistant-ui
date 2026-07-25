@@ -94,7 +94,7 @@ export class DefaultThreadComposerRuntimeCore
     );
     const enriched = this.enrichWithComposerMetadata(message, composerMetadata);
 
-    this.runtime.append({
+    return this.runtime.append({
       ...(enriched as AppendMessage),
       parentId: this.runtime.messages.at(-1)?.id ?? null,
       sourceId: null,

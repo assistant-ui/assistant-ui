@@ -126,10 +126,20 @@ function modifySelection(
   alter: string,
   direction: string,
 ): void {
-  if (this.rangeCount === 0 || alter !== "extend") return;
+  if (this.rangeCount === 0) return;
 
   const range = this.getRangeAt(0).cloneRange();
-  if (direction === "backward") {
+  if (alter === "move") {
+    const max =
+      range.startContainer.nodeType === Node.TEXT_NODE
+        ? (range.startContainer as Text).length
+        : range.startContainer.childNodes.length;
+    const next =
+      direction === "backward" ? range.startOffset - 1 : range.startOffset + 1;
+    const offset = Math.min(Math.max(next, 0), max);
+    range.setStart(range.startContainer, offset);
+    range.setEnd(range.startContainer, offset);
+  } else if (direction === "backward") {
     range.setStart(range.startContainer, range.startOffset - 1);
   } else {
     range.setEnd(range.endContainer, range.endOffset + 1);

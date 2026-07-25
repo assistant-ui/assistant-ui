@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
+import { ExternalLink } from "lucide-react";
 import type {
   GenerativeUIDispatch,
   UISpec,
@@ -12,6 +13,7 @@ import {
   TabsTrigger,
 } from "@/components/assistant-ui/tabs";
 import { generativeUIToJSX } from "@assistant-ui/react-generative-ui";
+import { toSlackBlocks } from "@assistant-ui/react-generative-ui/slack";
 import {
   GALLERY_USAGE_SNIPPET,
   GALLERY_USAGE_SNIPPET_FULL_STACK,
@@ -22,6 +24,7 @@ import { CodePanel } from "./code-panel";
 
 export type TemplateCodeTabsProps = {
   tree: UISpec;
+  templateTitle: string;
   jsonText: string;
   jsonError: string | null;
   isEdited: boolean;
@@ -34,6 +37,7 @@ export type TemplateCodeTabsProps = {
 
 export function TemplateCodeTabs({
   tree,
+  templateTitle,
   jsonText,
   jsonError,
   isEdited,
@@ -48,6 +52,11 @@ export function TemplateCodeTabs({
     [tree],
   );
 
+  const slack = useMemo(() => toSlackBlocks(tree), [tree]);
+  const blockKitBuilderUrl = `https://app.slack.com/block-kit-builder/#${encodeURIComponent(
+    JSON.stringify({ blocks: slack.blocks }),
+  )}`;
+
   return (
     <Tabs defaultValue="preview">
       <div className="flex items-center justify-between gap-4">
@@ -56,6 +65,7 @@ export function TemplateCodeTabs({
           <TabsTrigger value="json">IR JSON</TabsTrigger>
           <TabsTrigger value="code">React code</TabsTrigger>
           <TabsTrigger value="usage">Usage</TabsTrigger>
+          <TabsTrigger value="block-kit">Block Kit</TabsTrigger>
         </TabsList>
         {isEdited ? (
           <button
@@ -114,6 +124,42 @@ export function TemplateCodeTabs({
             <CodePanel code={GALLERY_USAGE_SNIPPET_FULL_STACK} language="tsx" />
           </TabsContent>
         </Tabs>
+      </TabsContent>
+
+      <TabsContent value="block-kit" className="pt-4">
+        <div className="flex flex-col gap-3">
+          <a
+            href={blockKitBuilderUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Open ${templateTitle} in Block Kit Builder`}
+            className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5 text-xs transition-colors"
+          >
+            <ExternalLink className="size-3.5" />
+            Open in Block Kit Builder
+          </a>
+          <CodePanel
+            code={JSON.stringify(slack.blocks, null, 2)}
+            language="json"
+          />
+          {slack.warnings.length > 0 ? (
+            <div className="border-border/60 bg-muted/30 rounded-lg border p-3">
+              <div className="text-muted-foreground mb-2 text-xs font-medium">
+                Conversion notes
+              </div>
+              <div className="flex flex-col gap-1">
+                {slack.warnings.map((warning, index) => (
+                  <div
+                    key={index}
+                    className="text-muted-foreground font-mono text-[11px]"
+                  >
+                    {`${warning.component}: ${warning.detail}`}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
       </TabsContent>
     </Tabs>
   );

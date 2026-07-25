@@ -770,6 +770,8 @@ const PAGE_ORDER_BY_SECTION: Partial<Record<ApiSection, readonly string[]>> = {
     "actions",
     "spec",
     "rendering",
+    "slack",
+    "teams",
     "tokens",
   ],
 };

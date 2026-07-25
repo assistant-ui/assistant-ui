@@ -13,6 +13,7 @@ import type {
 import type { AbstractAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { McpToolCallResult } from "./mcp-tool-result";
 
 /**
  * @experimental This API is still under active development and might change without notice.
@@ -106,6 +107,12 @@ export type AgUiRuntimeExtras = {
     message: CreateAppendMessage,
     responses?: readonly AgUiResumeEntry[],
   ) => Promise<void>;
+  state: ReadonlyJSONValue | undefined;
+  setState: (
+    next:
+      | ReadonlyJSONValue
+      | ((prev: ReadonlyJSONValue | undefined) => ReadonlyJSONValue),
+  ) => void;
 };
 
 export type AgUiRunFinishedOutcome =
@@ -156,6 +163,7 @@ export type AgUiEvent =
       toolCallId: string;
       content: string;
       role?: "tool";
+      mcpResult?: McpToolCallResult;
     }
   | {
       type: "ACTIVITY_SNAPSHOT";

@@ -41,6 +41,11 @@ type ActionRegistry = {
   has(type: string): boolean;
 };
 
+interface AdaptiveCardResult {
+  readonly card: TeamsAdaptiveCard;
+  readonly warnings: TeamsConversionWarning[];
+}
+
 type AlertTone = (typeof ALERT_TONES)[number];
 
 type Align = (typeof ALIGNS)[number];
@@ -230,6 +235,11 @@ type FileMessagePart = {
   readonly mimeType: string;
   readonly parentId?: string;
 };
+
+interface FromSlackBlocksResult {
+  readonly nodes: UIElement[];
+  readonly warnings: SlackConversionWarning[];
+}
 
 type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "frontend";
@@ -681,6 +691,165 @@ interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
 
+type SlackActionElement = SlackButtonElement | SlackStaticSelectElement | SlackDatePickerElement | SlackCheckboxesElement | SlackRadioButtonsElement;
+
+interface SlackActionsBlock {
+  readonly type: "actions";
+  readonly elements: readonly SlackActionElement[];
+}
+
+interface SlackAlertBlock {
+  readonly type: "alert";
+  readonly text: SlackTextObject;
+  readonly level?: SlackAlertLevel;
+}
+
+type SlackAlertLevel = "default" | "error" | "info" | "success" | "warning";
+
+type SlackBlock = SlackHeaderBlock | SlackSectionBlock | SlackContextBlock | SlackImageBlock | SlackDividerBlock | SlackActionsBlock | SlackInputBlock | SlackCardBlock | SlackCarouselBlock | SlackDataTableBlock | SlackMarkdownBlock | SlackAlertBlock;
+
+interface SlackBlocksResult {
+  readonly blocks: SlackBlock[];
+  readonly warnings: SlackConversionWarning[];
+}
+
+interface SlackButtonElement {
+  readonly type: "button";
+  readonly text: SlackPlainText;
+  readonly action_id: string;
+  readonly value?: string;
+  readonly style?: "danger" | "primary";
+}
+
+interface SlackCardBlock {
+  readonly type: "card";
+  readonly hero_image?: SlackImageBlock;
+  readonly title?: SlackTextObject;
+  readonly subtitle?: SlackTextObject;
+  readonly body?: SlackTextObject;
+  readonly subtext?: SlackTextObject;
+  readonly actions?: readonly SlackButtonElement[];
+}
+
+interface SlackCarouselBlock {
+  readonly type: "carousel";
+  readonly elements: readonly SlackCardBlock[];
+}
+
+interface SlackCheckboxesElement {
+  readonly type: "checkboxes";
+  readonly action_id: string;
+  readonly options: readonly SlackOption[];
+  readonly initial_options?: readonly SlackOption[];
+}
+
+interface SlackContextBlock {
+  readonly type: "context";
+  readonly elements: readonly SlackMrkdwnText[];
+}
+
+interface SlackConversionWarning {
+  readonly code: "clamped" | "dropped" | "fallback";
+  readonly component: string;
+  readonly detail: string;
+}
+
+interface SlackDataTableBlock {
+  readonly type: "data_table";
+  readonly caption: string;
+  readonly rows: readonly (readonly SlackDataTableCell[])[];
+  readonly page_size?: number;
+}
+
+type SlackDataTableCell = SlackDataTableRawTextCell | SlackDataTableRawNumberCell;
+
+interface SlackDataTableRawNumberCell {
+  readonly type: "raw_number";
+  readonly text: string;
+}
+
+interface SlackDataTableRawTextCell {
+  readonly type: "raw_text";
+  readonly text: string;
+}
+
+interface SlackDatePickerElement {
+  readonly type: "datepicker";
+  readonly action_id: string;
+  readonly initial_date?: string;
+}
+
+interface SlackDividerBlock {
+  readonly type: "divider";
+}
+
+interface SlackHeaderBlock {
+  readonly type: "header";
+  readonly text: SlackPlainText;
+}
+
+interface SlackImageBlock {
+  readonly type: "image";
+  readonly image_url: string;
+  readonly alt_text: string;
+}
+
+interface SlackInputBlock {
+  readonly type: "input";
+  readonly label: SlackPlainText;
+  readonly element: SlackPlainTextInputElement;
+}
+
+interface SlackMarkdownBlock {
+  readonly type: "markdown";
+  readonly text: string;
+}
+
+interface SlackMrkdwnText {
+  readonly type: "mrkdwn";
+  readonly text: string;
+}
+
+interface SlackOption {
+  readonly text: SlackPlainText;
+  readonly value: string;
+}
+
+interface SlackPlainText {
+  readonly type: "plain_text";
+  readonly text: string;
+}
+
+interface SlackPlainTextInputElement {
+  readonly type: "plain_text_input";
+  readonly action_id: string;
+  readonly multiline?: boolean;
+  readonly placeholder?: SlackPlainText;
+}
+
+interface SlackRadioButtonsElement {
+  readonly type: "radio_buttons";
+  readonly action_id: string;
+  readonly options: readonly SlackOption[];
+  readonly initial_option?: SlackOption;
+}
+
+interface SlackSectionBlock {
+  readonly type: "section";
+  readonly text?: SlackMrkdwnText;
+  readonly fields?: readonly SlackMrkdwnText[];
+  readonly accessory?: SlackButtonElement;
+}
+
+interface SlackStaticSelectElement {
+  readonly type: "static_select";
+  readonly action_id: string;
+  readonly options: readonly SlackOption[];
+  readonly placeholder?: SlackPlainText;
+}
+
+type SlackTextObject = SlackPlainText | SlackMrkdwnText;
+
 type SourceMessagePart = {
   readonly type: "source";
   readonly sourceType: "url";
@@ -748,6 +917,187 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
 declare const TYPE_KEY = "$type";
 
+interface TeamsActionSet {
+  readonly type: "ActionSet";
+  readonly actions: readonly TeamsSubmitAction[];
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsAdaptiveCard {
+  readonly $schema: "http://adaptivecards.io/schemas/adaptive-card.json";
+  readonly type: "AdaptiveCard";
+  readonly version: "1.5";
+  readonly body: readonly TeamsCardElement[];
+  readonly actions: readonly TeamsCardAction[];
+}
+
+interface TeamsAttachmentsResult {
+  readonly attachments: TeamsCardAttachment[];
+  readonly attachmentLayout?: "carousel";
+  readonly warnings: TeamsConversionWarning[];
+}
+
+type TeamsCardAction = TeamsSubmitAction;
+
+interface TeamsCardAttachment {
+  readonly contentType: "application/vnd.microsoft.card.adaptive";
+  readonly content: TeamsAdaptiveCard;
+}
+
+type TeamsCardElement = TeamsTextBlock | TeamsImage | TeamsFactSet | TeamsActionSet | TeamsContainer | TeamsColumnSet | TeamsInputChoiceSet | TeamsInputToggle | TeamsInputText | TeamsInputDate | TeamsTable;
+
+interface TeamsColumn {
+  readonly type: "Column";
+  readonly width: "auto";
+  readonly items: readonly TeamsCardElement[];
+}
+
+interface TeamsColumnSet {
+  readonly type: "ColumnSet";
+  readonly columns: readonly TeamsColumn[];
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsContainer {
+  readonly type: "Container";
+  readonly style?: TeamsContainerStyle;
+  readonly items: readonly TeamsCardElement[];
+  readonly selectAction?: TeamsSubmitAction;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+type TeamsContainerStyle = "accent" | "attention" | "default" | "emphasis" | "good" | "warning";
+
+interface TeamsConversionWarning {
+  readonly code: "clamped" | "dropped" | "fallback";
+  readonly component: string;
+  readonly detail: string;
+}
+
+interface TeamsFact {
+  readonly title: string;
+  readonly value: string;
+}
+
+interface TeamsFactSet {
+  readonly type: "FactSet";
+  readonly facts: readonly TeamsFact[];
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsImage {
+  readonly type: "Image";
+  readonly url: string;
+  readonly altText?: string;
+  readonly size?: "large" | "medium" | "small";
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsInputChoice {
+  readonly title: string;
+  readonly value: string;
+}
+
+interface TeamsInputChoiceSet {
+  readonly type: "Input.ChoiceSet";
+  readonly id: string;
+  readonly style: "compact" | "expanded";
+  readonly choices: readonly TeamsInputChoice[];
+  readonly placeholder?: string;
+  readonly label?: string;
+  readonly value?: string;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsInputDate {
+  readonly type: "Input.Date";
+  readonly id: string;
+  readonly label?: string;
+  readonly value?: string;
+  readonly min?: string;
+  readonly max?: string;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsInputText {
+  readonly type: "Input.Text";
+  readonly id: string;
+  readonly label?: string;
+  readonly placeholder?: string;
+  readonly isMultiline?: true;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsInputToggle {
+  readonly type: "Input.Toggle";
+  readonly id: string;
+  readonly title: string;
+  readonly value: "false" | "true";
+  readonly valueOn: "true";
+  readonly valueOff: "false";
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsSubmitAction {
+  readonly type: "Action.Submit";
+  readonly title: string;
+  readonly data: TeamsSubmitData;
+  readonly mode?: "secondary";
+}
+
+interface TeamsSubmitData {
+  readonly aui: {
+    readonly type: string;
+    readonly payload?: Record<string, unknown>;
+  };
+}
+
+interface TeamsTable {
+  readonly type: "Table";
+  readonly firstRowAsHeaders: boolean;
+  readonly columns: readonly TeamsTableColumnDefinition[];
+  readonly rows: readonly TeamsTableRow[];
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsTableCell {
+  readonly type: "TableCell";
+  readonly items: readonly TeamsTextBlock[];
+}
+
+interface TeamsTableColumnDefinition {
+  readonly width: 1;
+}
+
+interface TeamsTableRow {
+  readonly type: "TableRow";
+  readonly cells: readonly TeamsTableCell[];
+}
+
+interface TeamsTextBlock {
+  readonly type: "TextBlock";
+  readonly text: string;
+  readonly wrap: true;
+  readonly size?: TeamsTextSize;
+  readonly weight?: "bolder";
+  readonly style?: "heading";
+  readonly isSubtle?: true;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
+
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
@@ -814,11 +1164,19 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };
 
 type ThreadUserMessagePart = TextMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | Unstable_AudioMessagePart;
+
+interface ToAdaptiveCardOptions {
+}
+
+interface ToSlackBlocksOptions {
+  readonly surface?: "message" | "modal";
+}
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
@@ -1085,11 +1443,17 @@ declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchem
 
 declare function createActionRegistry(handlers: Readonly<Record<string, ActionHandler>>): ActionRegistry;
 
+declare function decodeBlockAction(action: unknown): Action | undefined;
+
+declare function decodeSubmitData(value: unknown): Action | undefined;
+
 declare const defaultGenerativeUILibrary: GenerativeUILibrary;
 
 declare function defineGenerativeComponents(_library: GenerativeUILibrary): GenerativeUILibrary;
 
 declare const emptyActionRegistry: ActionRegistry;
+
+declare function fromSlackBlocks(blocks: unknown): FromSlackBlocksResult;
 
 declare function generativeUIToJSX(node: unknown, options?: GenerativeUIToJSXOptions): string;
 
@@ -1126,4 +1490,18 @@ declare function normalizeUINode(node: unknown, partialPath?: readonly string[] 
 
 declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
 
-export { entry_ir_exports as entry_ir, entry_root_default_exports as entry_root_default, entry_root_react_server_exports as entry_root_react_server };
+declare namespace entry_slack_exports {
+  export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
+}
+
+declare namespace entry_teams_exports {
+  export { AdaptiveCardResult, TeamsActionSet, TeamsAdaptiveCard, TeamsAttachmentsResult, TeamsCardAction, TeamsCardAttachment, TeamsCardElement, TeamsColumn, TeamsColumnSet, TeamsContainer, TeamsContainerStyle, TeamsConversionWarning, TeamsFact, TeamsFactSet, TeamsImage, TeamsInputChoice, TeamsInputChoiceSet, TeamsInputDate, TeamsInputText, TeamsInputToggle, TeamsSubmitAction, TeamsSubmitData, TeamsTable, TeamsTableCell, TeamsTableColumnDefinition, TeamsTableRow, TeamsTextBlock, TeamsTextSize, ToAdaptiveCardOptions, decodeSubmitData, toAdaptiveCard, toTeamsAttachments };
+}
+
+declare function toAdaptiveCard(node: unknown, _options?: ToAdaptiveCardOptions): AdaptiveCardResult;
+
+declare function toSlackBlocks(node: unknown, options?: ToSlackBlocksOptions): SlackBlocksResult;
+
+declare function toTeamsAttachments(node: unknown, _options?: ToAdaptiveCardOptions): TeamsAttachmentsResult;
+
+export { entry_ir_exports as entry_ir, entry_root_default_exports as entry_root_default, entry_root_react_server_exports as entry_root_react_server, entry_slack_exports as entry_slack, entry_teams_exports as entry_teams };

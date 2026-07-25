@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { AssistantMessageAccumulator } from "./assistant-message-accumulator";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import type { AssistantMessage } from "../utils/types";
@@ -286,5 +286,88 @@ describe("AssistantMessageAccumulator error chunks", () => {
     expect(last.status).toMatchObject({
       error: expect.not.objectContaining({ severity: expect.anything() }),
     });
+  });
+});
+
+describe("AssistantMessageAccumulator part path bounds", () => {
+  it("drops a text-delta whose path is out of range with a warning", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [5], textDelta: "x" },
+      { type: "text-delta", path: [0], textDelta: "hi" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts).toHaveLength(1);
+    expect(last.parts[0]).toMatchObject({ type: "text", text: "hi" });
+    expect(warn).toHaveBeenCalledWith(
+      "Dropped text-delta chunk: no part at path [5]",
+    );
+    warn.mockRestore();
+  });
+
+  it("drops an out-of-range part-finish instead of fabricating a part", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "part-finish", path: [3] },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts).toHaveLength(1);
+    expect(last.parts[0]!.type).toBe("text");
+    warn.mockRestore();
+  });
+
+  it("drops part chunks when no parts exist", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "text-delta", path: [0], textDelta: "x" },
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "ok" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts).toHaveLength(1);
+    expect(last.parts[0]).toMatchObject({ type: "text", text: "ok" });
+    warn.mockRestore();
+  });
+
+  it("drops chunks with nested paths", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0, 1], textDelta: "x" },
+      { type: "text-delta", path: [0], textDelta: "ok" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts).toHaveLength(1);
+    expect(last.parts[0]).toMatchObject({ type: "text", text: "ok" });
+    warn.mockRestore();
+  });
+
+  it("drops an out-of-range result without touching existing tool calls", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "tool-call", toolCallId: "t1", toolName: "f" },
+      },
+      { type: "text-delta", path: [0], textDelta: "{}" },
+      { type: "result", path: [7], result: { ok: true }, isError: false },
+      { type: "result", path: [0], result: { ok: true }, isError: false },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts).toHaveLength(1);
+    expect(last.parts[0]).toMatchObject({
+      type: "tool-call",
+      state: "result",
+      result: { ok: true },
+    });
+    warn.mockRestore();
   });
 });

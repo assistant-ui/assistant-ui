@@ -12,10 +12,27 @@ import type {
   ExternalStoreAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
-import { A2AClient } from "./A2AClient";
+import { A2AClient, type A2AClientOptions } from "./A2AClient";
 import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
 import { a2aExtras } from "./a2aExtras";
 import type { UseA2ARuntimeOptions } from "./types";
+
+type ManagedA2AClientOptions = Omit<A2AClientOptions, "headers">;
+
+const serializeManagedClientOptions = (
+  options: ManagedA2AClientOptions,
+): string => {
+  const fetchOptions = Object.fromEntries(
+    Object.entries(options.fetchOptions ?? {}).sort(([a], [b]) =>
+      a.localeCompare(b),
+    ),
+  );
+
+  return JSON.stringify({
+    ...options,
+    fetchOptions,
+  });
+};
 
 export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
   const [_version, setVersion] = useState(0);
@@ -24,44 +41,46 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
   const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
   const threadListAdapter = options.adapters?.threadList;
 
-  // Create or reuse client
-  const clientRef = useRef<A2AClient | null>(null);
-  if (!clientRef.current) {
-    if (options.client) {
-      clientRef.current = options.client;
-    } else if (options.baseUrl) {
-      clientRef.current = new A2AClient({
-        baseUrl: options.baseUrl,
-        basePath: options.basePath,
-        tenant: options.tenant,
-        headers: options.headers,
-        extensions: options.extensions,
-        fetchOptions: options.fetchOptions,
-      });
-    } else {
+  const headersRef = useRef(options.headers);
+  headersRef.current = options.headers;
+  const resolveHeaders = useCallback(() => {
+    const headers = headersRef.current;
+    return typeof headers === "function" ? headers() : (headers ?? {});
+  }, []);
+
+  const managedClientOptionsKey = options.client
+    ? null
+    : options.baseUrl
+      ? serializeManagedClientOptions({
+          baseUrl: options.baseUrl,
+          basePath: options.basePath,
+          tenant: options.tenant,
+          extensions: options.extensions,
+          fetchOptions: options.fetchOptions,
+        })
+      : null;
+
+  const client = useMemo(() => {
+    if (options.client) return options.client;
+    if (!managedClientOptionsKey) {
       throw new Error("useA2ARuntime requires either `client` or `baseUrl`");
     }
-  }
-  const client = clientRef.current;
 
-  // Create or reuse core
-  const coreRef = useRef<A2AThreadRuntimeCore | null>(null);
-  if (!coreRef.current) {
-    coreRef.current = new A2AThreadRuntimeCore({
-      client,
-      contextId: options.contextId,
-      configuration: options.configuration,
-      ...(options.onError && { onError: options.onError }),
-      ...(options.onCancel && { onCancel: options.onCancel }),
-      ...(options.onArtifactComplete && {
-        onArtifactComplete: options.onArtifactComplete,
-      }),
-      ...(historyAdapter && { history: historyAdapter }),
-      notifyUpdate,
+    return new A2AClient({
+      ...(JSON.parse(managedClientOptionsKey) as ManagedA2AClientOptions),
+      headers: resolveHeaders,
     });
-  }
+  }, [managedClientOptionsKey, options.client, resolveHeaders]);
 
-  const core = coreRef.current;
+  const core = useMemo(
+    () =>
+      new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate,
+      }),
+    [client, notifyUpdate],
+  );
+
   core.updateOptions({
     client,
     contextId: options.contextId,

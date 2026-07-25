@@ -31,6 +31,8 @@
     "context-api",
     "---Providers---",
     "chatgpt-subscription",
+    "---Environments---",
+    "electron",
     "---Resilience---",
     "resumable-streams",
     "resumable-stream-stores",

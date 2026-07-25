@@ -1,5 +1,6 @@
 import type { AgUiEvent, AgUiInterrupt, AgUiRunFinishedOutcome } from "./types";
 import type { Logger } from "./logger";
+import { parseMcpToolCallResult } from "./mcp-tool-result";
 
 export type ParseAgUiEventOptions = {
   logger?: Logger;
@@ -209,15 +210,17 @@ export const parseAgUiEvent = (
     case "TOOL_CALL_RESULT": {
       const toolCallId = getString("toolCallId");
       if (!toolCallId) return null;
+      const content = getString("content") ?? "";
       return withOptional(
         {
           type: "TOOL_CALL_RESULT" as const,
           toolCallId,
-          content: getString("content") ?? "",
+          content,
         },
         {
           messageId: getString("messageId"),
           role: payload.role === "tool" ? "tool" : undefined,
+          mcpResult: parseMcpToolCallResult(payload, content),
         },
       );
     }

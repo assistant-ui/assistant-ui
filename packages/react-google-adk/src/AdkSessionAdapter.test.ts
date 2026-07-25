@@ -62,6 +62,30 @@ describe("createAdkSessionAdapter - list", () => {
     expect(result.threads).toHaveLength(0);
   });
 
+  it("rejects a successful response that is not a session array", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+
+    const { adapter } = createAdkSessionAdapter(baseOptions);
+
+    await expect(adapter.list()).rejects.toThrow(
+      "Invalid ADK session list response: expected an array of sessions.",
+    );
+  });
+
+  it("rejects session list entries without a valid id", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify([{ id: "s1" }, {}]), { status: 200 }),
+    );
+
+    const { adapter } = createAdkSessionAdapter(baseOptions);
+
+    await expect(adapter.list()).rejects.toThrow(
+      'Invalid ADK session list response: session at index 1 must have a non-empty string "id".',
+    );
+  });
+
   it("throws when response is not ok", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response("Server error", { status: 500 }),
@@ -137,6 +161,18 @@ describe("createAdkSessionAdapter - initialize", () => {
     const { adapter } = createAdkSessionAdapter(baseOptions);
     await expect(adapter.initialize("thread-1")).rejects.toThrow(
       "Failed to create session: 403",
+    );
+  });
+
+  it("rejects a successful response without a session id", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+
+    const { adapter } = createAdkSessionAdapter(baseOptions);
+
+    await expect(adapter.initialize("thread-1")).rejects.toThrow(
+      'Invalid ADK session create response: expected an object with a non-empty string "id".',
     );
   });
 });
@@ -250,6 +286,18 @@ describe("createAdkSessionAdapter - fetch", () => {
       "Session not found: 404",
     );
   });
+
+  it("rejects a successful response without a session id", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+
+    const { adapter } = createAdkSessionAdapter(baseOptions);
+
+    await expect(adapter.fetch("s1")).rejects.toThrow(
+      'Invalid ADK session fetch response: expected an object with a non-empty string "id".',
+    );
+  });
 });
 
 // ── load() ──
@@ -305,6 +353,30 @@ describe("createAdkSessionAdapter - load", () => {
     expect(result.messages).toEqual([]);
   });
 
+  it("rejects a successful response without a session id", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+
+    await expect(load("s1")).rejects.toThrow(
+      'Invalid ADK session load response: expected an object with a non-empty string "id".',
+    );
+  });
+
+  it("rejects a session with a malformed events field", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "s1", events: {} }), { status: 200 }),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+
+    await expect(load("s1")).rejects.toThrow(
+      'Invalid ADK session load response: expected "events" to be an array when present.',
+    );
+  });
+
   it("throws when session fetch fails", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response("Server error", { status: 500 }),
@@ -339,6 +411,133 @@ describe("createAdkSessionAdapter - load", () => {
     const init = mockFetch.mock.calls[0]![1]!;
     expect((init.headers as Record<string, string>).Authorization).toBe(
       "Bearer tok",
+    );
+  });
+});
+
+describe("createAdkSessionAdapter - artifacts", () => {
+  it("lists names from current and legacy artifact responses", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(["report.pdf", { filename: "chart.png" }]), {
+        status: 200,
+      }),
+    );
+
+    const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+    await expect(artifacts.list("s1")).resolves.toEqual([
+      "report.pdf",
+      "chart.png",
+    ]);
+    expect(mockFetch.mock.calls[0]![0]).toBe(`${expectedBaseUrl}/s1/artifacts`);
+  });
+
+  it("rejects an artifact list that is not an array", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+
+    const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+    await expect(artifacts.list("s1")).rejects.toThrow(
+      "Invalid ADK artifact list response: expected an array of artifact names.",
+    );
+  });
+
+  it("rejects malformed artifact list entries", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(["report.pdf", {}]), { status: 200 }),
+    );
+
+    const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+    await expect(artifacts.list("s1")).rejects.toThrow(
+      'Invalid ADK artifact list response: artifact at index 1 must be a non-empty string or an object with a non-empty string "filename".',
+    );
+  });
+
+  it.each([
+    ["text", { text: "artifact contents" }],
+    [
+      "inline data",
+      { inlineData: { mimeType: "image/png", data: "aGVsbG8=" } },
+    ],
+  ])("loads valid %s artifacts", async (_label, artifact) => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(artifact), { status: 200 }),
+    );
+
+    const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+    await expect(artifacts.load("s1", "report.pdf")).resolves.toEqual(artifact);
+  });
+
+  it("rejects an artifact without supported content", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+
+    const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+    await expect(artifacts.load("s1", "report.pdf")).rejects.toThrow(
+      'Invalid ADK artifact load response: expected an object containing "text" or "inlineData".',
+    );
+  });
+
+  it.each([
+    [
+      "text",
+      { text: 42 },
+      'Invalid ADK artifact load response: "text" must be a string when present.',
+    ],
+    [
+      "inline data",
+      { inlineData: { mimeType: "image/png" } },
+      'Invalid ADK artifact load response: "inlineData" must contain string "mimeType" and "data" fields.',
+    ],
+  ])("rejects malformed %s artifact content", async (_label, value, error) => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(value), { status: 200 }),
+    );
+
+    const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+    await expect(artifacts.load("s1", "report.pdf")).rejects.toThrow(error);
+  });
+
+  it("lists artifact versions", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify([0, 1, 2]), { status: 200 }),
+    );
+
+    const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+    await expect(artifacts.listVersions("s1", "report.pdf")).resolves.toEqual([
+      0, 1, 2,
+    ]);
+  });
+
+  it("rejects an artifact version list that is not an array", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+
+    const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+    await expect(artifacts.listVersions("s1", "report.pdf")).rejects.toThrow(
+      "Invalid ADK artifact versions response: expected an array of version numbers.",
+    );
+  });
+
+  it("rejects malformed artifact version entries", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify([0, "1"]), { status: 200 }),
+    );
+
+    const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+    await expect(artifacts.listVersions("s1", "report.pdf")).rejects.toThrow(
+      "Invalid ADK artifact versions response: version at index 1 must be a non-negative integer.",
     );
   });
 });

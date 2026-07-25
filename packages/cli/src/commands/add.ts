@@ -67,7 +67,7 @@ export const add = new Command()
     // Check if project is initialized
     if (!hasConfig(opts.cwd)) {
       logger.warn(
-        "It looks like you haven't initialized your project yet. Run 'assistant-ui init' first.",
+        "It looks like you haven't initialized your project yet — defaulting to Base UI flavored components. Run 'assistant-ui init' first for a configured setup.",
       );
       logger.break();
     }

@@ -65,9 +65,6 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _argsTextController!: TextStreamController;
 
   async setResponse(response: ToolResponseLike<ReadonlyJSONValue>) {
-    this._argsTextController.close();
-    await Promise.resolve(); // flush microtask queue
-    // TODO switch argsTextController to be something that doesn'#t require this
     this._controller.enqueue({
       type: "result",
       path: [],
@@ -83,6 +80,9 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         ? { messages: response.messages }
         : {}),
     });
+    this._argsTextController.close();
+    await Promise.resolve(); // flush microtask queue
+    // TODO switch argsTextController to be something that doesn'#t require this
   }
 
   async close() {

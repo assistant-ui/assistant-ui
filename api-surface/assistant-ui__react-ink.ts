@@ -400,7 +400,7 @@ type AssistantStreamChunk = {
   readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: AssistantTransportStateOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
@@ -429,6 +429,16 @@ type AssistantToolUIProps<TArgs, TResult> = {
   toolName: string;
   render: ToolCallMessagePartComponent<TArgs, TResult>;
   display?: "inline" | "standalone";
+};
+
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
 };
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
@@ -628,7 +638,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   get queue(): readonly QueueItemState[];
   steerQueueItem(_queueItemId: string): void;
   removeQueueItem(_queueItemId: string): void;
-  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void;
+  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void | Promise<void>;
   protected abstract handleCancel(): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   private _safeEmitAttachmentAddError;
@@ -2495,16 +2505,6 @@ type OSCVariant = "osc777" | "osc9" | "osc99";
 
 type ObjectKey<T> = keyof T & (string | number);
 
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
-};
-
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
 type OverrideOptionalField<T, TKey extends keyof T, TValue> = undefined extends T[TKey] ? Exclude<T[TKey], undefined> extends never ? {
@@ -3966,6 +3966,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };

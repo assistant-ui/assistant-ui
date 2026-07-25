@@ -309,6 +309,36 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getState()).toEqual({ count: 1, label: "initial" });
   });
 
+  it("resetState clears the snapshot so the next run sends null state", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      if (runAgent.mock.calls.length === 1) {
+        subscriber.onStateSnapshotEvent?.({
+          event: {
+            type: "STATE_SNAPSHOT",
+            snapshot: { count: 1 },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(core.getState()).toEqual({ count: 1 });
+
+    core.resetState();
+    expect(core.getState()).toBeUndefined();
+
+    await core.resume({
+      parentId: null,
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+    });
+
+    expect(runAgent.mock.calls[1]?.[0].state).toBeNull();
+  });
+
   it("applies deltas before a snapshot from an empty state object", async () => {
     const runInputs: any[] = [];
     const agent = {
@@ -2194,6 +2224,35 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runCount).toBe(1);
   });
 
+  it("steerAway rejects entries without an interruptId or with an invalid status", async () => {
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runCount++;
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.steerAway("x", [{ status: "cancelled" } as any]),
+    ).rejects.toThrow("every entry must have an interruptId");
+    await expect(
+      core.steerAway("x", [{ interruptId: "int-1", status: "nope" } as any]),
+    ).rejects.toThrow(/invalid status "nope" for interrupt int-1/);
+    expect(runCount).toBe(1);
+  });
+
   it("steerAway cancels a pending client-side tool call and starts one fresh run", async () => {
     const runInputs: any[] = [];
     let runCount = 0;
@@ -2714,8 +2773,11 @@ describe("AGUIThreadRuntimeCore", () => {
           type: "TOOL_CALL_RESULT",
           messageId: "tool-msg-1",
           toolCallId: "call-1",
-          content: '{"answer":"yes"}',
+          content: "yes",
           role: "tool",
+          structuredContent: { answer: "yes" },
+          _meta: { auditId: "audit-1" },
+          isError: true,
         },
       });
       subscriber.onTextMessageContentEvent?.({
@@ -2749,7 +2811,14 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(toolPart).toMatchObject({
       toolCallId: "call-1",
       toolName: "ask_question",
-      result: { answer: "yes" },
+      result: {
+        content: [{ type: "text", text: "yes" }],
+        structuredContent: { answer: "yes" },
+        _meta: { auditId: "audit-1" },
+        isError: true,
+      },
+      modelContent: [{ type: "text", text: "yes" }],
+      isError: true,
       unstable_toolMessageId: "tool-msg-1",
     });
     expect(second!.content.filter((p) => p.type === "tool-call")).toHaveLength(
@@ -2971,7 +3040,62 @@ describe("AGUIThreadRuntimeCore", () => {
         { interruptId: "int-1", status: "resolved" },
         { interruptId: "int-unknown", status: "resolved" },
       ]),
-    ).rejects.toThrow(/unknown interrupt ids: int-unknown/);
+    ).rejects.toThrow(/unknown interrupt id int-unknown/);
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports an unknown interrupt id even when open interrupts are unanswered", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-unknown", status: "resolved" },
+      ]),
+    ).rejects.toThrow(/unknown interrupt id int-unknown/);
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports an unknown interrupt id when the same unknown id is submitted twice", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-unknown", status: "resolved" },
+        { interruptId: "int-unknown", status: "cancelled" },
+      ]),
+    ).rejects.toThrow(/unknown interrupt id int-unknown/);
     expect(runAgent).toHaveBeenCalledTimes(1);
   });
 
@@ -3028,6 +3152,36 @@ describe("AGUIThreadRuntimeCore", () => {
         { interruptId: "int-1", status: "cancelled" },
       ]),
     ).rejects.toThrow(/duplicate response/);
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects resume entries without an interruptId or with an invalid status", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([{ status: "resolved" } as any]),
+    ).rejects.toThrow("every entry must have an interruptId");
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-1", status: "nope" } as any,
+      ]),
+    ).rejects.toThrow(/invalid status "nope" for interrupt int-1/);
     expect(runAgent).toHaveBeenCalledTimes(1);
   });
 
@@ -3162,6 +3316,77 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
 
     expect(stateAtRun).toEqual({ initial: false, snapshot: 42 });
+  });
+
+  it("setState updates getState immediately", () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.setState({ count: 7 });
+    expect(core.getState()).toEqual({ count: 7 });
+  });
+
+  it("setState rides the next run as input.state", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.setState({ count: 3, label: "optimistic" });
+    await core.append(createAppendMessage());
+
+    expect(runInputs[0].state).toEqual({ count: 3, label: "optimistic" });
+  });
+
+  it("composes chained functional setState updaters in the same tick", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.setState({ count: 0 });
+    core.setState((prev) => ({
+      count: ((prev as { count?: number } | undefined)?.count ?? 0) + 1,
+    }));
+    core.setState((prev) => ({
+      count: ((prev as { count?: number } | undefined)?.count ?? 0) + 1,
+    }));
+    expect(core.getState()).toEqual({ count: 2 });
+
+    await core.append(createAppendMessage());
+    expect(runInputs[0].state).toEqual({ count: 2 });
+  });
+
+  it("applies STATE_DELTA on top of a setState snapshot", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onStateDeltaEvent?.({
+          event: {
+            type: "STATE_DELTA",
+            delta: [{ op: "replace", path: "/count", value: 2 }],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.setState({ count: 1, label: "base" });
+    await core.append(createAppendMessage());
+
+    expect(core.getState()).toEqual({ count: 2, label: "base" });
   });
 
   it("adopts TEXT_MESSAGE_START.messageId as the ThreadAssistantMessage.id", async () => {

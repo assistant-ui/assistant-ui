@@ -3,24 +3,22 @@ import type { SessionInfo } from "@earendil-works/pi-coding-agent";
 import { PiThreadSupervisor } from "./ThreadSupervisor";
 
 const sdk = vi.hoisted(() => ({
-  authCreate: vi.fn(() => ({})),
   createAgentSession: vi.fn(),
   list: vi.fn(),
   listAll: vi.fn(),
-  modelRegistryCreate: vi.fn(() => ({
-    refresh: vi.fn(),
-    getAvailable: vi.fn(() => []),
-    getAll: vi.fn(() => []),
-    find: vi.fn(),
+  modelRuntimeCreate: vi.fn(async () => ({
+    refresh: vi.fn(async () => ({})),
+    getAvailableSnapshot: vi.fn(() => []),
+    getModels: vi.fn(() => []),
+    getModel: vi.fn(),
   })),
   open: vi.fn(),
   create: vi.fn(),
 }));
 
 vi.mock("@earendil-works/pi-coding-agent", () => ({
-  AuthStorage: { create: sdk.authCreate },
   createAgentSession: sdk.createAgentSession,
-  ModelRegistry: { create: sdk.modelRegistryCreate },
+  ModelRuntime: { create: sdk.modelRuntimeCreate },
   SessionManager: {
     create: sdk.create,
     list: sdk.list,
@@ -165,5 +163,31 @@ describe("PiThreadSupervisor", () => {
 
     expect(manager.appendSessionInfo).toHaveBeenCalledWith("Renamed");
     expect(sdk.createAgentSession).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the cached catalog when the availability refresh fails", async () => {
+    const model = {
+      provider: "anthropic",
+      id: "claude-opus-4-5",
+      name: "Claude Opus 4.5",
+    };
+    sdk.modelRuntimeCreate.mockResolvedValueOnce({
+      refresh: vi.fn(async () => {
+        throw new Error("offline");
+      }),
+      getAvailableSnapshot: vi.fn(() => []),
+      getModels: vi.fn(() => [model]),
+      getModel: vi.fn(),
+    });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    await expect(supervisor.getAvailableModels()).resolves.toEqual([
+      {
+        provider: "anthropic",
+        modelId: "claude-opus-4-5",
+        name: "Claude Opus 4.5",
+        supportsThinking: false,
+      },
+    ]);
   });
 });
