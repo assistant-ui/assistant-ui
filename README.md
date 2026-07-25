@@ -1,3 +1,5 @@
+[![MCP Toplist](https://mcptoplist.com/badge/pulsemcp%2Fassistant-ui.svg)](https://mcptoplist.com/server/pulsemcp%2Fassistant-ui)
+
 <a href="https://www.assistant-ui.com">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/header-dark.svg" />
