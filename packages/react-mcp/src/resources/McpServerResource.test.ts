@@ -1,4 +1,6 @@
 import { createTapRoot, useResource } from "@assistant-ui/tap";
+import type { ClientOutput } from "@assistant-ui/store";
+import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPAuthConfig } from "../mcp-scope";
 import type { MCPStorage } from "./storage/types";
@@ -109,15 +111,18 @@ const resetMocks = () => {
   mocks.StreamableHTTPClientTransport.mockClear();
 };
 
-const mount = (props?: {
-  auth?: MCPAuthConfig | undefined;
-  connectionTimeout?: number | undefined;
-}) => {
+const mount = (
+  props?: {
+    auth?: MCPAuthConfig | undefined;
+    connectionTimeout?: number | undefined;
+  },
+  onMount?: (server: ClientOutput<"mcpServer">) => void,
+) => {
   const connectionTimeout =
     props && "connectionTimeout" in props ? props.connectionTimeout : 10_000;
 
   return createTapRoot(function Root() {
-    return useResource(
+    const server = useResource(
       McpServerResource({
         id: "docs",
         kind: "connector",
@@ -131,6 +136,10 @@ const mount = (props?: {
         onRemove: vi.fn(async () => {}),
       }),
     );
+    useEffect(() => {
+      onMount?.(server);
+    }, [onMount, server]);
+    return server;
   });
 };
 
@@ -326,6 +335,28 @@ describe("McpServerResource connection lifecycle", () => {
 
 describe("McpServerResource completeAuth", () => {
   beforeEach(resetMocks);
+
+  it("completes auth across the StrictMode effect replay", async () => {
+    let completeAuth: Promise<void> | undefined;
+    let started = false;
+    const root = mount({ auth: { type: "oauth" } }, (server) => {
+      if (started) return;
+      started = true;
+      completeAuth = server.completeAuth(
+        "https://example.com/callback?code=abc",
+      );
+    });
+
+    try {
+      await expect(completeAuth).resolves.toBeUndefined();
+      await flushMacrotask();
+
+      expect(mocks.transports[0].finishAuth).toHaveBeenCalledTimes(1);
+      expect(root.getValue().getState().connectionState).toBe("connected");
+    } finally {
+      root.unmount();
+    }
+  });
 
   it("rejects when the callback URL has no authorization code", async () => {
     const root = mount();

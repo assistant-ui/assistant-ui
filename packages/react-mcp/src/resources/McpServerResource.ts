@@ -51,6 +51,7 @@ const useMcpServerResource = (
   );
   const transportCloseQueueRef = useRef(Promise.resolve());
   const connectionGenerationRef = useRef(0);
+  const pendingDisposalRef = useRef<{ cancelled: boolean } | null>(null);
   const mountedRef = useRef(true);
 
   const closeTransportSafely = async (
@@ -331,14 +332,22 @@ const useMcpServerResource = (
 
   // Auto-connect on mount when usable auth exists.
   useEffect(() => {
+    const previousDisposal = pendingDisposalRef.current;
+    if (previousDisposal) previousDisposal.cancelled = true;
+    const pendingDisposal = { cancelled: false };
+    pendingDisposalRef.current = pendingDisposal;
     mountedRef.current = true;
     const signal = { cancelled: false };
     void tryAutoConnect(signal);
     return () => {
       mountedRef.current = false;
-      connectionGenerationRef.current += 1;
       signal.cancelled = true;
-      void closeTransports();
+      // Defer disposal so StrictMode can replay setup before closing the transport.
+      queueMicrotask(() => {
+        if (pendingDisposal.cancelled) return;
+        connectionGenerationRef.current += 1;
+        void closeTransports();
+      });
     };
   }, []);
 
