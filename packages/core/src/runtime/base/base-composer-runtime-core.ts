@@ -565,7 +565,28 @@ export abstract class BaseComposerRuntimeCore
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) return;
 
-    for (const callback of subscribers) callback(payload);
+    const reportError = (error: unknown) => {
+      console.error(
+        `[assistant-ui] Composer runtime "${event}" listener threw an error`,
+        error,
+      );
+    };
+
+    for (const callback of subscribers) {
+      try {
+        const result = callback(payload) as unknown;
+        if (
+          typeof result === "object" &&
+          result !== null &&
+          "then" in result &&
+          typeof result.then === "function"
+        ) {
+          void Promise.resolve(result).catch(reportError);
+        }
+      } catch (error) {
+        reportError(error);
+      }
+    }
   }
 
   public unstable_on<E extends ComposerRuntimeEventType>(
