@@ -18,6 +18,7 @@ import {
   useAssistantInstructions,
   useAssistantTool,
   useAui,
+  useAuiState,
   useLocalRuntime,
   type ChatModelAdapter,
   type ThreadAssistantMessagePart,
@@ -248,6 +249,7 @@ const SUGGESTIONS = [
 ];
 
 function Composer() {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   return (
     <ComposerPrimitive.Root className="pt-2 pb-3">
       <div className="flex gap-2 pb-2">
@@ -256,7 +258,8 @@ function Composer() {
             key={s.prompt}
             prompt={s.prompt}
             send
-            className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-full border px-3 py-1 text-xs transition-colors"
+            disabled={isRunning}
+            className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-40"
           >
             {s.label}
           </ThreadPrimitive.Suggestion>
@@ -270,12 +273,18 @@ function Composer() {
         />
         <div className="p-1.5">
           <AuiIf condition={(s) => !s.thread.isRunning}>
-            <ComposerPrimitive.Send className="bg-foreground text-background flex size-7 items-center justify-center rounded-md transition-opacity disabled:opacity-30">
+            <ComposerPrimitive.Send
+              aria-label="Send message"
+              className="bg-foreground text-background flex size-7 items-center justify-center rounded-md transition-opacity disabled:opacity-30"
+            >
               <ArrowUpIcon className="size-4" />
             </ComposerPrimitive.Send>
           </AuiIf>
           <AuiIf condition={(s) => s.thread.isRunning}>
-            <ComposerPrimitive.Cancel className="bg-foreground text-background flex size-7 items-center justify-center rounded-md">
+            <ComposerPrimitive.Cancel
+              aria-label="Stop generating"
+              className="bg-foreground text-background flex size-7 items-center justify-center rounded-md"
+            >
               <SquareIcon className="size-3 fill-current" />
             </ComposerPrimitive.Cancel>
           </AuiIf>
@@ -340,13 +349,15 @@ export function DevToolsModalSample() {
         <div className="flex h-full flex-col">
           <div className="border-border/50 bg-background flex items-center justify-between gap-2 rounded-t-xl border-b px-4 py-2.5">
             <span className="text-sm font-medium">Your app</span>
-            <ThreadPrimitive.Suggestion
-              prompt="What's the weather in San Francisco?"
-              send
-              className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-full border px-3 py-1 text-xs transition-colors"
-            >
-              Run a demo turn
-            </ThreadPrimitive.Suggestion>
+            <AuiIf condition={(s) => !s.thread.isRunning}>
+              <ThreadPrimitive.Suggestion
+                prompt="What's the weather in San Francisco?"
+                send
+                className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-full border px-3 py-1 text-xs transition-colors"
+              >
+                Run a demo turn
+              </ThreadPrimitive.Suggestion>
+            </AuiIf>
           </div>
           <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
             <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col gap-1 overflow-y-auto px-4 py-4">
