@@ -633,19 +633,17 @@ export class RemoteThreadListThreadListRuntimeCore
       throw new Error("Cannot ensure new thread is not main");
 
     let lastAwaitedTask: Promise<void> | undefined;
-    let fallbackTask: Promise<void> | undefined;
 
     while (threadId === this._mainThreadId) {
       let switchTask = this._switchTask;
-      if (!switchTask || switchTask === lastAwaitedTask) {
-        switchTask = fallbackTask = this.switchToNewThread();
-      }
+      const startedFallback = !switchTask || switchTask === lastAwaitedTask;
+      if (startedFallback) switchTask = this.switchToNewThread();
       lastAwaitedTask = switchTask;
 
       try {
         await switchTask;
       } catch (error) {
-        if (switchTask === fallbackTask && this._switchTask === switchTask) {
+        if (startedFallback && this._switchTask === switchTask) {
           throw error;
         }
       }
