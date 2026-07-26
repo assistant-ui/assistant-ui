@@ -21,7 +21,7 @@ const useConnection = (props: UserProps, platform: PlatformProps) => {
   };
 };
 
-const StatewireWS = (props: UserProps) =>
+const ConnectionResource = (props: UserProps) =>
   withKey(props.id, resource(useConnection).bind(null, props));
 
 describe("withKey on a Resource", () => {
@@ -42,7 +42,7 @@ describe("withKey on a Resource", () => {
   });
 
   it("threads .bind args through to the hook", () => {
-    const el = StatewireWS({ id: "ws-1", initial: 3 })({ mult: 10 });
+    const el = ConnectionResource({ id: "ws-1", initial: 3 })({ mult: 10 });
 
     expect(el.key).toBe("ws-1");
 
@@ -52,11 +52,11 @@ describe("withKey on a Resource", () => {
   });
 
   it("reconciles keyed curried resources by key across reorder", () => {
-    const a = StatewireWS({ id: "a", initial: 1 });
-    const b = StatewireWS({ id: "b", initial: 20 });
+    const a = ConnectionResource({ id: "a", initial: 1 });
+    const b = ConnectionResource({ id: "b", initial: 20 });
 
     const testFiber = createTestResource(
-      (props: { conns: ReturnType<typeof StatewireWS>[] }) =>
+      (props: { conns: ReturnType<typeof ConnectionResource>[] }) =>
         useResources(props.conns.map((conn) => conn({ mult: 1 }))),
     );
 
