@@ -226,7 +226,7 @@ With `@assistant-ui/react-ag-ui`, the backend associates an MCP App with a tool 
 }
 ```
 
-`serverId` is optional. If it is absent, the runtime accepts `serverHash` as a fallback. Older middleware may omit `toolCallId`, in which case the snapshot applies to the last resolved tool call; new integrations should include it so concurrent tool calls are correlated unambiguously. Emit the snapshot after the tool call's `TOOL_CALL_START`; a snapshot for a tool call ID the runtime has not seen is silently ignored.
+`serverId` is optional. If it is absent, the runtime accepts `serverHash` as a fallback. Older middleware may omit `toolCallId`, in which case the snapshot applies to the last resolved tool call; new integrations should include it so concurrent tool calls are correlated unambiguously. Emit the snapshot after the tool call's `TOOL_CALL_START`. A snapshot that names a tool call restored from prior history applies to that message directly, so re-emitting the activity after a `MESSAGES_SNAPSHOT` rehydrates its widget; a snapshot for a tool call ID the runtime has never seen is silently ignored.
 
 Send the normal `TOOL_CALL_RESULT` with a concise, model-visible summary:
 

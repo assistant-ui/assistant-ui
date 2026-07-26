@@ -1378,6 +1378,30 @@ export class AgUiThreadRuntimeCore {
         if (part.type !== "tool-call" || part.toolCallId !== event.toolCallId)
           return part;
         matchedToolCall = true;
+        // An applied activity snapshot owns part.result; a later result only
+        // fills what is missing, mirroring the aggregator's finishToolCall.
+        if (part.mcp?.app !== undefined) {
+          return {
+            ...part,
+            ...(part.modelContent === undefined && event.content
+              ? {
+                  modelContent: [
+                    { type: "text" as const, text: event.content },
+                  ],
+                }
+              : {}),
+            ...(part.isError === undefined
+              ? typeof event.mcpResult?.isError === "boolean"
+                ? { isError: event.mcpResult.isError }
+                : event.role === "tool"
+                  ? { isError: false }
+                  : {}
+              : {}),
+            ...(event.messageId
+              ? { unstable_toolMessageId: event.messageId }
+              : {}),
+          };
+        }
         return {
           ...part,
           result: (event.mcpResult ??
@@ -1454,9 +1478,7 @@ export class AgUiThreadRuntimeCore {
                     }
                   : {}),
                 result: result as ReadonlyJSONValue,
-                ...(typeof result["isError"] === "boolean"
-                  ? { isError: result["isError"] }
-                  : {}),
+                isError: result["isError"] === true,
               }
             : {}),
         };
