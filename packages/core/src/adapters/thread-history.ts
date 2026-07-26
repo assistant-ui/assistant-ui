@@ -68,7 +68,9 @@ export type ThreadHistoryAdapter = {
   /**
    * Rewrites a previously appended message in place, keyed by its message id.
    * Adapters that implement this let a runtime persist a run paused for tool
-   * approval and finalize the same message once the run resumes.
+   * approval and finalize the same message once the run resumes. An update may
+   * arrive for an id whose earlier write failed; treat it as an upsert keyed
+   * on the message id rather than assuming the entry exists.
    */
   update?(item: ExportedMessageRepositoryItem): Promise<void>;
   delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
