@@ -548,3 +548,116 @@ describe("AssistantMessageAccumulator wrong part type chunks", () => {
     warn.mockRestore();
   });
 });
+
+describe("AssistantMessageAccumulator warn dedup", () => {
+  it("warns once per drop class per instance", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [5], textDelta: "a" },
+      { type: "text-delta", path: [5], textDelta: "b" },
+      { type: "text-delta", path: [6], textDelta: "c" },
+      { type: "part-finish", path: [9] },
+    ]);
+
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledWith(
+      "Dropped text-delta chunk: no part at path [5]",
+    );
+    expect(warn).toHaveBeenCalledWith(
+      "Dropped part-finish chunk: no part at path [9]",
+    );
+    warn.mockRestore();
+  });
+
+  it("resets dedup per accumulator instance", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const stream = [
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [5], textDelta: "x" },
+    ] satisfies AssistantStreamChunk[];
+    await collectStream(stream);
+    await collectStream(stream);
+
+    expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
+  it("dedupes repeated wrong-part-type drops", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "source", sourceType: "url", id: "s", url: "https://x" },
+      },
+      { type: "text-delta", path: [0], textDelta: "a" },
+      { type: "text-delta", path: [0], textDelta: "b" },
+    ]);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+});
+
+describe("AssistantMessageAccumulator warn dedup key independence", () => {
+  it("keeps drop classes as independent keys within one stream", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "source", sourceType: "url", id: "s", url: "https://x" },
+      },
+      { type: "text-delta", path: [0], textDelta: "wrong-part" },
+      { type: "text-delta", path: [7], textDelta: "no-part" },
+    ]);
+
+    expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
+  it("keys unsupported part-starts per type", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "bogus" },
+      } as unknown as AssistantStreamChunk,
+      {
+        type: "part-start",
+        path: [1],
+        part: { type: "bogus" },
+      } as unknown as AssistantStreamChunk,
+      {
+        type: "part-start",
+        path: [2],
+        part: { type: "video" },
+      } as unknown as AssistantStreamChunk,
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts).toHaveLength(3);
+    expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
+  it("caps the number of warned keys per instance", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream(
+      Array.from(
+        { length: 20 },
+        (_, i) =>
+          ({
+            type: "part-start",
+            path: [i],
+            part: { type: `bogus-${i}` },
+          }) as unknown as AssistantStreamChunk,
+      ),
+    );
+
+    expect(warn).toHaveBeenCalledTimes(16);
+    warn.mockRestore();
+  });
+});

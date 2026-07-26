@@ -37,15 +37,21 @@ export const createInitialMessage = ({
   },
 });
 
+type WarnOnce = (key: string, message: string) => void;
+
+const MAX_WARNED_KEYS = 16;
+
 const updatePartForPath = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk,
+  warnOnce: WarnOnce,
   updater: (part: AssistantMessagePart) => AssistantMessagePart,
 ): AssistantMessage => {
   const part =
     chunk.path.length === 1 ? message.parts[chunk.path[0]!] : undefined;
   if (part === undefined) {
-    console.warn(
+    warnOnce(
+      `no-part:${chunk.type}`,
       `Dropped ${chunk.type} chunk: no part at path [${chunk.path.join(", ")}]`,
     );
     return message;
@@ -70,6 +76,7 @@ const updatePartForPath = (
 const handlePartStart = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { readonly type: "part-start" },
+  warnOnce: WarnOnce,
 ): AssistantMessage => {
   const partInit = chunk.part;
   if (partInit.type === "text" || partInit.type === "reasoning") {
@@ -150,8 +157,10 @@ const handlePartStart = (
       },
     };
   } else {
-    console.warn(
-      `Unsupported part-start type ${(partInit as { type?: unknown }).type}: inserting an empty reasoning part to preserve part indices`,
+    const unsupportedType = String((partInit as { type?: unknown }).type);
+    warnOnce(
+      `unsupported-part-start:${unsupportedType}`,
+      `Unsupported part-start type ${unsupportedType}: inserting an empty reasoning part to preserve part indices`,
     );
     // reasoning rather than a data sentinel: auiV0Encode rejects data parts, so a data placeholder would fail cloud persistence
     const placeholderPart: ReasoningPart = {
@@ -174,10 +183,12 @@ const handleToolCallArgsTextFinish = (
   chunk: AssistantStreamChunk & {
     readonly type: "tool-call-args-text-finish";
   },
+  warnOnce: WarnOnce,
 ): AssistantMessage => {
-  return updatePartForPath(message, chunk, (part) => {
+  return updatePartForPath(message, chunk, warnOnce, (part) => {
     if (part.type !== "tool-call") {
-      console.warn(
+      warnOnce(
+        "wrong-part:tool-call-args-text-finish",
         "Dropped tool-call-args-text-finish chunk: part is not a tool-call",
       );
       return part;
@@ -197,8 +208,9 @@ const handleToolCallArgsTextFinish = (
 const handlePartFinish = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { readonly type: "part-finish" },
+  warnOnce: WarnOnce,
 ): AssistantMessage => {
-  return updatePartForPath(message, chunk, (part) => ({
+  return updatePartForPath(message, chunk, warnOnce, (part) => ({
     ...part,
     status: { type: "complete", reason: "unknown" },
   }));
@@ -207,8 +219,9 @@ const handlePartFinish = (
 const handleTextDelta = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "text-delta" },
+  warnOnce: WarnOnce,
 ): AssistantMessage => {
-  return updatePartForPath(message, chunk, (part) => {
+  return updatePartForPath(message, chunk, warnOnce, (part) => {
     if (part.type === "text" || part.type === "reasoning") {
       return { ...part, text: part.text + chunk.textDelta };
     } else if (part.type === "tool-call") {
@@ -219,7 +232,8 @@ const handleTextDelta = (
 
       return { ...part, argsText: newArgsText, args: newArgs };
     } else {
-      console.warn(
+      warnOnce(
+        "wrong-part:text-delta",
         "Dropped text-delta chunk: part is neither text nor tool-call",
       );
       return part;
@@ -230,8 +244,9 @@ const handleTextDelta = (
 const handleResult = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "result" },
+  warnOnce: WarnOnce,
 ): AssistantMessage => {
-  return updatePartForPath(message, chunk, (part) => {
+  return updatePartForPath(message, chunk, warnOnce, (part) => {
     if (part.type === "tool-call") {
       return {
         ...part,
@@ -254,7 +269,10 @@ const handleResult = (
         status: { type: "complete", reason: "stop" },
       };
     } else {
-      console.warn("Dropped result chunk: part is not a tool-call");
+      warnOnce(
+        "wrong-part:result",
+        "Dropped result chunk: part is not a tool-call",
+      );
       return part;
     }
   });
@@ -474,6 +492,12 @@ export class AssistantMessageAccumulator extends TransformStream<
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
     const tracker = new TimingTracker();
+    const warnedKeys = new Set<string>();
+    const warnOnce: WarnOnce = (key, warning) => {
+      if (warnedKeys.has(key) || warnedKeys.size >= MAX_WARNED_KEYS) return;
+      warnedKeys.add(key);
+      console.warn(warning);
+    };
     let controller:
       | TransformStreamDefaultController<AssistantMessage>
       | undefined;
@@ -493,28 +517,28 @@ export class AssistantMessageAccumulator extends TransformStream<
         const type = chunk.type;
         switch (type) {
           case "part-start":
-            message = handlePartStart(message, chunk);
+            message = handlePartStart(message, chunk, warnOnce);
             if (chunk.part.type === "tool-call") {
               tracker.recordToolCallStart(chunk.part.toolCallId);
             }
             break;
 
           case "tool-call-args-text-finish":
-            message = handleToolCallArgsTextFinish(message, chunk);
+            message = handleToolCallArgsTextFinish(message, chunk, warnOnce);
             break;
 
           case "part-finish":
-            message = handlePartFinish(message, chunk);
+            message = handlePartFinish(message, chunk, warnOnce);
             break;
 
           case "text-delta": {
-            const next = handleTextDelta(message, chunk);
+            const next = handleTextDelta(message, chunk, warnOnce);
             if (next !== message) tracker.recordFirstToken();
             message = next;
             break;
           }
           case "result":
-            message = handleResult(message, chunk);
+            message = handleResult(message, chunk, warnOnce);
             break;
           case "message-finish":
             message = handleMessageFinish(message, chunk);
