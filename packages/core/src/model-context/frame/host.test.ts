@@ -88,6 +88,53 @@ describe("AssistantFrameHost", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("rejects pending tool calls when execution is aborted", async () => {
+    const { execute, host } = createHost();
+    const abortController = new AbortController();
+    const abortError = new Error("Run cancelled");
+    abortError.name = "AbortError";
+    const result = Promise.resolve(
+      execute(
+        {},
+        {
+          ...executionContext,
+          abortSignal: abortController.signal,
+        },
+      ),
+    );
+    const onRejected = vi.fn();
+    void result.catch(onRejected);
+
+    abortController.abort(abortError);
+    await Promise.resolve();
+
+    expect(onRejected).toHaveBeenCalledWith(abortError);
+    expect(vi.getTimerCount()).toBe(0);
+    host.dispose();
+  });
+
+  it("does not post tool calls when execution is already aborted", async () => {
+    const { execute, host, postMessage } = createHost();
+    const abortController = new AbortController();
+    const abortError = new Error("Run cancelled");
+    abortError.name = "AbortError";
+    abortController.abort(abortError);
+
+    await expect(
+      execute(
+        {},
+        {
+          ...executionContext,
+          abortSignal: abortController.signal,
+        },
+      ),
+    ).rejects.toBe(abortError);
+
+    expect(postMessage).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+    host.dispose();
+  });
+
   it("rejects tool calls made after disposal without posting a request", async () => {
     const { execute, host, postMessage } = createHost();
     host.dispose();
