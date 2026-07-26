@@ -2,4 +2,4 @@
 "@assistant-ui/react-ai-sdk": patch
 ---
 
-feat: expose AI SDK chat state via runtime extras accessor hooks (useAISDKStatus, useAISDKError, useAISDKChat)
+feat: expose the AI SDK chat helpers and error via runtime extras accessor hooks (useAISDKChat, useAISDKError)

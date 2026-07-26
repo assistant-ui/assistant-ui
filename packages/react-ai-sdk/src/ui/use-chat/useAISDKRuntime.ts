@@ -275,15 +275,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
   );
 
-  const { status, error } = chatHelpers;
+  const { error } = chatHelpers;
   const extras = useMemo(
     () =>
       aiSDKExtras.provide({
         chat: chatHelpers as unknown as UseChatHelpers<UIMessage>,
-        status,
         error,
       }),
-    [chatHelpers, status, error],
+    [chatHelpers, error],
   );
 
   const completePendingToolCalls = async () => {

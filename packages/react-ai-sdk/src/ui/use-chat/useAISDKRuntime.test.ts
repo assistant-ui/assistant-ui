@@ -928,9 +928,8 @@ describe("useAISDKRuntime", () => {
     expect(messages.slice(1).map(textOf)).toEqual(["first", "second"]);
   });
 
-  it("exposes branded extras carrying chat, status, and error", () => {
+  it("exposes branded extras carrying the chat helpers and error", () => {
     const chat = createChatHelpers();
-    chat.status = "streaming";
     chat.error = new Error("boom");
 
     const { result } = renderHook(() => useAISDKRuntime(chat));
@@ -939,7 +938,6 @@ describe("useAISDKRuntime", () => {
     expect(aiSDKExtras.is(extras)).toBe(true);
     expect(aiSDKExtras.tryGet(extras)).toMatchObject({
       chat,
-      status: "streaming",
       error: chat.error,
     });
   });

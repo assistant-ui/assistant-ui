@@ -17,4 +17,4 @@ export { injectQuoteContext } from "./injectQuoteContext";
 export { unstable_injectInteractableContext } from "./injectInteractableContext";
 export type { ThreadTokenUsage, TokenUsageExtractableMessage } from "./usage";
 export { getThreadMessageTokenUsage, useThreadTokenUsage } from "./usage";
-export { useAISDKChat, useAISDKError, useAISDKStatus } from "./hooks";
+export { useAISDKChat, useAISDKError } from "./hooks";

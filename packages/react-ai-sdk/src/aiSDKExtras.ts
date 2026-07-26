@@ -1,10 +1,9 @@
 import { createRuntimeExtras } from "@assistant-ui/core/internal";
 import type { UseChatHelpers } from "@ai-sdk/react";
-import type { ChatStatus, UIMessage } from "ai";
+import type { UIMessage } from "ai";
 
 export type AISDKRuntimeExtras = {
   chat: UseChatHelpers<UIMessage>;
-  status: ChatStatus;
   error: Error | undefined;
 };
 
