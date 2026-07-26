@@ -131,28 +131,35 @@ describe.each([
     expect(sibling).toHaveBeenCalledOnce();
   });
 
-  it("handles rejected thenables returned by listeners", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    const harness = makeHarness();
-    const listenerError = new Error("async listener failed");
-    const then = vi.fn(
-      (
-        _resolve: (value?: unknown) => void,
-        reject: (reason?: unknown) => void,
-      ) => reject(listenerError),
-    );
-
-    harness.subscribe(() => ({ then }));
-    harness.emit();
-
-    await vi.waitFor(() => {
-      expect(then).toHaveBeenCalledOnce();
-      expect(consoleError).toHaveBeenCalledWith(
-        expect.stringContaining(harness.errorContext),
-        listenerError,
+  it.each(["object", "function"] as const)(
+    "handles rejected %s thenables returned by listeners",
+    async (thenableType) => {
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const harness = makeHarness();
+      const listenerError = new Error("async listener failed");
+      const then = vi.fn(
+        (
+          _resolve: (value?: unknown) => void,
+          reject: (reason?: unknown) => void,
+        ) => reject(listenerError),
       );
-    });
-  });
+      const thenable =
+        thenableType === "function"
+          ? Object.assign(() => {}, { then })
+          : { then };
+
+      harness.subscribe(() => thenable);
+      harness.emit();
+
+      await vi.waitFor(() => {
+        expect(then).toHaveBeenCalledOnce();
+        expect(consoleError).toHaveBeenCalledWith(
+          expect.stringContaining(harness.errorContext),
+          listenerError,
+        );
+      });
+    },
+  );
 });

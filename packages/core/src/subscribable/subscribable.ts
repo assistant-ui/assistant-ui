@@ -1,4 +1,5 @@
 import type { Unsubscribe } from "../types/unsubscribe";
+import { notifyEventListeners } from "../utils/notify-event-listeners";
 
 export const SKIP_UPDATE = Symbol("skip-update");
 export type SKIP_UPDATE = typeof SKIP_UPDATE;
@@ -102,30 +103,13 @@ export abstract class BaseSubject {
 
   protected abstract _connect(): Unsubscribe;
 
-  protected notifySubscribers(
-    payload?: unknown,
-    reportError?: (error: unknown) => void,
-  ) {
-    if (!reportError) {
-      for (const callback of this._subscriptions) callback(payload);
+  protected notifySubscribers(payload?: unknown, errorContext?: string) {
+    if (errorContext) {
+      notifyEventListeners(this._subscriptions, payload, errorContext);
       return;
     }
 
-    for (const callback of this._subscriptions) {
-      try {
-        const result = callback(payload) as unknown;
-        if (
-          typeof result === "object" &&
-          result !== null &&
-          "then" in result &&
-          typeof result.then === "function"
-        ) {
-          void Promise.resolve(result).catch(reportError);
-        }
-      } catch (error) {
-        reportError(error);
-      }
-    }
+    for (const callback of this._subscriptions) callback(payload);
   }
 
   private _updateConnection() {
@@ -298,14 +282,9 @@ export class EventSubscriptionSubject<
   }
 
   protected _connect(): Unsubscribe {
-    const reportError = (error: unknown) => {
-      console.error(
-        `[assistant-ui] Runtime event "${this.config.event}" listener threw an error`,
-        error,
-      );
-    };
+    const errorContext = `Runtime event "${this.config.event}"`;
     const callback = (payload?: unknown) => {
-      this.notifySubscribers(payload, reportError);
+      this.notifySubscribers(payload, errorContext);
     };
 
     let lastState = this.config.binding.getState();
