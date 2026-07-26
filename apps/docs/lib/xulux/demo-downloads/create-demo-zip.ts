@@ -45,7 +45,7 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     "tsconfig.json": tsconfigJson(),
     "postcss.config.mjs": postcssConfigMjs(),
     "README.md": readme(manifest),
-    ".env.example": "OPENAI_API_KEY=\n",
+    ".env.example": "OPENAI_API_KEY=\n# NEXT_PUBLIC_ASSISTANT_BASE_URL=\n",
     "app/globals.css": globalsCss(),
     "app/layout.tsx": layoutTsx(manifest),
     "app/page.tsx": pageTsx(manifest),
@@ -254,7 +254,7 @@ function postcssConfigMjs() {
 }
 
 function readme(manifest: DemoDownloadManifest) {
-  return `# Xulux ${manifest.name}\n\n${manifest.description}\n\n## Run\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\nAdd \`OPENAI_API_KEY\` to \`.env.local\` for live AI responses. Without a key, \`app/api/chat/route.ts\` returns a deterministic fallback response so the demo still runs locally.\n\nSource demo: \`${manifest.entry}\`\n`;
+  return `# Xulux ${manifest.name}\n\n${manifest.description}\n\n## Run\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\nAdd \`OPENAI_API_KEY\` to \`.env.local\` for live AI responses. Without a key, \`app/api/chat/route.ts\` returns a deterministic fallback response so the demo still runs locally. Thread history runs in memory and resets on reload; set \`NEXT_PUBLIC_ASSISTANT_BASE_URL\` to an assistant-cloud project URL to persist threads and generate titles.\n\nSource demo: \`${manifest.entry}\`\n`;
 }
 
 function globalsCss() {

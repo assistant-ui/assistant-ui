@@ -45,7 +45,7 @@ const messageActionButtonClassName =
 
 export const Claude: FC = () => {
   return (
-    <CloneThreadShell>
+    <CloneThreadShell railClassName="border-[#DCD4C2] bg-[#EAE4D3] dark:border-[#3B3934] dark:bg-[#252420]">
       <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#F0ECE0] font-serif text-[#1a1a18] dark:bg-[#2b2a27] dark:text-[#eee]">
         <AuiIf condition={(s) => s.thread.isEmpty}>
           <EmptyState />

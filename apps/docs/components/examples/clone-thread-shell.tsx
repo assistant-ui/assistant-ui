@@ -22,9 +22,13 @@ import { useState, type FC, type MouseEvent, type ReactNode } from "react";
 
 type CloneThreadShellProps = {
   children: ReactNode;
+  railClassName?: string | undefined;
 };
 
-export const CloneThreadShell: FC<CloneThreadShellProps> = ({ children }) => {
+export const CloneThreadShell: FC<CloneThreadShellProps> = ({
+  children,
+  railClassName,
+}) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -48,6 +52,7 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({ children }) => {
       <aside
         className={cn(
           "bg-muted/30 hidden h-full shrink-0 flex-col overflow-hidden border-r transition-[width] duration-200 md:flex",
+          railClassName,
           sidebarCollapsed ? "w-12" : "w-65",
         )}
       >
@@ -117,7 +122,11 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({ children }) => {
         <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
           <SheetTrigger
             render={
-              <Button variant="ghost" size="icon" className="size-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="bg-background/70 size-8 backdrop-blur-sm"
+              >
                 <MenuIcon className="size-4" />
                 <span className="sr-only">Open chat history</span>
               </Button>

@@ -51,7 +51,7 @@ const messageActionClassName =
 
 export const Perplexity: FC = () => {
   return (
-    <CloneThreadShell>
+    <CloneThreadShell railClassName="border-[#E0D9CC] bg-[#EFEAE1] dark:border-[#332F2A] dark:bg-[#1D1B19]">
       <ThreadPrimitive.Root
         className="flex h-full flex-col bg-[#f6f2ec] text-[#1f1b17] dark:bg-[#171615] dark:text-[#f5f2ed]"
         style={{
