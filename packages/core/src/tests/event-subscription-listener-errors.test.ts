@@ -8,6 +8,8 @@ import {
   type ThreadListItemRuntimeBinding,
   type ThreadRuntimeCoreBinding,
 } from "../runtime/api/thread-runtime";
+import { ThreadListItemRuntimeImpl } from "../runtime/api/thread-list-item-runtime";
+import type { ThreadListRuntimeCoreBinding } from "../runtime/api/thread-list-runtime";
 import { ReadonlyThreadRuntimeCore } from "../runtimes/readonly/ReadonlyThreadRuntimeCore";
 import type { Unsubscribe } from "../types/unsubscribe";
 
@@ -108,6 +110,43 @@ const makeThreadHarness = (): RuntimeHarness => {
   };
 };
 
+const makeThreadListItemHarness = (): RuntimeHarness => {
+  let isMain = true;
+  const stateListeners = new Set<() => void>();
+  const binding = {
+    path: {
+      ref: "test.threadListItem",
+      threadSelector: { type: "main" as const },
+    },
+    getState: () => ({
+      id: "test",
+      remoteId: undefined,
+      externalId: undefined,
+      isMain,
+      status: "regular" as const,
+      title: undefined,
+    }),
+    subscribe: (listener: () => void) => {
+      stateListeners.add(listener);
+      return () => stateListeners.delete(listener);
+    },
+  } as unknown as ThreadListItemRuntimeBinding;
+  const runtime = new ThreadListItemRuntimeImpl(
+    binding,
+    {} as ThreadListRuntimeCoreBinding,
+  );
+
+  return {
+    subscribe: (listener) =>
+      runtime.unstable_on("switchedAway", listener as never),
+    emit: () => {
+      isMain = !isMain;
+      for (const listener of [...stateListeners]) listener();
+    },
+    errorContext: 'Thread list item "switchedAway"',
+  };
+};
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -115,6 +154,7 @@ afterEach(() => {
 describe.each([
   ["composer", makeComposerHarness],
   ["thread", makeThreadHarness],
+  ["thread list item", makeThreadListItemHarness],
 ] as const)("%s public unstable_on", (_name, makeHarness) => {
   it("continues notifying sibling listeners after a synchronous error", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
