@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { createPiHttpClient } from "./httpClient";
 import type {
   PiAnyClientEvent,
@@ -30,6 +30,22 @@ const json = (value: unknown): Response =>
     status: 200,
     headers: { "content-type": "application/json" },
   });
+
+const sseResponse = (
+  event: PiAnyClientEvent,
+  { keepOpen = false }: { keepOpen?: boolean } = {},
+): Response =>
+  new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
+        );
+        if (!keepOpen) controller.close();
+      },
+    }),
+    { status: 200, headers: { "content-type": "text/event-stream" } },
+  );
 
 const snapshot: PiThreadSnapshot = {
   metadata: { id: "t1", status: "idle" },
@@ -363,24 +379,15 @@ describe("createPiHttpClient", () => {
   });
 
   it("subscribes via SSE and forwards parsed events", async () => {
-    const frame = (event: PiAnyClientEvent) =>
-      `data: ${JSON.stringify(event)}\n\n`;
-    const fn = (async (url: string) => {
+    const event: PiAnyClientEvent = {
+      type: "agent_start",
+      threadId: "t1",
+      seq: 1,
+    };
+    const { fn } = fakeFetch((url) => {
       expect(url).toBe("/api/pi/threads/t1/events");
-      return new Response(
-        new ReadableStream<Uint8Array>({
-          start(controller) {
-            controller.enqueue(
-              new TextEncoder().encode(
-                frame({ type: "agent_start", threadId: "t1", seq: 1 }),
-              ),
-            );
-            controller.close();
-          },
-        }),
-        { status: 200, headers: { "content-type": "text/event-stream" } },
-      );
-    }) as unknown as typeof fetch;
+      return sseResponse(event);
+    });
 
     const client = createPiHttpClient({
       fetchImpl: fn,
@@ -397,7 +404,46 @@ describe("createPiHttpClient", () => {
       });
     });
 
-    expect(events).toEqual([{ type: "agent_start", threadId: "t1", seq: 1 }]);
+    expect(events).toEqual([event]);
+  });
+
+  it("isolates listener errors while delivering shared stream events", async () => {
+    const event: PiAnyClientEvent = {
+      type: "agent_start",
+      threadId: "t1",
+      seq: 1,
+    };
+    const { fn } = fakeFetch(() => sseResponse(event, { keepOpen: true }));
+    const onStreamError = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const client = createPiHttpClient({
+      fetchImpl: fn,
+      onStreamError,
+      streamCloseDelayMs: 0,
+    });
+
+    const listenerError = new Error("listener failed");
+    const unsubscribeFirst = client.subscribe("t1", () => {
+      throw listenerError;
+    });
+
+    const received = await new Promise<PiAnyClientEvent>((resolve) => {
+      const unsubscribeSecond = client.subscribe("t1", (receivedEvent) => {
+        unsubscribeFirst();
+        unsubscribeSecond();
+        resolve(receivedEvent);
+      });
+    });
+
+    expect(received).toEqual(event);
+    expect(onStreamError).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[react-pi] Listener threw an error",
+      listenerError,
+    );
   });
 
   it("can subscribe to live events without an initial snapshot", async () => {
@@ -413,5 +459,50 @@ describe("createPiHttpClient", () => {
     unsubscribe();
 
     expect(calls[0]!.url).toBe("/api/pi/threads/t1/events?snapshot=false");
+  });
+
+  it("shares cookie-authenticated streams only within one client", async () => {
+    let browserIdentity = "user-a";
+    const openedAs: string[] = [];
+    const fetchImpl = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        openedAs.push(browserIdentity);
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              init?.signal?.addEventListener(
+                "abort",
+                () => controller.close(),
+                { once: true },
+              );
+            },
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "text/event-stream" },
+          },
+        );
+      },
+    ) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetchImpl);
+
+    const unsubscribers: (() => void)[] = [];
+    try {
+      const clientA = createPiHttpClient({ streamCloseDelayMs: 0 });
+      unsubscribers.push(clientA.subscribe("t1", () => {}));
+      unsubscribers.push(clientA.subscribe("t1", () => {}));
+
+      await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+
+      browserIdentity = "user-b";
+      const clientB = createPiHttpClient({ streamCloseDelayMs: 0 });
+      unsubscribers.push(clientB.subscribe("t1", () => {}));
+
+      await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+      expect(openedAs).toEqual(["user-a", "user-b"]);
+    } finally {
+      for (const unsubscribe of unsubscribers) unsubscribe();
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -1,4 +1,5 @@
 import type { ReadonlyJSONValue, ReadonlyJSONObject } from "../../utils";
+import { assertSafePathSegment } from "./changeTree";
 import type { GorpStreamOperation } from "./types";
 
 export class GorpStreamAccumulator {
@@ -53,6 +54,7 @@ export class GorpStreamAccumulator {
     }
 
     const [key, ...rest] = path as [string, ...(readonly string[])];
+    assertSafePathSegment(key);
     if (Array.isArray(state)) {
       const idx = Number(key);
       if (Number.isNaN(idx))
@@ -62,7 +64,7 @@ export class GorpStreamAccumulator {
 
       const nextState = [...state];
       nextState[idx] = GorpStreamAccumulator.updatePath(
-        nextState[idx],
+        Object.hasOwn(nextState, idx) ? nextState[idx] : undefined,
         rest,
         updater,
       );
@@ -72,7 +74,7 @@ export class GorpStreamAccumulator {
 
     const nextState = { ...(state as ReadonlyJSONObject) };
     nextState[key] = GorpStreamAccumulator.updatePath(
-      nextState[key],
+      Object.hasOwn(nextState, key) ? nextState[key] : undefined,
       rest,
       updater,
     );

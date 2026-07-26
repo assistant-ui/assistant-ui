@@ -187,6 +187,70 @@ const isMessage = (value: unknown): value is A2AMessage =>
   Array.isArray(value.parts) &&
   value.parts.every(isRecord);
 
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === "string");
+
+const invalidAgentCard = (): never => {
+  throw new Error(
+    "Invalid A2A agent card response: expected a valid agent card payload.",
+  );
+};
+
+const parseCardString = (value: unknown): string =>
+  value == null ? "" : typeof value === "string" ? value : invalidAgentCard();
+
+const parseCardStringArray = (value: unknown): string[] =>
+  value == null ? [] : isStringArray(value) ? value : invalidAgentCard();
+
+const parseCardRecordArray = (value: unknown): Record<string, unknown>[] =>
+  value == null
+    ? []
+    : Array.isArray(value) && value.every(isRecord)
+      ? (value as Record<string, unknown>[])
+      : invalidAgentCard();
+
+const parseCardRecord = (value: unknown): Record<string, unknown> =>
+  value == null ? {} : isRecord(value) ? value : invalidAgentCard();
+
+// Proto3 JSON parsing treats omitted and null fields as defaults, so a valid
+// card may arrive without its empty lists, strings, or capabilities. Fill
+// those per the proto3 JSON mapping rules; a payload without a name or with a
+// present field of the wrong type rejects.
+const parseAgentCardResponse = (value: unknown): A2AAgentCard => {
+  if (
+    !isRecord(value) ||
+    typeof value.name !== "string" ||
+    value.name.length === 0
+  ) {
+    return invalidAgentCard();
+  }
+
+  return {
+    ...value,
+    name: value.name,
+    description: parseCardString(value.description),
+    version: parseCardString(value.version),
+    supportedInterfaces: parseCardRecordArray(value.supportedInterfaces).map(
+      (entry) => ({
+        ...entry,
+        url: parseCardString(entry.url),
+        protocolBinding: parseCardString(entry.protocolBinding),
+        protocolVersion: parseCardString(entry.protocolVersion),
+      }),
+    ),
+    capabilities: parseCardRecord(value.capabilities),
+    defaultInputModes: parseCardStringArray(value.defaultInputModes),
+    defaultOutputModes: parseCardStringArray(value.defaultOutputModes),
+    skills: parseCardRecordArray(value.skills).map((entry) => ({
+      ...entry,
+      id: parseCardString(entry.id),
+      name: parseCardString(entry.name),
+      description: parseCardString(entry.description),
+      tags: parseCardStringArray(entry.tags),
+    })),
+  } as A2AAgentCard;
+};
+
 const parseSendMessageResponse = (value: unknown): A2ATask | A2AMessage => {
   if (isRecord(value)) {
     const candidate = value.task ?? value.message ?? value;
@@ -318,14 +382,15 @@ export class A2AClient {
       await this.throwResponseError(response);
     }
     const json = await response.json();
-    return normalizeKeys(json) as A2AAgentCard;
+    return parseAgentCardResponse(normalizeKeys(json));
   }
 
   async getExtendedAgentCard(signal?: AbortSignal): Promise<A2AAgentCard> {
-    return this.fetchJSON<A2AAgentCard>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/extendedAgentCard`,
       signalInit(signal),
     );
+    return parseAgentCardResponse(result);
   }
 
   // --- Message ---

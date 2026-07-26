@@ -15,10 +15,7 @@ export const MessagePartPrimitiveText = (
   props: MessagePartPrimitiveText.Props,
 ) => {
   const text = useAuiState((s) => {
-    if (s.part.type !== "text" && s.part.type !== "reasoning")
-      throw new Error(
-        "MessagePartPrimitive.Text can only be used inside text or reasoning message parts.",
-      );
+    if (s.part.type !== "text" && s.part.type !== "reasoning") return "";
     return s.part.text;
   });
   return <Text {...props}>{text}</Text>;

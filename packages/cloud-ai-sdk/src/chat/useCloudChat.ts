@@ -46,6 +46,7 @@ export function useCloudChat(
   });
 
   const { registry, activeChat } = useChatRegistry({
+    scope: threads.cloud,
     threadId: threads.threadId,
     createChat: (chatKey, reg) => core.createChat(chatKey, reg),
   });
@@ -92,15 +93,19 @@ function useThreadMessageLoader(
     }
 
     const cancelledRef = { cancelled: false };
-    meta.loading = core.loadThreadMessages(
+    const loading = core.loadThreadMessages(
       threadId,
       chatKey,
       registry,
       cancelledRef,
     );
+    meta.loading = loading;
 
     return () => {
       cancelledRef.cancelled = true;
+      if (meta.loading === loading) {
+        meta.loading = null;
+      }
     };
   }, [threadId, registry, core]);
 }

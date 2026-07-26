@@ -14,8 +14,13 @@ import type { AssistantCloud } from "./AssistantCloud";
  */
 export class CloudMessagePersistence {
   private idMapping: Record<string, string | Promise<string>> = {};
+  private getCloud: () => AssistantCloud;
 
-  constructor(private cloud: AssistantCloud) {}
+  constructor(cloud: AssistantCloud);
+  constructor(getCloud: () => AssistantCloud);
+  constructor(cloud: AssistantCloud | (() => AssistantCloud)) {
+    this.getCloud = typeof cloud === "function" ? cloud : () => cloud;
+  }
 
   /**
    * Persist a message to the cloud.
@@ -33,12 +38,13 @@ export class CloudMessagePersistence {
     format: string,
     content: ReadonlyJSONObject,
   ): Promise<void> {
+    const cloud = this.getCloud();
     // Resolve parent's remote ID if it exists (may be a promise if concurrent)
     const resolvedParentId = parentId
       ? ((await this.idMapping[parentId]) ?? parentId)
       : null;
 
-    const task = this.cloud.threads.messages
+    const task = cloud.threads.messages
       .create(threadId, {
         parent_id: resolvedParentId,
         format,
@@ -70,6 +76,7 @@ export class CloudMessagePersistence {
     _format: string,
     content: ReadonlyJSONObject,
   ): Promise<void> {
+    const cloud = this.getCloud();
     const remoteId = await this.getRemoteId(messageId);
     if (!remoteId) {
       console.warn(
@@ -77,7 +84,7 @@ export class CloudMessagePersistence {
       );
       return;
     }
-    await this.cloud.threads.messages.update(threadId, remoteId, { content });
+    await cloud.threads.messages.update(threadId, remoteId, { content });
   }
 
   /**
@@ -108,7 +115,8 @@ export class CloudMessagePersistence {
    * @returns Array of cloud messages
    */
   async load(threadId: string, format?: string) {
-    const { messages } = await this.cloud.threads.messages.list(
+    const cloud = this.getCloud();
+    const { messages } = await cloud.threads.messages.list(
       threadId,
       format ? { format } : undefined,
     );

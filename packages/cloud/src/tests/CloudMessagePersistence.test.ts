@@ -37,6 +37,33 @@ describe("CloudMessagePersistence", () => {
     expect(await persistence.getRemoteId("local-1")).toBe("remote-1");
   });
 
+  it("uses the current client without losing ID mappings", async () => {
+    const firstCloud = createMockCloud();
+    const secondCloud = createMockCloud();
+    let currentCloud = firstCloud;
+    persistence = new CloudMessagePersistence(() => currentCloud);
+    vi.mocked(firstCloud.threads.messages.create).mockResolvedValue({
+      message_id: "remote-parent",
+    });
+    vi.mocked(secondCloud.threads.messages.create).mockResolvedValue({
+      message_id: "remote-child",
+    });
+
+    await persistence.append("thread-1", "parent", null, "aui/v0", {
+      text: "parent",
+    });
+    currentCloud = secondCloud;
+    await persistence.append("thread-1", "child", "parent", "aui/v0", {
+      text: "child",
+    });
+
+    expect(secondCloud.threads.messages.create).toHaveBeenCalledWith(
+      "thread-1",
+      expect.objectContaining({ parent_id: "remote-parent" }),
+    );
+    expect(await persistence.getRemoteId("child")).toBe("remote-child");
+  });
+
   it("resolves parent ID from a concurrent append", async () => {
     // Parent creation is delayed — the promise won't resolve immediately
     let resolveParent!: (v: { message_id: string }) => void;

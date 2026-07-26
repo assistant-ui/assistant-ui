@@ -74,7 +74,7 @@ export const useExternalHistory = <TMessage>(
     [aui],
   );
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const historyIds = useRef(new Set<string>());
   const persistedInnerIds = useRef(new Set<string>());
@@ -96,11 +96,12 @@ export const useExternalHistory = <TMessage>(
     return historyAdapter.withFormat<TMessage, any>(storageFormatAdapter);
   }, [historyAdapter, storageFormatAdapter]);
 
+  const isLoading = formatAdapter != null && !hasLoaded;
+
   useEffect(() => {
     if (!formatAdapter || loadedRef.current) return;
 
     const loadHistory = async () => {
-      setIsLoading(true);
       try {
         const repo = await formatAdapter.load();
         if (repo && repo.messages.length > 0) {
@@ -135,14 +136,14 @@ export const useExternalHistory = <TMessage>(
       } catch (error) {
         console.error("Failed to load message history:", error);
       } finally {
-        setIsLoading(false);
+        setHasLoaded(true);
       }
     };
 
     loadedRef.current = true;
 
     if (!optionalThreadListItem()?.getState().remoteId) {
-      setIsLoading(false);
+      setHasLoaded(true);
       return;
     }
 

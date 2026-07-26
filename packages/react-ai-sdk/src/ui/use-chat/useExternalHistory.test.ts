@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { bindExternalStoreMessage } from "@assistant-ui/core";
 import type {
   AssistantRuntime,
@@ -12,11 +12,15 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 
+const mocks = vi.hoisted(() => ({
+  remoteId: undefined as string | undefined,
+}));
+
 vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({
     threadListItem: Object.assign(
-      () => ({ getState: () => ({ remoteId: "remote-1" }) }),
-      { source: {} },
+      () => ({ getState: () => ({ remoteId: mocks.remoteId }) }),
+      { source: mocks.remoteId ? {} : undefined },
     ),
   }),
 }));
@@ -52,6 +56,10 @@ const toThreadMessages = (_messages: unknown[]): ThreadMessage[] => [];
 const onSetMessages = () => {};
 
 describe("useExternalHistory withFormat contract", () => {
+  beforeEach(() => {
+    mocks.remoteId = undefined;
+  });
+
   it("throws when the adapter omits withFormat", () => {
     const adapterWithoutWithFormat: ThreadHistoryAdapter = {
       load: vi.fn().mockResolvedValue({ headId: null, messages: [] }),
@@ -113,6 +121,44 @@ describe("useExternalHistory withFormat contract", () => {
     ).not.toThrow();
 
     expect(adapter.withFormat).toHaveBeenCalledWith(storageFormat);
+  });
+
+  it("reports loading before an asynchronous history load settles", async () => {
+    mocks.remoteId = "remote-thread";
+    let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
+    const load = vi.fn(
+      () =>
+        new Promise<MessageFormatRepository<unknown>>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const adapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load,
+        append: vi.fn().mockResolvedValue(undefined),
+      }),
+    };
+
+    const { result } = renderHook(() =>
+      useExternalHistory(
+        runtimeRef,
+        adapter,
+        toThreadMessages,
+        storageFormat,
+        onSetMessages,
+      ),
+    );
+
+    expect(result.current.isLoading).toBe(true);
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      resolveLoad({ headId: null, messages: [] });
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 });
 
@@ -315,6 +361,65 @@ describe("useExternalHistory persistence", () => {
       unmount,
     };
   };
+
+  it("retries a failed append on the next persistence pass", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const { append, runCycle, flush } = createPersistenceHarness(false);
+    const innerMessage = { id: "inner-a", parts: ["final"] };
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [innerMessage],
+    );
+    append.mockRejectedValueOnce(new Error("temporary storage failure"));
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(1);
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(2);
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: innerMessage,
+    });
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not replay appends that succeeded before a mid-batch failure", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const { append, runCycle, flush } = createPersistenceHarness(false);
+    const first = { id: "inner-1", parts: ["first"] };
+    const second = { id: "inner-2", parts: ["second"] };
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [first, second],
+    );
+    append.mockImplementationOnce(async () => {});
+    append.mockRejectedValueOnce(new Error("temporary storage failure"));
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(2);
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(3);
+    expect(append.mock.calls.map((c) => c[0].message.id)).toEqual([
+      "inner-1",
+      "inner-2",
+      "inner-2",
+    ]);
+  });
 
   it("persists assistant messages awaiting tool approval when the adapter supports update", async () => {
     const { append, runCycle } = createPersistenceHarness(true);

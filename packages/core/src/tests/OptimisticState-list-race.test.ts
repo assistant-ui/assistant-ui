@@ -79,6 +79,39 @@ const applyListResult = (
 };
 
 describe("list + delete race condition", () => {
+  it("stale list() does not re-add a thread deleted before list started", async () => {
+    const state = new OptimisticState<RemoteThreadState>(
+      applyListResult(EMPTY_STATE, {
+        threads: [{ remoteId: "thread-A", status: "regular", title: "A" }],
+      }),
+    );
+    const deleteDeferred = deferred<void>();
+    const listDeferred = deferred<ListResult>();
+
+    const deletePromise = state.optimisticUpdate({
+      execute: () => deleteDeferred.promise,
+      optimistic: (s) => updateStatusReducer(s, "thread-A", "deleted"),
+    });
+    const listPromise = state.optimisticUpdate({
+      execute: () => listDeferred.promise,
+      loading: (s) => ({ ...s, isLoading: true }),
+      then: applyListResult,
+    });
+
+    deleteDeferred.resolve();
+    await deletePromise;
+
+    listDeferred.resolve({
+      threads: [{ remoteId: "thread-A", status: "regular", title: "A" }],
+    });
+    await listPromise;
+
+    expect(state.value.threadIds).not.toContain("thread-A");
+    expect(
+      state.value.threadData[createThreadMappingId("thread-A")],
+    ).toBeUndefined();
+  });
+
   it("stale list() does not re-add a thread deleted while list was in flight", async () => {
     const state = new OptimisticState<RemoteThreadState>(EMPTY_STATE);
 

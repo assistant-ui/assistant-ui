@@ -23,7 +23,7 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public get canSend() {
-    return !this.isEmpty && !this.runtime.isSendDisabled;
+    return !this.isEmpty && !this.runtime.isSendDisabled && !this._isSending;
   }
 
   public override get queue(): readonly QueueItemState[] {

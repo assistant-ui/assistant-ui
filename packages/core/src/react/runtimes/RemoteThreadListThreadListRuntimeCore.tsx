@@ -44,6 +44,8 @@ export class RemoteThreadListThreadListRuntimeCore
   private _loadThreadsPromise: Promise<void> | undefined;
   private _loadMorePromise: Promise<void> | undefined;
   private _loadGeneration = 0;
+  private _switchGeneration = 0;
+  private _switchTask: Promise<void> | undefined;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>({
@@ -307,15 +309,28 @@ export class RemoteThreadListThreadListRuntimeCore
     return getThreadData(this._state.value, threadIdOrRemoteId);
   }
 
-  public async switchToThread(
+  public switchToThread(
     threadIdOrRemoteId: string,
     options?: { unarchive?: boolean },
+  ): Promise<void> {
+    const generation = ++this._switchGeneration;
+    const task = this._switchToThread(threadIdOrRemoteId, options, generation);
+    this._switchTask = task;
+    return task;
+  }
+
+  private async _switchToThread(
+    threadIdOrRemoteId: string,
+    options: { unarchive?: boolean } | undefined,
+    generation: number,
   ): Promise<void> {
     let data = this.getItemById(threadIdOrRemoteId);
 
     if (!data) {
       const remoteMetadata =
         await this._options.adapter.fetch(threadIdOrRemoteId);
+      if (generation !== this._switchGeneration) return;
+
       const state = this._state.value;
       const mappingId = createThreadMappingId(remoteMetadata.remoteId);
 
@@ -380,8 +395,11 @@ export class RemoteThreadListThreadListRuntimeCore
       task.then(() => this._notifySubscribers());
     }
 
+    if (generation !== this._switchGeneration) return;
+
     if (data.status === "archived" && options?.unarchive !== false) {
       await this.unarchive(data.id);
+      if (generation !== this._switchGeneration) return;
     }
     this._mainThreadId = data.id;
 
@@ -389,13 +407,21 @@ export class RemoteThreadListThreadListRuntimeCore
     this._notifyThreadIdChange();
   }
 
-  public async switchToNewThread(): Promise<void> {
+  public switchToNewThread(): Promise<void> {
+    const generation = ++this._switchGeneration;
+    const task = this._switchToNewThread(generation);
+    this._switchTask = task;
+    return task;
+  }
+
+  private async _switchToNewThread(generation: number): Promise<void> {
     // an initialization transaction is in progress, wait for it to settle
     while (
       this._state.baseValue.newThreadId !== undefined &&
       this._state.value.newThreadId === undefined
     ) {
       await this._state.waitForUpdate();
+      if (generation !== this._switchGeneration) return;
     }
 
     const state = this._state.value;
@@ -427,7 +453,7 @@ export class RemoteThreadListThreadListRuntimeCore
       });
     }
 
-    return this.switchToThread(id);
+    return this._switchToThread(id, undefined, generation);
   }
 
   public initialize = async (threadId: string) => {
@@ -436,10 +462,11 @@ export class RemoteThreadListThreadListRuntimeCore
       if (!data) throw threadNotFoundError(threadId, "initializing it");
       if (data.status === "new")
         throw threadStatusError(threadId, data.status, "be initialized here");
-      return data.initializeTask;
+      const { remoteId, externalId } = await data.initializeTask;
+      return { remoteId, externalId };
     }
 
-    return this._state.optimisticUpdate({
+    const { remoteId, externalId } = await this._state.optimisticUpdate({
       execute: () => {
         return this._options.adapter.initialize(threadId);
       },
@@ -482,6 +509,7 @@ export class RemoteThreadListThreadListRuntimeCore
         };
       },
     });
+    return { remoteId, externalId };
   };
 
   public generateTitle = async (threadId: string) => {
@@ -604,8 +632,21 @@ export class RemoteThreadListThreadListRuntimeCore
     if (threadId === this.newThreadId)
       throw new Error("Cannot ensure new thread is not main");
 
-    if (threadId === this._mainThreadId) {
-      await this.switchToNewThread();
+    let lastAwaitedTask: Promise<void> | undefined;
+
+    while (threadId === this._mainThreadId) {
+      let switchTask = this._switchTask;
+      const startedFallback = !switchTask || switchTask === lastAwaitedTask;
+      if (startedFallback) switchTask = this.switchToNewThread();
+      lastAwaitedTask = switchTask;
+
+      try {
+        await switchTask;
+      } catch (error) {
+        if (startedFallback && this._switchTask === switchTask) {
+          throw error;
+        }
+      }
     }
   }
 

@@ -52,4 +52,6 @@ declare const useTapRoot: <R>(render: () => R) => useTapRoot.Root<R>;
 
 declare function withKey<E extends ResourceElement<any, any>>(key: string | number, element: E, deps?: readonly unknown[]): E;
 
+declare function withKey<F extends Resource<any, any[]>>(key: string | number, resource: F): F;
+
 export { entry_root_exports as entry_root };

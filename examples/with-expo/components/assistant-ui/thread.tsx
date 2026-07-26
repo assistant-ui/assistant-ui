@@ -1,11 +1,9 @@
-import { useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  type FlatList,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MessageBubble } from "./message";
@@ -60,37 +58,19 @@ function EmptyState() {
 }
 
 function ChatMessages() {
-  const listRef = useRef<FlatList>(null);
-  const nearBottom = useRef(true);
-
   return (
     <>
       <ThreadPrimitive.Empty>
         <EmptyState />
       </ThreadPrimitive.Empty>
       <ThreadPrimitive.If empty={false}>
-        <ThreadPrimitive.Messages
-          // Messages isn't a forwardRef component, but it spreads extra props
-          // onto its FlatList, so React 19 still forwards this ref to the list.
-          {...({ ref: listRef } as object)}
+        <ThreadPrimitive.MessagesFlatList
           style={styles.flex}
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
-          scrollEventThrottle={32}
-          onScroll={(e) => {
-            const { contentOffset, contentSize, layoutMeasurement } =
-              e.nativeEvent;
-            nearBottom.current =
-              contentOffset.y + layoutMeasurement.height >=
-              contentSize.height - 48;
-          }}
-          onContentSizeChange={() => {
-            if (nearBottom.current)
-              listRef.current?.scrollToEnd({ animated: true });
-          }}
         >
           {() => <MessageBubble />}
-        </ThreadPrimitive.Messages>
+        </ThreadPrimitive.MessagesFlatList>
       </ThreadPrimitive.If>
     </>
   );

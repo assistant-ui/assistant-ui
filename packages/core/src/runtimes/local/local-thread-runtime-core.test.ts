@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { LocalRuntimeCore } from "./local-runtime-core";
 import type {
   ChatModelAdapter,
@@ -9,6 +9,10 @@ import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const createThread = (
   adapter: ChatModelAdapter,
@@ -73,6 +77,64 @@ const createApprovalThread = (firstResult: ChatModelRunResult) => {
   });
   return { thread, runs };
 };
+
+describe("LocalThreadRuntimeCore events", () => {
+  it("isolates runEnd listener errors", async () => {
+    const listenerError = new Error("telemetry failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const laterListener = vi.fn();
+    const thread = createThread({
+      async run() {
+        return { content: [{ type: "text", text: "done" }] };
+      },
+    });
+
+    thread.unstable_on("runEnd", () => {
+      throw listenerError;
+    });
+    thread.unstable_on("runEnd", laterListener);
+
+    await expect(thread.append(userMessage("hello"))).resolves.toBeUndefined();
+
+    expect(laterListener).toHaveBeenCalledOnce();
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+    expect(consoleError).toHaveBeenCalledWith(
+      '[assistant-ui] Thread runtime "runEnd" listener threw an error',
+      listenerError,
+    );
+  });
+
+  it("isolates async runEnd listener rejections", async () => {
+    const listenerError = new Error("async telemetry failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const laterListener = vi.fn();
+    const thread = createThread({
+      async run() {
+        return { content: [{ type: "text", text: "done" }] };
+      },
+    });
+
+    thread.unstable_on("runEnd", async () => {
+      throw listenerError;
+    });
+    thread.unstable_on("runEnd", laterListener);
+
+    await expect(thread.append(userMessage("hello"))).resolves.toBeUndefined();
+
+    expect(laterListener).toHaveBeenCalledOnce();
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        '[assistant-ui] Thread runtime "runEnd" listener threw an error',
+        listenerError,
+      );
+    });
+  });
+});
 
 describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
   it("pauses on requires-action while a listed tool call has no result", async () => {
@@ -155,6 +217,25 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
       .content.find((part) => part.type === "tool-call");
     expect(toolCall?.result).toEqual(result);
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+});
+
+describe("LocalThreadRuntimeCore state", () => {
+  it.each([
+    ["false", false],
+    ["zero", 0],
+    ["an empty string", ""],
+  ])("preserves %s model state", async (_label, state) => {
+    const thread = createThread({
+      async run() {
+        return { metadata: { unstable_state: state } };
+      },
+    });
+
+    await thread.append(userMessage("update state"));
+    await flush();
+
+    expect(thread.messages.at(-1)?.metadata.unstable_state).toBe(state);
   });
 });
 
