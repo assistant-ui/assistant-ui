@@ -9,7 +9,7 @@ export { AuiIf } from "./AuiIf";
 export { AuiProvider } from "./utils/react-assistant-context";
 
 // resources
-export { Derived } from "./Derived";
+export { Derived, type DerivedElement } from "./Derived";
 export {
   attachTransformScopes,
   forwardTransformScopes,
