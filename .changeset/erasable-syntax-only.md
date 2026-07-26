@@ -15,4 +15,4 @@
 "@assistant-ui/store": patch
 ---
 
-Compile with `erasableSyntaxOnly` and `verbatimModuleSyntax`: parameter properties become explicit fields, public enums become `as const` objects with equivalent union types.
+Adopt `erasableSyntaxOnly`; public enums are now `as const` objects.
