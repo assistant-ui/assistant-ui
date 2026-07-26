@@ -6,6 +6,16 @@ import type {
   ClientMeta,
 } from "./types/client";
 
+export declare const derivedKey: unique symbol;
+
+// Exported so consumers (e.g. splitClients) can identify a derived element by its
+// hook: a `Derived(...)` element carries `hook === useDerived`.
+export const useDerived = <K extends ClientNames>(
+  _config: Derived.Props<K>,
+): { [derivedKey]: K } => {
+  throw new Error("Derived elements are config-only and must not be mounted");
+};
+
 /**
  * Creates a derived client field that references a client from a parent scope.
  * The get callback always calls the most recent version (useEffectEvent pattern).
@@ -25,16 +35,6 @@ import type {
  * });
  * ```
  */
-export declare const derivedKey: unique symbol;
-
-// Exported so consumers (e.g. splitClients) can identify a derived element by its
-// hook: a `Derived(...)` element carries `hook === useDerived`.
-export const useDerived = <K extends ClientNames>(
-  _config: Derived.Props<K>,
-): { [derivedKey]: K } => {
-  throw new Error("Derived elements are config-only and must not be mounted");
-};
-
 export const Derived = resource(useDerived) as <K extends ClientNames>(
   config: Derived.Props<K>,
 ) => DerivedElement<K>;
