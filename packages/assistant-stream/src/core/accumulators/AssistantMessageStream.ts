@@ -7,7 +7,6 @@ export class AssistantMessageStream {
 
   constructor(readable: ReadableStream<AssistantMessage>) {
     this.readable = readable;
-    this.readable = readable;
   }
 
   static fromAssistantStream(stream: AssistantStream) {
