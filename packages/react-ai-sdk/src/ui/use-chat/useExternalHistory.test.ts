@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { bindExternalStoreMessage } from "@assistant-ui/core";
 import type {
   AssistantRuntime,
@@ -189,9 +189,10 @@ describe("useExternalHistory persistence", () => {
   const createAssistantMessage = (
     status: ThreadAssistantMessage["status"],
     innerMessages: InnerMessage[],
+    id = "assistant-a",
   ): ThreadMessage => {
     const message: ThreadAssistantMessage = {
-      id: "assistant-a",
+      id,
       role: "assistant",
       content: [],
       createdAt: new Date(),
@@ -224,6 +225,11 @@ describe("useExternalHistory persistence", () => {
         _localMessageId: string,
       ) => {},
     );
+    const deleteItems = vi.fn(
+      async (
+        _items: { parentId: string | null; message: InnerMessage }[],
+      ) => {},
+    );
     const reportTelemetry = vi.fn();
     const load = vi
       .fn()
@@ -231,6 +237,7 @@ describe("useExternalHistory persistence", () => {
     const formattedAdapter = {
       load,
       append,
+      delete: deleteItems,
       reportTelemetry,
       ...(supportsUpdate ? { update } : {}),
     };
@@ -257,7 +264,7 @@ describe("useExternalHistory persistence", () => {
       current: { thread } as AssistantRuntime,
     };
 
-    renderHook(() =>
+    const { result, unmount } = renderHook(() =>
       useExternalHistory(
         persistenceRuntimeRef,
         historyAdapter,
@@ -284,8 +291,89 @@ describe("useExternalHistory persistence", () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
-    return { append, update, reportTelemetry, load, runCycle, flush };
+    const step = (partial: {
+      isRunning?: boolean;
+      messages?: ThreadMessage[];
+    }) =>
+      act(async () => {
+        if (partial.messages !== undefined) messages = partial.messages;
+        if (partial.isRunning !== undefined) isRunning = partial.isRunning;
+        listener?.();
+      });
+
+    return {
+      append,
+      update,
+      deleteItems,
+      formattedAdapter,
+      deleteMessage: result.current.deleteMessage,
+      reportTelemetry,
+      load,
+      runCycle,
+      flush,
+      step,
+      unmount,
+    };
   };
+
+  it("retries a failed append on the next persistence pass", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const { append, runCycle, flush } = createPersistenceHarness(false);
+    const innerMessage = { id: "inner-a", parts: ["final"] };
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [innerMessage],
+    );
+    append.mockRejectedValueOnce(new Error("temporary storage failure"));
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(1);
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(2);
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: innerMessage,
+    });
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not replay appends that succeeded before a mid-batch failure", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const { append, runCycle, flush } = createPersistenceHarness(false);
+    const first = { id: "inner-1", parts: ["first"] };
+    const second = { id: "inner-2", parts: ["second"] };
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [first, second],
+    );
+    append.mockImplementationOnce(async () => {});
+    append.mockRejectedValueOnce(new Error("temporary storage failure"));
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(2);
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(3);
+    expect(append.mock.calls.map((c) => c[0].message.id)).toEqual([
+      "inner-1",
+      "inner-2",
+      "inner-2",
+    ]);
+  });
 
   it("persists assistant messages awaiting tool approval when the adapter supports update", async () => {
     const { append, runCycle } = createPersistenceHarness(true);
@@ -485,5 +573,536 @@ describe("useExternalHistory persistence", () => {
       ],
       expect.any(Object),
     );
+  });
+
+  it("serializes overlapping persistence passes", async () => {
+    const { append, runCycle, flush } = createPersistenceHarness(true);
+    let releaseFirstAppend!: () => void;
+    const firstAppend = new Promise<void>((resolve) => {
+      releaseFirstAppend = resolve;
+    });
+    append.mockImplementationOnce(() => firstAppend);
+
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["answer"] }],
+    );
+
+    await runCycle([message]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+    await runCycle([message]);
+    await flush();
+    const callsWhileFirstAppendWasPending = append.mock.calls.length;
+
+    releaseFirstAppend();
+    await flush();
+    await flush();
+
+    expect(callsWhileFirstAppendWasPending).toBe(1);
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves telemetry timing for runs queued behind a pending append", async () => {
+    const { append, reportTelemetry, step, flush } =
+      createPersistenceHarness(false);
+    let releaseFirstAppend!: () => void;
+    const firstAppend = new Promise<void>((resolve) => {
+      releaseFirstAppend = resolve;
+    });
+    append.mockImplementationOnce(() => firstAppend);
+
+    let now = 0;
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    const firstMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+      "assistant-a",
+    );
+    const secondMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-b", parts: ["second"] }],
+      "assistant-b",
+    );
+    const thirdMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-c", parts: ["third"] }],
+      "assistant-c",
+    );
+
+    try {
+      await step({ isRunning: true, messages: [firstMessage] });
+      now = 10;
+      await step({ isRunning: false });
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+      now = 100;
+      await step({
+        isRunning: true,
+        messages: [firstMessage, secondMessage],
+      });
+      now = 110;
+      await step({ isRunning: false });
+      await flush();
+
+      now = 200;
+      await step({
+        isRunning: true,
+        messages: [firstMessage, secondMessage, thirdMessage],
+      });
+      now = 230;
+      await step({ isRunning: false });
+      await flush();
+
+      releaseFirstAppend();
+      await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(3));
+
+      const durations = Object.fromEntries(
+        reportTelemetry.mock.calls.map(([items, options]) => [
+          items[0]?.message.id,
+          options.durationMs,
+        ]),
+      );
+      expect(durations).toEqual({
+        "inner-a": 10,
+        "inner-b": 10,
+        "inner-c": 30,
+      });
+    } finally {
+      releaseFirstAppend();
+      nowSpy.mockRestore();
+    }
+  });
+
+  it("finishes queued persistence passes after unmount", async () => {
+    const { append, runCycle, flush, unmount } =
+      createPersistenceHarness(false);
+    let releaseFirstAppend!: () => void;
+    const firstAppend = new Promise<void>((resolve) => {
+      releaseFirstAppend = resolve;
+    });
+    append.mockImplementationOnce(() => firstAppend);
+
+    const firstMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+      "assistant-a",
+    );
+    const secondMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-b", parts: ["second"] }],
+      "assistant-b",
+    );
+
+    await runCycle([firstMessage]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+    await runCycle([firstMessage, secondMessage]);
+    await flush();
+    unmount();
+
+    releaseFirstAppend();
+    await flush();
+    await flush();
+
+    expect(append.mock.calls.map(([item]) => item.message.id)).toEqual([
+      "inner-a",
+      "inner-b",
+    ]);
+  });
+
+  it("serializes deletion after pending persistence passes", async () => {
+    const { append, deleteItems, deleteMessage, runCycle, flush } =
+      createPersistenceHarness(false);
+    const events: string[] = [];
+    let releaseFirstAppend!: () => void;
+    const firstAppend = new Promise<void>((resolve) => {
+      releaseFirstAppend = resolve;
+    });
+    append.mockImplementation(async (item) => {
+      events.push(`append:${item.message.id}`);
+    });
+    append.mockImplementationOnce(async (item) => {
+      events.push(`append:${item.message.id}:start`);
+      await firstAppend;
+      events.push(`append:${item.message.id}:end`);
+    });
+    deleteItems.mockImplementation(async (items) => {
+      events.push(`delete:${items[0]?.message.id}`);
+    });
+
+    const firstMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+      "assistant-a",
+    );
+    const secondMessage = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-b", parts: ["second"] }],
+      "assistant-b",
+    );
+
+    try {
+      await runCycle([firstMessage]);
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+      await runCycle([firstMessage, secondMessage]);
+      await flush();
+      const deletion = deleteMessage("assistant-a");
+      await flush();
+      expect(deleteItems).not.toHaveBeenCalled();
+
+      releaseFirstAppend();
+      await deletion;
+
+      expect(events).toEqual([
+        "append:inner-a:start",
+        "append:inner-a:end",
+        "append:inner-b",
+        "delete:inner-a",
+      ]);
+    } finally {
+      releaseFirstAppend();
+    }
+  });
+
+  it("uses the requested deletion snapshot after runtime state changes", async () => {
+    const { append, deleteItems, deleteMessage, runCycle, flush, step } =
+      createPersistenceHarness(false);
+    let releaseAppend!: () => void;
+    const pendingAppend = new Promise<void>((resolve) => {
+      releaseAppend = resolve;
+    });
+    append.mockImplementationOnce(() => pendingAppend);
+
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+      "assistant-a",
+    );
+
+    try {
+      await runCycle([message]);
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+      const deletion = deleteMessage("assistant-a");
+      await step({ messages: [] });
+      await flush();
+      expect(deleteItems).not.toHaveBeenCalled();
+
+      releaseAppend();
+      await deletion;
+
+      expect(deleteItems).toHaveBeenCalledWith([
+        {
+          parentId: null,
+          message: { id: "inner-a", parts: ["first"] },
+        },
+      ]);
+    } finally {
+      releaseAppend();
+    }
+  });
+
+  it("preserves the history adapter receiver during deletion", async () => {
+    const { deleteItems, formattedAdapter, deleteMessage, step } =
+      createPersistenceHarness(false);
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+      "assistant-a",
+    );
+
+    await step({ messages: [message] });
+    await deleteMessage("assistant-a");
+
+    expect(deleteItems).toHaveBeenCalledOnce();
+    expect(deleteItems.mock.contexts[0]).toBe(formattedAdapter);
+  });
+
+  it("reports telemetry after retrying a failed append", async () => {
+    const { append, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(false);
+    append.mockRejectedValueOnce(new Error("temporary storage failure"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["answer"] }],
+    );
+
+    try {
+      await runCycle([message]);
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+      await flush();
+      expect(reportTelemetry).not.toHaveBeenCalled();
+
+      await runCycle([message]);
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(1));
+
+      expect(reportTelemetry).toHaveBeenCalledWith(
+        [{ parentId: null, message: { id: "inner-a", parts: ["answer"] } }],
+        expect.any(Object),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("does not reappend a stored inner message whose outer message was filtered", async () => {
+    const innerMessage = { id: "inner-a", parts: ["stored"] };
+    const { append, load, runCycle, flush } = createPersistenceHarness(false, {
+      loadMessages: {
+        messages: [{ parentId: null, message: innerMessage }],
+      },
+      toThreadMessages: () => [],
+    });
+
+    await waitFor(() => expect(load).toHaveBeenCalled());
+    await flush();
+
+    await runCycle([
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+    ]);
+    await flush();
+
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it("skips unchanged persisted messages on later runs", async () => {
+    const { append, update, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(true);
+    const completeStatus: ThreadAssistantMessage["status"] = {
+      type: "complete",
+      reason: "stop",
+    };
+    const old = createAssistantMessage(
+      completeStatus,
+      [{ id: "inner-old", parts: ["old"] }],
+      "old",
+    );
+    const active = createAssistantMessage(
+      completeStatus,
+      [{ id: "inner-active", parts: ["initial"] }],
+      "active",
+    );
+    const tail = createAssistantMessage(
+      completeStatus,
+      [{ id: "inner-tail", parts: ["tail"] }],
+      "tail",
+    );
+
+    await runCycle([old, active, tail]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(3));
+
+    append.mockClear();
+    update.mockClear();
+    reportTelemetry.mockClear();
+
+    const changedActive = createAssistantMessage(
+      completeStatus,
+      [{ id: "inner-active", parts: ["completed"] }],
+      "active",
+    );
+    await runCycle([old, changedActive, tail]);
+    await flush();
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith(
+      {
+        parentId: "inner-old",
+        message: { id: "inner-active", parts: ["completed"] },
+      },
+      "inner-active",
+    );
+    expect(append).not.toHaveBeenCalled();
+    expect(reportTelemetry).not.toHaveBeenCalled();
+  });
+
+  it("absorbs agentic flickers without losing change detection", async () => {
+    const { append, update, reportTelemetry, runCycle, flush, step } =
+      createPersistenceHarness(true);
+    const completeStatus: ThreadAssistantMessage["status"] = {
+      type: "complete",
+      reason: "stop",
+    };
+    const old = createAssistantMessage(
+      completeStatus,
+      [{ id: "inner-old", parts: ["old"] }],
+      "old",
+    );
+    const active = createAssistantMessage(
+      completeStatus,
+      [{ id: "inner-active", parts: ["initial"] }],
+      "active",
+    );
+    const tail = createAssistantMessage(
+      completeStatus,
+      [{ id: "inner-tail", parts: ["tail"] }],
+      "tail",
+    );
+
+    await runCycle([old, active, tail]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(3));
+
+    append.mockClear();
+    update.mockClear();
+    reportTelemetry.mockClear();
+
+    const changedActive = createAssistantMessage(
+      completeStatus,
+      [{ id: "inner-active", parts: ["completed"] }],
+      "active",
+    );
+    await step({ isRunning: true });
+    await step({ messages: [old, changedActive, tail] });
+    await step({ isRunning: false });
+    await step({ isRunning: true });
+    await step({ isRunning: false });
+    await flush();
+
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update).toHaveBeenCalledWith(
+      {
+        parentId: "inner-old",
+        message: { id: "inner-active", parts: ["completed"] },
+      },
+      "inner-active",
+    );
+    expect(append).not.toHaveBeenCalled();
+    expect(reportTelemetry).not.toHaveBeenCalled();
+  });
+
+  it("persists idle-time changes on the next run stop", async () => {
+    const { append, update, reportTelemetry, runCycle, flush, step } =
+      createPersistenceHarness(true);
+    const initialActive = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["initial"] }],
+      "active",
+    );
+
+    await runCycle([initialActive]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+    append.mockClear();
+    update.mockClear();
+    reportTelemetry.mockClear();
+
+    const changedActive = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["initial", "tool-result"] }],
+      "active",
+    );
+    await step({ messages: [changedActive] });
+
+    await runCycle([changedActive]);
+    await flush();
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith(
+      {
+        parentId: null,
+        message: { id: "inner-a", parts: ["initial", "tool-result"] },
+      },
+      "inner-a",
+    );
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed update on the next run", async () => {
+    const { append, update, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(true);
+    const initialActive = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["initial"] }],
+      "active",
+    );
+
+    await runCycle([initialActive]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+    append.mockClear();
+    update.mockClear();
+    reportTelemetry.mockClear();
+    update.mockRejectedValueOnce(new Error("boom"));
+
+    const changedActive = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["changed"] }],
+      "active",
+    );
+    const changedMessages = [changedActive];
+
+    await runCycle(changedMessages);
+    await flush();
+    await runCycle(changedMessages);
+    await flush();
+
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(update).toHaveBeenNthCalledWith(
+      1,
+      {
+        parentId: null,
+        message: { id: "inner-a", parts: ["changed"] },
+      },
+      "inner-a",
+    );
+    expect(update).toHaveBeenNthCalledWith(
+      2,
+      {
+        parentId: null,
+        message: { id: "inner-a", parts: ["changed"] },
+      },
+      "inner-a",
+    );
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it("detects changes on non-assistant messages", async () => {
+    const { append, update, runCycle, flush } = createPersistenceHarness(true);
+    const makeUserMessage = (inner: InnerMessage): ThreadMessage => {
+      const message: ThreadMessage = {
+        id: "user-1",
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        attachments: [],
+        createdAt: new Date(),
+        metadata: { custom: {} },
+      };
+      bindExternalStoreMessage(message, [inner]);
+      return message;
+    };
+    const assistant = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["answer"] }],
+    );
+
+    await runCycle([
+      makeUserMessage({ id: "inner-user", parts: ["hi"] }),
+      assistant,
+    ]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+
+    append.mockClear();
+    update.mockClear();
+
+    await runCycle([
+      makeUserMessage({ id: "inner-user", parts: ["hi", "attachment"] }),
+      assistant,
+    ]);
+    await flush();
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith(
+      {
+        parentId: null,
+        message: { id: "inner-user", parts: ["hi", "attachment"] },
+      },
+      "inner-user",
+    );
+    expect(append).not.toHaveBeenCalled();
   });
 });

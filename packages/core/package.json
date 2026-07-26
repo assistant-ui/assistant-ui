@@ -61,6 +61,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:react-compiler": "vitest run --config vitest.react-compiler.config.ts",
     "test:watch": "vitest"
   },
   "dependencies": {

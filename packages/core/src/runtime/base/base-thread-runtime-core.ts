@@ -34,6 +34,7 @@ import type { FeedbackAdapter } from "../../adapters/feedback";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
+import { notifyEventListeners } from "../../utils/notify-event-listeners";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;
@@ -182,7 +183,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) return;
 
-    for (const callback of subscribers) callback(payload);
+    notifyEventListeners(subscribers, payload, `Thread runtime "${event}"`);
   }
 
   public subscribe(callback: () => void): Unsubscribe {

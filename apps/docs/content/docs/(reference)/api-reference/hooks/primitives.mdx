@@ -469,8 +469,9 @@ const useMessagePart: { (): MessagePartState; <TSelected>(selector: (state: Mess
 
 <Callout type="warn">
 <strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate) to select and narrow `s.part`.
-Return `null` for optional rendering, or throw inside the selector to
-preserve the old hook's strict behavior.
+Return `null` for optional rendering. Do not throw inside the selector:
+selectors run inside `useSyncExternalStore`'s `getSnapshot`, so a transient
+part mismatch during thread switches can unmount the React root.
 </Callout>
 
 ```tsx
@@ -489,8 +490,9 @@ See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
 
 <Callout type="warn">
 <strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate) to select and narrow `s.part`.
-Return `null` for optional rendering, or throw inside the selector to
-preserve the old hook's strict behavior.
+Return `null` for optional rendering. Do not throw inside the selector:
+selectors run inside `useSyncExternalStore`'s `getSnapshot`, so a transient
+part mismatch during thread switches can unmount the React root.
 </Callout>
 
 ```tsx
@@ -510,8 +512,9 @@ const useMessagePartFile: () => FileMessagePart & { readonly status: MessagePart
 
 <Callout type="warn">
 <strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate) to select and narrow `s.part`.
-Return `null` for optional rendering, or throw inside the selector to
-preserve the old hook's strict behavior.
+Return `null` for optional rendering. Do not throw inside the selector:
+selectors run inside `useSyncExternalStore`'s `getSnapshot`, so a transient
+part mismatch during thread switches can unmount the React root.
 </Callout>
 
 ```tsx
@@ -531,8 +534,9 @@ const useMessagePartImage: () => ImageMessagePart & { readonly status: MessagePa
 
 <Callout type="warn">
 <strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate) to select and narrow `s.part`.
-Return `null` for optional rendering, or throw inside the selector to
-preserve the old hook's strict behavior.
+Return `null` for optional rendering. Do not throw inside the selector:
+selectors run inside `useSyncExternalStore`'s `getSnapshot`, so a transient
+part mismatch during thread switches can unmount the React root.
 </Callout>
 
 ```tsx
@@ -560,8 +564,9 @@ const useMessagePartReasoning: () => ReasoningMessagePart & { readonly status: M
 
 <Callout type="warn">
 <strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate) to select and narrow `s.part`.
-Return `null` for optional rendering, or throw inside the selector to
-preserve the old hook's strict behavior.
+Return `null` for optional rendering. Do not throw inside the selector:
+selectors run inside `useSyncExternalStore`'s `getSnapshot`, so a transient
+part mismatch during thread switches can unmount the React root.
 </Callout>
 
 ```tsx
@@ -581,8 +586,9 @@ const useMessagePartSource: () => ({ readonly type: "source"; readonly sourceTyp
 
 <Callout type="warn">
 <strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate) to select and narrow `s.part`.
-Return `null` for optional rendering, or throw inside the selector to
-preserve the old hook's strict behavior.
+Return `null` for optional rendering. Do not throw inside the selector:
+selectors run inside `useSyncExternalStore`'s `getSnapshot`, so a transient
+part mismatch during thread switches can unmount the React root.
 </Callout>
 
 ```tsx

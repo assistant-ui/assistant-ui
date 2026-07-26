@@ -334,6 +334,29 @@ describe("threadState", () => {
     expect(after.lastSeq).toBeGreaterThan(before.lastSeq);
   });
 
+  it("absorbs settled and appended events while advancing the sequence", () => {
+    const before = createPiThreadState("t1");
+    const after = apply(
+      before,
+      ev({ type: "agent_settled" }),
+      ev({
+        type: "entry_appended",
+        entry: {
+          type: "custom",
+          id: "entry-1",
+          parentId: null,
+          timestamp: "2026-07-18T00:00:00.000Z",
+          customType: "extension-state",
+          data: { enabled: true },
+        },
+      }),
+    );
+
+    expect(after.lastSeq).toBeGreaterThan(before.lastSeq);
+    expect(after.messages).toEqual(before.messages);
+    expect(after.metadata).toEqual(before.metadata);
+  });
+
   it("reconnect snapshot clears streaming pointer and tool buffers", () => {
     let s = apply(
       createPiThreadState("t1"),

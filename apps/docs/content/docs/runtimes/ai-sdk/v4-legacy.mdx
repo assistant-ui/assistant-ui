@@ -11,9 +11,9 @@ AI SDK v4 is a legacy version. New projects should use [AI SDK v7](/docs/runtime
 
 ## Why legacy
 
-Vercel ships AI SDK majors roughly yearly; v4 is two majors behind v6. The current `@assistant-ui/react-ai-sdk` package targets v6+ exclusively, so v4 users plug into [`@assistant-ui/react-data-stream`](/docs/runtimes/custom/data-stream) instead — the same data stream protocol that v4's `toDataStreamResponse()` emits.
+Vercel ships AI SDK majors roughly yearly; v4 is three majors behind v7. The current `@assistant-ui/react-ai-sdk` package targets the current AI SDK major (v7) exclusively, so v4 users plug into [`@assistant-ui/react-data-stream`](/docs/runtimes/custom/data-stream) instead — the same data stream protocol that v4's `toDataStreamResponse()` emits.
 
-This page is reference for existing v4 projects. Plan to migrate to v6 when feasible.
+This page is reference for existing v4 projects. Plan to migrate to v7 when feasible.
 
 ## Setup
 
@@ -95,9 +95,9 @@ When you are ready to upgrade:
 
 AI SDK provides codemods at [ai-sdk.dev/docs/migration-guides](https://ai-sdk.dev/docs/migration-guides) that handle the package-side rewrites.
 
-## Alternative: react-ai-sdk@0.1.10
+## Alternative: react-ai-sdk@0.10.16
 
-An older release line of `@assistant-ui/react-ai-sdk` (0.1.10) supported AI SDK v4 directly. It is no longer maintained and has no upgrade path; if you are starting a new v4 project, use `@assistant-ui/react-data-stream` instead.
+An older release line of `@assistant-ui/react-ai-sdk` supported AI SDK v4 directly; its last release was `0.10.16`. It is no longer maintained and has no upgrade path; if you are starting a new v4 project, use `@assistant-ui/react-data-stream` instead.
 
 ## Related
 

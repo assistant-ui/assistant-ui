@@ -728,50 +728,63 @@ const EMPTY_RUNNING_TEXT_PART: Extract<EnrichedPartState, { type: "text" }> =
  * `<MessagePrimitive.GroupedParts>`. Returns whatever `children`
  * returns — callers decide how to handle a `null` return.
  */
-export const MessagePartChildren: FC<{
+type MessagePartChildrenProps = {
   index: number;
   children: (value: { part: EnrichedPartState }) => ReactNode;
-}> = ({ index, children }) => {
+};
+
+const MessagePartChildrenInner: FC<
+  Pick<MessagePartChildrenProps, "children">
+> = ({ children }) => {
   const aui = useAui();
   // Subscribed (not snapshotted like `tools`) so fallbacks registered
   // after the first render trigger a re-render and `hasUI` re-evaluates.
   const dataRenderers = useAuiState((s) => s.dataRenderers);
 
   return (
+    <RenderChildrenWithAccessor
+      getItemState={(client) => client.part().getState()}
+    >
+      {(getItem) =>
+        children({
+          get part() {
+            const state = getItem();
+            if (state.type === "tool-call") {
+              const toolsState = aui.tools().getState();
+              const hasUI = resolveToolRender(toolsState, state) !== null;
+              const partMethods = aui.part();
+              return {
+                ...state,
+                toolUI: hasUI ? <RegisteredToolUI /> : null,
+                addResult: partMethods.addToolResult,
+                resume: partMethods.resumeToolCall,
+                respondToApproval: partMethods.respondToToolApproval,
+              };
+            }
+            if (state.type === "data") {
+              const hasUI =
+                getDataRenderer(dataRenderers, state.name, undefined) !==
+                undefined;
+              return {
+                ...state,
+                dataRendererUI: hasUI ? <RegisteredDataRendererUI /> : null,
+              };
+            }
+            return state;
+          },
+        })
+      }
+    </RenderChildrenWithAccessor>
+  );
+};
+
+export const MessagePartChildren: FC<MessagePartChildrenProps> = ({
+  index,
+  children,
+}) => {
+  return (
     <PartByIndexProvider index={index}>
-      <RenderChildrenWithAccessor
-        getItemState={(aui) => aui.message().part({ index }).getState()}
-      >
-        {(getItem) =>
-          children({
-            get part() {
-              const state = getItem();
-              if (state.type === "tool-call") {
-                const toolsState = aui.tools().getState();
-                const hasUI = resolveToolRender(toolsState, state) !== null;
-                const partMethods = aui.message().part({ index });
-                return {
-                  ...state,
-                  toolUI: hasUI ? <RegisteredToolUI /> : null,
-                  addResult: partMethods.addToolResult,
-                  resume: partMethods.resumeToolCall,
-                  respondToApproval: partMethods.respondToToolApproval,
-                };
-              }
-              if (state.type === "data") {
-                const hasUI =
-                  getDataRenderer(dataRenderers, state.name, undefined) !==
-                  undefined;
-                return {
-                  ...state,
-                  dataRendererUI: hasUI ? <RegisteredDataRendererUI /> : null,
-                };
-              }
-              return state;
-            },
-          })
-        }
-      </RenderChildrenWithAccessor>
+      <MessagePartChildrenInner>{children}</MessagePartChildrenInner>
     </PartByIndexProvider>
   );
 };
