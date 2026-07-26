@@ -218,7 +218,7 @@ describe("GorpStream serialization and deserialization", () => {
   });
 
   it("does not apply first-chunk operations twice", async () => {
-    const stream = createObjectStream({
+    const stream = createGorpStream({
       defaultValue: { message: "Hello" },
       execute: (controller) => {
         controller.enqueue([
