@@ -23,16 +23,19 @@ export class DataStreamChunkDecoder extends TransformStream<
       transform: (chunk, controller) => {
         const index = chunk.indexOf(":");
         if (index === -1) throw new Error("Invalid stream part");
+        let value;
         try {
-          controller.enqueue({
-            type: chunk.slice(0, index) as DataStreamStreamChunkType,
-            value: sjson.parse(chunk.slice(index + 1)),
-          });
+          value = sjson.parse(chunk.slice(index + 1));
         } catch {
           console.warn(
             `Dropped invalid data-stream chunk: ${chunk.slice(0, 200)}`,
           );
+          return;
         }
+        controller.enqueue({
+          type: chunk.slice(0, index) as DataStreamStreamChunkType,
+          value,
+        });
       },
     });
   }
