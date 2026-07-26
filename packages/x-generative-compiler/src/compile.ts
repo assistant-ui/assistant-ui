@@ -273,11 +273,8 @@ export function compileGenerative(
   ensureDefaultExport(ast, filename);
   const generativeInstances = collectGenerativeInstances(ast);
   const interactableToolImports = collectInteractableToolImports(ast);
-  const toolkitSpreadNames = collectToolkitSpreadNames(
-    ast,
-    filename,
-    createToolkitNameContext(),
-  );
+  const { spreadNames: toolkitSpreadNames, namespaceImports } =
+    collectToolkitSpreadNames(ast, filename, createToolkitNameContext());
 
   const flags: TargetFlags = { keptRender: false, keptBackendExecute: false };
 
@@ -316,6 +313,7 @@ export function compileGenerative(
           generativeInstances,
           interactableToolImports,
           toolkitSpreadNames,
+          namespaceImports,
           flags,
           filename,
         );
@@ -675,6 +673,19 @@ interface ToolkitNameContext {
 }
 
 /**
+ * The toolkit spreads a single module's pass can recognize: safe-to-spread
+ * bindings plus the namespace imports that point at a generative module. The
+ * namespace set is kept separate from {@link ToolkitSpreadNames} so a
+ * whole-namespace `...kit` is not mistaken for a safe identifier spread — only
+ * the default export crosses the build-split boundary, so a namespace spread is
+ * rejected with a specific callout rather than allowed.
+ */
+interface ToolkitSpreadInfo {
+  spreadNames: ToolkitSpreadNames;
+  namespaceImports: Set<string>;
+}
+
+/**
  * Collects the local names `unstable_interactableTool` is imported under from a
  * distribution package, so toolkit entries calling it can be recognized
  * (and a same-named local function can't smuggle an arbitrary call through).
@@ -734,13 +745,19 @@ function interactableToolConfig(
  *   toolkit can't leak a backend `execute` to the client. Only the default
  *   export crosses the generative-module boundary, so named imports don't
  *   qualify — they would be `undefined` once that module is build-split.
+ *
+ * A namespace import (`import * as kit from "..."`) of a generative module is
+ * tracked separately in `namespaceImports` so a `...kit` / `...kit.default`
+ * spread can be rejected with a specific callout: only the default export
+ * crosses the boundary, so a namespace spread is never safe.
  */
 function collectToolkitSpreadNames(
   ast: t.File,
   filename: string | undefined,
   context: ToolkitNameContext,
-): ToolkitSpreadNames {
+): ToolkitSpreadInfo {
   const spreadNames: ToolkitSpreadNames = new Map();
+  const namespaceImports = new Set<string>();
   const localToolkitCalls = new Map<string, t.CallExpression>();
 
   for (const statement of ast.program.body) {
@@ -761,16 +778,22 @@ function collectToolkitSpreadNames(
         (specifier): specifier is t.ImportDefaultSpecifier =>
           t.isImportDefaultSpecifier(specifier),
       );
-      if (!defaultSpecifier) continue;
+      const namespaceSpecifier = statement.specifiers.find(
+        (specifier): specifier is t.ImportNamespaceSpecifier =>
+          t.isImportNamespaceSpecifier(specifier),
+      );
+      if (!defaultSpecifier && !namespaceSpecifier) continue;
 
       const names = getGenerativeImportToolkitNames(
         statement.source.value,
         filename,
         context,
       );
-      if (names !== undefined) {
-        spreadNames.set(defaultSpecifier.local.name, names);
-      }
+      if (names === undefined) continue;
+
+      if (defaultSpecifier) spreadNames.set(defaultSpecifier.local.name, names);
+      if (namespaceSpecifier)
+        namespaceImports.add(namespaceSpecifier.local.name);
     }
   }
 
@@ -796,7 +819,7 @@ function collectToolkitSpreadNames(
     resolveLocal(name);
   }
 
-  return spreadNames;
+  return { spreadNames, namespaceImports };
 }
 
 const MODULE_EXTENSIONS = [
@@ -882,7 +905,7 @@ function getDefaultExportToolkitNames(
     return null;
   }
 
-  const spreadNames = collectToolkitSpreadNames(ast, filename, context);
+  const { spreadNames } = collectToolkitSpreadNames(ast, filename, context);
   return uniqueToolkitNames(
     collectToolkitObjectNames(toolkitCall.arguments[0], spreadNames),
   );
@@ -1226,6 +1249,28 @@ function describeUnsafeToolkitEntry(entry: Entry): string {
   );
 }
 
+function namespaceToolkitSpreadMessage(): string {
+  return (
+    'a namespace import (`import * as kit from "..."`) can\'t be spread into ' +
+    `${TOOLKIT_WRAPPER}({ ... }); only a generative module's default export ` +
+    "crosses the build-split boundary, so import it as a default " +
+    '(`import kit from "..."`) and spread `...kit` instead'
+  );
+}
+
+/** The `kit` in `...kit` or `...kit.default`, or null for a computed/opaque base. */
+function namespaceSpreadBaseName(argument: t.Expression): string | null {
+  if (t.isIdentifier(argument)) return argument.name;
+  if (
+    t.isMemberExpression(argument) &&
+    !argument.computed &&
+    t.isIdentifier(argument.object)
+  ) {
+    return argument.object.name;
+  }
+  return null;
+}
+
 /** The `JSONGenerativeUI` methods that produce a split-by-condition tool. */
 const GENERATIVE_TOOL_METHODS = new Set(["present", "promptUser"]);
 
@@ -1288,6 +1333,7 @@ function compileToolkit(
   instances: Set<string>,
   interactableToolImports: Set<string>,
   toolkitSpreadNames: ToolkitSpreadNames,
+  namespaceImports: Set<string>,
   flags: TargetFlags,
   filename: string | undefined,
 ): void {
@@ -1325,6 +1371,15 @@ function compileToolkit(
         else removeMember(config, "render");
         nextProperties.push(entry);
         continue;
+      }
+      if (t.isSpreadElement(entry)) {
+        const namespaceBase = namespaceSpreadBaseName(entry.argument);
+        if (namespaceBase && namespaceImports.has(namespaceBase)) {
+          throw new GenerativeCompileError(
+            namespaceToolkitSpreadMessage(),
+            filename,
+          );
+        }
       }
       throw new GenerativeCompileError(
         describeUnsafeToolkitEntry(entry),
