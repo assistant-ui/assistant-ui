@@ -21,8 +21,7 @@ const useConnection = (options: ConnectionOptions, props: ConnectionProps) => {
   };
 };
 
-const ConnectionResource = (options: ConnectionOptions) =>
-  withKey(options.id, resource(useConnection).bind(null, options));
+const ConnectionResource = resource(useConnection);
 
 describe("withKey on a Resource", () => {
   afterEach(() => {
@@ -30,7 +29,7 @@ describe("withKey on a Resource", () => {
   });
 
   it("stamps the key onto every produced element", () => {
-    const Keyed = withKey("conn-1", resource(useConnection));
+    const Keyed = withKey("conn-1", ConnectionResource);
 
     const el1 = Keyed({ id: "a", initial: 0 }, { mult: 1 });
     const el2 = Keyed({ id: "b", initial: 5 }, { mult: 2 });
