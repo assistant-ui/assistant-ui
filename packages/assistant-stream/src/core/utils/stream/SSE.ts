@@ -1,3 +1,4 @@
+import sjson from "secure-json-parse";
 import { PipeableTransformStream } from "./PipeableTransformStream";
 import {
   SSEEventDecoderStream,
@@ -45,7 +46,7 @@ export class SSEDecoder<T> extends PipeableTransformStream<
             transform(event, controller) {
               switch (event.event) {
                 case "message":
-                  controller.enqueue(JSON.parse(event.data));
+                  controller.enqueue(sjson.parse(event.data));
                   break;
                 default:
                   throw new Error(`Unknown SSE event type: ${event.event}`);
