@@ -16,6 +16,7 @@ const createThread = (
   options?: {
     suggestion?: LocalRuntimeOptionsBase["adapters"]["suggestion"];
     history?: LocalRuntimeOptionsBase["adapters"]["history"];
+    maxSteps?: number;
   },
 ) => {
   const core = new LocalRuntimeCore(
@@ -30,6 +31,7 @@ const createThread = (
         }),
       },
       unstable_humanToolNames: ["send_email"],
+      ...(options?.maxSteps !== undefined && { maxSteps: options.maxSteps }),
     },
     undefined,
   );
@@ -835,5 +837,113 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     expect(persisted?.type === "tool-call" && persisted.result).toEqual({
       ok: true,
     });
+  });
+
+  it("persists a multi-step run once instead of writing intermediate steps", async () => {
+    const { history, appended, updated } = createHistory();
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          if (runs.length === 1)
+            return {
+              content: [
+                { ...toolCallPart("lookup_weather"), result: { ok: true } },
+              ],
+              status: { type: "requires-action", reason: "tool-calls" },
+            };
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { history },
+    );
+
+    await thread.append(userMessage("what is the weather"));
+    await flush();
+
+    expect(runs).toHaveLength(2);
+    const assistants = appended.filter((i) => i.message.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(assistants[0]?.message.status?.type).toBe("complete");
+    expect(updated).toHaveLength(0);
+  });
+
+  it("rewrites the same entry when a resumed run pauses again", async () => {
+    const { history, appended, updated } = createHistory();
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          if (runs.length === 1)
+            return toolCallResult("send_email", { id: "a1" });
+          if (runs.length === 2)
+            return {
+              content: [
+                {
+                  ...toolCallPart("send_email", { id: "a2" }),
+                  toolCallId: "call-2",
+                },
+              ],
+              status: { type: "requires-action", reason: "tool-calls" },
+            };
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { history },
+    );
+
+    await thread.append(userMessage("send two emails"));
+    await flush();
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(thread.messages.at(-1)?.status?.type).toBe("requires-action");
+
+    thread.respondToToolApproval({ approvalId: "a2", approved: true });
+    await flush();
+
+    expect(runs).toHaveLength(3);
+    const assistants = appended.filter((i) => i.message.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(assistants[0]?.message.status?.type).toBe("requires-action");
+    expect(updated).toHaveLength(2);
+    expect(
+      updated.every((i) => i.message.id === assistants[0]?.message.id),
+    ).toBe(true);
+    expect(updated.at(-1)?.message.status?.type).toBe("complete");
+  });
+
+  it("finalizes the history entry when a resumed run hits max steps", async () => {
+    const { history, appended, updated } = createHistory();
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          return {
+            content: [toolCallPart("send_email", { id: "a1" })],
+            status: { type: "requires-action", reason: "tool-calls" },
+            metadata: { steps: [{}] },
+          };
+        },
+      },
+      { history, maxSteps: 1 },
+    );
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    expect(thread.messages.at(-1)?.status?.type).toBe("incomplete");
+    const assistants = appended.filter((i) => i.message.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(updated).toHaveLength(1);
+    expect(updated.at(-1)?.message.status?.type).toBe("incomplete");
   });
 });

@@ -380,9 +380,8 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
   };
 
   if (msg.role !== "assistant") return null;
-  // A paused (requires-action) or mid-approval write isn't a finished run —
-  // reporting it would both mislabel it as "completed" (no map entry below)
-  // and double-count the same steps again when the terminal write reports.
+  // A paused (requires-action) write is not a finished run; reporting it would
+  // mislabel it "completed" and double-count steps once the terminal write reports.
   if (msg.status?.type === "requires-action") return null;
 
   const toolCalls = msg.content

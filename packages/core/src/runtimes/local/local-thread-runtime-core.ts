@@ -68,21 +68,13 @@ export class LocalThreadRuntimeCore
   private _queue: MessageQueueController | null = null;
   private _queueRunInFlight = false;
 
-  /**
-   * Ids of assistant messages already written to history while their run was
-   * paused for tool approval. A later run for the same message must rewrite that
-   * entry instead of appending a second copy of it.
-   */
-  private _pausedPersistedIds = new Set<string>();
-
-  // Other tool calls on the message may still be awaiting approval, so the run
-  // won't resume (and persist) yet — write this decision now, or a refresh
-  // before the rest resolve would restore the pre-decision message.
-  private _persistPartialPause(
+  // A decision recorded on a still-paused message must reach history before
+  // the run resumes, or a refresh would restore the message without it.
+  private _persistPausedMessage(
     parentId: string | null,
     message: ThreadAssistantMessage,
   ) {
-    if (!this._pausedPersistedIds.has(message.id)) return;
+    if (message.status?.type !== "requires-action") return;
     this._options.adapters.history
       ?.update?.({ parentId, message, runConfig: this._lastRunConfig })
       .catch(() => {});
@@ -220,13 +212,6 @@ export class LocalThreadRuntimeCore
       .then((repo) => {
         if (!repo) return;
         this.repository.import(repo);
-        if (this.adapters.history?.update) {
-          for (const { message } of repo.messages) {
-            if (message.status?.type === "requires-action") {
-              this._pausedPersistedIds.add(message.id);
-            }
-          }
-        }
         if (repo.messages.length > 0) {
           this.ensureInitialized();
         }
@@ -378,6 +363,12 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     this._notifyEventSubscribers("runStart", {});
 
+    // A run entered on a requires-action message resumes a pause an
+    // update-capable adapter already holds (written at pause time or loaded).
+    const alreadyPersisted =
+      message.status?.type === "requires-action" &&
+      this._options.adapters.history?.update !== undefined;
+
     try {
       // mark busy for runs not started through the queue (regenerate, resume)
       this._queue?.notifyBusy();
@@ -391,6 +382,7 @@ export class LocalThreadRuntimeCore
           parentId,
           message,
           runConfig,
+          alreadyPersisted,
           runCallback,
         );
         runCallback = undefined;
@@ -433,6 +425,7 @@ export class LocalThreadRuntimeCore
     parentId: string | null,
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
+    alreadyPersisted: boolean,
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
@@ -498,17 +491,18 @@ export class LocalThreadRuntimeCore
 
     const maxSteps = this._options.maxSteps ?? 2;
 
-    const steps = message.metadata?.steps?.length ?? 0;
-    if (steps >= maxSteps) {
-      // reached max tool steps
-      updateMessage({
-        status: {
-          type: "incomplete",
-          reason: "tool-calls",
-        },
-      });
-      return message;
-    } else {
+    try {
+      const steps = message.metadata?.steps?.length ?? 0;
+      if (steps >= maxSteps) {
+        updateMessage({
+          status: {
+            type: "incomplete",
+            reason: "tool-calls",
+          },
+        });
+        return message;
+      }
+
       updateMessage({
         status: {
           type: "running",
@@ -518,9 +512,7 @@ export class LocalThreadRuntimeCore
       // Switch to the new message branch right after adding it for the first time
       this.repository.resetHead(message.id);
       this._notifySubscribers();
-    }
 
-    try {
       this._lastRunConfig = runConfig ?? {};
       // unstable_composerMetadata is composer-only (stamped onto the outgoing
       // message); never expose it to the chat-model adapter's run context.
@@ -595,29 +587,24 @@ export class LocalThreadRuntimeCore
       const history = this._options.adapters.history;
       const item = {
         parentId,
-        message: message,
+        message,
         runConfig: this._lastRunConfig,
       };
       const isTerminal =
         message.status.type === "complete" ||
         message.status.type === "incomplete";
+      const isPausing =
+        message.status.type === "requires-action" &&
+        !shouldContinue(message, this._options.unstable_humanToolNames);
 
-      if (this._pausedPersistedIds.has(message.id)) {
-        // Only drop the id once the write actually lands — if update rejects,
-        // the id must stay so the next attempt retries via update, not append
-        // (which would duplicate the message).
-        await history?.update?.(item);
-        if (isTerminal) this._pausedPersistedIds.delete(message.id);
-      } else if (isTerminal) {
-        await history?.append(item);
-      } else if (message.status.type === "requires-action" && history?.update) {
-        // Persisting the pause is only safe for adapters that can rewrite the
-        // entry later; an append-only adapter would strand a half-finished run
-        // in history with no way to finalize it once the approval resolves.
-        // Mark it only once the append confirms, or a failed append would
-        // leave the id in the set with nothing in the store to update.
-        await history.append(item);
-        this._pausedPersistedIds.add(message.id);
+      // Pauses are written only for adapters that can rewrite the entry later;
+      // an append-only adapter would strand a half-finished run in history.
+      if (isTerminal || (isPausing && history?.update)) {
+        if (alreadyPersisted && history?.update) {
+          await history.update(item);
+        } else {
+          await history?.append(item);
+        }
       }
     }
     return message;
@@ -688,7 +675,7 @@ export class LocalThreadRuntimeCore
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
     } else if (added) {
-      this._persistPartialPause(parentId, message);
+      this._persistPausedMessage(parentId, message);
     }
   }
 
@@ -768,7 +755,7 @@ export class LocalThreadRuntimeCore
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
     } else {
-      this._persistPartialPause(parentId, message);
+      this._persistPausedMessage(parentId, message);
     }
   }
 }

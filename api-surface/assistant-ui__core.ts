@@ -2196,8 +2196,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   private abortController;
   private _queue;
   private _queueRunInFlight;
-  private _pausedPersistedIds;
-  private _persistPartialPause;
+  private _persistPausedMessage;
   readonly isDisabled = false;
   readonly isSendDisabled = false;
   private _isLoading;
