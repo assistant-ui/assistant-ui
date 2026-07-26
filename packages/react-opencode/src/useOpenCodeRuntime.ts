@@ -13,7 +13,10 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/react";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
-import { useEffect, useEffectEvent, useMemo } from "react";
+import { useEffect, useMemo } from "react";
+// Ponyfill: React only ships `useEffectEvent` from 19.2, but the peer range
+// allows React 18.
+import { useEffectEvent } from "use-effect-event";
 import type {
   OpenCodeRuntimeOptions,
   OpenCodeThreadControllerLike,

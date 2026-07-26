@@ -17,11 +17,11 @@ function createDeferred<T>(): Deferred<T> {
   return { promise, resolve };
 }
 
-function createThreadListResponse(title: string) {
+function createThreadListResponse(title: string, id = "thread-1") {
   return {
     threads: [
       {
-        id: "thread-1",
+        id,
         title,
         is_archived: false,
         external_id: null,
@@ -30,6 +30,20 @@ function createThreadListResponse(title: string) {
         updated_at: new Date("2026-01-01T00:00:00.000Z"),
       },
     ],
+  };
+}
+
+function createCloud(id: string) {
+  return {
+    threads: {
+      list: vi.fn().mockResolvedValue(createThreadListResponse(id, id)),
+      get: vi.fn().mockImplementation(async (threadId: string) => {
+        return createThreadListResponse(threadId, threadId).threads[0]!;
+      }),
+      create: vi.fn(),
+      delete: vi.fn(),
+      update: vi.fn(),
+    },
   };
 }
 
@@ -157,6 +171,118 @@ describe("useThreads", () => {
       await firstRefresh;
     });
     expect(result.current.threads[0]?.title).toBe("Newest");
+  });
+
+  it("clears the selected thread when the cloud changes", async () => {
+    const cloudA = createCloud("thread-a");
+    const cloudB = createCloud("thread-b");
+
+    const { result, rerender } = renderHook(
+      ({ cloud }) => useThreads({ cloud: cloud as never }),
+      { initialProps: { cloud: cloudA } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.threads[0]?.id).toBe("thread-a");
+    });
+    const selectThreadA = result.current.selectThread;
+    act(() => {
+      selectThreadA("thread-a");
+    });
+
+    rerender({ cloud: cloudB });
+
+    expect(result.current.threadId).toBeNull();
+    await waitFor(() => {
+      expect(result.current.threads[0]?.id).toBe("thread-b");
+    });
+    expect(result.current.threadId).toBeNull();
+
+    act(() => {
+      selectThreadA("late-thread-a");
+    });
+    expect(result.current.threadId).toBeNull();
+
+    rerender({ cloud: cloudA });
+    expect(result.current.threadId).toBeNull();
+    await waitFor(() => {
+      expect(result.current.threads[0]?.id).toBe("thread-a");
+    });
+    expect(result.current.threadId).toBeNull();
+  });
+
+  it("ignores a refresh that resolves after the cloud changes", async () => {
+    const cloudA = createCloud("thread-a");
+    const cloudB = createCloud("thread-b");
+    const staleRefresh =
+      createDeferred<ReturnType<typeof createThreadListResponse>>();
+
+    const { result, rerender } = renderHook(
+      ({ cloud }) => useThreads({ cloud: cloud as never }),
+      { initialProps: { cloud: cloudA } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.threads[0]?.id).toBe("thread-a");
+    });
+    cloudA.threads.list.mockReturnValueOnce(staleRefresh.promise);
+
+    let refreshPromise!: Promise<boolean>;
+    act(() => {
+      refreshPromise = result.current.refresh();
+    });
+    expect(cloudA.threads.list).toHaveBeenCalledTimes(2);
+
+    rerender({ cloud: cloudB });
+    await waitFor(() => {
+      expect(result.current.threads[0]?.id).toBe("thread-b");
+    });
+
+    await act(async () => {
+      staleRefresh.resolve(
+        createThreadListResponse("Stale A", "stale-thread-a"),
+      );
+      await refreshPromise;
+    });
+    expect(result.current.threads[0]?.id).toBe("thread-b");
+  });
+
+  it("ignores async mutations from an earlier use of the same cloud", async () => {
+    const cloudA = createCloud("thread-a");
+    const cloudB = createCloud("thread-b");
+    const staleCreate = createDeferred<{ thread_id: string }>();
+
+    const { result, rerender } = renderHook(
+      ({ cloud }) => useThreads({ cloud: cloud as never }),
+      { initialProps: { cloud: cloudA } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.threads[0]?.id).toBe("thread-a");
+    });
+    cloudA.threads.create.mockReturnValueOnce(staleCreate.promise);
+
+    let createPromise!: ReturnType<typeof result.current.create>;
+    act(() => {
+      createPromise = result.current.create();
+    });
+
+    rerender({ cloud: cloudB });
+    await waitFor(() => {
+      expect(result.current.threads[0]?.id).toBe("thread-b");
+    });
+    rerender({ cloud: cloudA });
+    await waitFor(() => {
+      expect(result.current.threads[0]?.id).toBe("thread-a");
+    });
+
+    await act(async () => {
+      staleCreate.resolve({ thread_id: "stale-thread-a" });
+      await createPromise;
+    });
+    expect(result.current.threads.map((thread) => thread.id)).toEqual([
+      "thread-a",
+    ]);
   });
 
   it("avoids unmounted state updates during async refresh", async () => {
