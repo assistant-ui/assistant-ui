@@ -82,11 +82,19 @@ const flushScheduled = () => {
 
 // Use MessageChannel to schedule flushes as macrotasks (like React's scheduler).
 // This allows more state updates to batch into a single re-render.
+// The channel is created on first use: an open MessagePort holds the Node
+// event loop open, so merely importing tap must not create one.
 const scheduleMacrotask = (() => {
   if (typeof MessageChannel !== "undefined") {
-    const channel = new MessageChannel();
-    channel.port1.onmessage = flushScheduled;
-    return () => channel.port2.postMessage(null);
+    let port2: MessagePort | undefined;
+    return () => {
+      if (!port2) {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = flushScheduled;
+        port2 = channel.port2;
+      }
+      port2.postMessage(null);
+    };
   }
   // Fallback for environments without MessageChannel
   return () => setTimeout(flushScheduled, 0);

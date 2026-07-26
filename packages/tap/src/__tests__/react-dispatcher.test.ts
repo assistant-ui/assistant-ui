@@ -104,6 +104,35 @@ describe("react dispatcher", () => {
     expect(cell.currentDeps).toEqual([2]);
   });
 
+  it("routes React's __COMPILER_RUNTIME.c to the tap fiber's memo cache", () => {
+    // A duplicated tap copy misses its own shim fiber and falls through to
+    // React's c(), which reads useMemoCache off the live dispatcher.
+    const runtimeC = (React as any).__COMPILER_RUNTIME?.c;
+    if (!runtimeC) return; // React 18 has no __COMPILER_RUNTIME
+
+    let computes = 0;
+    const fiber = createTestResource((p: { x: number }) => {
+      const $ = runtimeC(2);
+      let double;
+      if ($[0] !== p.x) {
+        computes++;
+        double = p.x * 2;
+        $[0] = p.x;
+        $[1] = double;
+      } else {
+        double = $[1];
+      }
+      return double;
+    });
+
+    expect(renderTest(fiber, { x: 2 })).toBe(4);
+    expect(computes).toBe(1);
+    expect(renderTest(fiber, { x: 2 })).toBe(4);
+    expect(computes).toBe(1);
+    expect(renderTest(fiber, { x: 3 })).toBe(6);
+    expect(computes).toBe(2);
+  });
+
   it("throws for a hook tap does not implement", () => {
     const fiber = createTestResource(() => React.useId());
     // render directly: a mid-render throw must not leave a tracked, unmounted
