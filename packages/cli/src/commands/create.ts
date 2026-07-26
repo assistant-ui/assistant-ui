@@ -12,6 +12,7 @@ import {
   resolvePackageManagerForCwd,
   scaffoldProject,
   transformProject,
+  type TransformResult,
 } from "../lib/create-project";
 import { runSpawn, SpawnExitError } from "../lib/run-spawn";
 import {
@@ -165,7 +166,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Realtime voice with ElevenLabs",
     category: "example",
     path: "examples/with-elevenlabs-conversational",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "with-elevenlabs-scribe",
@@ -181,7 +182,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Realtime voice with LiveKit",
     category: "example",
     path: "examples/with-livekit",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "with-expo",
@@ -197,7 +198,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "AI-driven interactive UI components",
     category: "example",
     path: "examples/with-interactables",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "with-external-store",
@@ -609,6 +610,7 @@ export const create = new Command()
           ? `Copying project from local source: ${localSourceRoot}`
           : "Downloading project...",
       );
+      let transformResult: TransformResult;
       try {
         const source = localSourceRoot
           ? { kind: "local" as const, rootDir: localSourceRoot }
@@ -632,7 +634,7 @@ export const create = new Command()
         }
 
         // 5. Run transform pipeline
-        await transformProject(absoluteProjectDir, {
+        transformResult = await transformProject(absoluteProjectDir, {
           hasLocalComponents: project.hasLocalComponents,
           skipInstall: opts.skipInstall,
           packageManager: pm,
@@ -655,6 +657,16 @@ export const create = new Command()
         // Clean up partially created project directory
         fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
         throw err;
+      }
+
+      if (transformResult.registryInstallFailure) {
+        process.removeListener("exit", cleanupOnExit);
+        logger.break();
+        logger.error("Project created with missing components.");
+        logger.info("Retry the component install with:");
+        logger.info(`  cd ${resolvedProjectDirectory}`);
+        logger.info(`  ${transformResult.registryInstallFailure.retryCommand}`);
+        process.exit(1);
       }
 
       // 6. Apply preset if provided

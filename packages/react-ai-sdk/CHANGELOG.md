@@ -1,5 +1,68 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.41
+
+### Patch Changes
+
+- [#4730](https://github.com/assistant-ui/assistant-ui/pull/4730) [`41aaa6d`](https://github.com/assistant-ui/assistant-ui/commit/41aaa6de5d2872db5319e36e6de0ffdb385df927) - fix: preserve direct file parts in AI SDK message creation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4729](https://github.com/assistant-ui/assistant-ui/pull/4729) [`638692a`](https://github.com/assistant-ui/assistant-ui/commit/638692a0a7fe05d1cf50b80d472e148a971c1b5c) - fix: preserve image media types when creating AI SDK messages ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4837](https://github.com/assistant-ui/assistant-ui/pull/4837) [`40f5fb0`](https://github.com/assistant-ui/assistant-ui/commit/40f5fb03a245ff2c3992a491c43ed29019df6dbb) - feat: forward onResumeToolCall to the external store adapter ([@okisdev](https://github.com/okisdev))
+
+- [#4833](https://github.com/assistant-ui/assistant-ui/pull/4833) [`8282269`](https://github.com/assistant-ui/assistant-ui/commit/8282269f0864bc43c999cd209fbbee035ee53641) - feat: adapters.suggestion generates follow-up suggestions after each run ([@okisdev](https://github.com/okisdev))
+
+- [#4849](https://github.com/assistant-ui/assistant-ui/pull/4849) [`4b68fc6`](https://github.com/assistant-ui/assistant-ui/commit/4b68fc624ad22357ff4f1cf13373092aba19796f) - docs: move the resumable streams cross-links into jsdoc so the api-reference generator preserves them ([@okisdev](https://github.com/okisdev))
+
+- [#4672](https://github.com/assistant-ui/assistant-ui/pull/4672) [`486c3c8`](https://github.com/assistant-ui/assistant-ui/commit/486c3c89c0f831ac0079bef0f4607e7e2945d19c) - feat: expose chat runtime resume errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4761](https://github.com/assistant-ui/assistant-ui/pull/4761) [`d2f7a61`](https://github.com/assistant-ui/assistant-ui/commit/d2f7a61fe288eb89e3e025a24ce7360b3428d789) - feat: export a FrontendTools type for typing uploaded frontend tool definitions. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4671](https://github.com/assistant-ui/assistant-ui/pull/4671) [`84fdba2`](https://github.com/assistant-ui/assistant-ui/commit/84fdba27d69f459d368c3fe2fe21a28285fb5d00) - feat: add MCP toolkit entry names to close errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4675](https://github.com/assistant-ui/assistant-ui/pull/4675) [`c814c9c`](https://github.com/assistant-ui/assistant-ui/commit/c814c9cf562a66ab3864ca0472d667902ebc131b) - feat: support prefixed MCP toolkit tool names ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4667](https://github.com/assistant-ui/assistant-ui/pull/4667) [`c590a21`](https://github.com/assistant-ui/assistant-ui/commit/c590a21a63405f5a52a6d372e003afca06cf4a1e) - feat: support disabled MCP toolkit tools ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4670](https://github.com/assistant-ui/assistant-ui/pull/4670) [`32f5977`](https://github.com/assistant-ui/assistant-ui/commit/32f5977a1827c461dd7cd203d4e7370fa5372b77) - feat: add MCP toolkit entry names to connection and tool-listing errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4898](https://github.com/assistant-ui/assistant-ui/pull/4898) [`a84cf6d`](https://github.com/assistant-ui/assistant-ui/commit/a84cf6ddc37ba7a7ea7244eb73e5d40a00ea5e24) - feat: plumb an optional serverId through MCP Apps metadata and host calls for multi-MCP routing ([@okisdev](https://github.com/okisdev))
+
+- [#4806](https://github.com/assistant-ui/assistant-ui/pull/4806) [`9f99c46`](https://github.com/assistant-ui/assistant-ui/commit/9f99c46ca1ca724081466f97c7e17eda316e8fb3) - feat: preserve providerMetadata on text, reasoning, and tool-call message parts ([@DLOVRIC2](https://github.com/DLOVRIC2))
+
+  The AI SDK message converter already kept `providerMetadata` on source parts but
+  dropped it on text, reasoning, and tool-call parts (where the AI SDK surfaces it
+  as `callProviderMetadata`). Provider- or app-scoped metadata such as agent
+  attribution now survives the conversion to assistant-ui messages.
+
+- [#4651](https://github.com/assistant-ui/assistant-ui/pull/4651) [`1224380`](https://github.com/assistant-ui/assistant-ui/commit/1224380f9f7432f6d1e448edc7fde4d307538569) - refactor: use addToolOutput instead of the deprecated addToolResult for tool results ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4648](https://github.com/assistant-ui/assistant-ui/pull/4648) [`b373639`](https://github.com/assistant-ui/assistant-ui/commit/b3736393ed699ccb0c36953ae218bb87e4641ad1) - fix: guard converters against missing parts and mediaType on non-spec payloads ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4654](https://github.com/assistant-ui/assistant-ui/pull/4654) [`c980086`](https://github.com/assistant-ui/assistant-ui/commit/c98008682d993d03cfb20d5daef6fbaa0f3b4e10) - feat: upgrade to AI SDK v7 (ai@^7, @ai-sdk/react@^4, @ai-sdk/mcp@^2); pin the previous release to stay on v6 ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4771](https://github.com/assistant-ui/assistant-ui/pull/4771) [`fcd3c9e`](https://github.com/assistant-ui/assistant-ui/commit/fcd3c9e773b735eab011f6f0a727994c53d851ac) - fix: guard resumable session storage access ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4887](https://github.com/assistant-ui/assistant-ui/pull/4887) [`d03e5cf`](https://github.com/assistant-ui/assistant-ui/commit/d03e5cf0e6efada832503fedc565a1fb8f14676a) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4650](https://github.com/assistant-ui/assistant-ui/pull/4650) [`e3aba86`](https://github.com/assistant-ui/assistant-ui/commit/e3aba86b7a788261d25921e4a58cebbe7a59fb44) - fix: make the default attachment adapter work without FileReader (Node, react-ink, SSR) by sharing a single getFileDataURL from @assistant-ui/core/internal, whose base64 fallback chunks large inputs and works on runtimes without Buffer ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4901](https://github.com/assistant-ui/assistant-ui/pull/4901) [`25f9eb2`](https://github.com/assistant-ui/assistant-ui/commit/25f9eb2caacade2e5522f92e3221ee8173da0608) - refactor: host the streaming-stable tool-args stringifier in @assistant-ui/core/internal ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4902](https://github.com/assistant-ui/assistant-ui/pull/4902) [`698f1f4`](https://github.com/assistant-ui/assistant-ui/commit/698f1f4a3401927a1f9b463d5c421b203e5a19e1) - refactor: emit file tool output parts instead of deprecated image-data/file-data ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4899](https://github.com/assistant-ui/assistant-ui/pull/4899) [`c79e634`](https://github.com/assistant-ui/assistant-ui/commit/c79e6341d13756b6251b8e8027ee692271df3c6b) - fix: guard toolOutputConversion against missing mediaType on non-spec tool output ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4756](https://github.com/assistant-ui/assistant-ui/pull/4756) [`14ccfd5`](https://github.com/assistant-ui/assistant-ui/commit/14ccfd53c1e8e041184a6b6830c6dbf7fca01dd5) - fix: validate frontend tool schemas before conversion ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`43b8ce8`](https://github.com/assistant-ui/assistant-ui/commit/43b8ce862520e1f53d837407c5fcd7106c9ffd7c), [`1e926b6`](https://github.com/assistant-ui/assistant-ui/commit/1e926b68a8f61d5d099a53c89ad25b168872b853), [`d6c7571`](https://github.com/assistant-ui/assistant-ui/commit/d6c757149df4cc66aa3261a3bd3beb041cac6c49), [`4d7a447`](https://github.com/assistant-ui/assistant-ui/commit/4d7a4479b2dd673e3f5a356c4dd763f3aa72053d), [`ca751f4`](https://github.com/assistant-ui/assistant-ui/commit/ca751f41905a82e9b1622d100af62b8b31314a5c), [`2aca5e0`](https://github.com/assistant-ui/assistant-ui/commit/2aca5e09337b5b867562e6280b8cc6d49763e845), [`908af6d`](https://github.com/assistant-ui/assistant-ui/commit/908af6d6104b355c3097fcf77367bed1bf5541b8), [`0ea628f`](https://github.com/assistant-ui/assistant-ui/commit/0ea628fedba37d2e95195e250c60129d43af213c), [`1b46551`](https://github.com/assistant-ui/assistant-ui/commit/1b465515f38be1d7d4e844ab5d95c90537745d15), [`7865f67`](https://github.com/assistant-ui/assistant-ui/commit/7865f6730d0a98e43bc27d5a0482bc43f2678de5), [`7cf5acc`](https://github.com/assistant-ui/assistant-ui/commit/7cf5acc8ae31bc01102d170b854aaaf7c260eff9), [`7a85307`](https://github.com/assistant-ui/assistant-ui/commit/7a85307390287a341618ac58b8967395df38a56b), [`438ecd3`](https://github.com/assistant-ui/assistant-ui/commit/438ecd350d5f14e5c5d329d6f4c0689b491c0845), [`e4da8c5`](https://github.com/assistant-ui/assistant-ui/commit/e4da8c57e259e7276570ff05ea605e59321b1a3f), [`5a34e8c`](https://github.com/assistant-ui/assistant-ui/commit/5a34e8c2721b02e7a115d085bc09a447e0d3caa9), [`5dbbac4`](https://github.com/assistant-ui/assistant-ui/commit/5dbbac4f49b6269c1017f11c9bf6da2909fa6c96), [`d3bd0ed`](https://github.com/assistant-ui/assistant-ui/commit/d3bd0ede457f50043ff59f8987f59b16c675ef01), [`84e8ddf`](https://github.com/assistant-ui/assistant-ui/commit/84e8ddf548d808d74d84b6be5a8ed28642baad3d), [`8282269`](https://github.com/assistant-ui/assistant-ui/commit/8282269f0864bc43c999cd209fbbee035ee53641), [`03ffe44`](https://github.com/assistant-ui/assistant-ui/commit/03ffe44808f4898a2862e608db7258682cf12383), [`38bf104`](https://github.com/assistant-ui/assistant-ui/commit/38bf1045406da7eff1b9c5847e4e7db96d327c2c), [`19b2a00`](https://github.com/assistant-ui/assistant-ui/commit/19b2a00add7f1900bc3fed579759400fc241747c), [`77c7b26`](https://github.com/assistant-ui/assistant-ui/commit/77c7b269795c7aad03ce83e7e574425c3e0f26c8), [`026a7ae`](https://github.com/assistant-ui/assistant-ui/commit/026a7aeabc8134d3ecb26127225ebf0070267261), [`160b0af`](https://github.com/assistant-ui/assistant-ui/commit/160b0afa773b13a5e0f462cf05b7661baa1627f5), [`c814c9c`](https://github.com/assistant-ui/assistant-ui/commit/c814c9cf562a66ab3864ca0472d667902ebc131b), [`6be3b67`](https://github.com/assistant-ui/assistant-ui/commit/6be3b6781b3ddd178208bc9de15326ab35d496d4), [`c590a21`](https://github.com/assistant-ui/assistant-ui/commit/c590a21a63405f5a52a6d372e003afca06cf4a1e), [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98), [`a84cf6d`](https://github.com/assistant-ui/assistant-ui/commit/a84cf6ddc37ba7a7ea7244eb73e5d40a00ea5e24), [`9f99c46`](https://github.com/assistant-ui/assistant-ui/commit/9f99c46ca1ca724081466f97c7e17eda316e8fb3), [`c2d2271`](https://github.com/assistant-ui/assistant-ui/commit/c2d2271b9709c235da18036a0edd5283ce279916), [`e3aba86`](https://github.com/assistant-ui/assistant-ui/commit/e3aba86b7a788261d25921e4a58cebbe7a59fb44), [`25f9eb2`](https://github.com/assistant-ui/assistant-ui/commit/25f9eb2caacade2e5522f92e3221ee8173da0608), [`84e8ddf`](https://github.com/assistant-ui/assistant-ui/commit/84e8ddf548d808d74d84b6be5a8ed28642baad3d), [`d03e5cf`](https://github.com/assistant-ui/assistant-ui/commit/d03e5cf0e6efada832503fedc565a1fb8f14676a), [`ef81c86`](https://github.com/assistant-ui/assistant-ui/commit/ef81c869a3292175a32f0d924e911564a07d439b), [`5ade3a5`](https://github.com/assistant-ui/assistant-ui/commit/5ade3a500498b59a4449f46d443ced8a1e3136be), [`1f284ac`](https://github.com/assistant-ui/assistant-ui/commit/1f284ac2f4e20b0daebfdb6829a44ba0a56033b3), [`65ba32a`](https://github.com/assistant-ui/assistant-ui/commit/65ba32a956661804203450cfb9a2b0285450da9d), [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac)]:
+  - assistant-stream@0.3.26
+  - @assistant-ui/core@0.2.21
+  - assistant-cloud@0.1.35
+  - @assistant-ui/store@0.2.20
+
 ## 1.3.40
 
 ### Patch Changes

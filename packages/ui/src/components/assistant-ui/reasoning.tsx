@@ -55,7 +55,10 @@ export type ReasoningRootProps = Omit<
      * Whether the reasoning is currently streaming. When provided, it
      * supersedes `defaultOpen`: the disclosure auto-opens while streaming
      * with a bottom-pinned live preview, auto-collapses when streaming
-     * ends, and the first manual toggle takes over permanently.
+     * ends, and the first manual toggle takes over the open/close state
+     * permanently. The live preview keeps following the newest tokens while
+     * the disclosure is open during streaming, even after a manual toggle,
+     * and pauses while the reader is scrolled up.
      */
     streaming?: boolean;
   };
@@ -79,8 +82,7 @@ function ReasoningRoot({
   const isOpen = isControlled
     ? controlledOpen
     : (userOpen ?? streaming ?? initialOpenRef.current);
-  const isAutoMode = isControlled || userOpen === null;
-  const isPreview = streaming === true && isOpen && isAutoMode;
+  const isPreview = streaming === true && isOpen;
 
   const prevStreamingRef = useRef(streaming);
   useLayoutEffect(() => {
@@ -260,13 +262,43 @@ function ReasoningText({
     const scrollEl = scrollRef.current;
     const contentEl = contentRef.current;
     if (!scrollEl || !contentEl) return;
+
+    let pinned = true;
+    let lastScrollTop = scrollEl.scrollTop;
+    let lastScrollHeight = scrollEl.scrollHeight;
+    const isAtBottom = () =>
+      Math.abs(
+        scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight,
+      ) <= 1 || scrollEl.scrollHeight <= scrollEl.clientHeight;
+
     const pin = () => {
+      if (!pinned) return;
       scrollEl.scrollTop = scrollEl.scrollHeight;
     };
+    // A pin's own scroll event can arrive after new content grew the scroll
+    // height and read as "not at bottom"; only an upward move at unchanged
+    // scroll height is user intent.
+    const onScroll = () => {
+      if (isAtBottom()) {
+        pinned = true;
+      } else if (
+        scrollEl.scrollTop < lastScrollTop &&
+        scrollEl.scrollHeight === lastScrollHeight
+      ) {
+        pinned = false;
+      }
+      lastScrollTop = scrollEl.scrollTop;
+      lastScrollHeight = scrollEl.scrollHeight;
+    };
+
     pin();
+    scrollEl.addEventListener("scroll", onScroll);
     const observer = new ResizeObserver(pin);
     observer.observe(contentEl);
-    return () => observer.disconnect();
+    return () => {
+      scrollEl.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
   }, [isPreview]);
 
   return (

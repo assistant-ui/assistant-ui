@@ -396,9 +396,11 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: AssistantTransportStateOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
@@ -427,6 +429,16 @@ type AssistantToolUIProps<TArgs, TResult> = {
   toolName: string;
   render: ToolCallMessagePartComponent<TArgs, TResult>;
   display?: "inline" | "standalone";
+};
+
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
 };
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
@@ -626,7 +638,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   get queue(): readonly QueueItemState[];
   steerQueueItem(_queueItemId: string): void;
   removeQueueItem(_queueItemId: string): void;
-  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void;
+  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void | Promise<void>;
   protected abstract handleCancel(): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   private _safeEmitAttachmentAddError;
@@ -913,6 +925,8 @@ type ComposerAddAttachmentProps = Omit<PressableProps, "onPress"> & {
 
 declare const ComposerAttachmentByIndex: import("react").FC<ComposerPrimitiveAttachmentByIndex.Props>;
 
+type ComposerAttachmentByIndexProps = ComposerPrimitiveAttachmentByIndex.Props;
+
 declare const ComposerAttachmentByIndexProvider: FC<PropsWithChildren<{
   index: number;
 }>>;
@@ -931,6 +945,8 @@ type ComposerAttachmentsComponentConfig = {
   File?: ComponentType | undefined;
   Attachment?: ComponentType | undefined;
 };
+
+type ComposerAttachmentsProps = ComposerPrimitiveAttachments.Props;
 
 declare const ComposerCancel: (_param17: ComposerCancelProps) => import("react").JSX.Element;
 
@@ -1820,6 +1836,7 @@ type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
   readonly visibility?: readonly ("app" | "model")[];
+  readonly serverId?: string;
 };
 
 type McpAppResourceOutput = {
@@ -1868,6 +1885,8 @@ type McpToolkitToolConfig = {
 
 declare const MessageAttachmentByIndex: import("react").FC<MessagePrimitiveAttachmentByIndex.Props>;
 
+type MessageAttachmentByIndexProps = MessagePrimitiveAttachmentByIndex.Props;
+
 declare const MessageAttachmentByIndexProvider: FC<PropsWithChildren<{
   index: number;
 }>>;
@@ -1889,6 +1908,8 @@ type MessageAttachmentsComponentConfig = {
   File?: ComponentType | undefined;
   Attachment?: ComponentType | undefined;
 };
+
+type MessageAttachmentsProps = MessagePrimitiveAttachments.Props;
 
 declare const MessageByIndexProvider: FC<PropsWithChildren<{
   index: number;
@@ -2484,16 +2505,6 @@ type OSCVariant = "osc777" | "osc9" | "osc99";
 
 type ObjectKey<T> = keyof T & (string | number);
 
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
-};
-
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
 type OverrideOptionalField<T, TKey extends keyof T, TValue> = undefined extends T[TKey] ? Exclude<T[TKey], undefined> extends never ? {
@@ -2750,7 +2761,7 @@ type ReloadConfig = {
 
 type RemoteThreadInitializeResponse = {
   remoteId: string;
-  externalId: string | undefined;
+  externalId?: string | undefined;
 };
 
 type RemoteThreadListAdapter = {
@@ -3097,6 +3108,7 @@ type SuggestionAdapter = {
 
 type SuggestionAdapterGenerateOptions = {
   messages: readonly ThreadMessage[];
+  signal?: AbortSignal;
 };
 
 declare const SuggestionByIndexProvider: FC<SuggestionByIndexProviderProps>;
@@ -3954,6 +3966,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -4458,7 +4471,7 @@ declare namespace checklist_d_exports {
 }
 
 declare namespace composer_d_exports {
-  export { ComposerAddAttachment as AddAttachment, ComposerAddAttachmentProps as AddAttachmentProps, ComposerAttachmentByIndex as AttachmentByIndex, ComposerAttachments as Attachments, ComposerCancel as Cancel, ComposerCancelProps as CancelProps, ComposerPrimitiveIf as If, ComposerInput as Input, ComposerInputProps as InputProps, ComposerPrimitiveQueue as Queue, ComposerQuote as Quote, ComposerQuoteDismiss as QuoteDismiss, ComposerQuoteDismissProps as QuoteDismissProps, ComposerQuoteProps as QuoteProps, ComposerQuoteText as QuoteText, ComposerQuoteTextProps as QuoteTextProps, ComposerRoot as Root, ComposerRootProps as RootProps, ComposerSend as Send, ComposerSendProps as SendProps };
+  export { ComposerAddAttachment as AddAttachment, ComposerAddAttachmentProps as AddAttachmentProps, ComposerAttachmentByIndex as AttachmentByIndex, ComposerAttachmentByIndexProps as AttachmentByIndexProps, ComposerAttachments as Attachments, ComposerAttachmentsProps as AttachmentsProps, ComposerCancel as Cancel, ComposerCancelProps as CancelProps, ComposerPrimitiveIf as If, ComposerInput as Input, ComposerInputProps as InputProps, ComposerPrimitiveQueue as Queue, ComposerQuote as Quote, ComposerQuoteDismiss as QuoteDismiss, ComposerQuoteDismissProps as QuoteDismissProps, ComposerQuoteProps as QuoteProps, ComposerQuoteText as QuoteText, ComposerQuoteTextProps as QuoteTextProps, ComposerRoot as Root, ComposerRootProps as RootProps, ComposerSend as Send, ComposerSendProps as SendProps };
 }
 
 declare const createFileStorageAdapter: (options: CreateFileStorageAdapterOptions) => RemoteThreadListAdapter;
@@ -4535,11 +4548,11 @@ declare const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<T
 declare const mergeModelContexts: (configSet: Set<ModelContextProvider>) => ModelContext$1;
 
 declare namespace messagePart_d_exports {
-  export { MessagePartPrimitiveData as Data, MessagePartPrimitiveFile as File, MessagePartPrimitiveImage as Image, MessagePartPrimitiveInProgress as InProgress, PartPrimitiveMessages as Messages, MessagePartPrimitiveReasoning as Reasoning, MessagePartPrimitiveSource as Source, MessagePartPrimitiveText as Text };
+  export { MessagePartPrimitiveData as Data, MessagePartPrimitiveDataProps as DataProps, MessagePartPrimitiveFile as File, MessagePartPrimitiveFileProps as FileProps, MessagePartPrimitiveImage as Image, MessagePartPrimitiveImageProps as ImageProps, MessagePartPrimitiveInProgress as InProgress, PartPrimitiveMessages as Messages, MessagePartPrimitiveReasoning as Reasoning, MessagePartPrimitiveReasoningProps as ReasoningProps, MessagePartPrimitiveSource as Source, MessagePartPrimitiveSourceProps as SourceProps, MessagePartPrimitiveText as Text, MessagePartPrimitiveTextProps as TextProps };
 }
 
 declare namespace message_d_exports {
-  export { MessageAttachmentByIndex as AttachmentByIndex, MessageAttachments as Attachments, MessageContent as Content, MessageContentProps as ContentProps, MessageError as Error, MessageIf as If, MessageIfProps as IfProps, MessagePrimitivePartByIndex as PartByIndex, MessagePrimitiveParts as Parts, MessageRoot as Root, MessageRootProps as RootProps };
+  export { MessageAttachmentByIndex as AttachmentByIndex, MessageAttachmentByIndexProps as AttachmentByIndexProps, MessageAttachments as Attachments, MessageAttachmentsProps as AttachmentsProps, MessageContent as Content, MessageContentProps as ContentProps, MessageError as Error, MessageIf as If, MessageIfProps as IfProps, MessagePrimitivePartByIndex as PartByIndex, MessagePrimitiveParts as Parts, MessageRoot as Root, MessageRootProps as RootProps };
 }
 
 declare function providerTool(config: ProviderToolConfig): never;
@@ -4553,7 +4566,7 @@ declare const ringBell: () => void;
 declare const sendOSCNotification: (title: string, body?: string, variant?: OSCVariant) => void;
 
 declare namespace statusBar_d_exports {
-  export { StatusBarPrimitiveLatency as Latency, StatusBarPrimitiveMessageCount as MessageCount, StatusBarPrimitiveModelName as ModelName, StatusBarPrimitiveRoot as Root, StatusBarPrimitiveStatus as Status, StatusType, StatusBarPrimitiveTokenCount as TokenCount };
+  export { StatusBarPrimitiveLatency as Latency, StatusBarPrimitiveLatencyProps as LatencyProps, StatusBarPrimitiveMessageCount as MessageCount, StatusBarPrimitiveMessageCountProps as MessageCountProps, StatusBarPrimitiveModelName as ModelName, StatusBarPrimitiveModelNameProps as ModelNameProps, StatusBarPrimitiveRoot as Root, StatusBarPrimitiveRootProps as RootProps, StatusBarPrimitiveStatus as Status, StatusBarPrimitiveStatusProps as StatusProps, StatusType, StatusBarPrimitiveTokenCount as TokenCount, StatusBarPrimitiveTokenCountProps as TokenCountProps };
 }
 
 declare function stubTool(): never;

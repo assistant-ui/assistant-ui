@@ -119,6 +119,50 @@ describe("unstable_createLangGraphStream", () => {
     );
   });
 
+  it("sends state as input without messages", async () => {
+    const { client, stream } = makeClient();
+    const callback = unstable_createLangGraphStream({
+      client,
+      assistantId: "graph-1",
+    });
+
+    await callback([], {
+      abortSignal: new AbortController().signal,
+      state: { theme: "dark" },
+      initialize,
+    });
+
+    expect(stream).toHaveBeenCalledWith(
+      "t-1",
+      "graph-1",
+      expect.objectContaining({
+        input: { theme: "dark" },
+      }),
+    );
+  });
+
+  it("merges state and messages with messages taking precedence", async () => {
+    const { client, stream } = makeClient();
+    const callback = unstable_createLangGraphStream({
+      client,
+      assistantId: "graph-1",
+    });
+
+    await callback([humanMessage], {
+      abortSignal: new AbortController().signal,
+      state: { messages: ["stale"], theme: "dark" },
+      initialize,
+    });
+
+    expect(stream).toHaveBeenCalledWith(
+      "t-1",
+      "graph-1",
+      expect.objectContaining({
+        input: { messages: [humanMessage], theme: "dark" },
+      }),
+    );
+  });
+
   it("wraps checkpointId as checkpoint.checkpoint_id", async () => {
     const { client, stream } = makeClient();
     const callback = unstable_createLangGraphStream({

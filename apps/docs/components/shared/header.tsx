@@ -12,6 +12,7 @@ import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { NAV_ITEMS, CLOUD_URL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
@@ -30,14 +31,29 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
   }, [onToggle]);
 
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="text-muted-foreground hover:text-foreground flex size-7 cursor-pointer items-center justify-center transition-colors"
-      aria-label="Search (⌘K)"
-    >
-      <Search className="size-4" />
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors md:hidden"
+        aria-label="Search (⌘K)"
+      >
+        <Search className="size-4" />
+      </button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onToggle}
+        className="hidden md:inline-flex"
+        aria-label="Search (⌘K)"
+      >
+        Search
+        <KbdGroup className="hidden lg:inline-flex">
+          <Kbd>⌘</Kbd>
+          <Kbd>K</Kbd>
+        </KbdGroup>
+      </Button>
+    </>
   );
 }
 
@@ -137,9 +153,10 @@ export function Header() {
                 aria-label="Ask AI (⌘I)"
               >
                 Ask AI
-                <kbd className="text-muted-foreground border-border/60 bg-muted/50 hidden rounded-[3px] border px-1 font-mono text-[10px] leading-4 lg:inline-block">
-                  ⌘I
-                </kbd>
+                <KbdGroup className="hidden lg:inline-flex">
+                  <Kbd>⌘</Kbd>
+                  <Kbd>I</Kbd>
+                </KbdGroup>
               </Button>
             )}
             <Button
@@ -172,18 +189,6 @@ export function Header() {
                 <span className="tabular-nums">{formatCompact(stars)}</span>
               )}
             </Button>
-
-            {!isHome && (
-              <a
-                href="https://discord.gg/S9dwgCNEFs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-foreground hidden size-7 items-center justify-center transition-colors sm:flex"
-                aria-label="Discord"
-              >
-                <DiscordIcon className="size-4" />
-              </a>
-            )}
 
             <button
               type="button"

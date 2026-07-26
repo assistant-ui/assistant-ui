@@ -197,7 +197,7 @@ function cleanupImports(imports: string[]): string[] {
     .map((imp) =>
       imp
         .replace(/@\/components\/assistant-ui\//g, "@/components/ui/")
-        .replace(/(@\/components\/[\w-]+\/[\w.-]+?)\.base(["'])/g, "$1$2"),
+        .replace(/(@\/components\/[\w-]+\/[\w.-]+?)\.radix(["'])/g, "$1$2"),
     );
 }
 
@@ -227,11 +227,15 @@ export async function PreviewCode({
   base,
   className,
 }: PreviewCodeProps) {
-  const code = buildPreviewCode(file, name);
+  const hasRadixVariant = fs.existsSync(
+    path.join(process.cwd(), `${file}.radix.tsx`),
+  );
+  const code = hasRadixVariant
+    ? buildPreviewCode(`${file}.radix`, name)
+    : buildPreviewCode(file, name);
   const baseCode =
-    base !== undefined &&
-    fs.existsSync(path.join(process.cwd(), `${file}.base.tsx`))
-      ? buildPreviewCode(`${file}.base`, name)
+    base !== undefined && hasRadixVariant
+      ? buildPreviewCode(file, name)
       : undefined;
 
   return (
@@ -255,9 +259,9 @@ export async function PreviewCode({
   }
 ).llm = ({ file, name }: PreviewCodeProps, ctx) => {
   const sourceFile =
-    (ctx?.flavor ?? "base") === "base" &&
-    fs.existsSync(path.join(process.cwd(), `${file}.base.tsx`))
-      ? `${file}.base`
+    (ctx?.flavor ?? "base") === "radix" &&
+    fs.existsSync(path.join(process.cwd(), `${file}.radix.tsx`))
+      ? `${file}.radix`
       : file;
 
   return (

@@ -6,8 +6,9 @@ import type { ThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/radix/tooltip";
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   createContext,
@@ -140,7 +141,9 @@ function ContextDisplayRootBase({
 
   return (
     <ContextDisplayContext.Provider value={contextValue}>
-      <Tooltip>{children}</Tooltip>
+      <TooltipProvider>
+        <Tooltip>{children}</Tooltip>
+      </TooltipProvider>
     </ContextDisplayContext.Provider>
   );
 }
@@ -187,18 +190,20 @@ function ContextDisplayTrigger({
   ...props
 }: React.ComponentProps<"button">) {
   return (
-    <TooltipTrigger asChild>
-      <button
-        type="button"
-        data-slot="context-display-trigger"
-        className={cn(
-          "inline-flex items-center rounded-md transition-colors",
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </button>
+    <TooltipTrigger
+      render={
+        <button
+          type="button"
+          data-slot="context-display-trigger"
+          className={cn(
+            "inline-flex items-center rounded-md transition-colors",
+            className,
+          )}
+          {...props}
+        />
+      }
+    >
+      {children}
     </TooltipTrigger>
   );
 }
@@ -237,7 +242,7 @@ function ContextDisplayContent({
       sideOffset={8}
       data-slot="context-display-popover"
       className={cn(
-        "bg-popover text-popover-foreground w-56 rounded-lg border p-3 text-left shadow-md [&_span>svg]:hidden!",
+        "bg-popover text-popover-foreground w-56 rounded-lg border p-3 text-left shadow-md [&_[data-slot=tooltip-arrow]]:hidden",
         className,
       )}
     >

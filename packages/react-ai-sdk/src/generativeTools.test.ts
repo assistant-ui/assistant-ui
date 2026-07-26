@@ -266,7 +266,17 @@ describe("AISDKToolkit", () => {
 
     const toolsPromise = toolkit.tools();
     await expect(toolkit.close()).rejects.toMatchObject({
-      errors: [error, closeError],
+      errors: [
+        {
+          message:
+            'MCP toolkit entry "second" failed to connect: connect failed',
+          cause: error,
+        },
+        {
+          message: 'MCP toolkit entry "first" failed to close: close failed',
+          cause: closeError,
+        },
+      ],
     });
     await expect(toolsPromise).rejects.toMatchObject({
       message: 'MCP toolkit entry "second" failed to connect: connect failed',
@@ -275,6 +285,31 @@ describe("AISDKToolkit", () => {
     expect(close).toHaveBeenCalledTimes(1);
 
     await expect(toolkit.close()).resolves.toBeUndefined();
+  });
+
+  it("includes the MCP toolkit entry name when closing a client fails", async () => {
+    const closeError = new Error("close failed");
+    mocks.tools.mockResolvedValue({});
+    mocks.createMCPClient.mockResolvedValue({
+      tools: mocks.tools,
+      close: vi.fn().mockRejectedValue(closeError),
+    });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        github: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+        },
+      },
+    });
+
+    await toolkit.tools();
+
+    await expect(toolkit.close()).rejects.toMatchObject({
+      message: 'MCP toolkit entry "github" failed to close: close failed',
+      cause: closeError,
+    });
   });
 
   it("evicts failed MCP client initialization so later calls can retry", async () => {
@@ -332,6 +367,47 @@ describe("AISDKToolkit", () => {
       });
       await expect(toolkit.tools()).resolves.toHaveProperty("echo");
       expect(mocks.createMCPClient).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes an MCP client that resolves after its connection times out", async () => {
+    vi.useFakeTimers();
+    const close = vi.fn().mockResolvedValue(undefined);
+    let resolveClient!: (client: {
+      tools: typeof mocks.tools;
+      close: typeof close;
+    }) => void;
+    mocks.createMCPClient.mockReturnValue(
+      new Promise((resolve) => {
+        resolveClient = resolve;
+      }),
+    );
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: {
+            type: "http",
+            url: "http://localhost:3001/mcp",
+            connectionTimeout: 10_000,
+          },
+        },
+      },
+    });
+
+    try {
+      const toolsPromise = toolkit.tools();
+      const expectedRejection = expect(toolsPromise).rejects.toThrow(
+        'MCP toolkit entry "docs" timed out while connecting after 10000ms.',
+      );
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expectedRejection;
+
+      resolveClient({ tools: mocks.tools, close });
+      await vi.waitFor(() => expect(close).toHaveBeenCalledTimes(1));
     } finally {
       vi.useRealTimers();
     }

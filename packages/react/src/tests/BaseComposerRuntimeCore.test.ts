@@ -540,11 +540,15 @@ describe("BaseComposerRuntimeCore", () => {
         ).rejects.toThrow(/is not accepted/);
       });
 
-      it("does not fire attachmentAddError when an attachmentAdd subscriber throws", async () => {
+      it("isolates a throwing attachmentAdd subscriber without firing attachmentAddError", async () => {
         composer.setAttachmentAdapter(makeImageAdapter());
+        const listenerError = new Error("add subscriber boom");
+        const consoleError = vi
+          .spyOn(console, "error")
+          .mockImplementation(() => {});
         const onError = vi.fn();
         composer.unstable_on("attachmentAdd", () => {
-          throw new Error("add subscriber boom");
+          throw listenerError;
         });
         composer.unstable_on("attachmentAddError", onError);
 
@@ -555,10 +559,15 @@ describe("BaseComposerRuntimeCore", () => {
               contentType: "image/png",
             }),
           ),
-        ).rejects.toThrow("add subscriber boom");
+        ).resolves.toBeUndefined();
 
         expect(composer.attachments).toHaveLength(1);
         expect(onError).not.toHaveBeenCalled();
+        expect(consoleError).toHaveBeenCalledWith(
+          '[assistant-ui] Composer runtime "attachmentAdd" listener threw an error',
+          listenerError,
+        );
+        consoleError.mockRestore();
       });
 
       it("does not fire attachmentAddError when a state subscriber throws on add", async () => {

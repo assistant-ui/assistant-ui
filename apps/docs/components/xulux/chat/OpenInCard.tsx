@@ -244,11 +244,12 @@ export function OpenInCard({
               align="start"
               sideOffset={8}
               collisionPadding={12}
+              className="z-[2147483647]"
             >
               <PreviewCard.Popup
                 id={promptPreviewId}
                 role="tooltip"
-                className="border-border bg-popover text-popover-foreground z-[2147483647] w-[min(24rem,calc(100vw-2rem))] rounded-lg border p-3 text-xs shadow-lg"
+                className="border-border bg-popover text-popover-foreground w-[min(24rem,calc(100vw-2rem))] rounded-lg border p-3 text-xs shadow-lg"
               >
                 <div className="text-muted-foreground mb-2 font-medium">
                   Prompt preview

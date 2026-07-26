@@ -56,6 +56,7 @@ export type LangGraphSendMessageConfig = {
   command?: LangGraphCommand;
   runConfig?: unknown;
   checkpointId?: string;
+  state?: Record<string, unknown>;
 };
 
 export type LangGraphMessagesEvent<TMessage> = {
@@ -173,6 +174,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     LangGraphInterruptState | undefined
   >();
   const [messages, _setMessages] = useState<TMessage[]>([]);
+  const [values, setValues] = useState<Record<string, unknown> | undefined>();
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
@@ -274,6 +276,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                 onSubgraphValues?.(eventNamespace, chunk.data);
                 break;
               }
+              setValues(chunk.data as Record<string, unknown>);
               onValues?.(chunk.data);
               if (Array.isArray(chunk.data?.messages)) {
                 lastValuesMessages = chunk.data.messages;
@@ -452,12 +455,14 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
 
   return {
     interrupt,
+    values,
     messages,
     messageMetadata,
     uiMessages,
     sendMessage,
     cancel,
     setInterrupt,
+    setValues,
     setMessages: setMessagesImmediate,
     setUIMessages: setUIMessagesImmediate,
   };

@@ -150,7 +150,12 @@ export type {
 export type { FeedbackAdapter } from "./adapters/feedback";
 
 // Suggestion adapter
-export type { SuggestionAdapter } from "./adapters/suggestion";
+export type {
+  SuggestionAdapter,
+  SuggestionAdapterGenerateOptions,
+  CreateSuggestionAdapterOptions,
+} from "./adapters/suggestion";
+export { createSuggestionAdapter } from "./adapters/suggestion";
 
 // Directive formatter
 export { unstable_defaultDirectiveFormatter } from "./adapters/directive-formatter";
@@ -188,6 +193,14 @@ export type {
   SendOptions,
   ThreadComposerRuntimeCore,
 } from "./runtime/interfaces/composer-runtime-core";
+
+export type {
+  ErrorSeverity,
+  ErrorDisplay,
+  AssistantErrorCode,
+  AssistantError,
+} from "./types/error";
+export { toAssistantError, isAssistantError } from "./types/error";
 
 export type {
   RuntimeCapabilities,

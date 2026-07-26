@@ -1,8 +1,9 @@
-import type {
-  Attachment,
-  CompleteAttachment,
-  CreateAttachment,
-  PendingAttachment,
+import {
+  isCreateAttachment,
+  type Attachment,
+  type CompleteAttachment,
+  type CreateAttachment,
+  type PendingAttachment,
 } from "../../types/attachment";
 import type { MessageRole, AppendMessage } from "../../types/message";
 import type { QuoteInfo } from "../../types/quote";
@@ -28,6 +29,7 @@ import {
   type QueueItemState,
 } from "../../store/scopes/queue-item";
 import { generateId } from "../../utils/id";
+import { notifyEventListeners } from "../../utils/notify-event-listeners";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
@@ -223,7 +225,8 @@ export abstract class BaseComposerRuntimeCore
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
-    this.handleSend(message, options);
+    const sendTask = this.handleSend(message, options);
+    if (sendTask) void sendTask.catch(() => {});
     this._notifyEventSubscribers("send", {});
   }
 
@@ -241,11 +244,11 @@ export abstract class BaseComposerRuntimeCore
   protected abstract handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
-  ): void;
+  ): void | Promise<void>;
   protected abstract handleCancel(): void;
 
   async addAttachment(fileOrAttachment: File | CreateAttachment) {
-    if (!(fileOrAttachment instanceof File)) {
+    if (isCreateAttachment(fileOrAttachment)) {
       const adapter = this.getAttachmentAdapter();
       if (
         adapter &&
@@ -563,7 +566,7 @@ export abstract class BaseComposerRuntimeCore
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) return;
 
-    for (const callback of subscribers) callback(payload);
+    notifyEventListeners(subscribers, payload, `Composer runtime "${event}"`);
   }
 
   public unstable_on<E extends ComposerRuntimeEventType>(

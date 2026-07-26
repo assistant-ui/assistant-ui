@@ -12,7 +12,6 @@ import { MarkdownText } from "@assistant-ui/react-ink-markdown";
 
 // markdansi defaults width and color from process.stdout, which does not
 // exist in the browser bundle; pass both explicitly so it never reads it.
-// color is forwarded to markdansi but not yet declared on MarkdownTextProps.
 const BrowserMarkdownText = ({ text }: { text: string }) => {
   const { stdout } = useStdout();
   return (
@@ -20,7 +19,7 @@ const BrowserMarkdownText = ({ text }: { text: string }) => {
       text={text}
       width={(stdout?.columns ?? 80) - 4}
       hyperlinks={false}
-      {...{ color: true }}
+      color
     />
   );
 };

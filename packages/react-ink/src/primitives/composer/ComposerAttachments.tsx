@@ -1,24 +1,12 @@
-import type { ComponentType } from "react";
 import {
   ComposerPrimitiveAttachments,
   ComposerPrimitiveAttachmentByIndex,
 } from "@assistant-ui/core/react";
 
-export type AttachmentComponents = {
-  Image?: ComponentType | undefined;
-  Document?: ComponentType | undefined;
-  File?: ComponentType | undefined;
-  Attachment?: ComponentType | undefined;
-};
+export type ComposerAttachmentsProps = ComposerPrimitiveAttachments.Props;
 
-export type ComposerAttachmentsProps = {
-  components: AttachmentComponents | undefined;
-};
-
-export type ComposerAttachmentByIndexProps = {
-  index: number;
-  components?: AttachmentComponents | undefined;
-};
+export type ComposerAttachmentByIndexProps =
+  ComposerPrimitiveAttachmentByIndex.Props;
 
 export const ComposerAttachmentByIndex = ComposerPrimitiveAttachmentByIndex;
 

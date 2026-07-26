@@ -647,6 +647,34 @@ describe("useLangGraphRuntime", () => {
     );
   });
 
+  it("forwards threadId so the runtime switches to the specified thread", async () => {
+    const fetch = vi.fn(async (threadId: string) => ({
+      status: "regular" as const,
+      remoteId: threadId,
+      externalId: threadId,
+    }));
+    // Empty list so switching has to fetch the routed thread instead of finding
+    // it already loaded.
+    const adapter: RemoteThreadListAdapter = {
+      ...makeThreadListAdapter(),
+      list: vi.fn(async () => ({ threads: [] })),
+      fetch,
+    };
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        unstable_threadListAdapter: adapter,
+        threadId: "lg-thread-1",
+      }),
+    );
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("lg-thread-1"));
+  });
+
   it("invokes user-provided create when stream calls initialize without cloud", async () => {
     const userCreate = vi.fn(async () => ({ externalId: "lg-thread-xyz" }));
 
@@ -822,6 +850,53 @@ describe("useLangGraphRuntime", () => {
       expect(auiResult.current.thread().composer().getState().queue).toEqual(
         [],
       );
+    });
+
+    it("handles a queued run rejection", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          await gate.promise;
+          return;
+        }
+        throw new Error("queued run failed");
+      });
+      const onUnhandledRejection = vi.fn();
+      process.on("unhandledRejection", onUnhandledRejection);
+
+      try {
+        const { result: runtimeResult } = renderHook(
+          () =>
+            useLangGraphRuntime({
+              stream: streamMock,
+              unstable_enableMessageQueue: true,
+            }),
+          {},
+        );
+        const wrapper = wrapperFactory(runtimeResult.current);
+        const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+        const send = async (text: string) => {
+          await act(async () => {
+            auiResult.current.composer().setText(text);
+            auiResult.current.composer().send();
+          });
+        };
+
+        await send("first");
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+        await send("second");
+
+        await act(async () => {
+          gate.resolve();
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(onUnhandledRejection).not.toHaveBeenCalled();
+      } finally {
+        process.off("unhandledRejection", onUnhandledRejection);
+      }
     });
 
     it("does not expose the queue capability when the flag is off", async () => {

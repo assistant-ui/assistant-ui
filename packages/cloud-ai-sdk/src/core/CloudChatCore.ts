@@ -142,7 +142,9 @@ export class CloudChatCore {
         this.handleSyncError(err);
       }
     }
-    meta.loading = null;
+    if (!cancelledRef.cancelled) {
+      meta.loading = null;
+    }
   }
 
   createTransport(
@@ -206,7 +208,7 @@ export class CloudChatCore {
         this.options.chatConfig.onData?.(data);
       },
       onToolCall: (toolCall) => {
-        this.options.chatConfig.onToolCall?.(toolCall);
+        return this.options.chatConfig.onToolCall?.(toolCall);
       },
       sendAutomaticallyWhen: (arg) =>
         this.options.chatConfig.sendAutomaticallyWhen?.(arg) ?? false,

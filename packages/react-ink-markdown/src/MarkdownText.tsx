@@ -31,12 +31,18 @@ export type MarkdownTextProps = {
   codeWrap?: boolean;
   /** Enable OSC 8 hyperlinks (default: auto-detect). */
   hyperlinks?: boolean;
+  /** Enable ANSI colors (default: auto-detect). */
+  color?: boolean;
   /** Table border style. */
   tableBorder?: "unicode" | "ascii" | "none";
   /** Table cell padding. */
   tablePadding?: number;
   /** Dense table rendering. */
   tableDense?: boolean;
+  /** Truncate table cells to fit column width (default: true). */
+  tableTruncate?: boolean;
+  /** Ellipsis text for table cell truncation (default: "…"). */
+  tableEllipsis?: string;
   /** Blockquote prefix (default: "\u2502 "). */
   quotePrefix?: string;
   /** List indentation (default: 2). */

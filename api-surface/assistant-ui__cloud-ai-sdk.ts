@@ -242,13 +242,25 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: AssistantTransportStateOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
   headers?: Headers;
+};
+
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
 };
 
 type CloudMessage = {
@@ -300,16 +312,6 @@ type MakeRequestOptions = {
   headers?: Record<string, string> | undefined;
   query?: Record<string, string | number | boolean> | undefined;
   body?: object | undefined;
-};
-
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
 };
 
 type PartInit = {

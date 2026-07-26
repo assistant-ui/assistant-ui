@@ -31,6 +31,7 @@ import {
   PlusIcon,
   RocketIcon,
   BookOpenIcon,
+  SparklesIcon,
   XIcon,
 } from "lucide-react";
 import {
@@ -94,7 +95,7 @@ export function AssistantThread({
     <ThreadPrimitive.Root className="bg-background flex h-full flex-col">
       <PendingMessageHandler />
       <PanelHeader />
-      <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col overflow-y-auto overscroll-contain px-3 pt-3">
+      <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col overflow-y-auto overscroll-contain mask-[linear-gradient(to_bottom,transparent,black_2rem)] px-3 pt-3">
         <AuiIf condition={(s) => s.thread.isEmpty}>{welcome}</AuiIf>
 
         <div className="px-1.5" data-slot="thread-messages">
@@ -150,7 +151,7 @@ function PanelHeader(): React.ReactNode {
   const usagePercent = Math.min((contextTokens / contextWindow) * 100, 100);
 
   return (
-    <div className="flex h-12 shrink-0 items-center justify-between border-b px-3">
+    <div className="flex h-12 shrink-0 items-center justify-between px-3">
       <span className="text-sm font-semibold">Ask AI</span>
       <div className="flex items-center gap-0.5">
         <ContextDisplay.Ring
@@ -216,18 +217,31 @@ const SUGGESTIONS = [
 
 function AssistantWelcome(): React.ReactNode {
   return (
-    <div className="flex flex-1 flex-col justify-end gap-0.5 pb-3">
-      {SUGGESTIONS.map(({ prompt, Icon }) => (
-        <ThreadPrimitive.Suggestion
-          key={prompt}
-          prompt={prompt}
-          send
-          className="text-muted-foreground hover:bg-muted hover:text-foreground flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors"
-        >
-          <Icon className="text-muted-foreground size-4 shrink-0" />
-          {prompt}
-        </ThreadPrimitive.Suggestion>
-      ))}
+    <div className="flex flex-1 flex-col pb-3">
+      <div className="flex flex-1 flex-col items-center justify-center gap-3">
+        <div className="bg-muted/50 text-muted-foreground flex size-10 items-center justify-center rounded-xl">
+          <SparklesIcon className="size-5" />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-medium">How can I help?</p>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Ask anything about assistant-ui.
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {SUGGESTIONS.map(({ prompt, Icon }) => (
+          <ThreadPrimitive.Suggestion
+            key={prompt}
+            prompt={prompt}
+            send
+            className="border-border/60 text-muted-foreground hover:bg-muted/50 hover:text-foreground flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors"
+          >
+            <Icon className="text-muted-foreground size-4 shrink-0" />
+            {prompt}
+          </ThreadPrimitive.Suggestion>
+        ))}
+      </div>
     </div>
   );
 }

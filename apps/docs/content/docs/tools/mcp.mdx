@@ -81,8 +81,8 @@ const mcpClient = await createMCPClient({
 
 In a generative toolkit, spread `defineMcpToolkit({ ... })` with one entry per
 MCP server. The entry key names the server connection; the MCP server publishes
-the actual tool names. Use a readable key because it appears in connection and
-tool-listing errors for debugging.
+the actual tool names. Use a readable key because it appears in connection,
+tool-listing, and close errors for debugging.
 
 ```tsx title="app/toolkit.tsx"
 "use generative";

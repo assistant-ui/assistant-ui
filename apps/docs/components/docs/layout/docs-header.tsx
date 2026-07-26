@@ -8,6 +8,7 @@ import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
 import { NAV_ITEMS, CLOUD_URL, type NavItem } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
@@ -33,13 +34,19 @@ function AskAIButton() {
   const { toggle } = useAssistantPanel();
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
+      size="sm"
       onClick={toggle}
-      className="border-border/50 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground flex h-8 shrink-0 items-center rounded-lg border px-3 text-sm transition-colors"
+      className="shrink-0"
+      aria-label="Ask AI (⌘I)"
     >
       Ask AI
-    </button>
+      <KbdGroup className="hidden lg:inline-flex">
+        <Kbd>⌘</Kbd>
+        <Kbd>I</Kbd>
+      </KbdGroup>
+    </Button>
   );
 }
 
@@ -47,27 +54,23 @@ function HeaderSearch() {
   const { setOpenSearch, hotKey } = useSearchContext();
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
+      size="sm"
       onClick={() => {
         analytics.search.opened("header");
         setOpenSearch(true);
       }}
-      className="border-border/50 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground flex h-8 w-full max-w-96 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm transition-colors"
+      className="text-muted-foreground w-full max-w-96 shrink justify-start gap-2 font-normal"
     >
       <Search className="size-3.5 shrink-0" />
       <span className="flex-1 text-left">Search...</span>
-      <div className="flex gap-0.5">
+      <KbdGroup>
         {hotKey.map((k, i) => (
-          <kbd
-            key={i}
-            className="bg-background text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-medium"
-          >
-            {k.display}
-          </kbd>
+          <Kbd key={i}>{k.display}</Kbd>
         ))}
-      </div>
-    </button>
+      </KbdGroup>
+    </Button>
   );
 }
 
@@ -231,50 +234,66 @@ export function DocsHeader({
           </div>
 
           {/* Condensed nav: md to lg */}
-          <div className="ml-auto hidden items-center gap-2 md:flex lg:hidden">
-            <AskAIButton />
-            <button
-              type="button"
-              onClick={() => {
-                analytics.search.opened("header");
-                setOpenSearch(true);
-              }}
-              className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors"
-              aria-label="Search"
-            >
-              <Search className="size-4" />
-            </button>
+          <div className="ml-auto hidden items-center gap-4 md:flex lg:hidden">
+            <div className="flex items-center gap-2">
+              <AskAIButton />
+              <button
+                type="button"
+                onClick={() => {
+                  analytics.search.opened("header");
+                  setOpenSearch(true);
+                }}
+                className="text-muted-foreground hover:text-foreground flex size-7 cursor-pointer items-center justify-center transition-colors"
+                aria-label="Search"
+              >
+                <Search className="size-4" />
+              </button>
+            </div>
             <div className="flex shrink-0 items-center">
               <NavItems items={condensedItems} />
               {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
             </div>
-            <Button
-              size="sm"
-              nativeButton={false}
-              render={
-                <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
-              }
-            >
-              Cloud
-            </Button>
-            <ThemeToggle />
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                nativeButton={false}
+                render={
+                  <a
+                    href={CLOUD_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                }
+              >
+                Cloud
+              </Button>
+              <ThemeToggle />
+            </div>
           </div>
 
           {/* Full nav: lg+ */}
-          <div className="ml-auto hidden items-center gap-2 lg:flex">
-            <AskAIButton />
-            <HeaderSearch />
+          <div className="ml-auto hidden items-center gap-4 lg:flex">
+            <div className="flex min-w-0 items-center gap-2">
+              <AskAIButton />
+              <HeaderSearch />
+            </div>
             <NavItems items={filteredItems} />
-            <Button
-              size="sm"
-              nativeButton={false}
-              render={
-                <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
-              }
-            >
-              Cloud
-            </Button>
-            <ThemeToggle />
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                nativeButton={false}
+                render={
+                  <a
+                    href={CLOUD_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                }
+              >
+                Cloud
+              </Button>
+              <ThemeToggle />
+            </div>
           </div>
         </div>
 

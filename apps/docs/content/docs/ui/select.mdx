@@ -20,7 +20,7 @@ import {
   SelectSizesSample,
   SelectScrollableSample,
 } from "@/components/docs/samples/select";
-import * as SelectBaseSamples from "@/components/docs/samples/select.base";
+import * as SelectRadixSamples from "@/components/docs/samples/select.radix";
 import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
 <Callout>
@@ -29,7 +29,7 @@ import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.serv
 
 <FlavorSwitcher />
 
-<Flavored radix={<SelectSample />} base={<SelectBaseSamples.SelectSample />} />
+<Flavored radix={<SelectRadixSamples.SelectSample />} base={<SelectSample />} />
 
 ## Installation
 
@@ -66,7 +66,7 @@ export function FruitPicker() {
 
 Use the `variant` prop on `SelectTrigger` to change the visual style.
 
-<Flavored radix={<SelectVariantsSample />} base={<SelectBaseSamples.SelectVariantsSample />} />
+<Flavored radix={<SelectRadixSamples.SelectVariantsSample />} base={<SelectVariantsSample />} />
 
 ```tsx
 <SelectTrigger variant="outline" /> // Border (default)
@@ -78,7 +78,7 @@ Use the `variant` prop on `SelectTrigger` to change the visual style.
 
 Use the `size` prop on `SelectTrigger` to change the height.
 
-<Flavored radix={<SelectSizesSample />} base={<SelectBaseSamples.SelectSizesSample />} />
+<Flavored radix={<SelectRadixSamples.SelectSizesSample />} base={<SelectSizesSample />} />
 
 ```tsx
 <SelectTrigger size="default" /> // 36px (default)
@@ -89,34 +89,34 @@ Use the `size` prop on `SelectTrigger` to change the height.
 
 Long lists automatically become scrollable.
 
-<PreviewCode file="components/docs/samples/select" name="SelectScrollableSample" base={<SelectBaseSamples.SelectScrollableSample />}>
-  <SelectScrollableSample />
+<PreviewCode file="components/docs/samples/select" name="SelectScrollableSample" base={<SelectScrollableSample />}>
+  <SelectRadixSamples.SelectScrollableSample />
 </PreviewCode>
 
 ### Groups
 
 Use the composable API for grouped options:
 
-<PreviewCode file="components/docs/samples/select" name="SelectGroupsSample" base={<SelectBaseSamples.SelectGroupsSample />}>
-  <SelectGroupsSample />
+<PreviewCode file="components/docs/samples/select" name="SelectGroupsSample" base={<SelectGroupsSample />}>
+  <SelectRadixSamples.SelectGroupsSample />
 </PreviewCode>
 
 ### Disabled Items
 
-<PreviewCode file="components/docs/samples/select" name="SelectDisabledItemsSample" base={<SelectBaseSamples.SelectDisabledItemsSample />}>
-  <SelectDisabledItemsSample />
+<PreviewCode file="components/docs/samples/select" name="SelectDisabledItemsSample" base={<SelectDisabledItemsSample />}>
+  <SelectRadixSamples.SelectDisabledItemsSample />
 </PreviewCode>
 
 ### With Placeholder
 
-<PreviewCode file="components/docs/samples/select" name="SelectPlaceholderSample" base={<SelectBaseSamples.SelectPlaceholderSample />}>
-  <SelectPlaceholderSample />
+<PreviewCode file="components/docs/samples/select" name="SelectPlaceholderSample" base={<SelectPlaceholderSample />}>
+  <SelectRadixSamples.SelectPlaceholderSample />
 </PreviewCode>
 
 ### Disabled Select
 
-<PreviewCode file="components/docs/samples/select" name="SelectDisabledSample" base={<SelectBaseSamples.SelectDisabledSample />}>
-  <SelectDisabledSample />
+<PreviewCode file="components/docs/samples/select" name="SelectDisabledSample" base={<SelectDisabledSample />}>
+  <SelectRadixSamples.SelectDisabledSample />
 </PreviewCode>
 
 ## API Reference

@@ -26,17 +26,15 @@ function HomeShift({
   return (
     <div
       className={cn(
-        isHome && "flex min-h-screen flex-col md:mr-(--chat-panel-width)",
+        "flex min-h-screen flex-col md:mr-(--chat-panel-width)",
         isHome &&
           !isResizing &&
           "transition-[margin] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
       )}
       style={
-        isHome
-          ? ({
-              "--chat-panel-width": getPanelWidth(open, width),
-            } as React.CSSProperties)
-          : undefined
+        {
+          "--chat-panel-width": getPanelWidth(isHome && open, width),
+        } as React.CSSProperties
       }
     >
       {children}

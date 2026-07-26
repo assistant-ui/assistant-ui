@@ -51,19 +51,27 @@ export type McpAppHostInfo = {
  * `McpAppsRemoteHost`.
  */
 export type McpAppsHost = {
-  loadResource: (params: { uri: string }) => Promise<McpAppResource>;
-  callTool: (params: McpAppToolCallParams) => Promise<unknown>;
-  readResource: (params: { uri: string }) => Promise<unknown>;
+  loadResource: (params: {
+    uri: string;
+    serverId?: string;
+  }) => Promise<McpAppResource>;
+  callTool: (
+    params: McpAppToolCallParams & { serverId?: string },
+  ) => Promise<unknown>;
+  readResource: (params: {
+    uri: string;
+    serverId?: string;
+  }) => Promise<unknown>;
   listResources: (params?: unknown) => Promise<unknown>;
 };
 
 /**
  * Options for `McpAppsRemoteHost`. The host POSTs `{ method, params }` to
- * `url` and expects JSON responses. Method names sent:
- * - `mcp-apps/read-resource` (`{ uri }`) → `McpAppResource`
- * - `tools/call` (`{ name, arguments? }`) → tool result
- * - `resources/read` (`{ uri }`) → resource read result
- * - `resources/list` (`params?`) → list result
+ * `url` and expects JSON responses. Params may carry `serverId` for host-side routing. Method names sent:
+ * - `mcp-apps/read-resource` (`{ uri, serverId? }`) → `McpAppResource`
+ * - `tools/call` (`{ name, arguments?, serverId? }`) → tool result
+ * - `resources/read` (`{ uri, serverId? }`) → resource read result
+ * - `resources/list` (`{ serverId?, ...params }?`) → list result
  */
 export type McpAppsRemoteHostOptions = {
   url: string;
