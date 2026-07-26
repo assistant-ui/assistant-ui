@@ -3,7 +3,9 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -169,6 +171,28 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
   const { close, returnToOrigin } = useArtifactSurface();
   const [view, setView] = useState<"preview" | "code">("preview");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const historyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!historyOpen) return;
+    const dismissPointer = (event: PointerEvent) => {
+      if (!historyRef.current?.contains(event.target as Node)) {
+        setHistoryOpen(false);
+      }
+    };
+    const dismissKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setHistoryOpen(false);
+    };
+    const dismissBlur = () => setHistoryOpen(false);
+    document.addEventListener("pointerdown", dismissPointer);
+    document.addEventListener("keydown", dismissKey);
+    window.addEventListener("blur", dismissBlur);
+    return () => {
+      document.removeEventListener("pointerdown", dismissPointer);
+      document.removeEventListener("keydown", dismissKey);
+      window.removeEventListener("blur", dismissBlur);
+    };
+  }, [historyOpen]);
 
   return (
     <aside
@@ -191,7 +215,7 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
         </div>
 
         <div className="ml-auto flex items-center gap-1.5">
-          <div className="relative">
+          <div className="relative" ref={historyRef}>
             <button
               type="button"
               data-testid="artifact-version-select"
