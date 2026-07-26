@@ -219,7 +219,7 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
                       v{index + 1} ·{" "}
                       {version.origin === "user-edit" ? "you" : "assistant"}
                     </span>
-                    {version.isLatest && (
+                    {index === versions.length - 1 && (
                       <span className="text-muted-foreground font-mono text-[9px] uppercase">
                         latest
                       </span>
