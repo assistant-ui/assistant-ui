@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { bindExternalStoreMessage } from "@assistant-ui/core";
 import type {
   AssistantRuntime,
@@ -320,6 +320,7 @@ describe("useExternalHistory persistence", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
     const { append, runCycle, flush } = createPersistenceHarness(false);
     const innerMessage = { id: "inner-a", parts: ["final"] };
     const message = createAssistantMessage(
@@ -343,13 +344,13 @@ describe("useExternalHistory persistence", () => {
     await runCycle([message]);
     await flush();
     expect(append).toHaveBeenCalledTimes(2);
-    consoleError.mockRestore();
   });
 
   it("does not replay appends that succeeded before a mid-batch failure", async () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
     const { append, runCycle, flush } = createPersistenceHarness(false);
     const first = { id: "inner-1", parts: ["first"] };
     const second = { id: "inner-2", parts: ["second"] };
@@ -372,7 +373,6 @@ describe("useExternalHistory persistence", () => {
       "inner-2",
       "inner-2",
     ]);
-    consoleError.mockRestore();
   });
 
   it("persists assistant messages awaiting tool approval when the adapter supports update", async () => {
