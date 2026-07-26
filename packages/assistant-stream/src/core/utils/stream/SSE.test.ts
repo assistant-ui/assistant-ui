@@ -19,7 +19,9 @@ const decode = async <T>(events: string[]): Promise<T[]> => {
 
 describe("SSEDecoder", () => {
   it("decodes a JSON message frame", async () => {
-    const out = await decode<{ hello: string }>([`data: {"hello":"world"}\n\n`]);
+    const out = await decode<{ hello: string }>([
+      `data: {"hello":"world"}\n\n`,
+    ]);
     expect(out).toEqual([{ hello: "world" }]);
   });
 
@@ -34,9 +36,7 @@ describe("SSEDecoder", () => {
   });
 
   it("does not pollute the prototype via constructor.prototype", async () => {
-    await decode([
-      `data: {"constructor":{"prototype":{"polluted":true}}}\n\n`,
-    ]);
+    await decode([`data: {"constructor":{"prototype":{"polluted":true}}}\n\n`]);
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 

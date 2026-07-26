@@ -19,7 +19,9 @@ const decode = async (lines: string[]): Promise<DataStreamChunk[]> => {
 
 describe("DataStreamChunkDecoder", () => {
   it("decodes a chunk into type and value", async () => {
-    const [chunk] = await decode([`9:{"toolCallId":"1","toolName":"x","args":{}}`]);
+    const [chunk] = await decode([
+      `9:{"toolCallId":"1","toolName":"x","args":{}}`,
+    ]);
     expect(chunk).toEqual({
       type: "9",
       value: { toolCallId: "1", toolName: "x", args: {} },
@@ -28,9 +30,9 @@ describe("DataStreamChunkDecoder", () => {
 
   it("does not decode __proto__ as an own property", async () => {
     const [chunk] = await decode([`2:{"__proto__":{"polluted":true}}`]);
-    expect(
-      Object.prototype.hasOwnProperty.call(chunk.value, "__proto__"),
-    ).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(chunk.value, "__proto__")).toBe(
+      false,
+    );
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 
@@ -40,7 +42,9 @@ describe("DataStreamChunkDecoder", () => {
   });
 
   it("throws on a chunk without a type separator", async () => {
-    await expect(decode([`no-separator`])).rejects.toThrow("Invalid stream part");
+    await expect(decode([`no-separator`])).rejects.toThrow(
+      "Invalid stream part",
+    );
   });
 
   it("errors the stream on malformed JSON", async () => {
