@@ -452,6 +452,35 @@ describe("ThreadMessages", () => {
       expect(h.scrollToEnd).toHaveBeenCalledTimes(2);
     });
 
+    it("keeps following through consecutive growth events without scroll echoes", async () => {
+      h.state.thread.messages = [{ id: "1", role: "user" }];
+      await mountFlatList({ components: messageComponents });
+      const props = getFlatListProps();
+
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 100 } },
+        });
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 0 },
+            contentSize: { height: 100, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+      });
+      h.scrollToEnd.mockClear();
+
+      await act(async () => {
+        props.onContentSizeChange?.(0, 140);
+      });
+      await act(async () => {
+        props.onContentSizeChange?.(0, 180);
+      });
+
+      expect(h.scrollToEnd).toHaveBeenCalledTimes(2);
+    });
+
     it("does not scroll when content grows after the user scrolled away", async () => {
       h.state.thread.messages = [{ id: "1", role: "user" }];
       await mountFlatList({ components: messageComponents });

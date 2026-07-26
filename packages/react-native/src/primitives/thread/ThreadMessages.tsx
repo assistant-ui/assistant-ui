@@ -223,6 +223,7 @@ const useThreadMessagesFlatListAutoScroll = ({
     scrollY: 0,
   });
   const isAtBottomRef = useRef(true);
+  const lastScrollEventYRef = useRef(0);
   const initializeScrollRequestedRef = useRef(false);
   const pendingScrollToBottomRef = useRef<false | { animated: boolean }>(false);
 
@@ -233,8 +234,14 @@ const useThreadMessagesFlatListAutoScroll = ({
       contentHeight - scrollY - viewportHeight <= AT_BOTTOM_THRESHOLD;
   }, []);
 
+  // Commanding a scroll records the intended position immediately; the
+  // native scroll echo is bridged and throttled, so waiting for it lets a
+  // fast stream observe stale metrics and drop out of following.
   const scrollToBottom = useCallback(
     (animated: boolean) => {
+      const { contentHeight, viewportHeight } = metricsRef.current;
+      metricsRef.current.scrollY = Math.max(0, contentHeight - viewportHeight);
+      isAtBottomRef.current = true;
       flatListRef.current?.scrollToEnd({ animated });
     },
     [flatListRef],
@@ -252,16 +259,18 @@ const useThreadMessagesFlatListAutoScroll = ({
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } =
         event.nativeEvent;
-      const previousScrollY = metricsRef.current.scrollY;
+      const previousEventY = lastScrollEventYRef.current;
+      lastScrollEventYRef.current = contentOffset.y;
       metricsRef.current = {
         contentHeight: contentSize.height,
         viewportHeight: layoutMeasurement.height,
         scrollY: contentOffset.y,
       };
       updateIsAtBottom();
-      // Only a deliberate upward move cancels a pending scroll; the landing
-      // animation itself emits downward not-at-bottom events.
-      if (!isAtBottomRef.current && contentOffset.y < previousScrollY) {
+      // Only a deliberate upward move cancels a pending scroll. Gestures are
+      // detected echo-to-echo because a commanded scroll optimistically moves
+      // the tracked position ahead of its ascending animation echoes.
+      if (!isAtBottomRef.current && contentOffset.y < previousEventY) {
         pendingScrollToBottomRef.current = false;
       }
     },
