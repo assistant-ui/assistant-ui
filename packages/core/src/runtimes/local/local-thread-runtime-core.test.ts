@@ -946,4 +946,64 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     expect(updated).toHaveLength(1);
     expect(updated.at(-1)?.message.status?.type).toBe("incomplete");
   });
+
+  it("orders the terminal rewrite after an in-flight partial decision write", async () => {
+    const order: string[] = [];
+    let releasePartial!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releasePartial = resolve;
+    });
+    const history = {
+      async load() {
+        return { messages: [] };
+      },
+      async append() {},
+      async update(item: ExportedMessageRepositoryItem) {
+        const kind =
+          item.message.status?.type === "requires-action"
+            ? "partial"
+            : "terminal";
+        order.push(`${kind}:start`);
+        if (kind === "partial") await gate;
+        order.push(`${kind}:end`);
+      },
+    };
+    const runs: ChatModelRunOptions[] = [];
+    const twoPendingApprovals: ChatModelRunResult = {
+      content: [
+        { ...toolCallPart("send_email", { id: "a1" }), toolCallId: "call-1" },
+        { ...toolCallPart("send_email", { id: "a2" }), toolCallId: "call-2" },
+      ],
+      status: { type: "requires-action", reason: "tool-calls" },
+    };
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          if (runs.length === 1) return twoPendingApprovals;
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { history },
+    );
+
+    await thread.append(userMessage("send two emails"));
+    await flush();
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    thread.respondToToolApproval({ approvalId: "a2", approved: true });
+    await flush();
+
+    expect(order).toEqual(["partial:start"]);
+
+    releasePartial();
+    await flush();
+
+    expect(order).toEqual([
+      "partial:start",
+      "partial:end",
+      "terminal:start",
+      "terminal:end",
+    ]);
+  });
 });

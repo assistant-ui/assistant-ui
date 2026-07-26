@@ -68,6 +68,31 @@ export class LocalThreadRuntimeCore
   private _queue: MessageQueueController | null = null;
   private _queueRunInFlight = false;
 
+  private _historyWrites = new Map<string, Promise<void>>();
+
+  // Writes for one message id must land in issue order; an earlier paused
+  // snapshot arriving after the terminal write would resurrect the pause.
+  private _chainHistoryWrite(
+    id: string,
+    write: () => Promise<void>,
+  ): Promise<void> {
+    const next = (this._historyWrites.get(id) ?? Promise.resolve()).then(
+      write,
+      write,
+    );
+    const stored = next.then(
+      () => {},
+      () => {},
+    );
+    this._historyWrites.set(id, stored);
+    void stored.then(() => {
+      if (this._historyWrites.get(id) === stored) {
+        this._historyWrites.delete(id);
+      }
+    });
+    return next;
+  }
+
   // A decision recorded on a still-paused message must reach history before
   // the run resumes, or a refresh would restore the message without it.
   private _persistPausedMessage(
@@ -75,9 +100,11 @@ export class LocalThreadRuntimeCore
     message: ThreadAssistantMessage,
   ) {
     if (message.status?.type !== "requires-action") return;
-    this._options.adapters.history
-      ?.update?.({ parentId, message, runConfig: this._lastRunConfig })
-      .catch(() => {});
+    const history = this._options.adapters.history;
+    if (!history?.update) return;
+    const update = history.update.bind(history);
+    const item = { parentId, message, runConfig: this._lastRunConfig };
+    this._chainHistoryWrite(message.id, () => update(item)).catch(() => {});
   }
 
   public readonly isDisabled = false;
@@ -600,10 +627,12 @@ export class LocalThreadRuntimeCore
       // Pauses are written only for adapters that can rewrite the entry later;
       // an append-only adapter would strand a half-finished run in history.
       if (isTerminal || (isPausing && history?.update)) {
-        if (alreadyPersisted && history?.update) {
-          await history.update(item);
-        } else {
-          await history?.append(item);
+        const write =
+          alreadyPersisted && history?.update
+            ? history.update.bind(history)
+            : history?.append.bind(history);
+        if (write) {
+          await this._chainHistoryWrite(message.id, () => write(item));
         }
       }
     }

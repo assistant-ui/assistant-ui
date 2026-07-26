@@ -102,7 +102,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     }
   }
 
-  async update({ message }: ExportedMessageRepositoryItem) {
+  async update(item: ExportedMessageRepositoryItem) {
+    if (!this._persistence.isPersisted(item.message.id)) {
+      return this.append(item);
+    }
+    const { message } = item;
     const remoteId = this.aui.threadListItem().getState().remoteId;
     if (!remoteId) return;
     const encoded = auiV0Encode(message);
@@ -352,7 +356,7 @@ const AUI_STATUS_MAP: Record<string, TelemetryData["status"]> = {
   incomplete: "incomplete",
 };
 
-function extractAuiV0<T>(content: T): TelemetryData | null {
+export function extractAuiV0<T>(content: T): TelemetryData | null {
   const msg = content as {
     role?: string;
     status?: { type: string };
