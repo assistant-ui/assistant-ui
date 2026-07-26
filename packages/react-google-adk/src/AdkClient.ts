@@ -60,7 +60,18 @@ export type CreateAdkStreamOptions = {
 export function createAdkStream(
   options: CreateAdkStreamOptions,
 ): AdkStreamCallback {
+  if (options.appName === "") {
+    throw new Error(
+      'createAdkStream direct mode requires a non-empty "appName".',
+    );
+  }
+
   const isDirect = options.appName != null;
+  if (isDirect && (options.userId == null || options.userId === "")) {
+    throw new Error(
+      'createAdkStream direct mode requires "userId" when "appName" is provided.',
+    );
+  }
 
   return async function* (messages, config) {
     const headers = await resolveHeaders(options.headers);
@@ -99,11 +110,26 @@ export function createAdkStream(
       );
     }
 
+    validateEventStreamContentType(response);
     yield* parseSSEResponse(response);
   };
 }
 
 // ── Internal helpers ──
+
+function validateEventStreamContentType(response: Response): void {
+  const contentType = response.headers.get("Content-Type");
+  const mediaType = contentType?.split(";", 1)[0]?.trim().toLowerCase();
+  if (mediaType !== "text/event-stream") {
+    const received = contentType
+      ? `"${contentType}"`
+      : "no Content-Type header";
+    void response.body?.cancel().catch(() => undefined);
+    throw new Error(
+      `Expected ADK stream response Content-Type "text/event-stream", received ${received}`,
+    );
+  }
+}
 
 async function resolveHeaders(
   headers:

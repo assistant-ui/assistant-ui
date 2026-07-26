@@ -26,6 +26,7 @@
  *   POST   /threads/:id/host-ui     → 204                   (body: { response })
  *   GET    /threads/:id/events      → SSE of PiClientEvent (?snapshot=false skips initial snapshot)
  */
+import { isRecord } from "@assistant-ui/core/internal";
 import { openPiEventStream } from "./eventSource";
 import type {
   PiClient,
@@ -42,16 +43,6 @@ type SharedStream = {
   listeners: Set<(event: PiClientEvent) => void>;
   close: () => void;
   closeTimer: ReturnType<typeof setTimeout> | undefined;
-};
-
-declare global {
-  // eslint-disable-next-line no-var
-  var __assistantUiPiHttpStreams: Map<string, SharedStream> | undefined;
-}
-
-const getDefaultBrowserStreams = () => {
-  globalThis.__assistantUiPiHttpStreams ??= new Map<string, SharedStream>();
-  return globalThis.__assistantUiPiHttpStreams;
 };
 
 export interface PiHttpClientOptions {
@@ -83,9 +74,239 @@ const assertOk = async (response: Response): Promise<void> => {
   );
 };
 
-const readJson = async <T>(response: Response): Promise<T> => {
+const invalidResponse = (
+  operation: string,
+  expectation: string,
+  cause?: unknown,
+): Error =>
+  new Error(
+    `Invalid Pi HTTP response while ${operation}: ${expectation}`,
+    cause === undefined ? undefined : { cause },
+  );
+
+const readJson = async (
+  response: Response,
+  operation: string,
+): Promise<unknown> => {
   await assertOk(response);
-  return (await response.json()) as T;
+  try {
+    return await response.json();
+  } catch (error) {
+    throw invalidResponse(operation, "expected valid JSON.", error);
+  }
+};
+
+const isOptionalString = (value: unknown): boolean =>
+  value === undefined || typeof value === "string";
+
+const isOptionalBoolean = (value: unknown): boolean =>
+  value === undefined || typeof value === "boolean";
+
+const isOptionalNumber = (value: unknown): boolean =>
+  value === undefined || typeof value === "number";
+
+const isQueuedMessage = (value: unknown): boolean => {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    typeof value.mode === "string" &&
+    typeof value.content === "string"
+  );
+};
+
+const isThreadConfig = (value: unknown): boolean =>
+  value === undefined ||
+  (isRecord(value) &&
+    isOptionalString(value.provider) &&
+    isOptionalString(value.modelId) &&
+    isOptionalString(value.thinkingLevel));
+
+const isContextUsage = (value: unknown): boolean =>
+  value === undefined ||
+  (isRecord(value) &&
+    (value.tokens === null || typeof value.tokens === "number") &&
+    typeof value.contextWindow === "number" &&
+    (value.percent === null || typeof value.percent === "number"));
+
+const isThreadMetadata = (value: unknown): value is PiThreadMetadata => {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    value.id.length > 0 &&
+    typeof value.status === "string" &&
+    (value.queuedMessages === undefined ||
+      (Array.isArray(value.queuedMessages) &&
+        value.queuedMessages.every(isQueuedMessage))) &&
+    isOptionalString(value.title) &&
+    isOptionalString(value.workspacePath) &&
+    isOptionalBoolean(value.archived) &&
+    isOptionalString(value.runningRunId) &&
+    isThreadConfig(value.config) &&
+    isContextUsage(value.contextUsage) &&
+    isOptionalString(value.sessionFile) &&
+    isOptionalString(value.parentSessionPath) &&
+    isOptionalNumber(value.messageCount) &&
+    isOptionalString(value.createdAt) &&
+    isOptionalString(value.updatedAt)
+  );
+};
+
+const parseThreadListResponse = (value: unknown): PiThreadMetadata[] => {
+  if (!Array.isArray(value)) {
+    throw invalidResponse("listing threads", "expected an array of threads.");
+  }
+
+  for (const [index, thread] of value.entries()) {
+    if (!isThreadMetadata(thread)) {
+      throw invalidResponse(
+        "listing threads",
+        `thread at index ${index} must have a non-empty string "id", a string "status", and correctly typed known fields.`,
+      );
+    }
+  }
+  return value;
+};
+
+const isUserContentPart = (value: unknown): boolean => {
+  if (!isRecord(value) || typeof value.type !== "string") return false;
+  if (value.type === "text") return typeof value.text === "string";
+  if (value.type === "image") {
+    return typeof value.data === "string" && typeof value.mimeType === "string";
+  }
+  return true;
+};
+
+const isUserContent = (value: unknown): boolean =>
+  typeof value === "string" ||
+  (Array.isArray(value) && value.every(isUserContentPart));
+
+const isAssistantContentPart = (value: unknown): boolean => {
+  if (!isRecord(value) || typeof value.type !== "string") return false;
+  if (value.type === "text") return typeof value.text === "string";
+  if (value.type === "thinking") return typeof value.thinking === "string";
+  if (value.type === "toolCall") {
+    return (
+      typeof value.id === "string" &&
+      typeof value.name === "string" &&
+      (value.arguments == null || isRecord(value.arguments))
+    );
+  }
+  return true;
+};
+
+const isTranscriptMessage = (value: unknown): boolean => {
+  if (!isRecord(value) || typeof value.role !== "string") return false;
+  if (value.role === "user" || value.role === "custom")
+    return isUserContent(value.content);
+  if (value.role === "assistant") {
+    return (
+      Array.isArray(value.content) &&
+      value.content.every(isAssistantContentPart)
+    );
+  }
+  if (value.role === "toolResult") {
+    return (
+      typeof value.toolCallId === "string" &&
+      Array.isArray(value.content) &&
+      value.content.every(isUserContentPart)
+    );
+  }
+  return true;
+};
+
+const isHostUiRequest = (value: unknown): boolean => {
+  if (!isRecord(value)) return false;
+  if (typeof value.id !== "string" || typeof value.kind !== "string") {
+    return false;
+  }
+  if (
+    !isOptionalString(value.toolCallId) ||
+    !isOptionalNumber(value.timeoutMs)
+  ) {
+    return false;
+  }
+
+  if (value.kind === "confirm") {
+    return typeof value.title === "string" && typeof value.message === "string";
+  }
+  if (value.kind === "select") {
+    return (
+      typeof value.title === "string" &&
+      Array.isArray(value.options) &&
+      value.options.every((option) => typeof option === "string")
+    );
+  }
+  if (value.kind === "input") {
+    return (
+      typeof value.title === "string" && isOptionalString(value.placeholder)
+    );
+  }
+  if (value.kind === "editor") {
+    return typeof value.title === "string" && isOptionalString(value.prefill);
+  }
+  return true;
+};
+
+const parseThreadSnapshotResponse = (
+  value: unknown,
+  operation: "creating a thread" | "fetching a thread",
+): PiThreadSnapshot => {
+  if (
+    !isRecord(value) ||
+    !isThreadMetadata(value.metadata) ||
+    !Array.isArray(value.messages) ||
+    !value.messages.every(isTranscriptMessage) ||
+    (value.hostUiRequests !== undefined &&
+      (!Array.isArray(value.hostUiRequests) ||
+        !value.hostUiRequests.every(isHostUiRequest)))
+  ) {
+    throw invalidResponse(
+      operation,
+      'expected a thread snapshot with valid "metadata", a "messages" array, and valid host UI requests when present.',
+    );
+  }
+  return value as PiThreadSnapshot;
+};
+
+const parseClearQueueResponse = (
+  value: unknown,
+): { steering: string[]; followUp: string[] } => {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.steering) ||
+    !value.steering.every((item) => typeof item === "string") ||
+    !Array.isArray(value.followUp) ||
+    !value.followUp.every((item) => typeof item === "string")
+  ) {
+    throw invalidResponse(
+      "clearing a thread queue",
+      'expected an object with string arrays "steering" and "followUp".',
+    );
+  }
+  return value as { steering: string[]; followUp: string[] };
+};
+
+const isModelInfo = (value: unknown): value is PiModelInfo =>
+  isRecord(value) &&
+  typeof value.provider === "string" &&
+  value.provider.length > 0 &&
+  typeof value.modelId === "string" &&
+  value.modelId.length > 0;
+
+const parseModelListResponse = (value: unknown): PiModelInfo[] => {
+  if (!Array.isArray(value)) {
+    throw invalidResponse("listing models", "expected an array of models.");
+  }
+
+  for (const [index, model] of value.entries()) {
+    if (!isModelInfo(model)) {
+      throw invalidResponse(
+        "listing models",
+        `model at index ${index} must have non-empty string "provider" and "modelId" fields.`,
+      );
+    }
+  }
+  return value;
 };
 
 export const createPiHttpClient = (
@@ -105,10 +326,7 @@ export const createPiHttpClient = (
     `${base}/threads/${encodeURIComponent(threadId)}`;
 
   const jsonHeaders = { "content-type": "application/json", ...headers };
-  const streams =
-    fetchImpl === globalThis.fetch && headers === undefined
-      ? getDefaultBrowserStreams()
-      : new Map<string, SharedStream>();
+  const streams = new Map<string, SharedStream>();
 
   const send = (url: string, method: string, body?: unknown) =>
     fetchImpl(url, {
@@ -127,18 +345,31 @@ export const createPiHttpClient = (
         params.set("workspacePath", input.workspacePath);
       if (input?.includeArchived) params.set("includeArchived", "true");
       const query = params.toString();
-      return readJson<PiThreadMetadata[]>(
-        await send(`${base}/threads${query ? `?${query}` : ""}`, "GET"),
+      return parseThreadListResponse(
+        await readJson(
+          await send(`${base}/threads${query ? `?${query}` : ""}`, "GET"),
+          "listing threads",
+        ),
       );
     },
 
     createThread: async (input) =>
-      readJson<PiThreadSnapshot>(
-        await send(`${base}/threads`, "POST", input ?? {}),
+      parseThreadSnapshotResponse(
+        await readJson(
+          await send(`${base}/threads`, "POST", input ?? {}),
+          "creating a thread",
+        ),
+        "creating a thread",
       ),
 
     getThread: async (threadId) =>
-      readJson<PiThreadSnapshot>(await send(threadUrl(threadId), "GET")),
+      parseThreadSnapshotResponse(
+        await readJson(
+          await send(threadUrl(threadId), "GET"),
+          "fetching a thread",
+        ),
+        "fetching a thread",
+      ),
 
     sendMessage: async (threadId, input: PiSendMessageInput) => {
       await assertOk(
@@ -151,8 +382,11 @@ export const createPiHttpClient = (
     },
 
     clearQueue: async (threadId) =>
-      readJson<{ steering: string[]; followUp: string[] }>(
-        await send(`${threadUrl(threadId)}/queue/clear`, "POST"),
+      parseClearQueueResponse(
+        await readJson(
+          await send(`${threadUrl(threadId)}/queue/clear`, "POST"),
+          "clearing a thread queue",
+        ),
       ),
 
     getAvailableModels: async (input) => {
@@ -160,8 +394,11 @@ export const createPiHttpClient = (
       if (input?.workspacePath)
         params.set("workspacePath", input.workspacePath);
       const query = params.toString();
-      return readJson<PiModelInfo[]>(
-        await send(`${base}/models${query ? `?${query}` : ""}`, "GET"),
+      return parseModelListResponse(
+        await readJson(
+          await send(`${base}/models${query ? `?${query}` : ""}`, "GET"),
+          "listing models",
+        ),
       );
     },
 
@@ -218,7 +455,13 @@ export const createPiHttpClient = (
             ...(reconnectDelay ? { reconnectDelay } : {}),
             ...(onStreamError ? { onError: onStreamError } : {}),
             onEvent: (event) => {
-              for (const l of [...listeners]) l(event as PiClientEvent);
+              for (const listener of [...listeners]) {
+                try {
+                  listener(event as PiClientEvent);
+                } catch (error) {
+                  console.error("[react-pi] Listener threw an error", error);
+                }
+              }
             },
           }),
         };

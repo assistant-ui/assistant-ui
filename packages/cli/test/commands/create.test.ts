@@ -301,12 +301,8 @@ describe("PROJECT_METADATA", () => {
   it("examples have correct hasLocalComponents values", () => {
     const examples = PROJECT_METADATA.filter((m) => m.category === "example");
     const withLocalComponents = examples.filter((e) => e.hasLocalComponents);
-    // These examples ship their own components (no shadcn)
     expect(withLocalComponents.map((e) => e.name)).toEqual([
-      "with-elevenlabs-conversational",
-      "with-livekit",
       "with-expo",
-      "with-interactables",
       "with-react-ink",
     ]);
   });

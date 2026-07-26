@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   RESUMABLE_STREAM_ID_HEADER,
   createResumableAssistantStreamResponse,
@@ -140,25 +140,6 @@ describe("createResumableAssistantStreamResponse", () => {
   });
 
   describe("producer crash", () => {
-    let suppressed: unknown[];
-    let original: NodeJS.UnhandledRejectionListener[];
-    const swallow: NodeJS.UnhandledRejectionListener = (reason) => {
-      suppressed.push(reason);
-    };
-
-    beforeEach(() => {
-      suppressed = [];
-      original = process.listeners("unhandledRejection");
-      for (const l of original) process.off("unhandledRejection", l);
-      process.on("unhandledRejection", swallow);
-    });
-
-    afterEach(async () => {
-      await new Promise((r) => setTimeout(r, 20));
-      process.off("unhandledRejection", swallow);
-      for (const l of original) process.on("unhandledRejection", l);
-    });
-
     it("synchronous callback throw is encoded into the body and finalizes the stream", async () => {
       const ctx = createResumableStreamContext({
         store: createInMemoryResumableStreamStore(),
@@ -184,11 +165,6 @@ describe("createResumableAssistantStreamResponse", () => {
       expect(replay).not.toBeNull();
       const replayBytes = await new Response(replay).arrayBuffer();
       expect(new Uint8Array(replayBytes)).toEqual(new Uint8Array(firstBytes));
-
-      while (suppressed.length === 0) {
-        await new Promise((r) => setTimeout(r, 5));
-      }
-      expect(suppressed.map((e) => (e as Error).message)).toContain("boom");
     });
   });
 

@@ -34,6 +34,17 @@ const sseBody = (text: string): ReadableStream<Uint8Array> => {
   });
 };
 
+const sseResponse = (
+  body: BodyInit | null,
+  contentType: string | null = "text/event-stream",
+): Response =>
+  new Response(body, {
+    status: 200,
+    ...(contentType === null
+      ? {}
+      : { headers: { "Content-Type": contentType } }),
+  });
+
 const nextWithTimeout = async <T>(
   promise: Promise<IteratorResult<T>>,
 ): Promise<IteratorResult<T> | "timeout"> => {
@@ -57,7 +68,7 @@ beforeEach(() => {
 
 describe("createAdkStream - proxy mode", () => {
   it("POSTs to the api URL directly", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const messages: AdkMessage[] = [
@@ -78,7 +89,7 @@ describe("createAdkStream - proxy mode", () => {
   });
 
   it("sends runConfig and checkpointId in proxy body", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const gen = await stream(
@@ -95,7 +106,7 @@ describe("createAdkStream - proxy mode", () => {
   });
 
   it("sends a tool-result body when message type is tool", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const messages: AdkMessage[] = [
@@ -122,7 +133,7 @@ describe("createAdkStream - proxy mode", () => {
   });
 
   it("sends parts when message has multimodal content", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const messages: AdkMessage[] = [
@@ -149,7 +160,7 @@ describe("createAdkStream - proxy mode", () => {
   });
 
   it("sends file parts as inlineData in proxy mode", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const messages: AdkMessage[] = [
@@ -180,7 +191,7 @@ describe("createAdkStream - proxy mode", () => {
   });
 
   it("sends parts array when multiple messages are provided", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const messages: AdkMessage[] = [
@@ -205,7 +216,7 @@ describe("createAdkStream - proxy mode", () => {
   });
 
   it("marks isError=true when tool status is error", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const messages: AdkMessage[] = [
@@ -231,8 +242,35 @@ describe("createAdkStream - proxy mode", () => {
 // ── Direct mode ──
 
 describe("createAdkStream - direct mode", () => {
+  it("rejects direct mode with an empty appName", () => {
+    expect(() =>
+      createAdkStream({
+        api: "http://localhost:8000",
+        appName: "",
+        userId: "user-1",
+      }),
+    ).toThrow('createAdkStream direct mode requires a non-empty "appName".');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["empty", ""],
+  ])("rejects direct mode with a %s userId", (_label, userId) => {
+    expect(() =>
+      createAdkStream({
+        api: "http://localhost:8000",
+        appName: "my-app",
+        userId,
+      }),
+    ).toThrow(
+      'createAdkStream direct mode requires "userId" when "appName" is provided.',
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("POSTs to /run_sse with ADK-native body", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "http://localhost:8000",
@@ -264,9 +302,7 @@ describe("createAdkStream - direct mode", () => {
   it.each(["http://localhost:8000/", "http://localhost:8000//"])(
     "normalizes trailing slashes in the api URL: %s",
     async (api) => {
-      mockFetch.mockResolvedValueOnce(
-        new Response(sseBody(""), { status: 200 }),
-      );
+      mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
       const stream = createAdkStream({
         api,
@@ -289,7 +325,7 @@ describe("createAdkStream - direct mode", () => {
     const initialize = vi
       .fn()
       .mockResolvedValue({ remoteId: "r1", externalId: "s-42" });
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "http://localhost:8000",
@@ -310,7 +346,7 @@ describe("createAdkStream - direct mode", () => {
   });
 
   it("converts tool messages to functionResponse parts", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "http://localhost:8000",
@@ -342,7 +378,7 @@ describe("createAdkStream - direct mode", () => {
   });
 
   it("falls back to raw string when tool content is not valid JSON", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "http://localhost:8000",
@@ -368,7 +404,7 @@ describe("createAdkStream - direct mode", () => {
   });
 
   it("sends empty text part when no messages provided", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "http://localhost:8000",
@@ -394,9 +430,7 @@ describe("createAdkStream - SSE parsing", () => {
       { id: "e2", content: { parts: [{ text: "world" }] } },
     ];
     const text = events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("");
-    mockFetch.mockResolvedValueOnce(
-      new Response(sseBody(text), { status: 200 }),
-    );
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody(text)));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const gen = await stream(
@@ -413,11 +447,29 @@ describe("createAdkStream - SSE parsing", () => {
     expect(collected[1]!.id).toBe("e2");
   });
 
+  it("accepts parameterized event-stream content types", async () => {
+    const event: AdkEvent = { id: "e1" };
+    mockFetch.mockResolvedValueOnce(
+      sseResponse(
+        sseBody(`data: ${JSON.stringify(event)}\n\n`),
+        "Text/Event-Stream; charset=utf-8",
+      ),
+    );
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+    const collected: AdkEvent[] = [];
+    for await (const value of gen) collected.push(value);
+
+    expect(collected).toEqual([event]);
+  });
+
   it("skips :ok SSE comments", async () => {
     const text = `:ok\n\ndata: ${JSON.stringify({ id: "e1" })}\n\n`;
-    mockFetch.mockResolvedValueOnce(
-      new Response(sseBody(text), { status: 200 }),
-    );
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody(text)));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const gen = await stream(
@@ -435,9 +487,7 @@ describe("createAdkStream - SSE parsing", () => {
 
   it("parses data fields without a space after the colon", async () => {
     const text = `data:${JSON.stringify({ id: "e1" })}\n\n`;
-    mockFetch.mockResolvedValueOnce(
-      new Response(sseBody(text), { status: 200 }),
-    );
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody(text)));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const gen = await stream(
@@ -456,9 +506,7 @@ describe("createAdkStream - SSE parsing", () => {
   it("parses CR-delimited SSE events", async () => {
     const events: AdkEvent[] = [{ id: "e1" }, { id: "e2" }];
     const text = events.map((e) => `data: ${JSON.stringify(e)}\r\r`).join("");
-    mockFetch.mockResolvedValueOnce(
-      new Response(sseBody(text), { status: 200 }),
-    );
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody(text)));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const gen = await stream(
@@ -483,7 +531,7 @@ describe("createAdkStream - SSE parsing", () => {
         controller = nextController;
       },
     });
-    mockFetch.mockResolvedValueOnce(new Response(body, { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(body));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const gen = await stream(
@@ -520,7 +568,7 @@ describe("createAdkStream - SSE parsing", () => {
         controller.close();
       },
     });
-    mockFetch.mockResolvedValueOnce(new Response(body, { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(body));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const gen = await stream(
@@ -547,7 +595,7 @@ describe("createAdkStream - SSE parsing", () => {
         controller.close();
       },
     });
-    mockFetch.mockResolvedValueOnce(new Response(body, { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(body));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const gen = await stream(
@@ -567,9 +615,7 @@ describe("createAdkStream - SSE parsing", () => {
     // No trailing \n\n
     const event = { id: "e1" };
     const text = `data: ${JSON.stringify(event)}\n`;
-    mockFetch.mockResolvedValueOnce(
-      new Response(sseBody(text), { status: 200 }),
-    );
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody(text)));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const gen = await stream(
@@ -605,13 +651,57 @@ describe("createAdkStream - error handling", () => {
       }
     }).rejects.toThrow("ADK request failed: 404 Not Found");
   });
+
+  it("rejects successful HTML responses and cancels their body", async () => {
+    const cancelBody = vi.fn();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("<html>Sign in</html>"));
+      },
+      cancel: cancelBody,
+    });
+    mockFetch.mockResolvedValueOnce(
+      sseResponse(body, "text/html; charset=utf-8"),
+    );
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    await expect(async () => {
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      for await (const _ of gen) {
+        /* noop */
+      }
+    }).rejects.toThrow(
+      'Expected ADK stream response Content-Type "text/event-stream", received "text/html; charset=utf-8"',
+    );
+    expect(cancelBody).toHaveBeenCalledOnce();
+  });
+
+  it("rejects successful responses without a content type", async () => {
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody(""), null));
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    await expect(async () => {
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      for await (const _ of gen) {
+        /* noop */
+      }
+    }).rejects.toThrow(
+      'Expected ADK stream response Content-Type "text/event-stream", received no Content-Type header',
+    );
+  });
 });
 
 // ── Headers ──
 
 describe("createAdkStream - headers", () => {
   it("sends static headers", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "/api/adk",
@@ -634,7 +724,7 @@ describe("createAdkStream - headers", () => {
   });
 
   it("resolves dynamic headers from a function", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "/api/adk",
@@ -656,7 +746,7 @@ describe("createAdkStream - headers", () => {
   });
 
   it("resolves async dynamic headers", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "/api/adk",
@@ -678,7 +768,7 @@ describe("createAdkStream - headers", () => {
   });
 
   it("sends no extra headers when headers option is undefined", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({ api: "/api/adk" });
     const gen = await stream(
@@ -701,7 +791,7 @@ describe("createAdkStream - headers", () => {
 
 describe("createAdkStream - AbortSignal", () => {
   it("forwards the AbortSignal to fetch", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const controller = new AbortController();
     const stream = createAdkStream({ api: "/api/adk" });
@@ -721,7 +811,7 @@ describe("createAdkStream - AbortSignal", () => {
 
 describe("createAdkStream - content conversion", () => {
   it("converts reasoning content parts to thought parts in direct mode", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "http://localhost:8000",
@@ -748,7 +838,7 @@ describe("createAdkStream - content conversion", () => {
   });
 
   it("converts image_url content parts to fileData in direct mode", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "http://localhost:8000",
@@ -774,7 +864,7 @@ describe("createAdkStream - content conversion", () => {
   });
 
   it("converts file content parts to inlineData in direct mode", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "http://localhost:8000",
@@ -807,7 +897,7 @@ describe("createAdkStream - content conversion", () => {
   });
 
   it("converts file_url content parts to fileData with mimeType in direct mode", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "http://localhost:8000",
@@ -842,7 +932,7 @@ describe("createAdkStream - content conversion", () => {
   });
 
   it("converts code content parts to executableCode", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "http://localhost:8000",
@@ -868,7 +958,7 @@ describe("createAdkStream - content conversion", () => {
   });
 
   it("converts code_result content parts to codeExecutionResult", async () => {
-    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
     const stream = createAdkStream({
       api: "http://localhost:8000",

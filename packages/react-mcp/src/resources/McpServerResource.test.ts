@@ -1,4 +1,6 @@
 import { createTapRoot, useResource } from "@assistant-ui/tap";
+import type { ClientOutput } from "@assistant-ui/store";
+import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPAuthConfig } from "../mcp-scope";
 import type { MCPStorage } from "./storage/types";
@@ -17,6 +19,7 @@ const mocks = vi.hoisted(() => {
     }>
   > = [];
   const finishAuthResults: Array<() => Promise<void>> = [];
+  const closeResults: Array<() => Promise<void>> = [];
 
   const Client = vi.fn().mockImplementation(function Client(this: any) {
     const index = clients.length;
@@ -34,7 +37,7 @@ const mocks = vi.hoisted(() => {
     .fn()
     .mockImplementation(function StreamableHTTPClientTransport(this: any) {
       const index = transports.length;
-      this.close = vi.fn(() => Promise.resolve());
+      this.close = vi.fn(() => closeResults[index]?.() ?? Promise.resolve());
       this.finishAuth = vi.fn(
         () => finishAuthResults[index]?.() ?? Promise.resolve(),
       );
@@ -49,6 +52,7 @@ const mocks = vi.hoisted(() => {
     connectResults,
     listToolsResults,
     finishAuthResults,
+    closeResults,
   };
 });
 
@@ -102,19 +106,23 @@ const resetMocks = () => {
   mocks.connectResults.length = 0;
   mocks.listToolsResults.length = 0;
   mocks.finishAuthResults.length = 0;
+  mocks.closeResults.length = 0;
   mocks.Client.mockClear();
   mocks.StreamableHTTPClientTransport.mockClear();
 };
 
-const mount = (props?: {
-  auth?: MCPAuthConfig | undefined;
-  connectionTimeout?: number | undefined;
-}) => {
+const mount = (
+  props?: {
+    auth?: MCPAuthConfig | undefined;
+    connectionTimeout?: number | undefined;
+  },
+  onMount?: (server: ClientOutput<"mcpServer">) => void,
+) => {
   const connectionTimeout =
     props && "connectionTimeout" in props ? props.connectionTimeout : 10_000;
 
   return createTapRoot(function Root() {
-    return useResource(
+    const server = useResource(
       McpServerResource({
         id: "docs",
         kind: "connector",
@@ -128,6 +136,10 @@ const mount = (props?: {
         onRemove: vi.fn(async () => {}),
       }),
     );
+    useEffect(() => {
+      onMount?.(server);
+    }, [server]);
+    return server;
   });
 };
 
@@ -247,8 +259,104 @@ describe("McpServerResource connectionTimeout", () => {
   });
 });
 
+describe("McpServerResource connection lifecycle", () => {
+  beforeEach(resetMocks);
+
+  it("closes a pending connection when the resource unmounts", async () => {
+    let resolveConnect!: () => void;
+    mocks.connectResults.push(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveConnect = resolve;
+        }),
+    );
+    const root = mount({ connectionTimeout: undefined });
+    let didUnmount = false;
+    try {
+      const connectPromise = root.getValue().connect();
+      await waitFor(() => mocks.clients[0]?.connect.mock.calls.length === 1);
+
+      root.unmount();
+      didUnmount = true;
+      await flushMacrotask();
+
+      expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
+
+      resolveConnect();
+      await connectPromise;
+
+      expect(mocks.clients[0].listTools).not.toHaveBeenCalled();
+      expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
+    } finally {
+      if (!didUnmount) root.unmount();
+    }
+  });
+
+  it("waits for pending transports to close before a newer reconnect", async () => {
+    let resolveFirstConnect!: () => void;
+    let resolveFirstClose!: () => void;
+    mocks.connectResults.push(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFirstConnect = resolve;
+        }),
+    );
+    mocks.closeResults.push(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFirstClose = resolve;
+        }),
+    );
+    const root = mount({ connectionTimeout: undefined });
+
+    try {
+      const firstConnect = root.getValue().connect();
+      await waitFor(() => mocks.clients[0]?.connect.mock.calls.length === 1);
+
+      const supersededReconnect = root.getValue().connect();
+      await waitFor(() => mocks.transports[0]?.close.mock.calls.length === 1);
+
+      const latestReconnect = root.getValue().connect();
+      await flushMacrotask();
+      expect(mocks.transports).toHaveLength(1);
+
+      resolveFirstClose();
+      await supersededReconnect;
+      await waitFor(() => mocks.clients[1]?.connect.mock.calls.length === 1);
+      await latestReconnect;
+
+      resolveFirstConnect();
+      await firstConnect;
+    } finally {
+      root.unmount();
+    }
+  });
+});
+
 describe("McpServerResource completeAuth", () => {
   beforeEach(resetMocks);
+
+  it("completes auth across the StrictMode effect replay", async () => {
+    let completeAuth: Promise<void> | undefined;
+    let started = false;
+    const root = mount({ auth: { type: "oauth" } }, (server) => {
+      if (started) return;
+      started = true;
+      completeAuth = server.completeAuth(
+        "https://example.com/callback?code=abc",
+      );
+    });
+
+    try {
+      await expect(completeAuth).resolves.toBeUndefined();
+      await flushMacrotask();
+
+      expect(mocks.transports[0].finishAuth).toHaveBeenCalledTimes(1);
+      expect(root.getValue().getState().connectionState).toBe("connected");
+    } finally {
+      root.unmount();
+    }
+  });
 
   it("rejects when the callback URL has no authorization code", async () => {
     const root = mount();
@@ -292,6 +400,71 @@ describe("McpServerResource completeAuth", () => {
       expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
     } finally {
       root.unmount();
+    }
+  });
+
+  it("rejects when the resource unmounts during auth completion", async () => {
+    let resolveFinishAuth!: () => void;
+    mocks.finishAuthResults.push(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFinishAuth = resolve;
+        }),
+    );
+    const root = mount({ auth: { type: "oauth" } });
+    let didUnmount = false;
+
+    try {
+      const completeAuth = root
+        .getValue()
+        .completeAuth("https://example.com/callback?code=abc");
+      await waitFor(
+        () => mocks.transports[0]?.finishAuth.mock.calls.length === 1,
+      );
+
+      root.unmount();
+      didUnmount = true;
+      resolveFinishAuth();
+
+      await expect(completeAuth).rejects.toThrow(
+        'MCP server "docs" authorization was interrupted before completion.',
+      );
+    } finally {
+      if (!didUnmount) root.unmount();
+    }
+  });
+
+  it("normalizes late auth failures after unmount", async () => {
+    let rejectFinishAuth!: (error: Error) => void;
+    mocks.finishAuthResults.push(
+      () =>
+        new Promise<void>((_, reject) => {
+          rejectFinishAuth = reject;
+        }),
+    );
+    const root = mount({ auth: { type: "oauth" } });
+    let didUnmount = false;
+
+    try {
+      const completeAuth = root
+        .getValue()
+        .completeAuth("https://example.com/callback?code=abc");
+      await waitFor(
+        () => mocks.transports[0]?.finishAuth.mock.calls.length === 1,
+      );
+
+      root.unmount();
+      didUnmount = true;
+      const finishAuthError = new Error("Connection closed");
+      rejectFinishAuth(finishAuthError);
+
+      await expect(completeAuth).rejects.toMatchObject({
+        message:
+          'MCP server "docs" authorization was interrupted before completion.',
+        cause: finishAuthError,
+      });
+    } finally {
+      if (!didUnmount) root.unmount();
     }
   });
 });

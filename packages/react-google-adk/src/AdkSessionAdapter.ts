@@ -57,6 +57,130 @@ type AdkSessionAdapterResult = {
   };
 };
 
+type AdkSessionResponse = {
+  id: string;
+  events?: unknown;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isAdkSessionResponse = (value: unknown): value is AdkSessionResponse => {
+  if (!isRecord(value)) return false;
+
+  const id = value.id;
+  return typeof id === "string" && id.length > 0;
+};
+
+const parseAdkSessionResponse = (
+  value: unknown,
+  operation: "create" | "fetch" | "load",
+): AdkSessionResponse => {
+  if (!isAdkSessionResponse(value)) {
+    throw new Error(
+      `Invalid ADK session ${operation} response: expected an object with a non-empty string "id".`,
+    );
+  }
+  return value;
+};
+
+const parseAdkSessionListResponse = (value: unknown): AdkSessionResponse[] => {
+  if (!Array.isArray(value)) {
+    throw new Error(
+      "Invalid ADK session list response: expected an array of sessions.",
+    );
+  }
+
+  return value.map((session, index) => {
+    if (!isAdkSessionResponse(session)) {
+      throw new Error(
+        `Invalid ADK session list response: session at index ${index} must have a non-empty string "id".`,
+      );
+    }
+    return session;
+  });
+};
+
+const parseAdkArtifactListResponse = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    throw new Error(
+      "Invalid ADK artifact list response: expected an array of artifact names.",
+    );
+  }
+
+  return value.map((artifact, index) => {
+    if (typeof artifact === "string" && artifact.length > 0) {
+      return artifact;
+    }
+
+    if (isRecord(artifact)) {
+      const filename = artifact.filename;
+      if (typeof filename === "string" && filename.length > 0) {
+        return filename;
+      }
+    }
+
+    throw new Error(
+      `Invalid ADK artifact list response: artifact at index ${index} must be a non-empty string or an object with a non-empty string "filename".`,
+    );
+  });
+};
+
+const parseAdkArtifactResponse = (value: unknown): AdkArtifactData => {
+  if (!isRecord(value)) {
+    throw new Error(
+      'Invalid ADK artifact load response: expected an object containing "text" or "inlineData".',
+    );
+  }
+
+  const { text, inlineData } = value;
+  if (text === undefined && inlineData === undefined) {
+    throw new Error(
+      'Invalid ADK artifact load response: expected an object containing "text" or "inlineData".',
+    );
+  }
+
+  if (text !== undefined && typeof text !== "string") {
+    throw new Error(
+      'Invalid ADK artifact load response: "text" must be a string when present.',
+    );
+  }
+
+  if (
+    inlineData !== undefined &&
+    (!isRecord(inlineData) ||
+      typeof inlineData.mimeType !== "string" ||
+      typeof inlineData.data !== "string")
+  ) {
+    throw new Error(
+      'Invalid ADK artifact load response: "inlineData" must contain string "mimeType" and "data" fields.',
+    );
+  }
+
+  return value as AdkArtifactData;
+};
+
+const parseAdkArtifactVersionsResponse = (value: unknown): number[] => {
+  if (!Array.isArray(value)) {
+    throw new Error(
+      "Invalid ADK artifact versions response: expected an array of version numbers.",
+    );
+  }
+
+  return value.map((version, index) => {
+    if (
+      typeof version !== "number" ||
+      !Number.isInteger(version) ||
+      version < 0
+    ) {
+      throw new Error(
+        `Invalid ADK artifact versions response: version at index ${index} must be a non-negative integer.`,
+      );
+    }
+    return version;
+  });
+};
+
 /**
  * Creates a `RemoteThreadListAdapter` backed by ADK's session REST API,
  * plus a `load` function that reconstructs messages from session events.
@@ -96,12 +220,7 @@ export function createAdkSessionAdapter(
       if (!res.ok) {
         throw new Error(`Failed to list sessions: ${res.status}`);
       }
-      const data = (await res.json()) as Array<{
-        id: string;
-        app_name?: string;
-        user_id?: string;
-        last_update_time?: number;
-      }>;
+      const data = parseAdkSessionListResponse(await res.json());
 
       const threads: RemoteThreadMetadata[] = data.map((session) => ({
         status: "regular" as const,
@@ -125,7 +244,7 @@ export function createAdkSessionAdapter(
       if (!res.ok) {
         throw new Error(`Failed to create session: ${res.status}`);
       }
-      const session = (await res.json()) as { id: string };
+      const session = parseAdkSessionResponse(await res.json(), "create");
       return { remoteId: session.id, externalId: session.id };
     },
 
@@ -171,7 +290,7 @@ export function createAdkSessionAdapter(
       if (!res.ok) {
         throw new Error(`Session not found: ${res.status}`);
       }
-      const session = (await res.json()) as { id: string };
+      const session = parseAdkSessionResponse(await res.json(), "fetch");
       return {
         status: "regular",
         remoteId: session.id,
@@ -191,18 +310,23 @@ export function createAdkSessionAdapter(
     if (!res.ok) {
       throw new Error(`Failed to load session: ${res.status}`);
     }
-    const session = (await res.json()) as {
-      id: string;
-      events?: AdkEvent[];
-    };
+    const session = parseAdkSessionResponse(await res.json(), "load");
 
-    if (!session.events?.length) {
+    if (session.events !== undefined && !Array.isArray(session.events)) {
+      throw new Error(
+        'Invalid ADK session load response: expected "events" to be an array when present.',
+      );
+    }
+
+    const events = session.events as AdkEvent[] | undefined;
+
+    if (!events?.length) {
       return { messages: [] };
     }
 
     const accumulator = new AdkEventAccumulator();
     let messages: AdkMessage[] = [];
-    for (const event of session.events) {
+    for (const event of events) {
       messages = accumulator.processEvent(event);
     }
     return { messages };
@@ -216,8 +340,7 @@ export function createAdkSessionAdapter(
       const headers = await getHeaders();
       const res = await fetch(artifactBaseUrl(sessionId), { headers });
       if (!res.ok) throw new Error(`Failed to list artifacts: ${res.status}`);
-      const data = (await res.json()) as Array<{ filename: string }>;
-      return data.map((a) => a.filename);
+      return parseAdkArtifactListResponse(await res.json());
     },
 
     async load(sessionId, artifactName, version?) {
@@ -226,7 +349,7 @@ export function createAdkSessionAdapter(
       if (version != null) url += `/versions/${version}`;
       const res = await fetch(url, { headers });
       if (!res.ok) throw new Error(`Failed to load artifact: ${res.status}`);
-      return (await res.json()) as AdkArtifactData;
+      return parseAdkArtifactResponse(await res.json());
     },
 
     async listVersions(sessionId, artifactName) {
@@ -236,7 +359,7 @@ export function createAdkSessionAdapter(
       if (!res.ok) {
         throw new Error(`Failed to list artifact versions: ${res.status}`);
       }
-      return (await res.json()) as number[];
+      return parseAdkArtifactVersionsResponse(await res.json());
     },
 
     async delete(sessionId, artifactName) {
