@@ -160,4 +160,101 @@ describe("fromThreadMessageLike", () => {
       expect(result.content).toEqual([]);
     });
   });
+
+  describe("providerMetadata passthrough", () => {
+    it("keeps providerMetadata on text, reasoning, and tool-call parts", () => {
+      const providerMetadata = { acme: { agentName: "researcher" } };
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [
+            { type: "text", text: "hi", providerMetadata },
+            { type: "reasoning", text: "thinking", providerMetadata },
+            {
+              type: "tool-call",
+              toolCallId: "tc-1",
+              toolName: "search",
+              args: { query: "hi" },
+              providerMetadata,
+            },
+          ],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content[0]).toMatchObject({
+        type: "text",
+        text: "hi",
+        providerMetadata,
+      });
+      expect(result.content[1]).toMatchObject({
+        type: "reasoning",
+        text: "thinking",
+        providerMetadata,
+      });
+      expect(result.content[2]).toMatchObject({
+        type: "tool-call",
+        toolCallId: "tc-1",
+        providerMetadata,
+      });
+    });
+  });
+
+  describe("metadata.isOptimistic", () => {
+    it("preserves isOptimistic on user messages", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+          metadata: { isOptimistic: true },
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.metadata.isOptimistic).toBe(true);
+    });
+
+    it("preserves isOptimistic on assistant messages", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "hello" }],
+          metadata: { isOptimistic: true },
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.metadata.isOptimistic).toBe(true);
+    });
+
+    it("omits isOptimistic when false", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+          metadata: { isOptimistic: false },
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.metadata).not.toHaveProperty("isOptimistic");
+    });
+
+    it("omits isOptimistic when not set", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.metadata).not.toHaveProperty("isOptimistic");
+    });
+  });
 });

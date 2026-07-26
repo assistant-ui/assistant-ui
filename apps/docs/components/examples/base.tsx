@@ -93,6 +93,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
@@ -146,25 +147,29 @@ const Sidebar: FC<{ collapsed?: boolean }> = ({ collapsed }) => {
           collapsed ? "w-12 px-2 pt-1" : "w-65 p-3",
         )}
       >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ThreadListNew
-              className={cn(
-                "overflow-hidden transition-all duration-200",
-                collapsed
-                  ? "w-8 gap-0 px-2 has-[>svg]:px-2"
-                  : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
-              )}
-              labelClassName={cn(
-                "overflow-hidden transition-all duration-200",
-                collapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
-              )}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <ThreadListNew
+                  className={cn(
+                    "overflow-hidden transition-all duration-200",
+                    collapsed
+                      ? "w-8 gap-0 px-2 has-[>svg]:px-2"
+                      : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
+                  )}
+                  labelClassName={cn(
+                    "overflow-hidden transition-all duration-200",
+                    collapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
+                  )}
+                />
+              }
             />
-          </TooltipTrigger>
-          {collapsed && (
-            <TooltipContent side="right">New Thread</TooltipContent>
-          )}
-        </Tooltip>
+            {collapsed && (
+              <TooltipContent side="right">New Thread</TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
         <ThreadListItems
           aria-hidden={collapsed}
           inert={collapsed}
@@ -183,16 +188,18 @@ const Sidebar: FC<{ collapsed?: boolean }> = ({ collapsed }) => {
 const MobileSidebar: FC = () => {
   return (
     <Sheet>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8 shrink-0 md:hidden"
-        >
-          <MenuIcon className="size-4" />
-          <span className="sr-only">Toggle menu</span>
-        </Button>
-      </SheetTrigger>
+      <SheetTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0 md:hidden"
+          >
+            <MenuIcon className="size-4" />
+            <span className="sr-only">Toggle menu</span>
+          </Button>
+        }
+      />
       <SheetContent side="left" className="flex w-70 flex-col p-0">
         <div className="flex h-12 shrink-0 items-center px-4">
           <Logo />

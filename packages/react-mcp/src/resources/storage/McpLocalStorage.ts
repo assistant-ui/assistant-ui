@@ -1,4 +1,8 @@
 import { resource } from "@assistant-ui/tap";
+import {
+  OAuthClientInformationFullSchema,
+  OAuthTokensSchema,
+} from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
 import { assertValidServerId } from "../../utils/serverId";
@@ -40,6 +44,12 @@ const isOptionalNonEmptyString = (
 const isOptionalStringArray = (value: unknown): value is string[] | undefined =>
   value === undefined ||
   (Array.isArray(value) && value.every((item) => typeof item === "string"));
+
+const isOptionalConnectionTimeout = (
+  value: unknown,
+): value is number | undefined =>
+  value === undefined ||
+  (typeof value === "number" && Number.isFinite(value) && value >= 0);
 
 const isValidServerId = (id: string): boolean => {
   try {
@@ -83,15 +93,64 @@ const isCustomServerRecord = (
     isNonEmptyString(value.name) &&
     isNonEmptyString(value.url) &&
     Number.isFinite(value.createdAt) &&
-    isMCPAuthConfig(value.auth)
+    isMCPAuthConfig(value.auth) &&
+    isOptionalConnectionTimeout(value.connectionTimeout)
   );
+};
+
+const normalizeCustomServerRecord = (
+  value: unknown,
+): MCPCustomServerRecord | null => {
+  if (isCustomServerRecord(value)) return value;
+  if (!isRecord(value)) return null;
+
+  const record = { ...value };
+  delete record.connectionTimeout;
+  return isCustomServerRecord(record) ? record : null;
 };
 
 export const normalizeCustomServerRecords = (
   value: unknown,
 ): MCPCustomServerRecord[] => {
   if (!Array.isArray(value)) return [];
-  return value.filter(isCustomServerRecord);
+  return value.flatMap((item) => {
+    const record = normalizeCustomServerRecord(item);
+    return record === null ? [] : [record];
+  });
+};
+
+const normalizeOAuthTokens = (
+  value: unknown,
+): MCPPersistedAuthState["tokens"] | undefined => {
+  const result = OAuthTokensSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+const normalizeClientInformation = (
+  value: unknown,
+): MCPPersistedAuthState["clientInformation"] | undefined => {
+  const result = OAuthClientInformationFullSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
+export const normalizePersistedAuthState = (
+  value: unknown,
+): MCPPersistedAuthState | null => {
+  if (!isRecord(value)) return null;
+
+  const state: MCPPersistedAuthState = {};
+  if (isNonEmptyString(value.token)) state.token = value.token;
+  if (isNonEmptyString(value.codeVerifier)) {
+    state.codeVerifier = value.codeVerifier;
+  }
+
+  const tokens = normalizeOAuthTokens(value.tokens);
+  if (tokens) state.tokens = tokens;
+
+  const clientInformation = normalizeClientInformation(value.clientInformation);
+  if (clientInformation) state.clientInformation = clientInformation;
+
+  return Object.keys(state).length > 0 ? state : null;
 };
 
 const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
@@ -136,7 +195,7 @@ const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
       write(customServersKey, records);
     },
     loadAuthState: async (id) =>
-      read<MCPPersistedAuthState | null>(authKey(id), null),
+      normalizePersistedAuthState(read<unknown>(authKey(id), null)),
     saveAuthState: async (id, state) => {
       write(authKey(id), state);
     },

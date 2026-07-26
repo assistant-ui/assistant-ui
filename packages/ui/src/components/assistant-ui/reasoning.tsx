@@ -55,7 +55,10 @@ export type ReasoningRootProps = Omit<
      * Whether the reasoning is currently streaming. When provided, it
      * supersedes `defaultOpen`: the disclosure auto-opens while streaming
      * with a bottom-pinned live preview, auto-collapses when streaming
-     * ends, and the first manual toggle takes over permanently.
+     * ends, and the first manual toggle takes over the open/close state
+     * permanently. The live preview keeps following the newest tokens while
+     * the disclosure is open during streaming, even after a manual toggle,
+     * and pauses while the reader is scrolled up.
      */
     streaming?: boolean;
   };
@@ -79,8 +82,7 @@ function ReasoningRoot({
   const isOpen = isControlled
     ? controlledOpen
     : (userOpen ?? streaming ?? initialOpenRef.current);
-  const isAutoMode = isControlled || userOpen === null;
-  const isPreview = streaming === true && isOpen && isAutoMode;
+  const isPreview = streaming === true && isOpen;
 
   const prevStreamingRef = useRef(streaming);
   useLayoutEffect(() => {
@@ -207,8 +209,9 @@ function ReasoningTrigger({
         className={cn(
           "aui-reasoning-trigger-chevron mt-0.5 size-4 shrink-0",
           "transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
-          "group-data-[state=closed]/trigger:-rotate-90",
-          "group-data-[state=open]/trigger:rotate-0",
+          "-rotate-90",
+          "group-data-open/trigger:rotate-0",
+          "group-data-panel-open/trigger:rotate-0",
         )}
       />
     </CollapsibleTrigger>
@@ -228,12 +231,12 @@ function ReasoningContent({
       className={cn(
         "aui-reasoning-content text-muted-foreground relative overflow-hidden text-sm outline-none",
         "group/collapsible-content ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
-        "data-[state=closed]:animate-collapsible-up",
-        "data-[state=open]:animate-collapsible-down",
-        "data-[state=closed]:fill-mode-forwards",
-        "data-[state=closed]:pointer-events-none",
-        "data-[state=open]:duration-(--animation-duration)",
-        "data-[state=closed]:duration-(--animation-duration)",
+        "data-closed:animate-collapsible-up",
+        "data-open:animate-collapsible-down",
+        "data-closed:fill-mode-forwards",
+        "data-closed:pointer-events-none",
+        "data-open:duration-(--animation-duration)",
+        "data-closed:duration-(--animation-duration)",
         className,
       )}
       {...props}
@@ -259,13 +262,43 @@ function ReasoningText({
     const scrollEl = scrollRef.current;
     const contentEl = contentRef.current;
     if (!scrollEl || !contentEl) return;
+
+    let pinned = true;
+    let lastScrollTop = scrollEl.scrollTop;
+    let lastScrollHeight = scrollEl.scrollHeight;
+    const isAtBottom = () =>
+      Math.abs(
+        scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight,
+      ) <= 1 || scrollEl.scrollHeight <= scrollEl.clientHeight;
+
     const pin = () => {
+      if (!pinned) return;
       scrollEl.scrollTop = scrollEl.scrollHeight;
     };
+    // A pin's own scroll event can arrive after new content grew the scroll
+    // height and read as "not at bottom"; only an upward move at unchanged
+    // scroll height is user intent.
+    const onScroll = () => {
+      if (isAtBottom()) {
+        pinned = true;
+      } else if (
+        scrollEl.scrollTop < lastScrollTop &&
+        scrollEl.scrollHeight === lastScrollHeight
+      ) {
+        pinned = false;
+      }
+      lastScrollTop = scrollEl.scrollTop;
+      lastScrollHeight = scrollEl.scrollHeight;
+    };
+
     pin();
+    scrollEl.addEventListener("scroll", onScroll);
     const observer = new ResizeObserver(pin);
     observer.observe(contentEl);
-    return () => observer.disconnect();
+    return () => {
+      scrollEl.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
   }, [isPreview]);
 
   return (
@@ -276,16 +309,16 @@ function ReasoningText({
         "aui-reasoning-text relative z-0 max-h-64 overflow-y-auto ps-6 pt-2 pb-2 leading-relaxed text-pretty",
         "transform-gpu transition-[transform,opacity] ease-[cubic-bezier(0.32,0.72,0,1)]",
         "motion-reduce:animate-none",
-        "group-data-[state=open]/collapsible-content:animate-in",
-        "group-data-[state=closed]/collapsible-content:animate-out",
-        "group-data-[state=open]/collapsible-content:fade-in-0",
-        "group-data-[state=closed]/collapsible-content:fade-out-0",
-        "group-data-[state=open]/collapsible-content:slide-in-from-top-4",
-        "group-data-[state=closed]/collapsible-content:slide-out-to-top-4",
-        "group-data-[state=open]/collapsible-content:blur-in-[2px]",
-        "group-data-[state=closed]/collapsible-content:blur-out-[2px]",
-        "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
-        "group-data-[state=closed]/collapsible-content:duration-(--animation-duration)",
+        "group-data-open/collapsible-content:animate-in",
+        "group-data-closed/collapsible-content:animate-out",
+        "group-data-open/collapsible-content:fade-in-0",
+        "group-data-closed/collapsible-content:fade-out-0",
+        "group-data-open/collapsible-content:slide-in-from-top-4",
+        "group-data-closed/collapsible-content:slide-out-to-top-4",
+        "group-data-open/collapsible-content:blur-in-[2px]",
+        "group-data-closed/collapsible-content:blur-out-[2px]",
+        "group-data-open/collapsible-content:duration-(--animation-duration)",
+        "group-data-closed/collapsible-content:duration-(--animation-duration)",
         className,
       )}
       {...props}

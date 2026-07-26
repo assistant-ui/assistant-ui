@@ -1,5 +1,15 @@
 # @assistant-ui/react-devtools
 
+## 1.2.9
+
+### Patch Changes
+
+- [#4825](https://github.com/assistant-ui/assistant-ui/pull/4825) [`c13f709`](https://github.com/assistant-ui/assistant-ui/commit/c13f7096cab94d363c6f407ce5481a62f9298efb) - fix: resolve the tailwind cli entry explicitly so pnpm install completes on windows ([@okisdev](https://github.com/okisdev))
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 1.2.8
 
 ### Patch Changes

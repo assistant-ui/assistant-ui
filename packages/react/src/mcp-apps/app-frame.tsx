@@ -246,7 +246,9 @@ export function McpAppFrame({
   return (
     <SandboxHost
       content={{ html: resource.html }}
-      contentKey={resource.uri}
+      contentKey={
+        app.serverId ? `${app.serverId} ${resource.uri}` : resource.uri
+      }
       sandbox={{ ...sandbox, product: sandbox?.product ?? DEFAULT_PRODUCT }}
       maxHeight={maxHeight}
       createBridge={createBridge}

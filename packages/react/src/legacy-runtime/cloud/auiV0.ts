@@ -1,11 +1,17 @@
 import type {
+  CompleteAttachment,
+  DataMessagePart,
+  FileMessagePart,
+  ImageMessagePart,
   MessageStatus,
   SourceProviderMetadata,
   ThreadMessage,
+  TextMessagePart,
+  Unstable_AudioMessagePart,
 } from "@assistant-ui/core";
 import { fromThreadMessageLike } from "../runtime-cores/external-store/ThreadMessageLike";
 import type { CloudMessage } from "assistant-cloud";
-import { isJSONValue } from "../../utils/json/is-json";
+import { isJSONValue } from "@assistant-ui/core/internal";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
@@ -65,10 +71,27 @@ type AuiV0MessagePart =
       readonly filename?: string;
     };
 
+type AuiV0AttachmentPart =
+  | TextMessagePart
+  | ImageMessagePart
+  | FileMessagePart
+  | Unstable_AudioMessagePart
+  | DataMessagePart<ReadonlyJSONValue>;
+
+type AuiV0Attachment = {
+  readonly id: string;
+  readonly type: CompleteAttachment["type"];
+  readonly name: string;
+  readonly contentType?: string;
+  readonly status: CompleteAttachment["status"];
+  readonly content: readonly AuiV0AttachmentPart[];
+};
+
 type AuiV0Message = {
   readonly role: "assistant" | "user" | "system";
   readonly status?: MessageStatus;
   readonly content: readonly AuiV0MessagePart[];
+  readonly attachments?: readonly AuiV0Attachment[];
   readonly metadata: {
     readonly unstable_state?: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
@@ -83,14 +106,59 @@ type AuiV0Message = {
   };
 };
 
-export function auiV0Encode(message: ThreadMessage): AuiV0Message {
-  // TODO attachments are currently intentionally ignored
-  // info: ID and createdAt are ignored (we use the server value instead)
+const encodeAttachmentPart = (
+  part: CompleteAttachment["content"][number],
+): AuiV0AttachmentPart => {
+  const type = part.type;
+  switch (type) {
+    case "text":
+    case "image":
+    case "file":
+    case "audio":
+      return part;
 
+    case "data": {
+      if (!isJSONValue(part.data)) {
+        console.warn(`attachment data is not JSON! ${JSON.stringify(part)}`);
+      }
+      return { ...part, data: part.data as ReadonlyJSONValue };
+    }
+
+    default: {
+      const unhandledType: never = type;
+      throw new Error(
+        `Attachment part type not supported by aui/v0: ${unhandledType}`,
+      );
+    }
+  }
+};
+
+const encodeAttachments = (
+  message: ThreadMessage,
+): readonly AuiV0Attachment[] | undefined => {
+  if (message.role !== "user" || message.attachments.length === 0) {
+    return undefined;
+  }
+
+  return message.attachments.map(
+    ({ id, type, name, contentType, status, content }) => ({
+      id,
+      type,
+      name,
+      status,
+      ...(contentType != null ? { contentType } : undefined),
+      content: content.map(encodeAttachmentPart),
+    }),
+  );
+};
+
+export function auiV0Encode(message: ThreadMessage): AuiV0Message {
+  // info: ID and createdAt are ignored (we use the server value instead)
   const status: MessageStatus | undefined =
     message.status?.type === "running"
       ? { type: "incomplete", reason: "cancelled" }
       : message.status;
+  const attachments = encodeAttachments(message);
 
   return {
     role: message.role,
@@ -172,6 +240,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
     }),
     metadata: message.metadata as AuiV0Message["metadata"],
     ...(status ? { status } : undefined),
+    ...(attachments ? { attachments } : undefined),
   };
 }
 

@@ -75,7 +75,7 @@ function ResizeHandle() {
     <div
       onMouseDown={handleMouseDown}
       className={cn(
-        "absolute top-0 bottom-0 -left-0.5 w-1 cursor-col-resize",
+        "absolute top-2 bottom-2 left-1.5 w-1 cursor-col-resize",
         "after:absolute after:top-0 after:bottom-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:transition-colors",
         isResizing
           ? "after:bg-primary/40"
@@ -141,13 +141,7 @@ export function AssistantPanelContent(): React.ReactNode {
   };
 
   return (
-    <div
-      ref={contentRef}
-      className={cn(
-        "bg-background before:bg-border relative h-full w-(--panel-content-width) before:absolute before:inset-y-0 before:left-0 before:w-px before:transition-opacity before:duration-300",
-        open ? "before:opacity-100" : "before:opacity-0",
-      )}
-    >
+    <div ref={contentRef} className="relative h-full w-(--panel-content-width)">
       <button
         type="button"
         onClick={handleTriggerClick}
@@ -163,14 +157,16 @@ export function AssistantPanelContent(): React.ReactNode {
 
       <div
         className={cn(
-          "flex h-full flex-col transition-opacity duration-300",
+          "relative flex h-full flex-col p-2 transition-opacity duration-300",
           open ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
-        <ResizeHandle />
-        <div className="min-h-0 flex-1">
-          <AssistantThread />
+        <div className="border-border/60 bg-background flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border shadow-xs">
+          <div className="min-h-0 flex-1">
+            <AssistantThread />
+          </div>
         </div>
+        <ResizeHandle />
       </div>
     </div>
   );

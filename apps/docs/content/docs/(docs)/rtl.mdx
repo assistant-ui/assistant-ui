@@ -4,7 +4,7 @@ description: Use assistant-ui with right-to-left languages like Arabic, Hebrew, 
 platforms: ["react"]
 ---
 
-Components shipped through `@assistant-ui/ui` (npm) and the shadcn registry (`npx shadcn@latest add https://r.assistant-ui.com/...`) use logical Tailwind classes (`ms-*`, `pe-*`, `text-start`, `end-*`, `border-s`, ...). They flip automatically under `dir="rtl"` and render byte-identically under `dir="ltr"` (the default) — there is nothing to opt out of.
+Components shipped through `@assistant-ui/ui` (npm) and the shadcn registry (`npx shadcn@latest add @assistant-ui/<name>`) use logical Tailwind classes (`ms-*`, `pe-*`, `text-start`, `end-*`, `border-s`, ...). They flip automatically under `dir="rtl"` and render byte-identically under `dir="ltr"` (the default) — there is nothing to opt out of.
 
 If you scaffolded from one of our templates (e.g. `npx assistant-ui@latest create -t default`), the generated `components/` folder still uses physical classes (`ml-*`, `text-left`, ...). Run shadcn's built-in migration **once** to convert both the shadcn primitives and assistant-ui's wrappers:
 
@@ -24,9 +24,7 @@ After migrating, follow the setup below.
 
 ### 1. Install the `direction` component
 
-```sh
-npx shadcn@latest add https://r.assistant-ui.com/direction.json
-```
+<InstallCommand shadcn={["direction"]} />
 
 This adds `components/ui/direction.tsx`, a thin re-export of Radix UI's `DirectionProvider` and `useDirection`. It ensures Radix popovers, dropdowns, and menus pick up the current direction.
 

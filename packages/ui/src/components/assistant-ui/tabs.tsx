@@ -10,7 +10,7 @@ import {
   useState,
   type ComponentProps,
 } from "react";
-import { Tabs as TabsPrimitive, Slot as SlotPrimitive } from "radix-ui";
+import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
@@ -131,7 +131,7 @@ function TabsList({
 
     const updateActiveFromDOM = () => {
       const activeElement = listElement.querySelector(
-        '[data-state="active"]',
+        "[data-active]",
       ) as HTMLElement | null;
       if (activeElement) {
         setActiveStyle({
@@ -146,7 +146,7 @@ function TabsList({
     const observer = new MutationObserver(updateActiveFromDOM);
     observer.observe(listElement, {
       attributes: true,
-      attributeFilter: ["data-state"],
+      attributeFilter: ["data-active"],
       subtree: true,
     });
 
@@ -200,11 +200,8 @@ function TabsList({
 function TabsTrigger({
   className,
   value,
-  asChild = false,
   ...props
-}: Omit<ComponentProps<typeof TabsPrimitive.Trigger>, "asChild"> & {
-  asChild?: boolean;
-}) {
+}: ComponentProps<typeof TabsPrimitive.Tab>) {
   const context = useContext(TabsListContext);
   const ref = useRef<HTMLButtonElement>(null);
 
@@ -221,20 +218,18 @@ function TabsTrigger({
     context?.setHoveredValue(null);
   }, [context]);
 
-  const Comp = asChild ? SlotPrimitive.Root : TabsPrimitive.Trigger;
-
   return (
-    <Comp
+    <TabsPrimitive.Tab
       ref={ref}
       value={value}
       data-slot="tabs-trigger"
       data-value={value}
       className={cn(
-        "text-foreground/60 hover:text-foreground focus-visible:ring-ring/50 data-[state=active]:text-foreground dark:text-muted-foreground dark:hover:text-foreground relative z-10 inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 font-medium whitespace-nowrap transition-[color] duration-300 focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:font-medium [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "text-foreground/60 hover:text-foreground focus-visible:ring-ring/50 data-active:text-foreground dark:text-muted-foreground dark:hover:text-foreground relative z-10 inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 font-medium whitespace-nowrap transition-[color] duration-300 focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-active:font-medium [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         "group-data-[variant=default]/tabs-list:rounded-md",
         "group-data-[variant=line]/tabs-list:rounded-md group-data-[variant=line]/tabs-list:bg-transparent",
         "group-data-[variant=ghost]/tabs-list:rounded-md group-data-[variant=ghost]/tabs-list:bg-transparent",
-        "group-data-[variant=pills]/tabs-list:data-[state=active]:text-primary-foreground dark:group-data-[variant=pills]/tabs-list:data-[state=active]:text-primary-foreground group-data-[variant=pills]/tabs-list:rounded-full",
+        "group-data-[variant=pills]/tabs-list:data-active:text-primary-foreground dark:group-data-[variant=pills]/tabs-list:data-active:text-primary-foreground group-data-[variant=pills]/tabs-list:rounded-full",
         "group-data-[variant=outline]/tabs-list:rounded-md",
         "group-data-[size=sm]/tabs-list:h-[calc(100%-8px)] group-data-[size=sm]/tabs-list:px-2 group-data-[size=sm]/tabs-list:py-0.5 group-data-[size=sm]/tabs-list:text-xs",
         "group-data-[size=default]/tabs-list:h-[calc(100%-8px)] group-data-[size=default]/tabs-list:px-3 group-data-[size=default]/tabs-list:py-1 group-data-[size=default]/tabs-list:text-sm",
@@ -251,9 +246,9 @@ function TabsTrigger({
 function TabsContent({
   className,
   ...props
-}: ComponentProps<typeof TabsPrimitive.Content>) {
+}: ComponentProps<typeof TabsPrimitive.Panel>) {
   return (
-    <TabsPrimitive.Content
+    <TabsPrimitive.Panel
       data-slot="tabs-content"
       className={cn("flex-1 outline-none", className)}
       {...props}

@@ -11,38 +11,50 @@ function createSessionId(): string {
 }
 
 type UseChatRegistryOptions = {
+  scope: object;
   threadId: string | null;
   createChat: (chatKey: string, registry: ChatRegistry) => Chat<UIMessage>;
 };
 
+function createRegistry(
+  createChat: UseChatRegistryOptions["createChat"],
+): ChatRegistry {
+  let registry: ChatRegistry;
+  registry = new ChatRegistry((chatKey) => createChat(chatKey, registry));
+  return registry;
+}
+
 export function useChatRegistry({
+  scope,
   threadId,
   createChat,
 }: UseChatRegistryOptions): {
   registry: ChatRegistry;
   activeChat: Chat<UIMessage>;
 } {
-  // Ref ensures registry always delegates to the latest createChat,
-  // even if core is recreated (e.g. cloud identity change).
-  const createChatRef = useRef(createChat);
-  createChatRef.current = createChat;
-
   const registryRef = useRef<ChatRegistry | null>(null);
+  const freshSessionKey = useRef<string | null>(null);
+  const prevThreadId = useRef<string | null>(threadId);
+  const scopeRef = useRef(scope);
+
+  if (scopeRef.current !== scope) {
+    scopeRef.current = scope;
+    registryRef.current = null;
+    freshSessionKey.current = null;
+    prevThreadId.current = threadId;
+  }
+
   if (!registryRef.current) {
-    registryRef.current = new ChatRegistry((chatKey) =>
-      createChatRef.current(chatKey, registryRef.current!),
-    );
+    registryRef.current = createRegistry(createChat);
   }
   const registry = registryRef.current;
 
-  const freshSessionKey = useRef<string | null>(null);
   if (!freshSessionKey.current) {
     freshSessionKey.current = createSessionId();
   }
 
   // When the user navigates away from a thread (threadId goes null),
   // generate a fresh session key so the next new-chat gets its own Chat instance.
-  const prevThreadId = useRef<string | null>(threadId);
   if (threadId === null && prevThreadId.current !== null) {
     freshSessionKey.current = createSessionId();
   }

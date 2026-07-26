@@ -32,7 +32,7 @@ const WeatherTool = makeAssistantTool({
 });
 
 export function App() {
-  const runtime = useChatRuntime({ api: "/api/chat" });
+  const runtime = useChatRuntime();
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -80,7 +80,7 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import toolkit from "./toolkit";
 
 export function App() {
-  const runtime = useChatRuntime({ api: "/api/chat" });
+  const runtime = useChatRuntime();
   const aui = useAui({
     tools: Tools({ toolkit }),
   });
@@ -92,6 +92,8 @@ export function App() {
   );
 }
 ```
+
+`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
 
 ## Mechanical Steps
 

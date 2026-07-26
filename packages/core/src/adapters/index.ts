@@ -19,7 +19,12 @@ export type { VoiceSessionControls, VoiceSessionHelpers } from "./voice";
 export type { FeedbackAdapter } from "./feedback";
 
 // Suggestion adapter
-export type { SuggestionAdapter } from "./suggestion";
+export type {
+  SuggestionAdapter,
+  SuggestionAdapterGenerateOptions,
+  CreateSuggestionAdapterOptions,
+} from "./suggestion";
+export { createSuggestionAdapter } from "./suggestion";
 
 // Trigger adapter (generic)
 export type { Unstable_TriggerAdapter } from "./trigger";

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/vite",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Vite plugin for assistant-ui: the \"use generative\" directive compiler that colocates a tool's schema, server-only execute, and client-only render in one file. Works with Vite apps and TanStack Start.",
   "keywords": [
     "assistant-ui",
@@ -40,9 +40,9 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.1.0",
-    "vite": "^8.1.3",
-    "vitest": "^4.1.9"
+    "@types/node": "^26.1.1",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

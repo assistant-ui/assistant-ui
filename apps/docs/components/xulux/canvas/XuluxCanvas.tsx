@@ -9,7 +9,7 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/radix/button";
 import { GitHubIcon } from "@/components/icons/github";
 import { Tabs } from "@/components/assistant-ui/tabs";
 import {

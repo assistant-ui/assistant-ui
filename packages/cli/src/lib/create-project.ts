@@ -3,6 +3,11 @@ import * as path from "node:path";
 import { downloadTemplate } from "giget";
 import { sync as globSync } from "glob";
 import { detect } from "detect-package-manager";
+import {
+  parse as parseJsonc,
+  printParseErrorCode,
+  type ParseError,
+} from "jsonc-parser";
 import { logger } from "./utils/logger";
 import { runSpawn, SpawnExitError } from "./run-spawn";
 
@@ -205,22 +210,25 @@ export async function resolvePackageManagerForCwd(
   }
 }
 
+export interface TransformResult {
+  registryInstallFailure?: { retryCommand: string };
+}
+
 export async function transformProject(
   projectDir: string,
   opts: TransformOptions,
-): Promise<void> {
+): Promise<TransformResult> {
   logger.step("Transforming package.json...");
   transformPackageJson(projectDir);
+
+  logger.step("Transforming project files...");
+  transformTsConfig(projectDir);
+  transformCssFiles(projectDir);
 
   let assistantUI: string[] | undefined;
   let shadcnUI: string[] | undefined;
 
   if (!opts.hasLocalComponents) {
-    logger.step("Transforming project files...");
-
-    transformTsConfig(projectDir);
-    transformCssFiles(projectDir);
-
     const components = scanRequiredComponents(projectDir);
     assistantUI = components.assistantUI;
     shadcnUI = components.shadcnUI;
@@ -244,8 +252,15 @@ export async function transformProject(
     const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
     const components = [...allShadcn, ...auiComponents];
     logger.step(`Installing components: ${components.join(", ")}...`);
-    await installShadcnRegistry(projectDir, components, "components", pm);
+    const failure = await installShadcnRegistry(
+      projectDir,
+      components,
+      "components",
+      pm,
+    );
+    if (failure) return { registryInstallFailure: failure };
   }
+  return {};
 }
 
 function transformPackageJson(projectDir: string): void {
@@ -281,6 +296,18 @@ function transformPackageJson(projectDir: string): void {
   fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
+function parseTsConfig(content: string): any {
+  const errors: ParseError[] = [];
+  const tsconfig = parseJsonc(content, errors, { allowTrailingComma: true });
+  const error = errors[0];
+  if (error) {
+    throw new SyntaxError(
+      `Invalid tsconfig.json: ${printParseErrorCode(error.error)} at offset ${error.offset}`,
+    );
+  }
+  return tsconfig;
+}
+
 function transformTsConfig(projectDir: string): void {
   const tsconfigPath = path.join(projectDir, "tsconfig.json");
 
@@ -289,16 +316,33 @@ function transformTsConfig(projectDir: string): void {
   }
 
   const content = fs.readFileSync(tsconfigPath, "utf-8");
-  const tsconfig = JSON.parse(content);
+  const tsconfig = parseTsConfig(content);
 
   // Remove workspace paths
   if (tsconfig.compilerOptions?.paths) {
-    delete tsconfig.compilerOptions.paths["@/components/assistant-ui/*"];
-    delete tsconfig.compilerOptions.paths["@/components/icons/*"];
-    delete tsconfig.compilerOptions.paths["@/components/ui/*"];
-    delete tsconfig.compilerOptions.paths["@/hooks/*"];
-    delete tsconfig.compilerOptions.paths["@/lib/utils"];
-    delete tsconfig.compilerOptions.paths["@assistant-ui/ui/*"];
+    const workspaceKeys = new Set([
+      "@/components/assistant-ui/*",
+      "@/components/icons/*",
+      "@/components/ui/*",
+      "@/components/ui/radix/*",
+      "@/hooks/*",
+      "@/lib/utils",
+      "@assistant-ui/ui/*",
+    ]);
+    for (const [key, targets] of Object.entries(
+      tsconfig.compilerOptions.paths as Record<string, unknown>,
+    )) {
+      const targetsWorkspace =
+        Array.isArray(targets) &&
+        targets.some(
+          (target) =>
+            typeof target === "string" &&
+            (target.includes("packages/ui/") || target.startsWith("../")),
+        );
+      if (workspaceKeys.has(key) || targetsWorkspace) {
+        delete tsconfig.compilerOptions.paths[key];
+      }
+    }
 
     if (Object.keys(tsconfig.compilerOptions.paths).length === 0) {
       delete tsconfig.compilerOptions.paths;
@@ -428,20 +472,20 @@ async function installShadcnRegistry(
   components: string[],
   label: string,
   pm: PackageManagerName,
-): Promise<void> {
+): Promise<{ retryCommand: string } | undefined> {
   const [cmd, dlxArgs] = dlxCommand(pm);
   // For npm, dlxArgs may already include `--yes` for npx auto-install.
   // The trailing `--yes` is for shadcn's own confirmation prompt.
-  const addArgs = [...dlxArgs, "shadcn@latest", "add", ...components, "--yes"];
+  const retryArgs = [...dlxArgs, "shadcn@latest", "add", ...components];
+  const addArgs = [...retryArgs, "--yes"];
 
   try {
     await runSpawn(cmd, addArgs, projectDir);
+    return undefined;
   } catch (error) {
     if (error instanceof SpawnExitError) {
-      logger.warn(
-        `shadcn exited with code ${error.code}. Run the following to retry:\n  ${cmd} ${addArgs.slice(0, -1).join(" ")}`,
-      );
-      return;
+      logger.warn(`shadcn exited with code ${error.code}.`);
+      return { retryCommand: `${cmd} ${retryArgs.join(" ")}` };
     }
 
     const message = error instanceof Error ? error.message : String(error);

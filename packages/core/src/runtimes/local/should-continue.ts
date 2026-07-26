@@ -23,14 +23,17 @@ export const shouldContinue = (
   // TODO legacy behavior -- make specifying human tool names required
   if (humanToolNames === undefined) {
     return result.content.every(
-      (c) => c.type !== "tool-call" || !!c.result || c.approval !== undefined,
+      (c) =>
+        c.type !== "tool-call" ||
+        c.result !== undefined ||
+        c.approval !== undefined,
     );
   }
 
   return result.content.every(
     (c) =>
       c.type !== "tool-call" ||
-      !!c.result ||
+      c.result !== undefined ||
       c.approval !== undefined ||
       !humanToolNames.includes(c.toolName),
   );

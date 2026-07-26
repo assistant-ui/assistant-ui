@@ -39,7 +39,7 @@ interface ClientMethods {
   [key: string | symbol]: (...args: any[]) => any;
 }
 
-type ClientNames = keyof ClientSchemas extends infer U ? U : never;
+type ClientNames = keyof ClientSchemas extends (infer U) ? U : never;
 
 type ClientOutput<K extends ClientNames> = ClientSchemas[K]["methods"] & ClientMethods;
 
@@ -124,7 +124,9 @@ type MCPServerMethods = {
   disconnect: () => Promise<void>;
   remove: () => Promise<void>;
   callTool: (name: string, args: unknown) => Promise<unknown>;
-  listResources: () => Promise<unknown>;
+  listResources: (params?: {
+    cursor?: string | undefined;
+  }) => Promise<unknown>;
   readResource: (uri: string) => Promise<unknown>;
   completeAuth: (callbackUrl: string) => Promise<void>;
 };

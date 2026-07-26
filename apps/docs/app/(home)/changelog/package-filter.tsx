@@ -65,7 +65,12 @@ export function PackageFilter({
     <SelectRoot
       value={value ?? ALL}
       onValueChange={(v) => {
-        router.push(v === ALL ? "/changelog" : `?pkg=${encodeURIComponent(v)}`);
+        const nextValue = v ?? ALL;
+        router.push(
+          nextValue === ALL
+            ? "/changelog"
+            : `?pkg=${encodeURIComponent(nextValue)}`,
+        );
       }}
     >
       <SelectTrigger size="sm" className="w-56 font-mono text-xs">

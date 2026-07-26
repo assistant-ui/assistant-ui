@@ -36,7 +36,10 @@ export const AttachmentStatus: FC<AttachmentStatusProps> = ({
   if (status.type === "incomplete") {
     const { text, defaultColor } =
       status.reason === "error"
-        ? { text: "x error", defaultColor: "red" }
+        ? {
+            text: status.message ? `x error: ${status.message}` : "x error",
+            defaultColor: "red",
+          }
         : { text: "|| paused", defaultColor: "yellow" };
     return (
       <Text {...textProps} color={textProps.color ?? defaultColor}>

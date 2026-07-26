@@ -37,9 +37,6 @@ allowBuilds:
   '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false
-  esbuild@0.25.12: true
-  esbuild@0.27.7: true
-  esbuild@0.28.0: true
   esbuild@0.28.1: true
   msgpackr-extract: true
   node-liblzma: false

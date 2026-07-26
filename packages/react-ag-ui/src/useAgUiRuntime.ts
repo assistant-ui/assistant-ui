@@ -97,6 +97,7 @@ export function useAgUiRuntime(
         ? async () => {
             await onSwitchToNewThread();
             core.applyExternalMessages([]);
+            core.resetState();
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
@@ -108,6 +109,8 @@ export function useAgUiRuntime(
             core.applyExternalMessages(result.messages);
             if (result.state !== undefined) {
               core.loadExternalState(result.state);
+            } else {
+              core.resetState();
             }
             if (result.unstable_resume) {
               void core.resumeInFlightRun(result.messages);
@@ -138,7 +141,7 @@ export function useAgUiRuntime(
       return {
         ...shared,
         isLoading: core.isLoading,
-        messages: core.getMessages(),
+        messageRepository: core.getMessageRepository(),
         state: core.getState(),
         isRunning: core.isRunning() || hasExecutingTools,
         extras: agUiExtras.provide({
@@ -147,6 +150,8 @@ export function useAgUiRuntime(
           submitInterruptResponses: (responses) =>
             core.submitInterruptResponses(responses),
           steerAway: (message, responses) => core.steerAway(message, responses),
+          state: core.getState(),
+          setState: (next) => core.setState(next),
         }),
         unstable_enableToolInvocations: true,
         setToolStatuses,

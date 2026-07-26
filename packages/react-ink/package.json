@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ink",
-  "version": "0.0.31",
+  "version": "0.0.32",
   "description": "React Ink (terminal UI) bindings for assistant-ui",
   "keywords": [
     "assistant",
@@ -38,10 +38,10 @@
     "benchmark": "tsx benchmarks/run.ts"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.2.20",
-    "@assistant-ui/store": "^0.2.19",
-    "@assistant-ui/tap": "^0.9.3",
-    "assistant-stream": "^0.3.25",
+    "@assistant-ui/core": "^0.2.21",
+    "@assistant-ui/store": "^0.2.20",
+    "@assistant-ui/tap": "^0.9.4",
+    "assistant-stream": "^0.3.26",
     "diff": "^9.0.0",
     "ink-spinner": "^5.0.0",
     "parse-diff": "^0.12.0",
@@ -59,13 +59,13 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "ink": "^7.1.0",
     "ink-testing-library": "^4.0.0",
     "react": "^19.2.7",
-    "tsx": "^4.23.0",
-    "vitest": "^4.1.9"
+    "tsx": "^4.23.1",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

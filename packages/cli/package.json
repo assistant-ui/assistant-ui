@@ -1,6 +1,6 @@
 {
   "name": "assistant-ui",
-  "version": "0.0.105",
+  "version": "0.0.106",
   "description": "CLI for assistant-ui",
   "keywords": [
     "cli",
@@ -42,7 +42,9 @@
     "detect-package-manager": "^3.0.2",
     "giget": "^3.3.0",
     "glob": "^13.0.6",
-    "jscodeshift": "^17.3.0"
+    "jscodeshift": "^17.3.0",
+    "jsonc-parser": "^3.3.1",
+    "semver": "^7.8.5"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
@@ -50,9 +52,10 @@
     "@types/cross-spawn": "^6.0.6",
     "@types/debug": "^4.1.13",
     "@types/jscodeshift": "^17.3.0",
-    "@types/node": "^26.1.0",
-    "@vitest/coverage-v8": "^4.1.9",
-    "vitest": "^4.1.9"
+    "@types/node": "^26.1.1",
+    "@types/semver": "^7.7.1",
+    "@vitest/coverage-v8": "^4.1.10",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

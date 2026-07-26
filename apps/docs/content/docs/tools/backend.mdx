@@ -138,9 +138,10 @@ To let the model see a frontend tool's result and continue, configure the runtim
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 
 const runtime = useChatRuntime({
-  api: "/api/chat",
   sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
 });
 ```
 
-For the full AI SDK v6 backend setup — history persistence, reasoning, server-side approvals — see the [AI SDK v6 guide](/docs/runtimes/ai-sdk/v6).
+`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
+
+For the full AI SDK v7 backend setup — history persistence, reasoning, server-side approvals — see the [AI SDK v7 guide](/docs/runtimes/ai-sdk/v7).

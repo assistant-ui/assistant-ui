@@ -2,6 +2,8 @@ import { Command } from "commander";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import chalk from "chalk";
+import { compare, valid } from "semver";
+import { findWorkspaceRoot, resolveRealPath } from "../lib/utils/workspace";
 
 const ASSISTANT_UI_PACKAGE_NAMES = new Set([
   "assistant-stream",
@@ -38,13 +40,7 @@ function processPackageDir(
   results: DiscoveredPackage[],
   visited: ProcessedDir,
 ): void {
-  const real = (() => {
-    try {
-      return fs.realpathSync(pkgDir);
-    } catch {
-      return pkgDir;
-    }
-  })();
+  const real = resolveRealPath(pkgDir);
   if (visited.set.has(real)) return;
   visited.set.add(real);
 
@@ -182,14 +178,23 @@ function walkPnpmStore(
 }
 
 // Discover every installation of an assistant-ui-family package reachable
-// from `cwd`. Recurses into nested node_modules so transitive copies
-// (the real source of duplicate-version bugs) are not missed, and scans the
-// pnpm `.pnpm` virtual store, which the hoisted walk cannot reach.
+// from `cwd`. Node resolves packages through ancestor node_modules directories,
+// so inspect each level to include workspace-hoisted installs. Nested installs
+// and pnpm virtual stores are scanned to catch duplicate transitive copies.
 export function discoverInstalledPackages(cwd: string): DiscoveredPackage[] {
   const results: DiscoveredPackage[] = [];
   const visited: ProcessedDir = { set: new Set() };
-  walkNodeModulesAt(cwd, results, visited);
-  walkPnpmStore(cwd, results, visited);
+  let dir = resolveRealPath(cwd);
+  const scanRoot = findWorkspaceRoot(dir) ?? dir;
+
+  while (true) {
+    walkNodeModulesAt(dir, results, visited);
+    walkPnpmStore(dir, results, visited);
+
+    if (dir === scanRoot) break;
+    dir = path.dirname(dir);
+  }
+
   return results;
 }
 
@@ -254,40 +259,11 @@ async function fetchAllLatestVersions(
   return new Map(entries);
 }
 
-interface SemverParts {
-  major: number;
-  minor: number;
-  patch: number;
-  prerelease: string;
-}
-
-function parseSemver(v: string): SemverParts | null {
-  const m = /^(\d+)\.(\d+)\.(\d+)(?:-([^+\s]+))?/.exec(v);
-  if (!m) return null;
-  return {
-    major: parseInt(m[1]!, 10),
-    minor: parseInt(m[2]!, 10),
-    patch: parseInt(m[3]!, 10),
-    prerelease: m[4] ?? "",
-  };
-}
-
 export function compareSemver(a: string, b: string): number {
-  const pa = parseSemver(a);
-  const pb = parseSemver(b);
-  if (!pa || !pb) return a.localeCompare(b);
-  if (pa.major !== pb.major) return pa.major - pb.major;
-  if (pa.minor !== pb.minor) return pa.minor - pb.minor;
-  if (pa.patch !== pb.patch) return pa.patch - pb.patch;
-
-  // Per SemVer §11: a version with a prerelease tag is *less than* the
-  // same x.y.z without one. We compare tags lexically for a stable
-  // ordering across prereleases — good enough for doctor's "is X older
-  // than the npm latest" check.
-  if (pa.prerelease === pb.prerelease) return 0;
-  if (!pa.prerelease) return 1;
-  if (!pb.prerelease) return -1;
-  return pa.prerelease.localeCompare(pb.prerelease);
+  const validA = valid(a);
+  const validB = valid(b);
+  if (!validA || !validB) return a.localeCompare(b);
+  return compare(validA, validB);
 }
 
 export interface OutdatedPackage {
@@ -397,7 +373,7 @@ export const doctor = new Command()
   )
   .option("--no-network", "Skip the npm registry check for latest versions.")
   .action(async (opts: { cwd: string; network: boolean }) => {
-    const cwd = path.resolve(opts.cwd);
+    const cwd = resolveRealPath(opts.cwd);
     const packageJsonPath = path.join(cwd, "package.json");
 
     if (!fs.existsSync(packageJsonPath)) {

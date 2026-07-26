@@ -142,7 +142,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
       new NestedSubscriptionSubject({
         path: {
           ...this.path,
-          ref: `${this.path.ref}${this.path.ref}.composer`,
+          ref: `${this.path.ref}.composer`,
           composerSource: "edit",
         },
         getState: this._getEditComposerRuntimeCore,
@@ -269,7 +269,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
       new ShallowMemoizeSubject({
         path: {
           ...this.path,
-          ref: `${this.path.ref}${this.path.ref}.content[${idx}]`,
+          ref: `${this.path.ref}.content[${idx}]`,
           messagePartSelector: { type: "index", index: idx },
         },
         getState: () => {
@@ -287,9 +287,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
       new ShallowMemoizeSubject({
         path: {
           ...this.path,
-          ref:
-            this.path.ref +
-            `${this.path.ref}.content[toolCallId=${JSON.stringify(toolCallId)}]`,
+          ref: `${this.path.ref}.content[toolCallId=${JSON.stringify(toolCallId)}]`,
           messagePartSelector: { type: "toolCallId", toolCallId },
         },
         getState: () => {
@@ -313,7 +311,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
       new ShallowMemoizeSubject({
         path: {
           ...this.path,
-          ref: `${this.path.ref}${this.path.ref}.attachments[${idx}]`,
+          ref: `${this.path.ref}.attachments[${idx}]`,
           attachmentSource: "message",
           attachmentSelector: { type: "index", index: idx },
         },

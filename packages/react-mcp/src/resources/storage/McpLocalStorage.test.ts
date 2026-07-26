@@ -1,6 +1,11 @@
+import { createTapRoot, useResource } from "@assistant-ui/tap";
 import { describe, expect, it } from "vitest";
 
-import { normalizeCustomServerRecords } from "./McpLocalStorage";
+import {
+  McpLocalStorage,
+  normalizeCustomServerRecords,
+  normalizePersistedAuthState,
+} from "./McpLocalStorage";
 
 const validRecord = {
   id: "docs",
@@ -34,6 +39,40 @@ describe("normalizeCustomServerRecords", () => {
     ).toEqual([validRecord]);
   });
 
+  it("strips malformed connection timeouts without dropping servers", () => {
+    expect(
+      normalizeCustomServerRecords([
+        { ...validRecord, id: "string-timeout", connectionTimeout: "10000" },
+        { ...validRecord, id: "null-timeout", connectionTimeout: null },
+        { ...validRecord, id: "negative-timeout", connectionTimeout: -1 },
+        { ...validRecord, id: "nan-timeout", connectionTimeout: Number.NaN },
+        {
+          ...validRecord,
+          id: "infinite-timeout",
+          connectionTimeout: Number.POSITIVE_INFINITY,
+        },
+      ]),
+    ).toEqual([
+      { ...validRecord, id: "string-timeout" },
+      { ...validRecord, id: "null-timeout" },
+      { ...validRecord, id: "negative-timeout" },
+      { ...validRecord, id: "nan-timeout" },
+      { ...validRecord, id: "infinite-timeout" },
+    ]);
+  });
+
+  it("accepts finite non-negative connection timeouts", () => {
+    expect(
+      normalizeCustomServerRecords([
+        { ...validRecord, connectionTimeout: 0 },
+        { ...validRecord, connectionTimeout: 10_000 },
+      ]),
+    ).toEqual([
+      { ...validRecord, connectionTimeout: 0 },
+      { ...validRecord, connectionTimeout: 10_000 },
+    ]);
+  });
+
   it("accepts persisted bearer and oauth auth configs", () => {
     expect(
       normalizeCustomServerRecords([
@@ -54,5 +93,148 @@ describe("normalizeCustomServerRecords", () => {
         },
       ]),
     ).toHaveLength(2);
+  });
+});
+
+describe("normalizePersistedAuthState", () => {
+  it("returns null when the persisted value is not an object", () => {
+    expect(normalizePersistedAuthState(null)).toBeNull();
+    expect(normalizePersistedAuthState("bad")).toBeNull();
+    expect(normalizePersistedAuthState([])).toBeNull();
+  });
+
+  it("drops malformed auth state fields", () => {
+    expect(
+      normalizePersistedAuthState({
+        token: "",
+        codeVerifier: 123,
+        tokens: {
+          access_token: "access-token",
+          token_type: "Bearer",
+          expires_in: Number.POSITIVE_INFINITY,
+        },
+        clientInformation: { client_id: "client-id" },
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps valid bearer and OAuth callback state", () => {
+    expect(
+      normalizePersistedAuthState({
+        token: "bearer-token",
+        codeVerifier: "pkce-verifier",
+      }),
+    ).toEqual({
+      token: "bearer-token",
+      codeVerifier: "pkce-verifier",
+    });
+  });
+
+  it("keeps valid OAuth tokens and client information", () => {
+    const tokens = {
+      access_token: "access-token",
+      token_type: "Bearer",
+      refresh_token: "refresh-token",
+      expires_in: 3600,
+      scope: "docs.read",
+    };
+    const clientInformation = {
+      client_id: "client-id",
+      client_secret: "client-secret",
+      redirect_uris: ["http://localhost/callback"],
+    };
+
+    expect(
+      normalizePersistedAuthState({
+        tokens,
+        clientInformation,
+      }),
+    ).toEqual({
+      tokens,
+      clientInformation,
+    });
+  });
+
+  it("keeps valid fields when neighboring fields are malformed", () => {
+    expect(
+      normalizePersistedAuthState({
+        token: "bearer-token",
+        codeVerifier: 123,
+        tokens: { access_token: "access-token" },
+        clientInformation: "not-client-info",
+      }),
+    ).toEqual({
+      token: "bearer-token",
+    });
+  });
+});
+
+const createStorage = (): Storage => {
+  const data = new Map<string, string>();
+  return {
+    get length() {
+      return data.size;
+    },
+    clear: () => {
+      data.clear();
+    },
+    getItem: (key) => data.get(key) ?? null,
+    key: (index) => Array.from(data.keys())[index] ?? null,
+    removeItem: (key) => {
+      data.delete(key);
+    },
+    setItem: (key, value) => {
+      data.set(key, value);
+    },
+  };
+};
+
+const loadStorage = (storage: Storage) =>
+  createTapRoot(function McpStorageRoot() {
+    return useResource(
+      McpLocalStorage({
+        keyPrefix: "test-mcp",
+        storage,
+      }),
+    );
+  }).getValue();
+
+describe("McpLocalStorage custom servers", () => {
+  it("strips malformed connection timeouts when loading", async () => {
+    const storage = createStorage();
+    storage.setItem(
+      "test-mcp:custom-servers",
+      JSON.stringify([
+        validRecord,
+        {
+          ...validRecord,
+          id: "bad-timeout",
+          connectionTimeout: "immediately",
+        },
+      ]),
+    );
+
+    await expect(loadStorage(storage).loadCustomServers()).resolves.toEqual([
+      validRecord,
+      { ...validRecord, id: "bad-timeout" },
+    ]);
+  });
+});
+
+describe("McpLocalStorage auth state", () => {
+  it("normalizes loaded auth state from localStorage", async () => {
+    const storage = createStorage();
+    storage.setItem(
+      "test-mcp:auth:docs",
+      JSON.stringify({
+        token: "bearer-token",
+        codeVerifier: 123,
+        tokens: "not-tokens",
+      }),
+    );
+
+    await expect(loadStorage(storage).loadAuthState("docs")).resolves.toEqual({
+      token: "bearer-token",
+    });
   });
 });

@@ -15,6 +15,7 @@ type Props = {
     prompt: string,
     start?: {
       source: "typed_prompt" | "suggestion";
+      suggestionId?: string;
       suggestionGroup?: string;
       suggestionLabel?: string;
     },
@@ -53,6 +54,7 @@ export function XuluxLandingPage({
             setPrompt(nextPrompt);
             onStartChat(nextPrompt, {
               source: "suggestion",
+              suggestionId: suggestion.id,
               suggestionGroup: suggestion.group,
               suggestionLabel: suggestion.label,
             });
