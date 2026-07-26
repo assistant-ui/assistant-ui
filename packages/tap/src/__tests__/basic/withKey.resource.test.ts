@@ -9,20 +9,23 @@ import {
   cleanupAllResources,
 } from "../test-utils";
 
-type UserProps = { id: string; initial: number };
-type PlatformProps = { mult: number };
+type ConnectionOptions = { id: string; initial: number };
+type ConnectionContext = { mult: number };
 
-const useConnection = (props: UserProps, platform: PlatformProps) => {
-  const [count, setCount] = useState(props.initial);
+const useConnection = (
+  options: ConnectionOptions,
+  context: ConnectionContext,
+) => {
+  const [count, setCount] = useState(options.initial);
   return {
-    id: props.id,
-    value: count * platform.mult,
+    id: options.id,
+    value: count * context.mult,
     bump: () => setCount((c) => c + 1),
   };
 };
 
-const ConnectionResource = (props: UserProps) =>
-  withKey(props.id, resource(useConnection).bind(null, props));
+const ConnectionResource = (options: ConnectionOptions) =>
+  withKey(options.id, resource(useConnection).bind(null, options));
 
 describe("withKey on a Resource", () => {
   afterEach(() => {
