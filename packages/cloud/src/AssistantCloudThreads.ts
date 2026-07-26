@@ -15,7 +15,7 @@ type AssistantCloudThreadsListQuery = {
   after?: string;
 };
 
-type CloudThread = {
+export type CloudThread = {
   title: string;
   last_message_at: Date;
   metadata: unknown;
@@ -50,7 +50,10 @@ type AssistantCloudThreadsUpdateBody = {
   is_archived?: boolean | undefined;
 };
 
-const decodeCloudThread = (value: unknown, field: string): CloudThread => {
+export const decodeCloudThread = (
+  value: unknown,
+  field: string,
+): CloudThread => {
   const thread = readCloudRecord(value, field);
   return {
     title: readCloudNullableString(thread.title, `${field}.title`) ?? "",

@@ -42,7 +42,10 @@ type AssistantCloudThreadMessageUpdateBody = {
   content: ReadonlyJSONObject;
 };
 
-const decodeCloudMessage = (value: unknown, field: string): CloudMessage => {
+export const decodeCloudMessage = (
+  value: unknown,
+  field: string,
+): CloudMessage => {
   const message = readCloudRecord(value, field);
   return {
     id: readCloudString(message.id, `${field}.id`),
