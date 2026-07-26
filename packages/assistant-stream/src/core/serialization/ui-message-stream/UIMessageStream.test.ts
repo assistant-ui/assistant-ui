@@ -604,6 +604,30 @@ describe("UIMessageStreamDecoder", () => {
     warn.mockRestore();
   });
 
+  it("drops frames carrying prototype-pollution keys", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const events = [
+      '{"type":"text-delta","delta":"x","__proto__":{"polluted":true}}',
+      '{"type":"text-delta","delta":"y","constructor":{"prototype":{"polluted":true}}}',
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "text-delta", id: "t", delta: "ok" }),
+      "[DONE]",
+    ];
+
+    const chunks = await collectChunks(
+      createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+    );
+
+    expect(warn).toHaveBeenCalledTimes(2);
+    const deltas = chunks.filter(
+      (c): c is AssistantStreamChunk & { type: "text-delta" } =>
+        c.type === "text-delta",
+    );
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0]!.textDelta).toBe("ok");
+    warn.mockRestore();
+  });
+
   it("drops frames that are not valid JSON", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const invalidFrames = ['{"type":"te', "not json"];

@@ -1,3 +1,4 @@
+import sjson from "secure-json-parse";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import type { ToolCallStreamController } from "../../modules/tool-call";
 import type { TextStreamController } from "../../modules/text";
@@ -227,7 +228,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
 
               let chunk;
               try {
-                chunk = JSON.parse(event.data);
+                chunk = sjson.parse(event.data);
               } catch {
                 chunk = undefined;
               }
