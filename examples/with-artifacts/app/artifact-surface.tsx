@@ -96,9 +96,11 @@ export function ArtifactTrigger({
 }: Unstable_InteractableToolRenderProps<ArtifactState>) {
   const messageId = useAuiState((s) => s.message.id);
   const { active, open } = useArtifactSurface();
-  const displayState = version?.state ?? state;
+  const displayState = version && !version.isLatest ? version.state : state;
   const title = displayState.title || "Untitled artifact";
-  const lineCount = displayState.code?.split("\n").length ?? 0;
+  const lineCount = displayState.code
+    ? displayState.code.split(/\r?\n/).length
+    : 0;
   const isOpen = active?.id === id;
 
   return (
@@ -166,6 +168,7 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
   );
   const { close, returnToOrigin } = useArtifactSurface();
   const [view, setView] = useState<"preview" | "code">("preview");
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   return (
     <aside
@@ -188,31 +191,44 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
         </div>
 
         <div className="ml-auto flex items-center gap-1.5">
-          <label className="relative hidden sm:block">
-            <span className="sr-only">Artifact version history</span>
-            <HistoryIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
-            <select
+          <div className="relative">
+            <button
+              type="button"
               data-testid="artifact-version-select"
               aria-label="Artifact version history"
-              value=""
-              onChange={(event) => {
-                const version = versions[Number(event.target.value)];
-                version?.restore();
-              }}
-              className="border-border bg-card text-foreground hover:bg-muted h-8 appearance-none rounded-md border pr-2 pl-8 text-xs outline-none"
+              aria-expanded={historyOpen}
+              onClick={() => setHistoryOpen((open) => !open)}
+              className="border-border bg-card text-foreground hover:bg-muted inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium"
             >
-              <option value="" disabled>
-                {versions.length}{" "}
-                {versions.length === 1 ? "version" : "versions"}
-              </option>
-              {versions.map((version, index) => (
-                <option key={`${version.origin}-${index}`} value={index}>
-                  v{index + 1} ·{" "}
-                  {version.origin === "user-edit" ? "you" : "assistant"}
-                </option>
-              ))}
-            </select>
-          </label>
+              <HistoryIcon className="size-3.5" />
+              {versions.length} {versions.length === 1 ? "version" : "versions"}
+            </button>
+            {historyOpen && (
+              <div className="border-border bg-card absolute top-9 right-0 z-10 flex w-44 flex-col overflow-hidden rounded-md border py-1 shadow-lg">
+                {versions.map((version, index) => (
+                  <button
+                    key={`${version.origin}-${index}`}
+                    type="button"
+                    onClick={() => {
+                      version.restore();
+                      setHistoryOpen(false);
+                    }}
+                    className="text-foreground hover:bg-muted flex items-center justify-between px-3 py-1.5 text-left text-xs"
+                  >
+                    <span>
+                      v{index + 1} ·{" "}
+                      {version.origin === "user-edit" ? "you" : "assistant"}
+                    </span>
+                    {version.isLatest && (
+                      <span className="text-muted-foreground font-mono text-[9px] uppercase">
+                        latest
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             data-testid="artifact-return"
@@ -240,6 +256,7 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
           <div className="bg-muted/80 flex shrink-0 items-center gap-1 border-b p-1.5">
             <button
               type="button"
+              aria-pressed={view === "preview"}
               onClick={() => setView("preview")}
               className={`inline-flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium transition-colors ${
                 view === "preview"
@@ -252,6 +269,7 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
             </button>
             <button
               type="button"
+              aria-pressed={view === "code"}
               onClick={() => setView("code")}
               className={`inline-flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium transition-colors ${
                 view === "code"
