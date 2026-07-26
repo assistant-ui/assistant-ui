@@ -224,7 +224,7 @@ const useThreadMessagesFlatListAutoScroll = ({
   });
   const isAtBottomRef = useRef(true);
   const initializeScrollRequestedRef = useRef(false);
-  const pendingScrollToBottomRef = useRef(false);
+  const pendingScrollToBottomRef = useRef<false | { animated: boolean }>(false);
 
   const updateIsAtBottom = useCallback(() => {
     const { contentHeight, scrollY, viewportHeight } = metricsRef.current;
@@ -252,13 +252,18 @@ const useThreadMessagesFlatListAutoScroll = ({
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } =
         event.nativeEvent;
+      const previousScrollY = metricsRef.current.scrollY;
       metricsRef.current = {
         contentHeight: contentSize.height,
         viewportHeight: layoutMeasurement.height,
         scrollY: contentOffset.y,
       };
       updateIsAtBottom();
-      if (!isAtBottomRef.current) pendingScrollToBottomRef.current = false;
+      // Only a deliberate upward move cancels a pending scroll; the landing
+      // animation itself emits downward not-at-bottom events.
+      if (!isAtBottomRef.current && contentOffset.y < previousScrollY) {
+        pendingScrollToBottomRef.current = false;
+      }
     },
     [updateIsAtBottom],
   );
@@ -274,9 +279,10 @@ const useThreadMessagesFlatListAutoScroll = ({
       // FlatList.scrollToEnd is a no-op before the list has measured, so the
       // initialize and thread-switch scrolls land on the next content-size
       // event, once real metrics exist.
-      if (pendingScrollToBottomRef.current) {
+      const pendingScroll = pendingScrollToBottomRef.current;
+      if (pendingScroll) {
         pendingScrollToBottomRef.current = false;
-        scrollToBottom(false);
+        scrollToBottom(pendingScroll.animated);
         return;
       }
 
@@ -299,19 +305,20 @@ const useThreadMessagesFlatListAutoScroll = ({
     if (initializeScrollRequestedRef.current) return;
 
     initializeScrollRequestedRef.current = true;
-    pendingScrollToBottomRef.current = true;
+    pendingScrollToBottomRef.current = { animated: false };
     scrollToBottom(false);
   }, [hasMessages, scrollToBottom, scrollToBottomOnInitialize]);
 
   useAuiEvent("thread.runStart", () => {
     if (!scrollToBottomOnRunStart) return;
+    pendingScrollToBottomRef.current = { animated: true };
     scrollToBottom(true);
   });
 
   useAuiEvent("threadListItem.switchedTo", () => {
     if (!scrollToBottomOnThreadSwitch) return;
     initializeScrollRequestedRef.current = false;
-    pendingScrollToBottomRef.current = true;
+    pendingScrollToBottomRef.current = { animated: false };
     scrollToBottom(false);
   });
 

@@ -464,7 +464,14 @@ describe("ThreadMessages", () => {
         });
         props.onScroll?.({
           nativeEvent: {
-            contentOffset: { y: 0 },
+            contentOffset: { y: 200 },
+            contentSize: { height: 300, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 50 },
             contentSize: { height: 300, width: 0 },
             layoutMeasurement: { height: 100, width: 0 },
           },
@@ -473,6 +480,50 @@ describe("ThreadMessages", () => {
       });
 
       expect(h.scrollToEnd).not.toHaveBeenCalled();
+    });
+
+    it("lands the run-start scroll once the appended message resizes content", async () => {
+      h.state.thread.messages = [{ id: "1", role: "user" }];
+      await mountFlatList({ components: messageComponents });
+      const props = getFlatListProps();
+
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 100 } },
+        });
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 200 },
+            contentSize: { height: 300, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 50 },
+            contentSize: { height: 300, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+      });
+      h.scrollToEnd.mockClear();
+
+      await emit("thread.runStart");
+      expect(h.scrollToEnd).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 120 },
+            contentSize: { height: 300, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+        props.onContentSizeChange?.(0, 360);
+      });
+
+      expect(h.scrollToEnd).toHaveBeenCalledTimes(2);
+      expect(h.scrollToEnd).toHaveBeenLastCalledWith({ animated: true });
     });
 
     it("scrolls to the bottom when switching threads", async () => {
