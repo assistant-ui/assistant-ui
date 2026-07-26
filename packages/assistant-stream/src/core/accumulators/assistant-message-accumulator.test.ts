@@ -251,6 +251,28 @@ describe("AssistantMessageAccumulator timing", () => {
     warn.mockRestore();
   });
 
+  it("does not record firstTokenTime when a text-delta is dropped for a wrong part type", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: {
+          type: "source",
+          sourceType: "url",
+          id: "s1",
+          url: "https://example.com",
+        },
+      },
+      { type: "text-delta", path: [0], textDelta: "x" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.metadata.timing).toBeDefined();
+    expect(last.metadata.timing!.firstTokenTime).toBeUndefined();
+    warn.mockRestore();
+  });
+
   it("records firstTokenTime on the first applied text-delta, not a preceding dropped one", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(1000);

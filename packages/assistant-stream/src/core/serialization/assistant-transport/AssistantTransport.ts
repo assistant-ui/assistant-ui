@@ -7,42 +7,38 @@ import {
 } from "../../utils/stream/SSEEventDecoderStream";
 import type { AssistantStreamEncoder } from "../../AssistantStream";
 
+type ChunkFields = Record<string, unknown>;
+
 type ChunkRule = {
   kind: "message" | "part-addressed";
-  valid: (chunk: Record<string, unknown>) => boolean;
+  valid: (chunk: ChunkFields) => boolean;
 };
 
-const isNonNullObject = (value: unknown): boolean =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const noFields = () => true;
+const requiredObject = (key: string) => (c: ChunkFields) => {
+  const value = c[key];
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+};
+const requiredString = (key: string) => (c: ChunkFields) =>
+  typeof c[key] === "string";
+const requiredArray = (key: string) => (c: ChunkFields) =>
+  Array.isArray(c[key]);
+const optionalBoolean = (key: string) => (c: ChunkFields) =>
+  c[key] === undefined || typeof c[key] === "boolean";
 
 const KNOWN_CHUNK_TYPES: Record<AssistantStreamChunk["type"], ChunkRule> = {
-  "part-start": { kind: "message", valid: (c) => isNonNullObject(c.part) },
-  "part-finish": { kind: "part-addressed", valid: () => true },
-  "tool-call-args-text-finish": { kind: "part-addressed", valid: () => true },
-  "text-delta": {
-    kind: "part-addressed",
-    valid: (c) => typeof c.textDelta === "string",
-  },
-  annotations: { kind: "message", valid: (c) => Array.isArray(c.annotations) },
-  data: { kind: "message", valid: (c) => Array.isArray(c.data) },
-  "step-start": { kind: "message", valid: () => true },
-  "step-finish": {
-    kind: "message",
-    valid: (c) => typeof c.finishReason === "string",
-  },
-  "message-finish": {
-    kind: "message",
-    valid: (c) => typeof c.finishReason === "string",
-  },
-  result: {
-    kind: "part-addressed",
-    valid: (c) => c.isError === undefined || typeof c.isError === "boolean",
-  },
-  error: { kind: "message", valid: () => true },
-  "update-state": {
-    kind: "message",
-    valid: (c) => Array.isArray(c.operations),
-  },
+  "part-start": { kind: "message", valid: requiredObject("part") },
+  "part-finish": { kind: "part-addressed", valid: noFields },
+  "tool-call-args-text-finish": { kind: "part-addressed", valid: noFields },
+  "text-delta": { kind: "part-addressed", valid: requiredString("textDelta") },
+  annotations: { kind: "message", valid: requiredArray("annotations") },
+  data: { kind: "message", valid: requiredArray("data") },
+  "step-start": { kind: "message", valid: noFields },
+  "step-finish": { kind: "message", valid: requiredString("finishReason") },
+  "message-finish": { kind: "message", valid: requiredString("finishReason") },
+  result: { kind: "part-addressed", valid: optionalBoolean("isError") },
+  error: { kind: "message", valid: noFields },
+  "update-state": { kind: "message", valid: requiredArray("operations") },
 };
 
 const parseChunk = (data: string): AssistantStreamChunk | string => {
