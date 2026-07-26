@@ -19,7 +19,7 @@ import {
   TabsAsLinkSample,
   TabsAnimatedIndicatorSample,
 } from "@/components/docs/samples/tabs";
-import * as TabsBaseSamples from "@/components/docs/samples/tabs.base";
+import * as TabsRadixSamples from "@/components/docs/samples/tabs.radix";
 import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
 <Callout>
@@ -28,7 +28,7 @@ import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.serv
 
 <FlavorSwitcher />
 
-<Flavored radix={<TabsSample />} base={<TabsBaseSamples.TabsSample />} />
+<Flavored radix={<TabsRadixSamples.TabsSample />} base={<TabsSample />} />
 
 ## Installation
 
@@ -64,7 +64,7 @@ export function Example() {
 
 Use the `variant` prop on `TabsList` to change the visual style. Child components inherit the variant automatically.
 
-<Flavored radix={<TabsVariantsSample />} base={<TabsBaseSamples.TabsVariantsSample />} />
+<Flavored radix={<TabsRadixSamples.TabsVariantsSample />} base={<TabsVariantsSample />} />
 
 ```tsx
 <TabsList variant="default" />  // Muted background with shadow (default)
@@ -78,7 +78,7 @@ Use the `variant` prop on `TabsList` to change the visual style. Child component
 
 Use the `size` prop on `TabsList` to change the tab height. Child components inherit the size automatically.
 
-<Flavored radix={<TabsSizesSample />} base={<TabsBaseSamples.TabsSizesSample />} />
+<Flavored radix={<TabsRadixSamples.TabsSizesSample />} base={<TabsSizesSample />} />
 
 ```tsx
 <TabsList size="sm" />      // 32px height
@@ -90,24 +90,24 @@ Use the `size` prop on `TabsList` to change the tab height. Child components inh
 
 Tabs automatically style SVG icons placed inside triggers.
 
-<PreviewCode file="components/docs/samples/tabs" name="TabsWithIconsSample" base={<TabsBaseSamples.TabsWithIconsSample />}>
-  <TabsWithIconsSample />
+<PreviewCode file="components/docs/samples/tabs" name="TabsWithIconsSample" base={<TabsWithIconsSample />}>
+  <TabsRadixSamples.TabsWithIconsSample />
 </PreviewCode>
 
 ### Controlled
 
 Use `value` and `onValueChange` for controlled tab state.
 
-<PreviewCode file="components/docs/samples/tabs" name="TabsControlledSample" base={<TabsBaseSamples.TabsControlledSample />}>
-  <TabsControlledSample />
+<PreviewCode file="components/docs/samples/tabs" name="TabsControlledSample" base={<TabsControlledSample />}>
+  <TabsRadixSamples.TabsControlledSample />
 </PreviewCode>
 
 ### As Link
 
 Compose with `render` (Base UI) or `asChild` (Radix) on `TabsTrigger` to render as a different element, like a navigation link.
 
-<PreviewCode file="components/docs/samples/tabs" name="TabsAsLinkSample" base={<TabsBaseSamples.TabsAsLinkSample />}>
-  <TabsAsLinkSample />
+<PreviewCode file="components/docs/samples/tabs" name="TabsAsLinkSample" base={<TabsAsLinkSample />}>
+  <TabsRadixSamples.TabsAsLinkSample />
 </PreviewCode>
 
 ### Animated Indicator
@@ -122,8 +122,8 @@ All variants feature smooth animated indicators that slide between tabs:
 | `pills` | Sliding pill background |
 | `outline` | Sliding border |
 
-<PreviewCode file="components/docs/samples/tabs" name="TabsAnimatedIndicatorSample" base={<TabsBaseSamples.TabsAnimatedIndicatorSample />}>
-  <TabsAnimatedIndicatorSample />
+<PreviewCode file="components/docs/samples/tabs" name="TabsAnimatedIndicatorSample" base={<TabsAnimatedIndicatorSample />}>
+  <TabsRadixSamples.TabsAnimatedIndicatorSample />
 </PreviewCode>
 
 ## API Reference

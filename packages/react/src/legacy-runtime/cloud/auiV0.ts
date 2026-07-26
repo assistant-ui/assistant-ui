@@ -11,7 +11,7 @@ import type {
 } from "@assistant-ui/core";
 import { fromThreadMessageLike } from "../runtime-cores/external-store/ThreadMessageLike";
 import type { CloudMessage } from "assistant-cloud";
-import { isJSONValue } from "../../utils/json/is-json";
+import { isJSONValue } from "@assistant-ui/core/internal";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,

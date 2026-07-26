@@ -200,4 +200,61 @@ describe("fromThreadMessageLike", () => {
       });
     });
   });
+
+  describe("metadata.isOptimistic", () => {
+    it("preserves isOptimistic on user messages", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+          metadata: { isOptimistic: true },
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.metadata.isOptimistic).toBe(true);
+    });
+
+    it("preserves isOptimistic on assistant messages", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "hello" }],
+          metadata: { isOptimistic: true },
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.metadata.isOptimistic).toBe(true);
+    });
+
+    it("omits isOptimistic when false", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+          metadata: { isOptimistic: false },
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.metadata).not.toHaveProperty("isOptimistic");
+    });
+
+    it("omits isOptimistic when not set", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.metadata).not.toHaveProperty("isOptimistic");
+    });
+  });
 });

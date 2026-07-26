@@ -1,6 +1,6 @@
 "use client";
 
-import { Collapsible } from "radix-ui";
+import { Collapsible } from "@base-ui/react/collapsible";
 import {
   groupPartByType,
   MessagePrimitive,
@@ -78,9 +78,9 @@ function ToolCallBlock({
         <Collapsible.Trigger className="group flex w-full items-center gap-1.5 text-start text-sm">
           <WrenchIcon className="text-muted-foreground size-3" />
           <span className="font-medium">{toolName}</span>
-          <ChevronRightIcon className="text-muted-foreground ms-auto size-3.5 transition-transform duration-150 group-data-[state=open]:rotate-90 rtl:group-data-[state=closed]:rotate-180" />
+          <ChevronRightIcon className="text-muted-foreground ms-auto size-3.5 transition-transform duration-150 group-data-panel-open:rotate-90 rtl:rotate-180 rtl:group-data-panel-open:rotate-90" />
         </Collapsible.Trigger>
-        <Collapsible.Content>
+        <Collapsible.Panel>
           <div className="bg-muted/40 mt-2 overflow-hidden rounded-md border">
             <div className="px-3 py-2">
               <p className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wider uppercase">
@@ -101,7 +101,7 @@ function ToolCallBlock({
               </div>
             )}
           </div>
-        </Collapsible.Content>
+        </Collapsible.Panel>
       </Collapsible.Root>
     </div>
   );

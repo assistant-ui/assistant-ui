@@ -7,7 +7,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/radix/sidebar";
 import { Separator } from "@/components/ui/radix/separator";
-import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
+import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar.radix";
 import {
   useOpenCodeRuntime,
   useOpenCodeSession,

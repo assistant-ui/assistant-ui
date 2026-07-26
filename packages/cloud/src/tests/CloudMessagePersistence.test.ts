@@ -37,6 +37,33 @@ describe("CloudMessagePersistence", () => {
     expect(await persistence.getRemoteId("local-1")).toBe("remote-1");
   });
 
+  it("uses the current client without losing ID mappings", async () => {
+    const firstCloud = createMockCloud();
+    const secondCloud = createMockCloud();
+    let currentCloud = firstCloud;
+    persistence = new CloudMessagePersistence(() => currentCloud);
+    vi.mocked(firstCloud.threads.messages.create).mockResolvedValue({
+      message_id: "remote-parent",
+    });
+    vi.mocked(secondCloud.threads.messages.create).mockResolvedValue({
+      message_id: "remote-child",
+    });
+
+    await persistence.append("thread-1", "parent", null, "aui/v0", {
+      text: "parent",
+    });
+    currentCloud = secondCloud;
+    await persistence.append("thread-1", "child", "parent", "aui/v0", {
+      text: "child",
+    });
+
+    expect(secondCloud.threads.messages.create).toHaveBeenCalledWith(
+      "thread-1",
+      expect.objectContaining({ parent_id: "remote-parent" }),
+    );
+    expect(await persistence.getRemoteId("child")).toBe("remote-child");
+  });
+
   it("resolves parent ID from a concurrent append", async () => {
     // Parent creation is delayed — the promise won't resolve immediately
     let resolveParent!: (v: { message_id: string }) => void;
@@ -118,6 +145,19 @@ describe("CloudMessagePersistence", () => {
       "thread-1",
       "remote-1",
       { content: { text: "updated" } },
+    );
+  });
+
+  it("warns and skips update when no remote id is mapped", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await persistence.update("thread-1", "unmapped-1", "aui/v0", {
+      text: "x",
+    });
+
+    expect(cloud.threads.messages.update).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      "Skipping update for message unmapped-1: no remote id is mapped.",
     );
   });
 

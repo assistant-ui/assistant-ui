@@ -10,7 +10,7 @@ describe("toAISDKContent", () => {
     });
   });
 
-  it("maps an image file part to image-data and drops the filename", () => {
+  it("maps an image file part to a file entry and keeps the filename", () => {
     const parts: ToolModelContentPart[] = [
       {
         type: "file",
@@ -21,23 +21,30 @@ describe("toAISDKContent", () => {
     ];
     expect(toAISDKContent(parts)).toEqual({
       type: "content",
-      value: [{ type: "image-data", data: "AAAA", mediaType: "image/png" }],
+      value: [
+        {
+          type: "file",
+          data: { type: "data", data: "AAAA" },
+          mediaType: "image/png",
+          filename: "shot.png",
+        },
+      ],
     });
   });
 
-  it("maps a non-image file part without a filename to file-data", () => {
+  it("maps a file part without a filename to a file entry", () => {
     const result = toAISDKContent([
       { type: "file", data: "BBBB", mediaType: "application/pdf" },
     ]);
     expect(result.value[0]).toEqual({
-      type: "file-data",
-      data: "BBBB",
+      type: "file",
+      data: { type: "data", data: "BBBB" },
       mediaType: "application/pdf",
     });
     expect(result.value[0]).not.toHaveProperty("filename");
   });
 
-  it("includes the filename for a non-image file part when present", () => {
+  it("includes the filename for a file part when present", () => {
     expect(
       toAISDKContent([
         {
@@ -51,8 +58,8 @@ describe("toAISDKContent", () => {
       type: "content",
       value: [
         {
-          type: "file-data",
-          data: "CCCC",
+          type: "file",
+          data: { type: "data", data: "CCCC" },
           mediaType: "application/pdf",
           filename: "report.pdf",
         },
@@ -68,13 +75,50 @@ describe("toAISDKContent", () => {
     ]);
     expect(result.value.map((part) => part.type)).toEqual([
       "text",
-      "image-data",
+      "file",
       "text",
     ]);
   });
 
   it("returns an empty value array for empty input", () => {
     expect(toAISDKContent([])).toEqual({ type: "content", value: [] });
+  });
+
+  it("falls back to application/octet-stream when mediaType is missing", () => {
+    const parts = [{ type: "file", data: "DDDD" } as any];
+    expect(toAISDKContent(parts)).toEqual({
+      type: "content",
+      value: [
+        {
+          type: "file",
+          data: { type: "data", data: "DDDD" },
+          mediaType: "application/octet-stream",
+        },
+      ],
+    });
+  });
+
+  it("falls back to application/octet-stream when mediaType is not a string", () => {
+    const parts = [{ type: "file", data: "EEEE", mediaType: 42 } as any];
+    expect(toAISDKContent(parts)).toEqual({
+      type: "content",
+      value: [
+        {
+          type: "file",
+          data: { type: "data", data: "EEEE" },
+          mediaType: "application/octet-stream",
+        },
+      ],
+    });
+  });
+
+  it("does not throw on a part with an unknown type and no mediaType", () => {
+    const parts = [{ type: "widget" } as any];
+    const result = toAISDKContent(parts);
+    expect(result.value[0]).toMatchObject({
+      type: "file",
+      mediaType: "application/octet-stream",
+    });
   });
 });
 

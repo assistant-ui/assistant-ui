@@ -3,6 +3,7 @@
 import {
   type ComponentPropsWithoutRef,
   type FC,
+  type ReactNode,
   forwardRef,
   useEffect,
   useMemo,
@@ -25,6 +26,7 @@ import {
   KEY_BACKSPACE_COMMAND,
   KEY_ENTER_COMMAND,
   KEY_ESCAPE_COMMAND,
+  KEY_TAB_COMMAND,
 } from "lexical";
 import { mergeRegister } from "@lexical/utils";
 import { useAui, useAuiState } from "@assistant-ui/store";
@@ -42,7 +44,7 @@ import type { DirectivePluginProps } from "./plugins/DirectivePlugin";
 
 export type LexicalComposerInputProps = Omit<
   ComponentPropsWithoutRef<"div">,
-  "autoFocus"
+  "autoFocus" | "children"
 > & {
   /** Controls how Enter submits. @default "enter" */
   submitMode?: "enter" | "ctrlEnter" | "none" | undefined;
@@ -58,6 +60,8 @@ export type LexicalComposerInputProps = Omit<
   directiveChip?: FC<DirectiveChipProps> | undefined;
   /** Custom formatter for serializing/parsing directives. */
   formatter?: Unstable_DirectiveFormatter | undefined;
+  /** Custom Lexical plugins rendered inside the composer context, after the built-in plugins. */
+  children?: ReactNode | undefined;
 };
 
 function KeyboardPlugin({
@@ -151,6 +155,15 @@ function KeyboardPlugin({
 
       editor.registerCommand(
         KEY_BACKSPACE_COMMAND,
+        (event) => {
+          if (event && delegateToPlugins(event)) return true;
+          return false;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+
+      editor.registerCommand(
+        KEY_TAB_COMMAND,
         (event) => {
           if (event && delegateToPlugins(event)) return true;
           return false;
@@ -269,6 +282,7 @@ export const LexicalComposerInput = forwardRef<
       directiveChip,
       formatter: formatterProp,
       className,
+      children,
       ...rest
     },
     ref,
@@ -324,6 +338,7 @@ export const LexicalComposerInput = forwardRef<
             <CursorPlugin />
             <FocusPlugin autoFocus={autoFocus} />
             <EditablePlugin isDisabled={!!isDisabled} />
+            {children}
           </div>
         </DirectiveChipProvider>
       </LexicalComposer>

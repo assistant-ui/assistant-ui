@@ -93,11 +93,19 @@ export default async function Page(props: {
           {page.data.links && page.data.links.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {page.data.links.map((link) => (
-                <Badge key={link.url} asChild variant="muted">
-                  <a href={link.url} target="_blank" rel="noopener noreferrer">
-                    {link.label}
-                    <ArrowUpRight />
-                  </a>
+                <Badge
+                  key={link.url}
+                  variant="muted"
+                  render={
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    />
+                  }
+                >
+                  {link.label}
+                  <ArrowUpRight />
                 </Badge>
               ))}
             </div>

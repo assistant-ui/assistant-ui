@@ -17,7 +17,7 @@ import {
   BadgeAsLinkSample,
   BadgeAnimatedSample,
 } from "@/components/docs/samples/badge";
-import * as BadgeBaseSamples from "@/components/docs/samples/badge.base";
+import * as BadgeRadixSamples from "@/components/docs/samples/badge.radix";
 import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
 <Callout>
@@ -26,7 +26,7 @@ import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.serv
 
 <FlavorSwitcher />
 
-<Flavored radix={<BadgeSample />} base={<BadgeBaseSamples.BadgeSample />} />
+<Flavored radix={<BadgeRadixSamples.BadgeSample />} base={<BadgeSample />} />
 
 ## Installation
 
@@ -48,7 +48,7 @@ export function Example() {
 
 Use the `variant` prop to change the visual style.
 
-<Flavored radix={<BadgeSample />} base={<BadgeBaseSamples.BadgeSample />} />
+<Flavored radix={<BadgeRadixSamples.BadgeSample />} base={<BadgeSample />} />
 
 ```tsx
 <Badge variant="outline" />     // Border (default)
@@ -65,7 +65,7 @@ Use the `variant` prop to change the visual style.
 
 Use the `size` prop to change the badge size.
 
-<Flavored radix={<BadgeSizesSample />} base={<BadgeBaseSamples.BadgeSizesSample />} />
+<Flavored radix={<BadgeRadixSamples.BadgeSizesSample />} base={<BadgeSizesSample />} />
 
 ```tsx
 <Badge size="sm" />      // Small
@@ -77,24 +77,24 @@ Use the `size` prop to change the badge size.
 
 Badges automatically style SVG icons.
 
-<PreviewCode file="components/docs/samples/badge" name="BadgeWithIconSample" base={<BadgeBaseSamples.BadgeWithIconSample />}>
-  <BadgeWithIconSample />
+<PreviewCode file="components/docs/samples/badge" name="BadgeWithIconSample" base={<BadgeWithIconSample />}>
+  <BadgeRadixSamples.BadgeWithIconSample />
 </PreviewCode>
 
 ### As Link
 
 Compose with `render` (Base UI) or `asChild` (Radix) to render the badge as a different element, like a link.
 
-<PreviewCode file="components/docs/samples/badge" name="BadgeAsLinkSample" base={<BadgeBaseSamples.BadgeAsLinkSample />}>
-  <BadgeAsLinkSample />
+<PreviewCode file="components/docs/samples/badge" name="BadgeAsLinkSample" base={<BadgeAsLinkSample />}>
+  <BadgeRadixSamples.BadgeAsLinkSample />
 </PreviewCode>
 
 ### Animated
 
 Combine with CSS transitions for scroll and color animations.
 
-<PreviewCode file="components/docs/samples/badge" name="BadgeAnimatedSample" base={<BadgeBaseSamples.BadgeAnimatedSample />}>
-  <BadgeAnimatedSample />
+<PreviewCode file="components/docs/samples/badge" name="BadgeAnimatedSample" base={<BadgeAnimatedSample />}>
+  <BadgeRadixSamples.BadgeAnimatedSample />
 </PreviewCode>
 
 ## API Reference

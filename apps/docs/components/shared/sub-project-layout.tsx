@@ -3,12 +3,12 @@
 import { type ReactNode, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { GitHubIcon } from "@/components/icons/github";
 import { Select } from "@/components/assistant-ui/select";
 import { SUB_PROJECTS } from "@/lib/constants";
 import { ThemeToggle } from "./theme-toggle";
+import { HeaderBrandLink } from "./header-brand-link";
 
 interface BreadcrumbItem {
   label: string;
@@ -76,18 +76,7 @@ export function SubProjectLayout({
           )}
         >
           <div className="flex min-w-0 items-center">
-            <Link href="/" className="flex shrink-0 items-center gap-2">
-              <Image
-                src="/favicon/icon.svg"
-                alt="assistant-ui logo"
-                width={18}
-                height={18}
-                className="dark:hue-rotate-180 dark:invert"
-              />
-              <span className="hidden font-medium tracking-tight sm:inline">
-                assistant-ui
-              </span>
-            </Link>
+            <HeaderBrandLink labelClassName="hidden sm:inline" />
             <span className="text-muted-foreground/40 ml-3">/</span>
             <Select
               value={name}

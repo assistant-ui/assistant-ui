@@ -15,6 +15,7 @@ import { XuluxAnalyticsProvider } from "@/lib/xulux/analytics-context";
 import type { XuluxTemplate } from "./templates/types";
 import { XuluxShell } from "./shell/XuluxShell";
 import { createXuluxLocalThreadListAdapter } from "./runtime/xulux-thread-list-adapter";
+import { createXuluxChatFetch } from "./runtime/xulux-chat-fetch";
 import { XuluxThreadStatusObserver } from "./runtime/XuluxThreadStatusObserver";
 import {
   parseXuluxLimitBlock,
@@ -168,36 +169,35 @@ function XuluxRuntimeProviderInner({
     [assistantCloud],
   );
 
-  const transport = useMemo(
-    () =>
-      new AssistantChatTransport({
-        api: "/api/xulux/chat",
-        body: {
-          get sessionId() {
-            return sessionIdRef.current;
-          },
-          get selectedTemplate() {
-            return selectedTemplateContextRef.current;
-          },
-          get activePreviewContext() {
-            return activePreviewContextRef.current;
-          },
+  const transport = useMemo(() => {
+    const chatFetch = createXuluxChatFetch();
+    return new AssistantChatTransport({
+      api: "/api/xulux/chat",
+      body: {
+        get sessionId() {
+          return sessionIdRef.current;
         },
-        fetch: async (input, init) => {
-          const res = await fetch(input, init);
-          if (res.status === 429) {
-            const payload = await res
-              .clone()
-              .json()
-              .catch(() => null);
-            const block = parseXuluxLimitBlock(payload);
-            if (block) setLimitBlock(block);
-          }
-          return res;
+        get selectedTemplate() {
+          return selectedTemplateContextRef.current;
         },
-      }),
-    [],
-  );
+        get activePreviewContext() {
+          return activePreviewContextRef.current;
+        },
+      },
+      fetch: async (input, init) => {
+        const res = await chatFetch(input, init);
+        if (res.status === 429) {
+          const payload = await res
+            .clone()
+            .json()
+            .catch(() => null);
+          const block = parseXuluxLimitBlock(payload);
+          if (block) setLimitBlock(block);
+        }
+        return res;
+      },
+    });
+  }, []);
 
   const runtime = useRemoteThreadListRuntime({
     adapter,

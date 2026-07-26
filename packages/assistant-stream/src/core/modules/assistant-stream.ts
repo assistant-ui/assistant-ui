@@ -115,7 +115,15 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   get __internal_isClosed() {
-    return this._state.merger.isSealed();
+    return (
+      this._state.merger.isSealed() ||
+      this._state.merger.isCancelled() ||
+      this._state.merger.isErrored()
+    );
+  }
+
+  get __internal_isCancelled() {
+    return this._state.merger.isCancelled();
   }
 
   __internal_getReadable() {
@@ -284,10 +292,11 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
  * Creates an {@link AssistantStream} and writes to it with an
  * {@link AssistantStreamController}.
  *
- * The callback may write synchronously or asynchronously. If it throws, an
- * `error` chunk is emitted before the error is rethrown; when the callback
- * settles, the stream is closed automatically unless the controller was
- * already closed.
+ * The callback may write synchronously or asynchronously. If it throws while
+ * the stream is open, an `error` chunk is emitted. Failures after an explicit
+ * close are logged, while failures after consumer cancellation are discarded.
+ * When the callback settles, the stream is closed automatically unless the
+ * controller was already closed.
  */
 export function createAssistantStream(
   callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
@@ -304,8 +313,9 @@ export function createAssistantStream(
           path: [],
           error: String(e),
         });
+      } else if (!controller.__internal_isCancelled) {
+        console.error(e);
       }
-      throw e;
     } finally {
       if (!controller.__internal_isClosed) {
         controller.close();

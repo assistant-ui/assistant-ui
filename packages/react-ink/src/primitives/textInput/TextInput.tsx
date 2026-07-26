@@ -47,14 +47,26 @@ export const TextInput = ({
     }
     if (value === text) return;
 
+    // a mismatched value while echoes are pending is the owner correcting our
+    // own edit; keep the cursor at the edit instead of jumping to the end
+    const isCorrection = counter.size > 0;
+    const previousCursorOffset = bufferStateRef.current.cursorOffset;
     counter.clear();
     setText(value);
-    bufferStateRef.current = {
+    let nextState = textBufferReducer(bufferStateRef.current, {
+      type: "set-text",
       text: value,
-      cursorOffset: value.length,
-      preferredColumn: undefined,
-    };
-  }, [setText, value, text]);
+    });
+    if (isCorrection) {
+      const restoreCursor = {
+        type: "set-cursor",
+        cursorOffset: previousCursorOffset,
+      } as const;
+      dispatchAction(restoreCursor);
+      nextState = textBufferReducer(nextState, restoreCursor);
+    }
+    bufferStateRef.current = nextState;
+  }, [setText, value, text, dispatchAction]);
 
   const commitAction = (
     action: Parameters<typeof textBufferReducer>[1],

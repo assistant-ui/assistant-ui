@@ -42,11 +42,26 @@ Keep provider-driven choices flexible: core-primitive choice, thin wrapper vs ac
 
 **Defensive converters.** Converters and content-block renderers must not throw on undefined or missing fields, or on unavailable platform APIs. Defend against non-spec provider payloads (missing `summary` or `text`), and keep browser-only APIs (FileReader, etc.) out of code paths that run in Node, react-ink, or React Native.
 
+## Upstream majors
+
+How a package couples to its upstream decides how it bumps; the posture is chosen at design time, and the bump form follows from it.
+
+- Runtime-value coupling (the package imports upstream functions or classes: react-ai-sdk, react-lexical, react-opencode, react-mcp): the upstream lives in `dependencies` on a single caret major, never a `||` union. An upstream major lands as one atomic PR that moves the package and every workspace consumer together; for the AI SDK this includes the docs vN page plus vN-legacy stub, the example rename, and the redirect. Users staying on the old major pin the last release of the previous line; there are no backports.
+- The release that swaps a hard upstream major is a major of the package itself (a maintainer-approved exception to the patch default): each release line maps to one upstream major, and the previous line stays installable as the pin target.
+- Union satellites (the host app supplies the SDK runtime through peerDependencies: cloud-ai-sdk): a `||` union in peerDependencies is allowed, but every major named in the union must be exercised in CI, type checks and tests both; a leg nothing tests gets collapsed at the next dependency chore, and collapsing an advertised major is a breaking range narrowing that opens a new line rather than riding a patch.
+- Host-supplied coupling (the consumer owns the upstream SDK: react-langchain, react-langgraph, react-google-adk, react-pi, react-hook-form): a wide peerDependency floor kept below any devDependencies test pin (react-google-adk deliberately carries no dev pin and relies on the floor alone), raised only when the code requires a newer API, and marked optional in peerDependenciesMeta when the package is usable without it.
+- Protocol coupling: the protocol is implemented and versioned in-repo (assistant-stream, react-a2a, react-generative-ui); an upstream change lands as an additive decoder branch, not as an npm event.
+- Persistence and wire identifiers (the `"ai-sdk/v6"` format string, protocol headers) name the stored or transmitted shape, not the npm major. Never rename them in a version bump; the cross-package contract tests pin them.
+- Never publish a parallel `-vN` package. A transition copy may exist in-repo only as a private package and is deleted when the migration completes.
+- When pinning an upstream family released the same day, pin patches older than `minimumReleaseAge`: a floor newer than every age-allowed release fails a fresh resolve, while an install against an existing lockfile keeps the previous major through out-of-range reuse and exits green.
+
 ## Build & release
 
 Every publishable package builds with `aui-build` (`@assistant-ui/x-buildutils`). Do not add a per-package build config or use tsup, unbuild, swc, or the tsc CLI. Exports maps are ESM-only and types-first (`"types"` before `"default"`), with `type: module` and `sideEffects: false`.
 
 `packages/ui/src/components/assistant-ui` is the canonical UI source. Templates and examples alias it through tsconfig (`@/components/*`, `@/hooks/*`, `@/lib/utils`) and carry no byte-equal copies of it — except `minimal`, which ships its own (examples may still hold intentional forks). `pnpm sync-templates` keeps minimal's copies byte-equal with the source; declare intentional divergence in the `OVERRIDES` array in `scripts/sync-templates.sh`.
+
+`components/ui/` uses parallel `radix/` and `base/` directories because every primitive exists in both flavors; `components/assistant-ui/` (and the direction pair in `ui/radix/`) uses sparse variant suffixes where the unmarked file is the Base UI source and a `.radix.tsx` sibling holds the Radix variant.
 
 Run `pnpm check:resource-memo` when bumping `@babel/core`, `babel-plugin-react-compiler`, or `react-compiler`; a green build does not prove the compiler toolchain is intact. A package the published dist imports at runtime belongs in `dependencies`, not `devDependencies`, so the bundler externalizes it (a devDep gets inlined and drags unresolvable transitive imports into consumer builds). A registry item must be self-contained: enumerate every `@/components/*` import and CSS `@import` as `registryDependencies`, so `shadcn add` never lands a file with an unresolvable import.
 
@@ -59,6 +74,16 @@ Every PR that changes a published package needs a changeset. Always use **patch*
 
 feat: description of the change
 ```
+
+## API reference ownership
+
+Everything under `apps/docs/content/docs/(reference)/api-reference/` is owned by `pnpm -C apps/docs generate:api-reference` (`apps/docs/scripts/generate-api-reference.mts`).
+
+- Pages carrying the full-page marker `{/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}` are wholly generator-owned. Hand edits inside the generated block (including text between `api-reference:start/end`) are destroyed on the next run; durable prose belongs in the source JSDoc.
+- Hand-written content that must survive regen goes in `api-manual` / named `api-manual:<export>` slots (or `api-example:<export>` slots).
+- A fully hand-maintained page must carry `{/* api-reference:skip-auto-generation */}` immediately after the frontmatter. That marker keeps the page in the section `meta.json` sidebar list and exempts it from pruning; without it, an unexpected non-generated page is reported as an unmanaged stale page (and fails `--strict` / CI).
+- Section and root `meta.json` files under that tree are generated too. Do not hand-edit them.
+- CI job "API Reference Drift" regenerates in strict mode and fails if the tree drifts.
 
 ## Lint, format, and comments
 

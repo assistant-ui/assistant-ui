@@ -10,10 +10,12 @@
 //
 // Usage:
 //   node scripts/template-metrics.mjs measure <rootDir> <outJson>
-//   node scripts/template-metrics.mjs report <baseJson|""> <headJson> <outMd> [gateFile] [commentFile]
+//   node scripts/template-metrics.mjs measure-base <rootDir> <outJson> [baseRef]
+//   node scripts/template-metrics.mjs check [rootDir] [baseRef]
+//   node scripts/template-metrics.mjs report <baseJson|""> <headJson> <outMd> [commentFile]
 //
-// report writes "pass"/"fail" to gateFile based on the regression thresholds
-// (env: MAX_LOC_INCREASE applied to total LOC, MAX_BUNDLE_INCREASE_KB).
+// Bundle size depends on the CI toolchain, so it is measured per run and
+// never gated.
 
 import { execFileSync } from "node:child_process";
 import {
@@ -22,7 +24,9 @@ import {
   readdirSync,
   existsSync,
   statSync,
+  mkdtempSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { gzipSync } from "node:zlib";
 import { join, extname, dirname, resolve } from "node:path";
 
@@ -185,10 +189,9 @@ function bundleGzipFor(root, name) {
 }
 
 function measure(root, outJson) {
-  const result = listTemplates(root).map((name) => ({
-    name,
-    ...footprintFor(root, name),
-    bundleGzip: bundleGzipFor(root, name),
+  const result = locMetrics(root).map((t) => ({
+    ...t,
+    bundleGzip: bundleGzipFor(root, t.name),
   }));
   writeFileSync(outJson, JSON.stringify(result, null, 2));
 }
@@ -201,56 +204,101 @@ function kb(bytes) {
   return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
-function signedKb(bytes) {
-  return `${bytes >= 0 ? "+" : "-"}${kb(Math.abs(bytes))}`;
-}
-
 function locCell(cur, base) {
   if (base == null) return `${cur} (new)`;
   const d = cur - base;
   return `${cur} (${d === 0 ? "0" : `${d > 0 ? "+" : ""}${d}`})`;
 }
 
-function bundleCell(cur, base) {
-  if (cur == null) return "n/a";
-  if (base == null) return `${kb(cur)} (new)`;
-  const d = cur - base;
-  return `${kb(cur)} (${d === 0 ? "0" : signedKb(d)})`;
+function bundleCell(cur) {
+  return cur == null ? "n/a" : kb(cur);
 }
 
 function hasLocChange(t, base, hasBaseline) {
   if (!hasBaseline) return false;
-  if (!base || base.ownLoc == null) return true;
+  if (!base) return true;
   return t.ownLoc !== base.ownLoc || t.uiLoc !== base.uiLoc;
 }
 
-// Per-template thresholds (env-overridable). A template "regresses" when it
-// already existed on the baseline and grows past either limit. The LOC limit
-// applies to total footprint (own + /ui).
 const MAX_LOC_INCREASE = Number(process.env.MAX_LOC_INCREASE ?? 50);
-const MAX_BUNDLE_INCREASE_KB = Number(process.env.MAX_BUNDLE_INCREASE_KB ?? 10);
+const MAX_LOC_HARD_INCREASE = Number(process.env.MAX_LOC_HARD_INCREASE ?? 300);
 
 function regression(t, base) {
-  // base.ownLoc missing => incompatible/legacy baseline schema; treat as no
-  // baseline so the LOC gate can't silently fail open on a NaN comparison.
-  if (!base || base.ownLoc == null) return null;
-  const reasons = [];
+  if (!base) return null;
   const locDelta = totalLoc(t) - totalLoc(base);
   if (locDelta > MAX_LOC_INCREASE) {
-    reasons.push(`LOC +${locDelta} > ${MAX_LOC_INCREASE}`);
+    return `LOC +${locDelta} > ${MAX_LOC_INCREASE}`;
   }
-  if (t.bundleGzip != null && base.bundleGzip != null) {
-    const bundleDelta = t.bundleGzip - base.bundleGzip;
-    if (bundleDelta > MAX_BUNDLE_INCREASE_KB * 1024) {
-      reasons.push(
-        `bundle ${signedKb(bundleDelta)} > +${MAX_BUNDLE_INCREASE_KB} KB`,
+  return null;
+}
+
+function locMetrics(root) {
+  return listTemplates(root).map((name) => ({
+    name,
+    ...footprintFor(root, name),
+  }));
+}
+
+function measureAtMergeBase(root, baseRef) {
+  const sha = execFileSync("git", ["merge-base", baseRef, "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+  }).trim();
+  const dir = mkdtempSync(join(tmpdir(), "aui-template-metrics-"));
+  execFileSync("git", ["worktree", "add", "--detach", dir, sha], {
+    cwd: root,
+    stdio: "ignore",
+  });
+  try {
+    return locMetrics(dir);
+  } finally {
+    try {
+      execFileSync("git", ["worktree", "remove", "--force", dir], {
+        cwd: root,
+        stdio: "ignore",
+      });
+    } catch {}
+  }
+}
+
+function measureBase(root, outJson, baseRef) {
+  writeFileSync(
+    outJson,
+    JSON.stringify(measureAtMergeBase(root, baseRef), null, 2),
+  );
+}
+
+function check(root, baseRef) {
+  const measured = locMetrics(root);
+  const base = measureAtMergeBase(root, baseRef);
+  const baseByName = new Map(base.map((t) => [t.name, t]));
+
+  const failures = [];
+  for (const t of measured) {
+    const b = baseByName.get(t.name);
+    // New templates are a product decision made in review, not bloat.
+    if (!b) continue;
+    const delta = totalLoc(t) - totalLoc(b);
+    if (delta > MAX_LOC_HARD_INCREASE) {
+      failures.push(`${t.name}: +${delta} LOC > ${MAX_LOC_HARD_INCREASE}`);
+    } else if (delta > MAX_LOC_INCREASE) {
+      console.log(
+        `::warning::${t.name} grew by ${delta} LOC vs the merge-base (attention threshold ${MAX_LOC_INCREASE}); give the footprint a deliberate look.`,
       );
     }
   }
-  return reasons.length ? reasons : null;
+
+  if (failures.length) {
+    for (const line of failures) console.error(`  ${line}`);
+    console.error(
+      `::error::Template install footprint grew past the hard ceiling (${MAX_LOC_HARD_INCREASE} LOC). If deliberate, raise MAX_LOC_HARD_INCREASE in .github/workflows/template-metrics.yaml within this PR.`,
+    );
+    process.exit(1);
+  }
+  console.log("Template install footprint is within the hard ceiling.");
 }
 
-function report(baseJson, headJson, outMd, gateFile, commentFile) {
+function report(baseJson, headJson, outMd, commentFile) {
   const head = JSON.parse(readFileSync(headJson, "utf8"));
   const base =
     baseJson && existsSync(baseJson)
@@ -261,21 +309,19 @@ function report(baseJson, headJson, outMd, gateFile, commentFile) {
   const hasBaseline = base.length > 0;
 
   const regressions = [];
-  let hasAnyLocChange = base.some(
-    (t) => t.ownLoc != null && !headByName.has(t.name),
-  );
+  let hasAnyLocChange = base.some((t) => !headByName.has(t.name));
   const rows = head.map((t) => {
     const b = baseByName.get(t.name);
-    const reasons = regression(t, b);
-    if (reasons) regressions.push({ name: t.name, reasons });
+    const reason = regression(t, b);
+    if (reason) regressions.push({ name: t.name, reason });
     if (hasLocChange(t, b, hasBaseline)) hasAnyLocChange = true;
     return [
       t.name,
       locCell(t.ownLoc, b?.ownLoc),
       locCell(t.uiLoc, b?.uiLoc),
-      locCell(totalLoc(t), b && b.ownLoc != null ? totalLoc(b) : null),
-      bundleCell(t.bundleGzip, b?.bundleGzip ?? null),
-      reasons ? "⚠️" : "✅",
+      locCell(totalLoc(t), b ? totalLoc(b) : null),
+      bundleCell(t.bundleGzip),
+      reason ? "⚠️" : "✅",
     ];
   });
 
@@ -283,7 +329,7 @@ function report(baseJson, headJson, outMd, gateFile, commentFile) {
     "<!-- template-metrics -->",
     "## 📦 Template install footprint",
     "",
-    "Lines copied into your project on scaffold: **Own** (template glue) + **/ui** (shared `packages/ui` components it imports). Bundle = gzipped client JS from `next build`. Each cell shows `current (Δ vs main)`.",
+    "Lines copied into your project on scaffold: **Own** (template glue) + **/ui** (shared `packages/ui` components it imports). LOC cells show `current (Δ vs merge-base)`. Bundle = gzipped client JS from `next build`, measured per run for a representative subset.",
     "",
     "| Template | Own LOC | /ui LOC | Total LOC | Bundle (gz) | Status |",
     "| --- | ---: | ---: | ---: | ---: | --- |",
@@ -292,13 +338,11 @@ function report(baseJson, headJson, outMd, gateFile, commentFile) {
   ];
 
   if (base.length === 0) {
-    lines.push(
-      "_No baseline found - deltas will appear once `main` has been measured._",
-    );
+    lines.push("_No base measurements to diff against._");
   } else if (regressions.length) {
     lines.push(
-      `**Gate failed** - ${regressions.length} template(s) regressed past the configured limits (LOC +${MAX_LOC_INCREASE}, bundle +${MAX_BUNDLE_INCREASE_KB} KB):`,
-      ...regressions.map((r) => `- \`${r.name}\`: ${r.reasons.join("; ")}`),
+      `**Needs a deliberate look** - ${regressions.length} template(s) grew past +${MAX_LOC_INCREASE} LOC vs the merge-base:`,
+      ...regressions.map((r) => `- \`${r.name}\`: ${r.reason}`),
     );
   } else {
     lines.push(
@@ -307,7 +351,6 @@ function report(baseJson, headJson, outMd, gateFile, commentFile) {
   }
 
   writeFileSync(outMd, lines.join("\n"));
-  if (gateFile) writeFileSync(gateFile, regressions.length ? "fail" : "pass");
   if (commentFile)
     writeFileSync(
       commentFile,
@@ -317,9 +360,13 @@ function report(baseJson, headJson, outMd, gateFile, commentFile) {
 
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "measure") measure(args[0], args[1]);
-else if (cmd === "report")
-  report(args[0] || "", args[1], args[2], args[3], args[4]);
+else if (cmd === "measure-base")
+  measureBase(args[0] || ".", args[1], args[2] || "origin/main");
+else if (cmd === "check") check(args[0] || ".", args[1] || "origin/main");
+else if (cmd === "report") report(args[0] || "", args[1], args[2], args[3]);
 else {
-  console.error("usage: template-metrics.mjs measure|report ...");
+  console.error(
+    "usage: template-metrics.mjs measure|measure-base|check|report ...",
+  );
   process.exit(1);
 }

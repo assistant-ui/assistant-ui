@@ -190,6 +190,22 @@ describe("AttachmentPrimitive.Status", () => {
     expect(frame).toContain("error");
   });
 
+  it("renders the failure message when the error status carries one", () => {
+    setAttachmentState({
+      id: "a1",
+      type: "file",
+      name: "broken.bin",
+      status: {
+        type: "incomplete",
+        reason: "error",
+        message: "Failed to upload file: 403 Forbidden",
+      },
+    });
+    const { lastFrame } = render(<AttachmentStatus />);
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("x error: Failed to upload file: 403 Forbidden");
+  });
+
   it("renders a paused marker for incomplete/upload-paused", () => {
     setAttachmentState({
       id: "a1",

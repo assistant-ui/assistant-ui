@@ -561,18 +561,18 @@ function generatePrimitiveReferenceRegion(
       const manual = slots.namedManual.get(partName);
       if (manual) lines.push(manual, "");
     }
+    if (typeDocNames.has(item.name)) {
+      lines.push(
+        `### ${item.name}`,
+        "",
+        `<ParametersTable {...${item.name}} />`,
+        "",
+      );
+      const manual = slots.namedManual.get(item.name);
+      if (manual) lines.push(manual, "");
+    }
   } else {
     lines.push(...exportSection(item, typeDocNames, slots, 3));
-  }
-  if (typeDocNames.has(item.name)) {
-    lines.push(
-      `### ${item.name}`,
-      "",
-      `<ParametersTable {...${item.name}} />`,
-      "",
-    );
-    const manual = slots.namedManual.get(item.name);
-    if (manual) lines.push(manual, "");
   }
   // Helpers bound to a specific primitive part (e.g. groupPartByType for
   // <MessagePrimitive.GroupedParts>) render after the primitive's own parts so
@@ -770,6 +770,8 @@ const PAGE_ORDER_BY_SECTION: Partial<Record<ApiSection, readonly string[]>> = {
     "actions",
     "spec",
     "rendering",
+    "slack",
+    "teams",
     "tokens",
   ],
 };
@@ -931,29 +933,85 @@ function validatePageDescription(
   }
 }
 
-function pruneGeneratedPage(filePath: string): void {
+type PrunePageResult = "deleted" | "skipped" | "unmanaged" | "missing";
+
+function pruneGeneratedPage(filePath: string): PrunePageResult {
   let source: string;
   try {
     source = fs.readFileSync(filePath, "utf8");
   } catch (error) {
-    if ((error as { code?: string }).code === "ENOENT") return;
+    if ((error as { code?: string }).code === "ENOENT") return "missing";
     throw error;
   }
-  if (source.includes(SKIP_AUTO_GENERATION_MARKER)) return;
-  if (source.includes(GENERATED_PAGE_MARKER)) fs.unlinkSync(filePath);
+  if (source.includes(SKIP_AUTO_GENERATION_MARKER)) return "skipped";
+  if (source.includes(GENERATED_PAGE_MARKER)) {
+    fs.unlinkSync(filePath);
+    return "deleted";
+  }
+  return "unmanaged";
 }
 
 function pruneStaleGeneratedPages(
   sectionDir: string,
   expectedSlugs: Set<string>,
-): void {
-  if (!fs.existsSync(sectionDir)) return;
+): string[] {
+  const unmanaged: string[] = [];
+  if (!fs.existsSync(sectionDir)) return unmanaged;
   for (const entry of fs.readdirSync(sectionDir, { withFileTypes: true })) {
     if (!entry.isFile() || !entry.name.endsWith(".mdx")) continue;
     const slug = entry.name.replace(/\.mdx$/, "");
     if (expectedSlugs.has(slug)) continue;
     const filePath = path.join(sectionDir, entry.name);
-    pruneGeneratedPage(filePath);
+    if (pruneGeneratedPage(filePath) === "unmanaged") {
+      unmanaged.push(path.relative(REPO_ROOT, filePath));
+    }
+  }
+  return unmanaged;
+}
+
+function reportUnmanagedStalePages(paths: string[]): void {
+  for (const rel of paths) {
+    console.warn(
+      `Unmanaged stale page (not a generation target): ${rel}. Delete it, or add {/* api-reference:skip-auto-generation */} to keep it hand-maintained.`,
+    );
+  }
+}
+
+function appendSkipMarkedPageSummaries(
+  section: ApiSection,
+  sectionDir: string,
+  pageSummaries: PageSummary[],
+): void {
+  if (!fs.existsSync(sectionDir)) return;
+  const known = new Set(pageSummaries.map((page) => page.slug));
+  let added = false;
+  for (const entry of fs.readdirSync(sectionDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".mdx")) continue;
+    const slug = entry.name.replace(/\.mdx$/, "");
+    if (slug === "index" || known.has(slug)) continue;
+    const filePath = path.join(sectionDir, entry.name);
+    let source: string;
+    try {
+      source = fs.readFileSync(filePath, "utf8");
+    } catch {
+      continue;
+    }
+    if (!source.includes(SKIP_AUTO_GENERATION_MARKER)) continue;
+    const authored = readAuthoredPageParts(section, slug, []);
+    pageSummaries.push({
+      slug,
+      title: authoredTitleOrSeed(
+        filePath,
+        authored?.frontmatter,
+        titleCaseSlug(slug),
+      ),
+      description: authoredDescription(authored?.frontmatter),
+    });
+    known.add(slug);
+    added = true;
+  }
+  if (added) {
+    pageSummaries.sort((a, b) => comparePageSlugs(section, a.slug, b.slug));
   }
 }
 
@@ -966,10 +1024,11 @@ export function writeApiReferencePages(
     typeDocBindings: TypeDocBindings;
     typeDocNames: Set<string>;
   }>,
-): void {
+): { unmanagedStalePages: string[] } {
   writeApiReferenceRoot();
   const typeDocNames = new Set(typeDocs.keys());
   const grouped = groupedBySectionAndPage(exports);
+  const unmanagedStalePages: string[] = [];
 
   for (const section of REACT_API_SECTIONS) {
     const sectionDir = path.join(API_REFERENCE_DIR, section);
@@ -1034,19 +1093,25 @@ export function writeApiReferencePages(
       validatePageDescription(filePath, authored?.frontmatter, items);
     }
 
+    appendSkipMarkedPageSummaries(section, sectionDir, pageSummaries);
+
     writeSectionOverviewIndex(
       section,
       sectionDir,
       pageSummaries,
       `${sectionTitle(section)} API Reference`,
     );
-    pruneStaleGeneratedPages(
-      sectionDir,
-      new Set(["index", ...pageSummaries.map((page) => page.slug)]),
+    unmanagedStalePages.push(
+      ...pruneStaleGeneratedPages(
+        sectionDir,
+        new Set(["index", ...pageSummaries.map((page) => page.slug)]),
+      ),
     );
   }
 
-  writeIntegrationPages(integrationsByPackage);
+  unmanagedStalePages.push(...writeIntegrationPages(integrationsByPackage));
+  reportUnmanagedStalePages(unmanagedStalePages);
+  return { unmanagedStalePages };
 }
 
 function writeIntegrationPages(
@@ -1056,7 +1121,7 @@ function writeIntegrationPages(
     typeDocBindings: TypeDocBindings;
     typeDocNames: Set<string>;
   }>,
-): void {
+): string[] {
   const section: ApiSection = "integrations";
   const sectionDir = path.join(API_REFERENCE_DIR, section);
   fs.mkdirSync(sectionDir, { recursive: true });
@@ -1086,6 +1151,12 @@ function writeIntegrationPages(
     );
     const description = authoredDescription(authored?.frontmatter);
     pageSummaries.push({ slug: integration.slug, title, description });
+    if (authored?.skipAutoGeneration) {
+      console.log(
+        `Skipping auto-generation for API page: ${path.relative(REPO_ROOT, filePath)}`,
+      );
+      continue;
+    }
     const reference = generateReferenceRegion(
       items,
       typeDocNames,
@@ -1104,6 +1175,8 @@ function writeIntegrationPages(
     validatePageDescription(filePath, authored?.frontmatter, items);
   }
 
+  appendSkipMarkedPageSummaries(section, sectionDir, pageSummaries);
+
   writeSectionOverviewIndex(
     section,
     sectionDir,
@@ -1111,12 +1184,9 @@ function writeIntegrationPages(
     "Integrations API Reference",
   );
 
-  pruneStaleGeneratedPages(
+  return pruneStaleGeneratedPages(
     sectionDir,
-    new Set([
-      "index",
-      ...INTEGRATION_PACKAGES.map((integration) => integration.slug),
-    ]),
+    new Set(["index", ...pageSummaries.map((page) => page.slug)]),
   );
 }
 

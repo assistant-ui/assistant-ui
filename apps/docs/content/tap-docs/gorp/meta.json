@@ -1,5 +1,0 @@
-{
-  "title": "Gorp",
-  "root": true,
-  "pages": ["introduction", "quickstart", "api-reference"]
-}

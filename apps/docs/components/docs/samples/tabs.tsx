@@ -205,17 +205,13 @@ export function TabsAsLinkSample() {
     <SampleFrame className="flex h-auto items-center justify-center p-6">
       <Tabs defaultValue="docs">
         <TabsList variant="line">
-          <TabsTrigger value="docs" asChild>
-            <a href="#installation">
-              <FileText />
-              Docs
-            </a>
+          <TabsTrigger value="docs" render={<a href="#installation" />}>
+            <FileText />
+            Docs
           </TabsTrigger>
-          <TabsTrigger value="api" asChild>
-            <a href="#api-reference">
-              <Settings />
-              API
-            </a>
+          <TabsTrigger value="api" render={<a href="#api-reference" />}>
+            <Settings />
+            API
           </TabsTrigger>
         </TabsList>
       </Tabs>

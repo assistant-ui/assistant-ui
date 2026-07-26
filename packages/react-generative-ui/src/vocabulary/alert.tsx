@@ -29,14 +29,33 @@ export const alertVocabulary = {
     ),
   },
   Carousel: {
-    description: "A horizontally scrollable group of `Card` children (max 10).",
-    properties: z.object({}),
-    render: ({ children }) => {
+    description:
+      "A horizontally scrollable group of `Card` children (max 10). Set `label` for an accessible name.",
+    properties: z.object({
+      label: z
+        .string()
+        .optional()
+        .describe("Accessible label for the carousel."),
+    }),
+    render: ({ label, children }) => {
       const cards = Children.toArray(children).slice(0, MAX_CARDS);
+      const n = cards.length;
       return (
-        <div data-aui="carousel">
+        <div
+          data-aui="carousel"
+          role={label ? "region" : "group"}
+          aria-roledescription="carousel"
+          aria-label={label}
+          tabIndex={0}
+        >
           {cards.map((card, i) => (
-            <div key={i} data-aui="carousel-slide">
+            <div
+              key={i}
+              data-aui="carousel-slide"
+              role="group"
+              aria-roledescription="slide"
+              aria-label={`${i + 1} of ${n}`}
+            >
               {card}
             </div>
           ))}

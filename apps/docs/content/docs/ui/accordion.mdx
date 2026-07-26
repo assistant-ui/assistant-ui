@@ -18,7 +18,7 @@ import {
   AccordionControlledSample,
   AccordionFAQSample,
 } from "@/components/docs/samples/accordion";
-import * as AccordionBaseSamples from "@/components/docs/samples/accordion.base";
+import * as AccordionRadixSamples from "@/components/docs/samples/accordion.radix";
 import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
 <Callout>
@@ -27,7 +27,7 @@ import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.serv
 
 <FlavorSwitcher />
 
-<Flavored radix={<AccordionSample />} base={<AccordionBaseSamples.AccordionSample />} />
+<Flavored radix={<AccordionRadixSamples.AccordionSample />} base={<AccordionSample />} />
 
 ## Installation
 
@@ -65,7 +65,7 @@ export function Example() {
 
 Use the `variant` prop on `Accordion` to change the visual style. Child components inherit the variant automatically.
 
-<Flavored radix={<AccordionVariantsSample />} base={<AccordionBaseSamples.AccordionVariantsSample />} />
+<Flavored radix={<AccordionRadixSamples.AccordionVariantsSample />} base={<AccordionVariantsSample />} />
 
 ```tsx
 // Default - border-bottom separator
@@ -97,7 +97,7 @@ Use the `variant` prop on `Accordion` to change the visual style. Child componen
 
 Use `type="multiple"` to allow multiple items to be open simultaneously.
 
-<Flavored radix={<AccordionMultipleSample />} base={<AccordionBaseSamples.AccordionMultipleSample />} />
+<Flavored radix={<AccordionRadixSamples.AccordionMultipleSample />} base={<AccordionMultipleSample />} />
 
 ```tsx
 <Accordion type="multiple">
@@ -116,24 +116,24 @@ Use `type="multiple"` to allow multiple items to be open simultaneously.
 
 Add icons or custom elements inside the trigger.
 
-<PreviewCode file="components/docs/samples/accordion" name="AccordionWithIconsSample" base={<AccordionBaseSamples.AccordionWithIconsSample />}>
-  <AccordionWithIconsSample />
+<PreviewCode file="components/docs/samples/accordion" name="AccordionWithIconsSample" base={<AccordionWithIconsSample />}>
+  <AccordionRadixSamples.AccordionWithIconsSample />
 </PreviewCode>
 
 ### Controlled
 
 Use `value` and `onValueChange` for controlled accordion state.
 
-<PreviewCode file="components/docs/samples/accordion" name="AccordionControlledSample" base={<AccordionBaseSamples.AccordionControlledSample />}>
-  <AccordionControlledSample />
+<PreviewCode file="components/docs/samples/accordion" name="AccordionControlledSample" base={<AccordionControlledSample />}>
+  <AccordionRadixSamples.AccordionControlledSample />
 </PreviewCode>
 
 ### FAQ Section
 
 A practical example of using accordion for a FAQ section.
 
-<PreviewCode file="components/docs/samples/accordion" name="AccordionFAQSample" base={<AccordionBaseSamples.AccordionFAQSample />}>
-  <AccordionFAQSample />
+<PreviewCode file="components/docs/samples/accordion" name="AccordionFAQSample" base={<AccordionFAQSample />}>
+  <AccordionRadixSamples.AccordionFAQSample />
 </PreviewCode>
 
 ## API Reference

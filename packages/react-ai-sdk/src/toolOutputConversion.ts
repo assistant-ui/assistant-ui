@@ -7,19 +7,16 @@ export const toAISDKContent = (parts: readonly ToolModelContentPart[]) => ({
     if (part.type === "text") {
       return { type: "text" as const, text: part.text };
     }
-    const isImage = part.mediaType.startsWith("image/");
-    return isImage
-      ? {
-          type: "image-data" as const,
-          data: part.data,
-          mediaType: part.mediaType,
-        }
-      : {
-          type: "file-data" as const,
-          data: part.data,
-          mediaType: part.mediaType,
-          ...(part.filename !== undefined && { filename: part.filename }),
-        };
+    const mediaType =
+      typeof part.mediaType === "string"
+        ? part.mediaType
+        : "application/octet-stream";
+    return {
+      type: "file" as const,
+      data: { type: "data" as const, data: part.data },
+      mediaType,
+      ...(part.filename !== undefined && { filename: part.filename }),
+    };
   }),
 });
 

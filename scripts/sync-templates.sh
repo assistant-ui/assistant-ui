@@ -2,10 +2,11 @@
 
 # Templates and examples alias packages/ui via tsconfig and carry no copies,
 # except `minimal`, which ships its own. Minimal is a Base UI (base-nova)
-# scaffold, so its copies mirror the base install shape: a component with a
-# `<name>.base.tsx` sibling syncs from that sibling, everything else syncs
-# from the shared source, and `components/ui` copies sync from the vendored
-# `ui/base` stand-ins. Base sources already use the scaffold import shape.
+# scaffold, so its copies mirror the base install shape: the unmarked file in
+# packages/ui/src/components/assistant-ui is already the Base UI source, so
+# minimal's assistant-ui copies sync from it directly, and `components/ui`
+# copies sync from the vendored `ui/base` stand-ins. Base sources already use
+# the scaffold import shape.
 #
 # Usage:
 #   bash scripts/sync-templates.sh            # check (CI mode), exits 1 on drift
@@ -46,15 +47,9 @@ annotate() {
     fi
 }
 
-# The base install shape uses the base variant when one exists.
 resolve_aui_source() {
     local file="$1"
-    local base_src="$SOURCE_DIR/${file%.tsx}.base.tsx"
-    if [[ -f "$base_src" ]]; then
-        echo "$base_src"
-    else
-        echo "$SOURCE_DIR/$file"
-    fi
+    echo "$SOURCE_DIR/$file"
 }
 
 # Committed copies and raw sources may disagree on import statement layout.
