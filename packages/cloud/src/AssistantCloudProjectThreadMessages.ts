@@ -1,5 +1,9 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
-import type { CloudMessage } from "./AssistantCloudThreadMessages";
+import {
+  decodeCloudMessage,
+  type CloudMessage,
+} from "./AssistantCloudThreadMessages";
+import { readCloudArray, readCloudRecord } from "./cloudResponse";
 
 type AssistantCloudProjectThreadMessageListQuery = {
   format?: string;
@@ -18,9 +22,19 @@ export class AssistantCloudProjectThreadMessages {
     threadId: string,
     query?: AssistantCloudProjectThreadMessageListQuery,
   ): Promise<AssistantCloudProjectThreadMessageListResponse> {
-    return this.cloud.makeRequest(
-      `/projects/threads/${encodeURIComponent(threadId)}/messages`,
-      { query },
+    const response = readCloudRecord(
+      await this.cloud.makeRequest(
+        `/projects/threads/${encodeURIComponent(threadId)}/messages`,
+        { query },
+      ),
+      "project thread message list response",
     );
+    const messages = readCloudArray(response.messages, "messages");
+
+    return {
+      messages: messages.map((message, index) =>
+        decodeCloudMessage(message, `messages[${index}]`),
+      ),
+    };
   }
 }

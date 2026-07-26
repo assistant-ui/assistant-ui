@@ -24,6 +24,8 @@ describe("AssistantCloudProjects", () => {
   });
 
   it("lists project threads with the query", async () => {
+    vi.mocked(mockApi.makeRequest).mockResolvedValue({ threads: [] });
+
     await projects.threads.list({ limit: 10, after: "t1" });
 
     expect(mockApi.makeRequest).toHaveBeenCalledWith("/projects/threads", {
@@ -32,6 +34,8 @@ describe("AssistantCloudProjects", () => {
   });
 
   it("lists project thread messages with the query", async () => {
+    vi.mocked(mockApi.makeRequest).mockResolvedValue({ messages: [] });
+
     await projects.threads.messages.list("thread_123", {
       format: "ai-sdk/v5",
       limit: 100,
@@ -45,11 +49,59 @@ describe("AssistantCloudProjects", () => {
   });
 
   it("url-encodes the thread id in the messages path", async () => {
+    vi.mocked(mockApi.makeRequest).mockResolvedValue({ messages: [] });
+
     await projects.threads.messages.list("thread/with space");
 
     expect(mockApi.makeRequest).toHaveBeenCalledWith(
       "/projects/threads/thread%2Fwith%20space/messages",
       { query: undefined },
     );
+  });
+
+  it("decodes project thread list responses", async () => {
+    vi.mocked(mockApi.makeRequest).mockResolvedValue({
+      threads: [
+        {
+          title: "Project thread",
+          last_message_at: "2026-07-16T12:30:00.000Z",
+          metadata: {},
+          external_id: null,
+          id: "thread_1",
+          project_id: "project_1",
+          created_at: "2026-07-16T12:00:00.000Z",
+          updated_at: "2026-07-16T12:15:00.000Z",
+          workspace_id: "workspace_1",
+          is_archived: false,
+        },
+      ],
+    });
+
+    const result = await projects.threads.list();
+    const thread = result.threads[0]!;
+
+    expect(thread.last_message_at instanceof Date).toBe(true);
+    expect(thread.is_archived).toBeTypeOf("boolean");
+  });
+
+  it("decodes project thread message list responses", async () => {
+    vi.mocked(mockApi.makeRequest).mockResolvedValue({
+      messages: [
+        {
+          id: "message_1",
+          parent_id: null,
+          height: 0,
+          created_at: "2026-07-16T13:00:00.000Z",
+          updated_at: "2026-07-16T13:05:00.000Z",
+          format: "aui/v0",
+          content: {},
+        },
+      ],
+    });
+
+    const result = await projects.threads.messages.list("thread_1");
+    const message = result.messages[0]!;
+
+    expect(message.created_at instanceof Date).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { AssistantCloudProjectThreadMessages } from "./AssistantCloudProjectThreadMessages";
-import type { CloudThread } from "./AssistantCloudThreads";
+import { decodeCloudThread, type CloudThread } from "./AssistantCloudThreads";
+import { readCloudArray, readCloudRecord } from "./cloudResponse";
 
 type AssistantCloudProjectThreadsListQuery = {
   is_archived?: boolean;
@@ -22,15 +23,25 @@ export class AssistantCloudProjectThreads {
   public async list(
     query?: AssistantCloudProjectThreadsListQuery,
   ): Promise<AssistantCloudProjectThreadsListResponse> {
-    return this.cloud.makeRequest("/projects/threads", {
-      query: {
-        ...query,
-        // The shared query serializer drops `false`; the wire accepts the
-        // string form, so the archive filter survives explicitly.
-        ...(query?.is_archived !== undefined
-          ? { is_archived: String(query.is_archived) }
-          : {}),
-      },
-    });
+    const response = readCloudRecord(
+      await this.cloud.makeRequest("/projects/threads", {
+        query: {
+          ...query,
+          // The shared query serializer drops `false`; the wire accepts the
+          // string form, so the archive filter survives explicitly.
+          ...(query?.is_archived !== undefined
+            ? { is_archived: String(query.is_archived) }
+            : {}),
+        },
+      }),
+      "project thread list response",
+    );
+    const threads = readCloudArray(response.threads, "threads");
+
+    return {
+      threads: threads.map((thread, index) =>
+        decodeCloudThread(thread, `threads[${index}]`),
+      ),
+    };
   }
 }
