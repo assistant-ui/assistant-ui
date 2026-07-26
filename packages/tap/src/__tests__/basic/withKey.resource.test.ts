@@ -10,16 +10,13 @@ import {
 } from "../test-utils";
 
 type ConnectionOptions = { id: string; initial: number };
-type ConnectionPlatform = { mult: number };
+type ConnectionProps = { mult: number };
 
-const useConnection = (
-  options: ConnectionOptions,
-  platform: ConnectionPlatform,
-) => {
+const useConnection = (options: ConnectionOptions, props: ConnectionProps) => {
   const [count, setCount] = useState(options.initial);
   return {
     id: options.id,
-    value: count * platform.mult,
+    value: count * props.mult,
     bump: () => setCount((c) => c + 1),
   };
 };
