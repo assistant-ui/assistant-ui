@@ -23,6 +23,6 @@ describe("clone demo download manifests", () => {
     expect(sources).toContain(
       "packages/ui/src/components/ui/base/skeleton.tsx",
     );
-    expect(sources).toContain("packages/ui/src/components/ui/radix/sheet.tsx");
+    expect(sources).toContain("packages/ui/src/components/ui/base/sheet.tsx");
   });
 });

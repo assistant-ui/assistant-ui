@@ -7,8 +7,8 @@ import {
   ThreadListRoot,
 } from "@/components/assistant-ui/thread-list";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Button } from "@/components/ui/radix/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/radix/sheet";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { MenuIcon, PanelLeftIcon } from "lucide-react";
 import { useState, type FC, type MouseEvent, type ReactNode } from "react";
@@ -91,12 +91,14 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({ children }) => {
 
       <div className="absolute top-2 left-2 z-20 md:hidden">
         <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8">
-              <MenuIcon className="size-4" />
-              <span className="sr-only">Open chat history</span>
-            </Button>
-          </SheetTrigger>
+          <SheetTrigger
+            render={
+              <Button variant="ghost" size="icon" className="size-8">
+                <MenuIcon className="size-4" />
+                <span className="sr-only">Open chat history</span>
+              </Button>
+            }
+          />
           <SheetContent side="left" className="flex w-70 flex-col p-0">
             <div className="flex h-12 shrink-0 items-center px-4 text-sm font-medium">
               Chats
