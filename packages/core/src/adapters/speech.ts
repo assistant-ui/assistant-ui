@@ -23,7 +23,7 @@ export type SpeechSynthesisAdapter = {
 };
 
 const notifySpeechSynthesisListeners = (
-  listeners: ReadonlySet<() => void>,
+  listeners: Iterable<() => void>,
 ): void => {
   for (const listener of listeners) {
     try {
@@ -97,7 +97,7 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
         if (res.status.type === "ended") {
           let cancelled = false;
           queueMicrotask(() => {
-            if (!cancelled) callback();
+            if (!cancelled) notifySpeechSynthesisListeners([callback]);
           });
           return () => {
             cancelled = true;
