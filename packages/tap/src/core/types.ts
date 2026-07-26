@@ -1,18 +1,18 @@
-export type ResourceElement<Result> = {
-  readonly hook: (...args: any[]) => Result;
+export type ResourceElement<V> = {
+  readonly hook: (...args: any[]) => V;
   readonly args: readonly unknown[];
   readonly key?: string | number;
   readonly deps?: readonly unknown[];
 };
 
-export type Resource<Result, Args extends readonly unknown[] = any[]> = (
-  ...args: Args
-) => ResourceElement<Result>;
+export type Resource<V, A extends readonly unknown[] = any[]> = (
+  ...args: A
+) => ResourceElement<V>;
 export type ExtractResourceReturnType<T> =
-  T extends ResourceElement<infer Result>
-    ? Result
-    : T extends Resource<infer Result, any>
-      ? Result
+  T extends ResourceElement<infer V>
+    ? V
+    : T extends Resource<infer V, any>
+      ? V
       : never;
 
 export interface ChangelogRecord {

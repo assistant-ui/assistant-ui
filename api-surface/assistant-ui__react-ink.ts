@@ -1300,19 +1300,9 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   handleCancel(): Promise<void>;
 }
 
-declare const Derived: <K extends ClientNames>(_config: Derived.Props<K>) => ResourceElement<null, [
-  _config: Derived.Props<K>
-]>;
-
-declare namespace Derived {
-  type Props<K extends ClientNames> = {
-    get: (client: AssistantClient) => ReturnType<AssistantClientAccessor<K>>;
-  } & ClientMeta<K>;
-}
-
-type DerivedElement<K extends ClientNames> = ResourceElement<null, [
-  Derived.Props<K>
-]>;
+type DerivedElement<K extends ClientNames> = ResourceElement<{
+  [derivedKey]: K;
+}>;
 
 declare namespace DictationAdapter {
   type Status = {
@@ -2861,11 +2851,11 @@ type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<keyo
   [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>;
 }[Keys];
 
-type Resource<R, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<R, A>;
+type Resource<V, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<V>;
 
-type ResourceElement<R, A extends readonly unknown[] = any[]> = {
-  readonly hook: (...args: A) => R;
-  readonly args: Readonly<A>;
+type ResourceElement<V> = {
+  readonly hook: (...args: any[]) => V;
+  readonly args: readonly unknown[];
   readonly key?: string | number;
   readonly deps?: readonly unknown[];
 };
@@ -4541,6 +4531,8 @@ declare function defineToolkit$1<TArgsByName extends {
 };
 
 declare function defineToolkit$1<const TDefinition extends ToolkitDefinition>(_definition: TDefinition): Toolkit & TDefinition;
+
+declare const derivedKey: unique symbol;
 
 declare namespace diff_d_exports {
   export { DiffContent as Content, DiffContentProps as ContentProps, DiffFileInput, DiffLineType, DisplayLine, FoldedRegion, DiffHeader as Header, DiffHeaderProps as HeaderProps, DiffLine as Line, DiffLineProps as LineProps, ParsedFile, ParsedLine, DiffRoot as Root, DiffRootProps as RootProps, DiffStats as Stats, DiffStatsProps as StatsProps };

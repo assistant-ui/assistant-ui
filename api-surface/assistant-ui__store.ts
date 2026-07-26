@@ -100,11 +100,7 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
   [K in keyof ScopeRegistry]: ValidateClient<K>;
 };
 
-type ContravariantResource<R, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<R>;
-
-declare const Derived: <K extends ClientNames>(_config: Derived.Props<K>) => ResourceElement<null, [
-  _config: Derived.Props<K>
-]>;
+declare const Derived: <K extends ClientNames>(config: Derived.Props<K>) => DerivedElement<K>;
 
 declare namespace Derived {
   type Props<K extends ClientNames> = {
@@ -112,9 +108,9 @@ declare namespace Derived {
   } & ClientMeta<K>;
 }
 
-type DerivedElement<K extends ClientNames> = ResourceElement<null, [
-  Derived.Props<K>
-]>;
+type DerivedElement<K extends ClientNames> = ResourceElement<{
+  [derivedKey]: K;
+}>;
 
 type EventSource<T extends AssistantEventName> = T extends `${infer Source}.${string}` ? Source : never;
 
@@ -141,9 +137,11 @@ declare function RenderChildrenWithAccessor<T>(_param1: {
   children: (getItem: () => T) => ReactNode;
 }): ReactNode;
 
-type ResourceElement<R, A extends readonly unknown[] = any[]> = {
-  readonly hook: (...args: A) => R;
-  readonly args: Readonly<A>;
+type Resource<V, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<V>;
+
+type ResourceElement<V> = {
+  readonly hook: (...args: any[]) => V;
+  readonly args: readonly unknown[];
   readonly key?: string | number;
   readonly deps?: readonly unknown[];
 };
@@ -174,6 +172,8 @@ type WildcardPayload = {
 }[Extract<keyof ClientEventMap, string>];
 
 declare function attachTransformScopes(hook: Hook, transform: TransformScopesFn): void;
+
+declare const derivedKey: unique symbol;
 
 declare function forwardTransformScopes(target: Hook, source: Hook): void;
 
@@ -230,7 +230,7 @@ declare namespace useClientList {
   type Props<TData, TMethods extends ClientMethods> = {
     initialValues: TData[];
     getKey: (data: TData) => string;
-    resource: ContravariantResource<TMethods, [
+    resource: Resource<TMethods, [
       ResourceProps<TData>
     ]>;
   };

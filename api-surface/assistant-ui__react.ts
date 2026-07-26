@@ -1855,19 +1855,9 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   handleCancel(): Promise<void>;
 }
 
-declare const Derived: <K extends ClientNames>(_config: Derived.Props<K>) => ResourceElement<null, [
-  _config: Derived.Props<K>
-]>;
-
-declare namespace Derived {
-  type Props<K extends ClientNames> = {
-    get: (client: AssistantClient) => ReturnType<AssistantClientAccessor<K>>;
-  } & ClientMeta<K>;
-}
-
-type DerivedElement<K extends ClientNames> = ResourceElement<null, [
-  Derived.Props<K>
-]>;
+type DerivedElement<K extends ClientNames> = ResourceElement<{
+  [derivedKey]: K;
+}>;
 
 interface DevToolsApiEntry {
   api: Partial<AssistantClient>;
@@ -3638,11 +3628,11 @@ type RequireAtLeastOne$1<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<ke
   [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>;
 }[Keys];
 
-type Resource<R, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<R, A>;
+type Resource<V, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<V>;
 
-type ResourceElement<R, A extends readonly unknown[] = any[]> = {
-  readonly hook: (...args: A) => R;
-  readonly args: Readonly<A>;
+type ResourceElement<V> = {
+  readonly hook: (...args: any[]) => V;
+  readonly args: readonly unknown[];
   readonly key?: string | number;
   readonly deps?: readonly unknown[];
 };
@@ -5779,6 +5769,8 @@ declare function defineToolkit<TArgsByName extends {
 };
 
 declare function defineToolkit<const TDefinition extends ToolkitDefinition>(_definition: TDefinition): Toolkit & TDefinition;
+
+declare const derivedKey: unique symbol;
 
 declare namespace error_d_exports {
   export { ErrorPrimitiveMessage as Message, ErrorPrimitiveRoot as Root };
