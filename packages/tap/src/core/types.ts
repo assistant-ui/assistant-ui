@@ -1,26 +1,28 @@
-export type ResourceElement<R, A extends readonly unknown[] = any[]> = {
-  readonly hook: (...args: A) => R;
-  readonly args: Readonly<A>;
+export type ResourceElement<Result> = {
+  readonly hook: (...args: any[]) => Result;
+  readonly args: readonly unknown[];
   readonly key?: string | number;
   readonly deps?: readonly unknown[];
 };
 
-export type Resource<R, A extends readonly unknown[] = any[]> = (
-  ...args: A
-) => ResourceElement<R, A>;
-export type ContravariantResource<R, A extends readonly unknown[] = any[]> = (
-  ...args: A
-) => ResourceElement<R>;
+export type Resource<Result, Args extends readonly unknown[] = any[]> = (
+  ...args: Args
+) => ResourceElement<Result>;
+/** @deprecated Use Resource instead. */
+export type ContravariantResource<
+  Result,
+  Args extends readonly unknown[] = any[],
+> = Resource<Result, Args>;
 
 export type ExtractResourceReturnType<T> =
-  T extends ResourceElement<infer R, any>
-    ? R
-    : T extends Resource<infer R, any>
-      ? R
+  T extends ResourceElement<infer Result>
+    ? Result
+    : T extends Resource<infer Result, any>
+      ? Result
       : never;
 
 export interface ChangelogRecord {
-  readonly fiber: ResourceFiber<any, any>;
+  readonly fiber: ResourceFiber<any>;
   readonly cell: ReducerCell;
   readonly action: any;
 
@@ -83,9 +85,9 @@ export interface TapRoot {
   readonly rollbackCallbacks: (() => void)[];
 }
 
-export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
+export interface ResourceFiber<R> {
   readonly root: TapRoot;
-  readonly hook: (...args: A) => R;
+  readonly hook: (...args: any[]) => R;
   readonly markDirty: (() => void) | undefined;
   readonly devStrictMode: "root" | "child" | null;
 

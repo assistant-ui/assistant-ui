@@ -18,7 +18,7 @@ import {
 type Dispatch<A> = (action: A) => void;
 
 const dispatchOnFiber = (
-  fiber: ResourceFiber<any, any>,
+  fiber: ResourceFiber<any>,
   record: ChangelogRecord,
   eagerReducer: ((state: any, action: any) => any) | undefined,
 ): void => {
@@ -62,7 +62,7 @@ const dispatchOnFiber = (
 };
 
 const createReducerCell = (
-  fiber: ResourceFiber<any, any>,
+  fiber: ResourceFiber<any>,
   reducer: (state: any, action: any) => any,
   initialArg: any,
   initFn: ((arg: any) => any) | undefined,

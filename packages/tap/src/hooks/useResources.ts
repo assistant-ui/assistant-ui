@@ -70,7 +70,7 @@ const hasAnyChildContextDepsChanged = (
   return false;
 };
 
-export function useResources<E extends ResourceElement<any, any[]>>(
+export function useResources<E extends ResourceElement<any>>(
   elements: readonly E[],
 ): ExtractResourceReturnType<E>[] {
   const [fibers] = useState(() => new Map<string | number, FiberState>());

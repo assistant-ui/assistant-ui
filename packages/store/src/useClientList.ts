@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { withKey, type ContravariantResource } from "@assistant-ui/tap";
+import { withKey, type Resource } from "@assistant-ui/tap";
 
 import { useClientLookup } from "./useClientLookup";
 import type { ClientMethods } from "./types/client";
@@ -118,6 +118,6 @@ export namespace useClientList {
   export type Props<TData, TMethods extends ClientMethods> = {
     initialValues: TData[];
     getKey: (data: TData) => string;
-    resource: ContravariantResource<TMethods, [ResourceProps<TData>]>;
+    resource: Resource<TMethods, [ResourceProps<TData>]>;
   };
 }

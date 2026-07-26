@@ -6,12 +6,12 @@ import { withReactDispatcher } from "./react-dispatcher";
 import { isDevelopment } from "./helpers/env";
 import { commitRoot } from "./helpers/root";
 
-export function createResourceFiber<R, A extends readonly unknown[]>(
-  hook: (...args: A) => R,
+export function createResourceFiber<R>(
+  hook: (...args: any[]) => R,
   root: TapRoot,
   markDirty: (() => void) | undefined = undefined,
   strictMode: "root" | "child" | null,
-): ResourceFiber<R, A> {
+): ResourceFiber<R> {
   return {
     hook,
     root,

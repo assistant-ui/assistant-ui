@@ -17,7 +17,7 @@ import type {
   ClientElement,
   ClientMeta,
 } from "./types/client";
-import type { DerivedElement } from "./Derived";
+import type { Derived, DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
   DefaultAssistantClient,
@@ -239,8 +239,8 @@ const useDerivedClientAccessorResource = <K extends ClientNames>({
   // value that can change between renders for the same fiber is the
   // identity of the `get` closure. Routing reads through the ref so
   // they take effect without a one-commit lag.
-  const propsRef = useRef(element.args[0]);
-  propsRef.current = element.args[0];
+  const propsRef = useRef(element.args[0] as Derived.Props<K>);
+  propsRef.current = element.args[0] as Derived.Props<K>;
 
   return useMemo(() => {
     const clientFunction = () => propsRef.current.get(clientRef.current!);
@@ -297,7 +297,7 @@ const useDerivedClientsAccessorsResource = ({
         const name = key as keyof typeof clients;
         const element = clients[name]!;
         return withKey(
-          serializeMeta(name, element.args[0]),
+          serializeMeta(name, element.args[0] as Derived.Props<typeof name>),
           DerivedClientAccessorResource({
             element,
             clientRef,

@@ -1,6 +1,6 @@
 import type { Resource, ResourceElement } from "./types";
 
-export function withKey<E extends ResourceElement<any, any>>(
+export function withKey<E extends ResourceElement<any>>(
   key: string | number,
   element: E,
   deps?: readonly unknown[],
@@ -11,7 +11,7 @@ export function withKey<F extends Resource<any, any[]>>(
 ): F;
 export function withKey(
   key: string | number,
-  target: ResourceElement<any, any> | Resource<any, any[]>,
+  target: ResourceElement<any> | Resource<any, any[]>,
   deps?: readonly unknown[],
 ) {
   if (typeof target === "function") {

@@ -64,7 +64,7 @@ export const applyChangelogRecord = (record: ChangelogRecord): void => {
 };
 
 export const addCommit = (
-  fiber: ResourceFiber<any, any>,
+  fiber: ResourceFiber<any>,
   priority: CommitPriority,
   callback: () => void,
 ): void => {
@@ -77,7 +77,7 @@ export const addRollback = (root: TapRoot, callback: () => void): void => {
 };
 
 export const markReducerDirty = (
-  fiber: ResourceFiber<any, any>,
+  fiber: ResourceFiber<any>,
   cell: ReducerCell,
 ): void => {
   if (cell.isDirty) return;

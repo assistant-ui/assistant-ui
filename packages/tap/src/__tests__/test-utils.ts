@@ -39,9 +39,9 @@ export function createTestResource<R, A extends readonly unknown[]>(
 }
 
 // Track resources for cleanup
-const activeResources = new Set<ResourceFiber<any, any>>();
-const propsMap = new WeakMap<ResourceFiber<any, any>, any>();
-const lastRenderValueMap = new WeakMap<ResourceFiber<any, any>, any>();
+const activeResources = new Set<ResourceFiber<any>>();
+const propsMap = new WeakMap<ResourceFiber<any>, any>();
+const lastRenderValueMap = new WeakMap<ResourceFiber<any>, any>();
 
 /**
  * Renders a test resource fiber with the given props and manages its lifecycle.
@@ -49,7 +49,7 @@ const lastRenderValueMap = new WeakMap<ResourceFiber<any, any>, any>();
  * - Returns the current state after render
  */
 export function renderTest<R, A extends readonly unknown[]>(
-  fiber: ResourceFiber<R, A>,
+  fiber: ResourceFiber<R>,
   ...args: A
 ): R {
   propsMap.set(fiber, args);

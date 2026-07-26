@@ -33,12 +33,13 @@ export const useDerived = <K extends ClientNames>(
   return null;
 };
 
-export const Derived = resource(useDerived);
+export const Derived = resource(useDerived) as <K extends ClientNames>(
+  config: Derived.Props<K>,
+) => DerivedElement<K>;
 
-export type DerivedElement<K extends ClientNames> = ResourceElement<
-  null,
-  [Derived.Props<K>]
->;
+export type DerivedElement<K extends ClientNames> = ResourceElement<null> & {
+  readonly args: readonly [Derived.Props<K>];
+};
 
 export namespace Derived {
   /**
