@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DefaultThreadComposerRuntimeCore } from "../runtime/base/default-thread-composer-runtime-core";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
@@ -221,5 +221,61 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     expect(appendCalls).toBe(1);
     expect(rejections).toEqual([]);
+  });
+});
+
+describe("BaseComposerRuntimeCore send event listener isolation", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("isolates a throwing send listener so send() still resolves and later listeners run", async () => {
+    const listenerError = new Error("telemetry failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const laterListener = vi.fn();
+    const { composer, append } = makeComposer();
+
+    composer.unstable_on("send", () => {
+      throw listenerError;
+    });
+    composer.unstable_on("send", laterListener);
+
+    composer.setText("hello");
+    await expect(composer.send()).resolves.toBeUndefined();
+
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(laterListener).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledWith(
+      '[assistant-ui] Composer runtime "send" listener threw an error',
+      listenerError,
+    );
+  });
+
+  it("isolates an async-rejecting send listener so send() still resolves and later listeners run", async () => {
+    const listenerError = new Error("async telemetry failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const laterListener = vi.fn();
+    const { composer, append } = makeComposer();
+
+    composer.unstable_on("send", async () => {
+      throw listenerError;
+    });
+    composer.unstable_on("send", laterListener);
+
+    composer.setText("hello");
+    await expect(composer.send()).resolves.toBeUndefined();
+
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(laterListener).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        '[assistant-ui] Composer runtime "send" listener threw an error',
+        listenerError,
+      );
+    });
   });
 });

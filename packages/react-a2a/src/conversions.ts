@@ -1,6 +1,7 @@
 "use client";
 
 import type { MessageStatus, ThreadAssistantMessage } from "@assistant-ui/core";
+import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import type { A2AMessage, A2APart, A2ATaskState } from "./types";
 
 function isImageMediaType(mediaType?: string): boolean {
@@ -89,18 +90,59 @@ export function taskStateToMessageStatus(state: A2ATaskState): MessageStatus {
 export function contentPartsToA2AParts(
   content: ReadonlyArray<{
     type: string;
-    text?: string;
-    image?: string;
+    text?: string | undefined;
+    image?: string | undefined;
+    data?: string | undefined;
+    mimeType?: string | undefined;
+    filename?: string | undefined;
   }>,
+  fallbackMimeType?: string,
 ): A2APart[] {
   return content
     .map((part): A2APart | null => {
       switch (part.type) {
         case "text":
           return { text: part.text ?? "" };
-        case "image":
+        case "image": {
           if (!part.image) return null;
-          return { url: part.image, mediaType: "image/*" };
+          const parsed = parseDataUrl(part.image);
+          if (parsed) {
+            return {
+              raw: parsed.data,
+              mediaType: parsed.mimeType,
+              ...(part.filename && { filename: part.filename }),
+            };
+          }
+          return {
+            url: part.image,
+            ...(fallbackMimeType && { mediaType: fallbackMimeType }),
+            ...(part.filename && { filename: part.filename }),
+          };
+        }
+        case "file": {
+          if (!part.data) return null;
+          const declaredMimeType = part.mimeType || fallbackMimeType;
+          if (httpUrlPattern.test(part.data)) {
+            return {
+              url: part.data,
+              ...(declaredMimeType && { mediaType: declaredMimeType }),
+              ...(part.filename && { filename: part.filename }),
+            };
+          }
+          const parsed = parseDataUrl(part.data);
+          if (parsed) {
+            return {
+              raw: parsed.data,
+              mediaType: parsed.mimeType,
+              ...(part.filename && { filename: part.filename }),
+            };
+          }
+          return {
+            raw: part.data,
+            ...(declaredMimeType && { mediaType: declaredMimeType }),
+            ...(part.filename && { filename: part.filename }),
+          };
+        }
         default:
           return null;
       }

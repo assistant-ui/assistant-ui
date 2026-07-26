@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { AssistantMessageAccumulator } from "./assistant-message-accumulator";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import type { AssistantMessage } from "../utils/types";
@@ -224,6 +224,66 @@ describe("AssistantMessageAccumulator timing", () => {
     expect(last.metadata.timing).toBeDefined();
     expect(last.metadata.timing!.firstTokenTime).toBeTypeOf("number");
   });
+
+  it("does not record firstTokenTime when a text-delta is dropped for an out-of-range path", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [5], textDelta: "x" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.metadata.timing).toBeDefined();
+    expect(last.metadata.timing!.firstTokenTime).toBeUndefined();
+    warn.mockRestore();
+  });
+
+  it("does not record firstTokenTime when a text-delta is dropped for a nested path", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0, 1], textDelta: "x" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.metadata.timing).toBeDefined();
+    expect(last.metadata.timing!.firstTokenTime).toBeUndefined();
+    warn.mockRestore();
+  });
+
+  it("records firstTokenTime on the first applied text-delta, not a preceding dropped one", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+
+    const accumulator = new AssistantMessageAccumulator();
+    const writer = accumulator.writable.getWriter();
+    const messages: AssistantMessage[] = [];
+    const reading = (async () => {
+      const reader = accumulator.readable.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        messages.push(value);
+      }
+    })();
+
+    await writer.write({
+      type: "part-start",
+      path: [0],
+      part: { type: "text" },
+    });
+    vi.setSystemTime(2000);
+    await writer.write({ type: "text-delta", path: [5], textDelta: "x" });
+    vi.setSystemTime(3000);
+    await writer.write({ type: "text-delta", path: [0], textDelta: "hi" });
+    await writer.close();
+    await reading;
+    vi.useRealTimers();
+
+    const last = messages.at(-1)!;
+    expect(last.metadata.timing).toBeDefined();
+    expect(last.metadata.timing!.firstTokenTime).toBe(2000);
+  });
 });
 
 describe("AssistantMessageAccumulator error chunks", () => {
@@ -286,5 +346,88 @@ describe("AssistantMessageAccumulator error chunks", () => {
     expect(last.status).toMatchObject({
       error: expect.not.objectContaining({ severity: expect.anything() }),
     });
+  });
+});
+
+describe("AssistantMessageAccumulator part path bounds", () => {
+  it("drops a text-delta whose path is out of range with a warning", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [5], textDelta: "x" },
+      { type: "text-delta", path: [0], textDelta: "hi" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts).toHaveLength(1);
+    expect(last.parts[0]).toMatchObject({ type: "text", text: "hi" });
+    expect(warn).toHaveBeenCalledWith(
+      "Dropped text-delta chunk: no part at path [5]",
+    );
+    warn.mockRestore();
+  });
+
+  it("drops an out-of-range part-finish instead of fabricating a part", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "part-finish", path: [3] },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts).toHaveLength(1);
+    expect(last.parts[0]!.type).toBe("text");
+    warn.mockRestore();
+  });
+
+  it("drops part chunks when no parts exist", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "text-delta", path: [0], textDelta: "x" },
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "ok" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts).toHaveLength(1);
+    expect(last.parts[0]).toMatchObject({ type: "text", text: "ok" });
+    warn.mockRestore();
+  });
+
+  it("drops chunks with nested paths", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0, 1], textDelta: "x" },
+      { type: "text-delta", path: [0], textDelta: "ok" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts).toHaveLength(1);
+    expect(last.parts[0]).toMatchObject({ type: "text", text: "ok" });
+    warn.mockRestore();
+  });
+
+  it("drops an out-of-range result without touching existing tool calls", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "tool-call", toolCallId: "t1", toolName: "f" },
+      },
+      { type: "text-delta", path: [0], textDelta: "{}" },
+      { type: "result", path: [7], result: { ok: true }, isError: false },
+      { type: "result", path: [0], result: { ok: true }, isError: false },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts).toHaveLength(1);
+    expect(last.parts[0]).toMatchObject({
+      type: "tool-call",
+      state: "result",
+      result: { ok: true },
+    });
+    warn.mockRestore();
   });
 });

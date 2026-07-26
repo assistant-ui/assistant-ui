@@ -1,12 +1,12 @@
-/**
- * @vitest-environment jsdom
- */
+/** @vitest-environment jsdom */
 import { act } from "react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import type * as AssistantStore from "@assistant-ui/store";
 import type * as ComposerSendModule from "./ComposerSend";
+import { fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
 import type { ComposerCompactContextValue } from "./ComposerCompactContext";
@@ -58,7 +58,228 @@ const resetStoreState = () => {
   storeState.composer.text = "";
 };
 
-describe("ComposerPrimitiveRoot", () => {
+describe("ComposerPrimitiveRoot click-to-focus", () => {
+  beforeEach(() => {
+    resetStoreState();
+  });
+
+  const setupComposer = (props?: ComposerPrimitiveRoot.Props) => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot {...props}>
+        <div data-testid="blank-space">
+          <textarea data-testid="composer-input" />
+        </div>
+      </ComposerPrimitiveRoot>,
+    );
+    return {
+      blankSpace: getByTestId("blank-space"),
+      textarea: getByTestId("composer-input"),
+    };
+  };
+
+  it("focuses the textarea when primary-button mousedown starts on blank form space", () => {
+    const { blankSpace, textarea } = setupComposer();
+
+    fireEvent.mouseDown(blankSpace, { button: 0 });
+
+    expect(document.activeElement).toBe(textarea);
+  });
+
+  it("does not move focus to the textarea when mousedown starts on an interactive child", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <button data-testid="interactive-child" type="button">
+          Action
+        </button>
+        <textarea data-testid="composer-input" />
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("interactive-child"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(getByTestId("composer-input"));
+  });
+
+  it("does not steal focus from a role-based widget carrying a tabindex", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <div role="slider" tabIndex={0} data-testid="widget" />
+        <textarea data-testid="composer-input" />
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("widget"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(getByTestId("composer-input"));
+  });
+
+  it("does not steal focus from a roving-tabindex child with tabindex=-1", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <span tabIndex={-1} data-testid="roving-item">
+          Item
+        </span>
+        <textarea data-testid="composer-input" />
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("roving-item"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(getByTestId("composer-input"));
+  });
+
+  it("does not move focus to the textarea on non-primary mousedown", () => {
+    const { blankSpace, textarea } = setupComposer();
+
+    const notPrevented = fireEvent.mouseDown(blankSpace, { button: 2 });
+
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(textarea);
+  });
+
+  it("focuses a contenteditable composer target when primary-button mousedown starts on blank form space", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <div data-testid="blank-space">
+          <div contentEditable data-testid="composer-input" tabIndex={0} />
+        </div>
+      </ComposerPrimitiveRoot>,
+    );
+
+    fireEvent.mouseDown(getByTestId("blank-space"), { button: 0 });
+
+    expect(document.activeElement).toBe(getByTestId("composer-input"));
+  });
+
+  it("still focuses the textarea when the form is hosted inside a tabindex=-1 wrapper", () => {
+    const { getByTestId } = render(
+      <div tabIndex={-1}>
+        <ComposerPrimitiveRoot>
+          <div data-testid="blank-space">
+            <textarea data-testid="composer-input" />
+          </div>
+        </ComposerPrimitiveRoot>
+      </div>,
+    );
+
+    fireEvent.mouseDown(getByTestId("blank-space"), { button: 0 });
+
+    expect(document.activeElement).toBe(getByTestId("composer-input"));
+  });
+
+  it("ignores mousedown on portaled descendants rendered outside the form's DOM", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        {createPortal(<div data-testid="portal-blank" />, document.body)}
+        <textarea data-testid="composer-input" />
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("portal-blank"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(getByTestId("composer-input"));
+  });
+
+  it("keeps the mousedown default when the only textarea is disabled", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <div data-testid="blank-space">
+          <textarea disabled data-testid="composer-input" />
+        </div>
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("blank-space"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(getByTestId("composer-input"));
+  });
+
+  it("skips a disabled textarea and focuses the next composer input", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <div data-testid="blank-space">
+          <textarea disabled data-testid="disabled-input" />
+          <div contentEditable data-testid="composer-input" tabIndex={0} />
+        </div>
+      </ComposerPrimitiveRoot>,
+    );
+
+    fireEvent.mouseDown(getByTestId("blank-space"), { button: 0 });
+
+    expect(document.activeElement).toBe(getByTestId("composer-input"));
+  });
+
+  it("keeps the mousedown default when the form contains no composer input", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <div data-testid="blank-space" />
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("blank-space"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+  });
+
+  it("lets descendants keep native mousedown defaults via stopPropagation", () => {
+    const { getByTestId } = render(
+      <ComposerPrimitiveRoot>
+        <div data-testid="selectable" onMouseDown={(e) => e.stopPropagation()}>
+          Selectable content
+        </div>
+        <textarea data-testid="composer-input" />
+      </ComposerPrimitiveRoot>,
+    );
+
+    const notPrevented = fireEvent.mouseDown(getByTestId("selectable"), {
+      button: 0,
+    });
+
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).not.toBe(getByTestId("composer-input"));
+  });
+
+  it("lets consumer onMouseDown prevent the default focus behavior", () => {
+    const onMouseDown = vi.fn((event: MouseEvent<HTMLFormElement>) => {
+      event.preventDefault();
+    });
+    const { blankSpace, textarea } = setupComposer({ onMouseDown });
+
+    fireEvent.mouseDown(blankSpace, { button: 0 });
+
+    expect(onMouseDown).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).not.toBe(textarea);
+  });
+
+  it("runs consumer onMouseDown and preserves default focus behavior when it does not prevent default", () => {
+    const onMouseDown = vi.fn();
+    const { blankSpace, textarea } = setupComposer({ onMouseDown });
+
+    fireEvent.mouseDown(blankSpace, { button: 0 });
+
+    expect(onMouseDown).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(textarea);
+  });
+});
+
+describe("ComposerPrimitiveRoot compact mode", () => {
   let container: HTMLDivElement;
   let root: Root;
 

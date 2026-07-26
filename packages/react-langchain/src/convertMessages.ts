@@ -6,6 +6,7 @@ import type {
   DataMessagePart,
   MessageTiming,
 } from "@assistant-ui/core";
+import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type {
   LangChainBaseMessage,
@@ -189,16 +190,6 @@ export const convertLangChainBaseMessage = (
       };
   }
 };
-
-const parseDataUrl = (
-  value: string,
-): { mimeType: string; data: string } | null => {
-  const match = value.match(/^data:([^;,]+)(?:;[^;,]+)*;base64,(.+)$/);
-  if (!match) return null;
-  return { mimeType: match[1]!, data: match[2]! };
-};
-
-const httpUrlPattern = /^https?:\/\//i;
 
 export const getMessageContent = (msg: AppendMessage) => {
   const allContent = [

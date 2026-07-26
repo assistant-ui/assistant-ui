@@ -11,6 +11,8 @@ import type {
 } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
 import {
+  httpUrlPattern,
+  parseDataUrl,
   stableStringifyToolArgs,
   trackToolArgsKeyOrder,
 } from "@assistant-ui/core/internal";
@@ -59,10 +61,16 @@ const resolveToolCallArgs = ({
   toolCallId: string;
 }): Pick<ToolCallMessagePart, "args" | "argsText"> => {
   const cacheKey = getToolArgsCacheKey(messageId, "tool", toolCallId);
+  const streamedArgsText =
+    matchingToolCallChunk?.args ?? matchingToolCallChunk?.args_json;
+  const isStreamingArglessChunk =
+    matchingToolCallChunk !== undefined &&
+    streamedArgsText === undefined &&
+    Object.keys(chunk.args).length === 0;
   const providedArgsText =
     chunk.partial_json ??
-    matchingToolCallChunk?.args ??
-    matchingToolCallChunk?.args_json;
+    streamedArgsText ??
+    (isStreamingArglessChunk ? "" : undefined);
   const argsText =
     providedArgsText ??
     stableStringifyToolArgs(toolArgsKeyOrderCache, cacheKey, chunk.args);
@@ -286,16 +294,6 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       };
   }
 };
-
-const parseDataUrl = (
-  value: string,
-): { mimeType: string; data: string } | null => {
-  const match = value.match(/^data:([^;,]+)(?:;[^;,]+)*;base64,(.+)$/);
-  if (!match) return null;
-  return { mimeType: match[1]!, data: match[2]! };
-};
-
-const httpUrlPattern = /^https?:\/\//i;
 
 export const getMessageContent = (msg: AppendMessage) => {
   const allContent = [

@@ -41,6 +41,15 @@ Subsequent snapshots that *are* prefixes of the new (regressed) snapshot
 also won't be appended, because `entry.argsText` still points at the
 pre-regression value used for delta calculation.
 
+The args stream closes only when the controller's *streamed* content
+(`entry.argsText`) is complete, not when a later snapshot is. A divergent
+snapshot can be complete while the controller still holds an incomplete
+stale prefix; closing on the snapshot would parse that stale prefix and
+auto-submit a bogus parse-error result (resuming the host graph and
+abandoning a pending interrupt). Gating the close on the streamed content
+leaves the stream open until the prefix itself completes, so no stale
+parse runs and no error result is fabricated from divergent args.
+
 ### A.3. Args complete then equivalent-JSON key reorder
 Both old and new `argsText` parse to equivalent JSON values (e.g. keys
 reordered by the backend). The tracker updates its tracked `argsText`
@@ -53,9 +62,10 @@ existing `streamCall` keeps its original args view.
 
 ### A.5. First resolution (`result` becomes defined)
 The tracker calls `setResponse` on the active controller and closes it.
-`reader.response.get()` resolves. If the tool also had a frontend
-`execute`, the executor is short-circuited via `_skipExecuteStreamIds`.
-Single fire.
+The backend result is emitted before the args stream closes, so a stale
+args parse failure cannot replace it. `reader.response.get()` resolves.
+If the tool also had a frontend `execute`, the executor is short-circuited
+via `_skipExecuteStreamIds`. Single fire.
 
 ### A.6. Previously-resolved tool's `result` is replaced
 Silently ignored — `entry.hasResult` short-circuits both the
@@ -166,22 +176,6 @@ snapshot is processed against the fresh pipeline. Repeated failures
 keep the tracker dead with a visible error to avoid restart loops.
 
 ## Known limitations
-
-### Result delivery after args regression (A.2 + A.5 in the same snapshot)
-When a snapshot has both a regressed `argsText` *and* a backend result
-on the same tool call, `activeController.setResponse(result)` closes
-`argsText` before enqueueing the result chunk. The args-text-finish
-chunk reaches `ToolExecutionStream` first, attempts to parse the
-(stale) accumulated argsText, fails, and emits a parse-error result
-that beats the backend result to the reader's response promise.
-
-The tracker's `entry.hasResult` short-circuit *does* suppress both
-result chunks at the `onResult` callback level (no double-fire), but
-the reader's `response.get()` already resolved with the parse error.
-
-Fixable upstream in `ToolCallStreamControllerImpl.setResponse` by
-enqueueing the result chunk before closing argsText. Tracked separately;
-out of scope for the tracker layer.
 
 ### Host callback throws
 `onResult` and `onStatusesChange` are invoked through wrappers that

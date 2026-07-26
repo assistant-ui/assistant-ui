@@ -11,6 +11,7 @@ import {
   vi,
 } from "vitest";
 import { useEffect, useState, type FC, type PropsWithChildren } from "react";
+import { useAuiState } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../../context";
 import * as MessagePrimitive from "../message";
 import { ThreadPrimitiveMessages } from "./ThreadMessages";
@@ -39,6 +40,7 @@ const getMaxScrollTop = (element: Element) =>
   Math.max(0, element.scrollHeight - element.clientHeight);
 
 let forceShortViewportMeasurement = false;
+let viewportMeasurementOffset = 0;
 const resizeObserverCallbacks = new Set<ResizeObserverCallback>();
 
 class TestResizeObserver {
@@ -111,7 +113,9 @@ beforeAll(() => {
       if (this.getAttribute("data-testid") !== "viewport") return 0;
       if (forceShortViewportMeasurement) return this.clientHeight;
       return (
-        document.querySelectorAll('[data-testid="thread-message"]').length * 80
+        document.querySelectorAll('[data-testid="thread-message"]').length *
+          80 +
+        viewportMeasurementOffset
       );
     },
   });
@@ -127,6 +131,7 @@ beforeAll(() => {
 
 afterEach(() => {
   forceShortViewportMeasurement = false;
+  viewportMeasurementOffset = 0;
   resizeObserverCallbacks.clear();
   cleanup();
 });
@@ -173,6 +178,11 @@ const BottomAnchorThread = () => (
     </ThreadPrimitiveViewport>
   </ThreadPrimitiveRoot>
 );
+
+const RunState = () => {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  return <output data-testid="run-state">{String(isRunning)}</output>;
+};
 
 const SyncRuntimeProvider: FC<PropsWithChildren> = ({ children }) => {
   const runtime = useLocalRuntime(adapter, { initialMessages: messages });
@@ -298,6 +308,81 @@ describe("useThreadViewportAutoScroll", () => {
     );
     expect(behaviors[0]).toBe("auto");
     expect(behaviors).not.toContain("instant");
+
+    scrollToSpy.mockRestore();
+  });
+
+  it("defers auto-scroll to an active top anchor only while the run is active", async () => {
+    let releaseRun!: () => void;
+    const runGate = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const deferredAdapter: ChatModelAdapter = {
+      async *run() {
+        await runGate;
+        yield { content: [{ type: "text", text: "done" }] };
+      },
+    };
+    const scrollToSpy = vi.spyOn(HTMLElement.prototype, "scrollTo");
+
+    let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+    const Harness: FC = () => {
+      runtime = useLocalRuntime(deferredAdapter, { initialMessages: messages });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Thread autoScroll scrollToBottomOnInitialize={false} />
+          <RunState />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<Harness />);
+
+    act(() => {
+      void runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(
+        document.querySelector("[data-aui-top-anchor-user]"),
+      ).not.toBeNull();
+    });
+
+    scrollToSpy.mockClear();
+    viewportMeasurementOffset = 1;
+    act(notifyResizeObservers);
+
+    expect(
+      scrollToSpy.mock.calls.map(
+        (call) => (call[0] as ScrollToOptions).behavior,
+      ),
+    ).not.toContain("instant");
+
+    await act(async () => {
+      releaseRun();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("run-state").textContent).toBe("false");
+    });
+    expect(document.querySelector("[data-aui-top-anchor-user]")).not.toBeNull();
+
+    const viewport = getViewport();
+    act(() => {
+      viewport.scrollTop = getMaxScrollTop(viewport);
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    scrollToSpy.mockClear();
+    viewportMeasurementOffset = 2;
+    act(notifyResizeObservers);
+
+    expect(
+      scrollToSpy.mock.calls.map(
+        (call) => (call[0] as ScrollToOptions).behavior,
+      ),
+    ).toContain("instant");
 
     scrollToSpy.mockRestore();
   });
