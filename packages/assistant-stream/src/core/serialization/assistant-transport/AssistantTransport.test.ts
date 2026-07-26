@@ -346,6 +346,56 @@ describe("AssistantTransportDecoder", () => {
     warn.mockRestore();
   });
 
+  it("drops frames missing per-type required fields", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const decodedChunks = await collectChunks(
+      sseStream([
+        '{"type":"part-start","path":[]}',
+        '{"type":"part-start","part":[],"path":[]}',
+        '{"type":"text-delta","textDelta":5,"path":[0]}',
+        '{"type":"annotations","path":[]}',
+        '{"type":"data","path":[]}',
+        '{"type":"update-state","path":[]}',
+        '{"type":"message-finish","path":[]}',
+        '{"type":"step-finish","path":[]}',
+        '{"type":"error","path":[]}',
+        '{"type":"error","error":42,"path":[]}',
+        '{"type":"message-finish","finishReason":"stop","path":[]}',
+        '{"type":"error","error":"boom","path":[]}',
+      ]),
+    );
+
+    expect(decodedChunks).toEqual([
+      { type: "error", path: [] },
+      { type: "error", error: 42, path: [] },
+      { type: "message-finish", finishReason: "stop", path: [] },
+      { type: "error", error: "boom", path: [] },
+    ]);
+    expect(warn).toHaveBeenCalledTimes(7);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("(invalid-fields:part-start)"),
+    );
+    warn.mockRestore();
+  });
+
+  it("tolerates a result without isError or result but rejects a non-boolean isError", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const decodedChunks = await collectChunks(
+      sseStream([
+        '{"type":"result","result":null,"path":[0]}',
+        '{"type":"result","path":[0]}',
+        '{"type":"result","result":1,"isError":"no","path":[0]}',
+      ]),
+    );
+
+    expect(decodedChunks).toEqual([
+      { type: "result", result: null, path: [0] },
+      { type: "result", path: [0] },
+    ]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
   it("round-trips error chunks with code and severity", async () => {
     const originalChunks: AssistantStreamChunk[] = [
       {

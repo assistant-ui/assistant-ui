@@ -7,22 +7,42 @@ import {
 } from "../../utils/stream/SSEEventDecoderStream";
 import type { AssistantStreamEncoder } from "../../AssistantStream";
 
-const KNOWN_CHUNK_TYPES: Record<
-  AssistantStreamChunk["type"],
-  "message" | "part-addressed"
-> = {
-  "part-start": "message",
-  "part-finish": "part-addressed",
-  "tool-call-args-text-finish": "part-addressed",
-  "text-delta": "part-addressed",
-  annotations: "message",
-  data: "message",
-  "step-start": "message",
-  "step-finish": "message",
-  "message-finish": "message",
-  result: "part-addressed",
-  error: "message",
-  "update-state": "message",
+type ChunkRule = {
+  kind: "message" | "part-addressed";
+  valid: (chunk: Record<string, unknown>) => boolean;
+};
+
+const isNonNullObject = (value: unknown): boolean =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const KNOWN_CHUNK_TYPES: Record<AssistantStreamChunk["type"], ChunkRule> = {
+  "part-start": { kind: "message", valid: (c) => isNonNullObject(c.part) },
+  "part-finish": { kind: "part-addressed", valid: () => true },
+  "tool-call-args-text-finish": { kind: "part-addressed", valid: () => true },
+  "text-delta": {
+    kind: "part-addressed",
+    valid: (c) => typeof c.textDelta === "string",
+  },
+  annotations: { kind: "message", valid: (c) => Array.isArray(c.annotations) },
+  data: { kind: "message", valid: (c) => Array.isArray(c.data) },
+  "step-start": { kind: "message", valid: () => true },
+  "step-finish": {
+    kind: "message",
+    valid: (c) => typeof c.finishReason === "string",
+  },
+  "message-finish": {
+    kind: "message",
+    valid: (c) => typeof c.finishReason === "string",
+  },
+  result: {
+    kind: "part-addressed",
+    valid: (c) => c.isError === undefined || typeof c.isError === "boolean",
+  },
+  error: { kind: "message", valid: () => true },
+  "update-state": {
+    kind: "message",
+    valid: (c) => Array.isArray(c.operations),
+  },
 };
 
 const parseChunk = (data: string): AssistantStreamChunk | string => {
@@ -40,9 +60,11 @@ const parseChunk = (data: string): AssistantStreamChunk | string => {
     !Object.prototype.hasOwnProperty.call(KNOWN_CHUNK_TYPES, type)
   )
     return "unknown-type";
+  const rule = KNOWN_CHUNK_TYPES[type as AssistantStreamChunk["type"]];
+  if (!rule.valid(value as Record<string, unknown>))
+    return `invalid-fields:${type}`;
   if (path === undefined) {
-    if (KNOWN_CHUNK_TYPES[type as AssistantStreamChunk["type"]] !== "message")
-      return `missing-path:${type}`;
+    if (rule.kind !== "message") return `missing-path:${type}`;
     return { ...value, path: [] } as unknown as AssistantStreamChunk;
   }
   if (

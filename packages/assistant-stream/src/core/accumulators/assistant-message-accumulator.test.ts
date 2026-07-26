@@ -240,6 +240,19 @@ describe("AssistantMessageAccumulator error chunks", () => {
     });
   });
 
+  it("defaults a missing error message", async () => {
+    const messages = await collectStream([
+      { type: "error", path: [] } as unknown as AssistantStreamChunk,
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: { code: "unknown", message: "unknown error" },
+    });
+  });
+
   it("carries code and severity through unchanged", async () => {
     const messages = await collectStream([
       {
@@ -368,6 +381,88 @@ describe("AssistantMessageAccumulator part path bounds", () => {
       state: "result",
       result: { ok: true },
     });
+    warn.mockRestore();
+  });
+});
+
+describe("AssistantMessageAccumulator wrong part type chunks", () => {
+  const sourcePart = {
+    type: "source",
+    sourceType: "url",
+    id: "s1",
+    url: "https://example.com",
+  } as const;
+
+  it("drops a text-delta addressed to a source part", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: sourcePart },
+      { type: "text-delta", path: [0], textDelta: "x" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts[0]).toMatchObject({ type: "source", id: "s1" });
+    expect(warn).toHaveBeenCalledWith(
+      "Dropped text-delta chunk: part is neither text nor tool-call",
+    );
+    warn.mockRestore();
+  });
+
+  it("drops a result addressed to a text part", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "hi" },
+      { type: "result", path: [0], result: { ok: true }, isError: false },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts[0]).toMatchObject({ type: "text", text: "hi" });
+    expect(warn).toHaveBeenCalledWith(
+      "Dropped result chunk: part is not a tool-call",
+    );
+    warn.mockRestore();
+  });
+
+  it("drops an args-text-finish addressed to a text part", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts[0]).toMatchObject({ type: "text" });
+    expect(warn).toHaveBeenCalledWith(
+      "Dropped tool-call-args-text-finish chunk: part is not a tool-call",
+    );
+    warn.mockRestore();
+  });
+
+  it("inserts a placeholder for an unsupported part-start so later part indices stay aligned", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "bogus" },
+      } as unknown as AssistantStreamChunk,
+      { type: "part-start", path: [1], part: { type: "text" } },
+      { type: "text-delta", path: [1], textDelta: "ok" },
+      { type: "part-finish", path: [0] },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts).toHaveLength(2);
+    expect(last.parts[0]).toMatchObject({
+      type: "reasoning",
+      text: "",
+      status: { type: "complete", reason: "unknown" },
+    });
+    expect(last.parts[1]).toMatchObject({ type: "text", text: "ok" });
+    expect(warn).toHaveBeenCalledWith(
+      "Unsupported part-start type bogus: inserting an empty reasoning part to preserve part indices",
+    );
     warn.mockRestore();
   });
 });

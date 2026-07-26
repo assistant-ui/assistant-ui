@@ -149,7 +149,22 @@ const handlePartStart = (
       },
     };
   } else {
-    throw new Error(`Unsupported part type: ${partInit.type}`);
+    console.warn(
+      `Unsupported part-start type ${(partInit as { type?: unknown }).type}: inserting an empty reasoning part to preserve part indices`,
+    );
+    // reasoning rather than a data sentinel: auiV0Encode rejects data parts, so a data placeholder would fail cloud persistence
+    const placeholderPart: ReasoningPart = {
+      type: "reasoning",
+      text: "",
+      status: { type: "running" },
+    };
+    return {
+      ...message,
+      parts: [...message.parts, placeholderPart],
+      get content() {
+        return this.parts;
+      },
+    };
   }
 };
 
@@ -161,7 +176,10 @@ const handleToolCallArgsTextFinish = (
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, (part) => {
     if (part.type !== "tool-call") {
-      throw new Error("Last is not a tool call");
+      console.warn(
+        "Dropped tool-call-args-text-finish chunk: part is not a tool-call",
+      );
+      return part;
     }
 
     // TODO this should never be hit; this happens if args-text-finish is emitted after result
@@ -200,9 +218,10 @@ const handleTextDelta = (
 
       return { ...part, argsText: newArgsText, args: newArgs };
     } else {
-      throw new Error(
-        "text-delta received but part is neither text nor tool-call",
+      console.warn(
+        "Dropped text-delta chunk: part is neither text nor tool-call",
       );
+      return part;
     }
   });
 };
@@ -234,7 +253,8 @@ const handleResult = (
         status: { type: "complete", reason: "stop" },
       };
     } else {
-      throw new Error("Result chunk received but part is not a tool-call");
+      console.warn("Dropped result chunk: part is not a tool-call");
+      return part;
     }
   });
 };
@@ -379,7 +399,7 @@ const handleErrorChunk = (
       reason: "error",
       error: {
         code: chunk.code ?? "unknown",
-        message: chunk.error,
+        message: chunk.error ?? "unknown error",
         ...(severity !== undefined && { severity }),
       },
     },
