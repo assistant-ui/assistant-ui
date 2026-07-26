@@ -25,10 +25,10 @@ import type {
  * });
  * ```
  */
-// Exported so consumers (e.g. splitClients) can identify a derived element by its
-// hook: a `Derived(...)` element carries `hook === useDerived`.
 export declare const derivedKey: unique symbol;
 
+// Exported so consumers (e.g. splitClients) can identify a derived element by its
+// hook: a `Derived(...)` element carries `hook === useDerived`.
 export const useDerived = <K extends ClientNames>(
   _config: Derived.Props<K>,
 ): { [derivedKey]: K } => {
