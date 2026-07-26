@@ -275,8 +275,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     resolveA();
     await caught;
-
-    expect(composer.canSend).toBe(true);
+    await vi.waitFor(() => expect(composer.canSend).toBe(true));
     expect(sendCallsForA).toBe(1);
   });
 
@@ -307,17 +306,14 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await composer.addAttachment(new File(["a"], "a.txt"));
     await composer.addAttachment(new File(["b"], "b.txt"));
 
-    const caught = composer.send().catch(() => {});
+    const sendPromise = composer.send();
+    await expect(sendPromise).rejects.toThrow("b failed");
 
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
     expect(composer.text).toBe("hello");
     expect(composer.canSend).toBe(false);
 
     resolveA();
-    await caught;
-    expect(composer.canSend).toBe(true);
+    await vi.waitFor(() => expect(composer.canSend).toBe(true));
   });
 
   it("excludes a removed attachment even when the upload settles before the adapter remove", async () => {
@@ -368,6 +364,37 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     await composer.send();
     expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it("discards a stalled send that settles after reset instead of appending it", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    composer.setText("stale draft");
+    await composer.addAttachment(textFile());
+    void composer.send();
+    await Promise.resolve();
+
+    await composer.reset();
+    composer.setText("fresh draft");
+    await composer.send();
+    expect(append).toHaveBeenCalledTimes(1);
+
+    resolveSend();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(composer.canSend).toBe(false);
+    composer.setText("still unlocked");
+    expect(composer.canSend).toBe(true);
   });
 
   it("excludes an attachment removed while its upload was still in flight", async () => {

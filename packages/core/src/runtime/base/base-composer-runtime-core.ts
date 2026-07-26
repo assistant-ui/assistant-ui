@@ -135,6 +135,7 @@ export abstract class BaseComposerRuntimeCore
 
   protected _isSending = false;
   private _removedDuringSend = new Set<string>();
+  private _sendGeneration = 0;
 
   private _emptyTextAndAttachments() {
     this._attachments = [];
@@ -152,7 +153,10 @@ export abstract class BaseComposerRuntimeCore
 
   public async reset() {
     // A send whose adapter never settles must not brick the composer; reset is
-    // the escape hatch that releases the in-flight lock.
+    // the escape hatch that releases the in-flight lock. Bumping the generation
+    // invalidates that send entirely so a late-settling upload can neither
+    // append the discarded draft nor touch a newer send's lock.
+    this._sendGeneration++;
     this._isSending = false;
     this._removedDuringSend.clear();
 
@@ -204,26 +208,36 @@ export abstract class BaseComposerRuntimeCore
     this._quote = undefined;
     this._text = "";
     this._isSending = true;
+    const generation = ++this._sendGeneration;
     this._notifySubscribers();
 
     let resolvedAttachments: CompleteAttachment[];
     try {
       resolvedAttachments = await Promise.all(attachmentTasks);
     } catch (e) {
-      if (!this.text.trim() && this._quote === undefined) {
-        this._text = text;
-        this._quote = quote;
-        this._notifySubscribers();
+      if (generation === this._sendGeneration) {
+        if (!this.text.trim() && this._quote === undefined) {
+          this._text = text;
+          this._quote = quote;
+          this._notifySubscribers();
+        }
+        // Promise.all rejects on the first failure, but sibling uploads from
+        // this batch keep running; the send rejects immediately while the
+        // retry lock is held until they settle, or a retry could re-send
+        // attachments that are still in flight.
+        void Promise.allSettled(attachmentTasks).then(() => {
+          if (generation !== this._sendGeneration) return;
+          this._removedDuringSend.clear();
+          this._isSending = false;
+          this._notifySubscribers();
+        });
       }
-      // Promise.all rejects on the first failure, but sibling uploads from this
-      // batch keep running; wait for them to settle before unlocking retries, or
-      // a retry could re-send attachments that are still in flight.
-      await Promise.allSettled(attachmentTasks);
-      this._removedDuringSend.clear();
-      this._isSending = false;
-      this._notifySubscribers();
       throw e;
     }
+
+    // A reset during the upload discarded this send's draft; the settled
+    // uploads must not append it or touch the lock a newer send may own.
+    if (generation !== this._sendGeneration) return;
 
     // Drop by id, not wholesale: the user may have added or removed chips while
     // the upload was in flight.
