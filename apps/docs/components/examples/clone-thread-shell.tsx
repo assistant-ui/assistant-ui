@@ -5,11 +5,18 @@ import {
   ThreadListItems,
   ThreadListNew,
   ThreadListRoot,
+  ThreadListSearch,
 } from "@/components/assistant-ui/thread-list";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { useAuiState } from "@assistant-ui/react";
 import { MenuIcon, PanelLeftIcon } from "lucide-react";
 import { useState, type FC, type MouseEvent, type ReactNode } from "react";
 
@@ -20,6 +27,8 @@ type CloneThreadShellProps = {
 export const CloneThreadShell: FC<CloneThreadShellProps> = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
 
   const closeMobileSidebarAfterNavigation = (
     event: MouseEvent<HTMLDivElement>,
@@ -60,8 +69,10 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({ children }) => {
 
         <ThreadListRoot
           className={cn(
-            "relative flex-1 overflow-y-auto transition-[padding,width] duration-200",
-            sidebarCollapsed ? "w-12 px-2 pt-1" : "w-65 p-3",
+            "relative flex-1 transition-[padding,width] duration-200",
+            sidebarCollapsed
+              ? "w-12 overflow-hidden px-2 pt-1"
+              : "w-65 overflow-y-auto p-3",
           )}
         >
           <ThreadListNew
@@ -76,7 +87,20 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({ children }) => {
               sidebarCollapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
             )}
           />
+          {hasThreads && (
+            <div
+              aria-hidden={sidebarCollapsed}
+              inert={sidebarCollapsed}
+              className={cn(
+                "transition-opacity duration-150",
+                sidebarCollapsed && "pointer-events-none opacity-0",
+              )}
+            >
+              <ThreadListSearch value={search} onValueChange={setSearch} />
+            </div>
+          )}
           <ThreadListItems
+            searchQuery={hasThreads ? search : ""}
             aria-hidden={sidebarCollapsed}
             inert={sidebarCollapsed}
             className={cn(
@@ -99,10 +123,10 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({ children }) => {
               </Button>
             }
           />
-          <SheetContent side="left" className="flex w-70 flex-col p-0">
-            <div className="flex h-12 shrink-0 items-center px-4 text-sm font-medium">
+          <SheetContent side="left" className="flex flex-col p-0">
+            <SheetTitle className="flex h-12 shrink-0 items-center px-4 text-sm font-medium">
               Chats
-            </div>
+            </SheetTitle>
             <div
               className="relative flex-1 overflow-y-auto p-3"
               onClick={closeMobileSidebarAfterNavigation}
