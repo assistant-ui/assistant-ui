@@ -21,9 +21,8 @@ describe("GorpStreamAccumulator", () => {
     acc.append([{ type: "set", path: ["toString", "x"], value: 1 }]);
     expect(acc.state).toEqual({ toString: { x: 1 } });
 
-    const append = new GorpStreamAccumulator({});
-    expect(() =>
-      append.append([{ type: "append-text", path: ["toString"], value: "!" }]),
-    ).toThrow("Expected string at path [toString]");
+    const append = new GorpStreamAccumulator({ toString: "hi" });
+    append.append([{ type: "append-text", path: ["toString"], value: "!" }]);
+    expect(append.state).toEqual({ toString: "hi!" });
   });
 });

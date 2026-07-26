@@ -64,7 +64,7 @@ export class GorpStreamAccumulator {
 
       const nextState = [...state];
       nextState[idx] = GorpStreamAccumulator.updatePath(
-        nextState[idx],
+        Object.hasOwn(nextState, idx) ? nextState[idx] : undefined,
         rest,
         updater,
       );
