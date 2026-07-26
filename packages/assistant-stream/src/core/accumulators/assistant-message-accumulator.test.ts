@@ -224,6 +224,66 @@ describe("AssistantMessageAccumulator timing", () => {
     expect(last.metadata.timing).toBeDefined();
     expect(last.metadata.timing!.firstTokenTime).toBeTypeOf("number");
   });
+
+  it("does not record firstTokenTime when a text-delta is dropped for an out-of-range path", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [5], textDelta: "x" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.metadata.timing).toBeDefined();
+    expect(last.metadata.timing!.firstTokenTime).toBeUndefined();
+    warn.mockRestore();
+  });
+
+  it("does not record firstTokenTime when a text-delta is dropped for a nested path", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0, 1], textDelta: "x" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.metadata.timing).toBeDefined();
+    expect(last.metadata.timing!.firstTokenTime).toBeUndefined();
+    warn.mockRestore();
+  });
+
+  it("records firstTokenTime on the first applied text-delta, not a preceding dropped one", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+
+    const accumulator = new AssistantMessageAccumulator();
+    const writer = accumulator.writable.getWriter();
+    const messages: AssistantMessage[] = [];
+    const reading = (async () => {
+      const reader = accumulator.readable.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        messages.push(value);
+      }
+    })();
+
+    await writer.write({
+      type: "part-start",
+      path: [0],
+      part: { type: "text" },
+    });
+    vi.setSystemTime(2000);
+    await writer.write({ type: "text-delta", path: [5], textDelta: "x" });
+    vi.setSystemTime(3000);
+    await writer.write({ type: "text-delta", path: [0], textDelta: "hi" });
+    await writer.close();
+    await reading;
+    vi.useRealTimers();
+
+    const last = messages.at(-1)!;
+    expect(last.metadata.timing).toBeDefined();
+    expect(last.metadata.timing!.firstTokenTime).toBe(2000);
+  });
 });
 
 describe("AssistantMessageAccumulator error chunks", () => {
