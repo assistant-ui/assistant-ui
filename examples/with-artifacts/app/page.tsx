@@ -22,12 +22,12 @@ function ArtifactExperience() {
   const { active } = useArtifactSurface();
 
   return (
-    <main className="flex h-full min-h-0 overflow-hidden bg-white">
+    <main className="bg-background flex h-full min-h-0 overflow-hidden">
       <section
         className={
           active
-            ? "hidden min-w-0 bg-white md:block md:w-[min(44vw,42rem)] md:shrink-0"
-            : "min-w-0 flex-1 bg-white"
+            ? "bg-background hidden min-w-0 md:block md:w-[min(44vw,42rem)] md:shrink-0"
+            : "bg-background min-w-0 flex-1"
         }
       >
         <Thread />

@@ -102,8 +102,8 @@ export function ArtifactTrigger({
   const isOpen = active?.id === id;
 
   return (
-    <div className="my-3 overflow-hidden rounded-xl border bg-white shadow-[0_10px_30px_-22px_rgba(24,24,27,0.5)]">
-      <div className="flex items-center gap-2 border-b bg-zinc-50 px-3 py-2 font-mono text-[10px] tracking-[0.16em] text-zinc-500 uppercase">
+    <div className="bg-card my-3 overflow-hidden rounded-xl border shadow-[0_10px_30px_-22px_rgba(24,24,27,0.5)]">
+      <div className="bg-muted text-muted-foreground flex items-center gap-2 border-b px-3 py-2 font-mono text-[10px] tracking-[0.16em] uppercase">
         <FileCode2Icon className="size-3.5" />
         HTML artifact
         {streaming ? (
@@ -121,7 +121,7 @@ export function ArtifactTrigger({
       <div className="flex items-center gap-4 p-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{title}</p>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="text-muted-foreground mt-0.5 text-xs">
             {lineCount > 0 ? `${lineCount} lines` : "Preparing document"}
             {version && !version.isLatest ? " · historical version" : ""}
           </p>
@@ -137,7 +137,7 @@ export function ArtifactTrigger({
               messageId,
             })
           }
-          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-zinc-950 px-3 text-xs font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-wait disabled:opacity-50"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-xs font-medium transition-colors disabled:cursor-wait disabled:opacity-50"
         >
           <PanelRightOpenIcon className="size-3.5" />
           {isOpen ? "In workbench" : "Open workbench"}
@@ -170,9 +170,9 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
   return (
     <aside
       data-testid="artifact-surface"
-      className="fixed inset-0 z-30 flex min-w-0 flex-1 flex-col bg-[#f4f2ed] md:static md:z-0 md:border-l"
+      className="bg-muted fixed inset-0 z-30 flex min-w-0 flex-1 flex-col md:static md:z-0 md:border-l"
     >
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-zinc-900/10 bg-[#f8f7f3]/90 px-3 backdrop-blur md:px-5">
+      <header className="border-border bg-background/90 flex h-14 shrink-0 items-center gap-3 border-b px-3 backdrop-blur md:px-5">
         <div className="flex min-w-0 items-center gap-2">
           <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-amber-300 text-zinc-950 shadow-[inset_0_0_0_1px_rgba(24,24,27,0.12)]">
             <SparklesIcon className="size-3.5" />
@@ -181,7 +181,7 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
             <p className="truncate text-sm font-semibold">
               {state.title || "Untitled artifact"}
             </p>
-            <p className="font-mono text-[9px] tracking-[0.14em] text-zinc-500 uppercase">
+            <p className="text-muted-foreground font-mono text-[9px] tracking-[0.14em] uppercase">
               Opened from conversation
             </p>
           </div>
@@ -190,7 +190,7 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
         <div className="ml-auto flex items-center gap-1.5">
           <label className="relative hidden sm:block">
             <span className="sr-only">Artifact version history</span>
-            <HistoryIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-zinc-500" />
+            <HistoryIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
             <select
               data-testid="artifact-version-select"
               aria-label="Artifact version history"
@@ -199,7 +199,7 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
                 const version = versions[Number(event.target.value)];
                 version?.restore();
               }}
-              className="h-8 appearance-none rounded-md border border-zinc-900/10 bg-white pr-2 pl-8 text-xs text-zinc-700 outline-none hover:bg-zinc-50"
+              className="border-border bg-card text-foreground hover:bg-muted h-8 appearance-none rounded-md border pr-2 pl-8 text-xs outline-none"
             >
               <option value="" disabled>
                 {versions.length}{" "}
@@ -218,7 +218,7 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
             data-testid="artifact-return"
             aria-label="Return to conversation"
             onClick={returnToOrigin}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-900/10 bg-white px-2.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+            className="border-border bg-card text-foreground hover:bg-muted inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium"
           >
             <ArrowLeftIcon className="size-3.5" />
             <span className="hidden sm:inline">Conversation</span>
@@ -227,7 +227,7 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
             type="button"
             data-testid="artifact-close"
             onClick={close}
-            className="grid size-8 place-items-center rounded-md text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-950"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground grid size-8 place-items-center rounded-md"
             aria-label="Close artifact"
           >
             <XIcon className="size-4" />
@@ -236,15 +236,15 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col p-2 md:p-4">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-900/10 bg-white shadow-[0_24px_70px_-44px_rgba(24,24,27,0.55)]">
-          <div className="flex shrink-0 items-center gap-1 border-b bg-zinc-50/80 p-1.5">
+        <div className="border-border bg-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border shadow-[0_24px_70px_-44px_rgba(24,24,27,0.55)]">
+          <div className="bg-muted/80 flex shrink-0 items-center gap-1 border-b p-1.5">
             <button
               type="button"
               onClick={() => setView("preview")}
               className={`inline-flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium transition-colors ${
                 view === "preview"
-                  ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-900/8"
-                  : "text-zinc-500 hover:text-zinc-950"
+                  ? "bg-card text-foreground ring-border shadow-sm ring-1"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <EyeIcon className="size-3.5" />
@@ -255,14 +255,14 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
               onClick={() => setView("code")}
               className={`inline-flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium transition-colors ${
                 view === "code"
-                  ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-900/8"
-                  : "text-zinc-500 hover:text-zinc-950"
+                  ? "bg-card text-foreground ring-border shadow-sm ring-1"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Code2Icon className="size-3.5" />
               Source
             </button>
-            <span className="ml-auto pr-2 font-mono text-[9px] tracking-[0.14em] text-zinc-400 uppercase">
+            <span className="text-muted-foreground ml-auto pr-2 font-mono text-[9px] tracking-[0.14em] uppercase">
               Live document
             </span>
           </div>
@@ -286,7 +286,7 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
                     title: event.target.value,
                   }))
                 }
-                className="h-11 shrink-0 border-b px-4 text-sm font-semibold outline-none placeholder:text-zinc-400"
+                className="placeholder:text-muted-foreground h-11 shrink-0 border-b px-4 text-sm font-semibold outline-none"
                 placeholder="Artifact title"
               />
               <textarea
