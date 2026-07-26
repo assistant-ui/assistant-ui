@@ -12,22 +12,22 @@ importers:
         specifier: workspace:*
         version: link:packages/x-changelog
       '@changesets/cli':
-        specifier: ^2.31.0
+        specifier: ^2.31.1
         version: 2.31.1(@types/node@26.1.1)
       husky:
         specifier: ^9.1.7
         version: 9.1.7
       lint-staged:
-        specifier: ^17.0.8
+        specifier: ^17.2.0
         version: 17.2.0
       oxfmt:
         specifier: ^0.59.0
         version: 0.59.0
       oxlint:
-        specifier: ^1.74.0
+        specifier: ^1.75.0
         version: 1.75.0
       turbo:
-        specifier: ^2.10.5
+        specifier: ^2.10.6
         version: 2.10.6
       typescript:
         specifier: ^7.0.2
@@ -42,61 +42,61 @@ importers:
         specifier: ^4.0.3
         version: 4.0.3
       '@ai-sdk/react':
-        specifier: ^4.0.30
+        specifier: ^4.0.40
         version: 4.0.40(react@19.2.8)(zod@4.4.3)
       '@earendil-works/pi-coding-agent':
         specifier: ^0.80.8
         version: 0.80.10(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ws@8.21.1)(zod@4.4.3)
       '@langchain/langgraph-sdk':
-        specifier: ^1.9.25
+        specifier: ^1.9.28
         version: 1.9.28(@langchain/core@1.2.3(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@langchain/react':
-        specifier: ^1.0.26
+        specifier: ^1.0.29
         version: 1.0.29(@langchain/core@1.2.3(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
       '@opencode-ai/sdk':
-        specifier: ^1.18.1
+        specifier: ^1.18.5
         version: 1.18.5
       '@radix-ui/react-popper':
-        specifier: ^1.3.3
+        specifier: ^1.3.7
         version: 1.3.7(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@radix-ui/react-primitive':
-        specifier: ^2.1.7
+        specifier: ^2.1.10
         version: 2.1.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@standard-schema/spec':
         specifier: ^1.1.0
         version: 1.1.0
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       denque:
         specifier: ^2.1.0
         version: 2.1.0
       eve:
-        specifier: ^0.24.3
-        version: 0.24.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
+        specifier: ^0.27.6
+        version: 0.27.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       ink:
-        specifier: ^7.1.0
+        specifier: ^7.1.1
         version: 7.1.1(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.8)
       ink-spinner:
         specifier: ^5.0.0
         version: 5.0.0(ink@7.1.1(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.8))(react@19.2.8)
       lexical:
-        specifier: ^0.47.0
-        version: 0.47.0(typescript@7.0.2)
+        specifier: ^0.48.0
+        version: 0.48.0(typescript@7.0.2)
       markdansi:
         specifier: ^0.3.2
         version: 0.3.2
       radix-ui:
-        specifier: ^1.6.2
+        specifier: ^1.6.7
         version: 1.6.7(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-hook-form:
-        specifier: ^7.81.0
+        specifier: ^7.83.0
         version: 7.83.0(react@19.2.8)
       react-markdown:
         specifier: ^10.1.0
@@ -120,7 +120,7 @@ importers:
         specifier: ^2.5.0
         version: 2.5.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       vite:
-        specifier: ^8.1.4
+        specifier: ^8.1.5
         version: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)
       zod:
         specifier: ^4.4.3
@@ -449,11 +449,11 @@ importers:
   apps/registry:
     dependencies:
       radix-ui:
-        specifier: ^1.6.2
+        specifier: ^1.6.7
         version: 1.6.7(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
     devDependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -474,7 +474,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -489,7 +489,7 @@ importers:
         specifier: ^15.5.13
         version: 15.5.13
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -498,13 +498,13 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-resizable-panels:
         specifier: ^4.12.2
@@ -522,7 +522,7 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tsx:
         specifier: ^4.23.1
@@ -549,14 +549,14 @@ importers:
         specifier: ^2.6.2
         version: 2.6.2
       satori:
-        specifier: ^0.28.0
-        version: 0.28.2
+        specifier: ^0.29.0
+        version: 0.29.0
     devDependencies:
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.17
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       tsx:
         specifier: ^4.23.1
@@ -577,13 +577,13 @@ importers:
         specifier: workspace:*
         version: link:../../packages/tap
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
     devDependencies:
       '@assistant-ui/next':
@@ -593,7 +593,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -605,10 +605,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
@@ -638,16 +638,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -660,7 +660,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -672,10 +672,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -711,16 +711,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -733,7 +733,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -745,10 +745,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -763,7 +763,7 @@ importers:
   examples/with-ai-sdk-v7:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -778,7 +778,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -787,16 +787,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -812,7 +812,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -824,10 +824,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -842,7 +842,7 @@ importers:
   examples/with-artifacts:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -857,7 +857,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -866,16 +866,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -891,7 +891,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -903,10 +903,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -939,16 +939,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -964,7 +964,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -976,10 +976,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -1006,20 +1006,20 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/chrome':
         specifier: ^0.2.2
@@ -1037,10 +1037,10 @@ importers:
         specifier: ^0.28.1
         version: 0.28.1
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tsx:
         specifier: ^4.23.1
@@ -1055,7 +1055,7 @@ importers:
   examples/with-chain-of-thought:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -1070,7 +1070,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -1079,16 +1079,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -1104,7 +1104,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -1116,10 +1116,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -1134,7 +1134,7 @@ importers:
   examples/with-cloud:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -1149,7 +1149,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -1158,16 +1158,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -1180,7 +1180,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -1192,10 +1192,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -1210,13 +1210,13 @@ importers:
   examples/with-cloud-standalone:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/cloud-ai-sdk':
         specifier: workspace:*
         version: link:../../packages/cloud-ai-sdk
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -1225,16 +1225,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -1247,7 +1247,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -1259,10 +1259,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -1277,7 +1277,7 @@ importers:
   examples/with-custom-thread-list:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -1292,7 +1292,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
@@ -1304,16 +1304,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -1329,7 +1329,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -1341,10 +1341,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -1359,10 +1359,10 @@ importers:
   examples/with-elevenlabs-conversational:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.30
+        specifier: ^4.0.40
         version: 4.0.40(react@19.2.8)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:^
@@ -1377,13 +1377,13 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@elevenlabs/client':
-        specifier: ^1.15.0
+        specifier: ^1.15.2
         version: 1.15.2(@types/dom-mediacapture-record@1.0.22)
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -1392,28 +1392,28 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       motion:
         specifier: ^12.42.2
         version: 12.42.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       zod:
         specifier: ^4.4.3
@@ -1447,10 +1447,10 @@ importers:
   examples/with-elevenlabs-scribe:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.30
+        specifier: ^4.0.40
         version: 4.0.40(react@19.2.8)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:^
@@ -1465,13 +1465,13 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@elevenlabs/client':
-        specifier: ^1.15.0
+        specifier: ^1.15.2
         version: 1.15.2(@types/dom-mediacapture-record@1.0.22)
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -1480,28 +1480,28 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       motion:
         specifier: ^12.42.2
         version: 12.42.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       zod:
         specifier: ^4.4.3
@@ -1553,19 +1553,19 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       eve:
-        specifier: ^0.24.3
-        version: 0.24.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
+        specifier: ^0.27.6
+        version: 0.27.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -1578,7 +1578,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -1590,10 +1590,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -1608,10 +1608,10 @@ importers:
   examples/with-expo:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.30
+        specifier: ^4.0.40
         version: 4.0.40(react@19.2.3)(zod@4.4.3)
       '@assistant-ui/react-ai-sdk':
         specifier: workspace:*
@@ -1624,54 +1624,54 @@ importers:
         version: 15.1.1(expo-font@57.0.1)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@react-navigation/drawer':
         specifier: 7.9.4
-        version: 7.9.4(ef9166191b0bd9ed94037c10bbfeb318)
+        version: 7.9.4(4d47d03ec5c10e0e136ca07ddba64efc)
       '@react-navigation/native':
         specifier: 7.1.33
         version: 7.1.33(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       expo:
-        specifier: ~57.0.4
+        specifier: ~57.0.8
         version: 57.0.8(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.7)(@typescript/typescript6@6.0.2)(expo-router@57.0.8)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       expo-clipboard:
-        specifier: ~57.0.0
+        specifier: ~57.0.1
         version: 57.0.1(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       expo-constants:
-        specifier: ~57.0.3
+        specifier: ~57.0.7
         version: 57.0.7(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))
       expo-font:
-        specifier: ~57.0.0
+        specifier: ~57.0.1
         version: 57.0.1(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       expo-haptics:
-        specifier: ~57.0.0
+        specifier: ~57.0.1
         version: 57.0.1(expo@57.0.8)
       expo-image:
-        specifier: ~57.0.0
+        specifier: ~57.0.1
         version: 57.0.1(expo@57.0.8)(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       expo-image-picker:
-        specifier: ~57.0.2
+        specifier: ~57.0.6
         version: 57.0.6(expo@57.0.8)
       expo-linking:
-        specifier: ~57.0.2
+        specifier: ~57.0.4
         version: 57.0.4(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       expo-router:
-        specifier: ~57.0.4
-        version: 57.0.8(0f8e21954774c9275b94e6f24396828e)
+        specifier: ~57.0.8
+        version: 57.0.8(8e991051b651f14d5a2319ddb85a14a1)
       expo-server:
-        specifier: ~57.0.0
+        specifier: ~57.0.1
         version: 57.0.1
       expo-splash-screen:
-        specifier: ~57.0.2
+        specifier: ~57.0.5
         version: 57.0.5(@typescript/typescript6@6.0.2)(expo@57.0.8)
       expo-status-bar:
-        specifier: ~57.0.0
+        specifier: ~57.0.1
         version: 57.0.1(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       expo-symbols:
-        specifier: ^57.0.0
+        specifier: ^57.0.1
         version: 57.0.1(expo-font@57.0.1)(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       expo-system-ui:
-        specifier: ~57.0.0
+        specifier: ~57.0.1
         version: 57.0.1(expo@57.0.8)(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))
       react:
         specifier: 19.2.3
@@ -1683,17 +1683,17 @@ importers:
         specifier: 0.86.0
         version: 0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3)
       react-native-gesture-handler:
-        specifier: ~3.0.2
-        version: 3.0.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        specifier: ~3.1.0
+        version: 3.1.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-reanimated:
         specifier: 4.5.0
         version: 4.5.0(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-safe-area-context:
-        specifier: ~5.7.0
-        version: 5.7.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        specifier: ~5.8.0
+        version: 5.8.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-screens:
-        specifier: 4.25.2
-        version: 4.25.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        specifier: 4.26.2
+        version: 4.26.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-web:
         specifier: ~0.21.2
         version: 0.21.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -1738,16 +1738,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -1760,7 +1760,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -1772,10 +1772,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -1790,7 +1790,7 @@ importers:
   examples/with-ffmpeg:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -1811,7 +1811,7 @@ importers:
         specifier: ^0.12.2
         version: 0.12.2
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -1820,16 +1820,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -1845,7 +1845,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -1857,10 +1857,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -1875,7 +1875,7 @@ importers:
   examples/with-generative-ui:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -1887,7 +1887,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -1896,19 +1896,19 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       recharts:
-        specifier: ^3.9.2
+        specifier: ^3.10.0
         version: 3.10.0(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react-is@19.2.8)(react@19.2.8)(redux@5.0.1)
       tailwind-merge:
         specifier: ^3.6.0
@@ -1924,7 +1924,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -1936,10 +1936,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -1969,7 +1969,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@google/adk':
-        specifier: ^1.3.0
+        specifier: ^1.4.0
         version: 1.4.0(@bufbuild/protobuf@2.13.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.4)(@mikro-orm/mariadb@6.6.16(@mikro-orm/core@6.6.16)(pg@8.20.0))(@mikro-orm/mssql@6.6.16(@mikro-orm/core@6.6.16)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/mysql@6.6.16(@mikro-orm/core@6.6.16)(@types/node@26.1.1)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/postgresql@6.6.16(@mikro-orm/core@6.6.16)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.16(@mikro-orm/core@6.6.16)(mariadb@3.4.5)(pg@8.20.0))(@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)
       class-variance-authority:
         specifier: ^0.7.1
@@ -1978,16 +1978,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -2003,7 +2003,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -2015,10 +2015,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -2036,13 +2036,13 @@ importers:
         specifier: workspace:*
         version: link:../../packages/heat-graph
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
     devDependencies:
       '@assistant-ui/next':
@@ -2052,7 +2052,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -2064,10 +2064,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
@@ -2079,7 +2079,7 @@ importers:
   examples/with-image-generation:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -2088,7 +2088,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -2097,16 +2097,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -2119,7 +2119,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -2131,10 +2131,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -2149,7 +2149,7 @@ importers:
   examples/with-interactables:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -2161,7 +2161,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -2170,16 +2170,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -2192,7 +2192,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -2204,10 +2204,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -2234,10 +2234,10 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@langchain/langgraph-sdk':
-        specifier: ^1.9.25
+        specifier: ^1.9.28
         version: 1.9.28(@langchain/core@1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@langchain/react':
-        specifier: ^1.0.26
+        specifier: ^1.0.29
         version: 1.0.29(@langchain/core@1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       class-variance-authority:
         specifier: ^0.7.1
@@ -2246,16 +2246,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -2268,7 +2268,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -2280,10 +2280,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -2310,10 +2310,10 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@langchain/langgraph-sdk':
-        specifier: ^1.9.25
+        specifier: ^1.9.28
         version: 1.9.28(@langchain/core@1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@langchain/react':
-        specifier: ^1.0.26
+        specifier: ^1.0.29
         version: 1.0.29(@langchain/core@1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       class-variance-authority:
         specifier: ^0.7.1
@@ -2322,16 +2322,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -2344,7 +2344,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -2356,10 +2356,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -2374,10 +2374,10 @@ importers:
   examples/with-livekit:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.30
+        specifier: ^4.0.40
         version: 4.0.40(react@19.2.8)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:^
@@ -2392,10 +2392,10 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -2404,34 +2404,34 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       livekit-client:
-        specifier: ^2.20.1
+        specifier: ^2.21.0
         version: 2.21.0(@types/dom-mediacapture-record@1.0.22)
       livekit-server-sdk:
         specifier: ^2.17.0
         version: 2.17.0
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       motion:
         specifier: ^12.42.2
         version: 12.42.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       zod:
         specifier: ^4.4.3
@@ -2465,7 +2465,7 @@ importers:
   examples/with-mcp:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -2492,7 +2492,7 @@ importers:
         specifier: ^1.29.0
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
@@ -2510,16 +2510,16 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -2532,7 +2532,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/cors':
         specifier: ^2.8.19
@@ -2550,13 +2550,13 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       concurrently:
-        specifier: ^10.0.3
+        specifier: ^10.0.4
         version: 10.0.4
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tsx:
         specifier: ^4.23.1
@@ -2595,16 +2595,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -2620,7 +2620,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -2632,10 +2632,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -2671,19 +2671,19 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       radix-ui:
-        specifier: ^1.6.2
+        specifier: ^1.6.7
         version: 1.6.7(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -2696,7 +2696,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -2708,10 +2708,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -2726,7 +2726,7 @@ importers:
   examples/with-react-hook-form:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -2744,7 +2744,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -2753,19 +2753,19 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       react-hook-form:
-        specifier: ^7.81.0
+        specifier: ^7.83.0
         version: 7.83.0(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -2778,7 +2778,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -2790,10 +2790,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -2814,10 +2814,10 @@ importers:
         specifier: workspace:*
         version: link:../../packages/react-ink-markdown
       ink:
-        specifier: ^7.1.0
+        specifier: ^7.1.1
         version: 7.1.1(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
     devDependencies:
       '@types/react':
@@ -2851,22 +2851,22 @@ importers:
         specifier: ^0.3.0
         version: 0.3.0(@wterm/dom@0.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       ink:
-        specifier: ^7.1.0
+        specifier: ^7.1.1
         version: 7.1.1(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.8)
       ink-web:
         specifier: ^0.2.0
         version: 0.2.0(@xterm/xterm@6.0.0)(ink@7.1.1(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.8))(react-reconciler@0.33.0(react@19.2.8))(react@19.2.8)(scheduler@0.27.0)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       react-reconciler:
         specifier: ^0.33.0
@@ -2897,10 +2897,10 @@ importers:
         specifier: workspace:*
         version: link:../../packages/react-markdown
       '@react-router/node':
-        specifier: ^8.2.0
+        specifier: ^8.3.0
         version: 8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@react-router/serve':
-        specifier: ^8.2.0
+        specifier: ^8.3.0
         version: 8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       class-variance-authority:
         specifier: ^0.7.1
@@ -2915,19 +2915,19 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       openai:
-        specifier: ^6.47.0
+        specifier: ^6.49.0
         version: 6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       react-router:
-        specifier: ^8.2.0
+        specifier: ^8.3.0
         version: 8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       remark-gfm:
         specifier: ^4.0.1
@@ -2937,10 +2937,10 @@ importers:
         version: 3.6.0
     devDependencies:
       '@react-router/dev':
-        specifier: ^8.2.0
+        specifier: ^8.3.0
         version: 8.3.0(@react-router/serve@8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)))(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       '@tailwindcss/vite':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       '@types/node':
         specifier: ^26.1.1
@@ -2952,7 +2952,7 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -2964,7 +2964,7 @@ importers:
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
       vite:
-        specifier: ^8.1.4
+        specifier: ^8.1.5
         version: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)
       vite-tsconfig-paths:
         specifier: ^6.1.1
@@ -2973,10 +2973,10 @@ importers:
   examples/with-resumable-stream:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.30
+        specifier: ^4.0.40
         version: 4.0.40(react@19.2.8)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -2997,7 +2997,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       assistant-stream:
         specifier: workspace:*
@@ -3009,16 +3009,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       redis:
         specifier: ^6.1.0
@@ -3037,7 +3037,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -3049,10 +3049,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -3073,13 +3073,13 @@ importers:
         specifier: workspace:*
         version: link:../../packages/tap
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
     devDependencies:
       '@assistant-ui/next':
@@ -3089,7 +3089,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -3101,10 +3101,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -3125,13 +3125,13 @@ importers:
         specifier: workspace:*
         version: link:../../packages/react-markdown
       '@tailwindcss/vite':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       '@tanstack/react-router':
         specifier: ^1.170.18
         version: 1.170.18(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@tanstack/react-start':
-        specifier: ^1.168.28
+        specifier: ^1.168.32
         version: 1.168.32(crossws@0.4.10(srvx@0.11.22))(esbuild@0.28.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(rolldown@1.2.0)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       class-variance-authority:
         specifier: ^0.7.1
@@ -3140,19 +3140,19 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       nitro:
         specifier: ^3.0.260311-beta
         version: 3.0.260311-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       openai:
-        specifier: ^6.47.0
+        specifier: ^6.49.0
         version: 6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       remark-gfm:
         specifier: ^4.0.1
@@ -3161,7 +3161,7 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       vite-tsconfig-paths:
         specifier: ^6.1.1
@@ -3180,13 +3180,13 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       '@vitejs/plugin-react':
-        specifier: ^6.0.3
+        specifier: ^6.0.4
         version: 6.0.4(babel-plugin-react-compiler@1.0.0)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
       vite:
-        specifier: ^8.1.4
+        specifier: ^8.1.5
         version: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)
 
   examples/with-tap-runtime:
@@ -3207,16 +3207,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -3229,7 +3229,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -3241,10 +3241,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -3268,7 +3268,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@tanstack/react-virtual':
-        specifier: ^3.14.6
+        specifier: ^3.14.8
         version: 3.14.8(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       class-variance-authority:
         specifier: ^0.7.1
@@ -3277,16 +3277,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -3299,7 +3299,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -3311,10 +3311,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -3397,13 +3397,13 @@ importers:
         specifier: ^3.0.2
         version: 3.0.2
       giget:
-        specifier: ^3.3.0
+        specifier: ^3.3.1
         version: 3.3.1
       glob:
         specifier: ^13.0.6
         version: 13.0.6
       jscodeshift:
-        specifier: ^17.3.0
+        specifier: ^17.4.0
         version: 17.4.0
       jsonc-parser:
         specifier: ^3.3.1
@@ -3463,7 +3463,7 @@ importers:
         version: link:../cloud
     devDependencies:
       '@ai-sdk/react':
-        specifier: ^4.0.30
+        specifier: ^4.0.40
         version: 4.0.40(react@19.2.8)(zod@4.4.3)
       '@ai-sdk/react-v3':
         specifier: npm:@ai-sdk/react@^3.0.211
@@ -3487,7 +3487,7 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       ai-v6:
         specifier: npm:ai@^6.0.209
@@ -3499,7 +3499,7 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
@@ -3539,10 +3539,10 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^4.1.10
@@ -3580,10 +3580,10 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       eve:
-        specifier: ^0.24.3
-        version: 0.24.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
+        specifier: ^0.27.6
+        version: 0.27.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
@@ -3592,7 +3592,7 @@ importers:
   packages/heat-graph:
     dependencies:
       '@radix-ui/react-popper':
-        specifier: ^1.3.3
+        specifier: ^1.3.7
         version: 1.3.7(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-dom:
         specifier: ^18 || ^19
@@ -3614,7 +3614,7 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
@@ -3670,7 +3670,7 @@ importers:
         specifier: ^26.1.1
         version: 26.1.1
       tsdown:
-        specifier: ^0.22.7
+        specifier: ^0.22.14
         version: 0.22.14(@typescript/typescript6@6.0.2)(tsx@4.23.1)
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
@@ -3710,28 +3710,28 @@ importers:
         specifier: ^0.9.4
         version: link:../tap
       '@radix-ui/primitive':
-        specifier: ^1.1.5
+        specifier: ^1.1.7
         version: 1.1.7
       '@radix-ui/react-collection':
-        specifier: ^1.1.12
+        specifier: ^1.1.15
         version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@radix-ui/react-compose-refs':
-        specifier: ^1.1.3
+        specifier: ^1.1.5
         version: 1.1.5(@types/react@19.2.17)(react@19.2.8)
       '@radix-ui/react-context':
-        specifier: ^1.2.0
+        specifier: ^1.2.2
         version: 1.2.2(@types/react@19.2.17)(react@19.2.8)
       '@radix-ui/react-primitive':
-        specifier: ^2.1.7
+        specifier: ^2.1.10
         version: 2.1.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@radix-ui/react-use-callback-ref':
-        specifier: ^1.1.2
+        specifier: ^1.1.4
         version: 1.1.4(@types/react@19.2.17)(react@19.2.8)
       '@radix-ui/react-use-controllable-state':
-        specifier: ^1.2.3
+        specifier: ^1.2.6
         version: 1.2.6(@types/react@19.2.17)(react@19.2.8)
       '@radix-ui/react-use-escape-keydown':
-        specifier: ^1.1.3
+        specifier: ^1.1.5
         version: 1.1.5(@types/react@19.2.17)(react@19.2.8)
       assistant-cloud:
         specifier: ^0.1.35
@@ -3743,7 +3743,7 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
       radix-ui:
-        specifier: ^1.6.2
+        specifier: ^1.6.7
         version: 1.6.7(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-textarea-autosize:
         specifier: ^8.5.9
@@ -3783,10 +3783,10 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^4.1.10
@@ -3820,10 +3820,10 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^4.1.10
@@ -3854,7 +3854,7 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
@@ -3866,10 +3866,10 @@ importers:
   packages/react-ai-sdk:
     dependencies:
       '@ai-sdk/mcp':
-        specifier: ^2.0.13
+        specifier: ^2.0.16
         version: 2.0.16(zod@4.4.3)
       '@ai-sdk/react':
-        specifier: ^4.0.30
+        specifier: ^4.0.40
         version: 4.0.40(react@19.2.8)(zod@4.4.3)
       '@assistant-ui/core':
         specifier: ^0.2.21
@@ -3878,7 +3878,7 @@ importers:
         specifier: ^0.2.20
         version: link:../store
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       assistant-cloud:
         specifier: '*'
@@ -3906,7 +3906,7 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
@@ -3937,7 +3937,7 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
@@ -3962,7 +3962,7 @@ importers:
         specifier: workspace:*
         version: link:../x-buildutils
       '@tailwindcss/cli':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -3974,13 +3974,13 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       vitest:
         specifier: ^4.1.10
@@ -4005,10 +4005,10 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^4.1.10
@@ -4048,7 +4048,7 @@ importers:
         specifier: ^11.0.0
         version: 11.0.0
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
@@ -4082,10 +4082,10 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-hook-form:
-        specifier: ^7.81.0
+        specifier: ^7.83.0
         version: 7.83.0(react@19.2.8)
       vitest:
         specifier: ^4.1.10
@@ -4128,13 +4128,13 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       ink:
-        specifier: ^7.1.0
+        specifier: ^7.1.1
         version: 7.1.1(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.8)
       ink-testing-library:
         specifier: ^4.0.0
         version: 4.0.0(@types/react@19.2.17)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       tsx:
         specifier: ^4.23.1
@@ -4165,13 +4165,13 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       ink:
-        specifier: ^7.1.0
+        specifier: ^7.1.1
         version: 7.1.1(@types/react@19.2.17)(react-devtools-core@6.1.5)(react@19.2.8)
       ink-testing-library:
         specifier: ^4.0.0
         version: 4.0.0(@types/react@19.2.17)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       shiki:
         specifier: ^4.3.1
@@ -4202,10 +4202,10 @@ importers:
         specifier: ^1.2.3
         version: 1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1)
       '@langchain/langgraph-sdk':
-        specifier: ^1.9.25
+        specifier: ^1.9.28
         version: 1.9.28(@langchain/core@1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@langchain/react':
-        specifier: ^1.0.26
+        specifier: ^1.0.29
         version: 1.0.29(@langchain/core@1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@testing-library/react':
         specifier: ^16.3.2
@@ -4217,7 +4217,7 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
@@ -4245,7 +4245,7 @@ importers:
         specifier: workspace:*
         version: link:../x-buildutils
       '@langchain/langgraph-sdk':
-        specifier: ^1.9.25
+        specifier: ^1.9.28
         version: 1.9.28(@langchain/core@1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@testing-library/dom':
         specifier: ^10.4.1
@@ -4266,7 +4266,7 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
@@ -4275,14 +4275,14 @@ importers:
   packages/react-lexical:
     dependencies:
       '@lexical/react':
-        specifier: ^0.47.0
-        version: 0.47.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2)(yjs@13.6.31)
+        specifier: ^0.48.0
+        version: 0.48.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2)(yjs@13.6.31)
       '@lexical/utils':
-        specifier: ^0.47.0
-        version: 0.47.0(typescript@7.0.2)
+        specifier: ^0.48.0
+        version: 0.48.0(typescript@7.0.2)
       lexical:
-        specifier: ^0.47.0
-        version: 0.47.0(typescript@7.0.2)
+        specifier: ^0.48.0
+        version: 0.48.0(typescript@7.0.2)
     devDependencies:
       '@assistant-ui/core':
         specifier: workspace:*
@@ -4303,10 +4303,10 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^4.1.10
@@ -4315,10 +4315,10 @@ importers:
   packages/react-markdown:
     dependencies:
       '@radix-ui/react-primitive':
-        specifier: ^2.1.7
+        specifier: ^2.1.10
         version: 2.1.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@radix-ui/react-use-callback-ref':
-        specifier: ^1.1.2
+        specifier: ^1.1.4
         version: 1.1.4(@types/react@19.2.17)(react@19.2.8)
       classnames:
         specifier: ^2.5.1
@@ -4340,10 +4340,10 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^4.1.10
@@ -4364,7 +4364,7 @@ importers:
         specifier: ^1.29.0
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
       '@radix-ui/react-primitive':
-        specifier: ^2.1.7
+        specifier: ^2.1.10
         version: 2.1.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       assistant-stream:
         specifier: workspace:*
@@ -4377,7 +4377,7 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
@@ -4414,10 +4414,10 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       react-native:
         specifier: ^0.86.0
@@ -4438,7 +4438,7 @@ importers:
         specifier: workspace:*
         version: link:../tap
       '@radix-ui/react-primitive':
-        specifier: ^2.1.7
+        specifier: ^2.1.10
         version: 2.1.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4451,10 +4451,10 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^4.1.10
@@ -4469,7 +4469,7 @@ importers:
         specifier: ^0.2.20
         version: link:../store
       '@opencode-ai/sdk':
-        specifier: ^1.18.1
+        specifier: ^1.18.5
         version: 1.18.5
       use-effect-event:
         specifier: ^2.0.3
@@ -4494,10 +4494,10 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^4.1.10
@@ -4531,7 +4531,7 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
@@ -4583,10 +4583,10 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       remark-rehype:
         specifier: ^11.1.2
@@ -4613,7 +4613,7 @@ importers:
         specifier: ^15.5.13
         version: 15.5.13
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-syntax-highlighter:
         specifier: ^16.1.1
@@ -4628,7 +4628,7 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       vite:
-        specifier: ^8.1.4
+        specifier: ^8.1.5
         version: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)
       vitest:
         specifier: ^4.1.10
@@ -4659,7 +4659,7 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
@@ -4692,10 +4692,10 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^4.1.10
@@ -4740,7 +4740,7 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@hookform/resolvers':
-        specifier: ^5.4.0
+        specifier: ^5.4.2
         version: 5.4.2(@sinclair/typebox@0.27.12)(@standard-schema/spec@1.1.0)(ajv@8.20.0)(react-hook-form@7.83.0(react@19.2.8))(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
       beautiful-mermaid:
         specifier: ^1.1.3
@@ -4770,7 +4770,7 @@ importers:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next-themes:
         specifier: ^0.4.6
@@ -4779,13 +4779,13 @@ importers:
         specifier: ^0.12.0
         version: 0.12.0
       radix-ui:
-        specifier: ^1.6.2
+        specifier: ^1.6.7
         version: 1.6.7(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-day-picker:
         specifier: ^10.0.1
         version: 10.0.1(@types/react@19.2.17)(react@19.2.8)
       react-hook-form:
-        specifier: ^7.81.0
+        specifier: ^7.83.0
         version: 7.83.0(react@19.2.8)
       react-markdown:
         specifier: ^10.1.0
@@ -4800,7 +4800,7 @@ importers:
         specifier: ^16.1.1
         version: 16.1.1(react@19.2.8)
       recharts:
-        specifier: ^3.9.2
+        specifier: ^3.10.0
         version: 3.10.0(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react-is@19.2.8)(react@19.2.8)(redux@5.0.1)
       remark-gfm:
         specifier: ^4.0.1
@@ -4834,10 +4834,10 @@ importers:
         specifier: ^15.5.13
         version: 15.5.13
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
 
   packages/vite:
@@ -4853,7 +4853,7 @@ importers:
         specifier: ^26.1.1
         version: 26.1.1
       vite:
-        specifier: ^8.1.4
+        specifier: ^8.1.5
         version: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)
       vitest:
         specifier: ^4.1.10
@@ -4874,10 +4874,10 @@ importers:
         specifier: ^2.7.0
         version: 2.7.0
       rolldown:
-        specifier: ^1.1.5
+        specifier: ^1.2.0
         version: 1.2.0
       tsdown:
-        specifier: ^0.22.7
+        specifier: ^0.22.14
         version: 0.22.14(@typescript/typescript6@6.0.2)(tsx@4.23.1)
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
@@ -4936,7 +4936,7 @@ importers:
   templates/cloud:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -4951,7 +4951,7 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -4960,16 +4960,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       remark-gfm:
         specifier: ^4.0.1
@@ -4991,7 +4991,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/next
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -5006,10 +5006,10 @@ importers:
         specifier: ^0.59.0
         version: 0.59.0
       oxlint:
-        specifier: ^1.74.0
+        specifier: ^1.75.0
         version: 1.75.0
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
@@ -5021,7 +5021,7 @@ importers:
   templates/cloud-clerk:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -5036,13 +5036,13 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@clerk/nextjs':
-        specifier: ^7.5.18
+        specifier: ^7.6.1
         version: 7.6.1(next@16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@clerk/themes':
         specifier: ^2.4.57
         version: 2.4.57(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -5051,16 +5051,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       remark-gfm:
         specifier: ^4.0.1
@@ -5082,7 +5082,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/next
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -5097,10 +5097,10 @@ importers:
         specifier: ^0.59.0
         version: 0.59.0
       oxlint:
-        specifier: ^1.74.0
+        specifier: ^1.75.0
         version: 1.75.0
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
@@ -5112,7 +5112,7 @@ importers:
   templates/default:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -5127,7 +5127,7 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -5136,16 +5136,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       remark-gfm:
         specifier: ^4.0.1
@@ -5167,7 +5167,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/next
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -5182,10 +5182,10 @@ importers:
         specifier: ^0.59.0
         version: 0.59.0
       oxlint:
-        specifier: ^1.74.0
+        specifier: ^1.75.0
         version: 1.75.0
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
@@ -5215,19 +5215,19 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       eve:
-        specifier: ^0.24.3
-        version: 0.24.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
+        specifier: ^0.27.6
+        version: 0.27.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
@@ -5240,7 +5240,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -5255,13 +5255,13 @@ importers:
         specifier: ^0.59.0
         version: 0.59.0
       oxlint:
-        specifier: ^1.74.0
+        specifier: ^1.75.0
         version: 1.75.0
       postcss:
-        specifier: ^8.5.19
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       tw-animate-css:
         specifier: ^1.4.0
@@ -5288,13 +5288,13 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@langchain/anthropic':
-        specifier: ^1.5.1
+        specifier: ^1.5.2
         version: 1.5.2(@langchain/core@1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))
       '@langchain/langgraph':
-        specifier: ^1.4.7
+        specifier: ^1.4.8
         version: 1.4.8(@langchain/core@1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
       '@langchain/react':
-        specifier: ^1.0.26
+        specifier: ^1.0.29
         version: 1.0.29(@langchain/core@1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       class-variance-authority:
         specifier: ^0.7.1
@@ -5303,16 +5303,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       remark-gfm:
         specifier: ^4.0.1
@@ -5337,10 +5337,10 @@ importers:
         specifier: ^1.2.3
         version: 1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1)
       '@langchain/langgraph-cli':
-        specifier: ^1.4.2
+        specifier: ^1.4.3
         version: 1.4.3(d04db738beef5cf70d19844a80a6b418)
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -5352,16 +5352,16 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
       concurrently:
-        specifier: ^10.0.3
+        specifier: ^10.0.4
         version: 10.0.4
       oxfmt:
         specifier: ^0.59.0
         version: 0.59.0
       oxlint:
-        specifier: ^1.74.0
+        specifier: ^1.75.0
         version: 1.75.0
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
@@ -5373,10 +5373,10 @@ importers:
   templates/mcp:
     dependencies:
       '@ai-sdk/mcp':
-        specifier: ^2.0.13
+        specifier: ^2.0.16
         version: 2.0.16(zod@4.4.3)
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -5391,7 +5391,7 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -5400,16 +5400,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       remark-gfm:
         specifier: ^4.0.1
@@ -5431,7 +5431,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/next
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -5446,10 +5446,10 @@ importers:
         specifier: ^0.59.0
         version: 0.59.0
       oxlint:
-        specifier: ^1.74.0
+        specifier: ^1.75.0
         version: 1.75.0
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
@@ -5461,7 +5461,7 @@ importers:
   templates/minimal:
     dependencies:
       '@ai-sdk/openai':
-        specifier: ^4.0.14
+        specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
@@ -5476,7 +5476,7 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       ai:
-        specifier: ^7.0.28
+        specifier: ^7.0.37
         version: 7.0.37(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
@@ -5485,16 +5485,16 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.24.0
+        specifier: ^1.26.0
         version: 1.26.0(react@19.2.8)
       next:
-        specifier: ^16.2.10
+        specifier: ^16.2.11
         version: 16.2.11(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       remark-gfm:
         specifier: ^4.0.1
@@ -5516,7 +5516,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/next
       '@tailwindcss/postcss':
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       '@types/node':
         specifier: ^26.1.1
@@ -5531,10 +5531,10 @@ importers:
         specifier: ^0.59.0
         version: 0.59.0
       oxlint:
-        specifier: ^1.74.0
+        specifier: ^1.75.0
         version: 1.75.0
       tailwindcss:
-        specifier: ^4.3.2
+        specifier: ^4.3.3
         version: 4.3.3
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
@@ -7510,32 +7510,32 @@ packages:
       '@langchain/core': ^1.1.48
       react: ^18 || ^19
 
-  '@lexical/a11y@0.47.0':
-    resolution: {integrity: sha512-MlAL25PxThTYQuFn2aOwyfY9+/wKloAd8fbf4a1GeFATVgvirC8xACBmERpqpf4A06OdLIoIZ5J/qtgJXsdn1g==}
+  '@lexical/a11y@0.48.0':
+    resolution: {integrity: sha512-18W4ehyipkUim4YVoDZitoH63Om3j6iCN4c84zdqE9RgkWf/PE4rvI/8BHTm6Ni7NkVE14nimXgkpaP5ok15zA==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/clipboard@0.47.0':
-    resolution: {integrity: sha512-OIB+NxHjfpRJJoTtU/mqeb7vPVMks5l97QgwoZthQLR/GIc5zrOtvoLftxl5hKAG5lwOe9BzhashKgVcsSPB3g==}
+  '@lexical/clipboard@0.48.0':
+    resolution: {integrity: sha512-xO2trk6+yBl8XXa/VNe20kXczmPxFoWtUHjidbBLEtlGBj+mo63pJj6H5o/WlZsoMKmIOJxwxsn2ejrS8G0/7A==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/code-core@0.47.0':
-    resolution: {integrity: sha512-L0hg+57yzQDhYRV5NFyTwSz2+N3O/iLBgRuMNccE3ieltPPSq7lCBTKOuXF3G0ot3NVudu8//ewHjw7OCMqI5g==}
+  '@lexical/code-core@0.48.0':
+    resolution: {integrity: sha512-+O1Ge06AuSo6+r8R2Xk6SkWG07H5/e4K/Scw9aqCM/BRjITxgvFTHTNvgQbaobCsP0uBJiwW1+ZGeWAWcBCY4w==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/devtools-core@0.47.0':
-    resolution: {integrity: sha512-u/+WHfs9p6Jiz83OdWzM2W7xc/BXUqN/RN/o97qFP+H7XX/D5fD3Sn0q/0ymyDgacN7sI4HNxQttkrKXKn1PCA==}
+  '@lexical/devtools-core@0.48.0':
+    resolution: {integrity: sha512-4kvKWW6ebgQnJNLXPLmw7dqgSChvzYIBNYtfuR6c48Sw+V/QXQTWqfIUbCIe5X4uG8EEXd5O/udXaJx7GBuP+w==}
     peerDependencies:
       react: '>=18.x'
       react-dom: '>=18.x'
@@ -7544,104 +7544,104 @@ packages:
       typescript:
         optional: true
 
-  '@lexical/dragon@0.47.0':
-    resolution: {integrity: sha512-qqkro6sTLddOh2aYSqoXtm1QOQ/DY71AtWj3XmHPIPtxN/PkVKbvJBVZiP/a9kgFoPs+2a2Tlq9cCIDf6xSHuw==}
+  '@lexical/dragon@0.48.0':
+    resolution: {integrity: sha512-uPuu7fVca9vmL/Oz30CRZ7FIPIodwMrTgNsRmV8jE6Qd6a7RNiTW7r3+EhbhIdkLb/sjcWsYyOMyUR1TJAB0wQ==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/extension@0.47.0':
-    resolution: {integrity: sha512-F9WyXB0eDsCbeSuShzgjBS3ugxNnTvHQa+P+VZiVSWilbDNGjJyysco2JCwn5ruLmEP4MXCQn5IKeW7A9FG8KQ==}
+  '@lexical/extension@0.48.0':
+    resolution: {integrity: sha512-4uBObgz84mVbQWiumndmIhkuJL0ojHiMwFSvSUM/FCo1YMVIZvpI56blI0y+2Vix/oLui9EgVQSJjjWV4NAszw==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/hashtag@0.47.0':
-    resolution: {integrity: sha512-i5ML0v5d52h8hen4cdS/tnqfiteWbvpwihJgZR9hLIk9w6vQJISXUWzg4jRPQIezWwU1xikbBLkT5rD+Qth7tw==}
+  '@lexical/hashtag@0.48.0':
+    resolution: {integrity: sha512-hPQtdnbVoNAFsmfnCGfgY7mDbvk6mIznlCRmIR7tLeQKXqz/0Tb6eH3W24EESk9hAF8wFUYNKWE1/Kb3Hl2vEQ==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/history@0.47.0':
-    resolution: {integrity: sha512-CqAR6G4x6WewKS2uDgf2N1/rszIlXiDCW4dwu0IiQV9oVbhOklvAmPBJX6319myJxB+ArtjuuMgDU3gi/iTqXA==}
+  '@lexical/history@0.48.0':
+    resolution: {integrity: sha512-NllvUfO+u3mfi5uC8k2CodwdzeeopFFVtMZ/NMifzFbZFysdWi9m9mqfO46NrEA1rSFOydyefv6oMzC8ULXInA==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/html@0.47.0':
-    resolution: {integrity: sha512-VrJ9tSRuoUP5tTQb7TB+6PTW0Gh5aC3Hnne4GuXDwKUIzoWFXWkxlB0oIlfL5HVljrzO/Ra65v5M3RnR4TX1PA==}
+  '@lexical/html@0.48.0':
+    resolution: {integrity: sha512-uBxlgKl4YgSNEgHJSshdBqtGDzruWdx1ewop+u6faT67qHUdP3P0cUXIrG6NToDWvsL6fzCstAbN76PMER1Pnw==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/internal@0.47.0':
-    resolution: {integrity: sha512-VKDTHajXvjCkjYHwWra4Qjz8AI6PWeNPW7l6Q9AIlAwUiolAXrlkyfrBAFzdAP360IyDbC2gO9fwTb9ZvZM85Q==}
+  '@lexical/internal@0.48.0':
+    resolution: {integrity: sha512-sRwg53K7N0ZQ7KNAvcCY38LSwGizbXP1zlR1lIojZp0GoqHWNvR+vL49t1wYXu1nXx3Osf4ilHHm+aGcwq5hTw==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/link@0.47.0':
-    resolution: {integrity: sha512-lDAbTyJwufKs3yUn1D4AY0IoBU9O4JXzTDqSRa8qVCK7LC3+cF0u+rR5o9RJfxtHUzmALk+s2I0IqlxGCyIocg==}
+  '@lexical/link@0.48.0':
+    resolution: {integrity: sha512-E0UDmNLUXs/yMCnnE7hbFO0CvhWghmqa+qqPksFfzLkpMHdPpdS1yg59YEbYoNHLi/DXIu4cFRvpHIEuooxwNg==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/list@0.47.0':
-    resolution: {integrity: sha512-g8AApVZNqqcCDXfJtgxEfAv7ylK0HmblRaJYMxB0OI7nlLipUjutIUy8cRX5GKI0woa+oGPYi68cZcMQnBysGw==}
+  '@lexical/list@0.48.0':
+    resolution: {integrity: sha512-9Qe/Vur44v9F9enj55SUzf79FVsijcGOQug7SpiIU8ekLr7JNzcilKYBYcZ6etGEo7bqQHsYMHXeJcSBbCI2zA==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/mark@0.47.0':
-    resolution: {integrity: sha512-/9ZS9NSjrqJ/sTZ7l2KFiBxZbbXEmPp/JxtN5sTlM+F4a/hTRreROWlcXgTLyf9g8GTnRyZScvBqFYKWd6HR1g==}
+  '@lexical/mark@0.48.0':
+    resolution: {integrity: sha512-DTtypWvnYSXyNUxEmsUnh4y0xXkmdk8Y72EZl8WDHcCwjqaLJlUakH7p/TuSJczs3uVSaoJzu0yh7oGkP1Vsvw==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/markdown@0.47.0':
-    resolution: {integrity: sha512-mtfcomzk/ZT2wtImEzYeFB6VLsOYM6RqBmwnvEMp5alvJISXFhIHDKAT4BkUMMtWGM6AnrlytZyMNPb4QwnZIA==}
+  '@lexical/markdown@0.48.0':
+    resolution: {integrity: sha512-1WasBenW4bEsa5xtnycVo8G2hcxIqyYLn3/r98yD2Y+54ZyeFuIQfOeJYhIgCh4YkKpfqyrFwkMQwAOsQDqZjA==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/overflow@0.47.0':
-    resolution: {integrity: sha512-XR+F2mni27TgjmE2/PsFYXkAq0AIMV8JJh5VSeHiSg0mccKSfEqsfTxYlwV+um2eGT+6XggtpwFMDy6ZjC+uMw==}
+  '@lexical/overflow@0.48.0':
+    resolution: {integrity: sha512-1YEvMz2tW3EbwrON9mjrkjMVl/vdTcPYSn9P1j6mf5gj0LOoLDNI4TbvSD4SViy+TDghxNdG8YdCISyU2b4YKA==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/plain-text@0.47.0':
-    resolution: {integrity: sha512-MyRjCpEnDJuEeoT/ndYI/i2605QM2bAgFEi6sX/NObYDJSuupC2iY6tOEbCFZ1s0Y1SX6arNrrAPhwygcemz7g==}
+  '@lexical/plain-text@0.48.0':
+    resolution: {integrity: sha512-q4f/4VZKVgCrIW2FhDFR2RII1BU0ljedPgEmJ8XQn1zc+JOFPom8Lp0lV5nyEvZaAJYwM/TfoJ9g2V7ESFKznA==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/react@0.47.0':
-    resolution: {integrity: sha512-4y2iEKghKcYcJ8+GoO8pqyvwjJFVDWR71Ezm37lLQGmSTFKY50miTJmgKI12GeL4hLWQjePpB3eVdmSQHG1b7g==}
+  '@lexical/react@0.48.0':
+    resolution: {integrity: sha512-uVh9/QSrbtjLjVbxfJ+sfiMyhUq/rv7H6uBEVDDIw1rkZJSDY1fvf/CX+dyKgwcDFjKQZ8/9i5f9UCVPeQ01hA==}
     peerDependencies:
       react: '>=18.x'
       react-dom: '>=18.x'
@@ -7653,48 +7653,48 @@ packages:
       yjs:
         optional: true
 
-  '@lexical/rich-text@0.47.0':
-    resolution: {integrity: sha512-GtRH7KNW7fVJzd3Xftdr/EPXaMqHt2xCIO/eJtf17Yrs7vlVOljM0xMcDoj4QOY2Gp4p3CheLlwBbcO96YYV0A==}
+  '@lexical/rich-text@0.48.0':
+    resolution: {integrity: sha512-QMXFnwCKAQ4yzxvx5FwmANcx3K+NaBkGTxAVD8s8pOKDD/U5rzDS1iIvhH6TLWaFp7VzvLmLB+Sl1Ie/RnkaDQ==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/selection@0.47.0':
-    resolution: {integrity: sha512-/q+eXnryZxCeqeWAODhTRlJL+jGa6/vIhE/bh+KvHmLbZJM8qfwa0qzt4rb3g+L1/CbjcowS/Xwv2ha1OmjBFQ==}
+  '@lexical/selection@0.48.0':
+    resolution: {integrity: sha512-Uc0wTrEtHcYK6z/aHHjkgH3vX/R4Bf8mO+qH3VbxfSAKYzNYktM0j+ZGdq5kIEL4frnw/9SulNCXlH7xpjuDgA==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/table@0.47.0':
-    resolution: {integrity: sha512-T0sOB1i0I05f2U+tTVXDitYq4ACtFob42gULwwqqKfQ/SEPq26Kfd5CljI1rSS4+N+vQz/VTDYF/BN7ZMgHpjA==}
+  '@lexical/table@0.48.0':
+    resolution: {integrity: sha512-t9Mz7q6ODLUz0lG5Xn9EY/5YiVpTHCqlPQP4EtFXlnBQT3DuKeDS3cC0Cn8sGSZc11YY5OLDfWpB64Frs9BL3g==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/text@0.47.0':
-    resolution: {integrity: sha512-Rj1xa/MMhgOckjOJ+ifDUO8BUyi7o+a/vpYcsftMTCpiKmeteO+qSAKoyhvZke496nLh/WFCWKw/iD43bst/Ig==}
+  '@lexical/text@0.48.0':
+    resolution: {integrity: sha512-ktTMRbsX4wKxdG2OpZCkrqtt8k9Vg/ZpWdukOQ0r1xPRtCuL1T+q91l7cy2ywIuCfMGYS0aoZGB4LdpUMe/H1g==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/utils@0.47.0':
-    resolution: {integrity: sha512-uVAqNr5qiE4t9GSj+L4rv06WaIGADzblxEKCn134sPzvsVouDv0VTT0pBKjQYUgshT4z9iW5cFtO11+iPacBYg==}
+  '@lexical/utils@0.48.0':
+    resolution: {integrity: sha512-W4k4P+y6jmRfna8+ad4X+iMd5h8es5PC3bUw5tbi7MRApxaaFG/0w+uJiZVSwbT2Q6JnA2xhBaqzPgt/Gn6djg==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  '@lexical/yjs@0.47.0':
-    resolution: {integrity: sha512-EKw1df2cmUTQrfSp1EnXqsHtNjwgxS973CRor0W4GWmIQJyKdmf6cmA7cct3flkyH5tE/xDnpr8sy38U4R2hlQ==}
+  '@lexical/yjs@0.48.0':
+    resolution: {integrity: sha512-fFsE8EnPM/2KK9rMJ0z6T+Da5UW5V4P+XiAA03LoHTY5YQ/Oy8Q0i7Wcmocv/B/SpsY2o8g07euZEfudl9MVKA==}
     peerDependencies:
       typescript: '>=5.2'
       yjs: '>=13.5.22'
@@ -12505,13 +12505,13 @@ packages:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
 
-  eve@0.24.6:
-    resolution: {integrity: sha512-/WuGD6gAzv7DviM0bN0y4813bJSbBTeiTHVUR1GAOIH7PUCOCFY7lXbrDOG7Wk/mTa2IBmT4Om3L+nudCc+02g==}
+  eve@0.27.6:
+    resolution: {integrity: sha512-t2Xr/nlVGc0+Fy9fav8p/CJrwMSQM0zyuOGY1F1XapN0UFssGYBGa6Ml/Q5OnowvWwsGH4m0Tf2QAccayVCvtw==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
       '@opentelemetry/api': ^1.0.0
-      ai: ^7.0.26
+      ai: ^7.0.34
       braintrust: ^3.0.0
       just-bash: ^3.0.0
       microsandbox: ^0.5.0
@@ -14122,8 +14122,8 @@ packages:
     resolution: {integrity: sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A==}
     engines: {node: '>=6'}
 
-  lexical@0.47.0:
-    resolution: {integrity: sha512-ZKsxsk3jUpXsRtG20EBq42z2bq8A20UHtjqvVT/kIxfsaiXwaRFBBcLSFxPa77j+hXkBF5w96C3/imwtmLoRdg==}
+  lexical@0.48.0:
+    resolution: {integrity: sha512-KK4Tyr/cPsleoZ7XvhGRiRmcrZidSmoFUdIXK9nPubIifoC+80Dc5THyc4xtGKtsW24S1TsHzk5gmfBU+TxmEg==}
     peerDependencies:
       typescript: '>=5.2'
     peerDependenciesMeta:
@@ -15946,8 +15946,8 @@ packages:
       react-native-gesture-handler: '>= 2.0.0'
       react-native-reanimated: '>= 2.0.0'
 
-  react-native-gesture-handler@3.0.2:
-    resolution: {integrity: sha512-XBTgmvr2jh/xrMwlHTV2Z1x6IFUl3zfLxyaCAnvj3GSXK5YlY3ZmiIs57hniPmh3I7RtjPFxtGdRr0i+PzyBrg==}
+  react-native-gesture-handler@3.1.0:
+    resolution: {integrity: sha512-+kWVyZ6vLdtyFa1/aOc/sZncLAVPUKxhji/ttbiLI7hOaSU44bLjhI7p+Ns+pMl2r3RqPXssl5qHReYet9G77g==}
     peerDependencies:
       react: '*'
       react-native: '*'
@@ -15965,17 +15965,17 @@ packages:
       react-native: 0.83 - 0.86
       react-native-worklets: 0.10.x
 
-  react-native-safe-area-context@5.7.0:
-    resolution: {integrity: sha512-/9/MtQz8ODphjsLdZ+GZAIcC/RtoqW9EeShf7Uvnfgm/pzYrJ75y3PV/J1wuAV1T5Dye5ygq4EAW20RoBq0ABQ==}
+  react-native-safe-area-context@5.8.0:
+    resolution: {integrity: sha512-t+ZsAVzY/wWzzx34vqGbo3/as9EEESJdbyZNL7Yg5EYX+toYMtMqFoDDCvqZUi35eeGVsXc6pAaEk4edMwbuCQ==}
     peerDependencies:
       react: '*'
       react-native: '*'
 
-  react-native-screens@4.25.2:
-    resolution: {integrity: sha512-1Nj1fusFd+rIMKU/qC9yGKVG+3ofh11d3OdBQKL1iVvQfKvcB8vhvTGQf2TkfxW3bamxN+hCZIXmNuU0mRkyDg==}
+  react-native-screens@4.26.2:
+    resolution: {integrity: sha512-2XnWsZToKj76trGtEZzx5ELD/qOICFEprEeUntImmitQFVUkea27fiWdUSITArI356Y1qynpXZINW+Unbhky/A==}
     peerDependencies:
       react: '*'
-      react-native: '>=0.82.0'
+      react-native: '*'
 
   react-native-web@0.21.2:
     resolution: {integrity: sha512-SO2t9/17zM4iEnFvlu2DA9jqNbzNhoUP+AItkoCOyFmDMOhUnBBznBDCYN92fGdfAkfQlWzPoez6+zLxFNsZEg==}
@@ -16427,8 +16427,8 @@ packages:
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  satori@0.28.2:
-    resolution: {integrity: sha512-AZBuptlBvlMf+EC/WI6Ss5MJwSEstrC6Pf1o5b2keg6h1QbvjStmrnJXUDGWOrfC1KSU0FApyGhF2xnBwmJRgA==}
+  satori@0.29.0:
+    resolution: {integrity: sha512-fPAfrwNaIQ7EsJLhY382STEqpczN6ZEH9NsKXDQgRcxUXNNPB73iAjSshzFwTaaScT68pxV0pmG6TBzDQ4sEGw==}
     engines: {node: '>=16'}
 
   sax@1.6.1:
@@ -19651,7 +19651,7 @@ snapshots:
       ws: 8.21.1
       zod: 3.25.76
     optionalDependencies:
-      expo-router: 57.0.8(0f8e21954774c9275b94e6f24396828e)
+      expo-router: 57.0.8(8e991051b651f14d5a2319ddb85a14a1)
       react-native: 0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3)
     transitivePeerDependencies:
       - '@expo/dom-webview'
@@ -19928,7 +19928,7 @@ snapshots:
       react: 19.2.3
     optionalDependencies:
       '@expo/metro-runtime': 57.0.7(@expo/log-box@57.0.1)(expo@57.0.8)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
-      expo-router: 57.0.8(0f8e21954774c9275b94e6f24396828e)
+      expo-router: 57.0.8(8e991051b651f14d5a2319ddb85a14a1)
       react-dom: 19.2.3(react@19.2.3)
     transitivePeerDependencies:
       - supports-color
@@ -20752,232 +20752,232 @@ snapshots:
       - svelte
       - vue
 
-  '@lexical/a11y@0.47.0(typescript@7.0.2)':
+  '@lexical/a11y@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/extension': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/extension': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/clipboard@0.47.0(typescript@7.0.2)':
+  '@lexical/clipboard@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/extension': 0.47.0(typescript@7.0.2)
-      '@lexical/html': 0.47.0(typescript@7.0.2)
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      '@lexical/list': 0.47.0(typescript@7.0.2)
-      '@lexical/selection': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
+      '@lexical/extension': 0.48.0(typescript@7.0.2)
+      '@lexical/html': 0.48.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      '@lexical/list': 0.48.0(typescript@7.0.2)
+      '@lexical/selection': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
       '@types/trusted-types': 2.0.7
-      lexical: 0.47.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/code-core@0.47.0(typescript@7.0.2)':
+  '@lexical/code-core@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/extension': 0.47.0(typescript@7.0.2)
-      '@lexical/html': 0.47.0(typescript@7.0.2)
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/extension': 0.48.0(typescript@7.0.2)
+      '@lexical/html': 0.48.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/devtools-core@0.47.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2)':
+  '@lexical/devtools-core@0.48.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2)':
     dependencies:
-      '@lexical/html': 0.47.0(typescript@7.0.2)
-      '@lexical/link': 0.47.0(typescript@7.0.2)
-      '@lexical/mark': 0.47.0(typescript@7.0.2)
-      '@lexical/table': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/html': 0.48.0(typescript@7.0.2)
+      '@lexical/link': 0.48.0(typescript@7.0.2)
+      '@lexical/mark': 0.48.0(typescript@7.0.2)
+      '@lexical/table': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/dragon@0.47.0(typescript@7.0.2)':
+  '@lexical/dragon@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/extension': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/extension': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/extension@0.47.0(typescript@7.0.2)':
+  '@lexical/extension@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
       '@preact/signals-core': 1.14.4
-      lexical: 0.47.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/hashtag@0.47.0(typescript@7.0.2)':
+  '@lexical/hashtag@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/text': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/text': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/history@0.47.0(typescript@7.0.2)':
+  '@lexical/history@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/extension': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/extension': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/html@0.47.0(typescript@7.0.2)':
+  '@lexical/html@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/extension': 0.47.0(typescript@7.0.2)
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      '@lexical/selection': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/extension': 0.48.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      '@lexical/selection': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/internal@0.47.0(typescript@7.0.2)':
+  '@lexical/internal@0.48.0(typescript@7.0.2)':
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/link@0.47.0(typescript@7.0.2)':
+  '@lexical/link@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/extension': 0.47.0(typescript@7.0.2)
-      '@lexical/html': 0.47.0(typescript@7.0.2)
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/extension': 0.48.0(typescript@7.0.2)
+      '@lexical/html': 0.48.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/list@0.47.0(typescript@7.0.2)':
+  '@lexical/list@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/extension': 0.47.0(typescript@7.0.2)
-      '@lexical/html': 0.47.0(typescript@7.0.2)
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/extension': 0.48.0(typescript@7.0.2)
+      '@lexical/html': 0.48.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/mark@0.47.0(typescript@7.0.2)':
+  '@lexical/mark@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/markdown@0.47.0(typescript@7.0.2)':
+  '@lexical/markdown@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/code-core': 0.47.0(typescript@7.0.2)
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      '@lexical/link': 0.47.0(typescript@7.0.2)
-      '@lexical/list': 0.47.0(typescript@7.0.2)
-      '@lexical/rich-text': 0.47.0(typescript@7.0.2)
-      '@lexical/selection': 0.47.0(typescript@7.0.2)
-      '@lexical/text': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/code-core': 0.48.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      '@lexical/link': 0.48.0(typescript@7.0.2)
+      '@lexical/list': 0.48.0(typescript@7.0.2)
+      '@lexical/rich-text': 0.48.0(typescript@7.0.2)
+      '@lexical/selection': 0.48.0(typescript@7.0.2)
+      '@lexical/text': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/overflow@0.47.0(typescript@7.0.2)':
+  '@lexical/overflow@0.48.0(typescript@7.0.2)':
     dependencies:
-      lexical: 0.47.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/plain-text@0.47.0(typescript@7.0.2)':
+  '@lexical/plain-text@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/clipboard': 0.47.0(typescript@7.0.2)
-      '@lexical/dragon': 0.47.0(typescript@7.0.2)
-      '@lexical/extension': 0.47.0(typescript@7.0.2)
-      '@lexical/selection': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/clipboard': 0.48.0(typescript@7.0.2)
+      '@lexical/dragon': 0.48.0(typescript@7.0.2)
+      '@lexical/extension': 0.48.0(typescript@7.0.2)
+      '@lexical/selection': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/react@0.47.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2)(yjs@13.6.31)':
+  '@lexical/react@0.48.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2)(yjs@13.6.31)':
     dependencies:
       '@floating-ui/react': 0.27.20(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@lexical/a11y': 0.47.0(typescript@7.0.2)
-      '@lexical/devtools-core': 0.47.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2)
-      '@lexical/dragon': 0.47.0(typescript@7.0.2)
-      '@lexical/extension': 0.47.0(typescript@7.0.2)
-      '@lexical/hashtag': 0.47.0(typescript@7.0.2)
-      '@lexical/history': 0.47.0(typescript@7.0.2)
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      '@lexical/link': 0.47.0(typescript@7.0.2)
-      '@lexical/list': 0.47.0(typescript@7.0.2)
-      '@lexical/mark': 0.47.0(typescript@7.0.2)
-      '@lexical/markdown': 0.47.0(typescript@7.0.2)
-      '@lexical/overflow': 0.47.0(typescript@7.0.2)
-      '@lexical/plain-text': 0.47.0(typescript@7.0.2)
-      '@lexical/rich-text': 0.47.0(typescript@7.0.2)
-      '@lexical/table': 0.47.0(typescript@7.0.2)
-      '@lexical/text': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      '@lexical/yjs': 0.47.0(typescript@7.0.2)(yjs@13.6.31)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/a11y': 0.48.0(typescript@7.0.2)
+      '@lexical/devtools-core': 0.48.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2)
+      '@lexical/dragon': 0.48.0(typescript@7.0.2)
+      '@lexical/extension': 0.48.0(typescript@7.0.2)
+      '@lexical/hashtag': 0.48.0(typescript@7.0.2)
+      '@lexical/history': 0.48.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      '@lexical/link': 0.48.0(typescript@7.0.2)
+      '@lexical/list': 0.48.0(typescript@7.0.2)
+      '@lexical/mark': 0.48.0(typescript@7.0.2)
+      '@lexical/markdown': 0.48.0(typescript@7.0.2)
+      '@lexical/overflow': 0.48.0(typescript@7.0.2)
+      '@lexical/plain-text': 0.48.0(typescript@7.0.2)
+      '@lexical/rich-text': 0.48.0(typescript@7.0.2)
+      '@lexical/table': 0.48.0(typescript@7.0.2)
+      '@lexical/text': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      '@lexical/yjs': 0.48.0(typescript@7.0.2)(yjs@13.6.31)
+      lexical: 0.48.0(typescript@7.0.2)
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
     optionalDependencies:
       typescript: 7.0.2
       yjs: 13.6.31
 
-  '@lexical/rich-text@0.47.0(typescript@7.0.2)':
+  '@lexical/rich-text@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/clipboard': 0.47.0(typescript@7.0.2)
-      '@lexical/dragon': 0.47.0(typescript@7.0.2)
-      '@lexical/extension': 0.47.0(typescript@7.0.2)
-      '@lexical/html': 0.47.0(typescript@7.0.2)
-      '@lexical/selection': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/clipboard': 0.48.0(typescript@7.0.2)
+      '@lexical/dragon': 0.48.0(typescript@7.0.2)
+      '@lexical/extension': 0.48.0(typescript@7.0.2)
+      '@lexical/html': 0.48.0(typescript@7.0.2)
+      '@lexical/selection': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/selection@0.47.0(typescript@7.0.2)':
+  '@lexical/selection@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/table@0.47.0(typescript@7.0.2)':
+  '@lexical/table@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/clipboard': 0.47.0(typescript@7.0.2)
-      '@lexical/extension': 0.47.0(typescript@7.0.2)
-      '@lexical/html': 0.47.0(typescript@7.0.2)
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      '@lexical/utils': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/clipboard': 0.48.0(typescript@7.0.2)
+      '@lexical/extension': 0.48.0(typescript@7.0.2)
+      '@lexical/html': 0.48.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      '@lexical/utils': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/text@0.47.0(typescript@7.0.2)':
+  '@lexical/text@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/utils@0.47.0(typescript@7.0.2)':
+  '@lexical/utils@0.48.0(typescript@7.0.2)':
     dependencies:
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      '@lexical/selection': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      '@lexical/selection': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
-  '@lexical/yjs@0.47.0(typescript@7.0.2)(yjs@13.6.31)':
+  '@lexical/yjs@0.48.0(typescript@7.0.2)(yjs@13.6.31)':
     dependencies:
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
-      '@lexical/selection': 0.47.0(typescript@7.0.2)
-      lexical: 0.47.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
+      '@lexical/selection': 0.48.0(typescript@7.0.2)
+      lexical: 0.48.0(typescript@7.0.2)
       yjs: 13.6.31
     optionalDependencies:
       typescript: 7.0.2
@@ -23020,29 +23020,29 @@ snapshots:
       use-latest-callback: 0.2.6(react@19.2.3)
       use-sync-external-store: 1.6.0(react@19.2.3)
 
-  '@react-navigation/drawer@7.9.4(ef9166191b0bd9ed94037c10bbfeb318)':
+  '@react-navigation/drawer@7.9.4(4d47d03ec5c10e0e136ca07ddba64efc)':
     dependencies:
-      '@react-navigation/elements': 2.9.36(@react-native-masked-view/masked-view@0.3.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(@react-navigation/native@7.1.33(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-safe-area-context@5.7.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      '@react-navigation/elements': 2.9.36(@react-native-masked-view/masked-view@0.3.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(@react-navigation/native@7.1.33(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-safe-area-context@5.8.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@react-navigation/native': 7.1.33(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       color: 4.2.3
       react: 19.2.3
       react-native: 0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3)
-      react-native-drawer-layout: 4.2.9(react-native-gesture-handler@3.0.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-reanimated@4.5.0(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
-      react-native-gesture-handler: 3.0.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-drawer-layout: 4.2.9(react-native-gesture-handler@3.1.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-reanimated@4.5.0(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-gesture-handler: 3.1.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-reanimated: 4.5.0(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
-      react-native-safe-area-context: 5.7.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
-      react-native-screens: 4.25.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-safe-area-context: 5.8.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-screens: 4.26.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       use-latest-callback: 0.2.6(react@19.2.3)
     transitivePeerDependencies:
       - '@react-native-masked-view/masked-view'
 
-  '@react-navigation/elements@2.9.36(@react-native-masked-view/masked-view@0.3.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(@react-navigation/native@7.1.33(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-safe-area-context@5.7.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
+  '@react-navigation/elements@2.9.36(@react-native-masked-view/masked-view@0.3.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(@react-navigation/native@7.1.33(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-safe-area-context@5.8.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@react-navigation/native': 7.1.33(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       color: 4.2.3
       react: 19.2.3
       react-native: 0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3)
-      react-native-safe-area-context: 5.7.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-safe-area-context: 5.8.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       use-latest-callback: 0.2.6(react@19.2.3)
       use-sync-external-store: 1.6.0(react@19.2.3)
     optionalDependencies:
@@ -26060,7 +26060,7 @@ snapshots:
 
   etag@1.8.1: {}
 
-  eve@0.24.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)):
+  eve@0.27.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)):
     dependencies:
       ai: 7.0.37(zod@4.4.3)
       nitro: 3.0.260610-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
@@ -26107,7 +26107,7 @@ snapshots:
       - xml2js
       - zephyr-agent
 
-  eve@0.24.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)):
+  eve@0.27.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)):
     dependencies:
       ai: 7.0.37(zod@4.4.3)
       nitro: 3.0.260610-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.0)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
@@ -26313,7 +26313,7 @@ snapshots:
     dependencies:
       react-native: 0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3)
 
-  expo-router@57.0.8(0f8e21954774c9275b94e6f24396828e):
+  expo-router@57.0.8(8e991051b651f14d5a2319ddb85a14a1):
     dependencies:
       '@expo/log-box': 57.0.1(@expo/dom-webview@57.0.1)(expo@57.0.8)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@expo/metro-runtime': 57.0.7(@expo/log-box@57.0.1)(expo@57.0.8)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -26342,9 +26342,9 @@ snapshots:
       react-fast-compare: 3.2.2
       react-is: 19.2.8
       react-native: 0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3)
-      react-native-drawer-layout: 4.2.9(react-native-gesture-handler@3.0.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-reanimated@4.5.0(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
-      react-native-safe-area-context: 5.7.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
-      react-native-screens: 4.25.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-drawer-layout: 4.2.9(react-native-gesture-handler@3.1.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-reanimated@4.5.0(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-safe-area-context: 5.8.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-screens: 4.26.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       server-only: 0.0.1
       sf-symbols-typescript: 2.2.0
       shallowequal: 1.1.0
@@ -26352,7 +26352,7 @@ snapshots:
       vaul: 1.1.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
     optionalDependencies:
       react-dom: 19.2.3(react@19.2.3)
-      react-native-gesture-handler: 3.0.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-gesture-handler: 3.1.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-reanimated: 4.5.0(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-web: 0.21.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
     transitivePeerDependencies:
@@ -28092,9 +28092,9 @@ snapshots:
 
   leven@3.1.0: {}
 
-  lexical@0.47.0(typescript@7.0.2):
+  lexical@0.48.0(typescript@7.0.2):
     dependencies:
-      '@lexical/internal': 0.47.0(typescript@7.0.2)
+      '@lexical/internal': 0.48.0(typescript@7.0.2)
     optionalDependencies:
       typescript: 7.0.2
 
@@ -30394,16 +30394,16 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  react-native-drawer-layout@4.2.9(react-native-gesture-handler@3.0.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-reanimated@4.5.0(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
+  react-native-drawer-layout@4.2.9(react-native-gesture-handler@3.1.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-reanimated@4.5.0(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
     dependencies:
       color: 4.2.3
       react: 19.2.3
       react-native: 0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3)
-      react-native-gesture-handler: 3.0.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-gesture-handler: 3.1.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-reanimated: 4.5.0(react-native-worklets@0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       use-latest-callback: 0.2.6(react@19.2.3)
 
-  react-native-gesture-handler@3.0.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
+  react-native-gesture-handler@3.1.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
     dependencies:
       '@types/react-test-renderer': 19.1.0
       invariant: 2.2.4
@@ -30423,12 +30423,12 @@ snapshots:
       react-native-worklets: 0.10.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       semver: 7.8.5
 
-  react-native-safe-area-context@5.7.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
+  react-native-safe-area-context@5.8.0(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
     dependencies:
       react: 19.2.3
       react-native: 0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3)
 
-  react-native-screens@4.25.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
+  react-native-screens@4.26.2(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
     dependencies:
       react: 19.2.3
       react-freeze: 1.0.4(react@19.2.3)
@@ -31161,7 +31161,7 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
-  satori@0.28.2:
+  satori@0.29.0:
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0
       css-background-parser: 0.1.0

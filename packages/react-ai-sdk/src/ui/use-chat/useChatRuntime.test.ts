@@ -1,11 +1,23 @@
 // @vitest-environment jsdom
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const runtime = {};
+  const state = { isLoadingHistory: false };
+  const subscribers = new Set<() => void>();
+  const runtime = {
+    thread: {
+      getState: () => ({ isLoading: state.isLoadingHistory }),
+      subscribe: (callback: () => void) => {
+        subscribers.add(callback);
+        return () => subscribers.delete(callback);
+      },
+    },
+  };
   return {
+    state,
+    subscribers,
     runtime,
     useChat: vi.fn(),
     useAISDKRuntime: vi.fn(() => runtime),
@@ -45,6 +57,36 @@ import { useChatRuntime } from "./useChatRuntime";
 describe("useChatRuntime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.state.isLoadingHistory = false;
+    mocks.subscribers.clear();
+  });
+
+  it("waits for external history to load before resuming a stream", async () => {
+    mocks.state.isLoadingHistory = true;
+    const resumeStream = vi.fn().mockResolvedValue(undefined);
+    mocks.useChat.mockReturnValue({ resumeStream });
+
+    const transport = {
+      getResumableAdapter: () => ({
+        storage: {
+          getStreamId: () => "stream-1",
+          setStreamId: vi.fn(),
+          clear: vi.fn(),
+        },
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+
+    renderHook(() => useChatRuntime({ transport: transport as never }));
+
+    expect(resumeStream).not.toHaveBeenCalled();
+
+    act(() => {
+      mocks.state.isLoadingHistory = false;
+      mocks.subscribers.forEach((callback) => callback());
+    });
+
+    await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(1));
   });
 
   it("calls onResumeError when automatic resumable stream resume fails", async () => {

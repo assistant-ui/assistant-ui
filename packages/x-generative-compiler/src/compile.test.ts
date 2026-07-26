@@ -1027,6 +1027,85 @@ export default defineToolkit({
     ).toThrow(/compiler-visible toolkit spread/);
   });
 
+  it("rejects spreading the default of a namespace import with a specific callout", () => {
+    const filename = createMergeFixture(generativeChild);
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import * as kit from "./tools/weather";
+export default defineToolkit({
+  ...kit.default,
+});`;
+
+    let message = "";
+    try {
+      compileGenerative(src, { target: "client", filename });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/namespace import/);
+    expect(message).toMatch(/import kit from/);
+    expect(message).not.toMatch(/compiler-visible toolkit spread/);
+  });
+
+  it("rejects spreading a whole namespace import with a specific callout", () => {
+    const filename = createMergeFixture(generativeChild);
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import * as kit from "./tools/weather";
+export default defineToolkit({
+  ...kit,
+});`;
+
+    let message = "";
+    try {
+      compileGenerative(src, { target: "client", filename });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/namespace import/);
+    expect(message).not.toMatch(/compiler-visible toolkit spread/);
+  });
+
+  it("rejects spreading a named member of a namespace import with a specific callout", () => {
+    const filename = createMergeFixture(generativeChild);
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import * as kit from "./tools/weather";
+export default defineToolkit({
+  ...kit.get_weather,
+});`;
+
+    let message = "";
+    try {
+      compileGenerative(src, { target: "client", filename });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/namespace import/);
+    expect(message).not.toMatch(/compiler-visible toolkit spread/);
+  });
+
+  it("still rejects a namespace-import spread of a non-generative module with the generic message", () => {
+    const filename = createMergeFixture(
+      `export default { get_weather: { execute: async () => 1 } };\n`,
+    );
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import * as kit from "./tools/weather";
+export default defineToolkit({
+  ...kit.default,
+});`;
+
+    let message = "";
+    try {
+      compileGenerative(src, { target: "client", filename });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toMatch(/compiler-visible toolkit spread/);
+    expect(message).not.toMatch(/namespace import/);
+  });
+
   it("resolves a tsconfig path alias when spreading a generative module", () => {
     const filename = createAliasMergeFixture(generativeChild);
     const src = `"use generative";
