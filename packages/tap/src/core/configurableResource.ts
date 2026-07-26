@@ -2,6 +2,7 @@ import { resource } from "./resource";
 import type { Resource } from "./types";
 
 export const configurableResource =
-  <V, A extends any[], O>(hook: (options: O, ...args: A) => V) =>
+  <V, A extends readonly unknown[], O>(hook: (options: O, ...args: A) => V) =>
   (options: O): Resource<V, A> =>
-    resource(hook).bind(null, options);
+  (...args) =>
+    resource(hook)(options, ...args);

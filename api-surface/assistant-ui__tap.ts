@@ -11,7 +11,7 @@ type ResourceElement<V> = {
   readonly deps?: readonly unknown[];
 };
 
-declare const configurableResource: <V, A extends any[], O>(hook: (options: O, ...args: A) => V) => (options: O) => Resource<V, A>;
+declare const configurableResource: <V, A extends readonly unknown[], O>(hook: (options: O, ...args: A) => V) => (options: O) => Resource<V, A>;
 
 declare const createTapRoot: <R>(render: () => R) => useTapRoot.Root<R> & {
   unmount: () => void;
