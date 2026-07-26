@@ -1,5 +1,45 @@
 # assistant-stream
 
+## 0.3.27
+
+### Patch Changes
+
+- [#5176](https://github.com/assistant-ui/assistant-ui/pull/5176) [`8630186`](https://github.com/assistant-ui/assistant-ui/commit/8630186c86f651bd5e3db9901de14b3feff073ec) - fix: dedupe accumulator drop warnings per instance and drop class ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5106](https://github.com/assistant-ui/assistant-ui/pull/5106) [`446a118`](https://github.com/assistant-ui/assistant-ui/commit/446a1187d38f3ca8ce12b1f0ac739400cb32d63e) - fix: isolate resumable stream observability hook errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5045](https://github.com/assistant-ui/assistant-ui/pull/5045) [`a081656`](https://github.com/assistant-ui/assistant-ui/commit/a0816568bcb0632a67f6e09dc0c90e76cc2b50cc) - fix: prevent assistant stream task settlement from escaping as unhandled rejections ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5044](https://github.com/assistant-ui/assistant-ui/pull/5044) [`25a5be0`](https://github.com/assistant-ui/assistant-ui/commit/25a5be0c8b7101a382ee7fc31102bdf4fb7ad114) - fix: avoid applying initial gorp stream operations twice ([@Kinfe123](https://github.com/Kinfe123))
+
+  The first decoded chunk now represents its authoritative snapshot as a
+  synthetic root `set`; later chunks preserve their incremental operations.
+  The deprecated object stream aliases share the same encoder and fix.
+
+- [#5141](https://github.com/assistant-ui/assistant-ui/pull/5141) [`47562fd`](https://github.com/assistant-ui/assistant-ui/commit/47562fd231b35fe41c61b437ff66021f9cf0e554) - fix: clean up abort listeners after frontend tool execution settles ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5063](https://github.com/assistant-ui/assistant-ui/pull/5063) [`5e4dd9f`](https://github.com/assistant-ui/assistant-ui/commit/5e4dd9fd00161fd79df60821d2b9af0cd7ebcefd) - feat: add GorpStreamDeltaTracker, migrating gorp's delta-tracking (change frames, isChangedAt, getChangedKeys) into GorpStream ([@Yonom](https://github.com/Yonom))
+
+- [#5142](https://github.com/assistant-ui/assistant-ui/pull/5142) [`5da0d93`](https://github.com/assistant-ui/assistant-ui/commit/5da0d93808089b9fca35667ab442dff196de46b8) - fix: guard gorp accumulator path navigation against inherited keys and prototype-polluting path segments ([@Yonom](https://github.com/Yonom))
+
+- [#5064](https://github.com/assistant-ui/assistant-ui/pull/5064) [`85d4976`](https://github.com/assistant-ui/assistant-ui/commit/85d49764ca3585fc553257dafa00a47830727e36) - refactor: consolidate on a single wire protocol name (assistant-transport). Remove the unpublished gorp-shaped exports, expose diff tracking as AssistantTransportDeltaTracker and the state operation type as AssistantTransportStateOperation, and keep the published ObjectStream aliases working as deprecated delegates. ([@Yonom](https://github.com/Yonom))
+
+- [#5061](https://github.com/assistant-ui/assistant-ui/pull/5061) [`5135400`](https://github.com/assistant-ui/assistant-ui/commit/5135400d054297889312b9ae03fe803443ee2fae) - feat: rename ObjectStream to GorpStream (old names remain as deprecated aliases) ([@Yonom](https://github.com/Yonom))
+
+- [#4988](https://github.com/assistant-ui/assistant-ui/pull/4988) [`9a343db`](https://github.com/assistant-ui/assistant-ui/commit/9a343db871ceab7e574bfcec9ab22af0ddaf1841) - fix: guard object stream settlement after cancellation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5107](https://github.com/assistant-ui/assistant-ui/pull/5107) [`666aaab`](https://github.com/assistant-ui/assistant-ui/commit/666aaab6ac3a64ec0f58c3ae958186a9880d8764) - fix: prioritize backend tool results over stale argument parse errors ([@Solaris-star](https://github.com/Solaris-star))
+
+- [#5129](https://github.com/assistant-ui/assistant-ui/pull/5129) [`ba948d8`](https://github.com/assistant-ui/assistant-ui/commit/ba948d8192b8c4bf12cbe60ece4d0f2d11506aa6) - fix: cancel polyfilled async iterators when consumers stop early ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5152](https://github.com/assistant-ui/assistant-ui/pull/5152) [`44aac58`](https://github.com/assistant-ui/assistant-ui/commit/44aac5834cff3a4f985b3b0aefe31c8b7951732f) - fix: validate assistant-transport chunk shape at the decode boundary and bounds-check accumulator part paths ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5172](https://github.com/assistant-ui/assistant-ui/pull/5172) [`9402648`](https://github.com/assistant-ui/assistant-ui/commit/94026488709d1fcc4ed446f39e2dcb78f9eb1daf) - fix: validate per-type required fields at the assistant-transport decode boundary and drop malformed chunks in the accumulator instead of aborting the response; an unsupported part-start now inserts an empty reasoning placeholder to keep later part indices aligned ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5155](https://github.com/assistant-ui/assistant-ui/pull/5155) [`4651ea5`](https://github.com/assistant-ui/assistant-ui/commit/4651ea5b003bcd56d82e0bb3de16f918d6722906) - fix: drop malformed UIMessageStream frames at the decode boundary and fix tool-result closing the active args stream ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5174](https://github.com/assistant-ui/assistant-ui/pull/5174) [`2bc6798`](https://github.com/assistant-ui/assistant-ui/commit/2bc6798346378fd6c1f8b7e8423fda162d7f3a27) - fix: only record firstTokenTime when a text-delta actually mutates a part ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.3.26
 
 ### Patch Changes

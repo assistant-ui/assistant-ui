@@ -1,5 +1,74 @@
 # @assistant-ui/core
 
+## 0.2.22
+
+### Patch Changes
+
+- [#5089](https://github.com/assistant-ui/assistant-ui/pull/5089) [`908ec91`](https://github.com/assistant-ui/assistant-ui/commit/908ec91a15b247b629fbcee6fd8b7af620af6632) - fix: avoid reporting copy success without a clipboard handler ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5126](https://github.com/assistant-ui/assistant-ui/pull/5126) [`0d0834d`](https://github.com/assistant-ui/assistant-ui/commit/0d0834d77967eb3f68198c48597a3bb9c6f474cb) - fix: refresh Cloud history persistence when the Cloud client changes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5163](https://github.com/assistant-ui/assistant-ui/pull/5163) [`3355098`](https://github.com/assistant-ui/assistant-ui/commit/33550987bbed0ffaa424218e4d415cb8a4191f72) - fix: restrict AssistantFrame provider messages to the parent window ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5066](https://github.com/assistant-ui/assistant-ui/pull/5066) [`79034bb`](https://github.com/assistant-ui/assistant-ui/commit/79034bbfe8da82c3739969bf7b4cc744910d203a) - fix: settle thread runtime starts when stopped before mounting ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5137](https://github.com/assistant-ui/assistant-ui/pull/5137) [`7207b19`](https://github.com/assistant-ui/assistant-ui/commit/7207b19041c4ceed31acc1b28d39836f99d4eae6) - fix: isolate speech synthesis listener failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5090](https://github.com/assistant-ui/assistant-ui/pull/5090) [`b17d392`](https://github.com/assistant-ui/assistant-ui/commit/b17d3929d785cb418615d18b739fb9e3b7b53728) - fix: mark a cancelled local runtime run incomplete when the adapter returns without throwing ([@VihaanAgarwal](https://github.com/VihaanAgarwal))
+
+- [#5091](https://github.com/assistant-ui/assistant-ui/pull/5091) [`20643e2`](https://github.com/assistant-ui/assistant-ui/commit/20643e299a3d9eeb73d73dca72d4b70220f4dc0b) - fix nested message runtime path references ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5028](https://github.com/assistant-ui/assistant-ui/pull/5028) [`afacb10`](https://github.com/assistant-ui/assistant-ui/commit/afacb1081447b899e6e84df969ec1ac9b6d8609f) - test: verify compiler-sensitive hooks against the built package ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5088](https://github.com/assistant-ui/assistant-ui/pull/5088) [`af6c945`](https://github.com/assistant-ui/assistant-ui/commit/af6c9450f0242c4eee3d9e03f82f20efe8c9a89b) - fix: preserve falsy runtime state values ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5132](https://github.com/assistant-ui/assistant-ui/pull/5132) [`33924df`](https://github.com/assistant-ui/assistant-ui/commit/33924df40ad3463f4e589617876d2496f48936ec) - fix: stop auto-submitting a parse-error tool result when divergent argsText closes without a backend result ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5067](https://github.com/assistant-ui/assistant-ui/pull/5067) [`19cfdcd`](https://github.com/assistant-ui/assistant-ui/commit/19cfdcdfdc6778a3ed3f607f694787fe1ef54612) - fix: detect removed keys in shallow memoized state ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5057](https://github.com/assistant-ui/assistant-ui/pull/5057) [`044def8`](https://github.com/assistant-ui/assistant-ui/commit/044def8b0c6173dbed5a888993c55933d6a81177) - fix: preserve the latest thread selection when switches finish out of order ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5097](https://github.com/assistant-ui/assistant-ui/pull/5097) [`039b75f`](https://github.com/assistant-ui/assistant-ui/commit/039b75f91f189a8cb391bb6ea75c87cddefaaebb) - fix: support attachments without relying on a global File constructor ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5112](https://github.com/assistant-ui/assistant-ui/pull/5112) [`fc6b4ad`](https://github.com/assistant-ui/assistant-ui/commit/fc6b4ad0c77d195bb69148536e52759d13df2a99) - fix: keep composer attachments visible while their upload is in flight ([@serhiizghama](https://github.com/serhiizghama))
+
+- [#4847](https://github.com/assistant-ui/assistant-ui/pull/4847) [`121ee83`](https://github.com/assistant-ui/assistant-ui/commit/121ee830d7d26a7db0a8007c0394ffa86c7d56d9) - fix: preserve concurrent local thread metadata and history writes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4958](https://github.com/assistant-ui/assistant-ui/pull/4958) [`2b2587a`](https://github.com/assistant-ui/assistant-ui/commit/2b2587ac09bfe09d552915300b8dcf5b5bb7107d) - fix: preserve optimistic updates in invocation order ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4981](https://github.com/assistant-ui/assistant-ui/pull/4981) [`ca80153`](https://github.com/assistant-ui/assistant-ui/commit/ca801537e02bbab09532d0f505992778d282dddb) - fix: handle failed composer append tasks ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5081](https://github.com/assistant-ui/assistant-ui/pull/5081) [`e4ce1a2`](https://github.com/assistant-ui/assistant-ui/commit/e4ce1a2a59faaa117cd8bd819a7c2a5c3bc9c6a6) - fix: reject pending AssistantFrame tool calls when the host is disposed ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5117](https://github.com/assistant-ui/assistant-ui/pull/5117) [`f2f5e83`](https://github.com/assistant-ui/assistant-ui/commit/f2f5e8361fa5cee5c67ede5b5dac239416aa32ac) - fix: handle failed local history loads ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5177](https://github.com/assistant-ui/assistant-ui/pull/5177) [`ec8ee6a`](https://github.com/assistant-ui/assistant-ui/commit/ec8ee6a84975632c2ec28f20e7d9cb8a16573495) - fix: isolate public runtime event subscribers ([@Gujiassh](https://github.com/Gujiassh))
+
+- [#5107](https://github.com/assistant-ui/assistant-ui/pull/5107) [`666aaab`](https://github.com/assistant-ui/assistant-ui/commit/666aaab6ac3a64ec0f58c3ae958186a9880d8764) - fix: prioritize backend tool results over stale argument parse errors ([@Solaris-star](https://github.com/Solaris-star))
+
+- [#5078](https://github.com/assistant-ui/assistant-ui/pull/5078) [`c1b1750`](https://github.com/assistant-ui/assistant-ui/commit/c1b175040e49ecb82b43d2713536aef7a1f2300e) - fix: isolate realtime voice session listener errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5113](https://github.com/assistant-ui/assistant-ui/pull/5113) [`f263c9e`](https://github.com/assistant-ui/assistant-ui/commit/f263c9e827f3ed96f6773b3d8d14f573e53ee941) - fix: apply pending mute state after voice session setup ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5034](https://github.com/assistant-ui/assistant-ui/pull/5034) [`475fca3`](https://github.com/assistant-ui/assistant-ui/commit/475fca35d81a2f30909566e2b3703f5fbce76869) - fix: allow omitting externalId in RemoteThreadInitializeResponse ([@darreleng](https://github.com/darreleng))
+
+- [#5039](https://github.com/assistant-ui/assistant-ui/pull/5039) [`8faad07`](https://github.com/assistant-ui/assistant-ui/commit/8faad07801875f2877635380179a18a7fd4f3193) - refactor: share parseDataUrl and httpUrlPattern from core internal ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5127](https://github.com/assistant-ui/assistant-ui/pull/5127) [`61518b9`](https://github.com/assistant-ui/assistant-ui/commit/61518b99c11c49f439fc9411187b1cb148777b79) - fix: keep derived part scopes stable while removed parts unmount ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5120](https://github.com/assistant-ui/assistant-ui/pull/5120) [`1eb7275`](https://github.com/assistant-ui/assistant-ui/commit/1eb72757257d1919b2c198c8700deb79ff280253) - fix: generate Cloud attachment IDs without requiring Web Crypto ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5171](https://github.com/assistant-ui/assistant-ui/pull/5171) [`c47bdf4`](https://github.com/assistant-ui/assistant-ui/commit/c47bdf475381d2b79abed6201157984afa1e22c4) - fix: isolate composer runtime event listener errors ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5144](https://github.com/assistant-ui/assistant-ui/pull/5144) [`de54334`](https://github.com/assistant-ui/assistant-ui/commit/de54334ab8416be1a5ec9ebcebc58258bb80cbd5) - fix: isolate thread runtime event listener errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5122](https://github.com/assistant-ui/assistant-ui/pull/5122) [`2f69f68`](https://github.com/assistant-ui/assistant-ui/commit/2f69f682d2490c945acb378cdf33052e69d40790) - fix: preserve metadata.isOptimistic on user messages in fromThreadMessageLike ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`8630186`](https://github.com/assistant-ui/assistant-ui/commit/8630186c86f651bd5e3db9901de14b3feff073ec), [`446a118`](https://github.com/assistant-ui/assistant-ui/commit/446a1187d38f3ca8ce12b1f0ac739400cb32d63e), [`a081656`](https://github.com/assistant-ui/assistant-ui/commit/a0816568bcb0632a67f6e09dc0c90e76cc2b50cc), [`25a5be0`](https://github.com/assistant-ui/assistant-ui/commit/25a5be0c8b7101a382ee7fc31102bdf4fb7ad114), [`47562fd`](https://github.com/assistant-ui/assistant-ui/commit/47562fd231b35fe41c61b437ff66021f9cf0e554), [`5e4dd9f`](https://github.com/assistant-ui/assistant-ui/commit/5e4dd9fd00161fd79df60821d2b9af0cd7ebcefd), [`5da0d93`](https://github.com/assistant-ui/assistant-ui/commit/5da0d93808089b9fca35667ab442dff196de46b8), [`85d4976`](https://github.com/assistant-ui/assistant-ui/commit/85d49764ca3585fc553257dafa00a47830727e36), [`5135400`](https://github.com/assistant-ui/assistant-ui/commit/5135400d054297889312b9ae03fe803443ee2fae), [`9a343db`](https://github.com/assistant-ui/assistant-ui/commit/9a343db871ceab7e574bfcec9ab22af0ddaf1841), [`666aaab`](https://github.com/assistant-ui/assistant-ui/commit/666aaab6ac3a64ec0f58c3ae958186a9880d8764), [`ba948d8`](https://github.com/assistant-ui/assistant-ui/commit/ba948d8192b8c4bf12cbe60ece4d0f2d11506aa6), [`44aac58`](https://github.com/assistant-ui/assistant-ui/commit/44aac5834cff3a4f985b3b0aefe31c8b7951732f), [`9402648`](https://github.com/assistant-ui/assistant-ui/commit/94026488709d1fcc4ed446f39e2dcb78f9eb1daf), [`4651ea5`](https://github.com/assistant-ui/assistant-ui/commit/4651ea5b003bcd56d82e0bb3de16f918d6722906), [`2bc6798`](https://github.com/assistant-ui/assistant-ui/commit/2bc6798346378fd6c1f8b7e8423fda162d7f3a27)]:
+  - assistant-stream@0.3.27
+
 ## 0.2.21
 
 ### Patch Changes

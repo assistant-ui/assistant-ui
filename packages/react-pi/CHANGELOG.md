@@ -1,5 +1,31 @@
 # @assistant-ui/react-pi
 
+## 0.0.8
+
+### Patch Changes
+
+- [#5030](https://github.com/assistant-ui/assistant-ui/pull/5030) [`3970ef9`](https://github.com/assistant-ui/assistant-ui/commit/3970ef93766e9164eff24968c1a2703fbf7fa6dc) - feat: map Pi settled and appended session events without snapshot refreshes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5196](https://github.com/assistant-ui/assistant-ui/pull/5196) [`860c952`](https://github.com/assistant-ui/assistant-ui/commit/860c9528423c57609179aa080970c3df51eeaa11) - feat: support pi 0.82 ([@okisdev](https://github.com/okisdev))
+
+- [#5111](https://github.com/assistant-ui/assistant-ui/pull/5111) [`6255356`](https://github.com/assistant-ui/assistant-ui/commit/62553568cc880cd2b3a4b6a250dddf64fccbd51b) - fix: isolate shared Pi event streams between client instances ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5056](https://github.com/assistant-ui/assistant-ui/pull/5056) [`b479898`](https://github.com/assistant-ui/assistant-ui/commit/b479898881317d0565bf9b7ab3d268d950e1c8c3) - fix: validate JSON payloads returned by the Pi HTTP client ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5105](https://github.com/assistant-ui/assistant-ui/pull/5105) [`ba80ddb`](https://github.com/assistant-ui/assistant-ui/commit/ba80ddbd4a61c1c98ae1527671c200e65b15a989) - fix: migrate the react-pi node host to the pi 0.80.8+ ModelRuntime API and raise the pi-coding-agent peer floor to >=0.80.8, so the ./node entry links again on pi 0.80.8+ (which removed AuthStorage and replaced ModelRegistry.create) ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5010](https://github.com/assistant-ui/assistant-ui/pull/5010) [`a120cc2`](https://github.com/assistant-ui/assistant-ui/commit/a120cc22ce43818a9dac39b00cec38af4762a415) - fix: validate event stream response content types ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5023](https://github.com/assistant-ui/assistant-ui/pull/5023) [`0efc434`](https://github.com/assistant-ui/assistant-ui/commit/0efc4340085e4c3e44c3fb1323dcd9b47e924586) - fix: widen the pi-coding-agent peer to >=0.78.0 <0.80.8, covering 0.79.x and 0.80.x up to the release that removed the AuthStorage API the node host still uses ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5040](https://github.com/assistant-ui/assistant-ui/pull/5040) [`18ca33a`](https://github.com/assistant-ui/assistant-ui/commit/18ca33ad4b4c2b4adf011fe13d7d6abf7cfdc796) - fix: isolate subscriber errors while delivering shared stream events ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`908ec91`](https://github.com/assistant-ui/assistant-ui/commit/908ec91a15b247b629fbcee6fd8b7af620af6632), [`0d0834d`](https://github.com/assistant-ui/assistant-ui/commit/0d0834d77967eb3f68198c48597a3bb9c6f474cb), [`3355098`](https://github.com/assistant-ui/assistant-ui/commit/33550987bbed0ffaa424218e4d415cb8a4191f72), [`79034bb`](https://github.com/assistant-ui/assistant-ui/commit/79034bbfe8da82c3739969bf7b4cc744910d203a), [`7207b19`](https://github.com/assistant-ui/assistant-ui/commit/7207b19041c4ceed31acc1b28d39836f99d4eae6), [`b17d392`](https://github.com/assistant-ui/assistant-ui/commit/b17d3929d785cb418615d18b739fb9e3b7b53728), [`20643e2`](https://github.com/assistant-ui/assistant-ui/commit/20643e299a3d9eeb73d73dca72d4b70220f4dc0b), [`afacb10`](https://github.com/assistant-ui/assistant-ui/commit/afacb1081447b899e6e84df969ec1ac9b6d8609f), [`af6c945`](https://github.com/assistant-ui/assistant-ui/commit/af6c9450f0242c4eee3d9e03f82f20efe8c9a89b), [`33924df`](https://github.com/assistant-ui/assistant-ui/commit/33924df40ad3463f4e589617876d2496f48936ec), [`19cfdcd`](https://github.com/assistant-ui/assistant-ui/commit/19cfdcdfdc6778a3ed3f607f694787fe1ef54612), [`044def8`](https://github.com/assistant-ui/assistant-ui/commit/044def8b0c6173dbed5a888993c55933d6a81177), [`039b75f`](https://github.com/assistant-ui/assistant-ui/commit/039b75f91f189a8cb391bb6ea75c87cddefaaebb), [`fc6b4ad`](https://github.com/assistant-ui/assistant-ui/commit/fc6b4ad0c77d195bb69148536e52759d13df2a99), [`121ee83`](https://github.com/assistant-ui/assistant-ui/commit/121ee830d7d26a7db0a8007c0394ffa86c7d56d9), [`2b2587a`](https://github.com/assistant-ui/assistant-ui/commit/2b2587ac09bfe09d552915300b8dcf5b5bb7107d), [`ca80153`](https://github.com/assistant-ui/assistant-ui/commit/ca801537e02bbab09532d0f505992778d282dddb), [`e4ce1a2`](https://github.com/assistant-ui/assistant-ui/commit/e4ce1a2a59faaa117cd8bd819a7c2a5c3bc9c6a6), [`f2f5e83`](https://github.com/assistant-ui/assistant-ui/commit/f2f5e8361fa5cee5c67ede5b5dac239416aa32ac), [`ec8ee6a`](https://github.com/assistant-ui/assistant-ui/commit/ec8ee6a84975632c2ec28f20e7d9cb8a16573495), [`666aaab`](https://github.com/assistant-ui/assistant-ui/commit/666aaab6ac3a64ec0f58c3ae958186a9880d8764), [`c1b1750`](https://github.com/assistant-ui/assistant-ui/commit/c1b175040e49ecb82b43d2713536aef7a1f2300e), [`f263c9e`](https://github.com/assistant-ui/assistant-ui/commit/f263c9e827f3ed96f6773b3d8d14f573e53ee941), [`475fca3`](https://github.com/assistant-ui/assistant-ui/commit/475fca35d81a2f30909566e2b3703f5fbce76869), [`8faad07`](https://github.com/assistant-ui/assistant-ui/commit/8faad07801875f2877635380179a18a7fd4f3193), [`61518b9`](https://github.com/assistant-ui/assistant-ui/commit/61518b99c11c49f439fc9411187b1cb148777b79), [`5412099`](https://github.com/assistant-ui/assistant-ui/commit/541209975bdc380edf7b34ecc270c201abd14788), [`1eb7275`](https://github.com/assistant-ui/assistant-ui/commit/1eb72757257d1919b2c198c8700deb79ff280253), [`c47bdf4`](https://github.com/assistant-ui/assistant-ui/commit/c47bdf475381d2b79abed6201157984afa1e22c4), [`de54334`](https://github.com/assistant-ui/assistant-ui/commit/de54334ab8416be1a5ec9ebcebc58258bb80cbd5), [`2f69f68`](https://github.com/assistant-ui/assistant-ui/commit/2f69f682d2490c945acb378cdf33052e69d40790), [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328)]:
+  - @assistant-ui/core@0.2.22
+  - @assistant-ui/store@0.2.21
+
 ## 0.0.7
 
 ### Patch Changes

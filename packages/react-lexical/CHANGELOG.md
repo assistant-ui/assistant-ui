@@ -1,5 +1,15 @@
 # @assistant-ui/react-lexical
 
+## 0.2.6
+
+### Patch Changes
+
+- [#5193](https://github.com/assistant-ui/assistant-ui/pull/5193) [`249cab0`](https://github.com/assistant-ui/assistant-ui/commit/249cab039f2840772d1c5644e16b303b13ad0dc8) - feat: support lexical 0.48 ([@okisdev](https://github.com/okisdev))
+
+- [#5145](https://github.com/assistant-ui/assistant-ui/pull/5145) [`d8f38e0`](https://github.com/assistant-ui/assistant-ui/commit/d8f38e0dfe9f4aea54c07999a626fdfb876a40a3) - fix: delegate Tab key events to composer input plugins ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.2.5
 
 ### Patch Changes
