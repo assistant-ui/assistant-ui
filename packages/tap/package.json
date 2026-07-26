@@ -30,6 +30,8 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "!dist/react-shim/**/*.d.ts",
+    "!dist/react-shim/**/*.d.ts.map",
     "src",
     "react-shim",
     "README.md"
