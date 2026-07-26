@@ -80,7 +80,6 @@ const BASE_EXTRA_SOURCE_FILES = [
 const CLONE_SIDEBAR_SOURCE_FILES = [
   "apps/docs/components/examples/clone-thread-shell.tsx",
   "packages/ui/src/components/assistant-ui/thread-list.tsx",
-  "packages/ui/src/components/assistant-ui/tooltip-icon-button.tsx",
   "packages/ui/src/components/ui/base/button.tsx",
   "packages/ui/src/components/ui/base/input.tsx",
   "packages/ui/src/components/ui/base/sheet.tsx",
