@@ -53,20 +53,20 @@ describe("withKey on a Resource", () => {
 
   it("reconciles keyed curried resources by key across reorder", () => {
     const a = StatewireWS({ id: "a", initial: 1 });
-    const b = StatewireWS({ id: "b", initial: 2 });
+    const b = StatewireWS({ id: "b", initial: 20 });
 
     const testFiber = createTestResource(
-      (props: { conns: ((platform: PlatformProps) => any)[] }) =>
+      (props: { conns: ReturnType<typeof StatewireWS>[] }) =>
         useResources(props.conns.map((conn) => conn({ mult: 1 }))),
     );
 
     const result1 = renderTest(testFiber, { conns: [a, b] });
-    expect(result1.map((c: any) => c.value)).toEqual([1, 2]);
+    expect(result1.map((c: any) => c.value)).toEqual([1, 20]);
 
     result1[0]!.bump();
 
     const result2 = renderTest(testFiber, { conns: [b, a] });
     expect(result2.map((c: any) => c.id)).toEqual(["b", "a"]);
-    expect(result2.map((c: any) => c.value)).toEqual([2, 2]);
+    expect(result2.map((c: any) => c.value)).toEqual([20, 2]);
   });
 });
