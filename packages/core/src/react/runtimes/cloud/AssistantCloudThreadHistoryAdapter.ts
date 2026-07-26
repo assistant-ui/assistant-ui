@@ -22,10 +22,13 @@ const globalPersistence = new WeakMap<
 >();
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
-  constructor(
-    private cloudRef: RefObject<AssistantCloud>,
-    private aui: AssistantClient,
-  ) {}
+  private cloudRef: RefObject<AssistantCloud>;
+  private aui: AssistantClient;
+
+  constructor(cloudRef: RefObject<AssistantCloud>, aui: AssistantClient) {
+    this.cloudRef = cloudRef;
+    this.aui = aui;
+  }
 
   private get _persistence(): CloudMessagePersistence {
     const key = this.aui.threadListItem();

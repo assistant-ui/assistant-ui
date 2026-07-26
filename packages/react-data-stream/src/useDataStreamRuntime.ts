@@ -61,12 +61,13 @@ type DataStreamRuntimeRequestOptions = {
 };
 
 class DataStreamRuntimeAdapter implements ChatModelAdapter {
+  private options: Omit<UseDataStreamRuntimeOptions, keyof LocalRuntimeOptions>;
+
   constructor(
-    private options: Omit<
-      UseDataStreamRuntimeOptions,
-      keyof LocalRuntimeOptions
-    >,
-  ) {}
+    options: Omit<UseDataStreamRuntimeOptions, keyof LocalRuntimeOptions>,
+  ) {
+    this.options = options;
+  }
 
   async *run({
     messages,

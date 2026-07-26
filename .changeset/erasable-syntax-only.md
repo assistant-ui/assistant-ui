@@ -15,4 +15,4 @@
 "@assistant-ui/store": patch
 ---
 
-Enable `erasableSyntaxOnly` and `verbatimModuleSyntax` in the shared tsconfig base. Constructor parameter properties are now explicit field declarations, and the four public enums (`CommitPriority`, `HideAndFloatStatus`, `LangGraphKnownEventTypes`, `DataStreamStreamChunkType`) are `as const` objects with equivalent union types — runtime values are unchanged, but code relying on enum-nominal typing now sees the literal union instead.
+Compile with `erasableSyntaxOnly` and `verbatimModuleSyntax`: parameter properties become explicit fields, public enums become `as const` objects with equivalent union types.

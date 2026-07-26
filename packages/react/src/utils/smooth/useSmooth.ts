@@ -58,10 +58,13 @@ class TextStreamAnimator {
   public maxCharsPerFrame: number = Infinity;
   public minCommitMs: number = 0;
 
-  constructor(
-    public currentText: string,
-    private setText: (newText: string) => void,
-  ) {}
+  public currentText: string;
+  private setText: (newText: string) => void;
+
+  constructor(currentText: string, setText: (newText: string) => void) {
+    this.currentText = currentText;
+    this.setText = setText;
+  }
 
   start() {
     if (this.animationFrameId !== null) return;

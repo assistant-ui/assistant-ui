@@ -80,10 +80,13 @@ async function contentSalt(
 }
 
 export class SafeContentFrame {
-  constructor(
-    private product: string,
-    private options: SafeContentFrameOptions = {},
-  ) {}
+  private product: string;
+  private options: SafeContentFrameOptions;
+
+  constructor(product: string, options: SafeContentFrameOptions = {}) {
+    this.product = product;
+    this.options = options;
+  }
 
   async renderHtml(
     html: string,
