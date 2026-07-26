@@ -260,6 +260,7 @@ const useThreadMessagesFlatListAutoScroll = ({
       const { contentOffset, contentSize, layoutMeasurement } =
         event.nativeEvent;
       const previousEventY = lastScrollEventYRef.current;
+      const wasPinnedToBottom = isAtBottomRef.current;
       lastScrollEventYRef.current = contentOffset.y;
       metricsRef.current = {
         contentHeight: contentSize.height,
@@ -267,10 +268,15 @@ const useThreadMessagesFlatListAutoScroll = ({
         scrollY: contentOffset.y,
       };
       updateIsAtBottom();
-      // Only a deliberate upward move cancels a pending scroll. Gestures are
-      // detected echo-to-echo because a commanded scroll optimistically moves
-      // the tracked position ahead of its ascending animation echoes.
-      if (!isAtBottomRef.current && contentOffset.y < previousEventY) {
+      const upwardMove = contentOffset.y < previousEventY;
+      // Only a deliberate upward move unpins or cancels a pending scroll.
+      // Gestures are detected echo-to-echo because a commanded scroll
+      // optimistically moves the tracked position ahead of its ascending
+      // animation echoes, and those echoes must not unpin mid-flight.
+      if (wasPinnedToBottom && !upwardMove) {
+        isAtBottomRef.current = true;
+      }
+      if (!isAtBottomRef.current && upwardMove) {
         pendingScrollToBottomRef.current = false;
       }
     },
@@ -327,6 +333,7 @@ const useThreadMessagesFlatListAutoScroll = ({
   useAuiEvent("threadListItem.switchedTo", () => {
     if (!scrollToBottomOnThreadSwitch) return;
     initializeScrollRequestedRef.current = false;
+    lastScrollEventYRef.current = 0;
     pendingScrollToBottomRef.current = { animated: false };
     scrollToBottom(false);
   });
