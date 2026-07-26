@@ -165,4 +165,36 @@ describe("useCloudChat", () => {
     expect(lastCall).toBeDefined();
     expect(lastCall![0].chat).toBeDefined();
   });
+
+  it("replaces cached chats when the cloud changes", () => {
+    const createThreads = (cloud: typeof mockCloud) => ({
+      cloud,
+      threads: [],
+      isLoading: false,
+      error: null,
+      refresh: vi.fn().mockResolvedValue(true),
+      get: vi.fn(),
+      create: vi.fn(),
+      delete: vi.fn(),
+      rename: vi.fn(),
+      archive: vi.fn(),
+      unarchive: vi.fn(),
+      threadId: "thread-1",
+      selectThread: vi.fn(),
+      generateTitle: vi.fn().mockResolvedValue(null),
+    });
+    const threadsA = createThreads({ ...mockCloud });
+    const threadsB = createThreads({ ...mockCloud });
+
+    const { rerender } = renderHook(
+      ({ threads }) => useCloudChat({ threads: threads as never }),
+      { initialProps: { threads: threadsA } },
+    );
+    const chatA = mockUseChat.mock.calls.at(-1)?.[0].chat;
+
+    rerender({ threads: threadsB });
+
+    const chatB = mockUseChat.mock.calls.at(-1)?.[0].chat;
+    expect(chatB).not.toBe(chatA);
+  });
 });

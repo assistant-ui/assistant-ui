@@ -35,11 +35,30 @@ describe("layoutVocabulary", () => {
         $type: "Card",
         title: "T",
         padding: 2,
-        background: "muted",
+        background: "var(--muted)",
       }),
     ).toBe(
-      '<section data-aui="card" data-aui-padding="2" data-aui-background="muted"><header data-aui="card-title">T</header></section>',
+      '<section data-aui="card" data-aui-padding="2" data-aui-background="var(--muted)" style="background:var(--muted);color:white"><header data-aui="card-title">T</header></section>',
     );
+  });
+
+  it("Card applies background as an inline style so arbitrary CSS values (colors, gradients) render", () => {
+    const html = render({
+      $type: "Card",
+      background: "linear-gradient(90deg, #3b82f6, #1d4ed8)",
+    });
+    expect(html).toContain(
+      'style="background:linear-gradient(90deg, #3b82f6, #1d4ed8);color:white"',
+    );
+  });
+
+  it("Card sets its text color to white whenever a background is provided", () => {
+    const html = render({ $type: "Card", background: "#1d4ed8" });
+    expect(html).toContain("color:white");
+  });
+
+  it("Card omits the style attribute when background is not provided", () => {
+    expect(render({ $type: "Card", title: "T" })).not.toContain("style=");
   });
 
   it("Card without a title omits the header", () => {
@@ -78,6 +97,72 @@ describe("layoutVocabulary", () => {
   it("Badge renders a span with the value and variant hook", () => {
     expect(render({ $type: "Badge", value: "new", variant: "success" })).toBe(
       '<span data-aui="badge" data-aui-variant="success">new</span>',
+    );
+  });
+});
+
+describe("layoutVocabulary Box", () => {
+  it("renders a bare div with no style attribute when no props are given", () => {
+    expect(render({ $type: "Box" })).toBe('<div data-aui="box"></div>');
+  });
+
+  it("applies width/height as inline pixel lengths when given numbers", () => {
+    const html = render({ $type: "Box", width: 200, height: 8 });
+    expect(html).toContain('style="width:200px;height:8px"');
+  });
+
+  it("applies width/height verbatim when given strings", () => {
+    const html = render({ $type: "Box", width: "100%", height: "1.5rem" });
+    expect(html).toContain('style="width:100%;height:1.5rem"');
+  });
+
+  it("applies a numeric radius as an inline pixel border-radius", () => {
+    const html = render({ $type: "Box", radius: 6 });
+    expect(html).toContain('style="border-radius:6px"');
+    expect(html).not.toContain("data-aui-radius");
+  });
+
+  it('applies radius "full" as a 9999px inline border-radius and a data-aui-radius hook', () => {
+    const html = render({ $type: "Box", radius: "full" });
+    expect(html).toContain('data-aui-radius="full"');
+    expect(html).toContain('style="border-radius:9999px"');
+  });
+
+  it("applies background as an inline style", () => {
+    const html = render({ $type: "Box", background: "#3b82f6" });
+    expect(html).toContain('style="background:#3b82f6"');
+  });
+
+  it("renders a progress bar as a track Box containing a partial-width fill Box", () => {
+    const html = render({
+      $type: "Box",
+      width: "100%",
+      height: 8,
+      radius: "full",
+      background: "var(--muted)",
+      children: {
+        $type: "Box",
+        width: "60%",
+        height: 8,
+        radius: "full",
+        background: "var(--primary)",
+      },
+    });
+    expect(html).toBe(
+      '<div data-aui="box" data-aui-radius="full" style="width:100%;height:8px;background:var(--muted);border-radius:9999px">' +
+        '<div data-aui="box" data-aui-radius="full" style="width:60%;height:8px;background:var(--primary);border-radius:9999px"></div>' +
+        "</div>",
+    );
+  });
+
+  it("renders nested children alongside style props", () => {
+    const html = render({
+      $type: "Box",
+      background: "red",
+      children: "content",
+    });
+    expect(html).toBe(
+      '<div data-aui="box" style="background:red">content</div>',
     );
   });
 });

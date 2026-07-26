@@ -85,6 +85,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   public stopThreadRuntime(threadId: string) {
     this.instances.delete(threadId);
     this.useAliveThreadsKeysChanged.setState({}, true);
+    this._notifySubscribers();
   }
 
   public setRuntimeHook(newRuntimeHook: RemoteThreadListHook) {

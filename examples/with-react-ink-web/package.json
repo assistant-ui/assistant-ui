@@ -13,7 +13,7 @@
     "@assistant-ui/react-ink-markdown": "workspace:*",
     "@wterm/dom": "^0.3.0",
     "@wterm/react": "^0.3.0",
-    "ai": "^7.0.2",
+    "ai": "^7.0.28",
     "ink": "^7.1.0",
     "ink-web": "^0.2.0",
     "next": "^16.2.10",

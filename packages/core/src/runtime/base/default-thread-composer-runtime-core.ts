@@ -23,7 +23,7 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public get canSend() {
-    return !this.isEmpty && !this.runtime.isSendDisabled;
+    return !this.isEmpty && !this.runtime.isSendDisabled && !this._isSending;
   }
 
   public override get queue(): readonly QueueItemState[] {
@@ -94,7 +94,7 @@ export class DefaultThreadComposerRuntimeCore
     );
     const enriched = this.enrichWithComposerMetadata(message, composerMetadata);
 
-    this.runtime.append({
+    return this.runtime.append({
       ...(enriched as AppendMessage),
       parentId: this.runtime.messages.at(-1)?.id ?? null,
       sourceId: null,

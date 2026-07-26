@@ -8,6 +8,7 @@
     "generative-ui",
     "interrupts",
     "threads",
+    "agent-state",
     "tutorial"
   ]
 }

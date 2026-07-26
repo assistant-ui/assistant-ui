@@ -1,7 +1,5 @@
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
-const hasOwn = (value: object, key: string) => Object.hasOwn(value, key);
-
 const stabilizeToolArgsValue = (
   value: unknown,
   path: string,
@@ -19,7 +17,7 @@ const stabilizeToolArgsValue = (
     const previousOrder = keyOrderByPath.get(path) ?? [];
     const previousOrderSet = new Set(previousOrder);
     const nextOrder = [
-      ...previousOrder.filter((key) => hasOwn(record, key)),
+      ...previousOrder.filter((key) => Object.hasOwn(record, key)),
       ...currentKeys.filter((key) => !previousOrderSet.has(key)),
     ];
     keyOrderByPath.set(path, nextOrder);

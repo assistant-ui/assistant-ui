@@ -1,5 +1,42 @@
 # assistant-ui
 
+## 0.0.106
+
+### Patch Changes
+
+- [#4868](https://github.com/assistant-ui/assistant-ui/pull/4868) [`40b585a`](https://github.com/assistant-ui/assistant-ui/commit/40b585abd50fca94f2d5199d782dbd6c28228318) - fix: install the base ui quick start from init when the initialized project uses a base style ([@okisdev](https://github.com/okisdev))
+
+- [#4865](https://github.com/assistant-ui/assistant-ui/pull/4865) [`c732b48`](https://github.com/assistant-ui/assistant-ui/commit/c732b48f18e60df53bc80e278d3a418c08154d18) - fix: resolve base ui flavored registry urls in add when the project style starts with base- ([@okisdev](https://github.com/okisdev))
+
+- [#4891](https://github.com/assistant-ui/assistant-ui/pull/4891) [`732ef49`](https://github.com/assistant-ui/assistant-ui/commit/732ef4905bb454371b9ddb21d3dc75d900976373) - fix: include declared assistant-ui packages in info output ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4891](https://github.com/assistant-ui/assistant-ui/pull/4891) [`732ef49`](https://github.com/assistant-ui/assistant-ui/commit/732ef4905bb454371b9ddb21d3dc75d900976373) - fix: validate peer dependency ranges using semver ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4733](https://github.com/assistant-ui/assistant-ui/pull/4733) [`f1f18be`](https://github.com/assistant-ui/assistant-ui/commit/f1f18be476202178c5e6a62f041b588ee6a14887) - fix: clarify MCP install config parse errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4720](https://github.com/assistant-ui/assistant-ui/pull/4720) [`d4a0b5a`](https://github.com/assistant-ui/assistant-ui/commit/d4a0b5ac56274cf0f927f62a7d788b2e0a12361c) - cli: register the `with-resumable-stream` example so `npx assistant-ui create -e with-resumable-stream` resolves instead of failing with "Unknown example". ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4844](https://github.com/assistant-ui/assistant-ui/pull/4844) [`4a55ff9`](https://github.com/assistant-ui/assistant-ui/commit/4a55ff95d1df5bbe03fa50bfebbfae0c72412698) - fix: strip every workspace path alias when materializing a template ([@okisdev](https://github.com/okisdev))
+
+  the create flow removed monorepo tsconfig aliases by a fixed key list, so newer keys such as @/components/ui/base/* survived into scaffolded projects as dangling entries; any entry whose target points into packages/ui/ is now stripped as well.
+
+- [#4979](https://github.com/assistant-ui/assistant-ui/pull/4979) [`4c6fc26`](https://github.com/assistant-ui/assistant-ui/commit/4c6fc26e1b90e13692f9587dc530a77e1da6eef3) - fix: accept JSONC syntax when transforming scaffold tsconfig files ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4772](https://github.com/assistant-ui/assistant-ui/pull/4772) [`372c624`](https://github.com/assistant-ui/assistant-ui/commit/372c62489c261b7ec4dce7eadfaf0b14865289d8) - fix: clarify assistant-ui update package.json parse errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4727](https://github.com/assistant-ui/assistant-ui/pull/4727) [`3e5895c`](https://github.com/assistant-ui/assistant-ui/commit/3e5895c9529411906b2c99a2db210d51417c0737) - fix(cli): doctor now detects duplicate assistant-ui packages in pnpm node_modules layouts ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4978](https://github.com/assistant-ui/assistant-ui/pull/4978) [`cfd4478`](https://github.com/assistant-ui/assistant-ui/commit/cfd44780068e783962fd160f28530b0166030508) - fix: compare prerelease versions using SemVer rules in assistant-ui doctor ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4960](https://github.com/assistant-ui/assistant-ui/pull/4960) [`1a5b1ec`](https://github.com/assistant-ui/assistant-ui/commit/1a5b1ec6a87316f968a14f9f7b9566b324c077ae) - fix(cli): detect monorepos from the workspace root ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98), [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac)]:
+  - @assistant-ui/agent-launcher@0.1.9
+
 ## 0.0.105
 
 ### Patch Changes

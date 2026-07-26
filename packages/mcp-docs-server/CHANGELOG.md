@@ -1,5 +1,23 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.39
+
+### Patch Changes
+
+- [#4626](https://github.com/assistant-ui/assistant-ui/pull/4626) [`6bcb687`](https://github.com/assistant-ui/assistant-ui/commit/6bcb687267e856cac72bcf6bfe1b8091dad3b4ba) - perf: cache the docs and examples file listings ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4628](https://github.com/assistant-ui/assistant-ui/pull/4628) [`4ba22c5`](https://github.com/assistant-ui/assistant-ui/commit/4ba22c528aeaff7e43cb9623c7af96f0ddd4a2a8) - feat: return structuredContent from the docs, examples, and search tools ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4611](https://github.com/assistant-ui/assistant-ui/pull/4611) [`c11236e`](https://github.com/assistant-ui/assistant-ui/commit/c11236e9d1db5fe172aba32b41b2ec55f5485428) - feat: surface doc title and excerpt on assistantUIDocs responses ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4887](https://github.com/assistant-ui/assistant-ui/pull/4887) [`d03e5cf`](https://github.com/assistant-ui/assistant-ui/commit/d03e5cf0e6efada832503fedc565a1fb8f14676a) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4809](https://github.com/assistant-ui/assistant-ui/pull/4809) [`9d3b0f6`](https://github.com/assistant-ui/assistant-ui/commit/9d3b0f682a1338f92489294e12b481468e3a43ff) - feat: expose playground template tools through the MCP docs server ([@vivek100](https://github.com/vivek100))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.1.38
 
 ### Patch Changes

@@ -3,6 +3,7 @@ import test from "node:test";
 import "tsx/esm";
 
 const {
+  collectAttributeSelectorValues,
   createBaseRegistryItem,
   createRadixRegistryItem,
   getRadixVariantSourcePath,
@@ -15,6 +16,19 @@ const {
   validateVariantSlotParity,
   validateVariantTreesDiffer,
 } = await import("./build-registry.ts");
+
+const { generativeUiVocabularyCss } =
+  await import("../../../packages/ui/src/lib/generative-ui-vocabulary-css.ts");
+const {
+  TEXT_SIZES,
+  WEIGHTS,
+  COLORS,
+  ALIGNS,
+  JUSTIFIES,
+  BUTTON_STYLES,
+  ALERT_TONES,
+  IMAGE_SIZE_TOKENS,
+} = await import("../../../packages/react-generative-ui/src/ir.ts");
 
 const createBuilt = (
   name,
@@ -865,5 +879,124 @@ test("style-scoped dependencies flag deps used only by the opposite tree", () =>
 
   assert.doesNotThrow(() =>
     validateStyleScopedDependencies([neitherImport], [neitherImport]),
+  );
+});
+
+test("collectAttributeSelectorValues groups value-selectors by component:attribute and ignores presence-only selectors", () => {
+  const css = {
+    '[data-aui="text"][data-aui-size="sm"], [data-aui="header"][data-aui-size="sm"]':
+      { "font-size": "0.75rem" },
+    '[data-aui="text"][data-aui-size="md"]': { "font-size": "0.875rem" },
+    '[data-aui="button"][data-aui-block]': { width: "100%" },
+    "@media (prefers-reduced-motion: reduce)": {
+      ".foo": { transition: "none" },
+    },
+  };
+
+  const values = collectAttributeSelectorValues(css);
+
+  assert.deepEqual([...(values.get("text:size") ?? [])].sort(), ["md", "sm"]);
+  assert.deepEqual([...(values.get("header:size") ?? [])], ["sm"]);
+  assert.equal(values.has("button:block"), false);
+});
+
+// Every attribute-mapped prop backed by a closed enum, keyed by the components
+// that emit it. A shared attribute name (`size`) can carry a different enum per
+// component, so contracts are scoped to a component list rather than the bare
+// attribute name.
+const GENERATIVE_UI_ENUM_CONTRACTS = [
+  { components: ["text", "header"], attribute: "size", values: TEXT_SIZES },
+  { components: ["text"], attribute: "weight", values: WEIGHTS },
+  { components: ["text"], attribute: "color", values: COLORS },
+  { components: ["row", "col"], attribute: "align", values: ALIGNS },
+  { components: ["row"], attribute: "justify", values: JUSTIFIES },
+  { components: ["button"], attribute: "style", values: BUTTON_STYLES },
+  { components: ["alert"], attribute: "tone", values: ALERT_TONES },
+  { components: ["image"], attribute: "size", values: IMAGE_SIZE_TOKENS },
+];
+
+// Attribute-mapped props with no closed enum to check against, one reason each.
+const GENERATIVE_UI_EXEMPT_ATTRIBUTES = new Map([
+  ["row:gap", "numeric, 4px units; 0 to 8 is the documented supported range"],
+  ["col:gap", "numeric, 4px units; 0 to 8 is the documented supported range"],
+  ["form:gap", "numeric, 4px units; 0 to 8 is the documented supported range"],
+  [
+    "card:padding",
+    "numeric, 4px units; 0 to 8 is the documented supported range",
+  ],
+  [
+    "chart-series:series",
+    "numeric series index; 0 to 4 covers the mark color ladder",
+  ],
+  [
+    "chart-legend-item:series",
+    "numeric series index; 0 to 4 covers the legend color ladder",
+  ],
+  [
+    "badge:variant",
+    "free string, not sourced from a shared enum; its styled values (info/success/warning/danger) mirror ALERT_TONES",
+  ],
+  [
+    "chart:color",
+    "free string, not sourced from a shared enum; supports the same color tokens as Text's color prop as a convention",
+  ],
+]);
+
+test("every enum value of every attribute-mapped generative-ui prop is styled by at least one css rule", () => {
+  const observed = collectAttributeSelectorValues(generativeUiVocabularyCss);
+  const findings = [];
+
+  for (const {
+    components,
+    attribute,
+    values,
+  } of GENERATIVE_UI_ENUM_CONTRACTS) {
+    for (const value of values) {
+      const covered = components.some((component) =>
+        observed.get(`${component}:${attribute}`)?.has(value),
+      );
+      if (!covered) {
+        findings.push(`${components.join("/")}:${attribute}="${value}"`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    findings,
+    [],
+    `enum values with no matching css rule: ${findings.join(", ")}`,
+  );
+});
+
+test("every css value-selector for an attribute-mapped generative-ui prop is a legal schema value", () => {
+  const observed = collectAttributeSelectorValues(generativeUiVocabularyCss);
+  const findings = [];
+
+  for (const [key, observedValues] of observed) {
+    if (GENERATIVE_UI_EXEMPT_ATTRIBUTES.has(key)) continue;
+
+    const contract = GENERATIVE_UI_ENUM_CONTRACTS.find(
+      ({ components, attribute }) =>
+        components.some((component) => `${component}:${attribute}` === key),
+    );
+
+    if (!contract) {
+      findings.push(
+        `${key} has css rules but is not declared in GENERATIVE_UI_ENUM_CONTRACTS or GENERATIVE_UI_EXEMPT_ATTRIBUTES`,
+      );
+      continue;
+    }
+
+    for (const value of observedValues) {
+      if (!contract.values.includes(value)) {
+        findings.push(`${key}="${value}" is not a legal enum value`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    findings,
+    [],
+    `dead or unclassified css value-selectors: ${findings.join(", ")}`,
   );
 });

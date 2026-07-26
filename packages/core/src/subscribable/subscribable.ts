@@ -1,4 +1,5 @@
 import type { Unsubscribe } from "../types/unsubscribe";
+import { notifyEventListeners } from "../utils/notify-event-listeners";
 
 export const SKIP_UPDATE = Symbol("skip-update");
 export type SKIP_UPDATE = typeof SKIP_UPDATE;
@@ -39,7 +40,10 @@ function shallowEqual<T extends object>(
   if (objA === undefined) return false;
   if (objB === undefined) return false;
 
-  for (const key of Object.keys(objA)) {
+  const keysA = Object.keys(objA);
+  if (keysA.length !== Object.keys(objB).length) return false;
+
+  for (const key of keysA) {
     const valueA = objA[key as keyof T];
     const valueB = objB[key as keyof T];
     if (!Object.is(valueA, valueB)) return false;
@@ -99,7 +103,12 @@ export abstract class BaseSubject {
 
   protected abstract _connect(): Unsubscribe;
 
-  protected notifySubscribers(payload?: unknown) {
+  protected notifySubscribers(payload?: unknown, errorContext?: string) {
+    if (errorContext) {
+      notifyEventListeners(this._subscriptions, payload, errorContext);
+      return;
+    }
+
     for (const callback of this._subscriptions) callback(payload);
   }
 
@@ -273,8 +282,9 @@ export class EventSubscriptionSubject<
   }
 
   protected _connect(): Unsubscribe {
+    const errorContext = `Runtime event "${this.config.event}"`;
     const callback = (payload?: unknown) => {
-      this.notifySubscribers(payload);
+      this.notifySubscribers(payload, errorContext);
     };
 
     let lastState = this.config.binding.getState();
