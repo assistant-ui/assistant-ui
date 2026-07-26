@@ -1,4 +1,4 @@
-/* oxlint-disable react-hooks/exhaustive-deps -- once-per-mount memo cell */
+/* oxlint-disable react/exhaustive-deps -- once-per-mount memo cell */
 import { useMemo } from "react";
 import {
   MEMO_CACHE_SENTINEL,
