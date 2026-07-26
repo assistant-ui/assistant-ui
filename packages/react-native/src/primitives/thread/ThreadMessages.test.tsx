@@ -324,6 +324,17 @@ describe("ThreadMessages", () => {
     expect(ref.current).not.toBeNull();
   });
 
+  it("keeps deprecated Messages off the scroll-tracking path", async () => {
+    h.state.thread.messages = [{ id: "1", role: "user" }];
+    await mount({ components: messageComponents });
+    const props = getFlatListProps();
+
+    expect(props.onScroll).toBeUndefined();
+    expect(props.onLayout).toBeUndefined();
+    expect(props.onContentSizeChange).toBeUndefined();
+    expect(props.scrollEventThrottle).toBeUndefined();
+  });
+
   it("keeps deprecated Messages from auto-scrolling by default", async () => {
     h.state.thread.messages = [{ id: "1", role: "user" }];
     await mount({ components: messageComponents });
@@ -405,7 +416,7 @@ describe("ThreadMessages", () => {
       expect(h.scrollToEnd).not.toHaveBeenCalled();
     });
 
-    it("does not duplicate the initial scroll on first content-size event", async () => {
+    it("lands the initialize scroll on the first content-size event", async () => {
       h.state.thread.messages = [{ id: "1", role: "user" }];
       await mountFlatList({ components: messageComponents });
       const props = getFlatListProps();
@@ -416,7 +427,29 @@ describe("ThreadMessages", () => {
         props.onContentSizeChange?.(0, 140);
       });
 
+      expect(h.scrollToEnd).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        props.onContentSizeChange?.(0, 140);
+      });
+
+      expect(h.scrollToEnd).toHaveBeenCalledTimes(2);
+    });
+
+    it("lands the thread-switch scroll on the next content-size event", async () => {
+      h.state.thread.messages = [{ id: "1", role: "user" }];
+      await mountFlatList({ components: messageComponents });
+      const props = getFlatListProps();
+      h.scrollToEnd.mockClear();
+
+      await emit("threadListItem.switchedTo");
       expect(h.scrollToEnd).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        props.onContentSizeChange?.(0, 80);
+      });
+
+      expect(h.scrollToEnd).toHaveBeenCalledTimes(2);
     });
 
     it("does not scroll when content grows after the user scrolled away", async () => {
@@ -479,6 +512,7 @@ describe("ThreadMessages", () => {
       await mountFlatList({
         autoScroll: false,
         components: messageComponents,
+        scrollToBottomOnInitialize: false,
         scrollToBottomOnRunStart: false,
       });
       const props = getFlatListProps();

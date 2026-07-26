@@ -224,6 +224,7 @@ const useThreadMessagesFlatListAutoScroll = ({
   });
   const isAtBottomRef = useRef(true);
   const initializeScrollRequestedRef = useRef(false);
+  const pendingScrollToBottomRef = useRef(false);
 
   const updateIsAtBottom = useCallback(() => {
     const { contentHeight, scrollY, viewportHeight } = metricsRef.current;
@@ -257,6 +258,7 @@ const useThreadMessagesFlatListAutoScroll = ({
         scrollY: contentOffset.y,
       };
       updateIsAtBottom();
+      if (!isAtBottomRef.current) pendingScrollToBottomRef.current = false;
     },
     [updateIsAtBottom],
   );
@@ -268,6 +270,15 @@ const useThreadMessagesFlatListAutoScroll = ({
       const wasAtBottom = isAtBottomRef.current;
       metrics.contentHeight = height;
       updateIsAtBottom();
+
+      // FlatList.scrollToEnd is a no-op before the list has measured, so the
+      // initialize and thread-switch scrolls land on the next content-size
+      // event, once real metrics exist.
+      if (pendingScrollToBottomRef.current) {
+        pendingScrollToBottomRef.current = false;
+        scrollToBottom(false);
+        return;
+      }
 
       if (!autoScroll) return;
       if (!wasAtBottom) return;
@@ -288,6 +299,7 @@ const useThreadMessagesFlatListAutoScroll = ({
     if (initializeScrollRequestedRef.current) return;
 
     initializeScrollRequestedRef.current = true;
+    pendingScrollToBottomRef.current = true;
     scrollToBottom(false);
   }, [hasMessages, scrollToBottom, scrollToBottomOnInitialize]);
 
@@ -299,6 +311,7 @@ const useThreadMessagesFlatListAutoScroll = ({
   useAuiEvent("threadListItem.switchedTo", () => {
     if (!scrollToBottomOnThreadSwitch) return;
     initializeScrollRequestedRef.current = false;
+    pendingScrollToBottomRef.current = true;
     scrollToBottom(false);
   });
 
@@ -360,6 +373,12 @@ export const ThreadMessagesFlatList = forwardRef<
 
     const keyExtractor = useCallback((item: ThreadMessage) => item.id, []);
 
+    const scrollTracking =
+      (autoScroll ?? true) ||
+      (scrollToBottomOnInitialize ?? true) ||
+      (scrollToBottomOnRunStart ?? true) ||
+      (scrollToBottomOnThreadSwitch ?? true);
+
     const handleLayout = useCallback(
       (event: LayoutChangeEvent) => {
         handleAutoScrollLayout(event);
@@ -390,10 +409,19 @@ export const ThreadMessagesFlatList = forwardRef<
         data={messages as unknown as ThreadMessage[]}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        onContentSizeChange={handleContentSizeChange}
-        onLayout={handleLayout}
-        onScroll={handleScroll}
-        scrollEventThrottle={scrollEventThrottle ?? 16}
+        {...(scrollTracking
+          ? {
+              onContentSizeChange: handleContentSizeChange,
+              onLayout: handleLayout,
+              onScroll: handleScroll,
+              scrollEventThrottle: scrollEventThrottle ?? 16,
+            }
+          : {
+              ...(onContentSizeChange && { onContentSizeChange }),
+              ...(onLayout && { onLayout }),
+              ...(onScroll && { onScroll }),
+              ...(scrollEventThrottle !== undefined && { scrollEventThrottle }),
+            })}
         {...flatListProps}
       />
     );
