@@ -133,6 +133,24 @@ describe("Contract: Title policy", () => {
     expect(generateTitle).toHaveBeenCalledTimes(2);
   });
 
+  it("gives up after repeated failed title generation attempts", async () => {
+    const { core, generateTitle } = createCore();
+    generateTitle.mockResolvedValue(null);
+
+    const registry = mockRegistry("thread-1", [
+      { id: "m-1", role: "assistant" },
+    ]);
+
+    core.titlePolicy.markNewThread("thread-1");
+
+    await core.persistChatMessages("chat-1", registry);
+    await core.persistChatMessages("chat-1", registry);
+    await core.persistChatMessages("chat-1", registry);
+    await core.persistChatMessages("chat-1", registry);
+
+    expect(generateTitle).toHaveBeenCalledTimes(3);
+  });
+
   it("does not generate title for threads not marked as new", async () => {
     const { core, generateTitle } = createCore();
 
