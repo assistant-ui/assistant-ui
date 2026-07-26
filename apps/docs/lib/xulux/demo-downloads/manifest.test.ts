@@ -1,5 +1,13 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEMO_DOWNLOAD_MANIFESTS } from "./manifest";
+import { createDemoFileMap } from "./create-demo-zip";
+
+const ROOT = path.resolve(__dirname, "../../../../..");
+
+const snapshot = new Proxy({} as Record<string, string>, {
+  get: (_target, key) => readFileSync(path.join(ROOT, String(key)), "utf8"),
+});
 
 const cloneSlugs = [
   "chatgpt",
@@ -9,20 +17,38 @@ const cloneSlugs = [
   "perplexity",
 ] as const;
 
-describe("clone demo download manifests", () => {
-  it.each(cloneSlugs)("includes the shared sidebar sources for %s", (slug) => {
-    const sources = DEMO_DOWNLOAD_MANIFESTS[slug].extraSourceFiles;
+describe("clone demo download file maps", () => {
+  it.each(cloneSlugs)(
+    "builds a self-contained file map with the sidebar for %s",
+    async (slug) => {
+      const files = await createDemoFileMap(slug, snapshot);
+      const keys = Object.keys(files);
 
-    expect(sources).toContain(
-      "apps/docs/components/examples/clone-thread-shell.tsx",
-    );
-    expect(sources).toContain(
-      "packages/ui/src/components/assistant-ui/thread-list.tsx",
-    );
-    expect(sources).toContain("packages/ui/src/components/ui/base/input.tsx");
-    expect(sources).toContain(
-      "packages/ui/src/components/ui/base/skeleton.tsx",
-    );
-    expect(sources).toContain("packages/ui/src/components/ui/base/sheet.tsx");
-  });
+      expect(keys).toContain("components/examples/clone-thread-shell.tsx");
+      expect(keys).toContain("components/assistant-ui/thread-list.tsx");
+
+      for (const [file, content] of Object.entries(files)) {
+        if (!/\.(tsx|ts)$/.test(file) || typeof content !== "string") continue;
+        for (const match of content.matchAll(/from "(@\/[^"]+)"/g)) {
+          const spec = match[1]!.slice(2);
+          const resolved = keys.some(
+            (key) =>
+              key === spec ||
+              key === `${spec}.ts` ||
+              key === `${spec}.tsx` ||
+              key.startsWith(`${spec}/index.`),
+          );
+          expect
+            .soft(resolved, `${file} imports unresolved ${match[1]}`)
+            .toBe(true);
+        }
+        expect
+          .soft(
+            /@\/components\/ui\/(radix|base)\//.test(content),
+            `${file} has flavor-dir residue`,
+          )
+          .toBe(false);
+      }
+    },
+  );
 });
