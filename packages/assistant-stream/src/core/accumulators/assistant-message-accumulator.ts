@@ -53,6 +53,7 @@ const updatePartForPath = (
 
   const partIndex = chunk.path[0]!;
   const updatedPart = updater(part);
+  if (updatedPart === part) return message;
   return {
     ...message,
     parts: [
@@ -165,7 +166,7 @@ const handleToolCallArgsTextFinish = (
     }
 
     // TODO this should never be hit; this happens if args-text-finish is emitted after result
-    if (part.state !== "partial-call") return part;
+    if (part.state !== "partial-call") return { ...part };
     // throw new Error("Last is not a partial call");
 
     return {
@@ -486,10 +487,12 @@ export class AssistantMessageAccumulator extends TransformStream<
             message = handlePartFinish(message, chunk);
             break;
 
-          case "text-delta":
-            message = handleTextDelta(message, chunk);
-            tracker.recordFirstToken();
+          case "text-delta": {
+            const next = handleTextDelta(message, chunk);
+            if (next !== message) tracker.recordFirstToken();
+            message = next;
             break;
+          }
           case "result":
             message = handleResult(message, chunk);
             break;
