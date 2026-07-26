@@ -24,7 +24,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@babel/core": "^7.29.7",
+    "@babel/core": "^8.0.1",
     "@tsconfig/strictest": "^2.0.8",
     "babel-plugin-react-compiler": "^1.0.0",
     "jiti": "^2.7.0",
