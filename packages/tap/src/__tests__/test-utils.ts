@@ -8,15 +8,15 @@ import {
 import type { ResourceFiber } from "../core/types";
 import { useState } from "../react-hooks/useState";
 
+export type TestFiber<R, A extends readonly unknown[]> = ResourceFiber<R> & {
+  readonly __args?: (args: A) => void;
+};
+
 /**
  * Creates a test resource fiber for unit testing.
  * This is a low-level utility that creates a ResourceFiber directly.
  * Sets up a rerender callback that automatically re-renders when state changes.
  */
-export type TestFiber<R, A extends readonly unknown[]> = ResourceFiber<R> & {
-  readonly __args?: (args: A) => void;
-};
-
 export function createTestResource<R, A extends readonly unknown[]>(
   fn: (...args: A) => R,
 ): TestFiber<R, A> {
