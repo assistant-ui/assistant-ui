@@ -1353,9 +1353,6 @@ interface PiThinkingContent {
 type PiThinkingLevel = "high" | "low" | "medium" | "minimal" | "off" | "xhigh";
 
 declare class PiThreadController implements PiThreadControllerLike {
-  private readonly client;
-  private readonly threadId;
-  private readonly options;
   private state;
   private projectedMessages;
   private messageRepository;
@@ -1370,6 +1367,9 @@ declare class PiThreadController implements PiThreadControllerLike {
   private loadPromise;
   private messageFlushScheduled;
   private readonly localSnapshotSeq;
+  private readonly client;
+  private readonly threadId;
+  private readonly options;
   constructor(client: PiClient, threadId: string, options?: {
     scheduleNotify?: PiNotificationScheduler;
   });

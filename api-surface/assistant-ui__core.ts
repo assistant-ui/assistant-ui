@@ -143,8 +143,8 @@ declare class AssistantCloudProjectThreadMessages {
 }
 
 declare class AssistantCloudProjectThreads {
-  private cloud;
   readonly messages: AssistantCloudProjectThreadMessages;
+  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudProjectThreadsListQuery): Promise<AssistantCloudProjectThreadsListResponse>;
 }
@@ -247,8 +247,8 @@ declare class AssistantCloudThreadMessages {
 }
 
 declare class AssistantCloudThreads {
-  private cloud;
   readonly messages: AssistantCloudThreadMessages;
+  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
@@ -393,9 +393,9 @@ type AssistantRuntimeCore = {
 };
 
 declare class AssistantRuntimeImpl implements AssistantRuntime {
-  private readonly _core;
   readonly threads: ThreadListRuntimeImpl;
   readonly _thread: ThreadRuntime;
+  private readonly _core;
   constructor(_core: AssistantRuntimeCore);
   protected __internal_bindMethods(): void;
   get thread(): ThreadRuntime;
@@ -577,11 +577,11 @@ declare const AttachmentRuntimeClient: Resource<ClientOutput<"attachment">, [
 ]>;
 
 declare abstract class AttachmentRuntimeImpl<Source extends AttachmentRuntimeSource = AttachmentRuntimeSource> implements AttachmentRuntime {
-  private _core;
   get path(): AttachmentRuntimePath & {
     attachmentSource: Source;
   };
   abstract get source(): Source;
+  private _core;
   constructor(_core: AttachmentSnapshotBinding<Source>);
   protected __internal_bindMethods(): void;
   getState(): AttachmentState$1 & {
@@ -784,7 +784,6 @@ type BaseThreadMessage = {
 };
 
 declare abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
-  private readonly _contextProvider;
   private _subscriptions;
   private _isInitialized;
   protected readonly repository: MessageRepository;
@@ -815,6 +814,7 @@ declare abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   get messages(): readonly ThreadMessage[];
   get state(): string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | null;
   readonly composer: DefaultThreadComposerRuntimeCore;
+  private readonly _contextProvider;
   constructor(_contextProvider: ModelContextProvider);
   getModelContext(): ModelContext$1;
   private _editComposers;
@@ -1003,8 +1003,8 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
 };
 
 declare class CloudFileAttachmentAdapter implements AttachmentAdapter {
-  private cloud;
   accept: string;
+  private cloud;
   constructor(cloud: AssistantCloud);
   private uploadedUrls;
   add(_param2: {
@@ -1249,9 +1249,9 @@ type ComposerRuntimeEventPayload = {
 type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
 
 declare abstract class ComposerRuntimeImpl implements ComposerRuntime {
-  protected _core: ComposerRuntimeCoreBinding;
   get path(): ComposerRuntimePath;
   abstract get type(): "edit" | "thread";
+  protected _core: ComposerRuntimeCoreBinding;
   constructor(_core: ComposerRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
   abstract getState(): ComposerState$1;
@@ -1408,8 +1408,6 @@ type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>
 } : T;
 
 declare class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
-  private runtime;
-  private endEditCallback;
   get canCancel(): boolean;
   get canSend(): boolean;
   protected getAttachmentAdapter(): AttachmentAdapter | undefined;
@@ -1419,6 +1417,8 @@ declare class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   private _nonTextPassthrough;
   private _parentId;
   private _sourceId;
+  private runtime;
+  private endEditCallback;
   constructor(runtime: ThreadRuntimeCore & {
     adapters?: {
       attachments?: AttachmentAdapter | undefined;
@@ -1435,7 +1435,6 @@ declare class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
 }
 
 declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore implements ThreadComposerRuntimeCore {
-  private runtime;
   private _canCancel;
   get canCancel(): boolean;
   get canSend(): boolean;
@@ -1444,6 +1443,7 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   removeQueueItem(queueItemId: string): void;
   protected getAttachmentAdapter(): AttachmentAdapter | undefined;
   protected getDictationAdapter(): DictationAdapter | undefined;
+  private runtime;
   constructor(runtime: Omit<ThreadRuntimeCore, "composer"> & {
     adapters?: {
       attachments?: AttachmentAdapter | undefined;
@@ -1523,12 +1523,12 @@ type EditComposerRuntimeCoreBinding = SubscribableWithState<EditComposerRuntimeC
 }>;
 
 declare class EditComposerRuntimeImpl extends ComposerRuntimeImpl implements EditComposerRuntime {
-  private _beginEdit;
   get path(): ComposerRuntimePath & {
     composerSource: "edit";
   };
   get type(): "edit";
   private _getState;
+  private _beginEdit;
   constructor(core: EditComposerRuntimeCoreBinding, _beginEdit: () => void);
   __internal_bindMethods(): void;
   getState(): EditComposerState;
@@ -1704,7 +1704,6 @@ type ExternalStoreThreadListAdapter = {
 };
 
 declare class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore {
-  private threadFactory;
   private _mainThreadId;
   private _threads;
   private _archivedThreads;
@@ -1718,6 +1717,7 @@ declare class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCor
   getLoadThreadsPromise(): Promise<void>;
   private _mainThread;
   get mainThreadId(): string;
+  private threadFactory;
   constructor(adapter: ExternalStoreThreadListAdapter | undefined, threadFactory: ExternalStoreThreadFactory);
   getMainThreadRuntimeCore(): ExternalStoreThreadRuntimeCore;
   getThreadRuntimeCore(): never;
@@ -2122,8 +2122,8 @@ type LanguageModelV1CallSettings = {
 };
 
 declare class LazyMemoizeSubject<TState extends object, TPath> extends BaseSubject implements SubscribableWithState<TState, TPath> {
-  private binding;
   get path(): TPath;
+  private binding;
   constructor(binding: SubscribableWithState<TState | SKIP_UPDATE, TPath>);
   private _previousStateDirty;
   private _previousState;
@@ -2470,11 +2470,11 @@ type MessagePartRuntime = {
 };
 
 declare class MessagePartRuntimeImpl implements MessagePartRuntime {
-  private contentBinding;
-  private messageApi?;
-  private threadApi?;
   get path(): MessagePartRuntimePath;
-  constructor(contentBinding: MessagePartSnapshotBinding, messageApi?: MessageStateBinding | undefined, threadApi?: ThreadRuntimeCoreBinding | undefined);
+  private contentBinding;
+  private messageApi;
+  private threadApi;
+  constructor(contentBinding: MessagePartSnapshotBinding, messageApi?: MessageStateBinding, threadApi?: ThreadRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
   getState(): MessagePartState;
   addToolResult(result: any | ToolResponse<any>): void;
@@ -2722,9 +2722,9 @@ type MessageRuntime = {
 };
 
 declare class MessageRuntimeImpl implements MessageRuntime {
+  get path(): MessageRuntimePath;
   private _core;
   private _threadBinding;
-  get path(): MessageRuntimePath;
   constructor(_core: MessageStateBinding, _threadBinding: ThreadRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
   readonly composer: EditComposerRuntimeImpl;
@@ -2909,8 +2909,8 @@ type ModelContextState = {
 type NestedSubscribable<TState extends Subscribable | undefined, TPath> = SubscribableWithState<TState, TPath>;
 
 declare class NestedSubscriptionSubject<TState extends Subscribable | undefined, TPath> extends BaseSubject implements SubscribableWithState<TState, TPath>, NestedSubscribable<TState, TPath> {
-  private binding;
   get path(): TPath;
+  private binding;
   constructor(binding: NestedSubscribable<TState, TPath>);
   getState(): TState;
   outerSubscribe(callback: () => void): Unsubscribe$1;
@@ -3789,8 +3789,8 @@ type SerializedTool = {
 };
 
 declare class ShallowMemoizeSubject<TState extends object, TPath> extends BaseSubject implements SubscribableWithState<TState, TPath> {
-  private binding;
   get path(): TPath;
+  private binding;
   constructor(binding: SubscribableWithState<TState | SKIP_UPDATE, TPath>);
   private _previousState;
   getState: () => TState;
@@ -4261,9 +4261,9 @@ type ThreadListItemRuntime = {
 type ThreadListItemRuntimeBinding = SubscribableWithState<ThreadListItemState$1, ThreadListItemRuntimePath>;
 
 declare class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
+  get path(): ThreadListItemRuntimePath;
   private _core;
   private _threadListBinding;
-  get path(): ThreadListItemRuntimePath;
   constructor(_core: ThreadListItemStateBinding, _threadListBinding: ThreadListRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
   getState(): ThreadListItemState$1;
@@ -4415,9 +4415,9 @@ type ThreadListRuntimeCore = {
 type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
 declare class ThreadListRuntimeImpl implements ThreadListRuntime {
+  private _getState;
   private _core;
   private _runtimeFactory;
-  private _getState;
   constructor(_core: ThreadListRuntimeCoreBinding, _runtimeFactory?: new (binding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding) => ThreadRuntime);
   protected __internal_bindMethods(): void;
   switchToThread(threadId: string, options?: {

@@ -104,8 +104,8 @@ declare class AssistantCloudProjectThreadMessages {
 }
 
 declare class AssistantCloudProjectThreads {
-  private cloud;
   readonly messages: AssistantCloudProjectThreadMessages;
+  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudProjectThreadsListQuery): Promise<AssistantCloudProjectThreadsListResponse>;
 }
@@ -208,8 +208,8 @@ declare class AssistantCloudThreadMessages {
 }
 
 declare class AssistantCloudThreads {
-  private cloud;
   readonly messages: AssistantCloudThreadMessages;
+  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
@@ -915,7 +915,7 @@ type JSONSchema7Version = string;
 type JoinStrategy = "concat-content" | "none";
 
 type LangChainEvent = {
-  event: LangGraphKnownEventTypes.MessagesPartial | LangGraphKnownEventTypes.MessagesComplete;
+  event: typeof LangGraphKnownEventTypes.MessagesPartial | typeof LangGraphKnownEventTypes.MessagesComplete;
   data: LangChainMessage[];
 };
 
@@ -985,16 +985,18 @@ type LangGraphInterruptState = {
   ns?: string[];
 };
 
-declare enum LangGraphKnownEventTypes {
-  Messages = "messages",
-  MessagesPartial = "messages/partial",
-  MessagesComplete = "messages/complete",
-  Metadata = "metadata",
-  Updates = "updates",
-  Values = "values",
-  Info = "info",
-  Error = "error"
-}
+declare const LangGraphKnownEventTypes: {
+  readonly Messages: "messages";
+  readonly MessagesPartial: "messages/partial";
+  readonly MessagesComplete: "messages/complete";
+  readonly Metadata: "metadata";
+  readonly Updates: "updates";
+  readonly Values: "values";
+  readonly Info: "info";
+  readonly Error: "error";
+};
+
+type LangGraphKnownEventTypes = (typeof LangGraphKnownEventTypes)[keyof typeof LangGraphKnownEventTypes];
 
 declare class LangGraphMessageAccumulator<TMessage extends {
   id?: string;

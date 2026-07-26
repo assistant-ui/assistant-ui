@@ -844,7 +844,6 @@ type ObjectKey<T> = keyof T & (string | number);
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
 declare class OpenCodeEventSource {
-  private readonly client;
   private readonly listeners;
   private readonly reconnectDelayMs;
   private readonly maxReconnectDelayMs;
@@ -853,6 +852,7 @@ declare class OpenCodeEventSource {
   private stopped;
   private nextReconnectDelayMs;
   private hadConnection;
+  private readonly client;
   constructor(client: OpencodeClient);
   subscribe(listener: Listener): () => void;
   dispose(): void;
@@ -1051,8 +1051,6 @@ type OpenCodeStateEvent = {
 };
 
 declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
-  private readonly client;
-  private readonly sessionId;
   private state;
   private readonly listeners;
   private readonly getEventSource;
@@ -1060,6 +1058,8 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private loadPromise;
   private reconnectSyncToken;
   private readonly stagedMessages;
+  private readonly client;
+  private readonly sessionId;
   constructor(client: OpencodeClient, getEventSource: OpenCodeEventSourceProvider, sessionId: string);
   private ensureEventSubscription;
   private handleStreamReconnect;
