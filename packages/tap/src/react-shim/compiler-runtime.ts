@@ -3,14 +3,11 @@ import React from "react";
 import {
   MEMO_CACHE_SENTINEL,
   createMemoCache,
-  nextFiberMemoCache,
 } from "../core/helpers/memo-cache";
-import { peekResourceFiber } from "../core/helpers/execution-context";
 
-// Runtime drop-in for "react/compiler-runtime": React Compiler output calls
-// `c(size)` for its memo cache. Alias `react/compiler-runtime` to this module
-// so compiled resource bodies use tap's cache while ordinary React components
-// use React's runtime.
+// Runtime drop-in for "react/compiler-runtime": React's c() resolves the live
+// dispatcher's useMemoCache, so tapDispatcher's entry serves resource renders
+// and React's own dispatcher serves component renders.
 const ReactRuntime = React as any;
 
 // React 18 lacks `__COMPILER_RUNTIME`, so mirror Meta's compiler-runtime
@@ -23,11 +20,5 @@ const cPolyfill = (size: number): unknown[] =>
     return $;
   }, []);
 
-export const c = (size: number): unknown[] => {
-  const fiber = peekResourceFiber();
-  if (fiber === null) {
-    return (ReactRuntime.__COMPILER_RUNTIME?.c ?? cPolyfill)(size);
-  }
-
-  return nextFiberMemoCache(fiber, size);
-};
+export const c = (size: number): unknown[] =>
+  (ReactRuntime.__COMPILER_RUNTIME?.c ?? cPolyfill)(size);
