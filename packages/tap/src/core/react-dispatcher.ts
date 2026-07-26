@@ -10,8 +10,7 @@ import { useEffectEvent } from "../react-hooks/useEffectEvent";
 import { use } from "../react-hooks/use";
 import { useSyncExternalStore } from "../react-hooks/useSyncExternalStore";
 import { useDebugValue } from "../react-hooks/useDebugValue";
-import { getCurrentResourceFiber } from "./helpers/execution-context";
-import { nextFiberMemoCache } from "./helpers/memo-cache";
+import { useMemoCache } from "../react-hooks/useMemoCache";
 
 // The dispatcher React reads while a resource renders, so hooks imported from
 // "react" route to tap with no build step. Hooks tap has no equivalent for are
@@ -31,10 +30,7 @@ const tapDispatcher = {
   use,
   useSyncExternalStore,
   useDebugValue,
-  // React's `__COMPILER_RUNTIME.c` reads this off the live dispatcher; a
-  // duplicated tap copy whose shim misses its own fiber lands here.
-  useMemoCache: (size: number) =>
-    nextFiberMemoCache(getCurrentResourceFiber(), size),
+  useMemoCache,
 };
 
 // React's live dispatcher slot differs by version: React 19 exposes it as `H` on
