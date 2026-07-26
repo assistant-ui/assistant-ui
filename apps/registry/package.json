@@ -8,10 +8,10 @@
     "test": "node --test scripts/build-registry.test.mjs"
   },
   "dependencies": {
-    "radix-ui": "^1.6.2"
+    "radix-ui": "^1.6.7"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^4.0.16",
+    "@ai-sdk/openai": "^4.0.20",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
@@ -23,12 +23,12 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "ai": "^7.0.31",
+    "ai": "^7.0.37",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.25.0",
-    "postcss": "^8.5.20",
-    "react": "^19.2.7",
+    "lucide-react": "^1.26.0",
+    "postcss": "^8.5.23",
+    "react": "^19.2.8",
     "react-resizable-panels": "^4.12.2",
     "react-shiki": "^0.11.0",
     "react-syntax-highlighter": "^16.1.1",

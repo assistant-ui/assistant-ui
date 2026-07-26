@@ -12,7 +12,7 @@
     "@assistant-ui/react-ink": "workspace:*",
     "@assistant-ui/react-ink-markdown": "workspace:*",
     "ink": "^7.1.1",
-    "react": "^19.2.7"
+    "react": "^19.2.8"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

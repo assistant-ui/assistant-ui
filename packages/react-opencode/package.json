@@ -48,7 +48,7 @@
   "dependencies": {
     "@assistant-ui/core": "^0.2.21",
     "@assistant-ui/store": "^0.2.20",
-    "@opencode-ai/sdk": "^1.18.1",
+    "@opencode-ai/sdk": "^1.18.5",
     "use-effect-event": "^2.0.3"
   },
   "peerDependencies": {
@@ -68,8 +68,8 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^29.1.1",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "vitest": "^4.1.10"
   }
 }

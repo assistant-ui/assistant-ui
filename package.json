@@ -31,13 +31,13 @@
     "@assistant-ui/x-changelog": "workspace:*",
     "@changesets/cli": "^2.31.1",
     "husky": "^9.1.7",
-    "lint-staged": "^17.1.0",
+    "lint-staged": "^17.2.0",
     "oxfmt": "^0.59.0",
-    "oxlint": "^1.74.0",
-    "turbo": "^2.10.5",
+    "oxlint": "^1.75.0",
+    "turbo": "^2.10.6",
     "typescript": "^7.0.2"
   },
-  "packageManager": "pnpm@11.15.0",
+  "packageManager": "pnpm@11.10.0",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,cjs,mjs,cts,mts,json,jsonc}": [
       "oxlint --fix --no-error-on-unmatched-pattern",
