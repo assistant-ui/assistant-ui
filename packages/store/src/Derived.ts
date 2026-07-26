@@ -38,7 +38,7 @@ export const Derived = resource(useDerived) as <K extends ClientNames>(
 ) => DerivedElement<K>;
 
 export type DerivedElement<K extends ClientNames> = ResourceElement<null> & {
-  readonly args: readonly [Derived.Props<K>];
+  readonly __derivedKey?: K;
 };
 
 export namespace Derived {
