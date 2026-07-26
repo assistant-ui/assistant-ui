@@ -12,7 +12,7 @@ export type {
   AssistantChatResumableOptions,
   ResumableClientStorage,
 } from "./ui/resumable";
-export { frontendTools } from "./frontendTools";
+export { frontendTools, type FrontendTools } from "./frontendTools";
 export { injectQuoteContext } from "./injectQuoteContext";
 export { unstable_injectInteractableContext } from "./injectInteractableContext";
 export type { ThreadTokenUsage, TokenUsageExtractableMessage } from "./usage";

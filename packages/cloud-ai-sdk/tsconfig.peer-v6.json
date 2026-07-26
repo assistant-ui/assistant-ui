@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "ai": ["./node_modules/ai-v6"],
+      "ai/*": ["./node_modules/ai-v6/*"],
+      "@ai-sdk/react": ["./node_modules/@ai-sdk/react-v3"],
+      "@ai-sdk/react/*": ["./node_modules/@ai-sdk/react-v3/*"]
+    }
+  }
+}

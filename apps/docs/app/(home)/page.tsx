@@ -1,7 +1,7 @@
 "use client";
 
 import { analytics } from "@/lib/analytics";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/radix/button";
 import Link from "next/link";
 import { TESTIMONIALS } from "@/components/home/testimonials/data";
 import { TestimonialContainer } from "@/components/home/testimonials/testimonials";

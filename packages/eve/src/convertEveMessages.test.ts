@@ -141,6 +141,124 @@ describe("convertEveMessages", () => {
     });
   });
 
+  it("drops empty and whitespace-only assistant text and reasoning parts", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            { type: "text", text: "" },
+            { type: "reasoning", text: "   " },
+            { type: "text", text: "Hi" },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([{ type: "text", text: "Hi" }]);
+  });
+
+  it("preserves isOptimistic on optimistic user messages", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          metadata: { optimistic: true },
+          parts: [{ type: "text", text: "Hello" }],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.metadata.isOptimistic).toBe(true);
+  });
+
+  it("omits isOptimistic on confirmed user messages", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          metadata: { status: "submitted" },
+          parts: [{ type: "text", text: "Hello" }],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.metadata).not.toHaveProperty("isOptimistic");
+  });
+
+  it("falls back to an empty text part for user messages without convertible parts", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [{ type: "file", mediaType: "image/png" }],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("drops non-convertible user parts without triggering the fallback", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            { type: "file", mediaType: "image/png" },
+            { type: "text", text: "Hello" },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([{ type: "text", text: "Hello" }]);
+  });
+
+  it("drops non-convertible part types instead of throwing", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            { type: "step-start" },
+            {
+              type: "authorization",
+              state: "required",
+              name: "github",
+              description: "Sign in to GitHub",
+              displayName: "GitHub",
+              stepIndex: 0,
+              turnId: "turn_1",
+            },
+            { type: "file", mediaType: "application/pdf" },
+            { type: "text", text: "Done" },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([{ type: "text", text: "Done" }]);
+  });
+
   it("uses the supplied message creation time", () => {
     const createdAt = new Date("2026-06-17T00:00:00.000Z");
     const data = {

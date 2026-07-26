@@ -106,6 +106,38 @@ describe("adapter conversions", () => {
     });
   });
 
+  it("does not serialize Host-only data when modelContent is empty", () => {
+    const result = toAgUiMessages([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-42",
+            toolName: "show_map",
+            argsText: '{"city":"sf"}',
+            result: {
+              content: [
+                { type: "text", text: "joined text" },
+                { type: "image", data: "aGk=", mimeType: "image/png" },
+              ],
+              structuredContent: { ok: true },
+              isError: false,
+            },
+            modelContent: [],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[1]).toMatchObject({
+      role: "tool",
+      toolCallId: "call-42",
+      content: "",
+    });
+  });
+
   it("merges tool role snapshot messages back into assistant tool-call parts", () => {
     const result = fromAgUiMessages([
       {
@@ -132,7 +164,10 @@ describe("adapter conversions", () => {
         id: "msg-3",
         role: "tool",
         tool_call_id: "call-1",
-        content: '{"temperature":"22C"}',
+        content: [{ type: "text", text: "Map ready" }],
+        structuredContent: { temperature: "22C" },
+        _meta: { audience: "widget" },
+        isError: true,
       },
     ] as any);
 
@@ -146,7 +181,14 @@ describe("adapter conversions", () => {
       toolCallId: "call-1",
       toolName: "get_weather",
       argsText: '{"city":"Paris"}',
-      result: { temperature: "22C" },
+      result: {
+        content: [{ type: "text", text: "Map ready" }],
+        structuredContent: { temperature: "22C" },
+        _meta: { audience: "widget" },
+        isError: true,
+      },
+      modelContent: [{ type: "text", text: "Map ready" }],
+      isError: true,
     });
   });
 

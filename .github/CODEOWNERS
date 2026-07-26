@@ -1,7 +1,7 @@
 # CI and repository policy changes require maintainer review.
-/.github/CODEOWNERS @Yonom
+/.github/CODEOWNERS @Yonom @okisdev @AVGVSTVS96
 /.github/actions/ @assistant-ui/maintainers
 /.github/workflows/ @assistant-ui/maintainers
 
-# Public API surface snapshots require Yonom review.
-/api-surface/ @Yonom
+# Public API surface snapshots require maintainer review.
+/api-surface/ @Yonom @okisdev @AVGVSTVS96

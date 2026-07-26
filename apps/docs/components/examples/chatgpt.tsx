@@ -13,30 +13,28 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
+import { useEffect, useState, type FC } from "react";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { useShallow } from "zustand/shallow";
 import {
   ArrowUpIcon,
+  AudioLines,
   CheckIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
-  Cross2Icon,
-  Pencil1Icon,
-  ReloadIcon,
-} from "@radix-ui/react-icons";
-import { useEffect, useState, type FC } from "react";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { useShallow } from "zustand/shallow";
-import {
-  AudioLines,
   Download,
   Mic,
   MoreHorizontal,
+  PencilIcon,
   PlusIcon,
+  RefreshCwIcon,
   Share,
   ThumbsDown,
   ThumbsUp,
   Volume2,
+  XIcon,
 } from "lucide-react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
@@ -241,7 +239,7 @@ const UserMessage: FC = () => {
               side="top"
               className={assistantActionClassName}
             >
-              <Pencil1Icon className="size-5" />
+              <PencilIcon className="size-5" />
             </TooltipIconButton>
           </ActionBarPrimitive.Edit>
         </ActionBarPrimitive.Root>
@@ -342,7 +340,7 @@ const AssistantMessage: FC = () => {
               side="top"
               className={assistantActionClassName}
             >
-              <ReloadIcon className="size-5" />
+              <RefreshCwIcon className="size-5" />
             </TooltipIconButton>
           </ActionBarPrimitive.Reload>
           <ActionBarMorePrimitive.Root>
@@ -467,7 +465,7 @@ const ChatGPTAttachmentUI: FC = () => {
       </div>
       {isComposer && (
         <AttachmentPrimitive.Remove className="absolute -top-1.5 -right-1.5 flex size-7 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#6b6b6b] transition-all hover:bg-[#f5f5f5] hover:text-[#0d0d0d] dark:border-[#3a3a3a] dark:bg-[#1a1a1a] dark:text-[#9a9a9a] dark:hover:bg-[#252525] dark:hover:text-white">
-          <Cross2Icon className="size-5" />
+          <XIcon className="size-5" />
         </AttachmentPrimitive.Remove>
       )}
     </AttachmentPrimitive.Root>

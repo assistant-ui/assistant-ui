@@ -4,6 +4,8 @@ export {
   useAgUiInterrupts,
   useAgUiSubmitInterruptResponses,
   useAgUiSteerAway,
+  useAgUiState,
+  useAgUiSetState,
 } from "./hooks";
 export { fromAgUiMessages } from "./runtime/adapter/conversions";
 export type { FromAgUiMessagesOptions } from "./runtime/adapter/conversions";

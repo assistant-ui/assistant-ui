@@ -2,6 +2,7 @@ import {
   type ComponentType,
   type FC,
   type ReactNode,
+  forwardRef,
   memo,
   useCallback,
 } from "react";
@@ -154,11 +155,10 @@ const ThreadMessageByChildren = memo(
 );
 ThreadMessageByChildren.displayName = "ThreadPrimitive.MessageByChildren";
 
-export const ThreadMessages = ({
-  components,
-  children,
-  ...flatListProps
-}: ThreadMessagesProps) => {
+export const ThreadMessages = forwardRef<
+  FlatList<ThreadMessage>,
+  ThreadMessagesProps
+>(({ components, children, ...flatListProps }, ref) => {
   const messages = useAuiState((s) => s.thread.messages);
 
   const renderItem = useCallback(
@@ -179,11 +179,12 @@ export const ThreadMessages = ({
 
   return (
     <FlatList
+      ref={ref}
       data={messages as unknown as ThreadMessage[]}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
       {...flatListProps}
     />
   );
-};
+});
 ThreadMessages.displayName = "ThreadPrimitive.Messages";

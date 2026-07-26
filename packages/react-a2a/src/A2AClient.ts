@@ -1,3 +1,5 @@
+import { SSEEventDecoder, type SSEEvent } from "assistant-stream/utils";
+import { isRecord } from "@assistant-ui/core/internal";
 import type {
   A2AAgentCard,
   A2AErrorInfo,
@@ -152,6 +154,114 @@ function discriminateStreamResponse(
   return null;
 }
 
+const TASK_STATES: ReadonlySet<string> = new Set(
+  Object.keys({
+    unspecified: true,
+    submitted: true,
+    working: true,
+    completed: true,
+    failed: true,
+    canceled: true,
+    input_required: true,
+    rejected: true,
+    auth_required: true,
+  } satisfies Record<A2ATaskState, true>),
+);
+
+const isTaskState = (value: unknown): value is A2ATaskState =>
+  typeof value === "string" && TASK_STATES.has(value);
+
+const isTask = (value: unknown): value is A2ATask =>
+  isRecord(value) &&
+  typeof value.id === "string" &&
+  value.id.length > 0 &&
+  isRecord(value.status) &&
+  isTaskState(value.status.state);
+
+const isMessage = (value: unknown): value is A2AMessage =>
+  isRecord(value) &&
+  typeof value.messageId === "string" &&
+  value.messageId.length > 0 &&
+  typeof value.role === "string" &&
+  value.role.length > 0 &&
+  Array.isArray(value.parts) &&
+  value.parts.every(isRecord);
+
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === "string");
+
+const invalidAgentCard = (): never => {
+  throw new Error(
+    "Invalid A2A agent card response: expected a valid agent card payload.",
+  );
+};
+
+const parseCardString = (value: unknown): string =>
+  value == null ? "" : typeof value === "string" ? value : invalidAgentCard();
+
+const parseCardStringArray = (value: unknown): string[] =>
+  value == null ? [] : isStringArray(value) ? value : invalidAgentCard();
+
+const parseCardRecordArray = (value: unknown): Record<string, unknown>[] =>
+  value == null
+    ? []
+    : Array.isArray(value) && value.every(isRecord)
+      ? (value as Record<string, unknown>[])
+      : invalidAgentCard();
+
+const parseCardRecord = (value: unknown): Record<string, unknown> =>
+  value == null ? {} : isRecord(value) ? value : invalidAgentCard();
+
+// Proto3 JSON parsing treats omitted and null fields as defaults, so a valid
+// card may arrive without its empty lists, strings, or capabilities. Fill
+// those per the proto3 JSON mapping rules; a payload without a name or with a
+// present field of the wrong type rejects.
+const parseAgentCardResponse = (value: unknown): A2AAgentCard => {
+  if (
+    !isRecord(value) ||
+    typeof value.name !== "string" ||
+    value.name.length === 0
+  ) {
+    return invalidAgentCard();
+  }
+
+  return {
+    ...value,
+    name: value.name,
+    description: parseCardString(value.description),
+    version: parseCardString(value.version),
+    supportedInterfaces: parseCardRecordArray(value.supportedInterfaces).map(
+      (entry) => ({
+        ...entry,
+        url: parseCardString(entry.url),
+        protocolBinding: parseCardString(entry.protocolBinding),
+        protocolVersion: parseCardString(entry.protocolVersion),
+      }),
+    ),
+    capabilities: parseCardRecord(value.capabilities),
+    defaultInputModes: parseCardStringArray(value.defaultInputModes),
+    defaultOutputModes: parseCardStringArray(value.defaultOutputModes),
+    skills: parseCardRecordArray(value.skills).map((entry) => ({
+      ...entry,
+      id: parseCardString(entry.id),
+      name: parseCardString(entry.name),
+      description: parseCardString(entry.description),
+      tags: parseCardStringArray(entry.tags),
+    })),
+  } as A2AAgentCard;
+};
+
+const parseSendMessageResponse = (value: unknown): A2ATask | A2AMessage => {
+  if (isRecord(value)) {
+    const candidate = value.task ?? value.message ?? value;
+    if (isTask(candidate) || isMessage(candidate)) return candidate;
+  }
+
+  throw new Error(
+    "Invalid A2A message:send response: expected a valid task or message payload.",
+  );
+};
+
 function signalInit(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
@@ -272,14 +382,15 @@ export class A2AClient {
       await this.throwResponseError(response);
     }
     const json = await response.json();
-    return normalizeKeys(json) as A2AAgentCard;
+    return parseAgentCardResponse(normalizeKeys(json));
   }
 
   async getExtendedAgentCard(signal?: AbortSignal): Promise<A2AAgentCard> {
-    return this.fetchJSON<A2AAgentCard>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/extendedAgentCard`,
       signalInit(signal),
     );
+    return parseAgentCardResponse(result);
   }
 
   // --- Message ---
@@ -296,7 +407,7 @@ export class A2AClient {
     if (configuration) body.configuration = configuration;
     if (metadata) body.metadata = metadata;
 
-    const result = await this.fetchJSON<Record<string, unknown>>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/message:send`,
       {
         method: "POST",
@@ -305,11 +416,7 @@ export class A2AClient {
       },
     );
 
-    // Unwrap SendMessageResponse: {task: Task} | {message: Message}
-    if ("task" in result && result.task) return result.task as A2ATask;
-    if ("message" in result && result.message)
-      return result.message as A2AMessage;
-    return result as unknown as A2ATask | A2AMessage;
+    return parseSendMessageResponse(result);
   }
 
   async *streamMessage(
@@ -493,57 +600,59 @@ export class A2AClient {
   // --- SSE Parsing ---
 
   private async *parseSSE(response: Response): AsyncGenerator<A2AStreamEvent> {
+    const contentType = response.headers.get("Content-Type");
+    const mediaType = contentType?.split(";", 1)[0]?.trim().toLowerCase();
+    if (mediaType !== "text/event-stream") {
+      const received = contentType
+        ? `"${contentType}"`
+        : "no Content-Type header";
+      throw new Error(
+        `Expected A2A stream response Content-Type "text/event-stream", received ${received}`,
+      );
+    }
+
     const reader = response.body?.getReader();
     if (!reader) throw new Error("No response body");
 
     const decoder = new TextDecoder();
-    let buffer = "";
+    const sseDecoder = new SSEEventDecoder();
+
+    const readEvent = (event: SSEEvent): A2AStreamEvent | null => {
+      try {
+        let parsed = JSON.parse(event.data);
+
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          "jsonrpc" in parsed &&
+          "result" in parsed
+        ) {
+          parsed = parsed.result;
+        }
+
+        const normalized = normalizeKeys(parsed) as Record<string, unknown>;
+        return discriminateStreamResponse(normalized);
+      } catch {
+        return null;
+      }
+    };
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        let eventEnd: number = buffer.indexOf("\n\n");
-        while (eventEnd !== -1) {
-          const eventText = buffer.slice(0, eventEnd);
-          buffer = buffer.slice(eventEnd + 2);
-
-          const dataLines: string[] = [];
-
-          for (const line of eventText.split("\n")) {
-            const trimmed = line.replace(/\r$/, "");
-            if (trimmed.startsWith("data:")) {
-              dataLines.push(trimmed.slice(5).trim());
-            }
-            // event:, id:, retry: lines are parsed but not used —
-            // we discriminate event type from the JSON payload.
+        if (done) {
+          for (const event of sseDecoder.push(decoder.decode())) {
+            const parsed = readEvent(event);
+            if (parsed) yield parsed;
           }
+          break;
+        }
 
-          if (dataLines.length === 0) continue;
-
-          try {
-            let parsed = JSON.parse(dataLines.join("\n"));
-
-            // Unwrap JSON-RPC envelope if present
-            if (
-              parsed &&
-              typeof parsed === "object" &&
-              "jsonrpc" in parsed &&
-              "result" in parsed
-            ) {
-              parsed = parsed.result;
-            }
-
-            const normalized = normalizeKeys(parsed) as Record<string, unknown>;
-            const event = discriminateStreamResponse(normalized);
-            if (event) yield event;
-          } catch {
-            // Skip malformed events
-          }
-          eventEnd = buffer.indexOf("\n\n");
+        for (const event of sseDecoder.push(
+          decoder.decode(value, { stream: true }),
+        )) {
+          const parsed = readEvent(event);
+          if (parsed) yield parsed;
         }
       }
     } finally {

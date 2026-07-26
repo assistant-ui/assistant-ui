@@ -38,6 +38,7 @@ describe("compareSemver", () => {
     expect(compareSemver("1.0.0-alpha", "1.0.0")).toBeLessThan(0);
     expect(compareSemver("1.0.0", "1.0.0-alpha")).toBeGreaterThan(0);
     expect(compareSemver("1.0.0-alpha.1", "1.0.0-alpha.2")).toBeLessThan(0);
+    expect(compareSemver("1.0.0-beta.2", "1.0.0-beta.10")).toBeLessThan(0);
     expect(compareSemver("0.3.0-rc.1", "0.3.0")).toBeLessThan(0);
   });
 
@@ -143,6 +144,70 @@ describe("doctor — package discovery", () => {
     expect(dups[0]!.name).toBe("@assistant-ui/core");
     const versions = dups[0]!.installations.map((i) => i.version).sort();
     expect(versions).toEqual(["0.2.2", "0.2.5"]);
+  });
+});
+
+describe("doctor — workspace package discovery", () => {
+  it("finds packages hoisted above the selected workspace package", () => {
+    const fixture = fs.mkdtempSync(
+      path.join(os.tmpdir(), "aui-doctor-workspace-"),
+    );
+    const root = path.join(fixture, "workspace");
+    const app = path.join(root, "packages", "app");
+    const linkedApp = path.join(fixture, "linked-app");
+
+    try {
+      fs.mkdirSync(app, { recursive: true });
+      fs.symlinkSync(
+        app,
+        linkedApp,
+        process.platform === "win32" ? "junction" : "dir",
+      );
+      fs.writeFileSync(
+        path.join(root, "package.json"),
+        JSON.stringify({
+          name: "workspace",
+          private: true,
+          workspaces: ["packages/*"],
+        }),
+      );
+      fs.writeFileSync(
+        path.join(app, "package.json"),
+        JSON.stringify({
+          name: "app",
+          dependencies: { "@assistant-ui/react": "0.14.5" },
+        }),
+      );
+      writePackage(root, {
+        name: "@assistant-ui/react",
+        version: "0.14.5",
+        installPath: "node_modules/@assistant-ui/react",
+      });
+      writePackage(fixture, {
+        name: "@assistant-ui/core",
+        version: "0.2.0",
+        installPath: "node_modules/@assistant-ui/core",
+      });
+
+      const realRoot = fs.realpathSync(root);
+      const expected = [
+        {
+          name: "@assistant-ui/react",
+          version: "0.14.5",
+          installPath: path.join(
+            realRoot,
+            "node_modules",
+            "@assistant-ui",
+            "react",
+          ),
+        },
+      ];
+
+      expect(discoverInstalledPackages(app)).toEqual(expected);
+      expect(discoverInstalledPackages(linkedApp)).toEqual(expected);
+    } finally {
+      fs.rmSync(fixture, { recursive: true, force: true });
+    }
   });
 });
 
@@ -280,6 +345,27 @@ describe("findOutdated", () => {
       ["@assistant-ui/core", "0.2.5"],
     ]);
     expect(findOutdated(installed, latest)).toEqual([]);
+  });
+
+  it("flags an older numeric prerelease", () => {
+    const installed: DiscoveredPackage[] = [
+      {
+        name: "@assistant-ui/react",
+        version: "1.0.0-beta.2",
+        installPath: "",
+      },
+    ];
+    const latest = new Map<string, string | null>([
+      ["@assistant-ui/react", "1.0.0-beta.10"],
+    ]);
+
+    expect(findOutdated(installed, latest)).toEqual([
+      {
+        name: "@assistant-ui/react",
+        current: "1.0.0-beta.2",
+        latest: "1.0.0-beta.10",
+      },
+    ]);
   });
 
   it("skips packages with no latest version (e.g. network failed)", () => {

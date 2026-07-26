@@ -1,6 +1,8 @@
-import { act } from "react";
+import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { FlatList } from "react-native";
+import type { ThreadMessage } from "@assistant-ui/core";
 import { ThreadMessages } from "./ThreadMessages";
 
 type Msg = { id: string; role: string };
@@ -188,5 +190,23 @@ describe("ThreadMessages", () => {
       } as never,
     });
     expect(container.querySelector('[data-testid="c-message"]')).toBeNull();
+  });
+
+  it("forwards refs to the underlying FlatList", async () => {
+    h.state.thread.messages = [{ id: "1", role: "user" }];
+    const ref = createRef<FlatList<ThreadMessage>>();
+
+    await act(async () => {
+      root.render(
+        <ThreadMessages
+          ref={ref}
+          components={{
+            Message: () => <span data-testid="c-message">message</span>,
+          }}
+        />,
+      );
+    });
+
+    expect(ref.current).not.toBeNull();
   });
 });

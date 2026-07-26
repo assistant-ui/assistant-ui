@@ -29,6 +29,7 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
+      onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
       /**
        * Called when `useChatRuntime` automatically attempts to resume a pending
        * resumable stream on mount and that reconnect fails. Use this to surface
@@ -87,6 +88,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     unstable_capabilities: _unstable_capabilities,
     suggestions: _suggestions,
     onResume,
+    onResumeToolCall,
     onResumeError,
     joinStrategy,
     ...chatOptions
@@ -114,6 +116,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...pickExternalStoreSharedOptions(options ?? {}),
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
+    ...(onResumeToolCall && { onResumeToolCall }),
     ...(joinStrategy && { joinStrategy }),
   });
 

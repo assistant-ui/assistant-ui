@@ -85,6 +85,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   public stopThreadRuntime(threadId: string) {
     this.instances.delete(threadId);
     this.useAliveThreadsKeysChanged.setState({}, true);
+    this._notifySubscribers();
   }
 
   public setRuntimeHook(newRuntimeHook: RemoteThreadListHook) {
@@ -109,7 +110,9 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const updateRuntime = useCallback(() => {
       const aliveThread = this.instances.get(threadId);
       if (!aliveThread)
-        throw new Error("Thread not found. This is a bug in assistant-ui.");
+        throw new Error(
+          `Thread "${threadId}" runtime binding not found. This is a bug in assistant-ui.`,
+        );
 
       aliveThread.runtime = threadBinding.getState();
       this._notifySubscribers();

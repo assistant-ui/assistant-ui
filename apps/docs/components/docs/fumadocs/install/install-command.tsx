@@ -1,7 +1,13 @@
+import fs from "node:fs";
+import path from "node:path";
 import { Tab, Tabs } from "@/components/docs/fumadocs/tabs";
+import { Flavored } from "@/components/docs/contexts/flavor.server";
+import type { LLMRenderContext } from "@/lib/get-llm-text";
 import {
   resolveAllComponents,
   ComponentSourceFromFile,
+  type RegistryFlavor,
+  type ResolvedComponents,
   type ResolvedFile,
   type ResolvedGroup,
 } from "@/components/docs/fumadocs/install/component-source";
@@ -58,20 +64,52 @@ export async function InstallCommand(props: InstallCommandProps) {
   }
 
   const components = props.shadcn;
-  const urls = components.map((c) => `https://r.assistant-ui.com/${c}.json`);
+  const radixUrls = components.map(
+    (c) => `https://r.assistant-ui.com/${c}.json`,
+  );
+  const baseUrls = components.map(
+    (c) => `https://r.assistant-ui.com/base/${c}.json`,
+  );
 
-  const resolved = await resolveAllComponents(props.shadcn);
+  const [radixResolved, baseResolved] = await Promise.all([
+    resolveAllComponents(components, "radix"),
+    resolveAllComponents(components, "base"),
+  ]);
+
+  const manualFor = (resolved: ResolvedComponents) => (
+    <>
+      {props.manualSetupInstructions && <SetupInstructions />}
+      <FileGroup title="Main Component" group={resolved.main} />
+      <FileGroup title="assistant-ui dependencies" group={resolved.auiDeps} />
+      <FileGroup title="shadcn/ui dependencies" group={resolved.shadcn} />
+    </>
+  );
+
+  const namespaced = components.map((c) => `@assistant-ui/${c}`);
 
   return (
     <Tabs items={["CLI", "Manual"]}>
       <Tab>
-        <ShadcnInstallTabs urls={urls} />
+        <ShadcnInstallTabs urls={namespaced} />
+        <p className="text-muted-foreground mt-3 text-sm">
+          The <code>@assistant-ui</code> namespace resolves the Radix or Base UI
+          flavor from your project&apos;s style through the{" "}
+          <a href="/docs/base-ui" className="underline underline-offset-2">
+            style-aware registry
+          </a>{" "}
+          entry in <code>components.json</code>. Without that entry, add by
+          direct URL instead:
+        </p>
+        <Flavored
+          radix={<ShadcnInstallTabs urls={radixUrls} />}
+          base={<ShadcnInstallTabs urls={baseUrls} />}
+        />
       </Tab>
       <Tab>
-        {props.manualSetupInstructions && <SetupInstructions />}
-        <FileGroup title="Main Component" group={resolved.main} />
-        <FileGroup title="assistant-ui dependencies" group={resolved.auiDeps} />
-        <FileGroup title="shadcn/ui dependencies" group={resolved.shadcn} />
+        <Flavored
+          radix={manualFor(radixResolved)}
+          base={manualFor(baseResolved)}
+        />
       </Tab>
     </Tabs>
   );
@@ -89,9 +127,21 @@ const CommandBlock = ({ command }: { command: string }) => (
   </pre>
 );
 
-function buildDownloadCommand(files: ResolvedFile[]): string {
+function githubSourcePath(filePath: string, flavor: RegistryFlavor): string {
+  if (flavor !== "radix") return filePath;
+  const radixPath = filePath.replace(/\.tsx$/, ".radix.tsx");
+  return fs.existsSync(
+    path.join(process.cwd(), "../../packages/ui/src", radixPath),
+  )
+    ? radixPath
+    : filePath;
+}
+
+type LinkedFile = ResolvedFile & { sourcePath: string };
+
+function buildDownloadCommand(files: LinkedFile[]): string {
   const args = files
-    .map((file) => `  -o ${file.path} ${GITHUB_RAW}/${file.path}`)
+    .map((file) => `  -o ${file.path} ${GITHUB_RAW}/${file.sourcePath}`)
     .join(" \\\n");
   return `curl -sSL --create-dirs \\\n${args}`;
 }
@@ -99,7 +149,10 @@ function buildDownloadCommand(files: ResolvedFile[]): string {
 // Instead of dumping each component's full source (the visual Manual tab), give
 // the CLI command plus a manual path: npm deps, shadcn components, and the
 // GitHub-linked aui files with one curl to fetch them all.
-export const InstallCommandLLM = async (props: InstallCommandProps) => {
+export const InstallCommandLLM = async (
+  props: InstallCommandProps,
+  ctx?: LLMRenderContext,
+) => {
   if ("npm" in props) {
     return <CommandBlock command={`npm install ${props.npm.join(" ")}`} />;
   }
@@ -109,9 +162,21 @@ export const InstallCommandLLM = async (props: InstallCommandProps) => {
     );
   }
 
-  const urls = props.shadcn.map((c) => `https://r.assistant-ui.com/${c}.json`);
-  const resolved = await resolveAllComponents(props.shadcn);
-  const files = [...resolved.main.files, ...resolved.auiDeps.files];
+  const flavor = ctx?.flavor ?? "base";
+  const namespaced = props.shadcn.map((c) => `@assistant-ui/${c}`);
+  const urls = props.shadcn.map((c) =>
+    flavor === "base"
+      ? `https://r.assistant-ui.com/base/${c}.json`
+      : `https://r.assistant-ui.com/${c}.json`,
+  );
+  const resolved = await resolveAllComponents(props.shadcn, flavor);
+  const files: LinkedFile[] = [
+    ...resolved.main.files,
+    ...resolved.auiDeps.files,
+  ].map((file) => ({
+    ...file,
+    sourcePath: githubSourcePath(file.path, flavor),
+  }));
   // npm packages the copied files import. shadcn deps (e.g. radix-ui) are
   // omitted here — they install with the shadcn components below.
   const npmDeps = [
@@ -126,6 +191,14 @@ export const InstallCommandLLM = async (props: InstallCommandProps) => {
 
   return (
     <>
+      <p>
+        With the style-aware registry configured in components.json
+        (&quot;@assistant-ui&quot;:
+        &quot;https://r.assistant-ui.com/styles/&#123;style&#125;/&#123;name&#125;.json&quot;),
+        the flavor resolves from the project style automatically:
+      </p>
+      <CommandBlock command={`npx shadcn@latest add ${namespaced.join(" ")}`} />
+      <p>Or add by direct URL without registry configuration:</p>
       <CommandBlock command={`npx shadcn@latest add ${urls.join(" ")}`} />
       {files.length > 0 && (
         <>
@@ -142,7 +215,7 @@ export const InstallCommandLLM = async (props: InstallCommandProps) => {
           <ul>
             {files.map((file) => (
               <li key={file.path}>
-                <a href={`${GITHUB_BLOB}/${file.path}`}>{file.path}</a>
+                <a href={`${GITHUB_BLOB}/${file.sourcePath}`}>{file.path}</a>
               </li>
             ))}
           </ul>

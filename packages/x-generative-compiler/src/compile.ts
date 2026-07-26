@@ -9,6 +9,12 @@ import { satisfies } from "semver";
 import { DIRECTIVE, type Target } from "./constants";
 import pkgJson from "../package.json" with { type: "json" };
 
+const parserPlugins = [
+  "typescript",
+  "jsx",
+  "explicitResourceManagement",
+] as NonNullable<NonNullable<Parameters<typeof parse>[1]>["plugins"]>;
+
 // @babel/traverse and @babel/generator are CJS; their default export is the
 // function itself under some interop and `{ default }` under others.
 const traverse = (
@@ -246,7 +252,7 @@ export function compileGenerative(
 
   const ast = parse(code, {
     sourceType: "module",
-    plugins: ["typescript", "jsx", "explicitResourceManagement"],
+    plugins: parserPlugins,
   });
 
   if (!ast.program.directives.some((d) => d.value.value === DIRECTIVE)) {
@@ -346,7 +352,7 @@ export function compileGenerative(
     ast,
     {
       sourceMaps: options.sourceMaps ?? false,
-      filename,
+      ...(filename ? { filename } : {}),
       jsescOption: { minimal: true },
     },
     code,
@@ -595,6 +601,23 @@ function unwrapToCall(node: t.Node, name: string): t.CallExpression | null {
 }
 
 /**
+ * Unwraps a statement to its variable declaration through an `export` wrapper,
+ * or returns `null`.
+ */
+function asVariableDeclaration(
+  statement: t.Statement,
+): t.VariableDeclaration | null {
+  if (t.isVariableDeclaration(statement)) return statement;
+  if (
+    t.isExportNamedDeclaration(statement) &&
+    t.isVariableDeclaration(statement.declaration)
+  ) {
+    return statement.declaration;
+  }
+  return null;
+}
+
+/**
  * Collects the names bound to `new JSONGenerativeUI(...)` (e.g.
  * `const generative = new JSONGenerativeUI({ library })`). A toolkit entry that
  * calls a method on one of these is a generative tool whose halves the library
@@ -604,12 +627,7 @@ function collectGenerativeInstances(ast: t.File): Set<string> {
   const names = new Set<string>();
   const generativeFactories = collectGenerativeFactoryImports(ast);
   for (const statement of ast.program.body) {
-    const variableDeclaration = t.isVariableDeclaration(statement)
-      ? statement
-      : t.isExportNamedDeclaration(statement) &&
-          t.isVariableDeclaration(statement.declaration)
-        ? statement.declaration
-        : null;
+    const variableDeclaration = asVariableDeclaration(statement);
     if (!variableDeclaration) continue;
     for (const declaration of variableDeclaration.declarations) {
       const { id, init } = declaration;
@@ -726,8 +744,9 @@ function collectToolkitSpreadNames(
   const localToolkitCalls = new Map<string, t.CallExpression>();
 
   for (const statement of ast.program.body) {
-    if (t.isVariableDeclaration(statement)) {
-      for (const declaration of statement.declarations) {
+    const localDeclaration = asVariableDeclaration(statement);
+    if (localDeclaration) {
+      for (const declaration of localDeclaration.declarations) {
         const { id, init } = declaration;
         if (t.isIdentifier(id) && init) {
           const toolkitCall = unwrapToToolkitCall(init);
@@ -833,7 +852,7 @@ function getGenerativeImportToolkitNames(
   try {
     const importedAst = parse(code, {
       sourceType: "module",
-      plugins: ["typescript", "jsx", "explicitResourceManagement"],
+      plugins: parserPlugins,
     });
     const names = getDefaultExportToolkitNames(importedAst, resolved, context);
     context.importedToolkitNamesByFile.set(resolved, names);

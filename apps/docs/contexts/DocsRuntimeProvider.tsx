@@ -70,6 +70,12 @@ export function DocsRuntimeProvider({
         label: "like useState and useEffect",
         prompt: "Explain React hooks like useState and useEffect",
       },
+      {
+        title: "Show a live dashboard",
+        label: "with the present tool",
+        prompt:
+          "Use the present tool to show a compact sales dashboard: a Card with two Facts in a Row and a bar Chart of monthly sales.",
+      },
     ]),
   });
 

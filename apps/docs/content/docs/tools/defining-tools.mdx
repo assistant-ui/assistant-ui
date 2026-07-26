@@ -125,7 +125,7 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import toolkit from "./toolkit";
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
-  const runtime = useChatRuntime({ api: "/api/chat" });
+  const runtime = useChatRuntime();
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   return (
@@ -135,6 +135,8 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 ```
+
+`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
 
 </Step>
 <Step>
@@ -460,6 +462,10 @@ export default defineToolkit({
   // ...your own tools
 });
 ```
+
+When two MCP servers expose the same tool name, use `{ server, prefix }` on an
+entry so the model sees distinct names such as `docs_search` and
+`github_search`.
 
 See [MCP](/docs/tools/mcp) for the full server-side and user-managed MCP flows.
 

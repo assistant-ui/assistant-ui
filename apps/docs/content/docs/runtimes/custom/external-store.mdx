@@ -796,7 +796,7 @@ useExternalStoreRuntime({
       name: "onResume",
       type: "(config: ResumeRunConfig) => Promise<void>",
       description:
-        "Handler for resuming an interrupted run (e.g. after a page reload mid-generation).",
+        "Handler for resuming an interrupted run (e.g. after a page reload mid-generation). For AI SDK reload-safe streaming, see the [Resumable Streams](/docs/guides/resumable-streams) guide.",
     },
     {
       name: "onResumeToolCall",

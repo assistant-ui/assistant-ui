@@ -165,6 +165,22 @@ Form container for message composition. Renders a `<form>` element unless `asChi
 </ComposerPrimitive.Root>
 ```
 
+#### Compact Mode
+
+Pass `compact` to opt into compact detection. While the input holds at most a single line of text and the composer has no attachments, quote, queued messages, or active dictation, the root renders a `data-compact` attribute. The prop only exposes this attribute for styling — it does not change the layout by itself. Target it with CSS to collapse the composer into a single row:
+
+```tsx
+<ComposerPrimitive.Root
+  compact
+  className="group/composer flex flex-col data-[compact]:flex-row data-[compact]:items-center"
+>
+  <ComposerPrimitive.Input placeholder="Ask anything..." />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+Once the text wraps onto a second line, the composer expands and stays expanded until the input is cleared, so the layout doesn't oscillate at the wrap boundary.
+
 ### Input
 
 Text input with keyboard shortcuts. Renders a `<textarea>` element unless `asChild` is set.

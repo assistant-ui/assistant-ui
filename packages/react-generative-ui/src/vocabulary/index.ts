@@ -2,8 +2,11 @@ import type { GenerativeUILibrary } from "../types";
 import { alertVocabulary } from "./alert";
 import { dataVocabulary } from "./data";
 import { factVocabulary } from "./fact";
+import { formVocabulary } from "./form";
+import { iconVocabulary } from "./icon";
 import { interactiveVocabulary } from "./interactive";
 import { layoutVocabulary } from "./layout";
+import { listVocabulary } from "./list";
 import { mediaVocabulary } from "./media";
 import { textVocabulary } from "./text";
 
@@ -21,7 +24,10 @@ export const defaultGenerativeUILibrary: GenerativeUILibrary = {
   ...mediaVocabulary,
   ...factVocabulary,
   ...interactiveVocabulary,
+  ...formVocabulary,
   ...layoutVocabulary,
+  ...listVocabulary,
   ...dataVocabulary,
   ...alertVocabulary,
+  ...iconVocabulary,
 };

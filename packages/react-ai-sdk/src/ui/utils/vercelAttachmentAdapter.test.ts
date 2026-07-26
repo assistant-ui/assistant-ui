@@ -24,8 +24,6 @@ describe("vercelAttachmentAdapter", () => {
 
     const part = result.content[0];
     if (part?.type !== "file") throw new Error("expected file content part");
-    expect(part.data).toBe(
-      `data:text/plain;base64,${Buffer.from("hello").toString("base64")}`,
-    );
+    expect(part.data).toBe("data:text/plain;base64,aGVsbG8=");
   });
 });

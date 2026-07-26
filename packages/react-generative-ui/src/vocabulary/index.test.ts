@@ -13,16 +13,23 @@ const EXPECTED_KEYS = [
   "Select",
   "Input",
   "DatePicker",
+  "Checkbox",
+  "RadioGroup",
+  "Form",
   "Card",
   "Col",
   "Row",
   "Spacer",
   "Badge",
+  "Box",
+  "ListView",
+  "ListViewItem",
   "Table",
   "Markdown",
   "Chart",
   "Alert",
   "Carousel",
+  "Icon",
 ] as const;
 
 describe("defaultGenerativeUILibrary", () => {

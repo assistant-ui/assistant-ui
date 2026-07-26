@@ -1,6 +1,7 @@
 "use client";
 
 import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
+import { resolveDataStreamProtocol, type DataStreamProtocol } from "./protocol";
 import type {
   AssistantRuntime,
   ChatModelAdapter,
@@ -23,11 +24,13 @@ import { asAsyncIterableStream } from "assistant-stream/utils";
 
 type HeadersValue = Record<string, string> | Headers;
 
-export type DataStreamProtocol = "ui-message-stream" | "data-stream";
+export type { DataStreamProtocol } from "./protocol";
+
+let didWarnProtocolFallback = false;
 
 export type UseDataStreamRuntimeOptions = {
   api: string;
-  /** Defaults to "ui-message-stream". Use "data-stream" for legacy AI SDK. */
+  /** Defaults to response-header detection, then "ui-message-stream". */
   protocol?: DataStreamProtocol;
   /** Callback for data-* parts (ui-message-stream only). */
   onData?: (data: {
@@ -75,53 +78,65 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
     unstable_parentId,
     unstable_getMessage,
   }: ChatModelRunOptions) {
-    const headersValue =
-      typeof this.options.headers === "function"
-        ? await this.options.headers()
-        : this.options.headers;
+    let result: Response;
+    try {
+      const headersValue =
+        typeof this.options.headers === "function"
+          ? await this.options.headers()
+          : this.options.headers;
 
-    const bodyValue =
-      typeof this.options.body === "function"
-        ? await this.options.body()
-        : this.options.body;
+      const bodyValue =
+        typeof this.options.body === "function"
+          ? await this.options.body()
+          : this.options.body;
 
-    abortSignal.addEventListener(
-      "abort",
-      () => {
-        if (!abortSignal.reason?.detach) this.options.onCancel?.();
-      },
-      { once: true },
-    );
+      abortSignal.addEventListener(
+        "abort",
+        () => {
+          if (!abortSignal.reason?.detach) this.options.onCancel?.();
+        },
+        { once: true },
+      );
 
-    const headers = new Headers(headersValue);
-    headers.set("Content-Type", "application/json");
+      const headers = new Headers(headersValue);
+      headers.set("Content-Type", "application/json");
 
-    const result = await fetch(this.options.api, {
-      method: "POST",
-      headers,
-      credentials: this.options.credentials ?? "same-origin",
-      body: JSON.stringify({
-        system: context.system,
-        messages: toLanguageModelMessages(
-          [...messages, unstable_getMessage()],
-          { unstable_includeId: this.options.sendExtraMessageFields },
-        ) as DataStreamRuntimeRequestOptions["messages"],
-        tools: toToolsJSONSchema(
-          context.tools ?? {},
-        ) as unknown as DataStreamRuntimeRequestOptions["tools"],
-        ...(unstable_assistantMessageId ? { unstable_assistantMessageId } : {}),
-        ...(unstable_threadId ? { threadId: unstable_threadId } : {}),
-        ...(unstable_parentId !== undefined
-          ? { parentId: unstable_parentId }
-          : {}),
-        runConfig,
-        state: unstable_getMessage().metadata.unstable_state || undefined,
-        ...context.callSettings,
-        ...context.config,
-        ...(bodyValue ?? {}),
-      } satisfies DataStreamRuntimeRequestOptions),
-      signal: abortSignal,
-    });
+      result = await fetch(this.options.api, {
+        method: "POST",
+        headers,
+        credentials: this.options.credentials ?? "same-origin",
+        body: JSON.stringify({
+          system: context.system,
+          messages: toLanguageModelMessages(
+            [...messages, unstable_getMessage()],
+            { unstable_includeId: this.options.sendExtraMessageFields },
+          ) as DataStreamRuntimeRequestOptions["messages"],
+          tools: toToolsJSONSchema(
+            context.tools ?? {},
+          ) as unknown as DataStreamRuntimeRequestOptions["tools"],
+          ...(unstable_assistantMessageId
+            ? { unstable_assistantMessageId }
+            : {}),
+          ...(unstable_threadId ? { threadId: unstable_threadId } : {}),
+          ...(unstable_parentId !== undefined
+            ? { parentId: unstable_parentId }
+            : {}),
+          runConfig,
+          state: unstable_getMessage().metadata.unstable_state ?? undefined,
+          ...context.callSettings,
+          ...context.config,
+          ...(bodyValue ?? {}),
+        } satisfies DataStreamRuntimeRequestOptions),
+        signal: abortSignal,
+      });
+    } catch (error: unknown) {
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        this.options.onError?.(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      }
+      throw error;
+    }
 
     await this.options.onResponse?.(result);
 
@@ -133,7 +148,20 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         throw new Error("Response body is null");
       }
 
-      const protocol = this.options.protocol ?? "ui-message-stream";
+      const { protocol, source } = resolveDataStreamProtocol(
+        result.headers,
+        this.options.protocol,
+      );
+      if (
+        source === "fallback" &&
+        process.env.NODE_ENV !== "production" &&
+        !didWarnProtocolFallback
+      ) {
+        didWarnProtocolFallback = true;
+        console.warn(
+          '@assistant-ui/react-data-stream could not detect a stream protocol header; falling back to "ui-message-stream". Pass protocol explicitly or expose x-vercel-ai-data-stream / x-vercel-ai-ui-message-stream from the response.',
+        );
+      }
       const decoder =
         protocol === "ui-message-stream"
           ? new UIMessageStreamDecoder(

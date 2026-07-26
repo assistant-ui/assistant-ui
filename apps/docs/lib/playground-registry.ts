@@ -6,7 +6,7 @@ export function determineRegistryDependencies(config: BuilderConfig): string[] {
   const { components } = config;
   const deps: string[] = [
     "button",
-    `${REGISTRY_BASE_URL}/tooltip-icon-button.json`,
+    `${REGISTRY_BASE_URL}/base/tooltip-icon-button.json`,
   ];
 
   if (components.markdown) {
@@ -15,7 +15,7 @@ export function determineRegistryDependencies(config: BuilderConfig): string[] {
   }
 
   if (components.attachments) {
-    deps.push(`${REGISTRY_BASE_URL}/attachment.json`);
+    deps.push(`${REGISTRY_BASE_URL}/base/attachment.json`);
   }
 
   return deps;

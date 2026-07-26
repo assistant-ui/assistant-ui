@@ -130,7 +130,7 @@ export function AssistantComposer({
   return (
     <ComposerPrimitive.Root
       onSubmit={handleSubmit}
-      className={cn("pb-0.5", className)}
+      className={cn("pb-2.5", className)}
     >
       <div className="border-border bg-background focus-within:border-foreground/60 rounded-xl border transition-colors">
         <ComposerPrimitive.Input asChild>

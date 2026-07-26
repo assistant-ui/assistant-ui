@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { DefaultThreadComposerRuntimeCore } from "../runtime/base/default-thread-composer-runtime-core";
-import type { AttachmentAdapter } from "../adapters/attachment";
+import {
+  SimpleTextAttachmentAdapter,
+  type AttachmentAdapter,
+} from "../adapters/attachment";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
 import type { PendingAttachment } from "../types/attachment";
 
@@ -125,6 +128,84 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("adds prepared attachments when File is unavailable", async () => {
+    const composer = makeComposer();
+    const fileConstructor = globalThis.File;
+    vi.stubGlobal("File", undefined);
+
+    try {
+      await composer.addAttachment({
+        name: "notes.txt",
+        contentType: "text/plain",
+        content: [{ type: "text", text: "hello" }],
+      });
+    } finally {
+      vi.stubGlobal("File", fileConstructor);
+    }
+
+    expect(composer.attachments[0]).toMatchObject({
+      type: "document",
+      name: "notes.txt",
+      contentType: "text/plain",
+      content: [{ type: "text", text: "hello" }],
+      status: { type: "complete" },
+    });
+  });
+
+  it("uses the adapter for foreign files that expose content", async () => {
+    const add = vi.fn(makeAdapter().add);
+    const composer = makeComposer(makeAdapter({ add }));
+    const foreignFile = {
+      name: "photo.png",
+      type: "image/png",
+      lastModified: 0,
+      content: [{ type: "text", text: "implementation detail" }],
+    } as File;
+
+    await composer.addAttachment(foreignFile);
+
+    expect(add).toHaveBeenCalledWith({ file: foreignFile });
+    expect(composer.attachments[0]).toMatchObject({
+      type: "image",
+      name: "photo.png",
+      contentType: "image/png",
+    });
+  });
+
+  it("accepts JSON files with the application/json media type", async () => {
+    const composer = makeComposer(new SimpleTextAttachmentAdapter());
+
+    await expect(
+      composer.addAttachment(
+        new File(["{}"], "data.json", { type: "application/json" }),
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(composer.attachments[0]).toMatchObject({
+      type: "document",
+      name: "data.json",
+      contentType: "application/json",
+    });
+  });
+
+  it("keeps different files with the same name as separate attachments", async () => {
+    const composer = makeComposer(new SimpleTextAttachmentAdapter());
+
+    await composer.addAttachment(
+      new File(["first"], "notes.txt", { type: "text/plain" }),
+    );
+    await composer.addAttachment(
+      new File(["second"], "notes.txt", { type: "text/plain" }),
+    );
+
+    expect(composer.attachments).toHaveLength(2);
+    expect(composer.attachments[0]!.id).not.toBe(composer.attachments[1]!.id);
+    expect(composer.attachments.map((attachment) => attachment.name)).toEqual([
+      "notes.txt",
+      "notes.txt",
+    ]);
+  });
+
   it("does not let subscriber errors mask the original throw", async () => {
     const composer = makeComposer(makeAdapter());
     composer.unstable_on("attachmentAddError", () => {
@@ -177,10 +258,46 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     expect(onAdd).not.toHaveBeenCalled();
     expect(composer.attachments).toHaveLength(1);
     const att = composer.attachments[0]!;
-    expect(att.status.type).toBe("incomplete");
-    if (att.status.type === "incomplete") {
-      expect(att.status.reason).toBe("error");
-    }
+    expect(att.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      message: "network error",
+    });
+  });
+
+  it("forwards the status message when adapter yields an errored attachment with one", async () => {
+    const composer = makeComposer(
+      makeAdapter({
+        add: async ({ file }) => ({
+          id: "att-3",
+          type: "image",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: {
+            type: "incomplete",
+            reason: "error",
+            message: "Failed to upload file: 403 Forbidden",
+          },
+        }),
+      }),
+    );
+    const onError = vi.fn();
+    composer.unstable_on("attachmentAddError", onError);
+
+    await composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "adapter-error",
+        message: "Failed to upload file: 403 Forbidden",
+        attachmentId: "att-3",
+      }),
+    );
+    expect(onError.mock.calls[0]![0]).not.toHaveProperty("error");
   });
 
   it("emits attachmentAddError with attachment id when adapter yields an errored attachment", async () => {
@@ -209,6 +326,7 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     expect(onError).toHaveBeenCalledWith(
       expect.objectContaining({
         reason: "adapter-error",
+        message: "Attachment upload did not complete successfully.",
         attachmentId: "att-2",
       }),
     );

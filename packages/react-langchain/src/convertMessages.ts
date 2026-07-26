@@ -6,6 +6,7 @@ import type {
   DataMessagePart,
   MessageTiming,
 } from "@assistant-ui/core";
+import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type {
   LangChainBaseMessage,
@@ -56,8 +57,13 @@ const contentToParts = (content: unknown) => {
           return {
             type: "file" as const,
             filename: part.metadata?.filename ?? "file",
-            data: part.data,
-            mimeType: part.mime_type,
+            data:
+              part.source_type === "url"
+                ? part.url
+                : part.source_type === "id"
+                  ? part.id
+                  : part.data,
+            mimeType: part.mime_type ?? "application/octet-stream",
           };
         case "thinking":
           return { type: "reasoning" as const, text: part.thinking };
@@ -206,14 +212,26 @@ export const getMessageContent = (msg: AppendMessage) => {
         return { type: "text" as const, text: part.text };
       case "image":
         return { type: "image_url" as const, image_url: { url: part.image } };
-      case "file":
+      case "file": {
+        const metadata = { filename: part.filename ?? "file" };
+        if (httpUrlPattern.test(part.data)) {
+          return {
+            type: "file" as const,
+            url: part.data,
+            mime_type: part.mimeType,
+            metadata,
+            source_type: "url" as const,
+          };
+        }
+        const parsed = parseDataUrl(part.data);
         return {
           type: "file" as const,
-          data: part.data,
-          mime_type: part.mimeType,
-          metadata: { filename: part.filename ?? "file" },
+          data: parsed?.data ?? part.data,
+          mime_type: parsed?.mimeType ?? part.mimeType,
+          metadata,
           source_type: "base64" as const,
         };
+      }
       case "tool-call":
         throw new Error("Tool call appends are not supported.");
       default: {

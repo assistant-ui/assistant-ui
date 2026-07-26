@@ -34,6 +34,9 @@ interface DocResult {
   content?: string;
   files?: string[];
   directories?: string[];
+  summaries?: Array<{ name: string; title?: string; excerpt?: string }>;
+  title?: string;
+  excerpt?: string;
   suggestions?: string[];
   hint?: string;
   error?: string;
@@ -85,6 +88,11 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
         const { directories, files } = await listDirContents(fullPath);
 
         const contents: Record<string, string> = {};
+        const summaries: Array<{
+          name: string;
+          title?: string;
+          excerpt?: string;
+        }> = [];
         let aggregateSize = 0;
         let truncated = false;
         for (const file of files) {
@@ -105,8 +113,16 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
           }
           const mdxContent = await readMDXFile(join(fullPath, file));
           if (mdxContent) {
-            contents[file.replace(MDX_EXTENSION, "")] =
-              formatMDXContent(mdxContent);
+            const name = file.replace(MDX_EXTENSION, "");
+            contents[name] = formatMDXContent(mdxContent);
+            const title = mdxContent.frontmatter["title"];
+            summaries.push({
+              name,
+              ...(typeof title === "string" && { title }),
+              ...(mdxContent.excerpt !== undefined && {
+                excerpt: mdxContent.excerpt,
+              }),
+            });
           }
         }
 
@@ -120,9 +136,10 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
           type: "directory",
           directories,
           files: files.map((f) => f.replace(MDX_EXTENSION, "")),
+          ...(summaries.length > 0 && { summaries }),
           ...(content !== undefined && { content }),
           ...(truncated && {
-            hint: `Directory content exceeds ${MAX_DIRECTORY_CONTENT_SIZE} bytes and was omitted; request individual files by path to retrieve their content.`,
+            hint: `Directory content exceeds ${MAX_DIRECTORY_CONTENT_SIZE} bytes and was omitted; summaries cover only the files read before the limit. Request individual files by path to retrieve their content.`,
           }),
         };
       }
@@ -158,11 +175,16 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
       const mdxContent = await readMDXFile(mdxPath);
 
       if (mdxContent) {
+        const title = mdxContent.frontmatter["title"];
         return {
           path: docPath,
           found: true,
           type: "file",
           content: formatMDXContent(mdxContent),
+          ...(typeof title === "string" && { title }),
+          ...(mdxContent.excerpt !== undefined && {
+            excerpt: mdxContent.excerpt,
+          }),
         };
       }
     }

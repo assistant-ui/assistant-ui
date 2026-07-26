@@ -43,14 +43,9 @@
       var(--_repeat-delay-px)
   );
 
-  --_position: calc(
-    var(
-        --shimmer-track-width,
-        (100% - var(--_gradient-width) - var(--_repeat-delay-px)) / 2
-      ) +
-      var(--_gradient-width) / 2 + var(--_repeat-delay-px) -
-      var(--_xy-offset-px)
-  );
+  --_position: calc(var(--shimmer-track-width, (100% - var(--_gradient-width) -
+    var(--_repeat-delay-px)) / 2) + var(--_gradient-width) / 2 +
+    var(--_repeat-delay-px) - var(--_xy-offset-px));
 
   &:not(.shimmer-bg) {
     --_speed: var(--shimmer-speed, 200);
@@ -75,7 +70,7 @@
   }
 
   @-moz-document url-prefix() {
-    & {
+    &:not(.shimmer-bg) {
       --_duration: var(--shimmer-duration, calc(375000 / var(--_speed)));
     }
   }
@@ -120,6 +115,12 @@
   --_spread: var(--shimmer-spread, 480px);
   --_bg: transparent;
   --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.06));
+
+  @-moz-document url-prefix() {
+    &.shimmer {
+      --_duration: var(--shimmer-duration, calc(1500000 / var(--_speed)));
+    }
+  }
 
   @variant dark {
     --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.3));

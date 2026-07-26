@@ -2,6 +2,7 @@ import {
   createOpencodeClient,
   type GlobalSession,
 } from "@opencode-ai/sdk/v2/client";
+import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
 
 const isArchivedSession = (session: Pick<GlobalSession, "time">) => {
   return typeof session.time.archived === "number";
@@ -24,10 +25,13 @@ export const createOpenCodeThreadListAdapter = (
   client: ReturnType<typeof createOpencodeClient>,
 ) => ({
   list: async () => {
-    const response = await client.experimental.session.list({
-      roots: true,
-      archived: true,
-    });
+    const response = await client.experimental.session.list(
+      {
+        roots: true,
+        archived: true,
+      },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
     const sessions = new Map<string, GlobalSession>();
 
     for (const session of response.data ?? []) {
@@ -40,32 +44,44 @@ export const createOpenCodeThreadListAdapter = (
     };
   },
   rename: async (remoteId: string, newTitle: string) => {
-    await client.session.update({
-      sessionID: remoteId,
-      title: newTitle,
-    });
+    await client.session.update(
+      {
+        sessionID: remoteId,
+        title: newTitle,
+      },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
   },
   archive: async (remoteId: string) => {
-    await client.session.update({
-      sessionID: remoteId,
-      time: { archived: Date.now() },
-    });
+    await client.session.update(
+      {
+        sessionID: remoteId,
+        time: { archived: Date.now() },
+      },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
   },
   unarchive: async (remoteId: string) => {
-    await client.session.update({
-      sessionID: remoteId,
-      // The SDK models archived timestamps as numbers, but OpenCode uses
-      // `null` here to clear the archived flag when unarchiving.
-      time: { archived: null as never } as never,
-    });
+    await client.session.update(
+      {
+        sessionID: remoteId,
+        // The SDK models archived timestamps as numbers, but OpenCode uses
+        // `null` here to clear the archived flag when unarchiving.
+        time: { archived: null as never } as never,
+      },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
   },
   delete: async (remoteId: string) => {
-    await client.session.delete({
-      sessionID: remoteId,
-    });
+    await client.session.delete(
+      {
+        sessionID: remoteId,
+      },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
   },
   initialize: async () => {
-    const response = await client.session.create({});
+    const response = await client.session.create({}, OPEN_CODE_REQUEST_OPTIONS);
     if (!response.data?.id) {
       throw new Error("Failed to create OpenCode session");
     }
@@ -75,9 +91,12 @@ export const createOpenCodeThreadListAdapter = (
     };
   },
   generateTitle: async (remoteId: string) => {
-    await client.session.summarize({
-      sessionID: remoteId,
-    });
+    await client.session.summarize(
+      {
+        sessionID: remoteId,
+      },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
     // Title updates arrive through the OpenCode event stream, so this
     // placeholder stream only satisfies the remote thread list contract.
     return new ReadableStream({
@@ -87,9 +106,12 @@ export const createOpenCodeThreadListAdapter = (
     }) as never;
   },
   fetch: async (threadId: string) => {
-    const response = await client.session.get({
-      sessionID: threadId,
-    });
+    const response = await client.session.get(
+      {
+        sessionID: threadId,
+      },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
     if (!response.data?.id) {
       throw new Error("OpenCode session not found");
     }

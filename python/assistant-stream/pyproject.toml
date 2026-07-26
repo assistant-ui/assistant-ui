@@ -22,7 +22,8 @@ dependencies = [
 
 [project.optional-dependencies]
 langgraph = ["langchain-core>=0.3.0"]
-dev = ["pytest<8"]
+redis = ["redis>=5"]
+dev = ["pytest<8", "redis>=5"]
 
 [project.urls]
 Homepage = "https://github.com/assistant-ui/assistant-ui"

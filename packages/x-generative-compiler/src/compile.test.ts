@@ -587,6 +587,52 @@ export default defineToolkit({
     expect(client).toContain("render");
   });
 
+  it("allows spreading an exported compiler-visible local toolkit", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { db } from "@/db";
+export const base = defineToolkit({
+  get_weather: {
+    execute: async () => db.getWeather(),
+    render: () => null,
+  },
+});
+export default defineToolkit({
+  ...base,
+  get_time: {
+    execute: async () => db.getTime(),
+    render: () => null,
+  },
+});`;
+
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain("...base");
+    expect(server).toContain("db.getWeather");
+    expect(server).toContain("db.getTime");
+    expect(server).not.toContain("render");
+
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain("...base");
+    expect(client).not.toContain("db.getWeather");
+    expect(client).not.toContain("db.getTime");
+    expect(client).toContain("render");
+  });
+
+  it("allows spreading an exported MCP toolkit fragment", () => {
+    const src = `"use generative";
+import { defineMcpToolkit, defineToolkit } from "@assistant-ui/react";
+export const mcp = defineMcpToolkit({
+  docs: { type: "http", url: "http://localhost:3001/mcp" },
+});
+export default defineToolkit({
+  ...mcp,
+});`;
+
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain("...mcp");
+    expect(server).toContain("docs");
+  });
+
   it("allows directly spreading an MCP toolkit fragment", () => {
     const src = `"use generative";
 import { defineMcpToolkit, defineToolkit } from "@assistant-ui/react";
@@ -607,6 +653,19 @@ import { defineToolkit } from "@assistant-ui/react";
 import { backendTools } from "@/backend-tools";
 export default defineToolkit({
   ...backendTools,
+});`;
+
+    expect(() => compileGenerative(src, { target: "client" })).toThrow(
+      /compiler-visible toolkit spread/,
+    );
+  });
+
+  it("does not treat exported opaque toolkit declarations as compiler-visible spreads", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export const base = makeToolkit();
+export default defineToolkit({
+  ...base,
 });`;
 
     expect(() => compileGenerative(src, { target: "client" })).toThrow(

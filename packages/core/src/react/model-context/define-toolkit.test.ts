@@ -81,6 +81,14 @@ const checkDefineMcpToolkitTypes = () => {
       type: "http",
       url: "https://example.com/mcp",
     },
+    prefixedDocs: {
+      server: {
+        type: "http",
+        url: "https://example.com/prefixed-mcp",
+      },
+      disabled: true,
+      prefix: "docs_",
+    },
     gatedDocs: {
       server: {
         type: "http",
@@ -101,6 +109,25 @@ describe("use-generative markers", () => {
   it("defineToolkit returns the toolkit at runtime", () => {
     const toolkit = {};
     expect(defineToolkit(toolkit)).toBe(toolkit);
+  });
+
+  it("defineMcpToolkit supports prefixed and disabled MCP entries", () => {
+    expect(
+      defineMcpToolkit({
+        docs: {
+          server: { type: "http", url: "https://example.com/mcp" },
+          disabled: true,
+          prefix: "docs_",
+        },
+      }),
+    ).toEqual({
+      docs: {
+        type: "mcp",
+        server: { type: "http", url: "https://example.com/mcp" },
+        disabled: true,
+        prefix: "docs_",
+      },
+    });
   });
 
   it("defineMcpToolkit supports disabled server entries", () => {
@@ -143,6 +170,19 @@ describe("use-generative markers", () => {
             disabled: true,
           },
         },
+      },
+    });
+  });
+
+  it("defineMcpToolkit supports raw MCP server configs", () => {
+    expect(
+      defineMcpToolkit({
+        docs: { type: "http", url: "https://example.com/mcp" },
+      }),
+    ).toEqual({
+      docs: {
+        type: "mcp",
+        server: { type: "http", url: "https://example.com/mcp" },
       },
     });
   });

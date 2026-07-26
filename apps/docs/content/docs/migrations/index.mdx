@@ -1,0 +1,50 @@
+---
+title: Migration Guides
+description: Upgrade assistant-ui versions and migrate deprecated APIs and integrations.
+---
+
+Use these guides when upgrading assistant-ui or moving from APIs that have been deprecated or replaced.
+
+## Version upgrades
+
+<Cards>
+  <Card title="Migration to v0.14" href="/docs/migrations/v0-14">
+    Replace APIs removed after v0.11 and v0.12, and migrate primitive
+    `components` props to children render functions.
+  </Card>
+  <Card title="Migration to v0.12" href="/docs/migrations/v0-12">
+    Move from individual context hooks to the unified state API.
+  </Card>
+  <Card title="Migration to v0.11" href="/docs/migrations/v0-11">
+    Update code affected by the `ContentPart` to `MessagePart` rename.
+  </Card>
+</Cards>
+
+## APIs and integrations
+
+<Cards>
+  <Card title="Migrating Tools to Toolkits" href="/docs/migrations/toolkit-tools">
+    Move legacy tool and tool UI registrations to the toolkit API.
+  </Card>
+  <Card
+    title="Migrating to react-langgraph v0.7"
+    href="/docs/migrations/react-langgraph-v0-7"
+  >
+    Upgrade to the simplified LangGraph integration API.
+  </Card>
+  <Card
+    title="Using old React versions"
+    href="/docs/migrations/react-compatibility"
+  >
+    Review compatibility notes for React 18 and React 19.
+  </Card>
+</Cards>
+
+## Stability
+
+<Cards>
+  <Card title="Deprecation Policy" href="/docs/migrations/deprecation-policy">
+    Review stability guarantees and deprecation timelines for assistant-ui
+    features.
+  </Card>
+</Cards>

@@ -25,7 +25,7 @@ export function WaterfallRow() {
           <SpanPrimitive.CollapseToggle className="text-muted-foreground hover:text-foreground flex shrink-0 items-center justify-center rounded p-0.5">
             <svg
               aria-hidden="true"
-              className="data-[collapsed=true]:[-rotate-90] size-3.5 transition-transform"
+              className="size-3.5 transition-transform group-data-[collapsed=true]:-rotate-90"
               viewBox="0 0 16 16"
               fill="currentColor"
             >

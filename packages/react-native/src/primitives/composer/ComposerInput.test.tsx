@@ -277,7 +277,7 @@ describe("ComposerInput", () => {
         .spyOn(globalThis, "getComputedStyle")
         .mockImplementation((() => ({
           maxHeight: "64px",
-        })) as typeof getComputedStyle);
+        })) as unknown as typeof getComputedStyle);
 
       try {
         const input = await mount({

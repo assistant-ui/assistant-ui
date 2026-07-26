@@ -2,14 +2,16 @@ import { Command } from "commander";
 import { logger } from "../lib/utils/logger";
 import { hasConfig } from "../lib/utils/config";
 import {
+  getComponentsJsonStyle,
+  resolveRegistryItemUrl,
+} from "../lib/utils/registry";
+import {
   dlxCommand,
   resolvePackageManager,
   resolvePackageManagerForCwd,
   type PackageManagerName,
 } from "../lib/create-project";
 import { runSpawn, SpawnExitError } from "../lib/run-spawn";
-
-const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
 export interface AddComponentsPlan {
   command: string;
@@ -23,12 +25,13 @@ export function createAddComponentsPlan(params: {
   overwrite?: boolean;
   cwd?: string;
   path?: string;
+  style?: string;
 }): AddComponentsPlan {
   const componentsToAdd = params.components.map((c) => {
     if (!/^[a-zA-Z0-9-/]+$/.test(c)) {
       throw new Error(`Invalid component name: ${c}`);
     }
-    return `${REGISTRY_BASE_URL}/${encodeURIComponent(c)}.json`;
+    return resolveRegistryItemUrl(c, params.style);
   });
 
   const [command, dlxArgs] = dlxCommand(params.packageManager);
@@ -64,7 +67,7 @@ export const add = new Command()
     // Check if project is initialized
     if (!hasConfig(opts.cwd)) {
       logger.warn(
-        "It looks like you haven't initialized your project yet. Run 'assistant-ui init' first.",
+        "It looks like you haven't initialized your project yet — defaulting to Base UI flavored components. Run 'assistant-ui init' first for a configured setup.",
       );
       logger.break();
     }
@@ -75,6 +78,7 @@ export const add = new Command()
       opts.cwd,
       resolvePackageManager(opts),
     );
+    const style = getComponentsJsonStyle(opts.cwd);
     const { command, args } = createAddComponentsPlan({
       components,
       packageManager,
@@ -82,6 +86,7 @@ export const add = new Command()
       overwrite: opts.overwrite,
       cwd: opts.cwd,
       path: opts.path,
+      ...(style === undefined ? {} : { style }),
     });
 
     try {
