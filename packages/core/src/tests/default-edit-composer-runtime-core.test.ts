@@ -4,11 +4,13 @@ import type { AppendMessage, ThreadMessage } from "../types/message";
 import type { CompleteAttachment } from "../types/attachment";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
 
-const makeRuntime = (options?: {
-  messages?: ThreadMessage[];
-  composerMetadata?: Record<string, unknown>;
-}) => {
-  const append = vi.fn();
+const makeRuntime = (
+  options?: {
+    messages?: ThreadMessage[];
+    composerMetadata?: Record<string, unknown>;
+  },
+  append = vi.fn(),
+) => {
   const runtime = {
     append,
     composer: { runConfig: {} },
@@ -373,6 +375,42 @@ describe("DefaultEditComposerRuntimeCore", () => {
       composer.setText("changed");
       await composer.send();
       expect(endEdit).toHaveBeenCalledTimes(1);
+    });
+
+    it("tracks the append task while exiting edit mode immediately", async () => {
+      let resolveAppend!: () => void;
+      const appendTask = new Promise<void>((resolve) => {
+        resolveAppend = resolve;
+      });
+      const { runtime } = makeRuntime(
+        undefined,
+        vi.fn(() => appendTask),
+      );
+      const endEdit = vi.fn();
+      const composer = new DefaultEditComposerRuntimeCore(runtime, endEdit, {
+        parentId: null,
+        message: makeUserMessage(),
+      });
+
+      const sendTask = composer.handleSend({
+        createdAt: new Date(),
+        role: "user",
+        content: [{ type: "text", text: "changed" }],
+        attachments: [],
+        runConfig: {},
+        metadata: { custom: {} },
+      });
+      let settled = false;
+      void sendTask.then(() => {
+        settled = true;
+      });
+      await Promise.resolve();
+
+      expect(endEdit).toHaveBeenCalledTimes(1);
+      expect(settled).toBe(false);
+
+      resolveAppend();
+      await sendTask;
     });
 
     it("invokes endEditCallback on cancel", () => {

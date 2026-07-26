@@ -58,9 +58,79 @@ describe("alertVocabulary", () => {
     expect((html.match(/data-aui="carousel-slide"/g) ?? []).length).toBe(1);
   });
 
-  it("Carousel with no children renders an empty container", () => {
+  it("Carousel without a label renders role=group, no aria-label, and no double-name landmark", () => {
     expect(render({ $type: "Carousel" })).toBe(
-      '<div data-aui="carousel"></div>',
+      '<div data-aui="carousel" role="group" aria-roledescription="carousel" tabindex="0"></div>',
     );
+  });
+
+  it("Carousel with a label renders role=region and the given aria-label", () => {
+    expect(render({ $type: "Carousel", label: "Featured" })).toBe(
+      '<div data-aui="carousel" role="region" aria-roledescription="carousel" aria-label="Featured" tabindex="0"></div>',
+    );
+  });
+
+  it("Carousel container carries region semantics and an optional label", () => {
+    const html = renderToStaticMarkup(
+      <>
+        {renderGenerativeUI(
+          {
+            $type: "Carousel",
+            label: "Featured items",
+            children: [
+              { $type: "Card", title: "a" },
+              { $type: "Card", title: "b" },
+            ],
+          },
+          defaultGenerativeUILibrary,
+        )}
+      </>,
+    );
+    expect(html).toContain('role="region"');
+    expect(html).toContain('aria-roledescription="carousel"');
+    expect(html).toContain('aria-label="Featured items"');
+    expect(html).toContain('tabindex="0"');
+  });
+
+  it("Carousel slides carry group semantics and a positional label", () => {
+    const html = renderToStaticMarkup(
+      <>
+        {renderGenerativeUI(
+          {
+            $type: "Carousel",
+            label: "Featured items",
+            children: [
+              { $type: "Card", title: "a" },
+              { $type: "Card", title: "b" },
+              { $type: "Card", title: "c" },
+            ],
+          },
+          defaultGenerativeUILibrary,
+        )}
+      </>,
+    );
+    expect((html.match(/role="group"/g) ?? []).length).toBe(3);
+    expect((html.match(/aria-roledescription="slide"/g) ?? []).length).toBe(3);
+    expect(html).toContain('aria-label="1 of 3"');
+    expect(html).toContain('aria-label="2 of 3"');
+    expect(html).toContain('aria-label="3 of 3"');
+  });
+
+  it("Carousel slide labels reflect the 10-slide cap, not the raw child count", () => {
+    const children = Array.from({ length: 12 }, (_, i) => ({
+      $type: "Card",
+      title: `c${i}`,
+    }));
+    const html = renderToStaticMarkup(
+      <>
+        {renderGenerativeUI(
+          { $type: "Carousel", children },
+          defaultGenerativeUILibrary,
+        )}
+      </>,
+    );
+    expect(html).toContain('aria-label="1 of 10"');
+    expect(html).toContain('aria-label="10 of 10"');
+    expect(html).not.toContain("11 of 10");
   });
 });

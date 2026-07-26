@@ -1,0 +1,124 @@
+---
+title: Agent state
+description: Read and optimistically update agent-owned state with useAgUiState and useAgUiSetState over AG-UI.
+---
+
+`useAgUiState` mirrors the state your AG-UI agent owns. It updates live while the agent runs. `useAgUiSetState` lets you apply optimistic local updates that are sent with the next run.
+
+## Basic usage
+
+```tsx
+import { useAgUiState, useAgUiSetState } from "@assistant-ui/react-ag-ui";
+import { useAuiState } from "@assistant-ui/react";
+
+type ResearchState = {
+  topic: string;
+  sources: string[];
+};
+
+const state = useAgUiState<ResearchState>();
+// state: ResearchState | undefined  (latest agent state; updates live while the agent runs)
+
+const setState = useAgUiSetState<ResearchState>();
+// setState(next | (prev) => next)   (optimistic local update; sent with the NEXT run)
+
+const isRunning = useAuiState((s) => s.thread.isRunning);
+// isRunning: boolean                (whether the thread is currently running)
+```
+
+## Example
+
+Render agent state beside the chat and push an optimistic update from a control in your UI:
+
+```tsx
+"use client";
+
+import { useAgUiState, useAgUiSetState } from "@assistant-ui/react-ag-ui";
+import { useAuiState } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
+
+type ResearchState = {
+  topic: string;
+  sources: string[];
+};
+
+export function ResearchAssistant() {
+  const state = useAgUiState<ResearchState>();
+  const setState = useAgUiSetState<ResearchState>();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  return (
+    <div className="flex h-full">
+      <aside className="w-72 border-r p-4">
+        <h2>Research state</h2>
+        {state ? (
+          <ul>
+            <li>Topic: {state.topic}</li>
+            <li>Sources: {state.sources.join(", ") || "none"}</li>
+          </ul>
+        ) : (
+          <p>No agent state yet.</p>
+        )}
+        <button
+          type="button"
+          disabled={isRunning}
+          onClick={() =>
+            setState((prev) => ({
+              topic: prev?.topic ?? "market analysis",
+              sources: [...(prev?.sources ?? []), "sec-filings"],
+            }))
+          }
+        >
+          Prefer SEC filings
+        </button>
+        {isRunning && <p>Agent is running…</p>}
+      </aside>
+      <main className="flex-1">
+        <Thread />
+      </main>
+    </div>
+  );
+}
+```
+
+The panel re-renders as `STATE_SNAPSHOT` and `STATE_DELTA` events arrive. The button updates the local snapshot immediately; that value is included as the `state` field of the next run input.
+
+## How state is synced
+
+The AG-UI protocol delivers agent state on the wire:
+
+- `STATE_SNAPSHOT` replaces the full client-side snapshot.
+- `STATE_DELTA` applies a JSON Patch to the current snapshot.
+
+The runtime applies both client-side, so `useAgUiState` always reflects the latest merged snapshot. Calling the setter from `useAgUiSetState` updates that same local snapshot. On the next run, the runtime automatically includes it as the `state` field of the run input.
+
+This works with any AG-UI agent (Mastra, Pydantic AI, CrewAI, LangGraph via AG-UI adapters, and other AG-UI-compliant servers).
+
+## Write-back timing
+
+`useAgUiSetState` is optimistic and local first. The value reaches the agent only when the next run starts. It is not a live channel into a run that is already in progress. Use it to stage preferences, filters, or other agent-owned fields that the next turn should see.
+
+## Relationship to other state
+
+Keep the three state layers distinct:
+
+- **Your app state** stays yours (React state, URL, a store). assistant-ui does not own it.
+- **`useAuiState`** reads assistant-ui's client state (messages, composer, thread status).
+- **`useAgUiState` / `useAgUiSetState`** mirror state the **agent** owns, synced over the AG-UI wire via snapshots and deltas.
+
+Use `useAgUiState` and `useAgUiSetState` for fields your agent maintains as shared state on the protocol. Use `useAuiState` for UI that depends on the chat thread itself. Use your own state for everything else.
+
+## Next
+
+<Cards>
+  <Card
+    title="Runtime options"
+    description="useAgUiRuntime options, adapters, supported events."
+    href="/docs/runtimes/ag-ui/runtime-options"
+  />
+  <Card
+    title="Quickstart"
+    description="Minimal HttpAgent + useAgUiRuntime setup."
+    href="/docs/runtimes/ag-ui/quickstart"
+  />
+</Cards>

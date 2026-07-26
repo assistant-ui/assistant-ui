@@ -1,8 +1,9 @@
-import type {
-  Attachment,
-  CompleteAttachment,
-  CreateAttachment,
-  PendingAttachment,
+import {
+  isCreateAttachment,
+  type Attachment,
+  type CompleteAttachment,
+  type CreateAttachment,
+  type PendingAttachment,
 } from "../../types/attachment";
 import type { MessageRole, AppendMessage } from "../../types/message";
 import type { QuoteInfo } from "../../types/quote";
@@ -223,7 +224,8 @@ export abstract class BaseComposerRuntimeCore
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
-    this.handleSend(message, options);
+    const sendTask = this.handleSend(message, options);
+    if (sendTask) void sendTask.catch(() => {});
     this._notifyEventSubscribers("send", {});
   }
 
@@ -241,11 +243,11 @@ export abstract class BaseComposerRuntimeCore
   protected abstract handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
-  ): void;
+  ): void | Promise<void>;
   protected abstract handleCancel(): void;
 
   async addAttachment(fileOrAttachment: File | CreateAttachment) {
-    if (!(fileOrAttachment instanceof File)) {
+    if (isCreateAttachment(fileOrAttachment)) {
       const adapter = this.getAttachmentAdapter();
       if (
         adapter &&
@@ -563,7 +565,28 @@ export abstract class BaseComposerRuntimeCore
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) return;
 
-    for (const callback of subscribers) callback(payload);
+    const reportError = (error: unknown) => {
+      console.error(
+        `[assistant-ui] Composer runtime "${event}" listener threw an error`,
+        error,
+      );
+    };
+
+    for (const callback of subscribers) {
+      try {
+        const result = callback(payload) as unknown;
+        if (
+          typeof result === "object" &&
+          result !== null &&
+          "then" in result &&
+          typeof result.then === "function"
+        ) {
+          void Promise.resolve(result).catch(reportError);
+        }
+      } catch (error) {
+        reportError(error);
+      }
+    }
   }
 
   public unstable_on<E extends ComposerRuntimeEventType>(

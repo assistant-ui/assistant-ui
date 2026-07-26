@@ -1,0 +1,195 @@
+import { describe, it, expect, vi } from "vitest";
+import type { ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { renderGenerativeUI } from "../renderGenerativeUI";
+import { createActionRegistry } from "../actionRegistry";
+import { listVocabulary } from "./list";
+
+const render = (node: unknown) =>
+  renderToStaticMarkup(<>{renderGenerativeUI(node, listVocabulary)}</>);
+
+describe("listVocabulary", () => {
+  it("ListView renders a ul wrapping its children", () => {
+    const html = render({
+      $type: "ListView",
+      children: [
+        { $type: "ListViewItem", children: "a" },
+        { $type: "ListViewItem", children: "b" },
+      ],
+    });
+    expect(html).toContain('<ul data-aui="listview">');
+    expect((html.match(/data-aui="listview-item"/g) ?? []).length).toBe(2);
+  });
+
+  it("ListViewItem without $action renders children directly with no trigger wrapper", () => {
+    expect(render({ $type: "ListViewItem", children: "row" })).toBe(
+      '<li data-aui="listview-item">row</li>',
+    );
+  });
+
+  it("ListViewItem with $action but no dispatch renders children directly (read-only)", () => {
+    expect(
+      render({
+        $type: "ListViewItem",
+        $action: { type: "open" },
+        children: "row",
+      }),
+    ).toBe('<li data-aui="listview-item">row</li>');
+  });
+
+  it("ListViewItem wraps children in a clickable trigger when $action and dispatch are both present", () => {
+    const registry = createActionRegistry({ open: vi.fn() });
+    const html = renderToStaticMarkup(
+      <>
+        {renderGenerativeUI(
+          { $type: "ListViewItem", $action: { type: "open" }, children: "row" },
+          listVocabulary,
+          { status: "done", dispatch: registry.dispatch },
+        )}
+      </>,
+    );
+    expect(html).toContain('data-aui="listview-item-trigger"');
+    expect(html).toContain('role="button"');
+    expect(html).toContain('tabindex="0"');
+  });
+});
+
+describe("listVocabulary $action dispatch", () => {
+  const rowOut = (dispatch: (a: unknown) => unknown) =>
+    listVocabulary.ListViewItem.render({
+      $status: "done",
+      $action: { type: "open" },
+      $dispatch: dispatch,
+      children: "row",
+    }) as ReactElement;
+
+  it("clicking the trigger fires $action with no $input", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const trigger = rowOut(registry.dispatch).props.children as ReactElement;
+    const onClick = (trigger.props as { onClick: (e: unknown) => void })
+      .onClick;
+    onClick({ target: { closest: () => null } });
+    expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
+  });
+
+  type KeyDownEvent = {
+    key: string;
+    target: { closest: (selector: string) => unknown };
+    preventDefault: () => void;
+  };
+
+  const getOnKeyDown = (dispatch: (a: unknown) => unknown) => {
+    const trigger = rowOut(dispatch).props.children as ReactElement;
+    return (trigger.props as { onKeyDown: (e: KeyDownEvent) => void })
+      .onKeyDown;
+  };
+
+  it("Enter and Space keydown both fire $action", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const onKeyDown = getOnKeyDown(registry.dispatch);
+    onKeyDown({
+      key: "Enter",
+      target: { closest: () => null },
+      preventDefault: vi.fn(),
+    });
+    onKeyDown({
+      key: " ",
+      target: { closest: () => null },
+      preventDefault: vi.fn(),
+    });
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
+  it("a keydown for any other key does not fire $action", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const onKeyDown = getOnKeyDown(registry.dispatch);
+    onKeyDown({
+      key: "Tab",
+      target: { closest: () => null },
+      preventDefault: vi.fn(),
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("a click whose target sits inside a nested interactive element does not fire the row action", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const trigger = rowOut(registry.dispatch).props.children as ReactElement;
+    const onClick = (trigger.props as { onClick: (e: unknown) => void })
+      .onClick;
+    const nestedButton = {
+      closest: (selector: string) =>
+        selector.includes("button") ? nestedButton : null,
+    };
+    onClick({ target: nestedButton });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("a keydown Enter whose target sits inside a nested interactive element does not fire the row action", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const onKeyDown = getOnKeyDown(registry.dispatch);
+    const nestedInput = {
+      closest: (selector: string) =>
+        selector.includes("input") ? nestedInput : null,
+    };
+    const preventDefault = vi.fn();
+    onKeyDown({ key: "Enter", target: nestedInput, preventDefault });
+    expect(handler).not.toHaveBeenCalled();
+    expect(preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('a click whose target sits inside a nested role="button" element does not fire the row action', () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const trigger = rowOut(registry.dispatch).props.children as ReactElement;
+    const onClick = (trigger.props as { onClick: (e: unknown) => void })
+      .onClick;
+    const nestedRoleButton = {
+      closest: (selector: string) =>
+        selector.includes('[role="button"]') ? nestedRoleButton : null,
+    };
+    onClick({ target: nestedRoleButton });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('a keydown Enter whose target sits inside a nested role="button" element (e.g. a nested ListViewItem trigger) does not fire the row action', () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const onKeyDown = getOnKeyDown(registry.dispatch);
+    const nestedRoleButton = {
+      closest: (selector: string) =>
+        selector.includes('[role="button"]') ? nestedRoleButton : null,
+    };
+    const preventDefault = vi.fn();
+    onKeyDown({ key: "Enter", target: nestedRoleButton, preventDefault });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("Space on the trigger itself fires the row action and prevents default", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const onKeyDown = getOnKeyDown(registry.dispatch);
+    const preventDefault = vi.fn();
+    onKeyDown({ key: " ", target: { closest: () => null }, preventDefault });
+    expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it("Enter on the trigger itself fires without calling preventDefault", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ open: handler });
+    const onKeyDown = getOnKeyDown(registry.dispatch);
+    const preventDefault = vi.fn();
+    onKeyDown({
+      key: "Enter",
+      target: { closest: () => null },
+      preventDefault,
+    });
+    expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
+    expect(preventDefault).not.toHaveBeenCalled();
+  });
+});

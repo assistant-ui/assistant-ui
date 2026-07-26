@@ -6,7 +6,7 @@
  * testable seam of the node host — exercised with hand-built fakes in
  * `mapping.test.ts`, no live `AgentSession` required.
  *
- * The mirror in `types` is structurally faithful to Pi `0.78` (verified
+ * The mirror in `types` is structurally faithful to Pi `0.78`–`0.80` (verified
  * against the real `.d.ts`), so most of the mapping is an identity cast at the
  * type boundary plus the few places the supervisor must enrich (turn index, live
  * run status, readiness).
@@ -24,6 +24,7 @@ import type {
   PiContextUsage,
   PiModelInfo,
   PiRuntimeReadiness,
+  PiSessionEntry,
   PiThinkingLevel,
   PiThreadMetadata,
   PiThreadStatus,
@@ -62,6 +63,9 @@ export const toPiMessages = (
   messages: readonly PiSdkMessage[],
 ): PiTranscriptMessage[] => messages.map(toPiMessage);
 
+const toPiSessionEntry = (entry: SessionEntry): PiSessionEntry =>
+  entry as unknown as PiSessionEntry;
+
 /** Last path segment, cross-platform, without pulling in `node:path`. */
 const baseName = (filePath: string): string => {
   const segments = filePath.split(/[\\/]/);
@@ -88,6 +92,8 @@ export const mapSessionEvent = (
       return { type: "agent_start" };
     case "agent_end":
       return { type: "agent_end", willRetry: event.willRetry };
+    case "agent_settled":
+      return { type: "agent_settled" };
     case "turn_start":
       return { type: "turn_start", turnIndex: ctx.turnIndex };
     case "turn_end":
@@ -138,6 +144,11 @@ export const mapSessionEvent = (
         aborted: event.aborted,
         willRetry: event.willRetry,
       };
+    case "entry_appended":
+      return {
+        type: "entry_appended",
+        entry: toPiSessionEntry(event.entry),
+      };
     case "session_info_changed":
       return event.name === undefined
         ? { type: "session_info_changed" }
@@ -155,8 +166,7 @@ export const mapSessionEvent = (
     default:
       // Forward-compat: a future Pi event type the union doesn't yet name. Pass
       // the bare type through so the controller's unknown-event fallback can
-      // full-refresh rather than silently dropping it. `event` is `never` here
-      // per the current closed union, hence the cast.
+      // full-refresh rather than silently dropping it.
       return {
         type: (event as { type: string }).type,
       } as unknown as PiClientEventBody;

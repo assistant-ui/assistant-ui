@@ -1,5 +1,6 @@
 export { renderGenerativeUI } from "./renderGenerativeUI";
 export { generativeUIToJSX } from "./generativeUIToJSX";
+export type { GenerativeUIToJSXOptions } from "./generativeUIToJSX";
 export { buildPresentParameters } from "./buildPresentParameters";
 export { defineGenerativeComponents } from "./defineGenerativeComponents";
 export { TYPE_KEY } from "./constants";
@@ -13,6 +14,7 @@ export {
   JUSTIFIES,
   BUTTON_STYLES,
   ALERT_TONES,
+  ICON_NAMES,
 } from "./ir";
 export { defaultGenerativeUILibrary } from "./vocabulary";
 export { createActionRegistry, emptyActionRegistry } from "./actionRegistry";
@@ -55,4 +57,5 @@ export type {
   Justify,
   ButtonStyle,
   AlertTone,
+  IconName,
 } from "./ir";

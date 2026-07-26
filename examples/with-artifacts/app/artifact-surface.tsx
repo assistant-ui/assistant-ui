@@ -272,7 +272,7 @@ function ArtifactWorkbench({ target }: { target: ArtifactSurfaceTarget }) {
               data-testid="artifact-preview"
               title={`Preview of ${state.title || "artifact"}`}
               srcDoc={state.code}
-              sandbox="allow-scripts"
+              sandbox="allow-scripts allow-forms"
               className="min-h-0 flex-1 bg-white"
             />
           ) : (

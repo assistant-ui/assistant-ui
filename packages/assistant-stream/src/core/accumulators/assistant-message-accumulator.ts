@@ -13,7 +13,7 @@ import type {
   FilePart,
   DataPart,
 } from "../utils/types";
-import { ObjectStreamAccumulator } from "../object/ObjectStreamAccumulator";
+import { GorpStreamAccumulator } from "../gorp/GorpStreamAccumulator";
 import type { ReadonlyJSONValue } from "../../utils";
 import { TimingTracker } from "./TimingTracker";
 
@@ -42,15 +42,18 @@ const updatePartForPath = (
   chunk: AssistantStreamChunk,
   updater: (part: AssistantMessagePart) => AssistantMessagePart,
 ): AssistantMessage => {
-  if (message.parts.length === 0) {
-    throw new Error("No parts available to update.");
+  const part =
+    chunk.path.length === 1 ? message.parts[chunk.path[0]!] : undefined;
+  if (part === undefined) {
+    console.warn(
+      `Dropped ${chunk.type} chunk: no part at path [${chunk.path.join(", ")}]`,
+    );
+    return message;
   }
 
-  if (chunk.path.length !== 1)
-    throw new Error("Nested paths are not supported yet.");
-
   const partIndex = chunk.path[0]!;
-  const updatedPart = updater(message.parts[partIndex]!);
+  const updatedPart = updater(part);
+  if (updatedPart === part) return message;
   return {
     ...message,
     parts: [
@@ -147,7 +150,22 @@ const handlePartStart = (
       },
     };
   } else {
-    throw new Error(`Unsupported part type: ${partInit.type}`);
+    console.warn(
+      `Unsupported part-start type ${(partInit as { type?: unknown }).type}: inserting an empty reasoning part to preserve part indices`,
+    );
+    // reasoning rather than a data sentinel: auiV0Encode rejects data parts, so a data placeholder would fail cloud persistence
+    const placeholderPart: ReasoningPart = {
+      type: "reasoning",
+      text: "",
+      status: { type: "running" },
+    };
+    return {
+      ...message,
+      parts: [...message.parts, placeholderPart],
+      get content() {
+        return this.parts;
+      },
+    };
   }
 };
 
@@ -159,11 +177,14 @@ const handleToolCallArgsTextFinish = (
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, (part) => {
     if (part.type !== "tool-call") {
-      throw new Error("Last is not a tool call");
+      console.warn(
+        "Dropped tool-call-args-text-finish chunk: part is not a tool-call",
+      );
+      return part;
     }
 
     // TODO this should never be hit; this happens if args-text-finish is emitted after result
-    if (part.state !== "partial-call") return part;
+    if (part.state !== "partial-call") return { ...part };
     // throw new Error("Last is not a partial call");
 
     return {
@@ -198,9 +219,10 @@ const handleTextDelta = (
 
       return { ...part, argsText: newArgsText, args: newArgs };
     } else {
-      throw new Error(
-        "text-delta received but part is neither text nor tool-call",
+      console.warn(
+        "Dropped text-delta chunk: part is neither text nor tool-call",
       );
+      return part;
     }
   });
 };
@@ -232,7 +254,8 @@ const handleResult = (
         status: { type: "complete", reason: "stop" },
       };
     } else {
-      throw new Error("Result chunk received but part is not a tool-call");
+      console.warn("Dropped result chunk: part is not a tool-call");
+      return part;
     }
   });
 };
@@ -377,7 +400,7 @@ const handleErrorChunk = (
       reason: "error",
       error: {
         code: chunk.code ?? "unknown",
-        message: chunk.error,
+        message: chunk.error ?? "unknown error",
         ...(severity !== undefined && { severity }),
       },
     },
@@ -388,7 +411,7 @@ const handleUpdateState = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "update-state" },
 ): AssistantMessage => {
-  const acc = new ObjectStreamAccumulator(message.metadata.unstable_state);
+  const acc = new GorpStreamAccumulator(message.metadata.unstable_state);
   acc.append(chunk.operations);
 
   return {
@@ -484,10 +507,12 @@ export class AssistantMessageAccumulator extends TransformStream<
             message = handlePartFinish(message, chunk);
             break;
 
-          case "text-delta":
-            message = handleTextDelta(message, chunk);
-            tracker.recordFirstToken();
+          case "text-delta": {
+            const next = handleTextDelta(message, chunk);
+            if (next !== message) tracker.recordFirstToken();
+            message = next;
             break;
+          }
           case "result":
             message = handleResult(message, chunk);
             break;

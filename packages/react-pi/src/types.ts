@@ -5,10 +5,11 @@
  * The Pi message/content/event shapes are mirrored here as plain serializable
  * types so they can travel over an arbitrary transport (HTTP/SSE, RPC
  * subprocess, Electron IPC). The shapes are kept structurally faithful to
- * Pi `0.78.0` so the node host (`./node`) can assign real Pi values into them
+ * Pi `0.78`–`0.80` so the node host (`./node`) can assign real Pi values into them
  * without conversion.
  *
- * Provenance (verified against `@earendil-works/pi-coding-agent@0.78.0`):
+ * Provenance (verified against `@earendil-works/pi-coding-agent` 0.78.0,
+ * 0.79.0, 0.79.10, and 0.80.7):
  * - content/message shapes: `@earendil-works/pi-ai/dist/types.d.ts`
  * - custom message roles:    `pi-coding-agent/dist/core/messages.d.ts`
  * - agent/session events:    `pi-agent-core/dist/types.d.ts` (`AgentEvent`),
@@ -171,6 +172,94 @@ export interface PiUnknownAgentMessage {
 export type PiAgentMessage = PiKnownAgentMessage | PiUnknownAgentMessage;
 
 export type PiTranscriptMessage = PiAgentMessage;
+
+// ---------------------------------------------------------------------------
+// Session entries — mirror of Pi's persisted SessionEntry union.
+// ---------------------------------------------------------------------------
+
+type PiSessionEntryBase = {
+  id: string;
+  parentId: string | null;
+  timestamp: string;
+};
+
+export type PiSessionEntry =
+  | (PiSessionEntryBase & {
+      type: "message";
+      message: PiAgentMessage;
+    })
+  | (PiSessionEntryBase & {
+      type: "thinking_level_change";
+      thinkingLevel: string;
+    })
+  | (PiSessionEntryBase & {
+      type: "model_change";
+      provider: string;
+      modelId: string;
+    })
+  | (PiSessionEntryBase & {
+      type: "compaction";
+      summary: string;
+      firstKeptEntryId: string;
+      tokensBefore: number;
+      details?: unknown;
+      fromHook?: boolean;
+    })
+  | (PiSessionEntryBase & {
+      type: "branch_summary";
+      fromId: string;
+      summary: string;
+      details?: unknown;
+      fromHook?: boolean;
+    })
+  | (PiSessionEntryBase & {
+      type: "custom";
+      customType: string;
+      data?: unknown;
+    })
+  | (PiSessionEntryBase & {
+      type: "custom_message";
+      customType: string;
+      content: string | (PiTextContent | PiImageContent)[];
+      details?: unknown;
+      display: boolean;
+    })
+  | (PiSessionEntryBase & {
+      type: "label";
+      targetId: string;
+      label?: string | undefined;
+    })
+  | (PiSessionEntryBase & {
+      type: "session_info";
+      name?: string;
+    });
+
+export interface PiUnknownSessionEntry extends PiSessionEntryBase {
+  type: string;
+  [key: string]: unknown;
+}
+
+export type PiAnySessionEntry = PiSessionEntry | PiUnknownSessionEntry;
+
+const KNOWN_PI_SESSION_ENTRY_TYPES = {
+  message: true,
+  thinking_level_change: true,
+  model_change: true,
+  compaction: true,
+  branch_summary: true,
+  custom: true,
+  custom_message: true,
+  label: true,
+  session_info: true,
+} satisfies Record<PiSessionEntry["type"], true>;
+
+export const isKnownPiSessionEntry = (
+  entry: PiAnySessionEntry,
+): entry is PiSessionEntry =>
+  Object.prototype.hasOwnProperty.call(
+    KNOWN_PI_SESSION_ENTRY_TYPES,
+    entry.type,
+  );
 
 // ---------------------------------------------------------------------------
 // Streaming delta — mirror of `AssistantMessageEvent` (the `contentIndex`
@@ -395,6 +484,7 @@ export type PiClientEventBody =
   | { type: "snapshot"; snapshot: PiThreadSnapshot }
   | { type: "agent_start" }
   | { type: "agent_end"; willRetry?: boolean }
+  | { type: "agent_settled" }
   | { type: "turn_start"; turnIndex: number }
   | { type: "turn_end"; turnIndex: number }
   | { type: "message_start"; message: PiAgentMessage }
@@ -429,6 +519,7 @@ export type PiClientEventBody =
     }
   | { type: "compaction_start"; reason: "manual" | "threshold" | "overflow" }
   | { type: "compaction_end"; aborted: boolean; willRetry: boolean }
+  | { type: "entry_appended"; entry: PiAnySessionEntry }
   | { type: "auto_retry_start"; attempt: number; delayMs: number }
   | { type: "auto_retry_end"; success: boolean }
   | { type: "session_info_changed"; name?: string }

@@ -39,6 +39,40 @@ describe("normalizeCustomServerRecords", () => {
     ).toEqual([validRecord]);
   });
 
+  it("strips malformed connection timeouts without dropping servers", () => {
+    expect(
+      normalizeCustomServerRecords([
+        { ...validRecord, id: "string-timeout", connectionTimeout: "10000" },
+        { ...validRecord, id: "null-timeout", connectionTimeout: null },
+        { ...validRecord, id: "negative-timeout", connectionTimeout: -1 },
+        { ...validRecord, id: "nan-timeout", connectionTimeout: Number.NaN },
+        {
+          ...validRecord,
+          id: "infinite-timeout",
+          connectionTimeout: Number.POSITIVE_INFINITY,
+        },
+      ]),
+    ).toEqual([
+      { ...validRecord, id: "string-timeout" },
+      { ...validRecord, id: "null-timeout" },
+      { ...validRecord, id: "negative-timeout" },
+      { ...validRecord, id: "nan-timeout" },
+      { ...validRecord, id: "infinite-timeout" },
+    ]);
+  });
+
+  it("accepts finite non-negative connection timeouts", () => {
+    expect(
+      normalizeCustomServerRecords([
+        { ...validRecord, connectionTimeout: 0 },
+        { ...validRecord, connectionTimeout: 10_000 },
+      ]),
+    ).toEqual([
+      { ...validRecord, connectionTimeout: 0 },
+      { ...validRecord, connectionTimeout: 10_000 },
+    ]);
+  });
+
   it("accepts persisted bearer and oauth auth configs", () => {
     expect(
       normalizeCustomServerRecords([
@@ -164,6 +198,28 @@ const loadStorage = (storage: Storage) =>
       }),
     );
   }).getValue();
+
+describe("McpLocalStorage custom servers", () => {
+  it("strips malformed connection timeouts when loading", async () => {
+    const storage = createStorage();
+    storage.setItem(
+      "test-mcp:custom-servers",
+      JSON.stringify([
+        validRecord,
+        {
+          ...validRecord,
+          id: "bad-timeout",
+          connectionTimeout: "immediately",
+        },
+      ]),
+    );
+
+    await expect(loadStorage(storage).loadCustomServers()).resolves.toEqual([
+      validRecord,
+      { ...validRecord, id: "bad-timeout" },
+    ]);
+  });
+});
 
 describe("McpLocalStorage auth state", () => {
   it("normalizes loaded auth state from localStorage", async () => {

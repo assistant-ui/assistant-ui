@@ -2,6 +2,7 @@
 
 import { useAui } from "@assistant-ui/store";
 import type { CreateAppendMessage } from "@assistant-ui/core";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { agUiExtras } from "./agUiExtras";
 import type { AgUiInterrupt, AgUiResumeEntry } from "./runtime/types";
 
@@ -43,4 +44,21 @@ export const useAgUiSteerAway = () => {
     message: CreateAppendMessage,
     responses?: readonly AgUiResumeEntry[],
   ): Promise<void> => agUiExtras.get(aui).steerAway(message, responses);
+};
+
+export const useAgUiState = <TState = ReadonlyJSONValue>():
+  | TState
+  | undefined =>
+  agUiExtras.use((e) => e.state as TState | undefined, undefined);
+
+export const useAgUiSetState = <TState = ReadonlyJSONValue>() => {
+  const aui = useAui();
+  return (next: TState | ((prev: TState | undefined) => TState)): void =>
+    agUiExtras
+      .get(aui)
+      .setState(
+        next as
+          | ReadonlyJSONValue
+          | ((prev: ReadonlyJSONValue | undefined) => ReadonlyJSONValue),
+      );
 };

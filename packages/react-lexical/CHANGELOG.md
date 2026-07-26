@@ -1,5 +1,19 @@
 # @assistant-ui/react-lexical
 
+## 0.2.5
+
+### Patch Changes
+
+- [#4952](https://github.com/assistant-ui/assistant-ui/pull/4952) [`faf7db3`](https://github.com/assistant-ui/assistant-ui/commit/faf7db328cd495e99cefd3f117724dbc40428762) - fix: delete directive chips as one unit with forward Delete and on mobile backspace ([@okisdev](https://github.com/okisdev))
+
+- [#4975](https://github.com/assistant-ui/assistant-ui/pull/4975) [`595fcba`](https://github.com/assistant-ui/assistant-ui/commit/595fcba174398f0fbb5ebda80ab36187ca32edee) - feat: support lexical 0.47 ([@okisdev](https://github.com/okisdev))
+
+- [#4950](https://github.com/assistant-ui/assistant-ui/pull/4950) [`4ee0836`](https://github.com/assistant-ui/assistant-ui/commit/4ee0836bded314ce240514e0987157e37db92703) - feat: render children as custom Lexical plugins in LexicalComposerInput ([@okisdev](https://github.com/okisdev))
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.4
 
 ### Patch Changes

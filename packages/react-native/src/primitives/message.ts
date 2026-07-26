@@ -17,5 +17,7 @@ export {
 } from "./message/MessageIf";
 export {
   MessageAttachments as Attachments,
+  type MessageAttachmentsProps as AttachmentsProps,
   MessageAttachmentByIndex as AttachmentByIndex,
+  type MessageAttachmentByIndexProps as AttachmentByIndexProps,
 } from "./message/MessageAttachments";

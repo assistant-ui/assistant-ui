@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { STREAM_RECONNECTED_EVENT_TYPE } from "./OpenCodeEventSource";
+import { rejectWhenThrowing } from "./testUtils";
 import type { OpenCodeServerEvent } from "./types";
 
 const createDeferred = <T>() => {
@@ -89,23 +90,27 @@ describe("OpenCodeThreadController", () => {
       controller.sendStagedMessage(`local:${pendingId}`),
     ).resolves.toBe(true);
 
-    expect(client.session.promptAsync).toHaveBeenCalledWith({
-      sessionID: "ses_1",
-      parts: [{ type: "text", text: "hello" }],
-      model: { providerID: "anthropic", modelID: "claude" },
-    });
+    expect(client.session.promptAsync).toHaveBeenCalledWith(
+      {
+        sessionID: "ses_1",
+        parts: [{ type: "text", text: "hello" }],
+        model: { providerID: "anthropic", modelID: "claude" },
+      },
+      { throwOnError: true },
+    );
     await expect(
       controller.sendStagedMessage(`local:${pendingId}`),
     ).resolves.toBe(false);
   });
 
-  it("keeps a staged message when sending it fails", async () => {
+  it("resets a failed staged message when retrying", async () => {
+    const retry = createDeferred<unknown>();
     const client = {
       session: {
         promptAsync: vi
           .fn()
           .mockRejectedValueOnce(new Error("boom"))
-          .mockResolvedValueOnce({}),
+          .mockReturnValueOnce(retry.promise),
       },
     };
     const controller = new OpenCodeThreadController(
@@ -129,10 +134,59 @@ describe("OpenCodeThreadController", () => {
     await expect(
       controller.sendStagedMessage(`local:${pendingId}`),
     ).rejects.toThrow("boom");
+    expect(controller.getState().pendingUserMessages[pendingId!]).toMatchObject(
+      {
+        status: "failed",
+        error: expect.any(Error),
+      },
+    );
+
+    const retryRequest = controller.sendStagedMessage(`local:${pendingId}`);
+    expect(controller.getState().pendingUserMessages[pendingId!]).toMatchObject(
+      {
+        status: "pending",
+      },
+    );
+    expect(
+      controller.getState().pendingUserMessages[pendingId!]?.error,
+    ).toBeUndefined();
+
+    retry.resolve({});
+    await expect(retryRequest).resolves.toBe(true);
+  });
+
+  it("marks a message failed when the OpenCode SDK returns an error", async () => {
+    const error = new Error("Unauthorized");
+    const promptAsync = rejectWhenThrowing(error);
+    const controller = new OpenCodeThreadController(
+      { session: { promptAsync } } as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
 
     await expect(
-      controller.sendStagedMessage(`local:${pendingId}`),
-    ).resolves.toBe(true);
+      controller.sendMessage({
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [{ type: "text", text: "hello" }],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      }),
+    ).rejects.toBe(error);
+
+    expect(Object.values(controller.getState().pendingUserMessages)[0]).toEqual(
+      expect.objectContaining({ status: "failed", error }),
+    );
+    expect(promptAsync).toHaveBeenCalledWith(
+      {
+        sessionID: "ses_1",
+        parts: [{ type: "text", text: "hello" }],
+      },
+      { throwOnError: true },
+    );
   });
 
   it("re-subscribes through the provider after dispose", () => {
@@ -319,6 +373,44 @@ describe("OpenCodeThreadController", () => {
     await vi.waitFor(() => {
       expect(client.session.get).toHaveBeenCalledTimes(1);
       expect(client.session.status).toHaveBeenCalledTimes(1);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().sessionStatus).toMatchObject({
+      type: "busy",
+    });
+  });
+
+  it("keeps current state when reconnect probes fail via throwOnError", async () => {
+    const eventSource = createEventSource();
+    const status = rejectWhenThrowing(new Error("boom"));
+    const permissions = rejectWhenThrowing(new Error("boom"));
+    const questions = rejectWhenThrowing(new Error("boom"));
+    const client = createReconnectClient({ status, permissions, questions });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "session.status",
+      sessionId: "ses_1",
+      properties: { status: { type: "busy" } },
+      raw: {},
+    });
+
+    eventSource.emit(streamReconnected);
+
+    await vi.waitFor(() => {
+      expect(status).toHaveBeenCalledWith(undefined, { throwOnError: true });
+      expect(permissions).toHaveBeenCalledWith(undefined, {
+        throwOnError: true,
+      });
+      expect(questions).toHaveBeenCalledWith(undefined, {
+        throwOnError: true,
+      });
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -527,10 +619,13 @@ describe("OpenCodeThreadController", () => {
 
     await controller.replyToQuestion("question_1", [["Yes"]]);
 
-    expect(client.question.reply).toHaveBeenCalledWith({
-      requestID: "question_1",
-      answers: [["Yes"]],
-    });
+    expect(client.question.reply).toHaveBeenCalledWith(
+      {
+        requestID: "question_1",
+        answers: [["Yes"]],
+      },
+      { throwOnError: true },
+    );
     expect(
       controller.getState().interactions.questions.answered.question_1,
     ).toMatchObject({
@@ -575,9 +670,12 @@ describe("OpenCodeThreadController", () => {
 
     await controller.rejectQuestion("question_1");
 
-    expect(client.question.reject).toHaveBeenCalledWith({
-      requestID: "question_1",
-    });
+    expect(client.question.reject).toHaveBeenCalledWith(
+      {
+        requestID: "question_1",
+      },
+      { throwOnError: true },
+    );
     expect(
       controller.getState().interactions.questions.rejected.question_1,
     ).toBeDefined();

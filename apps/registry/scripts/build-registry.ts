@@ -2,6 +2,11 @@ import { existsSync, promises as fs, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import * as ts from "typescript";
+import {
+  isDeclarationBlock,
+  type CssDeclarationBlock,
+  type CssMediaBlock,
+} from "@assistant-ui/ui/lib/generative-ui-vocabulary-css.ts";
 import { registry } from "../src/registry";
 import { registrySchema, type RegistryItem } from "../src/schema";
 
@@ -520,6 +525,47 @@ export function validateStyleScopedDependencies(
   }
 
   throwIfFindings("Invalid style-scoped dependencies:", findings);
+}
+
+const CSS_SELECTOR_COMPONENT_RE = /\[data-aui="([a-z-]+)"\]/;
+const CSS_SELECTOR_ATTRIBUTE_VALUE_RE = /\[data-aui-([a-z]+)="([^"]*)"\]/g;
+
+/**
+ * Walks a generative-ui CSS ruleset and collects every `[data-aui-<attr>="<value>"]`
+ * value-selector, keyed by `<component>:<attribute>` (the component read from the
+ * same comma-separated selector branch). Presence-only boolean selectors like
+ * `[data-aui-flush]` carry no `="value"` and are not matched, by design.
+ */
+export function collectAttributeSelectorValues(
+  css: Record<string, unknown>,
+): Map<string, Set<string>> {
+  const values = new Map<string, Set<string>>();
+
+  const visitSelectorKey = (selectorKey: string) => {
+    for (const rawBranch of selectorKey.split(",")) {
+      const branch = rawBranch.trim();
+      const component = CSS_SELECTOR_COMPONENT_RE.exec(branch)?.[1];
+      if (!component) continue;
+      for (const match of branch.matchAll(CSS_SELECTOR_ATTRIBUTE_VALUE_RE)) {
+        const key = `${component}:${match[1]}`;
+        const set = values.get(key) ?? new Set<string>();
+        set.add(match[2]);
+        values.set(key, set);
+      }
+    }
+  };
+
+  for (const [selectorKey, rule] of Object.entries(css)) {
+    visitSelectorKey(selectorKey);
+    const nestedKeys = isDeclarationBlock(
+      rule as CssDeclarationBlock | CssMediaBlock,
+    )
+      ? []
+      : Object.keys(rule as CssMediaBlock);
+    for (const nestedKey of nestedKeys) visitSelectorKey(nestedKey);
+  }
+
+  return values;
 }
 
 function getAssistantRegistryDependencyName(dependency: string) {
