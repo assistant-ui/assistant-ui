@@ -1,6 +1,7 @@
 "use client";
 
 import type { MessageStatus, ThreadAssistantMessage } from "@assistant-ui/core";
+import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import type { A2AMessage, A2APart, A2ATaskState } from "./types";
 
 function isImageMediaType(mediaType?: string): boolean {
@@ -84,16 +85,6 @@ export function taskStateToMessageStatus(state: A2ATaskState): MessageStatus {
     default:
       return { type: "running" };
   }
-}
-
-const httpUrlPattern = /^https?:\/\//i;
-
-function parseDataUrl(
-  value: string,
-): { mimeType: string; data: string } | null {
-  const match = value.match(/^data:([^;,]+)(?:;[^;,]+)*;base64,(.+)$/);
-  if (!match) return null;
-  return { mimeType: match[1]!, data: match[2]! };
 }
 
 export function contentPartsToA2AParts(
