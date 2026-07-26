@@ -275,12 +275,22 @@ export const parseStoredMessageRepository = (
 };
 
 class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
+  private storage: AsyncStorageLike;
+  private aui: ReturnType<typeof useAui>;
+  private prefix: string;
+  private mutationQueue: KeyedMutationQueue;
+
   constructor(
-    private storage: AsyncStorageLike,
-    private aui: ReturnType<typeof useAui>,
-    private prefix: string,
-    private mutationQueue: KeyedMutationQueue,
-  ) {}
+    storage: AsyncStorageLike,
+    aui: ReturnType<typeof useAui>,
+    prefix: string,
+    mutationQueue: KeyedMutationQueue,
+  ) {
+    this.storage = storage;
+    this.aui = aui;
+    this.prefix = prefix;
+    this.mutationQueue = mutationQueue;
+  }
 
   private _messagesKey(remoteId: string) {
     return `${this.prefix}messages:${remoteId}`;

@@ -23,7 +23,11 @@ const isEnoent = (error: unknown): boolean =>
 export class FileStorage implements AsyncStorageLike {
   private ready: Promise<void> | undefined;
 
-  constructor(private dir: string) {}
+  private dir: string;
+
+  constructor(dir: string) {
+    this.dir = dir;
+  }
 
   private getFilePath(key: string) {
     return join(this.dir, `${encodeURIComponent(key)}.json`);

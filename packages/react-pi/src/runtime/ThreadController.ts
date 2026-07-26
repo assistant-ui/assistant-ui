@@ -241,13 +241,22 @@ export class PiThreadController implements PiThreadControllerLike {
    * the supervisor's live seqs so they never suppress real events. */
   private readonly localSnapshotSeq = 0;
 
+  private readonly client: PiClient;
+  private readonly threadId: string;
+  private readonly options: {
+    scheduleNotify?: PiNotificationScheduler;
+  };
+
   constructor(
-    private readonly client: PiClient,
-    private readonly threadId: string,
-    private readonly options: {
+    client: PiClient,
+    threadId: string,
+    options: {
       scheduleNotify?: PiNotificationScheduler;
     } = {},
   ) {
+    this.client = client;
+    this.threadId = threadId;
+    this.options = options;
     this.state = createPiThreadState(threadId);
   }
 

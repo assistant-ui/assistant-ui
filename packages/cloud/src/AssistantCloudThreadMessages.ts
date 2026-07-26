@@ -59,7 +59,11 @@ export const decodeCloudMessage = (
 };
 
 export class AssistantCloudThreadMessages {
-  constructor(private cloud: AssistantCloudAPI) {}
+  private cloud: AssistantCloudAPI;
+
+  constructor(cloud: AssistantCloudAPI) {
+    this.cloud = cloud;
+  }
 
   public async list(
     threadId: string,

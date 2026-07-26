@@ -1,11 +1,13 @@
 import type { CommitCallbacks, ResourceFiber } from "../types";
 
-export enum CommitPriority {
-  HookState = 0,
-  EffectEvent = 1,
-  PassiveEffectCleanup = 2,
-  PassiveEffectSetup = 3,
-}
+export const CommitPriority = {
+  HookState: 0,
+  EffectEvent: 1,
+  PassiveEffectCleanup: 2,
+  PassiveEffectSetup: 3,
+} as const;
+export type CommitPriority =
+  (typeof CommitPriority)[keyof typeof CommitPriority];
 
 const COMMIT_PRIORITIES = [
   CommitPriority.HookState,

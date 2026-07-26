@@ -134,10 +134,15 @@ export class MessageRuntimeImpl implements MessageRuntime {
     return this._core.path;
   }
 
+  private _core: MessageStateBinding;
+  private _threadBinding: ThreadRuntimeCoreBinding;
+
   constructor(
-    private _core: MessageStateBinding,
-    private _threadBinding: ThreadRuntimeCoreBinding,
+    _core: MessageStateBinding,
+    _threadBinding: ThreadRuntimeCoreBinding,
   ) {
+    this._core = _core;
+    this._threadBinding = _threadBinding;
     this.composer = new EditComposerRuntimeImpl(
       new NestedSubscriptionSubject({
         path: {

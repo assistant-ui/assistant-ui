@@ -113,7 +113,11 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   public readonly composer = new DefaultThreadComposerRuntimeCore(this);
 
-  constructor(private readonly _contextProvider: ModelContextProvider) {}
+  private readonly _contextProvider: ModelContextProvider;
+
+  constructor(_contextProvider: ModelContextProvider) {
+    this._contextProvider = _contextProvider;
+  }
 
   public getModelContext() {
     return this._contextProvider.getModelContext();

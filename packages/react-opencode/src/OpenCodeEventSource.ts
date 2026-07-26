@@ -81,7 +81,11 @@ export class OpenCodeEventSource {
   private nextReconnectDelayMs = this.reconnectDelayMs;
   private hadConnection = false;
 
-  constructor(private readonly client: OpencodeClient) {}
+  private readonly client: OpencodeClient;
+
+  constructor(client: OpencodeClient) {
+    this.client = client;
+  }
 
   public subscribe(listener: Listener) {
     this.listeners.add(listener);

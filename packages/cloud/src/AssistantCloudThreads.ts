@@ -78,7 +78,10 @@ export const decodeCloudThread = (
 export class AssistantCloudThreads {
   public readonly messages: AssistantCloudThreadMessages;
 
-  constructor(private cloud: AssistantCloudAPI) {
+  private cloud: AssistantCloudAPI;
+
+  constructor(cloud: AssistantCloudAPI) {
+    this.cloud = cloud;
     this.messages = new AssistantCloudThreadMessages(cloud);
   }
 

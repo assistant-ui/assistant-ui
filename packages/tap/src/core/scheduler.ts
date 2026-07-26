@@ -14,7 +14,11 @@ let flushState: GlobalFlushState = {
 export class UpdateScheduler {
   private _isDirty = false;
 
-  constructor(private readonly _task: Task) {}
+  private readonly _task: Task;
+
+  constructor(_task: Task) {
+    this._task = _task;
+  }
 
   get isDirty() {
     return this._isDirty;

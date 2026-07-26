@@ -66,10 +66,15 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     return this._core.path;
   }
 
+  private _core: ThreadListItemStateBinding;
+  private _threadListBinding: ThreadListRuntimeCoreBinding;
+
   constructor(
-    private _core: ThreadListItemStateBinding,
-    private _threadListBinding: ThreadListRuntimeCoreBinding,
+    _core: ThreadListItemStateBinding,
+    _threadListBinding: ThreadListRuntimeCoreBinding,
   ) {
+    this._core = _core;
+    this._threadListBinding = _threadListBinding;
     this.__internal_bindMethods();
   }
 

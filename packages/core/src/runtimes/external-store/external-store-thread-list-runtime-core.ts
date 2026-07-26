@@ -60,10 +60,13 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
     return this._mainThreadId;
   }
 
+  private threadFactory: ExternalStoreThreadFactory;
+
   constructor(
     adapter: ExternalStoreThreadListAdapter = {},
-    private threadFactory: ExternalStoreThreadFactory,
+    threadFactory: ExternalStoreThreadFactory,
   ) {
+    this.threadFactory = threadFactory;
     this.__internal_setAdapter(adapter, true);
   }
 

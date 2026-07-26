@@ -16,7 +16,10 @@ type AssistantCloudProjectThreadsListResponse = {
 export class AssistantCloudProjectThreads {
   public readonly messages: AssistantCloudProjectThreadMessages;
 
-  constructor(private cloud: AssistantCloudAPI) {
+  private cloud: AssistantCloudAPI;
+
+  constructor(cloud: AssistantCloudAPI) {
+    this.cloud = cloud;
     this.messages = new AssistantCloudProjectThreadMessages(cloud);
   }
 

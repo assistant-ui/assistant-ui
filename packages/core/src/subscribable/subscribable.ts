@@ -141,10 +141,11 @@ export class ShallowMemoizeSubject<TState extends object, TPath>
     return this.binding.path;
   }
 
-  constructor(
-    private binding: SubscribableWithState<TState | SKIP_UPDATE, TPath>,
-  ) {
+  private binding: SubscribableWithState<TState | SKIP_UPDATE, TPath>;
+
+  constructor(binding: SubscribableWithState<TState | SKIP_UPDATE, TPath>) {
     super();
+    this.binding = binding;
     const state = binding.getState();
     if (state === SKIP_UPDATE)
       throw new Error("Entry not available in the store");
@@ -184,10 +185,11 @@ export class LazyMemoizeSubject<TState extends object, TPath>
     return this.binding.path;
   }
 
-  constructor(
-    private binding: SubscribableWithState<TState | SKIP_UPDATE, TPath>,
-  ) {
+  private binding: SubscribableWithState<TState | SKIP_UPDATE, TPath>;
+
+  constructor(binding: SubscribableWithState<TState | SKIP_UPDATE, TPath>) {
     super();
+    this.binding = binding;
   }
 
   private _previousStateDirty = true;
@@ -228,8 +230,11 @@ export class NestedSubscriptionSubject<
     return this.binding.path;
   }
 
-  constructor(private binding: NestedSubscribable<TState, TPath>) {
+  private binding: NestedSubscribable<TState, TPath>;
+
+  constructor(binding: NestedSubscribable<TState, TPath>) {
     super();
+    this.binding = binding;
   }
 
   public getState() {
@@ -269,8 +274,11 @@ export class NestedSubscriptionSubject<
 export class EventSubscriptionSubject<
   TEvent extends string,
 > extends BaseSubject {
-  constructor(private config: EventSubscribable<TEvent>) {
+  private config: EventSubscribable<TEvent>;
+
+  constructor(config: EventSubscribable<TEvent>) {
     super();
+    this.config = config;
   }
 
   public getState() {

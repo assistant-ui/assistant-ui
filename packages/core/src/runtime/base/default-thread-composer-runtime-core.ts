@@ -46,8 +46,17 @@ export class DefaultThreadComposerRuntimeCore
     return this.runtime.adapters?.dictation;
   }
 
+  private runtime: Omit<ThreadRuntimeCore, "composer"> & {
+    adapters?:
+      | {
+          attachments?: AttachmentAdapter | undefined;
+          dictation?: DictationAdapter | undefined;
+        }
+      | undefined;
+  };
+
   constructor(
-    private runtime: Omit<ThreadRuntimeCore, "composer"> & {
+    runtime: Omit<ThreadRuntimeCore, "composer"> & {
       adapters?:
         | {
             attachments?: AttachmentAdapter | undefined;
@@ -57,6 +66,7 @@ export class DefaultThreadComposerRuntimeCore
     },
   ) {
     super();
+    this.runtime = runtime;
     this.connect();
   }
 

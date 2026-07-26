@@ -89,7 +89,11 @@ const findHead = (
 class CachedValue<T> {
   private _value: T | null = null;
 
-  constructor(private func: () => T) {}
+  private func: () => T;
+
+  constructor(func: () => T) {
+    this.func = func;
+  }
 
   get value() {
     if (this._value === null) {

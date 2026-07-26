@@ -139,7 +139,11 @@ export class TestSubscriber<T> {
 export class TestResourceManager<R, A extends readonly unknown[]> {
   private isActive = false;
 
-  constructor(public fiber: TestFiber<R, A>) {}
+  public fiber: TestFiber<R, A>;
+
+  constructor(fiber: TestFiber<R, A>) {
+    this.fiber = fiber;
+  }
 
   renderAndMount(...args: A): R {
     if (this.isActive) {

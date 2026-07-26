@@ -25,29 +25,31 @@ type LanguageModelV1Usage = {
   outputTokens: number;
 };
 
-export enum DataStreamStreamChunkType {
-  TextDelta = "0",
-  Data = "2",
-  Error = "3",
-  Annotation = "8",
-  ToolCall = "9",
-  ToolCallResult = "a",
-  StartToolCall = "b",
-  ToolCallArgsTextDelta = "c",
-  FinishMessage = "d",
-  FinishStep = "e",
-  StartStep = "f",
-  ReasoningDelta = "g",
-  Source = "h",
-  RedactedReasoning = "i",
-  ReasoningSignature = "j",
-  File = "k",
+export const DataStreamStreamChunkType = {
+  TextDelta: "0",
+  Data: "2",
+  Error: "3",
+  Annotation: "8",
+  ToolCall: "9",
+  ToolCallResult: "a",
+  StartToolCall: "b",
+  ToolCallArgsTextDelta: "c",
+  FinishMessage: "d",
+  FinishStep: "e",
+  StartStep: "f",
+  ReasoningDelta: "g",
+  Source: "h",
+  RedactedReasoning: "i",
+  ReasoningSignature: "j",
+  File: "k",
 
-  AuiUpdateStateOperations = "aui-state",
-  AuiTextDelta = "aui-text-delta",
-  AuiReasoningDelta = "aui-reasoning-delta",
-  AuiDataPart = "aui-data",
-}
+  AuiUpdateStateOperations: "aui-state",
+  AuiTextDelta: "aui-text-delta",
+  AuiReasoningDelta: "aui-reasoning-delta",
+  AuiDataPart: "aui-data",
+} as const;
+export type DataStreamStreamChunkType =
+  (typeof DataStreamStreamChunkType)[keyof typeof DataStreamStreamChunkType];
 type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.TextDelta]: string;
   [DataStreamStreamChunkType.Data]: ReadonlyJSONValue[];

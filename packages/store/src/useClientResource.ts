@@ -78,13 +78,20 @@ class ClientProxyHandler
     | undefined;
   private cachedReceiver: unknown;
 
+  private readonly outputRef: {
+    current: ClientMethods;
+  };
+  private readonly index: number;
+
   constructor(
-    private readonly outputRef: {
+    outputRef: {
       current: ClientMethods;
     },
-    private readonly index: number,
+    index: number,
   ) {
     super();
+    this.outputRef = outputRef;
+    this.index = index;
   }
 
   get(_: unknown, prop: string | symbol, receiver: unknown) {

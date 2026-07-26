@@ -208,7 +208,7 @@ export class DataStreamEncoder
   }
 }
 
-const TOOL_CALL_ARGS_CLOSING_CHUNKS = [
+const TOOL_CALL_ARGS_CLOSING_CHUNKS: DataStreamStreamChunkType[] = [
   DataStreamStreamChunkType.StartToolCall,
   DataStreamStreamChunkType.ToolCall,
   DataStreamStreamChunkType.TextDelta,

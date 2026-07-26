@@ -251,7 +251,11 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
 
   public abstract get type(): "edit" | "thread";
 
-  constructor(protected _core: ComposerRuntimeCoreBinding) {}
+  protected _core: ComposerRuntimeCoreBinding;
+
+  constructor(_core: ComposerRuntimeCoreBinding) {
+    this._core = _core;
+  }
 
   protected __internal_bindMethods() {
     this.setText = this.setText.bind(this);

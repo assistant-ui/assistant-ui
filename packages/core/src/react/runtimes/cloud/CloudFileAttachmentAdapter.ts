@@ -19,7 +19,11 @@ const guessAttachmentType = (
 export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   public accept = "*";
 
-  constructor(private cloud: AssistantCloud) {}
+  private cloud: AssistantCloud;
+
+  constructor(cloud: AssistantCloud) {
+    this.cloud = cloud;
+  }
 
   private uploadedUrls = new Map<string, string>();
 

@@ -16,9 +16,12 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _isClosed = false;
 
   private _mergeTask: Promise<void>;
+  private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
+
   constructor(
-    private _controller: ReadableStreamDefaultController<AssistantStreamChunk>,
+    _controller: ReadableStreamDefaultController<AssistantStreamChunk>,
   ) {
+    this._controller = _controller;
     const stream = createTextStream({
       start: (c) => {
         this._argsTextController = c;

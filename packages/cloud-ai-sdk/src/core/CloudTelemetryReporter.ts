@@ -19,7 +19,11 @@ export type TelemetryFinishEvent = {
 export class CloudTelemetryReporter {
   private reported = new Set<string>();
 
-  constructor(private cloud: AssistantCloud) {}
+  private cloud: AssistantCloud;
+
+  constructor(cloud: AssistantCloud) {
+    this.cloud = cloud;
+  }
 
   async reportFromMessages(
     threadId: string,
