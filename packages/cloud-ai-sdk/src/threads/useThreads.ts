@@ -81,17 +81,21 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const withAction = useCallback(
     async <T>(
-      action: () => Promise<T>,
+      action: (commit: (update: () => void) => void) => Promise<T>,
       fallback: T,
       shouldUpdate: () => boolean = () => true,
     ): Promise<T> => {
+      const commit = (update: () => void) => {
+        if (mountedRef.current && shouldUpdate()) update();
+      };
       try {
-        const result = await action();
-        if (mountedRef.current && shouldUpdate()) setError(null);
+        const result = await action(commit);
+        commit(() => setError(null));
         return result;
       } catch (err) {
-        if (mountedRef.current && shouldUpdate())
-          setError(err instanceof Error ? err : new Error(String(err)));
+        commit(() =>
+          setError(err instanceof Error ? err : new Error(String(err))),
+        );
         return fallback;
       }
     },
@@ -108,13 +112,11 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
     try {
       return await withAction(
-        async () => {
+        async (commit) => {
           const response = await cloud.threads.list(
             includeArchived ? undefined : { is_archived: false },
           );
-          if (mountedRef.current && isLatest()) {
-            setThreads(() => response.threads.map(toCloudThread));
-          }
+          commit(() => setThreads(() => response.threads.map(toCloudThread)));
           return true;
         },
         false,
@@ -149,7 +151,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const create = useCallback(
     async (opts?: { externalId?: string }): Promise<CloudThread | null> => {
       return await withAction(
-        async () => {
+        async (commit) => {
           const response = await cloud.threads.create({
             last_message_at: new Date(),
             external_id: opts?.externalId,
@@ -157,9 +159,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
           const thread = await cloud.threads.get(response.thread_id);
           const cloudThread = toCloudThread(thread);
 
-          if (mountedRef.current && isCurrentCloud()) {
-            setThreads((prev) => [cloudThread, ...prev]);
-          }
+          commit(() => setThreads((prev) => [cloudThread, ...prev]));
 
           return cloudThread;
         },
@@ -173,11 +173,9 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const deleteThread = useCallback(
     async (id: string): Promise<boolean> => {
       return await withAction(
-        async () => {
+        async (commit) => {
           await cloud.threads.delete(id);
-          if (mountedRef.current && isCurrentCloud()) {
-            setThreads((prev) => prev.filter((t) => t.id !== id));
-          }
+          commit(() => setThreads((prev) => prev.filter((t) => t.id !== id)));
           return true;
         },
         false,
@@ -190,13 +188,13 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const rename = useCallback(
     async (id: string, title: string): Promise<boolean> => {
       return await withAction(
-        async () => {
+        async (commit) => {
           await cloud.threads.update(id, { title });
-          if (mountedRef.current && isCurrentCloud()) {
+          commit(() =>
             setThreads((prev) =>
               prev.map((t) => (t.id === id ? { ...t, title } : t)),
-            );
-          }
+            ),
+          );
           return true;
         },
         false,
@@ -209,10 +207,10 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const archive = useCallback(
     async (id: string): Promise<boolean> => {
       return await withAction(
-        async () => {
+        async (commit) => {
           await cloud.threads.update(id, { is_archived: true });
 
-          if (mountedRef.current && isCurrentCloud()) {
+          commit(() =>
             setThreads((prev) => {
               if (includeArchived) {
                 return prev.map((t) =>
@@ -220,8 +218,8 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
                 );
               }
               return prev.filter((t) => t.id !== id);
-            });
-          }
+            }),
+          );
 
           return true;
         },
@@ -235,17 +233,17 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const unarchive = useCallback(
     async (id: string): Promise<boolean> => {
       return await withAction(
-        async () => {
+        async (commit) => {
           await cloud.threads.update(id, { is_archived: false });
           const thread = await cloud.threads.get(id);
           const cloudThread = toCloudThread(thread);
 
-          if (mountedRef.current && isCurrentCloud()) {
+          commit(() =>
             setThreads((prev) => {
               const filtered = prev.filter((t) => t.id !== id);
               return [cloudThread, ...filtered];
-            });
-          }
+            }),
+          );
 
           return true;
         },
@@ -270,12 +268,14 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const generateTitle = useCallback(
     async (tid: string): Promise<string | null> => {
       return await withAction(
-        async () => {
+        async (commit) => {
           const title = await generateThreadTitle(cloud, tid);
 
-          if (title && mountedRef.current && isCurrentCloud()) {
-            setThreads((prev) =>
-              prev.map((t) => (t.id === tid ? { ...t, title } : t)),
+          if (title) {
+            commit(() =>
+              setThreads((prev) =>
+                prev.map((t) => (t.id === tid ? { ...t, title } : t)),
+              ),
             );
           }
 
