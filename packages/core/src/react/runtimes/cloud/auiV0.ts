@@ -6,6 +6,7 @@ import type {
   SourceProviderMetadata,
   ThreadMessage,
   TextMessagePart,
+  ToolApprovalOption,
   Unstable_AudioMessagePart,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
@@ -17,6 +18,16 @@ import type {
   ReadonlyJSONValue,
 } from "assistant-stream/utils";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
+
+type AuiV0ToolApproval = {
+  readonly id: string;
+  readonly approved?: boolean;
+  readonly reason?: string;
+  readonly isAutomatic?: boolean;
+  readonly options?: readonly ToolApprovalOption[];
+  readonly optionId?: string;
+  readonly resolution?: "cancelled" | "expired";
+};
 
 type AuiV0MessagePart =
   | {
@@ -51,6 +62,7 @@ type AuiV0MessagePart =
       readonly args: ReadonlyJSONObject;
       readonly result?: ReadonlyJSONValue;
       readonly isError?: true;
+      readonly approval?: AuiV0ToolApproval;
     }
   | {
       readonly type: "tool-call";
@@ -59,6 +71,7 @@ type AuiV0MessagePart =
       readonly argsText: string;
       readonly result?: ReadonlyJSONValue;
       readonly isError?: true;
+      readonly approval?: AuiV0ToolApproval;
     }
   | {
       readonly type: "image";
@@ -216,6 +229,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               ? { result: part.result as ReadonlyJSONValue }
               : undefined),
             ...(part.isError ? { isError: true } : undefined),
+            ...(part.approval ? { approval: part.approval } : undefined),
           };
         }
 

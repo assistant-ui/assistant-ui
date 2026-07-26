@@ -75,6 +75,19 @@ export class LocalThreadRuntimeCore
    */
   private _pausedPersistedIds = new Set<string>();
 
+  // Other tool calls on the message may still be awaiting approval, so the run
+  // won't resume (and persist) yet — write this decision now, or a refresh
+  // before the rest resolve would restore the pre-decision message.
+  private _persistPartialPause(
+    parentId: string | null,
+    message: ThreadAssistantMessage,
+  ) {
+    if (!this._pausedPersistedIds.has(message.id)) return;
+    this._options.adapters.history
+      ?.update?.({ parentId, message, runConfig: this._lastRunConfig })
+      .catch(() => {});
+  }
+
   public readonly isDisabled = false;
   public readonly isSendDisabled = false;
 
@@ -674,13 +687,8 @@ export class LocalThreadRuntimeCore
       shouldContinue(message, this._options.unstable_humanToolNames)
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
-    } else if (added && this._pausedPersistedIds.has(message.id)) {
-      // Other tool calls on this message are still awaiting approval, so the
-      // run won't resume (and persist) yet — write this decision now, or a
-      // refresh before the rest resolve would restore the pre-decision message.
-      this._options.adapters.history
-        ?.update?.({ parentId, message, runConfig: this._lastRunConfig })
-        .catch(() => {});
+    } else if (added) {
+      this._persistPartialPause(parentId, message);
     }
   }
 
@@ -759,13 +767,8 @@ export class LocalThreadRuntimeCore
       shouldContinue(message, this._options.unstable_humanToolNames)
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
-    } else if (this._pausedPersistedIds.has(message.id)) {
-      // Other tool calls on this message are still awaiting approval, so the
-      // run won't resume (and persist) yet — write this decision now, or a
-      // refresh before the rest resolve would restore the pre-decision message.
-      this._options.adapters.history
-        ?.update?.({ parentId, message, runConfig: this._lastRunConfig })
-        .catch(() => {});
+    } else {
+      this._persistPartialPause(parentId, message);
     }
   }
 }
