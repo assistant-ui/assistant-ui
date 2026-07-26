@@ -275,15 +275,20 @@ type CloudMessage = {
 };
 
 declare class CloudMessagePersistence {
-  private cloud;
   private idMapping;
+  private getCloud;
   constructor(cloud: AssistantCloud);
+  constructor(getCloud: () => AssistantCloud);
   append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject): Promise<void>;
   update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject): Promise<void>;
   isPersisted(messageId: string): boolean;
   getRemoteId(messageId: string): Promise<string | undefined>;
   load(threadId: string, format?: string): Promise<CloudMessage[]>;
   reset(): void;
+}
+
+declare class CloudResponseError extends Error {
+  constructor(message: string);
 }
 
 type CloudThread = {
@@ -471,7 +476,7 @@ declare function createSamplingCollector(): {
 };
 
 declare namespace entry_root_exports {
-  export { AssistantCloud, AssistantCloudRunReport, AssistantCloudTelemetryConfig, CloudAPIError, CloudMessage, CloudMessagePersistence, McpSamplingHandler, MessageFormatAdapter, SamplingCallData, createFormattedPersistence, createSamplingCollector, wrapSamplingHandler };
+  export { AssistantCloud, AssistantCloudRunReport, AssistantCloudTelemetryConfig, CloudAPIError, CloudMessage, CloudMessagePersistence, CloudResponseError, McpSamplingHandler, MessageFormatAdapter, SamplingCallData, createFormattedPersistence, createSamplingCollector, wrapSamplingHandler };
 }
 
 declare function wrapSamplingHandler(handler: McpSamplingHandler, onSamplingCall: (data: SamplingCallData) => void): McpSamplingHandler;

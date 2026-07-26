@@ -629,6 +629,9 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   setText(value: string): void;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
+  protected _isSending: boolean;
+  private _removedDuringSend;
+  private _sendGeneration;
   private _emptyTextAndAttachments;
   private _onClearAttachments;
   reset(): Promise<void>;
@@ -2761,7 +2764,7 @@ type ReloadConfig = {
 
 type RemoteThreadInitializeResponse = {
   remoteId: string;
-  externalId: string | undefined;
+  externalId?: string | undefined;
 };
 
 type RemoteThreadListAdapter = {
@@ -3966,6 +3969,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };

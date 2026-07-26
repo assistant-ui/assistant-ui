@@ -14,14 +14,11 @@ export namespace MessagePartPrimitiveData {
 export const MessagePartPrimitiveData = (
   props: MessagePartPrimitiveData.Props,
 ) => {
-  const partName = useAuiState((s) => {
-    if (s.part.type !== "data")
-      throw new Error(
-        "MessagePartPrimitive.Data can only be used inside data message parts.",
-      );
-    return s.part.name;
+  const label = useAuiState((s) => {
+    if (s.part.type !== "data") return "";
+    return `[data: ${s.part.name}]`;
   });
-  return <Text {...props}>[data: {partName}]</Text>;
+  return <Text {...props}>{label}</Text>;
 };
 
 MessagePartPrimitiveData.displayName = "MessagePartPrimitive.Data";

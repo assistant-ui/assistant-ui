@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { LocalRuntimeCore } from "./local-runtime-core";
 import type {
   ChatModelAdapter,
@@ -9,6 +9,10 @@ import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const createThread = (
   adapter: ChatModelAdapter,
@@ -73,6 +77,64 @@ const createApprovalThread = (firstResult: ChatModelRunResult) => {
   });
   return { thread, runs };
 };
+
+describe("LocalThreadRuntimeCore events", () => {
+  it("isolates runEnd listener errors", async () => {
+    const listenerError = new Error("telemetry failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const laterListener = vi.fn();
+    const thread = createThread({
+      async run() {
+        return { content: [{ type: "text", text: "done" }] };
+      },
+    });
+
+    thread.unstable_on("runEnd", () => {
+      throw listenerError;
+    });
+    thread.unstable_on("runEnd", laterListener);
+
+    await expect(thread.append(userMessage("hello"))).resolves.toBeUndefined();
+
+    expect(laterListener).toHaveBeenCalledOnce();
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+    expect(consoleError).toHaveBeenCalledWith(
+      '[assistant-ui] Thread runtime "runEnd" listener threw an error',
+      listenerError,
+    );
+  });
+
+  it("isolates async runEnd listener rejections", async () => {
+    const listenerError = new Error("async telemetry failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const laterListener = vi.fn();
+    const thread = createThread({
+      async run() {
+        return { content: [{ type: "text", text: "done" }] };
+      },
+    });
+
+    thread.unstable_on("runEnd", async () => {
+      throw listenerError;
+    });
+    thread.unstable_on("runEnd", laterListener);
+
+    await expect(thread.append(userMessage("hello"))).resolves.toBeUndefined();
+
+    expect(laterListener).toHaveBeenCalledOnce();
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        '[assistant-ui] Thread runtime "runEnd" listener threw an error',
+        listenerError,
+      );
+    });
+  });
+});
 
 describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
   it("pauses on requires-action while a listed tool call has no result", async () => {
@@ -155,6 +217,25 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
       .content.find((part) => part.type === "tool-call");
     expect(toolCall?.result).toEqual(result);
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+});
+
+describe("LocalThreadRuntimeCore state", () => {
+  it.each([
+    ["false", false],
+    ["zero", 0],
+    ["an empty string", ""],
+  ])("preserves %s model state", async (_label, state) => {
+    const thread = createThread({
+      async run() {
+        return { metadata: { unstable_state: state } };
+      },
+    });
+
+    await thread.append(userMessage("update state"));
+    await flush();
+
+    expect(thread.messages.at(-1)?.metadata.unstable_state).toBe(state);
   });
 });
 
@@ -405,6 +486,74 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
     expect(() =>
       thread.resumeToolCall({ toolCallId: "call-send_email", payload: {} }),
     ).toThrowError(/unstable_humanToolNames/);
+  });
+});
+
+describe("LocalThreadRuntimeCore cancellation", () => {
+  it("marks the message cancelled when a streaming adapter returns after abort", async () => {
+    let released!: () => void;
+    const streaming = new Promise<void>((resolve) => {
+      released = resolve;
+    });
+
+    const thread = createThread({
+      async *run({ abortSignal }) {
+        yield { content: [{ type: "text", text: "partial" }] };
+        await streaming;
+        if (abortSignal.aborted) return;
+        yield { content: [{ type: "text", text: "partial answer" }] };
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("hi"));
+    await flush();
+
+    thread.cancelRun();
+    released();
+    await appendPromise;
+
+    expect(thread.messages.at(-1)?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("marks the message cancelled when a non-streaming adapter resolves after abort", async () => {
+    let released!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      released = resolve;
+    });
+
+    const thread = createThread({
+      async run() {
+        await pending;
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("hi"));
+    await flush();
+
+    thread.cancelRun();
+    released();
+    await appendPromise;
+
+    expect(thread.messages.at(-1)?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("keeps a completed run complete", async () => {
+    const thread = createThread({
+      async *run() {
+        yield { content: [{ type: "text", text: "hello" }] };
+      },
+    });
+
+    await thread.append(userMessage("hi"));
+
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
   });
 });
 

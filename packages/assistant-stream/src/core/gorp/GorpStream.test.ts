@@ -217,6 +217,46 @@ describe("GorpStream serialization and deserialization", () => {
     });
   });
 
+  it("does not apply first-chunk operations twice", async () => {
+    const stream = createGorpStream({
+      defaultValue: { message: "Hello" },
+      execute: (controller) => {
+        controller.enqueue([
+          { type: "append-text", path: ["message"], value: " world" },
+        ]);
+        controller.enqueue([
+          { type: "append-text", path: ["message"], value: "!" },
+        ]);
+      },
+    });
+
+    const decodedStream = await encodeAndDecode(stream);
+    const chunks = await collectChunks(decodedStream);
+
+    expect(chunks).toEqual([
+      {
+        snapshot: { message: "Hello world" },
+        operations: [
+          {
+            type: "set",
+            path: [],
+            value: { message: "Hello world" },
+          },
+        ],
+      },
+      {
+        snapshot: { message: "Hello world!" },
+        operations: [
+          {
+            type: "append-text",
+            path: ["message"],
+            value: "!",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("should correctly handle special characters and Unicode", async () => {
     const stream = createGorpStream({
       execute: (controller) => {

@@ -8,41 +8,22 @@ export class GorpStreamEncoder extends PipeableTransformStream<
   Uint8Array
 > {
   constructor() {
+    let isFirstChunk = true;
     super((readable) =>
       readable
         .pipeThrough(
-          (() => {
-            class GorpStreamTransformer implements Transformer<
-              GorpStreamChunk,
-              readonly GorpStreamOperation[]
-            > {
-              #isFirstChunk = true;
-
-              transform(
-                chunk: GorpStreamChunk,
-                controller: TransformStreamDefaultController<
-                  readonly GorpStreamOperation[]
-                >,
-              ) {
-                if (
-                  this.#isFirstChunk &&
-                  chunk.snapshot &&
-                  Object.keys(chunk.snapshot).length > 0
-                ) {
-                  // For the first chunk, if there's an initial state that's not empty,
-                  // prepend a set operation for the initial state
-                  controller.enqueue([
-                    { type: "set", path: [], value: chunk.snapshot },
-                    ...chunk.operations,
-                  ]);
-                } else {
-                  controller.enqueue(chunk.operations);
-                }
-                this.#isFirstChunk = false;
+          new TransformStream<GorpStreamChunk, readonly GorpStreamOperation[]>({
+            transform(chunk, controller) {
+              if (isFirstChunk) {
+                controller.enqueue([
+                  { type: "set", path: [], value: chunk.snapshot },
+                ]);
+              } else {
+                controller.enqueue(chunk.operations);
               }
-            }
-            return new TransformStream(new GorpStreamTransformer());
-          })(),
+              isFirstChunk = false;
+            },
+          }),
         )
         .pipeThrough(new SSEEncoder()),
     );

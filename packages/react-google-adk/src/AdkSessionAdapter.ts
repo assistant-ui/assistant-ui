@@ -62,12 +62,13 @@ type AdkSessionResponse = {
   events?: unknown;
 };
 
-const isAdkSessionResponse = (value: unknown): value is AdkSessionResponse => {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
-  }
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
-  const id = (value as Record<string, unknown>).id;
+const isAdkSessionResponse = (value: unknown): value is AdkSessionResponse => {
+  if (!isRecord(value)) return false;
+
+  const id = value.id;
   return typeof id === "string" && id.length > 0;
 };
 
@@ -97,6 +98,86 @@ const parseAdkSessionListResponse = (value: unknown): AdkSessionResponse[] => {
       );
     }
     return session;
+  });
+};
+
+const parseAdkArtifactListResponse = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    throw new Error(
+      "Invalid ADK artifact list response: expected an array of artifact names.",
+    );
+  }
+
+  return value.map((artifact, index) => {
+    if (typeof artifact === "string" && artifact.length > 0) {
+      return artifact;
+    }
+
+    if (isRecord(artifact)) {
+      const filename = artifact.filename;
+      if (typeof filename === "string" && filename.length > 0) {
+        return filename;
+      }
+    }
+
+    throw new Error(
+      `Invalid ADK artifact list response: artifact at index ${index} must be a non-empty string or an object with a non-empty string "filename".`,
+    );
+  });
+};
+
+const parseAdkArtifactResponse = (value: unknown): AdkArtifactData => {
+  if (!isRecord(value)) {
+    throw new Error(
+      'Invalid ADK artifact load response: expected an object containing "text" or "inlineData".',
+    );
+  }
+
+  const { text, inlineData } = value;
+  if (text === undefined && inlineData === undefined) {
+    throw new Error(
+      'Invalid ADK artifact load response: expected an object containing "text" or "inlineData".',
+    );
+  }
+
+  if (text !== undefined && typeof text !== "string") {
+    throw new Error(
+      'Invalid ADK artifact load response: "text" must be a string when present.',
+    );
+  }
+
+  if (
+    inlineData !== undefined &&
+    (!isRecord(inlineData) ||
+      typeof inlineData.mimeType !== "string" ||
+      typeof inlineData.data !== "string")
+  ) {
+    throw new Error(
+      'Invalid ADK artifact load response: "inlineData" must contain string "mimeType" and "data" fields.',
+    );
+  }
+
+  return value as AdkArtifactData;
+};
+
+const parseAdkArtifactVersionsResponse = (value: unknown): number[] => {
+  if (!Array.isArray(value)) {
+    throw new Error(
+      "Invalid ADK artifact versions response: expected an array of version numbers.",
+    );
+  }
+
+  return value.map((version, index) => {
+    if (
+      typeof version !== "number" ||
+      !Number.isInteger(version) ||
+      version < 0
+    ) {
+      throw new Error(
+        `Invalid ADK artifact versions response: version at index ${index} must be a non-negative integer.`,
+      );
+    }
+    return version;
   });
 };
 
@@ -259,8 +340,7 @@ export function createAdkSessionAdapter(
       const headers = await getHeaders();
       const res = await fetch(artifactBaseUrl(sessionId), { headers });
       if (!res.ok) throw new Error(`Failed to list artifacts: ${res.status}`);
-      const data = (await res.json()) as Array<{ filename: string }>;
-      return data.map((a) => a.filename);
+      return parseAdkArtifactListResponse(await res.json());
     },
 
     async load(sessionId, artifactName, version?) {
@@ -269,7 +349,7 @@ export function createAdkSessionAdapter(
       if (version != null) url += `/versions/${version}`;
       const res = await fetch(url, { headers });
       if (!res.ok) throw new Error(`Failed to load artifact: ${res.status}`);
-      return (await res.json()) as AdkArtifactData;
+      return parseAdkArtifactResponse(await res.json());
     },
 
     async listVersions(sessionId, artifactName) {
@@ -279,7 +359,7 @@ export function createAdkSessionAdapter(
       if (!res.ok) {
         throw new Error(`Failed to list artifact versions: ${res.status}`);
       }
-      return (await res.json()) as number[];
+      return parseAdkArtifactVersionsResponse(await res.json());
     },
 
     async delete(sessionId, artifactName) {

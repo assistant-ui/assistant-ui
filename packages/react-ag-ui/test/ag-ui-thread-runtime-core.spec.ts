@@ -2224,6 +2224,35 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runCount).toBe(1);
   });
 
+  it("steerAway rejects entries without an interruptId or with an invalid status", async () => {
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runCount++;
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.steerAway("x", [{ status: "cancelled" } as any]),
+    ).rejects.toThrow("every entry must have an interruptId");
+    await expect(
+      core.steerAway("x", [{ interruptId: "int-1", status: "nope" } as any]),
+    ).rejects.toThrow(/invalid status "nope" for interrupt int-1/);
+    expect(runCount).toBe(1);
+  });
+
   it("steerAway cancels a pending client-side tool call and starts one fresh run", async () => {
     const runInputs: any[] = [];
     let runCount = 0;
@@ -2744,8 +2773,11 @@ describe("AGUIThreadRuntimeCore", () => {
           type: "TOOL_CALL_RESULT",
           messageId: "tool-msg-1",
           toolCallId: "call-1",
-          content: '{"answer":"yes"}',
+          content: "yes",
           role: "tool",
+          structuredContent: { answer: "yes" },
+          _meta: { auditId: "audit-1" },
+          isError: true,
         },
       });
       subscriber.onTextMessageContentEvent?.({
@@ -2779,7 +2811,14 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(toolPart).toMatchObject({
       toolCallId: "call-1",
       toolName: "ask_question",
-      result: { answer: "yes" },
+      result: {
+        content: [{ type: "text", text: "yes" }],
+        structuredContent: { answer: "yes" },
+        _meta: { auditId: "audit-1" },
+        isError: true,
+      },
+      modelContent: [{ type: "text", text: "yes" }],
+      isError: true,
       unstable_toolMessageId: "tool-msg-1",
     });
     expect(second!.content.filter((p) => p.type === "tool-call")).toHaveLength(
@@ -3001,7 +3040,62 @@ describe("AGUIThreadRuntimeCore", () => {
         { interruptId: "int-1", status: "resolved" },
         { interruptId: "int-unknown", status: "resolved" },
       ]),
-    ).rejects.toThrow(/unknown interrupt ids: int-unknown/);
+    ).rejects.toThrow(/unknown interrupt id int-unknown/);
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports an unknown interrupt id even when open interrupts are unanswered", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-unknown", status: "resolved" },
+      ]),
+    ).rejects.toThrow(/unknown interrupt id int-unknown/);
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports an unknown interrupt id when the same unknown id is submitted twice", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-unknown", status: "resolved" },
+        { interruptId: "int-unknown", status: "cancelled" },
+      ]),
+    ).rejects.toThrow(/unknown interrupt id int-unknown/);
     expect(runAgent).toHaveBeenCalledTimes(1);
   });
 
@@ -3058,6 +3152,36 @@ describe("AGUIThreadRuntimeCore", () => {
         { interruptId: "int-1", status: "cancelled" },
       ]),
     ).rejects.toThrow(/duplicate response/);
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects resume entries without an interruptId or with an invalid status", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([{ status: "resolved" } as any]),
+    ).rejects.toThrow("every entry must have an interruptId");
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-1", status: "nope" } as any,
+      ]),
+    ).rejects.toThrow(/invalid status "nope" for interrupt int-1/);
     expect(runAgent).toHaveBeenCalledTimes(1);
   });
 

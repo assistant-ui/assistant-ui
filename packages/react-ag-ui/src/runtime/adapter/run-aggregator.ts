@@ -235,8 +235,13 @@ export class RunAggregator {
         this.finishToolCall(
           event.toolCallId,
           event.content ?? "",
-          event.role === "tool" ? false : undefined,
+          typeof event.mcpResult?.isError === "boolean"
+            ? event.mcpResult.isError
+            : event.role === "tool"
+              ? false
+              : undefined,
           event.messageId,
+          event.mcpResult,
         );
         this.emit();
         break;
@@ -442,6 +447,7 @@ export class RunAggregator {
     content: string,
     isError?: boolean,
     toolMessageId?: string,
+    mcpResult?: Record<string, unknown>,
   ) {
     if (!id) return;
     let entry = this.toolCalls.get(id);
@@ -464,7 +470,12 @@ export class RunAggregator {
     ) {
       this.partOrder.push({ kind: "tool-call", toolCallId: id });
     }
-    if (entry.snapshotResultApplied) {
+    if (mcpResult !== undefined && !entry.snapshotResultApplied) {
+      entry.result = mcpResult;
+      entry.modelContent = [{ type: "text", text: content }];
+      entry.snapshotResultApplied = true;
+      entry.isError = isError;
+    } else if (entry.snapshotResultApplied) {
       if (entry.modelContent === undefined) {
         entry.modelContent = [{ type: "text", text: content }];
       }
