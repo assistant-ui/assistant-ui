@@ -102,8 +102,30 @@ export abstract class BaseSubject {
 
   protected abstract _connect(): Unsubscribe;
 
-  protected notifySubscribers(payload?: unknown) {
-    for (const callback of this._subscriptions) callback(payload);
+  protected notifySubscribers(
+    payload?: unknown,
+    reportError?: (error: unknown) => void,
+  ) {
+    if (!reportError) {
+      for (const callback of this._subscriptions) callback(payload);
+      return;
+    }
+
+    for (const callback of this._subscriptions) {
+      try {
+        const result = callback(payload) as unknown;
+        if (
+          typeof result === "object" &&
+          result !== null &&
+          "then" in result &&
+          typeof result.then === "function"
+        ) {
+          void Promise.resolve(result).catch(reportError);
+        }
+      } catch (error) {
+        reportError(error);
+      }
+    }
   }
 
   private _updateConnection() {
@@ -276,8 +298,14 @@ export class EventSubscriptionSubject<
   }
 
   protected _connect(): Unsubscribe {
+    const reportError = (error: unknown) => {
+      console.error(
+        `[assistant-ui] Runtime event "${this.config.event}" listener threw an error`,
+        error,
+      );
+    };
     const callback = (payload?: unknown) => {
-      this.notifySubscribers(payload);
+      this.notifySubscribers(payload, reportError);
     };
 
     let lastState = this.config.binding.getState();

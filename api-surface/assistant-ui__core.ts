@@ -705,7 +705,7 @@ declare abstract class BaseSubject {
   private _connection;
   protected get isConnected(): boolean;
   protected abstract _connect(): Unsubscribe$1;
-  protected notifySubscribers(payload?: unknown): void;
+  protected notifySubscribers(payload?: unknown, reportError?: (error: unknown) => void): void;
   private _updateConnection;
   subscribe(callback: (payload?: unknown) => void): () => void;
 }
