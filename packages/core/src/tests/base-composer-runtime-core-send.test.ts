@@ -280,6 +280,96 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(sendCallsForA).toBe(1);
   });
 
+  it("restores the draft before a failed batch's stragglers settle", async () => {
+    let resolveA!: () => void;
+    const adapter = makeAdapter({
+      add: async ({ file }: { file: File }): Promise<PendingAttachment> => ({
+        id: `att-${file.name}`,
+        type: "image",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      send: (a) => {
+        if (a.id === "att-a.txt") {
+          return new Promise((resolve) => {
+            resolveA = () =>
+              resolve({ ...a, status: { type: "complete" }, content: [] });
+          });
+        }
+        return Promise.reject(new Error("b failed"));
+      },
+    });
+    const { composer } = makeComposer(adapter);
+
+    composer.setText("hello");
+    await composer.addAttachment(new File(["a"], "a.txt"));
+    await composer.addAttachment(new File(["b"], "b.txt"));
+
+    const caught = composer.send().catch(() => {});
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(composer.text).toBe("hello");
+    expect(composer.canSend).toBe(false);
+
+    resolveA();
+    await caught;
+    expect(composer.canSend).toBe(true);
+  });
+
+  it("excludes a removed attachment even when the upload settles before the adapter remove", async () => {
+    let resolveSend!: () => void;
+    let resolveRemove!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+      remove: () =>
+        new Promise((resolve) => {
+          resolveRemove = () => resolve();
+        }),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+
+    const sendPromise = composer.send();
+    const removePromise = composer.removeAttachment("att-1");
+    resolveSend();
+    await sendPromise;
+
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0].attachments).toHaveLength(0);
+
+    resolveRemove();
+    await removePromise;
+  });
+
+  it("releases the in-flight lock on reset so a stalled send cannot brick the composer", async () => {
+    const adapter = makeAdapter({
+      send: () => new Promise(() => {}),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    await composer.addAttachment(textFile());
+    void composer.send();
+    await Promise.resolve();
+    expect(composer.canSend).toBe(false);
+
+    await composer.reset();
+    composer.setText("again");
+    expect(composer.canSend).toBe(true);
+
+    await composer.send();
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
   it("excludes an attachment removed while its upload was still in flight", async () => {
     let resolveSend!: () => void;
     const adapter = makeAdapter({

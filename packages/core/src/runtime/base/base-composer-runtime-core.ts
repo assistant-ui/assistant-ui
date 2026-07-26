@@ -151,6 +151,11 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async reset() {
+    // A send whose adapter never settles must not brick the composer; reset is
+    // the escape hatch that releases the in-flight lock.
+    this._isSending = false;
+    this._removedDuringSend.clear();
+
     if (
       this._attachments.length === 0 &&
       this._text === "" &&
@@ -205,14 +210,15 @@ export abstract class BaseComposerRuntimeCore
     try {
       resolvedAttachments = await Promise.all(attachmentTasks);
     } catch (e) {
+      if (!this.text.trim() && this._quote === undefined) {
+        this._text = text;
+        this._quote = quote;
+        this._notifySubscribers();
+      }
       // Promise.all rejects on the first failure, but sibling uploads from this
       // batch keep running; wait for them to settle before unlocking retries, or
       // a retry could re-send attachments that are still in flight.
       await Promise.allSettled(attachmentTasks);
-      if (!this.text.trim() && this._quote === undefined) {
-        this._text = text;
-        this._quote = quote;
-      }
       this._removedDuringSend.clear();
       this._isSending = false;
       this._notifySubscribers();
@@ -412,15 +418,16 @@ export abstract class BaseComposerRuntimeCore
     if (index === -1) throw new Error("Attachment not found");
     const attachment = this._attachments[index]!;
 
+    // A send in flight may already be uploading this attachment; the upload
+    // can't be cancelled, so mark it to be dropped from the outgoing message
+    // before any await gives the upload a chance to settle first.
+    if (this._isSending) this._removedDuringSend.add(attachmentId);
+
     if (!isAttachmentComplete(attachment)) {
       const adapter = this.getAttachmentAdapter();
       if (!adapter) throw new Error("Attachments are not supported");
       await adapter.remove(attachment);
     }
-
-    // A send in flight may already be uploading this attachment; the upload
-    // can't be cancelled, so mark it to be dropped from the outgoing message.
-    if (this._isSending) this._removedDuringSend.add(attachmentId);
     this._attachments = this._attachments.filter((a) => a.id !== attachmentId);
     this._notifySubscribers();
   }
