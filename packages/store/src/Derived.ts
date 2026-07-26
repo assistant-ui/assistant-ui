@@ -27,19 +27,16 @@ import type {
  */
 // Exported so consumers (e.g. splitClients) can identify a derived element by its
 // hook: a `Derived(...)` element carries `hook === useDerived`.
-export const useDerived = <K extends ClientNames>(
-  _config: Derived.Props<K>,
-): null => {
-  return null;
-};
+export const useDerived = <K extends ClientNames>(_config: Derived.Props<K>) =>
+  ({}) as { __derivedKey?: K };
 
 export const Derived = resource(useDerived) as <K extends ClientNames>(
   config: Derived.Props<K>,
 ) => DerivedElement<K>;
 
-export type DerivedElement<K extends ClientNames> = ResourceElement<null> & {
-  readonly __derivedKey?: K;
-};
+export type DerivedElement<K extends ClientNames> = ResourceElement<{
+  __derivedKey?: K;
+}>;
 
 export namespace Derived {
   /**
