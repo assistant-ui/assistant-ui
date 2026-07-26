@@ -316,6 +316,65 @@ describe("useExternalHistory persistence", () => {
     };
   };
 
+  it("retries a failed append on the next persistence pass", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { append, runCycle, flush } = createPersistenceHarness(false);
+    const innerMessage = { id: "inner-a", parts: ["final"] };
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [innerMessage],
+    );
+    append.mockRejectedValueOnce(new Error("temporary storage failure"));
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(1);
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(2);
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: innerMessage,
+    });
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(2);
+    consoleError.mockRestore();
+  });
+
+  it("does not replay appends that succeeded before a mid-batch failure", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { append, runCycle, flush } = createPersistenceHarness(false);
+    const first = { id: "inner-1", parts: ["first"] };
+    const second = { id: "inner-2", parts: ["second"] };
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [first, second],
+    );
+    append.mockImplementationOnce(async () => {});
+    append.mockRejectedValueOnce(new Error("temporary storage failure"));
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(2);
+
+    await runCycle([message]);
+    await flush();
+    expect(append).toHaveBeenCalledTimes(3);
+    expect(append.mock.calls.map((c) => c[0].message.id)).toEqual([
+      "inner-1",
+      "inner-2",
+      "inner-2",
+    ]);
+    consoleError.mockRestore();
+  });
+
   it("persists assistant messages awaiting tool approval when the adapter supports update", async () => {
     const { append, runCycle } = createPersistenceHarness(true);
     const innerMessage = { id: "inner-a", parts: ["pending"] };
