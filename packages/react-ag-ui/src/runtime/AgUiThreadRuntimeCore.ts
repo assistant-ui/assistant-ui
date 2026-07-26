@@ -1380,7 +1380,14 @@ export class AgUiThreadRuntimeCore {
         matchedToolCall = true;
         // An applied activity snapshot owns part.result; a later result only
         // fills what is missing, mirroring the aggregator's finishToolCall.
-        if (part.mcp?.app !== undefined) {
+        // The aggregator's flag is set only when the snapshot carried a
+        // result, so app presence alone is not enough: the current result
+        // must be CallToolResult-shaped (a required content array).
+        const snapshotResultApplied =
+          part.mcp?.app !== undefined &&
+          isPlainObject(part.result) &&
+          Array.isArray((part.result as Record<string, unknown>)["content"]);
+        if (snapshotResultApplied) {
           return {
             ...part,
             ...(part.modelContent === undefined && event.content
