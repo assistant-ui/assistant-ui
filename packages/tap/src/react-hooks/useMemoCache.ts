@@ -7,7 +7,7 @@ export const MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
 export const createMemoCache = (size: number): unknown[] =>
   new Array(size).fill(MEMO_CACHE_SENTINEL);
 
-export const nextFiberMemoCache = (
+const nextFiberMemoCache = (
   fiber: ResourceFiber<unknown>,
   size: number,
 ): unknown[] => {

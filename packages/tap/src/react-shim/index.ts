@@ -16,7 +16,6 @@ import {
   isReadableTapContext,
 } from "../core/context";
 import { useReactEffectEvent } from "./useReactEffectEvent";
-import { useReactMemoCache } from "./useReactMemoCache";
 
 // @ts-expect-error -- @types/react uses `export =`; this is valid at runtime.
 export * from "react";
@@ -71,9 +70,6 @@ export const useSyncExternalStore = (
         getSnapshot,
         getServerSnapshot,
       );
-
-export const useMemoCache = (size: number) =>
-  inTap() ? hooks.useMemoCache(size) : useReactMemoCache(size);
 
 export const useDebugValue = (value: any, format?: any) =>
   inTap()

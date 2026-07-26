@@ -19,6 +19,3 @@ export const useReactMemoCacheShim = (size: number): unknown[] =>
 
 export const reactC: (size: number) => unknown[] =
   ReactRuntime.__COMPILER_RUNTIME?.c ?? useReactMemoCacheShim;
-
-export const useReactMemoCache: (size: number) => unknown[] =
-  ReactRuntime.useMemoCache ?? useReactMemoCacheShim;
