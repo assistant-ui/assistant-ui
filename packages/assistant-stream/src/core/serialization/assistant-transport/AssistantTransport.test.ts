@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   AssistantTransportEncoder,
   AssistantTransportDecoder,
@@ -45,6 +45,18 @@ async function encodeAndDecode(
 
   // Decode the reconstructed stream
   return reconstructedStream.pipeThrough(new AssistantTransportDecoder());
+}
+
+function sseStream(frames: string[]): ReadableStream<AssistantStreamChunk> {
+  const sseText =
+    frames.map((frame) => `data: ${frame}\n\n`).join("") + "data: [DONE]\n\n";
+
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(sseText));
+      controller.close();
+    },
+  }).pipeThrough(new AssistantTransportDecoder());
 }
 
 describe("AssistantTransportEncoder", () => {
@@ -221,6 +233,117 @@ describe("AssistantTransportDecoder", () => {
     await expect(collectChunks(decodedStream)).rejects.toThrow(
       "Stream ended abruptly without receiving [DONE] marker",
     );
+  });
+
+  it("drops frames that are not objects", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const decodedChunks = await collectChunks(
+      sseStream([
+        "null",
+        "5",
+        '"text"',
+        "[1,2]",
+        '{"type":"text-delta","textDelta":"Hello","path":[]}',
+      ]),
+    );
+
+    expect(decodedChunks).toEqual([
+      { type: "text-delta", textDelta: "Hello", path: [] },
+    ]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("(not-an-object)"),
+    );
+    warn.mockRestore();
+  });
+
+  it("drops frames with a missing or unknown type", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const decodedChunks = await collectChunks(
+      sseStream([
+        '{"path":[]}',
+        '{"type":5,"path":[]}',
+        '{"type":"bogus","path":[]}',
+        '{"type":"toString","path":[]}',
+        '{"type":"part-finish","path":[]}',
+      ]),
+    );
+
+    expect(decodedChunks).toEqual([{ type: "part-finish", path: [] }]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it("drops frames with an invalid path", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const decodedChunks = await collectChunks(
+      sseStream([
+        '{"type":"text-delta","textDelta":"b","path":"0"}',
+        '{"type":"text-delta","textDelta":"c","path":[-1]}',
+        '{"type":"text-delta","textDelta":"d","path":[1.5]}',
+        '{"type":"text-delta","textDelta":"e","path":["0"]}',
+        '{"type":"text-delta","textDelta":"f","path":[0]}',
+      ]),
+    );
+
+    expect(decodedChunks).toEqual([
+      { type: "text-delta", textDelta: "f", path: [0] },
+    ]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it("normalizes a missing path to an empty path on message-level chunks", async () => {
+    const decodedChunks = await collectChunks(
+      sseStream([
+        '{"type":"update-state","operations":[{"type":"set","path":["messages"],"value":[]}]}',
+        '{"type":"error","error":"boom"}',
+      ]),
+    );
+
+    expect(decodedChunks).toEqual([
+      {
+        type: "update-state",
+        operations: [{ type: "set", path: ["messages"], value: [] }],
+        path: [],
+      },
+      { type: "error", error: "boom", path: [] },
+    ]);
+  });
+
+  it("drops part-addressed chunks with a missing path", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const decodedChunks = await collectChunks(
+      sseStream([
+        '{"type":"text-delta","textDelta":"a"}',
+        '{"type":"part-finish"}',
+        '{"type":"result","result":{"ok":true}}',
+        '{"type":"text-delta","textDelta":"ok","path":[0]}',
+      ]),
+    );
+
+    expect(decodedChunks).toEqual([
+      { type: "text-delta", textDelta: "ok", path: [0] },
+    ]);
+    expect(warn).toHaveBeenCalledTimes(3);
+    warn.mockRestore();
+  });
+
+  it("drops frames that are not valid JSON", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const decodedChunks = await collectChunks(
+      sseStream([
+        '{"type":"text-delta"',
+        "not json",
+        '{"type":"text-delta","textDelta":"ok","path":[0]}',
+      ]),
+    );
+
+    expect(decodedChunks).toEqual([
+      { type: "text-delta", textDelta: "ok", path: [0] },
+    ]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
   });
 
   it("round-trips error chunks with code and severity", async () => {

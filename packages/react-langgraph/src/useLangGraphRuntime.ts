@@ -393,7 +393,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   if (unstable_enableMessageQueue && !queueRef.current) {
     queueRef.current = createMessageQueue({
       run: (message) => {
-        void runUserMessageRef.current(message);
+        void runUserMessageRef.current(message).catch(() => {});
       },
     });
   } else if (!unstable_enableMessageQueue && queueRef.current) {

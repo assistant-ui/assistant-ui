@@ -9,8 +9,17 @@ type MergeStreamItem = {
 export const createMergeStream = () => {
   const list: MergeStreamItem[] = [];
   let sealed = false;
+  let cancelled = false;
+  let errored = false;
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
+
+  const cancelAllReaders = () => {
+    list.forEach((item) => {
+      void item.reader.cancel().catch(() => undefined);
+    });
+    list.length = 0;
+  };
 
   const handlePull = (item: MergeStreamItem) => {
     if (!item.promise) {
@@ -23,6 +32,8 @@ export const createMergeStream = () => {
         .read()
         .then(({ done, value }) => {
           item.promise = undefined;
+          if (cancelled || errored) return;
+
           if (done) {
             list.splice(list.indexOf(item), 1);
             if (sealed && list.length === 0) {
@@ -36,12 +47,11 @@ export const createMergeStream = () => {
           currentPull = undefined;
         })
         .catch((e) => {
-          console.error(e);
+          if (cancelled || errored) return;
 
-          list.forEach((item) => {
-            item.reader.cancel();
-          });
-          list.length = 0;
+          errored = true;
+          console.error(e);
+          cancelAllReaders();
 
           controller.error(e);
 
@@ -64,10 +74,10 @@ export const createMergeStream = () => {
       return currentPull.promise;
     },
     cancel() {
-      list.forEach((item) => {
-        item.reader.cancel();
-      });
-      list.length = 0;
+      cancelled = true;
+      cancelAllReaders();
+      currentPull?.resolve();
+      currentPull = undefined;
     },
   });
 
@@ -76,11 +86,23 @@ export const createMergeStream = () => {
     isSealed() {
       return sealed;
     },
+    isCancelled() {
+      return cancelled;
+    },
+    isErrored() {
+      return errored;
+    },
     seal() {
+      if (cancelled || errored) return;
       sealed = true;
       if (list.length === 0) controller.close();
     },
     addStream(stream: ReadableStream<AssistantStreamChunk>) {
+      if (cancelled || errored) {
+        void stream.cancel().catch(() => undefined);
+        return;
+      }
+
       if (sealed)
         throw new Error(
           "Cannot add streams after the run callback has settled.",

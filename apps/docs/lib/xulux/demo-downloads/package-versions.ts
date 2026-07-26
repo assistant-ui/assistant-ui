@@ -23,12 +23,11 @@ export const DEMO_DEPENDENCIES = [
   "cmdk",
   "lucide-react",
   "next",
-  "radix-ui",
   "react",
   "react-dom",
   "remark-gfm",
   "tailwind-merge",
-  "vaul",
+  "tw-animate-css",
   "zod",
   "zustand",
 ] as const;
