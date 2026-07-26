@@ -33,6 +33,20 @@ describe("AssistantCloudProjects", () => {
     });
   });
 
+  it("sends both archive filter values as strings", async () => {
+    vi.mocked(mockApi.makeRequest).mockResolvedValue({ threads: [] });
+
+    await projects.threads.list({ is_archived: false });
+    expect(mockApi.makeRequest).toHaveBeenLastCalledWith("/projects/threads", {
+      query: { is_archived: "false" },
+    });
+
+    await projects.threads.list({ is_archived: true });
+    expect(mockApi.makeRequest).toHaveBeenLastCalledWith("/projects/threads", {
+      query: { is_archived: "true" },
+    });
+  });
+
   it("lists project thread messages with the query", async () => {
     vi.mocked(mockApi.makeRequest).mockResolvedValue({ messages: [] });
 
