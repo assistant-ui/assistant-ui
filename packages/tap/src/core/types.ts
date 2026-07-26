@@ -8,12 +8,6 @@ export type ResourceElement<Result> = {
 export type Resource<Result, Args extends readonly unknown[] = any[]> = (
   ...args: Args
 ) => ResourceElement<Result>;
-/** @deprecated Use Resource instead. */
-export type ContravariantResource<
-  Result,
-  Args extends readonly unknown[] = any[],
-> = Resource<Result, Args>;
-
 export type ExtractResourceReturnType<T> =
   T extends ResourceElement<infer Result>
     ? Result

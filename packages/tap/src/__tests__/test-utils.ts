@@ -72,9 +72,7 @@ export function renderTest<R, A extends readonly unknown[]>(
 /**
  * Unmounts a specific resource fiber and removes it from tracking.
  */
-export function unmountResource<R, A extends readonly unknown[]>(
-  fiber: ResourceFiber<R, A>,
-) {
+export function unmountResource<R>(fiber: ResourceFiber<R>) {
   if (activeResources.has(fiber)) {
     unmountResourceFiber(fiber);
     activeResources.delete(fiber);
@@ -93,9 +91,7 @@ export function cleanupAllResources() {
  * Gets the current committed state of a resource fiber.
  * Returns the state from the last render/commit cycle.
  */
-export function getCommittedValue<R, A extends readonly unknown[]>(
-  fiber: ResourceFiber<R, A>,
-): R {
+export function getCommittedValue<R>(fiber: ResourceFiber<R>): R {
   if (!lastRenderValueMap.has(fiber)) {
     throw new Error(
       "No render result found for fiber. Make sure to call renderResource first.",
@@ -111,9 +107,9 @@ export function getCommittedValue<R, A extends readonly unknown[]>(
 export class TestSubscriber<T> {
   public callCount = 0;
   public lastState: T;
-  private fiber: ResourceFiber<any, any>;
+  private fiber: ResourceFiber<any>;
 
-  constructor(fiber: ResourceFiber<any, any>) {
+  constructor(fiber: ResourceFiber<any>) {
     this.fiber = fiber;
     // Need to render once to get initial state
     const lastArgs = propsMap.get(fiber) ?? [];
@@ -139,7 +135,7 @@ export class TestSubscriber<T> {
 export class TestResourceManager<R, A extends readonly unknown[]> {
   private isActive = false;
 
-  constructor(public fiber: ResourceFiber<R, A>) {}
+  constructor(public fiber: ResourceFiber<R>) {}
 
   renderAndMount(...args: A): R {
     if (this.isActive) {

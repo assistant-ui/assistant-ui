@@ -15,8 +15,4 @@ export { useTapRoot } from "./hooks/useTapRoot";
 export { useTapHost } from "./hooks/useTapHost";
 
 // types
-export type {
-  Resource,
-  ContravariantResource,
-  ResourceElement,
-} from "./core/types";
+export type { Resource, ResourceElement } from "./core/types";

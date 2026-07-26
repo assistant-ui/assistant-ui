@@ -44,9 +44,7 @@ export function commitAllCallbacks(callbacks: CommitCallbacks): void {
   }
 }
 
-export function cleanupAllEffects<R, A extends readonly unknown[]>(
-  executionContext: ResourceFiber<R, A>,
-) {
+export function cleanupAllEffects<R>(executionContext: ResourceFiber<R>) {
   const errors: unknown[] = [];
   for (const cell of executionContext.cells) {
     if (cell?.type === "effect") {

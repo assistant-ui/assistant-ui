@@ -35,9 +35,7 @@ export function createResourceFiber<R>(
   };
 }
 
-export function unmountResourceFiber<R, A extends readonly unknown[]>(
-  fiber: ResourceFiber<R, A>,
-): void {
+export function unmountResourceFiber<R>(fiber: ResourceFiber<R>): void {
   if (!fiber.isMounted)
     throw new Error("Tried to unmount a fiber that is already unmounted");
 
@@ -45,9 +43,9 @@ export function unmountResourceFiber<R, A extends readonly unknown[]>(
   cleanupAllEffects(fiber);
 }
 
-export function renderResourceFiber<R, A extends readonly unknown[]>(
-  fiber: ResourceFiber<R, A>,
-  args: Readonly<A>,
+export function renderResourceFiber<R>(
+  fiber: ResourceFiber<R>,
+  args: readonly unknown[],
 ): R {
   fiber.memoCache.workInProgress = null;
 
@@ -78,9 +76,7 @@ export function renderResourceFiber<R, A extends readonly unknown[]>(
   return value!;
 }
 
-export function commitResourceFiber<R, A extends readonly unknown[]>(
-  fiber: ResourceFiber<R, A>,
-): void {
+export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
   const commitCallbacks =
     fiber.wipCommitCallbacks ?? fiber.commitCallbacks ?? [];
   fiber.wipCommitCallbacks = null;
