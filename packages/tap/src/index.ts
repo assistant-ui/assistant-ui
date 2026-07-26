@@ -17,6 +17,7 @@ export { useTapHost } from "./hooks/useTapHost";
 // types
 export type {
   Resource,
+  ResourceFactory,
   ContravariantResource,
   ResourceElement,
 } from "./core/types";

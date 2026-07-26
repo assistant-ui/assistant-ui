@@ -8,6 +8,9 @@ export type ResourceElement<R, A extends readonly unknown[] = any[]> = {
 export type Resource<R, A extends readonly unknown[] = any[]> = (
   ...args: A
 ) => ResourceElement<R, A>;
+export type ResourceFactory<Args, R, A extends readonly unknown[] = any[]> = (
+  args: Args,
+) => Resource<R, A>;
 export type ContravariantResource<R, A extends readonly unknown[] = any[]> = (
   ...args: A
 ) => ResourceElement<R>;
