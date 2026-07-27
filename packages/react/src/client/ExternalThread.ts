@@ -413,6 +413,19 @@ const useQueueItemClient = ({
 
 const QueueItemClient = resource(useQueueItemClient);
 
+const drainAdapterAdd = async (
+  result: ReturnType<AttachmentAdapter["add"]>,
+  upsert: (attachment: Attachment) => void,
+) => {
+  if (Symbol.asyncIterator in result) {
+    for await (const attachment of result) {
+      upsert(attachment);
+    }
+  } else {
+    upsert(await result);
+  }
+};
+
 // State whose setter tracks the latest value in a ref, so imperative
 // call sequences (setText immediately followed by send) observe the write
 // before React re-renders — legacy composer parity.
@@ -555,14 +568,10 @@ const useComposerClientResource = ({
     setRunConfig,
     addAttachment: async (fileOrAttachment: File | CreateAttachment) => {
       if (!isCreateAttachment(fileOrAttachment) && attachmentAdapter) {
-        const result = attachmentAdapter.add({ file: fileOrAttachment });
-        if (Symbol.asyncIterator in result) {
-          for await (const attachment of result) {
-            upsertAttachment(attachment);
-          }
-        } else {
-          upsertAttachment(await result);
-        }
+        await drainAdapterAdd(
+          attachmentAdapter.add({ file: fileOrAttachment }),
+          upsertAttachment,
+        );
       } else if (!isCreateAttachment(fileOrAttachment)) {
         const newAttachment: Attachment = {
           id: Math.random().toString(36).substring(7),
