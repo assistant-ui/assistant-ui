@@ -138,16 +138,18 @@ const useAssistantTransportThreadRuntime = <T>(
       if (commands.length === 0 && !isResume)
         throw new Error("No commands to send");
 
+      // The flushed batch consumes the parentId; read it alongside the flush
+      // (before any awaits) so a mid-run append keeps its own value, and skip
+      // the clear on resume runs, whose queued commands are yet to be sent.
+      const parentId = parentIdRef.current;
+      if (!isResume) parentIdRef.current = undefined;
+
       const headers = await createRequestHeaders(options.headers);
       const bodyValue =
         typeof options.body === "function"
           ? await options.body()
           : options.body;
       const context = runtime.thread.getModelContext();
-
-      // Each run consumes the parentId once; unrelated later runs omit it.
-      const parentId = parentIdRef.current;
-      parentIdRef.current = undefined;
 
       let requestBody: Record<string, unknown> = {
         commands,
