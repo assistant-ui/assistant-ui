@@ -146,4 +146,44 @@ describe("useAssistantTransportRuntime", () => {
     expect(onError).not.toHaveBeenCalled();
     expect(fetchMock.requests).toHaveLength(1);
   });
+
+  it("flushes commands enqueued during a resume run in a follow-up run", async () => {
+    const fetchMock = installFetch();
+    const { aui, sendCommand } = mountRuntime({
+      resumeApi: "https://example.com/resume",
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread().getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => sendCommand(createMessageCommand("a")));
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+
+    // Both land while the first run is active and coalesce into one follow-up.
+    act(() => {
+      sendCommand(createMessageCommand("b"));
+      aui().thread().resumeRun({ parentId: null });
+    });
+
+    act(() => fetchMock.servers[0]!.close());
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(2));
+    expect(fetchMock.requests[1]!.url).toBe("https://example.com/resume");
+    expect(fetchMock.requests[1]!.body["commands"]).toEqual([]);
+
+    // "b" coalesced into the resume run and must not starve in the queue.
+    act(() => fetchMock.servers[1]!.close());
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(3));
+    expect(fetchMock.requests[2]!.url).toBe("https://example.com/api");
+    expect(fetchMock.requests[2]!.body["commands"]).toEqual([
+      createMessageCommand("b"),
+    ]);
+
+    act(() => fetchMock.servers[2]!.close());
+    await waitFor(() =>
+      expect(aui().thread().getState().isRunning).toBe(false),
+    );
+  });
 });

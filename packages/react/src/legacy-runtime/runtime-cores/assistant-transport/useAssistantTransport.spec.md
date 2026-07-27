@@ -15,6 +15,7 @@ Command Scheduling
   - When the current run ends: if commands were scheduled during the run, start a new run and publish them.
   - If no run is in progress: start a run immediately and flush commands to the server.
 - A follow-up run that finds an empty queue is a no-op: no request is sent and no error is surfaced.
+- A resume run sends no commands; commands enqueued while it is pending or active are flushed in a follow-up run after it settles.
 - Runs execute on a `queueMicrotask`, so multiple synchronous enqueues coalesce into a single request: the first run's flush takes all of them, and the coalesced follow-up run no-ops.
 
 Command Queue

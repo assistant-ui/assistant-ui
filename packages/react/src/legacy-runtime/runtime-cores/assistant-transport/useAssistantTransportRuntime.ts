@@ -243,6 +243,11 @@ const useAssistantTransportThreadRuntime = <T>(
       if (!markedDelivered) {
         commandQueue.markDelivered();
       }
+
+      // commands that coalesced into this resume run must not starve
+      if (isResume && commandQueue.state.queued.length > 0) {
+        runManager.schedule();
+      }
     },
     onFinish: options.onFinish,
     onCancel: () => {
