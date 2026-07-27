@@ -1,3 +1,5 @@
+declare const process: { env: { NODE_ENV?: string } };
+
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { generateId } from "../utils/generateId";
 import { parsePartialJsonObject } from "../../utils/json/parse-partial-json-object";
@@ -80,6 +82,18 @@ const handlePartStart = (
 ): AssistantMessage => {
   const partInit = chunk.part;
   if (partInit.type === "text" || partInit.type === "reasoning") {
+    const prev = message.parts[message.parts.length - 1];
+    if (
+      process.env.NODE_ENV !== "production" &&
+      prev !== undefined &&
+      (prev.type === "text" || prev.type === "reasoning") &&
+      prev.status.type === "running"
+    ) {
+      warnOnce(
+        "empty-trailing-part",
+        `assistant-ui: a ${partInit.type} part was appended while the preceding ${prev.type} part was still streaming. Part status is last-part-wins, so the earlier part is now reported complete. Emit a part-finish for the earlier part before starting the next one, or withhold the new part until it has content.`,
+      );
+    }
     const newTextPart: TextPart | ReasoningPart = {
       type: partInit.type,
       text: "",

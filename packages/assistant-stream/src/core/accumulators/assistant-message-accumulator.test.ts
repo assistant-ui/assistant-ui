@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AssistantMessageAccumulator } from "./assistant-message-accumulator";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import type { AssistantMessage } from "../utils/types";
@@ -658,6 +658,98 @@ describe("AssistantMessageAccumulator warn dedup key independence", () => {
     );
 
     expect(warn).toHaveBeenCalledTimes(16);
+    warn.mockRestore();
+  });
+});
+
+describe("AssistantMessageAccumulator empty trailing part warning", () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  beforeEach(() => {
+    process.env.NODE_ENV = "development";
+  });
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  it("warns when a text part is appended while the preceding reasoning part is still streaming", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      { type: "part-start", path: [0], part: { type: "reasoning" } },
+      { type: "part-start", path: [1], part: { type: "text" } },
+    ]);
+
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "a text part was appended while the preceding reasoning part was still streaming",
+      ),
+    );
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("Part status is last-part-wins"),
+    );
+    warn.mockRestore();
+  });
+
+  it("does not warn when the earlier part was finished before the next one starts", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      { type: "part-start", path: [0], part: { type: "reasoning" } },
+      { type: "part-finish", path: [0] },
+      { type: "part-start", path: [1], part: { type: "text" } },
+    ]);
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("does not warn for the first part (no preceding part to complete)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "hi" },
+    ]);
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("does not warn when the preceding part is a tool call (not subject to last-part-wins)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "tool-call", toolCallId: "t1", toolName: "f" },
+      },
+      { type: "part-start", path: [1], part: { type: "text" } },
+    ]);
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("dedupes the warning to once per stream", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      { type: "part-start", path: [0], part: { type: "reasoning" } },
+      { type: "part-start", path: [1], part: { type: "text" } },
+      { type: "part-start", path: [2], part: { type: "text" } },
+    ]);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it("does not warn in production", async () => {
+    process.env.NODE_ENV = "production";
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      { type: "part-start", path: [0], part: { type: "reasoning" } },
+      { type: "part-start", path: [1], part: { type: "text" } },
+    ]);
+
+    expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
 });
