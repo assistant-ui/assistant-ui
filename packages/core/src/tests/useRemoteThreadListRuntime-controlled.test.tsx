@@ -75,6 +75,53 @@ const waitForRemoteThread = async (
 };
 
 describe("useRemoteThreadListRuntime controlled threadId", () => {
+  it("treats an initial empty string as a supplied thread ID", async () => {
+    const adapter = makeAdapter();
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId=""
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitForRemoteThread(runtimeRef, "");
+    expect(adapter.fetch).toHaveBeenCalledWith("");
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+  });
+
+  it("switches to an empty string supplied after mount", async () => {
+    const adapter = makeAdapter();
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    rerender(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId=""
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "");
+    expect(adapter.fetch).toHaveBeenLastCalledWith("");
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+  });
+
   it("does not echo prop-driven thread switches", async () => {
     const adapter = makeAdapter();
     const onThreadIdChange = vi.fn();

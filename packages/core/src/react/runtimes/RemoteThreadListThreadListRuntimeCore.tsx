@@ -236,7 +236,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     const startThreadId =
       this._options.threadId ?? this._options.initialThreadId;
-    if (startThreadId) {
+    if (startThreadId !== undefined) {
       const switchTask =
         this._options.threadId !== undefined
           ? this._switchToThreadFromProp(startThreadId)
@@ -442,7 +442,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   private _switchToThreadFromProp(threadId: string | undefined): Promise<void> {
-    return threadId
+    return threadId !== undefined
       ? this._startSwitchToThread(threadId, undefined, false)
       : this._startSwitchToNewThread(false);
   }
