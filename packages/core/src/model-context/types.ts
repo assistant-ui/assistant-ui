@@ -79,8 +79,8 @@ export const mergeModelContexts = (
         if (existing && existing !== tool) {
           const existingPriority = toolPriorities[name]!;
           if (existingPriority === priority) {
-            throw new Error(
-              `You tried to define a tool with the name ${name}, but it already exists.`,
+            console.warn(
+              `[assistant-ui] Duplicate tool definition for "${name}" — overwriting with latest registration.`,
             );
           }
 

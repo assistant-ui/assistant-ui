@@ -159,9 +159,12 @@ export class MessageRepository {
         current = current.prev
       ) {
         if (current.current.id === child.current.id) {
-          throw new Error(
-            "MessageRepository(performOp/link): A message with the same id already exists in the parent tree. This error occurs if the same message id is found multiple times. This is likely an internal bug in assistant-ui.",
+          console.error(
+            new Error(
+              "MessageRepository(performOp/link): A message with the same id already exists in the parent tree. This error occurs if the same message id is found multiple times. This is likely an internal bug in assistant-ui.",
+            ),
           );
+          return;
         }
       }
 
