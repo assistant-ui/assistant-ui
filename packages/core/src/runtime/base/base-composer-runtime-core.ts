@@ -39,41 +39,6 @@ type AttachmentAddOperation = {
   attachmentIds: Set<string>;
 };
 
-const attachmentAddOperations = new WeakMap<
-  object,
-  Set<AttachmentAddOperation>
->();
-
-const getAttachmentAddOperations = (owner: object) => {
-  let operations = attachmentAddOperations.get(owner);
-  if (!operations) {
-    operations = new Set();
-    attachmentAddOperations.set(owner, operations);
-  }
-  return operations;
-};
-
-const cancelAttachmentAdd = (owner: object, attachmentId: string) => {
-  const operations = attachmentAddOperations.get(owner);
-  if (!operations) return;
-
-  for (const operation of [...operations]) {
-    if (!operation.attachmentIds.has(attachmentId)) continue;
-    operation.cancelled = true;
-    operations.delete(operation);
-  }
-};
-
-const cancelAllAttachmentAdds = (owner: object) => {
-  const operations = attachmentAddOperations.get(owner);
-  if (!operations) return;
-
-  for (const operation of operations) {
-    operation.cancelled = true;
-  }
-  operations.clear();
-};
-
 export abstract class BaseComposerRuntimeCore
   extends BaseSubscribable
   implements ComposerRuntimeCore
@@ -101,6 +66,23 @@ export abstract class BaseComposerRuntimeCore
   }
 
   private _attachments: readonly Attachment[] = [];
+  private readonly _attachmentAddOperations = new Set<AttachmentAddOperation>();
+
+  private _cancelAttachmentAdd(attachmentId: string) {
+    for (const operation of [...this._attachmentAddOperations]) {
+      if (!operation.attachmentIds.has(attachmentId)) continue;
+      operation.cancelled = true;
+      this._attachmentAddOperations.delete(operation);
+    }
+  }
+
+  private _cancelAllAttachmentAdds() {
+    for (const operation of this._attachmentAddOperations) {
+      operation.cancelled = true;
+    }
+    this._attachmentAddOperations.clear();
+  }
+
   public get attachments() {
     return this._attachments;
   }
@@ -186,7 +168,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   private async _onClearAttachments() {
-    cancelAllAttachmentAdds(this);
+    this._cancelAllAttachmentAdds();
     const pending = this._attachments.filter((a) => !isAttachmentComplete(a));
 
     const adapter = this.getAttachmentAdapter();
@@ -390,7 +372,7 @@ export abstract class BaseComposerRuntimeCore
       cancelled: false,
       attachmentIds: new Set(),
     };
-    const operations = getAttachmentAddOperations(this);
+    const operations = this._attachmentAddOperations;
     operations.add(operation);
     const upsertAttachment = (a: PendingAttachment) => {
       if (operation.cancelled) return false;
@@ -496,7 +478,7 @@ export abstract class BaseComposerRuntimeCore
     if (index === -1) throw new Error("Attachment not found");
     const attachment = this._attachments[index]!;
 
-    cancelAttachmentAdd(this, attachmentId);
+    this._cancelAttachmentAdd(attachmentId);
 
     // A send in flight may already be uploading this attachment; the upload
     // can't be cancelled, so mark it to be dropped from the outgoing message
