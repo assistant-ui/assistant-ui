@@ -95,7 +95,7 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     });
   });
 
-  it("continues processing other files when one attachment fails", async () => {
+  it("continues processing other files when one attachment fails without console.error", async () => {
     const error = new Error("upload failed");
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -120,6 +120,6 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     });
 
     expect(addAttachment).toHaveBeenCalledTimes(3);
-    expect(errorSpy).toHaveBeenCalledWith("Failed to add attachment:", error);
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 });

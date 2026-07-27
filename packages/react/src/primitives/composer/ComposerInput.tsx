@@ -271,14 +271,16 @@ export const ComposerPrimitiveInput = forwardRef<
       const files = Array.from(e.clipboardData?.files || []);
 
       if (threadCapabilities.attachments && files.length > 0) {
-        try {
-          e.preventDefault();
-          await Promise.all(
-            files.map((file) => aui.composer().addAttachment(file)),
-          );
-        } catch (error) {
-          console.error("Error adding attachment:", error);
-        }
+        e.preventDefault();
+        await Promise.all(
+          files.map(async (file) => {
+            try {
+              await aui.composer().addAttachment(file);
+            } catch {
+              // addAttachment emits composer.attachmentAddError before rejecting
+            }
+          }),
+        );
       }
     };
 
