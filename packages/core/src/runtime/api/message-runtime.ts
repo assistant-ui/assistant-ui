@@ -36,6 +36,13 @@ const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
 });
 
+const isEmptyTextLikePart = (
+  part: ThreadUserMessagePart | ThreadAssistantMessagePart,
+): boolean => {
+  if (part.type !== "text" && part.type !== "reasoning") return false;
+  return !part.text?.trim();
+};
+
 export const toMessagePartStatus = (
   message: ThreadMessage,
   partIndex: number,
@@ -51,7 +58,18 @@ export const toMessagePartStatus = (
     }
   }
 
-  const isLastPart = partIndex === Math.max(0, message.content.length - 1);
+  // A trailing text/reasoning part with no text is a placeholder an adapter
+  // appended before its content arrived; skip it so the last content-bearing
+  // part keeps the running status instead of being marked complete the moment
+  // the placeholder appears.
+  let lastContentIndex = message.content.length - 1;
+  while (
+    lastContentIndex > 0 &&
+    isEmptyTextLikePart(message.content[lastContentIndex]!)
+  ) {
+    lastContentIndex--;
+  }
+  const isLastPart = partIndex === Math.max(0, lastContentIndex);
   if (message.status.type === "requires-action") return COMPLETE_STATUS;
   return isLastPart ? (message.status as MessagePartStatus) : COMPLETE_STATUS;
 };
