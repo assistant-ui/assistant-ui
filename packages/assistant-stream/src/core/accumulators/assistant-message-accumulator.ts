@@ -79,6 +79,7 @@ const handlePartStart = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { readonly type: "part-start" },
   warnOnce: WarnOnce,
+  placeholderParts: WeakSet<object>,
 ): AssistantMessage => {
   const partInit = chunk.part;
   if (partInit.type === "text" || partInit.type === "reasoning") {
@@ -87,7 +88,8 @@ const handlePartStart = (
       process.env.NODE_ENV !== "production" &&
       prev !== undefined &&
       (prev.type === "text" || prev.type === "reasoning") &&
-      prev.status.type === "running"
+      prev.status.type === "running" &&
+      !placeholderParts.has(prev)
     ) {
       warnOnce(
         "empty-trailing-part",
@@ -182,6 +184,7 @@ const handlePartStart = (
       text: "",
       status: { type: "running" },
     };
+    placeholderParts.add(placeholderPart);
     return {
       ...message,
       parts: [...message.parts, placeholderPart],
@@ -507,6 +510,7 @@ export class AssistantMessageAccumulator extends TransformStream<
     let message = initialMessage ?? createInitialMessage();
     const tracker = new TimingTracker();
     const warnedKeys = new Set<string>();
+    const placeholderParts = new WeakSet<object>();
     const warnOnce: WarnOnce = (key, warning) => {
       if (warnedKeys.has(key) || warnedKeys.size >= MAX_WARNED_KEYS) return;
       warnedKeys.add(key);
@@ -531,7 +535,12 @@ export class AssistantMessageAccumulator extends TransformStream<
         const type = chunk.type;
         switch (type) {
           case "part-start":
-            message = handlePartStart(message, chunk, warnOnce);
+            message = handlePartStart(
+              message,
+              chunk,
+              warnOnce,
+              placeholderParts,
+            );
             if (chunk.part.type === "tool-call") {
               tracker.recordToolCallStart(chunk.part.toolCallId);
             }

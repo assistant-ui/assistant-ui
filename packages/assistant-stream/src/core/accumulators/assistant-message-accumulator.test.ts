@@ -729,6 +729,24 @@ describe("AssistantMessageAccumulator empty trailing part warning", () => {
     warn.mockRestore();
   });
 
+  it("does not blame the placeholder inserted for an unsupported part-start", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "future-part-type" } as never,
+      },
+      { type: "part-start", path: [1], part: { type: "text" } },
+    ]);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("Unsupported part-start type"),
+    );
+    warn.mockRestore();
+  });
+
   it("dedupes the warning to once per stream", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     await collectStream([
