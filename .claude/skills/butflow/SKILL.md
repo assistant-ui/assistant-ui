@@ -18,7 +18,7 @@ Implement the change, open a PR through GitButler, monitor CI and reviews, addre
 7. Push with `but push <branch>`.
 8. Open the PR with `gh pr create --title "<title>" --body "<body>"` or another non-interactive form such as `--fill`.
 9. Schedule a 2-minute recurring monitor using the environment's native automation mechanism. In Claude Code, use the available `schedule` or `loop` skill.
-10. Monitor checks and review threads until the merge gate is satisfied, then merge with `gh pr merge <n> --squash --admin`.
+10. Monitor checks and review threads until the merge gate is satisfied, then merge with `gh pr merge <n> --squash --admin` or leave the PR open per the review policy in Merge Gate.
 
 Add a patch changeset only if a published package changed. Private packages such as `@assistant-ui/docs` and `@assistant-ui/shadcn-registry` are exempt.
 
@@ -42,7 +42,7 @@ Every unresolved thread must get a reply and be resolved.
 - Invalid: reply with a short rationale, then resolve.
 - Outdated: if `isOutdated: true`, reply that the diff moved, then resolve.
 
-Use judgment on bot nits. Common-sense suggestions that duplicate what a competent agent already knows are usually reply-and-resolve. Scope creep from long bot-feedback loops is a signal to cut and merge.
+Use judgment on bot nits. Common-sense suggestions that duplicate what a competent agent already knows are usually reply-and-resolve. Scope creep from long bot-feedback loops is a signal to cut.
 
 Do not add comments or changeset prose that only exist to acknowledge review feedback. Test: would you write it if no reviewer had flagged the code? If no, drop it.
 
@@ -58,3 +58,5 @@ gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$
 - No non-cubic reviewer has a current `CHANGES_REQUESTED` state. Address and wait for re-approval instead of dismissing.
 
 Cubic is optional; do not wait for it if the other gates are clear.
+
+A clear gate makes the PR mergeable; whether to merge is a separate call. The maintainer reviews approaches, not diffs. Self-merge when the change is the obvious execution of the prompt. Leave the PR open when getting there took judgment the prompt did not supply: a novel mechanism, a real tradeoff, or any public API change. Say in the PR what needs judging.
