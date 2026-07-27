@@ -741,6 +741,20 @@ const useExternalThread = ({
     onNew?.({ ...message, parentId: messages.at(-1)?.id ?? null });
   };
 
+  const headId = messages.at(-1)?.id ?? null;
+  const composerQueue = useMemo(
+    (): ExternalThreadQueueAdapter | undefined =>
+      queue && {
+        ...queue,
+        enqueue: (message, options) =>
+          queue.enqueue(
+            { ...message, parentId: message.parentId ?? headId },
+            options,
+          ),
+      },
+    [queue, headId],
+  );
+
   const composerClient = useClientResource(
     ComposerClientResource({
       type: "thread",
@@ -749,7 +763,7 @@ const useExternalThread = ({
       isSendDisabled,
       onCancel: handleCancelRun,
       onSend: handleSendNew,
-      queue,
+      queue: composerQueue,
       attachmentAdapter,
     }),
   );

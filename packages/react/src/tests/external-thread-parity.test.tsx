@@ -128,6 +128,36 @@ describe("ExternalThread composer", () => {
     );
   });
 
+  it("stamps the thread head as parentId on queue-adapter sends", async () => {
+    const enqueue = vi.fn();
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: true,
+      queue: {
+        items: [],
+        enqueue,
+        steer: vi.fn(),
+        remove: vi.fn(),
+        clear: vi.fn(),
+      },
+    });
+
+    aui().thread().composer().setText("queued");
+    aui().thread().composer().send();
+
+    await waitFor(() => expect(enqueue).toHaveBeenCalledTimes(1));
+    expect(enqueue.mock.calls[0]![0].parentId).toBe("u1");
+  });
+
   it("still refuses to send an empty composer synchronously after a send", async () => {
     const onNew = vi.fn();
     const { aui } = renderThread({ messages: [], isRunning: false, onNew });
