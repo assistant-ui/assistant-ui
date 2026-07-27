@@ -808,7 +808,7 @@ export default defineToolkit({
       );
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          'Duplicate tool name "search": "...calendarTools" overrides "...weatherTools". ' +
+          'Duplicate tool name "search": ...calendarTools overrides ...weatherTools. ' +
             "JavaScript object spread keeps the last definition.",
         ),
       );
@@ -855,7 +855,7 @@ export default defineToolkit({
 
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          'Duplicate tool name "search": "...calendarTools" overrides "...weatherTools". ' +
+          'Duplicate tool name "search": ...calendarTools overrides ...weatherTools. ' +
             "JavaScript object spread keeps the last definition.",
         ),
       );
@@ -897,7 +897,7 @@ export default defineToolkit({
       expect(client).toContain("...emailTools");
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          '[assistant-ui/use-generative] Duplicate tool name "search": "...calendarTools" overrides "...weatherTools". ' +
+          '[assistant-ui/use-generative] Duplicate tool name "search": ...calendarTools overrides ...weatherTools. ' +
             "JavaScript object spread keeps the last definition.",
         ),
       );
@@ -928,7 +928,7 @@ export default defineToolkit({
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          'Duplicate tool name "search": "...calendarTools" overrides "...weatherTools". ' +
+          'Duplicate tool name "search": ...calendarTools overrides ...weatherTools. ' +
             "JavaScript object spread keeps the last definition.",
         ),
       );
@@ -961,7 +961,7 @@ export default defineToolkit({
 
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          'Duplicate tool name "search": "...calendarTools" overrides "...weatherTools". ' +
+          'Duplicate tool name "search": ...calendarTools overrides ...weatherTools. ' +
             "JavaScript object spread keeps the last definition.",
         ),
       );
@@ -988,7 +988,7 @@ export default defineToolkit({
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          'Duplicate tool name "search": "inline property "search"" overrides "inline property "search"". ' +
+          'Duplicate tool name "search": inline property (line 5) overrides inline property (line 4). ' +
             "JavaScript object spread keeps the last definition.",
         ),
       );
@@ -1016,7 +1016,7 @@ export default defineToolkit({
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          'Duplicate tool name "search": "inline property "search"" overrides "...weatherTools". ' +
+          'Duplicate tool name "search": inline property (line 8) overrides ...weatherTools. ' +
             "JavaScript object spread keeps the last definition.",
         ),
       );
@@ -1060,7 +1060,51 @@ export default defineToolkit({
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          'Duplicate tool name "search": "...calendarTools" overrides "...weatherTools". ' +
+          'Duplicate tool name "search": ...calendarTools overrides ...weatherTools. ' +
+            "JavaScript object spread keeps the last definition.",
+        ),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("keeps the pairwise message when an opaque toolkit spread follows the colliders", () => {
+    const filename = createMultiMergeFixture({
+      "tools/weather.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});`,
+      "tools/calendar.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});`,
+      "tools/mystery.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+const tools = { lookup: { execute: async () => 1, render: () => null } };
+export default defineToolkit(tools);`,
+    });
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "./tools/weather";
+import calendarTools from "./tools/calendar";
+import mysteryTools from "./tools/mystery";
+export default defineToolkit({
+  ...weatherTools,
+  ...calendarTools,
+  ...mysteryTools,
+});`;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      compileGenerative(src, { target: "client", filename });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Duplicate tool name "search": ...calendarTools overrides ...weatherTools. ' +
             "JavaScript object spread keeps the last definition.",
         ),
       );
@@ -1094,7 +1138,7 @@ export default defineToolkit({
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          'Duplicate tool name "search": "...calendarTools" overrides "...weatherTools", "...databaseTools". ' +
+          'Duplicate tool name "search": ...calendarTools overrides ...weatherTools, ...databaseTools. ' +
             "JavaScript object spread keeps the last definition.",
         ),
       );
@@ -1123,7 +1167,7 @@ export default defineToolkit({
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          'Duplicate tool name "search": "...defineMcpToolkit(...)" overrides "...weatherTools". ' +
+          'Duplicate tool name "search": ...defineMcpToolkit(...) overrides ...weatherTools. ' +
             "JavaScript object spread keeps the last definition.",
         ),
       );

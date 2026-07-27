@@ -1193,8 +1193,10 @@ function toolkitEntrySourceLabel(entry: Entry): string {
   }
 
   if (t.isObjectProperty(entry) || t.isObjectMethod(entry)) {
-    const name = memberName(entry.key, entry.computed);
-    return name ? `inline property "${name}"` : "inline property";
+    const line = entry.loc?.start.line;
+    return line === undefined
+      ? "inline property"
+      : `inline property (line ${line})`;
   }
 
   return "inline property";
@@ -1223,8 +1225,8 @@ function warnDuplicateToolkitNames(
     if (winner === undefined || overridden.length === 0) continue;
     console.warn(
       new GenerativeCompileError(
-        `Duplicate tool name "${name}": "${winner}" overrides ` +
-          `${overridden.map((source) => `"${source}"`).join(", ")}. ` +
+        `Duplicate tool name "${name}": ${winner} overrides ` +
+          `${overridden.join(", ")}. ` +
           "JavaScript object spread keeps the last definition.",
         filename,
       ).message,
