@@ -202,8 +202,10 @@ describe("assistant transport scheduling contracts", () => {
 
   it("survives StrictMode double-mounting", async () => {
     const gate = createDeferred();
+    const onFinish = vi.fn();
     const { result } = renderHook(
-      () => useTransportSchedulingHarness({ onRun: () => gate.promise }),
+      () =>
+        useTransportSchedulingHarness({ onRun: () => gate.promise, onFinish }),
       { wrapper: ({ children }) => createElement(StrictMode, null, children) },
     );
 
@@ -214,16 +216,19 @@ describe("assistant transport scheduling contracts", () => {
       expect(result.current.runBatchesRef.current).toHaveLength(1);
     });
 
-    gate.resolve();
-    await waitFor(() => {
-      expect(result.current.runManager.isRunning).toBe(false);
-    });
-
+    // enqueued while the first run is in flight — must restart as a follow-up
     act(() => {
       result.current.commandQueue.enqueue(createMessageCommand("m2"));
     });
+
+    gate.resolve();
     await waitFor(() => {
       expect(result.current.runBatchesRef.current).toHaveLength(2);
+    });
+    expect(result.current.runBatchesRef.current[1]).toHaveLength(1);
+    expect(onFinish).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(result.current.runManager.isRunning).toBe(false);
     });
   });
 });

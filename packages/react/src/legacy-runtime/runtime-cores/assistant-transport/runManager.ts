@@ -42,19 +42,15 @@ export function useRunManager(config: {
           await onRunRef.current(ac.signal);
         }
       } catch (error) {
-        if (disposeAborted()) {
-          // the abort is ours; no callbacks
-        } else if (ac.signal.aborted) {
+        if (!disposeAborted() && !stateRef.current.disposed) {
           stateRef.current.pending = false;
-          onCancelRef.current?.();
-        } else {
-          stateRef.current.pending = false;
-          await onErrorRef.current?.(error as Error);
+          if (ac.signal.aborted) {
+            onCancelRef.current?.();
+          } else {
+            await onErrorRef.current?.(error as Error);
+          }
         }
       } finally {
-        if (stateRef.current.abortController === ac) {
-          stateRef.current.abortController = null;
-        }
         if (!disposeAborted() && !stateRef.current.disposed) {
           onFinishRef.current?.();
         }
@@ -62,12 +58,16 @@ export function useRunManager(config: {
           startRun();
         } else {
           setIsRunning(false);
+          if (stateRef.current.abortController === ac) {
+            stateRef.current.abortController = null;
+          }
         }
       }
     });
   }, [onRunRef, onFinishRef, onErrorRef, onCancelRef]);
 
   const schedule = useCallback(() => {
+    if (stateRef.current.disposed) return;
     if (stateRef.current.abortController) {
       // Coalesce multiple schedules while running into a single follow-up run.
       stateRef.current.pending = true;
