@@ -3,7 +3,7 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { flushSync } from "react-dom";
 import { useEffect, useState, type FC } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { AssistantRuntimeProvider, PartByIndexProvider } from "../context";
 import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
@@ -83,12 +83,8 @@ const ChildrenMessage: FC = () => (
 );
 
 const InvalidPartReader: FC = () => {
-  const part = useAuiState((s) => s.part);
-  return (
-    <p data-testid="clamped-part">
-      {part.type === "text" ? part.text : part.type}
-    </p>
-  );
+  useAuiState((s) => s.part.type);
+  return null;
 };
 
 const InvalidPartMessage: FC = () => (
@@ -152,21 +148,11 @@ describe("part hooks under a thread-switch race", () => {
     },
   );
 
-  it("warns and clamps an index that was never valid", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      let view!: ReturnType<typeof render>;
-      await act(async () => {
-        view = render(<App MessageComponent={InvalidPartMessage} />);
-      });
-      expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "useClientLookup: Clamped stale index 2 to 1 (length: 2)",
-        ),
-      );
-      expect(view.getByTestId("clamped-part").textContent).toBe("world");
-    } finally {
-      warn.mockRestore();
-    }
+  it("still rejects an index that was never valid", async () => {
+    await expect(
+      act(async () => {
+        render(<App MessageComponent={InvalidPartMessage} />);
+      }),
+    ).rejects.toThrow("useClientLookup: Index 2 out of bounds (length: 2)");
   });
 });
