@@ -23,6 +23,7 @@ import { MessageRepository } from "@assistant-ui/core/internal";
 import type { AbstractAgent } from "@ag-ui/client";
 import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Logger } from "./logger";
+import { readMcpAppResourceUri } from "./mcp-tool-result";
 import type { AgUiEvent, AgUiInterrupt, AgUiResumeEntry } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import {
@@ -1373,6 +1374,7 @@ export class AgUiThreadRuntimeCore {
     const updated = this.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
+      const mcpAppUri = readMcpAppResourceUri(event.mcpResult?._meta);
       let matchedToolCall = false;
       const content = assistant.content.map((part) => {
         if (part.type !== "tool-call" || part.toolCallId !== event.toolCallId)
@@ -1421,6 +1423,9 @@ export class AgUiThreadRuntimeCore {
             : event.role === "tool"
               ? { isError: false }
               : {}),
+          ...(part.mcp === undefined && mcpAppUri !== undefined
+            ? { mcp: { app: { resourceUri: mcpAppUri } } }
+            : {}),
           ...(event.messageId
             ? { unstable_toolMessageId: event.messageId }
             : {}),
