@@ -57,6 +57,8 @@ export const SignupForm: FC = () => {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)}>
+      <input type="hidden" {...form.register("hidden")} />
+
       <Card>
         <CardHeader>
           <CardTitle>Personal information</CardTitle>

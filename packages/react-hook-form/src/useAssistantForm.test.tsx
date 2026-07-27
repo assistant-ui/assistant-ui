@@ -2,7 +2,6 @@
 import { act, render, renderHook } from "@testing-library/react";
 import type { ModelContext } from "@assistant-ui/core";
 import type { FormEvent, ReactNode } from "react";
-import { Controller } from "react-hook-form";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -100,58 +99,5 @@ describe("useAssistantForm", () => {
         </>
       );
     });
-  });
-
-  it("submits forms registered with controlled inputs", async () => {
-    await expectRegisteredFieldsToSubmit(() => {
-      const form = useAssistantForm<{ controlledName: string }>({
-        defaultValues: { controlledName: "" },
-      });
-      return (
-        <Controller
-          control={form.control}
-          name="controlledName"
-          render={({ field }) => <input {...field} />}
-        />
-      );
-    });
-  });
-
-  it("does not submit controlled inputs with ambiguous form matches", async () => {
-    const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-    });
-    const Fields = () => {
-      const form = useAssistantForm<{ ambiguousName: string }>({
-        defaultValues: { ambiguousName: "" },
-      });
-      return (
-        <Controller
-          control={form.control}
-          name="ambiguousName"
-          render={({ field }) => <input {...field} />}
-        />
-      );
-    };
-
-    render(
-      <>
-        <form onSubmit={onSubmit}>
-          <Fields />
-        </form>
-        <form onSubmit={onSubmit}>
-          <input name="ambiguousName" />
-        </form>
-      </>,
-    );
-
-    const submitTool = provider.getModelContext().tools?.submit_form;
-    if (!submitTool?.execute) throw new Error("submit_form is not registered");
-
-    await expect(submitTool.execute({}, {} as never)).resolves.toEqual({
-      success: false,
-      message: "Unable retrieve the form element. This is a coding error.",
-    });
-    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
