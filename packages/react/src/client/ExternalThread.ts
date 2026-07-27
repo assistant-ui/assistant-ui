@@ -10,9 +10,12 @@ import {
 } from "@assistant-ui/store";
 
 import type {
+  AddToolResultOptions,
   AppendMessage,
   Attachment,
+  AttachmentAdapter,
   CreateAttachment,
+  PendingAttachment,
   RespondToToolApprovalOptions,
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
@@ -20,6 +23,8 @@ import type {
   ExternalThreadQueueAdapter,
   ExternalThreadBranchAdapter,
 } from "@assistant-ui/core";
+import { ToolResponse } from "assistant-stream";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { QueueItemState } from "@assistant-ui/core/store";
 import type { ComposerSendOptions } from "@assistant-ui/core/store";
 import {
@@ -41,6 +46,9 @@ export type ExternalThreadMessage = ThreadMessage & {
 export type ExternalThreadProps = {
   messages: readonly ExternalThreadMessage[];
   isRunning?: boolean;
+  isLoading?: boolean | undefined;
+  state?: ReadonlyJSONValue | undefined;
+  extras?: unknown;
   /**
    * Whether sending new messages is currently disabled. When `true`, the
    * thread composer's input remains usable but `send()` is a no-op and
@@ -57,6 +65,10 @@ export type ExternalThreadProps = {
   onReload?: (parentId: string | null) => void;
   onStartRun?: () => void;
   onCancel?: () => void;
+  onResume?: (() => void) | undefined;
+  onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
+  onLoadExternalState?: ((state: unknown) => void) | undefined;
+  attachmentAdapter?: AttachmentAdapter | undefined;
   /** Queue adapter for runtimes that support message queuing and steering. */
   queue?: ExternalThreadQueueAdapter;
   /** Branch adapter for runtimes that track sibling variants of messages. */
@@ -75,6 +87,7 @@ type MessageClientProps = {
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void)
     | undefined;
+  onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
 };
 
 // Message Client - minimal implementation
@@ -86,6 +99,7 @@ const useMessageClient = ({
   queue,
   branches,
   onRespondToToolApproval,
+  onAddToolResult,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -93,7 +107,15 @@ const useMessageClient = ({
 
   const partClients = useClientLookup(
     message.content.map((part, idx) =>
-      withKey(idx, PartResource({ part, onRespondToToolApproval })),
+      withKey(
+        idx,
+        PartResource({
+          part,
+          messageId: message.id,
+          onRespondToToolApproval,
+          onAddToolResult,
+        }),
+      ),
     ),
   );
 
@@ -220,15 +242,19 @@ const MessageClient = resource(useMessageClient);
 
 type PartResourceProps = {
   part: ThreadAssistantMessagePart | ThreadUserMessagePart;
+  messageId: string;
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void)
     | undefined;
+  onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
 };
 
 // Part Client - minimal implementation
 const usePartResource = ({
   part,
+  messageId,
   onRespondToToolApproval,
+  onAddToolResult,
 }: PartResourceProps): ClientOutput<"part"> => {
   const state = useMemo(
     () => ({
@@ -240,7 +266,24 @@ const usePartResource = ({
 
   return {
     getState: () => state,
-    addToolResult: () => {},
+    addToolResult: (result) => {
+      if (!onAddToolResult) return;
+      if (part.type !== "tool-call")
+        throw new Error("Tried to add tool result on non-tool message part");
+
+      const response = ToolResponse.toResponse(result);
+      onAddToolResult({
+        messageId,
+        toolName: part.toolName,
+        toolCallId: part.toolCallId,
+        result: response.result as ReadonlyJSONValue,
+        isError: response.isError,
+        ...(response.artifact !== undefined && { artifact: response.artifact }),
+        ...(response.modelContent !== undefined && {
+          modelContent: response.modelContent,
+        }),
+      });
+    },
     resumeToolCall: () => {},
     respondToToolApproval: (response) => {
       if (!onRespondToToolApproval)
@@ -269,7 +312,7 @@ const PartResource = resource(usePartResource);
 
 type AttachmentResourceProps = {
   attachment: Attachment;
-  onRemove?: () => void;
+  onRemove?: () => void | Promise<void>;
 };
 
 // Attachment Client - minimal implementation
@@ -280,7 +323,7 @@ const useAttachmentResource = ({
   return {
     getState: () => attachment,
     remove: async () => {
-      onRemove?.();
+      await onRemove?.();
     },
   };
 };
@@ -297,6 +340,7 @@ type ComposerClientResourceProps = {
   onSend?: (message: AppendMessage) => void;
   message?: ExternalThreadMessage;
   queue?: ExternalThreadQueueAdapter | undefined;
+  attachmentAdapter?: AttachmentAdapter | undefined;
 };
 
 const useQueueItemClient = ({
@@ -328,6 +372,7 @@ const useComposerClientResource = ({
   onSend,
   message,
   queue,
+  attachmentAdapter,
 }: ComposerClientResourceProps): ClientOutput<"composer"> => {
   const [text, setText] = useState("");
   const [role, setRole] = useState<"user" | "assistant" | "system">("user");
@@ -359,18 +404,31 @@ const useComposerClientResource = ({
   }, [isEditing]);
 
   const attachmentClients = useClientLookup(
-    attachments.map((attachment, idx) =>
+    attachments.map((attachment) =>
       withKey(
         attachment.id,
         AttachmentResource({
           attachment,
-          onRemove: () => {
-            setAttachments(attachments.filter((_, i) => i !== idx));
+          onRemove: async () => {
+            await attachmentAdapter?.remove(attachment);
+            setAttachments((prev) =>
+              prev.filter((a) => a.id !== attachment.id),
+            );
           },
         }),
       ),
     ),
   );
+
+  const upsertAttachment = (attachment: Attachment) => {
+    setAttachments((prev) => {
+      const idx = prev.findIndex((a) => a.id === attachment.id);
+      if (idx === -1) return [...prev, attachment];
+      const next = [...prev];
+      next[idx] = attachment;
+      return next;
+    });
+  };
 
   const queueItems = queue?.items ?? EMPTY_QUEUE_ITEMS;
   const queueItemClients = useClientLookup(
@@ -396,7 +454,7 @@ const useComposerClientResource = ({
       isEditing,
       canCancel,
       canSend: isEditing && !isEmpty && !isSendDisabled,
-      attachmentAccept: "*",
+      attachmentAccept: attachmentAdapter?.accept ?? "*",
       isEmpty,
       type,
       dictation: undefined,
@@ -415,6 +473,7 @@ const useComposerClientResource = ({
     attachments.length,
     quote,
     queueItems,
+    attachmentAdapter?.accept,
   ]);
 
   return {
@@ -423,7 +482,16 @@ const useComposerClientResource = ({
     setRole,
     setRunConfig,
     addAttachment: async (fileOrAttachment: File | CreateAttachment) => {
-      if (!isCreateAttachment(fileOrAttachment)) {
+      if (!isCreateAttachment(fileOrAttachment) && attachmentAdapter) {
+        const result = attachmentAdapter.add({ file: fileOrAttachment });
+        if (Symbol.asyncIterator in result) {
+          for await (const attachment of result) {
+            upsertAttachment(attachment);
+          }
+        } else {
+          upsertAttachment(await result);
+        }
+      } else if (!isCreateAttachment(fileOrAttachment)) {
         const newAttachment: Attachment = {
           id: Math.random().toString(36).substring(7),
           type: "file",
@@ -466,27 +534,46 @@ const useComposerClientResource = ({
       if (!state.canSend) return;
 
       const currentQuote = quote;
-      const composedMessage: AppendMessage = {
-        role,
-        content: text ? [{ type: "text" as const, text }] : [],
-        attachments: attachments as any,
-        createdAt: new Date(),
-        parentId: null,
-        sourceId: null,
-        runConfig,
-        startRun: opts?.startRun,
-        metadata: {
-          custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
-        },
-      };
-      if (queue) {
-        queue.enqueue(composedMessage, { steer: opts?.steer ?? false });
-      } else {
-        onSend?.(composedMessage);
-      }
+      const currentText = text;
+      const currentAttachments = attachments;
       setText("");
       setAttachments([]);
       setQuote(undefined);
+
+      const dispatch = (sendAttachments: readonly Attachment[]) => {
+        const composedMessage: AppendMessage = {
+          role,
+          content: currentText
+            ? [{ type: "text" as const, text: currentText }]
+            : [],
+          attachments: sendAttachments as any,
+          createdAt: new Date(),
+          parentId: null,
+          sourceId: null,
+          runConfig,
+          startRun: opts?.startRun,
+          metadata: {
+            custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
+          },
+        };
+        if (queue) {
+          queue.enqueue(composedMessage, { steer: opts?.steer ?? false });
+        } else {
+          onSend?.(composedMessage);
+        }
+      };
+
+      if (attachmentAdapter && currentAttachments.length > 0) {
+        void Promise.all(
+          currentAttachments.map((attachment) =>
+            attachment.status.type === "complete"
+              ? attachment
+              : attachmentAdapter.send(attachment as PendingAttachment),
+          ),
+        ).then(dispatch);
+      } else {
+        dispatch(currentAttachments);
+      }
     },
     cancel: onCancel,
     beginEdit: () => {
@@ -507,12 +594,19 @@ const ComposerClientResource = resource(useComposerClientResource);
 const useExternalThread = ({
   messages,
   isRunning = false,
+  isLoading = false,
+  state: threadState,
+  extras,
   isSendDisabled = false,
   onNew,
   onEdit,
   onReload,
   onStartRun,
   onCancel,
+  onResume,
+  onAddToolResult,
+  onLoadExternalState,
+  attachmentAdapter,
   queue,
   branches,
   onRespondToToolApproval,
@@ -535,6 +629,7 @@ const useExternalThread = ({
         queue,
         branches,
         onRespondToToolApproval,
+        onAddToolResult,
       };
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
@@ -559,11 +654,15 @@ const useExternalThread = ({
       onCancel: handleCancelRun,
       onSend: handleSendNew,
       queue,
+      attachmentAdapter,
     }),
   );
 
   const hasQueue = !!queue;
   const hasBranches = !!branches;
+  const hasEdit = !!onEdit;
+  const hasReload = !!onReload;
+  const hasAttachments = !!attachmentAdapter;
   const state = useMemo(() => {
     const messageStates = messageClients.state.map((s, idx, arr) => ({
       ...s,
@@ -573,15 +672,15 @@ const useExternalThread = ({
     return {
       isEmpty: messages.length === 0,
       isDisabled: false,
-      isLoading: false,
+      isLoading,
       isRunning,
       capabilities: {
-        edit: false,
+        edit: hasEdit,
         delete: false,
-        reload: false,
+        reload: hasReload,
         cancel: isRunning,
         speech: false,
-        attachments: false,
+        attachments: hasAttachments,
         feedback: false,
         voice: false,
         switchToBranch: hasBranches,
@@ -591,9 +690,9 @@ const useExternalThread = ({
         queue: hasQueue,
       },
       messages: messageStates,
-      state: {},
+      state: threadState ?? {},
       suggestions: [],
-      extras: undefined,
+      extras,
       speech: undefined,
       voice: undefined,
       composer: composerClient.state,
@@ -601,8 +700,14 @@ const useExternalThread = ({
   }, [
     messages,
     isRunning,
+    isLoading,
+    threadState,
+    extras,
     hasQueue,
     hasBranches,
+    hasEdit,
+    hasReload,
+    hasAttachments,
     messageClients.state,
     composerClient.state,
   ]);
@@ -644,8 +749,13 @@ const useExternalThread = ({
     startRun: () => {
       onStartRun?.();
     },
-    resumeRun: () => {},
+    resumeRun: () => {
+      onResume?.();
+    },
     cancelRun: handleCancelRun,
+    importExternalState: (state: unknown) => {
+      onLoadExternalState?.(state);
+    },
     getModelContext: () => ({ tools: {}, config: {} }),
     export: () => ({ messages: [] }),
     import: () => {},
