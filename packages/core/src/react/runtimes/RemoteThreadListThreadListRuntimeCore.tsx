@@ -356,22 +356,34 @@ export class RemoteThreadListThreadListRuntimeCore
         [remoteMetadata.remoteId]: mappingId,
       };
 
-      // Filter both arrays first so a concurrent `list()` can't leave the id
-      // duplicated or under the wrong status.
+      // A concurrent `list()` may already have placed this thread; keep that
+      // position and only merge metadata. When inserting fresh, prepend to
+      // match `updateStatusReducer`. Filtering both arrays first still prevents
+      // duplication or a wrong-status entry from `list()`.
+      const remoteId = remoteMetadata.remoteId;
+      const wasInTarget =
+        remoteMetadata.status === "regular"
+          ? state.threadIds.includes(remoteId)
+          : state.archivedThreadIds.includes(remoteId);
+
       const threadIdsWithoutRemote = state.threadIds.filter(
-        (id) => id !== remoteMetadata.remoteId,
+        (id) => id !== remoteId,
       );
       const archivedThreadIdsWithoutRemote = state.archivedThreadIds.filter(
-        (id) => id !== remoteMetadata.remoteId,
+        (id) => id !== remoteId,
       );
 
       const newThreadIds =
         remoteMetadata.status === "regular"
-          ? [...threadIdsWithoutRemote, remoteMetadata.remoteId]
+          ? wasInTarget
+            ? state.threadIds
+            : [remoteId, ...threadIdsWithoutRemote]
           : threadIdsWithoutRemote;
       const newArchivedThreadIds =
         remoteMetadata.status === "archived"
-          ? [...archivedThreadIdsWithoutRemote, remoteMetadata.remoteId]
+          ? wasInTarget
+            ? state.archivedThreadIds
+            : [remoteId, ...archivedThreadIdsWithoutRemote]
           : archivedThreadIdsWithoutRemote;
 
       this._state.update({
