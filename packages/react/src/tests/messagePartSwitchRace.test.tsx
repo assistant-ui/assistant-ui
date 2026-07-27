@@ -111,8 +111,8 @@ afterEach(() => {
   harness.runtime = null;
 });
 
-describe("part hooks under a thread-switch race (#5118)", () => {
-  it("an out-of-band flushSync re-render during the swap window does not crash", async () => {
+describe("part hooks under a thread-switch race", () => {
+  it("swaps every part when the incoming message has different part types", async () => {
     let view!: ReturnType<typeof render>;
     await act(async () => {
       view = render(<App />);
