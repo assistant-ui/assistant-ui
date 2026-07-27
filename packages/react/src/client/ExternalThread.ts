@@ -1,4 +1,11 @@
-import { useState, useMemo, useEffect, useEffectEvent } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useEffectEvent,
+  useCallback,
+  useRef,
+} from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import {
   type ClientElement,
@@ -18,9 +25,11 @@ import type {
   PendingAttachment,
   RespondToToolApprovalOptions,
   ResumeToolCallOptions,
+  MessagePartStatus,
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
   ThreadMessage,
+  ToolCallMessagePartStatus,
   ExternalThreadQueueAdapter,
   ExternalThreadBranchAdapter,
 } from "@assistant-ui/core";
@@ -42,6 +51,29 @@ const EMPTY_BRANCH_IDS: readonly string[] = [];
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
+};
+
+const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
+  type: "complete",
+});
+
+// Legacy runtime parity (toMessagePartStatus): a tool call without a result
+// carries its message's status; the last part of a streaming message streams.
+const derivePartStatus = (
+  message: ExternalThreadMessage,
+  partIndex: number,
+  part: ThreadAssistantMessagePart | ThreadUserMessagePart,
+): ToolCallMessagePartStatus => {
+  if (message.role !== "assistant" || !message.status) return COMPLETE_STATUS;
+
+  if (part.type === "tool-call") {
+    if (!part.result) return message.status as ToolCallMessagePartStatus;
+    return COMPLETE_STATUS;
+  }
+
+  const isLastPart = partIndex === Math.max(0, message.content.length - 1);
+  if (message.status.type === "requires-action") return COMPLETE_STATUS;
+  return isLastPart ? (message.status as MessagePartStatus) : COMPLETE_STATUS;
 };
 
 export type ExternalThreadProps = {
@@ -118,6 +150,7 @@ const useMessageClient = ({
         idx,
         PartResource({
           part,
+          status: derivePartStatus(message, idx, part),
           messageId: message.id,
           onRespondToToolApproval,
           onAddToolResult,
@@ -251,6 +284,7 @@ const MessageClient = resource(useMessageClient);
 
 type PartResourceProps = {
   part: ThreadAssistantMessagePart | ThreadUserMessagePart;
+  status: ToolCallMessagePartStatus;
   messageId: string;
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void)
@@ -262,6 +296,7 @@ type PartResourceProps = {
 // Part Client - minimal implementation
 const usePartResource = ({
   part,
+  status,
   messageId,
   onRespondToToolApproval,
   onAddToolResult,
@@ -270,9 +305,9 @@ const usePartResource = ({
   const state = useMemo(
     () => ({
       ...part,
-      status: { type: "complete" as const },
+      status,
     }),
-    [part],
+    [part, status],
   );
 
   return {
@@ -378,6 +413,20 @@ const useQueueItemClient = ({
 
 const QueueItemClient = resource(useQueueItemClient);
 
+// State whose setter tracks the latest value in a ref, so imperative
+// call sequences (setText immediately followed by send) observe the write
+// before React re-renders — legacy composer parity.
+const useLiveState = <T>(initial: T) => {
+  const [state, setState] = useState(initial);
+  const ref = useRef(state);
+  const set = useCallback((next: T | ((prev: T) => T)) => {
+    ref.current =
+      typeof next === "function" ? (next as (prev: T) => T)(ref.current) : next;
+    setState(ref.current);
+  }, []);
+  return [state, set, ref] as const;
+};
+
 // Composer Client - minimal implementation
 const useComposerClientResource = ({
   type,
@@ -391,11 +440,17 @@ const useComposerClientResource = ({
   queue,
   attachmentAdapter,
 }: ComposerClientResourceProps): ClientOutput<"composer"> => {
-  const [text, setText] = useState("");
-  const [role, setRole] = useState<"user" | "assistant" | "system">("user");
-  const [runConfig, setRunConfig] = useState<Record<string, unknown>>({});
-  const [attachments, setAttachments] = useState<readonly Attachment[]>([]);
-  const [quote, setQuote] = useState<
+  const [text, setText, textRef] = useLiveState("");
+  const [role, setRole, roleRef] = useLiveState<
+    "user" | "assistant" | "system"
+  >("user");
+  const [runConfig, setRunConfig, runConfigRef] = useLiveState<
+    Record<string, unknown>
+  >({});
+  const [attachments, setAttachments, attachmentsRef] = useLiveState<
+    readonly Attachment[]
+  >([]);
+  const [quote, setQuote, quoteRef] = useLiveState<
     { readonly text: string; readonly messageId: string } | undefined
   >(undefined);
 
@@ -518,7 +573,7 @@ const useComposerClientResource = ({
           status: { type: "complete" },
           content: [],
         };
-        setAttachments([...attachments, newAttachment]);
+        setAttachments((prev) => [...prev, newAttachment]);
       } else {
         const newAttachment: Attachment = {
           id: fileOrAttachment.id ?? Math.random().toString(36).substring(7),
@@ -528,7 +583,7 @@ const useComposerClientResource = ({
           content: fileOrAttachment.content,
           status: { type: "complete" },
         };
-        setAttachments([...attachments, newAttachment]);
+        setAttachments((prev) => [...prev, newAttachment]);
       }
     },
     clearAttachments: async () => {
@@ -548,18 +603,19 @@ const useComposerClientResource = ({
       setQuote(undefined);
     },
     send: (opts?: ComposerSendOptions) => {
-      if (!state.canSend) return;
+      const currentQuote = quoteRef.current;
+      const currentText = textRef.current;
+      const currentAttachments = attachmentsRef.current;
+      const isEmpty = !currentText.trim() && !currentAttachments.length;
+      if (!isEditing || isEmpty || isSendDisabled) return;
 
-      const currentQuote = quote;
-      const currentText = text;
-      const currentAttachments = attachments;
       setText("");
       setAttachments([]);
       setQuote(undefined);
 
       const dispatch = (sendAttachments: readonly Attachment[]) => {
         const composedMessage: AppendMessage = {
-          role,
+          role: roleRef.current,
           content: currentText
             ? [{ type: "text" as const, text: currentText }]
             : [],
@@ -567,7 +623,7 @@ const useComposerClientResource = ({
           createdAt: new Date(),
           parentId: null,
           sourceId: null,
-          runConfig,
+          runConfig: runConfigRef.current,
           startRun: opts?.startRun,
           metadata: {
             custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
