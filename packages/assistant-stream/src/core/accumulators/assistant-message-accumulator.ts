@@ -564,7 +564,10 @@ export class AssistantMessageAccumulator extends TransformStream<
             break;
           default: {
             const unhandledType: never = type;
-            throw new Error(`Unsupported chunk type: ${unhandledType}`);
+            warnOnce(
+              `unsupported-chunk-type:${unhandledType}`,
+              `Unsupported chunk type: ${unhandledType}`,
+            );
           }
         }
 

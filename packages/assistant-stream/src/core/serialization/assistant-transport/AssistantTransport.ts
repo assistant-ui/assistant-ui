@@ -15,9 +15,30 @@ type ChunkRule = {
 };
 
 const noFields = () => true;
-const requiredObject = (key: string) => (c: ChunkFields) => {
-  const value = c[key];
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+const validPartStart = (c: ChunkFields): boolean => {
+  const part = c.part;
+  if (typeof part !== "object" || part === null || Array.isArray(part))
+    return false;
+  const p = part as Record<string, unknown>;
+  switch (p.type) {
+    case "text":
+    case "reasoning":
+      return true;
+    case "tool-call":
+      return typeof p.toolCallId === "string" && typeof p.toolName === "string";
+    case "source":
+      return (
+        p.sourceType === "url" &&
+        typeof p.id === "string" &&
+        typeof p.url === "string"
+      );
+    case "file":
+      return typeof p.data === "string" && typeof p.mimeType === "string";
+    case "data":
+      return typeof p.name === "string" && p.data !== undefined;
+    default:
+      return false;
+  }
 };
 const requiredString = (key: string) => (c: ChunkFields) =>
   typeof c[key] === "string";
@@ -27,7 +48,7 @@ const optionalBoolean = (key: string) => (c: ChunkFields) =>
   c[key] === undefined || typeof c[key] === "boolean";
 
 const KNOWN_CHUNK_TYPES: Record<AssistantStreamChunk["type"], ChunkRule> = {
-  "part-start": { kind: "message", valid: requiredObject("part") },
+  "part-start": { kind: "message", valid: validPartStart },
   "part-finish": { kind: "part-addressed", valid: noFields },
   "tool-call-args-text-finish": { kind: "part-addressed", valid: noFields },
   "text-delta": { kind: "part-addressed", valid: requiredString("textDelta") },

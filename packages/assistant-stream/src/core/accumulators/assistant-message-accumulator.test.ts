@@ -661,3 +661,35 @@ describe("AssistantMessageAccumulator warn dedup key independence", () => {
     warn.mockRestore();
   });
 });
+
+describe("AssistantMessageAccumulator unknown chunk types", () => {
+  it("logs and ignores an unknown chunk type instead of throwing", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "hi" },
+      { type: "bogus-type", path: [] } as unknown as AssistantStreamChunk,
+      { type: "text-delta", path: [0], textDelta: "!" },
+    ]);
+    const last = messages.at(-1)!;
+
+    expect(last.parts[0]).toMatchObject({ type: "text", text: "hi!" });
+    expect(warn).toHaveBeenCalledWith("Unsupported chunk type: bogus-type");
+    warn.mockRestore();
+  });
+
+  it("dedupes the unknown-chunk-type warning per type per instance", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "bogus", path: [] } as unknown as AssistantStreamChunk,
+      { type: "bogus", path: [] } as unknown as AssistantStreamChunk,
+      { type: "weird", path: [] } as unknown as AssistantStreamChunk,
+    ]);
+
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledWith("Unsupported chunk type: bogus");
+    expect(warn).toHaveBeenCalledWith("Unsupported chunk type: weird");
+    warn.mockRestore();
+  });
+});

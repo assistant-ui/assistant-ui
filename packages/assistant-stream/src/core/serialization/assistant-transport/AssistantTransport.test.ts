@@ -378,6 +378,36 @@ describe("AssistantTransportDecoder", () => {
     warn.mockRestore();
   });
 
+  it("drops part-start frames whose nested part is missing required variant fields", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const decodedChunks = await collectChunks(
+      sseStream([
+        '{"type":"part-start","part":{"type":"tool-call"},"path":[]}',
+        '{"type":"part-start","part":{"type":"tool-call","toolCallId":"t"},"path":[]}',
+        '{"type":"part-start","part":{"type":"source","sourceType":"url","id":"s"},"path":[]}',
+        '{"type":"part-start","part":{"type":"file","data":"x"},"path":[]}',
+        '{"type":"part-start","part":{"type":"data","name":"x"},"path":[]}',
+        '{"type":"part-start","part":{"type":"bogus"},"path":[]}',
+        '{"type":"part-start","part":{"type":"text"},"path":[]}',
+        '{"type":"part-start","part":{"type":"tool-call","toolCallId":"t","toolName":"f"},"path":[]}',
+      ]),
+    );
+
+    expect(decodedChunks).toEqual([
+      { type: "part-start", part: { type: "text" }, path: [] },
+      {
+        type: "part-start",
+        part: { type: "tool-call", toolCallId: "t", toolName: "f" },
+        path: [],
+      },
+    ]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("(invalid-fields:part-start)"),
+    );
+    warn.mockRestore();
+  });
+
   it("tolerates a result without isError or result but rejects a non-boolean isError", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const decodedChunks = await collectChunks(
