@@ -118,10 +118,18 @@ export type MessageContentFile =
       };
     };
 
+export type MessageContentAudio = {
+  type: "audio";
+  data: string;
+  mime_type: string;
+  source_type: "base64";
+};
+
 type UserMessageContentComplex =
   | MessageContentText
   | MessageContentImageUrl
-  | MessageContentFile;
+  | MessageContentFile
+  | MessageContentAudio;
 type AssistantMessageContentComplex =
   | MessageContentText
   | MessageContentImageUrl

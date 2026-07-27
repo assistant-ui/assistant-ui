@@ -202,6 +202,93 @@ describe("getMessageContent file blocks", () => {
   });
 });
 
+describe("getMessageContent audio and data parts", () => {
+  const appendMessage = (...parts: Record<string, unknown>[]) =>
+    ({ content: parts }) as unknown as AppendMessage;
+
+  it("emits a base64 audio block with the format MIME type for audio parts", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "audio",
+        audio: { data: "c291bmQ=", format: "mp3" },
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "audio",
+        data: "c291bmQ=",
+        mime_type: "audio/mp3",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("strips a data URL envelope from audio data", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "audio",
+        audio: { data: "data:audio/wav;base64,d2F2", format: "wav" },
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "audio",
+        data: "d2F2",
+        mime_type: "audio/wav",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("does not prepend a second placeholder when text accompanies audio", () => {
+    const content = getMessageContent(
+      appendMessage(
+        { type: "text", text: "listen" },
+        { type: "audio", audio: { data: "d2F2", format: "wav" } },
+      ),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: "listen" },
+      {
+        type: "audio",
+        data: "d2F2",
+        mime_type: "audio/wav",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("drops data parts while keeping the rest of the message", () => {
+    const content = getMessageContent(
+      appendMessage(
+        { type: "text", text: "hi" },
+        { type: "data", name: "chart", data: { values: [1, 2] } },
+      ),
+    );
+
+    expect(content).toBe("hi");
+  });
+
+  it("returns empty content for a data-only message", () => {
+    const content = getMessageContent(
+      appendMessage({ type: "data", name: "chart", data: { values: [1, 2] } }),
+    );
+
+    expect(content).toEqual([]);
+  });
+
+  it("still throws on assistant-only part types", () => {
+    expect(() =>
+      getMessageContent(appendMessage({ type: "reasoning", text: "hmm" })),
+    ).toThrow("Unsupported append message part type: reasoning");
+  });
+});
+
 describe("convertLangChainBaseMessage reasoning content parts", () => {
   it("joins summary parts into a single reasoning part", () => {
     const result = convertLangChainBaseMessage(

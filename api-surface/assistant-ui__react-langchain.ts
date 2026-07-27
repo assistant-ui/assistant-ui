@@ -953,6 +953,11 @@ type LangChainContentBlock = {
     filename?: string;
   };
 } | {
+  type: "audio";
+  data: string;
+  mime_type: string;
+  source_type: "base64";
+} | {
   type: "input_json_delta" | "tool_use";
 };
 
