@@ -121,5 +121,6 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
 
     expect(addAttachment).toHaveBeenCalledTimes(3);
     expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });

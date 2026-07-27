@@ -563,6 +563,7 @@ describe("ComposerPrimitiveInput", () => {
 
       expect(addAttachment).toHaveBeenCalledTimes(3);
       expect(errorSpy).not.toHaveBeenCalled();
+      errorSpy.mockRestore();
     });
 
     it("does not add attachments on paste when attachments are unsupported", async () => {

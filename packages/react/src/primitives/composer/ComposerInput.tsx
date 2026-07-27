@@ -277,8 +277,7 @@ export const ComposerPrimitiveInput = forwardRef<
             try {
               await aui.composer().addAttachment(file);
             } catch {
-              // The composer runtime emits composer.attachmentAddError before rejecting;
-              // the readonly and empty-thread stubs only throw.
+              // The composer runtime emits composer.attachmentAddError before rejecting.
             }
           }),
         );
