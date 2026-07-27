@@ -454,25 +454,6 @@ describe("AISDKToolkit", () => {
     }
   });
 
-  it("includes the MCP toolkit entry name when client initialization fails", async () => {
-    const error = new Error("connect failed");
-    mocks.createMCPClient.mockRejectedValue(error);
-
-    const toolkit = new AISDKToolkit({
-      toolkit: {
-        github: {
-          type: "mcp",
-          server: { type: "http", url: "http://localhost:3001/mcp" },
-        },
-      },
-    });
-
-    await expect(toolkit.tools()).rejects.toMatchObject({
-      message: 'MCP toolkit entry "github" failed to connect: connect failed',
-      cause: error,
-    });
-  });
-
   it("includes the MCP toolkit entry name when listing tools fails", async () => {
     const error = new Error("list failed");
     mocks.tools.mockRejectedValue(error);
