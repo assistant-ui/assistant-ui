@@ -17,7 +17,7 @@
     "clsx": "^2.1.1",
     "eventsource-parser": "^3.1.0",
     "isbot": "^5.2.1",
-    "lucide-react": "^1.26.0",
+    "lucide-react": "^1.27.0",
     "openai": "^6.49.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

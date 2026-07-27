@@ -26,7 +26,7 @@
     "ai": "^7.0.37",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.26.0",
+    "lucide-react": "^1.27.0",
     "postcss": "^8.5.23",
     "react": "^19.2.8",
     "react-resizable-panels": "^4.12.2",
