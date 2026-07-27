@@ -56,19 +56,21 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({
   const [search, setSearch] = useState("");
   const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
 
-  // When a state pair is controlled, the caller renders the chrome that drives
-  // it (a top-bar toggle / mobile menu button), so the shell omits its own.
-  const collapsedControlled =
-    collapsed !== undefined && onCollapsedChange !== undefined;
-  const mobileControlled =
-    mobileSidebarOpen !== undefined && onMobileSidebarOpenChange !== undefined;
+  // A controlled value means the caller renders the chrome that drives it, so
+  // the shell omits its own toggle / trigger and forwards changes instead.
+  const collapsedControlled = collapsed !== undefined;
+  const mobileControlled = mobileSidebarOpen !== undefined;
 
   const sidebarCollapsed = collapsed ?? internalCollapsed;
   const mobileOpen = mobileSidebarOpen ?? internalMobileOpen;
 
+  const setSidebarCollapsed = (value: boolean) => {
+    if (!collapsedControlled) setInternalCollapsed(value);
+    onCollapsedChange?.(value);
+  };
   const setMobileOpen = (open: boolean) => {
-    if (onMobileSidebarOpenChange) onMobileSidebarOpenChange(open);
-    else setInternalMobileOpen(open);
+    if (!mobileControlled) setInternalMobileOpen(open);
+    onMobileSidebarOpenChange?.(open);
   };
 
   const closeMobileSidebarAfterNavigation = (
@@ -115,7 +117,7 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({
               size="icon"
               tooltip={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
               side="right"
-              onClick={() => setInternalCollapsed((value) => !value)}
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className="size-8"
             >
               <PanelLeftIcon className="size-4" />
