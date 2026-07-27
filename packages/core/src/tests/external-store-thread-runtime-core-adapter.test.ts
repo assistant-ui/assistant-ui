@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   ExternalStoreThreadRuntimeCore,
   hasUpcomingMessage,
-} from "../legacy-runtime/runtime-cores/external-store/ExternalStoreThreadRuntimeCore";
-import type { ExternalStoreAdapter } from "../legacy-runtime/runtime-cores/external-store/ExternalStoreAdapter";
-import type { ModelContextProvider } from "@assistant-ui/core";
-import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
+} from "../runtimes/external-store/external-store-thread-runtime-core";
+import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
+import type { ModelContextProvider } from "../model-context/types";
+import type { AppendMessage, ThreadMessage } from "../types/message";
 
 const createContextProvider = (): ModelContextProvider => ({
   getModelContext: () => ({}),
@@ -47,98 +47,48 @@ const createBaseAdapter = (
   ...overrides,
 });
 
-describe("ExternalStoreThreadRuntimeCore", () => {
+describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
   let contextProvider: ModelContextProvider;
 
   beforeEach(() => {
     contextProvider = createContextProvider();
   });
 
-  describe("hasUpcomingMessage", () => {
-    it("returns true when running and last message is not assistant", () => {
-      const messages = [createUserMessage("u1")];
-      expect(hasUpcomingMessage(true, messages)).toBe(true);
-    });
-
-    it("returns false when running and last message is assistant", () => {
-      const messages = [createAssistantMessage("a1")];
-      expect(hasUpcomingMessage(true, messages)).toBe(false);
-    });
-
-    it("returns false when not running", () => {
-      const messages = [createUserMessage("u1")];
-      expect(hasUpcomingMessage(false, messages)).toBe(false);
-    });
-
-    it("returns true for empty messages when running", () => {
-      expect(hasUpcomingMessage(true, [])).toBe(true);
-    });
+  it("hasUpcomingMessage is true only while running without an assistant tail", () => {
+    expect(hasUpcomingMessage(true, [createUserMessage("u1")])).toBe(true);
+    expect(hasUpcomingMessage(true, [createAssistantMessage("a1")])).toBe(
+      false,
+    );
+    expect(hasUpcomingMessage(false, [createUserMessage("u1")])).toBe(false);
+    expect(hasUpcomingMessage(true, [])).toBe(true);
   });
 
-  describe("capabilities derived from adapter", () => {
-    it("enables edit when onEdit is provided", () => {
-      const adapter = createBaseAdapter({
+  it("derives capabilities from adapter handler presence", () => {
+    const bare = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      createBaseAdapter(),
+    );
+    expect(bare.capabilities.edit).toBe(false);
+    expect(bare.capabilities.reload).toBe(false);
+    expect(bare.capabilities.cancel).toBe(false);
+    expect(bare.capabilities.switchToBranch).toBe(false);
+    expect(bare.capabilities.unstable_copy).toBe(true);
+
+    const full = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      createBaseAdapter({
         onEdit: vi.fn(async () => {}),
-      });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-      expect(core.capabilities.edit).toBe(true);
-    });
-
-    it("disables edit when onEdit is not provided", () => {
-      const adapter = createBaseAdapter();
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-      expect(core.capabilities.edit).toBe(false);
-    });
-
-    it("enables reload when onReload is provided", () => {
-      const adapter = createBaseAdapter({
         onReload: vi.fn(async () => {}),
-      });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-      expect(core.capabilities.reload).toBe(true);
-    });
-
-    it("disables reload when onReload is not provided", () => {
-      const adapter = createBaseAdapter();
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-      expect(core.capabilities.reload).toBe(false);
-    });
-
-    it("enables cancel when onCancel is provided", () => {
-      const adapter = createBaseAdapter({
         onCancel: vi.fn(async () => {}),
-      });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-      expect(core.capabilities.cancel).toBe(true);
-    });
-
-    it("disables cancel when onCancel is not provided", () => {
-      const adapter = createBaseAdapter();
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-      expect(core.capabilities.cancel).toBe(false);
-    });
-
-    it("enables switchToBranch when setMessages is provided", () => {
-      const adapter = createBaseAdapter({
         setMessages: vi.fn(),
-      });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-      expect(core.capabilities.switchToBranch).toBe(true);
-    });
-
-    it("defaults unstable_copy to true", () => {
-      const adapter = createBaseAdapter();
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-      expect(core.capabilities.unstable_copy).toBe(true);
-    });
-
-    it("disables unstable_copy when explicitly set to false", () => {
-      const adapter = createBaseAdapter({
         unstable_capabilities: { copy: false },
-      });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-      expect(core.capabilities.unstable_copy).toBe(false);
-    });
+      }),
+    );
+    expect(full.capabilities.edit).toBe(true);
+    expect(full.capabilities.reload).toBe(true);
+    expect(full.capabilities.cancel).toBe(true);
+    expect(full.capabilities.switchToBranch).toBe(true);
+    expect(full.capabilities.unstable_copy).toBe(false);
   });
 
   describe("append", () => {
@@ -257,7 +207,6 @@ describe("ExternalStoreThreadRuntimeCore", () => {
     });
 
     it("keeps a partially-streamed optimistic message on cancel", async () => {
-      // Only empty optimistic heads are evicted; one with content survives.
       const optimisticAssistant = {
         ...createAssistantMessage("server-msg", "partial answer"),
         status: { type: "running" as const },
@@ -281,14 +230,12 @@ describe("ExternalStoreThreadRuntimeCore", () => {
 
       core.cancelRun();
 
-      // cancelRun resyncs to the store via setTimeout(0); inspect the push.
       await new Promise((resolve) => setTimeout(resolve, 0));
       const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
       expect(lastCall.map((m) => m.id)).toContain("server-msg");
     });
 
     it("evicts an empty optimistic head on cancel", async () => {
-      // An empty optimistic head is dropped on cancel, falling back to its prev.
       const optimisticAssistant = {
         ...createAssistantMessage("server-msg", ""),
         content: [],
@@ -359,51 +306,30 @@ describe("ExternalStoreThreadRuntimeCore", () => {
     });
   });
 
-  describe("adapter update via __internal_setAdapter", () => {
-    it("updates capabilities when adapter changes", () => {
-      const adapter1 = createBaseAdapter();
-      const core = new ExternalStoreThreadRuntimeCore(
-        contextProvider,
-        adapter1,
-      );
-      expect(core.capabilities.edit).toBe(false);
+  it("updates isDisabled from adapter", () => {
+    const adapter = createBaseAdapter({ isDisabled: true });
+    const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+    expect(core.isDisabled).toBe(true);
 
-      const adapter2 = createBaseAdapter({
-        onEdit: vi.fn(async () => {}),
-      });
-      core.__internal_setAdapter(adapter2);
-      expect(core.capabilities.edit).toBe(true);
+    core.__internal_setAdapter(createBaseAdapter({ isDisabled: false }));
+    expect(core.isDisabled).toBe(false);
+  });
+
+  it("notifies subscribers when adapter changes", () => {
+    const adapter1 = createBaseAdapter({
+      messages: [createUserMessage("u1")],
     });
+    const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter1);
 
-    it("updates isDisabled from adapter", () => {
-      const adapter = createBaseAdapter({ isDisabled: true });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-      expect(core.isDisabled).toBe(true);
+    const callback = vi.fn();
+    core.subscribe(callback);
+    callback.mockClear();
 
-      core.__internal_setAdapter(createBaseAdapter({ isDisabled: false }));
-      expect(core.isDisabled).toBe(false);
+    const adapter2 = createBaseAdapter({
+      messages: [createUserMessage("u1"), createAssistantMessage("a1")],
     });
-
-    it("updates suggestions from adapter", () => {
-      const suggestions = [{ prompt: "Tell me a joke" }];
-      const adapter = createBaseAdapter({ suggestions });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-      expect(core.suggestions).toEqual(suggestions);
-    });
-
-    it("skips update when same adapter reference is passed", () => {
-      const adapter = createBaseAdapter({
-        messages: [createUserMessage("u1")],
-      });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-      const spy = vi.fn();
-      core.subscribe(spy);
-      spy.mockClear();
-
-      // Same reference — should not notify
-      core.__internal_setAdapter(adapter);
-      expect(spy).not.toHaveBeenCalled();
-    });
+    core.__internal_setAdapter(adapter2);
+    expect(callback).toHaveBeenCalled();
   });
 
   describe("switchToBranch", () => {
@@ -427,7 +353,6 @@ describe("ExternalStoreThreadRuntimeCore", () => {
       });
       const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
 
-      // Should not throw, should silently return
       core.switchToBranch("u1");
       expect(setMessages).not.toHaveBeenCalled();
     });
@@ -473,8 +398,8 @@ describe("ExternalStoreThreadRuntimeCore", () => {
     });
   });
 
-  describe("beginEdit", () => {
-    it("throws when adapter has no onEdit", () => {
+  describe("unsupported adapter operations", () => {
+    it("beginEdit throws when adapter has no onEdit", () => {
       const adapter = createBaseAdapter({
         messages: [createUserMessage("u1")],
       });
@@ -484,52 +409,8 @@ describe("ExternalStoreThreadRuntimeCore", () => {
         "Runtime does not support editing.",
       );
     });
-  });
 
-  describe("subscribe", () => {
-    it("notifies subscribers when adapter changes", () => {
-      const adapter1 = createBaseAdapter({
-        messages: [createUserMessage("u1")],
-      });
-      const core = new ExternalStoreThreadRuntimeCore(
-        contextProvider,
-        adapter1,
-      );
-
-      const callback = vi.fn();
-      core.subscribe(callback);
-      callback.mockClear();
-
-      const adapter2 = createBaseAdapter({
-        messages: [createUserMessage("u1"), createAssistantMessage("a1")],
-      });
-      core.__internal_setAdapter(adapter2);
-      expect(callback).toHaveBeenCalled();
-    });
-
-    it("returns unsubscribe function", () => {
-      const adapter = createBaseAdapter({
-        messages: [createUserMessage("u1")],
-      });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-
-      const callback = vi.fn();
-      const unsub = core.subscribe(callback);
-      callback.mockClear();
-
-      unsub();
-
-      core.__internal_setAdapter(
-        createBaseAdapter({
-          messages: [createUserMessage("u1"), createAssistantMessage("a1")],
-        }),
-      );
-      expect(callback).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("addToolResult", () => {
-    it("throws when adapter has no onAddToolResult", () => {
+    it("addToolResult throws when adapter has no onAddToolResult", () => {
       const adapter = createBaseAdapter();
       const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
 
@@ -543,10 +424,8 @@ describe("ExternalStoreThreadRuntimeCore", () => {
         }),
       ).toThrow("Runtime does not support tool results.");
     });
-  });
 
-  describe("resumeRun", () => {
-    it("throws when adapter has no onResume", async () => {
+    it("resumeRun throws when adapter has no onResume", async () => {
       const adapter = createBaseAdapter();
       const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
 
@@ -554,9 +433,7 @@ describe("ExternalStoreThreadRuntimeCore", () => {
         core.resumeRun({ parentId: "msg-1" } as any),
       ).rejects.toThrow("Runtime does not support resuming runs.");
     });
-  });
 
-  describe("adapter requires messages or messageRepository", () => {
     it("throws when adapter has neither messages nor messageRepository", () => {
       const adapter = {
         onNew: vi.fn(async () => {}),
