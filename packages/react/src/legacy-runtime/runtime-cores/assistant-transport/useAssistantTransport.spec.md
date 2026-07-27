@@ -14,6 +14,7 @@ Command Scheduling
   - If a run is in progress: do not start another; mark that a follow-up run is pending.
   - When the current run ends: if commands were scheduled during the run, start a new run and publish them.
   - If no run is in progress: start a run immediately and flush commands to the server.
+- A follow-up run that finds an empty queue is a no-op: no request is sent and no error is surfaced.
 - Scheduling uses `queueMicrotask` to coalesce multiple synchronous enqueues into a single run start.
 
 Command Queue

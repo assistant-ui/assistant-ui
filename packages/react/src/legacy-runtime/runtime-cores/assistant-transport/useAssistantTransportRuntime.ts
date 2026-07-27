@@ -135,8 +135,7 @@ const useAssistantTransportThreadRuntime = <T>(
       resumeFlagRef.current = false;
       setIsReplaying(false);
       const commands: QueuedCommand[] = isResume ? [] : commandQueue.flush();
-      if (commands.length === 0 && !isResume)
-        throw new Error("No commands to send");
+      if (commands.length === 0 && !isResume) return;
 
       const headers = await createRequestHeaders(options.headers);
       const bodyValue =
