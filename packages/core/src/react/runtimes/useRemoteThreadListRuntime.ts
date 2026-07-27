@@ -53,12 +53,22 @@ export const useRemoteThreadListRuntime = (
 
   // threadId/initialThreadId only affect the constructor; capture once via ref
   const startThreadIdRef = useRef(options.threadId ?? options.initialThreadId);
+  const pendingControlledSwitchRef = useRef<
+    { threadId: string | undefined } | undefined
+  >(
+    options.threadId === undefined ? undefined : { threadId: options.threadId },
+  );
 
   const stableRuntimeHook = useCallback(() => {
     return runtimeHookRef.current();
   }, []);
 
   const onThreadIdChange = useEffectEvent((threadId: string | undefined) => {
+    const pendingSwitch = pendingControlledSwitchRef.current;
+    if (pendingSwitch !== undefined && pendingSwitch.threadId === threadId) {
+      pendingControlledSwitchRef.current = undefined;
+      return;
+    }
     options.onThreadIdChange?.(threadId);
   });
 
@@ -95,11 +105,20 @@ export const useRemoteThreadListRuntime = (
   useEffect(() => {
     if (options.threadId === prevThreadIdRef.current) return;
     prevThreadIdRef.current = options.threadId;
-    if (options.threadId) {
-      runtime.threads.switchToThread(options.threadId).catch(() => {});
-    } else {
-      runtime.threads.switchToNewThread().catch(() => {});
-    }
+    const pendingSwitch = { threadId: options.threadId };
+    pendingControlledSwitchRef.current = pendingSwitch;
+
+    const switchTask = options.threadId
+      ? runtime.threads.switchToThread(options.threadId)
+      : runtime.threads.switchToNewThread();
+
+    void switchTask
+      .finally(() => {
+        if (pendingControlledSwitchRef.current === pendingSwitch) {
+          pendingControlledSwitchRef.current = undefined;
+        }
+      })
+      .catch(() => {});
   }, [runtime, options.threadId]);
 
   return runtime;
