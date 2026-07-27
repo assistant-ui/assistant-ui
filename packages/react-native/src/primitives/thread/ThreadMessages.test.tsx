@@ -653,6 +653,7 @@ describe("ThreadMessages", () => {
           nativeEvent: { layout: { height: 60 } },
         });
       });
+      h.scrollToEnd.mockClear();
       await act(async () => {
         props.onContentSizeChange?.(0, 340);
       });
@@ -670,6 +671,21 @@ describe("ThreadMessages", () => {
       });
 
       expect(h.scrollToEnd).toHaveBeenCalledWith({ animated: false });
+    });
+
+    it("preserves a pending animated scroll on a pinned viewport change", async () => {
+      const props = await mountPinned();
+
+      await emit("thread.runStart");
+      h.scrollToEnd.mockClear();
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 60 } },
+        });
+      });
+
+      expect(h.scrollToEnd).toHaveBeenCalledTimes(1);
+      expect(h.scrollToEnd).toHaveBeenCalledWith({ animated: true });
     });
 
     it("ignores a layout event with an unchanged viewport height", async () => {

@@ -264,7 +264,8 @@ const useThreadMessagesFlatListAutoScroll = ({
         previousViewportHeight !== 0 &&
         viewportHeight !== previousViewportHeight
       ) {
-        scrollToBottom(false);
+        const pending = pendingScrollToBottomRef.current;
+        scrollToBottom(pending ? pending.animated : false);
       } else {
         isAtBottomRef.current = true;
       }
