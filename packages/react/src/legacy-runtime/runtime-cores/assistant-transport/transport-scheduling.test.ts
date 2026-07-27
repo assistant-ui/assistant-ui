@@ -29,6 +29,7 @@ const useTransportSchedulingHarness = (
   opts: {
     onRun?: (signal: AbortSignal) => Promise<void> | void;
     onCancel?: (commands: AssistantTransportCommand[]) => void;
+    onError?: (commands: AssistantTransportCommand[]) => void;
   } = {},
 ) => {
   const commandQueueRef = useRef<ReturnType<typeof useCommandQueue> | null>(
@@ -49,7 +50,8 @@ const useTransportSchedulingHarness = (
       opts.onCancel?.(commands);
     },
     onError: async () => {
-      // not needed for these contract tests
+      const queue = commandQueueRef.current!;
+      opts.onError?.([...queue.state.inTransit]);
     },
   });
 
@@ -119,6 +121,27 @@ describe("assistant transport scheduling contracts", () => {
       expect(result.current.runBatchesRef.current).toHaveLength(1);
     });
     expect(result.current.runBatchesRef.current[0]).toHaveLength(1);
+  });
+
+  it("onError receives the live in-transit commands at error time", async () => {
+    const seen: AssistantTransportCommand[][] = [];
+    const { result } = renderHook(() =>
+      useTransportSchedulingHarness({
+        onRun: () => {
+          throw new Error("network error");
+        },
+        onError: (commands) => seen.push(commands),
+      }),
+    );
+
+    act(() => {
+      result.current.commandQueue.enqueue(createMessageCommand("m1"));
+    });
+
+    // The flush that moved m1 into transit has not re-rendered yet when the
+    // error fires; the queue state must be read live, not from a render snapshot.
+    await waitFor(() => expect(seen).toHaveLength(1));
+    expect(seen[0]).toEqual([createMessageCommand("m1")]);
   });
 
   it("cancel returns combined in-flight and queued commands", async () => {
