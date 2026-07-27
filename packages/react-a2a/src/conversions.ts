@@ -92,9 +92,10 @@ export function contentPartsToA2AParts(
     type: string;
     text?: string | undefined;
     image?: string | undefined;
-    data?: string | undefined;
+    data?: unknown;
     mimeType?: string | undefined;
     filename?: string | undefined;
+    audio?: { data: string; format: string } | undefined;
   }>,
   fallbackMimeType?: string,
 ): A2APart[] {
@@ -120,7 +121,7 @@ export function contentPartsToA2AParts(
           };
         }
         case "file": {
-          if (!part.data) return null;
+          if (typeof part.data !== "string" || !part.data) return null;
           const declaredMimeType = part.mimeType || fallbackMimeType;
           if (httpUrlPattern.test(part.data)) {
             return {
@@ -137,11 +138,29 @@ export function contentPartsToA2AParts(
               ...(part.filename && { filename: part.filename }),
             };
           }
+          if (part.data.startsWith("data:")) {
+            return {
+              url: part.data,
+              ...(declaredMimeType && { mediaType: declaredMimeType }),
+              ...(part.filename && { filename: part.filename }),
+            };
+          }
           return {
             raw: part.data,
             ...(declaredMimeType && { mediaType: declaredMimeType }),
             ...(part.filename && { filename: part.filename }),
           };
+        }
+        case "audio": {
+          if (!part.audio) return null;
+          return {
+            raw: part.audio.data,
+            mediaType: `audio/${part.audio.format}`,
+          };
+        }
+        case "data": {
+          if (part.data === undefined) return null;
+          return { data: part.data };
         }
         default:
           return null;

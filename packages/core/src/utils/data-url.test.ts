@@ -20,8 +20,11 @@ describe("parseDataUrl", () => {
     expect(parseDataUrl("data:text/plain,hello")).toBeNull();
   });
 
-  it("returns null for data URLs with an empty payload", () => {
-    expect(parseDataUrl("data:image/png;base64,")).toBeNull();
+  it("parses a data URL with an empty payload as zero-byte data", () => {
+    expect(parseDataUrl("data:image/png;base64,")).toEqual({
+      mimeType: "image/png",
+      data: "",
+    });
   });
 
   it("returns null for plain strings", () => {

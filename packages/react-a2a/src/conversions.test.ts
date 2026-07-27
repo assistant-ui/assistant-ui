@@ -366,10 +366,71 @@ describe("contentPartsToA2AParts", () => {
     expect(result).toEqual([]);
   });
 
+  it("skips file parts with non-string data", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", data: { nested: true }, mimeType: "application/pdf" },
+    ]);
+    expect(result).toEqual([]);
+  });
+
+  it("passes non-base64 data URLs through as URLs for file parts", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", data: "data:text/plain,hello", mimeType: "text/plain" },
+    ]);
+    expect(result).toEqual([
+      { url: "data:text/plain,hello", mediaType: "text/plain" },
+    ]);
+  });
+
+  it("converts zero-byte data URLs in file parts to empty raw bytes", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", data: "data:application/pdf;base64,", mimeType: "" },
+    ]);
+    expect(result).toEqual([{ raw: "", mediaType: "application/pdf" }]);
+  });
+
+  it("converts zero-byte data URLs in image parts to empty raw bytes", () => {
+    const result = contentPartsToA2AParts([
+      { type: "image", image: "data:image/png;base64," },
+    ]);
+    expect(result).toEqual([{ raw: "", mediaType: "image/png" }]);
+  });
+
+  it("converts audio parts to raw bytes with the format MIME type", () => {
+    const result = contentPartsToA2AParts([
+      { type: "audio", audio: { data: "c291bmQ=", format: "mp3" } },
+    ]);
+    expect(result).toEqual([{ raw: "c291bmQ=", mediaType: "audio/mp3" }]);
+  });
+
+  it("skips audio parts with no payload", () => {
+    const result = contentPartsToA2AParts([{ type: "audio" }]);
+    expect(result).toEqual([]);
+  });
+
+  it("converts data parts to the a2a data field", () => {
+    const result = contentPartsToA2AParts([
+      { type: "data", data: { chart: "bar", values: [1, 2] } },
+    ]);
+    expect(result).toEqual([{ data: { chart: "bar", values: [1, 2] } }]);
+  });
+
+  it("keeps falsy but defined data part payloads", () => {
+    const result = contentPartsToA2AParts([
+      { type: "data", data: null },
+      { type: "data", data: 0 },
+    ]);
+    expect(result).toEqual([{ data: null }, { data: 0 }]);
+  });
+
+  it("skips data parts with an undefined payload", () => {
+    const result = contentPartsToA2AParts([{ type: "data" }]);
+    expect(result).toEqual([]);
+  });
+
   it("skips unknown part types", () => {
     const result = contentPartsToA2AParts([
       { type: "text", text: "hi" },
-      { type: "audio" },
       { type: "video" },
     ]);
     expect(result).toEqual([{ text: "hi" }]);
