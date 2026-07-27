@@ -145,14 +145,18 @@ const useAssistantTransportThreadRuntime = <T>(
           : options.body;
       const context = runtime.thread.getModelContext();
 
+      // Each run consumes the parentId once; unrelated later runs omit it.
+      const parentId = parentIdRef.current;
+      parentIdRef.current = undefined;
+
       let requestBody: Record<string, unknown> = {
         commands,
         state: agentStateRef.current,
         system: context.system,
         tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
         threadId,
-        ...(parentIdRef.current !== undefined && {
-          parentId: parentIdRef.current,
+        ...(parentId !== undefined && {
+          parentId,
         }),
         // nested (new format, aligned with AssistantChatTransport)
         callSettings: context.callSettings,
