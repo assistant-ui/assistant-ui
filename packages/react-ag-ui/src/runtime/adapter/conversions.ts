@@ -214,7 +214,10 @@ function toInputContent(
     const format = getString(audio, "format");
     return {
       type: "audio",
-      source: buildInputSource(data, format ? `audio/${format}` : undefined),
+      source: buildInputSource(
+        data,
+        format ? `audio/${format}` : fallbackMimeType,
+      ),
     };
   }
 
