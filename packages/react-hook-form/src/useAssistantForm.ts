@@ -107,6 +107,7 @@ export const useAssistantForm = <
               };
             }
             const { _names, _fields } = control;
+            let hasElementReference = false;
             for (const name of _names.mount) {
               const field: Field | undefined = get(_fields, name);
               if (field?._f) {
@@ -115,12 +116,31 @@ export const useAssistantForm = <
                   : field._f.ref;
 
                 if (fieldReference instanceof HTMLElement) {
+                  hasElementReference = true;
                   const form = fieldReference.closest("form");
                   if (form) {
                     form.requestSubmit();
 
                     return { success: true };
                   }
+                }
+              }
+            }
+
+            if (!hasElementReference) {
+              const forms = new Set<HTMLFormElement>();
+              for (const name of _names.mount) {
+                for (const element of document.getElementsByName(name)) {
+                  const form = element.closest("form");
+                  if (form) forms.add(form);
+                }
+              }
+
+              if (forms.size === 1) {
+                const [form] = forms;
+                if (form) {
+                  form.requestSubmit();
+                  return { success: true };
                 }
               }
             }
