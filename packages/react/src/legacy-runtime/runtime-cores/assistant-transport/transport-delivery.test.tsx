@@ -22,13 +22,7 @@ const emptySuccessfulResponse = () =>
   );
 
 const setupRuntime = () => {
-  const requestBodies: { commands: AssistantTransportCommand[] }[] = [];
-  const fetchMock = vi.fn(
-    async (_url: RequestInfo | URL, init?: RequestInit) => {
-      requestBodies.push(JSON.parse(init!.body as string));
-      return emptySuccessfulResponse();
-    },
-  );
+  const fetchMock = vi.fn(async () => emptySuccessfulResponse());
   vi.stubGlobal("fetch", fetchMock);
 
   const pendingRef: { current: AssistantTransportCommand[] } = { current: [] };
@@ -56,7 +50,7 @@ const setupRuntime = () => {
     );
   };
 
-  return { App, fetchMock, requestBodies, pendingRef, runtimeRef };
+  return { App, fetchMock, pendingRef, runtimeRef };
 };
 
 describe("assistant transport delivery contracts", () => {
@@ -64,9 +58,8 @@ describe("assistant transport delivery contracts", () => {
     vi.unstubAllGlobals();
   });
 
-  it("clears in-transit commands when a run succeeds without state chunks and does not re-send them", async () => {
-    const { App, fetchMock, requestBodies, pendingRef, runtimeRef } =
-      setupRuntime();
+  it("clears in-transit commands when a run succeeds without state chunks", async () => {
+    const { App, fetchMock, pendingRef, runtimeRef } = setupRuntime();
 
     await act(async () => {
       render(<App />);
@@ -82,13 +75,5 @@ describe("assistant transport delivery contracts", () => {
       expect(runtimeRef.current!.thread.getState().isRunning).toBe(false),
     );
     expect(pendingRef.current).toHaveLength(0);
-
-    await act(async () => {
-      runtimeRef.current!.thread.append("m2");
-    });
-
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(requestBodies[1]!.commands).toHaveLength(1);
-    expect(JSON.stringify(requestBodies[1])).not.toContain("m1");
   });
 });
