@@ -232,6 +232,11 @@ const useAssistantTransportThreadRuntime = <T>(
       if (err) {
         throw new Error(err);
       }
+
+      // A successful run confirms delivery even if no state chunk arrived.
+      if (!markedDelivered) {
+        commandQueue.markDelivered();
+      }
     },
     onFinish: options.onFinish,
     onCancel: () => {
