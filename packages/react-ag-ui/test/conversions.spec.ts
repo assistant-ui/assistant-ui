@@ -1315,6 +1315,79 @@ describe("adapter conversions", () => {
     expect(result[0]).toMatchObject({ role: "user", content: "see file" });
     expect(result[0]).not.toHaveProperty("attachments");
   });
+
+  it("forwards a native audio part as an AG-UI audio source", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "listen" },
+          { type: "audio", audio: { data: "c291bmQ=", format: "mp3" } },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "listen" },
+        {
+          type: "audio",
+          source: { type: "data", value: "c291bmQ=", mimeType: "audio/mp3" },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("forwards a native audio part lifted into an attachment", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        attachments: [
+          {
+            id: "a-1",
+            type: "file",
+            name: "memo",
+            content: [
+              { type: "audio", audio: { data: "QUJD", format: "wav" } },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "hi" },
+        {
+          type: "audio",
+          source: { type: "data", value: "QUJD", mimeType: "audio/wav" },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("drops data parts (no AG-UI wire slot) without throwing", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "hi" },
+          { type: "data", name: "chart", data: { x: 1 } },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({ role: "user", content: "hi" });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
 });
 
 describe("package exports", () => {

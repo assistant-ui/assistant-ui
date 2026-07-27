@@ -41,7 +41,7 @@ export const getMessageContent = (msg: AppendMessage) => {
     ...msg.content,
     ...(msg.attachments?.flatMap((a) => a.content) ?? []),
   ];
-  const content = allContent.map((part) => {
+  const content = allContent.flatMap((part) => {
     const type = part.type;
     switch (type) {
       case "text":
@@ -55,17 +55,20 @@ export const getMessageContent = (msg: AppendMessage) => {
           data: part.data,
           ...(part.filename != null && { filename: part.filename }),
         };
+      case "audio":
+        return {
+          type: "file" as const,
+          mimeType: `audio/${part.audio.format}`,
+          data: part.audio.data,
+          filename: `audio.${part.audio.format}`,
+        };
 
       case "tool-call":
         throw new Error("Tool call appends are not supported.");
-
+      case "data":
+        return [];
       default: {
-        const _exhaustiveCheck:
-          | "reasoning"
-          | "source"
-          | "audio"
-          | "data"
-          | "generative-ui" = type;
+        const _exhaustiveCheck: "reasoning" | "source" | "generative-ui" = type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,
         );

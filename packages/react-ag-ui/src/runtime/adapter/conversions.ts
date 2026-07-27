@@ -206,6 +206,18 @@ function toInputContent(
     }
   }
 
+  if (type === "audio") {
+    const audio = part.audio;
+    if (!isObject(audio)) return null;
+    const data = getString(audio, "data");
+    if (data === undefined) return null;
+    const format = getString(audio, "format");
+    return {
+      type: "audio",
+      source: buildInputSource(data, format ? `audio/${format}` : undefined),
+    };
+  }
+
   return null;
 }
 

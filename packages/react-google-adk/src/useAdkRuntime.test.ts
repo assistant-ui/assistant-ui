@@ -208,4 +208,40 @@ describe("getMessageContent", () => {
       { type: "file", mimeType: "application/pdf", data: "AAAA" },
     ]);
   });
+
+  it("forwards an audio part as a file block with an audio MIME type", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        { type: "text", text: "listen" },
+        { type: "audio", audio: { data: "c291bmQ=", format: "mp3" } },
+      ]),
+    );
+    expect(result).toEqual([
+      { type: "text", text: "listen" },
+      {
+        type: "file",
+        mimeType: "audio/mp3",
+        data: "c291bmQ=",
+        filename: "audio.mp3",
+      },
+    ]);
+  });
+
+  it("skips data parts instead of throwing", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        { type: "text", text: "hi" },
+        { type: "data", name: "chart", data: { x: 1 } },
+      ]),
+    );
+    expect(result).toBe("hi");
+  });
+
+  it("still throws on assistant-only parts that have no ADK wire slot", () => {
+    expect(() =>
+      getMessageContent(
+        makeAppendMessage([{ type: "reasoning", text: "hmm" }]),
+      ),
+    ).toThrow("Unsupported append message part type: reasoning");
+  });
 });
