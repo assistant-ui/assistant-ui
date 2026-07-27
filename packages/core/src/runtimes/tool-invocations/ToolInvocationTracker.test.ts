@@ -154,11 +154,11 @@ describe("ToolInvocationTracker", () => {
 
   it("does not auto-submit a parse-error result when divergent argsText closes without a backend result", async () => {
     // A human-in-the-loop tool whose argsText diverges mid-stream and never
-    // re-converges, with no backend result at close time. The args stream
-    // must not close on the divergent
-    // snapshot (which holds a stale prefix the execution path would parse),
-    // so no bogus parse-error result is auto-submitted to resume the host
-    // graph and abandon the pending interrupt.
+    // re-converges, with no backend result at close time. The args stream must
+    // not close on the divergent snapshot (which holds a stale prefix the
+    // execution path would parse), so no bogus parse-error result is
+    // auto-submitted to resume the host graph and abandon the pending
+    // interrupt.
     const execute = vi.fn(async () => ({ forecast: "ok" }));
     const streamCall = vi.fn((_reader, { human }) => {
       // Request human input immediately — sets up the pending interrupt.
