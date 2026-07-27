@@ -110,6 +110,18 @@ describe("MessageRepository", () => {
       }).toThrow(/Parent message not found/);
     });
 
+    it("should throw when a message would be linked under an ancestor with the same id", () => {
+      const message = createTestMessage({ id: "message-id" });
+      repository.addOrUpdateMessage(null, message);
+
+      expect(() => {
+        repository.addOrUpdateMessage(
+          "message-id",
+          createTestMessage({ id: "message-id" }),
+        );
+      }).toThrow(/same id already exists in the parent tree/);
+    });
+
     it("should retrieve all messages in the current branch", () => {
       const parent = createTestMessage({ id: "parent-id" });
       const child = createTestMessage({ id: "child-id" });
