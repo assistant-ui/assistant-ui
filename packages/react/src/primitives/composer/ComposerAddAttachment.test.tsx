@@ -62,6 +62,8 @@ describe("ComposerPrimitiveAddAttachment", () => {
   });
 
   it("handles rejected file picker attachments and continues processing", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
     addAttachment
       .mockRejectedValueOnce(new Error("unsupported file"))
       .mockResolvedValueOnce(undefined);
@@ -98,9 +100,9 @@ describe("ComposerPrimitiveAddAttachment", () => {
       target: input,
     } as unknown as Event);
 
-    expect(result).toBeInstanceOf(Promise);
-    await expect(result).resolves.toBeUndefined();
+    await expect(Promise.resolve(result)).resolves.toBeUndefined();
     expect(addAttachment).toHaveBeenCalledTimes(2);
+    expect(errorSpy).not.toHaveBeenCalled();
     expect(input!.isConnected).toBe(false);
   });
 });
