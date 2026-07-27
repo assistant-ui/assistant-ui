@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLatestRef } from "./useLatestRef";
 
 export type RunManager = Readonly<{
@@ -16,6 +16,7 @@ export function useRunManager(config: {
   const [isRunning, setIsRunning] = useState(false);
   const stateRef = useRef({
     pending: false,
+    disposed: false,
     abortController: null as AbortController | null,
   });
   const onRunRef = useLatestRef(config.onRun);
@@ -34,18 +35,24 @@ export function useRunManager(config: {
         await onRunRef.current(ac.signal);
       } catch (error) {
         stateRef.current.pending = false;
-        if (ac.signal.aborted) {
+        if (stateRef.current.disposed) {
+          // unmount aborted the run; no callbacks
+        } else if (ac.signal.aborted) {
           onCancelRef.current?.();
         } else {
           await onErrorRef.current?.(error as Error);
         }
       } finally {
-        onFinishRef.current?.();
-        if (stateRef.current.pending) {
-          startRun();
-        } else {
-          setIsRunning(false);
+        if (stateRef.current.disposed) {
           stateRef.current.abortController = null;
+        } else {
+          onFinishRef.current?.();
+          if (stateRef.current.pending) {
+            startRun();
+          } else {
+            setIsRunning(false);
+            stateRef.current.abortController = null;
+          }
         }
       }
     });
@@ -59,6 +66,17 @@ export function useRunManager(config: {
     }
     startRun();
   }, [startRun]);
+
+  // Strict-mode effects run setup / cleanup / setup on the same instance;
+  // arming on setup undoes the cleanup's dispose.
+  useEffect(() => {
+    stateRef.current.disposed = false;
+    return () => {
+      stateRef.current.disposed = true;
+      stateRef.current.pending = false;
+      stateRef.current.abortController?.abort();
+    };
+  }, []);
 
   const cancel = useCallback(() => {
     stateRef.current.pending = false;

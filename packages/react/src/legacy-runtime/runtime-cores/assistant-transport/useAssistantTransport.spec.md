@@ -65,6 +65,7 @@ setInTransitCommands(commands);
 
 - `schedule()`: Starts immediately if idle, or schedules at most one follow-up run to start right after the current run.
 - `cancel()`: Aborts the active run via `signal` and clears any scheduled follow-up run. Does not restore commands.
+- Unmount aborts the active run via `signal`; no callbacks (`onCancel`, `onError`, `onFinish`) are invoked. StrictMode's setup/cleanup/setup effect cycle re-arms the manager.
 - `isRunning: boolean`: Indicates whether a run is currently active (internal to scheduling).
   UI-facing `isRunning` is controlled by the converter output (see Converter).
 - On cancellation, invoke `callbacks.onCancel?.({ commands, updateState })` where `commands` contains all pending work at the time of cancel: `[...inTransitCommands, ...queuedCommands]`. Note: after the first snapshot arrives, `inTransitCommands` are cleared to `[]`, so cancels after first byte will not include them.
