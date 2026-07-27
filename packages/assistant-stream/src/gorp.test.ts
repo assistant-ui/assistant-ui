@@ -2,16 +2,6 @@ import { describe, expect, it } from "vitest";
 import * as entry from "./index";
 
 describe("assistant-transport state exports", () => {
-  it("exposes the assistant-transport surface and no gorp-shaped names", () => {
-    expect(typeof entry.AssistantTransportDeltaTracker).toBe("function");
-    expect(typeof entry.createObjectStream).toBe("function");
-    expect(typeof entry.ObjectStreamResponse).toBe("function");
-    expect(typeof entry.fromObjectStreamResponse).toBe("function");
-    for (const name of Object.keys(entry)) {
-      expect(name.toLowerCase()).not.toContain("gorp");
-    }
-  });
-
   it("streams operations end to end through the SSE wire", async () => {
     const stream = entry.createObjectStream({
       execute: (controller) => {

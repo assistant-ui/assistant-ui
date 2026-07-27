@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook, act } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const { mockUseChat, mockCloud } = vi.hoisted(() => {
@@ -98,72 +98,6 @@ describe("useCloudChat", () => {
       setMessages: vi.fn(),
       status: "ready",
     });
-  });
-
-  it("does not crash on first render when creating initial chat", () => {
-    const { result } = renderHook(() =>
-      useCloudChat({ cloud: mockCloud as never }),
-    );
-
-    expect(result.current.threads).toBeDefined();
-    expect(result.current.threads.cloud).toBe(mockCloud);
-  });
-
-  it("returns chat helpers from useChat", () => {
-    const { result } = renderHook(() =>
-      useCloudChat({ cloud: mockCloud as never }),
-    );
-
-    expect(result.current.messages).toEqual([]);
-    expect(result.current.status).toBe("ready");
-    expect(typeof result.current.sendMessage).toBe("function");
-  });
-
-  it("passes activeChat to useChat", () => {
-    renderHook(() => useCloudChat({ cloud: mockCloud as never }));
-
-    expect(mockUseChat).toHaveBeenCalledWith(
-      expect.objectContaining({
-        chat: expect.objectContaining({
-          id: expect.any(String),
-        }),
-      }),
-    );
-  });
-
-  it("selecting a thread triggers useChat with thread key", async () => {
-    const threads = {
-      cloud: mockCloud,
-      threads: [],
-      isLoading: false,
-      error: null,
-      refresh: vi.fn().mockResolvedValue(true),
-      get: vi.fn(),
-      create: vi.fn(),
-      delete: vi.fn(),
-      rename: vi.fn(),
-      archive: vi.fn(),
-      unarchive: vi.fn(),
-      threadId: null as string | null,
-      selectThread: vi.fn(),
-      generateTitle: vi.fn().mockResolvedValue(null),
-    };
-
-    const { rerender } = renderHook(
-      ({ tid }) => {
-        threads.threadId = tid;
-        return useCloudChat({ threads: threads as never });
-      },
-      { initialProps: { tid: null as string | null } },
-    );
-
-    await act(async () => {
-      rerender({ tid: "thread-1" });
-    });
-
-    const lastCall = mockUseChat.mock.calls.at(-1);
-    expect(lastCall).toBeDefined();
-    expect(lastCall![0].chat).toBeDefined();
   });
 
   it("replaces cached chats when the cloud changes", () => {

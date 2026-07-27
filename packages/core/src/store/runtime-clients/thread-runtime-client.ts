@@ -113,6 +113,7 @@ const useThreadClient = ({
     deleteMessage: runtime.deleteMessage,
     startRun: runtime.startRun,
     resumeRun: runtime.resumeRun,
+    importExternalState: runtime.importExternalState,
     cancelRun: runtime.cancelRun,
     getModelContext: runtime.getModelContext,
     export: runtime.export,

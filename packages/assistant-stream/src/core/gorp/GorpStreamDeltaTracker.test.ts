@@ -59,6 +59,36 @@ describe("GorpStreamDeltaTracker isChangedAt", () => {
     expect(tracker.isChangedAt(["c"])).toBe(false);
   });
 
+  it("collapses a subtree to fully-changed when an ancestor is set in the same frame", () => {
+    const tracker = new GorpStreamDeltaTracker({ a: { b: 1, c: 2 } });
+    tracker.append([
+      { type: "set", path: ["a", "b"], value: 10 },
+      { type: "set", path: ["a"], value: { d: 3 } },
+    ]);
+    expect(tracker.isChangedAt(["a", "anything", "deep"])).toBe(true);
+    expect(tracker.getChangedKeys(["a"])).toEqual(["d", "c", "b"]);
+  });
+
+  it("keeps a subtree fully-changed when a descendant is set after its ancestor in the same frame", () => {
+    const tracker = new GorpStreamDeltaTracker({ a: { b: 1, c: 2 } });
+    tracker.append([
+      { type: "set", path: ["a"], value: { d: 3 } },
+      { type: "set", path: ["a", "d"], value: 4 },
+    ]);
+    expect(tracker.isChangedAt(["a", "anything", "deep"])).toBe(true);
+    expect(tracker.getChangedKeys(["a"])).toEqual(["d", "c", "b"]);
+  });
+
+  it("reports a leaf set twice in one frame as changed once", () => {
+    const tracker = new GorpStreamDeltaTracker({ a: { b: 1 } });
+    tracker.append([
+      { type: "set", path: ["a", "b"], value: 2 },
+      { type: "set", path: ["a", "b"], value: 3 },
+    ]);
+    expect(tracker.getChangedKeys(["a"])).toEqual(["b"]);
+    expect((tracker.state as ReadonlyJSONObject).a).toEqual({ b: 3 });
+  });
+
   it("marks append-text targets as changed", () => {
     const tracker = new GorpStreamDeltaTracker({ message: "Hello" });
     tracker.append([{ type: "append-text", path: ["message"], value: "!" }]);

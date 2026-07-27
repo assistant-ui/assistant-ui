@@ -69,7 +69,7 @@ const renderToolCallMessage = (renderPart: () => ReactNode) => {
   );
 };
 
-describe("part hooks tolerate a transient part-type mismatch (#5118)", () => {
+describe("part hooks tolerate a transient part-type mismatch", () => {
   it("MessagePartPrimitive.Text renders empty when the part is a tool-call", async () => {
     renderToolCallMessage(() => (
       <MessagePartPrimitive.Text data-testid="text" />
@@ -121,7 +121,7 @@ describe("part hooks tolerate a transient part-type mismatch (#5118)", () => {
     expect(file.textContent).toBe("");
   });
 
-  it("a real text part still renders its text (no regression in the happy path)", async () => {
+  it("a real text part still renders its text", async () => {
     const textMessage: ThreadMessageLike[] = [
       {
         role: "assistant",

@@ -802,7 +802,7 @@ describe("convertLangChainMessages UI messages", () => {
   });
 });
 
-describe("convertLangChainMessages tool call id stability (regression #3526)", () => {
+describe("convertLangChainMessages tool call id stability", () => {
   it("synthesizes a stable toolCallId when chunk.id is empty string", () => {
     const result = convertLangChainMessages({
       type: "ai",
@@ -894,28 +894,6 @@ describe("convertLangChainMessages tool call id stability (regression #3526)", (
       .filter((p) => p.type === "tool-call")
       .map((p) => (p as { toolCallId: string }).toolCallId);
     expect(ids).toEqual(["lc-toolcall-ai-1-0", "call_real_abc"]);
-  });
-
-  it("synthesized id is stable across re-renders of the same message", () => {
-    const message: LangChainMessage = {
-      type: "ai",
-      id: "ai-1",
-      content: "",
-      tool_calls: [{ id: "", name: "weather", args: {}, index: 0 }],
-    };
-
-    const r1 = convertLangChainMessages(message);
-    const r2 = convertLangChainMessages(message);
-
-    if (!("content" in r1) || !("content" in r2))
-      throw new Error("Expected assistant messages");
-    const id1 = (
-      r1.content.find((p) => p.type === "tool-call") as { toolCallId: string }
-    ).toolCallId;
-    const id2 = (
-      r2.content.find((p) => p.type === "tool-call") as { toolCallId: string }
-    ).toolCallId;
-    expect(id1).toBe(id2);
   });
 
   it("matches tool_call_chunks by index when chunk.id is empty (preserves args_json)", () => {

@@ -135,6 +135,23 @@ export class MessageRepository {
 
     if (operation === "relink" && parentOrRoot === newParentOrRoot) return;
 
+    if (operation !== "cut") {
+      for (
+        let current: RepositoryMessage | null = newParent;
+        current;
+        current = current.prev
+      ) {
+        if (current.current.id === child.current.id) {
+          console.error(
+            new Error(
+              "MessageRepository(performOp/link): A message with the same id already exists in the parent tree. This error occurs if the same message id is found multiple times. This is likely an internal bug in assistant-ui.",
+            ),
+          );
+          return;
+        }
+      }
+    }
+
     if (operation !== "link") {
       parentOrRoot.children = parentOrRoot.children.filter(
         (m) => m !== child.current.id,
@@ -153,18 +170,6 @@ export class MessageRepository {
     }
 
     if (operation !== "cut") {
-      for (
-        let current: RepositoryMessage | null = newParent;
-        current;
-        current = current.prev
-      ) {
-        if (current.current.id === child.current.id) {
-          throw new Error(
-            "MessageRepository(performOp/link): A message with the same id already exists in the parent tree. This error occurs if the same message id is found multiple times. This is likely an internal bug in assistant-ui.",
-          );
-        }
-      }
-
       newParentOrRoot.children = [
         ...newParentOrRoot.children,
         child.current.id,

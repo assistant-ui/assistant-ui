@@ -97,6 +97,10 @@ Default to zero code comments. Delete any comment that restates the code, record
 
 Tests are vitest, colocated beside the module under test and importing it by relative path (never by package name). Cover the converter both ways, the reducer or controller, and each accessor hook in its own `.test.tsx`. Mock with `vi.hoisted` and always spread `...await importOriginal()`; do not use `toMatchSnapshot`.
 
+Repro tests are temporary: marked "repro", written to prove completion of a task, deleted when the work is done, anything worth keeping folded into the real suite.
+
+Contract tests document how complex machinery behaves at its public seams. They stay, and they read as the contract.
+
 ## Do's and don'ts
 
 Do:

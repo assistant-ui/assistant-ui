@@ -24,6 +24,16 @@ interface ScopeRegistry {
     unstable_interactables: Unstable_InteractablesClientSchema;
 }
 
+type AddToolResultCommand = {
+  readonly type: "add-tool-result";
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly result: ReadonlyJSONValue;
+  readonly isError: boolean;
+  readonly artifact?: ReadonlyJSONValue;
+  readonly modelContent?: readonly ToolModelContentPart[];
+};
+
 type AddToolResultOptions = {
   messageId: string;
   toolName: string;
@@ -4536,6 +4546,7 @@ type ThreadMethods = {
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
+  importExternalState?(state: unknown): void;
   message(selector: {
     id: string;
   } | {
@@ -5104,6 +5115,59 @@ type ToolExecutionStatus = {
   };
 };
 
+declare class ToolInvocationTracker {
+  private readonly _getTools;
+  private readonly _callbacks;
+  private readonly _entries;
+  private readonly _skipExecuteStreamIds;
+  private readonly _humanInput;
+  private readonly _executing;
+  private readonly _settledResolvers;
+  private _statuses;
+  private _ac;
+  private _pendingRestore;
+  private _lastSnapshot;
+  private _isRunning;
+  private _controller;
+  private _pipelineDead;
+  private _pipelineRestartUsed;
+  constructor(getTools: () => Record<string, Tool> | undefined, callbacks: ToolInvocationTracker.Callbacks);
+  private _initPipeline;
+  setState(snapshot: ToolInvocationTracker.Snapshot): void;
+  reset(): void;
+  abort(): Promise<void>;
+  resume(toolCallId: string, payload: unknown): boolean;
+  getStatuses(): ReadonlyMap<string, ToolExecutionStatus>;
+  private _getWrappedTools;
+  private _onHumanInput;
+  private _onExecutionStart;
+  private _onExecutionEnd;
+  private _handleResultChunk;
+  private _invokeOnResult;
+  private _invokeOnStatusesChange;
+  private _setStatus;
+  private _deleteStatus;
+  private _hasExecutableTool;
+  private _shouldCloseArgsStream;
+  private _startActiveEntry;
+  private _demoteEntriesToRestored;
+  private _processArgsText;
+  private _processMessages;
+}
+
+declare namespace ToolInvocationTracker {
+  type ExecutionStatus = ToolExecutionStatus;
+  type Snapshot = {
+    readonly messages: readonly ThreadMessage[];
+    readonly isRunning: boolean;
+    readonly isLoading?: boolean;
+  };
+  type Callbacks = {
+    onResult: (command: AddToolResultCommand) => void;
+    onStatusesChange: (statuses: ReadonlyMap<string, ToolExecutionStatus>) => void;
+  };
+}
+
 type ToolModelContentPart = {
   readonly type: "text";
   readonly text: string;
@@ -5602,7 +5666,7 @@ declare namespace entry_store_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, RuntimeExtras, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, consumeSuggestionResult, createRuntimeExtras, createThreadMappingId, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isRecord, parseDataUrl, resolveToolApprovalResponse, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, trackToolArgsKeyOrder, updateStatusReducer };
+  export { AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, RuntimeExtras, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolInvocationTracker, consumeSuggestionResult, createRuntimeExtras, createThreadMappingId, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isRecord, parseDataUrl, resolveToolApprovalResponse, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, trackToolArgsKeyOrder, updateStatusReducer };
 }
 
 declare namespace entry_store_internal_exports {

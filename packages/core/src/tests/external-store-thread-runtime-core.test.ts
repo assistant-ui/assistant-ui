@@ -343,7 +343,7 @@ describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", (
     );
 
     // Simulates onEdit/onReload producing a new branch under the same parent;
-    // the prior branch must survive (regression guard for #4131).
+    // the prior branch must survive.
     runtime.__internal_setAdapter(
       makeStore({
         messages: [u, { id: "a2", role: "assistant", text: "second" }],

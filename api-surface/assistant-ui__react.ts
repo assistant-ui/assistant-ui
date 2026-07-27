@@ -2140,12 +2140,20 @@ type ExternalThreadMessage = ThreadMessage & {
 type ExternalThreadProps = {
   messages: readonly ExternalThreadMessage[];
   isRunning?: boolean;
+  isLoading?: boolean | undefined;
+  state?: ReadonlyJSONValue | undefined;
+  extras?: unknown;
   isSendDisabled?: boolean;
   onNew?: (message: AppendMessage) => void;
   onEdit?: (message: AppendMessage) => void;
   onReload?: (parentId: string | null) => void;
   onStartRun?: () => void;
   onCancel?: () => void;
+  onResume?: (() => void) | undefined;
+  onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
+  onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
+  onLoadExternalState?: ((state: unknown) => void) | undefined;
+  attachmentAdapter?: AttachmentAdapter | undefined;
   queue?: ExternalThreadQueueAdapter;
   branches?: ExternalThreadBranchAdapter;
   onRespondToToolApproval?: (options: RespondToToolApprovalOptions) => void;

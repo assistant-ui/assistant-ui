@@ -56,7 +56,10 @@ export const useCommandQueue = (opts: { onQueue: () => void }) => {
   }, []);
 
   return {
-    state: queueStateRef.current,
+    // live getter — callbacks firing between renders must not see a stale snapshot
+    get state() {
+      return queueStateRef.current;
+    },
     enqueue,
     flush,
     markDelivered,

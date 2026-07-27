@@ -50,12 +50,18 @@ export function useClientLookup<TMethods extends ClientMethods>(
     state,
     get: (lookup: { index: number } | { key: string }) => {
       if ("index" in lookup) {
-        if (lookup.index < 0 || lookup.index >= keys.length) {
+        if (lookup.index < 0 || keys.length === 0) {
           throw new Error(
             `useClientLookup: Index ${lookup.index} out of bounds (length: ${keys.length})`,
           );
         }
-        return resources[lookup.index]!.methods;
+        const clampedIndex = Math.min(lookup.index, keys.length - 1);
+        if (clampedIndex !== lookup.index) {
+          console.warn(
+            `useClientLookup: Clamped stale index ${lookup.index} to ${clampedIndex} (length: ${keys.length})`,
+          );
+        }
+        return resources[clampedIndex]!.methods;
       }
 
       const index = keyToIndex[lookup.key];

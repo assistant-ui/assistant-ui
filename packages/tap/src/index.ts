@@ -1,5 +1,4 @@
 export { resource } from "./core/resource";
-export { configurableResource } from "./core/configurableResource";
 export { withKey } from "./core/withKey";
 
 // imperative
