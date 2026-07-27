@@ -6,6 +6,7 @@ import { type ToolCallMessagePartComponent } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
 import { useEffect } from "react";
 import {
+  type Field,
   type FieldValues,
   type Path,
   type PathValue,
@@ -107,7 +108,7 @@ export const useAssistantForm = <
             }
             const { _names, _fields } = control;
             for (const name of _names.mount) {
-              const field = get(_fields, name);
+              const field: Field | undefined = get(_fields, name);
               if (field?._f) {
                 const fieldReference = Array.isArray(field._f.refs)
                   ? field._f.refs[0]
