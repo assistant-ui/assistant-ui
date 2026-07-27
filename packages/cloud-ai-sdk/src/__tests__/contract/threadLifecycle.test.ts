@@ -119,7 +119,7 @@ describe("Contract: Thread lifecycle", () => {
 
     const meta = {
       threadId: "thread-1",
-      loading: null,
+      loading: Promise.resolve() as Promise<void> | null,
       loaded: false,
     };
     const registry = {
