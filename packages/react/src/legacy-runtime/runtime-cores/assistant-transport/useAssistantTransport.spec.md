@@ -15,13 +15,13 @@ Command Scheduling
   - When the current run ends: if commands were scheduled during the run, start a new run and publish them.
   - If no run is in progress: start a run immediately and flush commands to the server.
 - A follow-up run that finds an empty queue is a no-op: no request is sent and no error is surfaced.
-- Scheduling uses `queueMicrotask` to coalesce multiple synchronous enqueues into a single run start.
+- Runs execute on a `queueMicrotask`, so multiple synchronous enqueues coalesce into a single request: the first run's flush takes all of them, and the coalesced follow-up run no-ops.
 
 Command Queue
 
 `useCommandQueue({ onQueue() { runManager.schedule(); } })`
 
-- `enqueue(cmd)`: Adds a command to the queue. Calls `onQueue` when transitioning from empty → non-empty (coalesced via `queueMicrotask`).
+- `enqueue(cmd, { schedule? })`: Adds a command to the queue. Calls `onQueue` unless `schedule: false`.
 - `flush(): Command[]`: Returns all queued commands, moves them into `inTransit`, and clears the queue.
 - Internal state tracks `inTransit: Command[]` and `queued: Command[]`.
 

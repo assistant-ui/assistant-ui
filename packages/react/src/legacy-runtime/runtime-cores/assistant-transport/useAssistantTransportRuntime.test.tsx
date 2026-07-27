@@ -142,7 +142,7 @@ describe("useAssistantTransportRuntime", () => {
     await waitFor(() =>
       expect(aui().thread().getState().isRunning).toBe(false),
     );
-    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    await act(async () => {});
     expect(onError).not.toHaveBeenCalled();
     expect(fetchMock.requests).toHaveLength(1);
   });
