@@ -75,6 +75,7 @@ const BASE_EXTRA_SOURCE_FILES = [
   "packages/ui/src/components/ui/base/sheet.tsx",
   "packages/ui/src/components/ui/base/skeleton.tsx",
   "packages/ui/src/components/ui/base/tooltip.tsx",
+  "apps/docs/components/examples/clone-thread-shell.tsx",
 ] as const;
 
 const CLONE_SIDEBAR_SOURCE_FILES = [
@@ -84,6 +85,7 @@ const CLONE_SIDEBAR_SOURCE_FILES = [
   "packages/ui/src/components/ui/base/input.tsx",
   "packages/ui/src/components/ui/base/sheet.tsx",
   "packages/ui/src/components/ui/base/skeleton.tsx",
+  "packages/ui/src/components/ui/base/tooltip.tsx",
 ] as const;
 
 export const DEMO_DOWNLOAD_MANIFESTS: Record<

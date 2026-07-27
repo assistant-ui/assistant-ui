@@ -15,6 +15,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useAuiState } from "@assistant-ui/react";
 import { MenuIcon, PanelLeftIcon } from "lucide-react";
@@ -23,16 +29,47 @@ import { useState, type FC, type MouseEvent, type ReactNode } from "react";
 type CloneThreadShellProps = {
   children: ReactNode;
   railClassName?: string | undefined;
+  collapsed?: boolean | undefined;
+  onCollapsedChange?: ((value: boolean) => void) | undefined;
+  mobileSidebarOpen?: boolean | undefined;
+  onMobileSidebarOpenChange?: ((value: boolean) => void) | undefined;
+  headerContent?: ReactNode | undefined;
+  sheetTitle?: ReactNode | undefined;
+  showSearch?: boolean | undefined;
+  wrapNewThreadTooltip?: boolean | undefined;
 };
 
 export const CloneThreadShell: FC<CloneThreadShellProps> = ({
   children,
   railClassName,
+  collapsed,
+  onCollapsedChange,
+  mobileSidebarOpen,
+  onMobileSidebarOpenChange,
+  headerContent,
+  sheetTitle,
+  showSearch = true,
+  wrapNewThreadTooltip = false,
 }) => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(true);
+  const [internalMobileOpen, setInternalMobileOpen] = useState(false);
   const [search, setSearch] = useState("");
   const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
+
+  // When a state pair is controlled, the caller renders the chrome that drives
+  // it (a top-bar toggle / mobile menu button), so the shell omits its own.
+  const collapsedControlled =
+    collapsed !== undefined && onCollapsedChange !== undefined;
+  const mobileControlled =
+    mobileSidebarOpen !== undefined && onMobileSidebarOpenChange !== undefined;
+
+  const sidebarCollapsed = collapsed ?? internalCollapsed;
+  const mobileOpen = mobileSidebarOpen ?? internalMobileOpen;
+
+  const setMobileOpen = (open: boolean) => {
+    if (onMobileSidebarOpenChange) onMobileSidebarOpenChange(open);
+    else setInternalMobileOpen(open);
+  };
 
   const closeMobileSidebarAfterNavigation = (
     event: MouseEvent<HTMLDivElement>,
@@ -43,9 +80,24 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({
         '[data-slot="aui_thread-list-item-trigger"], [data-slot="aui_thread-list-new"]',
       )
     ) {
-      setMobileSidebarOpen(false);
+      setMobileOpen(false);
     }
   };
+
+  const newThread = (
+    <ThreadListNew
+      className={cn(
+        "overflow-hidden transition-all duration-200",
+        sidebarCollapsed
+          ? "w-8 gap-0 px-2 has-[>svg]:px-2"
+          : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
+      )}
+      labelClassName={cn(
+        "overflow-hidden transition-all duration-200",
+        sidebarCollapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
+      )}
+    />
+  );
 
   return (
     <div className="relative flex h-full w-full overflow-hidden">
@@ -57,19 +109,23 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({
         )}
       >
         <div className="flex h-12 shrink-0 items-center px-2">
-          <TooltipIconButton
-            variant="ghost"
-            size="icon"
-            tooltip={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-            side="right"
-            onClick={() => setSidebarCollapsed((value) => !value)}
-            className="size-8"
-          >
-            <PanelLeftIcon className="size-4" />
-          </TooltipIconButton>
-          {!sidebarCollapsed && (
-            <span className="ml-2 truncate text-sm font-medium">Chats</span>
+          {!collapsedControlled && (
+            <TooltipIconButton
+              variant="ghost"
+              size="icon"
+              tooltip={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+              side="right"
+              onClick={() => setInternalCollapsed((value) => !value)}
+              className="size-8"
+            >
+              <PanelLeftIcon className="size-4" />
+            </TooltipIconButton>
           )}
+          {headerContent !== undefined
+            ? headerContent
+            : !sidebarCollapsed && (
+                <span className="ml-2 truncate text-sm font-medium">Chats</span>
+              )}
         </div>
 
         <ThreadListRoot
@@ -80,19 +136,19 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({
               : "w-65 overflow-y-auto p-3",
           )}
         >
-          <ThreadListNew
-            className={cn(
-              "overflow-hidden transition-all duration-200",
-              sidebarCollapsed
-                ? "w-8 gap-0 px-2 has-[>svg]:px-2"
-                : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
-            )}
-            labelClassName={cn(
-              "overflow-hidden transition-all duration-200",
-              sidebarCollapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
-            )}
-          />
-          {hasThreads && (
+          {wrapNewThreadTooltip ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger render={newThread} />
+                {sidebarCollapsed && (
+                  <TooltipContent side="right">New Thread</TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            newThread
+          )}
+          {showSearch && hasThreads && (
             <div
               aria-hidden={sidebarCollapsed}
               inert={sidebarCollapsed}
@@ -105,7 +161,7 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({
             </div>
           )}
           <ThreadListItems
-            searchQuery={hasThreads ? search : ""}
+            searchQuery={showSearch && hasThreads ? search : ""}
             aria-hidden={sidebarCollapsed}
             inert={sidebarCollapsed}
             className={cn(
@@ -118,33 +174,35 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({
         </ThreadListRoot>
       </aside>
 
-      <div className="absolute top-2 left-2 z-20 md:hidden">
-        <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-          <SheetTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="bg-background/70 size-8 backdrop-blur-sm"
-              >
-                <MenuIcon className="size-4" />
-                <span className="sr-only">Open chat history</span>
-              </Button>
-            }
-          />
-          <SheetContent side="left" className="flex flex-col p-0">
-            <SheetTitle className="flex h-12 shrink-0 items-center px-4 text-sm font-medium">
-              Chats
-            </SheetTitle>
-            <div
-              className="relative flex-1 overflow-y-auto p-3"
-              onClick={closeMobileSidebarAfterNavigation}
-            >
-              <ThreadList />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        {!mobileControlled && (
+          <div className="absolute top-2 left-2 z-20 md:hidden">
+            <SheetTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="bg-background/70 size-8 backdrop-blur-sm"
+                >
+                  <MenuIcon className="size-4" />
+                  <span className="sr-only">Open chat history</span>
+                </Button>
+              }
+            />
+          </div>
+        )}
+        <SheetContent side="left" className="flex flex-col p-0">
+          <SheetTitle className="flex h-12 shrink-0 items-center px-4 text-sm font-medium">
+            {sheetTitle ?? "Chats"}
+          </SheetTitle>
+          <div
+            className="relative flex-1 overflow-y-auto p-3"
+            onClick={closeMobileSidebarAfterNavigation}
+          >
+            <ThreadList />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <div className="min-w-0 flex-1 overflow-hidden">{children}</div>
     </div>

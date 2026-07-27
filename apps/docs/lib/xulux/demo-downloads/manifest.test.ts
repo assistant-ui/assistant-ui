@@ -9,7 +9,8 @@ const snapshot = new Proxy({} as Record<string, string>, {
   get: (_target, key) => readFileSync(path.join(ROOT, String(key)), "utf8"),
 });
 
-const cloneSlugs = [
+const sidebarDemoSlugs = [
+  "base",
   "chatgpt",
   "claude",
   "gemini",
@@ -17,8 +18,8 @@ const cloneSlugs = [
   "perplexity",
 ] as const;
 
-describe("clone demo download file maps", () => {
-  it.each(cloneSlugs)(
+describe("sidebar demo download file maps", () => {
+  it.each(sidebarDemoSlugs)(
     "builds a self-contained file map with the sidebar for %s",
     async (slug) => {
       const files = await createDemoFileMap(slug, snapshot);
