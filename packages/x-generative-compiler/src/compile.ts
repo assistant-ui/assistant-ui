@@ -1205,26 +1205,30 @@ function warnDuplicateToolkitNames(
   toolkitSpreadNames: ToolkitSpreadNames,
   filename: string | undefined,
 ): void {
-  const sourceByToolName = new Map<string, string>();
-  const warned = new Set<string>();
+  const sourcesByToolName = new Map<string, string[]>();
   for (const entry of object.properties) {
     const entryNames = toolkitEntryNames(entry, toolkitSpreadNames);
     if (!entryNames) continue;
     const source = toolkitEntrySourceLabel(entry);
     for (const name of entryNames) {
-      const prior = sourceByToolName.get(name);
-      if (prior !== undefined && !warned.has(name)) {
-        console.warn(
-          new GenerativeCompileError(
-            `Duplicate tool name "${name}": "${source}" overrides "${prior}". ` +
-              "JavaScript object spread keeps the last definition.",
-            filename,
-          ).message,
-        );
-        warned.add(name);
-      }
-      sourceByToolName.set(name, source);
+      const sources = sourcesByToolName.get(name);
+      if (sources) sources.push(source);
+      else sourcesByToolName.set(name, [source]);
     }
+  }
+
+  for (const [name, sources] of sourcesByToolName) {
+    const winner = sources.at(-1);
+    const overridden = sources.slice(0, -1);
+    if (winner === undefined || overridden.length === 0) continue;
+    console.warn(
+      new GenerativeCompileError(
+        `Duplicate tool name "${name}": "${winner}" overrides ` +
+          `${overridden.map((source) => `"${source}"`).join(", ")}. ` +
+          "JavaScript object spread keeps the last definition.",
+        filename,
+      ).message,
+    );
   }
 }
 

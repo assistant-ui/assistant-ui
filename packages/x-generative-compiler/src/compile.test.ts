@@ -1025,6 +1025,113 @@ export default defineToolkit({
     }
   });
 
+  it("warns about known collisions even when an opaque toolkit spread sits between them", () => {
+    const filename = createMultiMergeFixture({
+      "tools/weather.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});`,
+      "tools/mystery.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+const tools = { lookup: { execute: async () => 1, render: () => null } };
+export default defineToolkit(tools);`,
+      "tools/calendar.tsx": `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});`,
+    });
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "./tools/weather";
+import mysteryTools from "./tools/mystery";
+import calendarTools from "./tools/calendar";
+export default defineToolkit({
+  ...weatherTools,
+  ...mysteryTools,
+  ...calendarTools,
+});`;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      compileGenerative(src, { target: "client", filename });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Duplicate tool name "search": "...calendarTools" overrides "...weatherTools". ' +
+            "JavaScript object spread keeps the last definition.",
+        ),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("names the final winner and every overridden source when three toolkits collide", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+const weatherTools = defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});
+const databaseTools = defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});
+const calendarTools = defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});
+export default defineToolkit({
+  ...weatherTools,
+  ...databaseTools,
+  ...calendarTools,
+});`;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      compileGenerative(src, { target: "client" });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Duplicate tool name "search": "...calendarTools" overrides "...weatherTools", "...databaseTools". ' +
+            "JavaScript object spread keeps the last definition.",
+        ),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("labels a direct defineMcpToolkit spread as the winning source", () => {
+    const src = `"use generative";
+import { defineMcpToolkit, defineToolkit } from "@assistant-ui/react";
+const weatherTools = defineToolkit({
+  search: { execute: async () => 1, render: () => null },
+});
+export default defineToolkit({
+  ...weatherTools,
+  ...defineMcpToolkit({
+    search: { execute: async () => 1, render: () => null },
+  }),
+});`;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      compileGenerative(src, { target: "client" });
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Duplicate tool name "search": "...defineMcpToolkit(...)" overrides "...weatherTools". ' +
+            "JavaScript object spread keeps the last definition.",
+        ),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("rejects spreading the default import of a non-generative module", () => {
     const filename = createMergeFixture(
       `export default { get_weather: { execute: async () => 1 } };\n`,
