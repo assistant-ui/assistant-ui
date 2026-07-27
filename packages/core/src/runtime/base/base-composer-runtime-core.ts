@@ -41,13 +41,13 @@ type AttachmentAddOperation = {
 
 const attachmentAddOperations = new WeakMap<
   object,
-  Map<string, AttachmentAddOperation>
+  Set<AttachmentAddOperation>
 >();
 
 const getAttachmentAddOperations = (owner: object) => {
   let operations = attachmentAddOperations.get(owner);
   if (!operations) {
-    operations = new Map();
+    operations = new Set();
     attachmentAddOperations.set(owner, operations);
   }
   return operations;
@@ -55,15 +55,23 @@ const getAttachmentAddOperations = (owner: object) => {
 
 const cancelAttachmentAdd = (owner: object, attachmentId: string) => {
   const operations = attachmentAddOperations.get(owner);
-  const operation = operations?.get(attachmentId);
-  if (!operation || !operations) return;
+  if (!operations) return;
 
-  operation.cancelled = true;
-  for (const id of operation.attachmentIds) {
-    if (operations.get(id) === operation) {
-      operations.delete(id);
-    }
+  for (const operation of [...operations]) {
+    if (!operation.attachmentIds.has(attachmentId)) continue;
+    operation.cancelled = true;
+    operations.delete(operation);
   }
+};
+
+const cancelAllAttachmentAdds = (owner: object) => {
+  const operations = attachmentAddOperations.get(owner);
+  if (!operations) return;
+
+  for (const operation of operations) {
+    operation.cancelled = true;
+  }
+  operations.clear();
 };
 
 export abstract class BaseComposerRuntimeCore
@@ -178,10 +186,8 @@ export abstract class BaseComposerRuntimeCore
   }
 
   private async _onClearAttachments() {
+    cancelAllAttachmentAdds(this);
     const pending = this._attachments.filter((a) => !isAttachmentComplete(a));
-    for (const attachment of pending) {
-      cancelAttachmentAdd(this, attachment.id);
-    }
 
     const adapter = this.getAttachmentAdapter();
     if (adapter) {
@@ -360,41 +366,6 @@ export abstract class BaseComposerRuntimeCore
       return;
     }
 
-    const operation: AttachmentAddOperation = {
-      cancelled: false,
-      attachmentIds: new Set(),
-    };
-    const operations = getAttachmentAddOperations(this);
-    const upsertAttachment = (a: PendingAttachment) => {
-      operation.attachmentIds.add(a.id);
-      operations.set(a.id, operation);
-      if (operation.cancelled) return false;
-
-      const idx = this._attachments.findIndex(
-        (attachment) => attachment.id === a.id,
-      );
-      if (idx !== -1)
-        this._attachments = [
-          ...this._attachments.slice(0, idx),
-          a,
-          ...this._attachments.slice(idx + 1),
-        ];
-      else {
-        this._attachments = [...this._attachments, a];
-      }
-
-      this._notifySubscribers();
-      return true;
-    };
-    const finishOperation = () => {
-      for (const attachmentId of operation.attachmentIds) {
-        if (operations.get(attachmentId) === operation) {
-          operations.delete(attachmentId);
-        }
-      }
-      if (operations.size === 0) attachmentAddOperations.delete(this);
-    };
-
     const adapter = this.getAttachmentAdapter();
     if (!adapter) {
       const message = "Attachments are not supported";
@@ -414,6 +385,36 @@ export abstract class BaseComposerRuntimeCore
       this._safeEmitAttachmentAddError("not-accepted", message, undefined, err);
       throw err;
     }
+
+    const operation: AttachmentAddOperation = {
+      cancelled: false,
+      attachmentIds: new Set(),
+    };
+    const operations = getAttachmentAddOperations(this);
+    operations.add(operation);
+    const upsertAttachment = (a: PendingAttachment) => {
+      if (operation.cancelled) return false;
+
+      operation.attachmentIds.add(a.id);
+      const idx = this._attachments.findIndex(
+        (attachment) => attachment.id === a.id,
+      );
+      if (idx !== -1)
+        this._attachments = [
+          ...this._attachments.slice(0, idx),
+          a,
+          ...this._attachments.slice(idx + 1),
+        ];
+      else {
+        this._attachments = [...this._attachments, a];
+      }
+
+      this._notifySubscribers();
+      return true;
+    };
+    const finishOperation = () => {
+      operations.delete(operation);
+    };
 
     let lastAttachment: PendingAttachment | undefined;
     try {
