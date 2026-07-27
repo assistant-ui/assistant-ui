@@ -427,9 +427,7 @@ export abstract class BaseComposerRuntimeCore
         }
       } else {
         lastAttachment = await promiseOrGenerator;
-        if (!upsertAttachment(lastAttachment)) {
-          await adapter.remove(lastAttachment);
-        }
+        upsertAttachment(lastAttachment);
       }
     } catch (e) {
       try {

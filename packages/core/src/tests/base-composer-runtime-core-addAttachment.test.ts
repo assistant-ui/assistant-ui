@@ -358,33 +358,6 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     expect(onAdd).not.toHaveBeenCalled();
   });
 
-  it("cleans up a promise-based add cleared before it resolves", async () => {
-    let finishUpload!: (attachment: PendingAttachment) => void;
-    const uploadPending = new Promise<PendingAttachment>((resolve) => {
-      finishUpload = resolve;
-    });
-    const remove = vi.fn(async () => {});
-    const composer = makeComposer(
-      makeAdapter({
-        add: () => uploadPending,
-        remove,
-      }),
-    );
-    const onAdd = vi.fn();
-    composer.unstable_on("attachmentAdd", onAdd);
-    const file = new File(["x"], "f.png", { type: "image/png" });
-    const attachment = makeUploadingAttachment(file, "att-1");
-
-    const addTask = composer.addAttachment(file);
-    await composer.clearAttachments();
-    finishUpload(attachment);
-    await addTask;
-
-    expect(remove).toHaveBeenCalledWith(attachment);
-    expect(composer.attachments).toHaveLength(0);
-    expect(onAdd).not.toHaveBeenCalled();
-  });
-
   it("cancels every concurrent add sharing an attachment id", async () => {
     let finishUploads!: () => void;
     const uploadsPending = new Promise<void>((resolve) => {
