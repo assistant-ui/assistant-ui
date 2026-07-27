@@ -37,3 +37,10 @@ export type {
   RemoteThreadInitializeResponse,
   RemoteThreadListOptions,
 } from "./remote-thread-list/types";
+
+// Tool Invocations
+export { ToolInvocationTracker } from "./tool-invocations/ToolInvocationTracker";
+export type {
+  ToolInvocationTrackerSnapshot,
+  ToolInvocationTrackerCallbacks,
+} from "./tool-invocations/ToolInvocationTracker";
