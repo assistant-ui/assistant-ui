@@ -3620,8 +3620,11 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   switchToThread(threadIdOrRemoteId: string, options?: {
     unarchive?: boolean;
   }): Promise<void>;
+  private _startSwitchToThread;
   private _switchToThread;
   switchToNewThread(): Promise<void>;
+  private _switchToThreadFromProp;
+  private _startSwitchToNewThread;
   private _switchToNewThread;
   initialize: (threadId: string) => Promise<{
     remoteId: string;
