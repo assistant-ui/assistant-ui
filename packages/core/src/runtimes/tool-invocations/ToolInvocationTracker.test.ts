@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import {
   ToolInvocationTracker,
   type ToolExecutionStatus,
-  type ToolInvocationTrackerSnapshot,
 } from "./ToolInvocationTracker";
 import type {
   ThreadAssistantMessage,
@@ -34,7 +33,7 @@ async function waitFor(
 const createState = (
   messages: ThreadAssistantMessage[],
   isRunning: boolean = true,
-): ToolInvocationTrackerSnapshot => ({
+): ToolInvocationTracker.Snapshot => ({
   messages: messages as readonly ThreadMessage[],
   isRunning,
 });
