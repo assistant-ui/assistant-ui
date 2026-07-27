@@ -79,23 +79,10 @@ const handlePartStart = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { readonly type: "part-start" },
   warnOnce: WarnOnce,
-  placeholderParts: WeakSet<object>,
+  placeholderParts: Set<number>,
 ): AssistantMessage => {
   const partInit = chunk.part;
   if (partInit.type === "text" || partInit.type === "reasoning") {
-    const prev = message.parts[message.parts.length - 1];
-    if (
-      process.env.NODE_ENV !== "production" &&
-      prev !== undefined &&
-      (prev.type === "text" || prev.type === "reasoning") &&
-      prev.status.type === "running" &&
-      !placeholderParts.has(prev)
-    ) {
-      warnOnce(
-        "empty-trailing-part",
-        `assistant-ui: a ${partInit.type} part was appended while the preceding ${prev.type} part was still streaming. Part status is last-part-wins, so the earlier part is now reported complete. Emit a part-finish for the earlier part before starting the next one, or withhold the new part until it has content.`,
-      );
-    }
     const newTextPart: TextPart | ReasoningPart = {
       type: partInit.type,
       text: "",
@@ -184,7 +171,7 @@ const handlePartStart = (
       text: "",
       status: { type: "running" },
     };
-    placeholderParts.add(placeholderPart);
+    placeholderParts.add(message.parts.length);
     return {
       ...message,
       parts: [...message.parts, placeholderPart],
@@ -510,7 +497,7 @@ export class AssistantMessageAccumulator extends TransformStream<
     let message = initialMessage ?? createInitialMessage();
     const tracker = new TimingTracker();
     const warnedKeys = new Set<string>();
-    const placeholderParts = new WeakSet<object>();
+    const placeholderParts = new Set<number>();
     const warnOnce: WarnOnce = (key, warning) => {
       if (warnedKeys.has(key) || warnedKeys.size >= MAX_WARNED_KEYS) return;
       warnedKeys.add(key);
@@ -604,6 +591,21 @@ export class AssistantMessageAccumulator extends TransformStream<
         emitChunk();
       },
       flush(controller) {
+        if (process.env.NODE_ENV !== "production") {
+          for (let i = 0; i < message.parts.length - 1; i++) {
+            const part = message.parts[i]!;
+            if (
+              (part.type === "text" || part.type === "reasoning") &&
+              part.status.type === "running" &&
+              !placeholderParts.has(i)
+            ) {
+              warnOnce(
+                "empty-trailing-part",
+                `assistant-ui: a ${part.type} part never received a part-finish before the next part started. Part status is last-part-wins, so it stopped reporting running the moment the later part was appended. Emit a part-finish before starting the next part, or withhold an empty trailing part until it has content.`,
+              );
+            }
+          }
+        }
         if (message.status?.type === "running") {
           // Check if there are any tool calls that require action
           const requiresAction =

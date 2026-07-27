@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AssistantMessageAccumulator } from "./assistant-message-accumulator";
+import { createAssistantStream } from "../modules/assistant-stream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import type { AssistantMessage } from "../utils/types";
 
@@ -673,7 +674,7 @@ describe("AssistantMessageAccumulator empty trailing part warning", () => {
     process.env.NODE_ENV = originalNodeEnv;
   });
 
-  it("warns when a text part is appended while the preceding reasoning part is still streaming", async () => {
+  it("warns at stream end when a part never received a part-finish before the next part started", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     await collectStream([
       { type: "part-start", path: [0], part: { type: "reasoning" } },
@@ -682,7 +683,7 @@ describe("AssistantMessageAccumulator empty trailing part warning", () => {
 
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining(
-        "a text part was appended while the preceding reasoning part was still streaming",
+        "a reasoning part never received a part-finish before the next part started",
       ),
     );
     expect(warn).toHaveBeenCalledWith(
@@ -700,6 +701,57 @@ describe("AssistantMessageAccumulator empty trailing part warning", () => {
     ]);
 
     expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("does not warn when the part-finish arrives after the next part-start", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      { type: "part-start", path: [0], part: { type: "reasoning" } },
+      { type: "part-start", path: [1], part: { type: "text" } },
+      { type: "part-finish", path: [0] },
+      { type: "text-delta", path: [1], textDelta: "hello" },
+    ]);
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("does not warn for first-party producer streams", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await createAssistantStream((c) => {
+      c.appendReasoning("thinking");
+      c.appendText("hello");
+    })
+      .pipeThrough(new AssistantMessageAccumulator())
+      .pipeTo(new WritableStream());
+    await createAssistantStream((c) => {
+      c.withParentId("a").appendText("one");
+      c.withParentId("b").appendText("two");
+    })
+      .pipeThrough(new AssistantMessageAccumulator())
+      .pipeTo(new WritableStream());
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("keeps the placeholder exemption after the placeholder is updated by a delta", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "future-part-type" } as never,
+      },
+      { type: "text-delta", path: [0], textDelta: "x" },
+      { type: "part-start", path: [1], part: { type: "text" } },
+    ]);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("Unsupported part-start type"),
+    );
     warn.mockRestore();
   });
 
