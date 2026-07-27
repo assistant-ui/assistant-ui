@@ -1183,31 +1183,48 @@ function toolkitEntryNames(
   return [];
 }
 
+function toolkitEntrySourceLabel(entry: Entry): string {
+  if (t.isSpreadElement(entry)) {
+    if (t.isIdentifier(entry.argument)) return `...${entry.argument.name}`;
+    if (unwrapToCall(entry.argument, MCP_TOOLKIT_WRAPPER)) {
+      return `...${MCP_TOOLKIT_WRAPPER}(...)`;
+    }
+    return "...";
+  }
+
+  if (t.isObjectProperty(entry) || t.isObjectMethod(entry)) {
+    const name = memberName(entry.key, entry.computed);
+    return name ? `inline property "${name}"` : "inline property";
+  }
+
+  return "inline property";
+}
+
 function warnDuplicateToolkitNames(
   object: t.ObjectExpression,
   toolkitSpreadNames: ToolkitSpreadNames,
   filename: string | undefined,
 ): void {
-  const names = collectToolkitObjectNames(object, toolkitSpreadNames);
-  if (!names) return;
-
-  const seen = new Set<string>();
+  const sourceByToolName = new Map<string, string>();
   const warned = new Set<string>();
-  for (const name of names) {
-    if (seen.has(name)) {
-      if (!warned.has(name)) {
+  for (const entry of object.properties) {
+    const entryNames = toolkitEntryNames(entry, toolkitSpreadNames);
+    if (!entryNames) continue;
+    const source = toolkitEntrySourceLabel(entry);
+    for (const name of entryNames) {
+      const prior = sourceByToolName.get(name);
+      if (prior !== undefined && !warned.has(name)) {
         console.warn(
           new GenerativeCompileError(
-            `Duplicate tool name "${name}" while composing toolkits. ` +
+            `Duplicate tool name "${name}": "${source}" overrides "${prior}". ` +
               "JavaScript object spread keeps the last definition.",
             filename,
           ).message,
         );
         warned.add(name);
       }
-      continue;
+      sourceByToolName.set(name, source);
     }
-    seen.add(name);
   }
 }
 
