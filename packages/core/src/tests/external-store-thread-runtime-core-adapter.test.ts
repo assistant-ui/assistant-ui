@@ -315,6 +315,19 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
     expect(core.isDisabled).toBe(false);
   });
 
+  it("does not notify subscribers when the same adapter reference is passed", () => {
+    const adapter = createBaseAdapter({
+      messages: [createUserMessage("u1")],
+    });
+    const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+    const spy = vi.fn();
+    core.subscribe(spy);
+    spy.mockClear();
+
+    core.__internal_setAdapter(adapter);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
   it("notifies subscribers when adapter changes", () => {
     const adapter1 = createBaseAdapter({
       messages: [createUserMessage("u1")],
