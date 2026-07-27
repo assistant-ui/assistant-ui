@@ -587,7 +587,16 @@ const useComposerClientResource = ({
               ? attachment
               : attachmentAdapter.send(attachment as PendingAttachment),
           ),
-        ).then(dispatch);
+        ).then(dispatch, (error) => {
+          // Upload failed: restore the draft instead of dropping the message,
+          // unless the user already started composing a new one.
+          setText((prev) => (prev ? prev : currentText));
+          setQuote((prev) => prev ?? currentQuote);
+          setAttachments((prev) =>
+            prev.length > 0 ? prev : currentAttachments,
+          );
+          console.error("Failed to send attachments", error);
+        });
       } else {
         dispatch(currentAttachments);
       }
