@@ -38,6 +38,7 @@ import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { QueueItemState } from "@assistant-ui/core/store";
 import type { ComposerSendOptions } from "@assistant-ui/core/store";
 import {
+  fileMatchesAccept,
   getThreadMessageText,
   isCreateAttachment,
   resolveToolApprovalResponse,
@@ -567,6 +568,18 @@ const useComposerClientResource = ({
     setRole,
     setRunConfig,
     addAttachment: async (fileOrAttachment: File | CreateAttachment) => {
+      if (attachmentAdapter) {
+        const file = isCreateAttachment(fileOrAttachment)
+          ? {
+              name: fileOrAttachment.name,
+              type: fileOrAttachment.contentType ?? "",
+            }
+          : { name: fileOrAttachment.name, type: fileOrAttachment.type };
+        if (!fileMatchesAccept(file, attachmentAdapter.accept))
+          throw new Error(
+            `File type ${file.type || "unknown"} is not accepted. Accepted types: ${attachmentAdapter.accept}`,
+          );
+      }
       if (!isCreateAttachment(fileOrAttachment) && attachmentAdapter) {
         await drainAdapterAdd(
           attachmentAdapter.add({ file: fileOrAttachment }),

@@ -101,6 +101,56 @@ describe("ExternalThread attachments", () => {
     });
   });
 
+  it("rejects files that do not match the adapter accept string", async () => {
+    const add = vi.fn(async () => ({}) as never);
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "image/*",
+        add,
+        send: async () => ({}) as never,
+        remove: async () => {},
+      },
+    });
+
+    await expect(
+      aui()
+        .thread()
+        .composer()
+        .addAttachment(
+          new File(["data"], "archive.zip", { type: "application/zip" }),
+        ),
+    ).rejects.toThrow(
+      "File type application/zip is not accepted. Accepted types: image/*",
+    );
+    expect(add).not.toHaveBeenCalled();
+    expect(aui().thread().composer().getState().attachments).toHaveLength(0);
+  });
+
+  it("rejects prepared attachments that do not match the adapter accept string", async () => {
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: ".pdf",
+        add: async () => ({}) as never,
+        send: async () => ({}) as never,
+        remove: async () => {},
+      },
+    });
+
+    await expect(
+      aui()
+        .thread()
+        .composer()
+        .addAttachment({
+          name: "notes.txt",
+          contentType: "text/plain",
+          content: [{ type: "text", text: "hello" }],
+        }),
+    ).rejects.toThrow(
+      "File type text/plain is not accepted. Accepted types: .pdf",
+    );
+    expect(aui().thread().composer().getState().attachments).toHaveLength(0);
+  });
+
   it("restores the draft when an attachment upload fails on send", async () => {
     const consoleError = vi
       .spyOn(console, "error")
