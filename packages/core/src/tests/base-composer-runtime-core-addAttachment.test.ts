@@ -331,6 +331,33 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     expect(onAdd).not.toHaveBeenCalled();
   });
 
+  it("cancels a promise add cleared before it resolves", async () => {
+    let finishUpload!: () => void;
+    const uploadPending = new Promise<void>((resolve) => {
+      finishUpload = resolve;
+    });
+    const composer = makeComposer(
+      makeAdapter({
+        add: async ({ file }: { file: File }) => {
+          await uploadPending;
+          return makeUploadingAttachment(file, "att-1");
+        },
+      }),
+    );
+    const onAdd = vi.fn();
+    composer.unstable_on("attachmentAdd", onAdd);
+
+    const addTask = composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+    await composer.clearAttachments();
+    finishUpload();
+    await addTask;
+
+    expect(composer.attachments).toHaveLength(0);
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
   it("cancels an add reset before its first yield", async () => {
     let startUpload!: () => void;
     const uploadPending = new Promise<void>((resolve) => {
