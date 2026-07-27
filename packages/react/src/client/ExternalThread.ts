@@ -662,7 +662,9 @@ const useExternalThread = ({
   };
 
   const handleSendNew = (message: AppendMessage) => {
-    onNew?.(message);
+    // The composer does not know the thread; stamp the current head as the
+    // parent (legacy composer parity).
+    onNew?.({ ...message, parentId: messages.at(-1)?.id ?? null });
   };
 
   const composerClient = useClientResource(
