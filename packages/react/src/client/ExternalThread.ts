@@ -681,9 +681,26 @@ const useComposerClientResource = ({
 
 const ComposerClientResource = resource(useComposerClientResource);
 
+const dedupeMessagesById = (messages: readonly ExternalThreadMessage[]) => {
+  const seenIds = new Set<string>();
+  const deduped: ExternalThreadMessage[] = [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!;
+    if (seenIds.has(message.id)) {
+      console.warn(
+        `ExternalThread: duplicate message id "${message.id}" in the provided messages array; keeping the last occurrence.`,
+      );
+      continue;
+    }
+    seenIds.add(message.id);
+    deduped.push(message);
+  }
+  return deduped.length === messages.length ? messages : deduped.reverse();
+};
+
 // External Thread Client
 const useExternalThread = ({
-  messages,
+  messages: messagesProp,
   isRunning = false,
   isLoading = false,
   state: threadState,
@@ -703,6 +720,11 @@ const useExternalThread = ({
   branches,
   onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
+  const messages = useMemo(
+    () => dedupeMessagesById(messagesProp),
+    [messagesProp],
+  );
+
   const handleReload = (messageId: string) => {
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) return;

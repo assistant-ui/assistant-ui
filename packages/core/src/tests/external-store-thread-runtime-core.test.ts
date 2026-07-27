@@ -380,6 +380,33 @@ describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", (
       warn.mockRestore();
     }
   });
+
+  it("reparents the message after a dropped duplicate onto the preceding message", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        mockContextProvider,
+        makeStore({
+          messages: [
+            { id: "u", role: "user", text: "hi" },
+            { id: "dup", role: "assistant", text: "stale" },
+            { id: "u2", role: "user", text: "again" },
+            { id: "dup", role: "assistant", text: "fresh" },
+          ] satisfies Raw[],
+          convertMessage,
+        }),
+      );
+
+      expect(runtime.messages.map((m) => m.id)).toEqual(["u", "u2", "dup"]);
+      const parentOf = (id: string) =>
+        runtime.export().messages.find((m) => m.message.id === id)!.parentId;
+      expect(parentOf("u")).toBeNull();
+      expect(parentOf("u2")).toBe("u");
+      expect(parentOf("dup")).toBe("u2");
+    } finally {
+      warn.mockRestore();
+    }
+  });
 });
 
 describe("ExternalStoreThreadRuntimeCore - branch change callback", () => {

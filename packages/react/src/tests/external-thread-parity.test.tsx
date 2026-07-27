@@ -141,3 +141,36 @@ describe("ExternalThread composer", () => {
     expect(onNew).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("ExternalThread duplicate message ids", () => {
+  const userMessage = (id: string, text: string): ExternalThreadMessage =>
+    ({
+      id,
+      role: "user",
+      content: [{ type: "text", text }],
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+    }) as unknown as ExternalThreadMessage;
+
+  it("warns and keeps the last occurrence instead of throwing on a duplicate id", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { aui } = renderThread({
+        messages: [
+          userMessage("u1", "hi"),
+          userMessage("dup", "stale"),
+          userMessage("dup", "fresh"),
+        ],
+      });
+
+      const state = aui().thread().getState();
+      expect(state.messages.map((m) => m.id)).toEqual(["u1", "dup"]);
+
+      const dup = aui().thread().message({ id: "dup" }).getState();
+      expect(dup.parts[0]).toMatchObject({ type: "text", text: "fresh" });
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('"dup"'));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});
