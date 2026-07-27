@@ -2,7 +2,9 @@
 
 import type { InputContent } from "@ag-ui/client";
 import type {
+  McpAppMetadata,
   ThreadMessageLike as CoreThreadMessageLike,
+  ToolCallMessagePartMcpMetadata,
   ToolModelContentPart,
 } from "@assistant-ui/core";
 import {
@@ -10,6 +12,7 @@ import {
   httpUrlPattern,
   parseDataUrl,
 } from "@assistant-ui/core/internal";
+import { isMcpAppUri } from "@assistant-ui/core";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
@@ -69,6 +72,7 @@ type ToolCallPart = {
   isError?: boolean;
   modelContent?: readonly ToolModelContentPart[];
   unstable_toolMessageId?: string;
+  mcp?: ToolCallMessagePartMcpMetadata;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -81,6 +85,30 @@ const getString = (record: Record<string, unknown>, key: string) => {
 
 const getToolCallId = (record: Record<string, unknown>) =>
   getString(record, "toolCallId") ?? getString(record, "tool_call_id");
+
+// _meta["ui/resourceUri"] is the MCP-UI pointer react-ai-sdk reads off
+// CallToolResult._meta; the structured mcp.app carrier mirrors the core
+// ToolCallMessagePart.mcp shape.
+function readMcpAppFromToolMessage(
+  rawMessage: Record<string, unknown>,
+): McpAppMetadata | undefined {
+  const mcp = isObject(rawMessage.mcp) ? rawMessage.mcp : undefined;
+  const app = mcp && isObject(mcp.app) ? mcp.app : undefined;
+  if (app) {
+    const resourceUri = getString(app, "resourceUri");
+    if (resourceUri !== undefined && isMcpAppUri(resourceUri)) {
+      const serverId = getString(app, "serverId");
+      return {
+        resourceUri,
+        ...(serverId !== undefined && serverId.length > 0 ? { serverId } : {}),
+      };
+    }
+  }
+  const meta = isObject(rawMessage._meta) ? rawMessage._meta : undefined;
+  const uri = meta ? getString(meta, "ui/resourceUri") : undefined;
+  if (uri !== undefined && isMcpAppUri(uri)) return { resourceUri: uri };
+  return undefined;
+}
 
 function parseJSONText(value: string): unknown {
   if (!value) return value;
@@ -555,6 +583,7 @@ export function fromAgUiMessages(
           : rawMessage.isError === false
             ? false
             : undefined;
+      const mcpApp = readMcpAppFromToolMessage(rawMessage);
 
       let updated = false;
       for (
@@ -587,6 +616,7 @@ export function fromAgUiMessages(
             ...(toolMessageId !== undefined
               ? { unstable_toolMessageId: toolMessageId }
               : {}),
+            ...(mcpApp ? { mcp: { app: mcpApp } } : {}),
           };
           const updatedContent = message.content.map((contentPart, index) =>
             index === partIndex ? updatedPart : contentPart,
@@ -622,6 +652,7 @@ export function fromAgUiMessages(
             ...(toolMessageId !== undefined
               ? { unstable_toolMessageId: toolMessageId }
               : {}),
+            ...(mcpApp ? { mcp: { app: mcpApp } } : {}),
           },
         ],
       });

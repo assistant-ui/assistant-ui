@@ -10,6 +10,7 @@ import {
   toAgUiMessages,
   toAgUiTools,
 } from "../src/runtime/adapter/conversions";
+import { getMcpAppFromToolPart } from "../../react/src/mcp-apps/utils";
 
 describe("adapter conversions", () => {
   it("converts thread messages to AG-UI format", () => {
@@ -1314,6 +1315,226 @@ describe("adapter conversions", () => {
 
     expect(result[0]).toMatchObject({ role: "user", content: "see file" });
     expect(result[0]).not.toHaveProperty("attachments");
+  });
+});
+
+describe("mcp app rehydration from restored tool messages", () => {
+  it("rehydrates mcp.app from a structured carrier on a restored tool message", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "search" },
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        mcp: { app: { resourceUri: "ui://example/search", serverId: "srv-a" } },
+      },
+    ] as any);
+
+    const part = (result[1] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toEqual({
+      app: { resourceUri: "ui://example/search", serverId: "srv-a" },
+    });
+  });
+
+  it("rehydrates mcp.app from the _meta ui/resourceUri carrier", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        _meta: { "ui/resourceUri": "ui://example/search" },
+      },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toEqual({ app: { resourceUri: "ui://example/search" } });
+  });
+
+  it("rehydrates mcp.app on a synthetic assistant tool-call for an orphan tool message", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-9",
+        name: "lookup",
+        content: '{"ok":true}',
+        mcp: { app: { resourceUri: "ui://example/lookup" } },
+      },
+    ] as any);
+
+    expect((result[0] as any).content[0].mcp).toEqual({
+      app: { resourceUri: "ui://example/lookup" },
+    });
+  });
+
+  it("does not set mcp.app when the carrier resourceUri is not a ui:// app uri", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        mcp: { app: { resourceUri: "https://example.com/not-an-app" } },
+      },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toBeUndefined();
+  });
+
+  it("falls back to _meta ui/resourceUri when the structured carrier is not a ui:// app uri", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        mcp: { app: { resourceUri: "https://example.com/not-an-app" } },
+        _meta: { "ui/resourceUri": "ui://example/search" },
+      },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toEqual({ app: { resourceUri: "ui://example/search" } });
+  });
+
+  it("drops an empty serverId from the reconstructed mcp.app", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        mcp: { app: { resourceUri: "ui://example/search", serverId: "" } },
+      },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toEqual({ app: { resourceUri: "ui://example/search" } });
+    expect(part.mcp.app).not.toHaveProperty("serverId");
+  });
+
+  it("getMcpAppFromToolPart resolves the app on a restored part and misses it without a carrier", () => {
+    const restored = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        mcp: { app: { resourceUri: "ui://example/search", serverId: "srv-a" } },
+      },
+    ] as any);
+    const restoredPart = (restored[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(getMcpAppFromToolPart(restoredPart)).toEqual({
+      resourceUri: "ui://example/search",
+      serverId: "srv-a",
+    });
+
+    const bare = fromAgUiMessages([
+      {
+        id: "a-2",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-2",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-2", role: "tool", tool_call_id: "call-2", content: "ok" },
+    ] as any);
+    const barePart = (bare[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(getMcpAppFromToolPart(barePart)).toBeUndefined();
   });
 });
 
