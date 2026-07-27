@@ -421,6 +421,7 @@ type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResu
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
+  overwrite?: boolean;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
