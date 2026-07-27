@@ -413,10 +413,6 @@ export abstract class BaseComposerRuntimeCore
       this._notifySubscribers();
       return true;
     };
-    const finishOperation = () => {
-      operations.delete(operation);
-    };
-
     let lastAttachment: PendingAttachment | undefined;
     try {
       const promiseOrGenerator = adapter.add({ file: fileOrAttachment });
@@ -430,31 +426,28 @@ export abstract class BaseComposerRuntimeCore
         upsertAttachment(lastAttachment);
       }
     } catch (e) {
-      try {
-        if (operation.cancelled) return;
-        if (lastAttachment) {
-          upsertAttachment({
-            ...lastAttachment,
-            status: {
-              type: "incomplete",
-              reason: "error",
-              message: e instanceof Error ? e.message : String(e),
-            },
-          });
-        }
-        this._safeEmitAttachmentAddError(
-          "adapter-error",
-          e instanceof Error ? e.message : String(e),
-          lastAttachment?.id,
-          e instanceof Error ? e : undefined,
-        );
-        throw e;
-      } finally {
-        finishOperation();
+      if (operation.cancelled) return;
+      if (lastAttachment) {
+        upsertAttachment({
+          ...lastAttachment,
+          status: {
+            type: "incomplete",
+            reason: "error",
+            message: e instanceof Error ? e.message : String(e),
+          },
+        });
       }
+      this._safeEmitAttachmentAddError(
+        "adapter-error",
+        e instanceof Error ? e.message : String(e),
+        lastAttachment?.id,
+        e instanceof Error ? e : undefined,
+      );
+      throw e;
+    } finally {
+      operations.delete(operation);
     }
 
-    finishOperation();
     if (operation.cancelled) return;
     if (
       lastAttachment?.status.type === "incomplete" &&
