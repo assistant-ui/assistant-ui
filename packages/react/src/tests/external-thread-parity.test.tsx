@@ -111,6 +111,32 @@ describe("ExternalThread part status", () => {
   });
 });
 
+describe("ExternalThread unset optional callbacks", () => {
+  it("throws a capability error when the callback prop is not set", () => {
+    const { aui } = renderThread({
+      messages: [
+        assistantMessage({ type: "requires-action", reason: "tool-calls" }),
+      ],
+      isRunning: false,
+    });
+    const part = () =>
+      aui().thread().message({ id: "a1" }).part({ toolCallId: "tc1" });
+
+    expect(() => part().addToolResult("ok")).toThrow(
+      "Runtime does not support tool results (onAddToolResult is not set).",
+    );
+    expect(() => part().resumeToolCall(undefined)).toThrow(
+      "Runtime does not support resuming tool calls (onResumeToolCall is not set).",
+    );
+    expect(() => aui().thread().resumeRun()).toThrow(
+      "Runtime does not support resuming runs (onResume is not set).",
+    );
+    expect(() => aui().thread().importExternalState({})).toThrow(
+      "Runtime does not support importing external states (onLoadExternalState is not set).",
+    );
+  });
+});
+
 describe("ExternalThread composer", () => {
   it("dispatches a synchronous setText + send sequence", async () => {
     const onNew = vi.fn();

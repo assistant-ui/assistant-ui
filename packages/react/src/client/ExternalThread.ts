@@ -313,7 +313,10 @@ const usePartResource = ({
   return {
     getState: () => state,
     addToolResult: (result) => {
-      if (!onAddToolResult) return;
+      if (!onAddToolResult)
+        throw new Error(
+          "Runtime does not support tool results (onAddToolResult is not set).",
+        );
       if (part.type !== "tool-call")
         throw new Error("Tried to add tool result on non-tool message part");
 
@@ -331,7 +334,10 @@ const usePartResource = ({
       });
     },
     resumeToolCall: (payload) => {
-      if (!onResumeToolCall) return;
+      if (!onResumeToolCall)
+        throw new Error(
+          "Runtime does not support resuming tool calls (onResumeToolCall is not set).",
+        );
       if (part.type !== "tool-call")
         throw new Error("Tried to resume tool call on non-tool message part");
 
@@ -846,11 +852,19 @@ const useExternalThread = ({
       onStartRun?.();
     },
     resumeRun: () => {
-      onResume?.();
+      if (!onResume)
+        throw new Error(
+          "Runtime does not support resuming runs (onResume is not set).",
+        );
+      onResume();
     },
     cancelRun: handleCancelRun,
     importExternalState: (state: unknown) => {
-      onLoadExternalState?.(state);
+      if (!onLoadExternalState)
+        throw new Error(
+          "Runtime does not support importing external states (onLoadExternalState is not set).",
+        );
+      onLoadExternalState(state);
     },
     getModelContext: () => ({ tools: {}, config: {} }),
     export: () => ({ messages: [] }),
