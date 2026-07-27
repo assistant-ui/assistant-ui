@@ -249,8 +249,14 @@ const useThreadMessagesFlatListAutoScroll = ({
 
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => {
+      const wasAtBottom = isAtBottomRef.current;
       metricsRef.current.viewportHeight = event.nativeEvent.layout.height;
       updateIsAtBottom();
+      // Layout changes are never user gestures; a viewport shrink (keyboard)
+      // recomputes at-bottom against the smaller box and would otherwise unpin.
+      if (wasAtBottom) {
+        isAtBottomRef.current = true;
+      }
     },
     [updateIsAtBottom],
   );

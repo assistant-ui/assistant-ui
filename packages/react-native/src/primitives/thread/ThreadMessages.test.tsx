@@ -623,4 +623,145 @@ describe("ThreadMessages", () => {
       expect(getFlatListProps().scrollEventThrottle).toBe(16);
     });
   });
+
+  describe("isAtBottom pin state", () => {
+    const mountPinned = async () => {
+      await mountFlatList({ components: messageComponents });
+      const props = getFlatListProps();
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 100 } },
+        });
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 200 },
+            contentSize: { height: 300, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+        props.onContentSizeChange?.(0, 300);
+      });
+      h.scrollToEnd.mockClear();
+      return props;
+    };
+
+    it("stays pinned when the viewport shrinks while at the bottom", async () => {
+      const props = await mountPinned();
+
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 60 } },
+        });
+      });
+      await act(async () => {
+        props.onContentSizeChange?.(0, 340);
+      });
+
+      expect(h.scrollToEnd).toHaveBeenCalledWith({ animated: false });
+    });
+
+    it("stays unpinned when the viewport shrinks after scrolling away", async () => {
+      const props = await mountPinned();
+
+      await act(async () => {
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 50 },
+            contentSize: { height: 300, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+      });
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 60 } },
+        });
+      });
+      await act(async () => {
+        props.onContentSizeChange?.(0, 340);
+      });
+
+      expect(h.scrollToEnd).not.toHaveBeenCalled();
+    });
+
+    it("keeps the pin through a downward scroll echo after a commanded scroll", async () => {
+      const props = await mountPinned();
+
+      await act(async () => {
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 50 },
+            contentSize: { height: 300, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+      });
+      await emit("thread.runStart");
+      await act(async () => {
+        props.onContentSizeChange?.(0, 320);
+      });
+      h.scrollToEnd.mockClear();
+      await act(async () => {
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 150 },
+            contentSize: { height: 320, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+      });
+      await act(async () => {
+        props.onContentSizeChange?.(0, 360);
+      });
+
+      expect(h.scrollToEnd).toHaveBeenCalledWith({ animated: false });
+    });
+
+    it("unpins and cancels a pending scroll on an upward gesture echo", async () => {
+      const props = await mountPinned();
+
+      await emit("thread.runStart");
+      h.scrollToEnd.mockClear();
+      await act(async () => {
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 50 },
+            contentSize: { height: 300, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+      });
+      await act(async () => {
+        props.onContentSizeChange?.(0, 360);
+      });
+
+      expect(h.scrollToEnd).not.toHaveBeenCalled();
+    });
+
+    it("scrolls on content growth while pinned and stays put while unpinned", async () => {
+      const props = await mountPinned();
+      h.scrollToEnd.mockClear();
+
+      await act(async () => {
+        props.onContentSizeChange?.(0, 340);
+      });
+      expect(h.scrollToEnd).toHaveBeenCalledWith({ animated: false });
+
+      await act(async () => {
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 50 },
+            contentSize: { height: 340, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+      });
+      h.scrollToEnd.mockClear();
+      await act(async () => {
+        props.onContentSizeChange?.(0, 380);
+      });
+
+      expect(h.scrollToEnd).not.toHaveBeenCalled();
+    });
+  });
 });
