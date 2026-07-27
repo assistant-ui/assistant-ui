@@ -164,6 +164,54 @@ describe("ExternalThread attachments", () => {
     );
   });
 
+  it.each([
+    [
+      "clearAttachments",
+      (c: { clearAttachments(): Promise<void> }) => c.clearAttachments(),
+    ],
+    ["reset", (c: { reset(): Promise<void> }) => c.reset()],
+  ] as const)(
+    "calls adapter.remove for pending attachments on %s",
+    async (_name, invoke) => {
+      const remove = vi.fn(async () => {});
+      const adapter = {
+        accept: "*",
+        add: async ({ file }: { file: File }) => ({
+          id: "att-1",
+          type: "file" as const,
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: {
+            type: "requires-action" as const,
+            reason: "composer-send" as const,
+          },
+        }),
+        send: async () => ({}) as never,
+        remove,
+      };
+
+      const aui = renderThreadWithProps({ attachmentAdapter: adapter });
+
+      await act(() =>
+        aui()
+          .thread()
+          .composer()
+          .addAttachment(
+            new File(["data"], "notes.txt", { type: "text/plain" }),
+          ),
+      );
+
+      await act(() => invoke(aui().thread().composer()));
+
+      expect(remove).toHaveBeenCalledTimes(1);
+      expect(remove).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "att-1" }),
+      );
+      expect(aui().thread().composer().getState().attachments).toHaveLength(0);
+    },
+  );
+
   afterEach(() => {
     vi.restoreAllMocks();
   });

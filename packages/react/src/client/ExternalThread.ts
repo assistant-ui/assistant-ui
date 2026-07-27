@@ -505,6 +505,15 @@ const useComposerClientResource = ({
     ),
   );
 
+  const removePendingAttachments = async (removed: readonly Attachment[]) => {
+    if (!attachmentAdapter) return;
+    await Promise.all(
+      removed
+        .filter((a) => a.status.type !== "complete")
+        .map((a) => attachmentAdapter.remove(a)),
+    );
+  };
+
   const upsertAttachment = (attachment: Attachment) => {
     setAttachments((prev) => {
       const idx = prev.findIndex((a) => a.id === attachment.id);
@@ -596,7 +605,9 @@ const useComposerClientResource = ({
       }
     },
     clearAttachments: async () => {
+      const removed = attachmentsRef.current;
       setAttachments([]);
+      await removePendingAttachments(removed);
     },
     attachment: (selector) => {
       if ("id" in selector) {
@@ -605,11 +616,13 @@ const useComposerClientResource = ({
       return attachmentClients.get(selector);
     },
     reset: async () => {
+      const removed = attachmentsRef.current;
       setText("");
       setRole("user");
       setRunConfig({});
       setAttachments([]);
       setQuote(undefined);
+      await removePendingAttachments(removed);
     },
     send: (opts?: ComposerSendOptions) => {
       const currentQuote = quoteRef.current;
