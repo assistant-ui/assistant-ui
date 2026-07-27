@@ -152,8 +152,8 @@ describe("ToolInvocationTracker", () => {
     }
   });
 
-  it("does not auto-submit a parse-error result when divergent argsText closes without a backend result (#5130)", async () => {
-    // Mirrors the #5098 production shape: a human-in-the-loop tool whose
+  it("does not auto-submit a parse-error result when divergent argsText closes without a backend result", async () => {
+    // A human-in-the-loop tool whose
     // argsText diverges mid-stream and never re-converges, with no backend
     // result at close time. The args stream must not close on the divergent
     // snapshot (which holds a stale prefix the execution path would parse),
@@ -236,7 +236,7 @@ describe("ToolInvocationTracker", () => {
     }
   });
 
-  it("does not auto-submit a parse-error result for a non-executable tool whose divergent argsText closes (#5130)", async () => {
+  it("does not auto-submit a parse-error result for a non-executable tool whose divergent argsText closes", async () => {
     // Same close-gating mismatch as the executable case, but for a tool with
     // no frontend execute. Closing on the divergent complete snapshot would
     // still parse the incomplete stale prefix and fabricate a parse-error
