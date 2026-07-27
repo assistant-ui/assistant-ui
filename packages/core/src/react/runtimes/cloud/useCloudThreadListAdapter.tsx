@@ -76,94 +76,96 @@ export const useCloudThreadListAdapter = (
   );
 
   const cloud = adapter.cloud ?? autoCloud;
-  if (!cloud) {
-    const ref = adapterRef;
-    const inMemory = new InMemoryThreadListAdapter();
-    inMemory.initialize = async (threadId: string) => {
-      const result = await ref.current.create?.();
-      return { remoteId: threadId, externalId: result?.externalId };
-    };
-    return inMemory;
-  }
+  return useMemo<RemoteThreadListAdapter>(() => {
+    if (!cloud) {
+      const ref = adapterRef;
+      const inMemory = new InMemoryThreadListAdapter();
+      inMemory.initialize = async (threadId: string) => {
+        const result = await ref.current.create?.();
+        return { remoteId: threadId, externalId: result?.externalId };
+      };
+      return inMemory;
+    }
 
-  return {
-    list: async () => {
-      const { threads } = await cloud.threads.list();
-      return {
-        threads: threads.map((t) => ({
-          status: t.is_archived ? "archived" : "regular",
-          remoteId: t.id,
-          title: t.title,
-          lastMessageAt: t.last_message_at
-            ? new Date(t.last_message_at)
+    return {
+      list: async () => {
+        const { threads } = await cloud.threads.list();
+        return {
+          threads: threads.map((t) => ({
+            status: t.is_archived ? "archived" : "regular",
+            remoteId: t.id,
+            title: t.title,
+            lastMessageAt: t.last_message_at
+              ? new Date(t.last_message_at)
+              : undefined,
+            externalId: t.external_id ?? undefined,
+            custom: toCustom(t.metadata),
+          })),
+        };
+      },
+
+      initialize: async () => {
+        const createTask = adapterRef.current.create?.() ?? Promise.resolve();
+        const t = await createTask;
+        const external_id = t ? t.externalId : undefined;
+        const { thread_id: remoteId } = await cloud.threads.create({
+          last_message_at: new Date(),
+          external_id,
+        });
+
+        return { externalId: external_id, remoteId: remoteId };
+      },
+
+      rename: async (threadId, newTitle) => {
+        return cloud.threads.update(threadId, { title: newTitle });
+      },
+      updateCustom: async (threadId, custom) => {
+        return cloud.threads.update(threadId, { metadata: custom ?? null });
+      },
+      archive: async (threadId) => {
+        return cloud.threads.update(threadId, { is_archived: true });
+      },
+      unarchive: async (threadId) => {
+        return cloud.threads.update(threadId, { is_archived: false });
+      },
+      delete: async (threadId) => {
+        await adapterRef.current.delete?.(threadId);
+        return cloud.threads.delete(threadId);
+      },
+
+      generateTitle: async (threadId, messages) => {
+        // Filter messages to only include content types the title generator understands
+        // (reasoning, source, etc. are not needed for title generation)
+        // TODO serialize these to a more efficient format
+        const filteredMessages = messages.map((msg) => ({
+          ...msg,
+          content: msg.content.filter(
+            (part) => part.type === "text" || part.type === "tool-call",
+          ),
+        }));
+
+        return cloud.runs.stream({
+          thread_id: threadId,
+          assistant_id: "system/thread_title",
+          messages: filteredMessages,
+        });
+      },
+
+      fetch: async (threadId: string) => {
+        const thread = await cloud.threads.get(threadId);
+        return {
+          status: thread.is_archived ? "archived" : "regular",
+          remoteId: thread.id,
+          title: thread.title,
+          lastMessageAt: thread.last_message_at
+            ? new Date(thread.last_message_at)
             : undefined,
-          externalId: t.external_id ?? undefined,
-          custom: toCustom(t.metadata),
-        })),
-      };
-    },
+          externalId: thread.external_id ?? undefined,
+          custom: toCustom(thread.metadata),
+        };
+      },
 
-    initialize: async () => {
-      const createTask = adapter.create?.() ?? Promise.resolve();
-      const t = await createTask;
-      const external_id = t ? t.externalId : undefined;
-      const { thread_id: remoteId } = await cloud.threads.create({
-        last_message_at: new Date(),
-        external_id,
-      });
-
-      return { externalId: external_id, remoteId: remoteId };
-    },
-
-    rename: async (threadId, newTitle) => {
-      return cloud.threads.update(threadId, { title: newTitle });
-    },
-    updateCustom: async (threadId, custom) => {
-      return cloud.threads.update(threadId, { metadata: custom ?? null });
-    },
-    archive: async (threadId) => {
-      return cloud.threads.update(threadId, { is_archived: true });
-    },
-    unarchive: async (threadId) => {
-      return cloud.threads.update(threadId, { is_archived: false });
-    },
-    delete: async (threadId) => {
-      await adapter.delete?.(threadId);
-      return cloud.threads.delete(threadId);
-    },
-
-    generateTitle: async (threadId, messages) => {
-      // Filter messages to only include content types the title generator understands
-      // (reasoning, source, etc. are not needed for title generation)
-      // TODO serialize these to a more efficient format
-      const filteredMessages = messages.map((msg) => ({
-        ...msg,
-        content: msg.content.filter(
-          (part) => part.type === "text" || part.type === "tool-call",
-        ),
-      }));
-
-      return cloud.runs.stream({
-        thread_id: threadId,
-        assistant_id: "system/thread_title",
-        messages: filteredMessages,
-      });
-    },
-
-    fetch: async (threadId: string) => {
-      const thread = await cloud.threads.get(threadId);
-      return {
-        status: thread.is_archived ? "archived" : "regular",
-        remoteId: thread.id,
-        title: thread.title,
-        lastMessageAt: thread.last_message_at
-          ? new Date(thread.last_message_at)
-          : undefined,
-        externalId: thread.external_id ?? undefined,
-        custom: toCustom(thread.metadata),
-      };
-    },
-
-    unstable_Provider,
-  };
+      unstable_Provider,
+    };
+  }, [cloud, unstable_Provider]);
 };
