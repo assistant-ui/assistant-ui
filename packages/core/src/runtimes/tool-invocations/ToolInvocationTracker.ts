@@ -686,10 +686,15 @@ export class ToolInvocationTracker {
       }
     }
 
-    if (!entry.argsComplete && entry.controller) {
-      // ToolExecutionStream parses the streamed prefix on close, so the close
-      // gates on the streamed content; a divergent snapshot (A.2) can be
-      // complete while the controller still holds an incomplete stale prefix.
+    if (!entry.argsComplete && entry.controller && !hasResult) {
+      // The close gates on the controller's streamed content, not the
+      // snapshot: a divergent snapshot (A.2) can be complete while the
+      // controller still holds an incomplete stale prefix. With a backend
+      // result pending, skip the close here and let the setResponse-then-close
+      // path in `_processMessages` enqueue the result first — closing now
+      // races the args-text-finish chunk ahead of the result, leaving
+      // ToolExecutionStream's backend-result suppression unarmed so the stale
+      // prefix is parsed into a bogus error result.
       const shouldClose = this._shouldCloseArgsStream({
         toolName: content.toolName,
         argsText: entry.argsText,

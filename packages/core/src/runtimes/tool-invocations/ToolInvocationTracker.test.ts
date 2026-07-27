@@ -277,6 +277,90 @@ describe("ToolInvocationTracker", () => {
     }
   });
 
+  it("resolves the streamCall reader to the backend result, not a parse error, when a divergent snapshot and a backend result land together (#5102 dir 2)", async () => {
+    // Mirrors the #5098 production shape: a HITL tool whose argsText diverges
+    // mid-stream, then a final snapshot carries both a complete divergent
+    // argsText and a backend result. Once the streamed args prefix has been
+    // drained, the fall-through args close enqueues the args-text-finish chunk
+    // synchronously, ahead of `setResponse`'s result chunk. ToolExecutionStream
+    // then sees the finish before the backend result, parses the stale
+    // incomplete prefix, and resolves the reader to a bogus parse error
+    // instead of the backend result. Deferring the close to the
+    // setResponse-then-close path enqueues the result first, arming the
+    // backend-result suppression before the args-text-finish chunk arrives.
+    const execute = vi.fn(async () => ({ forecast: "ok" }));
+    const streamCall = vi.fn((_reader, { human }) => {
+      void human({ request: "approve" });
+    });
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+        streamCall,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    let statuses: Record<string, ToolExecutionStatus> = {};
+    const onStatusesChange = (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+      statuses = Object.fromEntries(s);
+    };
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const tracker = new ToolInvocationTracker(getTools, {
+        onResult,
+        onStatusesChange,
+      });
+      tracker.setState(createState([]));
+
+      tracker.setState(
+        createState([
+          createAssistantMessage('{"query":"London","longitude":0', {
+            query: "London",
+            longitude: 0,
+          }),
+        ]),
+      );
+
+      // Drain the streamed prefix and arm the pending interrupt so the next
+      // snapshot's args pipeTo is caught up (the timing the bug needs).
+      await waitFor(() => {
+        expect(statuses["tool-1"]?.type).toBe("interrupt");
+      });
+
+      tracker.setState(
+        createState([
+          createAssistantMessage('{"query":"London","longitude":-0.125', {
+            query: "London",
+            longitude: -0.125,
+          }),
+        ]),
+      );
+
+      // Divergent complete argsText + backend result in the same snapshot.
+      tracker.setState(
+        createState([
+          createAssistantMessage(
+            '{"query":"London","longitude":-0.125,"latitude":51.5072}',
+            { query: "London", longitude: -0.125, latitude: 51.5072 },
+            { result: { source: "backend" } },
+          ),
+        ]),
+      );
+
+      const [reader] = streamCall.mock.calls[0]!;
+      const response = await reader.response.get();
+      expect(response.result).toEqual({ source: "backend" });
+      expect(response.isError).toBe(false);
+
+      // The stale prefix was never parsed into an auto-submitted error result.
+      expect(onResult).not.toHaveBeenCalled();
+      expect(execute).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it("clears executing status under the logical toolCallId when reset() lands while execute is pending", async () => {
     // Tests the F.1 lifecycle: reset() aborts in-flight execute() invocations
     // and clears their executing status. The status key is the logical

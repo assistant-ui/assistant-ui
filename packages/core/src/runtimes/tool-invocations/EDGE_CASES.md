@@ -50,6 +50,17 @@ abandoning a pending interrupt). Gating the close on the streamed content
 leaves the stream open until the prefix itself completes, so no stale
 parse runs and no error result is fabricated from divergent args.
 
+When a backend `result` lands in the same snapshot as the divergent
+`argsText`, the fall-through close is skipped entirely and the args stream
+is closed by the `setResponse`-then-`close()` path in `_processMessages`
+instead. Closing first would enqueue the args-text-finish chunk ahead of
+the result chunk (the args pipeTo flushes its first post-drain chunk
+synchronously), so `ToolExecutionStream` would parse the stale prefix
+before its backend-result suppression is armed and resolve the reader to
+a bogus parse error. Enqueuing the result first arms the suppression, so
+`reader.response.get()` resolves to the backend result and the stale
+prefix is never parsed.
+
 ### A.3. Args complete then equivalent-JSON key reorder
 Both old and new `argsText` parse to equivalent JSON values (e.g. keys
 reordered by the backend). The tracker updates its tracked `argsText`
