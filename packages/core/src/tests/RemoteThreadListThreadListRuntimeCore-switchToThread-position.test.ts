@@ -54,7 +54,7 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread position", () => 
     expect(core.threadIds).toEqual([TARGET, "thread-a", "thread-b"]);
   });
 
-  it("prepends a thread that is genuinely absent from the loaded list", async () => {
+  it("appends a thread that is genuinely absent from the loaded list", async () => {
     const TARGET = "thread-target";
     const listDeferred = deferred<RemoteThreadListResponse>();
     const fetchDeferred = deferred<RemoteThreadMetadata>();
@@ -81,9 +81,9 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread position", () => 
     fetchDeferred.resolve(thread(TARGET));
     await switchPromise;
 
-    // Matching `updateStatusReducer`, a thread entering the list is prepended,
-    // not appended.
-    expect(core.threadIds).toEqual([TARGET, "thread-a", "thread-b"]);
+    // An absent thread may live on an unloaded page; appending keeps it below
+    // every loaded (newer) thread instead of pinning it to the top.
+    expect(core.threadIds).toEqual(["thread-a", "thread-b", TARGET]);
   });
 
   it("keeps the position a concurrent list() gave an archived thread", async () => {

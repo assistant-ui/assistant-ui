@@ -357,8 +357,10 @@ export class RemoteThreadListThreadListRuntimeCore
       };
 
       // A concurrent `list()` may already have placed this thread; keep that
-      // position and only merge metadata. When inserting fresh, prepend to
-      // match `updateStatusReducer`. Filtering both arrays first still prevents
+      // position and only merge metadata. A genuinely absent thread stays
+      // appended: it may live on an unloaded page, and a prepend would pin it
+      // above newer threads permanently since `classifyThreads` skips ids it
+      // has already seen. Filtering both arrays first still prevents
       // duplication or a wrong-status entry from `list()`.
       const remoteId = remoteMetadata.remoteId;
       const wasInTarget =
@@ -377,13 +379,13 @@ export class RemoteThreadListThreadListRuntimeCore
         remoteMetadata.status === "regular"
           ? wasInTarget
             ? state.threadIds
-            : [remoteId, ...threadIdsWithoutRemote]
+            : [...threadIdsWithoutRemote, remoteId]
           : threadIdsWithoutRemote;
       const newArchivedThreadIds =
         remoteMetadata.status === "archived"
           ? wasInTarget
             ? state.archivedThreadIds
-            : [remoteId, ...archivedThreadIdsWithoutRemote]
+            : [...archivedThreadIdsWithoutRemote, remoteId]
           : archivedThreadIdsWithoutRemote;
 
       this._state.update({
