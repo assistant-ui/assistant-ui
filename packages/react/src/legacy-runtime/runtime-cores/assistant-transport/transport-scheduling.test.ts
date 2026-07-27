@@ -194,10 +194,24 @@ describe("assistant transport scheduling contracts", () => {
     unmount();
 
     expect(aborted).toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await act(async () => {});
     expect(onCancel).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
     expect(onFinish).not.toHaveBeenCalled();
+  });
+
+  it("ignores schedules after unmount", async () => {
+    const { result, unmount } = renderHook(() =>
+      useTransportSchedulingHarness(),
+    );
+
+    unmount();
+    act(() => {
+      result.current.commandQueue.enqueue(createMessageCommand("late"));
+    });
+
+    await act(async () => {});
+    expect(result.current.runBatchesRef.current).toHaveLength(0);
   });
 
   it("survives StrictMode double-mounting", async () => {
