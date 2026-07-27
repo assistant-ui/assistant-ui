@@ -26,7 +26,9 @@ export class DataStreamChunkDecoder extends TransformStream<
           // Blank lines are benign data-stream framing (keepalive newlines,
           // replay-buffer separators emitted on resume/reconnect).
           if (chunk.trim().length === 0) return;
-          console.warn(`Dropped invalid data-stream chunk: ${chunk}`);
+          console.warn(
+            `Dropped invalid data-stream chunk: ${chunk.slice(0, 200)}`,
+          );
           return;
         }
         let value;

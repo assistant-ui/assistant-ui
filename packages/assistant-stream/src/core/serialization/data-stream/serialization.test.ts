@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { LineDecoderStream } from "../../utils/stream/LineDecoderStream";
 import {
   DataStreamChunkDecoder,
@@ -31,6 +31,10 @@ function createLineStream(lines: string[]): ReadableStream<string> {
 }
 
 describe("DataStreamChunkDecoder", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("decodes text-delta chunks", async () => {
     const chunks = await collectChunks(
       createLineStream(['0:"hello"', '0:" world"']).pipeThrough(
@@ -76,7 +80,6 @@ describe("DataStreamChunkDecoder", () => {
     expect(chunks).toEqual([
       { type: DataStreamStreamChunkType.TextDelta, value: "ok" },
     ]);
-    warn.mockRestore();
   });
 
   it("drops chunks that are not valid JSON", async () => {
@@ -93,7 +96,6 @@ describe("DataStreamChunkDecoder", () => {
     expect(chunks).toEqual([
       { type: DataStreamStreamChunkType.TextDelta, value: "ok" },
     ]);
-    warn.mockRestore();
   });
 
   it("skips blank and whitespace-only lines silently", async () => {
@@ -112,7 +114,6 @@ describe("DataStreamChunkDecoder", () => {
       { type: DataStreamStreamChunkType.TextDelta, value: "hello" },
       { type: DataStreamStreamChunkType.TextDelta, value: " world" },
     ]);
-    warn.mockRestore();
   });
 
   it("drops a chunk without a colon separator with a warning", async () => {
@@ -128,6 +129,5 @@ describe("DataStreamChunkDecoder", () => {
     expect(chunks).toEqual([
       { type: DataStreamStreamChunkType.TextDelta, value: "ok" },
     ]);
-    warn.mockRestore();
   });
 });
