@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: prevent async attachment uploads from restoring removed attachments
+fix: prevent canceled attachment uploads from reappearing and settle failed removals as attachment errors
