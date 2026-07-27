@@ -158,4 +158,27 @@ describe("Contract: Thread lifecycle", () => {
 
     expect(onSyncError).not.toHaveBeenCalled();
   });
+
+  it("does not clear a replacement load after a cancelled load fails", async () => {
+    const { core } = createCore();
+
+    loadMessagesMock.mockRejectedValue(new Error("cancelled load"));
+
+    const replacementLoad = Promise.resolve();
+    const meta = {
+      threadId: "thread-1",
+      loading: replacementLoad,
+      loaded: false,
+    };
+    const registry = {
+      getOrCreateMeta: vi.fn().mockReturnValue(meta),
+      getOrCreate: vi.fn().mockReturnValue({ messages: [] }),
+    } as never;
+
+    await core.loadThreadMessages("thread-1", "chat-1", registry, {
+      cancelled: true,
+    });
+
+    expect(meta.loading).toBe(replacementLoad);
+  });
 });
