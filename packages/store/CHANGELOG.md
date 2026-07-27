@@ -1,5 +1,13 @@
 # @assistant-ui/store
 
+## 0.2.22
+
+### Patch Changes
+
+- [#5250](https://github.com/assistant-ui/assistant-ui/pull/5250) [`d4bdf2c`](https://github.com/assistant-ui/assistant-ui/commit/d4bdf2c50f741912c1c165bd65441ff91bc632dc) - Warn instead of throw on recoverable inconsistencies: duplicate same-priority tool registrations merge with the latest registration taking precedence, duplicate message ids skip linking, stale client lookup indices are clamped, and null tool names in tool result messages are tolerated. ([@Yonom](https://github.com/Yonom))
+
+- [#5208](https://github.com/assistant-ui/assistant-ui/pull/5208) [`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a) - Adopt `erasableSyntaxOnly`; public enums are now `as const` objects. ([@Yonom](https://github.com/Yonom))
+
 ## 0.2.21
 
 ### Patch Changes

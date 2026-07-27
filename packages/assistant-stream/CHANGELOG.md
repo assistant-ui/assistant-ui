@@ -1,5 +1,19 @@
 # assistant-stream
 
+## 0.3.28
+
+### Patch Changes
+
+- [#5236](https://github.com/assistant-ui/assistant-ui/pull/5236) [`f9c1b0f`](https://github.com/assistant-ui/assistant-ui/commit/f9c1b0fec5ac4cae09c1c9da77f901c0799140ad) - fix: DataStreamChunkDecoder skips blank framing lines and drops colon-less lines with a warning instead of throwing ([@Yonom](https://github.com/Yonom))
+
+- [#5206](https://github.com/assistant-ui/assistant-ui/pull/5206) [`235c17e`](https://github.com/assistant-ui/assistant-ui/commit/235c17e22acae8a643c583905f3bf90955651794) - fix: parse SSEDecoder and data-stream chunk frames with secure-json-parse, matching the transport and UIMessageStream decoders; a malformed or prototype-pollution frame is now dropped with a warning and the stream continues instead of erroring the whole stream ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5208](https://github.com/assistant-ui/assistant-ui/pull/5208) [`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a) - Adopt `erasableSyntaxOnly`; public enums are now `as const` objects. ([@Yonom](https://github.com/Yonom))
+
+- [#5263](https://github.com/assistant-ui/assistant-ui/pull/5263) [`06f5266`](https://github.com/assistant-ui/assistant-ui/commit/06f5266bf8d7d347020c113c089b199b182a0099) - Same-priority duplicate tool registrations throw again. The `Tool` type gains an optional `overwrite` flag (discouraged escape hatch) that lets a later registration silently replace a same-priority tool of the same name; the flag is stripped from the merged output. ([@Yonom](https://github.com/Yonom))
+
+- [#5200](https://github.com/assistant-ui/assistant-ui/pull/5200) [`d319637`](https://github.com/assistant-ui/assistant-ui/commit/d319637df1297b7aa589a77ff268467270a85386) - fix: parse UIMessageStream frames with secure-json-parse, matching the transport decoder ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.3.27
 
 ### Patch Changes

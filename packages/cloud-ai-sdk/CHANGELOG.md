@@ -1,5 +1,14 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.27
+
+### Patch Changes
+
+- [#5208](https://github.com/assistant-ui/assistant-ui/pull/5208) [`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a) - Adopt `erasableSyntaxOnly`; public enums are now `as const` objects. ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a)]:
+  - assistant-cloud@0.1.37
+
 ## 0.1.26
 
 ### Patch Changes

@@ -1,5 +1,32 @@
 # @assistant-ui/core
 
+## 0.2.23
+
+### Patch Changes
+
+- [#5202](https://github.com/assistant-ui/assistant-ui/pull/5202) [`6225d6a`](https://github.com/assistant-ui/assistant-ui/commit/6225d6a6e1bc1be99983e19441e62d0bbd849ac5) - fix: abort pending AssistantFrame tool calls when their run is cancelled ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5262](https://github.com/assistant-ui/assistant-ui/pull/5262) [`801781c`](https://github.com/assistant-ui/assistant-ui/commit/801781c18b8097e0cd968f1421a43beaf41fdf24) - Restore the MessageRepository duplicate-id throw (it detects internal corruption); duplicate ids in an external-store messages array are now deduped at ingestion with a warning, keeping the last occurrence. ([@Yonom](https://github.com/Yonom))
+
+- [#5250](https://github.com/assistant-ui/assistant-ui/pull/5250) [`d4bdf2c`](https://github.com/assistant-ui/assistant-ui/commit/d4bdf2c50f741912c1c165bd65441ff91bc632dc) - Warn instead of throw on recoverable inconsistencies: duplicate same-priority tool registrations merge with the latest registration taking precedence, duplicate message ids skip linking, stale client lookup indices are clamped, and null tool names in tool result messages are tolerated. ([@Yonom](https://github.com/Yonom))
+
+- [#5208](https://github.com/assistant-ui/assistant-ui/pull/5208) [`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a) - Adopt `erasableSyntaxOnly`; public enums are now `as const` objects. ([@Yonom](https://github.com/Yonom))
+
+- [#5256](https://github.com/assistant-ui/assistant-ui/pull/5256) [`cee74f1`](https://github.com/assistant-ui/assistant-ui/commit/cee74f1302299f0cf662ee7ad83ea552a1a3ac2d) - fix: ExternalThread validates the adapter accept string on every addAttachment entry point ([@Yonom](https://github.com/Yonom))
+
+- [#5237](https://github.com/assistant-ui/assistant-ui/pull/5237) [`cf839ff`](https://github.com/assistant-ui/assistant-ui/commit/cf839ff72efe8852072a1323b902e540f0a1d9d2) - feat: ExternalThread props for assistant-transport (isLoading, state, extras, onResume, onAddToolResult, onLoadExternalState, onResumeToolCall, attachmentAdapter; importExternalState); export ToolInvocationTracker from core internal; composer parentId, draft-restore, and part-status fixes ([@Yonom](https://github.com/Yonom))
+
+- [#5116](https://github.com/assistant-ui/assistant-ui/pull/5116) [`396ea1f`](https://github.com/assistant-ui/assistant-ui/commit/396ea1fda2cbee9a254daba7531a50d5ac62b961) - fix(core): persist LocalRuntime runs paused for tool approval ([@serhiizghama](https://github.com/serhiizghama))
+
+- [#5231](https://github.com/assistant-ui/assistant-ui/pull/5231) [`e1f27d8`](https://github.com/assistant-ui/assistant-ui/commit/e1f27d8ca87443569aede02ceba0ca99e1a9e4a3) - fix(core): preserve thread-list position when switchToThread's on-demand fetch settles after a concurrent list() ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5224](https://github.com/assistant-ui/assistant-ui/pull/5224) [`3e8f59e`](https://github.com/assistant-ui/assistant-ui/commit/3e8f59e1e0732f473cb190c9fcc423503ca4d32d) - fix: avoid reloading Cloud thread lists on unchanged runtime rerenders ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5263](https://github.com/assistant-ui/assistant-ui/pull/5263) [`06f5266`](https://github.com/assistant-ui/assistant-ui/commit/06f5266bf8d7d347020c113c089b199b182a0099) - Same-priority duplicate tool registrations throw again. The `Tool` type gains an optional `overwrite` flag (discouraged escape hatch) that lets a later registration silently replace a same-priority tool of the same name; the flag is stripped from the merged output. ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`f9c1b0f`](https://github.com/assistant-ui/assistant-ui/commit/f9c1b0fec5ac4cae09c1c9da77f901c0799140ad), [`235c17e`](https://github.com/assistant-ui/assistant-ui/commit/235c17e22acae8a643c583905f3bf90955651794), [`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a), [`06f5266`](https://github.com/assistant-ui/assistant-ui/commit/06f5266bf8d7d347020c113c089b199b182a0099), [`d319637`](https://github.com/assistant-ui/assistant-ui/commit/d319637df1297b7aa589a77ff268467270a85386)]:
+  - assistant-stream@0.3.28
+
 ## 0.2.22
 
 ### Patch Changes
