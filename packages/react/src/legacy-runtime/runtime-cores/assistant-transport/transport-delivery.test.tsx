@@ -74,6 +74,6 @@ describe("assistant transport delivery contracts", () => {
     await waitFor(() =>
       expect(runtimeRef.current!.thread.getState().isRunning).toBe(false),
     );
-    expect(pendingRef.current).toHaveLength(0);
+    await waitFor(() => expect(pendingRef.current).toHaveLength(0));
   });
 });
