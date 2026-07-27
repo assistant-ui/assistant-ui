@@ -4,7 +4,10 @@ import { act, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
-import type { ExternalThreadProps } from "../client/ExternalThread";
+import type {
+  ExternalThreadMessage,
+  ExternalThreadProps,
+} from "../client/ExternalThread";
 import { ExternalThread } from "../client/ExternalThread";
 
 const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
@@ -261,6 +264,55 @@ describe("ExternalThread attachments", () => {
       expect(aui().thread().composer().getState().attachments).toHaveLength(0);
     },
   );
+
+  it("routes edit-composer attachments through the adapter", async () => {
+    const add = vi.fn(async ({ file }: { file: File }) => ({
+      id: "att-edit",
+      type: "file" as const,
+      name: file.name,
+      contentType: file.type,
+      file,
+      status: {
+        type: "requires-action" as const,
+        reason: "composer-send" as const,
+      },
+    }));
+    const aui = renderThreadWithProps({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      onEdit: () => {},
+      attachmentAdapter: {
+        accept: "*",
+        add,
+        send: async () => ({}) as never,
+        remove: async () => {},
+      },
+    });
+
+    const composer = () => aui().thread().message({ id: "u1" }).composer();
+    await act(async () => {
+      composer().beginEdit();
+    });
+    await act(() =>
+      composer().addAttachment(
+        new File(["data"], "notes.txt", { type: "text/plain" }),
+      ),
+    );
+
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(composer().getState().attachments[0]).toMatchObject({
+      id: "att-edit",
+      name: "notes.txt",
+    });
+  });
 
   afterEach(() => {
     vi.restoreAllMocks();

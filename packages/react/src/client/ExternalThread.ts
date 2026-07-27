@@ -126,6 +126,7 @@ type MessageClientProps = {
     | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
+  attachmentAdapter?: AttachmentAdapter | undefined;
 };
 
 // Message Client - minimal implementation
@@ -140,6 +141,7 @@ const useMessageClient = ({
   onRespondToToolApproval,
   onAddToolResult,
   onResumeToolCall,
+  attachmentAdapter,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -201,6 +203,7 @@ const useMessageClient = ({
       onSend: handleSendEdit,
       message,
       queue,
+      attachmentAdapter,
     }),
   );
 
@@ -756,6 +759,7 @@ const useExternalThread = ({
         onRespondToToolApproval,
         onAddToolResult,
         onResumeToolCall,
+        attachmentAdapter,
       };
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
