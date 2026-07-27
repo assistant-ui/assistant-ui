@@ -314,6 +314,58 @@ describe("ExternalThread attachments", () => {
     });
   });
 
+  it("merges the failed send into a draft the user already modified", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let rejectSend!: (reason: unknown) => void;
+    const adapter = {
+      accept: "*",
+      add: async ({ file }: { file: File }) => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise((_resolve, reject) => {
+          rejectSend = reject;
+        }) as never,
+      remove: async () => {},
+    };
+
+    const aui = renderThreadWithProps({
+      attachmentAdapter: adapter,
+      onNew: () => {},
+    });
+
+    await act(() =>
+      aui()
+        .thread()
+        .composer()
+        .addAttachment(new File(["data"], "notes.txt", { type: "text/plain" })),
+    );
+    await act(async () => {
+      aui().thread().composer().setText("hello");
+      aui().thread().composer().send();
+    });
+    await act(async () => {
+      aui().thread().composer().setText("meanwhile");
+    });
+
+    await act(async () => {
+      rejectSend(new Error("upload failed"));
+    });
+
+    const state = aui().thread().composer().getState();
+    expect(state.text).toBe("hello\nmeanwhile");
+    expect(state.attachments).toHaveLength(1);
+    expect(state.attachments[0]).toMatchObject({ id: "att-1" });
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
