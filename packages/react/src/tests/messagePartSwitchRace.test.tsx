@@ -83,8 +83,12 @@ const ChildrenMessage: FC = () => (
 );
 
 const InvalidPartReader: FC = () => {
-  useAuiState((s) => s.part.type);
-  return null;
+  const part = useAuiState((s) => s.part);
+  return (
+    <p data-testid="clamped-part">
+      {part.type === "text" ? part.text : part.type}
+    </p>
+  );
 };
 
 const InvalidPartMessage: FC = () => (
@@ -151,14 +155,16 @@ describe("part hooks under a thread-switch race", () => {
   it("warns and clamps an index that was never valid", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
+      let view!: ReturnType<typeof render>;
       await act(async () => {
-        render(<App MessageComponent={InvalidPartMessage} />);
+        view = render(<App MessageComponent={InvalidPartMessage} />);
       });
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining(
           "useClientLookup: Clamped stale index 2 to 1 (length: 2)",
         ),
       );
+      expect(view.getByTestId("clamped-part").textContent).toBe("world");
     } finally {
       warn.mockRestore();
     }
