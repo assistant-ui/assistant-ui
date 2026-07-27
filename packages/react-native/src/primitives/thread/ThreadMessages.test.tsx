@@ -660,6 +660,71 @@ describe("ThreadMessages", () => {
       expect(h.scrollToEnd).toHaveBeenCalledWith({ animated: false });
     });
 
+    it("commands a bottom scroll when the viewport shrinks while pinned", async () => {
+      const props = await mountPinned();
+
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 60 } },
+        });
+      });
+
+      expect(h.scrollToEnd).toHaveBeenCalledWith({ animated: false });
+    });
+
+    it("ignores a layout event with an unchanged viewport height", async () => {
+      const props = await mountPinned();
+
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 100 } },
+        });
+      });
+
+      expect(h.scrollToEnd).not.toHaveBeenCalled();
+    });
+
+    it("does not command a scroll on the first layout measurement", async () => {
+      await mountFlatList({ components: messageComponents });
+      getFlatListProps();
+      h.scrollToEnd.mockClear();
+
+      await act(async () => {
+        getFlatListProps().onLayout?.({
+          nativeEvent: { layout: { height: 100 } },
+        });
+      });
+
+      expect(h.scrollToEnd).not.toHaveBeenCalled();
+    });
+
+    it("does not command a scroll on viewport change when autoScroll is off", async () => {
+      await mountFlatList({ components: messageComponents, autoScroll: false });
+      const props = getFlatListProps();
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 100 } },
+        });
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 200 },
+            contentSize: { height: 300, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+        props.onContentSizeChange?.(0, 300);
+      });
+      h.scrollToEnd.mockClear();
+
+      await act(async () => {
+        props.onLayout?.({
+          nativeEvent: { layout: { height: 60 } },
+        });
+      });
+
+      expect(h.scrollToEnd).not.toHaveBeenCalled();
+    });
+
     it("stays unpinned when the viewport shrinks after scrolling away", async () => {
       const props = await mountPinned();
 

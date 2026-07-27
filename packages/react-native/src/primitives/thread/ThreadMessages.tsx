@@ -250,15 +250,26 @@ const useThreadMessagesFlatListAutoScroll = ({
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => {
       const wasAtBottom = isAtBottomRef.current;
-      metricsRef.current.viewportHeight = event.nativeEvent.layout.height;
+      const previousViewportHeight = metricsRef.current.viewportHeight;
+      const viewportHeight = event.nativeEvent.layout.height;
+      metricsRef.current.viewportHeight = viewportHeight;
       updateIsAtBottom();
-      // Layout changes are never user gestures; a viewport shrink (keyboard)
-      // recomputes at-bottom against the smaller box and would otherwise unpin.
-      if (wasAtBottom) {
+      if (!wasAtBottom) return;
+      // Layout changes are never user gestures, so they must not unpin. Past
+      // the first measurement, a viewport change while pinned re-commands the
+      // bottom position, since no content-size event follows a bare keyboard
+      // open or close.
+      if (
+        autoScroll &&
+        previousViewportHeight !== 0 &&
+        viewportHeight !== previousViewportHeight
+      ) {
+        scrollToBottom(false);
+      } else {
         isAtBottomRef.current = true;
       }
     },
-    [updateIsAtBottom],
+    [autoScroll, scrollToBottom, updateIsAtBottom],
   );
 
   const handleScroll = useCallback(
