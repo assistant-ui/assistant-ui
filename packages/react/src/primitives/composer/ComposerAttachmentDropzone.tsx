@@ -72,7 +72,8 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
           try {
             await aui.composer().addAttachment(file);
           } catch {
-            // addAttachment emits composer.attachmentAddError before rejecting
+            // The composer runtime emits composer.attachmentAddError before rejecting;
+            // the readonly and empty-thread stubs only throw.
           }
         }),
       );
