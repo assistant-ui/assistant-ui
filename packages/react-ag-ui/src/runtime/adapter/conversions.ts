@@ -2,7 +2,6 @@
 
 import type { InputContent } from "@ag-ui/client";
 import type {
-  McpAppMetadata,
   ThreadMessageLike as CoreThreadMessageLike,
   ToolCallMessagePartMcpMetadata,
   ToolModelContentPart,
@@ -12,7 +11,6 @@ import {
   httpUrlPattern,
   parseDataUrl,
 } from "@assistant-ui/core/internal";
-import { isMcpAppUri } from "@assistant-ui/core";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
@@ -20,7 +18,10 @@ import {
   type AgUiCustomMetadata,
 } from "./run-aggregator";
 import type { AgUiInterrupt } from "../types";
-import { parseMcpToolCallResult } from "../mcp-tool-result";
+import {
+  parseMcpToolCallResult,
+  readMcpAppResourceUri,
+} from "../mcp-tool-result";
 
 export type { InputContent };
 
@@ -85,19 +86,6 @@ const getString = (record: Record<string, unknown>, key: string) => {
 
 const getToolCallId = (record: Record<string, unknown>) =>
   getString(record, "toolCallId") ?? getString(record, "tool_call_id");
-
-// _meta["ui/resourceUri"] is the MCP-UI pointer react-ai-sdk reads off
-// CallToolResult._meta; only ui:// URIs identify an MCP Apps widget. A
-// structured carrier is deliberately not read until upstream AG-UI settles
-// one (agno-agi/agno#9087).
-function readMcpAppFromToolMessage(
-  rawMessage: Record<string, unknown>,
-): McpAppMetadata | undefined {
-  const meta = isObject(rawMessage._meta) ? rawMessage._meta : undefined;
-  const uri = meta ? getString(meta, "ui/resourceUri") : undefined;
-  if (uri !== undefined && isMcpAppUri(uri)) return { resourceUri: uri };
-  return undefined;
-}
 
 function parseJSONText(value: string): unknown {
   if (!value) return value;
@@ -572,7 +560,9 @@ export function fromAgUiMessages(
           : rawMessage.isError === false
             ? false
             : undefined;
-      const mcpApp = readMcpAppFromToolMessage(rawMessage);
+      const mcpAppUri = readMcpAppResourceUri(mcpResult?._meta);
+      const mcpApp =
+        mcpAppUri !== undefined ? { resourceUri: mcpAppUri } : undefined;
 
       let updated = false;
       for (

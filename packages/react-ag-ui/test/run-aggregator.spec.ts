@@ -637,6 +637,96 @@ describe("RunAggregator", () => {
     expect((toolPart as any).mcp).toBeUndefined();
   });
 
+  it("stamps mcp app metadata from the tool result's _meta ui/resourceUri carrier", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "ok",
+      role: "tool",
+      mcpResult: {
+        content: [{ type: "text", text: "ok" }],
+        _meta: { "ui/resourceUri": "ui://example/widget" },
+      },
+    } as AgUiEvent);
+
+    const toolPart = results
+      .at(-1)
+      ?.content?.find((part) => part.type === "tool-call") as any;
+    expect(toolPart.mcp).toEqual({
+      app: { resourceUri: "ui://example/widget" },
+    });
+  });
+
+  it("ignores a tool result _meta carrier whose resourceUri is not a ui:// uri", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "ok",
+      role: "tool",
+      mcpResult: {
+        content: [{ type: "text", text: "ok" }],
+        _meta: { "ui/resourceUri": "https://example.com/x" },
+      },
+    } as AgUiEvent);
+
+    const toolPart = results
+      .at(-1)
+      ?.content?.find((part) => part.type === "tool-call") as any;
+    expect(toolPart.mcp).toBeUndefined();
+  });
+
+  it("lets an mcp-apps snapshot override the tool result's _meta ui/resourceUri carrier", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "show_map",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tool1",
+      content: "ok",
+      role: "tool",
+      mcpResult: {
+        content: [{ type: "text", text: "ok" }],
+        _meta: { "ui/resourceUri": "ui://example/widget" },
+      },
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: {
+        resourceUri: "ui://srv/mcp-app.html",
+        serverId: "s",
+      },
+    } as AgUiEvent);
+
+    const toolPart = results
+      .at(-1)
+      ?.content?.find((part) => part.type === "tool-call") as any;
+    expect(toolPart.mcp).toEqual({
+      app: { resourceUri: "ui://srv/mcp-app.html", serverId: "s" },
+    });
+  });
+
   it("sets requires-action status when tool calls lack results at RUN_FINISHED", () => {
     const aggregator = createAggregator(false);
 
