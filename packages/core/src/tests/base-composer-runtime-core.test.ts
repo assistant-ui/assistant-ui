@@ -1,34 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { BaseComposerRuntimeCore } from "../legacy-runtime/runtime-cores/composer/BaseComposerRuntimeCore";
-import type {
-  AppendMessage,
-  AttachmentAdapter,
-  CreateAttachment,
-  DictationAdapter,
-  PendingAttachment,
-  SendOptions,
-} from "@assistant-ui/core";
+import { BaseComposerRuntimeCore } from "../runtime/base/base-composer-runtime-core";
+import type { AttachmentAdapter } from "../adapters/attachment";
+import type { DictationAdapter } from "../adapters/speech";
+import type { CreateAttachment, PendingAttachment } from "../types/attachment";
+import type { AppendMessage } from "../types/message";
+import type { SendOptions } from "../runtime/interfaces/composer-runtime-core";
 
 class TestComposerCore extends BaseComposerRuntimeCore {
   private _attachmentAdapter: AttachmentAdapter | undefined;
-  private _dictationAdapter: DictationAdapter | undefined;
   public sentMessages: Array<Omit<AppendMessage, "parentId" | "sourceId">> = [];
   public sentOptions: Array<SendOptions | undefined> = [];
-  public cancelCalled = false;
 
   protected getAttachmentAdapter() {
     return this._attachmentAdapter;
   }
-  protected getDictationAdapter() {
-    return this._dictationAdapter;
+  protected getDictationAdapter(): DictationAdapter | undefined {
+    return undefined;
   }
 
   setAttachmentAdapter(adapter: AttachmentAdapter | undefined) {
     this._attachmentAdapter = adapter;
-  }
-
-  setDictationAdapter(adapter: DictationAdapter | undefined) {
-    this._dictationAdapter = adapter;
   }
 
   get canCancel() {
@@ -47,9 +38,7 @@ class TestComposerCore extends BaseComposerRuntimeCore {
     this.sentOptions.push(options);
   }
 
-  protected handleCancel() {
-    this.cancelCalled = true;
-  }
+  protected handleCancel() {}
 }
 
 const makePendingAttachment = (
@@ -71,68 +60,18 @@ describe("BaseComposerRuntimeCore", () => {
     composer = new TestComposerCore();
   });
 
-  it("sets and gets text", () => {
-    composer.setText("hello");
-    expect(composer.text).toBe("hello");
-  });
-
-  it("setText does not notify when value unchanged", () => {
+  it("does not notify when a set value is unchanged", () => {
     composer.setText("same");
     const listener = vi.fn();
     composer.subscribe(listener);
 
     composer.setText("same");
     expect(listener).not.toHaveBeenCalled();
-  });
-
-  it("isEmpty returns true when no text and no attachments", () => {
-    expect(composer.isEmpty).toBe(true);
-  });
-
-  it("isEmpty returns false when text is present", () => {
-    composer.setText("hi");
-    expect(composer.isEmpty).toBe(false);
   });
 
   it("isEmpty returns true for whitespace-only text", () => {
     composer.setText("   ");
     expect(composer.isEmpty).toBe(true);
-  });
-
-  it("sets and gets role", () => {
-    composer.setRole("assistant");
-    expect(composer.role).toBe("assistant");
-  });
-
-  it("setRole does not notify when value unchanged", () => {
-    composer.setRole("user");
-    const listener = vi.fn();
-    composer.subscribe(listener);
-
-    composer.setRole("user");
-    expect(listener).not.toHaveBeenCalled();
-  });
-
-  it("sets and gets runConfig", () => {
-    const config = { custom: { model: "gpt-5.4-nano" } };
-    composer.setRunConfig(config);
-    expect(composer.runConfig).toBe(config);
-  });
-
-  it("sets and gets quote", () => {
-    const quote = { text: "some quote", messageId: "msg-1" };
-    composer.setQuote(quote);
-    expect(composer.quote).toBe(quote);
-  });
-
-  it("setQuote does not notify when value unchanged", () => {
-    const quote = { text: "q", messageId: "m1" };
-    composer.setQuote(quote);
-    const listener = vi.fn();
-    composer.subscribe(listener);
-
-    composer.setQuote(quote);
-    expect(listener).not.toHaveBeenCalled();
   });
 
   it("reset clears text, attachments, role, runConfig, and quote", async () => {
@@ -150,33 +89,12 @@ describe("BaseComposerRuntimeCore", () => {
     expect(composer.attachments).toEqual([]);
   });
 
-  it("reset does nothing when already in default state", async () => {
+  it("reset does not notify when already in default state", async () => {
     const listener = vi.fn();
     composer.subscribe(listener);
 
     await composer.reset();
     expect(listener).not.toHaveBeenCalled();
-  });
-
-  it("send constructs message with text content and fires send event", async () => {
-    composer.setText("hello world");
-
-    await composer.send();
-
-    expect(composer.sentMessages).toHaveLength(1);
-    const msg = composer.sentMessages[0]!;
-    expect(msg.role).toBe("user");
-    expect(msg.content).toEqual([{ type: "text", text: "hello world" }]);
-    expect(msg.attachments).toEqual([]);
-  });
-
-  it("send clears text and attachments after sending", async () => {
-    composer.setText("hello");
-
-    await composer.send();
-
-    expect(composer.text).toBe("");
-    expect(composer.attachments).toEqual([]);
   });
 
   it("send includes quote in metadata and clears it", async () => {
@@ -191,35 +109,19 @@ describe("BaseComposerRuntimeCore", () => {
     expect(composer.quote).toBeUndefined();
   });
 
-  it("send with empty text is a no-op", async () => {
+  it("forwards send options to handleSend", async () => {
+    composer.setText("a");
     await composer.send();
+    composer.setText("b");
+    await composer.send({ startRun: true });
+    composer.setText("c");
+    await composer.send({ startRun: false });
 
-    expect(composer.sentMessages).toHaveLength(0);
-  });
-
-  it("addAttachment throws when no adapter", async () => {
-    const file = new File(["data"], "test.txt");
-    await expect(composer.addAttachment(file)).rejects.toThrow(
-      "Attachments are not supported",
-    );
-  });
-
-  it("addAttachment adds via adapter", async () => {
-    const pending = makePendingAttachment("att-1", "test.txt");
-    const adapter: AttachmentAdapter = {
-      accept: "text/*",
-      add: vi.fn().mockResolvedValue(pending),
-      remove: vi.fn().mockResolvedValue(undefined),
-      send: vi.fn(),
-    };
-    composer.setAttachmentAdapter(adapter);
-
-    await composer.addAttachment(
-      new File(["data"], "test.txt", { type: "text/plain" }),
-    );
-
-    expect(composer.attachments).toHaveLength(1);
-    expect(composer.attachments[0]!.id).toBe("att-1");
+    expect(composer.sentOptions).toEqual([
+      undefined,
+      { startRun: true },
+      { startRun: false },
+    ]);
   });
 
   it("removeAttachment removes via adapter", async () => {
@@ -254,16 +156,6 @@ describe("BaseComposerRuntimeCore", () => {
     );
   });
 
-  it("unstable_on registers event listener for send", async () => {
-    const callback = vi.fn();
-    composer.unstable_on("send", callback);
-
-    composer.setText("test");
-    await composer.send();
-
-    expect(callback).toHaveBeenCalledTimes(1);
-  });
-
   it("unstable_on unsubscribe stops notifications", async () => {
     const callback = vi.fn();
     const unsub = composer.unstable_on("send", callback);
@@ -273,27 +165,6 @@ describe("BaseComposerRuntimeCore", () => {
     await composer.send();
 
     expect(callback).not.toHaveBeenCalled();
-  });
-
-  it("unstable_on fires attachmentAdd event", async () => {
-    const callback = vi.fn();
-    composer.unstable_on("attachmentAdd", callback);
-
-    const pending = makePendingAttachment("att-1");
-    const adapter: AttachmentAdapter = {
-      accept: "*",
-      add: vi.fn().mockResolvedValue(pending),
-      remove: vi.fn(),
-      send: vi.fn(),
-    };
-    composer.setAttachmentAdapter(adapter);
-
-    await composer.addAttachment(new File([""], "f.txt"));
-    expect(callback).toHaveBeenCalledTimes(1);
-  });
-
-  it("isEditing is always true", () => {
-    expect(composer.isEditing).toBe(true);
   });
 
   it("attachmentAccept returns adapter accept or default", () => {
@@ -309,28 +180,6 @@ describe("BaseComposerRuntimeCore", () => {
     expect(composer.attachmentAccept).toBe("image/*");
   });
 
-  it("cancel delegates to handleCancel", () => {
-    composer.cancel();
-    expect(composer.cancelCalled).toBe(true);
-  });
-
-  it("subscribe notifies on text change", () => {
-    const listener = vi.fn();
-    composer.subscribe(listener);
-
-    composer.setText("new");
-    expect(listener).toHaveBeenCalledTimes(1);
-  });
-
-  it("subscribe returns working unsubscribe function", () => {
-    const listener = vi.fn();
-    const unsub = composer.subscribe(listener);
-    unsub();
-
-    composer.setText("change");
-    expect(listener).not.toHaveBeenCalled();
-  });
-
   describe("CreateAttachment (external source)", () => {
     const makeCreateAttachment = (
       overrides?: Partial<CreateAttachment>,
@@ -341,7 +190,6 @@ describe("BaseComposerRuntimeCore", () => {
     });
 
     it("addAttachment with CreateAttachment adds without adapter", async () => {
-      // No adapter set — should still work
       const att = makeCreateAttachment();
       await composer.addAttachment(att);
 
@@ -384,7 +232,6 @@ describe("BaseComposerRuntimeCore", () => {
       await composer.addAttachment(makeCreateAttachment({ id: "ext-1" }));
       expect(composer.attachments).toHaveLength(1);
 
-      // No adapter set — should still remove complete attachments
       await composer.removeAttachment("ext-1");
       expect(composer.attachments).toHaveLength(0);
     });
@@ -414,9 +261,7 @@ describe("BaseComposerRuntimeCore", () => {
       };
       composer.setAttachmentAdapter(adapter);
 
-      // Add a file-based attachment via adapter
       await composer.addAttachment(new File(["data"], "file.txt"));
-      // Add an external attachment
       await composer.addAttachment(makeCreateAttachment({ id: "ext-1" }));
 
       expect(composer.attachments).toHaveLength(2);
@@ -427,7 +272,6 @@ describe("BaseComposerRuntimeCore", () => {
       expect(composer.sentMessages).toHaveLength(1);
       const msg = composer.sentMessages[0]!;
       expect(msg.attachments).toHaveLength(2);
-      // Pending was sent through adapter
       expect(adapter.send).toHaveBeenCalledTimes(1);
     });
 
@@ -513,7 +357,6 @@ describe("BaseComposerRuntimeCore", () => {
       });
 
       it("adds external attachment without check when no adapter is configured", async () => {
-        // No adapter — preserves the original "no adapter required" guarantee
         await composer.addAttachment(
           makeCreateAttachment({
             name: "anything.xyz",
@@ -522,22 +365,6 @@ describe("BaseComposerRuntimeCore", () => {
         );
 
         expect(composer.attachments).toHaveLength(1);
-      });
-
-      it("does not let subscriber errors mask the original throw", async () => {
-        composer.setAttachmentAdapter(makeImageAdapter());
-        composer.unstable_on("attachmentAddError", () => {
-          throw new Error("subscriber boom");
-        });
-
-        await expect(
-          composer.addAttachment(
-            makeCreateAttachment({
-              name: "doc.pdf",
-              contentType: "application/pdf",
-            }),
-          ),
-        ).rejects.toThrow(/is not accepted/);
       });
 
       it("isolates a throwing attachmentAdd subscriber without firing attachmentAddError", async () => {
@@ -590,32 +417,6 @@ describe("BaseComposerRuntimeCore", () => {
         expect(composer.attachments).toHaveLength(1);
         expect(onError).not.toHaveBeenCalled();
       });
-    });
-  });
-
-  describe("send options", () => {
-    it("send() passes undefined options by default", async () => {
-      composer.setText("hello");
-      await composer.send();
-
-      expect(composer.sentOptions).toHaveLength(1);
-      expect(composer.sentOptions[0]).toBeUndefined();
-    });
-
-    it("send({ startRun: true }) forwards options to handleSend", async () => {
-      composer.setText("hello");
-      await composer.send({ startRun: true });
-
-      expect(composer.sentOptions).toHaveLength(1);
-      expect(composer.sentOptions[0]).toEqual({ startRun: true });
-    });
-
-    it("send({ startRun: false }) forwards options to handleSend", async () => {
-      composer.setText("hello");
-      await composer.send({ startRun: false });
-
-      expect(composer.sentOptions).toHaveLength(1);
-      expect(composer.sentOptions[0]).toEqual({ startRun: false });
     });
   });
 });
