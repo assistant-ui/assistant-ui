@@ -22,7 +22,13 @@ export class DataStreamChunkDecoder extends TransformStream<
     super({
       transform: (chunk, controller) => {
         const index = chunk.indexOf(":");
-        if (index === -1) throw new Error("Invalid stream part");
+        if (index === -1) {
+          // Blank lines are benign data-stream framing (keepalive newlines,
+          // replay-buffer separators emitted on resume/reconnect).
+          if (chunk.trim().length === 0) return;
+          console.warn(`Dropped invalid data-stream chunk: ${chunk}`);
+          return;
+        }
         let value;
         try {
           value = sjson.parse(chunk.slice(index + 1));
