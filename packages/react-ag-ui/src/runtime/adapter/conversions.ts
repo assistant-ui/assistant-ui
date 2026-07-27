@@ -87,23 +87,12 @@ const getToolCallId = (record: Record<string, unknown>) =>
   getString(record, "toolCallId") ?? getString(record, "tool_call_id");
 
 // _meta["ui/resourceUri"] is the MCP-UI pointer react-ai-sdk reads off
-// CallToolResult._meta; the structured mcp.app carrier mirrors the core
-// ToolCallMessagePart.mcp shape.
+// CallToolResult._meta; only ui:// URIs identify an MCP Apps widget. A
+// structured carrier is deliberately not read until upstream AG-UI settles
+// one (agno-agi/agno#9087).
 function readMcpAppFromToolMessage(
   rawMessage: Record<string, unknown>,
 ): McpAppMetadata | undefined {
-  const mcp = isObject(rawMessage.mcp) ? rawMessage.mcp : undefined;
-  const app = mcp && isObject(mcp.app) ? mcp.app : undefined;
-  if (app) {
-    const resourceUri = getString(app, "resourceUri");
-    if (resourceUri !== undefined && isMcpAppUri(resourceUri)) {
-      const serverId = getString(app, "serverId");
-      return {
-        resourceUri,
-        ...(serverId !== undefined && serverId.length > 0 ? { serverId } : {}),
-      };
-    }
-  }
   const meta = isObject(rawMessage._meta) ? rawMessage._meta : undefined;
   const uri = meta ? getString(meta, "ui/resourceUri") : undefined;
   if (uri !== undefined && isMcpAppUri(uri)) return { resourceUri: uri };
