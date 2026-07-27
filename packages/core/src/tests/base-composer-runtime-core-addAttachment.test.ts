@@ -128,6 +128,73 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("does not restore an attachment removed while add is still running", async () => {
+    let finishUpload!: () => void;
+    const uploadPending = new Promise<void>((resolve) => {
+      finishUpload = resolve;
+    });
+    let finishRemoval!: () => void;
+    const removalPending = new Promise<void>((resolve) => {
+      finishRemoval = resolve;
+    });
+    const remove = vi.fn(() => removalPending);
+    const continueUpload = vi.fn();
+    const cleanUpUpload = vi.fn();
+    const composer = makeComposer(
+      makeAdapter({
+        remove,
+        async *add({ file }: { file: File }) {
+          const attachment: PendingAttachment = {
+            id: "att-1",
+            type: "image",
+            name: file.name,
+            contentType: file.type,
+            file,
+            status: {
+              type: "running",
+              reason: "uploading",
+              progress: 0,
+            },
+          };
+          try {
+            yield attachment;
+            await uploadPending;
+            yield {
+              ...attachment,
+              status: { type: "requires-action", reason: "composer-send" },
+            };
+            continueUpload();
+            yield attachment;
+          } finally {
+            cleanUpUpload();
+          }
+        },
+      }),
+    );
+    const onAdd = vi.fn();
+    composer.unstable_on("attachmentAdd", onAdd);
+
+    const addTask = composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+    await vi.waitFor(() => {
+      expect(composer.attachments).toHaveLength(1);
+    });
+
+    const removeTask = composer.removeAttachment("att-1");
+    finishUpload();
+    await addTask;
+
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(onAdd).not.toHaveBeenCalled();
+    expect(continueUpload).not.toHaveBeenCalled();
+    expect(cleanUpUpload).toHaveBeenCalledTimes(1);
+
+    finishRemoval();
+    await removeTask;
+    expect(composer.attachments).toHaveLength(0);
+  });
+
   it("adds prepared attachments when File is unavailable", async () => {
     const composer = makeComposer();
     const fileConstructor = globalThis.File;
