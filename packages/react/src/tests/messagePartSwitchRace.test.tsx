@@ -3,7 +3,7 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { flushSync } from "react-dom";
 import { useEffect, useState, type FC } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { AssistantRuntimeProvider, PartByIndexProvider } from "../context";
 import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
@@ -148,11 +148,19 @@ describe("part hooks under a thread-switch race", () => {
     },
   );
 
-  it("still rejects an index that was never valid", async () => {
-    await expect(
-      act(async () => {
+  it("warns and clamps an index that was never valid", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await act(async () => {
         render(<App MessageComponent={InvalidPartMessage} />);
-      }),
-    ).rejects.toThrow("useClientLookup: Index 2 out of bounds (length: 2)");
+      });
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "useClientLookup: Clamped stale index 2 to 1 (length: 2)",
+        ),
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
