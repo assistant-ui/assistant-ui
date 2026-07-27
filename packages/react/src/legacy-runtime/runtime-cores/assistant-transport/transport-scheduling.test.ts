@@ -29,6 +29,8 @@ const useTransportSchedulingHarness = (
   opts: {
     onRun?: (signal: AbortSignal) => Promise<void> | void;
     onCancel?: (commands: AssistantTransportCommand[]) => void;
+    onError?: (commands: AssistantTransportCommand[]) => void;
+    onFinish?: () => void;
   } = {},
 ) => {
   const commandQueueRef = useRef<ReturnType<typeof useCommandQueue> | null>(
@@ -49,8 +51,10 @@ const useTransportSchedulingHarness = (
       opts.onCancel?.(commands);
     },
     onError: async () => {
-      // not needed for these contract tests
+      const queue = commandQueueRef.current!;
+      opts.onError?.([...queue.state.inTransit]);
     },
+    onFinish: () => opts.onFinish?.(),
   });
 
   const commandQueue = useCommandQueue({
@@ -159,6 +163,8 @@ describe("assistant transport scheduling contracts", () => {
   it("unmount aborts the in-flight run without invoking callbacks", async () => {
     let aborted = false;
     const onCancel = vi.fn();
+    const onError = vi.fn();
+    const onFinish = vi.fn();
     const { result, unmount } = renderHook(() =>
       useTransportSchedulingHarness({
         onRun: (signal) =>
@@ -173,6 +179,8 @@ describe("assistant transport scheduling contracts", () => {
             );
           }),
         onCancel,
+        onError,
+        onFinish,
       }),
     );
 
@@ -188,6 +196,8 @@ describe("assistant transport scheduling contracts", () => {
     expect(aborted).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(onCancel).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(onFinish).not.toHaveBeenCalled();
   });
 
   it("survives StrictMode double-mounting", async () => {

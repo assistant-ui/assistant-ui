@@ -7,6 +7,8 @@ export type RunManager = Readonly<{
   cancel: () => void;
 }>;
 
+const disposeReason = Symbol("assistant-transport-dispose");
+
 export function useRunManager(config: {
   onRun: (signal: AbortSignal) => Promise<void>;
   onFinish?: (() => void) | undefined;
@@ -30,29 +32,36 @@ export function useRunManager(config: {
     const ac = new AbortController();
     stateRef.current.abortController = ac;
 
+    // The dispose marker rides on the abort reason so a settling run detects
+    // its own disposal even after an effect cycle re-arms the manager.
+    const disposeAborted = () => ac.signal.reason === disposeReason;
+
     queueMicrotask(async () => {
       try {
-        await onRunRef.current(ac.signal);
+        if (!disposeAborted()) {
+          await onRunRef.current(ac.signal);
+        }
       } catch (error) {
-        stateRef.current.pending = false;
-        if (stateRef.current.disposed) {
-          // unmount aborted the run; no callbacks
+        if (disposeAborted()) {
+          // the abort is ours; no callbacks
         } else if (ac.signal.aborted) {
+          stateRef.current.pending = false;
           onCancelRef.current?.();
         } else {
+          stateRef.current.pending = false;
           await onErrorRef.current?.(error as Error);
         }
       } finally {
-        if (stateRef.current.disposed) {
+        if (stateRef.current.abortController === ac) {
           stateRef.current.abortController = null;
-        } else {
+        }
+        if (!disposeAborted() && !stateRef.current.disposed) {
           onFinishRef.current?.();
-          if (stateRef.current.pending) {
-            startRun();
-          } else {
-            setIsRunning(false);
-            stateRef.current.abortController = null;
-          }
+        }
+        if (!stateRef.current.disposed && stateRef.current.pending) {
+          startRun();
+        } else {
+          setIsRunning(false);
         }
       }
     });
@@ -74,7 +83,7 @@ export function useRunManager(config: {
     return () => {
       stateRef.current.disposed = true;
       stateRef.current.pending = false;
-      stateRef.current.abortController?.abort();
+      stateRef.current.abortController?.abort(disposeReason);
     };
   }, []);
 
