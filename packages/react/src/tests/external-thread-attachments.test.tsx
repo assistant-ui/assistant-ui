@@ -2,7 +2,7 @@
 
 import { act, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
 import type { ExternalThreadProps } from "../client/ExternalThread";
 import { ExternalThread } from "../client/ExternalThread";
@@ -162,6 +162,9 @@ describe("ExternalThread attachments", () => {
       "Failed to send attachments",
       expect.any(Error),
     );
-    consoleError.mockRestore();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 });
