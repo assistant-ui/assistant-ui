@@ -156,7 +156,7 @@ describe("useAISDKRuntime", () => {
     expect(chat.messages[0].parts[1].state).toBe("output-available");
   });
 
-  it("strips stale approval when cancelling a tool pending approval so history stays valid (#4195)", async () => {
+  it("strips stale approval when cancelling a tool pending approval so history stays valid", async () => {
     const chat = createChatHelpers([
       {
         id: "a1",

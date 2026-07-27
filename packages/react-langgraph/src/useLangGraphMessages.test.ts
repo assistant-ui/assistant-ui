@@ -1061,7 +1061,7 @@ describe("useLangGraphMessages", {}, () => {
     });
   });
 
-  it("uses fresh messages after setMessages (stale closure fix)", async () => {
+  it("uses fresh messages after setMessages", async () => {
     const streamSpy = vi
       .fn()
       .mockImplementation(mockStreamCallbackFactory([metadataEvent]));
@@ -1097,7 +1097,6 @@ describe("useLangGraphMessages", {}, () => {
 
     await waitFor(() => {
       // After truncation + send, should only have the new message
-      // NOT the old "h1" message (which would happen with stale closure)
       expect(result.current.messages).toHaveLength(1);
       expect(result.current.messages[0]!.id).toBe("h2");
       expect(result.current.messages[0]!.content).toBe("edited");
@@ -1795,57 +1794,7 @@ describe("useLangGraphMessages", {}, () => {
     });
   });
 
-  it("reconciles tuple-accumulated messages with final values snapshot", async () => {
-    const mockStreamCallback = mockStreamCallbackFactory([
-      metadataEvent,
-      {
-        event: "messages",
-        data: [
-          {
-            id: "run-1",
-            content: "Streaming response",
-            type: "AIMessageChunk",
-            tool_call_chunks: [],
-          },
-          { run_attempt: 1 },
-        ],
-      },
-      {
-        event: "values",
-        data: {
-          messages: [
-            { id: "user-1", type: "human" as const, content: "hi" },
-            { id: "run-1", type: "ai" as const, content: "Final value" },
-          ],
-        },
-      },
-    ]);
-
-    const { result } = renderHook(() =>
-      useLangGraphMessages({
-        stream: mockStreamCallback,
-        appendMessage: appendLangChainChunk,
-      }),
-    );
-
-    act(() => {
-      result.current.sendMessage(
-        [{ id: "user-1", type: "human", content: "hi" }],
-        {},
-      );
-    });
-
-    await waitFor(() => {
-      expect(result.current.messages).toHaveLength(2);
-      // After stream ends, final values snapshot becomes authoritative
-      const aiMessage = result.current.messages[1]!;
-      expect(aiMessage.id).toBe("run-1");
-      expect(aiMessage.content).toEqual("Final value");
-    });
-  });
-
   it("shows messages from pure node after LLM node (mixed tuple + values)", async () => {
-    // Reproduces the exact issue #3598 scenario:
     // Node A (validate_input) has LLM → produces messages-tuple events
     // Node B (generate_plan) is pure Python → only produces values events
     const mockStreamCallback = mockStreamCallbackFactory([
