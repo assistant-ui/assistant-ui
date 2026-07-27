@@ -17,6 +17,7 @@ import type {
   CreateAttachment,
   PendingAttachment,
   RespondToToolApprovalOptions,
+  ResumeToolCallOptions,
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
   ThreadMessage,
@@ -67,6 +68,8 @@ export type ExternalThreadProps = {
   onCancel?: () => void;
   onResume?: (() => void) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
+  /** Callback for resuming a tool call that is waiting for human input. */
+  onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
   onLoadExternalState?: ((state: unknown) => void) | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
   /** Queue adapter for runtimes that support message queuing and steering. */
@@ -80,6 +83,7 @@ export type ExternalThreadProps = {
 type MessageClientProps = {
   message: ExternalThreadMessage;
   index: number;
+  parentId: string | null;
   onEdit?: (message: AppendMessage) => void;
   onReload?: () => void;
   queue?: ExternalThreadQueueAdapter | undefined;
@@ -88,18 +92,21 @@ type MessageClientProps = {
     | ((options: RespondToToolApprovalOptions) => void)
     | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
+  onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
 };
 
 // Message Client - minimal implementation
 const useMessageClient = ({
   message,
   index,
+  parentId,
   onEdit,
   onReload,
   queue,
   branches,
   onRespondToToolApproval,
   onAddToolResult,
+  onResumeToolCall,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -114,6 +121,7 @@ const useMessageClient = ({
           messageId: message.id,
           onRespondToToolApproval,
           onAddToolResult,
+          onResumeToolCall,
         }),
       ),
     ),
@@ -143,7 +151,7 @@ const useMessageClient = ({
     queue?.clear("edit");
     onEdit?.({
       ...msg,
-      parentId: message.id,
+      parentId,
       sourceId: message.id,
     });
     setIsEditing(false);
@@ -171,7 +179,7 @@ const useMessageClient = ({
     return {
       ...message,
       attachments: message.attachments ?? [],
-      parentId: null,
+      parentId,
       isLast: false, // Will be set by thread
       branchNumber,
       branchCount,
@@ -184,6 +192,7 @@ const useMessageClient = ({
     };
   }, [
     message,
+    parentId,
     isCopied,
     isHovering,
     index,
@@ -247,6 +256,7 @@ type PartResourceProps = {
     | ((options: RespondToToolApprovalOptions) => void)
     | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
+  onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
 };
 
 // Part Client - minimal implementation
@@ -255,6 +265,7 @@ const usePartResource = ({
   messageId,
   onRespondToToolApproval,
   onAddToolResult,
+  onResumeToolCall,
 }: PartResourceProps): ClientOutput<"part"> => {
   const state = useMemo(
     () => ({
@@ -284,7 +295,13 @@ const usePartResource = ({
         }),
       });
     },
-    resumeToolCall: () => {},
+    resumeToolCall: (payload) => {
+      if (!onResumeToolCall) return;
+      if (part.type !== "tool-call")
+        throw new Error("Tried to resume tool call on non-tool message part");
+
+      onResumeToolCall({ toolCallId: part.toolCallId, payload });
+    },
     respondToToolApproval: (response) => {
       if (!onRespondToToolApproval)
         throw new Error("Runtime does not support tool approvals.");
@@ -605,6 +622,7 @@ const useExternalThread = ({
   onCancel,
   onResume,
   onAddToolResult,
+  onResumeToolCall,
   onLoadExternalState,
   attachmentAdapter,
   queue,
@@ -625,11 +643,13 @@ const useExternalThread = ({
       const props: MessageClientProps = {
         message: msg,
         index,
+        parentId: index > 0 ? messages[index - 1]!.id : null,
         onReload: () => handleReload(msg.id),
         queue,
         branches,
         onRespondToToolApproval,
         onAddToolResult,
+        onResumeToolCall,
       };
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
