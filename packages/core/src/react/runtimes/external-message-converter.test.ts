@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { convertExternalMessages } from "../legacy-runtime/runtime-cores/external-store/external-message-converter";
-import type { useExternalMessageConverter } from "../legacy-runtime/runtime-cores/external-store/external-message-converter";
-import { isErrorMessageId } from "@assistant-ui/core/internal";
+import { convertExternalMessages } from "./external-message-converter";
+import type { useExternalMessageConverter } from "./external-message-converter";
+import { isErrorMessageId } from "../../utils/id";
 
 describe("convertExternalMessages", () => {
   describe("reasoning part merging", () => {

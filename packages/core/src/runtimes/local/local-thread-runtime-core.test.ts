@@ -1088,3 +1088,152 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     ]);
   });
 });
+
+describe("LocalThreadRuntimeCore runs", () => {
+  const createPlainThread = (
+    adapter: ChatModelAdapter,
+    options?: { maxSteps?: number },
+  ) => {
+    const core = new LocalRuntimeCore(
+      {
+        adapters: { chatModel: adapter },
+        ...(options?.maxSteps !== undefined && { maxSteps: options.maxSteps }),
+      },
+      undefined,
+    );
+    return core.threads.getMainThreadRuntimeCore();
+  };
+
+  it("appends the user message and the adapter result", async () => {
+    const run = vi.fn(
+      async (): Promise<ChatModelRunResult> => ({
+        content: [{ type: "text", text: "Hello!" }],
+        status: { type: "complete", reason: "stop" },
+      }),
+    );
+    const thread = createPlainThread({ run });
+
+    await thread.append(userMessage("Hi"));
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(thread.messages).toHaveLength(2);
+    expect(thread.messages[0]?.role).toBe("user");
+    const assistant = thread.messages[1]!;
+    expect(assistant.role).toBe("assistant");
+    expect(assistant.content).toContainEqual(
+      expect.objectContaining({ type: "text", text: "Hello!" }),
+    );
+    expect(assistant.status).toEqual({ type: "complete", reason: "stop" });
+  });
+
+  it("streams the assistant response via an async generator", async () => {
+    const thread = createPlainThread({
+      async *run() {
+        yield { content: [{ type: "text" as const, text: "Hel" }] };
+        yield {
+          content: [{ type: "text" as const, text: "Hello world" }],
+          status: { type: "complete" as const, reason: "stop" as const },
+        };
+      },
+    });
+
+    await thread.append(userMessage("Stream test"));
+
+    const assistant = thread.messages.at(-1)!;
+    expect(assistant.content).toContainEqual(
+      expect.objectContaining({ type: "text", text: "Hello world" }),
+    );
+    expect(assistant.status).toEqual({ type: "complete", reason: "stop" });
+  });
+
+  it("marks the message errored when the adapter rejects", async () => {
+    const thread = createPlainThread({
+      async run() {
+        throw new Error("Model unavailable");
+      },
+    });
+
+    await expect(thread.append(userMessage("Error test"))).rejects.toThrow(
+      "Model unavailable",
+    );
+
+    const assistant = thread.messages.at(-1)!;
+    expect(assistant.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: { code: "unknown", message: "Model unavailable" },
+    });
+  });
+
+  it("does not run again after a tool result once maxSteps is reached", async () => {
+    const run = vi.fn(
+      async (): Promise<ChatModelRunResult> => ({
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "tc1",
+            toolName: "myTool",
+            args: {},
+            argsText: "{}",
+          },
+        ],
+        status: { type: "requires-action", reason: "tool-calls" },
+        metadata: {
+          steps: [{ usage: { promptTokens: 10, completionTokens: 5 } }],
+        },
+      }),
+    );
+    const thread = createPlainThread({ run }, { maxSteps: 1 });
+
+    await thread.append(userMessage("Tool call"));
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolName: "myTool",
+      toolCallId: "tc1",
+      result: "result",
+      isError: false,
+    });
+    await flush();
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(thread.messages.at(-1)?.status).toMatchObject({
+      type: "incomplete",
+      reason: "tool-calls",
+    });
+  });
+
+  it("derives capabilities from the configured adapters", () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const thread = createPlainThread(adapter);
+
+    expect(thread.capabilities.speech).toBe(false);
+    expect(thread.capabilities.dictation).toBe(false);
+    expect(thread.capabilities.attachments).toBe(false);
+    expect(thread.capabilities.feedback).toBe(false);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        speech: {} as any,
+        dictation: {} as any,
+        attachments: {} as any,
+        feedback: {} as any,
+      },
+    });
+
+    expect(thread.capabilities.speech).toBe(true);
+    expect(thread.capabilities.dictation).toBe(true);
+    expect(thread.capabilities.attachments).toBe(true);
+    expect(thread.capabilities.feedback).toBe(true);
+
+    thread.__internal_setOptions({ adapters: { chatModel: adapter } });
+
+    expect(thread.capabilities.speech).toBe(false);
+    expect(thread.capabilities.dictation).toBe(false);
+    expect(thread.capabilities.attachments).toBe(false);
+    expect(thread.capabilities.feedback).toBe(false);
+  });
+});
