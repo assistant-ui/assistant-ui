@@ -89,37 +89,10 @@ const metaOf = (element: ScopeElement): ScopeMeta => {
   };
 };
 
-// Scopes that declare a `source` mount after the sibling they name.
-const sortScopeEntries = (
-  scopes: Record<string, ScopeElement>,
-): ScopeEntry[] => {
-  const remaining = (
-    Object.entries(scopes) as [ClientNames, ScopeElement][]
-  ).map(([name, element]) => ({ name, element }));
-  const sorted: ScopeEntry[] = [];
-  const emitted = new Set<string>();
-
-  while (remaining.length > 0) {
-    let progressed = false;
-    for (let i = 0; i < remaining.length; i++) {
-      const entry = remaining[i]!;
-      const { source } = metaOf(entry.element);
-      if (source === entry.name || !(source in scopes) || emitted.has(source)) {
-        sorted.push(entry);
-        emitted.add(entry.name);
-        remaining.splice(i, 1);
-        i--;
-        progressed = true;
-      }
-    }
-    if (!progressed) {
-      sorted.push(...remaining);
-      break;
-    }
-  }
-
-  return sorted;
-};
+const toScopeEntries = (scopes: Record<string, ScopeElement>): ScopeEntry[] =>
+  (Object.entries(scopes) as [ClientNames, ScopeElement][]).map(
+    ([name, element]) => ({ name, element }),
+  );
 
 const createAccessor = <K extends ClientNames>(
   name: K,
@@ -325,7 +298,7 @@ const useAuiRoot = ({
   clientRef: ClientRef;
   notifications: NotificationManager;
 }): { client: AssistantClient } => {
-  const entries = sortScopeEntries(applyTransformScopes(clients, parent));
+  const entries = toScopeEntries(applyTransformScopes(clients, parent));
 
   const fields = useClientFields({ notifications, clientRef });
   const baseClient = useMemo(

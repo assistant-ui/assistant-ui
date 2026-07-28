@@ -958,6 +958,7 @@ export const ExternalThread = resource(useExternalThread);
 attachTransformScopes(useExternalThread, (scopes, parent) => {
   if (!scopes.threads && parent.threads.source === null) {
     const threadElement = scopes.thread as ClientElement<"thread">;
+    delete scopes.thread;
     scopes.threads = SingleThreadList({ thread: threadElement });
     scopes.thread = Derived({
       source: "threads",
