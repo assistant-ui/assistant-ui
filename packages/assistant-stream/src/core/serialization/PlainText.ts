@@ -1,5 +1,9 @@
 import type { AssistantStreamEncoder } from "../AssistantStream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
+import {
+  AssistantMetaTransformStream,
+  type AssistantMetaStreamChunk,
+} from "../utils/stream/AssistantMetaTransformStream";
 import { AssistantTransformStream } from "../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
 
@@ -9,43 +13,20 @@ export class PlainTextEncoder
 {
   headers = new Headers({
     "Content-Type": "text/plain; charset=utf-8",
-    "x-vercel-ai-data-stream": "v1",
   });
 
   constructor() {
     super((readable) => {
-      const transform = new TransformStream<AssistantStreamChunk, string>({
+      const transform = new TransformStream<AssistantMetaStreamChunk, string>({
         transform(chunk, controller) {
-          const type = chunk.type;
-          switch (type) {
-            case "text-delta":
-              controller.enqueue(chunk.textDelta);
-              break;
-
-            case "part-start":
-            case "part-finish":
-            case "step-start":
-            case "step-finish":
-            case "message-finish":
-            case "error":
-              break;
-
-            default: {
-              const unsupportedType:
-                | "tool-call-args-text-finish"
-                | "data"
-                | "annotations"
-                | "tool-call-begin"
-                | "tool-call-delta"
-                | "result"
-                | "update-state" = type;
-              throw new Error(`unsupported chunk type: ${unsupportedType}`);
-            }
+          if (chunk.type === "text-delta" && chunk.meta.type === "text") {
+            controller.enqueue(chunk.textDelta);
           }
         },
       });
 
       return readable
+        .pipeThrough(new AssistantMetaTransformStream())
         .pipeThrough(transform)
         .pipeThrough(new TextEncoderStream());
     });
