@@ -11,7 +11,7 @@ const h = vi.hoisted(() => ({
   respondToToolApproval: vi.fn(),
   state: {
     message: { content: [] as AnyPart[] },
-    tools: { tools: {} as Record<string, unknown> },
+    tools: { toolUIs: {} as Record<string, unknown> },
     dataRenderers: { renderers: {} as Record<string, unknown> },
   },
 }));
@@ -43,7 +43,7 @@ describe("MessageContent", () => {
     h.resumeToolCall.mockReset();
     h.respondToToolApproval.mockReset();
     h.state.message.content = [];
-    h.state.tools.tools = {};
+    h.state.tools.toolUIs = {};
     h.state.dataRenderers.renderers = {};
 
     container = document.createElement("div");
@@ -151,7 +151,7 @@ describe("MessageContent", () => {
         (props.respondToApproval as () => void)();
         return <span data-testid="tool">tool:{String(props.toolName)}</span>;
       });
-      h.state.tools.tools = { search: ToolRender };
+      h.state.tools.toolUIs = { search: [{ render: ToolRender }] };
 
       await mount();
 
@@ -162,13 +162,15 @@ describe("MessageContent", () => {
       expect(h.respondToToolApproval).toHaveBeenCalledWith(0);
     });
 
-    it("picks the first renderer when the registry holds an array", async () => {
+    it("picks the first registration when multiple are registered", async () => {
       h.state.message.content = [
         { type: "tool-call", toolName: "search", toolCallId: "c1" },
       ];
       const First = vi.fn(() => <span data-testid="first">first</span>);
       const Second = vi.fn(() => <span>second</span>);
-      h.state.tools.tools = { search: [First, Second] };
+      h.state.tools.toolUIs = {
+        search: [{ render: First }, { render: Second }],
+      };
 
       await mount();
 
@@ -263,8 +265,8 @@ describe("MessageContent", () => {
       { type: "tool-call", toolName: "t", toolCallId: "c" },
       { type: "data", name: "d", data: {} },
     ];
-    h.state.tools.tools = {
-      t: () => <span>[tool]</span>,
+    h.state.tools.toolUIs = {
+      t: [{ render: () => <span>[tool]</span> }],
     };
     h.state.dataRenderers.renderers = {
       d: () => <span>[data]</span>,
