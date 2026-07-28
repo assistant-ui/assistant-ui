@@ -27,29 +27,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     this.getCloud = typeof cloud === "function" ? cloud : () => cloud;
   }
 
-  private uploadedUrls = new Map<
-    string,
-    { url: string; cloud: AssistantCloud }
-  >();
-
-  private async upload(file: File, cloud: AssistantCloud) {
-    const { signedUrl, publicUrl } =
-      await cloud.files.generatePresignedUploadUrl({
-        filename: file.name,
-      });
-    const res = await fetch(signedUrl, {
-      method: "PUT",
-      body: file,
-      headers: {
-        "Content-Type": file.type,
-      },
-      mode: "cors",
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to upload file: ${res.status} ${res.statusText}`);
-    }
-    return publicUrl;
-  }
+  private uploadedUrls = new Map<string, string>();
 
   public async *add({
     file,
@@ -69,9 +47,24 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     yield attachment;
 
     try {
-      const cloud = this.getCloud();
-      const publicUrl = await this.upload(file, cloud);
-      this.uploadedUrls.set(id, { url: publicUrl, cloud });
+      const { signedUrl, publicUrl } =
+        await this.getCloud().files.generatePresignedUploadUrl({
+          filename: file.name,
+        });
+      const res = await fetch(signedUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+        mode: "cors",
+      });
+      if (!res.ok) {
+        throw new Error(
+          `Failed to upload file: ${res.status} ${res.statusText}`,
+        );
+      }
+      this.uploadedUrls.set(id, publicUrl);
       attachment = {
         ...attachment,
         status: { type: "requires-action", reason: "composer-send" },
@@ -98,23 +91,20 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   public async send(
     attachment: PendingAttachment,
   ): Promise<CompleteAttachment> {
-    const uploaded = this.uploadedUrls.get(attachment.id);
-    if (!uploaded) throw new Error("Attachment not uploaded");
-    const cloud = this.getCloud();
-    const url =
-      uploaded.cloud === cloud
-        ? uploaded.url
-        : await this.upload(attachment.file, cloud);
+    const publicUrl = this.uploadedUrls.get(attachment.id);
+    if (!publicUrl) throw new Error("Attachment not uploaded");
     this.uploadedUrls.delete(attachment.id);
 
     let content: ThreadUserMessagePart[];
     if (attachment.type === "image") {
-      content = [{ type: "image", image: url, filename: attachment.name }];
+      content = [
+        { type: "image", image: publicUrl, filename: attachment.name },
+      ];
     } else {
       content = [
         {
           type: "file",
-          data: url,
+          data: publicUrl,
           mimeType: attachment.contentType ?? "",
           filename: attachment.name,
         },

@@ -3,12 +3,12 @@ import type { AssistantCloud } from "assistant-cloud";
 import type { PendingAttachment } from "../../../types/attachment";
 import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
 
-const makeCloud = (publicUrl = "https://cdn.example/file.png") =>
+const makeCloud = () =>
   ({
     files: {
       generatePresignedUploadUrl: vi.fn().mockResolvedValue({
         signedUrl: "https://storage.example/upload",
-        publicUrl,
+        publicUrl: "https://cdn.example/file.png",
       }),
     },
   }) as unknown as AssistantCloud;
@@ -123,39 +123,5 @@ describe("CloudFileAttachmentAdapter", () => {
     await expect(adapter.send(yields.at(-1)!)).rejects.toThrow(
       "Attachment not uploaded",
     );
-  });
-
-  it("reuploads attachments with the current Cloud client before sending", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-    vi.stubGlobal("fetch", fetchMock);
-    const firstCloud = makeCloud();
-    const secondCloud = makeCloud("https://cdn.example/current-file.png");
-    let cloud = firstCloud;
-    const adapter = new CloudFileAttachmentAdapter(() => cloud);
-
-    const yields = await drain(adapter);
-    expect(yields.at(-1)?.status).toEqual({
-      type: "requires-action",
-      reason: "composer-send",
-    });
-
-    cloud = secondCloud;
-
-    const complete = await adapter.send(yields.at(-1)!);
-
-    expect(firstCloud.files.generatePresignedUploadUrl).toHaveBeenCalledTimes(
-      1,
-    );
-    expect(secondCloud.files.generatePresignedUploadUrl).toHaveBeenCalledTimes(
-      1,
-    );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(complete.content).toEqual([
-      {
-        type: "image",
-        image: "https://cdn.example/current-file.png",
-        filename: "pixel.png",
-      },
-    ]);
   });
 });
