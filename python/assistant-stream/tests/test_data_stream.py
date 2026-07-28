@@ -60,7 +60,19 @@ def test_data_stream_encoder_step_finish_frame() -> None:
     )
 
 
-def test_data_stream_encoder_drops_file_chunks() -> None:
+def test_data_stream_encoder_file_frame() -> None:
     encoder = DataStreamEncoder()
 
-    assert encoder.encode_chunk(FileChunk(data="x", mime_type="image/png")) is None
+    encoded = encoder.encode_chunk(FileChunk(data="aGVsbG8=", mime_type="image/png"))
+
+    assert encoded == 'k:{"data": "aGVsbG8=", "mimeType": "image/png"}\n'
+
+
+def test_data_stream_encoder_file_frame_has_no_parent_id_field() -> None:
+    encoder = DataStreamEncoder()
+
+    encoded = encoder.encode_chunk(
+        FileChunk(data="x", mime_type="text/plain", parent_id="p1")
+    )
+
+    assert encoded == 'k:{"data": "x", "mimeType": "text/plain"}\n'
