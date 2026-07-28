@@ -83,5 +83,10 @@ export const createErrorClientAccessor = (
 export const getBoundClient = (accessor: object): ClientMethods =>
   (accessor as AnyRecord)[AUI_INSTANCE_SYMBOL] as ClientMethods;
 
+/**
+ * Resolves a client accessor to its bound client instance. The instance keeps
+ * its identity across value-only updates, so it is a stable cache key for a
+ * logical scope. Non-accessor values are returned as-is.
+ */
 export const unwrapClientAccessor = <T>(value: T): T =>
   ((value as AnyRecord)[AUI_INSTANCE_SYMBOL] as T) ?? value;
