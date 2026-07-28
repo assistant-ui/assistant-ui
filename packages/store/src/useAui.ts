@@ -2,6 +2,7 @@
 
 import {
   flushTapSync,
+  useMemoCache,
   useResource,
   useTapHost,
   useTapRoot,
@@ -278,23 +279,38 @@ const useScopeChain = ({
 
 const ScopeChainResource = resource(useScopeChain);
 
+const MEMO_CACHE_UNFILLED = Symbol.for("react.memo_cache_sentinel");
+
+const useStableArray = <T>(values: readonly T[]): readonly T[] => {
+  const cache = useMemoCache(1) as [readonly T[] | typeof MEMO_CACHE_UNFILLED];
+  const prev = cache[0];
+  if (
+    prev !== MEMO_CACHE_UNFILLED &&
+    prev.length === values.length &&
+    values.every((value, i) => Object.is(value, prev[i]))
+  ) {
+    return prev;
+  }
+  cache[0] = values;
+  return values;
+};
+
 const useComposedClient = ({
   parent,
   fields,
-  results,
+  accessors,
 }: {
   parent: AssistantClient;
   fields: ClientFields;
-  results: ScopeResult[];
+  accessors: readonly AssistantClientAccessor<ClientNames>[];
 }): AssistantClient => {
   return useMemo(() => {
     const client = createClientObject(parent, fields);
-    for (const { name, accessor } of results) {
-      (client as Record<ClientNames, unknown>)[name] = accessor;
+    for (const accessor of accessors) {
+      (client as Record<ClientNames, unknown>)[accessor.name] = accessor;
     }
     return client;
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- keyed on the identity of every scope accessor
-  }, [parent, fields, ...results.map((r) => r.accessor)]);
+  }, [parent, fields, accessors]);
 };
 
 const useAuiRoot = ({
@@ -323,9 +339,11 @@ const useAuiRoot = ({
     },
   );
 
+  const accessors = useStableArray(results.map((r) => r.accessor));
+
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
-  return { client: useComposedClient({ parent, fields, results }) };
+  return { client: useComposedClient({ parent, fields, accessors }) };
 };
 
 const useNotifications = () => useResource(NotificationManager());

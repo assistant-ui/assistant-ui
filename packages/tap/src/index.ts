@@ -9,6 +9,7 @@ export { flushTapSync } from "./core/scheduler";
 export { useContextProvider } from "./core/context";
 
 // hooks
+export { useMemoCache } from "./react-hooks/useMemoCache";
 export { useResource } from "./hooks/useResource";
 export { useResources } from "./hooks/useResources";
 export { useTapRoot } from "./hooks/useTapRoot";

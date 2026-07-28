@@ -196,6 +196,52 @@ describe("render-bound aui", () => {
     }
   });
 
+  it("recomposes the aui when a trailing scope is added or removed", () => {
+    const useExtra = () => ({ getState: () => ({ tag: "extra" }) });
+    const Extra = resource(useExtra);
+
+    const ExtraProbe: FC = () => {
+      probe.aui = useAui();
+      return null;
+    };
+
+    const toggle: { set: ((on: boolean) => void) | null } = { set: null };
+    const ToggleApp: FC = () => {
+      const [withExtra, setWithExtra] = useState(false);
+      toggle.set = setWithExtra;
+      const aui = useAui(
+        (withExtra
+          ? { thread: Thread({ ids: ["a"] }), extra: Extra() }
+          : { thread: Thread({ ids: ["a"] }) }) as unknown as useAui.Props,
+      );
+      return (
+        <AuiProvider value={aui}>
+          <ExtraProbe />
+        </AuiProvider>
+      );
+    };
+
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      render(<ToggleApp />);
+      expect(probe.aui.extra.source).toBe(null);
+      const prevAui = probe.aui;
+
+      act(() => toggle.set!(true));
+      expect(probe.aui).not.toBe(prevAui);
+      expect(probe.aui.extra.source).toBe("root");
+      expect(probe.aui.extra().getState().tag).toBe("extra");
+
+      act(() => toggle.set!(false));
+      expect(probe.aui.extra.source).toBe(null);
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("throws at bind time for an index that was never valid", () => {
     const view = render(<App index={5} />);
 
