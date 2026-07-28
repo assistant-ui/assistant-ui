@@ -375,6 +375,39 @@ export type ModelSelectorContentProps = ComponentPropsWithoutRef<
   searchable?: boolean;
 };
 
+// Base UI's Popover re-evaluates collision flipping whenever the popup
+// resizes, so filtering the list down flips the popup back to the preferred
+// side mid-interaction. Base UI only exposes its lazy-flip behavior on the
+// Combobox positioner, so mirror it here: feed the rendered side back as the
+// preferred side, making the popup keep its side until it no longer fits.
+function useLazyFlipSide(): {
+  side: ModelSelectorContentProps["side"];
+  popupRef: (node: HTMLDivElement | null) => void;
+} {
+  const [side, setSide] = useState<ModelSelectorContentProps["side"]>();
+  const observerRef = useRef<MutationObserver | null>(null);
+  const popupRef = useCallback((node: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+    if (!node) {
+      setSide(undefined);
+      return;
+    }
+    const sync = () => {
+      const rendered = node.getAttribute("data-side");
+      if (rendered) setSide(rendered as ModelSelectorContentProps["side"]);
+    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(node, {
+      attributes: true,
+      attributeFilter: ["data-side"],
+    });
+    observerRef.current = observer;
+  }, []);
+  return { side, popupRef };
+}
+
 /**
  * Hidden input that anchors cmdk's keyboard navigation, keeping the list
  * keyboard-operable without a visible search box. ModelSelectorContent renders
@@ -391,19 +424,23 @@ function ModelSelectorFocusAnchor() {
 function ModelSelectorContent({
   className,
   align = "start",
+  side,
   sideOffset = 6,
   searchable,
   children,
   ...props
 }: ModelSelectorContentProps) {
   const { value } = useModelSelectorContext();
+  const { side: renderedSide, popupRef } = useLazyFlipSide();
   const unfiltered =
     searchable === false || (!searchable && children === undefined);
 
   return (
     <PopoverContent
+      ref={popupRef}
       data-slot="model-selector-content"
       align={align}
+      side={renderedSide ?? side ?? "bottom"}
       sideOffset={sideOffset}
       className={cn(
         "bg-popover/95 w-72 min-w-(--anchor-width) overflow-hidden rounded-xl p-0 shadow-lg backdrop-blur-sm",
