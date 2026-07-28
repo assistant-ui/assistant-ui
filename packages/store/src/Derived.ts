@@ -12,7 +12,7 @@ type DerivedInstance<K extends ClientNames> = ReturnType<
   AssistantClientAccessor<K>
 >;
 
-const useDerived = <K extends ClientNames>({
+export const useDerived = <K extends ClientNames>({
   get,
 }: Derived.Props<K>): DerivedInstance<K> => {
   const aui = useAui();

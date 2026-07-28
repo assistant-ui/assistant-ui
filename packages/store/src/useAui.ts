@@ -17,7 +17,7 @@ import type {
   ClientElement,
   ClientMethods,
 } from "./types/client";
-import type { DerivedElement } from "./Derived";
+import { useDerived, type DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
   useAssistantContextProvider,
@@ -34,7 +34,7 @@ import {
 } from "./types/events";
 import { NotificationManager } from "./utils/NotificationManager";
 import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
-import { useClientResource } from "./useClientResource";
+import { ClientResource } from "./useClientResource";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import {
   PROXIED_ASSISTANT_STATE_SYMBOL,
@@ -81,12 +81,13 @@ const applyTransformScopes = (
   return scopes;
 };
 
+const isDerivedElement = (element: ScopeElement) =>
+  element.hook === (useDerived as unknown);
+
 const metaOf = (element: ScopeElement): ScopeMeta => {
-  const props = element.args[0] as Partial<ScopeMeta> | undefined;
-  return {
-    source: typeof props?.source === "string" ? props.source : "root",
-    query: props?.query ?? {},
-  };
+  if (!isDerivedElement(element)) return { source: "root", query: {} };
+  const props = element.args[0] as ScopeMeta;
+  return { source: props.source, query: props.query ?? {} };
 };
 
 const toScopeEntries = (scopes: Record<string, ScopeElement>): ScopeEntry[] =>
@@ -225,6 +226,9 @@ const useScopeChainRest = (props: ScopeChainProps): ScopeResult[] => {
   );
 };
 
+const useScopeValue = (element: ScopeElement, derived: boolean) =>
+  useResource(derived ? element : ClientResource(element));
+
 const useScopeChain = ({
   entries,
   index,
@@ -232,12 +236,18 @@ const useScopeChain = ({
 }: ScopeChainProps): ScopeResult[] => {
   const { name, element } = entries[index]!;
 
-  const { methods, state } = useAssistantContextProvider(
-    client,
-    function WithScopeClient() {
-      return useClientResource(element);
-    },
-  );
+  // A derived element resolves to an existing client; mount it directly
+  const derived = isDerivedElement(element);
+  const value = useAssistantContextProvider(client, function WithScopeClient() {
+    return useScopeValue(element, derived);
+  });
+
+  const methods = derived
+    ? (value as ClientMethods)
+    : (value as { methods: ClientMethods }).methods;
+  const state = derived
+    ? (value as { getState?: () => unknown }).getState?.()
+    : (value as { state: unknown }).state;
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
