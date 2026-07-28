@@ -497,6 +497,44 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
 });
 
 describe("LocalThreadRuntimeCore cancellation", () => {
+  it("keeps a replacement run cancellable after the previous run settles", async () => {
+    let releaseFirst!: () => void;
+    let releaseSecond!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const secondGate = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    const signals: AbortSignal[] = [];
+    const thread = createThread({
+      async *run({ abortSignal }) {
+        signals.push(abortSignal);
+        await (signals.length === 1 ? firstGate : secondGate);
+      },
+    });
+
+    const firstAppend = thread.append(userMessage("first"));
+    await flush();
+    const secondAppend = thread.append(userMessage("second"));
+    await flush();
+
+    expect(signals).toHaveLength(2);
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+
+    releaseFirst();
+    await firstAppend;
+
+    thread.cancelRun();
+    const replacementWasAborted = signals[1]?.aborted;
+
+    releaseSecond();
+    await secondAppend;
+
+    expect(replacementWasAborted).toBe(true);
+  });
+
   it("marks the message cancelled when a streaming adapter returns after abort", async () => {
     let released!: () => void;
     const streaming = new Promise<void>((resolve) => {
