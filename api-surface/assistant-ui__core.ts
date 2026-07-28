@@ -712,11 +712,13 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   reset(): Promise<void>;
   clearAttachments(): Promise<void>;
   send(options?: SendOptions): Promise<void>;
+  protected supportsOptimisticAttachmentSend(_role: MessageRole, _options: SendOptions | undefined): boolean;
+  private _sendOptimistic;
   cancel(): void;
   get queue(): readonly QueueItemState[];
   steerQueueItem(_queueItemId: string): void;
   removeQueueItem(_queueItemId: string): void;
-  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void | Promise<void>;
+  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions, uploadAttachments?: () => Promise<readonly CompleteAttachment[]>): void | Promise<void>;
   protected abstract handleCancel(): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   private _safeEmitAttachmentAddError;
@@ -1442,7 +1444,7 @@ declare class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   });
   get parentId(): string | null;
   get sourceId(): string | null;
-  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): Promise<void>;
+  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions, uploadAttachments?: () => Promise<readonly CompleteAttachment[]>): Promise<void>;
   handleCancel(): void;
 }
 
@@ -1457,13 +1459,15 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   protected getDictationAdapter(): DictationAdapter | undefined;
   private runtime;
   constructor(runtime: Omit<ThreadRuntimeCore, "composer"> & {
+    __internal_appendOptimisticAttachmentSend?: (message: AppendMessage, uploadAttachments: () => Promise<readonly CompleteAttachment[]>) => Promise<void>;
     adapters?: {
       attachments?: AttachmentAdapter | undefined;
       dictation?: DictationAdapter | undefined;
     } | undefined;
   });
   connect(): Unsubscribe$1;
-  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): Promise<void>;
+  protected supportsOptimisticAttachmentSend(role: MessageRole, options: SendOptions | undefined): boolean;
+  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions, uploadAttachments?: () => Promise<readonly CompleteAttachment[]>): Promise<void>;
   handleCancel(): Promise<void>;
 }
 
@@ -2242,6 +2246,8 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   private _queue;
   private _queueRunInFlight;
   private _historyWrites;
+  private _pendingAttachmentSend;
+  private _chainAttachmentSend;
   private _chainHistoryWrite;
   private _persistPausedMessage;
   readonly isDisabled = false;
@@ -2277,6 +2283,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   steerQueueItem(queueItemId: string): void;
   removeQueueItem(queueItemId: string): void;
   private _runAppend;
+  __internal_appendOptimisticAttachmentSend(message: AppendMessage, uploadAttachments: () => Promise<readonly CompleteAttachment[]>): Promise<void>;
   deleteMessage(messageId: string): Promise<void>;
   resumeRun(_param4: ResumeRunConfig): Promise<void>;
   exportExternalState(): any;
@@ -4514,8 +4521,8 @@ type ThreadMessageLike = {
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
-  readonly attachments?: readonly (Omit<CompleteAttachment, "content"> & {
-    readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
+  readonly attachments?: readonly (Omit<Attachment, "content"> & {
+    readonly content?: readonly (ThreadUserMessagePart | DataPrefixedPart)[] | undefined;
   })[] | undefined;
   readonly metadata?: {
     readonly unstable_state?: ReadonlyJSONValue;
