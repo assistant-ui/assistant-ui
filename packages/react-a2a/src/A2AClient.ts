@@ -262,6 +262,36 @@ const parseSendMessageResponse = (value: unknown): A2ATask | A2AMessage => {
   );
 };
 
+const parseTaskResponse = (
+  value: unknown,
+  operation: "tasks:get" | "tasks:cancel",
+): A2ATask => {
+  if (isTask(value)) return value;
+
+  throw new Error(
+    `Invalid A2A ${operation} response: expected a valid task payload.`,
+  );
+};
+
+const isNonNegativeInteger = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 0;
+
+const isListTasksResponse = (value: unknown): value is A2AListTasksResponse =>
+  isRecord(value) &&
+  Array.isArray(value.tasks) &&
+  value.tasks.every(isTask) &&
+  typeof value.nextPageToken === "string" &&
+  isNonNegativeInteger(value.pageSize) &&
+  isNonNegativeInteger(value.totalSize);
+
+const parseListTasksResponse = (value: unknown): A2AListTasksResponse => {
+  if (isListTasksResponse(value)) return value;
+
+  throw new Error(
+    "Invalid A2A tasks:list response: expected a valid task list payload.",
+  );
+};
+
 function signalInit(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
@@ -464,10 +494,11 @@ export class A2AClient {
       params.set("history_length", String(historyLength));
     }
     const qs = params.toString();
-    return this.fetchJSON<A2ATask>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}${qs ? `?${qs}` : ""}`,
       signalInit(signal),
     );
+    return parseTaskResponse(result, "tasks:get");
   }
 
   async listTasks(
@@ -487,10 +518,11 @@ export class A2AClient {
     if (request?.includeArtifacts !== undefined)
       params.set("include_artifacts", String(request.includeArtifacts));
     const qs = params.toString();
-    return this.fetchJSON<A2AListTasksResponse>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks${qs ? `?${qs}` : ""}`,
       signalInit(signal),
     );
+    return parseListTasksResponse(result);
   }
 
   async cancelTask(
@@ -499,7 +531,7 @@ export class A2AClient {
     signal?: AbortSignal,
   ): Promise<A2ATask> {
     const body = metadata ? { metadata } : {};
-    return this.fetchJSON<A2ATask>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}:cancel`,
       {
         method: "POST",
@@ -507,6 +539,7 @@ export class A2AClient {
         ...signalInit(signal),
       },
     );
+    return parseTaskResponse(result, "tasks:cancel");
   }
 
   async *subscribeToTask(

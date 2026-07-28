@@ -724,6 +724,14 @@ describe("A2AClient", () => {
       const [url] = fetchMock.mock.calls[0]!;
       expect(url).toBe("https://agent.test/tasks/t1?history_length=5");
     });
+
+    it("rejects malformed successful responses", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(client.getTask("t1")).rejects.toThrow(
+        "Invalid A2A tasks:get response: expected a valid task payload.",
+      );
+    });
   });
 
   // --- listTasks ---
@@ -751,6 +759,29 @@ describe("A2AClient", () => {
       expect(url).toContain("status=TASK_STATE_WORKING");
       expect(url).toContain("page_size=10");
     });
+
+    it("rejects malformed successful responses", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(client.listTasks()).rejects.toThrow(
+        "Invalid A2A tasks:list response: expected a valid task list payload.",
+      );
+    });
+
+    it("rejects malformed tasks in successful responses", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          tasks: [{}],
+          nextPageToken: "",
+          pageSize: 1,
+          totalSize: 1,
+        }),
+      );
+
+      await expect(client.listTasks()).rejects.toThrow(
+        "Invalid A2A tasks:list response: expected a valid task list payload.",
+      );
+    });
   });
 
   // --- cancelTask ---
@@ -777,6 +808,14 @@ describe("A2AClient", () => {
 
       const body = JSON.parse(fetchMock.mock.calls[0]![1].body);
       expect(body.metadata).toEqual({ reason: "user requested" });
+    });
+
+    it("rejects malformed successful responses", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(client.cancelTask("t1")).rejects.toThrow(
+        "Invalid A2A tasks:cancel response: expected a valid task payload.",
+      );
     });
   });
 
