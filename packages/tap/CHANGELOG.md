@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.9.7
+
+### Patch Changes
+
+- [#5285](https://github.com/assistant-ui/assistant-ui/pull/5285) [`d72c2b6`](https://github.com/assistant-ui/assistant-ui/commit/d72c2b6b5fd0e0158b07ecf00bfe4c8ac5b3e861) - fix: useSyncExternalStore retains the last committed value when the snapshot getter throws; export `useMemoCache` from the package root ([@Yonom](https://github.com/Yonom))
+
 ## 0.9.6
 
 ### Patch Changes

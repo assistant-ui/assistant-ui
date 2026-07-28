@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/tap",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "description": "Reactive state management inspired by React hooks",
   "keywords": [
     "state-management",

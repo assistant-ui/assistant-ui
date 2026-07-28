@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.29
+
+### Patch Changes
+
+- [#5278](https://github.com/assistant-ui/assistant-ui/pull/5278) [`f78e579`](https://github.com/assistant-ui/assistant-ui/commit/f78e5794d8d9d2f1c815485cb39a56f1072ed795) - fix: PlainTextEncoder emits assistant text only. Reasoning and tool-call argument deltas no longer leak into the output, non-text chunks (result, annotations, data, update-state, tool-call-args-text-finish) are skipped instead of throwing mid-stream, and the incorrect x-vercel-ai-data-stream header is removed from the response headers. ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.3.28
 
 ### Patch Changes

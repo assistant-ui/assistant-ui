@@ -1,5 +1,17 @@
 # @assistant-ui/store
 
+## 0.3.0
+
+### Minor Changes
+
+- [#5275](https://github.com/assistant-ui/assistant-ui/pull/5275) [`9a7e776`](https://github.com/assistant-ui/assistant-ui/commit/9a7e77603d59b5e091ee922e2e087f0101679321) - feat: property API for aui — nullary scope accessors are now properties (`aui.thread.getState()` instead of `aui.thread().getState()`); calling them still works but is deprecated. Accessors keep `source`/`query`/`name` selection metadata as properties; these are reserved names for scope methods. An unavailable scope's accessor no longer throws at selection time: `aui.thread` always succeeds and is always truthy, `.source` is null, and any other property read (or a call) throws — check availability via `aui.thread.source != null`. Accessor identity is binding-keyed: stable across renders without structural change, new on structural change — memoization keyed on an accessor now invalidates exactly when its binding changes. ([@Yonom](https://github.com/Yonom))
+
+### Patch Changes
+
+- [#5282](https://github.com/assistant-ui/assistant-ui/pull/5282) [`ae5f831`](https://github.com/assistant-ui/assistant-ui/commit/ae5f83129b20edb38b7f9e7f92b6c60f3c8fe8d9) - feat: `getClientId(client)` returns an opaque, WeakMap-legal identity for a bound client — the same object regardless of accessor wrapping depth. The cloud message persistence cache is now keyed on it instead of the per-mount accessor proxy. Removes `unwrapClientAccessor` and `getBoundClient` (introduced and replaced pre-release, never published). ([@Yonom](https://github.com/Yonom))
+
+- [#5270](https://github.com/assistant-ui/assistant-ui/pull/5270) [`dcc41bb`](https://github.com/assistant-ui/assistant-ui/commit/dcc41bb50948f64744a052b22720f0f8dffa510e) - feat: render-bound immutable aui instances — derived scopes resolve to client instances during render and are frozen into the returned client; structural swaps produce a new client through React while value updates never change client identity. Removes the PartByIndexProvider lastPartRef guards and the useClientLookup stale-index clamp. ([@Yonom](https://github.com/Yonom))
+
 ## 0.2.22
 
 ### Patch Changes

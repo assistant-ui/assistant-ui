@@ -1,5 +1,15 @@
 # @assistant-ui/react-o11y
 
+## 0.0.29
+
+### Patch Changes
+
+- [#5285](https://github.com/assistant-ui/assistant-ui/pull/5285) [`d72c2b6`](https://github.com/assistant-ui/assistant-ui/commit/d72c2b6b5fd0e0158b07ecf00bfe4c8ac5b3e861) - refactor: migrate to aui property accessors ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`9a7e776`](https://github.com/assistant-ui/assistant-ui/commit/9a7e77603d59b5e091ee922e2e087f0101679321), [`ae5f831`](https://github.com/assistant-ui/assistant-ui/commit/ae5f83129b20edb38b7f9e7f92b6c60f3c8fe8d9), [`dcc41bb`](https://github.com/assistant-ui/assistant-ui/commit/dcc41bb50948f64744a052b22720f0f8dffa510e), [`d72c2b6`](https://github.com/assistant-ui/assistant-ui/commit/d72c2b6b5fd0e0158b07ecf00bfe4c8ac5b3e861)]:
+  - @assistant-ui/store@0.3.0
+  - @assistant-ui/tap@0.9.7
+
 ## 0.0.28
 
 ### Patch Changes

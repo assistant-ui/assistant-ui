@@ -1,5 +1,25 @@
 # @assistant-ui/core
 
+## 1.0.0
+
+### Minor Changes
+
+- [#5275](https://github.com/assistant-ui/assistant-ui/pull/5275) [`9a7e776`](https://github.com/assistant-ui/assistant-ui/commit/9a7e77603d59b5e091ee922e2e087f0101679321) - feat: property API for aui — nullary scope accessors are now properties (`aui.thread.getState()` instead of `aui.thread().getState()`); calling them still works but is deprecated. Accessors keep `source`/`query`/`name` selection metadata as properties; these are reserved names for scope methods. An unavailable scope's accessor no longer throws at selection time: `aui.thread` always succeeds and is always truthy, `.source` is null, and any other property read (or a call) throws — check availability via `aui.thread.source != null`. Accessor identity is binding-keyed: stable across renders without structural change, new on structural change — memoization keyed on an accessor now invalidates exactly when its binding changes. ([@Yonom](https://github.com/Yonom))
+
+- [#5281](https://github.com/assistant-ui/assistant-ui/pull/5281) [`2f5d0d4`](https://github.com/assistant-ui/assistant-ui/commit/2f5d0d441caf6a152bf4eef13566a2f9a161541c) - feat: drop APIs deprecated in v0.12/v0.14 — the legacy context hooks (`useAssistantRuntime`, `useThreadRuntime`, `useThread`, `useMessageRuntime`, `useMessage`, `useComposerRuntime`, `useComposer`, `useMessagePartRuntime`, `useMessagePart`, `useAttachmentRuntime`, `useAttachment`, `useThreadListItemRuntime`, `useThreadListItem`, `useThreadList`, `useEditComposer` and their attachment variants; use `useAui` / `useAuiState`), the component-only `ToolsState.tools` map (use `toolUIs`), and the `"mcp-app"` group key in `groupPartByType` (use `"standalone-tool-call"`). See the [v0.15 migration guide](https://assistant-ui.com/docs/migrations/v0-15). ([@Yonom](https://github.com/Yonom))
+
+### Patch Changes
+
+- [#5282](https://github.com/assistant-ui/assistant-ui/pull/5282) [`ae5f831`](https://github.com/assistant-ui/assistant-ui/commit/ae5f83129b20edb38b7f9e7f92b6c60f3c8fe8d9) - feat: `getClientId(client)` returns an opaque, WeakMap-legal identity for a bound client — the same object regardless of accessor wrapping depth. The cloud message persistence cache is now keyed on it instead of the per-mount accessor proxy. Removes `unwrapClientAccessor` and `getBoundClient` (introduced and replaced pre-release, never published). ([@Yonom](https://github.com/Yonom))
+
+- [#5279](https://github.com/assistant-ui/assistant-ui/pull/5279) [`a196711`](https://github.com/assistant-ui/assistant-ui/commit/a1967113d52c6e5751af7ae4109c13b6a322fe23) - fix: cloud history adapter resolves the aui client at call time instead of capturing the client from the first render ([@Yonom](https://github.com/Yonom))
+
+- [#5270](https://github.com/assistant-ui/assistant-ui/pull/5270) [`dcc41bb`](https://github.com/assistant-ui/assistant-ui/commit/dcc41bb50948f64744a052b22720f0f8dffa510e) - feat: render-bound immutable aui instances — derived scopes resolve to client instances during render and are frozen into the returned client; structural swaps produce a new client through React while value updates never change client identity. Removes the PartByIndexProvider lastPartRef guards and the useClientLookup stale-index clamp. ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`9a7e776`](https://github.com/assistant-ui/assistant-ui/commit/9a7e77603d59b5e091ee922e2e087f0101679321), [`ae5f831`](https://github.com/assistant-ui/assistant-ui/commit/ae5f83129b20edb38b7f9e7f92b6c60f3c8fe8d9), [`f78e579`](https://github.com/assistant-ui/assistant-ui/commit/f78e5794d8d9d2f1c815485cb39a56f1072ed795), [`dcc41bb`](https://github.com/assistant-ui/assistant-ui/commit/dcc41bb50948f64744a052b22720f0f8dffa510e)]:
+  - @assistant-ui/store@0.3.0
+  - assistant-stream@0.3.29
+
 ## 0.2.23
 
 ### Patch Changes
