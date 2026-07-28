@@ -368,9 +368,16 @@ function ModelSelectorValue({
   );
 }
 
-export type ModelSelectorContentProps = ComponentPropsWithoutRef<
-  typeof PopoverContent
+export type ModelSelectorContentProps = Omit<
+  ComponentPropsWithoutRef<typeof PopoverContent>,
+  "side"
 > & {
+  /**
+   * Preferred side for the initial placement. Once the popover is open, the
+   * rendered side takes over until it closes, so the popup does not jump
+   * between sides while filtering resizes the list.
+   */
+  side?: ComponentPropsWithoutRef<typeof PopoverContent>["side"];
   searchable?: boolean;
 };
 
