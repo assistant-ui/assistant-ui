@@ -1,25 +1,19 @@
 import type React from "react";
 import { createContext, useContext, useEffect } from "react";
 import { useContextProvider } from "@assistant-ui/tap";
-import type { AssistantClient, AssistantClientAccessor } from "../types/client";
+import type { AssistantClient } from "../types/client";
 import {
   createProxiedAssistantState,
   PROXIED_ASSISTANT_STATE_SYMBOL,
 } from "./proxied-assistant-state";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
+import { createErrorClientAccessor } from "./client-accessor";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 
-const createErrorClientField = (
-  message: string,
-): AssistantClientAccessor<never> => {
-  const fn = (() => {
-    throw new Error(message);
-  }) as AssistantClientAccessor<never>;
-  fn.source = null;
-  fn.query = null;
-  return fn;
-};
+const MISSING_PROVIDER_FIELD = createErrorClientAccessor(
+  "You are using a component or hook that requires an AuiProvider. Wrap your component in an <AuiProvider> component.",
+);
 
 class DefaultAssistantClientProxyHandler
   extends BaseProxyHandler
@@ -35,9 +29,7 @@ class DefaultAssistantClientProxyHandler
       "DefaultAssistantClient",
     );
     if (introspection !== false) return introspection;
-    return createErrorClientField(
-      "You are using a component or hook that requires an AuiProvider. Wrap your component in an <AuiProvider> component.",
-    );
+    return MISSING_PROVIDER_FIELD;
   }
 
   ownKeys(): ArrayLike<string | symbol> {
@@ -70,7 +62,7 @@ export const createRootAssistantClient = (): AssistantClient =>
       const introspection = handleIntrospectionProp(prop, "AssistantClient");
       if (introspection !== false) return introspection;
 
-      return createErrorClientField(
+      return createErrorClientAccessor(
         `The current scope does not have a "${String(prop)}" property.`,
       );
     },
