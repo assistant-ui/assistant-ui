@@ -207,6 +207,20 @@ export abstract class BaseComposerRuntimeCore
     const originalAttachments = this.attachments;
     const text = this.text;
     const quote = this._quote;
+
+    if (
+      originalAttachments.some((a) => !isAttachmentComplete(a)) &&
+      this.supportsOptimisticAttachmentSend(this.role, options)
+    ) {
+      return this._sendOptimistic(
+        options,
+        Promise.all(attachmentTasks),
+        originalAttachments,
+        text,
+        quote,
+      );
+    }
+
     this._quote = undefined;
     this._text = "";
     this._isSending = true;
@@ -269,6 +283,61 @@ export abstract class BaseComposerRuntimeCore
     this._notifyEventSubscribers("send", {});
   }
 
+  /**
+   * Whether the message can be appended to the thread before its attachment
+   * uploads finish. Only a runtime that can revise an already-appended message
+   * with the completed attachments may opt in.
+   */
+  protected supportsOptimisticAttachmentSend(
+    _role: MessageRole,
+    _options: SendOptions | undefined,
+  ): boolean {
+    return false;
+  }
+
+  private async _sendOptimistic(
+    options: SendOptions | undefined,
+    uploadTask: Promise<CompleteAttachment[]>,
+    originalAttachments: readonly Attachment[],
+    text: string,
+    quote: QuoteInfo | undefined,
+  ) {
+    const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
+      createdAt: new Date(),
+      role: this.role,
+      content: text ? [{ type: "text", text }] : [],
+      attachments: originalAttachments as readonly CompleteAttachment[],
+      runConfig: this.runConfig,
+      metadata: { custom: { ...(quote ? { quote } : {}) } },
+    };
+
+    this._quote = undefined;
+    const generation = ++this._sendGeneration;
+    this._emptyTextAndAttachments();
+
+    const sendTask = this.handleSend(message, options, () => uploadTask);
+    if (sendTask) void sendTask.catch(() => {});
+    this._notifyEventSubscribers("send", {});
+
+    try {
+      await uploadTask;
+    } catch (e) {
+      // A reset or a newer send during the upload owns the composer now; the
+      // discarded draft must not overwrite it.
+      if (
+        generation === this._sendGeneration &&
+        this.isEmpty &&
+        this._quote === undefined
+      ) {
+        this._attachments = originalAttachments;
+        this._text = text;
+        this._quote = quote;
+        this._notifySubscribers();
+      }
+      throw e;
+    }
+  }
+
   public cancel() {
     this.handleCancel();
   }
@@ -283,6 +352,7 @@ export abstract class BaseComposerRuntimeCore
   protected abstract handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
+    uploadAttachments?: () => Promise<readonly CompleteAttachment[]>,
   ): void | Promise<void>;
   protected abstract handleCancel(): void;
 

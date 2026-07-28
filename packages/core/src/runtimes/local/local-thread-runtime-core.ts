@@ -20,7 +20,9 @@ import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-co
 import type {
   AppendMessage,
   ThreadAssistantMessage,
+  ThreadMessage,
 } from "../../types/message";
+import type { CompleteAttachment } from "../../types/attachment";
 import type { RunConfig } from "../../types/message";
 import { toAssistantError } from "../../types/error";
 import type { ModelContextProvider } from "../../model-context/types";
@@ -319,6 +321,57 @@ export class LocalThreadRuntimeCore
       });
     } else {
       this.repository.resetHead(newMessage.id);
+      this._notifySubscribers();
+    }
+  }
+
+  public async __internal_appendOptimisticAttachmentSend(
+    message: AppendMessage,
+    uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
+  ): Promise<void> {
+    if (message.role !== "user")
+      throw new Error("Attachments are only supported for user messages.");
+
+    this.ensureInitialized();
+    const initPromise = this._getInitializePromise?.();
+
+    const optimisticMessage = fromThreadMessageLike(message, generateId(), {
+      type: "complete",
+      reason: "unknown",
+    });
+    this.repository.addOrUpdateMessage(message.parentId, optimisticMessage);
+    this._notifySubscribers();
+
+    let attachments: readonly CompleteAttachment[];
+    try {
+      if (initPromise) await initPromise;
+      attachments = await uploadAttachments();
+    } catch (e) {
+      this.repository.deleteMessage(optimisticMessage.id);
+      this._notifySubscribers();
+      throw e;
+    }
+
+    const completedMessage = {
+      ...optimisticMessage,
+      attachments,
+    } as ThreadMessage;
+    this.repository.addOrUpdateMessage(message.parentId, completedMessage);
+    this._options.adapters.history?.append({
+      parentId: message.parentId,
+      message: completedMessage,
+      ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
+    });
+
+    const startRun = message.startRun ?? true;
+    if (startRun) {
+      await this.startRun({
+        parentId: completedMessage.id,
+        sourceId: message.sourceId,
+        runConfig: message.runConfig ?? {},
+      });
+    } else {
+      this.repository.resetHead(completedMessage.id);
       this._notifySubscribers();
     }
   }

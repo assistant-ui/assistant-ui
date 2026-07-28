@@ -1,4 +1,5 @@
-import type { AppendMessage } from "../../types/message";
+import type { AppendMessage, MessageRole } from "../../types/message";
+import type { CompleteAttachment } from "../../types/attachment";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
 import type {
@@ -47,6 +48,10 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   private runtime: Omit<ThreadRuntimeCore, "composer"> & {
+    __internal_appendOptimisticAttachmentSend?: (
+      message: AppendMessage,
+      uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
+    ) => Promise<void>;
     adapters?:
       | {
           attachments?: AttachmentAdapter | undefined;
@@ -57,6 +62,10 @@ export class DefaultThreadComposerRuntimeCore
 
   constructor(
     runtime: Omit<ThreadRuntimeCore, "composer"> & {
+      __internal_appendOptimisticAttachmentSend?: (
+        message: AppendMessage,
+        uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
+      ) => Promise<void>;
       adapters?:
         | {
             attachments?: AttachmentAdapter | undefined;
@@ -91,9 +100,21 @@ export class DefaultThreadComposerRuntimeCore
     });
   }
 
+  protected override supportsOptimisticAttachmentSend(
+    role: MessageRole,
+    options: SendOptions | undefined,
+  ) {
+    if (role !== "user") return false;
+    if (!this.runtime.__internal_appendOptimisticAttachmentSend) return false;
+    // A queued run reorders the message, so the placeholder could land at a
+    // position the completed message never occupies.
+    return !this.runtime.capabilities.queue || options?.startRun === false;
+  }
+
   public async handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
+    uploadAttachments?: () => Promise<readonly CompleteAttachment[]>,
   ) {
     // Merge provider-contributed metadata onto the outgoing user message
     // (same metadata.custom append path quotes ride). The interactables gate
@@ -104,12 +125,33 @@ export class DefaultThreadComposerRuntimeCore
     );
     const enriched = this.enrichWithComposerMetadata(message, composerMetadata);
 
-    return this.runtime.append({
+    const appendMessage: AppendMessage = {
       ...(enriched as AppendMessage),
       parentId: this.runtime.messages.at(-1)?.id ?? null,
       sourceId: null,
       startRun: options?.startRun,
       steer: options?.steer,
+    };
+
+    if (!uploadAttachments) {
+      return this.runtime.append(appendMessage);
+    }
+
+    const startRun = appendMessage.startRun ?? appendMessage.role === "user";
+    if (
+      appendMessage.role === "user" &&
+      (!this.runtime.capabilities.queue || !startRun) &&
+      this.runtime.__internal_appendOptimisticAttachmentSend
+    ) {
+      return this.runtime.__internal_appendOptimisticAttachmentSend(
+        appendMessage,
+        uploadAttachments,
+      );
+    }
+
+    return this.runtime.append({
+      ...appendMessage,
+      attachments: await uploadAttachments(),
     });
   }
 

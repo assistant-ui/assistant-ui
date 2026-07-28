@@ -8,6 +8,11 @@ import type {
 import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import type { ExportedMessageRepositoryItem } from "../../runtime/utils/message-repository";
+import type { AttachmentAdapter } from "../../adapters/attachment";
+import type {
+  CompleteAttachment,
+  PendingAttachment,
+} from "../../types/attachment";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -21,6 +26,7 @@ const createThread = (
     suggestion?: LocalRuntimeOptionsBase["adapters"]["suggestion"];
     history?: LocalRuntimeOptionsBase["adapters"]["history"];
     maxSteps?: number;
+    attachments?: AttachmentAdapter;
   },
 ) => {
   const core = new LocalRuntimeCore(
@@ -33,6 +39,9 @@ const createThread = (
         ...(options?.history !== undefined && {
           history: options.history,
         }),
+        ...(options?.attachments !== undefined && {
+          attachments: options.attachments,
+        }),
       },
       unstable_humanToolNames: ["send_email"],
       ...(options?.maxSteps !== undefined && { maxSteps: options.maxSteps }),
@@ -41,6 +50,24 @@ const createThread = (
   );
   return core.threads.getMainThreadRuntimeCore();
 };
+
+const textFile = () => new File(["content"], "f.txt", { type: "text/plain" });
+
+const createAttachmentAdapter = (
+  send: AttachmentAdapter["send"],
+): AttachmentAdapter => ({
+  accept: "*",
+  add: async ({ file }: { file: File }): Promise<PendingAttachment> => ({
+    id: "att-1",
+    type: "document",
+    name: file.name,
+    contentType: file.type,
+    file,
+    status: { type: "requires-action", reason: "composer-send" },
+  }),
+  remove: async () => {},
+  send,
+});
 
 const userMessage = (text: string): AppendMessage => ({
   parentId: null,
@@ -139,6 +166,160 @@ describe("LocalThreadRuntimeCore events", () => {
         '[assistant-ui] Thread runtime "runEnd" listener threw an error',
         listenerError,
       );
+    });
+  });
+});
+
+describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
+  it("appends the sent message with pending attachments and starts the run only after the upload resolves", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn(
+      (attachment: PendingAttachment) =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = () =>
+            resolve({
+              ...attachment,
+              status: { type: "complete" },
+              content: [{ type: "text", text: "uploaded" }],
+            });
+        }),
+    );
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      },
+      { attachments: createAttachmentAdapter(send) },
+    );
+
+    thread.composer.setText("hello");
+    await thread.composer.addAttachment(textFile());
+
+    const sendPromise = thread.composer.send();
+
+    expect(thread.composer.text).toBe("");
+    expect(thread.composer.attachments).toHaveLength(0);
+    expect(thread.messages).toHaveLength(1);
+    expect(thread.messages[0]?.role).toBe("user");
+    expect(thread.messages[0]?.attachments?.[0]?.status).toEqual({
+      type: "requires-action",
+      reason: "composer-send",
+    });
+    expect(runs).toHaveLength(0);
+
+    resolveSend();
+    await sendPromise;
+    await flush();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(thread.messages[0]?.attachments?.[0]?.status).toEqual({
+      type: "complete",
+    });
+    expect(thread.messages[0]?.attachments?.[0]?.content).toEqual([
+      { type: "text", text: "uploaded" },
+    ]);
+    expect(runs).toHaveLength(1);
+    const runUserMessage = runs[0]!.messages.at(-1)!;
+    expect(runUserMessage.attachments?.[0]?.status).toEqual({
+      type: "complete",
+    });
+  });
+
+  it("removes the optimistic message and restores the draft when the upload fails", async () => {
+    let rejectSend!: (error: Error) => void;
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      },
+      {
+        attachments: createAttachmentAdapter(
+          () =>
+            new Promise<CompleteAttachment>((_resolve, reject) => {
+              rejectSend = reject;
+            }),
+        ),
+      },
+    );
+
+    thread.composer.setText("hello");
+    await thread.composer.addAttachment(textFile());
+
+    const sendPromise = thread.composer.send();
+
+    expect(thread.messages).toHaveLength(1);
+
+    rejectSend(new Error("upload failed"));
+    await expect(sendPromise).rejects.toThrow("upload failed");
+    await flush();
+
+    expect(thread.messages).toHaveLength(0);
+    expect(thread.composer.text).toBe("hello");
+    expect(thread.composer.attachments).toHaveLength(1);
+    expect(runs).toHaveLength(0);
+  });
+
+  it("keeps the optimistic message visible while thread initialization is pending", async () => {
+    let resolveInit!: () => void;
+    let resolveSend!: () => void;
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      },
+      {
+        attachments: createAttachmentAdapter(
+          (attachment) =>
+            new Promise<CompleteAttachment>((resolve) => {
+              resolveSend = () =>
+                resolve({
+                  ...attachment,
+                  status: { type: "complete" },
+                  content: [{ type: "text", text: "uploaded" }],
+                });
+            }),
+        ),
+      },
+    );
+    thread.__internal_setGetInitializePromise(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveInit = resolve;
+        }),
+    );
+
+    thread.composer.setText("hello");
+    await thread.composer.addAttachment(textFile());
+
+    const sendPromise = thread.composer.send();
+
+    expect(thread.messages).toHaveLength(1);
+    expect(thread.messages[0]?.attachments?.[0]?.status).toEqual({
+      type: "requires-action",
+      reason: "composer-send",
+    });
+
+    resolveSend();
+    await sendPromise;
+    await flush();
+
+    expect(thread.messages[0]?.attachments?.[0]?.status).toEqual({
+      type: "requires-action",
+      reason: "composer-send",
+    });
+
+    resolveInit();
+    await flush();
+
+    expect(thread.messages[0]?.attachments?.[0]?.status).toEqual({
+      type: "complete",
     });
   });
 });
