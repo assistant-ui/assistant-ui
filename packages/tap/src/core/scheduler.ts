@@ -5,11 +5,20 @@ type GlobalFlushState = {
   isScheduled: boolean;
 };
 
+// Maximum number of tasks a single flush pass may run. Large legitimate
+// batches (e.g. hundreds of resources mounting in one update) exceed this
+// easily, so overflowing work is deferred to follow-up passes instead of
+// being dropped.
 const MAX_FLUSH_LIMIT = 50;
+// Guard against true infinite update loops (a resource that re-dirties
+// itself on every run): if this many consecutive passes stay saturated
+// without the queue ever draining, give up and throw.
+const MAX_SATURATED_FLUSH_PASSES = 100;
 let flushState: GlobalFlushState = {
   schedulers: new Set([]),
   isScheduled: false,
 };
+let saturatedFlushPasses = 0;
 
 export class UpdateScheduler {
   private _isDirty = false;
@@ -44,44 +53,57 @@ const scheduleFlush = () => {
 };
 
 const flushScheduled = () => {
-  try {
-    const errors = [];
-    let flushDepth = 0;
+  const errors = [];
+  let flushDepth = 0;
 
-    for (const scheduler of flushState.schedulers) {
-      flushState.schedulers.delete(scheduler);
-      if (!scheduler.isDirty) continue;
+  for (const scheduler of flushState.schedulers) {
+    if (flushDepth >= MAX_FLUSH_LIMIT) break;
+    flushState.schedulers.delete(scheduler);
+    if (!scheduler.isDirty) continue;
 
-      flushDepth++;
+    flushDepth++;
 
-      if (flushDepth > MAX_FLUSH_LIMIT) {
-        throw new Error(
-          `Maximum update depth exceeded. This can happen when a resource ` +
-            `repeatedly calls setState inside useEffect.`,
-        );
-      }
-
-      try {
-        scheduler.runTask();
-      } catch (error) {
-        errors.push(error);
-      }
+    try {
+      scheduler.runTask();
+    } catch (error) {
+      errors.push(error);
     }
+  }
 
-    if (errors.length > 0) {
-      if (errors.length === 1) {
-        throw errors[0];
-      } else {
-        for (const error of errors) {
-          console.error(error);
-        }
-        throw new AggregateError(errors, "Errors occurred during flushSync");
-      }
-    }
-  } finally {
+  if (errors.length > 0) {
     flushState.schedulers.clear();
     flushState.isScheduled = false;
+    saturatedFlushPasses = 0;
+    if (errors.length === 1) {
+      throw errors[0];
+    } else {
+      for (const error of errors) {
+        console.error(error);
+      }
+      throw new AggregateError(errors, "Errors occurred during flushSync");
+    }
   }
+
+  if (flushState.schedulers.size > 0) {
+    saturatedFlushPasses += 1;
+    if (saturatedFlushPasses >= MAX_SATURATED_FLUSH_PASSES) {
+      flushState.schedulers.clear();
+      flushState.isScheduled = false;
+      saturatedFlushPasses = 0;
+      throw new Error(
+        `Maximum update depth exceeded. This can happen when a resource ` +
+          `repeatedly calls setState inside useEffect.`,
+      );
+    }
+    // More work remains: continue draining in the next pass instead of
+    // dropping the pending updates.
+    flushState.isScheduled = false;
+    scheduleFlush();
+    return;
+  }
+
+  saturatedFlushPasses = 0;
+  flushState.isScheduled = false;
 };
 
 // Use MessageChannel to schedule flushes as macrotasks (like React's scheduler).
