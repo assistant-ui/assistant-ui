@@ -1007,6 +1007,7 @@ declare class LangGraphMessageAccumulator<TMessage extends {
   private appendMessage;
   constructor(_param0?: LangGraphStateAccumulatorConfig<TMessage>);
   private ensureMessageId;
+  private applyRemove;
   addMessages(newMessages: TMessage[]): TMessage[];
   addMessageWithMetadata(message: TMessage, metadata: LangGraphTupleMetadata): TMessage[];
   getMessages(): TMessage[];
