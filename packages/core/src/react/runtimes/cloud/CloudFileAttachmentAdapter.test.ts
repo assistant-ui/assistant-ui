@@ -3,12 +3,12 @@ import type { AssistantCloud } from "assistant-cloud";
 import type { PendingAttachment } from "../../../types/attachment";
 import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
 
-const makeCloud = () =>
+const makeCloud = (publicUrl = "https://cdn.example/file.png") =>
   ({
     files: {
       generatePresignedUploadUrl: vi.fn().mockResolvedValue({
         signedUrl: "https://storage.example/upload",
-        publicUrl: "https://cdn.example/file.png",
+        publicUrl,
       }),
     },
   }) as unknown as AssistantCloud;
@@ -125,10 +125,11 @@ describe("CloudFileAttachmentAdapter", () => {
     );
   });
 
-  it("rejects attachments uploaded with a different Cloud client", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+  it("reuploads attachments with the current Cloud client before sending", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
     const firstCloud = makeCloud();
-    const secondCloud = makeCloud();
+    const secondCloud = makeCloud("https://cdn.example/current-file.png");
     let cloud = firstCloud;
     const adapter = new CloudFileAttachmentAdapter(() => cloud);
 
@@ -140,8 +141,21 @@ describe("CloudFileAttachmentAdapter", () => {
 
     cloud = secondCloud;
 
-    await expect(adapter.send(yields.at(-1)!)).rejects.toThrow(
-      "Attachment was uploaded with a different Cloud client. Remove it and upload it again.",
+    const complete = await adapter.send(yields.at(-1)!);
+
+    expect(firstCloud.files.generatePresignedUploadUrl).toHaveBeenCalledTimes(
+      1,
     );
+    expect(secondCloud.files.generatePresignedUploadUrl).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(complete.content).toEqual([
+      {
+        type: "image",
+        image: "https://cdn.example/current-file.png",
+        filename: "pixel.png",
+      },
+    ]);
   });
 });

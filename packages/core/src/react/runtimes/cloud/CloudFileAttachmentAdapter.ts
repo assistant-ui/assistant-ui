@@ -32,6 +32,25 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     { url: string; cloud: AssistantCloud }
   >();
 
+  private async upload(file: File, cloud: AssistantCloud) {
+    const { signedUrl, publicUrl } =
+      await cloud.files.generatePresignedUploadUrl({
+        filename: file.name,
+      });
+    const res = await fetch(signedUrl, {
+      method: "PUT",
+      body: file,
+      headers: {
+        "Content-Type": file.type,
+      },
+      mode: "cors",
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to upload file: ${res.status} ${res.statusText}`);
+    }
+    return publicUrl;
+  }
+
   public async *add({
     file,
   }: {
@@ -51,23 +70,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
 
     try {
       const cloud = this.getCloud();
-      const { signedUrl, publicUrl } =
-        await cloud.files.generatePresignedUploadUrl({
-          filename: file.name,
-        });
-      const res = await fetch(signedUrl, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "Content-Type": file.type,
-        },
-        mode: "cors",
-      });
-      if (!res.ok) {
-        throw new Error(
-          `Failed to upload file: ${res.status} ${res.statusText}`,
-        );
-      }
+      const publicUrl = await this.upload(file, cloud);
       this.uploadedUrls.set(id, { url: publicUrl, cloud });
       attachment = {
         ...attachment,
@@ -97,23 +100,21 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   ): Promise<CompleteAttachment> {
     const uploaded = this.uploadedUrls.get(attachment.id);
     if (!uploaded) throw new Error("Attachment not uploaded");
+    const cloud = this.getCloud();
+    const url =
+      uploaded.cloud === cloud
+        ? uploaded.url
+        : await this.upload(attachment.file, cloud);
     this.uploadedUrls.delete(attachment.id);
-    if (uploaded.cloud !== this.getCloud()) {
-      throw new Error(
-        "Attachment was uploaded with a different Cloud client. Remove it and upload it again.",
-      );
-    }
 
     let content: ThreadUserMessagePart[];
     if (attachment.type === "image") {
-      content = [
-        { type: "image", image: uploaded.url, filename: attachment.name },
-      ];
+      content = [{ type: "image", image: url, filename: attachment.name }];
     } else {
       content = [
         {
           type: "file",
-          data: uploaded.url,
+          data: url,
           mimeType: attachment.contentType ?? "",
           filename: attachment.name,
         },
