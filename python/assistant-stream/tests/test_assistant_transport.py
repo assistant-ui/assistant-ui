@@ -258,3 +258,141 @@ async def test_assistant_transport_encoder_wraps_dict_data():
     ]
 
     assert collected == [{"type": "data", "data": [{"not": "a list"}]}]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_parallel_tool_calls_interleave():
+    """Parallel tool calls keep their own paths: interleaved args deltas route
+    by tool_call_id and neither call's args are truncated by the other."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="alpha")
+        yield ToolCallBeginChunk(tool_call_id="t2", tool_name="beta")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='{"a":')
+        yield ToolCallDeltaChunk(tool_call_id="t2", args_text_delta='{"b":')
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta="1}")
+        yield ToolCallDeltaChunk(tool_call_id="t2", args_text_delta="2}")
+        yield ToolResultChunk(tool_call_id="t1", result={"r": 1})
+        yield ToolResultChunk(tool_call_id="t2", result={"r": 2})
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "tool-call", "toolCallId": "t1", "toolName": "alpha"},
+            "path": [],
+        },
+        {
+            "type": "part-start",
+            "part": {"type": "tool-call", "toolCallId": "t2", "toolName": "beta"},
+            "path": [],
+        },
+        {"type": "text-delta", "textDelta": '{"a":', "path": [0]},
+        {"type": "text-delta", "textDelta": '{"b":', "path": [1]},
+        {"type": "text-delta", "textDelta": "1}", "path": [0]},
+        {"type": "text-delta", "textDelta": "2}", "path": [1]},
+        {"type": "result", "result": {"r": 1}, "isError": False, "path": [0]},
+        {"type": "tool-call-args-text-finish", "path": [0]},
+        {"type": "part-finish", "path": [0]},
+        {"type": "result", "result": {"r": 2}, "isError": False, "path": [1]},
+        {"type": "tool-call-args-text-finish", "path": [1]},
+        {"type": "part-finish", "path": [1]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_tool_call_precedes_later_text():
+    """add_tool_call emits its part-start in call order: a tool call opened
+    before text appears as the earlier part even though its args flow through
+    the async tool substream."""
+    encoder = AssistantTransportEncoder()
+
+    async def run_callback(controller: RunController):
+        tool = await controller.add_tool_call("get_weather", "tool_1")
+        controller.append_text("checking")
+        tool.append_args_text('{"location": "NYC"}')
+        tool.set_response({"temp": 70})
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(create_run(run_callback))
+        if line != "data: [DONE]\n\n"
+    ]
+
+    part_starts = [c["part"]["type"] for c in collected if c["type"] == "part-start"]
+    assert part_starts == ["tool-call", "text"]
+    assert {
+        "type": "text-delta",
+        "textDelta": '{"location": "NYC"}',
+        "path": [0],
+    } in collected
+    assert {
+        "type": "result",
+        "result": {"temp": 70},
+        "isError": False,
+        "path": [0],
+    } in collected
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_tool_call_without_result_stays_open():
+    """A tool call that ends the stream without a result keeps its part open:
+    no args-text-finish or part-finish is emitted, so the TS accumulator flush
+    sees a partial-call and reports requires-action."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="ask_human")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='{"q": "ok?"}')
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "tool-call", "toolCallId": "t1", "toolName": "ask_human"},
+            "path": [],
+        },
+        {"type": "text-delta", "textDelta": '{"q": "ok?"}', "path": [0]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_duplicate_begin_is_dropped():
+    """A second tool-call-begin for a still-open call is dropped instead of
+    opening a duplicate part; the original part keeps its deltas and result."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="alpha")
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="alpha")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta="{}")
+        yield ToolResultChunk(tool_call_id="t1", result="ok")
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "tool-call", "toolCallId": "t1", "toolName": "alpha"},
+            "path": [],
+        },
+        {"type": "text-delta", "textDelta": "{}", "path": [0]},
+        {"type": "result", "result": "ok", "isError": False, "path": [0]},
+        {"type": "tool-call-args-text-finish", "path": [0]},
+        {"type": "part-finish", "path": [0]},
+    ]

@@ -18,6 +18,9 @@ from assistant_stream.serialization.stream_encoder import StreamEncoder
 from assistant_stream.state_proxy import StateProxy
 from typing import AsyncGenerator, Any
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class StateProxyJSONEncoder(json.JSONEncoder):
@@ -44,6 +47,13 @@ class _Canonicalizer:
         self._part_counter = 0
         self._append_part: tuple[str, list[int], str | None] | None = None
         self._tool_paths: dict[str, list[int]] = {}
+        self._warned_reasons: set[str] = set()
+
+    def _warn_once(self, reason: str, detail: str) -> None:
+        if reason in self._warned_reasons:
+            return
+        self._warned_reasons.add(reason)
+        logger.warning("Dropped assistant-transport chunk (%s): %s", reason, detail)
 
     def _next_path(self) -> list[int]:
         path = [self._part_counter]
@@ -80,6 +90,12 @@ class _Canonicalizer:
         return frames
 
     def _begin_tool_call(self, chunk: ToolCallBeginChunk) -> list[dict[str, Any]]:
+        if chunk.tool_call_id in self._tool_paths:
+            self._warn_once(
+                "duplicate-tool-call-id",
+                f"tool-call-begin for {chunk.tool_call_id}",
+            )
+            return []
         frames = self._close_append_part()
         path = self._next_path()
         self._tool_paths[chunk.tool_call_id] = path
@@ -96,6 +112,10 @@ class _Canonicalizer:
     def _tool_call_delta(self, chunk: ToolCallDeltaChunk) -> list[dict[str, Any]]:
         path = self._tool_paths.get(chunk.tool_call_id)
         if path is None:
+            self._warn_once(
+                "unknown-tool-call-id",
+                f"tool-call-delta for {chunk.tool_call_id}",
+            )
             return []
         return [
             {"type": "text-delta", "textDelta": chunk.args_text_delta, "path": path}
@@ -162,6 +182,7 @@ class _Canonicalizer:
             case "update-state":
                 return [{"type": "update-state", "operations": chunk.operations}]
             case _:
+                self._warn_once("unknown-chunk-type", chunk.type)
                 return []
 
     def close(self) -> list[dict[str, Any]]:
