@@ -13,11 +13,10 @@ import {
   createFormattedPersistence,
 } from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
-import { type AssistantClient, useAui } from "@assistant-ui/store";
-import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
+import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 
 const globalPersistence = new WeakMap<
-  ThreadListItemMethods,
+  getClientId.ClientId,
   CloudMessagePersistence
 >();
 
@@ -31,7 +30,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   private get _persistence(): CloudMessagePersistence {
-    const key = this.aui.threadListItem;
+    const key = getClientId(this.aui.threadListItem);
     if (!globalPersistence.has(key)) {
       globalPersistence.set(
         key,

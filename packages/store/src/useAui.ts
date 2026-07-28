@@ -41,7 +41,7 @@ import {
   useBuildingClient,
 } from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
-import { createClientAccessor, getBoundClient } from "./utils/client-accessor";
+import { createClientAccessor, getClientId } from "./utils/client-accessor";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import {
   PROXIED_ASSISTANT_STATE_SYMBOL,
@@ -168,7 +168,9 @@ const useClientFields = ({
             return;
           }
 
-          const scopeClient = getBoundClient(this[scope as ClientNames]);
+          const scopeClient = getClientId(
+            this[scope as ClientNames],
+          ) as unknown as ClientMethods;
           const index = getClientIndex(scopeClient);
           if (scopeClient === clientStack[index]) {
             callback(payload);

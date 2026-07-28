@@ -7,7 +7,6 @@ import type {
   ClientMeta,
 } from "./types/client";
 import { useBuildingClient } from "./utils/tap-assistant-context";
-import { unwrapClientAccessor } from "./utils/client-accessor";
 
 type DerivedInstance<K extends ClientNames> = ReturnType<
   AssistantClientAccessor<K>
@@ -17,7 +16,7 @@ export const useDerived = <K extends ClientNames>({
   get,
 }: Derived.Props<K>): DerivedInstance<K> => {
   const client = useBuildingClient();
-  const select = () => unwrapClientAccessor(get(client)) as DerivedInstance<K>;
+  const select = () => get(client) as DerivedInstance<K>;
   return useSyncExternalStore(client.subscribe, select, select);
 };
 

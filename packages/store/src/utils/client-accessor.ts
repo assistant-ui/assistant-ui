@@ -5,7 +5,9 @@ import type {
 } from "../types/client";
 import { handleIntrospectionProp } from "./BaseProxyHandler";
 
-const AUI_INSTANCE_SYMBOL = Symbol("assistant-ui.store.auiInstance");
+const CLIENT_ID_SYMBOL = Symbol("assistant-ui.store.clientId");
+
+declare const clientIdBrand: unique symbol;
 
 type AccessorMeta = {
   name: ClientNames;
@@ -28,14 +30,14 @@ export const createClientAccessor = <K extends ClientNames>(
       if (prop === "source") return meta.source;
       if (prop === "query") return meta.query;
       if (prop === "name") return meta.name;
-      if (prop === AUI_INSTANCE_SYMBOL) return read();
+      if (prop === CLIENT_ID_SYMBOL) return getClientId(read());
       return (read() as AnyRecord)[prop];
     },
     has: (_, prop) =>
       prop === "source" ||
       prop === "query" ||
       prop === "name" ||
-      prop === AUI_INSTANCE_SYMBOL ||
+      prop === CLIENT_ID_SYMBOL ||
       prop in read(),
     ownKeys: () => Reflect.ownKeys(read()),
     getOwnPropertyDescriptor: (_, prop) => {
@@ -65,6 +67,7 @@ export const createErrorClientAccessor = (
       get: (_, prop) => {
         if (prop === "source" || prop === "query") return null;
         if (prop === "name") return name;
+        if (prop === CLIENT_ID_SYMBOL) return fail();
         const introspection = handleIntrospectionProp(
           prop,
           "AssistantClientAccessor",
@@ -80,8 +83,17 @@ export const createErrorClientAccessor = (
   );
 };
 
-export const getBoundClient = (accessor: object): ClientMethods =>
-  (accessor as AnyRecord)[AUI_INSTANCE_SYMBOL] as ClientMethods;
+/**
+ * Returns the opaque identity of a bound client instance.
+ *
+ * The identity is stable for the lifetime of the bound client: the same
+ * object is returned no matter how many accessor layers wrap the client, so
+ * it is a reliable `WeakMap` key for per-client caches. Throws if the client
+ * is an accessor for an unavailable scope.
+ */
+export const getClientId = (client: object): getClientId.ClientId =>
+  ((client as AnyRecord)[CLIENT_ID_SYMBOL] ?? client) as getClientId.ClientId;
 
-export const unwrapClientAccessor = <T>(value: T): T =>
-  ((value as AnyRecord)[AUI_INSTANCE_SYMBOL] as T) ?? value;
+export namespace getClientId {
+  export type ClientId = { readonly [clientIdBrand]: never };
+}

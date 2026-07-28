@@ -21,6 +21,7 @@ export {
   useAssistantClientRef,
   useAssistantEmit,
 } from "./utils/tap-assistant-context";
+export { getClientId } from "./utils/client-accessor";
 export { useClientResource } from "./useClientResource";
 export { useClientLookup } from "./useClientLookup";
 export { useClientList } from "./useClientList";
