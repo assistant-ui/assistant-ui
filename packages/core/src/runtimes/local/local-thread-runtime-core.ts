@@ -392,7 +392,7 @@ export class LocalThreadRuntimeCore
         optimisticMessage.id,
       ).parentId;
       this.repository.addOrUpdateMessage(parentId, completedMessage);
-      this._options.adapters.history?.append({
+      await this._options.adapters.history?.append({
         parentId,
         message: completedMessage,
         ...(message.runConfig !== undefined && {

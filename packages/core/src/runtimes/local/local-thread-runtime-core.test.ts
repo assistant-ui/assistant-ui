@@ -329,6 +329,8 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
   it("persists the uploading message before the message sent during its upload", async () => {
     const appended: ExportedMessageRepositoryItem[] = [];
     let resolveSend!: () => void;
+    let resolveFirstAppend!: () => void;
+    let appendStarted = 0;
     const thread = createThread(
       {
         async run() {
@@ -352,6 +354,12 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
             return { messages: [] };
           },
           async append(item: ExportedMessageRepositoryItem) {
+            appendStarted++;
+            if (appendStarted === 1) {
+              await new Promise<void>((resolve) => {
+                resolveFirstAppend = resolve;
+              });
+            }
             appended.push(item);
           },
         },
@@ -369,6 +377,12 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     expect(appended).toHaveLength(0);
 
     resolveSend();
+    await flush();
+
+    expect(appendStarted).toBe(1);
+    expect(appended).toHaveLength(0);
+
+    resolveFirstAppend();
     await sendPromise;
     await secondSendPromise;
     await flush();
