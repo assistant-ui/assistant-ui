@@ -4,9 +4,11 @@ import {
   flushTapSync,
   useMemoCache,
   useResource,
+  useResources,
   useTapHost,
   useTapRoot,
   resource,
+  withKey,
   type ResourceElement,
 } from "@assistant-ui/tap";
 import { useMemo, useEffect, useRef, useSyncExternalStore } from "react";
@@ -21,7 +23,6 @@ import type {
 import { useDerived, type DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
-  useAssistantContextProvider,
   DefaultAssistantClient,
   createRootAssistantClient,
   AUI_USE_EFFECTS_SYMBOL,
@@ -34,7 +35,11 @@ import {
   type AssistantEventSelector,
 } from "./types/events";
 import { NotificationManager } from "./utils/NotificationManager";
-import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
+import {
+  useAssistantTapContextProvider,
+  useBuildingClientProvider,
+  useBuildingClient,
+} from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import {
@@ -209,39 +214,15 @@ const useScopeMeta = (element: ScopeElement): ScopeMeta => {
   );
 };
 
-const EMPTY_CHAIN: ScopeResult[] = [];
-const useScopeChainEnd = () => EMPTY_CHAIN;
-const ScopeChainEnd = resource(useScopeChainEnd);
-
-type ScopeChainProps = {
-  entries: ScopeEntry[];
-  index: number;
-  client: AssistantClient;
-};
-
-const useScopeChainRest = (props: ScopeChainProps): ScopeResult[] => {
-  return useResource(
-    props.index < props.entries.length
-      ? ScopeChainResource(props)
-      : ScopeChainEnd(),
-  );
-};
-
 const useScopeValue = (element: ScopeElement, derived: boolean) =>
   useResource(derived ? element : ClientResource(element));
 
-const useScopeChain = ({
-  entries,
-  index,
-  client,
-}: ScopeChainProps): ScopeResult[] => {
-  const { name, element } = entries[index]!;
+const useScopeMount = ({ name, element }: ScopeEntry): ScopeResult => {
+  const client = useBuildingClient();
 
   // A derived element resolves to an existing client; mount it directly
   const derived = isDerivedElement(element);
-  const value = useAssistantContextProvider(client, function WithScopeClient() {
-    return useScopeValue(element, derived);
-  });
+  const value = useScopeValue(element, derived);
 
   const methods = derived
     ? (value as ClientMethods)
@@ -256,28 +237,18 @@ const useScopeChain = ({
     [name, meta, methods],
   );
 
-  const nextClient = useMemo(() => {
-    const next = Object.create(client) as AssistantClient;
-    Object.assign(next, {
-      [name]: accessor,
-      [PROXIED_ASSISTANT_STATE_SYMBOL]: createProxiedAssistantState(next),
-    });
-    return next;
-  }, [client, name, accessor]);
+  // Only fill vacant slots so a re-render never mutates an already-built client
+  if (!Object.hasOwn(client, name)) {
+    (client as Record<ClientNames, unknown>)[name] = accessor;
+  }
 
-  const rest = useScopeChainRest({
-    entries,
-    index: index + 1,
-    client: nextClient,
-  });
-
-  return useMemo(
-    () => [{ name, accessor, state }, ...rest],
-    [name, accessor, state, rest],
-  );
+  return useMemo(() => ({ name, accessor, state }), [name, accessor, state]);
 };
 
-const ScopeChainResource = resource(useScopeChain);
+const ScopeMount = resource(useScopeMount);
+
+const useScopeMounts = (entries: ScopeEntry[]): ScopeResult[] =>
+  useResources(entries.map((entry) => withKey(entry.name, ScopeMount(entry))));
 
 const MEMO_CACHE_UNFILLED = Symbol.for("react.memo_cache_sentinel");
 
@@ -295,22 +266,27 @@ const useStableArray = <T>(values: readonly T[]): readonly T[] => {
   return values;
 };
 
-const useComposedClient = ({
+const useCommittedClient = ({
+  building,
   parent,
   fields,
   accessors,
 }: {
+  building: AssistantClient;
   parent: AssistantClient;
   fields: ClientFields;
   accessors: readonly AssistantClientAccessor<ClientNames>[];
 }): AssistantClient => {
-  return useMemo(() => {
-    const client = createClientObject(parent, fields);
-    for (const accessor of accessors) {
-      (client as Record<ClientNames, unknown>)[accessor.name] = accessor;
-    }
-    return client;
-  }, [parent, fields, accessors]);
+  const deps = useStableArray([parent, fields, accessors]);
+  const cache = useMemoCache(2) as [
+    readonly unknown[] | typeof MEMO_CACHE_UNFILLED,
+    AssistantClient,
+  ];
+  if (cache[0] !== deps) {
+    cache[0] = deps;
+    cache[1] = building;
+  }
+  return cache[1];
 };
 
 const useAuiRoot = ({
@@ -327,15 +303,14 @@ const useAuiRoot = ({
   const entries = toScopeEntries(applyTransformScopes(clients, parent));
 
   const fields = useClientFields({ notifications, clientRef });
-  const baseClient = useMemo(
-    () => createClientObject(parent, fields),
-    [parent, fields],
-  );
+  const building = createClientObject(parent, fields);
 
   const results = useAssistantTapContextProvider(
     { clientRef, emit: notifications.emit },
     function WithTapContext() {
-      return useScopeChainRest({ entries, index: 0, client: baseClient });
+      return useBuildingClientProvider(building, function WithBuildingClient() {
+        return useScopeMounts(entries);
+      });
     },
   );
 
@@ -343,7 +318,9 @@ const useAuiRoot = ({
 
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
-  return { client: useComposedClient({ parent, fields, accessors }) };
+  return {
+    client: useCommittedClient({ building, parent, fields, accessors }),
+  };
 };
 
 const useNotifications = () => useResource(NotificationManager());

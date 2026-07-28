@@ -1,12 +1,12 @@
 import { resource, type ResourceElement } from "@assistant-ui/tap";
+import { useSyncExternalStore } from "react";
 import type {
   AssistantClient,
   ClientNames,
   AssistantClientAccessor,
   ClientMeta,
 } from "./types/client";
-import { useAui } from "./useAui";
-import { useAuiState } from "./useAuiState";
+import { useBuildingClient } from "./utils/tap-assistant-context";
 
 type DerivedInstance<K extends ClientNames> = ReturnType<
   AssistantClientAccessor<K>
@@ -15,8 +15,12 @@ type DerivedInstance<K extends ClientNames> = ReturnType<
 export const useDerived = <K extends ClientNames>({
   get,
 }: Derived.Props<K>): DerivedInstance<K> => {
-  const aui = useAui();
-  return useAuiState(() => get(aui));
+  const client = useBuildingClient();
+  return useSyncExternalStore(
+    client.subscribe,
+    () => get(client),
+    () => get(client),
+  );
 };
 
 /**
