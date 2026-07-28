@@ -1,10 +1,14 @@
 import pytest
 from assistant_stream import create_run, RunController
 from assistant_stream.assistant_stream_chunk import (
+    AnnotationsChunk,
     DataChunk,
     ErrorChunk,
+    FileChunk,
     ReasoningDeltaChunk,
     SourceChunk,
+    StepFinishChunk,
+    StepStartChunk,
     TextDeltaChunk,
     ToolCallBeginChunk,
     ToolCallDeltaChunk,
@@ -450,4 +454,229 @@ async def test_assistant_transport_encoder_duplicate_begin_is_dropped():
         {"type": "result", "result": "ok", "isError": False, "path": [0]},
         {"type": "tool-call-args-text-finish", "path": [0]},
         {"type": "part-finish", "path": [0]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_file_canonical_wire_shape():
+    """`file` rides `part-start`/`part-finish` like `source`: the TS accumulator
+    builds a `FilePart` from a `part-start` whose init has `type:"file"`, so the
+    Python encoder must emit the part with `data`, `mimeType`, and an optional
+    `parentId` at an allocated path, then close it."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield FileChunk(data="aGVsbG8=", mime_type="image/png")
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "file", "data": "aGVsbG8=", "mimeType": "image/png"},
+            "path": [],
+        },
+        {"type": "part-finish", "path": [0]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_file_with_parent_id():
+    """A `file` chunk with `parent_id` forwards it as `parentId` on the
+    part-start, matching the TS `PartInit` file variant."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield FileChunk(data="x", mime_type="text/plain", parent_id="p1")
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {
+                "type": "file",
+                "data": "x",
+                "mimeType": "text/plain",
+                "parentId": "p1",
+            },
+            "path": [],
+        },
+        {"type": "part-finish", "path": [0]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_file_takes_next_path():
+    """A `file` after a streaming text part allocates the next path, so its
+    part-finish does not collide with the preceding text part."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield TextDeltaChunk(text_delta="hi")
+        yield FileChunk(data="f", mime_type="image/png")
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {"type": "part-start", "part": {"type": "text"}, "path": []},
+        {"type": "text-delta", "textDelta": "hi", "path": [0]},
+        {"type": "part-finish", "path": [0]},
+        {
+            "type": "part-start",
+            "part": {"type": "file", "data": "f", "mimeType": "image/png"},
+            "path": [],
+        },
+        {"type": "part-finish", "path": [1]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_annotations_message_level():
+    """`annotations` is a message-level chunk: it passes through with its
+    array payload and no `path` (the TS decoder supplies `path: []` for
+    message-kind chunks), matching the `KNOWN_CHUNK_TYPES` entry."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield AnnotationsChunk(annotations=[{"type": "citation", "id": "a1"}])
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {"type": "annotations", "annotations": [{"type": "citation", "id": "a1"}]}
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_step_start_message_level():
+    """`step-start` is a message-level chunk carrying a camelCase `messageId`
+    and no `path`; the TS accumulator appends `{state:"started", messageId}`
+    to `metadata.steps`."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield StepStartChunk(message_id="msg_1")
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [{"type": "step-start", "messageId": "msg_1"}]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_step_finish_message_level():
+    """`step-finish` is a message-level chunk with camelCase `finishReason`,
+    `usage` (`inputTokens`/`outputTokens`), and `isContinued`; the TS
+    accumulator transitions the last started step to finished with these
+    fields. Snake_case Python fields convert to camelCase at the boundary."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield StepFinishChunk(
+            finish_reason="stop",
+            input_tokens=12,
+            output_tokens=34,
+            is_continued=False,
+        )
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "step-finish",
+            "finishReason": "stop",
+            "usage": {"inputTokens": 12, "outputTokens": 34},
+            "isContinued": False,
+        }
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_step_finish_defaults():
+    """A `step-finish` with only a finish reason still emits a complete wire
+    frame: usage defaults to zero tokens and isContinued to false, so the TS
+    accumulator never sees a missing required field."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield StepFinishChunk(finish_reason="length")
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "step-finish",
+            "finishReason": "length",
+            "usage": {"inputTokens": 0, "outputTokens": 0},
+            "isContinued": False,
+        }
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_run_controller_emit_paths():
+    """The RunController emit paths (`add_file`, `add_annotations`,
+    `add_step_start`, `add_step_finish`) produce the canonical wire frames for
+    each new chunk type end-to-end through `create_run`."""
+    encoder = AssistantTransportEncoder()
+
+    async def run_callback(controller: RunController):
+        controller.add_step_start("msg_1")
+        controller.append_text("hello")
+        controller.add_annotations([{"type": "citation", "id": "a1"}])
+        controller.add_file("aGVsbG8=", "image/png")
+        controller.add_step_finish("stop", 12, 34, False)
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(create_run(run_callback))
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {"type": "step-start", "messageId": "msg_1"},
+        {"type": "part-start", "part": {"type": "text"}, "path": []},
+        {"type": "text-delta", "textDelta": "hello", "path": [0]},
+        {"type": "annotations", "annotations": [{"type": "citation", "id": "a1"}]},
+        {"type": "part-finish", "path": [0]},
+        {
+            "type": "part-start",
+            "part": {"type": "file", "data": "aGVsbG8=", "mimeType": "image/png"},
+            "path": [],
+        },
+        {"type": "part-finish", "path": [1]},
+        {
+            "type": "step-finish",
+            "finishReason": "stop",
+            "usage": {"inputTokens": 12, "outputTokens": 34},
+            "isContinued": False,
+        },
     ]

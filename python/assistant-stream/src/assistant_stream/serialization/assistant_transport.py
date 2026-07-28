@@ -1,7 +1,11 @@
 from assistant_stream.assistant_stream_chunk import (
+    AnnotationsChunk,
     AssistantStreamChunk,
+    FileChunk,
     ReasoningDeltaChunk,
     SourceChunk,
+    StepFinishChunk,
+    StepStartChunk,
     TextDeltaChunk,
     ToolCallBeginChunk,
     ToolCallDeltaChunk,
@@ -165,6 +169,20 @@ class _Canonicalizer:
         frames.append({"type": "part-finish", "path": path})
         return frames
 
+    def _file(self, chunk: FileChunk) -> list[dict[str, Any]]:
+        frames = self._close_append_part()
+        path = self._next_path()
+        part: dict[str, Any] = {
+            "type": "file",
+            "data": chunk.data,
+            "mimeType": chunk.mime_type,
+        }
+        if chunk.parent_id is not None:
+            part["parentId"] = chunk.parent_id
+        frames.append({"type": "part-start", "part": part, "path": []})
+        frames.append({"type": "part-finish", "path": path})
+        return frames
+
     def translate(self, chunk: AssistantStreamChunk) -> list[dict[str, Any]]:
         match chunk.type:
             case "text-delta":
@@ -179,10 +197,28 @@ class _Canonicalizer:
                 return self._tool_result(chunk)
             case "source":
                 return self._source(chunk)
+            case "file":
+                return self._file(chunk)
             case "data":
                 # The TS union requires `data` to be an array; wrap single values
                 # so a dict payload satisfies the accumulator's array spread.
                 return [{"type": "data", "data": [chunk.data]}]
+            case "annotations":
+                return [{"type": "annotations", "annotations": chunk.annotations}]
+            case "step-start":
+                return [{"type": "step-start", "messageId": chunk.message_id}]
+            case "step-finish":
+                return [
+                    {
+                        "type": "step-finish",
+                        "finishReason": chunk.finish_reason,
+                        "usage": {
+                            "inputTokens": chunk.input_tokens,
+                            "outputTokens": chunk.output_tokens,
+                        },
+                        "isContinued": chunk.is_continued,
+                    }
+                ]
             case "error":
                 return [{"type": "error", "error": chunk.error}]
             case "update-state":

@@ -9,9 +9,13 @@ import asyncio
 from pathlib import Path
 
 from assistant_stream.assistant_stream_chunk import (
+    AnnotationsChunk,
     DataChunk,
+    FileChunk,
     ReasoningDeltaChunk,
     SourceChunk,
+    StepFinishChunk,
+    StepStartChunk,
     TextDeltaChunk,
     ToolCallBeginChunk,
     ToolCallDeltaChunk,
@@ -33,6 +37,7 @@ FIXTURE_PATH = (
 )
 
 CHUNKS = [
+    StepStartChunk(message_id="msg_1"),
     ReasoningDeltaChunk(reasoning_delta="Let me check the weather."),
     TextDeltaChunk(text_delta="Checking"),
     TextDeltaChunk(text_delta=" now."),
@@ -44,8 +49,16 @@ CHUNKS = [
     ),
     ToolResultChunk(tool_call_id="call_1", result={"temp": 70}),
     DataChunk(data={"progress": 1}),
+    AnnotationsChunk(annotations=[{"type": "citation", "id": "a1"}]),
     SourceChunk(id="s1", url="https://example.com", title="Example"),
     TextDeltaChunk(text_delta="It is sunny."),
+    FileChunk(data="aGVsbG8=", mime_type="image/png"),
+    StepFinishChunk(
+        finish_reason="stop",
+        input_tokens=12,
+        output_tokens=34,
+        is_continued=False,
+    ),
 ]
 
 

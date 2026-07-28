@@ -12,6 +12,7 @@ const fixture = readFileSync(
 );
 
 const EXPECTED_CHUNKS: AssistantStreamChunk[] = [
+  { type: "step-start", messageId: "msg_1", path: [] },
   { type: "part-start", part: { type: "reasoning" }, path: [] },
   { type: "text-delta", textDelta: "Let me check the weather.", path: [0] },
   { type: "part-finish", path: [0] },
@@ -36,6 +37,11 @@ const EXPECTED_CHUNKS: AssistantStreamChunk[] = [
   { type: "part-finish", path: [2] },
   { type: "data", data: [{ progress: 1 }], path: [] },
   {
+    type: "annotations",
+    annotations: [{ type: "citation", id: "a1" }],
+    path: [],
+  },
+  {
     type: "part-start",
     part: {
       type: "source",
@@ -50,6 +56,19 @@ const EXPECTED_CHUNKS: AssistantStreamChunk[] = [
   { type: "part-start", part: { type: "text" }, path: [] },
   { type: "text-delta", textDelta: "It is sunny.", path: [4] },
   { type: "part-finish", path: [4] },
+  {
+    type: "part-start",
+    part: { type: "file", data: "aGVsbG8=", mimeType: "image/png" },
+    path: [],
+  },
+  { type: "part-finish", path: [5] },
+  {
+    type: "step-finish",
+    finishReason: "stop",
+    usage: { inputTokens: 12, outputTokens: 34 },
+    isContinued: false,
+    path: [],
+  },
 ];
 
 const decodeFixture = async (chunkSize: number) => {
@@ -107,7 +126,7 @@ describe("Python encoder interop", () => {
     );
 
     const message = messages.at(-1)!;
-    expect(message.parts).toHaveLength(5);
+    expect(message.parts).toHaveLength(6);
     expect(message.parts[0]).toMatchObject({
       type: "reasoning",
       text: "Let me check the weather.",
@@ -137,7 +156,24 @@ describe("Python encoder interop", () => {
       type: "text",
       text: "It is sunny.",
     });
+    expect(message.parts[5]).toMatchObject({
+      type: "file",
+      mimeType: "image/png",
+      data: "aGVsbG8=",
+    });
     expect(message.metadata.unstable_state).toEqual({ status: "running" });
     expect(message.metadata.unstable_data).toEqual([{ progress: 1 }]);
+    expect(message.metadata.unstable_annotations).toEqual([
+      { type: "citation", id: "a1" },
+    ]);
+    expect(message.metadata.steps).toEqual([
+      {
+        state: "finished",
+        messageId: "msg_1",
+        finishReason: "stop",
+        usage: { inputTokens: 12, outputTokens: 34 },
+        isContinued: false,
+      },
+    ]);
   });
 });
