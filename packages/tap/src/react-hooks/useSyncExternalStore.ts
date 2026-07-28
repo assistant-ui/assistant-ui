@@ -15,7 +15,13 @@ export const useSyncExternalStore = <T>(
   const [, forceUpdate] = useState(0);
 
   const onStoreChange = useEffectEvent(() => {
-    if (!Object.is(value, getSnapshot())) forceUpdate((c) => c + 1);
+    // mirrors React's checkIfSnapshotChanged: a throwing snapshot keeps the committed value
+    try {
+      if (Object.is(value, getSnapshot())) return;
+    } catch {
+      return;
+    }
+    forceUpdate((c) => c + 1);
   });
 
   useEffect(() => {
