@@ -2248,6 +2248,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   private _historyWrites;
   private _pendingAttachmentSend;
   private _chainAttachmentSend;
+  private _waitForAttachmentSendChain;
   private _chainHistoryWrite;
   private _persistPausedMessage;
   readonly isDisabled = false;

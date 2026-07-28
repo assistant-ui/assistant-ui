@@ -326,6 +326,58 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     });
   });
 
+  it("answers a completed message when a later optimistic upload fails", async () => {
+    let resolveFirstSend!: () => void;
+    let rejectSecondSend!: (error: Error) => void;
+    let sendCount = 0;
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      },
+      {
+        attachments: createAttachmentAdapter(
+          (attachment) =>
+            new Promise<CompleteAttachment>((resolve, reject) => {
+              sendCount++;
+              if (sendCount === 1) {
+                resolveFirstSend = () =>
+                  resolve({
+                    ...attachment,
+                    status: { type: "complete" },
+                    content: [],
+                  });
+              } else {
+                rejectSecondSend = reject;
+              }
+            }),
+        ),
+      },
+    );
+
+    thread.composer.setText("first");
+    await thread.composer.addAttachment(textFile());
+    const firstSendPromise = thread.composer.send();
+
+    thread.composer.setText("second");
+    await thread.composer.addAttachment(textFile());
+    const secondSendPromise = thread.composer.send();
+
+    resolveFirstSend();
+    await firstSendPromise;
+    rejectSecondSend(new Error("upload failed"));
+
+    await expect(secondSendPromise).rejects.toThrow("upload failed");
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.messages.map((m) => m.role)).toEqual(["user"]);
+    expect(thread.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+  });
+
   it("persists the uploading message before the message sent during its upload", async () => {
     const appended: ExportedMessageRepositoryItem[] = [];
     let resolveSend!: () => void;

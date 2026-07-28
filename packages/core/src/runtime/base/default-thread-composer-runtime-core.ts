@@ -137,20 +137,11 @@ export class DefaultThreadComposerRuntimeCore
       return this.runtime.append(appendMessage);
     }
 
-    const appendOptimistic =
-      this.runtime.__internal_appendOptimisticAttachmentSend;
-    if (appendOptimistic) {
-      return appendOptimistic.call(
-        this.runtime,
-        appendMessage,
-        uploadAttachments,
-      );
-    }
-
-    return this.runtime.append({
-      ...appendMessage,
-      attachments: await uploadAttachments(),
-    });
+    return this.runtime.__internal_appendOptimisticAttachmentSend?.call(
+      this.runtime,
+      appendMessage,
+      uploadAttachments,
+    );
   }
 
   public async handleCancel() {

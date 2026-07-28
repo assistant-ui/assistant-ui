@@ -93,6 +93,12 @@ export class LocalThreadRuntimeCore
     return next;
   }
 
+  private async _waitForAttachmentSendChain(): Promise<void> {
+    while (this._pendingAttachmentSend) {
+      await this._pendingAttachmentSend;
+    }
+  }
+
   // Writes for one message id must land in issue order; an earlier paused
   // snapshot arriving after the terminal write would resurrect the pause.
   private _chainHistoryWrite(
@@ -392,6 +398,7 @@ export class LocalThreadRuntimeCore
         optimisticMessage.id,
       ).parentId;
       this.repository.addOrUpdateMessage(parentId, completedMessage);
+      this._notifySubscribers();
       await this._options.adapters.history?.append({
         parentId,
         message: completedMessage,
@@ -400,6 +407,8 @@ export class LocalThreadRuntimeCore
         }),
       });
     });
+
+    await this._waitForAttachmentSendChain();
 
     // A message sent during the upload already sits below this one and owns the
     // run; a run parented here would branch the thread and hide it.
