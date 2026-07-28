@@ -91,20 +91,18 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   public async send(
     attachment: PendingAttachment,
   ): Promise<CompleteAttachment> {
-    const publicUrl = this.uploadedUrls.get(attachment.id);
-    if (!publicUrl) throw new Error("Attachment not uploaded");
+    const url = this.uploadedUrls.get(attachment.id);
+    if (!url) throw new Error("Attachment not uploaded");
     this.uploadedUrls.delete(attachment.id);
 
     let content: ThreadUserMessagePart[];
     if (attachment.type === "image") {
-      content = [
-        { type: "image", image: publicUrl, filename: attachment.name },
-      ];
+      content = [{ type: "image", image: url, filename: attachment.name }];
     } else {
       content = [
         {
           type: "file",
-          data: publicUrl,
+          data: url,
           mimeType: attachment.contentType ?? "",
           filename: attachment.name,
         },
