@@ -16,6 +16,7 @@ export const useSyncExternalStore = <T>(
 
   const onStoreChange = useEffectEvent(() => {
     // mirrors React's checkIfSnapshotChanged: a throwing snapshot keeps the committed value
+    // TODO: ideally notify our parent (host) to rerender, mirroring React's force-re-render
     try {
       if (Object.is(value, getSnapshot())) return;
     } catch {
