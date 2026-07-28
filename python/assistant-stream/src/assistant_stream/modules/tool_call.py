@@ -2,6 +2,7 @@ import asyncio
 from typing import Any, AsyncGenerator
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
+    ToolCallBeginChunk,
     ToolCallDeltaChunk,
     ToolResultChunk,
 )
@@ -17,11 +18,18 @@ def generate_openai_style_tool_call_id():
 
 
 class ToolCallController:
-    def __init__(self, queue, tool_name: str, tool_call_id: str):
+    def __init__(self, queue, tool_name: str, tool_call_id: str, parent_id: str = None):
         self.tool_name = tool_name
         self.tool_call_id = tool_call_id
         self.queue = queue
         self.loop = asyncio.get_running_loop()
+
+        begin_chunk = ToolCallBeginChunk(
+            tool_call_id=self.tool_call_id,
+            tool_name=self.tool_name,
+            parent_id=parent_id,
+        )
+        self.queue.put_nowait(begin_chunk)
 
     def append_args_text(self, args_text_delta: str) -> None:
         """Append an args text delta to the stream."""
@@ -68,9 +76,10 @@ class ToolCallController:
 async def create_tool_call(
     tool_name: str,
     tool_call_id: str,
+    parent_id: str = None,
 ) -> tuple[AsyncGenerator[AssistantStreamChunk, None], ToolCallController]:
     queue = asyncio.Queue()
-    controller = ToolCallController(queue, tool_name, tool_call_id)
+    controller = ToolCallController(queue, tool_name, tool_call_id, parent_id)
 
     async def stream():
         while True:

@@ -79,18 +79,7 @@ class RunController:
         if tool_call_id is None:
             tool_call_id = generate_openai_style_tool_call_id()
 
-        # Emit the begin chunk synchronously so it lands on the main queue in
-        # call order; args and result flow through the tool substream and are
-        # routed to this part by path on the wire.
-        self._flush_and_put_chunk(
-            ToolCallBeginChunk(
-                tool_call_id=tool_call_id,
-                tool_name=tool_name,
-                parent_id=self._parent_id,
-            )
-        )
-
-        stream, controller = await create_tool_call(tool_name, tool_call_id)
+        stream, controller = await create_tool_call(tool_name, tool_call_id, self._parent_id)
         self._dispose_callbacks.append(controller.close)
 
         self.add_stream(stream)

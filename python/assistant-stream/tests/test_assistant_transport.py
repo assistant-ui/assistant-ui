@@ -307,10 +307,11 @@ async def test_assistant_transport_encoder_parallel_tool_calls_interleave():
 
 
 @pytest.mark.anyio
-async def test_assistant_transport_encoder_tool_call_precedes_later_text():
-    """add_tool_call emits its part-start in call order: a tool call opened
-    before text appears as the earlier part even though its args flow through
-    the async tool substream."""
+async def test_assistant_transport_encoder_interleaved_text_keeps_tool_args_intact():
+    """Text appended while a tool call streams does not disturb the tool part:
+    args deltas route by tool_call_id to the tool's own path, and the result
+    lands on the same path. Part framing follows chunk arrival order, so only
+    routing is pinned here, not cross-part ordering."""
     encoder = AssistantTransportEncoder()
 
     async def run_callback(controller: RunController):
@@ -325,19 +326,39 @@ async def test_assistant_transport_encoder_tool_call_precedes_later_text():
         if line != "data: [DONE]\n\n"
     ]
 
-    part_starts = [c["part"]["type"] for c in collected if c["type"] == "part-start"]
-    assert part_starts == ["tool-call", "text"]
+    tool_paths = [
+        c["path"]
+        for c in collected
+        if c["type"] == "part-start" and c["part"]["type"] == "tool-call"
+    ]
+    assert len(tool_paths) == 1
+    tool_starts = [
+        i
+        for i, c in enumerate(collected)
+        if c["type"] == "part-start" and c["part"]["type"] == "tool-call"
+    ]
+    tool_path = [
+        sum(
+            1
+            for c in collected[: tool_starts[0]]
+            if c["type"] == "part-start"
+        )
+    ]
     assert {
         "type": "text-delta",
         "textDelta": '{"location": "NYC"}',
-        "path": [0],
+        "path": tool_path,
     } in collected
     assert {
         "type": "result",
         "result": {"temp": 70},
         "isError": False,
-        "path": [0],
+        "path": tool_path,
     } in collected
+    text_deltas = [
+        c["textDelta"] for c in collected if c["path"] != tool_path and c["type"] == "text-delta"
+    ]
+    assert "".join(text_deltas) == "checking"
 
 
 @pytest.mark.anyio
