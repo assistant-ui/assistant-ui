@@ -337,6 +337,8 @@ async def test_assistant_transport_encoder_interleaved_text_keeps_tool_args_inta
         for i, c in enumerate(collected)
         if c["type"] == "part-start" and c["part"]["type"] == "tool-call"
     ]
+    # part-start frames carry path [], so the tool's index is the number of
+    # part-start frames emitted before its own.
     tool_path = [
         sum(
             1
@@ -356,16 +358,19 @@ async def test_assistant_transport_encoder_interleaved_text_keeps_tool_args_inta
         "path": tool_path,
     } in collected
     text_deltas = [
-        c["textDelta"] for c in collected if c["path"] != tool_path and c["type"] == "text-delta"
+        c["textDelta"]
+        for c in collected
+        if c["type"] == "text-delta" and c["path"] != tool_path
     ]
     assert "".join(text_deltas) == "checking"
 
 
 @pytest.mark.anyio
-async def test_assistant_transport_encoder_tool_call_without_result_stays_open():
-    """A tool call that ends the stream without a result keeps its part open:
-    no args-text-finish or part-finish is emitted, so the TS accumulator flush
-    sees a partial-call and reports requires-action."""
+async def test_assistant_transport_encoder_tool_call_without_result_settles_at_close():
+    """A tool call that ends the stream without a result settles like the TS
+    controller's dispose path: args-text-finish and part-finish are emitted at
+    stream end, so the part renders as a completed call awaiting action rather
+    than a perpetually running one."""
     encoder = AssistantTransportEncoder()
 
     async def stream():
@@ -385,6 +390,35 @@ async def test_assistant_transport_encoder_tool_call_without_result_stays_open()
             "path": [],
         },
         {"type": "text-delta", "textDelta": '{"q": "ok?"}', "path": [0]},
+        {"type": "tool-call-args-text-finish", "path": [0]},
+        {"type": "part-finish", "path": [0]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_no_args_tool_call_synthesizes_empty_object():
+    """A tool call with no streamed args gets the `{}` fallback the TS
+    controller synthesizes before args-text-finish."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="noop")
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "tool-call", "toolCallId": "t1", "toolName": "noop"},
+            "path": [],
+        },
+        {"type": "text-delta", "textDelta": "{}", "path": [0]},
+        {"type": "tool-call-args-text-finish", "path": [0]},
+        {"type": "part-finish", "path": [0]},
     ]
 
 

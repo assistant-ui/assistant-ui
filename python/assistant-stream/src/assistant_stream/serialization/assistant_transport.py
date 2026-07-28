@@ -44,6 +44,7 @@ class _Canonicalizer:
         self._part_counter = 0
         self._append_part: tuple[str, list[int], str | None] | None = None
         self._tool_paths: dict[str, list[int]] = {}
+        self._tool_has_args: set[str] = set()
         self._warned_reasons: set[str] = set()
 
     def _warn_once(self, reason: str, detail: str) -> None:
@@ -114,6 +115,7 @@ class _Canonicalizer:
                 f"tool-call-delta for {chunk.tool_call_id}",
             )
             return []
+        self._tool_has_args.add(chunk.tool_call_id)
         return [
             {"type": "text-delta", "textDelta": chunk.args_text_delta, "path": path}
         ]
@@ -133,11 +135,18 @@ class _Canonicalizer:
             result["path"] = []
             return [result]
         result["path"] = path
-        return [
-            result,
-            {"type": "tool-call-args-text-finish", "path": path},
-            {"type": "part-finish", "path": path},
-        ]
+        return [result, *self._close_tool_part(chunk.tool_call_id, path)]
+
+    def _close_tool_part(
+        self, tool_call_id: str, path: list[int]
+    ) -> list[dict[str, Any]]:
+        frames: list[dict[str, Any]] = []
+        if tool_call_id not in self._tool_has_args:
+            frames.append({"type": "text-delta", "textDelta": "{}", "path": path})
+        self._tool_has_args.discard(tool_call_id)
+        frames.append({"type": "tool-call-args-text-finish", "path": path})
+        frames.append({"type": "part-finish", "path": path})
+        return frames
 
     def _source(self, chunk: SourceChunk) -> list[dict[str, Any]]:
         frames = self._close_append_part()
@@ -183,7 +192,11 @@ class _Canonicalizer:
                 return []
 
     def close(self) -> list[dict[str, Any]]:
-        return self._close_append_part()
+        frames = self._close_append_part()
+        for tool_call_id, path in self._tool_paths.items():
+            frames.extend(self._close_tool_part(tool_call_id, path))
+        self._tool_paths.clear()
+        return frames
 
 
 class AssistantTransportEncoder(StreamEncoder):
