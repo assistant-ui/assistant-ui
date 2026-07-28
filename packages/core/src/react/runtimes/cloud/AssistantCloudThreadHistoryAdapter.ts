@@ -1,4 +1,4 @@
-import { type RefObject, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import type {
   GenericThreadHistoryAdapter,
   ThreadHistoryAdapter,
@@ -23,11 +23,18 @@ const globalPersistence = new WeakMap<
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
-  private aui: AssistantClient;
+  private auiRef: RefObject<AssistantClient>;
 
-  constructor(cloudRef: RefObject<AssistantCloud>, aui: AssistantClient) {
+  constructor(
+    cloudRef: RefObject<AssistantCloud>,
+    auiRef: RefObject<AssistantClient>,
+  ) {
     this.cloudRef = cloudRef;
-    this.aui = aui;
+    this.auiRef = auiRef;
+  }
+
+  private get aui(): AssistantClient {
+    return this.auiRef.current;
   }
 
   private get _persistence(): CloudMessagePersistence {
@@ -810,8 +817,12 @@ export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
 ): ThreadHistoryAdapter {
   const aui = useAui();
+  const auiRef = useRef(aui);
+  useEffect(() => {
+    auiRef.current = aui;
+  });
   const [adapter] = useState(
-    () => new AssistantCloudThreadHistoryAdapter(cloudRef, aui),
+    () => new AssistantCloudThreadHistoryAdapter(cloudRef, auiRef),
   );
   return adapter;
 }

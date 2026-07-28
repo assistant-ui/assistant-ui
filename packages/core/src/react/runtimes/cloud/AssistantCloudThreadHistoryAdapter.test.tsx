@@ -6,20 +6,22 @@ import { describe, expect, it, vi } from "vitest";
 import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
 
 const mocks = vi.hoisted(() => {
-  const threadListItem = {
-    getState: () => ({ remoteId: "thread-1" }),
-  };
+  const makeClient = (remoteId: string) =>
+    ({
+      threadListItem: {
+        getState: () => ({ remoteId }),
+      },
+    }) as unknown as import("@assistant-ui/store").AssistantClient;
 
   return {
-    assistantClient: {
-      threadListItem,
-    },
+    makeClient,
+    aui: makeClient("thread-1"),
   };
 });
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
-  useAui: () => mocks.assistantClient,
+  useAui: () => mocks.aui,
 }));
 
 const makeCloud = () =>
@@ -33,6 +35,7 @@ const makeCloud = () =>
 
 describe("useAssistantCloudThreadHistoryAdapter", () => {
   it("refreshes formatted persistence when the Cloud client changes", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
     const firstCloud = makeCloud();
     const secondCloud = makeCloud();
     const cloudRef = { current: firstCloud };
@@ -64,6 +67,28 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(secondCloud.threads.messages.list).toHaveBeenCalledOnce();
     expect(secondCloud.threads.messages.list).toHaveBeenCalledWith("thread-1", {
       format: "test",
+    });
+  });
+
+  it("resolves the aui client at call time instead of capturing it", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const cloudRef = { current: cloud };
+    const { result, rerender } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+
+    await result.current.load();
+    expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-1", {
+      format: "aui/v0",
+    });
+
+    mocks.aui = mocks.makeClient("thread-2");
+    rerender();
+
+    await result.current.load();
+    expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-2", {
+      format: "aui/v0",
     });
   });
 });
