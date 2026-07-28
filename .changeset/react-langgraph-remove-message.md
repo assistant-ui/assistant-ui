@@ -17,3 +17,7 @@ and the existing `remove-ui` handling in `applyUIUpdate`), and
 `convertLangChainMessages` gains a `default` branch that returns `[]` for
 unknown message types so the converter never returns `undefined` into a
 `.role` read.
+
+The `REMOVE_ALL_MESSAGES` sentinel (`id: "__remove_all__"`, emitted by e.g.
+LangChain's `SummarizationMiddleware`) clears every accumulated message
+immediately, matching the server-side reducer's clear-all semantics.

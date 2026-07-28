@@ -12,7 +12,9 @@ export type LangGraphStateAccumulatorConfig<TMessage> = {
 };
 
 // LangChain RemoveMessage (type: "remove") deletes the message with the
-// matching id, mirroring server-side messagesStateReducer.
+// matching id; the REMOVE_ALL_MESSAGES sentinel id clears every message,
+// mirroring server-side messagesStateReducer.
+const REMOVE_ALL_MESSAGES = "__remove_all__";
 const isRemoveMessage = (message: { id?: string }): boolean =>
   (message as Record<string, unknown>).type === "remove";
 
@@ -42,14 +44,23 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
     return message.id ? message : { ...message, id: uuidv4() };
   }
 
+  private applyRemove(messageId: string) {
+    if (messageId === REMOVE_ALL_MESSAGES) {
+      this.messagesMap.clear();
+      this.metadataMap.clear();
+      return;
+    }
+    this.messagesMap.delete(messageId);
+    this.metadataMap.delete(messageId);
+  }
+
   public addMessages(newMessages: TMessage[]) {
     if (newMessages.length === 0) return this.getMessages();
 
     for (const message of newMessages.map(this.ensureMessageId)) {
       const messageId = message.id!; // ensureMessageId guarantees id exists
       if (isRemoveMessage(message)) {
-        this.messagesMap.delete(messageId);
-        this.metadataMap.delete(messageId);
+        this.applyRemove(messageId);
         continue;
       }
       const previous = this.messagesMap.get(messageId);
@@ -66,8 +77,7 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
     const messageId = messageWithId.id!;
 
     if (isRemoveMessage(messageWithId)) {
-      this.messagesMap.delete(messageId);
-      this.metadataMap.delete(messageId);
+      this.applyRemove(messageId);
       return this.getMessages();
     }
 

@@ -238,6 +238,25 @@ describe("LangGraphMessageAccumulator remove messages", () => {
     expect(acc.getMessages().map((m) => m.id)).toEqual(["ai-2"]);
     expect(acc.getMetadataMap().get("ai-1")).toBeUndefined();
   });
+
+  it("clears all messages and metadata on the REMOVE_ALL_MESSAGES sentinel", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessageWithMetadata(
+      { id: "ai-1", type: "ai", content: "old" },
+      { langgraph_node: "agent" },
+    );
+    acc.addMessages([{ id: "ai-2", type: "ai", content: "old too" }]);
+
+    acc.addMessages([
+      { id: "__remove_all__", type: "remove" } as unknown as LangChainMessage,
+    ]);
+
+    expect(acc.getMessages()).toEqual([]);
+    expect(acc.getMetadataMap().size).toBe(0);
+
+    acc.addMessages([{ id: "sum-1", type: "ai", content: "summary" }]);
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["sum-1"]);
+  });
 });
 
 describe("LangGraphMessageAccumulator reconcileMessages", () => {
