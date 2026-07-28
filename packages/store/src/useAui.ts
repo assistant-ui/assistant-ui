@@ -15,10 +15,9 @@ import type {
   AssistantClientAccessor,
   ClientNames,
   ClientElement,
-  ClientMeta,
   ClientMethods,
 } from "./types/client";
-import type { Derived, DerivedElement } from "./Derived";
+import type { DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
   DefaultAssistantClient,
@@ -227,10 +226,13 @@ const useRootClientsAccessorsResource = (props: {
 
 const RootClientsAccessorsResource = resource(useRootClientsAccessorsResource);
 
-const serializeMeta = <K extends ClientNames>(
-  name: K,
-  meta: ClientMeta<K>,
-): string => {
+// ClientMeta<ClientNames> / Derived.Props<ClientNames> collapse to never over the full union
+type AnyDerivedMeta = { source: ClientNames; query: Record<string, unknown> };
+type AnyDerivedProps = AnyDerivedMeta & {
+  get: (client: AssistantClient) => ClientMethods;
+};
+
+const serializeMeta = (name: ClientNames, meta: AnyDerivedMeta): string => {
   // Sort top-level keys so {a, b} and {b, a} hash to the same fiber
   // identity, and guard JSON.stringify against unusual values (BigInt,
   // circular refs) so render never throws here.
@@ -289,7 +291,7 @@ const createClientObject = (
 
 const makeBoundAccessor = <K extends ClientNames>(
   name: K,
-  meta: ClientMeta<K>,
+  meta: AnyDerivedMeta,
   read: () => ClientMethods,
 ): AssistantClientAccessor<K> => {
   const clientFunction = () => read();
@@ -332,7 +334,7 @@ const createBindingStore = ({
   propsRef: DerivedPropsRef;
 }) => {
   const getProps = (i: number) =>
-    propsRef.current[names[i]!]!.args[0] as Derived.Props<ClientNames>;
+    propsRef.current[names[i]!]!.args[0] as AnyDerivedProps;
 
   let pass: ((i: number) => ClientMethods) | null = null;
 
@@ -419,10 +421,7 @@ const useHostedAssistantClient = ({
   const names = Object.keys(derivedClients) as ClientNames[];
   const bindingKey = names
     .map((name) =>
-      serializeMeta(
-        name,
-        derivedClients[name]!.args[0] as ClientMeta<ClientNames>,
-      ),
+      serializeMeta(name, derivedClients[name]!.args[0] as AnyDerivedMeta),
     )
     .join("\n");
 
@@ -445,7 +444,7 @@ const useHostedAssistantClient = ({
       const instance = bindings[i]!;
       (client as any)[name] = makeBoundAccessor(
         name,
-        propsRef.current[name]!.args[0] as ClientMeta<ClientNames>,
+        propsRef.current[name]!.args[0] as AnyDerivedMeta,
         () => instance,
       );
     });
