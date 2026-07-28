@@ -12,7 +12,7 @@ export const useComposerSend = () => {
 
   const send = useCallback(
     (opts?: ComposerSendOptions) => {
-      aui.composer().send(opts);
+      aui.composer.send(opts);
     },
     [aui],
   );

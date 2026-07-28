@@ -31,7 +31,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   private get _persistence(): CloudMessagePersistence {
-    const key = this.aui.threadListItem();
+    const key = this.aui.threadListItem;
     if (!globalPersistence.has(key)) {
       globalPersistence.set(
         key,
@@ -52,11 +52,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return {
       // Note: callers must also call reportTelemetry() for run tracking
       async append(item: MessageFormatItem<TMessage>) {
-        const { remoteId } = await adapter.aui.threadListItem().initialize();
+        const { remoteId } = await adapter.aui.threadListItem.initialize();
         await formatted.append(remoteId, item);
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
-        const remoteId = adapter.aui.threadListItem().getState().remoteId;
+        const remoteId = adapter.aui.threadListItem.getState().remoteId;
         if (!remoteId) return;
         await formatted.update?.(remoteId, item, localMessageId);
       },
@@ -82,7 +82,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
-        const remoteId = adapter.aui.threadListItem().getState().remoteId;
+        const remoteId = adapter.aui.threadListItem.getState().remoteId;
         if (!remoteId) return { messages: [] };
         return formatted.load(remoteId);
       },
@@ -90,7 +90,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
-    const { remoteId } = await this.aui.threadListItem().initialize();
+    const { remoteId } = await this.aui.threadListItem.initialize();
     const encoded = auiV0Encode(message);
     await this._persistence.append(
       remoteId,
@@ -110,7 +110,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       return this.append(item);
     }
     const { message } = item;
-    const remoteId = this.aui.threadListItem().getState().remoteId;
+    const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return;
     const encoded = auiV0Encode(message);
     await this._persistence.update(remoteId, message.id, "aui/v0", encoded);
@@ -127,7 +127,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async load() {
-    const remoteId = this.aui.threadListItem().getState().remoteId;
+    const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
     const messages = await this._persistence.load(remoteId, "aui/v0");
     return {
@@ -150,7 +150,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   ) {
     if (!this.cloudRef.current.telemetry.enabled) return;
 
-    const remoteId = this.aui.threadListItem().getState().remoteId;
+    const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return;
 
     const extracted = extractRunTelemetry(format, runMessages);

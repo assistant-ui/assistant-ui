@@ -25,7 +25,7 @@ export const ChainOfThoughtByIndicesProvider: FC<
             `ChainOfThought part index ${index} is out of bounds (0..${parts.length - 1})`,
           );
         }
-        return parentAui.message().part({ index: startIndex + index });
+        return parentAui.message.part({ index: startIndex + index });
       },
     }),
   });

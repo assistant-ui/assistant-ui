@@ -46,7 +46,7 @@ export const createRuntimeExtras = <T extends object>(
     is(extras) ? extras : undefined;
 
   const get = (client: AssistantClient): T =>
-    assert(client.thread().getState().extras);
+    assert(client.thread.getState().extras);
 
   function use<S>(
     select?: (extras: T) => S,

@@ -18,10 +18,10 @@ const mocks = vi.hoisted(() => {
       },
     },
     aui: {
-      message: () => ({
+      message: {
         getCopyText: () => "Hello",
         setIsCopied,
-      }),
+      },
     },
   };
 });

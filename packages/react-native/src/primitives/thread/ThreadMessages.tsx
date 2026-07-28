@@ -161,7 +161,7 @@ const ThreadMessageByChildren = memo(
     return (
       <MessageByIndexProvider index={index}>
         <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.thread().message({ index }).getState()}
+          getItemState={(aui) => aui.thread.message({ index }).getState()}
         >
           {(getItem) =>
             children({

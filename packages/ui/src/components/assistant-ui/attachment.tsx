@@ -15,6 +15,7 @@ import {
   AlertCircleIcon,
 } from "lucide-react";
 import {
+  getAuiMeta,
   AttachmentPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -137,7 +138,7 @@ const AttachmentThumb: FC = () => {
 
 const AttachmentUI: FC = () => {
   const aui = useAui();
-  const isComposer = aui.attachment.source !== "message";
+  const isComposer = getAuiMeta(aui.attachment).source !== "message";
 
   const isImage = useAuiState((s) => s.attachment.type === "image");
   const typeLabel = useAuiState((s) => {

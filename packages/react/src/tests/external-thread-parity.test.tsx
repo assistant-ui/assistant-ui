@@ -66,7 +66,7 @@ describe("ExternalThread part status", () => {
       isRunning: true,
     });
     const part = (toolCallId: string) =>
-      aui().thread().message({ id: "a1" }).part({ toolCallId }).getState();
+      aui().thread.message({ id: "a1" }).part({ toolCallId }).getState();
     expect(part("tc1").status).toEqual({ type: "running" });
   });
 
@@ -75,7 +75,7 @@ describe("ExternalThread part status", () => {
       messages: [assistantMessage({ type: "running" }, "ok")],
       isRunning: true,
     });
-    const state = aui().thread().message({ id: "a1" }).getState();
+    const state = aui().thread.message({ id: "a1" }).getState();
     expect(state.parts[0]!.status).toEqual({ type: "complete" });
     expect(state.parts[1]!.status).toEqual({ type: "complete" });
   });
@@ -96,7 +96,7 @@ describe("ExternalThread part status", () => {
       isRunning: false,
     });
     expect(
-      aui().thread().message({ id: "u1" }).part({ index: 0 }).getState().status,
+      aui().thread.message({ id: "u1" }).part({ index: 0 }).getState().status,
     ).toEqual({ type: "complete" });
     expect(
       aui()
@@ -106,7 +106,7 @@ describe("ExternalThread part status", () => {
         .getState().status,
     ).toEqual({ type: "requires-action", reason: "tool-calls" });
     expect(
-      aui().thread().message({ id: "a1" }).part({ index: 0 }).getState().status,
+      aui().thread.message({ id: "a1" }).part({ index: 0 }).getState().status,
     ).toEqual({ type: "complete" });
   });
 });
@@ -120,7 +120,7 @@ describe("ExternalThread unset optional callbacks", () => {
       isRunning: false,
     });
     const part = () =>
-      aui().thread().message({ id: "a1" }).part({ toolCallId: "tc1" });
+      aui().thread.message({ id: "a1" }).part({ toolCallId: "tc1" });
 
     expect(() => part().addToolResult("ok")).toThrow(
       "Runtime does not support tool results (onAddToolResult is not set).",
@@ -128,10 +128,10 @@ describe("ExternalThread unset optional callbacks", () => {
     expect(() => part().resumeToolCall(undefined)).toThrow(
       "Runtime does not support resuming tool calls (onResumeToolCall is not set).",
     );
-    expect(() => aui().thread().resumeRun()).toThrow(
+    expect(() => aui().thread.resumeRun()).toThrow(
       "Runtime does not support resuming runs (onResume is not set).",
     );
-    expect(() => aui().thread().importExternalState({})).toThrow(
+    expect(() => aui().thread.importExternalState({})).toThrow(
       "Runtime does not support importing external states (onLoadExternalState is not set).",
     );
   });
@@ -142,16 +142,14 @@ describe("ExternalThread composer", () => {
     const onNew = vi.fn();
     const { aui } = renderThread({ messages: [], isRunning: false, onNew });
 
-    aui().thread().composer().setText("hello");
-    aui().thread().composer().send();
+    aui().thread.composer().setText("hello");
+    aui().thread.composer().send();
 
     await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
     expect(onNew.mock.calls[0]![0].content).toEqual([
       { type: "text", text: "hello" },
     ]);
-    await waitFor(() =>
-      expect(aui().thread().getState().composer.text).toBe(""),
-    );
+    await waitFor(() => expect(aui().thread.getState().composer.text).toBe(""));
   });
 
   it("stamps the thread head as parentId on queue-adapter sends", async () => {
@@ -177,8 +175,8 @@ describe("ExternalThread composer", () => {
       },
     });
 
-    aui().thread().composer().setText("queued");
-    aui().thread().composer().send();
+    aui().thread.composer().setText("queued");
+    aui().thread.composer().send();
 
     await waitFor(() => expect(enqueue).toHaveBeenCalledTimes(1));
     expect(enqueue.mock.calls[0]![0].parentId).toBe("u1");
@@ -188,10 +186,10 @@ describe("ExternalThread composer", () => {
     const onNew = vi.fn();
     const { aui } = renderThread({ messages: [], isRunning: false, onNew });
 
-    aui().thread().composer().send();
-    aui().thread().composer().setText("first");
-    aui().thread().composer().send();
-    aui().thread().composer().send();
+    aui().thread.composer().send();
+    aui().thread.composer().setText("first");
+    aui().thread.composer().send();
+    aui().thread.composer().send();
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(onNew).toHaveBeenCalledTimes(1);
@@ -219,10 +217,10 @@ describe("ExternalThread duplicate message ids", () => {
         ],
       });
 
-      const state = aui().thread().getState();
+      const state = aui().thread.getState();
       expect(state.messages.map((m) => m.id)).toEqual(["u1", "dup"]);
 
-      const dup = aui().thread().message({ id: "dup" }).getState();
+      const dup = aui().thread.message({ id: "dup" }).getState();
       expect(dup.parts[0]).toMatchObject({ type: "text", text: "fresh" });
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('"dup"'));
     } finally {

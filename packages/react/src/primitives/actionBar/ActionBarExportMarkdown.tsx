@@ -23,7 +23,7 @@ const useActionBarExportMarkdown = ({
   });
 
   const callback = useCallback(async () => {
-    const content = aui.message().getCopyText();
+    const content = aui.message.getCopyText();
     if (!content) return;
 
     if (onExport) {

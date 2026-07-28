@@ -13,7 +13,7 @@ export const useActionBarSpeak = () => {
   });
 
   const speak = useCallback(async () => {
-    aui.message().speak();
+    aui.message.speak();
   }, [aui]);
 
   return { speak, disabled };

@@ -121,7 +121,7 @@ describe("useAssistantTransportRuntime", () => {
     const { aui, sendCommand } = mountRuntime({ onError });
     await waitFor(() =>
       expect(
-        (aui().thread().getState().extras as { sendCommand?: unknown })
+        (aui().thread.getState().extras as { sendCommand?: unknown })
           ?.sendCommand,
       ).toBeTypeOf("function"),
     );
@@ -139,9 +139,7 @@ describe("useAssistantTransportRuntime", () => {
 
     act(() => fetchMock.servers[0]!.close());
 
-    await waitFor(() =>
-      expect(aui().thread().getState().isRunning).toBe(false),
-    );
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
     await act(async () => {});
     expect(onError).not.toHaveBeenCalled();
     expect(fetchMock.requests).toHaveLength(1);
@@ -154,7 +152,7 @@ describe("useAssistantTransportRuntime", () => {
     });
     await waitFor(() =>
       expect(
-        (aui().thread().getState().extras as { sendCommand?: unknown })
+        (aui().thread.getState().extras as { sendCommand?: unknown })
           ?.sendCommand,
       ).toBeTypeOf("function"),
     );
@@ -165,7 +163,7 @@ describe("useAssistantTransportRuntime", () => {
     // Both land while the first run is active and coalesce into one follow-up.
     act(() => {
       sendCommand(createMessageCommand("b"));
-      aui().thread().resumeRun({ parentId: null });
+      aui().thread.resumeRun({ parentId: null });
     });
 
     act(() => fetchMock.servers[0]!.close());
@@ -182,8 +180,6 @@ describe("useAssistantTransportRuntime", () => {
     ]);
 
     act(() => fetchMock.servers[2]!.close());
-    await waitFor(() =>
-      expect(aui().thread().getState().isRunning).toBe(false),
-    );
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
   });
 });

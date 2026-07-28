@@ -2,7 +2,7 @@
 
 import type { FC } from "react";
 import { useShikiHighlighter, type ShikiHighlighterProps } from "react-shiki";
-import { useAui, useAuiState } from "@assistant-ui/react";
+import { getAuiMeta, useAui, useAuiState } from "@assistant-ui/react";
 import type { SyntaxHighlighterProps as AUIProps } from "@assistant-ui/react-markdown";
 import { cn } from "@/lib/utils";
 
@@ -69,7 +69,7 @@ export const SyntaxHighlighter: FC<HighlighterProps> = ({
   ...options
 }) => {
   const aui = useAui();
-  const hasPart = aui.part.source !== null;
+  const hasPart = getAuiMeta(aui.part).source !== null;
   const isStreaming = useAuiState(
     (s) => hasPart && s.part.status.type === "running",
   );

@@ -10,7 +10,7 @@ export const MessageAttachmentByIndexProvider: FC<
     attachment: Derived({
       source: "message",
       query: { type: "index", index },
-      get: (aui) => aui.message().attachment({ index }),
+      get: (aui) => aui.message.attachment({ index }),
     }),
   });
 
@@ -26,7 +26,7 @@ export const ComposerAttachmentByIndexProvider: FC<
     attachment: Derived({
       source: "composer",
       query: { type: "index", index },
-      get: (aui) => aui.composer().attachment({ index }),
+      get: (aui) => aui.composer.attachment({ index }),
     }),
   });
 

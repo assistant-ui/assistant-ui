@@ -39,10 +39,7 @@ export default function Home() {
     tools: Tools({ toolkit }),
   });
 
-  useEffect(
-    () => aui.dataRenderers().setFallbackDataUI(OpenCodeDataPart),
-    [aui],
-  );
+  useEffect(() => aui.dataRenderers.setFallbackDataUI(OpenCodeDataPart), [aui]);
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>

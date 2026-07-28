@@ -297,7 +297,7 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async load(): Promise<ExportedMessageRepository> {
-    const remoteId = this.aui.threadListItem().getState().remoteId;
+    const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
 
     const raw = await this.storage.getItem(this._messagesKey(remoteId));
@@ -305,7 +305,7 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append(item: ExportedMessageRepositoryItem): Promise<void> {
-    const { remoteId } = await this.aui.threadListItem().initialize();
+    const { remoteId } = await this.aui.threadListItem.initialize();
 
     const key = this._messagesKey(remoteId);
     await this.mutationQueue.run(key, async () => {

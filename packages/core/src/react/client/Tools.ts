@@ -6,6 +6,7 @@ import {
   type ResourceElement,
 } from "@assistant-ui/tap";
 import {
+  getAuiMeta,
   useAssistantClientRef,
   type ClientOutput,
   attachTransformScopes,
@@ -158,7 +159,7 @@ const useTools = ({
 export const Tools = resource(useTools);
 
 attachTransformScopes(useTools, (scopes, parent) => {
-  if (!scopes.modelContext && parent.modelContext.source === null) {
+  if (!scopes.modelContext && getAuiMeta(parent.modelContext).source === null) {
     scopes.modelContext = ModelContext();
   }
 });

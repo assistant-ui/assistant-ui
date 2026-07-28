@@ -42,7 +42,7 @@ export const useAssistantInteractable = (
   initialStateRef.current = config.initialState;
 
   useEffect(() => {
-    return aui.interactables().register({
+    return aui.interactables.register({
       id,
       name,
       description: config.description,

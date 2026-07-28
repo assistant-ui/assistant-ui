@@ -96,7 +96,7 @@ export const useAssistantTransportSendCommand = () => {
   const aui = useAui();
 
   return (command: AssistantTransportCommand) => {
-    const extras = aui.thread().getState().extras;
+    const extras = aui.thread.getState().extras;
     const transportExtras = asAssistantTransportExtras(extras);
     transportExtras.sendCommand(command);
   };

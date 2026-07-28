@@ -66,7 +66,7 @@ const GlobalFallbackDataUI: FC<{ render: DataMessagePartComponent }> = ({
   render,
 }) => {
   const aui = useAui();
-  useEffect(() => aui.dataRenderers().setFallbackDataUI(render), [aui, render]);
+  useEffect(() => aui.dataRenderers.setFallbackDataUI(render), [aui, render]);
   return null;
 };
 

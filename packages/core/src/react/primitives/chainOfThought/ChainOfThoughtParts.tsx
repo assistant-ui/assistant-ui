@@ -51,7 +51,7 @@ const ChainOfThoughtPrimitivePartsInner: FC<{
       Array.from({ length: partsLength }, (_, index) => (
         <ChainOfThoughtPartByIndexProvider key={index} index={index}>
           <RenderChildrenWithAccessor
-            getItemState={(aui) => aui.part().getState()}
+            getItemState={(aui) => aui.part.getState()}
           >
             {(getItem) =>
               children({

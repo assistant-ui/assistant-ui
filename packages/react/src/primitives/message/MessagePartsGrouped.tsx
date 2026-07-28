@@ -292,9 +292,9 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = aui.part().addToolResult;
-    const resume = aui.part().resumeToolCall;
-    const respondToApproval = aui.part().respondToToolApproval;
+    const addResult = aui.part.addToolResult;
+    const resume = aui.part.resumeToolCall;
+    const respondToApproval = aui.part.respondToToolApproval;
     if ("Override" in tools)
       return (
         <tools.Override

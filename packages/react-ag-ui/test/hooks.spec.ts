@@ -69,7 +69,7 @@ describe("useAgUiSubmitInterruptResponses", () => {
       steerAway: vi.fn(),
     });
     mockUseAui.mockReturnValue({
-      thread: () => ({ getState: () => ({ extras }) }),
+      thread: { getState: () => ({ extras }) },
     });
     const responses: AgUiResumeEntry[] = [
       { interruptId: "int-1", status: "cancelled" },
@@ -82,7 +82,7 @@ describe("useAgUiSubmitInterruptResponses", () => {
 
   it("throws when the thread is not backed by ag-ui", () => {
     mockUseAui.mockReturnValue({
-      thread: () => ({ getState: () => ({ extras: undefined }) }),
+      thread: { getState: () => ({ extras: undefined }) },
     });
     expect(() => useAgUiSubmitInterruptResponses()([])).toThrow(
       "useAgUiRuntime",
@@ -99,7 +99,7 @@ describe("useAgUiSteerAway", () => {
       steerAway,
     });
     mockUseAui.mockReturnValue({
-      thread: () => ({ getState: () => ({ extras }) }),
+      thread: { getState: () => ({ extras }) },
     });
     const responses: AgUiResumeEntry[] = [
       { interruptId: "int-1", status: "cancelled" },
@@ -118,7 +118,7 @@ describe("useAgUiSteerAway", () => {
       steerAway,
     });
     mockUseAui.mockReturnValue({
-      thread: () => ({ getState: () => ({ extras }) }),
+      thread: { getState: () => ({ extras }) },
     });
 
     useAgUiSteerAway()(userMessage);
@@ -128,7 +128,7 @@ describe("useAgUiSteerAway", () => {
 
   it("throws when the thread is not backed by ag-ui", () => {
     mockUseAui.mockReturnValue({
-      thread: () => ({ getState: () => ({ extras: undefined }) }),
+      thread: { getState: () => ({ extras: undefined }) },
     });
     expect(() => useAgUiSteerAway()(userMessage)).toThrow("useAgUiRuntime");
   });

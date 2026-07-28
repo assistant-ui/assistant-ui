@@ -25,15 +25,15 @@ export const useActionBarCopy = ({
   const copy = useCallback(() => {
     if (!copyToClipboard) return;
 
-    const valueToCopy = isEditing ? composerValue : aui.message().getCopyText();
+    const valueToCopy = isEditing ? composerValue : aui.message.getCopyText();
     if (!valueToCopy) return;
 
     // The rejection handler swallows clipboard write failures (permission denied,
     // API unavailable) so they don't surface as unhandled promise rejections.
     Promise.resolve(copyToClipboard(valueToCopy)).then(
       () => {
-        aui.message().setIsCopied(true);
-        setTimeout(() => aui.message().setIsCopied(false), copiedDuration);
+        aui.message.setIsCopied(true);
+        setTimeout(() => aui.message.setIsCopied(false), copiedDuration);
       },
       () => {},
     );

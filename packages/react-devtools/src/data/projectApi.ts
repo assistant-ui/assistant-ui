@@ -1,4 +1,4 @@
-import type { AssistantClient } from "@assistant-ui/react";
+import { getAuiMeta, type AssistantClient } from "@assistant-ui/react";
 import { isRecord, isStringArray } from "../utils/common";
 import {
   sanitizeAndRedact,
@@ -18,7 +18,11 @@ interface DevToolsApiEntry {
  * from state extraction.
  */
 const readMethods = (scopeValue: unknown): string[] => {
-  if (!scopeValue || typeof scopeValue !== "object") return [];
+  if (
+    !scopeValue ||
+    (typeof scopeValue !== "object" && typeof scopeValue !== "function")
+  )
+    return [];
   try {
     return Object.keys(scopeValue).filter(
       (key) =>
@@ -120,13 +124,28 @@ export const projectApi = (apiId: number, entry: DevToolsApiEntry): ApiInfo => {
   }> = [];
 
   for (const [name, scope] of Object.entries(entry.api)) {
-    if (typeof scope !== "function" || !("source" in scope)) continue;
+    if (typeof scope !== "function") continue;
+    // Older assistant-ui versions carry the meta as own props on the accessor.
+    const legacy = scope as unknown as {
+      source?: string | null;
+      query?: Record<string, unknown> | null;
+    };
+    const meta =
+      (getAuiMeta(scope as never) as
+        | { source: string | null; query: Record<string, unknown> | null }
+        | undefined) ??
+      ("source" in scope
+        ? { source: legacy.source ?? null, query: legacy.query ?? null }
+        : undefined);
+    if (!meta) continue;
 
     let methods: string[] = [];
     try {
-      const scopeValue = scope();
-      if (scope.source === "root") {
-        state[name] = scopeValue?.getState?.() ?? scopeValue;
+      const scopeValue = (scope as () => Record<string, unknown>)();
+      if (meta.source === "root") {
+        state[name] =
+          (scopeValue as { getState?: () => unknown })?.getState?.() ??
+          scopeValue;
       }
       methods = readMethods(scopeValue);
     } catch {
@@ -135,8 +154,8 @@ export const projectApi = (apiId: number, entry: DevToolsApiEntry): ApiInfo => {
 
     scopes.push({
       name,
-      source: scope.source,
-      query: scope.query,
+      source: meta.source,
+      query: meta.query,
       methods,
     });
   }

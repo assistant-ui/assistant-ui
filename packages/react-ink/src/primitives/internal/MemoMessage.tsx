@@ -12,7 +12,7 @@ const MemoMessageImpl = ({ index, render }: MemoMessageProps) => {
   return (
     <MessageByIndexProvider index={index}>
       <RenderChildrenWithAccessor
-        getItemState={(aui) => aui.thread().message({ index }).getState()}
+        getItemState={(aui) => aui.thread.message({ index }).getState()}
       >
         {(getItem) =>
           render({

@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => {
 
   return {
     assistantClient: {
-      threadListItem: () => threadListItem,
+      threadListItem,
     },
   };
 });

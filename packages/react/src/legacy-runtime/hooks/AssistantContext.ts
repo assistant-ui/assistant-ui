@@ -48,7 +48,7 @@ export function useAssistantRuntime(options?: {
   optional?: boolean | undefined;
 }) {
   const aui = useAui();
-  const runtime = aui.threads().__internal_getAssistantRuntime?.() ?? null;
+  const runtime = aui.threads.__internal_getAssistantRuntime?.() ?? null;
 
   if (!runtime && !options?.optional) {
     throw new Error("AssistantRuntime is not available");

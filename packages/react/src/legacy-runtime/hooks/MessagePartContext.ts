@@ -2,7 +2,7 @@
 
 import type { MessagePartRuntime } from "../runtime/MessagePartRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { getAuiMeta, useAui, useAuiState } from "@assistant-ui/store";
 
 /**
  * @deprecated Use {@link useAui} with `aui.part()` instead. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
@@ -18,7 +18,9 @@ export function useMessagePartRuntime(options?: {
 }) {
   const aui = useAui();
   const runtime = useAuiState(() =>
-    aui.part.source ? (aui.part().__internal_getRuntime?.() ?? null) : null,
+    getAuiMeta(aui.part).source
+      ? (aui.part.__internal_getRuntime?.() ?? null)
+      : null,
   );
   if (!runtime && !options?.optional) {
     throw new Error("MessagePartRuntime is not available");

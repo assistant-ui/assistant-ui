@@ -78,7 +78,7 @@ const ThreadListPrimitiveItemsInner: FC<{
         >
           <RenderChildrenWithAccessor
             getItemState={(aui) =>
-              aui.threads().item({ index, archived }).getState()
+              aui.threads.item({ index, archived }).getState()
             }
           >
             {(getItem) =>

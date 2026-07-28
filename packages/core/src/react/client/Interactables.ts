@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { resource } from "@assistant-ui/tap";
 import {
+  getAuiMeta,
   useAssistantClientRef,
   type ClientOutput,
   attachTransformScopes,
@@ -292,12 +293,12 @@ const useInteractablesResource = ({
     if (!client) return undefined;
 
     const threadListItem = client.threadListItem;
-    if (threadListItem.source != null) {
+    if (getAuiMeta(threadListItem).source != null) {
       return threadListItem().getState().id;
     }
 
     const threads = client.threads;
-    if (threads.source != null) {
+    if (getAuiMeta(threads).source != null) {
       return threads().getState().mainThreadId;
     }
 
@@ -395,7 +396,7 @@ const useInteractablesResource = ({
     (def: InternalInteractableRegistration) => {
       const threadAccessor = clientRef.current?.thread;
       const threadMessages =
-        threadAccessor && threadAccessor.source != null
+        threadAccessor && getAuiMeta(threadAccessor).source != null
           ? (threadAccessor().getState().messages ?? [])
           : [];
       const scope =
@@ -424,7 +425,7 @@ const useInteractablesResource = ({
       let releaseUpdateToolUI: (() => void) | undefined;
       if (def.updateRender) {
         const toolsAccessor = clientRef.current?.tools;
-        if (toolsAccessor && toolsAccessor.source != null) {
+        if (toolsAccessor && getAuiMeta(toolsAccessor).source != null) {
           const toolName = interactableToolName(def.name);
           const existing = updateToolUIsRef.current.get(def.name);
           if (existing) {
@@ -574,7 +575,7 @@ const useInteractablesResource = ({
 export const unstable_Interactables = resource(useInteractablesResource);
 
 attachTransformScopes(useInteractablesResource, (scopes, parent) => {
-  if (!scopes.modelContext && parent.modelContext.source === null) {
+  if (!scopes.modelContext && getAuiMeta(parent.modelContext).source === null) {
     scopes.modelContext = ModelContext();
   }
 });

@@ -10,12 +10,12 @@ export const MessageByIdProvider: FC<
     message: Derived({
       source: "thread",
       query: { type: "id", id },
-      get: (aui) => aui.thread().message({ id }),
+      get: (aui) => aui.thread.message({ id }),
     }),
     composer: Derived({
       source: "message",
       query: {},
-      get: (aui) => aui.thread().message({ id }).composer(),
+      get: (aui) => aui.thread.message({ id }).composer(),
     }),
   });
 

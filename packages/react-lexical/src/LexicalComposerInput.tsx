@@ -97,7 +97,7 @@ function KeyboardPlugin({
 
           if (submitMode === "none") return false;
 
-          const isRunning = aui.thread().getState().isRunning;
+          const isRunning = aui.thread.getState().isRunning;
           if (isRunning) return false;
 
           let shouldSubmit = false;
@@ -109,7 +109,7 @@ function KeyboardPlugin({
 
           if (shouldSubmit) {
             event.preventDefault();
-            aui.composer().send();
+            aui.composer.send();
             return true;
           }
 
@@ -124,7 +124,7 @@ function KeyboardPlugin({
           if (event && delegateToPlugins(event)) return true;
 
           if (!cancelOnEscape) return false;
-          const composer = aui.composer();
+          const composer = aui.composer;
           if (composer.getState().canCancel) {
             composer.cancel();
             event?.preventDefault();

@@ -38,16 +38,16 @@ let pluginRegistry: { getPlugins: () => (typeof plugin)[] } | null = null;
 
 vi.mock("@assistant-ui/store", () => {
   const aui = {
-    composer: () => ({
-      setText,
+    composer: {
+      setText: (text: string) => setText(text),
       getState: () => composerState,
       cancel: () => {},
-      send: sendSpy,
-      addAttachment,
-    }),
-    thread: () => ({
+      send: (options?: { steer?: boolean }) => sendSpy(options),
+      addAttachment: (file: File) => addAttachment(file),
+    },
+    thread: {
       getState: () => threadState,
-    }),
+    },
     on: () => () => {},
   };
   type Selector<T> = (s: {

@@ -272,7 +272,7 @@ const ComposerQueue: FC = () => {
       .then(({ steering, followUp }) => {
         const restored = [...steering, ...followUp].join("\n");
         if (!restored) return;
-        const composer = aui.composer();
+        const composer = aui.composer;
         const current = composer.getState().text;
         composer.setText(current ? `${current}\n${restored}` : restored);
       })

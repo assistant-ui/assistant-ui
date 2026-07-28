@@ -17,7 +17,7 @@ export const ChainOfThoughtAccordionTrigger = ({
   const collapsed = useAuiState((s) => s.chainOfThought.collapsed);
 
   const onPress = useCallback(() => {
-    aui.chainOfThought().setCollapsed(!collapsed);
+    aui.chainOfThought.setCollapsed(!collapsed);
   }, [aui, collapsed]);
 
   return (

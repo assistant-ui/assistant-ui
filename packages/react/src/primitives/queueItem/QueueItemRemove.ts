@@ -12,7 +12,7 @@ const useQueueItemRemove = () => {
   const aui = useAui();
 
   const callback = useCallback(() => {
-    aui.queueItem().remove();
+    aui.queueItem.remove();
   }, [aui]);
 
   return callback;

@@ -12,7 +12,7 @@ const useAttachmentRemove = () => {
   const aui = useAui();
 
   const handleRemoveAttachment = useCallback(() => {
-    aui.attachment().remove();
+    aui.attachment.remove();
   }, [aui]);
 
   return handleRemoveAttachment;

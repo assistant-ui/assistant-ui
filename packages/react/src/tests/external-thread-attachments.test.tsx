@@ -74,14 +74,12 @@ describe("ExternalThread attachments", () => {
     }
 
     await waitFor(() => {
-      expect(aui().thread().composer().getState().attachments[0]).toMatchObject(
-        {
-          type: "document",
-          name: "notes.txt",
-          contentType: "text/plain",
-          content: [{ type: "text", text: "hello" }],
-        },
-      );
+      expect(aui().thread.composer().getState().attachments[0]).toMatchObject({
+        type: "document",
+        name: "notes.txt",
+        contentType: "text/plain",
+        content: [{ type: "text", text: "hello" }],
+      });
     });
   });
 
@@ -94,9 +92,9 @@ describe("ExternalThread attachments", () => {
       content: [{ type: "text", text: "implementation detail" }],
     } as File;
 
-    await act(() => aui().thread().composer().addAttachment(foreignFile));
+    await act(() => aui().thread.composer().addAttachment(foreignFile));
 
-    expect(aui().thread().composer().getState().attachments[0]).toMatchObject({
+    expect(aui().thread.composer().getState().attachments[0]).toMatchObject({
       type: "file",
       name: "photo.png",
       contentType: "image/png",
@@ -126,7 +124,7 @@ describe("ExternalThread attachments", () => {
       "File type application/zip is not accepted. Accepted types: image/*",
     );
     expect(add).not.toHaveBeenCalled();
-    expect(aui().thread().composer().getState().attachments).toHaveLength(0);
+    expect(aui().thread.composer().getState().attachments).toHaveLength(0);
   });
 
   it("rejects prepared attachments that do not match the adapter accept string", async () => {
@@ -151,7 +149,7 @@ describe("ExternalThread attachments", () => {
     ).rejects.toThrow(
       "File type text/plain is not accepted. Accepted types: .pdf",
     );
-    expect(aui().thread().composer().getState().attachments).toHaveLength(0);
+    expect(aui().thread.composer().getState().attachments).toHaveLength(0);
   });
 
   it("restores the draft when an attachment upload fails on send", async () => {
@@ -192,21 +190,21 @@ describe("ExternalThread attachments", () => {
         .addAttachment(new File(["data"], "notes.txt", { type: "text/plain" })),
     );
     await act(async () => {
-      aui().thread().composer().setText("hello");
+      aui().thread.composer().setText("hello");
     });
     await act(async () => {
-      aui().thread().composer().send();
+      aui().thread.composer().send();
     });
 
     // The draft is cleared optimistically while the upload runs.
-    expect(aui().thread().composer().getState().text).toBe("");
+    expect(aui().thread.composer().getState().text).toBe("");
 
     await act(async () => {
       rejectSend(new Error("upload failed"));
     });
 
     await waitFor(() => {
-      const state = aui().thread().composer().getState();
+      const state = aui().thread.composer().getState();
       expect(state.text).toBe("hello");
       expect(state.attachments).toHaveLength(1);
     });
@@ -255,13 +253,13 @@ describe("ExternalThread attachments", () => {
           ),
       );
 
-      await act(() => invoke(aui().thread().composer()));
+      await act(() => invoke(aui().thread.composer()));
 
       expect(remove).toHaveBeenCalledTimes(1);
       expect(remove).toHaveBeenCalledWith(
         expect.objectContaining({ id: "att-1" }),
       );
-      expect(aui().thread().composer().getState().attachments).toHaveLength(0);
+      expect(aui().thread.composer().getState().attachments).toHaveLength(0);
     },
   );
 
@@ -297,7 +295,7 @@ describe("ExternalThread attachments", () => {
       },
     });
 
-    const composer = () => aui().thread().message({ id: "u1" }).composer();
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
     await act(async () => {
       composer().beginEdit();
     });
@@ -349,18 +347,18 @@ describe("ExternalThread attachments", () => {
         .addAttachment(new File(["data"], "notes.txt", { type: "text/plain" })),
     );
     await act(async () => {
-      aui().thread().composer().setText("hello");
-      aui().thread().composer().send();
+      aui().thread.composer().setText("hello");
+      aui().thread.composer().send();
     });
     await act(async () => {
-      aui().thread().composer().setText("meanwhile");
+      aui().thread.composer().setText("meanwhile");
     });
 
     await act(async () => {
       rejectSend(new Error("upload failed"));
     });
 
-    const state = aui().thread().composer().getState();
+    const state = aui().thread.composer().getState();
     expect(state.text).toBe("hello\nmeanwhile");
     expect(state.attachments).toHaveLength(1);
     expect(state.attachments[0]).toMatchObject({ id: "att-1" });

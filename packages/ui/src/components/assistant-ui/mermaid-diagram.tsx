@@ -1,6 +1,6 @@
 "use client";
 
-import { useAui, useAuiState } from "@assistant-ui/react";
+import { getAuiMeta, useAui, useAuiState } from "@assistant-ui/react";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 import { renderMermaidSVG } from "beautiful-mermaid";
 import { Maximize2, Minus, Plus, RotateCcw, X } from "lucide-react";
@@ -278,7 +278,7 @@ const MermaidDiagramImpl: FC<MermaidDiagramProps> = ({
   language: _language,
 }) => {
   const aui = useAui();
-  const hasPart = aui.part.source !== null;
+  const hasPart = getAuiMeta(aui.part).source !== null;
   const isComplete = useAuiState(
     (s) => !hasPart || s.part.status.type !== "running",
   );

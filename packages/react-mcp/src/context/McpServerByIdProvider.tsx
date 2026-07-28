@@ -9,7 +9,7 @@ export const McpServerByIdProvider: FC<PropsWithChildren<{ id: string }>> = ({
     mcpServer: Derived({
       source: "mcp",
       query: { id },
-      get: (parent) => parent.mcp().server({ id }),
+      get: (parent) => parent.mcp.server({ id }),
     }),
   });
 

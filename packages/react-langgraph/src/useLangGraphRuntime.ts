@@ -27,7 +27,7 @@ import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
-import { useAui } from "@assistant-ui/store";
+import { getAuiMeta, useAui } from "@assistant-ui/store";
 import {
   convertLangChainMessages,
   getMessageContent,
@@ -124,7 +124,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     if (uiRenderers) {
       for (const [name, component] of Object.entries(uiRenderers)) {
         if (component && registered.get(name) !== component) {
-          cleanups.set(name, aui.dataRenderers().setDataUI(name, component));
+          cleanups.set(name, aui.dataRenderers.setDataUI(name, component));
           registered.set(name, component);
         }
       }
@@ -133,7 +133,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     if (uiFallback !== fallbackRef.current) {
       fallbackCleanupRef.current?.();
       fallbackCleanupRef.current = uiFallback
-        ? aui.dataRenderers().setFallbackDataUI(uiFallback)
+        ? aui.dataRenderers.setFallbackDataUI(uiFallback)
         : undefined;
       fallbackRef.current = uiFallback;
     }
@@ -544,7 +544,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             setMessages(nextMessages);
             return;
           }
-          const externalId = aui.threadListItem().getState().externalId;
+          const externalId = aui.threadListItem.getState().externalId;
           const checkpointId = externalId
             ? await getCheckpointId(externalId, truncated)
             : null;
@@ -585,7 +585,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
               filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
             );
             setInterrupt(undefined);
-            const externalId = aui.threadListItem().getState().externalId;
+            const externalId = aui.threadListItem.getState().externalId;
             const checkpointId = externalId
               ? await getCheckpointId(externalId, truncated)
               : null;
@@ -611,12 +611,15 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       loadRef.current = load;
     });
 
-    const threadListItem = aui.threadListItem;
+    const threadListItem =
+      getAuiMeta(aui.threadListItem).source !== null
+        ? aui.threadListItem
+        : undefined;
     useEffect(() => {
       const load = loadRef.current;
-      if (!load) return;
+      if (!load || !threadListItem) return;
 
-      const externalId = threadListItem().getState().externalId;
+      const externalId = threadListItem.getState().externalId;
       if (externalId == null) return;
 
       // drop stale callbacks and abort the pending load on thread switch/unmount
@@ -671,8 +674,8 @@ export const useLangGraphRuntime = ({
         return create();
       }
 
-      if (aui.threadListItem.source) {
-        return aui.threadListItem().initialize();
+      if (getAuiMeta(aui.threadListItem).source) {
+        return aui.threadListItem.initialize();
       }
 
       return { externalId: undefined };

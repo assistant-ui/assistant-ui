@@ -24,7 +24,7 @@ const useComposerAddAttachment = ({
     input.multiple = multiple;
     input.hidden = true;
 
-    const attachmentAccept = aui.composer().getState().attachmentAccept;
+    const attachmentAccept = aui.composer.getState().attachmentAccept;
     if (attachmentAccept !== "*") {
       input.accept = attachmentAccept;
     }

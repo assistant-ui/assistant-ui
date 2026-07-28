@@ -13,7 +13,7 @@ const useChainOfThoughtAccordionTrigger = () => {
   const collapsed = useAuiState((s) => s.chainOfThought.collapsed);
 
   const callback = useCallback(() => {
-    aui.chainOfThought().setCollapsed(!collapsed);
+    aui.chainOfThought.setCollapsed(!collapsed);
   }, [aui, collapsed]);
 
   return callback;

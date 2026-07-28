@@ -14,7 +14,7 @@ const { registerMock, auiMock } = vi.hoisted(() => {
   return {
     registerMock: register,
     auiMock: {
-      modelContext: () => ({ register }),
+      modelContext: { register },
     },
   };
 });

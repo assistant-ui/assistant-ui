@@ -17,17 +17,15 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@assistant-ui/store", () => {
-  const aui = {
-    message: () => ({
-      part: ({ index }: { index: number }) => ({
-        addToolResult: (...args: unknown[]) => h.addToolResult(index, ...args),
-        resumeToolCall: (...args: unknown[]) =>
-          h.resumeToolCall(index, ...args),
-        respondToToolApproval: (...args: unknown[]) =>
-          h.respondToToolApproval(index, ...args),
-      }),
+  const message = Object.assign(() => message, {
+    part: ({ index }: { index: number }) => ({
+      addToolResult: (...args: unknown[]) => h.addToolResult(index, ...args),
+      resumeToolCall: (...args: unknown[]) => h.resumeToolCall(index, ...args),
+      respondToToolApproval: (...args: unknown[]) =>
+        h.respondToToolApproval(index, ...args),
     }),
-  };
+  });
+  const aui = { message };
   return {
     useAui: () => aui,
     useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),

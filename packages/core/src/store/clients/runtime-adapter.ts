@@ -1,4 +1,5 @@
 import {
+  getAuiMeta,
   Derived,
   type ScopesConfig,
   type AssistantClient,
@@ -13,23 +14,23 @@ export const baseRuntimeAdapterTransformScopes = (
   scopes.thread ??= Derived({
     source: "threads",
     query: { type: "main" },
-    get: (aui) => aui.threads().thread("main"),
+    get: (aui) => aui.threads.thread("main"),
   });
   scopes.threadListItem ??= Derived({
     source: "threads",
     query: { type: "main" },
-    get: (aui) => aui.threads().item("main"),
+    get: (aui) => aui.threads.item("main"),
   });
   scopes.composer ??= Derived({
     source: "thread",
     query: {},
-    get: (aui) => aui.threads().thread("main").composer(),
+    get: (aui) => aui.threads.thread("main").composer(),
   });
 
-  if (!scopes.modelContext && parent.modelContext.source === null) {
+  if (!scopes.modelContext && getAuiMeta(parent.modelContext).source === null) {
     scopes.modelContext = ModelContext();
   }
-  if (!scopes.suggestions && parent.suggestions.source === null) {
+  if (!scopes.suggestions && getAuiMeta(parent.suggestions).source === null) {
     scopes.suggestions = Suggestions();
   }
 };

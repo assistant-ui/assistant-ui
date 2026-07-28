@@ -70,7 +70,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
       await Promise.all(
         files.map(async (file) => {
           try {
-            await aui.composer().addAttachment(file);
+            await aui.composer.addAttachment(file);
           } catch {
             // The composer runtime emits composer.attachmentAddError before rejecting;
             // the readonly and empty-thread stubs only throw.

@@ -12,7 +12,7 @@ const useQueueItemSteer = () => {
   const aui = useAui();
 
   const callback = useCallback(() => {
-    aui.queueItem().steer();
+    aui.queueItem.steer();
   }, [aui]);
 
   return callback;

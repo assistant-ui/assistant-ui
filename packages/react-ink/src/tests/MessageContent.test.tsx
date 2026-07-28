@@ -69,12 +69,12 @@ describe("MessageContent", () => {
       },
     });
     mockUseAui.mockReturnValue({
-      message: () => ({
+      message: {
         part: () => ({
           addToolResult: vi.fn(),
           resumeToolCall: vi.fn(),
         }),
-      }),
+      },
     });
 
     const frame = await renderFrame(<MessageContent />);
@@ -240,12 +240,12 @@ describe("MessageContent", () => {
       },
     });
     mockUseAui.mockReturnValue({
-      message: () => ({
+      message: {
         part: () => ({
           addToolResult: vi.fn(),
           resumeToolCall: vi.fn(),
         }),
-      }),
+      },
     });
 
     const frame = await renderFrame(

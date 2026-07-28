@@ -1,6 +1,6 @@
 "use client";
 
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { getAuiMeta, useAui, useAuiState } from "@assistant-ui/store";
 import type { ComposerRuntime } from "../runtime/ComposerRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 
@@ -76,8 +76,8 @@ export function useComposerRuntime(options?: {
 }): ComposerRuntime | null {
   const aui = useAui();
   const runtime = useAuiState(() =>
-    aui.composer.source
-      ? (aui.composer().__internal_getRuntime?.() ?? null)
+    getAuiMeta(aui.composer).source
+      ? (aui.composer.__internal_getRuntime?.() ?? null)
       : null,
   );
   if (!runtime && !options?.optional) {

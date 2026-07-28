@@ -2,7 +2,7 @@
 
 import type { AttachmentRuntime } from "../runtime/AttachmentRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { getAuiMeta, useAui, useAuiState } from "@assistant-ui/store";
 
 /**
  * @deprecated Use {@link useAui} with `aui.attachment()` instead. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
@@ -18,8 +18,8 @@ export function useAttachmentRuntime(options?: {
 }): AttachmentRuntime | null {
   const aui = useAui();
   const runtime = useAuiState(() =>
-    aui.attachment.source
-      ? (aui.attachment().__internal_getRuntime?.() ?? null)
+    getAuiMeta(aui.attachment).source
+      ? (aui.attachment.__internal_getRuntime?.() ?? null)
       : null,
   );
   if (!runtime && !options?.optional) {

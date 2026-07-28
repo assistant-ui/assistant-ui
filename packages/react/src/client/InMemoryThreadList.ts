@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import {
+  getAuiMeta,
   type ClientOutput,
   useClientLookup,
   Derived,
@@ -192,29 +193,32 @@ attachTransformScopes(useInMemoryThreadList, (scopes, parent) => {
   scopes.thread ??= Derived({
     source: "threads",
     query: { type: "main" },
-    get: (aui) => aui.threads().thread("main"),
+    get: (aui) => aui.threads.thread("main"),
   });
   scopes.threadListItem ??= Derived({
     source: "threads",
     query: { type: "main" },
-    get: (aui) => aui.threads().item("main"),
+    get: (aui) => aui.threads.item("main"),
   });
   scopes.composer ??= Derived({
     source: "thread",
     query: {},
-    get: (aui) => aui.threads().thread("main").composer(),
+    get: (aui) => aui.threads.thread("main").composer(),
   });
 
-  if (!scopes.modelContext && parent.modelContext.source === null) {
+  if (!scopes.modelContext && getAuiMeta(parent.modelContext).source === null) {
     scopes.modelContext = ModelContext();
   }
-  if (!scopes.tools && parent.tools.source === null) {
+  if (!scopes.tools && getAuiMeta(parent.tools).source === null) {
     scopes.tools = Tools({});
   }
-  if (!scopes.dataRenderers && parent.dataRenderers.source === null) {
+  if (
+    !scopes.dataRenderers &&
+    getAuiMeta(parent.dataRenderers).source === null
+  ) {
     scopes.dataRenderers = DataRenderers();
   }
-  if (!scopes.suggestions && parent.suggestions.source === null) {
+  if (!scopes.suggestions && getAuiMeta(parent.suggestions).source === null) {
     scopes.suggestions = Suggestions();
   }
 });

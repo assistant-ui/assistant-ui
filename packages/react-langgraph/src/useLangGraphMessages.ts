@@ -236,7 +236,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
           ...config,
           abortSignal: abortController.signal,
           initialize: async () => {
-            return await aui.threadListItem().initialize();
+            return await aui.threadListItem.initialize();
           },
         });
 

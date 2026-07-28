@@ -11,7 +11,7 @@ import {
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { getAuiMeta, useAui, useAuiState } from "@assistant-ui/store";
 import {
   useAISDKRuntime,
   type AISDKRuntimeAdapter,
@@ -129,7 +129,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   if (transport instanceof AssistantChatTransport) {
     transport.setRuntime(runtime);
     transport.__internal_setGetThreadListItem(() =>
-      aui.threadListItem.source ? aui.threadListItem() : undefined,
+      getAuiMeta(aui.threadListItem).source ? aui.threadListItem : undefined,
     );
   }
 

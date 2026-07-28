@@ -90,10 +90,7 @@ const ToolUIDisplay = ({
     return renders;
   });
 
-  const partMethods = useMemo(
-    () => aui.message().part({ index }),
-    [aui, index],
-  );
+  const partMethods = useMemo(() => aui.message.part({ index }), [aui, index]);
   const toolProps = {
     ...(part as ToolCallMessagePartProps),
     addResult: partMethods.addToolResult,

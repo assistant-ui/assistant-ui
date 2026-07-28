@@ -32,7 +32,7 @@ const McpManagerPrimitiveCustomServersInner: FC<{
     return ids.map((id, index) => (
       <McpCustomServerByIndexProvider key={id} index={index}>
         <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.mcp().customServer({ index }).getState()}
+          getItemState={(aui) => aui.mcp.customServer({ index }).getState()}
         >
           {(getItem) =>
             children({

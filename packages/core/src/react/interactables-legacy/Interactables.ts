@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { resource } from "@assistant-ui/tap";
 import {
+  getAuiMeta,
   useAssistantClientRef,
   type ClientOutput,
   attachTransformScopes,
@@ -326,7 +327,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 export const Interactables = resource(useInteractables);
 
 attachTransformScopes(useInteractables, (scopes, parent) => {
-  if (!scopes.modelContext && parent.modelContext.source === null) {
+  if (!scopes.modelContext && getAuiMeta(parent.modelContext).source === null) {
     scopes.modelContext = ModelContext();
   }
 });

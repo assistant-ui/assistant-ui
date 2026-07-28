@@ -11,7 +11,7 @@ export const useActionBarReload = () => {
   );
 
   const reload = useCallback(() => {
-    aui.message().reload();
+    aui.message.reload();
   }, [aui]);
 
   return { reload, disabled };

@@ -5,7 +5,12 @@ import type { ThreadRuntime } from "../runtime/ThreadRuntime";
 import type { ModelContext } from "@assistant-ui/core";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 import type { ThreadComposerRuntime } from "@assistant-ui/core";
-import { useAui, useAuiEvent, useAuiState } from "@assistant-ui/store";
+import {
+  getAuiMeta,
+  useAui,
+  useAuiEvent,
+  useAuiState,
+} from "@assistant-ui/store";
 
 /**
  * @deprecated Use {@link useAui} with `aui.thread()` instead. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
@@ -49,7 +54,9 @@ export function useThreadRuntime(options?: {
 export function useThreadRuntime(options?: { optional?: boolean | undefined }) {
   const aui = useAui();
   const runtime = useAuiState(() =>
-    aui.thread.source ? (aui.thread().__internal_getRuntime?.() ?? null) : null,
+    getAuiMeta(aui.thread).source
+      ? (aui.thread.__internal_getRuntime?.() ?? null)
+      : null,
   );
   if (!runtime && !options?.optional) {
     throw new Error("ThreadRuntime is not available");
