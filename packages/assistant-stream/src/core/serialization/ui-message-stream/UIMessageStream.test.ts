@@ -709,12 +709,12 @@ describe("UIMessageStreamDecoder", () => {
     const toolPartFinish = chunks.findIndex(
       (c) => c.type === "part-finish" && c.path[0] === 0,
     );
-    const textPartStart = chunks.findIndex(
-      (c) => c.type === "part-start" && c.part.type === "text",
-    );
-    expect(toolPartFinish).toBeGreaterThan(-1);
-    expect(textPartStart).toBeGreaterThan(-1);
-    expect(toolPartFinish).toBeLessThan(textPartStart);
+    const result = chunks.findIndex((c) => c.type === "result");
+    const messageFinish = chunks.findIndex((c) => c.type === "message-finish");
+    expect(result).toBeGreaterThan(-1);
+    expect(messageFinish).toBeGreaterThan(-1);
+    expect(toolPartFinish).toBeGreaterThan(result);
+    expect(toolPartFinish).toBeLessThan(messageFinish);
   });
 
   it("keeps the active tool call writable when another call receives its result", async () => {
