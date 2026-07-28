@@ -6,7 +6,7 @@ import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import type { AssistantMessage } from "../../utils/types";
 
 // Fixture produced by the Python encoder; regenerate with
-// `PYTHONPATH=src python3 tests/generate_interop_fixture.py` in python/assistant-stream.
+// `uv run python tests/generate_interop_fixture.py` in python/assistant-stream.
 const fixture = readFileSync(
   new URL("./__fixtures__/python-encoder.sse", import.meta.url),
 );

@@ -2,7 +2,7 @@
 packages/assistant-stream/src/core/serialization/assistant-transport/AssistantTransport.interop.test.ts.
 
 Run from python/assistant-stream:
-    PYTHONPATH=src python3 tests/generate_interop_fixture.py
+    uv run python tests/generate_interop_fixture.py
 """
 
 import asyncio
