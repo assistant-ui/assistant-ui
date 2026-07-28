@@ -1,11 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
 import { createAssistantStreamController } from "./assistant-stream";
+import { createToolCallStreamController } from "./tool-call";
 import { ToolResponse } from "../tool/ToolResponse";
 import { toolResultStream } from "../tool/toolResultStream";
 import type { ToolCallReader } from "../tool/tool-types";
+import type { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 
 type Reader = ToolCallReader<Record<string, unknown>, unknown>;
+
+const collectChunks = async (
+  stream: AssistantStream,
+): Promise<AssistantStreamChunk[]> => {
+  const chunks: AssistantStreamChunk[] = [];
+  await stream.pipeTo(
+    new WritableStream({
+      write(chunk) {
+        chunks.push(chunk);
+      },
+    }),
+  );
+  return chunks;
+};
 
 describe("ToolCallStreamController", () => {
   it("delivers a backend response before an args parse failure", async () => {
@@ -63,5 +79,39 @@ describe("ToolCallStreamController", () => {
       result: { source: "backend" },
       isError: false,
     });
+  });
+
+  it("setResponse settles the part without an explicit close", async () => {
+    const [stream, controller] = createToolCallStreamController();
+    controller.setResponse({ result: "done" });
+
+    const chunks = await collectChunks(stream);
+
+    expect(chunks.map((c) => c.type)).toContain("result");
+    expect(chunks.at(-1)?.type).toBe("part-finish");
+  });
+
+  it("ignores a second setResponse after the part is settled", async () => {
+    const [stream, controller] = createToolCallStreamController();
+    controller.setResponse({ result: "first" });
+    controller.setResponse({ result: "second" });
+
+    const chunks = await collectChunks(stream);
+
+    const results = chunks.filter((c) => c.type === "result");
+    expect(results).toEqual([expect.objectContaining({ result: "first" })]);
+    expect(chunks.filter((c) => c.type === "part-finish")).toHaveLength(1);
+  });
+
+  it("ignores setResponse after an explicit close", async () => {
+    const [stream, controller] = createToolCallStreamController();
+    controller.argsText.append('{"query":"x"}');
+    controller.close();
+    controller.setResponse({ result: "late" });
+
+    const chunks = await collectChunks(stream);
+
+    expect(chunks.filter((c) => c.type === "result")).toHaveLength(0);
+    expect(chunks.at(-1)?.type).toBe("part-finish");
   });
 });
