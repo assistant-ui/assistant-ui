@@ -8,14 +8,11 @@ import type {
 import { useAui } from "./useAui";
 import { useAuiState } from "./useAuiState";
 
-export declare const derivedKey: unique symbol;
-
 type DerivedInstance<K extends ClientNames> = ReturnType<
   AssistantClientAccessor<K>
 >;
 
-// Identified by splitClients via `hook === useDerived`. Mounted by useAui's
-// derived resolver: the selector resolves under subscription.
+// splitClients identifies derived elements via `hook === useDerived`
 export const useDerived = <K extends ClientNames>({
   get,
 }: Derived.Props<K>): DerivedInstance<K> => {
@@ -23,15 +20,13 @@ export const useDerived = <K extends ClientNames>({
   return useAuiState(() => get(aui));
 };
 
+const DerivedResource = resource(useDerived);
+
 /**
- * Creates a derived client field that references a client from a parent scope.
- * The resolved instance is bound into the client returned by `useAui`; a
- * structural change (the scope resolving to a different instance) produces a
- * new client through a React re-render.
- *
- * IMPORTANT: The `get` callback must return a client that was created via
- * `useClientResource` (or `useClientLookup`/`useClientList` which use it internally).
- * This is required for event scoping to work correctly.
+ * Creates a derived client field whose resolved instance is bound into the
+ * client returned by `useAui`; a structural swap produces a new client through
+ * a React re-render. `get` must return a client created via
+ * `useClientResource` (or `useClientLookup`/`useClientList`).
  *
  * @example
  * ```typescript
@@ -44,15 +39,13 @@ export const useDerived = <K extends ClientNames>({
  * });
  * ```
  */
-export const Derived = resource(useDerived) as unknown as <
-  K extends ClientNames,
->(
+export const Derived = <K extends ClientNames>(
   config: Derived.Props<K>,
-) => DerivedElement<K>;
+): DerivedElement<K> => DerivedResource(config) as DerivedElement<K>;
 
-export type DerivedElement<K extends ClientNames> = ResourceElement<{
-  [derivedKey]: K;
-}>;
+export type DerivedElement<K extends ClientNames> = ResourceElement<
+  DerivedInstance<K>
+>;
 
 export namespace Derived {
   /**

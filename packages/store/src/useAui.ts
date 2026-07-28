@@ -320,9 +320,7 @@ const useDerivedClientAccessorResource = <K extends ClientNames>({
   element: DerivedElement<K>;
   name: K;
 }) => {
-  const instance = useResource(
-    element as unknown as ResourceElement<ClientMethods>,
-  );
+  const instance = useResource(element as ResourceElement<ClientMethods>);
   // meta is pinned by the fiber's serializeMeta key
   const [meta] = useState(() => element.args[0] as AnyDerivedMeta);
   return useMemo(
@@ -335,8 +333,7 @@ const DerivedClientAccessorResource = resource(
   useDerivedClientAccessorResource,
 );
 
-// Client the derived selectors resolve against: sibling derived scopes read
-// live so intra-render references see the current pass, not the last commit.
+// Selectors resolve against this client; sibling derived scopes read live
 const createResolutionClient = (
   parent: AssistantClient,
   rootFields: RootFields,
@@ -352,10 +349,8 @@ const createResolutionClient = (
   return client;
 };
 
-// Constant bailout deps: a scope's fiber re-renders only when its own
-// subscription fires or the resolution client changes. A bailed-out render
-// serves the committed accessor, which is what keeps a stale leaf readable
-// until the parent reconciles it away.
+// Constant bailout deps: a bailed-out render serves the committed accessor,
+// which keeps a stale leaf readable until the parent reconciles it away
 const DERIVED_DEPS: readonly unknown[] = [];
 
 const useDerivedAccessors = (clients: DerivedClients) => {

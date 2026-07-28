@@ -611,14 +611,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       loadRef.current = load;
     });
 
-    // Keyed on the bound instance, not the aui client, which changes identity on any structural swap
-    const threadListItem =
-      aui.threadListItem.source !== null ? aui.threadListItem() : undefined;
+    const threadListItem = aui.threadListItem;
     useEffect(() => {
       const load = loadRef.current;
-      if (!load || !threadListItem) return;
+      if (!load) return;
 
-      const externalId = threadListItem.getState().externalId;
+      const externalId = threadListItem().getState().externalId;
       if (externalId == null) return;
 
       // drop stale callbacks and abort the pending load on thread switch/unmount
