@@ -45,7 +45,10 @@ export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
     () => selector(proxiedState),
   );
 
-  if (slice === proxiedState) {
+  if (
+    slice === proxiedState ||
+    (slice !== undefined && (slice as unknown) === proxiedState?.optional)
+  ) {
     throw new Error(
       "You tried to return the entire AssistantState. This is not supported due to technical limitations.",
     );

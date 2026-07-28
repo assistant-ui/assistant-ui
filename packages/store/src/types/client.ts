@@ -148,15 +148,24 @@ export type ClientElement<K extends ClientNames> = ResourceElement<
  */
 export type Unsubscribe = () => void;
 
-/**
- * State type extracted from all clients via their getState() methods.
- */
-export type AssistantState = {
+type ScopeStates = {
   [K in ClientNames]: ClientSchemas[K]["methods"] extends {
     getState: () => infer S;
   }
     ? S
     : never;
+};
+
+/**
+ * State type extracted from all clients via their getState() methods.
+ *
+ * `optional` exposes the same scopes, but an unavailable scope resolves to
+ * `undefined` instead of throwing: `s.optional.threadListItem?.remoteId`.
+ */
+export type AssistantState = ScopeStates & {
+  readonly optional: {
+    readonly [K in keyof ScopeStates]: ScopeStates[K] | undefined;
+  };
 };
 
 /**
