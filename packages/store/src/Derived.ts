@@ -12,15 +12,12 @@ type DerivedInstance<K extends ClientNames> = ReturnType<
   AssistantClientAccessor<K>
 >;
 
-// splitClients identifies derived elements via `hook === useDerived`
-export const useDerived = <K extends ClientNames>({
+const useDerived = <K extends ClientNames>({
   get,
 }: Derived.Props<K>): DerivedInstance<K> => {
   const aui = useAui();
   return useAuiState(() => get(aui));
 };
-
-const DerivedResource = resource(useDerived);
 
 /**
  * Creates a derived client field whose resolved instance is bound into the
@@ -39,9 +36,9 @@ const DerivedResource = resource(useDerived);
  * });
  * ```
  */
-export const Derived = <K extends ClientNames>(
+export const Derived = resource(useDerived) as <K extends ClientNames>(
   config: Derived.Props<K>,
-): DerivedElement<K> => DerivedResource(config) as DerivedElement<K>;
+) => DerivedElement<K>;
 
 export type DerivedElement<K extends ClientNames> = ResourceElement<
   DerivedInstance<K>

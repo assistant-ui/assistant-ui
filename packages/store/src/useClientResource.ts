@@ -164,7 +164,12 @@ export const useClientResource = <TMethods extends ClientMethods>(
   });
 
   const state = (value as any).getState?.();
-  return { methods, state, key: element.key };
+  // A resource that resolves to an existing client passes through unwrapped
+  return {
+    methods: SYMBOL_GET_OUTPUT in value ? value : methods,
+    state,
+    key: element.key,
+  };
 };
 
 export const ClientResource = resource(useClientResource);
