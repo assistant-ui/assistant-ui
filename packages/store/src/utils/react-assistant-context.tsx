@@ -1,5 +1,6 @@
 import type React from "react";
 import { createContext, useContext, useEffect } from "react";
+import { useContextProvider } from "@assistant-ui/tap";
 import type { AssistantClient, AssistantClientAccessor } from "../types/client";
 import {
   createProxiedAssistantState,
@@ -105,6 +106,13 @@ const UseTapEffects = () => {
 
 export const useAssistantContextValue = (): AssistantClient => {
   return useContext(AssistantContext);
+};
+
+export const useAssistantContextProvider = <T,>(
+  value: AssistantClient,
+  fn: () => T,
+): T => {
+  return useContextProvider(AssistantContext, value, fn);
 };
 
 /**

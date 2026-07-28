@@ -7,8 +7,9 @@ import {
   useTapRoot,
   resource,
   withKey,
+  type ResourceElement,
 } from "@assistant-ui/tap";
-import { useMemo, useEffect, useRef, useSyncExternalStore } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 
 import type {
   AssistantClient,
@@ -20,6 +21,7 @@ import type {
 import type { DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
+  useAssistantContextProvider,
   DefaultAssistantClient,
   createRootAssistantClient,
   AUI_USE_EFFECTS_SYMBOL,
@@ -226,29 +228,6 @@ const useRootClientsAccessorsResource = (props: {
 
 const RootClientsAccessorsResource = resource(useRootClientsAccessorsResource);
 
-// ClientMeta<ClientNames> / Derived.Props<ClientNames> collapse to never over the full union
-type AnyDerivedMeta = { source: ClientNames; query: Record<string, unknown> };
-type AnyDerivedProps = AnyDerivedMeta & {
-  get: (client: AssistantClient) => ClientMethods;
-};
-
-const serializeMeta = (name: ClientNames, meta: AnyDerivedMeta): string => {
-  // Sort top-level keys so {a, b} and {b, a} hash to the same fiber
-  // identity, and guard JSON.stringify against unusual values (BigInt,
-  // circular refs) so render never throws here.
-  let queryKey: string;
-  try {
-    const sorted: Record<string, unknown> = {};
-    for (const k of Object.keys(meta.query as object).sort()) {
-      sorted[k] = (meta.query as Record<string, unknown>)[k];
-    }
-    queryKey = JSON.stringify(sorted);
-  } catch {
-    queryKey = String(meta.query);
-  }
-  return `${name}::${meta.source}::${queryKey}`;
-};
-
 /**
  * Resource that creates the root client accessors.
  */
@@ -280,6 +259,7 @@ const createClientObject = (
   Object.assign(client, {
     subscribe: rootFields.subscribe ?? parent.subscribe,
     on: rootFields.on ?? parent.on,
+    [PROXIED_ASSISTANT_STATE_SYMBOL]: createProxiedAssistantState(client),
   });
 
   for (const field of rootFields.clients) {
@@ -289,7 +269,13 @@ const createClientObject = (
   return client;
 };
 
-const makeBoundAccessor = <K extends ClientNames>(
+// ClientMeta<ClientNames> / Derived.Props<ClientNames> collapse to never over the full union
+type AnyDerivedMeta = { source: ClientNames; query: Record<string, unknown> };
+type AnyDerivedProps = AnyDerivedMeta & {
+  get: (client: AssistantClient) => ClientMethods;
+};
+
+const createAccessor = <K extends ClientNames>(
   name: K,
   meta: AnyDerivedMeta,
   read: () => ClientMethods,
@@ -310,91 +296,96 @@ const makeBoundAccessor = <K extends ClientNames>(
   return clientFunction as AssistantClientAccessor<K>;
 };
 
-const UNRESOLVED = Symbol("assistant-ui.store.unresolved");
-
-const arrayShallowEqual = (a: readonly unknown[], b: readonly unknown[]) => {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (!Object.is(a[i], b[i])) return false;
+const serializeMeta = (name: ClientNames, meta: AnyDerivedMeta): string => {
+  // Sort top-level keys so {a, b} and {b, a} hash to the same fiber
+  // identity, and guard JSON.stringify against unusual values (BigInt,
+  // circular refs) so render never throws here.
+  let queryKey: string;
+  try {
+    const sorted: Record<string, unknown> = {};
+    for (const k of Object.keys(meta.query as object).sort()) {
+      sorted[k] = (meta.query as Record<string, unknown>)[k];
+    }
+    queryKey = JSON.stringify(sorted);
+  } catch {
+    queryKey = String(meta.query);
   }
-  return true;
+  return `${name}::${meta.source}::${queryKey}`;
 };
 
-type DerivedPropsRef = { current: DerivedClients };
+const useDerivedClientAccessorResource = <K extends ClientNames>({
+  element,
+  name,
+}: {
+  element: DerivedElement<K>;
+  name: K;
+}) => {
+  const instance = useResource(
+    element as unknown as ResourceElement<ClientMethods>,
+  );
+  // meta is pinned by the fiber's serializeMeta key
+  const [meta] = useState(() => element.args[0] as AnyDerivedMeta);
+  return useMemo(
+    () => createAccessor(name, meta, () => instance),
+    [name, meta, instance],
+  );
+};
 
-const createBindingStore = ({
+const DerivedClientAccessorResource = resource(
+  useDerivedClientAccessorResource,
+);
+
+// Client the derived selectors resolve against: sibling derived scopes read
+// live so intra-render references see the current pass, not the last commit.
+const createResolutionClient = (
+  parent: AssistantClient,
+  rootFields: RootFields,
+  clients: DerivedClients,
+): AssistantClient => {
+  const client = createClientObject(parent, rootFields);
+  for (const [key, element] of Object.entries(clients)) {
+    const props = element.args[0] as AnyDerivedProps;
+    (client as any)[key] = createAccessor(key as ClientNames, props, () =>
+      props.get(client),
+    );
+  }
+  return client;
+};
+
+const useDerivedAccessors = (clients: DerivedClients) => {
+  return useShallowMemoArray(
+    useResources(
+      Object.keys(clients).map((key) => {
+        const name = key as keyof typeof clients;
+        const element = clients[name]!;
+        return withKey(
+          serializeMeta(name, element.args[0] as AnyDerivedMeta),
+          DerivedClientAccessorResource({ element, name }),
+        );
+      }),
+    ),
+  );
+};
+
+const useDerivedClientsAccessorsResource = ({
+  clients,
   parent,
   rootFields,
-  names,
-  propsRef,
 }: {
+  clients: DerivedClients;
   parent: AssistantClient;
   rootFields: RootFields;
-  names: readonly ClientNames[];
-  propsRef: DerivedPropsRef;
 }) => {
-  const getProps = (i: number) =>
-    propsRef.current[names[i]!]!.args[0] as AnyDerivedProps;
-
-  let pass: ((i: number) => ClientMethods) | null = null;
-
-  const resolutionClient = createClientObject(parent, rootFields);
-  names.forEach((name, i) => {
-    (resolutionClient as any)[name] = makeBoundAccessor(
-      name,
-      getProps(i),
-      () => {
-        if (!pass) {
-          throw new Error(
-            `Derived scope "${name}" cannot be read outside a resolution pass`,
-          );
-        }
-        return pass(i);
-      },
-    );
-  });
-
-  let last: ClientMethods[] | null = null;
-
-  const getSnapshot = (): ClientMethods[] => {
-    const next: (ClientMethods | typeof UNRESOLVED)[] = names.map(
-      () => UNRESOLVED,
-    );
-    const resolveAt = (i: number): ClientMethods => {
-      const existing = next[i];
-      if (existing !== UNRESOLVED) return existing as ClientMethods;
-      const instance = getProps(i).get(resolutionClient);
-      next[i] = instance;
-      return instance;
-    };
-    pass = resolveAt;
-    try {
-      for (let i = 0; i < names.length; i++) {
-        if (next[i] !== UNRESOLVED) continue;
-        try {
-          resolveAt(i);
-        } catch (error) {
-          // A stale scope keeps its bound instance until the parent reconciles this subtree away
-          if (!last) throw error;
-          next[i] = last[i]!;
-        }
-      }
-    } finally {
-      pass = null;
-    }
-
-    const resolved = next as ClientMethods[];
-    if (last && arrayShallowEqual(last, resolved)) return last;
-    last = resolved;
-    return resolved;
-  };
-
-  return { names, getSnapshot };
+  const resolutionClient = createResolutionClient(parent, rootFields, clients);
+  return useAssistantContextProvider(
+    resolutionClient,
+    function WithResolutionClient() {
+      return useDerivedAccessors(clients);
+    },
+  );
 };
 
-const EMPTY_DERIVED_CLIENTS: DerivedClients = {};
-
-const useHostedAssistantClient = ({
+const useAssistantClient = ({
   parent,
   clients,
 }: {
@@ -403,64 +394,41 @@ const useHostedAssistantClient = ({
 }): AssistantClient => {
   const { rootClients, derivedClients } = useSplitClients(clients, parent);
 
-  const clientRef = useRef<ClientRef>({
+  const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+
+  useEffect(() => {
+    clientRef.current = client;
+  });
+
+  const rootFields = useRootFields({ rootClients, clientRef });
+
+  const derivedFields = useDerivedClientsAccessorsResource({
+    clients: derivedClients,
     parent,
-    current: null,
-  }).current;
-  clientRef.parent = parent;
-
-  const { value: rootFields, effects } = useTapHost(
-    function AssistantClientHost() {
-      return useRootFields({ rootClients, clientRef });
-    },
-  );
-
-  const propsRef = useRef(EMPTY_DERIVED_CLIENTS);
-  propsRef.current = derivedClients;
-
-  const names = Object.keys(derivedClients) as ClientNames[];
-  const bindingKey = names
-    .map((name) =>
-      serializeMeta(name, derivedClients[name]!.args[0] as AnyDerivedMeta),
-    )
-    .join("\n");
-
-  const store = useMemo(
-    () => createBindingStore({ parent, rootFields, names, propsRef }),
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- names is keyed by bindingKey
-    [parent, rootFields, bindingKey],
-  );
-
-  const subscribe = rootFields.subscribe ?? parent.subscribe;
-  const bindings = useSyncExternalStore(
-    subscribe,
-    store.getSnapshot,
-    store.getSnapshot,
-  );
+    rootFields,
+  });
 
   const client = useMemo(() => {
     const client = createClientObject(parent, rootFields);
-    store.names.forEach((name, i) => {
-      const instance = bindings[i]!;
-      (client as any)[name] = makeBoundAccessor(
-        name,
-        propsRef.current[name]!.args[0] as AnyDerivedMeta,
-        () => instance,
-      );
-    });
-    Object.assign(client, {
-      [PROXIED_ASSISTANT_STATE_SYMBOL]: createProxiedAssistantState(client),
-    });
+    for (const field of derivedFields) {
+      (client as any)[field.name] = field;
+    }
     return client;
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- propsRef reads are keyed by store
-  }, [parent, rootFields, store, bindings]);
+  }, [parent, rootFields, derivedFields]);
 
   if (clientRef.current === null) {
     clientRef.current = client;
   }
 
-  useEffect(() => {
-    clientRef.current = client;
+  return client;
+};
+
+const useHostedAssistantClient = (props: {
+  parent: AssistantClient;
+  clients: useAui.Props;
+}): AssistantClient => {
+  const { value: client, effects } = useTapHost(function AssistantClientHost() {
+    return useAssistantClient(props);
   });
 
   (client as Record<symbol, unknown>)[AUI_USE_EFFECTS_SYMBOL] = effects;
