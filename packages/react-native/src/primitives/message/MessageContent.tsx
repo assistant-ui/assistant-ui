@@ -65,7 +65,9 @@ const ToolUIDisplay = ({
   index: number;
 }) => {
   const aui = useAui();
-  const Render = useAuiState((s) => s.tools.toolUIs[part.toolName]?.[0]?.render);
+  const Render = useAuiState(
+    (s) => s.tools.toolUIs[part.toolName]?.[0]?.render,
+  );
 
   const partMethods = useMemo(() => aui.message.part({ index }), [aui, index]);
 

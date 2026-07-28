@@ -1447,7 +1447,7 @@ type GroupByContext = {
   readonly toolUIs?: ToolsState["toolUIs"];
 };
 
-type GroupPartType = PartState["type"] | "standalone-tool-call" | "mcp-app";
+type GroupPartType = PartState["type"] | "standalone-tool-call";
 
 type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "human";
@@ -3761,7 +3761,6 @@ declare const Tools: Resource<ClientOutput<"tools">, [
 type ToolsState = {
   toolUIs: Record<string, readonly ToolRegistration[]>;
   mcpApp?: McpAppResourceOutput | undefined;
-  tools: Record<string, ToolCallMessagePartComponent[]>;
 };
 
 type TupleIndex<T extends readonly any[]> = Exclude<keyof T, keyof any[]>;
