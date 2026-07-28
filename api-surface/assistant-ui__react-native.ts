@@ -374,10 +374,10 @@ declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_pa
   children: ReactNode;
 }) => import("react").JSX.Element>;
 
-type AssistantState = {
-  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
-    getState: () => infer S;
-  } ? S : never;
+type AssistantState = ScopeStates & {
+  readonly optional: {
+    readonly [K in keyof ScopeStates]: ScopeStates[K] | undefined;
+  };
 };
 
 type AssistantStream = ReadableStream<AssistantStreamChunk>;
@@ -2543,6 +2543,12 @@ type SamplingCallData = {
 interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
+
+type ScopeStates = {
+  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
+    getState: () => infer S;
+  } ? S : never;
+};
 
 type SendOptions = {
   startRun?: boolean;

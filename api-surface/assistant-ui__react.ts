@@ -615,10 +615,10 @@ declare namespace AssistantRuntimeProvider {
 
 declare const AssistantRuntimeProvider: import("react").NamedExoticComponent<AssistantRuntimeProvider.Props>;
 
-type AssistantState = {
-  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
-    getState: () => infer S;
-  } ? S : never;
+type AssistantState = ScopeStates & {
+  readonly optional: {
+    readonly [K in keyof ScopeStates]: ScopeStates[K] | undefined;
+  };
 };
 
 type AssistantStream = ReadableStream<AssistantStreamChunk>;
@@ -3725,6 +3725,12 @@ type SandboxOption = "allow-downloads" | "allow-forms" | "allow-modals" | "allow
 interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
+
+type ScopeStates = {
+  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
+    getState: () => infer S;
+  } ? S : never;
+};
 
 type SelectItemOverride = (item: Unstable_TriggerItem) => boolean;
 

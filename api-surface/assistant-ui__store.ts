@@ -36,10 +36,10 @@ type AssistantEventSelector<TEvent extends AssistantEventName> = TEvent | {
   event: TEvent;
 };
 
-type AssistantState = {
-  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
-    getState: () => infer S;
-  } ? S : never;
+type AssistantState = ScopeStates & {
+  readonly optional: {
+    readonly [K in keyof ScopeStates]: ScopeStates[K] | undefined;
+  };
 };
 
 declare namespace AuiIf {
@@ -153,6 +153,12 @@ type ResourceElement<V> = {
 interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
+
+type ScopeStates = {
+  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
+    getState: () => infer S;
+  } ? S : never;
+};
 
 type ScopesConfig = {
   [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
