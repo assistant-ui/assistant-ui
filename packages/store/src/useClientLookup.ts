@@ -50,18 +50,14 @@ export function useClientLookup<TMethods extends ClientMethods>(
     state,
     get: (lookup: { index: number } | { key: string }) => {
       if ("index" in lookup) {
-        if (lookup.index < 0 || keys.length === 0) {
+        if (lookup.index < 0 || lookup.index >= keys.length) {
           throw new Error(
-            `useClientLookup: Index ${lookup.index} out of bounds (length: ${keys.length})`,
+            `useClientLookup: index ${lookup.index} out of bounds (length: ${keys.length}). ` +
+              `If this appears as a recoverable error (the UI kept working), React retried the render and it can be ignored; ` +
+              `if it crashed an error boundary, the parent rendered an index the state does not have.`,
           );
         }
-        const clampedIndex = Math.min(lookup.index, keys.length - 1);
-        if (clampedIndex !== lookup.index) {
-          console.warn(
-            `useClientLookup: Clamped stale index ${lookup.index} to ${clampedIndex} (length: ${keys.length})`,
-          );
-        }
-        return resources[clampedIndex]!.methods;
+        return resources[lookup.index]!.methods;
       }
 
       const index = keyToIndex[lookup.key];

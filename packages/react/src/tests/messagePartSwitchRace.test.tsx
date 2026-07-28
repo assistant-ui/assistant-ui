@@ -2,7 +2,7 @@
 
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { flushSync } from "react-dom";
-import { useEffect, useState, type FC } from "react";
+import { Component, useEffect, useState, type FC, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { AssistantRuntimeProvider, PartByIndexProvider } from "../context";
@@ -85,16 +85,33 @@ const ChildrenMessage: FC = () => (
 const InvalidPartReader: FC = () => {
   const part = useAuiState((s) => s.part);
   return (
-    <p data-testid="clamped-part">
+    <p data-testid="invalid-part">
       {part.type === "text" ? part.text : part.type}
     </p>
   );
 };
 
+class PartErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  override state: { error: Error | null } = { error: null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  override render() {
+    if (this.state.error)
+      return <p data-testid="part-error">{this.state.error.message}</p>;
+    return this.props.children;
+  }
+}
+
 const InvalidPartMessage: FC = () => (
-  <PartByIndexProvider index={2}>
-    <InvalidPartReader />
-  </PartByIndexProvider>
+  <PartErrorBoundary>
+    <PartByIndexProvider index={2}>
+      <InvalidPartReader />
+    </PartByIndexProvider>
+  </PartErrorBoundary>
 );
 
 const App: FC<{ MessageComponent?: FC }> = ({ MessageComponent = Message }) => {
@@ -152,21 +169,21 @@ describe("part hooks under a thread-switch race", () => {
     },
   );
 
-  it("warns and clamps an index that was never valid", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("throws to the error boundary for an index that was never valid", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     try {
       let view!: ReturnType<typeof render>;
       await act(async () => {
         view = render(<App MessageComponent={InvalidPartMessage} />);
       });
-      expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "useClientLookup: Clamped stale index 2 to 1 (length: 2)",
-        ),
+      expect(view.queryByTestId("invalid-part")).toBeNull();
+      expect(view.getByTestId("part-error").textContent).toContain(
+        "useClientLookup: index 2 out of bounds (length: 2)",
       );
-      expect(view.getByTestId("clamped-part").textContent).toBe("world");
     } finally {
-      warn.mockRestore();
+      consoleError.mockRestore();
     }
   });
 });
