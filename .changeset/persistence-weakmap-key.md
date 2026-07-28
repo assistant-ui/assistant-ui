@@ -1,5 +1,5 @@
 ---
-"@assistant-ui/store": minor
+"@assistant-ui/store": patch
 "@assistant-ui/core": patch
 ---
 
