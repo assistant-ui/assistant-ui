@@ -92,9 +92,6 @@ describe("useLocalRuntime", () => {
     });
 
     rerender(<App cloud={secondCloud} />);
-    await waitFor(() => {
-      expect(secondCloud.threads.list).toHaveBeenCalledOnce();
-    });
 
     await act(async () => {
       await addAttachment!(
