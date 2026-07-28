@@ -6,7 +6,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
 import { useAui } from "../useAui";
 import { Derived } from "../Derived";
-import { getAuiMeta } from "../utils/client-accessor";
 import type { AssistantClient } from "../types/client";
 
 type AnyClient = Record<string, any>;
@@ -103,23 +102,18 @@ describe("accessor property API", () => {
     expect(getAui().thread).toBe(thread);
   });
 
-  it("exposes selection meta via getAuiMeta, hidden from enumeration", () => {
+  it("exposes source/query/name meta as properties, hidden from enumeration", () => {
     const { getAui } = setup();
     const aui = getAui();
 
-    expect(getAuiMeta(aui.thread as never)).toMatchObject({
-      name: "thread",
-      source: "root",
-      query: {},
-    });
-    expect(getAuiMeta(aui.message as never)).toMatchObject({
-      name: "message",
-      source: "thread",
-      query: {},
-    });
-    expect(
-      Reflect.ownKeys(aui.thread).filter((k) => typeof k === "symbol"),
-    ).toEqual([]);
+    expect(aui.thread.source).toBe("root");
+    expect(aui.thread.query).toEqual({});
+    expect(aui.thread.name).toBe("thread");
+    expect(aui.message.source).toBe("thread");
+    expect(aui.message.query).toEqual({});
+    expect(aui.message.name).toBe("message");
+    expect("source" in aui.thread).toBe(true);
+    expect(Reflect.ownKeys(aui.thread)).not.toContain("source");
     expect(Object.keys(aui.message)).not.toContain("source");
   });
 
@@ -153,13 +147,17 @@ describe("accessor property API", () => {
     const accessor = (aui as AnyClient).thread;
     expect(() => accessor()).toThrow(/AuiProvider/);
     expect(() => accessor.getState()).toThrow(/AuiProvider/);
-    expect(getAuiMeta(accessor).source).toBeNull();
+    expect(accessor.source).toBeNull();
   });
 
-  it("undefined scopes on a real client throw on use", () => {
+  it("undefined scopes never throw at selection time, only on use", () => {
     const { getAui } = setup();
     const aui = getAui();
 
+    expect(Boolean(aui.composer)).toBe(true);
+    expect(aui.composer.source).toBeNull();
+    expect(aui.composer.query).toBeNull();
+    expect(aui.composer.name).toBe("composer");
     expect(() => aui.composer()).toThrow(/"composer"/);
     expect(() => aui.composer.send()).toThrow(/"composer"/);
   });

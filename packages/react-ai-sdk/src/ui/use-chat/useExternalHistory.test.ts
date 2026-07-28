@@ -19,10 +19,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({
     threadListItem: {
+      get source() {
+        return mocks.remoteId ? "threads" : null;
+      },
       getState: () => ({ remoteId: mocks.remoteId }),
     },
   }),
-  getAuiMeta: () => ({ source: mocks.remoteId ? "threads" : null }),
 }));
 
 import { MessageRepository } from "@assistant-ui/core/internal";

@@ -39,6 +39,8 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
   [K in keyof ScopeRegistry]: ValidateClient<K>;
 };
 
+type ReservedAccessorProps = "name" | "query" | "source";
+
 type Resource<V, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<V>;
 
 type ResourceElement<V> = {
@@ -225,7 +227,7 @@ type SpanTimelineRange = {
 
 type ValidateClient<K extends keyof ScopeRegistry> = ScopeRegistry[K] extends {
   methods: ClientMethods;
-} ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid methods type`>;
+} ? keyof ScopeRegistry[K]["methods"] & ReservedAccessorProps extends never ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K & string} has invalid methods type`>;
 
 declare namespace entry_root_exports {
   export { SpanByIndexProvider, SpanData, SpanItemState, span_d_exports as SpanPrimitive, SpanResource, SpanState };

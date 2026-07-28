@@ -11,9 +11,8 @@ import { createErrorClientAccessor } from "./client-accessor";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 
-const MISSING_PROVIDER_FIELD = createErrorClientAccessor(
-  "You are using a component or hook that requires an AuiProvider. Wrap your component in an <AuiProvider> component.",
-);
+const MISSING_PROVIDER_MESSAGE =
+  "You are using a component or hook that requires an AuiProvider. Wrap your component in an <AuiProvider> component.";
 
 class DefaultAssistantClientProxyHandler
   extends BaseProxyHandler
@@ -29,7 +28,7 @@ class DefaultAssistantClientProxyHandler
       "DefaultAssistantClient",
     );
     if (introspection !== false) return introspection;
-    return MISSING_PROVIDER_FIELD;
+    return createErrorClientAccessor(MISSING_PROVIDER_MESSAGE, String(prop));
   }
 
   ownKeys(): ArrayLike<string | symbol> {
@@ -64,6 +63,7 @@ export const createRootAssistantClient = (): AssistantClient =>
 
       return createErrorClientAccessor(
         `The current scope does not have a "${String(prop)}" property.`,
+        String(prop),
       );
     },
   });

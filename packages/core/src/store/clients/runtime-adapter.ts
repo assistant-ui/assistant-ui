@@ -1,5 +1,4 @@
 import {
-  getAuiMeta,
   Derived,
   type ScopesConfig,
   type AssistantClient,
@@ -27,10 +26,10 @@ export const baseRuntimeAdapterTransformScopes = (
     get: (aui) => aui.threads.thread("main").composer(),
   });
 
-  if (!scopes.modelContext && getAuiMeta(parent.modelContext).source === null) {
+  if (!scopes.modelContext && parent.modelContext.source === null) {
     scopes.modelContext = ModelContext();
   }
-  if (!scopes.suggestions && getAuiMeta(parent.suggestions).source === null) {
+  if (!scopes.suggestions && parent.suggestions.source === null) {
     scopes.suggestions = Suggestions();
   }
 };

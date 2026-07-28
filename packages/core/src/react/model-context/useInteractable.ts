@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef } from "react";
-import { getAuiMeta, useAui, useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import type { Unstable_InteractableStateSchema } from "../types/scopes/interactables";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import {
@@ -92,7 +92,7 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
 
   // Whether this component renders inside a message part is fixed for its
   // lifetime, so conditioning the selectors on it is safe.
-  const inPart = getAuiMeta(aui.part).source != null;
+  const inPart = aui.part.source != null;
   const updateToolName = interactableToolName(name);
   const part = useAuiState((s) => {
     if (!inPart) return undefined;

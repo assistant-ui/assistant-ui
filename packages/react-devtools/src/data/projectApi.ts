@@ -1,4 +1,4 @@
-import { getAuiMeta, type AssistantClient } from "@assistant-ui/react";
+import type { AssistantClient } from "@assistant-ui/react";
 import { isRecord, isStringArray } from "../utils/common";
 import {
   sanitizeAndRedact,
@@ -124,25 +124,12 @@ export const projectApi = (apiId: number, entry: DevToolsApiEntry): ApiInfo => {
   }> = [];
 
   for (const [name, scope] of Object.entries(entry.api)) {
-    if (typeof scope !== "function") continue;
-    // Older assistant-ui versions carry the meta as own props on the accessor.
-    const legacy = scope as unknown as {
-      source?: string | null;
-      query?: Record<string, unknown> | null;
-    };
-    const meta =
-      (getAuiMeta(scope as never) as
-        | { source: string | null; query: Record<string, unknown> | null }
-        | undefined) ??
-      ("source" in scope
-        ? { source: legacy.source ?? null, query: legacy.query ?? null }
-        : undefined);
-    if (!meta) continue;
+    if (typeof scope !== "function" || !("source" in scope)) continue;
 
     let methods: string[] = [];
     try {
-      const scopeValue = (scope as () => Record<string, unknown>)();
-      if (meta.source === "root") {
+      const scopeValue = scope();
+      if (scope.source === "root") {
         state[name] =
           (scopeValue as { getState?: () => unknown })?.getState?.() ??
           scopeValue;
@@ -154,8 +141,8 @@ export const projectApi = (apiId: number, entry: DevToolsApiEntry): ApiInfo => {
 
     scopes.push({
       name,
-      source: meta.source,
-      query: meta.query,
+      source: scope.source,
+      query: scope.query,
       methods,
     });
   }

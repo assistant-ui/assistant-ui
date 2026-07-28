@@ -23,6 +23,14 @@ type AssistantClient = {
 
 type AssistantClientAccessor<K extends ClientNames> = ClientSchemas[K]["methods"] & {
   (): ClientSchemas[K]["methods"];
+} & (ClientMeta<K> | {
+  source: "root";
+  query: Record<string, never>;
+} | {
+  source: null;
+  query: null;
+}) & {
+  name: K;
 };
 
 type AssistantEventCallback<TEvent extends AssistantEventName> = (payload: AssistantEventPayload[TEvent]) => void;
@@ -858,6 +866,8 @@ interface Properties {
   [PropertyName: string]: boolean | number | string | null | undefined | Array<string | number>;
 }
 
+type ReservedAccessorProps = "name" | "query" | "source";
+
 interface Root extends Parent {
   type: "root";
   children: RootContent[];
@@ -924,7 +934,7 @@ type Unsubscribe = () => void;
 
 type ValidateClient<K extends keyof ScopeRegistry> = ScopeRegistry[K] extends {
   methods: ClientMethods;
-} ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid methods type`>;
+} ? keyof ScopeRegistry[K]["methods"] & ReservedAccessorProps extends never ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K & string} has invalid methods type`>;
 
 type WildcardPayload = {
   [K in keyof ClientEventMap]: {

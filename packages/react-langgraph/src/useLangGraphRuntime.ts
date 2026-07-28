@@ -27,7 +27,7 @@ import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
-import { getAuiMeta, useAui } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import {
   convertLangChainMessages,
   getMessageContent,
@@ -612,9 +612,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     });
 
     const threadListItem =
-      getAuiMeta(aui.threadListItem).source !== null
-        ? aui.threadListItem
-        : undefined;
+      aui.threadListItem.source !== null ? aui.threadListItem : undefined;
     useEffect(() => {
       const load = loadRef.current;
       if (!load || !threadListItem) return;
@@ -674,7 +672,7 @@ export const useLangGraphRuntime = ({
         return create();
       }
 
-      if (getAuiMeta(aui.threadListItem).source) {
+      if (aui.threadListItem.source) {
         return aui.threadListItem.initialize();
       }
 

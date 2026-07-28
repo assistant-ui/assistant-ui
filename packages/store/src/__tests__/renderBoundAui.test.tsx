@@ -10,7 +10,6 @@ import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { useClientLookup } from "../useClientLookup";
 import { Derived } from "../Derived";
-import { getAuiMeta } from "../utils/client-accessor";
 
 const useItem = ({ id }: { id: string }) => {
   const [text, setText] = useState(`text-${id}`);
@@ -227,16 +226,16 @@ describe("render-bound aui", () => {
       .mockImplementation(() => {});
     try {
       render(<ToggleApp />);
-      expect(getAuiMeta(probe.aui.extra).source).toBe(null);
+      expect(probe.aui.extra.source).toBe(null);
       const prevAui = probe.aui;
 
       act(() => toggle.set!(true));
       expect(probe.aui).not.toBe(prevAui);
-      expect(getAuiMeta(probe.aui.extra).source).toBe("root");
+      expect(probe.aui.extra.source).toBe("root");
       expect(probe.aui.extra().getState().tag).toBe("extra");
 
       act(() => toggle.set!(false));
-      expect(getAuiMeta(probe.aui.extra).source).toBe(null);
+      expect(probe.aui.extra.source).toBe(null);
       expect(consoleError).not.toHaveBeenCalled();
     } finally {
       consoleError.mockRestore();

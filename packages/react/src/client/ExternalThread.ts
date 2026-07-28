@@ -8,7 +8,6 @@ import {
 } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import {
-  getAuiMeta,
   type ClientElement,
   type ClientOutput,
   useClientLookup,
@@ -957,7 +956,7 @@ const useExternalThread = ({
 export const ExternalThread = resource(useExternalThread);
 
 attachTransformScopes(useExternalThread, (scopes, parent) => {
-  if (!scopes.threads && getAuiMeta(parent.threads).source === null) {
+  if (!scopes.threads && parent.threads.source === null) {
     const threadElement = scopes.thread as ClientElement<"thread">;
     scopes.threads = SingleThreadList({ thread: threadElement });
     // scopes mount in key order; re-declare thread after the threads source it resolves from
@@ -969,10 +968,7 @@ attachTransformScopes(useExternalThread, (scopes, parent) => {
     });
   }
 
-  if (
-    !scopes.threadListItem &&
-    getAuiMeta(parent.threadListItem).source === null
-  ) {
+  if (!scopes.threadListItem && parent.threadListItem.source === null) {
     scopes.threadListItem = Derived({
       source: "threads",
       query: { type: "main" },
@@ -986,19 +982,16 @@ attachTransformScopes(useExternalThread, (scopes, parent) => {
     get: (aui) => aui.thread.composer(),
   });
 
-  if (!scopes.modelContext && getAuiMeta(parent.modelContext).source === null) {
+  if (!scopes.modelContext && parent.modelContext.source === null) {
     scopes.modelContext = ModelContext();
   }
-  if (!scopes.tools && getAuiMeta(parent.tools).source === null) {
+  if (!scopes.tools && parent.tools.source === null) {
     scopes.tools = Tools({});
   }
-  if (
-    !scopes.dataRenderers &&
-    getAuiMeta(parent.dataRenderers).source === null
-  ) {
+  if (!scopes.dataRenderers && parent.dataRenderers.source === null) {
     scopes.dataRenderers = DataRenderers();
   }
-  if (!scopes.suggestions && getAuiMeta(parent.suggestions).source === null) {
+  if (!scopes.suggestions && parent.suggestions.source === null) {
     scopes.suggestions = Suggestions();
   }
 });

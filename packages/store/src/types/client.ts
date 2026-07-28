@@ -73,22 +73,26 @@ type ClientError<E extends string> = {
   events: Record<`${E}.`, E>;
 };
 
+type ReservedAccessorProps = "source" | "query" | "name";
+
 type ValidateClient<K extends keyof ScopeRegistry> = ScopeRegistry[K] extends {
   methods: ClientMethods;
 }
-  ? "meta" extends keyof ScopeRegistry[K]
-    ? ScopeRegistry[K]["meta"] extends ClientMetaType
-      ? "events" extends keyof ScopeRegistry[K]
+  ? keyof ScopeRegistry[K]["methods"] & ReservedAccessorProps extends never
+    ? "meta" extends keyof ScopeRegistry[K]
+      ? ScopeRegistry[K]["meta"] extends ClientMetaType
+        ? "events" extends keyof ScopeRegistry[K]
+          ? ScopeRegistry[K]["events"] extends ClientEventsType<K>
+            ? ScopeRegistry[K]
+            : ClientError<`ERROR: ${K & string} has invalid events type`>
+          : ScopeRegistry[K]
+        : ClientError<`ERROR: ${K & string} has invalid meta type`>
+      : "events" extends keyof ScopeRegistry[K]
         ? ScopeRegistry[K]["events"] extends ClientEventsType<K>
           ? ScopeRegistry[K]
           : ClientError<`ERROR: ${K & string} has invalid events type`>
         : ScopeRegistry[K]
-      : ClientError<`ERROR: ${K & string} has invalid meta type`>
-    : "events" extends keyof ScopeRegistry[K]
-      ? ScopeRegistry[K]["events"] extends ClientEventsType<K>
-        ? ScopeRegistry[K]
-        : ClientError<`ERROR: ${K & string} has invalid events type`>
-      : ScopeRegistry[K]
+    : ClientError<`ERROR: ${K & string} methods declare a reserved accessor property (source/query/name)`>
   : ClientError<`ERROR: ${K & string} has invalid methods type`>;
 
 type ClientSchemas = keyof ScopeRegistry extends never
@@ -156,24 +160,23 @@ export type AssistantState = {
 };
 
 /**
- * A bound client accessor: the property IS the bound client instance.
- * Calling it remains supported for backwards compatibility.
+ * A bound client accessor: the property IS the bound client instance, plus
+ * `source`/`query`/`name` selection metadata. Calling it remains supported
+ * for backwards compatibility.
+ *
+ * An unavailable scope's accessor has `source: null` and throws when any
+ * other property is read or the accessor is called. The accessor itself is
+ * always truthy — check availability via `aui.thread.source != null`.
  */
 export type AssistantClientAccessor<K extends ClientNames> =
   ClientSchemas[K]["methods"] & {
     /** @deprecated Access the scope as a property instead: `aui.thread` in place of `aui.thread()`. */
     (): ClientSchemas[K]["methods"];
-  };
-
-/**
- * Selection metadata for a client accessor — how the bound instance was
- * selected. Read it with `getAuiMeta(accessor)`.
- */
-export type AssistantClientAccessorMeta<K extends ClientNames> = (
-  | ClientMeta<K>
-  | { source: "root"; query: Record<string, never> }
-  | { source: null; query: null }
-) & { name: K };
+  } & (
+      | ClientMeta<K>
+      | { source: "root"; query: Record<string, never> }
+      | { source: null; query: null }
+    ) & { name: K };
 
 /**
  * The assistant client type with all registered clients.

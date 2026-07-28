@@ -13,10 +13,6 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
-    getAuiMeta: (accessor: { source?: string | null }) => ({
-      source: accessor?.source ?? null,
-      query: null,
-    }),
     useAssistantClientRef: () => ({
       get current() {
         return clientHolder.client;

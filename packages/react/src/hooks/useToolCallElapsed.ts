@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAuiMeta, useAui, useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 
 /**
  * Hook that returns the elapsed wall-clock time of the current tool call in
@@ -23,7 +23,7 @@ import { getAuiMeta, useAui, useAuiState } from "@assistant-ui/store";
  */
 export const useToolCallElapsed = (): number | undefined => {
   const aui = useAui();
-  const hasPart = getAuiMeta(aui.part).source !== null;
+  const hasPart = aui.part.source !== null;
   const timing = useAuiState((s) =>
     hasPart && s.part.type === "tool-call" ? s.part.timing : undefined,
   );

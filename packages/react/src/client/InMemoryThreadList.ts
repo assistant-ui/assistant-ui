@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import {
-  getAuiMeta,
   type ClientOutput,
   useClientLookup,
   Derived,
@@ -206,19 +205,16 @@ attachTransformScopes(useInMemoryThreadList, (scopes, parent) => {
     get: (aui) => aui.threads.thread("main").composer(),
   });
 
-  if (!scopes.modelContext && getAuiMeta(parent.modelContext).source === null) {
+  if (!scopes.modelContext && parent.modelContext.source === null) {
     scopes.modelContext = ModelContext();
   }
-  if (!scopes.tools && getAuiMeta(parent.tools).source === null) {
+  if (!scopes.tools && parent.tools.source === null) {
     scopes.tools = Tools({});
   }
-  if (
-    !scopes.dataRenderers &&
-    getAuiMeta(parent.dataRenderers).source === null
-  ) {
+  if (!scopes.dataRenderers && parent.dataRenderers.source === null) {
     scopes.dataRenderers = DataRenderers();
   }
-  if (!scopes.suggestions && getAuiMeta(parent.suggestions).source === null) {
+  if (!scopes.suggestions && parent.suggestions.source === null) {
     scopes.suggestions = Suggestions();
   }
 });

@@ -41,11 +41,7 @@ import {
   useBuildingClient,
 } from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
-import {
-  createClientAccessor,
-  getAuiMeta,
-  getBoundClient,
-} from "./utils/client-accessor";
+import { createClientAccessor, getBoundClient } from "./utils/client-accessor";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import {
   PROXIED_ASSISTANT_STATE_SYMBOL,
@@ -158,7 +154,7 @@ const useClientFields = ({
         const { scope, event } = normalizeEventSelector(selector);
 
         if (scope !== "*") {
-          const source = getAuiMeta(this[scope as ClientNames]).source;
+          const source = this[scope as ClientNames].source;
           if (source === null) {
             throw new Error(
               `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
@@ -180,7 +176,7 @@ const useClientFields = ({
         });
         if (
           scope !== "*" &&
-          getAuiMeta(clientRef.parent[scope as ClientNames]).source === null
+          clientRef.parent[scope as ClientNames].source === null
         )
           return localUnsub;
 

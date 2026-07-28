@@ -452,6 +452,8 @@ type McpServerResourceProps = {
   onRemove: () => Promise<void>;
 };
 
+type ReservedAccessorProps = "name" | "query" | "source";
+
 type Resource<V, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<V>;
 
 type ResourceElement<V> = {
@@ -479,7 +481,7 @@ type UseMcpOAuthCallbackResult = {
 
 type ValidateClient<K extends keyof ScopeRegistry> = ScopeRegistry[K] extends {
   methods: ClientMethods;
-} ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid methods type`>;
+} ? keyof ScopeRegistry[K]["methods"] & ReservedAccessorProps extends never ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K & string} has invalid methods type`>;
 
 declare namespace addForm_d_exports {
   export { McpAddFormPrimitiveAuthFields as AuthFields, McpAddFormPrimitiveAuthSelect as AuthSelect, McpAddFormPrimitiveCancel as Cancel, McpAddFormPrimitiveError as Error, McpAddFormPrimitiveNameField as NameField, McpAddFormPrimitiveRoot as Root, McpAddFormPrimitiveSubmit as Submit, McpAddFormPrimitiveUrlField as UrlField };

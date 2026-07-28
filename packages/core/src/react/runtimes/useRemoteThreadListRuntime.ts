@@ -12,7 +12,7 @@ import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/
 import type { AssistantRuntimeCore } from "../../runtime/interfaces/assistant-runtime-core";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadListRuntimeCore";
-import { getAuiMeta, useAui } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 
 class RemoteThreadListRuntimeCore
   extends BaseAssistantRuntimeCore
@@ -74,7 +74,7 @@ export const useRemoteThreadListRuntime = (
   );
 
   const aui = useAui();
-  const isNested = getAuiMeta(aui.threadListItem).source !== null;
+  const isNested = aui.threadListItem.source !== null;
 
   if (isNested) {
     if (!stableOptions.allowNesting) {

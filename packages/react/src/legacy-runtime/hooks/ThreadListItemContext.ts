@@ -2,7 +2,7 @@
 
 import type { ThreadListItemRuntime } from "../runtime/ThreadListItemRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
-import { getAuiMeta, useAui, useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 
 /**
  * @deprecated Use {@link useAui} with `aui.threadListItem()` instead. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
@@ -18,7 +18,7 @@ export function useThreadListItemRuntime(options?: {
 }) {
   const aui = useAui();
   const runtime = useAuiState(() =>
-    getAuiMeta(aui.threadListItem).source
+    aui.threadListItem.source
       ? (aui.threadListItem.__internal_getRuntime?.() ?? null)
       : null,
   );

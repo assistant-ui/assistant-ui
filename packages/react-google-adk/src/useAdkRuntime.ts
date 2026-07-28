@@ -19,7 +19,7 @@ import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
-import { getAuiMeta, useAui } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import type {
@@ -477,8 +477,7 @@ export const useAdkRuntime = ({
     cloud,
     create: async () => {
       if (create) return create();
-      if (getAuiMeta(aui.threadListItem).source)
-        return aui.threadListItem.initialize();
+      if (aui.threadListItem.source) return aui.threadListItem.initialize();
       return { externalId: undefined };
     },
     delete: deleteFn,

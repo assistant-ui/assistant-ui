@@ -10,7 +10,7 @@ import type {
 } from "@assistant-ui/core";
 import { getExternalStoreMessages } from "@assistant-ui/core";
 import { MessageRepository } from "@assistant-ui/core/internal";
-import { getAuiMeta, useAui } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import {
   useRef,
   useEffect,
@@ -70,7 +70,7 @@ export const useExternalHistory = <TMessage>(
 
   const aui = useAui();
   const optionalThreadListItem = useCallback(
-    () => (getAuiMeta(aui.threadListItem).source ? aui.threadListItem : null),
+    () => (aui.threadListItem.source ? aui.threadListItem : null),
     [aui],
   );
 

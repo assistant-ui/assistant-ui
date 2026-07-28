@@ -1,7 +1,7 @@
 "use client";
 
 import type { MessageRuntime } from "../runtime/MessageRuntime";
-import { getAuiMeta, useAui, useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 import type { EditComposerRuntime } from "@assistant-ui/core";
 
@@ -65,9 +65,7 @@ export function useMessageRuntime(options?: {
 }) {
   const aui = useAui();
   const runtime = useAuiState(() =>
-    getAuiMeta(aui.message).source
-      ? (aui.message.__internal_getRuntime?.() ?? null)
-      : null,
+    aui.message.source ? (aui.message.__internal_getRuntime?.() ?? null) : null,
   );
   if (!runtime && !options?.optional) {
     throw new Error("MessageRuntime is not available");

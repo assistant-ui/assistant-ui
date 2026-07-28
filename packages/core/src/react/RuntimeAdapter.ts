@@ -6,7 +6,6 @@ import {
   ThreadListClient,
 } from "../store/internal";
 import {
-  getAuiMeta,
   attachTransformScopes,
   useAssistantClientRef,
 } from "@assistant-ui/store";
@@ -35,14 +34,11 @@ export const RuntimeAdapter = resource(useRuntimeAdapter);
 attachTransformScopes(useRuntimeAdapter, (scopes, parent) => {
   baseRuntimeAdapterTransformScopes(scopes, parent);
 
-  if (!scopes.tools && getAuiMeta(parent.tools).source === null) {
+  if (!scopes.tools && parent.tools.source === null) {
     scopes.tools = Tools({});
   }
 
-  if (
-    !scopes.dataRenderers &&
-    getAuiMeta(parent.dataRenderers).source === null
-  ) {
+  if (!scopes.dataRenderers && parent.dataRenderers.source === null) {
     scopes.dataRenderers = DataRenderers();
   }
 });

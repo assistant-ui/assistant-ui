@@ -11,9 +11,7 @@ type AssistantClient = {
 
 type AssistantClientAccessor<K extends ClientNames> = ClientSchemas[K]["methods"] & {
   (): ClientSchemas[K]["methods"];
-};
-
-type AssistantClientAccessorMeta<K extends ClientNames> = (ClientMeta<K> | {
+} & (ClientMeta<K> | {
   source: "root";
   query: Record<string, never>;
 } | {
@@ -141,6 +139,8 @@ declare function RenderChildrenWithAccessor<T>(_param1: {
   children: (getItem: () => T) => ReactNode;
 }): ReactNode;
 
+type ReservedAccessorProps = "name" | "query" | "source";
+
 type Resource<V, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<V>;
 
 type ResourceElement<V> = {
@@ -166,7 +166,7 @@ type Unsubscribe = () => void;
 
 type ValidateClient<K extends keyof ScopeRegistry> = ScopeRegistry[K] extends {
   methods: ClientMethods;
-} ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid methods type`>;
+} ? keyof ScopeRegistry[K]["methods"] & ReservedAccessorProps extends never ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K & string} has invalid methods type`>;
 
 type WildcardPayload = {
   [K in keyof ClientEventMap]: {
@@ -179,10 +179,8 @@ declare function attachTransformScopes(hook: Hook, transform: TransformScopesFn)
 
 declare function forwardTransformScopes(target: Hook, source: Hook): void;
 
-declare const getAuiMeta: <K extends ClientNames>(accessor: AssistantClientAccessor<K>) => AssistantClientAccessorMeta<K>;
-
 declare namespace entry_root_exports {
-  export { AssistantClient, AssistantClientAccessor, AssistantClientAccessorMeta, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantState, AuiIf, AuiProvider, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, Derived, DerivedElement, RenderChildrenWithAccessor, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, forwardTransformScopes, getAuiMeta, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useAui, useAuiEvent, useAuiState, useClientList, useClientLookup, useClientResource };
+  export { AssistantClient, AssistantClientAccessor, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantState, AuiIf, AuiProvider, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, Derived, DerivedElement, RenderChildrenWithAccessor, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, forwardTransformScopes, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useAui, useAuiEvent, useAuiState, useClientList, useClientLookup, useClientResource };
 }
 
 declare const normalizeEventSelector: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>) => {
