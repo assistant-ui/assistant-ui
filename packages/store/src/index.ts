@@ -16,6 +16,9 @@ export {
 } from "./attachTransformScopes";
 export type { ScopesConfig } from "./attachTransformScopes";
 
+// accessors
+export { getAuiMeta } from "./utils/client-accessor";
+
 // client hooks
 export {
   useAssistantClientRef,
@@ -37,6 +40,7 @@ export type {
   ClientElement,
   Unsubscribe,
   AssistantClientAccessor,
+  AssistantClientAccessorMeta,
   AssistantClient,
   AssistantState,
 } from "./types/client";

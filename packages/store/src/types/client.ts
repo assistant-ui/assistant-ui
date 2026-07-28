@@ -156,16 +156,24 @@ export type AssistantState = {
 };
 
 /**
- * Type for a client accessor - a function that returns the methods,
- * with source/query metadata attached (derived from meta).
+ * A bound client accessor: the property IS the bound client instance.
+ * Calling it remains supported for backwards compatibility.
  */
 export type AssistantClientAccessor<K extends ClientNames> =
-  (() => ClientSchemas[K]["methods"]) &
-    (
-      | ClientMeta<K>
-      | { source: "root"; query: Record<string, never> }
-      | { source: null; query: null }
-    ) & { name: K };
+  ClientSchemas[K]["methods"] & {
+    /** @deprecated Access the scope as a property instead: `aui.thread` in place of `aui.thread()`. */
+    (): ClientSchemas[K]["methods"];
+  };
+
+/**
+ * Selection metadata for a client accessor — how the bound instance was
+ * selected. Read it with `getAuiMeta(accessor)`.
+ */
+export type AssistantClientAccessorMeta<K extends ClientNames> = (
+  | ClientMeta<K>
+  | { source: "root"; query: Record<string, never> }
+  | { source: null; query: null }
+) & { name: K };
 
 /**
  * The assistant client type with all registered clients.

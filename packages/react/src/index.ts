@@ -7,6 +7,7 @@ export {
   useAuiState,
   useAuiEvent,
   AuiIf,
+  getAuiMeta,
   type AssistantClient,
   type AssistantState,
   type AssistantEventScope,
