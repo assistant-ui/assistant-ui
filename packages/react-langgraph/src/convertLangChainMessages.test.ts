@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
+import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
   convertLangChainMessages as convertLangChainMessagesImpl,
   getMessageContent,
@@ -917,5 +918,62 @@ describe("convertLangChainMessages tool call id stability", () => {
     expect(toolCallPart).toMatchObject({
       argsText: '{"url":"https://example.com"}',
     });
+  });
+});
+
+describe("convertLangChainMessages unknown message types", () => {
+  const call = (message: unknown) =>
+    (
+      convertLangChainMessagesImpl as unknown as (
+        message: unknown,
+        metadata: unknown,
+      ) => unknown
+    )(message, {});
+
+  it("returns an empty array for a type:remove message instead of undefined", () => {
+    const removeMessage = {
+      type: "remove",
+      id: "some-message-id",
+      content: [],
+      additional_kwargs: {},
+      response_metadata: {},
+    };
+
+    expect(call(removeMessage)).toEqual([]);
+  });
+
+  it("returns an empty array for any other unknown message type", () => {
+    expect(call({ type: "delete", id: "x" })).toEqual([]);
+  });
+
+  it("does not crash convertExternalMessages when a remove message reaches the converter", () => {
+    // The load/setMessages path bypasses the accumulator and can hand an
+    // unknown message type (e.g. a serialized RemoveMessage) straight to the
+    // converter. chunkExternalMessages must not read .role on undefined.
+    const result = (
+      convertExternalMessages as unknown as (
+        messages: unknown[],
+        callback: unknown,
+        isRunning: boolean,
+        metadata: unknown,
+      ) => Array<{ role?: string }>
+    )(
+      [
+        { id: "h-1", type: "human", content: "hi" },
+        {
+          type: "remove",
+          id: "ai-1",
+          content: [],
+          additional_kwargs: {},
+          response_metadata: {},
+        },
+      ],
+      convertLangChainMessagesImpl,
+      false,
+      {},
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.role).toBe("user");
   });
 });
