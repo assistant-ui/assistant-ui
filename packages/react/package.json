@@ -62,7 +62,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^1.0.0",
+    "@assistant-ui/core": "^0.3.0",
     "@assistant-ui/store": "^0.3.0",
     "@assistant-ui/tap": "^0.9.7",
     "@radix-ui/primitive": "^1.1.7",

@@ -1,6 +1,6 @@
 # @assistant-ui/react-streamdown
 
-## 1.0.0
+## 0.3.8
 
 ### Patch Changes
 

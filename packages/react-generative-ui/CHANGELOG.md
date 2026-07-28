@@ -1,6 +1,6 @@
 # @assistant-ui/react-generative-ui
 
-## 1.0.0
+## 0.0.10
 
 ### Patch Changes
 
