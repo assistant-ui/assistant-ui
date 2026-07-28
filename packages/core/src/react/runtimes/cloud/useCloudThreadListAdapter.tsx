@@ -52,10 +52,12 @@ export const useCloudThreadListAdapter = (
           return adapterRef.current.cloud ?? autoCloud!;
         },
       });
-      const cloudInstance = adapterRef.current.cloud ?? autoCloud!;
       const attachments = useMemo(
-        () => new CloudFileAttachmentAdapter(cloudInstance),
-        [cloudInstance],
+        () =>
+          new CloudFileAttachmentAdapter(
+            () => adapterRef.current.cloud ?? autoCloud!,
+          ),
+        [],
       );
 
       const adapters = useMemo(
