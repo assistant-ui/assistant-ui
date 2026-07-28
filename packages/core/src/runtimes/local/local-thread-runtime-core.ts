@@ -72,6 +72,27 @@ export class LocalThreadRuntimeCore
 
   private _historyWrites = new Map<string, Promise<void>>();
 
+  private _pendingAttachmentSend: Promise<void> | null = null;
+
+  // An optimistic attachment send holds the thread tail until its upload
+  // settles: a message sent meanwhile is appended immediately but must not
+  // persist or run ahead of the parent it was appended under.
+  private _chainAttachmentSend(work: () => Promise<void>): Promise<void> {
+    const previous = this._pendingAttachmentSend ?? Promise.resolve();
+    const next = previous.then(work, work);
+    const stored = next.then(
+      () => {},
+      () => {},
+    );
+    this._pendingAttachmentSend = stored;
+    void stored.then(() => {
+      if (this._pendingAttachmentSend === stored) {
+        this._pendingAttachmentSend = null;
+      }
+    });
+    return next;
+  }
+
   // Writes for one message id must land in issue order; an earlier paused
   // snapshot arriving after the terminal write would resurrect the pause.
   private _chainHistoryWrite(
@@ -306,8 +327,18 @@ export class LocalThreadRuntimeCore
       reason: "unknown",
     });
     this.repository.addOrUpdateMessage(message.parentId, newMessage);
+
+    const pendingAttachmentSend = this._pendingAttachmentSend;
+    if (pendingAttachmentSend) {
+      this._notifySubscribers();
+      await pendingAttachmentSend;
+    }
+
+    // A rolled back optimistic parent relinks its children, so the persisted
+    // parent is the one the repository ended up with, not the requested one.
+    const parentId = this.repository.getMessage(newMessage.id).parentId;
     this._options.adapters.history?.append({
-      parentId: message.parentId,
+      parentId,
       message: newMessage,
       ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
     });
@@ -342,36 +373,47 @@ export class LocalThreadRuntimeCore
     this.repository.addOrUpdateMessage(message.parentId, optimisticMessage);
     this._notifySubscribers();
 
-    let attachments: readonly CompleteAttachment[];
-    try {
-      if (initPromise) await initPromise;
-      attachments = await uploadAttachments();
-    } catch (e) {
-      this.repository.deleteMessage(optimisticMessage.id);
-      this._notifySubscribers();
-      throw e;
-    }
+    await this._chainAttachmentSend(async () => {
+      let attachments: readonly CompleteAttachment[];
+      try {
+        if (initPromise) await initPromise;
+        attachments = await uploadAttachments();
+      } catch (e) {
+        this.repository.deleteMessage(optimisticMessage.id);
+        this._notifySubscribers();
+        throw e;
+      }
 
-    const completedMessage = {
-      ...optimisticMessage,
-      attachments,
-    } as ThreadMessage;
-    this.repository.addOrUpdateMessage(message.parentId, completedMessage);
-    this._options.adapters.history?.append({
-      parentId: message.parentId,
-      message: completedMessage,
-      ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
+      const completedMessage = {
+        ...optimisticMessage,
+        attachments,
+      } as ThreadMessage;
+      const parentId = this.repository.getMessage(
+        optimisticMessage.id,
+      ).parentId;
+      this.repository.addOrUpdateMessage(parentId, completedMessage);
+      this._options.adapters.history?.append({
+        parentId,
+        message: completedMessage,
+        ...(message.runConfig !== undefined && {
+          runConfig: message.runConfig,
+        }),
+      });
     });
+
+    // A message sent during the upload already sits below this one and owns the
+    // run; a run parented here would branch the thread and hide it.
+    if (this.repository.headId !== optimisticMessage.id) return;
 
     const startRun = message.startRun ?? true;
     if (startRun) {
       await this.startRun({
-        parentId: completedMessage.id,
+        parentId: optimisticMessage.id,
         sourceId: message.sourceId,
         runConfig: message.runConfig ?? {},
       });
     } else {
-      this.repository.resetHead(completedMessage.id);
+      this.repository.resetHead(optimisticMessage.id);
       this._notifySubscribers();
     }
   }

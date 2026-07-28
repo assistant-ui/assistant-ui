@@ -265,6 +265,241 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     expect(runs).toHaveLength(0);
   });
 
+  it("keeps a message sent during the upload on the same branch and answers it once", async () => {
+    let resolveSend!: () => void;
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      },
+      {
+        attachments: createAttachmentAdapter(
+          (attachment) =>
+            new Promise<CompleteAttachment>((resolve) => {
+              resolveSend = () =>
+                resolve({
+                  ...attachment,
+                  status: { type: "complete" },
+                  content: [{ type: "text", text: "uploaded" }],
+                });
+            }),
+        ),
+      },
+    );
+
+    thread.composer.setText("with attachment");
+    await thread.composer.addAttachment(textFile());
+    const sendPromise = thread.composer.send();
+
+    thread.composer.setText("sent while uploading");
+    const secondSendPromise = thread.composer.send();
+    await flush();
+
+    expect(thread.messages.map((m) => m.content)).toEqual([
+      [{ type: "text", text: "with attachment" }],
+      [{ type: "text", text: "sent while uploading" }],
+    ]);
+    expect(runs).toHaveLength(0);
+
+    resolveSend();
+    await sendPromise;
+    await secondSendPromise;
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    expect(thread.messages).toHaveLength(3);
+    expect(thread.messages.map((m) => m.role)).toEqual([
+      "user",
+      "user",
+      "assistant",
+    ]);
+    expect(thread.messages[0]?.attachments?.[0]?.status).toEqual({
+      type: "complete",
+    });
+    const runMessages = runs[0]!.messages;
+    expect(runMessages.map((m) => m.role)).toEqual(["user", "user"]);
+    expect(runMessages[0]?.attachments?.[0]?.status).toEqual({
+      type: "complete",
+    });
+  });
+
+  it("persists the uploading message before the message sent during its upload", async () => {
+    const appended: ExportedMessageRepositoryItem[] = [];
+    let resolveSend!: () => void;
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      },
+      {
+        attachments: createAttachmentAdapter(
+          (attachment) =>
+            new Promise<CompleteAttachment>((resolve) => {
+              resolveSend = () =>
+                resolve({
+                  ...attachment,
+                  status: { type: "complete" },
+                  content: [],
+                });
+            }),
+        ),
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append(item: ExportedMessageRepositoryItem) {
+            appended.push(item);
+          },
+        },
+      },
+    );
+
+    thread.composer.setText("with attachment");
+    await thread.composer.addAttachment(textFile());
+    const sendPromise = thread.composer.send();
+
+    thread.composer.setText("sent while uploading");
+    const secondSendPromise = thread.composer.send();
+    await flush();
+
+    expect(appended).toHaveLength(0);
+
+    resolveSend();
+    await sendPromise;
+    await secondSendPromise;
+    await flush();
+
+    const seen = new Set<string>();
+    for (const item of appended) {
+      expect(item.parentId === null || seen.has(item.parentId)).toBe(true);
+      seen.add(item.message.id);
+    }
+    expect(appended.map((i) => i.message.role)).toEqual([
+      "user",
+      "user",
+      "assistant",
+    ]);
+    expect(appended[0]?.message.id).toBe(thread.messages[0]?.id);
+  });
+
+  it("reparents a message sent during a failed upload instead of orphaning it", async () => {
+    const appended: ExportedMessageRepositoryItem[] = [];
+    let rejectSend!: (error: Error) => void;
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      },
+      {
+        attachments: createAttachmentAdapter(
+          () =>
+            new Promise<CompleteAttachment>((_resolve, reject) => {
+              rejectSend = reject;
+            }),
+        ),
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append(item: ExportedMessageRepositoryItem) {
+            appended.push(item);
+          },
+        },
+      },
+    );
+
+    thread.composer.setText("with attachment");
+    await thread.composer.addAttachment(textFile());
+    const sendPromise = thread.composer.send();
+
+    thread.composer.setText("sent while uploading");
+    const secondSendPromise = thread.composer.send();
+    await flush();
+
+    rejectSend(new Error("upload failed"));
+    await expect(sendPromise).rejects.toThrow("upload failed");
+    await secondSendPromise;
+    await flush();
+
+    expect(thread.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(appended.map((i) => i.parentId)).toEqual([
+      null,
+      thread.messages[0]?.id,
+    ]);
+  });
+
+  it("holds the draft back until every attachment upload settles", async () => {
+    let rejectFirst!: (error: Error) => void;
+    let resolveSecond!: () => void;
+    let added = 0;
+    const sends: string[] = [];
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      },
+      {
+        attachments: {
+          accept: "*",
+          add: async ({
+            file,
+          }: {
+            file: File;
+          }): Promise<PendingAttachment> => ({
+            id: `att-${++added}`,
+            type: "document",
+            name: file.name,
+            contentType: file.type,
+            file,
+            status: { type: "requires-action", reason: "composer-send" },
+          }),
+          remove: async () => {},
+          send: (attachment) => {
+            sends.push(attachment.id);
+            if (attachment.id === "att-1") {
+              return new Promise<CompleteAttachment>((_resolve, reject) => {
+                rejectFirst = reject;
+              });
+            }
+            return new Promise<CompleteAttachment>((resolve) => {
+              resolveSecond = () =>
+                resolve({
+                  ...attachment,
+                  status: { type: "complete" },
+                  content: [],
+                });
+            });
+          },
+        },
+      },
+    );
+
+    thread.composer.setText("two files");
+    await thread.composer.addAttachment(textFile());
+    await thread.composer.addAttachment(textFile());
+    const sendPromise = thread.composer.send();
+
+    rejectFirst(new Error("upload failed"));
+    await flush();
+
+    expect(thread.messages).toHaveLength(0);
+    expect(thread.composer.attachments).toHaveLength(0);
+    expect(thread.composer.canSend).toBe(false);
+
+    resolveSecond();
+    await expect(sendPromise).rejects.toThrow("upload failed");
+
+    expect(thread.composer.attachments).toHaveLength(2);
+    expect(thread.composer.text).toBe("two files");
+    expect(sends).toEqual(["att-1", "att-2"]);
+  });
+
   it("keeps the optimistic message visible while thread initialization is pending", async () => {
     let resolveInit!: () => void;
     let resolveSend!: () => void;

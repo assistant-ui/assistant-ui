@@ -214,7 +214,7 @@ export abstract class BaseComposerRuntimeCore
     ) {
       return this._sendOptimistic(
         options,
-        Promise.all(attachmentTasks),
+        attachmentTasks,
         originalAttachments,
         text,
         quote,
@@ -297,11 +297,12 @@ export abstract class BaseComposerRuntimeCore
 
   private async _sendOptimistic(
     options: SendOptions | undefined,
-    uploadTask: Promise<CompleteAttachment[]>,
+    attachmentTasks: readonly Promise<CompleteAttachment>[],
     originalAttachments: readonly Attachment[],
     text: string,
     quote: QuoteInfo | undefined,
   ) {
+    const uploadTask = Promise.all(attachmentTasks);
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
       role: this.role,
@@ -322,6 +323,11 @@ export abstract class BaseComposerRuntimeCore
     try {
       await uploadTask;
     } catch (e) {
+      // Promise.all rejects on the first failure while sibling uploads from
+      // this batch keep running; restoring the draft earlier would let a retry
+      // re-send an attachment that is still in flight.
+      await Promise.allSettled(attachmentTasks);
+
       // A reset or a newer send during the upload owns the composer now; the
       // discarded draft must not overwrite it.
       if (

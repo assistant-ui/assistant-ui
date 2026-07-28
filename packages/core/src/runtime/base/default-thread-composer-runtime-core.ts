@@ -137,13 +137,11 @@ export class DefaultThreadComposerRuntimeCore
       return this.runtime.append(appendMessage);
     }
 
-    const startRun = appendMessage.startRun ?? appendMessage.role === "user";
-    if (
-      appendMessage.role === "user" &&
-      (!this.runtime.capabilities.queue || !startRun) &&
-      this.runtime.__internal_appendOptimisticAttachmentSend
-    ) {
-      return this.runtime.__internal_appendOptimisticAttachmentSend(
+    const appendOptimistic =
+      this.runtime.__internal_appendOptimisticAttachmentSend;
+    if (appendOptimistic) {
+      return appendOptimistic.call(
+        this.runtime,
         appendMessage,
         uploadAttachments,
       );
