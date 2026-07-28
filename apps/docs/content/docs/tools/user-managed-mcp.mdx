@@ -179,7 +179,7 @@ The iteration primitives wrap each item in an `McpServerByIdProvider`, so the ne
 </McpAddFormPrimitive.Root>
 ```
 
-The form owns its own draft state and submits via `aui.mcp().addCustomServer(...)`. Pass a render function to `AuthFields` to fully customize it.
+The form owns its own draft state and submits via `aui.mcp.addCustomServer(...)`. Pass a render function to `AuthFields` to fully customize it.
 
 </Step>
 <Step>
@@ -236,7 +236,7 @@ If no chat runtime is mounted, `McpManagerResource` brings its own minimal `mode
 ```ts
 // In an event handler, never in render.
 const aui = useAui();
-const out = await aui.mcp().server({ id: "linear" }).callTool("search", { q });
+const out = await aui.mcp.server({ id: "linear" }).callTool("search", { q });
 ```
 
 </Step>
@@ -312,9 +312,9 @@ Imperative methods: `useAui` + resolve in a callback (never during render):
 const aui = useAui();
 
 // inside an event handler:
-await aui.mcp().addCustomServer({ name, url, auth: { type: "bearer", token } });
-await aui.mcp().server({ id }).connect();
-await aui.mcp().server({ id }).callTool("echo", { text: "hi" });
+await aui.mcp.addCustomServer({ name, url, auth: { type: "bearer", token } });
+await aui.mcp.server({ id }).connect();
+await aui.mcp.server({ id }).callTool("echo", { text: "hi" });
 
 // Build a paginated resource browser/preview UI.
 type ResourcePage = {
@@ -322,7 +322,7 @@ type ResourcePage = {
   nextCursor?: string;
 };
 
-const server = aui.mcp().server({ id });
+const server = aui.mcp.server({ id });
 const resources: ResourcePage["resources"] = [];
 let nextCursor: string | undefined;
 

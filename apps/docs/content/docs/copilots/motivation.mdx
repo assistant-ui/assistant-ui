@@ -158,7 +158,7 @@ function SmartTransactionHistory({ userProfile }) {
   const aui = useAui();
 
   useEffect(() => {
-    return aui.modelContext().register({
+    return aui.modelContext.register({
       getModelContext: () => ({
         system: `
           User spending patterns:

@@ -618,7 +618,7 @@ function MyRuntimeProvider({ children }) {
 
 `load` is called when the adapter is attached and may be async. Loaded state seeds interactables as they register; a local edit made while a slow `load` is still in flight wins over the loaded value. Thread-scoped interactables are not touched by the adapter; they persist via thread history.
 
-For dynamic setups (an adapter that depends on auth), call `aui.interactables().setPersistenceAdapter(adapter)` imperatively instead.
+For dynamic setups (an adapter that depends on auth), call `aui.interactables.setPersistenceAdapter(adapter)` imperatively instead.
 
 ### Sync Status
 
@@ -640,10 +640,10 @@ State changes are automatically debounced (500ms) before saving. When the owning
 For custom persistence strategies, use `exportState` and `importState` directly:
 
 ```tsx
-const snapshot = aui.interactables().exportState();
+const snapshot = aui.interactables.exportState();
 // => { "note-1": { name: "note", state: { title: "Hello" } }, ... }
 
-aui.interactables().importState(snapshot);
+aui.interactables.importState(snapshot);
 // Imported state is picked up when components next register
 ```
 

@@ -99,7 +99,7 @@ attachTransformScopes(ThreadResource, (scopes) => {
   scopes.composer ??= Derived({
     source: "thread",
     query: {},
-    get: (aui) => aui.thread().composer(),
+    get: (aui) => aui.thread.composer(),
   });
 });
 ```

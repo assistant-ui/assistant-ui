@@ -72,7 +72,7 @@ Renders children only when the condition returns `true`. Uses `useAuiState` inte
 
 ```tsx
 <RenderChildrenWithAccessor
-  getItemState={(aui) => aui.todoList().todo({ index }).getState()}
+  getItemState={(aui) => aui.todoList.todo({ index }).getState()}
 >
   {(getItem) =>
     children({
@@ -109,7 +109,7 @@ Creates a derived scope that points to data in a parent scope.
 Derived({
   source: "thread",
   query: { index: 0 },
-  get: (aui) => aui.thread().message({ index: 0 }),
+  get: (aui) => aui.thread.message({ index: 0 }),
 });
 ```
 
@@ -291,7 +291,7 @@ type AssistantClientAccessor<K extends ClientNames> =
   { name: K };
 ```
 
-A scope accessor. Call it (`aui.counter()`) to resolve the scope's methods. Read `.source`, `.query`, and `.name` for metadata.
+A scope accessor exposing the scope's methods as properties (`aui.counter.increment()`). Read `.source`, `.query`, and `.name` for metadata. The call signature (`aui.counter()`) is deprecated and returns the same accessor.
 
 ### AssistantState
 

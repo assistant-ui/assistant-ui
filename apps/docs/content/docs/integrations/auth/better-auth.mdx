@@ -22,7 +22,7 @@ Three integration points:
 
 1. **Auth handlers** mounted at `/api/auth/[...all]/route.ts` via `toNextJsHandler(auth)`.
 2. **API routes** read the session server-side with `auth.api.getSession({ headers: await headers() })`.
-3. **Reload-on-auth** uses better-auth's React client to detect sign-in and trigger `aui.threads().reload()`.
+3. **Reload-on-auth** uses better-auth's React client to detect sign-in and trigger `aui.threads.reload()`.
 
 `session.user.id` is exposed on the session object directly, so route handlers can scope queries against it.
 
@@ -136,7 +136,7 @@ export function ReloadOnAuth() {
   const aui = useAui();
   const { data: session, isPending } = authClient.useSession();
   useEffect(() => {
-    if (!isPending && session) aui.threads().reload();
+    if (!isPending && session) aui.threads.reload();
   }, [isPending, session?.user?.id]);
   return null;
 }

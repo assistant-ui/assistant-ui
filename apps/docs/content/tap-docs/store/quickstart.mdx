@@ -93,7 +93,7 @@ export const CounterDisplay = () => {
   return (
     <div>
       <p>Count: {count}</p>
-      <button onClick={() => aui.counter().increment()}>+</button>
+      <button onClick={() => aui.counter.increment()}>+</button>
     </div>
   );
 };
@@ -101,7 +101,7 @@ export const CounterDisplay = () => {
 
 `useAuiState((s) => s.counter.count)` subscribes to just the `count` value, so the component only re-renders when it changes.
 
-`aui.counter()` returns the methods object, so `aui.counter().increment()` calls the `increment` method you defined in the resource.
+`aui.counter` exposes the scope's methods, so `aui.counter.increment()` calls the `increment` method you defined in the resource.
 
 ## Next steps
 
