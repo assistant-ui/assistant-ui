@@ -276,20 +276,37 @@ const parseTaskResponse = (
 const isNonNegativeInteger = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= 0;
 
-const isListTasksResponse = (value: unknown): value is A2AListTasksResponse =>
-  isRecord(value) &&
-  Array.isArray(value.tasks) &&
-  value.tasks.every(isTask) &&
-  typeof value.nextPageToken === "string" &&
-  isNonNegativeInteger(value.pageSize) &&
-  isNonNegativeInteger(value.totalSize);
-
-const parseListTasksResponse = (value: unknown): A2AListTasksResponse => {
-  if (isListTasksResponse(value)) return value;
-
+const invalidListTasksResponse = (): never => {
   throw new Error(
     "Invalid A2A tasks:list response: expected a valid task list payload.",
   );
+};
+
+const parseListTasksResponse = (value: unknown): A2AListTasksResponse => {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.tasks) ||
+    !value.tasks.every(isTask)
+  ) {
+    return invalidListTasksResponse();
+  }
+
+  const { nextPageToken, pageSize, totalSize } = value;
+  if (
+    (nextPageToken != null && typeof nextPageToken !== "string") ||
+    (pageSize != null && !isNonNegativeInteger(pageSize)) ||
+    (totalSize != null && !isNonNegativeInteger(totalSize))
+  ) {
+    return invalidListTasksResponse();
+  }
+
+  return {
+    ...value,
+    tasks: value.tasks,
+    nextPageToken: nextPageToken ?? "",
+    pageSize: pageSize ?? 0,
+    totalSize: totalSize ?? 0,
+  };
 };
 
 function signalInit(signal?: AbortSignal): RequestInit {

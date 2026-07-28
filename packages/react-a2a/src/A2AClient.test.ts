@@ -782,6 +782,31 @@ describe("A2AClient", () => {
         "Invalid A2A tasks:list response: expected a valid task list payload.",
       );
     });
+
+    it("normalizes omitted pagination defaults", async () => {
+      const tasks = [{ id: "t1", status: { state: "completed" } }];
+      fetchMock.mockResolvedValue(mockFetchResponse({ tasks }));
+
+      await expect(client.listTasks()).resolves.toEqual({
+        tasks,
+        nextPageToken: "",
+        pageSize: 0,
+        totalSize: 0,
+      });
+    });
+
+    it("rejects malformed pagination fields", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          tasks: [],
+          nextPageToken: 42,
+        }),
+      );
+
+      await expect(client.listTasks()).rejects.toThrow(
+        "Invalid A2A tasks:list response: expected a valid task list payload.",
+      );
+    });
   });
 
   // --- cancelTask ---
