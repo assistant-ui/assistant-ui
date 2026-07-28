@@ -1,5 +1,4 @@
 import { resource, type ResourceElement } from "@assistant-ui/tap";
-import { useEffect, useRef } from "react";
 import type {
   AssistantClient,
   ClientNames,
@@ -16,30 +15,12 @@ type DerivedInstance<K extends ClientNames> = ReturnType<
 >;
 
 // Identified by splitClients via `hook === useDerived`. Mounted by useAui's
-// derived resolver: the selector resolves under subscription, and a stale
-// scope keeps its committed instance until the parent reconciles it away.
+// derived resolver: the selector resolves under subscription.
 export const useDerived = <K extends ClientNames>({
   get,
 }: Derived.Props<K>): DerivedInstance<K> => {
   const aui = useAui();
-  const boundRef = useRef<DerivedInstance<K> | null>(null);
-
-  const instance = useAuiState(() => {
-    const bound = boundRef.current;
-    if (!bound) return get(aui);
-    try {
-      return get(aui);
-    } catch {
-      return bound;
-    }
-  });
-
-  if (boundRef.current === null) boundRef.current = instance;
-  useEffect(() => {
-    boundRef.current = instance;
-  });
-
-  return instance;
+  return useAuiState(() => get(aui));
 };
 
 /**

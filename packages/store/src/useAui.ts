@@ -352,6 +352,12 @@ const createResolutionClient = (
   return client;
 };
 
+// Constant bailout deps: a scope's fiber re-renders only when its own
+// subscription fires or the resolution client changes. A bailed-out render
+// serves the committed accessor, which is what keeps a stale leaf readable
+// until the parent reconciles it away.
+const DERIVED_DEPS: readonly unknown[] = [];
+
 const useDerivedAccessors = (clients: DerivedClients) => {
   return useShallowMemoArray(
     useResources(
@@ -361,6 +367,7 @@ const useDerivedAccessors = (clients: DerivedClients) => {
         return withKey(
           serializeMeta(name, element.args[0] as AnyDerivedMeta),
           DerivedClientAccessorResource({ element, name }),
+          DERIVED_DEPS,
         );
       }),
     ),
@@ -376,7 +383,21 @@ const useDerivedClientsAccessorsResource = ({
   parent: AssistantClient;
   rootFields: RootFields;
 }) => {
-  const resolutionClient = createResolutionClient(parent, rootFields, clients);
+  const bindingKey = Object.keys(clients)
+    .map((key) =>
+      serializeMeta(
+        key as ClientNames,
+        clients[key as keyof typeof clients]!.args[0] as AnyDerivedMeta,
+      ),
+    )
+    .join("\n");
+
+  const resolutionClient = useMemo(
+    () => createResolutionClient(parent, rootFields, clients),
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- clients is keyed by bindingKey; each get is pinned by its meta
+    [parent, rootFields, bindingKey],
+  );
+
   return useAssistantContextProvider(
     resolutionClient,
     function WithResolutionClient() {

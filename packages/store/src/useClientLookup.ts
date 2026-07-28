@@ -52,9 +52,7 @@ export function useClientLookup<TMethods extends ClientMethods>(
       if ("index" in lookup) {
         if (lookup.index < 0 || lookup.index >= keys.length) {
           throw new Error(
-            `useClientLookup: index ${lookup.index} out of bounds (length: ${keys.length}). ` +
-              `If this appears as a recoverable error (the UI kept working), React retried the render and it can be ignored; ` +
-              `if it crashed an error boundary, the parent rendered an index the state does not have.`,
+            `useClientLookup: index ${lookup.index} out of bounds (length: ${keys.length}) (ignore if recovered)`,
           );
         }
         return resources[lookup.index]!.methods;
@@ -62,7 +60,9 @@ export function useClientLookup<TMethods extends ClientMethods>(
 
       const index = keyToIndex[lookup.key];
       if (index === undefined) {
-        throw new Error(`useClientLookup: Key "${lookup.key}" not found`);
+        throw new Error(
+          `useClientLookup: key "${lookup.key}" not found (ignore if recovered)`,
+        );
       }
       return resources[index]!.methods;
     },

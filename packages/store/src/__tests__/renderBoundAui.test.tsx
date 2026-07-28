@@ -3,7 +3,7 @@
 import type { FC, ReactNode } from "react";
 import { Component, useEffect, useState } from "react";
 import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource, withKey } from "@assistant-ui/tap";
 import { AuiProvider } from "../utils/react-assistant-context";
 import { useAui } from "../useAui";
@@ -175,18 +175,25 @@ describe("render-bound aui", () => {
       );
     };
 
-    const view = render(<StaleApp />);
-    expect(probe.text).toBe("text-b");
-    const prevInstance = probe.instance;
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const view = render(<StaleApp />);
+      expect(probe.text).toBe("text-b");
+      const prevInstance = probe.instance;
 
-    // The leaf stays mounted while its index no longer exists; the store
-    // subscriber re-renders it inside the shrink window, and again after.
-    act(() => harness.setIds!(["a"]));
-    act(() => probe.bump!());
+      // The leaf stays mounted while its index no longer exists; the store
+      // subscriber re-renders it inside the shrink window, and again after.
+      act(() => harness.setIds!(["a"]));
+      act(() => probe.bump!());
 
-    expect(view.queryByTestId("leaf-error")).toBeNull();
-    expect(probe.instance).toBe(prevInstance);
-    expect(probe.text).toBe("text-b");
+      expect(view.queryByTestId("leaf-error")).toBeNull();
+      expect(probe.instance).toBe(prevInstance);
+      expect(probe.text).toBe("text-b");
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("throws at bind time for an index that was never valid", () => {
