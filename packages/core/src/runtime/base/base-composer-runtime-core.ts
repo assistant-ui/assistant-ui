@@ -330,14 +330,16 @@ export abstract class BaseComposerRuntimeCore
 
       // A reset or a newer send during the upload owns the composer now; the
       // discarded draft must not overwrite it.
-      if (
-        generation === this._sendGeneration &&
-        this.isEmpty &&
-        this._quote === undefined
-      ) {
-        this._attachments = originalAttachments;
-        this._text = text;
-        this._quote = quote;
+      if (generation === this._sendGeneration) {
+        const currentIds = new Set(this._attachments.map((a) => a.id));
+        this._attachments = [
+          ...originalAttachments.filter((a) => !currentIds.has(a.id)),
+          ...this._attachments,
+        ];
+        if (!this._text.trim() && this._quote === undefined) {
+          this._text = text;
+          this._quote = quote;
+        }
         this._notifySubscribers();
       }
       throw e;

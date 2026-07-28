@@ -17,7 +17,10 @@ import type {
   GenerativeUIMessagePart,
   Unstable_AudioMessagePart,
 } from "../../types/message";
-import type { Attachment } from "../../types/attachment";
+import type {
+  CompleteAttachment,
+  PendingAttachment,
+} from "../../types/attachment";
 import type {
   MessageTiming,
   PartProviderMetadata,
@@ -78,11 +81,19 @@ export type ThreadMessageLike = {
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
   readonly attachments?:
-    | readonly (Omit<Attachment, "content"> & {
-        readonly content?:
-          | readonly (ThreadUserMessagePart | DataPrefixedPart)[]
-          | undefined;
-      })[]
+    | readonly (
+        | (Omit<PendingAttachment, "content"> & {
+            readonly content?:
+              | readonly (ThreadUserMessagePart | DataPrefixedPart)[]
+              | undefined;
+          })
+        | (Omit<CompleteAttachment, "content"> & {
+            readonly content: readonly (
+              | ThreadUserMessagePart
+              | DataPrefixedPart
+            )[];
+          })
+      )[]
     | undefined;
   readonly metadata?:
     | {
@@ -256,19 +267,18 @@ export const fromThreadMessageLike = (
             }
           }
         }),
-        attachments: (attachments ?? []).map((att) => {
-          if (att.status.type !== "complete") return att;
-          return {
-            ...att,
-            content: (att.content ?? []).map((part): ThreadUserMessagePart => {
+        attachments: (attachments ?? []).map((att) => ({
+          ...att,
+          ...(att.content !== undefined && {
+            content: att.content.map((part): ThreadUserMessagePart => {
               const converted = convertDataPrefixedPart(
                 part.type,
                 (part as DataPrefixedPart).data,
               );
               return converted ?? (part as ThreadUserMessagePart);
             }),
-          };
-        }) as unknown as ThreadUserMessage["attachments"],
+          }),
+        })) as unknown as ThreadUserMessage["attachments"],
         metadata: {
           custom: metadata?.custom ?? {},
           ...(metadata?.isOptimistic && { isOptimistic: true }),

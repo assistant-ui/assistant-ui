@@ -669,7 +669,16 @@ describe("BaseComposerRuntimeCore.send optimistic dispatch", () => {
 
   it("restores the draft when an optimistic upload fails", async () => {
     let rejectSend!: (e: Error) => void;
+    let added = 0;
     const adapter = makeAdapter({
+      add: async ({ file }: { file: File }): Promise<PendingAttachment> => ({
+        id: `att-${++added}`,
+        type: "image",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
       send: () =>
         new Promise((_resolve, reject) => {
           rejectSend = reject;
@@ -684,13 +693,16 @@ describe("BaseComposerRuntimeCore.send optimistic dispatch", () => {
     const originalAttachments = composer.attachments;
 
     const sendPromise = composer.send();
+    composer.setText("next draft");
+    await composer.addAttachment(textFile());
     rejectSend(new Error("upload failed"));
 
     await expect(sendPromise).rejects.toThrow("upload failed");
 
     expect(optimisticSend).toHaveBeenCalledTimes(1);
-    expect(composer.text).toBe("hello");
-    expect(composer.attachments).toEqual(originalAttachments);
+    expect(composer.text).toBe("next draft");
+    expect(composer.attachments.map((a) => a.id)).toEqual(["att-1", "att-2"]);
+    expect(composer.attachments[0]).toBe(originalAttachments[0]);
   });
 
   it("skips the optimistic path when the queue capability is enabled", async () => {

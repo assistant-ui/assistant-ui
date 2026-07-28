@@ -97,6 +97,33 @@ describe("fromThreadMessageLike", () => {
       expect(userMsg.attachments[0].type).toBe("data-workflow");
     });
 
+    it("converts data-* parts while an attachment is pending", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+          attachments: [
+            {
+              id: "att-1",
+              type: "data-workflow",
+              name: "My Workflow",
+              status: { type: "requires-action", reason: "composer-send" },
+              file: new File(["content"], "workflow.json"),
+              content: [{ type: "data-workflow", data: { id: "wf-1" } }],
+            },
+          ],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.role).toBe("user");
+      const userMsg = result as any;
+      expect(userMsg.attachments[0].content).toEqual([
+        { type: "data", name: "workflow", data: { id: "wf-1" } },
+      ]);
+    });
+
     it("throws on unknown non-data user part types", () => {
       expect(() =>
         fromThreadMessageLike(

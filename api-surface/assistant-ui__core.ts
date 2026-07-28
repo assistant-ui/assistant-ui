@@ -1444,7 +1444,7 @@ declare class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   });
   get parentId(): string | null;
   get sourceId(): string | null;
-  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions, uploadAttachments?: () => Promise<readonly CompleteAttachment[]>): Promise<void>;
+  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): Promise<void>;
   handleCancel(): void;
 }
 
@@ -4521,9 +4521,11 @@ type ThreadMessageLike = {
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
-  readonly attachments?: readonly (Omit<Attachment, "content"> & {
+  readonly attachments?: readonly ((Omit<PendingAttachment, "content"> & {
     readonly content?: readonly (ThreadUserMessagePart | DataPrefixedPart)[] | undefined;
-  })[] | undefined;
+  }) | (Omit<CompleteAttachment, "content"> & {
+    readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
+  }))[] | undefined;
   readonly metadata?: {
     readonly unstable_state?: ReadonlyJSONValue;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
