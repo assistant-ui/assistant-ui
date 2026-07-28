@@ -1,14 +1,11 @@
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
-    DataChunk,
-    ErrorChunk,
     ReasoningDeltaChunk,
     SourceChunk,
     TextDeltaChunk,
     ToolCallBeginChunk,
     ToolCallDeltaChunk,
     ToolResultChunk,
-    UpdateStateChunk,
 )
 from assistant_stream.serialization.assistant_stream_response import (
     AssistantStreamResponse,
