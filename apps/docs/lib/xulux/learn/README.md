@@ -4,14 +4,19 @@ Learn Mode is a fixed, two-step prototype course backed by canonical lesson and
 project files. It intentionally replaces the larger `S0`–`S7` concept with the
 registered `P0` and `P1` stages while the product flow is validated.
 
-The dedicated `/api/xulux/learn/chat` endpoint uses a course-guide persona and
-registers only `getNextCourseStep`; Playground template, docs, source-map, and
-client tools are not part of its inventory. The request sends only `courseId`,
+The `/api/xulux/learn/chat` route binds the Learn agent directly instead of
+deriving an agent mode from the request pathname. App Builder and Learn use the
+same request handler and share documentation and repository-source helpers. App
+Builder preserves browser-supplied frontend tools and adds template tools;
+Learn adds `getNextCourseStep` and does not accept frontend tools. Learn source
+tools expose the assistant-ui monorepo as `repo` and the
+validated selected course stage as `course`. The request sends only `courseId`,
 status, current step, and selected step. The Learn agent decides when Start or
-Continue intent requires the tool, and the route stops after its first course
-tool result so a turn cannot advance twice. Normal questions are answered
-without a tool call. The tool reads lessons and stages from the generated source
-snapshot and returns a validated product-owned result.
+Continue intent requires the course tool, and later model steps may use docs
+and source tools but cannot call the course tool again. Normal questions can
+therefore inspect `/course` without advancing. The course tool reads lessons
+and stages from the generated source snapshot and returns a validated
+product-owned result.
 
 Preview, source, diff, and ZIP downloads all resolve through the course
 registry. Local storage persists the one course thread, current versus selected

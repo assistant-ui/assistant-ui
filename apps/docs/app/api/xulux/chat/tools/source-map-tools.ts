@@ -35,6 +35,10 @@ function loadSourceSnapshot(): Record<string, string> {
 
 const SOURCE_SNAPSHOT = loadSourceSnapshot();
 
+export function getRepoSourceSnapshot() {
+  return SOURCE_SNAPSHOT;
+}
+
 export function createSourceMapTools() {
   let bashToolkitPromise: Promise<
     Awaited<ReturnType<typeof createBashTool>>
