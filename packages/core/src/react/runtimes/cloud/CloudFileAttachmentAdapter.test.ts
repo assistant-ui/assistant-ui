@@ -124,4 +124,24 @@ describe("CloudFileAttachmentAdapter", () => {
       "Attachment not uploaded",
     );
   });
+
+  it("rejects attachments uploaded with a different Cloud client", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    const firstCloud = makeCloud();
+    const secondCloud = makeCloud();
+    let cloud = firstCloud;
+    const adapter = new CloudFileAttachmentAdapter(() => cloud);
+
+    const yields = await drain(adapter);
+    expect(yields.at(-1)?.status).toEqual({
+      type: "requires-action",
+      reason: "composer-send",
+    });
+
+    cloud = secondCloud;
+
+    await expect(adapter.send(yields.at(-1)!)).rejects.toThrow(
+      "Attachment was uploaded with a different Cloud client. Remove it and upload it again.",
+    );
+  });
 });

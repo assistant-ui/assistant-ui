@@ -27,7 +27,10 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     this.getCloud = typeof cloud === "function" ? cloud : () => cloud;
   }
 
-  private uploadedUrls = new Map<string, string>();
+  private uploadedUrls = new Map<
+    string,
+    { url: string; cloud: AssistantCloud }
+  >();
 
   public async *add({
     file,
@@ -47,8 +50,9 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     yield attachment;
 
     try {
+      const cloud = this.getCloud();
       const { signedUrl, publicUrl } =
-        await this.getCloud().files.generatePresignedUploadUrl({
+        await cloud.files.generatePresignedUploadUrl({
           filename: file.name,
         });
       const res = await fetch(signedUrl, {
@@ -64,7 +68,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
           `Failed to upload file: ${res.status} ${res.statusText}`,
         );
       }
-      this.uploadedUrls.set(id, publicUrl);
+      this.uploadedUrls.set(id, { url: publicUrl, cloud });
       attachment = {
         ...attachment,
         status: { type: "requires-action", reason: "composer-send" },
@@ -91,18 +95,25 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   public async send(
     attachment: PendingAttachment,
   ): Promise<CompleteAttachment> {
-    const url = this.uploadedUrls.get(attachment.id);
-    if (!url) throw new Error("Attachment not uploaded");
+    const uploaded = this.uploadedUrls.get(attachment.id);
+    if (!uploaded) throw new Error("Attachment not uploaded");
     this.uploadedUrls.delete(attachment.id);
+    if (uploaded.cloud !== this.getCloud()) {
+      throw new Error(
+        "Attachment was uploaded with a different Cloud client. Remove it and upload it again.",
+      );
+    }
 
     let content: ThreadUserMessagePart[];
     if (attachment.type === "image") {
-      content = [{ type: "image", image: url, filename: attachment.name }];
+      content = [
+        { type: "image", image: uploaded.url, filename: attachment.name },
+      ];
     } else {
       content = [
         {
           type: "file",
-          data: url,
+          data: uploaded.url,
           mimeType: attachment.contentType ?? "",
           filename: attachment.name,
         },

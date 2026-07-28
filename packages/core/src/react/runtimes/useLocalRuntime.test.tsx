@@ -71,10 +71,13 @@ describe("useLocalRuntime", () => {
     const firstCloud = makeCloud();
     const secondCloud = makeCloud();
     let addAttachment: ((file: File) => Promise<void>) | undefined;
+    let getAttachmentStatus: (() => unknown) | undefined;
 
     const App = ({ cloud }: { cloud: AssistantCloud }) => {
       const runtime = useLocalRuntime(chatModel, { cloud });
       addAttachment = (file) => runtime.thread.composer.addAttachment(file);
+      getAttachmentStatus = () =>
+        runtime.thread.composer.getState().attachments[0]?.status;
       return (
         <AssistantRuntimeProvider runtime={runtime}>
           <div />
@@ -101,6 +104,10 @@ describe("useLocalRuntime", () => {
 
     expect(firstCloud.files.generatePresignedUploadUrl).not.toHaveBeenCalled();
     expect(secondCloud.files.generatePresignedUploadUrl).toHaveBeenCalledOnce();
+    expect(getAttachmentStatus!()).toEqual({
+      type: "requires-action",
+      reason: "composer-send",
+    });
   });
 
   it("handles rejected history loads", async () => {
