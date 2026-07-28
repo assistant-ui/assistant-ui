@@ -3066,9 +3066,6 @@ importers:
 
   examples/with-store:
     dependencies:
-      '@assistant-ui/react':
-        specifier: workspace:*
-        version: link:../../packages/react
       '@assistant-ui/store':
         specifier: workspace:*
         version: link:../../packages/store
@@ -3094,9 +3091,6 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4.3.3
         version: 4.3.3
-      '@testing-library/react':
-        specifier: ^16.3.2
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@types/node':
         specifier: ^26.1.1
         version: 26.1.1
@@ -3106,9 +3100,6 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
-      jsdom:
-        specifier: ^29.1.1
-        version: 29.1.1
       postcss:
         specifier: ^8.5.23
         version: 8.5.23
@@ -3124,9 +3115,6 @@ importers:
       typescript-7:
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
-      vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.1)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
 
   examples/with-tanstack:
     dependencies:
