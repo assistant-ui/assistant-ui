@@ -1300,9 +1300,9 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   handleCancel(): Promise<void>;
 }
 
-type DerivedElement<K extends ClientNames> = ResourceElement<{
-  [derivedKey]: K;
-}>;
+type DerivedElement<K extends ClientNames> = ResourceElement<DerivedInstance<K>>;
+
+type DerivedInstance<K extends ClientNames> = ReturnType<AssistantClientAccessor<K>>;
 
 declare namespace DictationAdapter {
   type Status = {
@@ -4533,8 +4533,6 @@ declare function defineToolkit$1<TArgsByName extends {
 };
 
 declare function defineToolkit$1<const TDefinition extends ToolkitDefinition>(_definition: TDefinition): Toolkit & TDefinition;
-
-declare const derivedKey: unique symbol;
 
 declare namespace diff_d_exports {
   export { DiffContent as Content, DiffContentProps as ContentProps, DiffFileInput, DiffLineType, DisplayLine, FoldedRegion, DiffHeader as Header, DiffHeaderProps as HeaderProps, DiffLine as Line, DiffLineProps as LineProps, ParsedFile, ParsedLine, DiffRoot as Root, DiffRootProps as RootProps, DiffStats as Stats, DiffStatsProps as StatsProps };

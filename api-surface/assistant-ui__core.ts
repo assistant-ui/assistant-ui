@@ -1465,9 +1465,9 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   handleCancel(): Promise<void>;
 }
 
-type DerivedElement<K extends ClientNames> = ResourceElement<{
-  [derivedKey]: K;
-}>;
+type DerivedElement<K extends ClientNames> = ResourceElement<DerivedInstance<K>>;
+
+type DerivedInstance<K extends ClientNames> = ReturnType<AssistantClientAccessor<K>>;
 
 declare namespace DictationAdapter {
   type Status = {
@@ -5606,8 +5606,6 @@ declare function defineToolkit<TArgsByName extends {
 };
 
 declare function defineToolkit<const TDefinition extends ToolkitDefinition>(_definition: TDefinition): Toolkit & TDefinition;
-
-declare const derivedKey: unique symbol;
 
 declare function externalTool(): never;
 

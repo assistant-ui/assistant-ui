@@ -1855,9 +1855,9 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   handleCancel(): Promise<void>;
 }
 
-type DerivedElement<K extends ClientNames> = ResourceElement<{
-  [derivedKey]: K;
-}>;
+type DerivedElement<K extends ClientNames> = ResourceElement<DerivedInstance<K>>;
+
+type DerivedInstance<K extends ClientNames> = ReturnType<AssistantClientAccessor<K>>;
 
 interface DevToolsApiEntry {
   api: Partial<AssistantClient>;
@@ -5779,8 +5779,6 @@ declare function defineToolkit<TArgsByName extends {
 };
 
 declare function defineToolkit<const TDefinition extends ToolkitDefinition>(_definition: TDefinition): Toolkit & TDefinition;
-
-declare const derivedKey: unique symbol;
 
 declare namespace error_d_exports {
   export { ErrorPrimitiveMessage as Message, ErrorPrimitiveRoot as Root };

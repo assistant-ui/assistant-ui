@@ -108,9 +108,9 @@ declare namespace Derived {
   } & ClientMeta<K>;
 }
 
-type DerivedElement<K extends ClientNames> = ResourceElement<{
-  [derivedKey]: K;
-}>;
+type DerivedElement<K extends ClientNames> = ResourceElement<DerivedInstance<K>>;
+
+type DerivedInstance<K extends ClientNames> = ReturnType<AssistantClientAccessor<K>>;
 
 type EventSource<T extends AssistantEventName> = T extends `${infer Source}.${string}` ? Source : never;
 
@@ -172,8 +172,6 @@ type WildcardPayload = {
 }[Extract<keyof ClientEventMap, string>];
 
 declare function attachTransformScopes(hook: Hook, transform: TransformScopesFn): void;
-
-declare const derivedKey: unique symbol;
 
 declare function forwardTransformScopes(target: Hook, source: Hook): void;
 
