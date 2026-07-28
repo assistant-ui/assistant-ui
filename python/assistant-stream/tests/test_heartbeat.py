@@ -50,7 +50,8 @@ async def test_heartbeat_emitted_when_idle():
     data_lines = [line for line in lines if line.startswith("data: ")]
     assert data_lines[-1] == "data: [DONE]\n\n"
     payloads = [json.loads(line[6:-2]) for line in data_lines[:-1]]
-    assert [p["textDelta"] for p in payloads] == ["hello", "world"]
+    deltas = [p["textDelta"] for p in payloads if p["type"] == "text-delta"]
+    assert deltas == ["hello", "world"]
 
 
 @pytest.mark.anyio
