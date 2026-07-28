@@ -20,7 +20,6 @@ import {
   MessagePrimitive,
   useAuiState,
   useAui,
-  getAuiMeta,
 } from "@assistant-ui/react";
 import { useShallow } from "zustand/shallow";
 import {
@@ -138,7 +137,7 @@ const AttachmentThumb: FC = () => {
 
 const AttachmentUI: FC = () => {
   const aui = useAui();
-  const isComposer = getAuiMeta(aui.attachment).source !== "message";
+  const isComposer = aui.attachment.source !== "message";
 
   const isImage = useAuiState((s) => s.attachment.type === "image");
   const typeLabel = useAuiState((s) => {

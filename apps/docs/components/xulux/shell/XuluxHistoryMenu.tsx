@@ -54,7 +54,7 @@ export function XuluxHistoryMenu({
   );
 
   const handleSelect = (thread: XuluxStoredThread) => {
-    void Promise.resolve(aui.threads().switchToThread(thread.remoteId)).then(
+    void Promise.resolve(aui.threads.switchToThread(thread.remoteId)).then(
       () => {
         onRestoreThread(thread);
       },

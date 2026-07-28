@@ -7,7 +7,6 @@ import {
   AuiIf,
   AttachmentPrimitive,
   BranchPickerPrimitive,
-  getAuiMeta,
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
@@ -442,7 +441,7 @@ const useAttachmentSrc = () => {
 
 const ChatGPTAttachmentUI: FC = () => {
   const aui = useAui();
-  const isComposer = getAuiMeta(aui.attachment).source !== "message";
+  const isComposer = aui.attachment.source !== "message";
   const src = useAttachmentSrc();
 
   return (

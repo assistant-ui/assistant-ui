@@ -99,7 +99,7 @@ function XuluxPendingMessageHandler(): ReactNode {
 
     processedRef.current = pendingMessage;
     clearPendingMessage();
-    aui.thread().append(pendingMessage);
+    aui.thread.append(pendingMessage);
   }, [pendingMessage, clearPendingMessage, aui, isRunning]);
 
   return null;
@@ -122,7 +122,7 @@ function XuluxComposer({
         placeholder={placeholder}
         modelSelector={<XuluxModelSelector />}
         onSubmit={() => {
-          const metrics = getComposerMessageMetrics(aui.composer().getState());
+          const metrics = getComposerMessageMetrics(aui.composer.getState());
           if (!metrics) return;
           analytics.xulux.promptSubmitted(
             withXuluxContext(analyticsCtx, {
@@ -162,7 +162,7 @@ function XuluxModelSelector(): ReactNode {
   );
 
   useEffect(() => {
-    return aui.modelContext().register({
+    return aui.modelContext.register({
       getModelContext: () => ({
         config: {
           modelName: selectedModel.modelName,

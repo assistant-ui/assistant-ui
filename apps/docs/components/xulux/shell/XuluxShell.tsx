@@ -149,7 +149,7 @@ export function XuluxShell({
       setCanvas({ status: "empty", url: null, source: null, error: null });
       setViewMode("chat");
       setTemplatesOpen(false);
-      aui.thread().append({
+      aui.thread.append({
         role: "user",
         content: [{ type: "text", text: prompt }],
         ...(start.suggestionId
@@ -174,7 +174,7 @@ export function XuluxShell({
   const handleSelectTemplate = useCallback(
     (template: XuluxTemplate) => {
       const context = toSelectedTemplateContext(template);
-      void aui.threads().switchToNewThread();
+      void aui.threads.switchToNewThread();
       const previewContext = toTemplateModalPreviewContext(template);
       setSelectedTemplate(template);
       setSelectedTemplateContext(context);
@@ -212,7 +212,7 @@ export function XuluxShell({
     setTemplatesOpen(false);
     setViewMode("landing");
     onResetSession();
-    void aui.threads().switchToNewThread();
+    void aui.threads.switchToNewThread();
   }, [aui, onResetSession, onSetActivePreviewContext, onSetSessionId]);
 
   const handleRestoreThread = useCallback(
@@ -269,12 +269,12 @@ export function XuluxShell({
     updateXuluxThreadStatus(currentRemoteId ?? sessionId, "running");
     setViewMode("chat");
 
-    const messages = aui.thread().getState().messages;
+    const messages = aui.thread.getState().messages;
     const lastUserMessage = [...messages]
       .reverse()
       .find((message) => message.role === "user");
     if (lastUserMessage) {
-      void aui.thread().startRun({ parentId: lastUserMessage.id });
+      void aui.thread.startRun({ parentId: lastUserMessage.id });
       return;
     }
 
