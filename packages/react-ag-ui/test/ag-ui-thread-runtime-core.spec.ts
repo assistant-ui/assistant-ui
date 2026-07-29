@@ -52,6 +52,14 @@ const createCore = (
 
 type TestRunConfig = { custom?: Record<string, unknown> };
 
+const assistantText = (message: ThreadMessage | undefined): string => {
+  if (!message) return "";
+  for (const part of message.content) {
+    if (part.type === "text" && typeof part.text === "string") return part.text;
+  }
+  return "";
+};
+
 describe("AGUIThreadRuntimeCore", () => {
   it("streams assistant output into thread messages", async () => {
     const agent = {
@@ -4308,5 +4316,174 @@ describe("AGUIThreadRuntimeCore", () => {
       "msg-2",
     ]);
     expect(core.getMessageRepository().headId).toBe("msg-2");
+  });
+
+  it("streams text incrementally when a MESSAGES_SNAPSHOT is emitted during a run (#5307)", async () => {
+    const mid = "11111111-2222-3333-4444-555555555555";
+    const words =
+      "This is just a test to reproduce the streaming bug that has been identified in ag-ui runtime.".split(
+        " ",
+      );
+    const observed: { full: string; text: string }[] = [];
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [{ id: "u-snap", role: "user", content: "hi" }],
+          },
+        });
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: mid },
+        });
+        let full = "";
+        for (let i = 0; i < words.length; i++) {
+          const delta = (i ? " " : "") + words[i];
+          full += delta;
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", messageId: mid, delta },
+          });
+          observed.push({
+            full,
+            text: assistantText(
+              core.getMessages().find((m) => m.role === "assistant"),
+            ),
+          });
+        }
+        subscriber.onTextMessageEndEvent?.({
+          event: { type: "TEXT_MESSAGE_END", messageId: mid },
+        });
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u-snap", role: "user", content: "hi" },
+              { id: mid, role: "assistant", content: full },
+            ],
+          },
+        });
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: {} },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(observed).toHaveLength(words.length);
+    for (const { full, text } of observed) expect(text).toBe(full);
+    expect(
+      assistantText(core.getMessages().find((m) => m.role === "assistant")),
+    ).toBe(words.join(" "));
+  });
+
+  it("streams text incrementally when no snapshot is emitted during a run", async () => {
+    const mid = "22222222-3333-4444-5555-666666666666";
+    const words = "A simple incremental streaming baseline.".split(" ");
+    const observed: { full: string; text: string }[] = [];
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: mid },
+        });
+        let full = "";
+        for (let i = 0; i < words.length; i++) {
+          const delta = (i ? " " : "") + words[i];
+          full += delta;
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", messageId: mid, delta },
+          });
+          observed.push({
+            full,
+            text: assistantText(
+              core.getMessages().find((m) => m.role === "assistant"),
+            ),
+          });
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(observed).toHaveLength(words.length);
+    for (const { full, text } of observed) expect(text).toBe(full);
+  });
+
+  it("renders an assistant delivered via MESSAGES_SNAPSHOT without text deltas", async () => {
+    const mid = "33333333-4444-5555-6666-777777777777";
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u-snap", role: "user", content: "hi" },
+              { id: mid, role: "assistant", content: "Hello from snapshot" },
+            ],
+          },
+        });
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: {} },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(
+      assistantText(core.getMessages().find((m) => m.role === "assistant")),
+    ).toBe("Hello from snapshot");
+  });
+
+  it("keeps streaming when a pre-start snapshot ends with a prior-turn assistant", async () => {
+    const mid = "99999999-8888-7777-6666-555555555555";
+    const observed: string[] = [];
+    let core: AgUiThreadRuntimeCore;
+    const readText = () => {
+      const byId = core.getMessages().find((x) => x.id === mid);
+      const m =
+        byId ??
+        core
+          .getMessages()
+          .filter((x) => x.role === "assistant")
+          .at(-1);
+      const t = m?.content.find((p) => p.type === "text");
+      return t && t.type === "text" && t.text.length > 0 ? t.text : "<none>";
+    };
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u1", role: "user", content: "earlier question" },
+              { id: "a1", role: "assistant", content: "earlier answer" },
+            ],
+          },
+        });
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: mid },
+        });
+        for (const delta of ["Hel", "lo"]) {
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", messageId: mid, delta },
+          });
+          observed.push(readText());
+        }
+        subscriber.onTextMessageEndEvent?.({
+          event: { type: "TEXT_MESSAGE_END", messageId: mid },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(observed).toEqual(["Hel", "Hello"]);
   });
 });

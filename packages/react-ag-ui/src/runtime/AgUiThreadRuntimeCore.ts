@@ -892,20 +892,36 @@ export class AgUiThreadRuntimeCore {
     this.pendingError = null;
     const assistantParentId = parent ? parentId : this.repository.headId;
     let assistantMessageId: string | undefined;
-    const ensureAssistant = () => {
-      if (assistantMessageId) return assistantMessageId;
-      const created = this.insertAssistantPlaceholder(
-        assistantParentId ?? null,
-      );
+    // A snapshot the preserve gate declines still evicts the in-flight
+    // assistant; recreating under the cached id on the next content-bearing
+    // emit keeps both the stream and the message identity. Status-only emits
+    // and server-id collisions must not recreate.
+    let assistantCollided = false;
+    const ensureAssistant = (allowRecreate = false): string => {
+      const cached = assistantMessageId;
+      if (cached !== undefined && this.tryGetMessage(cached)) return cached;
+      if (cached !== undefined && (assistantCollided || !allowRecreate)) {
+        return cached;
+      }
+      const parentId =
+        assistantParentId && this.hasMessage(assistantParentId)
+          ? assistantParentId
+          : this.repository.headId;
+      const created = this.insertAssistantPlaceholder(parentId, cached);
       assistantMessageId = created;
-      this.markPendingAssistantHistory(created, assistantParentId ?? null);
+      this.markPendingAssistantHistory(created, parentId);
       return created;
     };
 
     if (shouldEagerlyInsertAssistant) ensureAssistant();
 
     const applyUpdate = (update: ChatModelRunResult) => {
-      const resolved = this.updateAssistantMessage(ensureAssistant(), update);
+      const hasContent =
+        Array.isArray(update.content) && update.content.length > 0;
+      const resolved = this.updateAssistantMessage(
+        ensureAssistant(hasContent),
+        update,
+      );
       if (resolved !== assistantMessageId) {
         assistantMessageId = resolved;
       }
@@ -916,10 +932,12 @@ export class AgUiThreadRuntimeCore {
       logger: this.logger,
       emit: applyUpdate,
       onServerMessageId: (serverId) => {
-        const placeholder = ensureAssistant();
+        const placeholder = ensureAssistant(true);
         if (placeholder === serverId) return;
         if (this.reassignAssistantId(placeholder, serverId)) {
           assistantMessageId = serverId;
+        } else {
+          assistantCollided = true;
         }
       },
     });
@@ -1136,8 +1154,10 @@ export class AgUiThreadRuntimeCore {
     this.setRunning(false);
   }
 
-  private insertAssistantPlaceholder(parentId: string | null): string {
-    const id = generateOptimisticId();
+  private insertAssistantPlaceholder(
+    parentId: string | null,
+    id: string = generateOptimisticId(),
+  ): string {
     const assistant: ThreadAssistantMessage = {
       id,
       role: "assistant",
