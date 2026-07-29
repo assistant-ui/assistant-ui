@@ -667,7 +667,7 @@ export class A2AClient {
       }
     } finally {
       try {
-        if (shouldCancel) await reader.cancel();
+        if (shouldCancel) await reader.cancel().catch(() => undefined);
       } finally {
         reader.releaseLock();
       }
