@@ -32,11 +32,6 @@ export const createTapRoot = <R>(
         errors.push(error);
       }
     }
-    if (dispatchQueue.length > 0) {
-      // Re-entrant dispatch: re-queued and re-run in this same pass, so a
-      // re-entrant loop stays visible to the re-run guard.
-      scheduler.markDirty();
-    }
     throwCollectedErrors(
       errors,
       "Errors occurred during createTapRoot dispatch",
