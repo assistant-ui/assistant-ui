@@ -200,7 +200,7 @@ describe("scheduler batched draining", () => {
 
     const schedulers = Array.from(
       { length: 100001 },
-      (_, i) => new UpdateScheduler(() => {}),
+      (_, _i) => new UpdateScheduler(() => {}),
     );
 
     expect(() =>

@@ -94,7 +94,11 @@ const flushScheduled = (errors: CollectedErrors, defer = true): number => {
   try {
     for (const scheduler of flushState.schedulers) {
       if (taskCount >= MAX_TASKS_PER_FLUSH) {
-        reportDepthError(errors);
+        // The per-pass ceiling only reports on the macrotask path; a sync
+        // caller chunks silently and applies its own total ceiling.
+        if (defer) {
+          reportDepthError(errors);
+        }
         break;
       }
       flushState.schedulers.delete(scheduler);
@@ -111,7 +115,15 @@ const flushScheduled = (errors: CollectedErrors, defer = true): number => {
       try {
         scheduler.runTask();
       } catch (error) {
-        errors.push(error);
+        // A task that throws deterministically on every re-run would
+        // otherwise flood the batch with identical entries.
+        const message = error instanceof Error ? error.message : String(error);
+        const duplicate = errors.some(
+          (e) => (e instanceof Error ? e.message : String(e)) === message,
+        );
+        if (!duplicate) {
+          errors.push(error);
+        }
       }
     }
   } finally {
