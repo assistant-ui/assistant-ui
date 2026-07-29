@@ -17,20 +17,22 @@ class EmptyAssistantClientProxyHandler
   extends BaseProxyHandler
   implements ProxyHandler<AssistantClient>
 {
-  constructor(
-    private readonly displayName: string,
-    private readonly messageOf: (prop: string) => string,
-  ) {
+  readonly #displayName: string;
+  readonly #messageOf: (prop: string) => string;
+
+  constructor(displayName: string, messageOf: (prop: string) => string) {
     super();
+    this.#displayName = displayName;
+    this.#messageOf = messageOf;
   }
 
   get(_: unknown, prop: string | symbol) {
     if (prop === "subscribe") return NO_OP_SUBSCRIBE;
     if (prop === "on") return NO_OP_SUBSCRIBE;
-    const introspection = handleIntrospectionProp(prop, this.displayName);
+    const introspection = handleIntrospectionProp(prop, this.#displayName);
     if (introspection !== false) return introspection;
     return createErrorClientAccessor(
-      this.messageOf(String(prop)),
+      this.#messageOf(String(prop)),
       String(prop),
     );
   }
