@@ -27,8 +27,8 @@ importers:
         specifier: ^1.75.0
         version: 1.75.0
       pkg-pr-new:
-        specifier: ^0.0.75
-        version: 0.0.75
+        specifier: ^0.0.80
+        version: 0.0.80
       turbo:
         specifier: ^2.10.6
         version: 2.10.6
@@ -15643,8 +15643,8 @@ packages:
     resolution: {integrity: sha512-/E57AYkoeQ25qkxMj5PBOVgF8Kiu/h7cYS30Z5+R7WaiCCBfLq58ZI/dSeaEKb9WVJV5n/03QwrN3IeWIFllvw==}
     engines: {node: '>=6'}
 
-  pkg-pr-new@0.0.75:
-    resolution: {integrity: sha512-u9mdErTewKSMsr+ceCt8VcNuNP0ro5AXiPXhUVApuEyqr2Zlvt+DdCFBcm+yGWN8mhOdZJ27meIDbnoZgfzpOw==}
+  pkg-pr-new@0.0.80:
+    resolution: {integrity: sha512-a6Ie3sxNVrIkx5TQhe5+nbPbyLQg0jnrMNDYoXQpDXBaELxdDgwUVmlVThOSj7oKB3kEIrji5xyhSvWAWf5ABQ==}
     hasBin: true
 
   pkg-types@2.3.1:
@@ -30071,7 +30071,7 @@ snapshots:
     dependencies:
       find-up: 3.0.0
 
-  pkg-pr-new@0.0.75: {}
+  pkg-pr-new@0.0.80: {}
 
   pkg-types@2.3.1:
     dependencies:
