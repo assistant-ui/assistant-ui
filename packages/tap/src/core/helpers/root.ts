@@ -35,13 +35,12 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
     }
     root.rollbackCallbacks.length = 0;
 
-    if (version === root.committedVersion) {
+    if (version <= root.committedVersion) {
+      // A version below the last commit is a React concurrent reducer replay
+      // from an older base; the replayed chain re-supplies its updates.
       root.changelog.length = 0;
     } else {
       // commit happened without a useEffect update (offscreen API)
-
-      if (root.committedVersion > version)
-        throw new Error("Version is less than committed version");
 
       while (root.committedVersion + root.changelog.length > version) {
         root.changelog.pop();
