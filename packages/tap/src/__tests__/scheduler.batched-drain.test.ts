@@ -78,19 +78,18 @@ describe("scheduler batched draining", () => {
     const [channel] = ControlledMessageChannel.instances;
     expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
 
-    // The dropped offender is not left dirty: a stale isDirty would stall
-    // its root's publishing and re-burn 50 runs on every later markDirty.
-    expect(scheduler.isDirty).toBe(false);
-
-    // The looping scheduler is dropped instead of permanently poisoning the
-    // queue: later, unrelated work must flush normally.
+    // The offender is skipped, not dropped: it stays queued (still dirty,
+    // so its root doesn't publish half-applied state) and is retried on
+    // every pass - a true loop reports each pass while the rest of the
+    // queue keeps flushing.
     let ran = false;
     const other = new UpdateScheduler(() => {
       ran = true;
     });
     other.markDirty();
-    expect(() => pump(channel!)).not.toThrow();
+    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
     expect(ran).toBe(true);
+    expect(scheduler.isDirty).toBe(true);
   });
 
   it("terminates a ring of mutually re-dirtying schedulers", async () => {
@@ -98,9 +97,9 @@ describe("scheduler batched draining", () => {
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler } = await import("../core/scheduler");
 
-    // A dirties B and B dirties A: both cross the per-scheduler run limit
-    // in turn and are dropped individually, so the ring terminates while
-    // unrelated work keeps flushing afterwards.
+    // A dirties B and B dirties A: both hit the run limit and are skipped
+    // (kept queued, retried each pass), so the ring degrades to a loud
+    // error per flush while the rest of the queue keeps flushing.
     let a: InstanceType<typeof UpdateScheduler>;
     let b: InstanceType<typeof UpdateScheduler>;
     a = new UpdateScheduler(() => b.markDirty());
@@ -109,26 +108,25 @@ describe("scheduler batched draining", () => {
 
     const [channel] = ControlledMessageChannel.instances;
     expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
-    expect(() => pump(channel!)).not.toThrow();
 
     let ran = false;
     new UpdateScheduler(() => {
       ran = true;
     }).markDirty();
-    expect(() => pump(channel!)).not.toThrow();
+    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
     expect(ran).toBe(true);
   });
 
-  it("drains a 60000-scheduler batch silently across chunked passes", async () => {
+  it("drains a 2500-scheduler batch silently across chunked passes", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler } = await import("../core/scheduler");
 
-    // Bigger than one pass (50000) but under the burst bound: chunks
+    // Bigger than one pass (1000) but under the burst bound: chunks
     // continue silently on follow-up macrotasks, no depth error.
     const ran: number[] = [];
     const schedulers = Array.from(
-      { length: 60000 },
+      { length: 2500 },
       (_, i) =>
         new UpdateScheduler(() => {
           ran.push(i);
@@ -140,7 +138,7 @@ describe("scheduler batched draining", () => {
 
     const [channel] = ControlledMessageChannel.instances;
     expect(() => pump(channel!)).not.toThrow();
-    expect(ran).toHaveLength(60000);
+    expect(ran).toHaveLength(2500);
   });
 
   it("drains a 10001-scheduler batch in one flush", async () => {

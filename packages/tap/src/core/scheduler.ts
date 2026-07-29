@@ -18,14 +18,16 @@ const newFlushState = (): GlobalFlushState => ({
 // other); the offender is dropped so the rest of the queue keeps flushing.
 const MAX_TASK_RUNS_PER_FLUSH = 50;
 // A pass yields at this many tasks and continues on the next flush, so
-// oversized batches chunk across macrotasks instead of blocking.
-const MAX_TASKS_PER_FLUSH = 50000;
+// oversized batches chunk across macrotasks instead of blocking. ~1.5x
+// the motivating repro (one 200-message history page ~= 600 resources).
+const MAX_TASKS_PER_FLUSH = 1000;
 // Last-resort termination, documented as the real bound: nothing can
 // distinguish a huge finite cascade from an infinite one, so a burst that
-// runs more than this many tasks in total (~100x any realistic bulk
-// update) is declared a loop and reported. The queue is never dropped; a
-// stalled remainder continues on the next triggered flush.
-const MAX_BURST_TASKS = 500000;
+// runs more than this many tasks in total (~33x the repro, ~= 6600
+// messages in one update) is declared a loop and reported. The queue is
+// never dropped; a stalled remainder continues on the next triggered
+// flush.
+const MAX_BURST_TASKS = 20000;
 let flushState: GlobalFlushState = newFlushState();
 
 export class UpdateScheduler {
@@ -46,11 +48,6 @@ export class UpdateScheduler {
 
     flushState.schedulers.add(this);
     scheduleFlush();
-  }
-
-  /** @internal Called when the run guard drops a scheduler, so the root is not left permanently dirty (which would stall its own publishing). */
-  clearDirty() {
-    this._isDirty = false;
   }
 
   runTask() {
@@ -79,7 +76,10 @@ const reportDepthError = (errors: CollectedErrors) => {
   errors.push(newDepthError());
 };
 
-export const throwCollectedErrors = (errors: unknown[]): void => {
+export const throwCollectedErrors = (
+  errors: unknown[],
+  context = "Errors occurred during flushSync",
+): void => {
   if (errors.length === 1) {
     throw errors[0];
   }
@@ -87,7 +87,7 @@ export const throwCollectedErrors = (errors: unknown[]): void => {
     for (const error of errors) {
       console.error(error);
     }
-    throw new AggregateError(errors, "Errors occurred during flushSync");
+    throw new AggregateError(errors, context);
   }
 };
 
@@ -99,7 +99,7 @@ export const throwCollectedErrors = (errors: unknown[]): void => {
 // tasks, keeping the remainder queued for the next triggered flush.
 const flushScheduled = (errors: CollectedErrors, defer = true): number => {
   const runCounts = new Map<UpdateScheduler, number>();
-  const errorContributors = new Set<UpdateScheduler>();
+  const errorContributors = new Map<UpdateScheduler, Set<string>>();
   let taskCount = 0;
 
   let hitCeiling = false;
@@ -110,28 +110,31 @@ const flushScheduled = (errors: CollectedErrors, defer = true): number => {
         hitCeiling = true;
         break;
       }
-      flushState.schedulers.delete(scheduler);
-      if (!scheduler.isDirty) continue;
-
       const runs = (runCounts.get(scheduler) ?? 0) + 1;
       if (runs > MAX_TASK_RUNS_PER_FLUSH) {
+        // Skipped, not dropped: the offender stays queued and is retried
+        // next pass, so a deep-but-finite cascade still finishes while a
+        // true loop just burns MAX_TASK_RUNS_PER_FLUSH runs per pass and
+        // reports each time.
         reportDepthError(errors);
-        // Dropped, but not left dirty: a stale isDirty would stall the
-        // root's own publishing and re-burn 50 runs on every later
-        // markDirty.
-        scheduler.clearDirty();
         continue;
       }
+      flushState.schedulers.delete(scheduler);
+      if (!scheduler.isDirty) continue;
       runCounts.set(scheduler, runs);
       taskCount += 1;
 
       try {
         scheduler.runTask();
       } catch (error) {
-        // A task that throws deterministically on every re-run contributes
-        // one entry, without hiding a different scheduler's failure.
-        if (!errorContributors.has(scheduler)) {
-          errorContributors.add(scheduler);
+        // One entry per (scheduler, message): a deterministically
+        // re-throwing task can't flood the batch, and two different
+        // failures - even with the same message - both surface.
+        const message = error instanceof Error ? error.message : String(error);
+        const seen = errorContributors.get(scheduler) ?? new Set<string>();
+        if (!seen.has(message)) {
+          seen.add(message);
+          errorContributors.set(scheduler, seen);
           errors.push(error);
         }
       }
@@ -198,17 +201,19 @@ export const flushTapSync = <T>(callback: () => T): T => {
   flushState = newFlushState();
   flushState.isScheduled = true;
 
+  const leftover: UpdateScheduler[] = [];
   try {
     const value = callback();
     // Synchronous callers rely on every notification having landed by the
     // time this returns, so drain across passes until the queue is empty;
-    // a runaway is bounded by the same task ceiling (checked before each
-    // pass, so finite batches always finish first).
+    // the burst bound only fires for a runaway, whose remainder is handed
+    // back to the outer state (see finally) rather than orphaned.
     const errors: CollectedErrors = [];
     let total = 0;
     while (flushState.schedulers.size > 0) {
       if (total > MAX_BURST_TASKS) {
         reportDepthError(errors);
+        leftover.push(...flushState.schedulers);
         break;
       }
       total += flushScheduled(errors, false);
@@ -218,5 +223,11 @@ export const flushTapSync = <T>(callback: () => T): T => {
     return value;
   } finally {
     flushState = prev;
+    for (const scheduler of leftover) {
+      prev.schedulers.add(scheduler);
+    }
+    if (leftover.length > 0) {
+      scheduleFlush();
+    }
   }
 };

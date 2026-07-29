@@ -8,13 +8,14 @@ When more than 50 schedulers were dirty in one flush (e.g. hundreds of
 resources mounting from a single bulk state update), the scheduler aborted
 the flush and discarded the remaining dirty schedulers, leaving resources
 permanently stale. A flush now drains the queue completely, chunking
-silently across macrotasks when a batch exceeds one pass, so bulk updates
-of any size land without errors. Infinite-loop detection no longer depends
-on batch shape: a per-scheduler re-run guard (> 50 runs in one flush)
-drops just the offending scheduler, so self-re-dirtying resources and
-mutually re-dirtying rings throw "Maximum update depth exceeded" while the
-rest of the queue keeps flushing; and a documented last-resort bound of
-500000 tasks per burst terminates cascades of freshly minted schedulers
-without ever dropping queued work. `createTapRoot` now holds one
-UpdateScheduler per root (mirroring `useTapRoot`) so the guard covers
-every root type.
+silently across macrotasks when a batch exceeds one pass (1000 tasks), so
+bulk updates of any size land without errors. Infinite-loop detection no
+longer depends on batch size: a per-scheduler re-run guard (> 50 runs in
+one flush) skips just the offending scheduler and retries it next pass,
+so self-re-dirtying resources and mutually re-dirtying rings report
+"Maximum update depth exceeded" while the rest of the queue — and any
+deep-but-finite cascade — keeps flushing; a documented last-resort bound
+of 20000 tasks per burst (~33x a real 600-resource history-page load)
+terminates cascades of freshly minted schedulers without dropping queued
+work. `createTapRoot` now holds one UpdateScheduler per root (mirroring
+`useTapRoot`) so the guard covers every root type.

@@ -16,11 +16,8 @@ import { createResourceFiberRoot } from "./helpers/root";
 export const createTapRoot = <R>(
   render: () => R,
 ): useTapRoot.Root<R> & { unmount: () => void } => {
-  // One scheduler per root, mirroring useTapRoot: a per-scheduler re-run
-  // guard then covers this root type too. Dispatches queue up and drain in
-  // order within a single flush task. Each task processes a snapshot of
-  // the queue; a dispatch raised DURING the drain falls to a follow-up
-  // task, so a re-entrant loop stays visible to the re-run guard.
+  // One scheduler per root (mirroring useTapRoot) so the per-scheduler
+  // re-run guard covers this root type too.
   const dispatchQueue: { evaluate: () => boolean; apply: () => boolean }[] = [];
   const scheduler = new UpdateScheduler(() => {
     const errors: unknown[] = [];
@@ -36,9 +33,14 @@ export const createTapRoot = <R>(
       }
     }
     if (dispatchQueue.length > 0) {
+      // Re-entrant dispatch: re-queued and re-run in this same pass, so a
+      // re-entrant loop stays visible to the re-run guard.
       scheduler.markDirty();
     }
-    throwCollectedErrors(errors);
+    throwCollectedErrors(
+      errors,
+      "Errors occurred during createTapRoot dispatch",
+    );
   });
 
   const fiber = createResourceFiber(
