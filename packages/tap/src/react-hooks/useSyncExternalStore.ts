@@ -1,16 +1,14 @@
 import { useState } from "./useState";
 import { useEffect } from "./useEffect";
 import { useEffectEvent } from "./useEffectEvent";
-import { useRef } from "./useRef";
 
 export const useSyncExternalStore = <T>(
   subscribe: (onStoreChange: () => void) => () => void,
   getSnapshot: () => T,
-  getServerSnapshot: () => T = getSnapshot,
+  // Signature parity with React; tap never hydrates, so it is ignored
+  _getServerSnapshot?: () => T,
 ): T => {
-  const isFirstRender = useRef(true);
-  const value = isFirstRender.current ? getServerSnapshot() : getSnapshot();
-  isFirstRender.current = false;
+  const value = getSnapshot();
 
   const [, forceUpdate] = useState(0);
 

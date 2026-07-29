@@ -75,21 +75,23 @@ describe("useSyncExternalStore", () => {
     expect(renders).toBe(rendersAfterMount);
   });
 
-  it("uses getServerSnapshot for the first render and corrects to getSnapshot on mount", async () => {
+  it("ignores getServerSnapshot; the first render uses the client snapshot", async () => {
     const store = createStore("client");
-    const testFiber = createTestResource(() =>
-      useSyncExternalStore(
+    let renders = 0;
+    const testFiber = createTestResource(() => {
+      renders++;
+      return useSyncExternalStore(
         (cb) => store.subscribe(cb),
         () => store.getState(),
         () => "server",
-      ),
-    );
+      );
+    });
 
-    // the first render itself returns the server snapshot
-    expect(renderTest(testFiber)).toBe("server");
-    // the mount effect detects the mismatch and re-renders with the client read
+    // tap never hydrates, so there is no server pass and no correction render
+    expect(renderTest(testFiber)).toBe("client");
     await waitForNextTick();
     expect(getCommittedValue(testFiber)).toBe("client");
+    expect(renders).toBe(1);
   });
 
   it("does not re-render when server and client snapshots match", async () => {
