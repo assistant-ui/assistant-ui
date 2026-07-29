@@ -154,7 +154,7 @@ export function contentPartsToA2AParts(
         case "audio": {
           if (!part.audio) return null;
           return {
-            raw: part.audio.data,
+            raw: parseDataUrl(part.audio.data)?.data ?? part.audio.data,
             mediaType: `audio/${part.audio.format}`,
           };
         }

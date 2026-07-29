@@ -403,6 +403,16 @@ describe("contentPartsToA2AParts", () => {
     expect(result).toEqual([{ raw: "c291bmQ=", mediaType: "audio/mp3" }]);
   });
 
+  it("strips data URL envelopes from audio payloads and keeps the format MIME type", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "audio",
+        audio: { data: "data:audio/mpeg;base64,c291bmQ=", format: "mp3" },
+      },
+    ]);
+    expect(result).toEqual([{ raw: "c291bmQ=", mediaType: "audio/mp3" }]);
+  });
+
   it("skips audio parts with no payload", () => {
     const result = contentPartsToA2AParts([{ type: "audio" }]);
     expect(result).toEqual([]);
